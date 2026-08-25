@@ -312,10 +312,11 @@ projectRoutes.post(
         }
 
         if (parsed.data.organizationId) {
-          const membership = ctx.stores.organizationMemberships.get(
-            `${parsed.data.organizationId}:${principalId}`,
+          const membership = await ctx.stores.organizationMemberships.find(
+            parsed.data.organizationId,
+            principalId,
           );
-          const organization = ctx.stores.organizations.get(
+          const organization = await ctx.stores.organizations.get(
             parsed.data.organizationId,
           );
           if (

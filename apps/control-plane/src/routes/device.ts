@@ -11,7 +11,6 @@ import {
   authenticatedPrincipalId,
   ensurePersonalOrganization,
   hostApiEndpoint,
-  membershipKey,
   serializeMembershipMutation,
 } from "./organizations.js";
 
@@ -45,16 +44,14 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
       400,
     );
   }
-  let memberships = [...ctx.stores.organizationMemberships.values()].filter(
-    (membership) => membership.principalId === principalId,
-  );
+  let memberships =
+    await ctx.stores.organizationMemberships.listByPrincipal(principalId);
   // Local/dev Pages flow: a provisional principal with no workspace yet still
   // needs a Host session. Seed the personal org on approve, not only at mint.
   if (memberships.length === 0 && ctx.config.bootstrapPersonalOrganization) {
-    ensurePersonalOrganization(ctx, principalId);
-    memberships = [...ctx.stores.organizationMemberships.values()].filter(
-      (membership) => membership.principalId === principalId,
-    );
+    await ensurePersonalOrganization(ctx, principalId);
+    memberships =
+      await ctx.stores.organizationMemberships.listByPrincipal(principalId);
   }
   const organizationId =
     (isString(body.organization_id) ? body.organization_id.trim() : "") ||
@@ -73,10 +70,11 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
     // this authoritative re-read through Host approval gives a strict order:
     // either approval lands first and the following mutation revokes it, or the
     // mutation lands first and this request observes the new authority.
-    const membership = ctx.stores.organizationMemberships.get(
-      membershipKey(organizationId, principalId),
+    const membership = await ctx.stores.organizationMemberships.find(
+      organizationId,
+      principalId,
     );
-    const organization = ctx.stores.organizations.get(organizationId);
+    const organization = await ctx.stores.organizations.get(organizationId);
     if (!membership || !organization || organization.state !== "active") {
       return c.json({ error: "organization_access_denied" }, 403);
     }

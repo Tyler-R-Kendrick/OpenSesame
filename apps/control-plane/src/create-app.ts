@@ -1,6 +1,7 @@
 import { createChainedAuditSink } from "@opensesame/audit";
 import {
   MemoryPrincipalMappingStore,
+  type UpstreamAuthDatabase,
   createMemoryChallengeStore,
   createPasskeySeam,
   createSimpleWebAuthnVerifyFn,
@@ -8,16 +9,28 @@ import {
 import { ClaimEngine } from "@opensesame/claims";
 import {
   ConflictError,
+  type OrgFederationStores,
+  type OrganizationStores,
   type ProjectStores,
   type Repositories,
+  type SamlStores,
+  type ScimStores,
+  betterAuthAccounts,
+  betterAuthSessions,
+  betterAuthUsers,
+  betterAuthVerifications,
   createDrizzle,
   createPostgresClientClaimChallengeStore,
   createPostgresClientOriginStore,
   createPostgresClientRecordStore,
   createPostgresConsentStore,
   createPostgresOidcStore,
+  createPostgresOrgFederationStores,
+  createPostgresOrganizationStores,
   createPostgresPairwiseStore,
   createPostgresProjectStores,
+  createPostgresSamlStores,
+  createPostgresScimStores,
   createRepositories,
 } from "@opensesame/database";
 import {
@@ -36,6 +49,10 @@ import {
 } from "./config.js";
 import type { AppContext, ControlPlaneRepositories } from "./context.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
+// INTEGRATOR (S11): the mailer seam is the whole of this swarm's footprint in
+// this file — one import, one context field below. Email delivery for the
+// magic-link method (D16) lives in services/mailer.ts.
+import { createMailer } from "./services/mailer.js";
 import { createAppStores } from "./state.js";
 
 export interface CreateControlPlaneOptions {
@@ -54,6 +71,26 @@ export interface CreateControlPlaneOptions {
    * against the Postgres implementation without a server.
    */
   projectStores?: ProjectStores;
+  /**
+   * Test seam: inject organization stores. Defaults to the Postgres stores
+   * when a `databaseUrl` is configured, memory otherwise — the same shape the
+   * project stores use, so a route suite can run either implementation
+   * without a server.
+   */
+  organizationStores?: OrganizationStores;
+  /**
+   * Test seam: inject the Better Auth database. Defaults to the same Drizzle
+   * bundle everything else uses when a `databaseUrl` is configured, and to
+   * nothing (Better Auth's in-memory adapter) otherwise — so a suite can prove
+   * a magic link outlives the instance that minted it without a server.
+   */
+  betterAuthDatabase?: UpstreamAuthDatabase;
+  /** Test seam: inject SCIM stores (same defaulting rule as the org stores). */
+  scimStores?: ScimStores;
+  /** Test seam: inject the org email-domain + LDAP configuration stores. */
+  orgFederationStores?: OrgFederationStores;
+  /** Test seam: inject the SAML pending/replay stores. */
+  samlStores?: SamlStores;
 }
 
 /**
@@ -187,6 +224,26 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const projectStores =
     options.projectStores ??
     (drizzleBundle ? createPostgresProjectStores(drizzleBundle.db) : undefined);
+  // Durable organizations + memberships (ADR 0055): a tenant's SSO issuer is
+  // read on the login path, so it has to outlive the process that configured
+  // it. The rest of the federation storage follows the same rule — memory in
+  // tests/dev, Postgres the moment a database is configured.
+  const organizationStores =
+    options.organizationStores ??
+    (drizzleBundle
+      ? createPostgresOrganizationStores(drizzleBundle.db)
+      : undefined);
+  const scimStores =
+    options.scimStores ??
+    (drizzleBundle ? createPostgresScimStores(drizzleBundle.db) : undefined);
+  const orgFederationStores =
+    options.orgFederationStores ??
+    (drizzleBundle
+      ? createPostgresOrgFederationStores(drizzleBundle.db)
+      : undefined);
+  const samlStores =
+    options.samlStores ??
+    (drizzleBundle ? createPostgresSamlStores(drizzleBundle.db) : undefined);
   // The system owner principal must exist before the first auto-admission
   // writes owner_principal_id (a FK against Postgres). createControlPlane is
   // synchronous, so the promise travels on the context and the server awaits
@@ -217,6 +274,10 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ...(clientOriginStore ? { clientOrigins: clientOriginStore } : undefined),
     ...(consentStore ? { consents: consentStore } : undefined),
     ...(projectStores ? { projectStores } : undefined),
+    ...(organizationStores ? { organizationStores } : undefined),
+    ...(scimStores ? { scimStores } : undefined),
+    ...(orgFederationStores ? { orgFederationStores } : undefined),
+    ...(samlStores ? { samlStores } : undefined),
   });
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {
@@ -230,6 +291,22 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       ? async (assertion, _credential) => assertion.signature.byteLength > 0
       : createSimpleWebAuthnVerifyFn(rp, passkeyChallenges),
   });
+
+  const betterAuthDatabase =
+    options.betterAuthDatabase ??
+    (drizzleBundle
+      ? {
+          drizzle: drizzleBundle.db,
+          schema: {
+            // Keyed by Better Auth's own model names; the SQL tables they
+            // resolve to are the `better_auth_*` ones.
+            user: betterAuthUsers,
+            session: betterAuthSessions,
+            account: betterAuthAccounts,
+            verification: betterAuthVerifications,
+          },
+        }
+      : undefined);
 
   const ctx: AppContext = {
     config,
@@ -245,6 +322,10 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ready: options.ready ?? true,
     passkeys,
     passkeyChallenges,
+    mailer: createMailer(processEnv, config),
+    // The same pool everything else on this context uses, so a magic link
+    // written by one request is readable by the next — and by another replica.
+    ...(betterAuthDatabase ? { betterAuthDatabase } : undefined),
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
     systemPrincipalReady,
   };

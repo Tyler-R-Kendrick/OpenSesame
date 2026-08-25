@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FederationError,
   TRUSTED_UPSTREAMS,
+  adoptBrokeredSession,
   beginSignIn,
   clearAuthResponseFromUrl,
   clearSession,
@@ -14,6 +15,7 @@ import {
   discover,
   displayName,
   hasAuthResponse,
+  isBrokeredIssuer,
   loadSession,
   originClientId,
   redirectUri,
@@ -21,6 +23,12 @@ import {
   upstreamByIssuer,
 } from "./federation.js";
 import type { UpstreamIdentity } from "./federation.js";
+import { identitySeams } from "./identity.js";
+import {
+  brokeredRealmUpstream,
+  brokeredUpstream,
+  workEmailDomain,
+} from "./providers.js";
 
 const PKCE_KEY = "opensesame:federation:pkce";
 const SESSION_KEY = "opensesame:federation:session";
@@ -561,5 +569,278 @@ describe("clearAuthResponseFromUrl", () => {
     );
     clearAuthResponseFromUrl();
     expect(location.search).toBe("?keep=1");
+  });
+});
+
+/**
+ * Brokered federation (C11/D7/D8): providers whose token endpoint serves no
+ * CORS are run by the Identity API on this app's behalf. That makes the
+ * configured Identity API a trusted issuer for this app — and nothing else.
+ */
+describe("brokered federation", () => {
+  const BASE = "http://127.0.0.1:18788";
+  const originalIdentityBase = identitySeams.identityBase;
+  const originalRestoreSession = identitySeams.restoreSession;
+
+  function stubDiscoveryAt(issuer: string): void {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            issuer,
+            authorization_endpoint: `${issuer}/auth`,
+            token_endpoint: `${issuer}/token`,
+            jwks_uri: `${issuer}/jwks`,
+          }),
+        ),
+      ),
+    );
+  }
+
+  /** jsdom will not navigate, so the authorize URL is captured instead. */
+  function captureNavigation() {
+    const seen: string[] = [];
+    vi.stubGlobal("location", {
+      origin: window.location.origin,
+      hostname: window.location.hostname,
+      href: window.location.href,
+      search: window.location.search,
+      assign: (url: string) => {
+        seen.push(url);
+      },
+    });
+    return {
+      assigned: () => (seen[0] ? new URL(seen[0]) : undefined),
+    };
+  }
+
+  beforeEach(() => {
+    identitySeams.identityBase = () => BASE;
+  });
+
+  afterEach(() => {
+    identitySeams.identityBase = originalIdentityBase;
+    identitySeams.restoreSession = originalRestoreSession;
+  });
+
+  it("names the provider under both hint parameters the login page reads", async () => {
+    stubDiscoveryAt(BASE);
+    const nav = captureNavigation();
+    await beginSignIn(
+      brokeredUpstream({
+        id: "google",
+        label: "Google",
+        kind: "oidc",
+        browserCapable: false,
+      }),
+      { providerHint: "google", returnTo: "/" },
+    );
+    const url = nav.assigned();
+    expect(url?.searchParams.get("kc_idp_hint")).toBe("google");
+    expect(url?.searchParams.get("login_hint_provider")).toBe("google");
+    // No provider hint means no hint parameters at all.
+    expect(url?.searchParams.get("login_hint")).toBeNull();
+  });
+
+  it("carries only the work-email domain into home-realm discovery", async () => {
+    stubDiscoveryAt(BASE);
+    const nav = captureNavigation();
+    await beginSignIn(brokeredRealmUpstream(), {
+      returnTo: "/",
+      loginHint: workEmailDomain("ada.lovelace@acme.example"),
+    });
+    const url = nav.assigned();
+    expect(url?.searchParams.get("login_hint")).toBe("acme.example");
+    expect(url?.toString()).not.toContain("ada.lovelace");
+  });
+
+  it("admits the configured Identity API as an issuer and adopts its sub", async () => {
+    seedPending({
+      upstreamId: "broker:google",
+      issuer: BASE,
+      tokenEndpoint: `${BASE}/token`,
+    });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            access_token: "at_brokered",
+            id_token: jwt({
+              iss: BASE,
+              aud: originClientId(),
+              exp: 4_000_000_000,
+              // The Identity API's origin-profile subject is pairwise already.
+              sub: "prn_broker_subject",
+            }),
+          }),
+        ),
+      ),
+    );
+    const result = await completeSignIn();
+    expect(result?.identity.pairwiseSub).toBe("prn_broker_subject");
+    expect(result?.accessToken).toBe("at_brokered");
+    // The brokered identity is a durable Pages session, unlike an org assertion.
+    expect(loadSession()?.issuer).toBe(BASE);
+  });
+
+  it("still refuses an issuer that is merely close to the Identity API", async () => {
+    seedPending({
+      issuer: "http://127.0.0.1:18788.evil.example",
+      tokenEndpoint: "http://127.0.0.1:18788.evil.example/token",
+    });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            access_token: "at_evil",
+            id_token: jwt({
+              iss: "http://127.0.0.1:18788.evil.example",
+              aud: originClientId(),
+              exp: 4_000_000_000,
+              sub: "whoever",
+            }),
+          }),
+        ),
+      ),
+    );
+    await expect(completeSignIn()).rejects.toMatchObject({
+      code: "untrusted_issuer",
+    });
+  });
+
+  it("refuses a subject-less token from the brokered issuer", async () => {
+    seedPending({ issuer: BASE, tokenEndpoint: `${BASE}/token` });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            id_token: jwt({
+              iss: BASE,
+              aud: originClientId(),
+              exp: 4_000_000_000,
+            }),
+          }),
+        ),
+      ),
+    );
+    await expect(completeSignIn()).rejects.toThrowError(/identifies nobody/);
+  });
+
+  it("never carries an access token off a direct upstream flow", async () => {
+    seedPending();
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            access_token: "at_upstream",
+            id_token: jwt({
+              iss: "http://127.0.0.1:9090",
+              aud: originClientId(),
+              exp: 4_000_000_000,
+              pairwise_sub: "sub-1",
+            }),
+          }),
+        ),
+      ),
+    );
+    const result = await completeSignIn();
+    expect(result?.identity.pairwiseSub).toBe("sub-1");
+    expect(result?.accessToken).toBeUndefined();
+  });
+
+  it("keeps a stored brokered session only while the Identity API matches", () => {
+    saveSession(identity({ issuer: BASE, upstreamId: "broker:google" }));
+    expect(loadSession()?.issuer).toBe(BASE);
+    // Repointing Settings at another Identity API withdraws that trust.
+    identitySeams.identityBase = () => "http://127.0.0.1:28788";
+    expect(loadSession()).toBeNull();
+  });
+
+  it("never treats an unconfigured Identity API as a trusted issuer", () => {
+    identitySeams.identityBase = () => "";
+    expect(isBrokeredIssuer("")).toBe(false);
+    expect(isBrokeredIssuer(BASE)).toBe(false);
+  });
+
+  it("trades the brokered access token for a first-party session", async () => {
+    const restored: string[] = [];
+    identitySeams.restoreSession = (next) => {
+      restored.push(`${next.principalId}:${next.accessToken}`);
+    };
+    const requests: Array<{ url: string; body: string }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init: RequestInit = {}) => {
+        requests.push({ url, body: String(init.body ?? "") });
+        return Promise.resolve(
+          Response.json({
+            principalId: "prn_1",
+            accessToken: "pst_first_party",
+            expiresAt: "2030-01-01T00:00:00.000Z",
+          }),
+        );
+      }),
+    );
+
+    const session = await adoptBrokeredSession("at_brokered");
+
+    expect(session).toMatchObject({
+      principalId: "prn_1",
+      accessToken: "pst_first_party",
+      issuerOrigin: BASE,
+      expiresAt: "2030-01-01T00:00:00.000Z",
+    });
+    expect(restored).toEqual(["prn_1:pst_first_party"]);
+    const sent = requests[0];
+    expect(sent?.url).toBe(`${BASE}/v1/principals/federated-session`);
+    expect(JSON.parse(sent?.body ?? "null")).toEqual({
+      accessToken: "at_brokered",
+    });
+    // Never the link-identities path: that would bind a pairwise subject to
+    // whatever session this tab is holding (T23).
+    expect(sent?.url).not.toContain("link-identities");
+  });
+
+  it("says the sign-in expired when the Identity API refuses the token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: "invalid_token" }), {
+            status: 401,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      ),
+    );
+    await expect(adoptBrokeredSession("at_stale")).rejects.toMatchObject({
+      code: "session_adoption_failed",
+    });
+  });
+
+  it("refuses an adoption response that carries no session", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(Response.json({ principalId: "prn_1" }))),
+    );
+    await expect(adoptBrokeredSession("at_odd")).rejects.toThrowError(
+      /unusable session/,
+    );
+  });
+
+  it("cannot adopt anything without an Identity API", async () => {
+    identitySeams.identityBase = () => "";
+    await expect(adoptBrokeredSession("at_x")).rejects.toMatchObject({
+      code: "no_identity_api",
+    });
   });
 });

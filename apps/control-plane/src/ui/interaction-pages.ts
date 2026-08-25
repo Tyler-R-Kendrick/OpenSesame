@@ -1,5 +1,24 @@
 import { escapeHtml } from "../middleware/security-headers.js";
 
+/**
+ * One sign-in method a tenant offers, as the login page renders it.
+ *
+ * The two SAML shapes are deliberately different actions, not one action with
+ * a different value (ADR 0056). A brokered method names an OIDC `issuer` and
+ * posts it to the federated start route. Native SAML has no OIDC issuer at all
+ * — its entityID is a name, not something `/federated/start` could redirect to
+ * — so it posts the organization slug to the SAML route, which builds the
+ * AuthnRequest from the tenant's configured metadata.
+ */
+export type OrganizationLoginMethod = {
+  kind: "sso" | "saml";
+  label: string;
+  /** Brokered methods only: the OIDC issuer to hand to `startAction`. */
+  issuer?: string;
+  /** Native SAML: post `slug` to `org.samlAction` instead. */
+  native?: boolean;
+};
+
 export interface LoginPageModel {
   uid: string;
   csrfToken: string;
@@ -9,15 +28,91 @@ export interface LoginPageModel {
   principalId?: string;
   publicUrl: string;
   /**
-   * Federated sign-in offers (ADR 0033 §4). Absent when no upstream is
-   * allowlisted, in which case the page falls back to session-only actions.
+   * Federated sign-in offers (ADR 0033 §4, ADR 0055). Absent when no upstream
+   * is allowlisted, in which case the page falls back to session-only actions.
    */
   federated?: {
     /** POST target (`/interaction/<uid>/federated/start`). */
     startAction: string;
-    upstreams: { issuer: string; label: string }[];
+    /**
+     * `provider` is the registry id, posted as a hidden field and preferred by
+     * the start route over `issuer`; both are re-validated server-side, so the
+     * rendered buttons stay a convenience rather than the fence.
+     */
+    upstreams: { issuer: string; label: string; provider?: string }[];
     /** Issuer the client hinted at; rendered first and as the primary action. */
     preferredIssuer?: string;
+  };
+  /**
+   * Bring-your-own provider (ADR 0055 / D5): a visitor with no account names
+   * their own OIDC issuer. `error` and `issuerValue` re-render a rejected
+   * submission with what they typed.
+   */
+  byo?: {
+    /** POST target (`/interaction/<uid>/federated/byo`). */
+    startAction: string;
+    error?: string;
+    issuerValue?: string;
+    /**
+     * The one redirect URI this deployment will ever send a visitor's IdP back
+     * to (`stableFederatedRedirectUri`).
+     *
+     * Rendered because a visitor registering a client by hand has to type it
+     * into their own IdP's console, and most consoles match it byte for byte
+     * and accept no wildcard. Without it on the page there is no way for them
+     * to know what to enter, and a guess fails at the authorize endpoint.
+     */
+    redirectUri: string;
+  };
+  /**
+   * Enterprise sign-in by organization (D6). Two steps under a CSP with no
+   * script: the slug form posts to `lookupAction`, which 303s back to
+   * `?org=<slug>`, and that re-render carries the tenant's `methods`.
+   */
+  org?: {
+    /** POST target (`/interaction/<uid>/federated/org`). */
+    lookupAction: string;
+    slug?: string;
+    methods?: OrganizationLoginMethod[];
+    /**
+     * POST target for native SAML (`/interaction/<uid>/federated/saml`).
+     * Present whenever a `native` method is, because that method posts the
+     * slug here rather than an issuer to `federated.startAction`.
+     */
+    samlAction?: string;
+    error?: string;
+  };
+  /**
+   * Directory sign-in for the resolved organization (C21 / D17).
+   *
+   * Unlike every other block on this page this one collects a credential
+   * rather than starting a redirect, so it is rendered only once a slug has
+   * resolved to a tenant that actually has a directory — there is nothing to
+   * check a username against otherwise. The route it posts to is CSRF-checked
+   * and rate-limited for exactly that reason.
+   */
+  ldap?: {
+    /** POST target (`/interaction/<uid>/federated/ldap`). */
+    requestAction: string;
+    /** The tenant whose directory the credentials are checked against. */
+    slug: string;
+  };
+  /** Email magic link (C22 / D18): a verified-email admission path. */
+  email?: {
+    /** POST target (`/interaction/<uid>/federated/email`). */
+    requestAction: string;
+    sent?: boolean;
+    error?: string;
+  };
+  /**
+   * Home-realm discovery (C16 / D12): a work email routes to the organization
+   * that verified its domain. The address is a router and nothing else — it is
+   * never stored, logged, or attached to a principal.
+   */
+  realm?: {
+    /** POST target (`/interaction/<uid>/federated/realm`). */
+    requestAction: string;
+    error?: string;
   };
 }
 
@@ -113,6 +208,21 @@ const sharedStyles = `
     outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
     outline-offset: 2px;
   }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
   .sr-only {
     position: absolute;
     width: 1px;
@@ -170,11 +280,35 @@ export function renderLoginPage(model: LoginPageModel): string {
          <button type="submit" class="${sessionButtonClass}">Start a session</button>
        </form>`;
 
+  // A visitor who arrived through an organization's slug asked a specific
+  // question; its answer goes first. Otherwise the shipped providers lead.
+  const orgFirst =
+    (model.org?.methods?.length ?? 0) > 0 || model.ldap !== undefined;
+  const identityBlocks = orgFirst
+    ? [
+        renderOrgBlock(model),
+        renderLdapBlock(model),
+        renderFederatedBlock(model),
+        renderEmailBlock(model),
+        renderByoBlock(model),
+      ]
+    : [
+        renderFederatedBlock(model),
+        renderOrgBlock(model),
+        renderLdapBlock(model),
+        renderEmailBlock(model),
+        renderByoBlock(model),
+      ];
+
   return pageShell(
     "Sign in — OpenSesame",
     `<h1>Sign in</h1>
      <p class="lede">Authenticate to continue authorization at ${escapeHtml(model.publicUrl)}.</p>
-     <div class="panel">${renderFederatedBlock(model)}${continueBlock}</div>`,
+     ${identityBlocks.filter(Boolean).join("\n     ")}
+     <div class="panel">
+       <p class="lede">or continue without a provider</p>
+       ${continueBlock}
+     </div>`,
   );
 }
 
@@ -182,8 +316,8 @@ export function renderLoginPage(model: LoginPageModel): string {
  * Federated offers, above the session actions so identity comes before a
  * bare anonymous session (ADR 0033 §4). One plain form per upstream: the
  * interaction pages ship under a CSP with no inline script, so there is
- * nothing to auto-submit and the issuer travels as a hidden field that the
- * start route re-checks against the allowlist.
+ * nothing to auto-submit and the provider travels as a hidden field that the
+ * start route re-resolves through the trust fence.
  */
 function renderFederatedBlock(model: LoginPageModel): string {
   const federated = model.federated;
@@ -203,16 +337,180 @@ function renderFederatedBlock(model: LoginPageModel): string {
         federated.preferredIssuer !== undefined
           ? upstream.issuer === federated.preferredIssuer
           : index === 0;
+      const provider =
+        upstream.provider !== undefined
+          ? `\n         <input type="hidden" name="provider" value="${escapeHtml(upstream.provider)}"/>`
+          : "";
       return `<form method="post" action="${startAction}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
-         <input type="hidden" name="issuer" value="${escapeHtml(upstream.issuer)}"/>
+         <input type="hidden" name="issuer" value="${escapeHtml(upstream.issuer)}"/>${provider}
          <button type="submit" class="${primary ? "btn btn-primary" : "btn"}">Sign in with ${escapeHtml(upstream.label)}</button>
        </form>`;
     })
     .join("\n");
 
-  return `${forms}
-     <p class="lede">or continue without a provider</p>`;
+  return `<div class="panel">${forms}</div>`;
+}
+
+function renderError(message: string | undefined): string {
+  return message === undefined
+    ? ""
+    : `<p class="error" role="alert">${escapeHtml(message)}</p>`;
+}
+
+/**
+ * Enterprise sign-in: the work-email router (D12) and the organization slug
+ * form (D6), then — once a slug has resolved — one button per configured
+ * method. Both steps are plain POSTs; the CSP forbids the script that would
+ * otherwise look a tenant up as the visitor types.
+ */
+function renderOrgBlock(model: LoginPageModel): string {
+  const org = model.org;
+  const realm = model.realm;
+  if (!org && !realm) return "";
+
+  const csrf = escapeHtml(model.csrfToken);
+  const realmForm = realm
+    ? `<form method="post" action="${escapeHtml(realm.requestAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <label class="field" for="realm-email"><span>Work email</span>
+           <input id="realm-email" name="email" type="email" autocomplete="email" required/>
+         </label>
+         ${renderError(realm.error)}
+         <button type="submit" class="btn">Continue with your work email</button>
+       </form>`
+    : "";
+
+  if (!org) {
+    return `<div class="panel"><h2>Your organization</h2>${realmForm}</div>`;
+  }
+
+  const methods = org.methods ?? [];
+  const startAction = model.federated?.startAction;
+  const slug = escapeHtml(org.slug ?? "");
+  const methodForms = methods
+    .map((method) => {
+      // Native SAML posts the organization, not an issuer: the tenant's
+      // entityID is a name and `/federated/start` would refuse it as an
+      // untrusted OIDC issuer, which is exactly the shape ADR 0056 splits.
+      if (method.native === true) {
+        return org.samlAction === undefined
+          ? ""
+          : `<form method="post" action="${escapeHtml(org.samlAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <input type="hidden" name="slug" value="${slug}"/>
+         <button type="submit" class="btn btn-primary">Continue with ${escapeHtml(method.label)}</button>
+       </form>`;
+      }
+      if (method.issuer === undefined || startAction === undefined) return "";
+      return `<form method="post" action="${escapeHtml(startAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <input type="hidden" name="issuer" value="${escapeHtml(method.issuer)}"/>
+         <button type="submit" class="btn btn-primary">Continue with ${escapeHtml(method.label)}</button>
+       </form>`;
+    })
+    .filter(Boolean)
+    .join("\n");
+
+  const lookupForm = `<form method="post" action="${escapeHtml(org.lookupAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <label class="field" for="org-slug"><span>Organization name</span>
+           <input id="org-slug" name="slug" value="${escapeHtml(org.slug ?? "")}" autocomplete="organization" required/>
+         </label>
+         <button type="submit" class="btn">Continue with your organization</button>
+       </form>`;
+
+  return `<div class="panel">
+       <h2>Your organization</h2>
+       ${renderError(org.error)}
+       ${methodForms}
+       ${lookupForm}
+       ${realmForm}
+     </div>`;
+}
+
+/**
+ * Directory sign-in (C21 / D17): the one block on this page that asks for a
+ * password.
+ *
+ * A plain POST, like everything else here — the CSP forbids script, so there
+ * is nothing to validate in the browser and nothing to submit for the visitor.
+ * The tenant travels as a hidden field because the page reached this state by
+ * resolving that slug; the route re-resolves it and answers every failure
+ * identically, so neither this form nor its refusal says whether a directory,
+ * a username, or a password was the thing that did not match (T34).
+ */
+function renderLdapBlock(model: LoginPageModel): string {
+  const ldap = model.ldap;
+  if (!ldap) return "";
+  const csrf = escapeHtml(model.csrfToken);
+  return `<div class="panel">
+       <h2>Sign in with your directory account</h2>
+       <form method="post" action="${escapeHtml(ldap.requestAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <input type="hidden" name="slug" value="${escapeHtml(ldap.slug)}"/>
+         <label class="field" for="ldap-username"><span>Username</span>
+           <input id="ldap-username" name="username" autocomplete="username" required/>
+         </label>
+         <label class="field" for="ldap-password"><span>Password</span>
+           <input id="ldap-password" name="password" type="password" autocomplete="current-password" required/>
+         </label>
+         <button type="submit" class="btn btn-primary">Sign in</button>
+       </form>
+     </div>`;
+}
+
+/** Email magic link (D18): the address is the identifier, deliberately. */
+function renderEmailBlock(model: LoginPageModel): string {
+  const email = model.email;
+  if (!email) return "";
+  const csrf = escapeHtml(model.csrfToken);
+  const sent = email.sent
+    ? `<p class="note" role="status">Check your email for a sign-in link.</p>`
+    : "";
+  return `<div class="panel">
+       <h2>Continue with email</h2>
+       ${renderError(email.error)}
+       ${sent}
+       <form method="post" action="${escapeHtml(email.requestAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <label class="field" for="magic-email"><span>Email address</span>
+           <input id="magic-email" name="email" type="email" autocomplete="email" required/>
+         </label>
+         <button type="submit" class="btn">Email me a sign-in link</button>
+       </form>
+     </div>`;
+}
+
+/**
+ * Bring your own provider (D5). The client secret is optional: an issuer that
+ * advertises a registration endpoint can be registered dynamically, and a
+ * public client needs no secret at all.
+ */
+function renderByoBlock(model: LoginPageModel): string {
+  const byo = model.byo;
+  if (!byo) return "";
+  const csrf = escapeHtml(model.csrfToken);
+  return `<div class="panel">
+       <h2>Use your own identity provider</h2>
+       ${renderError(byo.error)}
+       <form method="post" action="${escapeHtml(byo.startAction)}">
+         <input type="hidden" name="_csrf" value="${csrf}"/>
+         <label class="field" for="byo-issuer"><span>Issuer URL</span>
+           <input id="byo-issuer" name="issuer" type="url" value="${escapeHtml(byo.issuerValue ?? "")}" placeholder="https://id.example.com" required/>
+         </label>
+         <p class="note">Registering the client yourself? Add this redirect URI to it first — providers match it exactly:</p>
+         <p class="note"><code>${escapeHtml(byo.redirectUri)}</code></p>
+         <label class="field" for="byo-client-id"><span>Client ID (optional)</span>
+           <input id="byo-client-id" name="client_id" autocomplete="off"/>
+         </label>
+         <label class="field" for="byo-client-secret"><span>Client secret (optional)</span>
+           <input id="byo-client-secret" name="client_secret" type="password" autocomplete="off"/>
+         </label>
+         <button type="submit" class="btn">Continue with your provider</button>
+       </form>
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p>
+     </div>`;
 }
 
 /**

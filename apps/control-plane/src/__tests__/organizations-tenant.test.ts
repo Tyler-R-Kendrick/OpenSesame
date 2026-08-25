@@ -1,3 +1,4 @@
+import type { UpdateOrganizationRequest } from "@opensesame/contracts";
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
@@ -106,9 +107,12 @@ describe("organization tenant discovery and join", () => {
       (await app.request("/v1/organizations/tenants/missing")).status,
     ).toBe(404);
 
-    const stored = ctx.stores.organizations.get(org.id);
+    const stored = await ctx.stores.organizations.get(org.id);
     if (!stored) throw new Error("org missing");
-    ctx.stores.organizations.set(org.id, { ...stored, state: "suspended" });
+    await ctx.stores.organizations.set(org.id, {
+      ...stored,
+      state: "suspended",
+    });
     expect((await app.request("/v1/organizations/tenants/acme")).status).toBe(
       404,
     );
@@ -249,6 +253,144 @@ describe("organization tenant discovery and join", () => {
       body: JSON.stringify({ ssoIssuer: null }),
     });
     expect(overlapCast(await cleared.json()).ssoIssuer).toBeUndefined();
+  });
+
+  it("distinguishes native SAML from a brokering Keycloak, and advertises LDAP", async () => {
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    const org = await seedOrg(app);
+
+    // Metadata configured: the method becomes native SAML, runs server-side,
+    // and stops offering the browser an issuer to redirect to.
+    const stored = await ctx.stores.organizations.get(org.id);
+    if (!stored) throw new Error("org missing");
+    await ctx.stores.organizations.set(org.id, {
+      ...stored,
+      samlMetadataUrl: "https://idp.example/metadata",
+    });
+    await ctx.stores.orgFederation.ldapConfigs.put({
+      organizationId: org.id,
+      url: "ldaps://dir.example",
+      bindMode: "bind_template",
+      bindTemplate: "uid={username},ou=people,dc=example,dc=com",
+      subjectAttribute: "entryUUID",
+      attributeMap: { email: "mail" },
+      groupRoleMap: {},
+    });
+
+    const tenant = await app.request("/v1/organizations/tenants/acme");
+    expect(overlapCast(await tenant.json()).authMethods).toEqual([
+      { kind: "sso", label: "SSO", issuer: "http://127.0.0.1:9090" },
+      { kind: "saml", label: "SAML", native: true },
+      { kind: "ldap", label: "Directory" },
+    ]);
+  });
+
+  it("refuses an issuer this deployment must not dereference", async () => {
+    // Dev defaults keep loopback reachable for the local IdP; with them off,
+    // the org surface must not become an SSRF gadget (T21).
+    const { app, ctx } = createControlPlane({
+      config: { ...testConfig(), allowDevDefaults: false },
+    });
+    // With dev defaults off, self-asserted identity links are refused, so the
+    // owner is promoted through the principal repository directly.
+    const owner = await provisional(app);
+    const minted = await ctx.repos.principals.getById(owner.principalId);
+    if (!minted) throw new Error("principal missing");
+    const now = ctx.clock();
+    await ctx.repos.principals.update(
+      owner.principalId,
+      {
+        state: "active",
+        assurance: "verified",
+        verifiedAt: now,
+        updatedAt: now,
+      },
+      minted.version,
+    );
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...auth(owner.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ slug: "fenced", displayName: "Fenced" }),
+    });
+    expect(created.status).toBe(201);
+    const org = overlapCast(await created.json());
+
+    for (const patch of [
+      { ssoIssuer: "http://169.254.169.254/latest/meta-data" },
+      { samlIssuer: "http://127.0.0.1:9090" },
+      { samlMetadataUrl: "http://metadata.google.internal/computeMetadata" },
+    ]) {
+      const res = await app.request(`/v1/organizations/${org.id}`, {
+        method: "PATCH",
+        headers: {
+          ...auth(owner.accessToken),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(patch),
+      });
+      expect(res.status).toBe(400);
+      expect(overlapCast(await res.json()).error).toBe("unsafe_issuer");
+    }
+
+    // A public issuer still lands.
+    const allowed = await app.request(`/v1/organizations/${org.id}`, {
+      method: "PATCH",
+      headers: {
+        ...auth(owner.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ ssoIssuer: "https://idp.example" }),
+    });
+    expect(allowed.status).toBe(200);
+  });
+
+  it("refuses two SAML metadata sources at once and stores the surviving one", async () => {
+    const { app } = createControlPlane({ config: testConfig() });
+    const owner = await verified(app, "metadata-owner");
+    const created = await app.request("/v1/organizations", {
+      method: "POST",
+      headers: {
+        ...auth(owner.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ slug: "metadata", displayName: "Metadata" }),
+    });
+    const org = overlapCast(await created.json());
+    const patch = (body: UpdateOrganizationRequest) =>
+      app.request(`/v1/organizations/${org.id}`, {
+        method: "PATCH",
+        headers: {
+          ...auth(owner.accessToken),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+    const both = await patch({
+      samlMetadataUrl: "https://idp.example/metadata",
+      samlMetadataXml: `<EntityDescriptor>${"x".repeat(64)}</EntityDescriptor>`,
+    });
+    expect(both.status).toBe(400);
+
+    expect(
+      (await patch({ samlMetadataUrl: "https://idp.example/metadata" })).status,
+    ).toBe(200);
+    // Swapping to inline XML must clear the URL, or a later fetch has two
+    // answers to "which document describes this IdP".
+    const swapped = await patch({
+      samlMetadataUrl: null,
+      samlMetadataXml: `<EntityDescriptor>${"x".repeat(64)}</EntityDescriptor>`,
+    });
+    expect(swapped.status).toBe(200);
+    const body = overlapCast(await swapped.json());
+    expect(body.samlMetadataUrl).toBeUndefined();
+    expect(body.samlMetadataConfigured).toBe(true);
+
+    const enabled = await patch({ provisioningEnabled: true });
+    expect(overlapCast(await enabled.json()).provisioningEnabled).toBe(true);
   });
 
   it("rejects issuer URLs with credentials", async () => {

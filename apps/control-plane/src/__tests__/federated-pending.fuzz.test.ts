@@ -39,11 +39,17 @@ function makeRng(seed: number): () => number {
 }
 
 const FIELDS = ["issuer", "state", "nonce", "verifier"] as const;
+/** v2 provenance (C3). Optional by contract — a v1 cookie must still decode. */
+const OPTIONAL_FIELDS = ["providerId", "byoId", "orgId"] as const;
 const pendingSchema = z.object({
   issuer: z.string(),
   state: z.string(),
   nonce: z.string(),
   verifier: z.string(),
+  kind: z.enum(["oidc", "oauth2"]).optional(),
+  providerId: z.string().optional(),
+  byoId: z.string().optional(),
+  orgId: z.string().optional(),
 });
 
 type FuzzValue = string | number | null | { nested: boolean } | string[];
@@ -65,11 +71,16 @@ function randomString(rng: () => number, maxLen: number): string {
 function isWellFormed(
   value: ReturnType<typeof decodePending>,
 ): value is PendingFederatedAuth {
-  return (
-    value !== undefined &&
-    Object.keys(value).length === FIELDS.length &&
-    pendingSchema.safeParse(value).success
-  );
+  if (value === undefined) return false;
+  const keys = Object.keys(value);
+  // Every required field present, nothing outside the known set, and no key
+  // carrying `undefined`: an absent optional must be absent, not present-but-
+  // undefined, or re-encoding turns it into a `null` the parser then rejects.
+  if (!FIELDS.every((field) => keys.includes(field))) return false;
+  const known = new Set<string>([...FIELDS, "kind", ...OPTIONAL_FIELDS]);
+  if (keys.some((key) => !known.has(key))) return false;
+  if (Object.values(value).some((entry) => entry === undefined)) return false;
+  return pendingSchema.safeParse(value).success;
 }
 
 describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
@@ -107,6 +118,21 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
         else if (roll < 0.7) candidate[field] = [randomString(rng, 8)];
         else candidate[field] = randomString(rng, 24);
       }
+      // v2 provenance (C3/T12): absent must be as acceptable as present, and a
+      // present-but-wrong value must sink the whole record rather than being
+      // quietly dropped — `providerId: 7` is not a provider id.
+      for (const field of OPTIONAL_FIELDS) {
+        const roll = rng();
+        if (roll < 0.7) continue;
+        if (roll < 0.8) candidate[field] = Math.floor(rng() * 1000);
+        else if (roll < 0.85) candidate[field] = null;
+        else candidate[field] = randomString(rng, 12);
+      }
+      const kindRoll = rng();
+      if (kindRoll > 0.85) candidate.kind = "oidc";
+      else if (kindRoll > 0.75) candidate.kind = "oauth2";
+      else if (kindRoll > 0.7) candidate.kind = randomString(rng, 6);
+
       if (rng() < 0.3) candidate[randomString(rng, 6)] = randomString(rng, 6);
 
       const raw = Buffer.from(JSON.stringify(candidate), "utf8").toString(
@@ -149,11 +175,21 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
         state: randomString(rng, 40),
         nonce: randomString(rng, 40),
         verifier: randomString(rng, 60),
+        // Each v2 field is present or absent independently: a cookie from
+        // before the field existed, and one from the leg that added it, are
+        // both live at once during a deploy.
+        ...(rng() < 0.5
+          ? { kind: rng() < 0.5 ? "oidc" : "oauth2" }
+          : undefined),
+        ...(rng() < 0.4 ? { providerId: randomString(rng, 12) } : undefined),
+        ...(rng() < 0.3 ? { byoId: randomString(rng, 12) } : undefined),
+        ...(rng() < 0.3 ? { orgId: randomString(rng, 12) } : undefined),
       };
       const decoded = decodePending(encodePending(pending));
       expect(decoded).toEqual(pending);
       if (!decoded) throw new Error("well-formed pending state was rejected");
-      // Stable under a second pass — no lossy normalization creeping in.
+      // Stable under a second pass — no lossy normalization creeping in, and
+      // no absent field resurrected as a present `undefined`.
       expect(decodePending(encodePending(decoded))).toEqual(pending);
     }
   });

@@ -34,6 +34,7 @@ import type {
   ImportAdapter,
   ParseInput,
   ParseResult,
+  SkippedAttachments,
   SourceId,
 } from "./types.js";
 import {
@@ -148,7 +149,7 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   }
 
   let text: string;
-  let skippedAttachments: DetectInput["skippedAttachments"];
+  let skippedAttachments: SkippedAttachments | undefined;
   if (isArchive) {
     const buffer = await file.arrayBuffer();
     text = await readZipText(buffer, (entry) => entry.endsWith("export.data"));
@@ -189,17 +190,17 @@ export async function readImportFile(file: File): Promise<DetectInput> {
   const headers =
     json === null && looksLikeCsv(text) ? readHeaderRow(text) : null;
 
-  const input: DetectInput = {
+  return {
     fileName: file.name,
     text,
     headers,
     json,
     bytes: null,
+    // Omitted rather than set to `undefined` when the archive carried none:
+    // `skippedAttachments` is an optional property, and a present-but-undefined
+    // one reads as "we looked and found nothing" to anything enumerating keys.
+    ...(skippedAttachments !== undefined ? { skippedAttachments } : undefined),
   };
-  if (skippedAttachments) {
-    input.skippedAttachments = skippedAttachments;
-  }
-  return input;
 }
 
 /**

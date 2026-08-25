@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
+import type { OrganizationAuthMethod } from "@opensesame/contracts";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
   type Principal,
@@ -9,7 +10,10 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
-import { ensurePersonalOrganization } from "../routes/organizations.js";
+import {
+  ensurePersonalOrganization,
+  tenantAuthMethods,
+} from "../routes/organizations.js";
 import {
   MAX_PROVISIONAL,
   consumeProvisionalMintBudget,
@@ -17,9 +21,15 @@ import {
 import {
   type ConsentPageModel,
   type LoginPageModel,
+  type OrganizationLoginMethod,
   collectConsentScopes,
 } from "../ui/interaction-pages.js";
-import { federatedUpstreams, matchUpstreamHint } from "./federated.js";
+import { stableFederatedRedirectUri } from "./federated.js";
+import {
+  type ProviderDescriptor,
+  catalogProviders,
+  normalizeIssuer,
+} from "./registry.js";
 import type {
   GrantHandle,
   InteractionDetails,
@@ -35,13 +45,171 @@ function interactionBase(uid: string): string {
   return `/interaction/${encodeURIComponent(uid)}`;
 }
 
-export function buildLoginPageModel(
+/**
+ * Everything the login page needs that is not in the interaction itself: the
+ * organization slug from `?org=<slug>`, and the re-render state a rejected
+ * BYO / email / work-email submission hands back.
+ */
+export type LoginPageOptions = {
+  /** `?org=<slug>` on the interaction GET (D6, second step). */
+  orgSlug?: string;
+  orgError?: string;
+  byoError?: string;
+  byoIssuer?: string;
+  emailSent?: boolean;
+  emailError?: string;
+  realmError?: string;
+};
+
+/**
+ * Resolve a provider hint (`kc_idp_hint` / `login_hint_provider`) against the
+ * offered providers, id first (T7).
+ *
+ * Precedence is the whole point of this function existing: the day a real
+ * `google` registry id sits next to shoo.dev's "Google" label, both match the
+ * hint `google`, and the id — the thing a client actually asked for — must
+ * win. A matched hint is rendered first and primary and never auto-submitted:
+ * an upstream error 303s back to this page, so a page that redirected itself
+ * would loop forever (T14).
+ */
+export function matchProviderHint(
+  providers: readonly ProviderDescriptor[],
+  hint: string | undefined,
+): ProviderDescriptor | undefined {
+  const needle = (hint ?? "").trim().toLowerCase();
+  if (!needle) return undefined;
+  const byId = providers.find(
+    (provider) => provider.id.toLowerCase() === needle,
+  );
+  if (byId) return byId;
+  const byIssuer = providers.find(
+    (provider) => normalizeIssuer(provider.issuer).toLowerCase() === needle,
+  );
+  if (byIssuer) return byIssuer;
+  const byHost = providers.find((provider) => {
+    try {
+      return new URL(provider.issuer).host.toLowerCase() === needle;
+    } catch {
+      return false;
+    }
+  });
+  if (byHost) return byHost;
+  return providers.find((provider) => provider.label.toLowerCase() === needle);
+}
+
+/**
+ * The tenant's configured sign-in methods, as buttons.
+ *
+ * Delegates to `tenantAuthMethods` (`routes/organizations.ts`) rather than
+ * re-deriving them, so the hosted page and the public tenant endpoint can
+ * never disagree about what a tenant offers. The translation this function
+ * does is only about where each one POSTs:
+ *
+ * - `sso`, and the legacy brokered `saml` (ADR 0016's Keycloak in front),
+ *   carry an OIDC issuer and go to `/federated/start`;
+ * - native `saml` (ADR 0056) carries none — a SAML entityID is a name, and
+ *   `/federated/start` answers `untrusted_issuer` to one — so it posts the
+ *   slug to `/federated/saml`, which builds the AuthnRequest from the
+ *   tenant's own metadata;
+ * - `ldap` is not a button at all: it is a username and password form, which
+ *   the caller renders as its own block.
+ */
+function organizationMethods(
+  methods: readonly OrganizationAuthMethod[],
+): OrganizationLoginMethod[] {
+  const rendered: OrganizationLoginMethod[] = [];
+  for (const method of methods) {
+    if (method.kind === "ldap") continue;
+    if (method.native === true) {
+      rendered.push({ kind: method.kind, label: method.label, native: true });
+      continue;
+    }
+    if (method.issuer !== undefined) {
+      rendered.push({
+        kind: method.kind,
+        label: method.label,
+        issuer: method.issuer,
+      });
+    }
+  }
+  return rendered;
+}
+
+/** The organization block, plus the directory form that belongs beside it. */
+type OrganizationBlocks = {
+  org: NonNullable<LoginPageModel["org"]>;
+  ldap?: NonNullable<LoginPageModel["ldap"]>;
+};
+
+async function resolveOrganizationBlock(
+  ctx: AppContext,
+  base: string,
+  options: LoginPageOptions,
+): Promise<OrganizationBlocks> {
+  const lookupAction = `${base}/federated/org`;
+  const slug = options.orgSlug?.trim();
+  if (!slug) {
+    return {
+      org: {
+        lookupAction,
+        ...(options.orgError !== undefined
+          ? { error: options.orgError }
+          : undefined),
+      },
+    };
+  }
+
+  const organization = await ctx.stores.organizations.getBySlug(slug);
+  const configured =
+    organization && organization.state !== "deleted"
+      ? await tenantAuthMethods(ctx, organization)
+      : [];
+  const methods = organizationMethods(configured);
+  const hasLdap = configured.some((method) => method.kind === "ldap");
+  if (methods.length === 0 && !hasLdap) {
+    // One answer for "no such organization", "suspended" and "configured no
+    // methods": the login page is unauthenticated, and telling a stranger
+    // which slugs exist is an enumeration oracle.
+    return {
+      org: {
+        lookupAction,
+        slug,
+        error:
+          options.orgError ??
+          "No organization sign-in is configured for that name.",
+      },
+    };
+  }
+  return {
+    org: {
+      lookupAction,
+      slug,
+      methods,
+      // Only the native-SAML method uses it, and it is the one thing on this
+      // page that names the tenant rather than an issuer.
+      ...(methods.some((method) => method.native === true)
+        ? { samlAction: `${base}/federated/saml` }
+        : undefined),
+      ...(options.orgError !== undefined
+        ? { error: options.orgError }
+        : undefined),
+    },
+    ...(hasLdap
+      ? { ldap: { requestAction: `${base}/federated/ldap`, slug } }
+      : undefined),
+  };
+}
+
+export async function buildLoginPageModel(
   ctx: AppContext,
   details: InteractionDetails,
   csrfToken: string,
   principalId: string | undefined,
-): LoginPageModel {
-  const upstreams = federatedUpstreams(ctx.config);
+  options: LoginPageOptions = {},
+): Promise<LoginPageModel> {
+  // The catalog view, not the trust surface: one button per provider, even
+  // where a provider is trusted at more than one issuer.
+  const providers = catalogProviders(ctx.config);
   // The SDK sends both spellings (packages/sdk-browser signIn({provider}));
   // oidc-provider only surfaces them because they are declared extraParams.
   const hint = isString(details.params.login_hint_provider)
@@ -49,28 +217,58 @@ export function buildLoginPageModel(
     : isString(details.params.kc_idp_hint)
       ? details.params.kc_idp_hint
       : undefined;
-  const preferred = matchUpstreamHint(upstreams, hint);
+  const preferred = matchProviderHint(providers, hint);
+  const base = interactionBase(details.uid);
+  const organization = await resolveOrganizationBlock(ctx, base, options);
 
   return {
     uid: details.uid,
     csrfToken,
-    loginAction: `${interactionBase(details.uid)}/login`,
+    loginAction: `${base}/login`,
     ...(principalId !== undefined ? { principalId } : undefined),
     publicUrl: ctx.config.publicUrl,
-    ...(upstreams.length > 0
-      ? {
-          federated: {
-            startAction: `${interactionBase(details.uid)}/federated/start`,
-            upstreams: upstreams.map((u) => ({
-              issuer: u.issuer,
-              label: u.label,
-            })),
-            ...(preferred !== undefined
-              ? { preferredIssuer: preferred.issuer }
-              : undefined),
-          },
-        }
+    federated: {
+      startAction: `${base}/federated/start`,
+      upstreams: providers.map((provider) => ({
+        issuer: provider.issuer,
+        label: provider.label,
+        provider: provider.id,
+      })),
+      ...(preferred !== undefined
+        ? { preferredIssuer: preferred.issuer }
+        : undefined),
+    },
+    byo: {
+      startAction: `${base}/federated/byo`,
+      // Shown so a visitor registering a client by hand can add it to their
+      // IdP first; it is the only URI this deployment redirects to.
+      redirectUri: stableFederatedRedirectUri(ctx.config),
+      ...(options.byoError !== undefined
+        ? { error: options.byoError }
+        : undefined),
+      ...(options.byoIssuer !== undefined
+        ? { issuerValue: options.byoIssuer }
+        : undefined),
+    },
+    org: organization.org,
+    ...(organization.ldap !== undefined
+      ? { ldap: organization.ldap }
       : undefined),
+    email: {
+      requestAction: `${base}/federated/email`,
+      ...(options.emailSent !== undefined
+        ? { sent: options.emailSent }
+        : undefined),
+      ...(options.emailError !== undefined
+        ? { error: options.emailError }
+        : undefined),
+    },
+    realm: {
+      requestAction: `${base}/federated/realm`,
+      ...(options.realmError !== undefined
+        ? { error: options.realmError }
+        : undefined),
+    },
   };
 }
 
@@ -181,7 +379,9 @@ export async function mintProvisionalForInteraction(
   }
 
   if (ctx.config.bootstrapPersonalOrganization) {
-    ensurePersonalOrganization(ctx, principal.id);
+    // Durable (C6): awaited so a failed write surfaces here rather than as an
+    // unhandled rejection after the response has gone out.
+    await ensurePersonalOrganization(ctx, principal.id);
   }
 
   const accessToken = `pst_${randomBytes(24).toString("base64url")}`;

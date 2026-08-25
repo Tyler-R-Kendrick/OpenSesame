@@ -9,18 +9,28 @@ import { apiSecurityHeaders } from "./middleware/security-headers.js";
 import { agentRoutes } from "./routes/agents.js";
 import { appClaimRoutes } from "./routes/app-claims.js";
 import { auditRoutes } from "./routes/audit.js";
+import { createUpstreamAuthRoutes } from "./routes/auth-upstream.js";
 import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
+import { createBackchannelLogoutRoutes } from "./routes/backchannel-logout.js";
+import { createByoAdminRoutes } from "./routes/byo-admin.js";
 import { claimRoutes } from "./routes/claims.js";
 import { deviceRoutes } from "./routes/device.js";
 import { discoveryRoutes } from "./routes/discovery.js";
+import { createFederatedCallbackRoutes } from "./routes/federated-callback.js";
+import { federatedProviderRoutes } from "./routes/federated-providers.js";
+import { createFederatedSessionRoutes } from "./routes/federated-session.js";
 import { healthRoutes } from "./routes/health.js";
 import { createInteractionRoutes } from "./routes/interactions.js";
 import { mfaRoutes } from "./routes/mfa.js";
 import { oauthClientRoutes } from "./routes/oauth-clients.js";
+import { createOrgDomainRoutes } from "./routes/org-domains.js";
+import { createOrgLdapRoutes } from "./routes/org-ldap.js";
 import { organizationRoutes } from "./routes/organizations.js";
 import { originClientAdminRoutes } from "./routes/origin-clients-admin.js";
 import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
+import { createSamlRoutes } from "./routes/saml.js";
+import { createScimRoutes } from "./routes/scim.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
@@ -78,6 +88,46 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/oauth/applications", appClaimRoutes);
   app.route("/v1/oauth/admin/clients", originClientAdminRoutes);
   app.route("/v1/audit", auditRoutes);
+  // Public provider catalog (ADR 0055 / C8): id, label, kind, browserCapable —
+  // never issuers, endpoints or secrets.
+  app.route("/v1/federated", federatedProviderRoutes);
+  // The stable, deployment-wide federated callback (ADR 0055): one registered
+  // redirect URI for every upstream an operator or an RFC 7591 registration
+  // configured, because Google, Entra and Apple match it byte for byte and a
+  // path naming one interaction can never be registered. It completes nothing
+  // — see routes/federated-callback.ts.
+  app.route("/v1/federated", createFederatedCallbackRoutes());
+  // Brokered session adoption (C13): a static page exchanges the access token
+  // from its origin-profile code flow for a first-party bearer bound to the
+  // same principal. Mounted on the principal prefix, in its own router because
+  // routes/principals.ts belongs to another swarm this cycle.
+  app.route("/v1/principals", createFederatedSessionRoutes());
+  // Native SAML SP (C14 / ADR 0056): the metadata an IdP is configured from,
+  // and the assertion consumer service it posts back to. Both are public by
+  // protocol — the assertion's XML-DSig is the authority, not a session.
+  app.route("/v1/saml", createSamlRoutes());
+  // SCIM 2.0 directory provisioning (C15) and the organization email domains
+  // home-realm discovery routes on (C16). Both hang off the organization
+  // prefix because both are per-tenant: the SCIM base URL a directory is
+  // configured with is `/v1/organizations/<id>/scim/v2`.
+  app.route("/v1/organizations", createScimRoutes());
+  app.route("/v1/organizations", createOrgDomainRoutes());
+  // Owner-facing directory configuration and the manual sync trigger (C21):
+  // `/v1/organizations/:id/ldap`, in its own router because
+  // routes/organizations.ts belongs to another swarm this cycle.
+  app.route("/v1/organizations", createOrgLdapRoutes());
+  // OIDC Back-Channel Logout (C17): unauthenticated by design — the issuer's
+  // signature is the credential — and rate-limited because of it.
+  app.route("/v1/federated", createBackchannelLogoutRoutes());
+  // Operator lifecycle for visitor-registered BYO upstreams (D14).
+  app.route("/v1/federated/admin/byo-upstreams", createByoAdminRoutes());
+  // The Better Auth mount (C20 / ADR 0057), enabling exactly one sign-in
+  // method: email magic-link. The router allowlists a single Better Auth path
+  // and answers 404 to the rest, so social stays unreachable (T22) and the
+  // Better Auth user record never crosses this boundary (T33).
+  app.route("/v1/auth", createUpstreamAuthRoutes(ctx));
+  // The interaction sub-routers (C9: byo, email, ldap, org, realm, saml)
+  // mount inside createInteractionRoutes, not here.
   // The oidc-provider interaction slot (ADR 0050 F6): /auth 303-redirects
   // here for login/consent. server.ts only intercepts protocol paths, so
   // /interaction/* falls through to Hono.

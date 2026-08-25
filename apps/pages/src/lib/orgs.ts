@@ -12,12 +12,22 @@ const ACTIVE_KEY = "opensesame:org-profile";
 export const GUEST_PROFILE_ID = "guest";
 export const ORG_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-export type OrgAuthMethodKind = "sso" | "saml";
+export type OrgAuthMethodKind = "sso" | "saml" | "ldap";
+
+/** The methods a browser can run itself: an OIDC round-trip, and only that. */
+export type OrgBrowserMethodKind = "sso" | "saml";
 
 export type OrgAuthMethod = {
   kind: OrgAuthMethodKind;
   label: string;
-  issuer: string;
+  /**
+   * The OIDC issuer this browser redirects to. Absent for methods with none:
+   * native SAML is an XML round-trip run server-side, and LDAP is a credential
+   * bind. Both are brokered by the Identity API instead (ADR 0056).
+   */
+  issuer?: string;
+  /** Native SAML: configured IdP metadata, so there is no browser leg at all. */
+  native?: boolean;
 };
 
 export type OrgTenant = {
@@ -165,7 +175,36 @@ export function orgAuthUpstream(
   return {
     id: `org:${tenant.slug}:${method.kind}`,
     displayName: tenant.displayName,
-    issuer: method.issuer,
-    accountKind: method.kind === "saml" ? "SAML" : "SSO",
+    // A method with no browser-side issuer is brokered: the Identity API runs
+    // the leg. Falling back to it keeps a no-issuer method from producing an
+    // upstream pointed at nothing — callers still route through
+    // `routeOrgMethod` first, so this is the floor, not the plan.
+    issuer: method.issuer ?? identityBase(),
+    accountKind:
+      method.kind === "saml" ? "SAML" : method.kind === "ldap" ? "LDAP" : "SSO",
   };
+}
+
+export type OrgMethodRoute =
+  /** This browser can run the whole OIDC round-trip against `issuer`. */
+  | { via: "browser"; issuer: string; kind: OrgBrowserMethodKind }
+  /** Only the Identity API can run this leg; sign in against it instead. */
+  | { via: "brokered" };
+
+/**
+ * How a tenant method has to be started from a browser (D7/D9/D17).
+ *
+ * Native SAML and LDAP have no browser leg at all — one is an XML POST
+ * ceremony with a server-side signature check, the other a directory bind —
+ * and a method the server published without an issuer has, by definition,
+ * nowhere for this tab to redirect to. All three go through the Identity API's
+ * hosted login page, which finishes the leg and JIT-joins the org; this tab
+ * then adopts the session that comes back (C13). The alternative — treating a
+ * missing issuer as a broken button — is the one outcome that is not allowed.
+ */
+export function routeOrgMethod(method: OrgAuthMethod): OrgMethodRoute {
+  if (method.kind !== "ldap" && method.issuer && !method.native) {
+    return { via: "browser", issuer: method.issuer, kind: method.kind };
+  }
+  return { via: "brokered" };
 }

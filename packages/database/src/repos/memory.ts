@@ -3,9 +3,12 @@ import type {
   AuditEvent,
   AuthorizationRequest,
   BetterAuthSubject,
+  ByoUpstream,
   ClaimItem,
   ClaimSession,
   ExternalIdentity,
+  Organization,
+  OrganizationMembership,
   OutboxEvent,
   Principal,
   Project,
@@ -17,6 +20,7 @@ import {
   type AuditEventRepository,
   type AuthorizationRequestRepository,
   type BetterAuthSubjectRepository,
+  type ByoUpstreamRepository,
   type ClaimItemRepository,
   type ClaimSessionRepository,
   ConflictError,
@@ -25,6 +29,9 @@ import {
   type NewOutboxEvent,
   NotFoundError,
   OUTBOX_CLAIM_HOLD_MS,
+  type OrganizationMembershipStore,
+  type OrganizationStore,
+  type OrganizationStores,
   type OutboxRepository,
   type PrincipalRepository,
   type ProjectMembershipStore,
@@ -36,6 +43,9 @@ import {
   type WebhookDeliveryRepository,
   type WebhookEndpointRepository,
   buildPersonalProject,
+  normalizeIssuer,
+  normalizeOrganizationRow,
+  organizationClaimsIssuer,
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
@@ -75,6 +85,42 @@ function cloneClaim(session: ClaimSession): ClaimSession {
   // structuredClone matches the Postgres JSON round-trip: nested
   // reviewDecision / manifest objects must not share references with the store.
   return structuredClone(session);
+}
+
+/**
+ * A row the verified-email auto-link may attach to (ADR 0057): the identity's
+ * own assurance is `verified` and its email is not explicitly unverified.
+ */
+function verifiedEmailCandidate(
+  row: ExternalIdentity,
+  emailNormalized: string,
+): boolean {
+  return (
+    row.emailNormalized === emailNormalized &&
+    row.assurance === "verified" &&
+    // Explicitly true, never merely not-false — see the Postgres predicate.
+    // An absent flag means nobody checked the address, and a link target
+    // nobody checked is a way onto somebody else's principal.
+    row.emailVerified === true
+  );
+}
+
+/** Oldest owning principal first, then principal id, then identity id (T32). */
+function compareVerifiedEmailOwners(
+  a: { row: ExternalIdentity; owner: Principal },
+  b: { row: ExternalIdentity; owner: Principal },
+): number {
+  const byAge = a.owner.createdAt.getTime() - b.owner.createdAt.getTime();
+  if (byAge !== 0) return byAge;
+  if (a.row.principalId !== b.row.principalId) {
+    return a.row.principalId < b.row.principalId ? -1 : 1;
+  }
+  if (a.row.id === b.row.id) return 0;
+  return a.row.id < b.row.id ? -1 : 1;
+}
+
+function cloneByoUpstream(record: ByoUpstream): ByoUpstream {
+  return { ...record };
 }
 
 type PendingOp = () => void;
@@ -117,6 +163,7 @@ class MemoryUnitOfWork implements UnitOfWork {
 class MemoryStore {
   principals = new Map<string, Principal>();
   identities = new Map<string, ExternalIdentity>();
+  byoUpstreams = new Map<string, ByoUpstream>();
   identityKeys = new Map<string, string>();
   betterAuth = new Map<string, BetterAuthSubject>();
   claims = new Map<string, ClaimSession>();
@@ -256,6 +303,20 @@ export class MemoryRepositories implements Repositories {
         .map((row) => ({ ...row, metadata: { ...row.metadata } }));
     },
 
+    findVerifiedByEmail: async (emailNormalized) => {
+      const owned = [...this.#store.identities.values()]
+        .filter((row) => verifiedEmailCandidate(row, emailNormalized))
+        .flatMap((row) => {
+          // Inner-join semantics: Postgres reaches the owner through the FK,
+          // so an identity with no principal is no candidate here either.
+          const owner = this.#store.principals.get(row.principalId);
+          return owner ? [{ row, owner }] : [];
+        })
+        .sort((a, b) => compareVerifiedEmailOwners(a, b));
+      const best = owned[0];
+      return best ? { ...best.row, metadata: { ...best.row.metadata } } : null;
+    },
+
     deleteById: async (id, uow) => {
       const row = this.#store.identities.get(id);
       if (!row) return false;
@@ -266,6 +327,58 @@ export class MemoryRepositories implements Repositories {
       };
       applyNowOrDefer(uow, apply);
       return true;
+    },
+  };
+
+  readonly byoUpstreams: ByoUpstreamRepository = {
+    create: async (record) => {
+      const issuer = normalizeIssuer(record.issuer);
+      if (this.#store.byoUpstreams.has(record.id)) {
+        throw new ConflictError(`byo upstream already exists: ${record.id}`);
+      }
+      for (const existing of this.#store.byoUpstreams.values()) {
+        if (existing.issuer === issuer) {
+          throw new ConflictError(
+            `byo upstream issuer already registered: ${issuer}`,
+          );
+        }
+      }
+      const row: ByoUpstream = { ...record, issuer };
+      this.#store.byoUpstreams.set(row.id, cloneByoUpstream(row));
+      return cloneByoUpstream(row);
+    },
+
+    getById: async (id) => {
+      const row = this.#store.byoUpstreams.get(id);
+      return row ? cloneByoUpstream(row) : null;
+    },
+
+    findByIssuer: async (issuer) => {
+      const target = normalizeIssuer(issuer);
+      for (const row of this.#store.byoUpstreams.values()) {
+        if (row.issuer === target) return cloneByoUpstream(row);
+      }
+      return null;
+    },
+
+    touchLastUsed: async (id, at) => {
+      const row = this.#store.byoUpstreams.get(id);
+      if (!row) return;
+      this.#store.byoUpstreams.set(id, { ...row, lastUsedAt: at });
+    },
+
+    list: async () => {
+      return [...this.#store.byoUpstreams.values()]
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .map(cloneByoUpstream);
+    },
+
+    setState: async (id, state) => {
+      const row = this.#store.byoUpstreams.get(id);
+      if (!row) return null;
+      const next: ByoUpstream = { ...row, state };
+      this.#store.byoUpstreams.set(id, next);
+      return cloneByoUpstream(next);
     },
   };
 
@@ -792,5 +905,118 @@ export function createMemoryProjectStores(): ProjectStores & {
   return {
     projects: new MemoryProjectStore(projectMemberships),
     projectMemberships,
+  };
+}
+
+function organizationMembershipKey(
+  organizationId: string,
+  principalId: string,
+): string {
+  return `${organizationId}:${principalId}`;
+}
+
+/**
+ * In-memory organization membership store — the Map the control plane held in
+ * `AppStores`, promoted to the store interface. It extends Map keyed by
+ * `${organizationId}:${principalId}` for the same reason as
+ * {@link MemoryProjectMembershipStore}: rows seeded through the Map API stay
+ * visible to the interface reads.
+ */
+export class MemoryOrganizationMembershipStore
+  extends Map<string, OrganizationMembership>
+  implements OrganizationMembershipStore
+{
+  find(
+    organizationId: string,
+    principalId: string,
+  ): OrganizationMembership | undefined {
+    return super.get(organizationMembershipKey(organizationId, principalId));
+  }
+
+  upsert(membership: OrganizationMembership): OrganizationMembership {
+    this.set(
+      organizationMembershipKey(
+        membership.organizationId,
+        membership.principalId,
+      ),
+      membership,
+    );
+    return membership;
+  }
+
+  remove(organizationId: string, principalId: string): boolean {
+    return this.delete(organizationMembershipKey(organizationId, principalId));
+  }
+
+  listByOrganization(organizationId: string): OrganizationMembership[] {
+    return [...this.values()].filter(
+      (m) => m.organizationId === organizationId,
+    );
+  }
+
+  listByPrincipal(principalId: string): OrganizationMembership[] {
+    return [...this.values()].filter((m) => m.principalId === principalId);
+  }
+
+  countOwners(organizationId: string): number {
+    let count = 0;
+    for (const membership of this.values()) {
+      if (
+        membership.organizationId === organizationId &&
+        membership.role === "owner"
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+}
+
+/**
+ * In-memory organization store — the former `AppStores.organizations` Map
+ * behind the store interface, with `organizationSlugs` folded into
+ * {@link MemoryOrganizationStore.getBySlug} (a second Map could disagree with
+ * the first; a scan cannot).
+ *
+ * `set` normalizes the row so an optional field left empty reads back absent,
+ * exactly as a Postgres NULL does.
+ */
+export class MemoryOrganizationStore
+  extends Map<string, Organization>
+  implements OrganizationStore
+{
+  override set(id: string, organization: Organization): this;
+  override set(id: string, organization: Organization): void;
+  override set(id: string, organization: Organization): this {
+    return super.set(id, normalizeOrganizationRow({ ...organization, id }));
+  }
+
+  getBySlug(slug: string): Organization | undefined {
+    for (const organization of this.values()) {
+      if (organization.slug === slug) return organization;
+    }
+    return undefined;
+  }
+
+  findByIssuer(issuer: string): Organization | undefined {
+    for (const organization of this.values()) {
+      if (organizationClaimsIssuer(organization, issuer)) return organization;
+    }
+    return undefined;
+  }
+
+  listByCreator(principalId: string): Organization[] {
+    return [...this.values()].filter((org) => org.createdBy === principalId);
+  }
+}
+
+/** The organization pair, mirroring {@link createMemoryProjectStores}. */
+export function createMemoryOrganizationStores(): OrganizationStores & {
+  organizations: MemoryOrganizationStore;
+  organizationMemberships: MemoryOrganizationMembershipStore;
+} {
+  return {
+    organizations: new MemoryOrganizationStore(),
+    organizationMemberships: new MemoryOrganizationMembershipStore(),
   };
 }

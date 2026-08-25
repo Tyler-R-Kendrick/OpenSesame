@@ -4,10 +4,13 @@ import {
   type AuthorizationRequest,
   type BetterAuthSubject,
   type BoundaryValue,
+  type ByoUpstream,
   type ClaimItem,
   type ClaimSession,
   type ExternalIdentity,
   type JsonObject,
+  type Organization,
+  type OrganizationMembership,
   type OutboxEvent,
   type Principal,
   type Project,
@@ -18,12 +21,15 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import {
+  type Column,
   and,
+  asc,
   desc,
   eq,
   getTableColumns,
   isNull,
   notExists,
+  or,
   sql,
 } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -33,6 +39,7 @@ import {
   type AuditEventRepository,
   type AuthorizationRequestRepository,
   type BetterAuthSubjectRepository,
+  type ByoUpstreamRepository,
   type ClaimItemRepository,
   type ClaimSessionRepository,
   ConflictError,
@@ -41,6 +48,9 @@ import {
   type NewOutboxEvent,
   NotFoundError,
   OUTBOX_CLAIM_HOLD_MS,
+  type OrganizationMembershipStore,
+  type OrganizationStore,
+  type OrganizationStores,
   type OutboxRepository,
   type PrincipalRepository,
   type ProjectMembershipStore,
@@ -52,6 +62,8 @@ import {
   type WebhookDeliveryRepository,
   type WebhookEndpointRepository,
   buildPersonalProject,
+  normalizeIssuer,
+  normalizeOrganizationRow,
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
@@ -130,6 +142,23 @@ function mapIdentity(
     ...(row.lastAuthenticatedAt
       ? { lastAuthenticatedAt: row.lastAuthenticatedAt }
       : undefined),
+  };
+}
+
+function mapByoUpstream(
+  row: typeof schema.byoUpstreams.$inferSelect,
+): ByoUpstream {
+  return {
+    id: row.id,
+    issuer: row.issuer,
+    label: row.label,
+    clientId: row.clientId,
+    clientAuth: overlapCast(row.clientAuth),
+    registrationSource: overlapCast(row.registrationSource),
+    state: overlapCast(row.state),
+    createdAt: row.createdAt,
+    ...(row.clientSecret ? { clientSecret: row.clientSecret } : undefined),
+    ...(row.lastUsedAt ? { lastUsedAt: row.lastUsedAt } : undefined),
   };
 }
 
@@ -469,12 +498,121 @@ export class PostgresRepositories implements Repositories {
       return rows.map(mapIdentity);
     },
 
+    findVerifiedByEmail: async (emailNormalized) => {
+      // The email column is deliberately non-unique, so the tie-break is the
+      // contract: oldest owning principal, then principal id, then identity id.
+      const [row] = await this.db
+        .select({ identity: getTableColumns(schema.externalIdentities) })
+        .from(schema.externalIdentities)
+        .innerJoin(
+          schema.principals,
+          eq(schema.principals.id, schema.externalIdentities.principalId),
+        )
+        .where(
+          and(
+            eq(schema.externalIdentities.emailNormalized, emailNormalized),
+            eq(schema.externalIdentities.assurance, "verified"),
+            // Explicitly true, never merely not-false. A NULL here means the
+            // address was recorded without anyone checking it — every row
+            // written before the verified-email policy existed is NULL, and so
+            // is every row from a provider that supplies an address and no
+            // verification claim. Accepting those as link *targets* would let
+            // an attacker pre-plant a victim's address on their own principal
+            // and capture the victim's account on the victim's first real
+            // sign-in, which is the exact inversion of the policy.
+            eq(schema.externalIdentities.emailVerified, true),
+          ),
+        )
+        .orderBy(
+          asc(schema.principals.createdAt),
+          asc(schema.externalIdentities.principalId),
+          asc(schema.externalIdentities.id),
+        )
+        .limit(1);
+      return row ? mapIdentity(row.identity) : null;
+    },
+
     deleteById: async (id, uow) => {
       const rows = await dbOf(uow, this.db)
         .delete(schema.externalIdentities)
         .where(eq(schema.externalIdentities.id, id))
         .returning({ id: schema.externalIdentities.id });
       return rows.length > 0;
+    },
+  };
+
+  readonly byoUpstreams: ByoUpstreamRepository = {
+    create: async (record) => {
+      const issuer = normalizeIssuer(record.issuer);
+      try {
+        const [row] = await this.db
+          .insert(schema.byoUpstreams)
+          .values({
+            id: record.id,
+            issuer,
+            label: record.label,
+            clientId: record.clientId,
+            clientSecret: record.clientSecret ?? null,
+            clientAuth: record.clientAuth,
+            registrationSource: record.registrationSource,
+            state: record.state,
+            createdAt: record.createdAt,
+            lastUsedAt: record.lastUsedAt ?? null,
+          })
+          .returning();
+        if (!row) throw new Error("insert byo upstream returned no row");
+        return mapByoUpstream(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
+          throw new ConflictError(
+            `byo upstream issuer already registered: ${issuer}`,
+          );
+        }
+        throw err;
+      }
+    },
+
+    getById: async (id) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.byoUpstreams)
+        .where(eq(schema.byoUpstreams.id, id))
+        .limit(1);
+      return row ? mapByoUpstream(row) : null;
+    },
+
+    findByIssuer: async (issuer) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.byoUpstreams)
+        .where(eq(schema.byoUpstreams.issuer, normalizeIssuer(issuer)))
+        .limit(1);
+      return row ? mapByoUpstream(row) : null;
+    },
+
+    touchLastUsed: async (id, at) => {
+      await this.db
+        .update(schema.byoUpstreams)
+        .set({ lastUsedAt: at })
+        .where(eq(schema.byoUpstreams.id, id));
+    },
+
+    list: async () => {
+      const rows = await this.db
+        .select()
+        .from(schema.byoUpstreams)
+        .orderBy(desc(schema.byoUpstreams.createdAt));
+      return rows.map(mapByoUpstream);
+    },
+
+    setState: async (id, state) => {
+      const [row] = await this.db
+        .update(schema.byoUpstreams)
+        .set({ state })
+        .where(eq(schema.byoUpstreams.id, id))
+        .returning();
+      return row ? mapByoUpstream(row) : null;
     },
   };
 
@@ -1346,6 +1484,241 @@ export function createPostgresProjectStores(db: Database): ProjectStores {
   return {
     projects: new PostgresProjectStore(db),
     projectMemberships: new PostgresProjectMembershipStore(db),
+  };
+}
+
+function mapOrganization(
+  row: typeof schema.organizations.$inferSelect,
+): Organization {
+  return normalizeOrganizationRow({
+    id: row.id,
+    slug: row.slug,
+    displayName: row.displayName,
+    state: overlapCast(row.state),
+    createdBy: row.createdBy,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    ...(row.ssoIssuer ? { ssoIssuer: row.ssoIssuer } : undefined),
+    ...(row.ssoClientId ? { ssoClientId: row.ssoClientId } : undefined),
+    ...(row.ssoClientSecret
+      ? { ssoClientSecret: row.ssoClientSecret }
+      : undefined),
+    ...(row.samlIssuer ? { samlIssuer: row.samlIssuer } : undefined),
+    ...(row.samlMetadataUrl
+      ? { samlMetadataUrl: row.samlMetadataUrl }
+      : undefined),
+    ...(row.samlMetadataXml
+      ? { samlMetadataXml: row.samlMetadataXml }
+      : undefined),
+    ...(row.provisioningEnabled ? { provisioningEnabled: true } : undefined),
+  });
+}
+
+function organizationRowValues(organization: Organization) {
+  return {
+    id: organization.id,
+    slug: organization.slug,
+    displayName: organization.displayName,
+    state: organization.state,
+    createdBy: organization.createdBy,
+    ssoIssuer: organization.ssoIssuer ?? null,
+    ssoClientId: organization.ssoClientId ?? null,
+    ssoClientSecret: organization.ssoClientSecret ?? null,
+    samlIssuer: organization.samlIssuer ?? null,
+    samlMetadataUrl: organization.samlMetadataUrl ?? null,
+    samlMetadataXml: organization.samlMetadataXml ?? null,
+    provisioningEnabled: organization.provisioningEnabled ?? false,
+    createdAt: organization.createdAt,
+    updatedAt: organization.updatedAt,
+  };
+}
+
+/** `rtrim(col, '/')` — the SQL half of {@link normalizeIssuer}. */
+function normalizedIssuerColumn(column: Column) {
+  return sql<string>`rtrim(${column}, '/')`;
+}
+
+function mapOrganizationMembership(
+  row: typeof schema.organizationMemberships.$inferSelect,
+): OrganizationMembership {
+  return {
+    organizationId: row.organizationId,
+    principalId: row.principalId,
+    role: overlapCast(row.role),
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/** Postgres organization rows behind the `OrganizationStore` interface. */
+export class PostgresOrganizationStore implements OrganizationStore {
+  constructor(private readonly db: Database) {}
+
+  async get(id: string): Promise<Organization | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, id))
+      .limit(1);
+    return row ? mapOrganization(row) : undefined;
+  }
+
+  /** Full-row upsert — the durable equivalent of the former Map `set`. */
+  async set(id: string, organization: Organization): Promise<void> {
+    const values = organizationRowValues({ ...organization, id });
+    const { id: _id, ...update } = values;
+    await this.db
+      .insert(schema.organizations)
+      .values(values)
+      .onConflictDoUpdate({ target: schema.organizations.id, set: update });
+  }
+
+  async getBySlug(slug: string): Promise<Organization | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.organizations)
+      .where(eq(schema.organizations.slug, slug))
+      .limit(1);
+    return row ? mapOrganization(row) : undefined;
+  }
+
+  async findByIssuer(issuer: string): Promise<Organization | undefined> {
+    const target = normalizeIssuer(issuer);
+    if (!target) return undefined;
+    // The stored spelling is whatever the operator typed; the comparison is
+    // normalized on both sides so a trailing slash never hides a tenant.
+    const [row] = await this.db
+      .select()
+      .from(schema.organizations)
+      .where(
+        or(
+          eq(normalizedIssuerColumn(schema.organizations.ssoIssuer), target),
+          eq(normalizedIssuerColumn(schema.organizations.samlIssuer), target),
+        ),
+      )
+      .orderBy(
+        asc(schema.organizations.createdAt),
+        asc(schema.organizations.id),
+      )
+      .limit(1);
+    return row ? mapOrganization(row) : undefined;
+  }
+
+  async listByCreator(principalId: string): Promise<Organization[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.organizations)
+      .where(eq(schema.organizations.createdBy, principalId));
+    return rows.map(mapOrganization);
+  }
+}
+
+/** Postgres membership rows behind the `OrganizationMembershipStore` interface. */
+export class PostgresOrganizationMembershipStore
+  implements OrganizationMembershipStore
+{
+  constructor(private readonly db: Database) {}
+
+  async find(
+    organizationId: string,
+    principalId: string,
+  ): Promise<OrganizationMembership | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.organizationId, organizationId),
+          eq(schema.organizationMemberships.principalId, principalId),
+        ),
+      )
+      .limit(1);
+    return row ? mapOrganizationMembership(row) : undefined;
+  }
+
+  async upsert(
+    membership: OrganizationMembership,
+  ): Promise<OrganizationMembership> {
+    const [row] = await this.db
+      .insert(schema.organizationMemberships)
+      .values({
+        organizationId: membership.organizationId,
+        principalId: membership.principalId,
+        role: membership.role,
+        createdAt: membership.createdAt,
+        updatedAt: membership.updatedAt,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.organizationMemberships.organizationId,
+          schema.organizationMemberships.principalId,
+        ],
+        set: {
+          role: membership.role,
+          createdAt: membership.createdAt,
+          updatedAt: membership.updatedAt,
+        },
+      })
+      .returning();
+    if (!row) throw new Error("upsert organization membership returned no row");
+    return mapOrganizationMembership(row);
+  }
+
+  async remove(organizationId: string, principalId: string): Promise<boolean> {
+    const rows = await this.db
+      .delete(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.organizationId, organizationId),
+          eq(schema.organizationMemberships.principalId, principalId),
+        ),
+      )
+      .returning({
+        organizationId: schema.organizationMemberships.organizationId,
+      });
+    return rows.length > 0;
+  }
+
+  async listByOrganization(
+    organizationId: string,
+  ): Promise<OrganizationMembership[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.organizationId, organizationId));
+    return rows.map(mapOrganizationMembership);
+  }
+
+  async listByPrincipal(
+    principalId: string,
+  ): Promise<OrganizationMembership[]> {
+    const rows = await this.db
+      .select()
+      .from(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.principalId, principalId));
+    return rows.map(mapOrganizationMembership);
+  }
+
+  async countOwners(organizationId: string): Promise<number> {
+    const rows = await this.db
+      .select({ principalId: schema.organizationMemberships.principalId })
+      .from(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.organizationId, organizationId),
+          eq(schema.organizationMemberships.role, "owner"),
+        ),
+      );
+    return rows.length;
+  }
+}
+
+export function createPostgresOrganizationStores(
+  db: Database,
+): OrganizationStores {
+  return {
+    organizations: new PostgresOrganizationStore(db),
+    organizationMemberships: new PostgresOrganizationMembershipStore(db),
   };
 }
 

@@ -1010,6 +1010,13 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           properties: {
             displayName: { type: "string", minLength: 1, maxLength: 128 },
             ssoIssuer: { type: ["string", "null"], format: "uri" },
+            // What this deployment authenticates as at the tenant's own IdP.
+            // Without them the leg falls back to the origin-profile client,
+            // which Okta, Entra, Google Workspace and Auth0 all refuse.
+            ssoClientId: { type: ["string", "null"], maxLength: 256 },
+            // Write-only: never returned, because it must reach the tenant's
+            // token endpoint as issued and there is no digest to show.
+            ssoClientSecret: { type: ["string", "null"], maxLength: 1024 },
             samlIssuer: { type: ["string", "null"], format: "uri" },
           },
         },
@@ -1069,6 +1076,9 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
             ssoIssuer: { type: "string", format: "uri" },
+            ssoClientId: { type: "string" },
+            // Whether a secret is stored — deliberately not the secret.
+            ssoClientSecretConfigured: { type: "boolean" },
             samlIssuer: { type: "string", format: "uri" },
           },
         },

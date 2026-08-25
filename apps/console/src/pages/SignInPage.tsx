@@ -2,13 +2,24 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { clearClaimStash } from "../lib/claim-stash.js";
+import {
+  type FederatedProviderSummary,
+  listFederatedProviders,
+} from "../lib/federated-providers.js";
 import { createOpenSesame } from "../sdk-browser.js";
 
 const issuer =
   import.meta.env.VITE_OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
 
-/** The upstream broker that fronts Google for this deployment. */
-const GOOGLE_PROVIDER = "shoo";
+/**
+ * What this console offered before there was a catalog: the upstream broker
+ * that fronts Google. It stays as the fallback so a deployment that publishes
+ * no catalog — or an Identity API that cannot be reached from this tab — still
+ * has a working federated button.
+ */
+const FALLBACK_PROVIDERS: FederatedProviderSummary[] = [
+  { id: "shoo", label: "Google", kind: "oidc", browserCapable: true },
+];
 
 function createClient() {
   return createOpenSesame({
@@ -28,10 +39,22 @@ function isCallbackReturn(search: string): boolean {
 export function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [sessionHint, setSessionHint] = useState<string | null>(null);
-  const [busy, setBusy] = useState<
-    "signIn" | "google" | "anon" | "callback" | null
-  >(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [providers, setProviders] =
+    useState<FederatedProviderSummary[]>(FALLBACK_PROVIDERS);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+    void listFederatedProviders(issuer).then((list) => {
+      // An empty catalog keeps the fallback rather than leaving the console
+      // with no federated entry at all.
+      if (!cancelled && list.length > 0) setProviders(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * The PKCE verifier is spent by the first exchange, so a second call would
@@ -99,27 +122,34 @@ export function SignInPage() {
         >
           {busy === "signIn" ? "Opening sign-in…" : "Sign in with OpenSesame"}
         </button>
-        <button
-          type="button"
-          disabled={busy !== null}
-          aria-busy={busy === "google"}
-          onClick={() => {
-            setError(null);
-            setBusy("google");
-            void sesame
-              .signIn({ provider: GOOGLE_PROVIDER })
-              .catch((e: BoundaryValue) => {
-                setError(
-                  e instanceof Error
-                    ? e.message
-                    : "Sign-in failed. Check the Identity API and try again.",
-                );
-              })
-              .finally(() => setBusy(null));
-          }}
-        >
-          {busy === "google" ? "Opening sign-in…" : "Sign in with Google"}
-        </button>
+        {providers.map((provider) => (
+          <button
+            key={provider.id}
+            type="button"
+            disabled={busy !== null}
+            aria-busy={busy === `provider:${provider.id}`}
+            onClick={() => {
+              setError(null);
+              setBusy(`provider:${provider.id}`);
+              // The hosted login page runs the upstream leg and pre-selects
+              // this provider from the hint the SDK sends under both names.
+              void sesame
+                .signIn({ provider: provider.id })
+                .catch((e: BoundaryValue) => {
+                  setError(
+                    e instanceof Error
+                      ? e.message
+                      : "Sign-in failed. Check the Identity API and try again.",
+                  );
+                })
+                .finally(() => setBusy(null));
+            }}
+          >
+            {busy === `provider:${provider.id}`
+              ? "Opening sign-in…"
+              : `Sign in with ${provider.label}`}
+          </button>
+        ))}
         <button
           type="button"
           disabled={busy !== null}

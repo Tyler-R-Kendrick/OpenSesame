@@ -2,13 +2,23 @@ import {
   type ClientClaimChallengeStore,
   type ClientOriginStore,
   type ConsentStore,
+  type OrgFederationStores,
+  type OrganizationMembershipStore,
+  type OrganizationStore,
+  type OrganizationStores,
   type ProjectMembershipStore,
   type ProjectStore,
   type ProjectStores,
+  type SamlStores,
+  type ScimStores,
   createMemoryClientClaimChallengeStore,
   createMemoryClientOriginStore,
   createMemoryConsentStore,
+  createMemoryOrgFederationStores,
+  createMemoryOrganizationStores,
   createMemoryProjectStores,
+  createMemorySamlStores,
+  createMemoryScimStores,
 } from "@opensesame/database";
 import {
   type ClientRecordStore,
@@ -17,8 +27,6 @@ import {
 import type {
   Agent,
   AgentInstance,
-  Organization,
-  OrganizationMembership,
   ProvisionalSession,
 } from "@opensesame/os-domain";
 
@@ -54,13 +62,27 @@ export interface AppStores {
   projectMembershipMutations: Map<string, Promise<void>>;
   /** principalId → active (swapped-in) project id */
   activeProjects: Map<string, string>;
-  organizations: Map<string, Organization>;
-  /** `${organizationId}:${principalId}` → membership */
-  organizationMemberships: Map<string, OrganizationMembership>;
+  /**
+   * Durable organization rows (ADR 0055). Tenant SSO/SAML configuration lives
+   * on this row and is read on the login path, so it cannot stay in process
+   * memory: a restart that forgot an org's issuer silently turned enterprise
+   * sign-in off. Memory-backed in tests/dev, Postgres when a database is
+   * configured — same interface either way.
+   */
+  organizations: OrganizationStore;
+  /** Durable organization memberships, keyed by (organizationId, principalId). */
+  organizationMemberships: OrganizationMembershipStore;
   /** organization id → tail of serialized membership mutations */
   organizationMembershipMutations: Map<string, Promise<void>>;
-  /** slug → organization id */
-  organizationSlugs: Map<string, string>;
+  /**
+   * SCIM directory rows and provisioning tokens (ADR 0056). Read on the
+   * JIT-join path when an organization marks provisioning authoritative.
+   */
+  scim: ScimStores;
+  /** Org email domains (home-realm discovery) and per-org LDAP configuration. */
+  orgFederation: OrgFederationStores;
+  /** SAML SP-initiated pending requests and the assertion replay cache. */
+  saml: SamlStores;
   /**
    * OAuth client records — the same durable store the OIDC provider resolves
    * clients from (ADR 0050 R-C), never a process-local copy.
@@ -107,8 +129,14 @@ export function createAppStores(options?: {
   clientOrigins?: ClientOriginStore;
   consents?: ConsentStore;
   projectStores?: ProjectStores;
+  organizationStores?: OrganizationStores;
+  scimStores?: ScimStores;
+  orgFederationStores?: OrgFederationStores;
+  samlStores?: SamlStores;
 }): AppStores {
   const projectStores = options?.projectStores ?? createMemoryProjectStores();
+  const organizationStores =
+    options?.organizationStores ?? createMemoryOrganizationStores();
   return {
     provisionalSessions: new Map(),
     provisionalTokens: new Map(),
@@ -116,10 +144,13 @@ export function createAppStores(options?: {
     projectMemberships: projectStores.projectMemberships,
     projectMembershipMutations: new Map(),
     activeProjects: new Map(),
-    organizations: new Map(),
-    organizationMemberships: new Map(),
+    organizations: organizationStores.organizations,
+    organizationMemberships: organizationStores.organizationMemberships,
     organizationMembershipMutations: new Map(),
-    organizationSlugs: new Map(),
+    scim: options?.scimStores ?? createMemoryScimStores(),
+    orgFederation:
+      options?.orgFederationStores ?? createMemoryOrgFederationStores(),
+    saml: options?.samlStores ?? createMemorySamlStores(),
     oauthClients: options?.oauthClients ?? new MemoryClientRecordStore(),
     clientClaimChallenges:
       options?.clientClaimChallenges ?? createMemoryClientClaimChallengeStore(),
@@ -185,8 +216,7 @@ export async function getUsage(
   }
 
   let organizations = 0;
-  for (const org of stores.organizations.values()) {
-    if (org.createdBy !== principalId) continue;
+  for (const org of await stores.organizations.listByCreator(principalId)) {
     if (!LIVE_ORGANIZATION_STATES.has(org.state)) continue;
     organizations += 1;
   }

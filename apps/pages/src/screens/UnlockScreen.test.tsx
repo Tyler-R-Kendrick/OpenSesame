@@ -111,6 +111,21 @@ Object.assign(federationSeams, {
 
 const FEDERATED_BUTTON = `Sign in with ${UPSTREAM.accountKind} — no passkey or password`;
 
+import { identitySeams } from "../lib/identity.js";
+identitySeams.identityBase = () => "http://127.0.0.1:18788";
+
+import { orgSeams } from "../lib/orgs.js";
+const lookupOrgTenant = vi.fn();
+Object.assign(orgSeams, { lookupOrgTenant });
+
+import { providersSeams } from "../lib/providers.js";
+const listFederatedProviders = vi.fn();
+const requestEmailMagicLink = vi.fn();
+Object.assign(providersSeams, {
+  listFederatedProviders,
+  requestEmailMagicLink,
+});
+
 import { UnlockScreen } from "./UnlockScreen.js";
 
 const STRONG = "correct horse battery staple";
@@ -154,6 +169,13 @@ describe("UnlockScreen — first run", () => {
     // Real sign-in navigates away and never settles; a pending promise is the
     // honest stand-in.
     beginSignIn.mockReturnValue(new Promise(() => {}));
+    lookupOrgTenant.mockReset();
+    requestEmailMagicLink.mockReset();
+    requestEmailMagicLink.mockResolvedValue(undefined);
+    listFederatedProviders.mockReset();
+    // No catalog is the default: every existing first-run expectation below is
+    // the fallback path (an unreachable or older Identity API).
+    listFederatedProviders.mockResolvedValue([]);
   });
 
   afterEach(cleanup);
@@ -357,6 +379,254 @@ describe("UnlockScreen — first run", () => {
     fireEvent.click(federated);
     expect(await screen.findByText("broker unreachable")).toBeTruthy();
     await waitFor(() => expect(federated.hasAttribute("disabled")).toBe(false));
+  });
+
+  it("falls back to the single default sign-in when no catalog is published", async () => {
+    render(<UnlockScreen />);
+    await waitFor(() => expect(listFederatedProviders).toHaveBeenCalled());
+    // First run must never dead-end on a catalog fetch.
+    expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();
+  });
+
+  it("renders one button per published provider", async () => {
+    listFederatedProviders.mockResolvedValue([
+      { id: "google", label: "Google", kind: "oidc", browserCapable: false },
+      { id: "github", label: "GitHub", kind: "oauth2", browserCapable: false },
+      { id: "acme", label: "Acme SSO", kind: "oidc", browserCapable: false },
+    ]);
+    render(<UnlockScreen />);
+    for (const label of ["Google", "GitHub", "Acme SSO"]) {
+      expect(
+        await screen.findByRole("button", {
+          name: `Sign in with ${label} — no passkey or password`,
+        }),
+      ).toBeTruthy();
+    }
+    // The catalog replaces the single default, it does not sit beside it.
+    expect(screen.queryByRole("button", { name: FEDERATED_BUTTON })).toBeNull();
+  });
+
+  it("starts a brokered provider against the Identity API with a provider hint", async () => {
+    listFederatedProviders.mockResolvedValue([
+      { id: "google", label: "Google", kind: "oidc", browserCapable: false },
+    ]);
+    render(<UnlockScreen />);
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Sign in with Google — no passkey or password",
+      }),
+    );
+    expect(beginSignIn).toHaveBeenCalledWith(
+      {
+        id: "broker:google",
+        issuer: "http://127.0.0.1:18788",
+        displayName: "Google",
+        accountKind: "Google",
+      },
+      { providerHint: "google", returnTo: "/" },
+    );
+  });
+
+  it("keeps a browser-capable provider on the direct upstream leg", async () => {
+    listFederatedProviders.mockResolvedValue([
+      {
+        id: "mock",
+        label: "Local mock IdP",
+        kind: "oidc",
+        browserCapable: true,
+      },
+    ]);
+    render(<UnlockScreen />);
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Sign in with Local mock IdP — no passkey or password",
+      }),
+    );
+    // The compiled trust list decides this, not the catalog: no hint, no broker.
+    expect(beginSignIn).toHaveBeenCalledWith(UPSTREAM, { returnTo: "/" });
+  });
+
+  it("starts an OIDC organization method in this browser", async () => {
+    lookupOrgTenant.mockResolvedValue({
+      slug: "acme",
+      displayName: "Acme",
+      state: "active",
+      authMethods: [
+        { kind: "sso", label: "SSO", issuer: "https://idp.acme.example" },
+      ],
+    });
+    render(<UnlockScreen />);
+    fireEvent.change(screen.getByLabelText("Organization"), {
+      target: { value: "acme" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue with your organization" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Continue with SSO" }),
+    );
+    expect(lookupOrgTenant).toHaveBeenCalledWith("acme");
+    const [upstream, options] = beginSignIn.mock.calls[0] ?? [];
+    expect(upstream).toMatchObject({ issuer: "https://idp.acme.example" });
+    expect(options).toEqual({
+      orgSlug: "acme",
+      orgMethod: "sso",
+      returnTo: "/",
+    });
+  });
+
+  it("routes an organization method with no browser issuer through the broker", async () => {
+    lookupOrgTenant.mockResolvedValue({
+      slug: "acme",
+      displayName: "Acme",
+      state: "active",
+      // Native SAML: the server holds the metadata and there is no issuer to
+      // redirect to. This must produce a working button, not a broken one.
+      authMethods: [{ kind: "saml", label: "SAML", native: true }],
+    });
+    render(<UnlockScreen />);
+    fireEvent.change(screen.getByLabelText("Organization"), {
+      target: { value: "acme" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue with your organization" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Continue with SAML" }),
+    );
+    const [upstream, options] = beginSignIn.mock.calls[0] ?? [];
+    expect(upstream).toMatchObject({
+      id: "broker:org:acme",
+      issuer: "http://127.0.0.1:18788",
+    });
+    // No org assertion comes back from a brokered leg, so no join is promised.
+    expect(options).toEqual({ returnTo: "/" });
+  });
+
+  it("routes an LDAP organization through the broker rather than asking for the password here", async () => {
+    lookupOrgTenant.mockResolvedValue({
+      slug: "acme",
+      displayName: "Acme",
+      state: "active",
+      authMethods: [{ kind: "ldap", label: "Directory" }],
+    });
+    render(<UnlockScreen />);
+    fireEvent.change(screen.getByLabelText("Organization"), {
+      target: { value: "acme" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue with your organization" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Continue with Directory" }),
+    );
+    expect(beginSignIn.mock.calls[0]?.[0]).toMatchObject({
+      id: "broker:org:acme",
+    });
+    // A directory password is typed on the hosted login page, where the POST
+    // is CSRF-protected and rate-limited — never collected by this static app.
+    expect(screen.queryByLabelText("Directory password")).toBeNull();
+    expect(screen.queryByLabelText("Directory username")).toBeNull();
+  });
+
+  it("says so when an organization has configured nothing", async () => {
+    lookupOrgTenant.mockResolvedValue({
+      slug: "acme",
+      displayName: "Acme",
+      state: "active",
+      authMethods: [],
+    });
+    render(<UnlockScreen />);
+    fireEvent.change(screen.getByLabelText("Organization"), {
+      target: { value: "acme" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue with your organization" }),
+    );
+    expect(
+      await screen.findByText(/has not configured organization sign-in/),
+    ).toBeTruthy();
+  });
+
+  it("surfaces an unknown organization without starting anything", async () => {
+    lookupOrgTenant.mockRejectedValue(new Error("No such organization."));
+    render(<UnlockScreen />);
+    fireEvent.change(screen.getByLabelText("Organization"), {
+      target: { value: "nope" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue with your organization" }),
+    );
+    expect(await screen.findByText("No such organization.")).toBeTruthy();
+    expect(beginSignIn).not.toHaveBeenCalled();
+  });
+
+  it("routes a work email by its domain and keeps the address to itself", async () => {
+    render(<UnlockScreen />);
+    const field = overlapCast<unknown, HTMLInputElement>(
+      screen.getByLabelText("Continue with your work email"),
+    );
+    fireEvent.change(field, { target: { value: "ada.lovelace@acme.example" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Find my organization" }),
+    );
+    const [upstream, options] = beginSignIn.mock.calls[0] ?? [];
+    expect(upstream).toMatchObject({ id: "broker:realm" });
+    expect(options).toEqual({ returnTo: "/", loginHint: "acme.example" });
+    // The local part never leaves this screen — not in the call, not in the
+    // field it was typed into.
+    expect(JSON.stringify(beginSignIn.mock.calls)).not.toContain(
+      "ada.lovelace",
+    );
+    await waitFor(() => expect(field.value).toBe(""));
+  });
+
+  it("asks again when the work-email field is not an address", () => {
+    render(<UnlockScreen />);
+    fireEvent.change(screen.getByLabelText("Continue with your work email"), {
+      target: { value: "acme.example" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Find my organization" }),
+    );
+    expect(screen.getByText(/Enter your work email/)).toBeTruthy();
+    expect(beginSignIn).not.toHaveBeenCalled();
+  });
+
+  it("sends a magic link to an address the human owns", async () => {
+    render(<UnlockScreen />);
+    fireEvent.change(screen.getByLabelText("Continue with email"), {
+      target: { value: "ada@example.com" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Email me a sign-in link" }),
+    );
+    await waitFor(() =>
+      expect(requestEmailMagicLink).toHaveBeenCalledWith("ada@example.com"),
+    );
+    expect(await screen.findByText(/Check your email/)).toBeTruthy();
+  });
+
+  it("surfaces a deployment with no email sign-in", async () => {
+    requestEmailMagicLink.mockRejectedValue(
+      new Error("Email sign-in is not available on this Identity API."),
+    );
+    render(<UnlockScreen />);
+    fireEvent.change(screen.getByLabelText("Continue with email"), {
+      target: { value: "ada@example.com" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Email me a sign-in link" }),
+    );
+    expect(await screen.findByText(/not available/)).toBeTruthy();
+  });
+
+  it("keeps the organization and email entries off an existing vault", () => {
+    v.state.status = "locked";
+    render(<UnlockScreen />);
+    expect(screen.queryByLabelText("Organization")).toBeNull();
+    expect(screen.queryByLabelText("Continue with email")).toBeNull();
+    expect(screen.queryByLabelText("Continue with your work email")).toBeNull();
   });
 
   it("does not offer the reset affordance on first run", () => {

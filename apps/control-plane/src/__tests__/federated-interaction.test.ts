@@ -1,8 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import {
+  type ReferenceIdp,
+  startReferenceIdp,
+} from "@opensesame/mock-upstream-idp/testkit";
 import { overlapCast } from "@opensesame/os-domain";
-import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   decodePending,
@@ -10,19 +13,35 @@ import {
   federatedUpstreams,
   matchUpstreamHint,
   resetFederatedDiscoveryCache,
+  revokeSessionsForIdentity,
 } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
-type TokenClient = { id?: string; secret?: string };
-type FederatedStartForm = { _csrf: string; issuer: string };
+/** The fields the hosted login page's federated forms actually post. */
+type FederatedStartForm = {
+  _csrf: string;
+  /** Registry id (C10) — wins over `issuer` when both are present. */
+  provider?: string;
+  issuer?: string;
+};
 type FederatedTestEnvironment = {
   OPENSESAME_UPSTREAM_ISSUER?: string;
   OPENSESAME_UPSTREAM_CLIENT_ID?: string;
   OPENSESAME_UPSTREAM_CLIENT_SECRET?: string;
 };
 type LoginPageResult = { jar: Jar; uid: string; html: string };
+/** The parsed `form_post` response body: where it posts, and what it carries. */
+type AutoSubmitForm = { action: string; fields: FormPostFields };
+type FormPostFields = {
+  code?: string;
+  state?: string;
+  error?: string;
+  error_description?: string;
+};
+type SignInOutcome = { principalId: string; cookie: string };
+type StartedLeg = { jar: Jar; uid: string; form: URL };
 
 const RP_ORIGIN = "http://127.0.0.1:4311";
 const RP_CLIENT_ID = `origin:${RP_ORIGIN}`;
@@ -60,187 +79,6 @@ class Jar {
       cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; "),
     };
   }
-}
-
-/**
- * A stand-in trusted broker. Deliberately enforces the two things the real
- * origin-profile contract enforces and that a server-side leg could silently
- * get wrong: PKCE S256, and an `Origin` header on /token byte-equal to the
- * origin inside the client id (see apps/mock-upstream-idp).
- */
-type StubUpstream = {
-  issuer: string;
-  close: () => Promise<void>;
-  /** Codes handed out by /authorize, keyed by code. */
-  lastNonce: () => string | undefined;
-  tokenOriginSeen: () => string | undefined;
-  tokenClientSeen: () => { id?: string; secret?: string };
-  setSubject: (sub: string) => void;
-};
-
-/** The secret the stub expects from a confidential client. */
-const STUB_CLIENT_SECRET = "stub-upstream-secret";
-const STUB_CLIENT_ID = "opensesame-upstream-test";
-
-async function startStubUpstream(): Promise<StubUpstream> {
-  const { privateKey, publicKey } = await generateKeyPair("RS256", {
-    extractable: true,
-  });
-  const jwk = { ...(await exportJWK(publicKey)), kid: "stub-1", alg: "RS256" };
-  const codes = new Map<
-    string,
-    { challenge: string; nonce: string; clientId: string }
-  >();
-  let lastNonce: string | undefined;
-  let tokenOrigin: string | undefined;
-  let tokenClient: TokenClient = {};
-  let subject = "stub-user-1";
-
-  const server = createServer((req, res) => {
-    const url = new URL(req.url ?? "/", `http://127.0.0.1:${port}`);
-    const issuer = `http://127.0.0.1:${port}`;
-
-    if (url.pathname === "/.well-known/openid-configuration") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(
-        JSON.stringify({
-          issuer,
-          authorization_endpoint: `${issuer}/authorize`,
-          token_endpoint: `${issuer}/token`,
-          jwks_uri: `${issuer}/jwks`,
-          response_types_supported: ["code"],
-          subject_types_supported: ["pairwise"],
-          id_token_signing_alg_values_supported: ["RS256"],
-          code_challenge_methods_supported: ["S256"],
-        }),
-      );
-      return;
-    }
-
-    if (url.pathname === "/jwks") {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ keys: [jwk] }));
-      return;
-    }
-
-    if (url.pathname === "/authorize") {
-      const challenge = url.searchParams.get("code_challenge") ?? "";
-      const method = url.searchParams.get("code_challenge_method");
-      const redirect = url.searchParams.get("redirect_uri") ?? "";
-      const state = url.searchParams.get("state") ?? "";
-      const nonce = url.searchParams.get("nonce") ?? "";
-      const clientId = url.searchParams.get("client_id") ?? "";
-      if (method !== "S256" || !challenge) {
-        res.writeHead(400).end("pkce_required");
-        return;
-      }
-      lastNonce = nonce;
-      const code = randomBytes(16).toString("hex");
-      codes.set(code, { challenge, nonce, clientId });
-      const back = new URL(redirect);
-      back.searchParams.set("code", code);
-      back.searchParams.set("state", state);
-      res.writeHead(303, { location: back.href }).end();
-      return;
-    }
-
-    if (url.pathname === "/token" && req.method === "POST") {
-      tokenOrigin = Array.isArray(req.headers.origin)
-        ? req.headers.origin[0]
-        : req.headers.origin;
-      let body = "";
-      req.on("data", (chunk) => {
-        body += String(chunk);
-      });
-      req.on("end", () => {
-        void (async () => {
-          const form = new URLSearchParams(body);
-          const record = codes.get(form.get("code") ?? "");
-          codes.delete(form.get("code") ?? "");
-          if (!record) {
-            res.writeHead(400, { "content-type": "application/json" });
-            res.end(JSON.stringify({ error: "invalid_grant" }));
-            return;
-          }
-          tokenClient = {
-            ...(form.get("client_id")
-              ? { id: form.get("client_id") ?? undefined }
-              : undefined),
-            ...(form.get("client_secret")
-              ? { secret: form.get("client_secret") ?? undefined }
-              : undefined),
-          };
-          // Origin-profile clients carry no secret, so the Origin header is
-          // the only caller binding the broker has.
-          if (record.clientId.startsWith("origin:")) {
-            if (tokenOrigin !== record.clientId.slice("origin:".length)) {
-              res.writeHead(400, { "content-type": "application/json" });
-              res.end(JSON.stringify({ error: "origin_cors_denied" }));
-              return;
-            }
-          } else if (form.get("client_secret") !== STUB_CLIENT_SECRET) {
-            // A confidential client is bound by its secret instead.
-            res.writeHead(401, { "content-type": "application/json" });
-            res.end(JSON.stringify({ error: "invalid_client" }));
-            return;
-          }
-          const verifier = form.get("code_verifier") ?? "";
-          const computed = createHash("sha256")
-            .update(verifier)
-            .digest("base64url");
-          if (computed !== record.challenge) {
-            res.writeHead(400, { "content-type": "application/json" });
-            res.end(JSON.stringify({ error: "invalid_grant" }));
-            return;
-          }
-          const idToken = await new SignJWT({
-            nonce: record.nonce,
-            pairwise_sub: subject,
-            email: "Person@Example.COM",
-            email_verified: true,
-            name: "Test Person",
-          })
-            .setProtectedHeader({ alg: "RS256", kid: "stub-1" })
-            .setIssuer(issuer)
-            .setSubject(`global-${subject}`)
-            .setAudience(record.clientId)
-            .setIssuedAt()
-            .setExpirationTime("5m")
-            .sign(privateKey);
-          res.writeHead(200, { "content-type": "application/json" });
-          res.end(
-            JSON.stringify({
-              access_token: randomBytes(16).toString("hex"),
-              token_type: "Bearer",
-              expires_in: 300,
-              id_token: idToken,
-            }),
-          );
-        })();
-      });
-      return;
-    }
-
-    res.writeHead(404).end();
-  });
-
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  // SAFETY: server.listen established the runtime AddressInfo invariant.
-  const port = (server.address() as AddressInfo).port;
-
-  return {
-    issuer: `http://127.0.0.1:${port}`,
-    close: () =>
-      new Promise<void>((resolve, reject) =>
-        server.close((err) => (err ? reject(err) : resolve())),
-      ),
-    lastNonce: () => lastNonce,
-    tokenOriginSeen: () => tokenOrigin,
-    tokenClientSeen: () => tokenClient,
-    setSubject: (sub: string) => {
-      subject = sub;
-    },
-  };
 }
 
 async function startControlPlane(
@@ -305,6 +143,30 @@ function postForm(fields: FederatedStartForm): RequestInit {
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(fields),
   };
+}
+
+/**
+ * The reference IdP's pairwise subject derivation, mirrored so a test can look
+ * up the identity row an origin-profile sign-in wrote. Origin-profile clients
+ * never see the canonical subject; the row records what the assertion carried.
+ */
+function pairwiseSubjectFor(sub: string, clientOrigin: string): string {
+  return createHash("sha256")
+    .update(`os-mock:${sub}:origin:${clientOrigin}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+/** The hidden inputs of a `form_post` auto-submitting response body. */
+function parseAutoSubmitForm(html: string): AutoSubmitForm {
+  const action = html.match(/<form[^>]+action="([^"]+)"/)?.[1] ?? "";
+  const fields: FormPostFields = {};
+  for (const input of html.matchAll(/<input[^>]*>/g)) {
+    const name = input[0].match(/name="([^"]+)"/)?.[1];
+    const value = input[0].match(/value="([^"]*)"/)?.[1];
+    if (name) fields[name] = value ?? "";
+  }
+  return { action, fields };
 }
 
 describe("federated upstream table", () => {
@@ -377,6 +239,17 @@ describe("pending leg state", () => {
     expect(decodePending(encodePending(pending))).toEqual(pending);
   });
 
+  it("round-trips the v2 provenance fields", () => {
+    const v2 = {
+      ...pending,
+      kind: "oauth2" as const,
+      providerId: "github",
+      byoId: "byo_1",
+      orgId: "org_1",
+    };
+    expect(decodePending(encodePending(v2))).toEqual(v2);
+  });
+
   it.each([
     ["absent", undefined],
     ["not base64", "!!!!"],
@@ -384,6 +257,12 @@ describe("pending leg state", () => {
     [
       "missing a field",
       Buffer.from(JSON.stringify({ issuer: "x", state: "y" })).toString(
+        "base64url",
+      ),
+    ],
+    [
+      "an unknown kind",
+      Buffer.from(JSON.stringify({ ...pending, kind: "saml" })).toString(
         "base64url",
       ),
     ],
@@ -460,14 +339,21 @@ describe("login page federated block", () => {
   });
 });
 
+/**
+ * The counterparty for every case below is the reference IdP (C18) — a real
+ * OIDC server over real HTTP with keys generated at startup, which enforces
+ * PKCE S256, single-use codes, and the origin-profile contract's `Origin`
+ * byte-equality on the token endpoint. Nothing here is stubbed: an assertion
+ * about what the leg sent is an assertion about bytes that crossed a socket.
+ */
 describe("federated interaction leg", () => {
-  let upstream: StubUpstream;
+  let upstream: ReferenceIdp;
   let started: Started;
   let base: string;
 
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
-    upstream = await startStubUpstream();
+    upstream = await startReferenceIdp();
     started = await startControlPlane(upstream.issuer, await reservePort());
     base = `http://127.0.0.1:${started.port}`;
   }, 30_000);
@@ -521,6 +407,24 @@ describe("federated interaction leg", () => {
     expect(res.status).toBe(403);
   });
 
+  it("refuses a provider id nothing in the registry answers to", async () => {
+    // A `provider` field that resolves to nothing must not fall through to the
+    // legacy `issuer` field: that would sign the user in somewhere else.
+    const { jar, uid, html } = await loginPage();
+    const res = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({
+        _csrf: extractCsrf(html),
+        provider: "not-a-provider",
+        issuer: upstream.issuer,
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect(jar.get(`os.fed.${uid}`)).toBeFalsy();
+  });
+
   it("refuses a start without the CSRF token", async () => {
     const { jar, uid } = await loginPage();
     const res = await req(
@@ -548,10 +452,37 @@ describe("federated interaction leg", () => {
     expect(target.searchParams.get("state")).toBeTruthy();
     expect(target.searchParams.get("nonce")).toBeTruthy();
     expect(target.searchParams.get("client_id")).toBe(`origin:${base}`);
+    // The stable, deployment-wide callback (ADR 0055) — a registry provider's
+    // redirect URI is registered once and matched byte for byte, so it cannot
+    // name an interaction. The uid rides in `state` instead, which is how the
+    // shared callback hands the browser back to this interaction.
     expect(target.searchParams.get("redirect_uri")).toBe(
-      `${base}/interaction/${uid}/federated/callback`,
+      `${base}/v1/federated/callback`,
+    );
+    expect(target.searchParams.get("state")).toMatch(
+      new RegExp(`^${uid}\\..+`),
     );
     expect(jar.get(`os.fed.${uid}`)).toBeTruthy();
+  });
+
+  it("starts from a provider id and records it in the pending cookie", async () => {
+    // The catalog button posts `provider`; the leg must resolve it to the same
+    // issuer the legacy field names, and stamp the provenance on the cookie.
+    const { jar, uid, html } = await loginPage();
+    const res = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({ _csrf: extractCsrf(html), provider: "mock" }),
+    );
+    expect(res.status).toBe(303);
+    expect(new URL(res.headers.get("location") ?? "").origin).toBe(
+      upstream.issuer,
+    );
+    const pending = decodePending(jar.get(`os.fed.${uid}`));
+    expect(pending?.issuer).toBe(upstream.issuer);
+    expect(pending?.kind).toBe("oidc");
+    expect(pending?.providerId).toBe("mock");
   });
 
   it("rejects a callback with no pending leg state", async () => {
@@ -603,6 +534,46 @@ describe("federated interaction leg", () => {
   });
 
   /**
+   * A pending cookie that claims the generic OAuth2 leg must not be finished
+   * by the OIDC one. The OIDC leg's whole guarantee is a JWKS-verified
+   * id_token; running it for a provider that issues none would admit on
+   * whatever the token endpoint returned.
+   */
+  it("refuses a pending cookie claiming a kind the registry does not offer", async () => {
+    const { jar, uid, html } = await loginPage();
+    const start = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
+    );
+    const authorize = new URL(start.headers.get("location") ?? "");
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+
+    const forged = decodePending(jar.get(`os.fed.${uid}`));
+    if (!forged) throw new Error("no pending cookie to forge from");
+    const rewritten = encodePending({
+      ...forged,
+      kind: "oauth2",
+      providerId: "mock",
+    });
+    const cookie = (jar.header().cookie ?? "")
+      .split("; ")
+      .map((entry) =>
+        entry.startsWith(`os.fed.${uid}=`)
+          ? `os.fed.${uid}=${rewritten}`
+          : entry,
+      )
+      .join("; ");
+    const res = await fetch(
+      `${base}/interaction/${uid}/federated/callback${back.search}`,
+      { redirect: "manual", headers: { cookie } },
+    );
+    expect(res.status).toBe(403);
+  });
+
+  /**
    * The whole point: a first-time visitor who never supplies a password,
    * passkey or PIN still ends up as one durable, verified principal.
    */
@@ -640,7 +611,9 @@ describe("federated interaction leg", () => {
     const identity = await started.ctx.repos.externalIdentities.findByTuple({
       kind: "oidc",
       issuer: upstream.issuer,
-      subject,
+      // Origin-profile clients get a pairwise subject, which is what the
+      // identity row records.
+      subject: pairwiseSubjectFor(subject, base),
     });
     expect(identity).toBeTruthy();
     expect(identity?.assurance).toBe("verified");
@@ -684,7 +657,7 @@ describe("federated interaction leg", () => {
     const identity = await started.ctx.repos.externalIdentities.findByTuple({
       kind: "oidc",
       issuer: upstream.issuer,
-      subject,
+      subject: pairwiseSubjectFor(subject, base),
     });
     expect(identity).toBeTruthy();
     const { created } = await started.ctx.stores.projects.ensurePersonal(
@@ -699,7 +672,7 @@ describe("federated interaction leg", () => {
     const subject = `repeat-${randomBytes(4).toString("hex")}`;
     upstream.setSubject(subject);
 
-    async function signIn(): Promise<string> {
+    async function signIn(): Promise<SignInOutcome> {
       const { jar, uid, html } = await loginPage();
       const start = await req(
         base,
@@ -719,15 +692,498 @@ describe("federated interaction leg", () => {
       const resumed = await req(base, jar, res.headers.get("location") ?? "");
       // Consent page (or straight through); either way the account is bound.
       expect([200, 303]).toContain(resumed.status);
-      return jar.get("os_provisional") ?? "";
+      const identity = await started.ctx.repos.externalIdentities.findByTuple({
+        kind: "oidc",
+        issuer: upstream.issuer,
+        subject: pairwiseSubjectFor(subject, base),
+      });
+      return {
+        principalId: identity?.principalId ?? "",
+        cookie: jar.get("os_provisional") ?? "",
+      };
     }
 
     const first = await signIn();
     const second = await signIn();
-    // A second mint would have issued a brand-new provisional token; the
-    // identity lookup short-circuits that, so no new cookie is set.
-    expect(first).toBeTruthy();
-    expect(second).toBe("");
+    expect(first.principalId).toBeTruthy();
+    // The identity tuple resolves before anything is minted, so the second
+    // pass lands on the same principal rather than a fresh one.
+    expect(second.principalId).toBe(first.principalId);
+    // And a returning identity is issued no new provisional cookie (T6).
+    expect(second.cookie).toBe("");
+  }, 30_000);
+});
+
+/**
+ * The effect half of OIDC Back-Channel Logout (C17).
+ *
+ * S10 owns the endpoint that verifies a `logout_token`; this is what it calls
+ * once it has, and the thing that must actually be true afterwards is that the
+ * bearer stops working. A revocation that removed a row and left a live token
+ * behind would leave the human signed in for the rest of the session TTL,
+ * which is exactly the window back-channel logout exists to close.
+ *
+ * Its own server so exactly one sign-in has happened when it runs: the
+ * assertion is about a session ending, and it should not have to reason about
+ * which of several sessions it is looking at.
+ */
+describe("federated leg, upstream logout", () => {
+  let upstream: ReferenceIdp;
+  let started: Started;
+  let base: string;
+
+  beforeAll(async () => {
+    resetFederatedDiscoveryCache();
+    upstream = await startReferenceIdp();
+    started = await startControlPlane(upstream.issuer, await reservePort());
+    base = `http://127.0.0.1:${started.port}`;
+  }, 30_000);
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) =>
+      started.server.close((err) => (err ? reject(err) : resolve())),
+    );
+    await upstream.close();
+    resetFederatedDiscoveryCache();
+  });
+
+  it("revokes the sessions of an identity the upstream logged out", async () => {
+    const subject = `logout-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(subject);
+
+    const jar = new Jar();
+    const { challenge } = pkce();
+    const authRes = await req(
+      base,
+      jar,
+      `/auth?${new URLSearchParams({
+        client_id: RP_CLIENT_ID,
+        redirect_uri: RP_REDIRECT,
+        response_type: "code",
+        scope: "openid",
+        state: "s-1",
+        nonce: "n-1",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+      }).toString()}`,
+    );
+    const location = authRes.headers.get("location") ?? "";
+    const uid = location.slice("/interaction/".length);
+    const html = await (await req(base, jar, location)).text();
+    const start = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
+    );
+    const authorize = new URL(start.headers.get("location") ?? "");
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+    const completed = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/callback${back.search}`,
+    );
+    expect(completed.status).toBe(303);
+
+    const bearer = jar.get("os_provisional") ?? "";
+    expect(bearer).toBeTruthy();
+    const before = await fetch(`${base}/v1/principals/me`, {
+      headers: { authorization: `Bearer ${bearer}` },
+    });
+    expect(before.status).toBe(200);
+
+    const revoked = await revokeSessionsForIdentity(
+      started.ctx,
+      upstream.issuer,
+      pairwiseSubjectFor(subject, base),
+    );
+    expect(revoked).toBe(1);
+
+    const after = await fetch(`${base}/v1/principals/me`, {
+      headers: { authorization: `Bearer ${bearer}` },
+    });
+    expect(after.status).toBe(401);
+  }, 30_000);
+
+  it("revokes nothing for a subject it has never seen", async () => {
+    // No oracle and no side effect: an unknown (issuer, subject) is a normal
+    // thing for an unauthenticated back-channel POST to carry.
+    expect(
+      await revokeSessionsForIdentity(
+        started.ctx,
+        upstream.issuer,
+        "nobody-here",
+      ),
+    ).toBe(0);
+  });
+});
+
+/**
+ * Organization sign-in JIT-join (D6).
+ *
+ * The tenant's IdP is deliberately NOT in `OPENSESAME_TRUSTED_UPSTREAMS`: the
+ * only thing vouching for it is the organization row, which is what makes this
+ * a test of the org branch of trust resolution rather than of the allowlist.
+ * Completing the leg has to both admit the principal and make it a member —
+ * a sign-in that verified the tenant's assertion and then left the human
+ * outside the tenant would be a sign-in that did half its job.
+ */
+describe("federated leg, organization sign-in", () => {
+  let allowlisted: ReferenceIdp;
+  let tenantIdp: ReferenceIdp;
+  /**
+   * A tenant IdP shaped like a real one: it issues client credentials, refuses
+   * an `origin:` client id outright, and matches its registered redirect URIs
+   * byte for byte. Okta, Entra, Google Workspace and Auth0 all behave this way
+   * and none of them accept the origin-profile mode a broker does.
+   */
+  let enterpriseIdp: ReferenceIdp;
+  let started: Started;
+  let base: string;
+  const organizationId = "org_jit_test";
+  const enterpriseOrgId = "org_enterprise_test";
+
+  beforeAll(async () => {
+    resetFederatedDiscoveryCache();
+    allowlisted = await startReferenceIdp();
+    tenantIdp = await startReferenceIdp();
+    enterpriseIdp = await startReferenceIdp({ clientMode: "confidential" });
+    started = await startControlPlane(allowlisted.issuer, await reservePort());
+    base = `http://127.0.0.1:${started.port}`;
+    const now = started.ctx.clock();
+    await started.ctx.stores.organizations.set(organizationId, {
+      id: organizationId,
+      slug: "acme",
+      displayName: "Acme",
+      state: "active",
+      createdBy: "prn_seed_owner",
+      createdAt: now,
+      updatedAt: now,
+      ssoIssuer: tenantIdp.issuer,
+    });
+    await started.ctx.stores.organizations.set(enterpriseOrgId, {
+      id: enterpriseOrgId,
+      slug: "enterprise",
+      displayName: "Enterprise",
+      state: "active",
+      createdBy: "prn_seed_owner",
+      createdAt: now,
+      updatedAt: now,
+      ssoIssuer: enterpriseIdp.issuer,
+      ssoClientId: enterpriseIdp.clientId,
+      ssoClientSecret: enterpriseIdp.clientSecret,
+    });
+    // One registered redirect URI, set once and never touched again — exactly
+    // what a tenant admin types into their console.
+    enterpriseIdp.setRedirectUris([`${base}/v1/federated/callback`]);
+  }, 30_000);
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) =>
+      started.server.close((err) => (err ? reject(err) : resolve())),
+    );
+    await allowlisted.close();
+    await tenantIdp.close();
+    await enterpriseIdp.close();
+    resetFederatedDiscoveryCache();
+  });
+
+  it("admits the subject and joins it to the tenant", async () => {
+    const subject = `tenant-${randomBytes(4).toString("hex")}`;
+    tenantIdp.setSubject(subject);
+
+    const jar = new Jar();
+    const { challenge } = pkce();
+    const authRes = await req(
+      base,
+      jar,
+      `/auth?${new URLSearchParams({
+        client_id: RP_CLIENT_ID,
+        redirect_uri: RP_REDIRECT,
+        response_type: "code",
+        scope: "openid",
+        state: "s-1",
+        nonce: "n-1",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+      }).toString()}`,
+    );
+    const location = authRes.headers.get("location") ?? "";
+    const uid = location.slice("/interaction/".length);
+    const html = await (await req(base, jar, location)).text();
+
+    const start = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({ _csrf: extractCsrf(html), issuer: tenantIdp.issuer }),
+    );
+    expect(start.status).toBe(303);
+    // The organization is what vouched for this issuer, and the cookie says so.
+    expect(decodePending(jar.get(`os.fed.${uid}`))?.orgId).toBe(organizationId);
+
+    const authorize = new URL(start.headers.get("location") ?? "");
+    // A tenant admin registers one redirect URI in their IdP's console, and
+    // Okta, Entra and Google Workspace match it byte for byte. It must
+    // therefore name no interaction (ADR 0055).
+    expect(authorize.searchParams.get("redirect_uri")).toBe(
+      `${base}/v1/federated/callback`,
+    );
+    expect(authorize.searchParams.get("state")).toMatch(
+      new RegExp(`^${uid}\\..+`),
+    );
+
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+    expect(back.pathname).toBe("/v1/federated/callback");
+
+    // Followed as a browser would: the shared callback hands back to a
+    // top-level GET under /interaction/<uid>, and that request finishes.
+    const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+    expect(handBack.status).toBe(303);
+    const res = await req(base, jar, handBack.headers.get("location") ?? "");
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toContain("/auth/");
+
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: tenantIdp.issuer,
+      subject: pairwiseSubjectFor(subject, base),
+    });
+    expect(identity).toBeTruthy();
+
+    const membership = await started.ctx.stores.organizationMemberships.find(
+      organizationId,
+      identity?.principalId ?? "",
+    );
+    expect(membership?.role).toBe("member");
+
+    const events = await started.ctx.repos.auditEvents.list({ limit: 50 });
+    const joined = events.find(
+      (event) =>
+        event.eventType === "organization.member_joined" &&
+        event.principalId === identity?.principalId,
+    );
+    expect(joined?.organizationId).toBe(organizationId);
+  }, 30_000);
+
+  /**
+   * Enterprise SSO against an IdP that behaves like a real one.
+   *
+   * This is the test that was missing, and both defects it covers were live:
+   * the leg presented an `origin:` client id no enterprise IdP has ever heard
+   * of, and it redirected to a URI naming the interaction, which such an IdP
+   * matches byte for byte and would only ever have seen once. Nothing caught
+   * either, because the permissive reference IdP accepted both.
+   *
+   * Signing in TWICE is the point. One sign-in passes under a per-interaction
+   * URI if the IdP is told about it; the second is the one a tenant admin
+   * would have hit on day one, having registered exactly one URI.
+   */
+  it("signs a tenant in through their own IdP, twice, on registered credentials", async () => {
+    const subject = `ent-${randomBytes(4).toString("hex")}`;
+    enterpriseIdp.setSubject(subject);
+
+    // Inferred rather than annotated: the shape is one helper's own.
+    async function signIn() {
+      const jar = new Jar();
+      const { challenge } = pkce();
+      const authRes = await req(
+        base,
+        jar,
+        `/auth?${new URLSearchParams({
+          client_id: RP_CLIENT_ID,
+          redirect_uri: RP_REDIRECT,
+          response_type: "code",
+          scope: "openid",
+          state: "s-1",
+          nonce: "n-1",
+          code_challenge: challenge,
+          code_challenge_method: "S256",
+        }).toString()}`,
+      );
+      const location = authRes.headers.get("location") ?? "";
+      const uid = location.slice("/interaction/".length);
+      const html = await (await req(base, jar, location)).text();
+
+      const start = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/start`,
+        postForm({ _csrf: extractCsrf(html), issuer: enterpriseIdp.issuer }),
+      );
+      expect(start.status).toBe(303);
+      const authorize = new URL(start.headers.get("location") ?? "");
+
+      // The credentials the tenant registered, not our origin profile.
+      expect(authorize.searchParams.get("client_id")).toBe(
+        enterpriseIdp.clientId,
+      );
+      expect(authorize.searchParams.get("client_id")).not.toContain("origin:");
+      expect(authorize.searchParams.get("redirect_uri")).toBe(
+        `${base}/v1/federated/callback`,
+      );
+
+      // A 302 is this IdP accepting both. It answers `invalid_client` to an
+      // origin-profile client id and `invalid_redirect_uri` to any URI outside
+      // the one registered above, so reaching here proves both.
+      const upstream = await fetch(authorize, { redirect: "manual" });
+      expect(upstream.status).toBe(302);
+      const back = new URL(upstream.headers.get("location") ?? "");
+      const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+      expect(handBack.status).toBe(303);
+      const completed = await req(
+        base,
+        jar,
+        handBack.headers.get("location") ?? "",
+      );
+      expect(completed.status).toBe(303);
+      expect(completed.headers.get("location")).toContain("/auth/");
+      return uid;
+    }
+
+    const firstUid = await signIn();
+    const secondUid = await signIn();
+    expect(secondUid).not.toBe(firstUid);
+
+    // A confidential client sees the IdP's canonical subject, and both
+    // sign-ins landed on the one principal and the one membership.
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: enterpriseIdp.issuer,
+      subject,
+    });
+    expect(identity).toBeTruthy();
+    const membership = await started.ctx.stores.organizationMemberships.find(
+      enterpriseOrgId,
+      identity?.principalId ?? "",
+    );
+    expect(membership?.role).toBe("member");
+  }, 30_000);
+
+  it("refuses an issuer no organization and no allowlist names", async () => {
+    const { jar, uid, html } = await (async () => {
+      const cookieJar = new Jar();
+      const { challenge } = pkce();
+      const res = await req(
+        base,
+        cookieJar,
+        `/auth?${new URLSearchParams({
+          client_id: RP_CLIENT_ID,
+          redirect_uri: RP_REDIRECT,
+          response_type: "code",
+          scope: "openid",
+          state: "s-1",
+          nonce: "n-1",
+          code_challenge: challenge,
+          code_challenge_method: "S256",
+        }).toString()}`,
+      );
+      const location = res.headers.get("location") ?? "";
+      const page = await req(base, cookieJar, location);
+      return {
+        jar: cookieJar,
+        uid: location.slice("/interaction/".length),
+        html: await page.text(),
+      };
+    })();
+
+    const res = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({
+        _csrf: extractCsrf(html),
+        issuer: "https://some-other-tenant.example",
+      }),
+    );
+    expect(res.status).toBe(403);
+  });
+});
+
+/**
+ * Discovery-cache isolation (T1).
+ *
+ * The cache key is `${issuer}|${clientId}`, and this is what that buys: two
+ * deployments of this server, on two ports, are two different origin-profile
+ * clients at the SAME issuer. Keyed on the issuer alone, the second one would
+ * reuse the first's Configuration — sending the first's client id and the
+ * first's `Origin` — and the reference IdP would answer `origin_cors_denied`.
+ * The cache is deliberately NOT reset between the two sign-ins here; that is
+ * the whole experiment.
+ */
+describe("federated leg, two clients at one issuer", () => {
+  let upstream: ReferenceIdp;
+  let first: Started;
+  let second: Started;
+
+  beforeAll(async () => {
+    resetFederatedDiscoveryCache();
+    upstream = await startReferenceIdp();
+    first = await startControlPlane(upstream.issuer, await reservePort());
+    second = await startControlPlane(upstream.issuer, await reservePort());
+  }, 30_000);
+
+  afterAll(async () => {
+    for (const started of [first, second]) {
+      await new Promise<void>((resolve, reject) =>
+        started.server.close((err) => (err ? reject(err) : resolve())),
+      );
+    }
+    await upstream.close();
+    resetFederatedDiscoveryCache();
+  });
+
+  async function signInThrough(started: Started): Promise<void> {
+    const base = `http://127.0.0.1:${started.port}`;
+    const jar = new Jar();
+    const { challenge } = pkce();
+    const authRes = await req(
+      base,
+      jar,
+      `/auth?${new URLSearchParams({
+        client_id: RP_CLIENT_ID,
+        redirect_uri: RP_REDIRECT,
+        response_type: "code",
+        scope: "openid",
+        state: "s-1",
+        nonce: "n-1",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+      }).toString()}`,
+    );
+    const location = authRes.headers.get("location") ?? "";
+    const uid = location.slice("/interaction/".length);
+    const html = await (await req(base, jar, location)).text();
+    const start = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
+    );
+    expect(start.status).toBe(303);
+    const authorize = new URL(start.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("client_id")).toBe(`origin:${base}`);
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+    const res = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/callback${back.search}`,
+    );
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toContain("/auth/");
+    // Each deployment presented its OWN origin on the token request.
+    expect(upstream.tokenOriginSeen()).toBe(base);
+    expect(upstream.tokenClientSeen().id).toBe(`origin:${base}`);
+  }
+
+  it("does not hand the second client the first one's configuration", async () => {
+    upstream.setSubject(`cache-a-${randomBytes(4).toString("hex")}`);
+    await signInThrough(first);
+    upstream.setSubject(`cache-b-${randomBytes(4).toString("hex")}`);
+    await signInThrough(second);
   }, 30_000);
 });
 
@@ -737,17 +1193,24 @@ describe("federated interaction leg", () => {
  * configured *for that exact issuer* instead.
  */
 describe("federated leg, confidential client", () => {
-  let upstream: StubUpstream;
+  let upstream: ReferenceIdp;
   let started: Started;
   let base: string;
 
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
-    upstream = await startStubUpstream();
-    started = await startControlPlane(upstream.issuer, await reservePort(), {
+    upstream = await startReferenceIdp();
+    const port = await reservePort();
+    // What an operator registers in a provider console: ONE redirect URI, for
+    // the whole deployment, matched byte for byte (ADR 0055). Nothing here
+    // names an interaction, and nothing is re-registered between sign-ins.
+    upstream.setRedirectUris([
+      `http://127.0.0.1:${port}/v1/federated/callback`,
+    ]);
+    started = await startControlPlane(upstream.issuer, port, {
       OPENSESAME_UPSTREAM_ISSUER: upstream.issuer,
-      OPENSESAME_UPSTREAM_CLIENT_ID: STUB_CLIENT_ID,
-      OPENSESAME_UPSTREAM_CLIENT_SECRET: STUB_CLIENT_SECRET,
+      OPENSESAME_UPSTREAM_CLIENT_ID: upstream.clientId,
+      OPENSESAME_UPSTREAM_CLIENT_SECRET: upstream.clientSecret,
     });
     base = `http://127.0.0.1:${started.port}`;
   }, 30_000);
@@ -760,8 +1223,16 @@ describe("federated leg, confidential client", () => {
     resetFederatedDiscoveryCache();
   });
 
-  it("authenticates with the configured secret, not a derived origin", async () => {
-    upstream.setSubject(`conf-${randomBytes(4).toString("hex")}`);
+  /**
+   * One complete sign-in, through the callback a real provider would have.
+   *
+   * The browser is followed the whole way — authorize, the upstream's redirect
+   * to the STABLE callback, the 303 hand-back, and the top-level GET under
+   * `/interaction/:uid` that carries the interaction cookie — rather than
+   * short-cutting to the interaction callback, because the hand-back is the
+   * part that makes one registered URI serve every interaction.
+   */
+  async function signInOnce() {
     const jar = new Jar();
     const { challenge } = pkce();
     const authRes = await req(
@@ -791,20 +1262,293 @@ describe("federated leg, confidential client", () => {
     expect(start.status).toBe(303);
     const authorize = new URL(start.headers.get("location") ?? "");
     // The authorization request must name the configured client, not origin:.
-    expect(authorize.searchParams.get("client_id")).toBe(STUB_CLIENT_ID);
-
-    const upstreamRes = await fetch(authorize, { redirect: "manual" });
-    const back = new URL(upstreamRes.headers.get("location") ?? "");
-    const res = await req(
-      base,
-      jar,
-      `/interaction/${uid}/federated/callback${back.search}`,
+    expect(authorize.searchParams.get("client_id")).toBe(upstream.clientId);
+    // The registered URI, not this interaction's path.
+    expect(authorize.searchParams.get("redirect_uri")).toBe(
+      `${base}/v1/federated/callback`,
     );
+    expect(authorize.searchParams.get("state")).toMatch(
+      new RegExp(`^${uid}\\..+`),
+    );
+
+    // A 302 is the IdP accepting the redirect URI as registered; an exact-match
+    // provider handed a per-interaction path answers 400 here instead.
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    expect(upstreamRes.status).toBe(302);
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+    expect(back.pathname).toBe("/v1/federated/callback");
+
+    const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+    expect(handBack.status).toBe(303);
+    const resume = handBack.headers.get("location") ?? "";
+    expect(resume.startsWith(`/interaction/${uid}/federated/callback?`)).toBe(
+      true,
+    );
+
+    const res = await req(base, jar, resume);
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toContain("/auth/");
+    return { uid, jar };
+  }
+
+  it("authenticates with the configured secret, not a derived origin", async () => {
+    upstream.setSubject(`conf-${randomBytes(4).toString("hex")}`);
+    await signInOnce();
 
     const seen = upstream.tokenClientSeen();
-    expect(seen.id).toBe(STUB_CLIENT_ID);
-    expect(seen.secret).toBe(STUB_CLIENT_SECRET);
+    expect(seen.id).toBe(upstream.clientId);
+    expect(seen.secret).toBe(upstream.clientSecret);
+    // T10: a confidential exchange must NOT claim a browser origin. The
+    // reference IdP answers `origin_cors_denied` to one that does, so the
+    // 303 above already proves it — this pins the intent.
+    expect(upstream.tokenOriginSeen()).toBeUndefined();
   }, 30_000);
+
+  /**
+   * The reason the callback moved (ADR 0055).
+   *
+   * Google, Entra and Apple match a registered redirect URI byte for byte, and
+   * a URI is registered once. Two sign-ins on two different interactions
+   * against ONE registered URI is therefore the whole claim: with the callback
+   * under `/interaction/:uid` the second `/authorize` here answers 400
+   * `invalid_redirect_uri`, and no amount of retrying fixes it.
+   */
+  it("completes twice across two interactions against one registered URI", async () => {
+    const subject = `conf-reentry-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(subject);
+
+    const first = await signInOnce();
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: upstream.issuer,
+      subject,
+    });
+    expect(identity?.assurance).toBe("verified");
+
+    const second = await signInOnce();
+    expect(second.uid).not.toBe(first.uid);
+
+    // The same human, one principal — the second visit found the identity row
+    // rather than minting a second account beside it.
+    const after = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: upstream.issuer,
+      subject,
+    });
+    expect(after?.principalId).toBe(identity?.principalId);
+    // A returning identity gets no fresh provisional session (T6).
+    expect(second.jar.get("os_provisional")).toBeFalsy();
+  }, 45_000);
+});
+
+/**
+ * `response_mode=form_post` (D3, T4).
+ *
+ * The reference IdP is started in `formPost` mode, so its authorize endpoint
+ * answers with a real auto-submitting HTML form — the wire behavior Apple
+ * exhibits — instead of a redirect. The browser side of that is driven here,
+ * and the callback POST is sent **cookie-less** on purpose: that is what a
+ * genuine cross-site form POST looks like, and it is the only way to prove the
+ * 303 re-materialization actually carries the flow.
+ */
+describe("federated leg, form_post callback", () => {
+  let upstream: ReferenceIdp;
+  let started: Started;
+  let base: string;
+
+  beforeAll(async () => {
+    resetFederatedDiscoveryCache();
+    upstream = await startReferenceIdp({ formPost: true });
+    started = await startControlPlane(upstream.issuer, await reservePort());
+    base = `http://127.0.0.1:${started.port}`;
+  }, 30_000);
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) =>
+      started.server.close((err) => (err ? reject(err) : resolve())),
+    );
+    await upstream.close();
+    resetFederatedDiscoveryCache();
+  });
+
+  async function startLeg(): Promise<StartedLeg> {
+    const jar = new Jar();
+    const { challenge } = pkce();
+    const authRes = await req(
+      base,
+      jar,
+      `/auth?${new URLSearchParams({
+        client_id: RP_CLIENT_ID,
+        redirect_uri: RP_REDIRECT,
+        response_type: "code",
+        scope: "openid",
+        state: "s-1",
+        nonce: "n-1",
+        code_challenge: challenge,
+        code_challenge_method: "S256",
+      }).toString()}`,
+    );
+    const location = authRes.headers.get("location") ?? "";
+    const uid = location.slice("/interaction/".length);
+    const html = await (await req(base, jar, location)).text();
+    const start = await req(
+      base,
+      jar,
+      `/interaction/${uid}/federated/start`,
+      postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
+    );
+    expect(start.status).toBe(303);
+    return { jar, uid, form: new URL(start.headers.get("location") ?? "") };
+  }
+
+  it("completes a sign-in whose response arrives as a cookie-less POST", async () => {
+    const subject = `apple-${randomBytes(4).toString("hex")}`;
+    upstream.setSubject(subject);
+    const { jar, uid, form } = await startLeg();
+
+    // The IdP answers the authorization request with an HTML form, not a 303.
+    const authorizeRes = await fetch(form, { redirect: "manual" });
+    expect(authorizeRes.status).toBe(200);
+    const posted = parseAutoSubmitForm(await authorizeRes.text());
+    // Apple posts to the REGISTERED redirect URI, which is the stable one
+    // (ADR 0055) — its console would not accept a path naming an interaction.
+    expect(posted.action).toBe(`${base}/v1/federated/callback`);
+    expect(posted.fields.code).toBeTruthy();
+
+    // A cross-site POST carries NO SameSite=Lax cookies. Sending the jar here
+    // would prove nothing, so the POST goes out bare.
+    const rematerialized = await fetch(posted.action, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams(posted.fields),
+    });
+    expect(rematerialized.status).toBe(303);
+    const target = new URL(rematerialized.headers.get("location") ?? "", base);
+    expect(target.pathname).toBe(`/interaction/${uid}/federated/callback`);
+    expect(target.searchParams.get("code")).toBe(posted.fields.code);
+    // Nothing was completed here: no session, no interaction result.
+    expect(rematerialized.headers.getSetCookie()).toEqual([]);
+
+    // The top-level GET the 303 produces DOES carry the cookies, and that is
+    // the request that finishes the sign-in.
+    const completed = await req(
+      base,
+      jar,
+      `${target.pathname}${target.search}`,
+    );
+    expect(completed.status).toBe(303);
+    expect(completed.headers.get("location")).toContain("/auth/");
+    expect(jar.get("os_provisional")).toBeTruthy();
+  }, 30_000);
+
+  /**
+   * The stable callback is one unauthenticated URL serving every interaction,
+   * so what it does with a `state` it cannot place is the whole of its
+   * security: it must refuse, not guess.
+   */
+  describe("the stable callback", () => {
+    it.each([
+      ["no state at all", ""],
+      ["a state naming no interaction", "state=nointeractionhere"],
+      ["a state whose prefix is not an interaction id", "state=..%2Fevil.abc"],
+      ["an empty uid prefix", "state=.abc"],
+    ])("refuses %s", async (_label, query) => {
+      const res = await fetch(`${base}/v1/federated/callback?${query}`, {
+        redirect: "manual",
+      });
+      expect(res.status).toBe(400);
+      expect(res.headers.get("location")).toBeNull();
+      expect(res.headers.getSetCookie()).toEqual([]);
+    });
+
+    it("hands back only to the interaction the state names", async () => {
+      const res = await fetch(
+        `${base}/v1/federated/callback?state=someoneelse.abc&code=c1`,
+        { redirect: "manual" },
+      );
+      expect(res.status).toBe(303);
+      const target = new URL(res.headers.get("location") ?? "", base);
+      expect(target.pathname).toBe(
+        "/interaction/someoneelse/federated/callback",
+      );
+      // And that interaction does not exist, so the flow dies there rather
+      // than falling through to whatever interaction this browser last had.
+      const followed = await fetch(target, { redirect: "manual" });
+      expect(followed.status).toBe(404);
+    });
+
+    it("copies only the allowlisted response parameters", async () => {
+      const res = await fetch(`${base}/v1/federated/callback`, {
+        method: "POST",
+        redirect: "manual",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          state: "someoneelse.abc",
+          code: "c1",
+          error: "e1",
+          error_description: "d1",
+          iss: "https://idp.example",
+          // Apple posts this on first consent; it is not ours to forward.
+          user: '{"name":{"firstName":"A"}}',
+          id_token: "not.a.token",
+          // Longer than the cap: dropped, not truncated.
+          returnTo: "x".repeat(4096),
+        }),
+      });
+      expect(res.status).toBe(303);
+      const target = new URL(res.headers.get("location") ?? "", base);
+      expect([...target.searchParams.keys()].sort()).toEqual([
+        "code",
+        "error",
+        "error_description",
+        "iss",
+        "state",
+      ]);
+      // Nothing was completed here: no session, no interaction result.
+      expect(res.headers.getSetCookie()).toEqual([]);
+    });
+  });
+
+  it("copies only the four authorization-response parameters", async () => {
+    const { uid } = await startLeg();
+    const res = await fetch(`${base}/interaction/${uid}/federated/callback`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code: "c1",
+        state: "s1",
+        error: "e1",
+        error_description: "d1",
+        // Apple posts this on first consent; it is not ours to forward.
+        user: '{"name":{"firstName":"A"}}',
+        id_token: "not.a.token",
+        // A parameter longer than the cap is dropped, not truncated.
+        returnTo: "x".repeat(4096),
+      }),
+    });
+    expect(res.status).toBe(303);
+    const target = new URL(res.headers.get("location") ?? "", base);
+    expect([...target.searchParams.keys()].sort()).toEqual([
+      "code",
+      "error",
+      "error_description",
+      "state",
+    ]);
+  });
+
+  it("drops an over-long code rather than reflecting it", async () => {
+    const { uid } = await startLeg();
+    const res = await fetch(`${base}/interaction/${uid}/federated/callback`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ code: "c".repeat(4096), state: "s1" }),
+    });
+    expect(res.status).toBe(303);
+    const target = new URL(res.headers.get("location") ?? "", base);
+    expect(target.searchParams.get("code")).toBeNull();
+    expect(target.searchParams.get("state")).toBe("s1");
+  });
 });

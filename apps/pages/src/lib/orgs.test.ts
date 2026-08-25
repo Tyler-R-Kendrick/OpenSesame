@@ -10,6 +10,7 @@ import {
   lookupOrgTenant,
   orgAuthUpstream,
   orgSeams,
+  routeOrgMethod,
   setActiveOrgProfileId,
 } from "./orgs.js";
 
@@ -94,6 +95,54 @@ describe("orgs", () => {
     identitySeams.identityJson = vi.fn() as typeof identitySeams.identityJson;
     await expect(listOrgMemberships()).resolves.toEqual([]);
     expect(identitySeams.identityJson).not.toHaveBeenCalled();
+  });
+
+  it("routes a method with a browser issuer through this browser", () => {
+    expect(
+      routeOrgMethod({
+        kind: "sso",
+        label: "SSO",
+        issuer: "https://idp.example",
+      }),
+    ).toEqual({ via: "browser", issuer: "https://idp.example", kind: "sso" });
+  });
+
+  it("routes every method the browser cannot speak through the broker", () => {
+    // Native SAML: metadata configured server-side, no OIDC issuer at all.
+    expect(
+      routeOrgMethod({ kind: "saml", label: "SAML", native: true }),
+    ).toEqual({ via: "brokered" });
+    // A method the server published without an issuer must still be startable.
+    expect(routeOrgMethod({ kind: "sso", label: "SSO" })).toEqual({
+      via: "brokered",
+    });
+    // LDAP is a directory bind, and a directory password is never typed here.
+    expect(
+      routeOrgMethod({
+        kind: "ldap",
+        label: "Directory",
+        issuer: "ldaps://dir.example",
+      }),
+    ).toEqual({ via: "brokered" });
+  });
+
+  it("falls back to the Identity API when a method has no issuer of its own", () => {
+    expect(
+      orgAuthUpstream(
+        {
+          slug: "acme",
+          displayName: "Acme",
+          state: "active",
+          authMethods: [],
+        },
+        { kind: "saml", label: "SAML", native: true },
+      ),
+    ).toEqual({
+      id: "org:acme:saml",
+      displayName: "Acme",
+      issuer: "http://127.0.0.1:18788",
+      accountKind: "SAML",
+    });
   });
 
   it("builds an org upstream for federation", () => {

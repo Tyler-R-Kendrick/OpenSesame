@@ -5,7 +5,11 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { FederationError, completeSignIn } from "../lib/federation.js";
+import {
+  FederationError,
+  adoptBrokeredSession,
+  completeSignIn,
+} from "../lib/federation.js";
 import { adoptFederatedIdentity } from "../lib/guest-auth.js";
 import { ensureIdentitySession } from "../lib/identity.js";
 import { joinOrgTenant } from "../lib/orgs.js";
@@ -28,6 +32,13 @@ export function FederationReturn() {
             result.orgMethod,
             result.identity.idToken,
           );
+        } else if (result?.accessToken) {
+          // Brokered sign-in (D8): the Identity API already decided which
+          // principal this is when it issued the token, so the access token is
+          // traded for a session bound to THAT principal. The id_token beside
+          // it is pairwise for this origin and is deliberately never linked —
+          // doing so would attach it to whichever session this tab holds (T23).
+          await adoptBrokeredSession(result.accessToken);
         } else if (result?.identity?.idToken) {
           // Attach the identity in whatever state this device is in: a true
           // first run opens a guest vault first, a locked vault defers to a

@@ -5,19 +5,40 @@ import {
   type ServerResponse,
   createServer,
 } from "node:http";
-import {
-  type BoundaryValue,
-  type JsonObject,
-  isString,
-} from "@opensesame/os-domain";
+import { type JsonObject, isString } from "@opensesame/os-domain";
 import { SignJWT } from "jose";
 import {
   type MockIdpConfig,
   type MockIdpKeys,
+  type MockIdpSamlKeys,
   assertMockIdpListenAllowed,
   createMockIdpKeys,
+  createMockIdpSamlKeys,
   readMockIdpConfig,
 } from "./config.js";
+import {
+  autoSubmitFormHtml,
+  basicClientId,
+  basicClientSecret,
+  parseForm,
+  readBody,
+  securityHeaders,
+  sendHtml,
+  sendJson,
+  sendXml,
+} from "./http.js";
+import { createOAuth2Surface, oauth2Urls } from "./oauth2.js";
+import { type ClientRegistry, registerClient } from "./registration.js";
+import {
+  SAML_METADATA_PATH,
+  SAML_SSO_PATH,
+  type SamlMutation,
+  buildIdpMetadataXml,
+  buildSamlResponseXml,
+  encodeSamlMessage,
+  parseAuthnRequest,
+  samlPostBindingHtml,
+} from "./saml.js";
 
 type AuthCode = {
   clientId: string;
@@ -28,19 +49,39 @@ type AuthCode = {
   origin?: string;
 };
 
-interface SecurityHeaderOverrides {
-  "content-type"?: string;
-  location?: string;
-  "access-control-allow-origin"?: string;
-  "access-control-allow-methods"?: string;
-  "access-control-allow-headers"?: string;
-  vary?: string;
-}
-
 interface TokenIssueRequest {
   clientId: string;
   nonce?: string;
   scope: string;
+}
+
+/** What the last requests carried — the assertions callers make about wire shape. */
+export interface MockIdpObservations {
+  lastNonce?: string | undefined;
+  tokenOrigin?: string | undefined;
+  tokenClient: { id?: string; secret?: string };
+}
+
+export interface MintLogoutTokenOptions {
+  /**
+   * OIDC Back-Channel Logout 1.0 forbids `nonce` in a logout token — it is the
+   * fence against replaying an id_token as a logout. Set this to produce the
+   * malformed token an endpoint must refuse.
+   */
+  includeNonce?: boolean;
+  audience?: string;
+  sessionId?: string;
+}
+
+export interface MintSamlResponseInput {
+  acsUrl: string;
+  /** SP entityID; defaults to the OpenSesame SP convention on the ACS origin. */
+  audience?: string;
+  subject?: string;
+  nameIdFormat?: string;
+  inResponseTo?: string;
+  assertionId?: string;
+  mutate?: SamlMutation;
 }
 
 function isOriginClientId(clientId: string): boolean {
@@ -71,41 +112,19 @@ export interface MockUpstreamIdp {
   config: MockIdpConfig;
   keys: MockIdpKeys;
   server: Server;
+  /** Clients admitted through the RFC 7591 registration endpoint. */
+  registrations: ClientRegistry;
+  observed: MockIdpObservations;
   listen(): Promise<string>;
   close(): Promise<void>;
-}
-
-function securityHeaders(extra: SecurityHeaderOverrides = {}, issuer = "") {
-  const headers = {
-    "x-content-type-options": "nosniff",
-    "x-frame-options": "DENY",
-    "referrer-policy": "no-referrer",
-    "cache-control": "no-store",
-    "x-permitted-cross-domain-policies": "none",
-    ...extra,
-  };
-  if (issuer.startsWith("https://")) {
-    return {
-      ...headers,
-      "strict-transport-security": "max-age=63072000; includeSubDomains",
-    };
-  }
-  return headers;
-}
-
-function sendJson(
-  res: ServerResponse,
-  status: number,
-  body: BoundaryValue,
-  issuer = "",
-  extra: SecurityHeaderOverrides = {},
-): void {
-  const payload = JSON.stringify(body);
-  res.writeHead(
-    status,
-    securityHeaders({ "content-type": "application/json", ...extra }, issuer),
-  );
-  res.end(payload);
+  samlKeys(): Promise<MockIdpSamlKeys>;
+  setSamlMutation(mutation?: SamlMutation): void;
+  setSamlAcsUrl(acsUrl?: string): void;
+  mintLogoutToken(
+    subject: string,
+    options?: MintLogoutTokenOptions,
+  ): Promise<string>;
+  mintSamlResponse(input: MintSamlResponseInput): Promise<string>;
 }
 
 function tokenCorsHeaders(origin: string) {
@@ -115,19 +134,6 @@ function tokenCorsHeaders(origin: string) {
     "access-control-allow-headers": "content-type",
     vary: "Origin",
   };
-}
-
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
-    req.on("error", reject);
-  });
-}
-
-function parseForm(body: string): URLSearchParams {
-  return new URLSearchParams(body);
 }
 
 function s256Challenge(verifier: string): string {
@@ -142,8 +148,13 @@ function pkceChallengesEqual(a: string, b: string): boolean {
 }
 
 /**
- * Minimal deterministic OIDC provider for local OpenSesame tests.
- * Auto-approves the seeded test user on /authorize.
+ * The repository's reference identity provider.
+ *
+ * It speaks real OIDC (PKCE S256 enforced, Origin-bound origin-profile
+ * clients, single-use codes, RS256 over a runtime keypair), real RFC 7591
+ * dynamic client registration, a real GitHub-shaped OAuth2 leg, and real
+ * SAML 2.0 with XML-DSig — over one HTTP server, so the dev stack and every
+ * protocol test drive the same implementation.
  */
 export async function createMockUpstreamIdp(
   overrides?: Partial<MockIdpConfig>,
@@ -151,35 +162,99 @@ export async function createMockUpstreamIdp(
   const config: MockIdpConfig = { ...readMockIdpConfig(), ...overrides };
   const keys = await createMockIdpKeys();
   const codes = new Map<string, AuthCode>();
+  const registrations: ClientRegistry = new Map();
+  const observed: MockIdpObservations = { tokenClient: {} };
+  const oauth2 = createOAuth2Surface(config);
 
-  const discovery = {
-    issuer: config.issuer,
-    authorization_endpoint: `${config.issuer}/authorize`,
-    token_endpoint: `${config.issuer}/token`,
-    jwks_uri: `${config.issuer}/jwks`,
-    userinfo_endpoint: `${config.issuer}/userinfo`,
-    response_types_supported: ["code"],
-    subject_types_supported: ["public", "pairwise"],
-    id_token_signing_alg_values_supported: ["RS256"],
-    scopes_supported: ["openid", "profile", "email"],
-    token_endpoint_auth_methods_supported: [
-      "none",
-      "client_secret_post",
-      "client_secret_basic",
-    ],
-    code_challenge_methods_supported: ["S256"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
-    claims_supported: [
-      "sub",
-      "email",
-      "name",
-      "iss",
-      "aud",
-      "exp",
-      "iat",
-      "nonce",
-    ],
-  };
+  let samlKeysPromise: Promise<MockIdpSamlKeys> | undefined;
+  let samlMutation: SamlMutation | undefined;
+  let samlAcsOverride: string | undefined;
+
+  function samlKeys(): Promise<MockIdpSamlKeys> {
+    samlKeysPromise ??= createMockIdpSamlKeys(config.issuer);
+    return samlKeysPromise;
+  }
+
+  function samlEntityId(): string {
+    return `${config.issuer}${SAML_METADATA_PATH}`;
+  }
+
+  function defaultAudienceFor(acsUrl: string): string {
+    try {
+      return `${new URL(acsUrl).origin}/v1/saml/metadata`;
+    } catch {
+      return acsUrl;
+    }
+  }
+
+  async function mintSamlResponse(
+    input: MintSamlResponseInput,
+  ): Promise<string> {
+    const material = await samlKeys();
+    const xml = buildSamlResponseXml(material, {
+      acsUrl: input.acsUrl,
+      audience: input.audience ?? defaultAudienceFor(input.acsUrl),
+      issuerEntityId: samlEntityId(),
+      subject: input.subject ?? config.testUser.sub,
+      email: config.testUser.email,
+      emailVerified: config.testUser.emailVerified,
+      name: config.testUser.name,
+      ...(input.nameIdFormat !== undefined
+        ? { nameIdFormat: input.nameIdFormat }
+        : undefined),
+      ...(input.inResponseTo !== undefined
+        ? { inResponseTo: input.inResponseTo }
+        : undefined),
+      ...(input.assertionId !== undefined
+        ? { assertionId: input.assertionId }
+        : undefined),
+      ...(input.mutate !== undefined ? { mutate: input.mutate } : undefined),
+    });
+    return encodeSamlMessage(xml);
+  }
+
+  /** Discovery is derived per request: the issuer is rewritten after binding. */
+  function discoveryDocument(): JsonObject {
+    const oauth2Endpoints = oauth2Urls(config.issuer);
+    return {
+      issuer: config.issuer,
+      authorization_endpoint: `${config.issuer}/authorize`,
+      token_endpoint: `${config.issuer}/token`,
+      jwks_uri: `${config.issuer}/jwks`,
+      userinfo_endpoint: `${config.issuer}/userinfo`,
+      revocation_endpoint: `${config.issuer}/revoke`,
+      end_session_endpoint: `${config.issuer}/logout`,
+      ...(config.registration
+        ? { registration_endpoint: `${config.issuer}/register` }
+        : undefined),
+      response_types_supported: ["code"],
+      response_modes_supported: ["query", "form_post"],
+      subject_types_supported: ["public", "pairwise"],
+      id_token_signing_alg_values_supported: ["RS256"],
+      scopes_supported: ["openid", "profile", "email"],
+      token_endpoint_auth_methods_supported: [
+        "none",
+        "client_secret_post",
+        "client_secret_basic",
+      ],
+      code_challenge_methods_supported: ["S256"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
+      backchannel_logout_supported: true,
+      backchannel_logout_session_supported: true,
+      oauth2_authorization_endpoint: oauth2Endpoints.authorizeUrl,
+      claims_supported: [
+        "sub",
+        "email",
+        "email_verified",
+        "name",
+        "iss",
+        "aud",
+        "exp",
+        "iat",
+        "nonce",
+      ],
+    };
+  }
 
   async function issueTokens(params: TokenIssueRequest): Promise<JsonObject> {
     const now = Math.floor(Date.now() / 1000);
@@ -191,6 +266,7 @@ export async function createMockUpstreamIdp(
     const idToken = await new SignJWT({
       sub: subject,
       email: config.testUser.email,
+      email_verified: config.testUser.emailVerified,
       name: config.testUser.name,
       ...(origin ? { pairwise_sub: subject, origin } : undefined),
       ...(params.nonce ? { nonce: params.nonce } : undefined),
@@ -212,26 +288,167 @@ export async function createMockUpstreamIdp(
     };
   }
 
+  async function mintLogoutToken(
+    subject: string,
+    options?: MintLogoutTokenOptions,
+  ): Promise<string> {
+    const now = Math.floor(Date.now() / 1000);
+    return new SignJWT({
+      events: { "http://schemas.openid.net/event/backchannel-logout": {} },
+      ...(options?.sessionId !== undefined
+        ? { sid: options.sessionId }
+        : undefined),
+      ...(options?.includeNonce
+        ? { nonce: randomBytes(8).toString("hex") }
+        : undefined),
+    })
+      .setProtectedHeader({ alg: "RS256", kid: keys.kid })
+      .setIssuer(config.issuer)
+      .setSubject(subject)
+      .setAudience(options?.audience ?? config.clientId)
+      .setIssuedAt(now)
+      .setJti(randomBytes(16).toString("hex"))
+      .setExpirationTime(now + 120)
+      .sign(keys.privateKey);
+  }
+
+  function confidentialSecretFor(clientId: string): string | undefined {
+    if (clientId === config.clientId) return config.clientSecret;
+    return registrations.get(clientId)?.clientSecret;
+  }
+
+  function redirectAllowedForConfidential(
+    clientId: string,
+    redirectUri: string,
+  ): boolean {
+    if (clientId === config.clientId) {
+      return config.redirectUris.includes(redirectUri);
+    }
+    return (
+      registrations.get(clientId)?.redirectUris.includes(redirectUri) === true
+    );
+  }
+
+  function clientModeRefuses(originClient: string | undefined): boolean {
+    if (config.clientMode === "origin_profile")
+      return originClient === undefined;
+    if (config.clientMode === "confidential") return originClient !== undefined;
+    return false;
+  }
+
+  async function handleSamlSso(
+    req: IncomingMessage,
+    res: ServerResponse,
+    url: URL,
+  ): Promise<void> {
+    const params =
+      req.method === "POST" ? parseForm(await readBody(req)) : url.searchParams;
+    const encoded = params.get("SAMLRequest");
+    const relayState = params.get("RelayState") ?? undefined;
+    if (encoded === null) {
+      return sendJson(
+        res,
+        400,
+        {
+          error: "invalid_saml_request",
+          error_description: "SAMLRequest missing",
+        },
+        config.issuer,
+      );
+    }
+    const parsed = parseAuthnRequest(encoded);
+    if (!parsed) {
+      return sendJson(
+        res,
+        400,
+        {
+          error: "invalid_saml_request",
+          error_description: "SAMLRequest is not a parseable AuthnRequest",
+        },
+        config.issuer,
+      );
+    }
+    const acsUrl = parsed.acsUrl ?? samlAcsOverride ?? config.samlAcsUrl;
+    if (acsUrl === undefined) {
+      return sendJson(
+        res,
+        400,
+        {
+          error: "invalid_saml_request",
+          error_description:
+            "no AssertionConsumerServiceURL and no default ACS",
+        },
+        config.issuer,
+      );
+    }
+    const samlResponse = await mintSamlResponse({
+      acsUrl,
+      inResponseTo: parsed.id,
+      ...(parsed.issuer !== undefined
+        ? { audience: parsed.issuer }
+        : undefined),
+      ...(samlMutation !== undefined ? { mutate: samlMutation } : undefined),
+    });
+    sendHtml(
+      res,
+      200,
+      samlPostBindingHtml(acsUrl, samlResponse, relayState),
+      config.issuer,
+    );
+  }
+
   const server = createServer(async (req, res) => {
     try {
       const url = new URL(req.url ?? "/", config.issuer);
       const path = url.pathname;
 
+      if (await oauth2.handle(req, res, url)) return;
+
       if (
         req.method === "GET" &&
         path === "/.well-known/openid-configuration"
       ) {
-        return sendJson(res, 200, discovery, config.issuer);
+        return sendJson(res, 200, discoveryDocument(), config.issuer);
       }
 
       if (req.method === "GET" && path === "/jwks") {
         return sendJson(res, 200, { keys: [keys.publicJwk] }, config.issuer);
       }
 
+      if (req.method === "POST" && path === "/register") {
+        if (!config.registration) {
+          return sendJson(res, 404, { error: "not_found" }, config.issuer);
+        }
+        const outcome = registerClient(registrations, await readBody(req));
+        return sendJson(res, outcome.status, outcome.body, config.issuer);
+      }
+
+      if (req.method === "GET" && path === SAML_METADATA_PATH) {
+        const material = await samlKeys();
+        return sendXml(
+          res,
+          200,
+          buildIdpMetadataXml(
+            samlEntityId(),
+            `${config.issuer}${SAML_SSO_PATH}`,
+            material.certificateBase64,
+          ),
+          config.issuer,
+        );
+      }
+
+      if (
+        (req.method === "GET" || req.method === "POST") &&
+        path === SAML_SSO_PATH
+      ) {
+        return await handleSamlSso(req, res, url);
+      }
+
       if (req.method === "GET" && path === "/authorize") {
         const clientId = url.searchParams.get("client_id") ?? "";
         const redirectUri = url.searchParams.get("redirect_uri") ?? "";
         const responseType = url.searchParams.get("response_type") ?? "";
+        const responseMode = url.searchParams.get("response_mode") ?? "";
         const state = url.searchParams.get("state");
         const nonce = url.searchParams.get("nonce") ?? undefined;
         const scope = url.searchParams.get("scope") ?? "openid";
@@ -241,6 +458,17 @@ export async function createMockUpstreamIdp(
           url.searchParams.get("code_challenge_method") ?? undefined;
 
         const originClient = originFromClientId(clientId);
+        if (clientModeRefuses(originClient)) {
+          return sendJson(
+            res,
+            400,
+            {
+              error: "invalid_client",
+              error_description: `client mode ${config.clientMode} required`,
+            },
+            config.issuer,
+          );
+        }
         if (originClient) {
           let redirectOrigin: string;
           try {
@@ -261,9 +489,9 @@ export async function createMockUpstreamIdp(
               config.issuer,
             );
           }
-        } else if (clientId !== config.clientId) {
+        } else if (confidentialSecretFor(clientId) === undefined) {
           return sendJson(res, 400, { error: "invalid_client" }, config.issuer);
-        } else if (!config.redirectUris.includes(redirectUri)) {
+        } else if (!redirectAllowedForConfidential(clientId, redirectUri)) {
           return sendJson(
             res,
             400,
@@ -291,6 +519,7 @@ export async function createMockUpstreamIdp(
           );
         }
 
+        observed.lastNonce = nonce;
         const code = `code_${cryptoRandom()}`;
         const entry: AuthCode = {
           clientId,
@@ -303,6 +532,25 @@ export async function createMockUpstreamIdp(
             : undefined),
         };
         codes.set(code, entry);
+
+        // `response_mode=form_post` (Apple) answers with a self-posting form
+        // instead of a redirect: a cross-site POST that carries no SameSite=Lax
+        // cookies to the relying party's callback.
+        if (config.formPost || responseMode === "form_post") {
+          return sendHtml(
+            res,
+            200,
+            autoSubmitFormHtml(
+              redirectUri,
+              [
+                { name: "code", value: code },
+                ...(state !== null ? [{ name: "state", value: state }] : []),
+              ],
+              "Reference IdP — form_post response",
+            ),
+            config.issuer,
+          );
+        }
 
         const target = new URL(redirectUri);
         target.searchParams.set("code", code);
@@ -338,6 +586,22 @@ export async function createMockUpstreamIdp(
           ? req.headers.origin
           : "";
 
+        const seenClientId = body.get("client_id");
+        const seenClientSecret = body.get("client_secret");
+        observed.tokenOrigin = isString(req.headers.origin)
+          ? req.headers.origin
+          : undefined;
+        observed.tokenClient = {
+          ...(seenClientId !== null ? { id: seenClientId } : undefined),
+          ...(seenClientSecret !== null
+            ? { secret: seenClientSecret }
+            : undefined),
+        };
+
+        if (clientModeRefuses(originClient)) {
+          return sendJson(res, 401, { error: "invalid_client" }, config.issuer);
+        }
+
         if (originClient) {
           if (requestOrigin !== originClient) {
             return sendJson(
@@ -350,10 +614,7 @@ export async function createMockUpstreamIdp(
               config.issuer,
             );
           }
-        } else if (
-          clientId !== config.clientId ||
-          clientSecret !== config.clientSecret
-        ) {
+        } else if (confidentialSecretFor(clientId) !== clientSecret) {
           return sendJson(res, 401, { error: "invalid_client" }, config.issuer);
         }
 
@@ -425,6 +686,14 @@ export async function createMockUpstreamIdp(
         );
       }
 
+      if (req.method === "POST" && path === "/revoke") {
+        // RFC 7009: a revocation endpoint answers 200 whether or not the token
+        // was known, so a caller learns nothing from the response.
+        await readBody(req);
+        res.writeHead(200, securityHeaders({}, config.issuer));
+        return res.end();
+      }
+
       if (req.method === "GET" && path === "/userinfo") {
         const auth = req.headers.authorization ?? "";
         if (!auth.startsWith("Bearer ")) {
@@ -436,6 +705,7 @@ export async function createMockUpstreamIdp(
           {
             sub: config.testUser.sub,
             email: config.testUser.email,
+            email_verified: config.testUser.emailVerified,
             name: config.testUser.name,
           },
           config.issuer,
@@ -469,6 +739,17 @@ export async function createMockUpstreamIdp(
     config,
     keys,
     server,
+    registrations,
+    observed,
+    samlKeys,
+    setSamlMutation(mutation?: SamlMutation) {
+      samlMutation = mutation;
+    },
+    setSamlAcsUrl(acsUrl?: string) {
+      samlAcsOverride = acsUrl;
+    },
+    mintLogoutToken,
+    mintSamlResponse,
     listen() {
       return new Promise((resolve, reject) => {
         try {
@@ -493,19 +774,4 @@ export async function createMockUpstreamIdp(
 
 function cryptoRandom(): string {
   return randomBytes(16).toString("hex");
-}
-
-function basicClientId(req: IncomingMessage): string | undefined {
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Basic ")) return undefined;
-  const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
-  return decoded.split(":")[0];
-}
-
-function basicClientSecret(req: IncomingMessage): string | undefined {
-  const header = req.headers.authorization;
-  if (!header?.startsWith("Basic ")) return undefined;
-  const decoded = Buffer.from(header.slice(6), "base64").toString("utf8");
-  const idx = decoded.indexOf(":");
-  return idx >= 0 ? decoded.slice(idx + 1) : undefined;
 }
