@@ -23,6 +23,7 @@ const monitorTarget = {
   failure: null,
   lastCheckedAt: Date.now() - 4_000,
   checking: false,
+  rttMs: 12,
 };
 
 import { connectGitHistorySeams } from "./ConnectGitHistory.js";
@@ -34,6 +35,22 @@ import {
   ConnectivityBar,
   connectivityBarDependencies,
 } from "./ConnectivityBar.js";
+import { hostCeremonyDependencies } from "./HostCeremony.js";
+import { identityCeremonyDependencies } from "./IdentityCeremony.js";
+
+Object.assign(identityCeremonyDependencies, {
+  useConnect: () => ({ connect: connectSpy, connecting: false, error: null }),
+  useIdentitySession: () => null,
+  beginSignIn,
+  defaultUpstream: () => ({
+    id: "mock",
+    displayName: "Local mock IdP",
+    issuer: "http://127.0.0.1:9090",
+    accountKind: "a seeded test account",
+  }),
+  claimGuestAuth,
+  identityBase: () => "http://127.0.0.1:18788",
+});
 
 Object.assign(connectivityBarDependencies, {
   useConnectors: () => env.connectors,
@@ -64,6 +81,7 @@ function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
     name: "Host",
     tone: "live",
     detail: "127.0.0.1:18787",
+    rttMs: 12,
     required: true,
     failure: null,
     // A probed connector has been checked; the freshness row only shows for
@@ -202,12 +220,51 @@ describe("ConnectivityBar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check now" }));
     expect(checkNow).toHaveBeenCalledTimes(2);
 
-    // Endpoints are edited in one place, and it is not here.
-    expect(
-      screen
-        .getByRole("link", { name: /Settings → Connectivity → Endpoints/ })
-        .getAttribute("href"),
-    ).toBe("/settings/connectivity");
+    // The Host endpoint is edited *here*, inline. This used to be a link to
+    // Settings, which meant a route change, a disclosure and a scroll to reach
+    // a text box — from a sheet whose whole premise is putting you back where
+    // you were. Nothing in a ceremony may navigate.
+    expect(screen.queryByRole("link")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Point at a host someone else runs/,
+      }),
+    );
+    expect(screen.getByLabelText("Host API")).toBeTruthy();
+  });
+
+  it("saves a host typed into the ceremony, without leaving it", () => {
+    const saveSettings = vi.fn();
+    Object.assign(hostCeremonyDependencies, { saveSettings });
+    renderBar();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Point at a host someone else runs/,
+      }),
+    );
+    const field = screen.getByLabelText("Host API");
+    fireEvent.change(field, { target: { value: "https://host.example " } });
+    fireEvent.blur(field);
+    expect(saveSettings).toHaveBeenCalledTimes(1);
+    expect(saveSettings.mock.calls[0][0].hostApi).toBe("https://host.example");
+    // Still in the sheet afterwards — that is the whole point.
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("offers the machine ceremony when there is no shareable address to encode", () => {
+    renderBar();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Show pairing QR/ }));
+    // A QR of 127.0.0.1 would resolve to the scanning phone, not to us.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pair this machine first" }),
+    );
+    expect(screen.getByTestId("pairing-ceremony")).toBeTruthy();
   });
 
   it("says how old the verdict is and when the next one is due", () => {

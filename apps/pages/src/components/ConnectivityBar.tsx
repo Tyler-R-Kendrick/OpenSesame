@@ -16,6 +16,7 @@ import { claimGuestAuth } from "../lib/guest-auth.js";
 import { useConnect } from "../lib/identity.js";
 import { failureSentence } from "../lib/probe-failure.js";
 import { ConnectGitHistory } from "./ConnectGitHistory.js";
+import { HostCeremony } from "./HostCeremony.js";
 import {
   IconAuthority,
   IconGitBranch,
@@ -24,6 +25,8 @@ import {
   IconVault,
   IconX,
 } from "./Icons.js";
+import { IdentityCeremony } from "./IdentityCeremony.js";
+import { KeyVaultCeremony } from "./KeyVaultCeremony.js";
 import { ConnectThisMachine } from "./PlaneNote.js";
 import { StatusNote } from "./StatusNote.js";
 
@@ -53,6 +56,8 @@ export const connectivityBarDependencies = {
   useConnect,
   ConnectGitHistory,
   ConnectThisMachine,
+  HostCeremony,
+  KeyVaultCeremony,
 };
 
 export function connectorGlyph(id: ConnectorId, size = 19): ReactNode {
@@ -104,6 +109,7 @@ function ConnectivityBarDefault() {
           id={open}
           connectors={connectors}
           onClose={() => setOpen(null)}
+          onSwitch={(next) => setOpen(next)}
         />
       ) : null}
     </>
@@ -180,10 +186,13 @@ export function ConnectionCeremony({
   id,
   connectors,
   onClose,
+  onSwitch,
 }: {
   id: ConnectorId;
   connectors: ConnectorStatus[];
   onClose: () => void;
+  /** Move to another connector's ceremony without closing the sheet. */
+  onSwitch: (next: ConnectorId) => void;
 }) {
   const connector = connectors.find((entry) => entry.id === id);
 
@@ -238,8 +247,18 @@ export function ConnectionCeremony({
               {failureSentence(connector.failure, connector.name)}
             </p>
           ) : null}
-          <CeremonyBody connector={connector} onClose={onClose} />
+          <CeremonyBody
+            connector={connector}
+            onClose={onClose}
+            onSwitch={onSwitch}
+          />
           <Freshness connector={connector} />
+        </div>
+        {/* One line of standing truth per ceremony, in the footer the canvas
+            draws. It is the same sentence whatever step you are on, so it can
+            be read once and stop competing with the action. */}
+        <div className="sheet__foot">
+          <p className="hint">{CEREMONY_FOOT[connector.id]}</p>
         </div>
       </div>
     </div>
@@ -261,12 +280,25 @@ const CEREMONY_LEAD = {
   keys: "Where vault and sealed-store keys are wrapped. WebCrypto on this device is the built-in default.",
 } satisfies Record<ConnectorId, string>;
 
+const CEREMONY_FOOT = {
+  host: "GitHub Pages cannot host this plane. Locally it auto-connects; remotely you pair a daemon or point at a host you run.",
+  identity:
+    "Signing out of Identity does not lock the vault unless the strict option under Security is on.",
+  machine:
+    "Nothing to type in the happy path. If discovery finds nothing, run `curl -s http://127.0.0.1:18790/health` on the daemon machine and paste the tailscale_url it prints.",
+  history:
+    "The remote holds ciphertext only. Seal a manifest with `opensesame pass seal` before it ever reaches git.",
+  keys: "Changing this re-wraps keys; it does not re-encrypt or re-upload your items.",
+} satisfies Record<ConnectorId, string>;
+
 function CeremonyBody({
   connector,
   onClose,
+  onSwitch,
 }: {
   connector: ConnectorStatus;
   onClose: () => void;
+  onSwitch: (next: ConnectorId) => void;
 }) {
   switch (connector.id) {
     case "machine":
@@ -277,104 +309,20 @@ function CeremonyBody({
         />
       );
     case "host":
-      return <PlaneCeremony kind="host" onClose={onClose} />;
+      return (
+        <connectivityBarDependencies.HostCeremony
+          connector={connector}
+          onCheckNow={() => connectivityBarDependencies.checkNow()}
+          onSwitch={onSwitch}
+        />
+      );
     case "identity":
-      return <PlaneCeremony kind="identity" onClose={onClose} />;
+      return <IdentityCeremony connector={connector} onClose={onClose} />;
     case "history":
       return <connectivityBarDependencies.ConnectGitHistory />;
     default:
-      return <CapabilityCeremony connector={connector} onClose={onClose} />;
+      return <connectivityBarDependencies.KeyVaultCeremony onClose={onClose} />;
   }
-}
-
-/**
- * Host and Identity are not repaired here — they are re-probed here.
- *
- * Both are already correct out of the box on a loopback page, and off one they
- * come from pairing. So the ceremony's job is to say whether the plane answers
- * right now, and hand over to the two things that actually change it. The
- * check goes through the monitor rather than calling a probe directly: one
- * schedule, one in-flight request, one answer for every surface at once.
- */
-function PlaneCeremony({
-  kind,
-  onClose,
-}: {
-  kind: "host" | "identity";
-  onClose: () => void;
-}) {
-  const { connect, connecting, error } =
-    connectivityBarDependencies.useConnect();
-  const [guestBusy, setGuestBusy] = useState(false);
-  const [guestError, setGuestError] = useState<string | null>(null);
-  const upstream = connectivityBarDependencies.defaultUpstream();
-
-  return (
-    <>
-      {kind === "identity" ? (
-        <>
-          <p className="hint">
-            Registered sign-in uses {upstream.accountKind}. Continuing as a
-            guest needs no passkey or password — you will be asked to claim this
-            session from the notifications bell.
-          </p>
-          <div className="actions">
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={connecting || guestBusy}
-              onClick={() => {
-                void connectivityBarDependencies.beginSignIn(upstream, {
-                  returnTo: "/",
-                });
-              }}
-            >
-              Sign in with {upstream.accountKind}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={connecting || guestBusy}
-              aria-busy={guestBusy}
-              onClick={() => {
-                setGuestBusy(true);
-                setGuestError(null);
-                void (async () => {
-                  try {
-                    await connect();
-                    await connectivityBarDependencies.claimGuestAuth();
-                    onClose();
-                  } catch (caught) {
-                    setGuestError(
-                      caught instanceof Error
-                        ? caught.message
-                        : "Guest login failed.",
-                    );
-                  } finally {
-                    setGuestBusy(false);
-                  }
-                })();
-              }}
-            >
-              {guestBusy ? "Starting guest…" : "Continue as guest"}
-            </button>
-          </div>
-        </>
-      ) : null}
-      {error ? <StatusNote message={{ tone: "warn", text: error }} /> : null}
-      {guestError ? (
-        <StatusNote message={{ tone: "warn", text: guestError }} />
-      ) : null}
-      <p className="hint">
-        Endpoints come from pairing this machine. To point at a plane someone
-        else runs, open{" "}
-        <Link to="/settings/connectivity" onClick={onClose}>
-          Settings → Connectivity → Endpoints
-        </Link>
-        .
-      </p>
-    </>
-  );
 }
 
 /**
@@ -424,36 +372,5 @@ function Freshness({ connector }: { connector: ConnectorStatus }) {
         Check now
       </button>
     </div>
-  );
-}
-
-/**
- * Keys are bound in the capability connectors panel — the one place that
- * knows the catalog. Git has its own ceremony, matching Host / Identity /
- * this machine. This sheet says what is bound and takes you there.
- */
-function CapabilityCeremony({
-  connector,
-  onClose,
-}: {
-  connector: ConnectorStatus;
-  onClose: () => void;
-}) {
-  return (
-    <>
-      <p className="hint">
-        Cloud KMS and hardware connectors are optional. Changing this re-wraps
-        keys; it does not re-encrypt or re-upload your items.
-      </p>
-      <div className="actions">
-        <Link
-          className="btn btn--primary"
-          to="/settings/connectivity"
-          onClick={onClose}
-        >
-          {connector.tone === "live" ? "Change connector" : "Set up"}
-        </Link>
-      </div>
-    </>
   );
 }

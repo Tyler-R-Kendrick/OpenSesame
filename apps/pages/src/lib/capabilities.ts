@@ -120,6 +120,12 @@ export function connectorLabel(providerId: string): string {
       return "WebCrypto (this device)";
     case "sealed-local":
       return "Sealed local (Host)";
+    case "yubikey":
+      return "YubiKey";
+    case "fido2":
+      return "FIDO2 security key";
+    case "age":
+      return "age (this device)";
     case "password-store":
       return "Local git password-store";
     case "aws-kms":

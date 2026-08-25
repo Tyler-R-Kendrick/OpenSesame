@@ -44,6 +44,7 @@ function target(over: Partial<TargetState> = {}): TargetState {
     failure: null,
     lastCheckedAt: 1_000,
     checking: false,
+    rttMs: 12,
     ...over,
   };
 }
@@ -371,6 +372,7 @@ describe("needsAttention", () => {
     failure: null,
     lastCheckedAt: null,
     checking: false,
+    rttMs: null,
   } as const;
 
   it("counts only required connectors that are not live", () => {
