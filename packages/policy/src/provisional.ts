@@ -160,6 +160,7 @@ export function quotaFieldFor(action: string): {
     case "claim.create":
       return { usage: "claims", limit: "maxClaims", reason: "quota_claims" };
   }
+  return null;
 }
 
 export class ProvisionalPolicy {
