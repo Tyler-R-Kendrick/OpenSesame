@@ -12,6 +12,7 @@ pub mod changelog_hook;
 pub mod config;
 pub mod configuration;
 pub mod crypto;
+pub mod delegation;
 pub mod egress;
 pub mod error;
 pub mod flow;

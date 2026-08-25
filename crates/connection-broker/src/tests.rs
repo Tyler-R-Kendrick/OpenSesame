@@ -3926,3 +3926,602 @@ mod authorized_bytes_tests {
         assert!(seen.lock().unwrap().auth.is_empty());
     }
 }
+
+// ---- delegation (ADR 0044) --------------------------------------------------
+
+mod delegation_tests {
+    use super::*;
+    use crate::delegation::{
+        ClaimOfferRequest, MintOfferRequest, OfferItemSpec, BUDGET_INVOCATIONS,
+    };
+    use opensesame_domain::Shareability;
+    use std::collections::BTreeMap;
+
+    const PEPPER: &str = "test-pepper";
+    const OWNER: &str = "user:owner";
+    const GUEST: &str = "user:guest";
+
+    fn delegable_config() -> BrokerConfig {
+        key_config().with_detected_connection(
+            "workos",
+            BTreeMap::from([(
+                "api_key".into(),
+                "PLANTED-WORKOS-VALUE-MUST-NOT-ESCAPE".into(),
+            )]),
+        )
+    }
+
+    async fn active_delegable_connection(
+        broker: &ConnectionBroker,
+        organization: &OrganizationId,
+        owner: &str,
+    ) -> String {
+        let view = broker
+            .create_connection(
+                organization,
+                CreateConnection {
+                    owner_subject: Some(owner.into()),
+                    shareability: Some(Shareability::Delegable),
+                    display_name: Some("WorkOS".into()),
+                    ..create("workos")
+                },
+            )
+            .await
+            .expect("active connection");
+        assert_eq!(view.status, ConnectionStatus::Active);
+        view.connection_id
+    }
+
+    fn one_item(connection_id: &str) -> MintOfferRequest {
+        MintOfferRequest {
+            items: vec![OfferItemSpec {
+                connection_id: connection_id.into(),
+                actions: None,
+                resources: None,
+                expires_in_seconds: None,
+                budgets: None,
+                execution_mode: opensesame_relay::ExecutionMode::Broker,
+                required: true,
+                dependencies: vec![],
+            }],
+            ttl_seconds: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn contract_mint_present_claim_delegates_a_connection() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&connection), PEPPER)
+            .await
+            .expect("mint");
+        assert!(minted.claim_token.starts_with("osc_dlg_"));
+        assert_eq!(minted.offer.state, "pending");
+        assert_eq!(minted.offer.items.len(), 1);
+        // The default delegate set is the provider vocabulary minus mutating
+        // operations; workos has none to remove.
+        assert_eq!(
+            minted.offer.items[0].actions,
+            vec!["user.read", "organization.read", "directory.read"]
+        );
+
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        assert_eq!(manifest.state, "presented");
+
+        let delegations = broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .expect("claim");
+        assert_eq!(delegations.len(), 1);
+        assert_eq!(delegations[0].claimant_subject, GUEST);
+
+        let resolved = broker
+            .find_live_delegation(GUEST, &connection)
+            .await
+            .expect("lookup")
+            .expect("live delegation");
+        assert_eq!(resolved.grant.actions, manifest.items[0].actions);
+        assert!(resolved.grant.parent_grant_id.is_some());
+        assert_eq!(resolved.grant.delegation_depth, 1);
+        // Nobody else resolves it.
+        assert!(broker
+            .find_live_delegation("user:stranger", &connection)
+            .await
+            .expect("lookup")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn adversarial_a_second_present_burns_the_offer_and_its_delegations() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&connection), PEPPER)
+            .await
+            .expect("mint");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .expect("claim");
+
+        // The token surfaces again: whoever holds it now, the link leaked.
+        assert!(broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .is_err());
+        // The delegation minted from the offer died with it.
+        assert!(broker
+            .find_live_delegation(GUEST, &connection)
+            .await
+            .expect("lookup")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn adversarial_private_connections_refuse_offers() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let view = broker
+            .create_connection(
+                &organization,
+                CreateConnection {
+                    owner_subject: Some(OWNER.into()),
+                    display_name: Some("WorkOS".into()),
+                    ..create("workos")
+                },
+            )
+            .await
+            .expect("active connection");
+        assert!(broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&view.connection_id), PEPPER)
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn adversarial_minting_someone_elses_connection_is_not_found() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        assert!(matches!(
+            broker
+                .mint_delegation_offer(&organization, "user:thief", one_item(&connection), PEPPER)
+                .await,
+            Err(BrokerError::ConnectionNotFound)
+        ));
+    }
+
+    #[tokio::test]
+    async fn adversarial_wrong_user_codes_burn_the_offer_at_the_cap() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&connection), PEPPER)
+            .await
+            .expect("mint");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        for _ in 0..5 {
+            assert!(broker
+                .claim_delegation_offer(
+                    ClaimOfferRequest {
+                        claim_token: minted.claim_token.clone(),
+                        user_code: "WRNG-CODE".into(),
+                        accepted_item_ids: vec![manifest.items[0].id.clone()],
+                    },
+                    GUEST,
+                    PEPPER,
+                )
+                .await
+                .is_err());
+        }
+        // The real code no longer helps: the offer burned, not lapsed.
+        assert!(broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn adversarial_the_owner_cannot_claim_their_own_offer() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&connection), PEPPER)
+            .await
+            .expect("mint");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        assert!(broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                OWNER,
+                PEPPER,
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn contract_bundles_are_dependency_closed_and_all_or_nothing() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let first = active_delegable_connection(&broker, &organization, OWNER).await;
+        let second = broker
+            .create_connection(
+                &organization,
+                CreateConnection {
+                    owner_subject: Some(OWNER.into()),
+                    shareability: Some(Shareability::Delegable),
+                    display_name: Some("WorkOS second".into()),
+                    logical_name: Some("workos-second".into()),
+                    ..create("workos")
+                },
+            )
+            .await
+            .expect("second connection")
+            .connection_id;
+
+        // Item 1 is optional but depends on item 0.
+        let minted = broker
+            .mint_delegation_offer(
+                &organization,
+                OWNER,
+                MintOfferRequest {
+                    items: vec![
+                        OfferItemSpec {
+                            connection_id: first.clone(),
+                            actions: None,
+                            resources: None,
+                            expires_in_seconds: None,
+                            budgets: None,
+                            execution_mode: opensesame_relay::ExecutionMode::Broker,
+                            required: false,
+                            dependencies: vec![],
+                        },
+                        OfferItemSpec {
+                            connection_id: second.clone(),
+                            actions: None,
+                            resources: None,
+                            expires_in_seconds: None,
+                            budgets: None,
+                            execution_mode: opensesame_relay::ExecutionMode::Broker,
+                            required: false,
+                            dependencies: vec![0],
+                        },
+                    ],
+                    ttl_seconds: None,
+                },
+                PEPPER,
+            )
+            .await
+            .expect("mint bundle");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        let dependent = manifest
+            .items
+            .iter()
+            .find(|item| !item.dependencies.is_empty())
+            .expect("dependent item");
+
+        // Accepting the dependent item without its dependency is refused —
+        // and the refusal must not spend the offer.
+        assert!(broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![dependent.id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .is_err());
+
+        let all_ids: Vec<String> = manifest.items.iter().map(|item| item.id.clone()).collect();
+        let delegations = broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: all_ids,
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .expect("claim whole bundle");
+        assert_eq!(delegations.len(), 2);
+        // One set id groups them; each member resolves independently.
+        assert_eq!(delegations[0].offer_id, delegations[1].offer_id);
+        assert!(broker
+            .find_live_delegation(GUEST, &first)
+            .await
+            .expect("lookup")
+            .is_some());
+        assert!(broker
+            .find_live_delegation(GUEST, &second)
+            .await
+            .expect("lookup")
+            .is_some());
+    }
+
+    #[tokio::test]
+    async fn adversarial_mint_refuses_what_the_owner_grant_cannot_honor() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let mut request = one_item(&connection);
+        request.items[0].actions = Some(vec!["admin.impersonate".into()]);
+        assert!(broker
+            .mint_delegation_offer(&organization, OWNER, request, PEPPER)
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn contract_revoking_the_offer_kills_every_member() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&connection), PEPPER)
+            .await
+            .expect("mint");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .expect("claim");
+        broker
+            .revoke_delegation_offer(&organization, OWNER, &minted.offer.id)
+            .await
+            .expect("revoke set");
+        assert!(broker
+            .find_live_delegation(GUEST, &connection)
+            .await
+            .expect("lookup")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn contract_a_claimant_may_drop_their_own_but_not_someone_elses() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&connection), PEPPER)
+            .await
+            .expect("mint");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        let delegations = broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .expect("claim");
+        let delegation_id = &delegations[0].id;
+        assert!(matches!(
+            broker
+                .revoke_delegation(&organization, "user:stranger", delegation_id)
+                .await,
+            Err(BrokerError::ConnectionNotFound)
+        ));
+        broker
+            .revoke_delegation(&organization, GUEST, delegation_id)
+            .await
+            .expect("claimant drops their own");
+        assert!(broker
+            .find_live_delegation(GUEST, &connection)
+            .await
+            .expect("lookup")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn contract_narrowing_replaces_the_grant_and_widening_is_refused() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&connection), PEPPER)
+            .await
+            .expect("mint");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        let delegations = broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .expect("claim");
+        let delegation_id = delegations[0].id.clone();
+        let old_grant_id = delegations[0].grant_id.clone();
+
+        let narrowed = broker
+            .narrow_delegation(
+                &organization,
+                OWNER,
+                &delegation_id,
+                Some(vec!["user.read".into()]),
+                None,
+                None,
+            )
+            .await
+            .expect("narrow");
+        assert_ne!(narrowed.grant_id, old_grant_id);
+        assert_eq!(narrowed.actions, vec!["user.read"]);
+
+        let resolved = broker
+            .find_live_delegation(GUEST, &connection)
+            .await
+            .expect("lookup")
+            .expect("still live");
+        assert_eq!(resolved.grant.actions, vec!["user.read"]);
+
+        // Growing back what was narrowed away is not an edit.
+        assert!(broker
+            .narrow_delegation(
+                &organization,
+                OWNER,
+                &delegation_id,
+                Some(vec!["user.read".into(), "organization.read".into()]),
+                None,
+                None,
+            )
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn property_budget_spend_denies_at_zero() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let mut request = one_item(&connection);
+        request.items[0].budgets = Some(BTreeMap::from([(BUDGET_INVOCATIONS.into(), 2)]));
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, request, PEPPER)
+            .await
+            .expect("mint");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        let delegations = broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .expect("claim");
+        let id = &delegations[0].id;
+        broker
+            .spend_delegation_budget(id, BUDGET_INVOCATIONS)
+            .await
+            .expect("first spend");
+        broker
+            .spend_delegation_budget(id, BUDGET_INVOCATIONS)
+            .await
+            .expect("second spend");
+        assert!(broker
+            .spend_delegation_budget(id, BUDGET_INVOCATIONS)
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn adversarial_no_response_carries_a_planted_credential() {
+        let (_db, broker) = broker_with(delegable_config()).await;
+        let organization = OrganizationId::new();
+        let connection = active_delegable_connection(&broker, &organization, OWNER).await;
+        let minted = broker
+            .mint_delegation_offer(&organization, OWNER, one_item(&connection), PEPPER)
+            .await
+            .expect("mint");
+        let manifest = broker
+            .present_delegation_offer(&minted.claim_token)
+            .await
+            .expect("present");
+        let delegations = broker
+            .claim_delegation_offer(
+                ClaimOfferRequest {
+                    claim_token: minted.claim_token.clone(),
+                    user_code: minted.user_code.clone(),
+                    accepted_item_ids: vec![manifest.items[0].id.clone()],
+                },
+                GUEST,
+                PEPPER,
+            )
+            .await
+            .expect("claim");
+        for rendered in [
+            serde_json::to_string(&minted.offer).expect("offer"),
+            serde_json::to_string(&manifest).expect("manifest"),
+            serde_json::to_string(&delegations).expect("delegations"),
+        ] {
+            assert!(!rendered.contains("PLANTED-WORKOS-VALUE-MUST-NOT-ESCAPE"));
+        }
+    }
+}
