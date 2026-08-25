@@ -88,7 +88,7 @@ fn valid_folder_path(value: &str) -> bool {
     if value.is_empty() || value.len() > 512 || !value.starts_with('/') || value.ends_with('/') {
         return false;
     }
-    if value.contains('\\') || value.chars().any(|c| c.is_control()) {
+    if value.contains('\\') || value.chars().any(char::is_control) {
         return false;
     }
     value
@@ -109,7 +109,7 @@ fn valid_logical_path(value: &str) -> bool {
     if value.is_empty() || value.len() > 512 || value.starts_with('/') || value.ends_with('/') {
         return false;
     }
-    if value.contains('\\') || value.chars().any(|c| c.is_control()) {
+    if value.contains('\\') || value.chars().any(char::is_control) {
         return false;
     }
     value.split('/').all(|segment| {
@@ -432,7 +432,7 @@ mod tests {
                             scopes: vec!["files.content.write".into()],
                             client_id: Some("client".into()),
                             client_secret: Some("secret".into()),
-                            configuration: Default::default(),
+                            configuration: std::collections::BTreeMap::default(),
                             created_by: "principal:attach-tester".into(),
                         },
                     )
@@ -462,7 +462,7 @@ mod tests {
             .connection_id
     }
 
-    fn put_target_req(token: &str, body: serde_json::Value) -> Request<Body> {
+    fn put_target_req(token: &str, body: &serde_json::Value) -> Request<Body> {
         Request::builder()
             .method("PUT")
             .uri("/api/v1/attachments/target")
@@ -490,7 +490,7 @@ mod tests {
             .clone()
             .oneshot(put_target_req(
                 &token,
-                json!({
+                &json!({
                     "connection_id": connection,
                     "folder_path": "/OpenSesame/attachments"
                 }),
@@ -553,7 +553,7 @@ mod tests {
         let res = app(st)
             .oneshot(put_target_req(
                 &token,
-                json!({"connection_id": connection, "folder_path": "/x"}),
+                &json!({"connection_id": connection, "folder_path": "/x"}),
             ))
             .await
             .unwrap();
@@ -575,7 +575,7 @@ mod tests {
                 .clone()
                 .oneshot(put_target_req(
                     &token,
-                    json!({"connection_id": connection, "folder_path": bad}),
+                    &json!({"connection_id": connection, "folder_path": bad}),
                 ))
                 .await
                 .unwrap();
@@ -594,7 +594,7 @@ mod tests {
         let res = app(st)
             .oneshot(put_target_req(
                 &token,
-                json!({"connection_id": "connection:nope", "folder_path": "/x"}),
+                &json!({"connection_id": "connection:nope", "folder_path": "/x"}),
             ))
             .await
             .unwrap();
@@ -633,7 +633,7 @@ mod tests {
         app.clone()
             .oneshot(put_target_req(
                 &token,
-                json!({"connection_id": connection, "folder_path": "/OpenSesame"}),
+                &json!({"connection_id": connection, "folder_path": "/OpenSesame"}),
             ))
             .await
             .unwrap();
