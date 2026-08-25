@@ -368,7 +368,6 @@ describe("when sessionStorage itself throws", () => {
     expect(loadFederationSession).not.toHaveBeenCalled();
     expect(listNotices()).toHaveLength(0);
   });
-
 });
 
 describe("default dependencies delegate to the real vault store", () => {

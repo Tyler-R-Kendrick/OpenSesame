@@ -49,8 +49,7 @@ async function main() {
         OPENSESAME_SERVER:
           process.env.OPENSESAME_SERVER ?? `http://127.0.0.1:${hostPort}`,
         OPENSESAME_DAEMON_URL:
-          process.env.OPENSESAME_DAEMON_URL ??
-          `http://127.0.0.1:${daemonPort}`,
+          process.env.OPENSESAME_DAEMON_URL ?? `http://127.0.0.1:${daemonPort}`,
       },
     },
   );
