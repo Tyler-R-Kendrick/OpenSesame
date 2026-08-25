@@ -337,6 +337,52 @@ describe("login page federated block", () => {
     expect(html).not.toContain("<img src=x");
     expect(html).toContain("&lt;img");
   });
+
+  it("folds everything but the hinted provider behind a script-free collapse", () => {
+    const html = renderLoginPage({
+      ...base,
+      federated: {
+        startAction: "/interaction/u1/federated/start",
+        upstreams: [
+          { issuer: "http://127.0.0.1:9090", label: "a local test account" },
+          { issuer: "https://shoo.dev", label: "Google" },
+        ],
+        preferredIssuer: "https://shoo.dev",
+      },
+    });
+    const details = html.indexOf('<details class="more-options">');
+    expect(details).toBeGreaterThan(-1);
+    expect(html).toContain("<summary>More sign-in options</summary>");
+    // The hinted provider is the page; everything else waits inside.
+    expect(html.indexOf("Sign in with Google")).toBeLessThan(details);
+    expect(html.indexOf("Sign in with a local test account")).toBeGreaterThan(
+      details,
+    );
+    expect(html.indexOf("Start a session")).toBeGreaterThan(details);
+  });
+
+  it("keeps the full page, banner first, after an upstream refusal", () => {
+    const html = renderLoginPage({
+      ...base,
+      error:
+        "The provider reported: access was denied. Try again, or choose another way in.",
+      federated: {
+        startAction: "/interaction/u1/federated/start",
+        upstreams: [
+          { issuer: "http://127.0.0.1:9090", label: "a local test account" },
+          { issuer: "https://shoo.dev", label: "Google" },
+        ],
+        preferredIssuer: "https://shoo.dev",
+      },
+    });
+    // A person choosing again needs every exit visible — no collapse now.
+    expect(html).not.toContain("<details");
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("access was denied");
+    expect(html.indexOf("access was denied")).toBeLessThan(
+      html.indexOf("Sign in with Google"),
+    );
+  });
 });
 
 /**
@@ -496,7 +542,7 @@ describe("federated interaction leg", () => {
     expect(await res.text()).toContain("did not match");
   });
 
-  it("sends a refusal back to the login page", async () => {
+  it("sends a refusal back to the login page, named as a coded banner", async () => {
     const { jar, uid, html } = await loginPage();
     await req(
       base,
@@ -510,7 +556,15 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/callback?error=access_denied`,
     );
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe(`/interaction/${uid}`);
+    // The code (never the upstream's free text) rides along so the page can
+    // say what happened instead of silently looking like a broken button.
+    expect(res.headers.get("location")).toBe(
+      `/interaction/${uid}?fed_error=access_denied`,
+    );
+    const page = await req(base, jar, `/interaction/${uid}?fed_error=access_denied`);
+    const body = await page.text();
+    expect(body).toContain('role="alert"');
+    expect(body).toContain("access was denied");
   });
 
   it("rejects a callback whose state does not match the pending cookie", async () => {

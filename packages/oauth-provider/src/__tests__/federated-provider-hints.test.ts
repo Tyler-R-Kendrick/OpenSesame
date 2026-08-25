@@ -143,10 +143,19 @@ describe("federated provider hint passthrough", () => {
     expect(params).not.toHaveProperty("login_hint_provider");
   });
 
+  it("carries a URL-shaped hint — how a bring-your-own issuer is named", async () => {
+    const params = await authorizeAndReadInteractionParams({
+      kc_idp_hint: "https://auth.example.dev",
+      login_hint_provider: "127.0.0.1:9090",
+    });
+    expect(params.kc_idp_hint).toBe("https://auth.example.dev");
+    expect(params.login_hint_provider).toBe("127.0.0.1:9090");
+  });
+
   it("drops an unusable hint instead of failing the request or passing it on", async () => {
     const params = await authorizeAndReadInteractionParams({
       kc_idp_hint: '"><script>alert(1)</script>',
-      login_hint_provider: "a".repeat(65),
+      login_hint_provider: "a".repeat(257),
     });
     expect(params).not.toHaveProperty("kc_idp_hint");
     expect(params).not.toHaveProperty("login_hint_provider");

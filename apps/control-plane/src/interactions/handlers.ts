@@ -54,6 +54,12 @@ function interactionBase(uid: string): string {
 export type LoginPageOptions = {
   /** `?org=<slug>` on the interaction GET (D6, second step). */
   orgSlug?: string;
+  /**
+   * An upstream refusal carried back on `?fed_error=<code>`, already in
+   * plain words. Rendered as the page's lead banner instead of the silent
+   * 303-home the refusal used to get.
+   */
+  federatedError?: string;
   orgError?: string;
   byoError?: string;
   byoIssuer?: string;
@@ -96,6 +102,23 @@ export function matchProviderHint(
   });
   if (byHost) return byHost;
   return providers.find((provider) => provider.label.toLowerCase() === needle);
+}
+
+/**
+ * The registry provider a login interaction's hint resolves to, if any —
+ * the same extraction and precedence `buildLoginPageModel` uses, exported so
+ * the GET route can decide whether an auto-continue is even on the table.
+ */
+export function preferredProviderForDetails(
+  ctx: AppContext,
+  details: InteractionDetails,
+): ProviderDescriptor | undefined {
+  const hint = isString(details.params.login_hint_provider)
+    ? details.params.login_hint_provider
+    : isString(details.params.kc_idp_hint)
+      ? details.params.kc_idp_hint
+      : undefined;
+  return matchProviderHint(catalogProviders(ctx.config), hint);
 }
 
 /**
@@ -254,6 +277,9 @@ export async function buildLoginPageModel(
     uid: details.uid,
     csrfToken,
     loginAction: `${base}/login`,
+    ...(options.federatedError !== undefined
+      ? { error: options.federatedError }
+      : undefined),
     ...(principalId !== undefined ? { principalId } : undefined),
     publicUrl: ctx.config.publicUrl,
     federated: {

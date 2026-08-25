@@ -23,6 +23,7 @@ import {
   createPostgresClientClaimChallengeStore,
   createPostgresClientOriginStore,
   createPostgresClientRecordStore,
+  type ConsentStore,
   createPostgresConsentStore,
   createPostgresOidcStore,
   createPostgresOrgFederationStores,
@@ -252,11 +253,24 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   systemPrincipalReady.catch((error) => {
     log.error({ err: error }, "failed to ensure system owner principal");
   });
+  // Late-bound: `stores` is assembled after the provider, but the lookup only
+  // runs per authorization request, long after both exist.
+  let consentLookupStore: ConsentStore | undefined;
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
     processEnv: options.processEnv ?? process.env,
     clientStore,
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
+    // Durable consent reuse: the rows finishConsentAllow writes come back as
+    // grants, so a decision already remembered is not asked again in a new
+    // browser session. Conservative on purpose — a consent carrying resource
+    // indicators falls through to the prompt rather than being replayed
+    // without them.
+    findStoredConsent: async (accountId, clientId) => {
+      const record = await consentLookupStore?.findActive(accountId, clientId);
+      if (!record || record.resources.length > 0) return null;
+      return { scopes: record.scopes, claims: record.claims };
+    },
     ...(oidcStore && pairwiseStore
       ? {
           adapter: createPostgresAdapterConstructor(oidcStore),
@@ -279,6 +293,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ...(orgFederationStores ? { orgFederationStores } : undefined),
     ...(samlStores ? { samlStores } : undefined),
   });
+  consentLookupStore = stores.consents;
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {
     rpID: rpIdFromUrl(config.publicUrl),

@@ -22,6 +22,12 @@ export type OrganizationLoginMethod = {
 export interface LoginPageModel {
   uid: string;
   csrfToken: string;
+  /**
+   * A refusal from the upstream on the way back (`?fed_error=<code>`),
+   * already translated to plain words. Rendered as the page's lead banner —
+   * a denial that 303s home silently reads as a broken button (T14).
+   */
+  error?: string;
   /** POST target for both login forms (`/interaction/<uid>/login`). */
   loginAction: string;
   /** Set when the browser already holds an authenticated session. */
@@ -188,6 +194,16 @@ const sharedStyles = `
     font-size: 0.85rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -284,6 +300,42 @@ export function renderLoginPage(model: LoginPageModel): string {
   // question; its answer goes first. Otherwise the shipped providers lead.
   const orgFirst =
     (model.org?.methods?.length ?? 0) > 0 || model.ldap !== undefined;
+
+  // A matched provider hint is a decision already made at the relying party:
+  // that provider's button is the whole page, and everything else folds into
+  // a plain <details> — no script, so the collapse costs the CSP nothing.
+  // The banner state keeps the full page: after an upstream refusal the
+  // person is choosing again, and hiding the choices would bury the exits.
+  const focused =
+    !orgFirst &&
+    model.error === undefined &&
+    model.federated?.preferredIssuer !== undefined;
+  if (focused) {
+    const rest = [
+      renderFederatedBlock(model, "others"),
+      renderOrgBlock(model),
+      renderLdapBlock(model),
+      renderEmailBlock(model),
+      renderByoBlock(model),
+    ]
+      .filter(Boolean)
+      .join("\n       ");
+    return pageShell(
+      "Sign in — OpenSesame",
+      `<h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at ${escapeHtml(model.publicUrl)}.</p>
+     ${renderFederatedBlock(model, "preferred")}
+     <details class="more-options">
+       <summary>More sign-in options</summary>
+       ${rest}
+       <div class="panel">
+         <p class="lede">or continue without a provider</p>
+         ${continueBlock}
+       </div>
+     </details>`,
+    );
+  }
+
   const identityBlocks = orgFirst
     ? [
         renderOrgBlock(model),
@@ -304,6 +356,7 @@ export function renderLoginPage(model: LoginPageModel): string {
     "Sign in — OpenSesame",
     `<h1>Sign in</h1>
      <p class="lede">Authenticate to continue authorization at ${escapeHtml(model.publicUrl)}.</p>
+     ${renderError(model.error)}
      ${identityBlocks.filter(Boolean).join("\n     ")}
      <div class="panel">
        <p class="lede">or continue without a provider</p>
@@ -319,17 +372,29 @@ export function renderLoginPage(model: LoginPageModel): string {
  * nothing to auto-submit and the provider travels as a hidden field that the
  * start route re-resolves through the trust fence.
  */
-function renderFederatedBlock(model: LoginPageModel): string {
+function renderFederatedBlock(
+  model: LoginPageModel,
+  subset: "all" | "preferred" | "others" = "all",
+): string {
   const federated = model.federated;
   if (!federated || federated.upstreams.length === 0) return "";
 
   const csrf = escapeHtml(model.csrfToken);
   const startAction = escapeHtml(federated.startAction);
-  const ordered = [...federated.upstreams].sort((a, b) => {
-    const preferred = federated.preferredIssuer;
-    if (!preferred) return 0;
-    return a.issuer === preferred ? -1 : b.issuer === preferred ? 1 : 0;
-  });
+  const ordered = [...federated.upstreams]
+    .filter((upstream) =>
+      subset === "all"
+        ? true
+        : subset === "preferred"
+          ? upstream.issuer === federated.preferredIssuer
+          : upstream.issuer !== federated.preferredIssuer,
+    )
+    .sort((a, b) => {
+      const preferred = federated.preferredIssuer;
+      if (!preferred) return 0;
+      return a.issuer === preferred ? -1 : b.issuer === preferred ? 1 : 0;
+    });
+  if (ordered.length === 0) return "";
 
   const forms = ordered
     .map((upstream, index) => {
@@ -356,6 +421,40 @@ function renderError(message: string | undefined): string {
   return message === undefined
     ? ""
     : `<p class="error" role="alert">${escapeHtml(message)}</p>`;
+}
+
+/**
+ * Plain words for the scopes people actually meet. Anything unlisted renders
+ * as its raw name — an unexplained scope must stay visible, never invisible.
+ */
+function describeScope(
+  scope: string,
+): { title: string; detail: string } | undefined {
+  switch (scope) {
+    case "openid":
+      return {
+        title: "Confirm who you are",
+        detail:
+          "A pairwise ID unique to this application — it cannot be linked to your identity elsewhere.",
+      };
+    case "profile":
+      return {
+        title: "See your basic profile",
+        detail: "Your display name and picture, nothing more.",
+      };
+    case "email":
+      return {
+        title: "See your email address",
+        detail: "The verified address on your account.",
+      };
+    case "offline_access":
+      return {
+        title: "Stay signed in",
+        detail: "Keep access when you are not using the application.",
+      };
+    default:
+      return undefined;
+  }
 }
 
 /**
@@ -525,7 +624,12 @@ export function renderConsentPage(model: ConsentPageModel): string {
   const scopes =
     model.scopes.length > 0
       ? `<ul class="scopes" aria-label="Requested scopes">${model.scopes
-          .map((s) => `<li><code>${escapeHtml(s)}</code></li>`)
+          .map((s) => {
+            const explained = describeScope(s);
+            return explained === undefined
+              ? `<li><code>${escapeHtml(s)}</code></li>`
+              : `<li><strong>${escapeHtml(explained.title)}</strong><br/><span class="scope-detail">${escapeHtml(explained.detail)} <code>${escapeHtml(s)}</code></span></li>`;
+          })
           .join("")}</ul>`
       : "<p>No additional scopes requested.</p>";
   const autoBadge = model.showAutoAdmitted

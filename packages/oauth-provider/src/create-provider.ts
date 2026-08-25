@@ -56,6 +56,18 @@ export interface CreateOpenSesameProviderOptions {
   systemOwnerPrincipalId?: string;
   /** When omitted, MemoryAdapter is used (tests / local). Production should pass Postgres adapter. */
   jwks?: Configuration["jwks"];
+  /**
+   * Durable consent lookup for grant reuse across sessions. When provided,
+   * a returning account whose stored consent covers every requested scope
+   * skips the consent interaction: `loadExistingGrant` materialises a Grant
+   * from this record instead of prompting again. Absent (the default), only
+   * oidc-provider's session-scoped grant reuse applies — existing callers
+   * behave unchanged. Return `null` when no live consent exists.
+   */
+  findStoredConsent?: (
+    accountId: string,
+    clientId: string,
+  ) => Promise<{ scopes: string[]; claims: string[] } | null>;
 }
 
 type OidcAccountContext = BoundaryValue;
@@ -134,13 +146,17 @@ export const FEDERATED_PROVIDER_HINT_PARAMS = [
 ] as const;
 
 /**
- * Upstream provider aliases are short identifiers, never markup or URLs.
- * Anything outside this shape is a hint we cannot honour, so it is dropped
- * rather than rejected: an unusable hint must never fail an otherwise valid
- * authorization request, and must never reach the login page as a value a
- * renderer could be tempted to trust.
+ * Upstream provider hints are registry ids ("google"), bare hosts
+ * ("auth.example.dev", "127.0.0.1:9090"), or issuer URLs — the three
+ * spellings the hosted login page's hint matcher resolves (a visitor's
+ * bring-your-own issuer is only nameable by its URL). Never markup: the
+ * shape admits no quotes, angle brackets, spaces, or control characters,
+ * and every consumer treats the value as data — compared byte-wise against
+ * the registry/BYO store, escaped at render. Anything outside this shape is
+ * a hint we cannot honour, so it is dropped rather than rejected: an
+ * unusable hint must never fail an otherwise valid authorization request.
  */
-const PROVIDER_HINT_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
+const PROVIDER_HINT_PATTERN = /^[A-Za-z0-9:/._-]{1,256}$/;
 
 /**
  * Per-param validator. oidc-provider runs these for every registered extra
@@ -252,6 +268,82 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
   };
 }
 
+/** Structural subset of panva's KoaContextWithOIDC used by grant reuse. */
+type GrantContext = {
+  oidc: {
+    session?: {
+      accountId?: string;
+      grantIdFor?: (clientId: string) => string | undefined;
+    };
+    client?: { clientId?: string };
+    params?: { scope?: BoundaryValue };
+    prompts?: { has(name: string): boolean };
+    result?: { consent?: { grantId?: string } };
+    provider: {
+      Grant: {
+        find(id: string): Promise<BoundaryValue>;
+        new (args: { accountId: string; clientId: string }): {
+          addOIDCScope(scope: string): void;
+          addOIDCClaims(claims: string[]): void;
+          save(): Promise<string>;
+        };
+      };
+    };
+  };
+};
+
+/**
+ * Durable consent reuse (the control plane's `consents` rows, written on
+ * every Continue). oidc-provider's default only reuses the SESSION's grant,
+ * so a new browser session re-prompted for a decision already remembered.
+ *
+ * The skip is deliberately narrow: the session grant still wins when one
+ * exists; an explicit `prompt=consent` always prompts; and a request asking
+ * for any scope outside the stored set falls through to the consent page
+ * rather than silently widening what was granted.
+ */
+export function createLoadExistingGrant(
+  findStoredConsent: NonNullable<
+    CreateOpenSesameProviderOptions["findStoredConsent"]
+  >,
+): (ctx: BoundaryValue) => Promise<BoundaryValue | undefined> {
+  return async (ctx: BoundaryValue) => {
+    const { oidc } = overlapCast<BoundaryValue, GrantContext>(ctx);
+    // oidc-provider's own default first: the session-scoped grant.
+    const clientId = oidc.client?.clientId;
+    const sessionGrantId =
+      oidc.result?.consent?.grantId ??
+      (isString(clientId) ? oidc.session?.grantIdFor?.(clientId) : undefined);
+    if (isString(sessionGrantId) && sessionGrantId) {
+      return oidc.provider.Grant.find(sessionGrantId);
+    }
+    const accountId = oidc.session?.accountId;
+    if (
+      !isString(accountId) ||
+      !accountId ||
+      !isString(clientId) ||
+      !clientId
+    ) {
+      return undefined;
+    }
+    if (oidc.prompts?.has("consent")) return undefined;
+    const stored = await findStoredConsent(accountId, clientId);
+    if (!stored) return undefined;
+    const requested = (isString(oidc.params?.scope) ? oidc.params.scope : "")
+      .split(" ")
+      .filter(Boolean);
+    if (requested.length === 0) return undefined;
+    if (!requested.every((scope) => stored.scopes.includes(scope))) {
+      return undefined;
+    }
+    const grant = new oidc.provider.Grant({ accountId, clientId });
+    grant.addOIDCScope(stored.scopes.join(" "));
+    if (stored.claims.length > 0) grant.addOIDCClaims(stored.claims);
+    await grant.save();
+    return overlapCast<unknown, BoundaryValue>(grant);
+  };
+}
+
 /**
  * Configure panva `oidc-provider` for the OpenSesame downstream issuer.
  *
@@ -328,6 +420,17 @@ export function createOpenSesameProvider(
     jwks,
     subjectTypes: ["pairwise"],
     pairwiseIdentifier: createPairwiseIdentifierCallback(pairwiseStore),
+    // `loadExistingGrant` is a documented runtime option this oidc-provider
+    // version supports but its published Configuration type omits — hence the
+    // cast onto the spread, not onto the whole configuration.
+    ...(options.findStoredConsent
+      ? overlapCast<
+          { loadExistingGrant: ReturnType<typeof createLoadExistingGrant> },
+          Partial<Configuration>
+        >({
+          loadExistingGrant: createLoadExistingGrant(options.findStoredConsent),
+        })
+      : undefined),
     pkce: {
       // Always require PKCE. oidc-provider only supports S256 challenge method.
       required: () => true,
