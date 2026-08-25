@@ -7,6 +7,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testkit": {
+      "types": "./src/testkit.ts",
+      "default": "./src/testkit.ts"
     }
   },
   "bin": {
@@ -22,9 +26,13 @@
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
-    "jose": "6.2.8"
+    "@xmldom/xmldom": "0.8.13",
+    "jose": "6.2.8",
+    "selfsigned": "5.5.0",
+    "xml-crypto": "6.1.2"
   },
   "devDependencies": {
+    "@node-saml/node-saml": "5.1.0",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "tsx": "4.19.4",
