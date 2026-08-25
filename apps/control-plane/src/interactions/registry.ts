@@ -600,6 +600,34 @@ export function staticProviders(
   return ordered;
 }
 
+/**
+ * The catalog as a human should see it: one entry per provider id.
+ *
+ * `staticProviders` is the *trust* surface and lists one descriptor per trusted
+ * issuer, which is what `providerByIssuer` and the fence need. It is not what a
+ * sign-in page should render, because one provider can legitimately be trusted
+ * at more than one issuer — the dev allowlist trusts the reference IdP as both
+ * `http://127.0.0.1:9090` and `http://localhost:9090`, two names for one
+ * server, and both synthesize the id `mock`. Rendering the trust surface
+ * directly put two identical "a local test account" buttons on the login page,
+ * the Pages first-run screen and the console.
+ *
+ * First wins, which is allowlist order, so a deployment's canonical name is the
+ * one offered. Nothing is dropped from the trust surface: an authorization
+ * response arriving from either alias still resolves, because that lookup goes
+ * through `providerByIssuer` against the full list.
+ */
+export function catalogProviders(
+  config: ControlPlaneConfig,
+): ProviderDescriptor[] {
+  const byId = new Map<string, ProviderDescriptor>();
+  for (const provider of staticProviders(config)) {
+    const id = provider.id.toLowerCase();
+    if (!byId.has(id)) byId.set(id, provider);
+  }
+  return [...byId.values()];
+}
+
 /** Statically trusted provider with this registry id, if any. */
 export function providerById(
   config: ControlPlaneConfig,

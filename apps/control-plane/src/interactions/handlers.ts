@@ -27,8 +27,8 @@ import {
 import { stableFederatedRedirectUri } from "./federated.js";
 import {
   type ProviderDescriptor,
+  catalogProviders,
   normalizeIssuer,
-  staticProviders,
 } from "./registry.js";
 import type {
   GrantHandle,
@@ -207,7 +207,9 @@ export async function buildLoginPageModel(
   principalId: string | undefined,
   options: LoginPageOptions = {},
 ): Promise<LoginPageModel> {
-  const providers = staticProviders(ctx.config);
+  // The catalog view, not the trust surface: one button per provider, even
+  // where a provider is trusted at more than one issuer.
+  const providers = catalogProviders(ctx.config);
   // The SDK sends both spellings (packages/sdk-browser signIn({provider}));
   // oidc-provider only surfaces them because they are declared extraParams.
   const hint = isString(details.params.login_hint_provider)

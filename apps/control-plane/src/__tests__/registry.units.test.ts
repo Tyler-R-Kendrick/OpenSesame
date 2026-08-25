@@ -16,6 +16,7 @@ import {
 } from "../interactions/handlers.js";
 import {
   type ProviderDescriptor,
+  catalogProviders,
   isBrowserCapable,
   loadProviderRegistry,
   providerById,
@@ -1073,4 +1074,56 @@ describe("GET /v1/federated/providers", () => {
 const directories: string[] = [];
 afterAll(() => {
   for (const dir of directories) rmSync(dir, { recursive: true, force: true });
+});
+
+/**
+ * One provider is one button, even when it is trusted under several names.
+ *
+ * The dev allowlist trusts the reference IdP as both `http://127.0.0.1:9090`
+ * and `http://localhost:9090` — two names for one server, both synthesizing the
+ * id `mock`. `staticProviders` is the trust surface and must keep both, or an
+ * authorization response arriving from the alias that was not kept would be
+ * refused as an untrusted issuer. What a human is shown is a different
+ * question, and rendering the trust surface directly put two identical
+ * "a local test account" buttons on every sign-in surface.
+ */
+describe("catalogProviders", () => {
+  const twoNamesOneIdp = () =>
+    loadConfig({
+      OPENSESAME_PUBLIC_URL: "https://id.example",
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+      OPENSESAME_TRUSTED_UPSTREAMS:
+        "https://shoo.dev,http://127.0.0.1:9090,http://localhost:9090",
+    });
+
+  it("offers each provider id once", () => {
+    const ids = catalogProviders(twoNamesOneIdp()).map((p) => p.id);
+    expect(ids).toEqual([...new Set(ids)]);
+    expect(ids.filter((id) => id === "mock")).toHaveLength(1);
+  });
+
+  it("keeps the first name the allowlist gives, not the last", () => {
+    // Allowlist order is the deployment's own preference; the canonical name
+    // is the one an operator listed first.
+    const entry = catalogProviders(twoNamesOneIdp()).find(
+      (p) => p.id === "mock",
+    );
+    expect(entry?.issuer).toBe("http://127.0.0.1:9090");
+  });
+
+  it("does not narrow what the trust fence accepts", () => {
+    // The alias the catalog dropped must still resolve, or a response coming
+    // back from it would be refused as untrusted.
+    const config = twoNamesOneIdp();
+    expect(catalogProviders(config).length).toBeLessThan(
+      staticProviders(config).length,
+    );
+    for (const issuer of [
+      "http://127.0.0.1:9090",
+      "http://localhost:9090",
+      "https://shoo.dev",
+    ]) {
+      expect(providerByIssuer(config, issuer)).toBeDefined();
+    }
+  });
 });

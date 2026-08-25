@@ -1,6 +1,9 @@
 import { FederatedProvidersResponseSchema } from "@opensesame/contracts";
 import { Hono } from "hono";
-import { isBrowserCapable, staticProviders } from "../interactions/registry.js";
+import {
+  catalogProviders,
+  isBrowserCapable,
+} from "../interactions/registry.js";
 import type { Variables } from "../middleware/context.js";
 
 export const federatedProviderRoutes = new Hono<{ Variables: Variables }>();
@@ -21,7 +24,7 @@ export const federatedProviderRoutes = new Hono<{ Variables: Variables }>();
  */
 federatedProviderRoutes.get("/providers", (c) => {
   const ctx = c.get("ctx");
-  const providers = staticProviders(ctx.config).map((provider) => ({
+  const providers = catalogProviders(ctx.config).map((provider) => ({
     id: provider.id,
     label: provider.label,
     kind: provider.kind,
