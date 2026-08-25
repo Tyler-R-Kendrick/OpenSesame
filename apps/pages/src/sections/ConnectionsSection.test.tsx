@@ -10,8 +10,6 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { FIRST_RUN_KEY } from "../lib/identity-graph.js";
-import { kvDelete, kvSet } from "../lib/kv.js";
 import { clearNotices, listNotices } from "../lib/notices.js";
 import type { SecretItem } from "../lib/vault/model.js";
 
@@ -318,7 +316,6 @@ describe("ConnectionsSection gallery", () => {
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
-    kvDelete(FIRST_RUN_KEY);
     window.history.replaceState({}, "", "/connections");
   });
 
@@ -346,28 +343,20 @@ describe("ConnectionsSection gallery", () => {
     ).toBeTruthy();
   });
 
-  it("filters the gallery by search and clears it", async () => {
+  it("filters the catalog by search and clears it", async () => {
     const { container } = renderAt("/connections");
     await screen.findByText("Vaultwarden");
-    // Dismiss the first-run panel so tile names are unambiguous.
-    await userEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
     const grid = () => {
       const element = container.querySelector(".conn-grid");
       if (!(element instanceof HTMLElement)) throw new Error("grid not found");
       return element;
     };
-    await userEvent.type(
-      screen.getByPlaceholderText("Search connectors"),
-      "linear",
-    );
+    const search = () => screen.getByPlaceholderText(/Search \d+ connectors/);
+    await userEvent.type(search(), "linear");
     expect(within(grid()).getByText("Linear")).toBeTruthy();
     expect(container.querySelectorAll(".conn-tile").length).toBe(1);
-    expect(screen.getByText(/1 of 4 connectors/)).toBeTruthy();
-    await userEvent.clear(screen.getByPlaceholderText("Search connectors"));
-    await userEvent.type(
-      screen.getByPlaceholderText("Search connectors"),
-      "zzzz",
-    );
+    await userEvent.clear(search());
+    await userEvent.type(search(), "zzzz");
     expect(screen.getByText("No matching connectors")).toBeTruthy();
     await userEvent.click(
       screen.getByRole("button", { name: /Clear search/i }),
@@ -485,16 +474,16 @@ describe("ConnectionsSection gallery", () => {
     expect(await screen.findByText(/host busy/)).toBeTruthy();
   });
 
-  it("lists unfinished connections in the Needs you inbox", async () => {
+  it("lists unfinished connections under Needs attention", async () => {
     listConnections.mockResolvedValue([
       makeConnection({ status: "pending", displayName: "GitHub work" }),
     ]);
     renderAt("/connections");
     expect(
-      await screen.findByRole("heading", { name: "Needs you" }),
+      await screen.findByRole("heading", { name: "Needs attention" }),
     ).toBeTruthy();
     expect(screen.getAllByText("GitHub work").length).toBeGreaterThan(0);
-    // The sentence shows in both the inbox and the services list.
+    // The sentence shows in both the inbox and the connected list.
     expect(
       screen.getAllByText(/Created, but nobody has approved it yet/).length,
     ).toBeGreaterThanOrEqual(1);
@@ -504,15 +493,6 @@ describe("ConnectionsSection gallery", () => {
       screen.getByRole("button", { name: /Finish authorization/i }),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: /Details/i })).toBeTruthy();
-  });
-
-  it("shows the first-run three and dismisses them", async () => {
-    renderAt("/connections");
-    expect(
-      await screen.findByText(/Connect the three you use daily/),
-    ).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
-    expect(screen.queryByText(/Connect the three you use daily/)).toBeNull();
   });
 
   it("shows managed connections with a status sentence", async () => {
@@ -545,7 +525,6 @@ describe("ConnectionsSection connector page", () => {
     listConnections.mockResolvedValue([]);
     connectionEvents.mockResolvedValue([]);
     vault.items = [];
-    kvDelete(FIRST_RUN_KEY);
     window.history.replaceState({}, "", "/connections/github");
   });
 
@@ -872,69 +851,40 @@ describe("ConnectionsSection connector page", () => {
     expect(await screen.findByText(/Connector rules saved/)).toBeTruthy();
   });
 
-  it("grants the connection to an agent and records a reminder", async () => {
+  it("binds an agent from the access panel", async () => {
     listConnections.mockResolvedValue([makeConnection()]);
     bindConnection.mockResolvedValue({});
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
+    await userEvent.click(
+      screen.getByRole("button", { name: /Bind an identity/i }),
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Kind"), "agent");
     await userEvent.type(
-      screen.getByLabelText(/Grant to agent/i),
+      screen.getByLabelText("Identifier"),
       "agt_release_bot",
     );
-    await userEvent.click(screen.getByRole("button", { name: /^Grant$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^Bind$/i }));
     await waitFor(() =>
       expect(bindConnection).toHaveBeenCalledWith("con_1", {
         targetKind: "agent",
         targetId: "agt_release_bot",
       }),
     );
-    // No reminder existed, so a new one was added to the vault.
-    await waitFor(() => expect(addItems).toHaveBeenCalled());
-    expect(
-      await screen.findByText(/can invoke GitHub through the Host/),
-    ).toBeTruthy();
   });
 
-  it("updates an existing reminder when granting to an agent", async () => {
+  it("rejects an invalid agent id in the access panel", async () => {
     listConnections.mockResolvedValue([makeConnection()]);
-    bindConnection.mockResolvedValue({});
-    vault.items = [
-      {
-        id: "itm_r",
-        kind: "secret",
-        name: "GitHub reminder",
-        folderId: null,
-        favorite: false,
-        notes: "",
-        createdAt: "2026-08-01T00:00:00Z",
-        updatedAt: "2026-08-01T00:00:00Z",
-        deletedAt: null,
-        connectionRef: "conn/github/pat",
-        grantees: [],
-        ceiling: [],
-        fields: [],
-        value: "",
-      },
-    ];
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
-    await userEvent.type(
-      screen.getByLabelText(/Grant to agent/i),
-      "agt_release_bot",
+    await userEvent.click(
+      screen.getByRole("button", { name: /Bind an identity/i }),
     );
-    await userEvent.click(screen.getByRole("button", { name: /^Grant$/i }));
-    await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    expect(addItems).not.toHaveBeenCalled();
-  });
-
-  it("rejects an invalid agent id in the grant form", async () => {
-    listConnections.mockResolvedValue([makeConnection()]);
-    renderAt("/connections/github/con_1");
-    await screen.findAllByText(/octocat/);
-    await userEvent.type(screen.getByLabelText(/Grant to agent/i), "user:demo");
-    await userEvent.click(screen.getByRole("button", { name: /^Grant$/i }));
+    await userEvent.selectOptions(screen.getByLabelText("Kind"), "agent");
+    await userEvent.type(screen.getByLabelText("Identifier"), "user:demo");
+    await userEvent.click(screen.getByRole("button", { name: /^Bind$/i }));
     expect(
-      await screen.findByText(/Workload identity is an agent id/),
+      await screen.findByText(/Bind an agent, project, or device id/),
     ).toBeTruthy();
     expect(bindConnection).not.toHaveBeenCalled();
   });
@@ -953,7 +903,6 @@ describe("ConnectionsSection deeper branches", () => {
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
-    kvDelete(FIRST_RUN_KEY);
     window.history.replaceState({}, "", "/connections");
   });
 
@@ -1212,25 +1161,6 @@ describe("ConnectionsSection deeper branches", () => {
     ).toBe(true);
   });
 
-  it("hides the first-run panel once every pick is connected", async () => {
-    listConnections.mockResolvedValue([
-      makeConnection(),
-      makeConnection({
-        connectionId: "con_l",
-        providerId: "linear",
-        displayName: "Linear",
-      }),
-      makeConnection({
-        connectionId: "con_v",
-        providerId: "vercel",
-        displayName: "Vercel",
-      }),
-    ]);
-    renderAt("/connections");
-    await screen.findAllByText(/octocat/);
-    expect(screen.queryByText(/Connect the three you use daily/)).toBeNull();
-  });
-
   it("reports a failed identity connect as a notification with a retry", async () => {
     session.current = null;
     hostEligible.value = false;
@@ -1265,7 +1195,6 @@ describe("ConnectionsSection remaining branches", () => {
     connectionEvents.mockResolvedValue([]);
     discoverConnections.mockResolvedValue(0);
     vault.items = [];
-    kvDelete(FIRST_RUN_KEY);
     window.history.replaceState({}, "", "/connections");
   });
 
@@ -1405,11 +1334,12 @@ describe("ConnectionsSection remaining branches", () => {
     );
   });
 
-  it("shows an empty activity log in the identity graph", async () => {
+  it("shows an empty activity log from the history toggle", async () => {
     listConnections.mockResolvedValue([makeConnection()]);
     connectionEvents.mockResolvedValue([]);
     renderAt("/connections/github/con_1");
     await screen.findAllByText(/octocat/);
+    await userEvent.click(screen.getByRole("button", { name: /History/i }));
     expect(
       (await screen.findAllByText(/No events recorded/)).length,
     ).toBeGreaterThan(0);
@@ -1427,15 +1357,10 @@ describe("ConnectionsSection remaining branches", () => {
     });
   });
 
-  it("offers vault and import doors on the connector page", async () => {
+  it("links the provider docs from the connector page", async () => {
     renderAt("/connections/github");
     await screen.findByText(/Create GitHub App for this organization/);
-    expect(
-      screen.getByRole("link", { name: /Save a site login/i }),
-    ).toBeTruthy();
-    expect(screen.getByRole("link", { name: /^Import$/i })).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: /Authorize on the Host/i }),
-    ).toBeTruthy();
+    const docs = screen.getByRole("link", { name: /^Docs$/i });
+    expect(docs.getAttribute("href")).toMatch(/^https:/);
   });
 });
