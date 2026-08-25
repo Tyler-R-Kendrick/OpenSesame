@@ -15,26 +15,8 @@ import {
   IconVault,
 } from "../components/Icons.js";
 import {
-  TRUSTED_UPSTREAMS,
-  beginSignIn,
-  defaultUpstream,
-} from "../lib/federation.js";
-import { continueAsGuest } from "../lib/guest-auth.js";
-import {
-  type OrgAuthMethod,
-  type OrgTenant,
-  lookupOrgTenant,
-  orgAuthUpstream,
-  routeOrgMethod,
-} from "../lib/orgs.js";
-import {
   type FederatedProviderSummary,
-  brokeredOrgUpstream,
-  brokeredRealmUpstream,
-  brokeredUpstream,
   listFederatedProviders,
-  requestEmailMagicLink,
-  workEmailDomain,
 } from "../lib/providers.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
@@ -47,6 +29,7 @@ import {
   preferredUnlockMethod,
 } from "../lib/vault/unlock-methods.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
+import { SignInPanel } from "./unlock/SignInPanel.js";
 import { UnconfiguredIdentityNotice } from "./unlock/UnconfiguredIdentityNotice.js";
 import "./unlock.css";
 
@@ -114,9 +97,11 @@ export function UnlockScreen() {
   const store = useVaultStore();
   const firstRun = status === "empty";
   const passkeyHost = checkWebauthnHost();
-  // Reads location.hostname, so it must be resolved at render, not at import:
-  // loopback deployments get the local mock IdP, everything else the broker.
-  const upstream = defaultUpstream();
+  // First run leads with identity (ADR 0033 §4): sign-in is the default
+  // stage, and the local seal form is the explicit "use without an account"
+  // road — not a wall of fields competing with it.
+  const [localOnly, setLocalOnly] = useState(false);
+  const signInStage = firstRun && !localOnly;
 
   const methods = useMemo(() => {
     if (!firstRun) return listAvailableUnlockMethods(header);
@@ -167,19 +152,10 @@ export function UnlockScreen() {
 
   // First run offers whatever this deployment brokers (D7). An empty catalog —
   // no Identity API, an unreachable one, a deployment older than the endpoint —
-  // is not an error state: it falls back to the single default upstream this
-  // screen has always shown, because first run must never dead-end.
+  // is not an error state: SignInPanel falls back to the single default
+  // upstream this screen has always shown, because first run must never
+  // dead-end.
   const [providers, setProviders] = useState<FederatedProviderSummary[]>([]);
-  const [orgSlug, setOrgSlug] = useState("");
-  const [orgTenant, setOrgTenant] = useState<OrgTenant | null>(null);
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [orgBusy, setOrgBusy] = useState(false);
-  const [workEmail, setWorkEmail] = useState("");
-  const [workEmailError, setWorkEmailError] = useState<string | null>(null);
-  const [linkEmail, setLinkEmail] = useState("");
-  const [linkSent, setLinkSent] = useState(false);
-  const [linkBusy, setLinkBusy] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!firstRun) return;
@@ -191,117 +167,6 @@ export function UnlockScreen() {
       cancelled = true;
     };
   }, [firstRun]);
-
-  /**
-   * Every federated entry ends in a navigation, so success never comes back
-   * here — only a failure gets to clear `busy` and say why.
-   */
-  const startFederated = useCallback(
-    (run: () => Promise<void>, fallbackMessage: string) => {
-      setError(null);
-      setBusy(true);
-      void run().catch((caught) => {
-        setError(caught instanceof Error ? caught.message : fallbackMessage);
-        setBusy(false);
-      });
-    },
-    [],
-  );
-
-  function startProvider(provider: FederatedProviderSummary): void {
-    // A browser-capable provider is one this tab can talk to directly — and it
-    // still has to be in the compiled trust list to be started that way. The
-    // catalog decides which buttons exist, never which issuers are trusted.
-    const direct = provider.browserCapable
-      ? TRUSTED_UPSTREAMS.find(
-          (upstreamEntry) => upstreamEntry.id === provider.id,
-        )
-      : undefined;
-    startFederated(
-      () =>
-        direct
-          ? beginSignIn(direct, { returnTo: "/" })
-          : beginSignIn(brokeredUpstream(provider), {
-              providerHint: provider.id,
-              returnTo: "/",
-            }),
-      "Sign-in failed.",
-    );
-  }
-
-  async function findOrganization(): Promise<void> {
-    setOrgError(null);
-    setOrgTenant(null);
-    setOrgBusy(true);
-    try {
-      setOrgTenant(await lookupOrgTenant(orgSlug));
-    } catch (caught) {
-      setOrgError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not find that organization.",
-      );
-    } finally {
-      setOrgBusy(false);
-    }
-  }
-
-  function startOrgMethod(tenant: OrgTenant, method: OrgAuthMethod): void {
-    const route = routeOrgMethod(method);
-    startFederated(
-      () =>
-        route.via === "brokered"
-          ? // Native SAML and LDAP have no browser leg: the Identity API runs
-            // the whole ceremony and hands this tab a session to adopt.
-            beginSignIn(brokeredOrgUpstream(tenant), { returnTo: "/" })
-          : beginSignIn(orgAuthUpstream(tenant, method), {
-              orgSlug: tenant.slug,
-              orgMethod: route.kind,
-              returnTo: "/",
-            }),
-      "Could not start organization sign-in.",
-    );
-  }
-
-  function continueWithWorkEmail(): void {
-    const domain = workEmailDomain(workEmail);
-    if (!domain) {
-      setWorkEmailError("Enter your work email, like you@acme.com.");
-      return;
-    }
-    setWorkEmailError(null);
-    // Routing only (D12/T28): the domain goes to the login page as a standard
-    // `login_hint`, and the address the human typed is dropped right here —
-    // never stored, never sent, never logged.
-    setWorkEmail("");
-    startFederated(
-      () =>
-        beginSignIn(brokeredRealmUpstream(), {
-          returnTo: "/",
-          loginHint: domain,
-        }),
-      "Could not look up that organization.",
-    );
-  }
-
-  async function sendMagicLink(): Promise<void> {
-    setLinkError(null);
-    setLinkBusy(true);
-    try {
-      // Unlike the discovery field above, this address is the identifier: the
-      // link proves it, and the proven address becomes an identity (D18).
-      await requestEmailMagicLink(linkEmail.trim());
-      setLinkSent(true);
-    } catch (caught) {
-      setLinkError(
-        caught instanceof Error
-          ? caught.message
-          : "Could not send the sign-in link.",
-      );
-    } finally {
-      setLinkBusy(false);
-    }
-  }
 
   // Switching methods (or leaving the passkey tab) must cancel any pending
   // platform prompt — a blocking WebAuthn request must never hold the other
@@ -453,35 +318,48 @@ export function UnlockScreen() {
     busy || lockedFor > 0 || (firstRun ? createBlocked : unlockBlocked);
 
   // ADR 0033 §4: first run asks who you are before it asks for a master
-  // password. Both paths are offered plainly — sign in with a federated
-  // account, or seal this device locally right now.
+  // password. The seal form appears only on the explicit local-only road.
   const firstRunSealCopy =
     activeMethod === "passkey"
-      ? "Or seal this device with a passkey. A password is optional — add one later in Settings if you want a typed backup."
+      ? "Seal this device with a passkey. A password is optional — add one later in Settings if you want a typed backup."
       : activeMethod === "pin"
-        ? "Or seal this device with a PIN. A password is optional — add one later in Settings if you want a typed backup."
-        : "Or choose a master password to seal this device. You can add a passkey or PIN later in Settings.";
+        ? "Seal this device with a PIN. A password is optional — add one later in Settings if you want a typed backup."
+        : "Choose a master password to seal this device. You can add a passkey or PIN later in Settings.";
 
-  const brandCopy = firstRun
-    ? `Two ways in: sign in with ${providers.length > 0 ? "an account you already have" : upstream.accountKind} and this device opens with no passkey or password. ${firstRunSealCopy}`
-    : awaitingTotp
-      ? "Enter the code from your authenticator app to finish unlocking."
-      : "Unlock with a passkey, PIN, or password — whichever you enrolled. The vault key is not stored; a reload asks again.";
+  const brandCopy = signInStage
+    ? "Sign in to sync your vault across your devices — or keep everything on this one."
+    : firstRun
+      ? `Local-only vault: no account, no sync, no recovery. ${firstRunSealCopy}`
+      : awaitingTotp
+        ? "Enter the code from your authenticator app to finish unlocking."
+        : "Unlock with a passkey, PIN, or password — whichever you enrolled. The vault key is not stored; a reload asks again.";
 
   return (
     <div className="unlock">
-      <form className="unlock__card" onSubmit={(e) => void onSubmit(e)}>
+      <div className="unlock__card">
         <PendingLinkBanner />
         <UnconfiguredIdentityNotice />
         <div className="unlock__brand">
           <span className="mark mark--lg" aria-hidden="true">
             <IconVault size={24} />
           </span>
-          <h1>{firstRun ? "Seal this device" : "OpenSesame"}</h1>
+          <h1>
+            {signInStage
+              ? "OpenSesame"
+              : firstRun
+                ? "Seal this device"
+                : "OpenSesame"}
+          </h1>
           <p>{brandCopy}</p>
         </div>
 
-        <div className="unlock__form">
+        {signInStage ? (
+          <SignInPanel
+            providers={providers}
+            onUseLocalOnly={() => setLocalOnly(true)}
+          />
+        ) : (
+          <form className="unlock__form" onSubmit={(e) => void onSubmit(e)}>
           {showMethodTabs ? (
             <div
               className="unlock__methods"
@@ -792,190 +670,33 @@ export function UnlockScreen() {
             </p>
           ) : null}
 
-          {firstRun ? (
-            <>
-              {providers.length > 0 ? (
-                providers.map((provider) => (
-                  <button
-                    key={provider.id}
-                    type="button"
-                    className="unlock__switch"
-                    disabled={busy}
-                    onClick={() => startProvider(provider)}
-                  >
-                    Sign in with {provider.label} — no passkey or password
-                  </button>
-                ))
-              ) : (
-                <button
-                  type="button"
-                  className="unlock__switch"
-                  disabled={busy}
-                  onClick={() =>
-                    startFederated(
-                      () => beginSignIn(upstream, { returnTo: "/" }),
-                      "Sign-in failed.",
-                    )
-                  }
-                >
-                  Sign in with {upstream.accountKind} — no passkey or password
-                </button>
-              )}
-
-              <div className="field">
-                <label htmlFor="unlock-org">Organization</label>
-                <input
-                  id="unlock-org"
-                  type="text"
-                  value={orgSlug}
-                  placeholder="acme-corp"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  disabled={busy}
-                  onChange={(e) => {
-                    setOrgSlug(e.target.value);
-                    setOrgTenant(null);
-                    setOrgError(null);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="unlock__switch"
-                  disabled={busy || orgBusy || orgSlug.trim().length < 2}
-                  onClick={() => void findOrganization()}
-                >
-                  {orgBusy ? "Looking up…" : "Continue with your organization"}
-                </button>
-                {orgTenant ? (
-                  orgTenant.authMethods.length === 0 ? (
-                    <p className="hint">
-                      {orgTenant.displayName} has not configured organization
-                      sign-in yet.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="hint">{orgTenant.displayName}</p>
-                      {orgTenant.authMethods.map((method) => (
-                        <button
-                          key={method.kind}
-                          type="button"
-                          className="unlock__switch"
-                          disabled={busy}
-                          onClick={() => startOrgMethod(orgTenant, method)}
-                        >
-                          Continue with {method.label}
-                        </button>
-                      ))}
-                    </>
-                  )
-                ) : null}
-                {orgError ? <p className="hint">{orgError}</p> : null}
-              </div>
-
-              <div className="field">
-                <label htmlFor="unlock-work-email">
-                  Continue with your work email
-                </label>
-                <input
-                  id="unlock-work-email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="off"
-                  value={workEmail}
-                  placeholder="you@acme.com"
-                  disabled={busy}
-                  onChange={(e) => {
-                    setWorkEmail(e.target.value);
-                    setWorkEmailError(null);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="unlock__switch"
-                  disabled={busy || workEmail.trim().length === 0}
-                  onClick={() => continueWithWorkEmail()}
-                >
-                  Find my organization
-                </button>
-                <p className="hint">
-                  Only the domain is used, to find your organization. The
-                  address is not stored or sent anywhere.
-                </p>
-                {workEmailError ? (
-                  <p className="hint">{workEmailError}</p>
-                ) : null}
-              </div>
-
-              <div className="field">
-                <label htmlFor="unlock-link-email">Continue with email</label>
-                <input
-                  id="unlock-link-email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  value={linkEmail}
-                  placeholder="you@example.com"
-                  disabled={busy || linkBusy || linkSent}
-                  onChange={(e) => {
-                    setLinkEmail(e.target.value);
-                    setLinkError(null);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="unlock__switch"
-                  disabled={
-                    busy ||
-                    linkBusy ||
-                    linkSent ||
-                    linkEmail.trim().length === 0
-                  }
-                  onClick={() => void sendMagicLink()}
-                >
-                  {linkBusy ? "Sending…" : "Email me a sign-in link"}
-                </button>
-                {linkSent ? (
-                  <p className="hint">
-                    Check your email for a sign-in link. It signs you in on this
-                    device.
-                  </p>
-                ) : null}
-                {linkError ? <p className="hint">{linkError}</p> : null}
-              </div>
-
-              <button
-                type="button"
-                className="unlock__switch"
-                disabled={busy}
-                onClick={() => {
-                  setError(null);
-                  setBusy(true);
-                  void continueAsGuest()
-                    .catch((caught) => {
-                      setError(
-                        caught instanceof Error
-                          ? caught.message
-                          : "Guest login failed.",
-                      );
-                    })
-                    .finally(() => setBusy(false));
-                }}
-              >
-                Continue as guest — no passkey or password
-              </button>
-            </>
-          ) : null}
-        </div>
+          </form>
+        )}
 
         <div className="unlock__foot">
-          <p>
-            {firstRun
-              ? activeMethod === "password"
-                ? "600,000 PBKDF2-SHA256 iterations, AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
-                : "AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
-              : "The vault key lives in memory only. Locking or reloading discards it."}
-          </p>
+          {signInStage ? (
+            <p>
+              Signing in never uploads your vault items. It only attaches an
+              identity your devices can sync through.
+            </p>
+          ) : (
+            <p>
+              {firstRun
+                ? activeMethod === "password"
+                  ? "600,000 PBKDF2-SHA256 iterations, AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
+                  : "AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
+                : "The vault key lives in memory only. Locking or reloading discards it."}
+            </p>
+          )}
+          {firstRun && localOnly ? (
+            <button
+              type="button"
+              className="unlock__switch"
+              onClick={() => setLocalOnly(false)}
+            >
+              Sign in instead
+            </button>
+          ) : null}
           {!firstRun ? (
             showReset ? (
               <div className="unlock__danger">
@@ -1013,7 +734,7 @@ export function UnlockScreen() {
             )
           ) : null}
         </div>
-      </form>
+      </div>
     </div>
   );
 }

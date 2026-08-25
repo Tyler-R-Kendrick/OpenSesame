@@ -109,14 +109,15 @@ Object.assign(federationSeams, {
   defaultUpstream: () => UPSTREAM,
 });
 
-const FEDERATED_BUTTON = `Sign in with ${UPSTREAM.accountKind} — no passkey or password`;
+const FEDERATED_BUTTON = `Continue with ${UPSTREAM.accountKind}`;
 
 import { identitySeams } from "../lib/identity.js";
 identitySeams.identityBase = () => "http://127.0.0.1:18788";
 
 import { orgSeams } from "../lib/orgs.js";
 const lookupOrgTenant = vi.fn();
-Object.assign(orgSeams, { lookupOrgTenant });
+const lookupOrgByDomain = vi.fn();
+Object.assign(orgSeams, { lookupOrgTenant, lookupOrgByDomain });
 
 import { providersSeams } from "../lib/providers.js";
 const listFederatedProviders = vi.fn();
@@ -146,6 +147,26 @@ function chooseSealMethod(name: string): void {
   fireEvent.click(screen.getByRole("tab", { name }));
 }
 
+/** First run lands on sign-in; the seal form is the explicit local-only road. */
+function goLocalOnly(): void {
+  fireEvent.click(
+    screen.getByRole("button", { name: "Use without an account" }),
+  );
+}
+
+function openMoreOptions(): void {
+  fireEvent.click(screen.getByRole("button", { name: "More options" }));
+}
+
+function identifierInput(): HTMLInputElement {
+  return overlapCast(screen.getByLabelText("Email or organization"));
+}
+
+function submitIdentifier(value: string): void {
+  fireEvent.change(identifierInput(), { target: { value } });
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+}
+
 describe("UnlockScreen — first run", () => {
   beforeEach(() => {
     v.state = {
@@ -170,6 +191,8 @@ describe("UnlockScreen — first run", () => {
     // honest stand-in.
     beginSignIn.mockReturnValue(new Promise(() => {}));
     lookupOrgTenant.mockReset();
+    lookupOrgByDomain.mockReset();
+    lookupOrgByDomain.mockResolvedValue(null);
     requestEmailMagicLink.mockReset();
     requestEmailMagicLink.mockResolvedValue(undefined);
     listFederatedProviders.mockReset();
@@ -182,6 +205,7 @@ describe("UnlockScreen — first run", () => {
 
   it("seals with a passkey without asking for a master password", async () => {
     render(<UnlockScreen />);
+    goLocalOnly();
     expect(
       screen.getByRole("heading", { name: "Seal this device" }),
     ).toBeTruthy();
@@ -203,6 +227,7 @@ describe("UnlockScreen — first run", () => {
 
   it("seals with a PIN without asking for a master password", async () => {
     render(<UnlockScreen />);
+    goLocalOnly();
     chooseSealMethod("PIN");
     expect(screen.queryByLabelText(/Master password/)).toBeNull();
     expect(submitButton().textContent).toContain("Seal with PIN");
@@ -232,6 +257,7 @@ describe("UnlockScreen — first run", () => {
       fixUrl: "http://localhost:5180/",
     };
     render(<UnlockScreen />);
+    goLocalOnly();
     expect(screen.queryByRole("tab", { name: "Passkey" })).toBeNull();
     expect(screen.getByRole("tab", { name: "PIN" })).toBeTruthy();
     expect(screen.getByLabelText(/Master password/)).toBeTruthy();
@@ -250,6 +276,7 @@ describe("UnlockScreen — first run", () => {
         }),
     );
     render(<UnlockScreen />);
+    goLocalOnly();
     fireEvent.click(
       screen.getByLabelText("I understand this vault cannot be recovered."),
     );
@@ -265,6 +292,7 @@ describe("UnlockScreen — first run", () => {
 
   it("explains the seal and keeps the submit disabled until the form is valid", () => {
     render(<UnlockScreen />);
+    goLocalOnly();
     chooseSealMethod("Password");
     expect(
       screen.getByRole("heading", { name: "Seal this device" }),
@@ -276,6 +304,7 @@ describe("UnlockScreen — first run", () => {
 
   it("warns about weak passwords as they are typed", () => {
     render(<UnlockScreen />);
+    goLocalOnly();
     chooseSealMethod("Password");
     fireEvent.change(masterInput(), { target: { value: "hunter2" } });
     expect(screen.getByText(/Very weak|Weak/)).toBeTruthy();
@@ -287,6 +316,7 @@ describe("UnlockScreen — first run", () => {
 
   it("creates the vault once password, confirmation, and acknowledgement line up", async () => {
     render(<UnlockScreen />);
+    goLocalOnly();
     chooseSealMethod("Password");
     fireEvent.change(masterInput(), { target: { value: STRONG } });
     fireEvent.change(screen.getByLabelText("Confirm master password"), {
@@ -311,6 +341,7 @@ describe("UnlockScreen — first run", () => {
   it("shows create failures inline", async () => {
     v.store.create.mockRejectedValue(new Error("storage quota exceeded"));
     render(<UnlockScreen />);
+    goLocalOnly();
     chooseSealMethod("Password");
     fireEvent.change(masterInput(), { target: { value: STRONG } });
     fireEvent.change(screen.getByLabelText("Confirm master password"), {
@@ -325,6 +356,7 @@ describe("UnlockScreen — first run", () => {
 
   it("reveals and hides both password fields together", () => {
     render(<UnlockScreen />);
+    goLocalOnly();
     chooseSealMethod("Password");
     const master = masterInput();
     expect(master.type).toBe("password");
@@ -339,9 +371,10 @@ describe("UnlockScreen — first run", () => {
 
   it("continues as a guest without a passkey or password", async () => {
     render(<UnlockScreen />);
+    openMoreOptions();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Continue as guest — no passkey or password",
+        name: "Continue as guest — nothing leaves this device",
       }),
     );
     await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
@@ -352,16 +385,14 @@ describe("UnlockScreen — first run", () => {
 
   it("offers federated sign-in before it asks for a password (ADR 0033 §4)", () => {
     render(<UnlockScreen />);
-    const federated = screen.getByRole("button", { name: FEDERATED_BUTTON });
-    const guest = screen.getByRole("button", {
-      name: "Continue as guest — no passkey or password",
-    });
-    // Identity first: the federated path is offered above the guest path.
+    // Identity first: sign-in is the whole first screen — no master-password
+    // field, no seal form, until "Use without an account" is chosen.
+    expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();
+    expect(screen.queryByLabelText(/Master password/)).toBeNull();
     expect(
-      federated.compareDocumentPosition(guest) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(screen.getByText(/Two ways in/)).toBeTruthy();
+      screen.queryByLabelText("I understand this vault cannot be recovered."),
+    ).toBeNull();
+    expect(screen.getByText(/Sign in to sync your vault/)).toBeTruthy();
   });
 
   it("starts sign-in at the default upstream and returns to the app root", () => {
@@ -398,7 +429,7 @@ describe("UnlockScreen — first run", () => {
     for (const label of ["Google", "GitHub", "Acme SSO"]) {
       expect(
         await screen.findByRole("button", {
-          name: `Sign in with ${label} — no passkey or password`,
+          name: `Continue with ${label}`,
         }),
       ).toBeTruthy();
     }
@@ -412,9 +443,7 @@ describe("UnlockScreen — first run", () => {
     ]);
     render(<UnlockScreen />);
     fireEvent.click(
-      await screen.findByRole("button", {
-        name: "Sign in with Google — no passkey or password",
-      }),
+      await screen.findByRole("button", { name: "Continue with Google" }),
     );
     expect(beginSignIn).toHaveBeenCalledWith(
       {
@@ -439,7 +468,7 @@ describe("UnlockScreen — first run", () => {
     render(<UnlockScreen />);
     fireEvent.click(
       await screen.findByRole("button", {
-        name: "Sign in with Local mock IdP — no passkey or password",
+        name: "Continue with Local mock IdP",
       }),
     );
     // The compiled trust list decides this, not the catalog: no hint, no broker.
@@ -456,12 +485,7 @@ describe("UnlockScreen — first run", () => {
       ],
     });
     render(<UnlockScreen />);
-    fireEvent.change(screen.getByLabelText("Organization"), {
-      target: { value: "acme" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue with your organization" }),
-    );
+    submitIdentifier("acme");
     fireEvent.click(
       await screen.findByRole("button", { name: "Continue with SSO" }),
     );
@@ -485,12 +509,7 @@ describe("UnlockScreen — first run", () => {
       authMethods: [{ kind: "saml", label: "SAML", native: true }],
     });
     render(<UnlockScreen />);
-    fireEvent.change(screen.getByLabelText("Organization"), {
-      target: { value: "acme" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue with your organization" }),
-    );
+    submitIdentifier("acme");
     fireEvent.click(
       await screen.findByRole("button", { name: "Continue with SAML" }),
     );
@@ -511,12 +530,7 @@ describe("UnlockScreen — first run", () => {
       authMethods: [{ kind: "ldap", label: "Directory" }],
     });
     render(<UnlockScreen />);
-    fireEvent.change(screen.getByLabelText("Organization"), {
-      target: { value: "acme" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue with your organization" }),
-    );
+    submitIdentifier("acme");
     fireEvent.click(
       await screen.findByRole("button", { name: "Continue with Directory" }),
     );
@@ -537,70 +551,89 @@ describe("UnlockScreen — first run", () => {
       authMethods: [],
     });
     render(<UnlockScreen />);
-    fireEvent.change(screen.getByLabelText("Organization"), {
-      target: { value: "acme" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue with your organization" }),
-    );
+    submitIdentifier("acme");
     expect(
-      await screen.findByText(/has not configured organization sign-in/),
+      await screen.findByText(/no sign-in methods configured yet/),
     ).toBeTruthy();
   });
 
   it("surfaces an unknown organization without starting anything", async () => {
     lookupOrgTenant.mockRejectedValue(new Error("No such organization."));
     render(<UnlockScreen />);
-    fireEvent.change(screen.getByLabelText("Organization"), {
-      target: { value: "nope" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Continue with your organization" }),
-    );
+    submitIdentifier("nope");
     expect(await screen.findByText("No such organization.")).toBeTruthy();
     expect(beginSignIn).not.toHaveBeenCalled();
   });
 
-  it("routes a work email by its domain and keeps the address to itself", async () => {
+  it("resolves a work email to its organization through the one field", async () => {
+    lookupOrgByDomain.mockResolvedValue({
+      slug: "acme",
+      displayName: "Acme",
+      state: "active",
+      authMethods: [
+        { kind: "sso", label: "SSO", issuer: "https://idp.acme.example" },
+      ],
+    });
     render(<UnlockScreen />);
-    const field = overlapCast<unknown, HTMLInputElement>(
-      screen.getByLabelText("Continue with your work email"),
-    );
-    fireEvent.change(field, { target: { value: "ada.lovelace@acme.example" } });
+    submitIdentifier("ada.lovelace@acme.example");
     fireEvent.click(
-      screen.getByRole("button", { name: "Find my organization" }),
+      await screen.findByRole("button", { name: "Continue with SSO" }),
+    );
+    // Discovery used only the domain; the local part stayed on this device.
+    expect(lookupOrgByDomain).toHaveBeenCalledWith("acme.example");
+    expect(JSON.stringify(lookupOrgByDomain.mock.calls)).not.toContain(
+      "ada.lovelace",
+    );
+    expect(beginSignIn.mock.calls[0]?.[0]).toMatchObject({
+      issuer: "https://idp.acme.example",
+    });
+  });
+
+  it("routes an unrecognized work-email domain to the hosted page by domain only", async () => {
+    render(<UnlockScreen />);
+    submitIdentifier("ada.lovelace@acme.example");
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Continue on the hosted sign-in page instead",
+      }),
     );
     const [upstream, options] = beginSignIn.mock.calls[0] ?? [];
     expect(upstream).toMatchObject({ id: "broker:realm" });
     expect(options).toEqual({ returnTo: "/", loginHint: "acme.example" });
-    // The local part never leaves this screen — not in the call, not in the
-    // field it was typed into.
+    // The local part never leaves this screen.
     expect(JSON.stringify(beginSignIn.mock.calls)).not.toContain(
       "ada.lovelace",
     );
-    await waitFor(() => expect(field.value).toBe(""));
   });
 
-  it("asks again when the work-email field is not an address", () => {
+  it("offers the magic link when no organization uses the typed domain", async () => {
     render(<UnlockScreen />);
-    fireEvent.change(screen.getByLabelText("Continue with your work email"), {
-      target: { value: "acme.example" },
-    });
+    submitIdentifier("ada@example.com");
     fireEvent.click(
-      screen.getByRole("button", { name: "Find my organization" }),
+      await screen.findByRole("button", { name: "Email me a sign-in link" }),
     );
-    expect(screen.getByText(/Enter your work email/)).toBeTruthy();
-    expect(beginSignIn).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(requestEmailMagicLink).toHaveBeenCalledWith("ada@example.com"),
+    );
+    expect(await screen.findByText(/Check your inbox/)).toBeTruthy();
   });
 
-  it("sends a magic link to an address the human owns", async () => {
+  it("asks again when the field is neither an address nor a slug", () => {
     render(<UnlockScreen />);
-    fireEvent.change(screen.getByLabelText("Continue with email"), {
+    submitIdentifier("acme.example");
+    expect(screen.getByText(/Enter a work email/)).toBeTruthy();
+    expect(beginSignIn).not.toHaveBeenCalled();
+    expect(lookupOrgTenant).not.toHaveBeenCalled();
+    expect(lookupOrgByDomain).not.toHaveBeenCalled();
+  });
+
+  it("sends a magic link from More options to an address the human owns", async () => {
+    render(<UnlockScreen />);
+    openMoreOptions();
+    fireEvent.change(screen.getByLabelText("Email me a sign-in link"), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Email me a sign-in link" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Send link" }));
     await waitFor(() =>
       expect(requestEmailMagicLink).toHaveBeenCalledWith("ada@example.com"),
     );
@@ -612,21 +645,22 @@ describe("UnlockScreen — first run", () => {
       new Error("Email sign-in is not available on this Identity API."),
     );
     render(<UnlockScreen />);
-    fireEvent.change(screen.getByLabelText("Continue with email"), {
+    openMoreOptions();
+    fireEvent.change(screen.getByLabelText("Email me a sign-in link"), {
       target: { value: "ada@example.com" },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Email me a sign-in link" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Send link" }));
     expect(await screen.findByText(/not available/)).toBeTruthy();
   });
 
-  it("keeps the organization and email entries off an existing vault", () => {
+  it("keeps the sign-in entries off an existing vault", () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
-    expect(screen.queryByLabelText("Organization")).toBeNull();
-    expect(screen.queryByLabelText("Continue with email")).toBeNull();
-    expect(screen.queryByLabelText("Continue with your work email")).toBeNull();
+    expect(screen.queryByLabelText("Email or organization")).toBeNull();
+    expect(screen.queryByRole("button", { name: "More options" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Use without an account" }),
+    ).toBeNull();
   });
 
   it("does not offer the reset affordance on first run", () => {

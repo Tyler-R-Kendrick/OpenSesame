@@ -198,6 +198,64 @@
   line-height: 1.5;
 }
 
+/* First-run sign-in panel — identity before sealing. */
+.signin {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.signin__providers {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.signin__provider {
+  min-height: 2.6rem;
+  font-weight: 600;
+}
+
+.signin__provider-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.signin__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.signin__divider::before,
+.signin__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.signin__more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.85rem;
+  padding-top: 0.15rem;
+}
+
+.signin__more-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
 /* The one "Email or organization" field and its resolved/fallback states. */
 .identifier {
   display: grid;
