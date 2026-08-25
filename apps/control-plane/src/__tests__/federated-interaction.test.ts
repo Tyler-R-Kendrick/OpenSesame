@@ -562,7 +562,11 @@ describe("federated interaction leg", () => {
     expect(res.headers.get("location")).toBe(
       `/interaction/${uid}?fed_error=access_denied`,
     );
-    const page = await req(base, jar, `/interaction/${uid}?fed_error=access_denied`);
+    const page = await req(
+      base,
+      jar,
+      `/interaction/${uid}?fed_error=access_denied`,
+    );
     const body = await page.text();
     expect(body).toContain('role="alert"');
     expect(body).toContain("access was denied");

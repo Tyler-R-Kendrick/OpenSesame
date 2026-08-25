@@ -185,7 +185,9 @@ export function matchUpstreamHint(
       u.label.toLowerCase() === needle ||
       // "Google (via shoo.dev)" still answers to the bare account kind, so a
       // client that has always hinted `google` keeps preselecting the broker.
-      u.label.toLowerCase().startsWith(`${needle} (`),
+      u.label
+        .toLowerCase()
+        .startsWith(`${needle} (`),
   );
 }
 

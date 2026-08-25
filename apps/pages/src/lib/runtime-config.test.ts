@@ -72,7 +72,10 @@ describe("fetchRuntimeConfig", () => {
   });
 
   it("answers null for a body that is not an object", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json(["nope"])));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(["nope"])),
+    );
 
     expect(await REAL_FETCH()).toBeNull();
   });

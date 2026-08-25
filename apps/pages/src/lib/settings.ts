@@ -89,14 +89,12 @@ export type RuntimeEndpointConfig = {
 let deployedConfig: RuntimeEndpointConfig = {};
 
 export function applyRuntimeConfig(config: RuntimeEndpointConfig): void {
-  deployedConfig = {
-    ...(config.hostApi?.trim() ? { hostApi: config.hostApi.trim() } : {}),
-    ...(config.identityApi?.trim()
-      ? { identityApi: config.identityApi.trim() }
-      : {}),
-    ...(config.daemonApi?.trim() ? { daemonApi: config.daemonApi.trim() } : {}),
-    ...(config.mfaAppUrl?.trim() ? { mfaAppUrl: config.mfaAppUrl.trim() } : {}),
-  };
+  const next: RuntimeEndpointConfig = {};
+  if (config.hostApi?.trim()) next.hostApi = config.hostApi.trim();
+  if (config.identityApi?.trim()) next.identityApi = config.identityApi.trim();
+  if (config.daemonApi?.trim()) next.daemonApi = config.daemonApi.trim();
+  if (config.mfaAppUrl?.trim()) next.mfaAppUrl = config.mfaAppUrl.trim();
+  deployedConfig = next;
   emitSettings();
 }
 

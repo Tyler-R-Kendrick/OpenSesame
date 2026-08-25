@@ -195,9 +195,9 @@ describe("adoptFederatedIdentity", () => {
     vaultStatus.mockReturnValue("empty");
     identityJson.mockRejectedValue(new Error("Identity unreachable"));
 
-    await expect(adoptFederatedIdentity("id.token.here")).resolves.toMatchObject(
-      { kind: "link_failed" },
-    );
+    await expect(
+      adoptFederatedIdentity("id.token.here"),
+    ).resolves.toMatchObject({ kind: "link_failed" });
 
     expect(createGuest).toHaveBeenCalledTimes(1);
     const notices = listNotices();

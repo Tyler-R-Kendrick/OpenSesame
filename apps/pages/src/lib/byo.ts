@@ -33,6 +33,13 @@ export type ByoRegistration = {
   redirectUri: string;
 };
 
+function wirePayload(input: ByoProviderInput): ByoProviderInput {
+  const payload: ByoProviderInput = { issuer: input.issuer };
+  if (input.clientId?.trim()) payload.clientId = input.clientId.trim();
+  if (input.clientSecret) payload.clientSecret = input.clientSecret;
+  return payload;
+}
+
 export class ByoError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {
@@ -55,11 +62,15 @@ function isRegistration(value: BoundaryValue): value is ByoRegistration {
   );
 }
 
-async function registerByoProviderDefault(input: {
+export type ByoProviderInput = {
   issuer: string;
   clientId?: string;
   clientSecret?: string;
-}): Promise<ByoRegistration> {
+};
+
+async function registerByoProviderDefault(
+  input: ByoProviderInput,
+): Promise<ByoRegistration> {
   const base = identityBase();
   if (!base) {
     throw new ByoError(
@@ -73,11 +84,7 @@ async function registerByoProviderDefault(input: {
       method: "POST",
       headers: { "content-type": "application/json" },
       credentials: "omit",
-      body: JSON.stringify({
-        issuer: input.issuer,
-        ...(input.clientId?.trim() ? { clientId: input.clientId.trim() } : {}),
-        ...(input.clientSecret ? { clientSecret: input.clientSecret } : {}),
-      }),
+      body: JSON.stringify(wirePayload(input)),
       timeoutMs: BYO_FETCH_MS,
     });
   } catch {
@@ -110,10 +117,8 @@ export const byoSeams = {
   registerByoProvider: registerByoProviderDefault,
 };
 
-export async function registerByoProvider(input: {
-  issuer: string;
-  clientId?: string;
-  clientSecret?: string;
-}): Promise<ByoRegistration> {
+export async function registerByoProvider(
+  input: ByoProviderInput,
+): Promise<ByoRegistration> {
   return byoSeams.registerByoProvider(input);
 }

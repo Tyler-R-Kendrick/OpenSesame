@@ -14,10 +14,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ByoError } from "../../lib/byo.js";
-import {
-  ByoProviderSheet,
-  byoSheetDependencies,
-} from "./ByoProviderSheet.js";
+import { ByoProviderSheet, byoSheetDependencies } from "./ByoProviderSheet.js";
 
 const REAL = { ...byoSheetDependencies };
 
@@ -86,9 +83,9 @@ describe("ByoProviderSheet", () => {
     typeIssuer("https://auth.kestrel.dev");
     fireEvent.click(screen.getByRole("button", { name: "Check provider" }));
 
-    expect(
-      (await screen.findByRole("alert")).textContent,
-    ).toContain("does not register clients automatically");
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "does not register clients automatically",
+    );
     fireEvent.change(await screen.findByLabelText("Client ID"), {
       target: { value: "manual-client" },
     });

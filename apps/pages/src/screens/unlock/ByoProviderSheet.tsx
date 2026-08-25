@@ -10,8 +10,9 @@
 
 import { type FormEvent, useState } from "react";
 import {
-  type ByoRegistration,
   ByoError,
+  type ByoProviderInput,
+  type ByoRegistration,
   registerByoProvider,
 } from "../../lib/byo.js";
 
@@ -43,13 +44,10 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
     setCopied(false);
     setBusy(true);
     try {
-      const registered = await byoSheetDependencies.registerByoProvider({
-        issuer: issuer.trim(),
-        ...(needsClient && clientId.trim()
-          ? { clientId: clientId.trim() }
-          : {}),
-        ...(needsClient && clientSecret ? { clientSecret } : {}),
-      });
+      const input: ByoProviderInput = { issuer: issuer.trim() };
+      if (needsClient && clientId.trim()) input.clientId = clientId.trim();
+      if (needsClient && clientSecret) input.clientSecret = clientSecret;
+      const registered = await byoSheetDependencies.registerByoProvider(input);
       setRegistration(registered);
       setNeedsClient(false);
     } catch (caught) {
@@ -122,7 +120,9 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
               />
             </div>
             <div className="field">
-              <label htmlFor="byo-client-secret">Client secret (optional)</label>
+              <label htmlFor="byo-client-secret">
+                Client secret (optional)
+              </label>
               <input
                 id="byo-client-secret"
                 type="password"
@@ -199,8 +199,8 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
             </p>
           </div>
           <p className="hint">
-            Accounts from your own provider are never merged with email
-            accounts — that separation is a security guarantee.
+            Accounts from your own provider are never merged with email accounts
+            — that separation is a security guarantee.
           </p>
           <button
             type="button"

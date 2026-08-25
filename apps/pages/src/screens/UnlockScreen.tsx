@@ -360,316 +360,317 @@ export function UnlockScreen() {
           />
         ) : (
           <form className="unlock__form" onSubmit={(e) => void onSubmit(e)}>
-          {showMethodTabs ? (
-            <div
-              className="unlock__methods"
-              role="tablist"
-              aria-label="Unlock method"
-            >
-              {methods.map((id) => (
+            {showMethodTabs ? (
+              <div
+                className="unlock__methods"
+                role="tablist"
+                aria-label="Unlock method"
+              >
+                {methods.map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeMethod === id}
+                    className={
+                      activeMethod === id
+                        ? "unlock__method unlock__method--active"
+                        : "unlock__method"
+                    }
+                    // Not gated on `busy`: switching methods is exactly how you
+                    // escape a blocking passkey prompt, so the tabs must stay
+                    // live while a ceremony is pending.
+                    disabled={lockedFor > 0}
+                    onClick={() => {
+                      cancelPasskeyCeremony();
+                      setMethod(id);
+                      setError(null);
+                      setConfirm("");
+                    }}
+                  >
+                    {id === "passkey" ? (
+                      <IconPasskey size={16} />
+                    ) : id === "pin" ? (
+                      <IconLock size={16} />
+                    ) : (
+                      <IconShield size={16} />
+                    )}
+                    {METHOD_LABEL[id]}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {passwordOnlyUnlock ? (
+              <p className="hint">
+                {passkeyHost.ok ? (
+                  <>
+                    No passkey unlock on this vault yet. After you unlock, open{" "}
+                    <strong>Settings → Unlock methods</strong> and enroll a
+                    passkey.
+                  </>
+                ) : (
+                  <>
+                    Passkey unlock needs a DNS hostname
+                    {passkeyHost.fixUrl ? (
+                      <>
+                        {" "}
+                        — open <a href={passkeyHost.fixUrl}>localhost</a> (not a
+                        raw IP), unlock, then enroll under Settings.
+                      </>
+                    ) : (
+                      <> before it can be enrolled in Settings.</>
+                    )}
+                  </>
+                )}
+              </p>
+            ) : null}
+
+            {awaitingTotp ? (
+              <div className="field">
+                <label htmlFor="unlock-totp">Authenticator code</label>
+                <input
+                  id="unlock-totp"
+                  ref={totpRef}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={totp}
+                  disabled={busy || lockedFor > 0}
+                  onChange={(e) => setTotp(e.target.value)}
+                  placeholder="6-digit code"
+                />
+                <p className="hint">
+                  MFA is enrolled on this vault. Primary unlock succeeded —
+                  confirm with your authenticator.
+                </p>
                 <button
-                  key={id}
                   type="button"
-                  role="tab"
-                  aria-selected={activeMethod === id}
-                  className={
-                    activeMethod === id
-                      ? "unlock__method unlock__method--active"
-                      : "unlock__method"
-                  }
-                  // Not gated on `busy`: switching methods is exactly how you
-                  // escape a blocking passkey prompt, so the tabs must stay
-                  // live while a ceremony is pending.
-                  disabled={lockedFor > 0}
+                  className="unlock__switch"
                   onClick={() => {
-                    cancelPasskeyCeremony();
-                    setMethod(id);
+                    store.cancelTotpChallenge();
+                    setTotp("");
                     setError(null);
-                    setConfirm("");
                   }}
                 >
-                  {id === "passkey" ? (
-                    <IconPasskey size={16} />
-                  ) : id === "pin" ? (
-                    <IconLock size={16} />
-                  ) : (
-                    <IconShield size={16} />
-                  )}
-                  {METHOD_LABEL[id]}
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {passwordOnlyUnlock ? (
-            <p className="hint">
-              {passkeyHost.ok ? (
-                <>
-                  No passkey unlock on this vault yet. After you unlock, open{" "}
-                  <strong>Settings → Unlock methods</strong> and enroll a
-                  passkey.
-                </>
-              ) : (
-                <>
-                  Passkey unlock needs a DNS hostname
-                  {passkeyHost.fixUrl ? (
-                    <>
-                      {" "}
-                      — open <a href={passkeyHost.fixUrl}>localhost</a> (not a
-                      raw IP), unlock, then enroll under Settings.
-                    </>
-                  ) : (
-                    <> before it can be enrolled in Settings.</>
-                  )}
-                </>
-              )}
-            </p>
-          ) : null}
-
-          {awaitingTotp ? (
-            <div className="field">
-              <label htmlFor="unlock-totp">Authenticator code</label>
-              <input
-                id="unlock-totp"
-                ref={totpRef}
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={totp}
-                disabled={busy || lockedFor > 0}
-                onChange={(e) => setTotp(e.target.value)}
-                placeholder="6-digit code"
-              />
-              <p className="hint">
-                MFA is enrolled on this vault. Primary unlock succeeded —
-                confirm with your authenticator.
-              </p>
-              <button
-                type="button"
-                className="unlock__switch"
-                onClick={() => {
-                  store.cancelTotpChallenge();
-                  setTotp("");
-                  setError(null);
-                }}
-              >
-                Use a different unlock method
-              </button>
-            </div>
-          ) : null}
-
-          {(firstRun || !awaitingTotp) && activeMethod === "passkey" ? (
-            passkeyHost.ok ? (
-              <p className="hint">
-                Use your platform authenticator. The WebAuthn PRF extension
-                unwraps the vault key — no password typed.
-              </p>
-            ) : (
-              <output className="note note--warn">
-                <span>
-                  {passkeyHost.reason}
-                  {passkeyHost.fixUrl ? (
-                    <>
-                      {" "}
-                      <a href={passkeyHost.fixUrl}>Continue on localhost</a>{" "}
-                      (same vault data), then unlock with passkey.
-                    </>
-                  ) : (
-                    <> Open this app on a DNS hostname, then try again.</>
-                  )}
-                </span>
-              </output>
-            )
-          ) : null}
-
-          {!awaitingTotp && activeMethod === "pin" ? (
-            <div className="field">
-              <label htmlFor="unlock-pin">
-                {firstRun ? "Device PIN" : "PIN"}
-              </label>
-              <input
-                id="unlock-pin"
-                ref={pinRef}
-                type={reveal ? "text" : "password"}
-                inputMode="numeric"
-                autoComplete={firstRun ? "new-password" : "one-time-code"}
-                value={pin}
-                disabled={busy || lockedFor > 0}
-                onChange={(e) => setPin(e.target.value)}
-              />
-            </div>
-          ) : null}
-
-          {!awaitingTotp && activeMethod === "password" && (
-            <div className="field">
-              <label htmlFor="master">
-                {firstRun ? "Master password" : "Password"}
-              </label>
-              <div className="unlock__reveal">
-                <input
-                  id="master"
-                  ref={passwordRef}
-                  type={reveal ? "text" : "password"}
-                  autoComplete={firstRun ? "new-password" : "current-password"}
-                  value={password}
-                  disabled={busy || lockedFor > 0}
-                  onChange={(e) => setPassword(e.target.value)}
-                  aria-describedby={firstRun ? "master-help" : undefined}
-                />
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => setReveal((value) => !value)}
-                  aria-label={reveal ? "Hide password" : "Show password"}
-                >
-                  {reveal ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+                  Use a different unlock method
                 </button>
               </div>
-            </div>
-          )}
+            ) : null}
 
-          {firstRun && activeMethod === "password" ? (
-            <>
-              <StrengthMeter password={password} />
+            {(firstRun || !awaitingTotp) && activeMethod === "passkey" ? (
+              passkeyHost.ok ? (
+                <p className="hint">
+                  Use your platform authenticator. The WebAuthn PRF extension
+                  unwraps the vault key — no password typed.
+                </p>
+              ) : (
+                <output className="note note--warn">
+                  <span>
+                    {passkeyHost.reason}
+                    {passkeyHost.fixUrl ? (
+                      <>
+                        {" "}
+                        <a href={passkeyHost.fixUrl}>Continue on localhost</a>{" "}
+                        (same vault data), then unlock with passkey.
+                      </>
+                    ) : (
+                      <> Open this app on a DNS hostname, then try again.</>
+                    )}
+                  </span>
+                </output>
+              )
+            ) : null}
+
+            {!awaitingTotp && activeMethod === "pin" ? (
               <div className="field">
-                <label htmlFor="confirm">Confirm master password</label>
+                <label htmlFor="unlock-pin">
+                  {firstRun ? "Device PIN" : "PIN"}
+                </label>
+                <input
+                  id="unlock-pin"
+                  ref={pinRef}
+                  type={reveal ? "text" : "password"}
+                  inputMode="numeric"
+                  autoComplete={firstRun ? "new-password" : "one-time-code"}
+                  value={pin}
+                  disabled={busy || lockedFor > 0}
+                  onChange={(e) => setPin(e.target.value)}
+                />
+              </div>
+            ) : null}
+
+            {!awaitingTotp && activeMethod === "password" && (
+              <div className="field">
+                <label htmlFor="master">
+                  {firstRun ? "Master password" : "Password"}
+                </label>
+                <div className="unlock__reveal">
+                  <input
+                    id="master"
+                    ref={passwordRef}
+                    type={reveal ? "text" : "password"}
+                    autoComplete={
+                      firstRun ? "new-password" : "current-password"
+                    }
+                    value={password}
+                    disabled={busy || lockedFor > 0}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-describedby={firstRun ? "master-help" : undefined}
+                  />
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    onClick={() => setReveal((value) => !value)}
+                    aria-label={reveal ? "Hide password" : "Show password"}
+                  >
+                    {reveal ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {firstRun && activeMethod === "password" ? (
+              <>
+                <StrengthMeter password={password} />
+                <div className="field">
+                  <label htmlFor="confirm">Confirm master password</label>
+                  <input
+                    id="confirm"
+                    type={reveal ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={confirm}
+                    disabled={busy}
+                    onChange={(e) => setConfirm(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="hint">Reminder (optional)</label>
+                  <input
+                    id="hint"
+                    type="text"
+                    value={hint}
+                    maxLength={80}
+                    placeholder="Something only you would understand"
+                    onChange={(e) => setHint(e.target.value)}
+                  />
+                  <p className="hint">
+                    Stored unencrypted beside the vault so it can be shown
+                    before you unlock. Never put the password itself here.
+                  </p>
+                </div>
+              </>
+            ) : null}
+
+            {firstRun && activeMethod === "pin" ? (
+              <div className="field">
+                <label htmlFor="confirm">Confirm PIN</label>
                 <input
                   id="confirm"
                   type={reveal ? "text" : "password"}
+                  inputMode="numeric"
                   autoComplete="new-password"
                   value={confirm}
                   disabled={busy}
                   onChange={(e) => setConfirm(e.target.value)}
                 />
               </div>
-              <div className="field">
-                <label htmlFor="hint">Reminder (optional)</label>
-                <input
-                  id="hint"
-                  type="text"
-                  value={hint}
-                  maxLength={80}
-                  placeholder="Something only you would understand"
-                  onChange={(e) => setHint(e.target.value)}
-                />
-                <p className="hint">
-                  Stored unencrypted beside the vault so it can be shown before
-                  you unlock. Never put the password itself here.
+            ) : null}
+
+            {firstRun ? (
+              <div className="unlock__terms">
+                <p id="master-help">
+                  {activeMethod === "passkey"
+                    ? "There is no recovery. The vault key is wrapped by this device's passkey. Lose the authenticator and the encrypted items on this device are unreadable, by you and by us. A password is optional later in Settings."
+                    : activeMethod === "pin"
+                      ? "There is no recovery. The vault key is wrapped by this PIN. Forget it and the encrypted items on this device are unreadable, by you and by us. A password is optional later in Settings."
+                      : "There is no recovery. The key exists only while this password is in your head — forget it and the encrypted items on this device are unreadable, by you and by us. Add a passkey or PIN in Settings so you are not limited to typing a password."}
                 </p>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={accepted}
+                    onChange={(e) => setAccepted(e.target.checked)}
+                  />
+                  <span>I understand this vault cannot be recovered.</span>
+                </label>
               </div>
-            </>
-          ) : null}
-
-          {firstRun && activeMethod === "pin" ? (
-            <div className="field">
-              <label htmlFor="confirm">Confirm PIN</label>
-              <input
-                id="confirm"
-                type={reveal ? "text" : "password"}
-                inputMode="numeric"
-                autoComplete="new-password"
-                value={confirm}
-                disabled={busy}
-                onChange={(e) => setConfirm(e.target.value)}
-              />
-            </div>
-          ) : null}
-
-          {firstRun ? (
-            <div className="unlock__terms">
-              <p id="master-help">
-                {activeMethod === "passkey"
-                  ? "There is no recovery. The vault key is wrapped by this device's passkey. Lose the authenticator and the encrypted items on this device are unreadable, by you and by us. A password is optional later in Settings."
-                  : activeMethod === "pin"
-                    ? "There is no recovery. The vault key is wrapped by this PIN. Forget it and the encrypted items on this device are unreadable, by you and by us. A password is optional later in Settings."
-                    : "There is no recovery. The key exists only while this password is in your head — forget it and the encrypted items on this device are unreadable, by you and by us. Add a passkey or PIN in Settings so you are not limited to typing a password."}
+            ) : header?.hint && activeMethod === "password" && !awaitingTotp ? (
+              <p className="unlock__hint">
+                <strong>Reminder:</strong> {header.hint}
               </p>
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={accepted}
-                  onChange={(e) => setAccepted(e.target.checked)}
-                />
-                <span>I understand this vault cannot be recovered.</span>
-              </label>
-            </div>
-          ) : header?.hint && activeMethod === "password" && !awaitingTotp ? (
-            <p className="unlock__hint">
-              <strong>Reminder:</strong> {header.hint}
-            </p>
-          ) : null}
+            ) : null}
 
-          {!durable ? (
-            <output className="note note--warn">
-              <span>
-                This browser gives this app no persistent storage, so the vault
-                will be gone when the tab closes — private windows and some
-                embedded browsers do this. Do not put your only copy of anything
-                in here.
-              </span>
-            </output>
-          ) : null}
+            {!durable ? (
+              <output className="note note--warn">
+                <span>
+                  This browser gives this app no persistent storage, so the
+                  vault will be gone when the tab closes — private windows and
+                  some embedded browsers do this. Do not put your only copy of
+                  anything in here.
+                </span>
+              </output>
+            ) : null}
 
-          {error ? (
-            <p className="note note--err" role="alert">
-              <span>{error}</span>
-            </p>
-          ) : null}
+            {error ? (
+              <p className="note note--err" role="alert">
+                <span>{error}</span>
+              </p>
+            ) : null}
 
-          {lockedFor > 0 ? (
-            <output className="note note--warn">
-              <span>
-                {failedAttempts} failed attempts. Try again in {lockedFor}s.
-              </span>
-            </output>
-          ) : null}
+            {lockedFor > 0 ? (
+              <output className="note note--warn">
+                <span>
+                  {failedAttempts} failed attempts. Try again in {lockedFor}s.
+                </span>
+              </output>
+            ) : null}
 
-          <button
-            type="submit"
-            className="btn btn--primary btn--block"
-            disabled={disabled}
-            aria-busy={busy}
-          >
-            {activeMethod === "passkey" && !awaitingTotp ? (
-              <IconPasskey size={18} />
-            ) : (
-              <IconLock size={18} />
-            )}
-            {busy
-              ? firstRun
-                ? activeMethod === "passkey"
-                  ? "Waiting for passkey…"
-                  : activeMethod === "pin"
-                    ? "Sealing…"
-                    : "Deriving key…"
-                : awaitingTotp
-                  ? "Checking code…"
-                  : activeMethod === "passkey"
+            <button
+              type="submit"
+              className="btn btn--primary btn--block"
+              disabled={disabled}
+              aria-busy={busy}
+            >
+              {activeMethod === "passkey" && !awaitingTotp ? (
+                <IconPasskey size={18} />
+              ) : (
+                <IconLock size={18} />
+              )}
+              {busy
+                ? firstRun
+                  ? activeMethod === "passkey"
                     ? "Waiting for passkey…"
-                    : "Unlocking…"
-              : firstRun
-                ? activeMethod === "passkey"
-                  ? "Seal with passkey"
-                  : activeMethod === "pin"
-                    ? "Seal with PIN"
-                    : "Seal this device"
-                : awaitingTotp
-                  ? "Confirm MFA"
-                  : activeMethod === "passkey"
-                    ? "Unlock with passkey"
-                    : "Unlock"}
-          </button>
+                    : activeMethod === "pin"
+                      ? "Sealing…"
+                      : "Deriving key…"
+                  : awaitingTotp
+                    ? "Checking code…"
+                    : activeMethod === "passkey"
+                      ? "Waiting for passkey…"
+                      : "Unlocking…"
+                : firstRun
+                  ? activeMethod === "passkey"
+                    ? "Seal with passkey"
+                    : activeMethod === "pin"
+                      ? "Seal with PIN"
+                      : "Seal this device"
+                  : awaitingTotp
+                    ? "Confirm MFA"
+                    : activeMethod === "passkey"
+                      ? "Unlock with passkey"
+                      : "Unlock"}
+            </button>
 
-          {firstRun &&
-          activeMethod === "password" &&
-          password.length > 0 &&
-          strength.score < 2 ? (
-            <p className="hint">
-              Aim for a passphrase of four or more unrelated words. This one
-              would not survive an offline attack on the encrypted file.
-            </p>
-          ) : null}
-
+            {firstRun &&
+            activeMethod === "password" &&
+            password.length > 0 &&
+            strength.score < 2 ? (
+              <p className="hint">
+                Aim for a passphrase of four or more unrelated words. This one
+                would not survive an offline attack on the encrypted file.
+              </p>
+            ) : null}
           </form>
         )}
 

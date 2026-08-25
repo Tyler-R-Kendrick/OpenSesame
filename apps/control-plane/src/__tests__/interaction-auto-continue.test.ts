@@ -17,6 +17,8 @@ import type { startServer } from "../server.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 
+type StartedInteraction = { uid: string; location: string };
+
 const RP_ORIGIN = "http://127.0.0.1:4319";
 const RP_CLIENT_ID = `origin:${RP_ORIGIN}`;
 const RP_REDIRECT = `${RP_ORIGIN}/opensesame/callback`;
@@ -40,7 +42,7 @@ class Jar {
     return [...this.cookies.keys()].some((name) => name.startsWith(prefix));
   }
 
-  header(): Record<string, string> {
+  header(): HeadersInit {
     if (this.cookies.size === 0) return {};
     return {
       cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; "),
@@ -100,7 +102,7 @@ describe("interaction auto-continue", () => {
   async function beginInteraction(
     jar: Jar,
     hint?: string,
-  ): Promise<{ uid: string; location: string }> {
+  ): Promise<StartedInteraction> {
     const verifier = randomBytes(32).toString("base64url");
     const params = new URLSearchParams({
       client_id: RP_CLIENT_ID,

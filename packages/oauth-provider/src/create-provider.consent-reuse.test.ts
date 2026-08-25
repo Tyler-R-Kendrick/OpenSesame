@@ -4,6 +4,7 @@
  * the consent page, and only a full subset match materialises a grant.
  */
 
+import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { createLoadExistingGrant } from "./create-provider.js";
 
@@ -15,13 +16,15 @@ type FakeGrant = {
   saved: boolean;
 };
 
-function fakeCtx(options: {
+type FakeCtxOptions = {
   scope?: string;
   accountId?: string;
   clientId?: string;
   sessionGrantId?: string;
   prompts?: string[];
-}) {
+};
+
+function fakeCtx(options: FakeCtxOptions) {
   const created: FakeGrant[] = [];
   class Grant {
     accountId: string;
@@ -32,7 +35,8 @@ function fakeCtx(options: {
     constructor(args: { accountId: string; clientId: string }) {
       this.accountId = args.accountId;
       this.clientId = args.clientId;
-      created.push(this as unknown as FakeGrant);
+      const record: FakeGrant = overlapCast(this);
+      created.push(record);
     }
     addOIDCScope(scope: string) {
       this.scopes.push(scope);

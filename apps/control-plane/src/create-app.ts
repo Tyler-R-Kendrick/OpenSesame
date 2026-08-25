@@ -9,6 +9,7 @@ import {
 import { ClaimEngine } from "@opensesame/claims";
 import {
   ConflictError,
+  type ConsentStore,
   type OrgFederationStores,
   type OrganizationStores,
   type ProjectStores,
@@ -23,7 +24,6 @@ import {
   createPostgresClientClaimChallengeStore,
   createPostgresClientOriginStore,
   createPostgresClientRecordStore,
-  type ConsentStore,
   createPostgresConsentStore,
   createPostgresOidcStore,
   createPostgresOrgFederationStores,
@@ -101,7 +101,10 @@ export interface CreateControlPlaneOptions {
  * claim flow transfers ownership to the claiming verified principal. The id
  * is fixed so the row is ensured idempotently across restarts and replicas.
  */
-export const SYSTEM_OWNER_PRINCIPAL_ID = "prn_opensesame_system";
+export /** Late-binding slot: the consent store lands here once `stores` exists. */
+type ConsentLookupSlot = { store?: ConsentStore };
+
+const SYSTEM_OWNER_PRINCIPAL_ID = "prn_opensesame_system";
 
 /**
  * Ensure the deployment/system principal row exists (idempotent). The
@@ -255,7 +258,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   });
   // Late-bound: `stores` is assembled after the provider, but the lookup only
   // runs per authorization request, long after both exist.
-  let consentLookupStore: ConsentStore | undefined;
+  const consentLookup: ConsentLookupSlot = {};
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
     processEnv: options.processEnv ?? process.env,
@@ -267,7 +270,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     // indicators falls through to the prompt rather than being replayed
     // without them.
     findStoredConsent: async (accountId, clientId) => {
-      const record = await consentLookupStore?.findActive(accountId, clientId);
+      const record = await consentLookup.store?.findActive(accountId, clientId);
       if (!record || record.resources.length > 0) return null;
       return { scopes: record.scopes, claims: record.claims };
     },
@@ -293,7 +296,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ...(orgFederationStores ? { orgFederationStores } : undefined),
     ...(samlStores ? { samlStores } : undefined),
   });
-  consentLookupStore = stores.consents;
+  consentLookup.store = stores.consents;
   const passkeyChallenges = createMemoryChallengeStore();
   const rp = {
     rpID: rpIdFromUrl(config.publicUrl),

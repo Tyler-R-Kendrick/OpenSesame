@@ -7,8 +7,10 @@ import {
   bindingNeedsAuth,
   capabilityBindDependencies,
 } from "./capability-bind.js";
+import { overlapCast } from "@opensesame/os-domain";
 import type { PagesSettings } from "./settings.js";
 
+// SAFETY: every field these tests read is checked present in this literal; the assertion covers only optional fields no test dereferences.
 const BASE: PagesSettings = {
   hostApi: "http://127.0.0.1:18787",
   identityApi: "http://127.0.0.1:18788",
@@ -124,15 +126,15 @@ describe("authorizeCapabilityConnector", () => {
   }
 
   function popup(): Window {
-    return { location: { href: "" }, close: vi.fn() } as unknown as Window;
+    const stub: Window = overlapCast({ location: { href: "" }, close: vi.fn() });
+    return stub;
   }
 
   it("short-circuits a connector that needs no authorization", async () => {
     arrange();
     const shut = vi.fn();
-    const outcome = await authorizeCapabilityConnector("encryption", {
-      close: shut,
-    } as unknown as Window);
+    const bare: Window = overlapCast({ close: shut });
+    const outcome = await authorizeCapabilityConnector("encryption", bare);
     expect(outcome.tone).toBe("ok");
     // Nothing to consent to, so the popup must not be left hanging open.
     expect(shut).toHaveBeenCalled();
@@ -225,10 +227,8 @@ describe("authorizeCapabilityConnector", () => {
     arrange({
       ensureHostSession: vi.fn().mockRejectedValue(new Error("host is down")),
     });
-    const outcome = await authorizeCapabilityConnector("encryption", {
-      location: { href: "" },
-      close: shut,
-    } as unknown as Window);
+    const blank: Window = overlapCast({ location: { href: "" }, close: shut });
+    const outcome = await authorizeCapabilityConnector("encryption", blank);
     expect(outcome).toEqual({ tone: "err", text: "host is down" });
     // A popup left open on about:blank is a window the person has to go and
     // find and close themselves.

@@ -32,7 +32,15 @@ const HEADERS = {
   origin: "http://127.0.0.1:4317",
 };
 
-async function post(plane: Plane, body: unknown) {
+type HintParams = { login_hint_provider?: string };
+
+type ByoWireBody = {
+  issuer?: string;
+  clientId?: string;
+  clientSecret?: string;
+};
+
+async function post(plane: Plane, body: ByoWireBody) {
   const res = await plane.app.request("/v1/federated/byo-upstreams", {
     method: "POST",
     headers: HEADERS,
@@ -124,7 +132,7 @@ describe("public BYO upstream registration", () => {
     const plane = createControlPlane({ config: testConfig() });
     await post(plane, { issuer: dcrIdp.issuer });
 
-    const details = (params: Record<string, string>): InteractionDetails =>
+    const details = (params: HintParams): InteractionDetails =>
       overlapCast({
         uid: "uid-1",
         params,

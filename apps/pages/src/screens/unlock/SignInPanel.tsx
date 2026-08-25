@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import type { ByoRegistration } from "../../lib/byo.js";
 import { describeFederationError } from "../../lib/federation-copy.js";
 import {
   TRUSTED_UPSTREAMS,
@@ -25,7 +26,6 @@ import {
   orgAuthUpstream,
   routeOrgMethod,
 } from "../../lib/orgs.js";
-import type { ByoRegistration } from "../../lib/byo.js";
 import {
   type FederatedProviderSummary,
   brokeredByoUpstream,
@@ -247,7 +247,9 @@ export function SignInPanel({ providers, onUseLocalOnly }: Props) {
                 {linkSent ? "Sent" : "Send link"}
               </button>
             </div>
-            <p className="hint">Passwordless. Works anywhere your inbox does.</p>
+            <p className="hint">
+              Passwordless. Works anywhere your inbox does.
+            </p>
             {linkSent ? (
               <p className="hint">
                 Check your email for a sign-in link. It signs you in on this

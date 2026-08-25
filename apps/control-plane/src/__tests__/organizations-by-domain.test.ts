@@ -46,9 +46,11 @@ async function verifiedOwner(plane: Plane) {
   return owner;
 }
 
+type SeedOptions = { verify: boolean };
+
 async function seedOrgWithDomain(
   plane: Plane,
-  options: { verify: boolean } = { verify: true },
+  options: SeedOptions = { verify: true },
 ) {
   const owner = await verifiedOwner(plane);
   const created = await plane.app.request("/v1/organizations", {

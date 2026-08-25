@@ -27,12 +27,12 @@ import type { Variables } from "../middleware/context.js";
  * grant an email-join (ADR 0055/0057).
  */
 
-const ERROR_STATUS: Record<ByoRegistrationErrorCode, 422 | 429> = {
+const ERROR_STATUS = {
   invalid_issuer: 422,
   discovery_failed: 422,
   registration_unsupported: 422,
   rate_limited: 429,
-};
+} as const satisfies Record<ByoRegistrationErrorCode, 422 | 429>;
 
 export const byoPublicRoutes = new Hono<{ Variables: Variables }>();
 

@@ -169,8 +169,8 @@ describe("IdentifierField", () => {
     type("acme-corp");
     submit();
 
-    expect(
-      (await screen.findByRole("alert")).textContent,
-    ).toContain("Identity API unreachable");
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Identity API unreachable",
+    );
   });
 });

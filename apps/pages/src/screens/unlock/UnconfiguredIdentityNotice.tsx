@@ -71,7 +71,11 @@ export function UnconfiguredIdentityNotice() {
         </p>
         {/* noValidate: the styled hint below explains, in place, what the
             browser's native bubble would otherwise say over the top of it. */}
-        <form className="unlock__unconfigured-form" onSubmit={connect} noValidate>
+        <form
+          className="unlock__unconfigured-form"
+          onSubmit={connect}
+          noValidate
+        >
           <input
             type="url"
             placeholder="https://id.example.com"

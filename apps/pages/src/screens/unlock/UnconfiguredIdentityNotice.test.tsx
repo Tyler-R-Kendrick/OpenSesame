@@ -7,6 +7,7 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "../../lib/capabilities.js";
 import type { PagesSettings } from "../../lib/settings.js";
 import {
   UnconfiguredIdentityNotice,
@@ -23,9 +24,9 @@ function settings(identityApi: string): PagesSettings {
     daemonApi: "",
     tursoUrl: "",
     mfaAppUrl: "",
-    capabilityConnectors: { encryption: {}, history: {} },
+    capabilityConnectors: defaultCapabilityConnectors(),
     activeProjectId: "",
-  } as PagesSettings;
+  };
 }
 
 afterEach(() => {
@@ -80,7 +81,9 @@ describe("UnconfiguredIdentityNotice", () => {
 
     render(<UnconfiguredIdentityNotice />);
 
-    expect(screen.getByText(/Not connected to an identity service/)).toBeTruthy();
+    expect(
+      screen.getByText(/Not connected to an identity service/),
+    ).toBeTruthy();
     expect(screen.getByLabelText("Identity API URL")).toBeTruthy();
   });
 

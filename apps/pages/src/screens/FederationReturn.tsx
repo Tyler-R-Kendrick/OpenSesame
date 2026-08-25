@@ -79,7 +79,7 @@ export function FederationReturn() {
         navigate("/", { replace: true });
       } catch (err) {
         if (cancelled) return;
-        setError(describeFederationError(err));
+        setError(describeFederationError(err instanceof Error ? err : ""));
       }
     })();
     return () => {

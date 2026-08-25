@@ -70,7 +70,9 @@ export function IdentifierField({
     setBusy(true);
     try {
       if (parsed.kind === "slug") {
-        setTenant(await identifierFieldDependencies.lookupOrgTenant(parsed.slug));
+        setTenant(
+          await identifierFieldDependencies.lookupOrgTenant(parsed.slug),
+        );
       } else {
         const found = await identifierFieldDependencies.lookupOrgByDomain(
           parsed.domain,
@@ -140,8 +142,8 @@ export function IdentifierField({
           </button>
         </div>
         <p className="hint">
-          A work email finds your organization's sign-in; only the domain
-          leaves this device. A personal email gets a one-time link.
+          A work email finds your organization's sign-in; only the domain leaves
+          this device. A personal email gets a one-time link.
         </p>
       </form>
 
@@ -169,7 +171,9 @@ export function IdentifierField({
                   key={method.kind}
                   type="button"
                   className={
-                    index === 0 ? "btn btn--primary btn--block" : "btn btn--block"
+                    index === 0
+                      ? "btn btn--primary btn--block"
+                      : "btn btn--block"
                   }
                   disabled={disabled || busy}
                   onClick={() => onStartOrgMethod(tenant, method)}

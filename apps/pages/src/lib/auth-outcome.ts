@@ -51,11 +51,10 @@ function readAuthOutcomeDefault(): AuthOutcome | null {
     if (!raw) return null;
     const parsed: BoundaryValue = JSON.parse(raw);
     if (!isAuthOutcome(parsed)) return null;
-    return {
-      kind: parsed.kind,
-      ...(isString(parsed.detail) ? { detail: parsed.detail } : {}),
-      ...(isString(parsed.who) ? { who: parsed.who } : {}),
-    };
+    const outcome: AuthOutcome = { kind: parsed.kind };
+    if (isString(parsed.detail)) outcome.detail = parsed.detail;
+    if (isString(parsed.who)) outcome.who = parsed.who;
+    return outcome;
   } catch {
     return null;
   }

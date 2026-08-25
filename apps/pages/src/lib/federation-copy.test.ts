@@ -11,7 +11,10 @@ import { FederationError } from "./federation.js";
 describe("describeFederationError", () => {
   it("maps access_denied to actionable words with the no-change anchor", () => {
     const text = describeFederationError(
-      new FederationError("access_denied", "The broker refused: access_denied."),
+      new FederationError(
+        "access_denied",
+        "The broker refused: access_denied.",
+      ),
     );
     expect(text).toContain("Access was denied");
     expect(text).toContain("Nothing was changed");
