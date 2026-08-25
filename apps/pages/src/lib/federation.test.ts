@@ -776,16 +776,20 @@ describe("brokered federation", () => {
     identitySeams.restoreSession = (next) => {
       restored.push(`${next.principalId}:${next.accessToken}`);
     };
-    const fetchMock = vi.fn(() =>
-      Promise.resolve(
-        Response.json({
-          principalId: "prn_1",
-          accessToken: "pst_first_party",
-          expiresAt: "2030-01-01T00:00:00.000Z",
-        }),
-      ),
+    const requests: Array<{ url: string; body: string }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init: RequestInit = {}) => {
+        requests.push({ url, body: String(init.body ?? "") });
+        return Promise.resolve(
+          Response.json({
+            principalId: "prn_1",
+            accessToken: "pst_first_party",
+            expiresAt: "2030-01-01T00:00:00.000Z",
+          }),
+        );
+      }),
     );
-    vi.stubGlobal("fetch", fetchMock);
 
     const session = await adoptBrokeredSession("at_brokered");
 
@@ -796,14 +800,14 @@ describe("brokered federation", () => {
       expiresAt: "2030-01-01T00:00:00.000Z",
     });
     expect(restored).toEqual(["prn_1:pst_first_party"]);
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe(`${BASE}/v1/principals/federated-session`);
-    expect(JSON.parse(String(init?.body))).toEqual({
+    const sent = requests[0];
+    expect(sent?.url).toBe(`${BASE}/v1/principals/federated-session`);
+    expect(JSON.parse(sent?.body ?? "null")).toEqual({
       accessToken: "at_brokered",
     });
     // Never the link-identities path: that would bind a pairwise subject to
     // whatever session this tab is holding (T23).
-    expect(url).not.toContain("link-identities");
+    expect(sent?.url).not.toContain("link-identities");
   });
 
   it("says the sign-in expired when the Identity API refuses the token", async () => {

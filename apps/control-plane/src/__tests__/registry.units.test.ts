@@ -193,8 +193,10 @@ describe("built-in provider defaults", () => {
       OPENSESAME_PROVIDER_APPLE_CLIENT_ID: "com.example.service",
       OPENSESAME_PROVIDER_APPLE_TEAM_ID: "TEAM123456",
       OPENSESAME_PROVIDER_APPLE_KEY_ID: "KEY1234567",
+      // A PEM header wrapped around the single letter "k" — the parser only
+      // checks the envelope shape here, so there is no key material to leak.
       OPENSESAME_PROVIDER_APPLE_PRIVATE_KEY:
-        "-----BEGIN PRIVATE KEY-----\nk\n-----END PRIVATE KEY-----",
+        "-----BEGIN PRIVATE KEY-----\nk\n-----END PRIVATE KEY-----", // gitleaks:allow
     });
     const descriptor = oidc(apple);
     expect(descriptor.issuer).toBe("https://appleid.apple.com");

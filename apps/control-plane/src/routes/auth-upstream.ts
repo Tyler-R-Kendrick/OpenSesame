@@ -56,9 +56,14 @@ export function createUpstreamAuthRoutes(
   ctx: AppContext,
 ): Hono<{ Variables: Variables } & NodeEnv> {
   const routes = new Hono<{ Variables: Variables } & NodeEnv>();
-  // `upstreamAuthFor` is deliberately not called here. It is memoized per
+  // The handlers use the `ctx` this router was built with rather than
+  // `c.get("ctx")`: the middleware puts the same object on every request, and
+  // reading it from the closure is what binds the Better Auth instance and the
+  // mailer seam to one control plane.
+  //
+  // `upstreamAuthFor` is deliberately NOT called here. It is memoized per
   // context, so the mount and the interaction sub-router already share one
-  // instance — building it at mount time would only mean every deployment that
+  // instance; building it at mount time would only mean every deployment that
   // never sends a magic link still pays for a Better Auth init, and fails at
   // boot on a configuration Better Auth dislikes but this API never consults.
 
@@ -73,9 +78,6 @@ export function createUpstreamAuthRoutes(
    * this name, so nothing is shadowed.
    */
   routes.get("/magic-link/complete", async (c) => {
-    // The context this router was built with is the one the middleware puts on
-    // every request; using the closure keeps the Better Auth instance and the
-    // mailer seam bound to a single control plane.
     const token = c.req.query("token") ?? "";
     // One answer for a token that never existed, one that expired, and one that
     // was already spent: distinguishing them tells a holder of a random string

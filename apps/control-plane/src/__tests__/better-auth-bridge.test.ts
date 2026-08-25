@@ -155,9 +155,8 @@ describe("principalForBetterAuthSubject", () => {
 
     expect(second.principalId).toBe(first.principalId);
     expect(
-      (
-        await ctx.repos.betterAuthSubjects.getByBetterAuthUserId("ba_user_new")
-      )?.principalId,
+      (await ctx.repos.betterAuthSubjects.getByBetterAuthUserId("ba_user_new"))
+        ?.principalId,
     ).toBe(first.principalId);
   });
 

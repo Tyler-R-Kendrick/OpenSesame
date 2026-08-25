@@ -96,10 +96,7 @@ function buttonNamed(text: string): HTMLButtonElement {
 }
 
 /** The catalog endpoint, answered before any component asks for it. */
-function stubCatalog(
-  providers: BoundaryValue[] | null,
-  status = 200,
-): void {
+function stubCatalog(providers: BoundaryValue[] | null, status = 200): void {
   vi.stubGlobal(
     "fetch",
     vi.fn((input: string) => {

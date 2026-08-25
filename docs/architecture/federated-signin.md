@@ -195,6 +195,7 @@ This section adds only what differs because a server is present.
 | --- | --- |
 | `POST /interaction/:uid/federated/start` | Begin an authorization-code + PKCE S256 flow against a trusted issuer; respond with a redirect to the upstream `authorization_endpoint` |
 | `GET /interaction/:uid/federated/callback` | Receive `code`/`state`, exchange, resolve a principal, complete the oidc-provider interaction |
+| `POST /interaction/:uid/federated/byo` | Register (or recover) a visitor-supplied issuer, then begin the same flow `start` begins — see §7.8 |
 
 The redirect URI is `{publicUrl}/interaction/{uid}/federated/callback` — one per
 interaction, not one per deployment. It **must** live under `/interaction/:uid`: the
@@ -308,4 +309,28 @@ the vault is device encryption with a separate key hierarchy, and no broker asse
 input to it. On the Pages first-run surface the federated path therefore creates the same
 ephemeral guest vault as "Continue as guest", and sealing remains a later, separate step
 (ADR 0052 §1).
+
+### 7.8 Bring-your-own issuer (`POST /interaction/:uid/federated/byo`)
+
+A visitor with no account may name their own OIDC issuer on the hosted login page —
+their Keycloak, their Authentik, their employer's IdP — and sign in with it (ADR 0055).
+The form carries `issuer` and, optionally, `client_id` and `client_secret` they
+registered at that IdP, plus the interaction's single-use `_csrf` token. It is a plain
+form POST because the hosted pages run under `default-src 'none'` with no `script-src`.
+
+| Step | Behaviour |
+| --- | --- |
+| URL fence | Both the issuer and the `registration_endpoint` its discovery document names pass `assertSafeMetadataUrl`: loopback, private, link-local, cloud-metadata and their decimal/IPv6-mapped spellings are refused, and `https` is mandatory. A deployment running with dev defaults additionally accepts a loopback IP **literal** (127/8, `::1`) so the local reference IdP works; names such as `localhost` and `*.localhost` are refused in every mode. |
+| Abuse fence | A module-local per-fingerprint budget — 5 registrations per 10 minutes — spent by every submission that passes URL validation, ahead of the provisional-mint budget. Exhaustion re-renders the form; nothing is fetched. |
+| Discovery | `{issuer}/.well-known/openid-configuration`, redirects refused, 5s timeout, and the document's own `issuer` must match what was typed. |
+| Credentials | A supplied `client_id` is stored as given (`client_secret_post` when a secret came with it, otherwise a public client). With no `client_id`, RFC 7591 dynamic client registration is attempted when — and only when — discovery advertises a `registration_endpoint`, preferring `client_secret_post` and falling back to `none`, registering exactly this interaction's callback as the `redirect_uri`. With neither, the submission is refused and the visitor is asked for a client id. |
+| Persistence | One `byo_upstreams` row per trailing-slash-normalized issuer, `state: "active"`. The client secret is stored verbatim: it must be presented to the token endpoint as issued, so it cannot be hashed. It is never logged, never audited and never returned by any API. |
+| Re-entry | A second submission naming the same issuer reuses the existing row unchanged — no re-registration, and a submitted credential never overwrites the stored one. The answer is identical whether or not the row already existed: which issuers a deployment has seen is not something an unauthenticated page reveals. |
+| Refusals | Re-render the login page with **422** and a **fresh** CSRF token — the submitted one was consumed by the verify — with the rejected issuer echoed back into the field. |
+| Success | Sets the §7.2 pending cookie (`byoId` recorded on it) and 303s to the upstream. From there the flow is §7.3–§7.6 unchanged; the issuer is admitted by the bring-your-own branch of trust resolution, and completing the leg stamps the record's `lastUsedAt`. |
+
+The client mode is the record's own — the visitor's `client_id` at their IdP, never this
+deployment's origin profile, and never the pinned `Origin` header that mode carries (§7.4).
+An operator can disable a record afterwards (`byo_upstreams.state`), and a disabled record
+resolves for nobody and cannot be re-created around.
 

@@ -24,9 +24,8 @@ import { idempotencyMiddleware } from "../middleware/idempotency.js";
  * deliberately omits `clientSecret`: an operator console needs to see which
  * upstreams exist, never the credential one of them holds (ADR 0005).
  */
-export const BYO_ADMIN_ACTIONS = ["disable", "enable"] as const;
 
-type ByoAdminAction = (typeof BYO_ADMIN_ACTIONS)[number];
+type ByoAdminAction = "disable" | "enable";
 
 function toAdminResponse(record: ByoUpstream) {
   return {

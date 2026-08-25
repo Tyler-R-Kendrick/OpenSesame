@@ -141,9 +141,7 @@ describe("email magic-link sign-in", () => {
   async function loginPage(): Promise<LoginPage> {
     const jar = new Jar();
     const verifier = randomBytes(32).toString("base64url");
-    const challenge = createHash("sha256")
-      .update(verifier)
-      .digest("base64url");
+    const challenge = createHash("sha256").update(verifier).digest("base64url");
     const params = new URLSearchParams({
       client_id: RP_CLIENT_ID,
       redirect_uri: RP_REDIRECT,

@@ -18,6 +18,7 @@ import type {
 import type { Variables } from "../middleware/context.js";
 import {
   BetterAuthBridgeError,
+  type BridgedSession,
   MAGIC_LINK_INTERACTION_KEY,
   normalizeEmail,
   principalForBetterAuthSubject,
@@ -175,7 +176,11 @@ export function createEmailInteractionRoutes(
 
     const raw = isString(fields.email) ? fields.email : "";
     const email = normalizeEmail(raw);
-    if (!email || email.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(email)) {
+    if (
+      !email ||
+      email.length > MAX_EMAIL_LENGTH ||
+      !EMAIL_PATTERN.test(email)
+    ) {
       return rerender({ emailError: INVALID_EMAIL_MESSAGE });
     }
 
@@ -240,7 +245,7 @@ export function createEmailInteractionRoutes(
       );
     }
 
-    let session: { principalId: string; accessToken: string };
+    let session: BridgedSession;
     try {
       session = await principalForBetterAuthSubject(
         ctx,
@@ -251,10 +256,7 @@ export function createEmailInteractionRoutes(
       if (error instanceof BetterAuthBridgeError) {
         // Both provisional-mint refusals are "come back later" (429); a
         // collision or an inactive principal is a refusal of this sign-in (403).
-        return c.text(
-          error.message,
-          MINT_REFUSALS.has(error.code) ? 429 : 403,
-        );
+        return c.text(error.message, MINT_REFUSALS.has(error.code) ? 429 : 403);
       }
       throw error;
     }

@@ -153,6 +153,7 @@ describe("bring-your-own upstream", () => {
   let allowlisted: ReferenceIdp;
   let manualIdp: ReferenceIdp;
   let dcrIdp: ReferenceIdp;
+  let dcrRejectIdp: ReferenceIdp;
   let noDcrIdp: ReferenceIdp;
   let reentryIdp: ReferenceIdp;
   let roundTripIdp: ReferenceIdp;
@@ -168,6 +169,7 @@ describe("bring-your-own upstream", () => {
       allowlisted,
       manualIdp,
       dcrIdp,
+      dcrRejectIdp,
       noDcrIdp,
       reentryIdp,
       roundTripIdp,
@@ -175,6 +177,7 @@ describe("bring-your-own upstream", () => {
     ] = await Promise.all([
       startReferenceIdp(),
       startReferenceIdp(),
+      startReferenceIdp({ registration: true }),
       startReferenceIdp({ registration: true }),
       startReferenceIdp({ registration: false }),
       startReferenceIdp(),
@@ -193,6 +196,7 @@ describe("bring-your-own upstream", () => {
       allowlisted.close(),
       manualIdp.close(),
       dcrIdp.close(),
+      dcrRejectIdp.close(),
       noDcrIdp.close(),
       reentryIdp.close(),
       roundTripIdp.close(),
@@ -275,6 +279,32 @@ describe("bring-your-own upstream", () => {
       expect(record.clientAuth).toBe("client_secret_post");
       expect(record.clientSecret).toBeTruthy();
       expect(record.clientSecret).not.toBe(dcrIdp.clientSecret);
+    });
+
+    /**
+     * A registration endpoint that refuses us is the same outcome as one that
+     * does not exist: the visitor has to bring a client id. The refusal here
+     * is real — the reference IdP's RFC 7591 endpoint rejects a `redirect_uri`
+     * carrying a fragment, under both client-authentication methods we offer —
+     * and what is being asserted is that a 400 from an upstream becomes a
+     * refusal a form can render rather than an exception.
+     */
+    it("refuses when the registration endpoint rejects the metadata", async () => {
+      const outcome = await registerByoUpstream(
+        started.ctx,
+        {
+          issuer: dcrRejectIdp.issuer,
+          redirectUri: `${callbackFor("uid-reject")}#fragment`,
+        },
+        "fp-dcr-reject",
+      );
+      expect(outcome).toEqual({
+        error: "registration_unsupported",
+        message: expect.stringContaining("client ID"),
+      });
+      expect(
+        await started.ctx.repos.byoUpstreams.findByIssuer(dcrRejectIdp.issuer),
+      ).toBeNull();
     });
 
     it("refuses an issuer that neither registers clients nor was given one", async () => {
@@ -604,7 +634,14 @@ describe("bring-your-own upstream", () => {
         base,
         jar,
         `/interaction/${uid}/federated/byo`,
-        postForm({ _csrf: extractCsrf(html), issuer: dcrRoundTripIdp.issuer }),
+        // Exactly what the rendered form posts when the visitor leaves the
+        // client fields empty: present, and blank.
+        postForm({
+          _csrf: extractCsrf(html),
+          issuer: dcrRoundTripIdp.issuer,
+          client_id: "",
+          client_secret: "",
+        }),
       );
       expect(start.status).toBe(303);
       const authorize = new URL(start.headers.get("location") ?? "");
@@ -631,6 +668,15 @@ describe("bring-your-own upstream", () => {
       );
       expect(principal?.state).toBe("active");
       expect(principal?.assurance).toBe("verified");
+
+      // The credential the leg just used came from the registration, and it
+      // is durable — this is what a returning visitor signs in with.
+      const record = await started.ctx.repos.byoUpstreams.findByIssuer(
+        dcrRoundTripIdp.issuer,
+      );
+      expect(record?.registrationSource).toBe("dcr");
+      expect(record?.clientAuth).toBe("client_secret_post");
+      expect(record?.clientId).toBe(authorize.searchParams.get("client_id"));
     }, 30_000);
   });
 });
