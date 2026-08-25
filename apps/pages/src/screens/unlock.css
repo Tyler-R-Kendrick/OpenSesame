@@ -198,6 +198,51 @@
   line-height: 1.5;
 }
 
+/* The one "Email or organization" field and its resolved/fallback states. */
+.identifier {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.identifier__form {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.identifier__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.identifier__row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.identifier__error {
+  color: var(--err);
+}
+
+.identifier__resolved,
+.identifier__fallback {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.identifier__org {
+  display: grid;
+  line-height: 1.35;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.identifier__methods {
+  display: grid;
+  gap: 0.5rem;
+}
+
 /* Sign-in outcome banner — the pre-unlock surface for a federated return. */
 .unlock__outcome {
   align-items: center;

@@ -35,6 +35,7 @@ import {
   originAudiences,
   verifyOrgIdToken,
 } from "./org-assertion.js";
+import { normalizeEmailDomain } from "./org-domains.js";
 // One direction of a deliberate cycle: SCIM is per-organization, so its router
 // reuses this module's membership helpers, and this module asks it what role a
 // provisioned subject joins at. Both are functions called per request, never at
@@ -543,6 +544,43 @@ organizationRoutes.get("/tenants/:slug", async (c) => {
   const ctx = c.get("ctx");
   const org = await orgBySlug(ctx, c.req.param("slug"));
   if (!org) return c.json({ error: "not_found" }, 404);
+  return c.json(
+    OrganizationTenantResponseSchema.parse({
+      slug: org.slug,
+      displayName: org.displayName,
+      state: org.state,
+      authMethods: await tenantAuthMethods(ctx, org),
+    }),
+  );
+});
+
+/**
+ * Public home-realm discovery by email DOMAIN — the JSON twin of the login
+ * page's `POST /interaction/:uid/federated/realm`, so a client app can offer
+ * ONE identifier field instead of a slug field beside a work-email field.
+ *
+ * Anti-enumeration contract (same as the realm route's NO_REALM_MESSAGE, see
+ * routes/interactions-realm.ts): malformed input, an unknown domain, a
+ * claimed-but-unverified domain, and a suspended or deleted organization all
+ * return this exact 404 body. Only VERIFIED domains route — an unverified
+ * claim is an assertion by whoever typed it, and honouring it would let
+ * anyone redirect a competitor's employees to their own IdP. The response is
+ * exactly what the slug lookup above already publishes for the same tenant —
+ * this endpoint reveals the domain→org edge, which the interaction realm POST
+ * already served unauthenticated, and nothing more.
+ */
+organizationRoutes.get("/by-domain/:domain", async (c) => {
+  const ctx = c.get("ctx");
+  const domain = normalizeEmailDomain(c.req.param("domain"));
+  const claim = domain
+    ? await ctx.stores.orgFederation.emailDomains.findVerified(domain)
+    : null;
+  const org = claim
+    ? await ctx.stores.organizations.get(claim.organizationId)
+    : undefined;
+  if (!org || org.state === "deleted" || org.state === "suspended") {
+    return c.json({ error: "not_found" }, 404);
+  }
   return c.json(
     OrganizationTenantResponseSchema.parse({
       slug: org.slug,
