@@ -19,6 +19,14 @@
 #                     to "/OpenSesame/" — the correct value for
 #                     https://<owner>.github.io/OpenSesame/. Override only
 #                     if deploying to a custom domain or different path.
+#   PAGES_IDENTITY_API  Identity API base URL for the deployed app. Written
+#                     to os-runtime-config.json beside the bundle so the app
+#                     knows its Identity API at boot without a rebuild —
+#                     without it, every sign-in path on the deployed vault is
+#                     dead on arrival. Example: https://id.example.com
+#   PAGES_HOST_API      Optional Host API base URL, same mechanism.
+#   PAGES_DAEMON_API    Optional daemon base URL, same mechanism.
+#   PAGES_MFA_APP_URL   Optional Mobile MFA PWA URL, same mechanism.
 #
 # What it does:
 #   1. Refuses to run on a dirty working tree (unless --force).
@@ -100,6 +108,35 @@ fi
 # GitHub Pages has no SPA rewrite. Serving index.html as 404.html makes deep
 # links (/sites, /broker/authorize, …) load the app instead of a dead page.
 cp "$PAGES_DIST/index.html" "$PAGES_DIST/404.html"
+
+# Deployment endpoints ride beside the bundle as os-runtime-config.json — the
+# app reads it at boot (src/lib/runtime-config.ts). VITE_* is build-time only,
+# and a deploy that bakes nothing must not ship a vault whose sign-in silently
+# dead-ends. Only the provided keys are written.
+if [ -n "${PAGES_IDENTITY_API:-}" ] || [ -n "${PAGES_HOST_API:-}" ] \
+  || [ -n "${PAGES_DAEMON_API:-}" ] || [ -n "${PAGES_MFA_APP_URL:-}" ]; then
+  log "writing os-runtime-config.json (deployment endpoints)"
+  {
+    printf '{'
+    sep=""
+    if [ -n "${PAGES_IDENTITY_API:-}" ]; then
+      printf '%s\n  "identityApi": "%s"' "$sep" "$PAGES_IDENTITY_API"; sep=","
+    fi
+    if [ -n "${PAGES_HOST_API:-}" ]; then
+      printf '%s\n  "hostApi": "%s"' "$sep" "$PAGES_HOST_API"; sep=","
+    fi
+    if [ -n "${PAGES_DAEMON_API:-}" ]; then
+      printf '%s\n  "daemonApi": "%s"' "$sep" "$PAGES_DAEMON_API"; sep=","
+    fi
+    if [ -n "${PAGES_MFA_APP_URL:-}" ]; then
+      printf '%s\n  "mfaAppUrl": "%s"' "$sep" "$PAGES_MFA_APP_URL"; sep=","
+    fi
+    printf '\n}\n'
+  } > "$PAGES_DIST/os-runtime-config.json"
+else
+  log "no PAGES_IDENTITY_API set — deploy ships without os-runtime-config.json;"
+  log "the app will show its 'not connected to an identity service' notice"
+fi
 
 # --- 3. Prepare a temporary worktree checked out onto gh-pages -------------
 

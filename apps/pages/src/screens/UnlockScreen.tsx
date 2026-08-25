@@ -46,6 +46,8 @@ import {
   listAvailableUnlockMethods,
   preferredUnlockMethod,
 } from "../lib/vault/unlock-methods.js";
+import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
+import { UnconfiguredIdentityNotice } from "./unlock/UnconfiguredIdentityNotice.js";
 import "./unlock.css";
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
@@ -469,6 +471,8 @@ export function UnlockScreen() {
   return (
     <div className="unlock">
       <form className="unlock__card" onSubmit={(e) => void onSubmit(e)}>
+        <PendingLinkBanner />
+        <UnconfiguredIdentityNotice />
         <div className="unlock__brand">
           <span className="mark mark--lg" aria-hidden="true">
             <IconVault size={24} />

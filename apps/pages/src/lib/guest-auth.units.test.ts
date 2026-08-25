@@ -246,7 +246,7 @@ describe("adoptFederatedIdentity", () => {
     const identityJson = vi.fn(async () => ({}));
     deps({ vaultStatus: () => "empty", createGuest, identityJson });
 
-    await guestAuthSeams.adoptFederatedIdentity("id-token");
+    const outcome = await guestAuthSeams.adoptFederatedIdentity("id-token");
 
     expect(createGuest).toHaveBeenCalledTimes(1);
     expect(identityJson).toHaveBeenCalledWith(
@@ -254,6 +254,7 @@ describe("adoptFederatedIdentity", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+    expect(outcome).toEqual({ kind: "linked" });
   });
 
   it("does not create a vault when one is already open", async () => {
@@ -273,10 +274,12 @@ describe("adoptFederatedIdentity", () => {
       }),
     });
 
-    await expect(
-      guestAuthSeams.adoptFederatedIdentity("id-token"),
-    ).resolves.toBeUndefined();
+    const outcome = await guestAuthSeams.adoptFederatedIdentity("id-token");
 
+    expect(outcome).toEqual({
+      kind: "link_failed",
+      reason: "identity down",
+    });
     expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBe("1");
     const notice = listNotices().find((n) => n.kind === "guest_claim");
     expect(notice?.body).toContain("identity down");
@@ -320,8 +323,9 @@ describe("adoptFederatedIdentity", () => {
       connectProvisional,
     });
 
-    await guestAuthSeams.adoptFederatedIdentity("id-token");
+    const outcome = await guestAuthSeams.adoptFederatedIdentity("id-token");
 
+    expect(outcome).toEqual({ kind: "pending_link" });
     expect(connectProvisional).not.toHaveBeenCalled();
     expect(identityJson).not.toHaveBeenCalled();
     expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBe("1");

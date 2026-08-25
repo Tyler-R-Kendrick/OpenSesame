@@ -198,6 +198,34 @@
   line-height: 1.5;
 }
 
+/* Sign-in outcome banner — the pre-unlock surface for a federated return. */
+.unlock__outcome {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.unlock__outcome-dismiss {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+/* "No identity service" notice with its inline connect field. */
+.unlock__unconfigured-body {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.unlock__unconfigured-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.unlock__unconfigured-form input {
+  flex: 1;
+  min-width: 0;
+}
+
 @media (max-width: 480px) {
   .unlock {
     padding: 1.25rem 0.9rem;

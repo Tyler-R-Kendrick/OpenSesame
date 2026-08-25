@@ -308,6 +308,15 @@ async function beginSignInDefault(
   upstream: TrustedUpstream,
   options: BeginSignInOptions = {},
 ): Promise<void> {
+  // A brokered upstream built from an unconfigured Identity API carries an
+  // empty issuer. Refusing here, before any navigation, is what keeps the
+  // failure on-screen instead of a blank-issuer discovery 404 after the fact.
+  if (!upstream.issuer.trim()) {
+    throw new FederationError(
+      "no_identity_api",
+      "This deployment isn't connected to an identity service yet, so this sign-in can't start.",
+    );
+  }
   const discovery = await discover(upstream.issuer);
   const { verifier, challenge } = await createPkce();
   const state = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));

@@ -9,6 +9,7 @@ import {
   projectScopedKeys,
   rehydrateProjects,
 } from "./lib/projects.js";
+import { loadRuntimeConfig } from "./lib/runtime-config.js";
 import { vaultStore } from "./lib/vault/store.js";
 import "./styles.css";
 
@@ -41,6 +42,9 @@ void (async () => {
   // persisted keys into the KV cache and re-read before the first paint.
   // The project registry hydrates first: which vault and consent keys exist
   // depends on which project is active.
+  // Deployment endpoints load before settings are first read, so an unbaked
+  // static deploy still knows its Identity API without a rebuild.
+  await loadRuntimeConfig();
   await kvHydrate([
     PROJECTS_KEY,
     "settings.v1",
