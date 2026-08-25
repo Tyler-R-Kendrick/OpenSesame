@@ -171,11 +171,16 @@ const MAGIC_LINK_TTL_SECONDS = 600;
 /**
  * One Better Auth instance per control plane.
  *
- * It has to be exactly one: the verification value written when the link is
- * requested is read back when the link is clicked, and a second instance would
- * be a second store that has never heard of the token. Keyed on the context
- * rather than held module-global so two control planes in one process (every
- * route suite in this repo) do not share an account store.
+ * It has to be exactly one *per context*: with no database configured, the
+ * verification value written when the link is requested lives in that
+ * instance's memory, and a second instance would be a second store that has
+ * never heard of the token. Keyed on the context rather than held
+ * module-global so two control planes in one process (every route suite in
+ * this repo) do not share an account store.
+ *
+ * With a database configured the instances are interchangeable, which is the
+ * point of `ctx.betterAuthDatabase`: a link requested on one replica verifies
+ * on another, and an in-flight link survives a deploy.
  */
 const bundles = new WeakMap<AppContext, UpstreamAuthBundle>();
 
@@ -186,6 +191,11 @@ export function upstreamAuthFor(ctx: AppContext): UpstreamAuthBundle {
     baseURL: ctx.config.publicUrl.replace(/\/+$/, ""),
     basePath: "/v1/auth",
     secret: betterAuthSecret(ctx),
+    // Absent only when no database is configured, in which case Better Auth
+    // uses its in-memory adapter and a magic link lives as long as the process.
+    ...(ctx.betterAuthDatabase
+      ? { database: ctx.betterAuthDatabase }
+      : undefined),
     mappingStore: ctx.mappings,
     // The magic-link request is a cross-origin POST from Pages and the console;
     // Better Auth checks the Origin header against this list.

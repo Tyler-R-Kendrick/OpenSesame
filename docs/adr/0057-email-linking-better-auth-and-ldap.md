@@ -128,12 +128,28 @@ on the address, so one inbox cannot mint unbounded principals by clicking links,
 per-address send budget (five links per ten minutes) protects the person being mailed rather
 than the person doing the mailing.
 
-**Known limitation.** Better Auth is constructed without a database adapter, so its user and
-verification records live in its in-memory store. A magic link therefore does not survive a
-control-plane restart and does not span replicas: a link requested on one instance cannot be
-verified on another. Canonical identity is unaffected — principals, identities and the
-`better_auth_subjects` mapping are all in the real database — so the failure mode is "request
-another link", not a lost account. Giving Better Auth a durable adapter is a separate decision.
+**Better Auth persists through the same Postgres as everything else.** Its four tables —
+`better_auth_users`, `better_auth_sessions`, `better_auth_accounts` and
+`better_auth_verifications` — are declared in this repo's Drizzle schema and reached through
+`drizzleAdapter`, wired from `ctx.betterAuthDatabase`. A magic link is a row in
+`better_auth_verifications`, so it survives a deploy and verifies on whichever replica the
+human's click reaches. `storeToken: "hashed"` means a read of that table is not a set of usable
+sign-in links, and verification consumes the row, so single-use holds across instances too.
+
+This was briefly not the case: `betterAuth()` was constructed with no `database` and fell back
+to the in-memory adapter. Every test passed, because a test requests and follows a link inside
+one process — which is exactly what a deployment never does. The regression is now pinned by
+two control planes over one real in-process Postgres, with the instance that sent the email
+shut down before the link is followed.
+
+The SQL tables carry the `better_auth_` prefix that `better_auth_subjects` already established,
+so the database says plainly whose rows these are. Better Auth's *model* names stay its own
+defaults, because its in-memory adapter seeds tables from those names and renaming the models
+leaves it with none of them. Nothing about the mapping changes: canonical identity is still
+`principals`, and these rows reach it only through `better_auth_subjects`.
+
+With no `DATABASE_URL` configured the in-memory adapter is still what runs, which is correct
+for a local dev process and is the same defaulting rule every other store in this repo uses.
 
 ### 5. Native LDAP bind, and directory sync as the pull twin of SCIM
 An organization configures a directory (`ldap://`/`ldaps://` URL, `bind_template` or

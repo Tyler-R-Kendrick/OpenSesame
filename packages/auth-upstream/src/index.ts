@@ -45,5 +45,6 @@ export {
   type SocialProviderConfig,
   type UpstreamAuth,
   type UpstreamAuthBundle,
+  type UpstreamAuthDatabase,
   type UpstreamMagicLinkOptions,
 } from "./better-auth.js";

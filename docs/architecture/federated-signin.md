@@ -961,9 +961,11 @@ Unlike the redirect legs, this route sets a provisional cookie for a **returning
 too: the browser holding it just proved control of the address, where in a redirect leg a
 returning browser proved nothing (§7.6).
 
-Known limitation: Better Auth runs on its in-memory store, so a magic link does not survive a
-control-plane restart and does not span replicas. The failure mode is "request another link";
-principals, identities and the mapping are all durable.
+A magic link is a row in `better_auth_verifications`, reached through `drizzleAdapter` over the
+same Postgres as everything else (ADR 0057 §4), so it survives a deploy and verifies on
+whichever replica the click reaches. The token is stored hashed and the row is consumed on
+verification, so single-use holds across instances. With no `DATABASE_URL` the in-memory
+adapter runs instead, which is the same defaulting rule every other store here uses.
 
 ### 14.2 LDAP bind and directory sync
 

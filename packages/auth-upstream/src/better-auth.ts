@@ -1,5 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { type EmailLinkPolicy, noEmailAutoLinkPolicy } from "./email-link.js";
 import type { PrincipalMappingStore } from "./mapping.js";
@@ -40,6 +41,34 @@ export interface UpstreamMagicLinkOptions {
   expiresInSeconds?: number;
 }
 
+/**
+ * What Better Auth persists through, when it persists at all.
+ *
+ * A Drizzle bundle plus the tables it should use, keyed by the model names
+ * configured below. The caller owns the connection: this package never opens
+ * one, so a control plane and its tests share exactly one pool.
+ */
+export interface UpstreamAuthDatabase {
+  drizzle: unknown;
+  /**
+   * The four tables Better Auth requires, keyed by ITS model names rather than
+   * their SQL names — its Drizzle adapter looks each one up by the model name,
+   * so `user` here is the table named `better_auth_users` in the database.
+   *
+   * Spelled out rather than left an open dictionary: these four are the whole
+   * contract (`getAuthTables` in `@better-auth/core`), and a missing one fails
+   * at the first query rather than at construction. The values are Drizzle
+   * table objects, typed `unknown` because this package deliberately does not
+   * depend on drizzle-orm — the caller owns the schema and the connection.
+   */
+  schema: {
+    user: unknown;
+    session: unknown;
+    account: unknown;
+    verification: unknown;
+  };
+}
+
 export interface CreateUpstreamAuthOptions {
   baseURL: string;
   /**
@@ -48,6 +77,16 @@ export interface CreateUpstreamAuthOptions {
    */
   basePath: string;
   secret: string;
+  /**
+   * Durable storage for Better Auth's own tables (ADR 0057).
+   *
+   * Omitted, Better Auth falls back to its in-memory adapter — correct for a
+   * dev run with no `DATABASE_URL`, and wrong for anything else: a magic link
+   * is a row in `better_auth_verifications`, so an in-memory store means every
+   * outstanding link dies on deploy and none of them work on a replica other
+   * than the one that sent the email.
+   */
+  database?: UpstreamAuthDatabase;
   mappingStore: PrincipalMappingStore;
   /**
    * NOT wired into Better Auth's social catalog, deliberately (ADR 0057, T22).
@@ -188,6 +227,29 @@ export function createUpstreamAuth(
     baseURL: options.baseURL,
     basePath: options.basePath,
     secret: options.secret,
+    /*
+     * Without `database` this falls through to Better Auth's in-memory
+     * adapter, which is a real implementation and the right one for a dev run
+     * with no database — but only for that.
+     *
+     * The model names stay Better Auth's own (`user`, `session`, `account`,
+     * `verification`); the SQL tables they map to are named `better_auth_*` by
+     * the Drizzle definitions the caller passes, so the database still says
+     * plainly whose rows these are. Renaming the models instead does not work:
+     * the in-memory adapter seeds its tables from the default names and would
+     * be left with none of them.
+     */
+    ...(options.database
+      ? {
+          // SAFETY: the adapter's `DB` is `{ [key: string]: any }` — a shape
+          // no Drizzle instance is assignable to. The caller owns the real
+          // connection and this package never inspects it.
+          database: drizzleAdapter(overlapCast(options.database.drizzle), {
+            provider: "pg",
+            schema: options.database.schema,
+          }),
+        }
+      : undefined),
     emailAndPassword: {
       enabled: false,
     },

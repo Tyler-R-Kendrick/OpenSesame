@@ -115,6 +115,107 @@ export const betterAuthSubjects = pgTable("better_auth_subjects", {
     .defaultNow(),
 });
 
+/*
+ * Better Auth's own tables (ADR 0057).
+ *
+ * Declared here, and named with the `better_auth_` prefix `better_auth_subjects`
+ * already uses, because they are the upstream library's internal storage and
+ * nothing else may read them as identity. Canonical identity is `principals`;
+ * these rows reach it only through the `better_auth_subjects` mapping, which is
+ * the whole point of keeping the library behind a bridge (T33). The prefix also
+ * keeps Better Auth's default model names — `user`, `session`, `account` — from
+ * claiming three of the most generic table names in a shared database, which is
+ * why every one below is registered with an explicit `modelName`.
+ *
+ * The field *keys* are Better Auth's camelCase names because its Drizzle
+ * adapter looks up columns by them; the column names stay snake_case like the
+ * rest of this schema. Shapes are `getAuthTables` in `@better-auth/core` — do
+ * not edit one without re-reading it there.
+ *
+ * Before this existed, `betterAuth()` was constructed with no `database` and
+ * fell back to the in-memory adapter, so every magic link was invalidated by a
+ * deploy and only ever worked on the replica that minted it.
+ */
+export const betterAuthUsers = pgTable("better_auth_users", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  ...timestamps,
+});
+
+export const betterAuthSessions = pgTable(
+  "better_auth_sessions",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    token: text("token").notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => betterAuthUsers.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("better_auth_sessions_token_uidx").on(t.token),
+    index("better_auth_sessions_user_idx").on(t.userId),
+  ],
+);
+
+export const betterAuthAccounts = pgTable(
+  "better_auth_accounts",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => betterAuthUsers.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    scope: text("scope"),
+    password: text("password"),
+    ...timestamps,
+  },
+  (t) => [index("better_auth_accounts_user_idx").on(t.userId)],
+);
+
+/**
+ * Where a magic link actually lives.
+ *
+ * `value` is the link token, and Better Auth is configured with
+ * `storeToken: "hashed"`, so a read of this table is not a set of usable
+ * sign-in links. Rows are consumed on verification and expire on `expiresAt`.
+ */
+export const betterAuthVerifications = pgTable(
+  "better_auth_verifications",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    ...timestamps,
+  },
+  (t) => [index("better_auth_verifications_identifier_idx").on(t.identifier)],
+);
+
 export const organizations = pgTable(
   "organizations",
   {

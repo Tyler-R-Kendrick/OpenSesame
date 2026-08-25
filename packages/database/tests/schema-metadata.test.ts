@@ -12,7 +12,13 @@ import * as schema from "../src/schema/index.js";
 const EXPECTED_TABLES = [
   "principals",
   "external_identities",
+  // Better Auth's own storage (ADR 0057). Prefixed so the database says
+  // whose rows these are; canonical identity stays in `principals`.
+  "better_auth_accounts",
+  "better_auth_sessions",
   "better_auth_subjects",
+  "better_auth_users",
+  "better_auth_verifications",
   "organizations",
   "organization_memberships",
   "byo_upstreams",

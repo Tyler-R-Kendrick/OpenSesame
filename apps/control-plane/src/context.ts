@@ -3,6 +3,7 @@ import type {
   MemoryPrincipalMappingStore,
   PasskeyChallengeStore,
   PasskeySeam,
+  UpstreamAuthDatabase,
 } from "@opensesame/auth-upstream";
 import type { ClaimEngine } from "@opensesame/claims";
 import type { Repositories } from "@opensesame/database";
@@ -27,6 +28,13 @@ export interface AppContext {
   claims: ClaimEngine;
   oauth: OpenSesameProviderBundle;
   mappings: MemoryPrincipalMappingStore;
+  /**
+   * Durable storage for Better Auth's own tables (ADR 0057), when a database is
+   * configured. Absent, the bridge builds Better Auth on its in-memory adapter
+   * — which is right for a dev run with no `DATABASE_URL` and wrong anywhere a
+   * magic link has to survive a deploy or reach a second replica.
+   */
+  betterAuthDatabase?: UpstreamAuthDatabase;
   policy: ProvisionalPolicy;
   stores: AppStores;
   clock: Clock;

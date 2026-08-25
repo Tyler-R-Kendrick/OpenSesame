@@ -1,7 +1,14 @@
 import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { PGlite } from "@electric-sql/pglite";
+import type { UpstreamAuthDatabase } from "@opensesame/auth-upstream";
+import * as schema from "@opensesame/database";
 import { overlapCast } from "@opensesame/os-domain";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { AppContext } from "../context.js";
 import { resetEmailLinkBudget } from "../routes/interactions-email.js";
@@ -483,4 +490,157 @@ describe("the Better Auth mount serves magic-link and nothing else", () => {
       expect(body).not.toContain(betterAuthUserId);
     }
   });
+});
+
+/**
+ * A magic link is a row, not a memory (ADR 0057).
+ *
+ * `betterAuth()` was originally constructed with no `database`, so it fell
+ * through to Better Auth's in-memory adapter. Every test passed, because a
+ * test requests and follows a link inside one process. Real deployments do
+ * not: the link is emailed, the human reads it minutes later, and by then the
+ * request may reach a different replica — or the same one after a deploy.
+ * Under the old wiring every outstanding link died at both of those moments,
+ * with no error anywhere, just a token nothing had heard of.
+ *
+ * Two control planes over one Postgres is that situation, run forwards. The
+ * database is a real in-process Postgres with the real migrations applied, so
+ * the tables under test are the ones the deployment gets.
+ */
+describe("magic links outlive the instance that minted them", () => {
+  let client: PGlite;
+  let betterAuthDatabase: UpstreamAuthDatabase;
+
+  beforeAll(async () => {
+    client = new PGlite();
+    await client.waitReady;
+    const db = drizzle(client, { schema });
+    await migrate(db, {
+      migrationsFolder: join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../../../../packages/database/drizzle",
+      ),
+    });
+    betterAuthDatabase = {
+      drizzle: db,
+      schema: {
+        user: schema.betterAuthUsers,
+        session: schema.betterAuthSessions,
+        account: schema.betterAuthAccounts,
+        verification: schema.betterAuthVerifications,
+      },
+    };
+  }, 60_000);
+
+  afterAll(async () => {
+    await client.close();
+  });
+
+  beforeEach(() => {
+    resetEmailLinkBudget();
+  });
+
+  /** A control plane sharing the one database — a replica, or a redeploy. */
+  async function instance(): Promise<Started> {
+    const port = await reservePort();
+    const { startServer: start } = await import("../server.js");
+    return start({
+      config: {
+        host: "127.0.0.1",
+        port,
+        publicUrl: `http://127.0.0.1:${port}`,
+        issuer: `http://127.0.0.1:${port}`,
+      },
+      betterAuthDatabase,
+      processEnv: { ...process.env, OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true" },
+    });
+  }
+
+  async function close(started: Started): Promise<void> {
+    await new Promise<void>((resolve, reject) =>
+      started.server.close((err) => (err ? reject(err) : resolve())),
+    );
+  }
+
+  it("verifies on a second instance a link a first one sent", async () => {
+    const minted = await instance();
+    const email = "durable@example.test";
+    const requested = await fetch(
+      `http://127.0.0.1:${minted.port}/v1/auth/sign-in/magic-link`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      },
+    );
+    expect(requested.status).toBe(200);
+
+    // SAFETY: jsonTransport's serialization of the composed message, whose
+    // fields are all optional in `ComposedMail`.
+    const mail: ComposedMail = overlapCast(
+      JSON.parse(minted.ctx.mailer.outbox.at(-1)?.body ?? "{}"),
+    );
+    const link = new URL(mail.text?.match(/https?:\/\/\S+/)?.[0] ?? "");
+    const token = link.searchParams.get("token") ?? "";
+    expect(token).not.toBe("");
+
+    // The instance that sent the email is gone before the link is followed.
+    await close(minted);
+
+    const other = await instance();
+    try {
+      const completed = await fetch(
+        `http://127.0.0.1:${other.port}/v1/auth/magic-link/complete?token=${encodeURIComponent(token)}`,
+        { redirect: "manual" },
+      );
+      expect(completed.status).toBe(200);
+      // SAFETY: the route answers this shape on 200, asserted a line above.
+      const session: BridgedSession = overlapCast(await completed.json());
+      expect(session.principalId).toMatch(/^prn_/);
+      expect(session.accessToken).toMatch(/^pst_/);
+
+      // Still single-use across instances: the row was consumed, not copied.
+      const replayed = await fetch(
+        `http://127.0.0.1:${other.port}/v1/auth/magic-link/complete?token=${encodeURIComponent(token)}`,
+        { redirect: "manual" },
+      );
+      expect(replayed.status).toBe(401);
+    } finally {
+      await close(other);
+    }
+  }, 60_000);
+
+  it("stores the link hashed, so the table is not a set of sign-in links", async () => {
+    const started = await instance();
+    try {
+      const email = "hashed@example.test";
+      await fetch(
+        `http://127.0.0.1:${started.port}/v1/auth/sign-in/magic-link`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email }),
+        },
+      );
+      // SAFETY: jsonTransport's serialization of the composed message.
+      const mail: ComposedMail = overlapCast(
+        JSON.parse(started.ctx.mailer.outbox.at(-1)?.body ?? "{}"),
+      );
+      const token =
+        new URL(mail.text?.match(/https?:\/\/\S+/)?.[0] ?? "").searchParams.get(
+          "token",
+        ) ?? "";
+      expect(token).not.toBe("");
+
+      const rows = await client.query<{ value: string; identifier: string }>(
+        "select value, identifier from better_auth_verifications",
+      );
+      expect(rows.rows.length).toBeGreaterThan(0);
+      // `storeToken: "hashed"` — a database read hands an attacker nothing
+      // they can paste into a browser.
+      for (const row of rows.rows) expect(row.value).not.toBe(token);
+    } finally {
+      await close(started);
+    }
+  }, 60_000);
 });

@@ -1,6 +1,7 @@
 import { createChainedAuditSink } from "@opensesame/audit";
 import {
   MemoryPrincipalMappingStore,
+  type UpstreamAuthDatabase,
   createMemoryChallengeStore,
   createPasskeySeam,
   createSimpleWebAuthnVerifyFn,
@@ -14,6 +15,10 @@ import {
   type Repositories,
   type SamlStores,
   type ScimStores,
+  betterAuthAccounts,
+  betterAuthSessions,
+  betterAuthUsers,
+  betterAuthVerifications,
   createDrizzle,
   createPostgresClientClaimChallengeStore,
   createPostgresClientOriginStore,
@@ -73,6 +78,13 @@ export interface CreateControlPlaneOptions {
    * without a server.
    */
   organizationStores?: OrganizationStores;
+  /**
+   * Test seam: inject the Better Auth database. Defaults to the same Drizzle
+   * bundle everything else uses when a `databaseUrl` is configured, and to
+   * nothing (Better Auth's in-memory adapter) otherwise — so a suite can prove
+   * a magic link outlives the instance that minted it without a server.
+   */
+  betterAuthDatabase?: UpstreamAuthDatabase;
   /** Test seam: inject SCIM stores (same defaulting rule as the org stores). */
   scimStores?: ScimStores;
   /** Test seam: inject the org email-domain + LDAP configuration stores. */
@@ -280,6 +292,22 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       : createSimpleWebAuthnVerifyFn(rp, passkeyChallenges),
   });
 
+  const betterAuthDatabase =
+    options.betterAuthDatabase ??
+    (drizzleBundle
+      ? {
+          drizzle: drizzleBundle.db,
+          schema: {
+            // Keyed by Better Auth's own model names; the SQL tables they
+            // resolve to are the `better_auth_*` ones.
+            user: betterAuthUsers,
+            session: betterAuthSessions,
+            account: betterAuthAccounts,
+            verification: betterAuthVerifications,
+          },
+        }
+      : undefined);
+
   const ctx: AppContext = {
     config,
     log,
@@ -295,6 +323,9 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     passkeys,
     passkeyChallenges,
     mailer: createMailer(processEnv, config),
+    // The same pool everything else on this context uses, so a magic link
+    // written by one request is readable by the next — and by another replica.
+    ...(betterAuthDatabase ? { betterAuthDatabase } : undefined),
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
     systemPrincipalReady,
   };
