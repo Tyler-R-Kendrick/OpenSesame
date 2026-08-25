@@ -208,13 +208,15 @@ function isLoopbackIssuer(issuer: string): boolean {
  * Id and label for an issuer that is allowlisted but has no registry entry.
  * Mirrors `describeUpstream` in `./federated.ts` and the Pages
  * `TRUSTED_UPSTREAMS` table so all three surfaces name the same broker the
- * same way — shoo.dev fronts Google, so its button says Google.
+ * same way — shoo.dev fronts Google sign-in but is a third-party broker,
+ * and the label says so rather than impersonating first-party Google (that
+ * is registry id `google`, which email-joins; shoo deliberately does not).
  */
 type UpstreamIdentity = { id: string; label: string };
 
 function describeIssuer(issuer: string): UpstreamIdentity {
   if (normalizeIssuer(issuer) === SHOO_ISSUER) {
-    return { id: "shoo", label: "Google" };
+    return { id: "shoo", label: "Google (via shoo.dev)" };
   }
   if (isLoopbackIssuer(issuer)) {
     return { id: "mock", label: MOCK_UPSTREAM_LABEL };

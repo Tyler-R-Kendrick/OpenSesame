@@ -177,7 +177,8 @@ describe("federated upstream table", () => {
     expect(shoo).toEqual({
       id: "shoo",
       issuer: "https://shoo.dev",
-      label: "Google",
+      // Honest: the broker is named beside the account kind it fronts.
+      label: "Google (via shoo.dev)",
     });
   });
 

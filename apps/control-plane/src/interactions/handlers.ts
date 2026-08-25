@@ -101,7 +101,17 @@ export function matchProviderHint(
     }
   });
   if (byHost) return byHost;
-  return providers.find((provider) => provider.label.toLowerCase() === needle);
+  const byLabel = providers.find(
+    (provider) => provider.label.toLowerCase() === needle,
+  );
+  if (byLabel) return byLabel;
+  // A label that names its broker beside the account kind it fronts —
+  // "Google (via shoo.dev)" — still answers to the bare account kind, so a
+  // client that has always hinted `google` keeps preselecting the broker
+  // when no first-party `google` id is configured.
+  return providers.find((provider) =>
+    provider.label.toLowerCase().startsWith(`${needle} (`),
+  );
 }
 
 /**

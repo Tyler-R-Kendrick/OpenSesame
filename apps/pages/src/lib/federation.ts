@@ -43,7 +43,10 @@ export const TRUSTED_UPSTREAMS: readonly TrustedUpstream[] = [
     id: "shoo",
     displayName: "Shoo",
     issuer: "https://shoo.dev",
-    accountKind: "Google",
+    // Honest label: shoo.dev fronts Google sign-in but is a third-party
+    // broker, and its accounts never email-merge with magic-link accounts —
+    // saying "Google" alone would promise a merge that cannot happen.
+    accountKind: "Google (via shoo.dev)",
   },
   {
     id: "mock",

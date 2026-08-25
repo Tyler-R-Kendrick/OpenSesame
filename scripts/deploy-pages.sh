@@ -28,6 +28,15 @@
 #   PAGES_DAEMON_API    Optional daemon base URL, same mechanism.
 #   PAGES_MFA_APP_URL   Optional Mobile MFA PWA URL, same mechanism.
 #
+# Sign-in note: with no Identity API configured the deployed vault can only
+# offer the local-only path (it says so on screen). With one configured, the
+# zero-config Google button runs through the shoo.dev broker and is labeled
+# that way; for first-party Google (accounts.google.com, with verified-email
+# account joining) set OPENSESAME_PROVIDERS=google plus
+# OPENSESAME_PROVIDER_GOOGLE_CLIENT_ID/_CLIENT_SECRET on the Identity API and
+# register <identity-api>/v1/federated/callback as the redirect URI in the
+# Google Cloud console — see docs/operators/live-provider-verification.md.
+#
 # What it does:
 #   1. Refuses to run on a dirty working tree (unless --force).
 #   2. Builds apps/pages via `pnpm --filter @opensesame/pages build`, with
