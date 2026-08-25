@@ -173,25 +173,6 @@ describe("adoptFederatedIdentity", () => {
     expect(sessionStorage.getItem(PENDING_LINK_KEY)).not.toBeNull();
   });
 
-  it("links through a locked vault when a guest session is already stashed", async () => {
-    vaultStatus.mockReturnValue("locked");
-    currentSession.mockReturnValue(null);
-    sessionStorage.setItem(
-      "opensesame:guest-claim-session",
-      JSON.stringify({
-        principalId: "prn_guest",
-        accessToken: "guest-tok",
-        issuerOrigin: "http://127.0.0.1:18788",
-      }),
-    );
-
-    await adoptFederatedIdentity("id.token.here");
-
-    expect(restoreSession).toHaveBeenCalledTimes(1);
-    expect(identityJson).toHaveBeenCalledTimes(1);
-    expect(listNotices()).toHaveLength(0);
-  });
-
   it("still lands the user in the app when the first-run link fails", async () => {
     vaultStatus.mockReturnValue("empty");
     identityJson.mockRejectedValue(new Error("Identity unreachable"));

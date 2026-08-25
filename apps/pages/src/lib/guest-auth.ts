@@ -98,7 +98,7 @@ function pendingLinkMarked(): boolean {
 let inFlightClaim: Promise<void> | null = null;
 
 async function claimGuestAuthDefault(): Promise<void> {
-  if (listNotices().length > 0) {
+  if (listNotices().some((notice) => notice.kind === "guest_claim")) {
     return;
   }
   if (inFlightClaim) return inFlightClaim;

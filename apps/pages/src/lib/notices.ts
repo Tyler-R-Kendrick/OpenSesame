@@ -73,12 +73,13 @@ function subscribeNoticesDefault(listener: Listener): () => void {
 function pushNoticeDefault(
   input: Omit<Notice, "id" | "createdAt"> & { id?: string },
 ): Notice {
+  notices = notices.filter((notice) => notice.kind !== input.kind);
   const notice: Notice = {
     ...input,
     id: input.id ?? crypto.randomUUID(),
     createdAt: new Date().toISOString(),
   };
-  notices = [notice];
+  notices = [...notices, notice];
   emit();
   return notice;
 }
@@ -111,8 +112,9 @@ function setStatusNoticeDefault(input: StatusNoticeInput): Notice {
 }
 
 function dismissNoticeDefault(id: string): void {
-  if (notices[0]?.id !== id) return;
-  notices = [];
+  const next = notices.filter((notice) => notice.id !== id);
+  if (next.length === notices.length) return;
+  notices = next;
   emit();
 }
 
