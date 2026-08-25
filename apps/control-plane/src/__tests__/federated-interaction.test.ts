@@ -832,14 +832,23 @@ describe("federated leg, upstream logout", () => {
 describe("federated leg, organization sign-in", () => {
   let allowlisted: ReferenceIdp;
   let tenantIdp: ReferenceIdp;
+  /**
+   * A tenant IdP shaped like a real one: it issues client credentials, refuses
+   * an `origin:` client id outright, and matches its registered redirect URIs
+   * byte for byte. Okta, Entra, Google Workspace and Auth0 all behave this way
+   * and none of them accept the origin-profile mode a broker does.
+   */
+  let enterpriseIdp: ReferenceIdp;
   let started: Started;
   let base: string;
   const organizationId = "org_jit_test";
+  const enterpriseOrgId = "org_enterprise_test";
 
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
     allowlisted = await startReferenceIdp();
     tenantIdp = await startReferenceIdp();
+    enterpriseIdp = await startReferenceIdp({ clientMode: "confidential" });
     started = await startControlPlane(allowlisted.issuer, await reservePort());
     base = `http://127.0.0.1:${started.port}`;
     const now = started.ctx.clock();
@@ -853,6 +862,21 @@ describe("federated leg, organization sign-in", () => {
       updatedAt: now,
       ssoIssuer: tenantIdp.issuer,
     });
+    await started.ctx.stores.organizations.set(enterpriseOrgId, {
+      id: enterpriseOrgId,
+      slug: "enterprise",
+      displayName: "Enterprise",
+      state: "active",
+      createdBy: "prn_seed_owner",
+      createdAt: now,
+      updatedAt: now,
+      ssoIssuer: enterpriseIdp.issuer,
+      ssoClientId: enterpriseIdp.clientId,
+      ssoClientSecret: enterpriseIdp.clientSecret,
+    });
+    // One registered redirect URI, set once and never touched again — exactly
+    // what a tenant admin types into their console.
+    enterpriseIdp.setRedirectUris([`${base}/v1/federated/callback`]);
   }, 30_000);
 
   afterAll(async () => {
@@ -861,6 +885,7 @@ describe("federated leg, organization sign-in", () => {
     );
     await allowlisted.close();
     await tenantIdp.close();
+    await enterpriseIdp.close();
     resetFederatedDiscoveryCache();
   });
 
@@ -898,16 +923,26 @@ describe("federated leg, organization sign-in", () => {
     // The organization is what vouched for this issuer, and the cookie says so.
     expect(decodePending(jar.get(`os.fed.${uid}`))?.orgId).toBe(organizationId);
 
-    const upstreamRes = await fetch(
-      new URL(start.headers.get("location") ?? ""),
-      { redirect: "manual" },
+    const authorize = new URL(start.headers.get("location") ?? "");
+    // A tenant admin registers one redirect URI in their IdP's console, and
+    // Okta, Entra and Google Workspace match it byte for byte. It must
+    // therefore name no interaction (ADR 0055).
+    expect(authorize.searchParams.get("redirect_uri")).toBe(
+      `${base}/v1/federated/callback`,
     );
+    expect(authorize.searchParams.get("state")).toMatch(
+      new RegExp(`^${uid}\\..+`),
+    );
+
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
-    const res = await req(
-      base,
-      jar,
-      `/interaction/${uid}/federated/callback${back.search}`,
-    );
+    expect(back.pathname).toBe("/v1/federated/callback");
+
+    // Followed as a browser would: the shared callback hands back to a
+    // top-level GET under /interaction/<uid>, and that request finishes.
+    const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+    expect(handBack.status).toBe(303);
+    const res = await req(base, jar, handBack.headers.get("location") ?? "");
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toContain("/auth/");
 
@@ -931,6 +966,100 @@ describe("federated leg, organization sign-in", () => {
         event.principalId === identity?.principalId,
     );
     expect(joined?.organizationId).toBe(organizationId);
+  }, 30_000);
+
+  /**
+   * Enterprise SSO against an IdP that behaves like a real one.
+   *
+   * This is the test that was missing, and both defects it covers were live:
+   * the leg presented an `origin:` client id no enterprise IdP has ever heard
+   * of, and it redirected to a URI naming the interaction, which such an IdP
+   * matches byte for byte and would only ever have seen once. Nothing caught
+   * either, because the permissive reference IdP accepted both.
+   *
+   * Signing in TWICE is the point. One sign-in passes under a per-interaction
+   * URI if the IdP is told about it; the second is the one a tenant admin
+   * would have hit on day one, having registered exactly one URI.
+   */
+  it("signs a tenant in through their own IdP, twice, on registered credentials", async () => {
+    const subject = `ent-${randomBytes(4).toString("hex")}`;
+    enterpriseIdp.setSubject(subject);
+
+    // Inferred rather than annotated: the shape is one helper's own.
+    async function signIn() {
+      const jar = new Jar();
+      const { challenge } = pkce();
+      const authRes = await req(
+        base,
+        jar,
+        `/auth?${new URLSearchParams({
+          client_id: RP_CLIENT_ID,
+          redirect_uri: RP_REDIRECT,
+          response_type: "code",
+          scope: "openid",
+          state: "s-1",
+          nonce: "n-1",
+          code_challenge: challenge,
+          code_challenge_method: "S256",
+        }).toString()}`,
+      );
+      const location = authRes.headers.get("location") ?? "";
+      const uid = location.slice("/interaction/".length);
+      const html = await (await req(base, jar, location)).text();
+
+      const start = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/start`,
+        postForm({ _csrf: extractCsrf(html), issuer: enterpriseIdp.issuer }),
+      );
+      expect(start.status).toBe(303);
+      const authorize = new URL(start.headers.get("location") ?? "");
+
+      // The credentials the tenant registered, not our origin profile.
+      expect(authorize.searchParams.get("client_id")).toBe(
+        enterpriseIdp.clientId,
+      );
+      expect(authorize.searchParams.get("client_id")).not.toContain("origin:");
+      expect(authorize.searchParams.get("redirect_uri")).toBe(
+        `${base}/v1/federated/callback`,
+      );
+
+      // A 302 is this IdP accepting both. It answers `invalid_client` to an
+      // origin-profile client id and `invalid_redirect_uri` to any URI outside
+      // the one registered above, so reaching here proves both.
+      const upstream = await fetch(authorize, { redirect: "manual" });
+      expect(upstream.status).toBe(302);
+      const back = new URL(upstream.headers.get("location") ?? "");
+      const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+      expect(handBack.status).toBe(303);
+      const completed = await req(
+        base,
+        jar,
+        handBack.headers.get("location") ?? "",
+      );
+      expect(completed.status).toBe(303);
+      expect(completed.headers.get("location")).toContain("/auth/");
+      return uid;
+    }
+
+    const firstUid = await signIn();
+    const secondUid = await signIn();
+    expect(secondUid).not.toBe(firstUid);
+
+    // A confidential client sees the IdP's canonical subject, and both
+    // sign-ins landed on the one principal and the one membership.
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: enterpriseIdp.issuer,
+      subject,
+    });
+    expect(identity).toBeTruthy();
+    const membership = await started.ctx.stores.organizationMemberships.find(
+      enterpriseOrgId,
+      identity?.principalId ?? "",
+    );
+    expect(membership?.role).toBe("member");
   }, 30_000);
 
   it("refuses an issuer no organization and no allowlist names", async () => {

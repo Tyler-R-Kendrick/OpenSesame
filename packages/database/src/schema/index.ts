@@ -130,6 +130,13 @@ export const organizations = pgTable(
      * routing and trust resolution), so these are columns and not a jsonb blob.
      */
     ssoIssuer: text("sso_issuer"),
+    /**
+     * Credentials this deployment presents at `ssoIssuer`, registered by the
+     * tenant admin in their own IdP. Null falls back to the origin-profile
+     * client, which only a broker accepts.
+     */
+    ssoClientId: text("sso_client_id"),
+    ssoClientSecret: text("sso_client_secret"),
     samlIssuer: text("saml_issuer"),
     samlMetadataUrl: text("saml_metadata_url"),
     samlMetadataXml: text("saml_metadata_xml"),

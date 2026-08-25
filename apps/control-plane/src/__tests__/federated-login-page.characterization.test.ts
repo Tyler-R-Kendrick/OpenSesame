@@ -33,6 +33,8 @@ const BASE = {
 
 const START_ACTION = "/interaction/uid-fixed-for-snapshots/federated/start";
 const BYO_ACTION = "/interaction/uid-fixed-for-snapshots/federated/byo";
+/** The one URI every leg returns to, shown so a visitor can register it. */
+const BYO_REDIRECT_URI = "https://identity.example/v1/federated/callback";
 const ORG_ACTION = "/interaction/uid-fixed-for-snapshots/federated/org";
 const EMAIL_ACTION = "/interaction/uid-fixed-for-snapshots/federated/email";
 const REALM_ACTION = "/interaction/uid-fixed-for-snapshots/federated/realm";
@@ -148,7 +150,7 @@ describe("hosted login page characterization", () => {
             },
           ],
         },
-        byo: { startAction: BYO_ACTION },
+        byo: { startAction: BYO_ACTION, redirectUri: BYO_REDIRECT_URI },
         org: { lookupAction: ORG_ACTION },
         email: { requestAction: EMAIL_ACTION },
         realm: { requestAction: REALM_ACTION },
@@ -243,6 +245,7 @@ describe("hosted login page characterization", () => {
         },
         byo: {
           startAction: BYO_ACTION,
+          redirectUri: BYO_REDIRECT_URI,
           error: "That provider could not be reached.",
           issuerValue: "https://id.example.com",
         },
@@ -281,7 +284,7 @@ describe("hosted login page characterization", () => {
           },
         ],
       },
-      byo: { startAction: BYO_ACTION },
+      byo: { startAction: BYO_ACTION, redirectUri: BYO_REDIRECT_URI },
       org: { lookupAction: ORG_ACTION },
       email: { requestAction: EMAIL_ACTION },
       realm: { requestAction: REALM_ACTION },
@@ -345,6 +348,7 @@ describe("hosted login page characterization", () => {
       ...BASE,
       byo: {
         startAction: BYO_ACTION,
+        redirectUri: BYO_REDIRECT_URI,
         issuerValue: '"><script>alert(3)</script>',
         error: '<img src=x onerror="alert(4)">',
       },

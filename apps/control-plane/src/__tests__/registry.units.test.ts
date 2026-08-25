@@ -850,6 +850,8 @@ describe("buildLoginPageModel", () => {
     expect(model.principalId).toBe("prn_1");
     expect(model.byo).toEqual({
       startAction: "/interaction/uid-1/federated/byo",
+      // The URI a visitor registering by hand has to add to their own IdP.
+      redirectUri: "https://id.example/v1/federated/callback",
       error: "That provider could not be reached.",
       issuerValue: "https://id.example.com",
     });

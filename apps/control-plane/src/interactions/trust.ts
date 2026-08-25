@@ -36,6 +36,16 @@ export type TrustResolution =
       organizationId: string;
       issuer: string;
       method: "sso" | "saml";
+      /**
+       * What this deployment authenticates as at the tenant's IdP, when the
+       * tenant registered it there (ADR 0055).
+       *
+       * Carried on the resolution rather than read again in `clientModeFor`:
+       * the credentials and the issuer must come from ONE read of ONE row, or
+       * a row edited between the two reads could have the leg present one
+       * tenant's client id at another tenant's issuer.
+       */
+      client?: { clientId: string; clientSecret?: string };
     };
 
 /** Suspended and deleted tenants sign nobody in. */
@@ -66,6 +76,16 @@ async function resolveOrganizationIssuer(
     organizationId: organization.id,
     issuer,
     method,
+    ...(organization.ssoClientId
+      ? {
+          client: {
+            clientId: organization.ssoClientId,
+            ...(organization.ssoClientSecret
+              ? { clientSecret: organization.ssoClientSecret }
+              : undefined),
+          },
+        }
+      : undefined),
   };
 }
 

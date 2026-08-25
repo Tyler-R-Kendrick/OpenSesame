@@ -54,15 +54,20 @@ Two prerequisites:
   annotated `@sensitive` in `.env.schema`. `pnpm audit:gitleaks` is the backstop, not the
   policy.
 
-**One case is not covered by the above.** An *organization's* own OIDC issuer
-(`ssoIssuer`, or a brokered `samlIssuer`) still uses the per-interaction redirect URI
-`{OPENSESAME_PUBLIC_URL}/interaction/{uid}/federated/callback`. A tenant IdP that accepts a
-wildcard or a path prefix is fine; a tenant IdP that demands exact-match registration cannot
-currently be configured, and no setting on this side changes that. It is a known limitation
-(ADR 0055) and it does not affect the four providers in this runbook. The same is true of a
-bring-your-own issuer where the *visitor* supplied their own client id — their own IdP
-registration is theirs, and this server does not change it under them; a BYO issuer registered
-automatically through RFC 7591 uses the stable URI like everything else.
+**This covers every leg, not just the four providers below.** An organization's own OIDC
+issuer and a bring-your-own issuer both use the same URI — there is no per-interaction variant
+left anywhere. Earlier revisions of this document said otherwise; that shape could not be
+configured against an IdP demanding exact-match registration, which is most of them, so it was
+removed rather than documented.
+
+**Organizations need client credentials too.** A tenant configuring `ssoIssuer` should also
+set `ssoClientId`, and `ssoClientSecret` when their IdP issues one, from a client they
+registered in their own console (the console's *Organization sign-in* page collects both and
+shows them the redirect URI to paste). Without them the leg falls back to this deployment's
+origin-profile client id, which only an OpenSesame-shaped broker accepts — Okta, Entra ID,
+Google Workspace and Auth0 have never heard of an `origin:` client id and answer
+`invalid_client`. The secret is write-only: it is stored so it can be presented at the token
+endpoint as issued, and no read surface ever returns it.
 
 ## Configuration common to all four
 

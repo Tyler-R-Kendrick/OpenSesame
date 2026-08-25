@@ -24,6 +24,7 @@ import {
   type OrganizationLoginMethod,
   collectConsentScopes,
 } from "../ui/interaction-pages.js";
+import { stableFederatedRedirectUri } from "./federated.js";
 import {
   type ProviderDescriptor,
   normalizeIssuer,
@@ -237,6 +238,9 @@ export async function buildLoginPageModel(
     },
     byo: {
       startAction: `${base}/federated/byo`,
+      // Shown so a visitor registering a client by hand can add it to their
+      // IdP first; it is the only URI this deployment redirects to.
+      redirectUri: stableFederatedRedirectUri(ctx.config),
       ...(options.byoError !== undefined
         ? { error: options.byoError }
         : undefined),

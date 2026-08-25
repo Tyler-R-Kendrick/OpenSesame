@@ -53,6 +53,16 @@ export interface LoginPageModel {
     startAction: string;
     error?: string;
     issuerValue?: string;
+    /**
+     * The one redirect URI this deployment will ever send a visitor's IdP back
+     * to (`stableFederatedRedirectUri`).
+     *
+     * Rendered because a visitor registering a client by hand has to type it
+     * into their own IdP's console, and most consoles match it byte for byte
+     * and accept no wildcard. Without it on the page there is no way for them
+     * to know what to enter, and a guess fails at the authorize endpoint.
+     */
+    redirectUri: string;
   };
   /**
    * Enterprise sign-in by organization (D6). Two steps under a CSP with no
@@ -489,6 +499,8 @@ function renderByoBlock(model: LoginPageModel): string {
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
            <input id="byo-issuer" name="issuer" type="url" value="${escapeHtml(byo.issuerValue ?? "")}" placeholder="https://id.example.com" required/>
          </label>
+         <p class="note">Registering the client yourself? Add this redirect URI to it first — providers match it exactly:</p>
+         <p class="note"><code>${escapeHtml(byo.redirectUri)}</code></p>
          <label class="field" for="byo-client-id"><span>Client ID (optional)</span>
            <input id="byo-client-id" name="client_id" autocomplete="off"/>
          </label>

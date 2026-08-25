@@ -44,13 +44,13 @@ import { normalizeIssuer } from "./registry.js";
  *    re-enters the same URL and gets the same record, and the answer is
  *    byte-identical whether or not the record already existed: telling a
  *    stranger which issuers this deployment has seen is an enumeration oracle.
- *    Durability is only half of re-entry: a record minted by RFC 7591 names a
- *    redirect_uri its IdP matches exactly, so the leg it starts returns to the
- *    deployment-wide `stableFederatedRedirectUri`, never to the interaction that
- *    happened to register it (ADR 0055). A record whose credentials the
- *    visitor brought (`registrationSource: "manual"`) keeps the
- *    per-interaction callback — they registered a redirect URI at their IdP
- *    themselves, and this server does not get to change it under them.
+ *    Durability is only half of re-entry: the redirect_uri a record's IdP
+ *    matches is registered once and matched exactly afterwards, so every leg
+ *    returns to the deployment-wide `stableFederatedRedirectUri`, never to the
+ *    interaction that happened to register it (ADR 0055). That holds whether
+ *    RFC 7591 registered the client or the visitor brought their own
+ *    credentials — a visitor registering by hand is shown that same URL on the
+ *    form, because it is the only one this deployment will ever redirect to.
  *
  * The client secret — supplied by the visitor or minted by RFC 7591 — is held
  * verbatim, because it must be presented to the token endpoint as issued and a

@@ -198,8 +198,8 @@ This section adds only what differs because a server is present.
 | --- | --- |
 | `POST /interaction/:uid/federated/start` | Begin an authorization-code + PKCE S256 flow against a trusted issuer; respond with a redirect to the upstream `authorization_endpoint` |
 | `GET /interaction/:uid/federated/callback` | **Resume**: take `code`/`state`, exchange, resolve a principal, complete the oidc-provider interaction |
-| `POST /interaction/:uid/federated/callback` | `response_mode=form_post` re-materialization for a leg that used the per-interaction redirect URI: copies the allowlisted parameters into a 303 to the GET above and completes nothing |
-| `GET` and `POST /v1/federated/callback` | **Receive**: the stable, deployment-wide redirect URI every *registered* upstream returns to. Completes nothing; 303s to the interaction callback above — see §8.6 |
+| `POST /interaction/:uid/federated/callback` | `response_mode=form_post` re-materialization: copies the allowlisted parameters into a 303 to the GET above and completes nothing |
+| `GET` and `POST /v1/federated/callback` | **Receive**: the stable, deployment-wide redirect URI every upstream returns to. Completes nothing; 303s to the interaction callback above — see §8.6 |
 | `POST /interaction/:uid/federated/byo` | Register (or recover) a visitor-supplied issuer, then begin the same flow `start` begins — see §7.8 |
 
 **Receiving the upstream's redirect and resuming the interaction are two different steps, and
@@ -221,13 +221,14 @@ URI before any sign-in exists, none at all. So:
 | --- | --- |
 | Static registry provider (§8.1), including the legacy `OPENSESAME_UPSTREAM_*` and allowlist-synthesized descriptors | `{publicUrl}/v1/federated/callback` |
 | BYO record with `registrationSource: "dcr"` | `{publicUrl}/v1/federated/callback` |
-| BYO record with `registrationSource: "manual"` | `{publicUrl}/interaction/{uid}/federated/callback` |
-| Organization issuer (`ssoIssuer` / brokered `samlIssuer`) | `{publicUrl}/interaction/{uid}/federated/callback` |
+| BYO record with `registrationSource: "manual"` | `{publicUrl}/v1/federated/callback` |
+| Organization issuer (`ssoIssuer` / brokered `samlIssuer`) | `{publicUrl}/v1/federated/callback` |
 
-The two that keep the per-interaction path do so because something outside this server already
-depends on it: a visitor who brought their own client registered a redirect URI at their own
-IdP, and a tenant configured its issuer against a deployment already running this leg. §8.6
-covers the consequence for a tenant whose IdP demands exact-match registration.
+There is one value, for every leg, for the life of the deployment. A per-interaction variant
+existed briefly for the two rows a human registers by hand; it was removed because the IdPs
+those rows point at — a tenant's Okta or Entra, a visitor's Keycloak — match a registered
+redirect URI byte for byte, so a URI naming one interaction admits exactly one sign-in. The
+BYO form and the console's organization page both display this value for that reason.
 
 ### 7.2 Pending-state cookie
 
@@ -477,7 +478,7 @@ server-side, where the registry already knows the rest.
 `browserCapable` is true only for a secret-less OIDC provider whose issuer is `https://shoo.dev`
 or loopback — the origin-profile brokers, which serve CORS on their token endpoint. Google,
 Microsoft, GitHub and Apple serve none there, so a static page physically cannot complete the
-exchange and must broker through the control plane (see §7 and C13 in §11.4).
+exchange and must broker through the control plane (see §7 and C13 in §11.6).
 
 `POST /interaction/:uid/federated/start` accepts either `provider` (a registry id, which
 wins) or the legacy `issuer` field. Both are re-resolved server-side against the registry and
@@ -509,10 +510,10 @@ copies the authorization response onto the interaction's own callback and stops:
 **Routing is carried by `state`, not by server-side state.** One URL serves every interaction,
 so something has to say which one a response belongs to — and a cookie cannot: a second
 sign-in in a second tab would overwrite the first tab's, and Apple's cross-site POST would
-carry no cookie at all. The leg therefore mints `state` as `` `${uid}.${random}` `` for exactly
-the resolutions that use this callback. The random half is unchanged
+carry no cookie at all. The leg therefore mints `state` as `` `${uid}.${random}` ``, on every
+resolution. The random half is unchanged
 (`client.randomState()`) and remains the unguessable part; the uid prefix is not a secret,
-being the same value every per-interaction redirect URI puts in its path.
+being the same value the interaction's own URL path carries in the clear.
 
 This is **stateless re-materialization, not a completion code.** Nothing is stored, so there
 is nothing here to expire, to replicate between nodes, or to leak. The SAML ACS does need a
@@ -536,12 +537,12 @@ Fail-closed behaviour, in order:
    start and on completion, so the two can never quote different values, and a forged pending
    cookie cannot choose the URI.
 
-**Known limitation.** The organization OIDC leg still uses the per-interaction redirect URI
-(§7.1). A tenant whose IdP accepts a wildcard or a path prefix is unaffected; a tenant whose
-IdP demands exact-match registration has the same problem this section solves for registry and
-DCR upstreams, and no configuration on this side resolves it today. It is a deliberate
-limitation, not an oversight: tenants configured their issuers against a deployment already
-running the per-interaction shape, and moving them is a migration rather than an edit.
+**This applies to every leg**, including an organization's issuer and a BYO record whose
+credentials the visitor brought. Both were briefly excepted, on the reasoning that a human had
+already registered a URI elsewhere and this server should not change it under them. That was
+backwards: the URI a human registers is precisely the one an IdP matches exactly, so those two
+were the cases that needed the stable value most. Both surfaces now show the operator the URI
+to register.
 
 ## 9. The generic OAuth2 leg (ADR 0055)
 
@@ -605,7 +606,7 @@ rest of the lifecycle.
 | --- | --- |
 | Trust | A `byo_upstreams` row is the second source consulted by §8.2, and only while `state = "active"`. It cannot shadow a registry provider for the same issuer. |
 | Leg | The ordinary §7 OIDC leg, with the record's own client mode (§8.3): the visitor's client id at their IdP, their secret if they supplied one or RFC 7591 minted one, never this deployment's origin profile and never the pinned `Origin` header. |
-| Redirect URI | `registrationSource: "dcr"` uses the stable `{publicUrl}/v1/federated/callback` (§8.6) — RFC 7591 registers a `redirect_uri` once and the issuing IdP then matches it exactly, so a per-interaction URI would admit that visitor today and be refused by their own IdP tomorrow. `registrationSource: "manual"` keeps the per-interaction `{publicUrl}/interaction/{uid}/federated/callback`: that visitor registered a redirect URI at their IdP themselves — a wildcard, or whatever it accepts — and this server does not change it under them. Both legs derive the choice from the durable record on start **and** on completion, so the authorization request and the token request can never quote different values. |
+| Redirect URI | `{publicUrl}/v1/federated/callback` (§8.6), for both registration sources. RFC 7591 registers a `redirect_uri` once and the issuing IdP then matches it exactly; a visitor registering a client by hand faces the same rule at the same IdP, and the BYO form shows them this string to paste. Derived from config alone on start **and** on completion, so the authorization request and the token request can never quote different values. |
 | Pending cookie | Carries `byoId`; completing the leg stamps the record's `lastUsedAt`. |
 | Admission | Unchanged — §7.6 find-or-mint, landing `assurance: "verified"` in the ADR 0033 §1 sense (an upstream vouched for this subject; nobody vetted the human). |
 | Operator lifecycle | `GET /v1/federated/admin/byo-upstreams`, `POST /v1/federated/admin/byo-upstreams/:id/disable`, `.../enable`, all gated on the server-only operator token. An unknown id answers 404 — no existence oracle. The list carries id, issuer, label, client id, client auth, registration source, state and timestamps, and deliberately **never** the client secret. |
@@ -615,11 +616,9 @@ rest of the lifecycle.
 
 ### 11.1 Durable tenant configuration
 
-> An organization's OIDC issuer keeps the **per-interaction** redirect URI
-> `{publicUrl}/interaction/{uid}/federated/callback` (§7.1), unlike registry and DCR upstreams.
-> A tenant IdP that accepts a wildcard or a path prefix is unaffected; a tenant IdP demanding
-> exact-match registration is the known limitation recorded at the end of §8.6, and no setting
-> on this side works around it.
+> An organization's OIDC issuer uses the same `{publicUrl}/v1/federated/callback` as every
+> other leg (§7.1, §8.6), and the tenant's own client credentials rather than this
+> deployment's origin profile — see §11.2.
 
 `organizations` carries `sso_issuer`, `saml_issuer`, `saml_metadata_url`,
 `saml_metadata_xml` and `provisioning_enabled` as columns (queried *by issuer* on the login
@@ -637,7 +636,29 @@ create or PATCH pass the private-host guard outside dev; `samlMetadataUrl` and
 | `saml` with an `issuer` | `samlIssuer` set and no SAML metadata | The ADR 0016 brokered path: an OIDC issuer in front of a SAML IdP |
 | `ldap` | an LDAP config exists for the org | First-party username/password form (§14.4) |
 
-### 11.2 Hosted login page, two steps
+### 11.2 Tenant client credentials
+
+A tenant registers this deployment as a client in *their* IdP's console and configures what it
+issued: `sso_client_id`, and `sso_client_secret` when the IdP issues one. Both are set through
+the owner-gated org PATCH surface, which the console's *Organization sign-in* page drives; it
+also displays `{publicUrl}/v1/federated/callback` (§8.6) as the redirect URI to register.
+
+The secret is **write-only**. It is stored verbatim, because it must reach the tenant's token
+endpoint as issued and a digest could never substitute, and no read surface returns it — the
+org response carries `ssoClientSecretConfigured: true` and nothing more. Clearing `ssoIssuer`
+drops both credentials with it, so one tenant's client id can never be presented at whatever
+issuer is configured next.
+
+With credentials set, `clientModeFor` resolves the org leg to `client_secret_post` (or a
+registered public client when no secret exists) and does **not** pin the `Origin` header. With
+none set it falls back to the origin-profile client, which is right for a tenant brokering
+through something OpenSesame-shaped that admits one (ADR 0050) and wrong for everything else:
+Okta, Entra ID, Google Workspace and Auth0 have never heard of an `origin:` client id and
+answer `invalid_client`. The credentials and the issuer come from one read of one row, carried
+together on the `TrustResolution`, so a row edited mid-flight cannot have the leg present one
+tenant's client id at another tenant's issuer.
+
+### 11.3 Hosted login page, two steps
 
 Under `default-src 'none'` with no `script-src` there is no fetch to make, so organization
 sign-in is a plain POST/redirect/GET pair:
@@ -657,7 +678,7 @@ An unknown slug, a deleted or suspended tenant and a tenant with no configured m
 re-render one sentence with a **fresh** CSRF token — the submitted one was consumed by the
 verify, and a re-render echoing it would 403 the next attempt.
 
-### 11.3 Completion JIT-joins
+### 11.4 Completion JIT-joins
 
 When the pending cookie carries `orgId`, the callback joins the authenticated principal to
 that organization after §7.6 principal resolution, auditing `organization.member_joined` with
@@ -673,7 +694,7 @@ become a membership. The same `jitJoinOrganization` helper serves the login page
 route, the SAML legs and the LDAP leg, so where you signed in never decides whether you are a
 member.
 
-### 11.4 `POST /v1/organizations/tenants/:slug/join` — validation order
+### 11.5 `POST /v1/organizations/tenants/:slug/join` — validation order
 
 The id_token POST is retained (a forced code flow here would break the working browser leg in
 Pages). Validation, in order:
@@ -696,7 +717,7 @@ Pages). Validation, in order:
 8. **The subject is bound to the caller** through `attachVerifiedExternalIdentity` before
    anything is granted. A subject owned by a different principal answers 409 with a message
    that does not name that principal.
-9. Only then, `jitJoinOrganization` (including the provisioning gate of §11.3).
+9. Only then, `jitJoinOrganization` (including the provisioning gate of §11.4).
 
 **`nonce` is deliberately not required here.** The browser leg sends none — the code + PKCE
 exchange is what binds that request to that browser — and requiring a claim the working client
@@ -704,7 +725,7 @@ never mints would refuse every real join. Steps 5, 6 and 8 close the replay wind
 the token must have been minted for one of our own surfaces, it must be minutes old, and it
 must name a subject that is unowned or already this caller's.
 
-### 11.5 Brokered session adoption — `POST /v1/principals/federated-session`
+### 11.6 Brokered session adoption — `POST /v1/principals/federated-session`
 
 For a static page that ran the origin-profile code flow against this server so the hosted page
 could broker a provider the browser cannot reach.
@@ -921,7 +942,7 @@ broker, so the registry owns social), and Better Auth's own `/magic-link/verify`
 | `POST /interaction/:uid/federated/email` | Hosted login page, CSRF-protected. Requests a link and re-renders "check your email" — the same answer for a known and an unknown address. Budget: 5 links per address per 10 minutes, keyed by a digest, because the fence protects the person being mailed rather than the person mailing. |
 | `GET /interaction/:uid/federated/email/verify?token=…` | Where a link started from the hosted page lands. A top-level same-site GET, so it carries the interaction cookie. |
 | `POST /v1/auth/sign-in/magic-link` | The first-party client entry (Pages, console). |
-| `GET /v1/auth/magic-link/complete?token=…` | Where a link started by a first-party client lands; answers `{ principalId, accessToken }`, a first-party `pst_` bearer adopted exactly as in §11.5. |
+| `GET /v1/auth/magic-link/complete?token=…` | Where a link started by a first-party client lands; answers `{ principalId, accessToken }`, a first-party `pst_` bearer adopted exactly as in §11.6. |
 
 The token is single-use, stored hashed, consumed atomically inside verification, and
 verification happens **server-side** so the Better Auth user record never crosses the API

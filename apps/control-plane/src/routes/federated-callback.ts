@@ -16,7 +16,8 @@ type NodeEnv = { Bindings: HttpBindings };
  * callback` names an interaction that exists for one sign-in, so a client
  * registered against it is a client that can complete at most one, and for a
  * console that demands the URI up front, none. Every registered upstream
- * therefore comes back here (see `usesStableCallback`).
+ * therefore comes back here — every one of them, whether it is a registry
+ * provider, an organization's IdP, or a visitor's own issuer.
  *
  * `federated-signin.md` §7.1 says the callback belongs under `/interaction/:uid`
  * because oidc-provider's interaction cookie is path-scoped there. That is

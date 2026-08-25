@@ -8,10 +8,10 @@ import type { ControlPlaneConfig } from "../config.js";
 import {
   decodePending,
   encodePending,
-  federatedRedirectUri,
   federatedUpstreams,
   isTrustedUpstream,
   matchUpstreamHint,
+  stableFederatedRedirectUri,
 } from "../interactions/federated.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -280,33 +280,34 @@ describe("PACT — federated route ordering", () => {
 });
 
 describe("PACT — federated leg wire shape", () => {
-  it("derives an origin-profile client id from the deployment origin", () => {
-    expect(federatedRedirectUri(config(), "uid-1")).toBe(
-      "https://identity.example/interaction/uid-1/federated/callback",
+  it("redirects every leg to one deployment-wide callback", () => {
+    expect(stableFederatedRedirectUri(config())).toBe(
+      "https://identity.example/v1/federated/callback",
     );
   });
 
-  it("keeps the callback under /interaction/:uid so the interaction resumes", () => {
-    // oidc-provider's interaction cookie is path-scoped; a callback anywhere
-    // else arrives without the interaction it is supposed to finish.
-    expect(federatedRedirectUri(config(), "uid-1")).toContain(
-      "/interaction/uid-1/",
-    );
+  it("names no interaction in the URI providers match byte for byte", () => {
+    // A redirect URI is registered once — in a provider console, by a tenant
+    // admin, or by RFC 7591 — and matched exactly afterwards. One naming the
+    // interaction it was registered from would admit exactly one sign-in.
+    expect(stableFederatedRedirectUri(config())).not.toContain("/interaction/");
   });
 
-  it("percent-encodes a uid rather than splicing it into the path", () => {
-    expect(federatedRedirectUri(config(), "a/../b")).toBe(
-      "https://identity.example/interaction/a%2F..%2Fb/federated/callback",
+  it("does not vary with anything a caller controls", () => {
+    // The only input is the deployment's own public URL. Two derivations that
+    // could disagree are how a token request ends up quoting a redirect_uri
+    // the authorization request never used.
+    expect(stableFederatedRedirectUri(config())).toBe(
+      stableFederatedRedirectUri(config()),
     );
   });
 
   it("tolerates a public URL with a trailing slash", () => {
     expect(
-      federatedRedirectUri(
+      stableFederatedRedirectUri(
         config({ publicUrl: "https://identity.example/" }),
-        "u",
       ),
-    ).toBe("https://identity.example/interaction/u/federated/callback");
+    ).toBe("https://identity.example/v1/federated/callback");
   });
 
   it("admits exactly the configured issuers and nothing adjacent", () => {

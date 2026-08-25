@@ -32,6 +32,9 @@ type Organization = {
   displayName: string;
   role: string;
   ssoIssuer?: string;
+  ssoClientId?: string;
+  /** Whether a secret is stored — the value itself is write-only. */
+  ssoClientSecretConfigured?: boolean;
   samlIssuer?: string;
   samlMetadataUrl?: string;
 };
@@ -82,6 +85,11 @@ export function OrgSignInPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [ssoIssuer, setSsoIssuer] = useState("");
+  const [ssoClientId, setSsoClientId] = useState("");
+  // Never seeded from the server: the secret is write-only, so an empty box
+  // means "leave whatever is stored alone" rather than "clear it".
+  const [ssoClientSecret, setSsoClientSecret] = useState("");
+  const [ssoSecretStored, setSsoSecretStored] = useState(false);
   const [samlIssuer, setSamlIssuer] = useState("");
   const [samlMetadataUrl, setSamlMetadataUrl] = useState("");
   const [domains, setDomains] = useState<EmailDomain[]>([]);
@@ -130,6 +138,9 @@ export function OrgSignInPage() {
 
   const loadOrgDetail = useCallback(async (organization: Organization) => {
     setSsoIssuer(organization.ssoIssuer ?? "");
+    setSsoClientId(organization.ssoClientId ?? "");
+    setSsoClientSecret("");
+    setSsoSecretStored(organization.ssoClientSecretConfigured === true);
     setSamlIssuer(organization.samlIssuer ?? "");
     setSamlMetadataUrl(organization.samlMetadataUrl ?? "");
     setDomains([]);
@@ -182,6 +193,12 @@ export function OrgSignInPage() {
         method: "PATCH",
         body: JSON.stringify({
           ssoIssuer: ssoIssuer.trim() || null,
+          ssoClientId: ssoClientId.trim() || null,
+          // Omitted when the box is empty so a save that only edits the issuer
+          // does not silently drop a secret the operator cannot re-read.
+          ...(ssoClientSecret.trim()
+            ? { ssoClientSecret: ssoClientSecret.trim() }
+            : undefined),
           samlIssuer: samlIssuer.trim() || null,
           ...(samlMetadataUrl.trim()
             ? { samlMetadataUrl: samlMetadataUrl.trim() }
@@ -347,6 +364,41 @@ export function OrgSignInPage() {
               onChange={(e) => setSsoIssuer(e.target.value)}
             />
           </div>
+          <div className="field">
+            <label htmlFor="sso-client-id">SSO client id</label>
+            <input
+              id="sso-client-id"
+              type="text"
+              value={ssoClientId}
+              placeholder="issued by your identity provider"
+              onChange={(e) => setSsoClientId(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="sso-client-secret">SSO client secret</label>
+            <input
+              id="sso-client-secret"
+              type="password"
+              autoComplete="off"
+              value={ssoClientSecret}
+              placeholder={
+                ssoSecretStored
+                  ? "stored — type to replace"
+                  : "if your provider issues one"
+              }
+              onChange={(e) => setSsoClientSecret(e.target.value)}
+            />
+          </div>
+          <p className="note">
+            Register this redirect URI with your provider — most match it
+            exactly and accept no wildcard:{" "}
+            <code>{`${identityApi}/v1/federated/callback`}</code>
+          </p>
+          <p className="note">
+            Leave the client fields empty only if your provider accepts this
+            deployment's origin-profile client. Okta, Entra ID, Google Workspace
+            and Auth0 do not.
+          </p>
           <div className="field">
             <label htmlFor="saml-issuer">SAML IdP entity id</label>
             <input

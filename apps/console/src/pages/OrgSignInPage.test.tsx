@@ -164,10 +164,56 @@ describe("OrgSignInPage", () => {
     const patch = seen.find((call) => call.method === "PATCH");
     expect(JSON.parse(String(patch?.body))).toEqual({
       ssoIssuer: "https://idp.acme.example",
+      ssoClientId: null,
       samlIssuer: null,
       samlMetadataUrl: "https://idp.acme.example/saml/metadata",
     });
     expect(container.textContent).toContain("Organization sign-in saved.");
+  });
+
+  /**
+   * The credentials a tenant registers in their own IdP's console. Without
+   * them the leg presents an origin-profile client id, which Okta, Entra ID,
+   * Google Workspace and Auth0 all answer `invalid_client` to.
+   */
+  it("saves the client credentials a tenant registered at their IdP", async () => {
+    seedOwnerOrg();
+    reply("PATCH", "/v1/organizations/org_1", { body: { id: "org_1" } });
+    await render();
+    typeInto("sso-client-id", "acme-client-id");
+    typeInto("sso-client-secret", "acme-client-secret");
+    await click("Save upstream");
+    const patch = seen.find((call) => call.method === "PATCH");
+    expect(JSON.parse(String(patch?.body))).toMatchObject({
+      ssoClientId: "acme-client-id",
+      ssoClientSecret: "acme-client-secret",
+    });
+  });
+
+  /**
+   * The secret is write-only, so the page never receives it back and cannot
+   * re-send it. An empty box therefore has to mean "leave the stored one
+   * alone" — sending `null` would silently unconfigure the tenant every time
+   * an owner edited an unrelated field.
+   */
+  it("leaves a stored secret alone when the box is left empty", async () => {
+    seedOwnerOrg();
+    reply("PATCH", "/v1/organizations/org_1", { body: { id: "org_1" } });
+    await render();
+    typeInto("sso-client-id", "acme-client-id");
+    await click("Save upstream");
+    const patch = seen.find((call) => call.method === "PATCH");
+    expect(JSON.parse(String(patch?.body))).not.toHaveProperty(
+      "ssoClientSecret",
+    );
+  });
+
+  /** The value an owner has to paste into their provider's console. */
+  it("shows the one redirect URI a provider must be given", async () => {
+    seedOwnerOrg();
+    await render();
+    expect(container.textContent).toContain("/v1/federated/callback");
+    expect(container.textContent).not.toContain("/interaction/");
   });
 
   it("shows the TXT record to publish, then verifies the domain", async () => {

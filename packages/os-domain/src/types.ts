@@ -94,6 +94,24 @@ export interface Organization {
    */
   ssoIssuer?: string;
   /**
+   * The client id this deployment presents at `ssoIssuer`.
+   *
+   * A tenant admin registers OpenSesame in their own IdP's console and pastes
+   * the client id back here. Absent means the origin-profile client is used
+   * instead, which only an OpenSesame-shaped broker accepts — Okta, Entra,
+   * Google Workspace and Auth0 have never heard of an `origin:` client id and
+   * refuse it as `invalid_client` (ADR 0055).
+   */
+  ssoClientId?: string;
+  /**
+   * The secret issued alongside `ssoClientId`, when the IdP issues one.
+   *
+   * Held verbatim for the same reason a BYO record's is: it must reach the
+   * token endpoint as issued, so a digest could never substitute. Never
+   * logged, never audited, and never returned on any read surface.
+   */
+  ssoClientSecret?: string;
+  /**
    * SAML IdP entityID for native SAML (ADR 0056) when SAML metadata is
    * configured; otherwise the legacy meaning — the OIDC issuer of a
    * SAML-brokering Keycloak (ADR 0016).

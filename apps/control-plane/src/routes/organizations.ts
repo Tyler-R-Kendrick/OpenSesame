@@ -118,6 +118,10 @@ function toResponse(org: Organization, role: OrganizationRole) {
     createdAt: org.createdAt.toISOString(),
     updatedAt: org.updatedAt.toISOString(),
     ...(org.ssoIssuer ? { ssoIssuer: org.ssoIssuer } : undefined),
+    ...(org.ssoClientId ? { ssoClientId: org.ssoClientId } : undefined),
+    // The secret is write-only: it must reach the tenant's token endpoint as
+    // issued, so there is no digest to show and nothing a caller could use.
+    ...(org.ssoClientSecret ? { ssoClientSecretConfigured: true } : undefined),
     ...(org.samlIssuer ? { samlIssuer: org.samlIssuer } : undefined),
     ...(org.samlMetadataUrl
       ? { samlMetadataUrl: org.samlMetadataUrl }
@@ -668,6 +672,11 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) => {
   const patch = <T>(submitted: T | null | undefined, current: T | undefined) =>
     submitted === undefined ? current : (submitted ?? undefined);
   const ssoIssuer = patch(parsed.data.ssoIssuer, org.ssoIssuer);
+  const ssoClientId = patch(parsed.data.ssoClientId, org.ssoClientId);
+  const ssoClientSecret = patch(
+    parsed.data.ssoClientSecret,
+    org.ssoClientSecret,
+  );
   const samlIssuer = patch(parsed.data.samlIssuer, org.samlIssuer);
   const samlMetadataUrl = patch(
     parsed.data.samlMetadataUrl,
@@ -698,6 +707,13 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) => {
     updatedAt: ctx.clock(),
   };
   if (ssoIssuer) updated.ssoIssuer = ssoIssuer;
+  // Credentials only mean anything alongside the issuer they were issued at,
+  // so clearing `ssoIssuer` drops them rather than leaving one tenant's client
+  // id to be presented at whatever issuer is configured next.
+  if (ssoIssuer && ssoClientId) updated.ssoClientId = ssoClientId;
+  if (ssoIssuer && ssoClientId && ssoClientSecret) {
+    updated.ssoClientSecret = ssoClientSecret;
+  }
   if (samlIssuer) updated.samlIssuer = samlIssuer;
   if (samlMetadataUrl) updated.samlMetadataUrl = samlMetadataUrl;
   if (samlMetadataXml) updated.samlMetadataXml = samlMetadataXml;

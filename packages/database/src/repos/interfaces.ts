@@ -385,6 +385,10 @@ export function normalizeOrganizationRow(
     updatedAt: organization.updatedAt,
   };
   if (organization.ssoIssuer) row.ssoIssuer = organization.ssoIssuer;
+  if (organization.ssoClientId) row.ssoClientId = organization.ssoClientId;
+  if (organization.ssoClientSecret) {
+    row.ssoClientSecret = organization.ssoClientSecret;
+  }
   if (organization.samlIssuer) row.samlIssuer = organization.samlIssuer;
   if (organization.samlMetadataUrl) {
     row.samlMetadataUrl = organization.samlMetadataUrl;

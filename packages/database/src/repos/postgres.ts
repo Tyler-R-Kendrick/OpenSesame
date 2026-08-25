@@ -1494,6 +1494,10 @@ function mapOrganization(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     ...(row.ssoIssuer ? { ssoIssuer: row.ssoIssuer } : undefined),
+    ...(row.ssoClientId ? { ssoClientId: row.ssoClientId } : undefined),
+    ...(row.ssoClientSecret
+      ? { ssoClientSecret: row.ssoClientSecret }
+      : undefined),
     ...(row.samlIssuer ? { samlIssuer: row.samlIssuer } : undefined),
     ...(row.samlMetadataUrl
       ? { samlMetadataUrl: row.samlMetadataUrl }
@@ -1513,6 +1517,8 @@ function organizationRowValues(organization: Organization) {
     state: organization.state,
     createdBy: organization.createdBy,
     ssoIssuer: organization.ssoIssuer ?? null,
+    ssoClientId: organization.ssoClientId ?? null,
+    ssoClientSecret: organization.ssoClientSecret ?? null,
     samlIssuer: organization.samlIssuer ?? null,
     samlMetadataUrl: organization.samlMetadataUrl ?? null,
     samlMetadataXml: organization.samlMetadataXml ?? null,

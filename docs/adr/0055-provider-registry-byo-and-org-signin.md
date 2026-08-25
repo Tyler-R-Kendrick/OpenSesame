@@ -121,8 +121,7 @@ stops. The browser then makes a top-level same-site GET, which does carry both c
 the unchanged callback runs. It needs no CSRF token because it exercises no authority: the
 redirect target is this server's own callback, and `state` byte-equality against the pending
 cookie is still the only thing that decides whether anything completes. (The equivalent
-re-materialization also exists at `POST /interaction/:uid/federated/callback`, for a leg that
-used the per-interaction redirect URI.)
+re-materialization also exists at `POST /interaction/:uid/federated/callback`.)
 
 Apple also has no static client secret. What an operator registers is a P-256 signing key, a
 key id and a team id; the `client_secret` presented at the token endpoint is an ES256 JWT
@@ -147,20 +146,25 @@ a console demands the URI before any interaction exists, for none. GitHub happen
 because it accepts any sub-path of its registered callback; the exact-match providers would
 have failed the first live attempt.
 
-So every **registered** upstream — every static registry provider, and every BYO record minted
-by RFC 7591 — is registered against, redirected to, and exchanged at one deployment-wide URL.
-The two resolutions that keep the per-interaction path do so because something outside this
-server already depends on it: a BYO record whose credentials the *visitor* brought (they
-registered a redirect URI at their own IdP), and an organization issuer (the tenant configured
-it against a deployment already running that shape).
+So **every** upstream is registered against, redirected to, and exchanged at one
+deployment-wide URL.
+
+Two resolutions briefly kept a per-interaction path — a BYO record whose credentials the
+visitor brought, and an organization's issuer — on the reasoning that a human had registered a
+redirect URI at their own IdP and this server should not change it under them. That was
+backwards. The URI a human registers by hand is exactly the one an IdP matches byte for byte,
+so those two were the cases that needed a stable value *most*: a tenant's Okta and a visitor's
+Keycloak refuse a URI naming an interaction that has since ended. Both surfaces now show the
+operator the string to register — the BYO form on the hosted login page, and the console's
+organization page.
 
 The route completes nothing. It reads no cookie, verifies nothing, stores nothing, and 303s
 the response onto the interaction's own callback, which is where the Lax cookies are. Which
-interaction comes from `state`, minted as `` `${uid}.${random}` `` for exactly the resolutions
-that use this callback: one URL serves every interaction, and a cookie could not disambiguate
+interaction comes from `state`, minted as `` `${uid}.${random}` `` on every leg: one URL
+serves every interaction, and a cookie could not disambiguate
 them anyway — a second tab would overwrite the first, and Apple's cross-site POST carries no
 cookie at all. The random half is unchanged and remains the unguessable part; the prefix is
-not a secret, being the same uid every per-interaction redirect URI already puts in its path,
+not a secret, being the same uid the interaction's own URL path already carries in the clear,
 and the **whole** `state` is still compared byte for byte against the pending cookie at the
 exchange. The prefix routes; it never authorizes.
 
@@ -204,13 +208,12 @@ admitted by the fence's `byo` branch. Four properties are load-bearing:
   overwrites a stored one, so a stranger who guesses somebody else's issuer cannot swap the
   client out from under it, and a record an operator disabled answers the same refusal a
   stranger's unknown issuer gets rather than being re-created around.
-- **A dynamically registered client uses the stable callback of §4a.** RFC 7591 registers a
-  `redirect_uri` **once**, on the visitor's first sign-in, and the IdP that issued the client
-  then matches it exactly — so a per-interaction URI would admit that visitor today and be
-  refused by their own IdP tomorrow, leaving durable storage with a record and nothing to
-  redirect to. A record whose credentials the *visitor* brought keeps the per-interaction
-  callback instead: they registered a redirect URI at their own IdP, and this server does not
-  get to change it under them.
+- **Every BYO client uses the stable callback of §4a**, however it was registered. RFC 7591
+  registers a `redirect_uri` **once**, on the visitor's first sign-in, and the IdP that issued
+  the client then matches it exactly — so a per-interaction URI would admit that visitor today
+  and be refused by their own IdP tomorrow, leaving durable storage with a record and nothing
+  to redirect to. A visitor who registers a client by hand meets the same rule at the same
+  IdP, so the BYO form shows them this exact string to paste before asking for a client id.
 - **A budget in front of the network.** Five registrations per fingerprint per ten minutes,
   module-local, spent by every submission that passes URL validation — including one that
   would have hit an existing row, because answering "already registered" cheaply is what would
@@ -289,13 +292,16 @@ expired, wrong-kind and account-less tokens alike.
   operator-gated is the credentials themselves — the redirect URI is now a single value an
   operator registers once (§4a). The runbook is
   `docs/operators/live-provider-verification.md`.
-- **The organization OIDC leg still uses the per-interaction redirect URI.** A tenant whose
-  IdP accepts a wildcard or a path prefix is unaffected; a tenant whose IdP demands
-  exact-match registration hits precisely the problem §4a solves for registry and DCR
-  upstreams, and nothing on this side configures around it. That is a deliberate limitation
-  for now rather than an oversight — tenants configured their issuers against a deployment
-  already serving the per-interaction shape, so moving them is a migration and not an edit —
-  and it is recorded here so it is found before a customer finds it.
+- **An organization configures its own client at its own IdP.** `sso_client_id` and
+  `sso_client_secret` join `sso_issuer` on the org row, set through the owner-gated PATCH
+  surface; the console shows the tenant admin both fields and the redirect URI to register.
+  Without them the leg falls back to this deployment's origin-profile client, which only an
+  OpenSesame-shaped broker accepts — Okta, Entra ID, Google Workspace and Auth0 answer
+  `invalid_client` to an `origin:` client id, so tenant SSO against a real enterprise IdP did
+  not work at all before this. The secret is write-only; the org response says only that one
+  is configured. Credentials travel on the `TrustResolution` beside the issuer they belong to,
+  from one read of one row, so a row edited mid-flight cannot have the leg present one
+  tenant's client id at another tenant's issuer. Clearing `ssoIssuer` drops both.
 - Hint ambiguity is now real. `matchProviderHint` freezes precedence at
   id > issuer > host > label, so the day a genuine `google` registry id sits next to
   shoo.dev's "Google" label, the id wins. A matched hint is rendered first and primary and

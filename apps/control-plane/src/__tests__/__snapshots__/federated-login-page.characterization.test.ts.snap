@@ -275,6 +275,8 @@ exports[`hosted login page characterization > escapes hostile organization and B
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
            <input id="byo-issuer" name="issuer" type="url" value="&quot;&gt;&lt;script&gt;alert(3)&lt;/script&gt;" placeholder="https://id.example.com" required/>
          </label>
+         <p class="note">Registering the client yourself? Add this redirect URI to it first — providers match it exactly:</p>
+         <p class="note"><code>https://identity.example/v1/federated/callback</code></p>
          <label class="field" for="byo-client-id"><span>Client ID (optional)</span>
            <input id="byo-client-id" name="client_id" autocomplete="off"/>
          </label>
@@ -1083,6 +1085,8 @@ exports[`hosted login page characterization > re-renders each block's own failur
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
            <input id="byo-issuer" name="issuer" type="url" value="https://id.example.com" placeholder="https://id.example.com" required/>
          </label>
+         <p class="note">Registering the client yourself? Add this redirect URI to it first — providers match it exactly:</p>
+         <p class="note"><code>https://identity.example/v1/federated/callback</code></p>
          <label class="field" for="byo-client-id"><span>Client ID (optional)</span>
            <input id="byo-client-id" name="client_id" autocomplete="off"/>
          </label>
@@ -1419,6 +1423,8 @@ exports[`hosted login page characterization > renders the full entry set: provid
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
            <input id="byo-issuer" name="issuer" type="url" value="" placeholder="https://id.example.com" required/>
          </label>
+         <p class="note">Registering the client yourself? Add this redirect URI to it first — providers match it exactly:</p>
+         <p class="note"><code>https://identity.example/v1/federated/callback</code></p>
          <label class="field" for="byo-client-id"><span>Client ID (optional)</span>
            <input id="byo-client-id" name="client_id" autocomplete="off"/>
          </label>

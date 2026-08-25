@@ -236,12 +236,13 @@ describe("bring-your-own upstream", () => {
     return { jar, uid, html: await page.text() };
   }
 
-  /** The per-interaction callback a manually registered client returns to. */
-  function callbackFor(uid: string): string {
-    return `${base}/interaction/${uid}/federated/callback`;
-  }
-
-  /** The deployment-wide callback a dynamic registration names (ADR 0055). */
+  /**
+   * The deployment-wide callback every leg returns to (ADR 0055) — whether the
+   * client came from RFC 7591 or the visitor registered it at their IdP by
+   * hand. There is no per-interaction shape any more: an IdP matches a
+   * registered redirect URI exactly, so one naming the interaction it was
+   * registered from would admit exactly one sign-in.
+   */
   function stableCallback(): string {
     return `${base}/v1/federated/callback`;
   }
@@ -278,7 +279,7 @@ describe("bring-your-own upstream", () => {
       const record = expectRecord(
         await registerByoUpstream(
           started.ctx,
-          { issuer: dcrIdp.issuer, redirectUri: callbackFor("uid-dcr") },
+          { issuer: dcrIdp.issuer, redirectUri: stableCallback() },
           "fp-dcr",
         ),
       );
@@ -303,7 +304,7 @@ describe("bring-your-own upstream", () => {
         started.ctx,
         {
           issuer: dcrRejectIdp.issuer,
-          redirectUri: `${callbackFor("uid-reject")}#fragment`,
+          redirectUri: `${stableCallback()}#fragment`,
         },
         "fp-dcr-reject",
       );
@@ -319,7 +320,7 @@ describe("bring-your-own upstream", () => {
     it("refuses an issuer that neither registers clients nor was given one", async () => {
       const outcome = await registerByoUpstream(
         started.ctx,
-        { issuer: noDcrIdp.issuer, redirectUri: callbackFor("uid-nodcr") },
+        { issuer: noDcrIdp.issuer, redirectUri: stableCallback() },
         "fp-nodcr",
       );
       expect(outcome).toEqual({
@@ -575,7 +576,7 @@ describe("bring-your-own upstream", () => {
       // The rejected URL comes back in the field rather than being wiped.
       expect(page).toContain("http://localhost:9099");
 
-      roundTripIdp.setRedirectUris([callbackFor(uid)]);
+      roundTripIdp.setRedirectUris([stableCallback()]);
       const retried = await req(
         base,
         jar,
@@ -600,7 +601,7 @@ describe("bring-your-own upstream", () => {
       const subject = `byo-${randomBytes(4).toString("hex")}`;
       roundTripIdp.setSubject(subject);
       const { jar, uid, html } = await loginPage();
-      roundTripIdp.setRedirectUris([callbackFor(uid)]);
+      roundTripIdp.setRedirectUris([stableCallback()]);
 
       const start = await req(
         base,
@@ -621,7 +622,14 @@ describe("bring-your-own upstream", () => {
         roundTripIdp.clientId,
       );
       expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
-      expect(authorize.searchParams.get("redirect_uri")).toBe(callbackFor(uid));
+      // The same deployment-wide URI a dynamic registration names. A visitor
+      // registering their own client at their own IdP is shown this exact
+      // string on the form, because most consoles match it byte for byte and
+      // accept no wildcard.
+      expect(authorize.searchParams.get("redirect_uri")).toBe(stableCallback());
+      expect(authorize.searchParams.get("state")).toMatch(
+        new RegExp(`^${uid}\\..+`),
+      );
 
       const pending = decodePending(jar.get(`os.fed.${uid}`));
       expect(pending?.kind).toBe("oidc");
@@ -630,10 +638,16 @@ describe("bring-your-own upstream", () => {
 
       const upstreamRes = await fetch(authorize, { redirect: "manual" });
       const back = new URL(upstreamRes.headers.get("location") ?? "");
+      expect(back.href.startsWith(stableCallback())).toBe(true);
+
+      // The shared callback completes nothing; it hands the browser back to a
+      // top-level GET under /interaction/<uid>, where the Lax cookie lives.
+      const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+      expect(handBack.status).toBe(303);
       const completed = await req(
         base,
         jar,
-        `/interaction/${uid}/federated/callback${back.search}`,
+        handBack.headers.get("location") ?? "",
       );
       expect(completed.status).toBe(303);
       expect(completed.headers.get("location")).toContain("/auth/");
@@ -660,6 +674,77 @@ describe("bring-your-own upstream", () => {
         pending?.byoId ?? "",
       );
       expect(record?.lastUsedAt).toBeTruthy();
+    }, 30_000);
+
+    /**
+     * The regression the per-interaction callback caused, for the leg that
+     * kept it longest.
+     *
+     * A visitor who brings their own credentials registers one redirect URI at
+     * their own IdP, once. Under the old shape the URI named the interaction
+     * that happened to be open when they registered it, so their SECOND
+     * sign-in — a different interaction, a different path — presented a URI
+     * that IdP had never seen and died at the authorize endpoint. The IdP here
+     * is configured exactly as a real one would be: one registered URI, never
+     * updated between the two visits.
+     */
+    it("signs the same visitor in again through a second interaction", async () => {
+      const subject = `byo-reentry-${randomBytes(4).toString("hex")}`;
+      roundTripIdp.setSubject(subject);
+      roundTripIdp.setRedirectUris([stableCallback()]);
+
+      // Inferred rather than annotated: the shape is one helper's own.
+      async function signIn() {
+        const { jar, uid, html } = await loginPage();
+        const start = await req(
+          base,
+          jar,
+          `/interaction/${uid}/federated/byo`,
+          postForm({
+            _csrf: extractCsrf(html),
+            issuer: roundTripIdp.issuer,
+            client_id: roundTripIdp.clientId,
+            client_secret: roundTripIdp.clientSecret,
+          }),
+        );
+        expect(start.status).toBe(303);
+        const authorize = new URL(start.headers.get("location") ?? "");
+        expect(authorize.searchParams.get("redirect_uri")).toBe(
+          stableCallback(),
+        );
+
+        // A 302 is the IdP accepting the URI as registered. The old shape
+        // reached this line on the first visit and failed here on the second.
+        const upstream = await fetch(authorize, { redirect: "manual" });
+        expect(upstream.status).toBe(302);
+        const back = new URL(upstream.headers.get("location") ?? "");
+        const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+        expect(handBack.status).toBe(303);
+        const completed = await req(
+          base,
+          jar,
+          handBack.headers.get("location") ?? "",
+        );
+        expect(completed.status).toBe(303);
+        return uid;
+      }
+
+      const firstUid = await signIn();
+      const secondUid = await signIn();
+      expect(secondUid).not.toBe(firstUid);
+
+      // And both landed on the one principal: re-entry reuses the record and
+      // the tuple, rather than minting a second account for the same human.
+      const identity = await started.ctx.repos.externalIdentities.findByTuple({
+        kind: "oidc",
+        issuer: roundTripIdp.issuer,
+        subject,
+      });
+      expect(identity).toBeTruthy();
+      const peers = await started.ctx.repos.externalIdentities.listByPrincipal(
+        identity?.principalId ?? "",
+      );
+      expect(peers.filter((e) => e.subject === subject)).toHaveLength(1);
     }, 30_000);
 
     /**

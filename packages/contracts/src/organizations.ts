@@ -47,6 +47,28 @@ export type CreateOrganizationRequest = z.infer<
   typeof CreateOrganizationRequestSchema
 >;
 
+/**
+ * The client id a tenant's own IdP issued for this deployment.
+ *
+ * Opaque to us — Entra issues a GUID, Okta a 20-character string, Google a
+ * `...apps.googleusercontent.com` hostname — so this bounds the length and
+ * refuses control characters rather than imposing a shape none of them share.
+ */
+export const OrganizationClientIdSchema = z
+  .string()
+  .min(1)
+  .max(256)
+  // Bounded and printable rather than shaped: a control character or a space
+  // spliced into a client id would reach the authorize URL's query string,
+  // and no two providers agree on a shape to validate against.
+  .refine(
+    (value) => ![...value].some((ch) => ch <= " " || ch === "\u007f"),
+    "must not contain whitespace or control characters",
+  );
+
+/** The secret issued alongside it, when the IdP issues one. Write-only. */
+export const OrganizationClientSecretSchema = z.string().min(1).max(1024);
+
 /** SAML IdP metadata document location. Fetched server-side under the SSRF guard. */
 export const SamlMetadataUrlSchema = OrganizationIssuerUrlSchema;
 /** Inline SAML IdP metadata, for operators who paste the document directly. */
@@ -56,6 +78,8 @@ export const UpdateOrganizationRequestSchema = z
   .object({
     displayName: z.string().min(1).max(128).optional(),
     ssoIssuer: OrganizationIssuerUrlSchema.nullable().optional(),
+    ssoClientId: OrganizationClientIdSchema.nullable().optional(),
+    ssoClientSecret: OrganizationClientSecretSchema.nullable().optional(),
     samlIssuer: OrganizationIssuerUrlSchema.nullable().optional(),
     samlMetadataUrl: SamlMetadataUrlSchema.nullable().optional(),
     samlMetadataXml: SamlMetadataXmlSchema.nullable().optional(),
@@ -65,6 +89,8 @@ export const UpdateOrganizationRequestSchema = z
     (value) =>
       value.displayName !== undefined ||
       value.ssoIssuer !== undefined ||
+      value.ssoClientId !== undefined ||
+      value.ssoClientSecret !== undefined ||
       value.samlIssuer !== undefined ||
       value.samlMetadataUrl !== undefined ||
       value.samlMetadataXml !== undefined ||
@@ -89,6 +115,13 @@ export const OrganizationResponseSchema = z.object({
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   ssoIssuer: z.string().optional(),
+  ssoClientId: z.string().optional(),
+  /**
+   * Whether a client secret is configured — never the secret itself. It has to
+   * reach the tenant's token endpoint as issued, so there is no digest to show
+   * and nothing here an API caller could do with the value (ADR 0005).
+   */
+  ssoClientSecretConfigured: z.boolean().optional(),
   samlIssuer: z.string().optional(),
   samlMetadataUrl: z.string().optional(),
   /**
