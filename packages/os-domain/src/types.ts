@@ -32,6 +32,19 @@ export interface Principal {
 
 export type ExternalIdentityKind =
   | "oidc"
+  // A provider that issues no id_token at all, so the subject comes from a
+  // userinfo call rather than a signed assertion (ADR 0055).
+  | "oauth2"
+  // A SAML assertion's NameID. The Format travels in the identity metadata,
+  // because the same value means different things under different formats
+  // (ADR 0056).
+  | "saml"
+  // A directory bind. The subject is the directory's stable attribute, never
+  // the DN, which moves when an account changes OU (ADR 0057).
+  | "ldap"
+  // An address the user proved control of by following a link sent to it
+  // (ADR 0057). Distinct from the email *claim* on another kind's row.
+  | "email"
   | "oauth_profile"
   | "passkey"
   | "atproto"

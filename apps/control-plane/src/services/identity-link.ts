@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import { ConflictError } from "@opensesame/database";
-import { type ExternalIdentity, overlapCast } from "@opensesame/os-domain";
+import type { ExternalIdentity } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 
 /**
@@ -167,11 +167,7 @@ export async function attachVerifiedExternalIdentity(
   const identity: ExternalIdentity = {
     id: `xid_${randomUUID()}`,
     principalId: ownerPrincipalId,
-    // SAFETY: the `kind` column is free text (no CHECK constraint) and this
-    // union is the set ADR 0055/0056/0057 admit; `ExternalIdentityKind` in
-    // os-domain has not caught up with the newer legs, and widening a shared
-    // domain type is another swarm's file.
-    kind: overlapCast(kind),
+    kind,
     issuer: input.issuer,
     subject: input.subject,
     assurance: "verified",
