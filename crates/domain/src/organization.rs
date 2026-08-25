@@ -9,6 +9,7 @@ pub enum OrganizationRole {
 }
 
 impl OrganizationRole {
+    #[must_use]
     pub fn can_configure_integrations(self) -> bool {
         matches!(self, Self::Owner | Self::Admin)
     }

@@ -13,6 +13,31 @@ mod confined {
 
     use crate::StoreError;
 
+    fn open_directory_component(
+        parent: &File,
+        name: &CString,
+        create: bool,
+    ) -> Result<File, StoreError> {
+        let flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
+        // SAFETY: the directory fd and NUL-terminated component remain valid for the call.
+        let mut fd = unsafe { libc::openat(parent.as_raw_fd(), name.as_ptr(), flags) };
+        if fd < 0 && create && std::io::Error::last_os_error().raw_os_error() == Some(libc::ENOENT)
+        {
+            // SAFETY: same valid fd/component pair; mode creates a private directory.
+            let made = unsafe { libc::mkdirat(parent.as_raw_fd(), name.as_ptr(), 0o700) };
+            if made < 0 && std::io::Error::last_os_error().raw_os_error() != Some(libc::EEXIST) {
+                return Err(StoreError::Io(std::io::Error::last_os_error()));
+            }
+            // SAFETY: reopen refuses a symlink even if another process won the create race.
+            fd = unsafe { libc::openat(parent.as_raw_fd(), name.as_ptr(), flags) };
+        }
+        if fd < 0 {
+            return Err(StoreError::Io(std::io::Error::last_os_error()));
+        }
+        // SAFETY: successful openat returns a new owned descriptor.
+        Ok(unsafe { File::from_raw_fd(fd) })
+    }
+
     fn open_parent(root: &Path, rel: &Path, create: bool) -> Result<(File, CString), StoreError> {
         if std::fs::symlink_metadata(root)?.file_type().is_symlink() {
             return Err(StoreError::InvalidPath(
@@ -29,27 +54,7 @@ mod confined {
             };
             let name = CString::new(name.as_bytes())
                 .map_err(|_| StoreError::InvalidPath("NUL in path".into()))?;
-            let flags = libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC;
-            // SAFETY: the directory fd and NUL-terminated component remain valid for the call.
-            let mut fd = unsafe { libc::openat(dir.as_raw_fd(), name.as_ptr(), flags) };
-            if fd < 0
-                && create
-                && std::io::Error::last_os_error().raw_os_error() == Some(libc::ENOENT)
-            {
-                // SAFETY: same valid fd/component pair; mode creates a private directory.
-                let made = unsafe { libc::mkdirat(dir.as_raw_fd(), name.as_ptr(), 0o700) };
-                if made < 0 && std::io::Error::last_os_error().raw_os_error() != Some(libc::EEXIST)
-                {
-                    return Err(StoreError::Io(std::io::Error::last_os_error()));
-                }
-                // SAFETY: reopen refuses a symlink even if another process won the create race.
-                fd = unsafe { libc::openat(dir.as_raw_fd(), name.as_ptr(), flags) };
-            }
-            if fd < 0 {
-                return Err(StoreError::Io(std::io::Error::last_os_error()));
-            }
-            // SAFETY: successful openat returns a new owned descriptor.
-            dir = unsafe { File::from_raw_fd(fd) };
+            dir = open_directory_component(&dir, &name, create)?;
         }
         let file_name = CString::new(file_name.as_bytes())
             .map_err(|_| StoreError::InvalidPath("NUL in path".into()))?;
@@ -140,6 +145,10 @@ pub(crate) fn confined_remove(root: &Path, rel: &Path) -> Result<(), StoreError>
 }
 
 /// Map a logical `pass`-style name to a relative path (no extension).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn logical_to_relative(name: &str) -> Result<PathBuf, StoreError> {
     let name = name.trim();
     if name.is_empty() {
@@ -170,6 +179,10 @@ pub fn logical_to_relative(name: &str) -> Result<PathBuf, StoreError> {
 }
 
 /// Strip a known ciphertext extension and return the logical name.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn relative_to_logical(rel: &Path) -> Result<String, StoreError> {
     if rel.is_absolute() {
         return Err(StoreError::InvalidPath("absolute relative path".into()));

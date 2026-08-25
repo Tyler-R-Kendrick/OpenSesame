@@ -16,7 +16,7 @@ pub enum ProofKeyOwnerKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProofPurpose {
-    /// DPoP or HTTP message signature at the resource.
+    /// `DPoP` or HTTP message signature at the resource.
     ResourceAccess,
     /// Intent or frozen-intent attestation.
     IntentAttestation,
@@ -38,6 +38,10 @@ pub struct ProofKey {
 }
 
 impl ProofKey {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_active(&self, now: DateTime<Utc>) -> Result<(), DomainError> {
         if let Some(revoked) = self.revoked_at {
             if now >= revoked {
@@ -70,6 +74,10 @@ pub struct ProofBinding {
 }
 
 impl ProofBinding {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_task_bound(&self, task_run_id: TaskRunId) -> Result<(), DomainError> {
         match self.task_run_id {
             Some(id) if id == task_run_id => Ok(()),

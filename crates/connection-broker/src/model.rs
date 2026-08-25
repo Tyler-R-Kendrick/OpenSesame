@@ -30,6 +30,7 @@ pub enum ConnectionStatus {
 }
 
 impl ConnectionStatus {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Pending => "pending",
@@ -41,6 +42,7 @@ impl ConnectionStatus {
         }
     }
 
+    #[must_use]
     pub fn parse(raw: &str) -> Self {
         match raw {
             "active" => Self::Active,
@@ -80,6 +82,7 @@ pub enum EventKind {
 }
 
 impl EventKind {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Created => "created",
@@ -112,6 +115,7 @@ pub enum BindingTargetKind {
 }
 
 impl BindingTargetKind {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Organization => "organization",
@@ -123,6 +127,7 @@ impl BindingTargetKind {
         }
     }
 
+    #[must_use]
     pub fn parse(raw: &str) -> Option<Self> {
         match raw {
             "organization" => Some(Self::Organization),
@@ -217,7 +222,11 @@ impl ProviderView {
             missing_config,
             scopes: provider.scopes.iter().map(ScopeView::from).collect(),
             egress: EgressView::from(&provider.egress.binding()),
-            operations: provider.operations.iter().map(|o| o.to_string()).collect(),
+            operations: provider
+                .operations
+                .iter()
+                .map(std::string::ToString::to_string)
+                .collect(),
             integration_configuration_fields: provider.integration_configuration_fields().to_vec(),
             connection_configuration_fields: provider.connection_configuration_fields().to_vec(),
         }

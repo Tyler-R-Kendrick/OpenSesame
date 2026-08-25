@@ -4,7 +4,7 @@
 //! applies it to every connection it accepts, and the accepted-connection
 //! count is observable so fail-closed cases can prove the wire was — or was
 //! never — touched. No randomness, no real network, no sleeps beyond the
-//! SlowDrip byte cadence.
+//! `SlowDrip` byte cadence.
 
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};

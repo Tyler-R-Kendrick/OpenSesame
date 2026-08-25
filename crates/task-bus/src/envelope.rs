@@ -1,4 +1,4 @@
-//! Optional xkeys envelopes for sensitive TaskBus `data` fields.
+//! Optional xkeys envelopes for sensitive `TaskBus` `data` fields.
 //!
 //! Wake messages that carry only outbox ids stay unsealed. Use this when a
 //! payload must cross the bus and is not already ciphertext-at-rest.
@@ -16,6 +16,10 @@ pub struct SealedEventData {
 }
 
 /// Seal UTF-8 JSON bytes to `recipient_public` (32-byte X25519).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn seal_event_data(
     plaintext: &[u8],
     recipient_public: &[u8; 32],
@@ -28,6 +32,10 @@ pub fn seal_event_data(
 }
 
 /// Open a sealed envelope with the recipient secret key bytes.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn open_event_data(
     sealed: &SealedEventData,
     recipient_secret: &[u8; 32],
@@ -42,6 +50,7 @@ pub fn open_event_data(
 }
 
 /// Convenience: wrap sealed bytes as JSON `{ "sealed_b64": "..." }`.
+#[must_use]
 pub fn sealed_to_json(sealed: &SealedEventData) -> Value {
     json!({ "sealed_b64": sealed.sealed_b64 })
 }

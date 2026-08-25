@@ -14,6 +14,13 @@ const AUTOPUSH_KEY: &str = "opensesame.autopush";
 /// contribute a thousand chunk objects, which would overrun the argument limit.
 const ADD_BATCH: usize = 100;
 
+/// Initialize `root` as a Git repository when necessary and configure its
+/// repository-local commit identity.
+///
+/// # Errors
+///
+/// Returns an error when Git cannot be launched or repository initialization
+/// fails.
 pub fn ensure_git_repo(root: &Path) -> Result<(), StoreError> {
     if !root.join(".git").exists() {
         let status = Command::new("git")
@@ -38,6 +45,10 @@ pub fn ensure_git_repo(root: &Path) -> Result<(), StoreError> {
 }
 
 /// Commit only ciphertext and store configuration when `root` is a git repository.
+///
+/// # Errors
+///
+/// Returns an error when Git cannot enumerate or stage the allowed files.
 pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
     if !root.join(".git").exists() {
         eprintln!(
@@ -61,18 +72,16 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
         .split(|byte| *byte == 0)
         .filter_map(|bytes| std::str::from_utf8(bytes).ok())
         .filter(|path| {
+            let encrypted_file = Path::new(path)
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| {
+                    matches!(extension, "osseal" | "gpg" | "age" | "osattach" | "oschunk")
+                });
             matches!(
                 *path,
                 ".opensesame-key" | ".opensesame-recipients" | ".gpg-id" | ".age-recipients"
-            ) || path.ends_with(".osseal")
-                || path.ends_with(".gpg")
-                || path.ends_with(".age")
-                // Attachment ciphertext (ADR 0054). Both are sealed bytes, so
-                // they travel under the same "only ciphertext leaves" rule as
-                // entries. The attachment revision map stays local, like the
-                // entry one, and is deliberately absent from this list.
-                || path.ends_with(".osattach")
-                || path.ends_with(".oschunk")
+            ) || encrypted_file
         })
         .collect();
     if paths.is_empty() {
@@ -132,6 +141,11 @@ pub fn auto_commit(root: &Path, message: &str) -> Result<(), StoreError> {
     Ok(())
 }
 
+/// Run an explicitly supplied Git command in the sealed-store repository.
+///
+/// # Errors
+///
+/// Returns an error when Git cannot be launched.
 pub fn git_passthrough(root: &Path, args: &[String]) -> Result<i32, StoreError> {
     let status = Command::new("git")
         .args(args)
@@ -142,6 +156,7 @@ pub fn git_passthrough(root: &Path, args: &[String]) -> Result<i32, StoreError> 
 }
 
 /// The configured backup remote, when one exists.
+#[must_use]
 pub fn remote_url(root: &Path) -> Option<String> {
     let output = Command::new("git")
         .args(["remote", "get-url", REMOTE])
@@ -156,6 +171,11 @@ pub fn remote_url(root: &Path) -> Option<String> {
 }
 
 /// Point the backup remote at `url`, creating or updating `origin`.
+///
+/// # Errors
+///
+/// Returns an error when repository initialization or remote configuration
+/// fails.
 pub fn set_remote(root: &Path, url: &str) -> Result<(), StoreError> {
     ensure_git_repo(root)?;
     let sub = if remote_url(root).is_some() {
@@ -174,6 +194,8 @@ pub fn set_remote(root: &Path, url: &str) -> Result<(), StoreError> {
     Ok(())
 }
 
+/// Whether automatic backup pushes are enabled for this repository.
+#[must_use]
 pub fn auto_push_enabled(root: &Path) -> bool {
     Command::new("git")
         .args(["config", "--get", AUTOPUSH_KEY])
@@ -183,6 +205,11 @@ pub fn auto_push_enabled(root: &Path) -> bool {
         .unwrap_or(false)
 }
 
+/// Enable or disable automatic backup pushes for this repository.
+///
+/// # Errors
+///
+/// Returns an error when Git cannot update the repository-local setting.
 pub fn set_auto_push(root: &Path, enabled: bool) -> Result<(), StoreError> {
     let status = Command::new("git")
         .args([
@@ -203,6 +230,11 @@ pub fn set_auto_push(root: &Path, enabled: bool) -> Result<(), StoreError> {
 /// push. With `token`, HTTPS pushes authenticate as `x-access-token` (the
 /// username GitHub expects for OAuth/App installation tokens); the token
 /// travels via [`GIT_TOKEN_ENV`] in the child environment, never argv.
+///
+/// # Errors
+///
+/// Returns an error when no remote is configured, Git cannot be launched, or
+/// the push fails.
 pub fn push_backup(root: &Path, token: Option<&str>) -> Result<(), StoreError> {
     if remote_url(root).is_none() {
         return Err(StoreError::Git(

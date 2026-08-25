@@ -8,7 +8,7 @@
 //! payloads. Protect snapshots at rest on disk like a password database.
 //!
 //! Host deployment seal keys (`OPENSESAME_CONNECTION_KEY` / broker sealing)
-//! **must never** wrap these blobs. Wrapping is client DeviceKey / VRK only.
+//! **must never** wrap these blobs. Wrapping is client `DeviceKey` / VRK only.
 
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +33,7 @@ pub const SNAPSHOT_FORMAT: &str = "opensesame-ciphertext-sync-snapshot";
 pub const SNAPSHOT_VERSION: u32 = 1;
 
 impl CiphertextSyncSnapshot {
+    #[must_use]
     pub fn new(
         cursor: SyncCursor,
         blobs: Vec<SyncBlob>,
@@ -50,6 +51,10 @@ impl CiphertextSyncSnapshot {
     }
 
     /// Reject documents that are not opaque ciphertext snapshots.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn validate(&self) -> Result<(), ClientCoreError> {
         if self.format != SNAPSHOT_FORMAT {
             return Err(ClientCoreError::Persist(format!(
@@ -82,6 +87,10 @@ impl CiphertextSyncSnapshot {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn to_json(&self) -> Result<String, ClientCoreError> {
         self.validate()?;
         let json =
@@ -90,6 +99,10 @@ impl CiphertextSyncSnapshot {
         Ok(json)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_json(json: &str) -> Result<Self, ClientCoreError> {
         assert_ciphertext_only_json(json)?;
         let snap: Self =
@@ -125,6 +138,10 @@ impl SyncStore {
     }
 
     /// Merge a ciphertext snapshot (last-writer-wins by epoch). Never decrypts.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn import_ciphertext_snapshot(
         &mut self,
         snapshot: &CiphertextSyncSnapshot,
@@ -137,9 +154,7 @@ impl SyncStore {
                 _ => {
                     self.entries
                         .insert(blob.id.clone(), (blob.epoch, blob.ciphertext.clone()));
-                    if blob.epoch > self.cursor.epoch {
-                        self.cursor.epoch = blob.epoch;
-                    }
+                    self.cursor.epoch = self.cursor.epoch.max(blob.epoch);
                     applied += 1;
                 }
             }
@@ -148,6 +163,7 @@ impl SyncStore {
     }
 
     /// All entries as opaque sync blobs (server / Host view).
+    #[must_use]
     pub fn opaque_blobs(&self) -> Vec<SyncBlob> {
         self.entries
             .iter()
@@ -177,6 +193,10 @@ fn project_scoped(blob_id: &str, project_id: Option<&str>) -> bool {
 }
 
 /// Defense in depth: refuse JSON that smuggles plaintext fields or raw secret keys.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_ciphertext_only_json(json: &str) -> Result<(), ClientCoreError> {
     // Key-shaped needles only — avoid matching opaque ciphertext bytes/base64.
     for needle in [
@@ -199,6 +219,10 @@ pub fn assert_ciphertext_only_json(json: &str) -> Result<(), ClientCoreError> {
 }
 
 /// Explicit guard: backup wrap material must not be a Host deployment seal key.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn refuse_deployment_seal_as_wrap_key(candidate_label: &str) -> Result<(), ClientCoreError> {
     let lower = candidate_label.to_ascii_lowercase();
     if lower.contains("connection_key")

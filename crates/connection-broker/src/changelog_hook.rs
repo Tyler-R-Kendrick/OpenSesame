@@ -23,6 +23,7 @@ use uuid::Uuid;
 
 /// Maximum retained Host changelog rows per organization (ring buffer).
 const MAX_ENTRIES_PER_ORG: usize = 512;
+const MAX_METADATA_STRING_BYTES: usize = 256;
 
 /// Frozen Host changelog event types (must match the module docs).
 pub const CHANGELOG_EVENT_TYPES: &[&str] = &[
@@ -40,6 +41,7 @@ pub const CHANGELOG_EVENT_TYPES: &[&str] = &[
     "project.personal.ensured",
 ];
 
+#[must_use]
 pub fn is_allowed_changelog_event_type(event_type: &str) -> bool {
     CHANGELOG_EVENT_TYPES.contains(&event_type)
 }
@@ -110,46 +112,47 @@ fn deny_metadata_key(key: &str) -> bool {
         || lower.contains("refresh")
 }
 
+fn clipped_metadata_string(value: &str) -> String {
+    if value.len() <= MAX_METADATA_STRING_BYTES {
+        return value.to_owned();
+    }
+    let boundary = value
+        .char_indices()
+        .map(|(index, _)| index)
+        .take_while(|index| *index <= MAX_METADATA_STRING_BYTES)
+        .last()
+        .unwrap_or(0);
+    format!("{}…", &value[..boundary])
+}
+
+fn redact_metadata_value(value: &Value) -> Option<Value> {
+    match value {
+        Value::String(value) => Some(Value::String(clipped_metadata_string(value))),
+        Value::Number(_) | Value::Bool(_) | Value::Null => Some(value.clone()),
+        Value::Array(items) if items.iter().all(serde_json::Value::is_string) => {
+            Some(Value::Array(
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(clipped_metadata_string)
+                    .map(Value::String)
+                    .collect(),
+            ))
+        }
+        _ => None,
+    }
+}
+
 /// Strip forbidden keys and non-scalar/non-string-array values from metadata.
+#[must_use]
 pub fn redact_changelog_metadata(input: &Map<String, Value>) -> Map<String, Value> {
     let mut out = Map::new();
     for (key, value) in input {
         if deny_metadata_key(key) {
             continue;
         }
-        match value {
-            Value::String(s) => {
-                let clipped = if s.len() > 256 {
-                    format!("{}…", &s[..256])
-                } else {
-                    s.clone()
-                };
-                out.insert(key.clone(), Value::String(clipped));
-            }
-            Value::Number(n) => {
-                out.insert(key.clone(), Value::Number(n.clone()));
-            }
-            Value::Bool(b) => {
-                out.insert(key.clone(), Value::Bool(*b));
-            }
-            Value::Null => {
-                out.insert(key.clone(), Value::Null);
-            }
-            Value::Array(items) if items.iter().all(|v| v.is_string()) => {
-                let names: Vec<Value> = items
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(|s| {
-                        if s.len() > 256 {
-                            Value::String(format!("{}…", &s[..256]))
-                        } else {
-                            Value::String(s.to_string())
-                        }
-                    })
-                    .collect();
-                out.insert(key.clone(), Value::Array(names));
-            }
-            _ => {}
+        if let Some(value) = redact_metadata_value(value) {
+            out.insert(key.clone(), value);
         }
     }
     out
@@ -199,7 +202,9 @@ pub fn record_secret_changelog(input: RecordSecretChangelog) -> ChangelogEntry {
         metadata,
     };
 
-    let mut guard = store().lock().expect("changelog store poisoned");
+    let mut guard = store()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let org_key = entry
         .organization_id
         .clone()
@@ -216,12 +221,15 @@ pub fn record_secret_changelog(input: RecordSecretChangelog) -> ChangelogEntry {
 ///
 /// The store is org-keyed. Scanning every org for a caller-supplied project id
 /// is a cross-tenant read; callers must pass the authenticated organization.
+#[must_use]
 pub fn list_secret_changelog(
     organization_id: &str,
     project_id: &str,
     limit: usize,
 ) -> Vec<ChangelogEntry> {
-    let guard = store().lock().expect("changelog store poisoned");
+    let guard = store()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let Some(ring) = guard.get(organization_id) else {
         return Vec::new();
     };
@@ -273,7 +281,10 @@ pub async fn list_secret_changelog_durable(
 
 /// Clear the in-memory Host changelog (tests / local reset only).
 pub fn clear_secret_changelog_for_tests() {
-    store().lock().expect("changelog store poisoned").clear();
+    store()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clear();
 }
 
 #[cfg(test)]
@@ -306,6 +317,15 @@ mod tests {
         assert!(!serialized.contains("\"tok\""));
         assert_eq!(entry.key_names, vec!["DATABASE_URL"]);
         assert_eq!(entry.metadata.get("note"), Some(&json!("rotated")));
+    }
+
+    #[test]
+    fn unicode_metadata_is_clipped_without_panicking() {
+        let input = Map::from_iter([("note".into(), json!("é".repeat(257)))]);
+        let redacted = redact_changelog_metadata(&input);
+        let note = redacted["note"].as_str().unwrap();
+        assert_eq!(note.len(), MAX_METADATA_STRING_BYTES + '…'.len_utf8());
+        assert!(note.ends_with('…'));
     }
 
     #[test]

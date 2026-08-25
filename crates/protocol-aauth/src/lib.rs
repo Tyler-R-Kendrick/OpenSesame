@@ -1,4 +1,4 @@
-//! Experimental AAuth draft-10 adapter (feature `experimental-aauth`).
+//! Experimental `AAuth` draft-10 adapter (feature `experimental-aauth`).
 //!
 //! Disabled by default. No public HTTP endpoints in this crate.
 

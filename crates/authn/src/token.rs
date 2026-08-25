@@ -30,6 +30,10 @@ pub struct ValidatedAccessToken {
     pub auth_time: Option<i64>,
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn validate_audience(
     token_aud: &[String],
     required_resource: &str,
@@ -42,6 +46,10 @@ pub fn validate_audience(
 }
 
 /// Reject provider/MCP tokens presented as vault authorization (no passthrough).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn reject_foreign_resource_token(
     token_aud: &[String],
     this_resource: &str,

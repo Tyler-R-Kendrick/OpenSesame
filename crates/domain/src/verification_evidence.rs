@@ -30,12 +30,17 @@ pub struct VerificationEvidence {
 }
 
 impl VerificationEvidence {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn digest(&self) -> Result<String, DomainError> {
         let v =
             serde_json::to_value(self).map_err(|e| DomainError::Canonicalization(e.to_string()))?;
         Ok(digest_sha256(&canonicalize_json(&v)?))
     }
 
+    #[must_use]
     pub fn builder(kind: VerificationEvidenceKind) -> VerificationEvidenceBuilder {
         VerificationEvidenceBuilder {
             id: VerificationEvidenceId::new(),
@@ -61,31 +66,37 @@ pub struct VerificationEvidenceBuilder {
 }
 
 impl VerificationEvidenceBuilder {
+    #[must_use]
     pub fn task_run_id(mut self, id: TaskRunId) -> Self {
         self.task_run_id = Some(id);
         self
     }
 
+    #[must_use]
     pub fn protocol_profile_id(mut self, id: ProtocolProfileId) -> Self {
         self.protocol_profile_id = Some(id);
         self
     }
 
+    #[must_use]
     pub fn subject_digest(mut self, digest: impl Into<String>) -> Self {
         self.subject_digest = digest.into();
         self
     }
 
+    #[must_use]
     pub fn detail(mut self, detail: serde_json::Value) -> Self {
         self.detail = detail;
         self
     }
 
+    #[must_use]
     pub fn recorded_at(mut self, at: DateTime<Utc>) -> Self {
         self.recorded_at = at;
         self
     }
 
+    #[must_use]
     pub fn build(self) -> VerificationEvidence {
         VerificationEvidence {
             id: self.id,

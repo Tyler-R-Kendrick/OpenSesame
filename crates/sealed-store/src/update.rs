@@ -74,6 +74,7 @@ impl RotationChangelogEvent {
     }
 
     /// JSON-friendly metadata — rejects secret-shaped keys by construction.
+    #[must_use]
     pub fn metadata_json(&self) -> serde_json::Value {
         serde_json::json!({
             "event_type": self.event_type,
@@ -94,6 +95,7 @@ pub struct SecretRotation {
 }
 
 /// Returns None when include/exclude say to skip this entry.
+#[must_use]
 pub fn apply_secret_update(
     entry: &Entry,
     new_secret: Option<String>,
@@ -134,6 +136,7 @@ pub fn apply_secret_update(
 /// Rotate the first-line secret for a logical store path and produce changelog
 /// metadata (no secret values). Prefer this over calling [`apply_secret_update`]
 /// when emitting Host/bus changelog hooks.
+#[must_use]
 pub fn rotate_secret_entry(
     store_path: &str,
     entry: &Entry,

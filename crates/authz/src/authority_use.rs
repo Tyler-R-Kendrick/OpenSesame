@@ -1,4 +1,4 @@
-//! Custodian-style authority exercise: ConnectionRef + Intent — never SecretRef to agents.
+//! Custodian-style authority exercise: `ConnectionRef` + Intent — never `SecretRef` to agents.
 
 use crate::{
     AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSubject, AuthzError, PolicyEngine,
@@ -37,6 +37,10 @@ pub struct AuthorityUse<'a> {
 
 /// Enforce: reference ≠ capability; Level 3 export denied unless grant says so;
 /// L2 HTTP must satisfy egress binding.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn authorize_authority_use(
     engine: &PolicyEngine,
     use_: &AuthorityUse<'_>,
@@ -164,6 +168,10 @@ pub fn authorize_authority_use(
     }
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_no_secret_in_agent_payload(value: &serde_json::Value) -> Result<(), DomainError> {
     let s = value.to_string().to_lowercase();
     for banned in [
@@ -182,16 +190,18 @@ pub fn assert_no_secret_in_agent_payload(value: &serde_json::Value) -> Result<()
     Ok(())
 }
 
+#[must_use]
 pub fn github_binding(
     connection_ref: ConnectionRef,
     secret_logical: &str,
 ) -> ConnectionAuthorityBinding {
     let org = connection_ref.handle.organization_id;
+    let project = connection_ref.handle.project_id;
     ConnectionAuthorityBinding {
-        connection_ref: connection_ref.clone(),
+        connection_ref,
         internal_secret: Some(AuthorityHandle::secret_internal(
             org,
-            connection_ref.handle.project_id,
+            project,
             secret_logical,
         )),
         credential_handle: None,
@@ -236,7 +246,7 @@ mod tests {
                 authentication_max_age_seconds: None,
                 allowed_networks: vec![],
                 parameter_rules_digest: None,
-                budgets: Default::default(),
+                budgets: std::collections::BTreeMap::default(),
                 maximum_delegation_depth: 0,
                 offline_use: OfflineUse::Forbidden,
                 raw_credential_export: export,

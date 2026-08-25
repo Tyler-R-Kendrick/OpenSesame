@@ -30,6 +30,10 @@ pub struct AuthorityContext {
 }
 
 impl AuthorityContext {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_single_effective_principal(&self) -> Result<(), DomainError> {
         match self.mode {
             AuthorityContextMode::SinglePrincipal if self.principal_ids.len() == 1 => Ok(()),
@@ -47,6 +51,10 @@ impl AuthorityContext {
         }
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_same_context(&self, other: &Self) -> Result<(), DomainError> {
         if self.id != other.id {
             return Err(DomainError::AuthorityContextLocked);

@@ -94,7 +94,7 @@ pub fn platform_backend() -> Arc<dyn KeychainBackend> {
 
 #[cfg(target_os = "linux")]
 mod imp {
-    use super::*;
+    use super::{Arc, KeychainBackend, KeychainStore, ProbeError};
     use secret_service::blocking::SecretService;
     use secret_service::EncryptionType;
 
@@ -121,16 +121,13 @@ mod imp {
             let items = collection
                 .get_all_items()
                 .map_err(|e| ProbeError::Keychain(format!("secret-service items: {e}")))?;
-            let mut labels = Vec::new();
-            for item in items {
-                // Label only. Attribute *values* and the secret stay unread.
-                if let Ok(label) = item.get_label() {
-                    if !label.is_empty() {
-                        labels.push((KeychainStore::SecretService, label));
-                    }
-                }
-            }
-            Ok(labels)
+            // Label only. Attribute *values* and the secret stay unread.
+            Ok(items
+                .into_iter()
+                .filter_map(|item| item.get_label().ok())
+                .filter(|label| !label.is_empty())
+                .map(|label| (KeychainStore::SecretService, label))
+                .collect())
         }
     }
 

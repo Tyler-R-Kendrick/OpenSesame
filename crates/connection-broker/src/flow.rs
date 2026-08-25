@@ -23,6 +23,7 @@ pub struct Pkce {
 pub const CHALLENGE_METHOD: &str = "S256";
 
 impl Pkce {
+    #[must_use]
     pub fn generate() -> Self {
         let (challenge, verifier) = PkceCodeChallenge::new_random_sha256();
         Self {
@@ -34,6 +35,7 @@ impl Pkce {
     /// The challenge a verifier must produce, per RFC 7636 §4.2. Computed here
     /// rather than through `oauth2`, whose constructor panics on a verifier of the
     /// wrong length — this is also used to check verifiers we did not generate.
+    #[must_use]
     pub fn challenge_for(verifier: &str) -> String {
         use base64::Engine;
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
@@ -41,25 +43,28 @@ impl Pkce {
 }
 
 /// 32 bytes of CSPRNG output; a guessable `state` is a session-fixation hole.
+#[must_use]
 pub fn new_state() -> String {
     CsrfToken::new_random_len(32).secret().clone()
 }
 
 /// Mirrors the gateway's production check rather than importing the binary crate.
+#[must_use]
 pub fn is_production_env() -> bool {
     env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
         || env::var("NODE_ENV").ok().as_deref() == Some("production")
 }
 
 fn is_loopback(url: &Url) -> bool {
-    matches!(
-        url.host_str(),
-        Some("127.0.0.1") | Some("localhost") | Some("::1")
-    )
+    matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "::1"))
 }
 
 /// Tokens and codes only travel over TLS. Loopback is the single exception, and
 /// only outside production, so the bundled mock authorization server works.
+///
+/// # Errors
+///
+/// Returns an error for malformed or disallowed transport URLs.
 pub fn assert_transport_allowed(raw: &str) -> Result<Url> {
     let url = Url::parse(raw).map_err(|_| BrokerError::Invalid(format!("malformed url {raw}")))?;
     match url.scheme() {
@@ -72,6 +77,7 @@ pub fn assert_transport_allowed(raw: &str) -> Result<Url> {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct AuthorizeParams<'a> {
     pub client_id: &'a str,
     pub redirect_uri: &'a str,
@@ -80,24 +86,32 @@ pub struct AuthorizeParams<'a> {
     pub code_challenge: &'a str,
 }
 
+/// # Errors
+///
+/// Returns an error when the provider does not support authorization or its
+/// endpoint or redirect URI is invalid.
 pub fn build_authorize_url(
     provider: &Provider,
     config: &BrokerConfig,
     params: AuthorizeParams<'_>,
 ) -> Result<String> {
+    let AuthorizeParams {
+        client_id,
+        redirect_uri,
+        scopes,
+        state,
+        code_challenge,
+    } = params;
     if matches!(&provider.auth, AuthMethod::OpenRouterPkce { .. }) {
         let raw = config
             .authorize_url(provider)
             .ok_or_else(|| BrokerError::UnsupportedCredential(provider.id.to_string()))?;
         let mut url = assert_transport_allowed(&raw)?;
-        let mut callback =
-            Url::parse(params.redirect_uri).map_err(|_| BrokerError::RedirectNotAllowed)?;
-        callback
-            .query_pairs_mut()
-            .append_pair("state", params.state);
+        let mut callback = Url::parse(redirect_uri).map_err(|_| BrokerError::RedirectNotAllowed)?;
+        callback.query_pairs_mut().append_pair("state", state);
         url.query_pairs_mut()
             .append_pair("callback_url", callback.as_str())
-            .append_pair("code_challenge", params.code_challenge)
+            .append_pair("code_challenge", code_challenge)
             .append_pair("code_challenge_method", CHALLENGE_METHOD);
         return Ok(url.to_string());
     }
@@ -115,16 +129,13 @@ pub fn build_authorize_url(
     {
         let mut q = url.query_pairs_mut();
         q.append_pair("response_type", "code");
-        q.append_pair("client_id", params.client_id);
-        q.append_pair("redirect_uri", params.redirect_uri);
-        q.append_pair("state", params.state);
-        q.append_pair("code_challenge", params.code_challenge);
+        q.append_pair("client_id", client_id);
+        q.append_pair("redirect_uri", redirect_uri);
+        q.append_pair("state", state);
+        q.append_pair("code_challenge", code_challenge);
         q.append_pair("code_challenge_method", CHALLENGE_METHOD);
-        if !params.scopes.is_empty() {
-            q.append_pair(
-                "scope",
-                &params.scopes.join(provider.auth.scope_separator()),
-            );
+        if !scopes.is_empty() {
+            q.append_pair("scope", &scopes.join(provider.auth.scope_separator()));
         }
         for (k, v) in extra_authorize_params {
             q.append_pair(k, v);
@@ -133,6 +144,9 @@ pub fn build_authorize_url(
     Ok(url.to_string())
 }
 
+/// # Errors
+///
+/// Returns an error when the provider exchange is unsupported or fails.
 pub async fn exchange_code(
     http: &reqwest::Client,
     provider: &Provider,
@@ -213,6 +227,11 @@ fn parse_openrouter_key(body: &[u8]) -> Result<TokenResponse> {
 /// POSTs to the provider's token endpoint honouring its client authentication.
 /// The response body is never echoed into an error: on the success path it holds
 /// the tokens themselves.
+///
+/// # Errors
+///
+/// Returns an error for invalid transport, missing client configuration, or a
+/// failed or malformed provider response.
 pub async fn post_token_endpoint(
     http: &reqwest::Client,
     provider: &Provider,
@@ -286,6 +305,10 @@ pub async fn post_token_endpoint(
 
 /// Best-effort upstream revocation. A provider that refuses is recorded, not fatal:
 /// the connection is revoked here either way.
+///
+/// # Errors
+///
+/// Returns an error when revocation is unsupported, misconfigured, or refused.
 pub async fn revoke_upstream(
     http: &reqwest::Client,
     provider: &Provider,

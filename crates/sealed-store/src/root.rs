@@ -33,6 +33,10 @@ pub struct StoreRoot {
 }
 
 impl StoreRoot {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, StoreError> {
         let path = path.as_ref().to_path_buf();
         if !path.exists() {
@@ -43,6 +47,7 @@ impl StoreRoot {
 }
 
 /// Resolve store directory: `OPENSESAME_STORE_DIR` → `PASSWORD_STORE_DIR` → `~/.password-store`.
+#[must_use]
 pub fn resolve_store_dir() -> PathBuf {
     if let Ok(p) = std::env::var("OPENSESAME_STORE_DIR") {
         if !p.is_empty() {
@@ -54,9 +59,10 @@ pub fn resolve_store_dir() -> PathBuf {
             return PathBuf::from(p);
         }
     }
-    directories::UserDirs::new()
-        .map(|u| u.home_dir().join(".password-store"))
-        .unwrap_or_else(|| PathBuf::from(".password-store"))
+    directories::UserDirs::new().map_or_else(
+        || PathBuf::from(".password-store"),
+        |u| u.home_dir().join(".password-store"),
+    )
 }
 
 #[cfg(test)]

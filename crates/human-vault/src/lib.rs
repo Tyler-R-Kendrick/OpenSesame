@@ -38,7 +38,7 @@ pub enum VaultCryptoError {
     /// Unwrapped material was not a 32-byte key.
     #[error("unwrapped key had unexpected length")]
     KeyLength,
-    /// A stored nonce was not 24 bytes. XChaCha20's nonce type panics on any
+    /// A stored nonce was not 24 bytes. `XChaCha20`'s nonce type panics on any
     /// other length, and the envelope carrying it comes from a server we do not
     /// trust, so the length is checked rather than assumed.
     #[error("nonce had unexpected length")]
@@ -81,6 +81,7 @@ pub struct VaultRootKey(pub [u8; 32]);
 pub struct ItemDataKey(pub [u8; 32]);
 
 impl VaultRootKey {
+    #[must_use]
     pub fn generate() -> Self {
         let mut key = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut key);
@@ -89,6 +90,7 @@ impl VaultRootKey {
 }
 
 impl ItemDataKey {
+    #[must_use]
     pub fn generate() -> Self {
         let mut key = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut key);
@@ -96,11 +98,19 @@ impl ItemDataKey {
     }
 }
 
+///
+/// # Errors
+///
+/// Returns `Kdf` if the associated data cannot be serialized.
 pub fn ad_digest(ad: &AssociatedData) -> Result<String, VaultCryptoError> {
     let bytes = serde_json::to_vec(ad).map_err(|_| VaultCryptoError::Kdf)?;
     Ok(format!("blake3:{}", blake3::hash(&bytes).to_hex()))
 }
 
+///
+/// # Errors
+///
+/// Returns an error for an unsupported envelope version or encryption failure.
 pub fn encrypt_item(
     idk: &ItemDataKey,
     plaintext: &[u8],
@@ -131,6 +141,11 @@ pub fn encrypt_item(
     })
 }
 
+///
+/// # Errors
+///
+/// Returns an error when the envelope, associated data, nonce, or ciphertext
+/// fails validation.
 pub fn decrypt_item(
     idk: &ItemDataKey,
     envelope: &EncryptedEnvelope,
@@ -166,6 +181,11 @@ pub fn decrypt_item(
 }
 
 /// Decrypt only when the caller's independently reconstructed context matches.
+///
+/// # Errors
+///
+/// Returns an error when the expected associated data differs or decryption
+/// fails.
 pub fn decrypt_item_with_ad(
     idk: &ItemDataKey,
     envelope: &EncryptedEnvelope,
@@ -187,6 +207,10 @@ pub struct PasswordWrapper {
     pub nonce: String,
 }
 
+///
+/// # Errors
+///
+/// Returns an error when key derivation or authenticated encryption fails.
 pub fn wrap_vrk_with_password(
     password: &[u8],
     vrk: &VaultRootKey,
@@ -224,6 +248,11 @@ pub fn wrap_vrk_with_password(
 }
 
 /// Refuse KDF parameters outside the accepted band.
+///
+/// # Errors
+///
+/// Returns `KdfParamsOutOfRange` when any parameter is outside the accepted
+/// work band.
 pub fn assert_argon_params_accepted(m_kib: u32, t: u32, p: u32) -> Result<(), VaultCryptoError> {
     if !(MIN_ARGON_M_KIB..=MAX_ARGON_M_KIB).contains(&m_kib)
         || !(MIN_ARGON_T..=MAX_ARGON_T).contains(&t)
@@ -235,6 +264,11 @@ pub fn assert_argon_params_accepted(m_kib: u32, t: u32, p: u32) -> Result<(), Va
     Ok(())
 }
 
+///
+/// # Errors
+///
+/// Returns an error for unsafe KDF parameters, malformed wrapper data,
+/// authentication failure, or an invalid root-key length.
 pub fn unwrap_vrk_with_password(
     password: &[u8],
     wrapper: &PasswordWrapper,
@@ -255,30 +289,35 @@ pub fn unwrap_vrk_with_password(
     argon
         .hash_password_into(password, &salt, &mut ikm)
         .map_err(|_| VaultCryptoError::Kdf)?;
-    let mut kek = hkdf_expand(&ikm, b"opensesame/vault/vrk-wrap/v1")?;
+    let mut wrapping_key = hkdf_expand(&ikm, b"opensesame/vault/vrk-wrap/v1")?;
     ikm.zeroize();
-    let cipher = XChaCha20Poly1305::new_from_slice(&kek).map_err(|_| VaultCryptoError::Aead)?;
-    kek.zeroize();
+    let cipher =
+        XChaCha20Poly1305::new_from_slice(&wrapping_key).map_err(|_| VaultCryptoError::Aead)?;
+    wrapping_key.zeroize();
     let nonce = decode_nonce(&wrapper.nonce)?;
-    let wrapped = STANDARD
+    let wrapped_bytes = STANDARD
         .decode(&wrapper.wrapped_vrk)
         .map_err(|_| VaultCryptoError::Aead)?;
-    let mut key = cipher
-        .decrypt(XNonce::from_slice(&nonce), wrapped.as_ref())
+    let mut plaintext_vrk = cipher
+        .decrypt(XNonce::from_slice(&nonce), wrapped_bytes.as_ref())
         .map_err(|_| VaultCryptoError::Aead)?;
     // Authentic but wrong-sized material must be an error, not a panic on
     // `copy_from_slice`.
-    if key.len() != 32 {
-        key.zeroize();
+    if plaintext_vrk.len() != 32 {
+        plaintext_vrk.zeroize();
         return Err(VaultCryptoError::KeyLength);
     }
     let mut out = [0u8; 32];
-    out.copy_from_slice(&key);
-    key.zeroize();
+    out.copy_from_slice(&plaintext_vrk);
+    plaintext_vrk.zeroize();
     Ok(VaultRootKey(out))
 }
 
 /// PRF output must never leave the client. Derive KEK with domain separation.
+///
+/// # Errors
+///
+/// Returns `Kdf` when HKDF expansion fails.
 pub fn kek_from_webauthn_prf(
     prf_output: &[u8],
     public_salt: &[u8],
@@ -331,6 +370,12 @@ pub struct ChunkAd {
 }
 
 /// Derive the per-attachment content key.
+///
+/// # Panics
+///
+/// Panics only if a 32-byte HKDF-SHA256 expansion exceeds the algorithm's
+/// output bound, which it cannot for this fixed output size.
+#[must_use]
 pub fn derive_attachment_key(idk: &ItemDataKey, attachment_id: &[u8; 16]) -> AttachmentKey {
     let hk = Hkdf::<Sha256>::new(Some(attachment_id), &idk.0);
     let mut out = [0u8; 32];
@@ -342,12 +387,20 @@ pub fn derive_attachment_key(idk: &ItemDataKey, attachment_id: &[u8; 16]) -> Att
 }
 
 /// Digest of a chunk's associated data, used verbatim as the AEAD AAD.
+///
+/// # Errors
+///
+/// Returns `Kdf` if the chunk context cannot be serialized.
 pub fn chunk_ad_digest(ad: &ChunkAd) -> Result<String, VaultCryptoError> {
     let bytes = serde_json::to_vec(ad).map_err(|_| VaultCryptoError::Kdf)?;
     Ok(format!("blake3:{}", blake3::hash(&bytes).to_hex()))
 }
 
 /// Seal one plaintext chunk into a binary frame.
+///
+/// # Errors
+///
+/// Returns an error for invalid chunk context or encryption failure.
 pub fn seal_chunk(
     key: &AttachmentKey,
     plaintext: &[u8],
@@ -381,6 +434,11 @@ pub fn seal_chunk(
 
 /// Open a sealed chunk frame, requiring the caller's independently
 /// reconstructed context to match what was sealed.
+///
+/// # Errors
+///
+/// Returns an error for invalid chunk context, malformed framing, or
+/// authentication failure.
 pub fn open_chunk(
     key: &AttachmentKey,
     frame: &[u8],
@@ -414,7 +472,7 @@ pub fn open_chunk(
         .map_err(|_| VaultCryptoError::Aead)
 }
 
-/// Decode a stored nonce, refusing any length XChaCha20 would panic on.
+/// Decode a stored nonce, refusing any length `XChaCha20` would panic on.
 fn decode_nonce(encoded: &str) -> Result<[u8; 24], VaultCryptoError> {
     let bytes = STANDARD
         .decode(encoded)

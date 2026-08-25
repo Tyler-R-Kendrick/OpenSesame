@@ -52,6 +52,10 @@ pub struct Grant {
 }
 
 impl Grant {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_active(&self, now: DateTime<Utc>) -> Result<(), DomainError> {
         if self.revoked_at.is_some() {
             return Err(DomainError::GrantRevoked);
@@ -73,6 +77,7 @@ impl Grant {
     /// repository would authorize the same action anywhere. `*` covers everything
     /// and a trailing `/*` or `:*` covers a segment-bounded subtree — a bare
     /// prefix never widens, and an empty list covers nothing.
+    #[must_use]
     pub fn permits_resource(&self, resource: &str) -> bool {
         self.resources
             .iter()
@@ -80,6 +85,10 @@ impl Grant {
     }
 
     /// Child grants may only attenuate authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn validate_attenuation(parent: &Grant, child: &Grant) -> Result<(), DomainError> {
         if child.organization_id != parent.organization_id {
             return Err(DomainError::OrganizationMismatch);
@@ -213,6 +222,7 @@ impl Grant {
 
 /// Inclusive-start, exclusive-end validity window. Extracted so Kani can
 /// check the clock arithmetic without constructing a full [`Grant`].
+#[must_use]
 pub fn interval_contains(
     now: DateTime<Utc>,
     not_before: Option<DateTime<Utc>>,
@@ -228,6 +238,7 @@ pub fn interval_contains(
 
 /// Match a grant resource pattern. Wildcards keep their separator so
 /// `repo:acme/*` cannot reach `repo:acme-private/secrets`.
+#[must_use]
 pub fn resource_pattern_matches(pattern: &str, resource: &str) -> bool {
     if pattern == "*" {
         return true;

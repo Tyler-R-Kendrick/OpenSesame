@@ -28,7 +28,7 @@ fn run() -> Result<(), HelperError> {
             print!("{}", docker_protocol::render_empty_list());
             Ok(())
         }
-        Some("store") | Some("erase") => Ok(()),
+        Some("store" | "erase") => Ok(()),
         _ => Err(HelperError::Unconfigured(
             "usage: docker-credential-opensesame get|list|store|erase",
         )),

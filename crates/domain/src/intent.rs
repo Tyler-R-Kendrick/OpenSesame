@@ -40,11 +40,19 @@ pub struct Intent {
 }
 
 impl Intent {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn parameters_hash(parameters: &Value) -> Result<String, DomainError> {
         let bytes = canonicalize_json(parameters)?;
         Ok(digest_sha256(&bytes))
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_fresh(&self, now: DateTime<Utc>) -> Result<(), DomainError> {
         if now >= self.expires_at || now < self.issued_at {
             return Err(DomainError::GrantTimeWindow);
@@ -52,6 +60,10 @@ impl Intent {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn digest(&self) -> Result<String, DomainError> {
         let v =
             serde_json::to_value(self).map_err(|e| DomainError::Canonicalization(e.to_string()))?;

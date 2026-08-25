@@ -67,7 +67,7 @@ enum Commands {
     ApproveClaim {
         #[arg(long)]
         claim_id: String,
-        /// The osc_clm_… claim bearer. Required: a claim id is public, and
+        /// The `osc_clm_…` claim bearer. Required: a claim id is public, and
         /// nothing attaches ownership on the strength of one. Prefer the
         /// environment variable so it stays out of shell history and `ps`.
         #[arg(long, env = "OPENSESAME_CLAIM_TOKEN", hide_env_values = true)]
@@ -79,139 +79,185 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
+    run(Cli::parse()).await
+}
+
+async fn run(cli: Cli) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     let base = cli.daemon.trim_end_matches('/');
     assert_daemon_url_allowed(base).map_err(anyhow::Error::msg)?;
     let operator = cli.operator_token.as_deref();
     let had_token = operator.is_some_and(|t| !t.is_empty());
     match cli.cmd {
-        Commands::Health => {
-            let resp = client.get(format!("{base}/health")).send().await;
-            match resp {
-                Ok(r) => print_json_or_text(r.text().await?).await?,
-                Err(e) => {
-                    eprintln!("daemon unreachable at {base}: {e}");
-                    std::process::exit(1);
-                }
-            }
-        }
-        Commands::Status => {
-            let resp = match as_operator(client.get(format!("{base}/v1/toolbar/status")), operator)
-                .send()
-                .await
-            {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!("daemon unreachable at {base}: {e}");
-                    std::process::exit(1);
-                }
-            };
-            if !resp.status().is_success() {
-                let status = resp.status();
-                // A refused status says nothing about the daemon's age, so do not
-                // call it legacy: report what it was.
-                if status == reqwest::StatusCode::UNAUTHORIZED
-                    || status == reqwest::StatusCode::SERVICE_UNAVAILABLE
-                {
-                    let body = resp.text().await.unwrap_or_default();
-                    eprintln!(
-                        "status refused ({status}): {body}{}",
-                        operator_hint(status, had_token)
-                    );
-                    std::process::exit(1);
-                }
-                let health = client
-                    .get(format!("{base}/health"))
-                    .send()
-                    .await?
-                    .text()
-                    .await?;
-                println!(
-                    "{}",
-                    serde_json::to_string_pretty(&json!({
-                        "daemon": "legacy_or_partial",
-                        "health": health.trim(),
-                    }))?
-                );
-                return Ok(());
-            }
-            let v: Value = resp.json().await?;
-            println!("{}", serde_json::to_string_pretty(&v)?);
-        }
+        Commands::Health => health(&client, base).await?,
+        Commands::Status => status(&client, base, operator, had_token).await?,
         Commands::ApproveDevice {
             user_code,
             principal,
-        } => {
-            let resp = match as_operator(
-                client
-                    .post(format!("{base}/v1/toolbar/approve_device"))
-                    .json(&json!({ "user_code": user_code, "principal": principal })),
-                operator,
-            )
-            .send()
-            .await
-            {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!("authorize CLI failed — daemon unreachable at {base}: {e}");
-                    std::process::exit(1);
-                }
-            };
-            if !resp.status().is_success() {
-                let status = resp.status();
-                let body = resp.text().await.unwrap_or_default();
-                eprintln!(
-                    "authorize CLI failed ({status}): {body}{}",
-                    operator_hint(status, had_token)
-                );
-                std::process::exit(1);
-            }
-            let v: Value = resp.json().await?;
-            println!("{}", serde_json::to_string_pretty(&v)?);
-        }
+        } => approve_device(&client, base, operator, had_token, user_code, principal).await?,
         Commands::ApproveClaim {
             claim_id,
             claim_token,
             access_token,
         } => {
-            let mut body = json!({ "claim_id": claim_id, "claim_token": claim_token });
-            if let Some(tok) = access_token {
-                body["access_token"] = json!(tok);
-            }
-            let resp = match as_operator(
-                client
-                    .post(format!("{base}/v1/toolbar/approve_claim"))
-                    .json(&body),
+            approve_claim(
+                &client,
+                base,
                 operator,
+                had_token,
+                claim_id,
+                claim_token,
+                access_token,
             )
-            .send()
-            .await
-            {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!("complete claim failed — daemon unreachable at {base}: {e}");
-                    std::process::exit(1);
-                }
-            };
-            if !resp.status().is_success() {
-                let status = resp.status();
-                let text = resp.text().await.unwrap_or_default();
-                eprintln!(
-                    "complete claim failed ({status}): {text}{}",
-                    operator_hint(status, had_token)
-                );
-                std::process::exit(1);
-            }
-            let v: Value = resp.json().await?;
-            println!("{}", serde_json::to_string_pretty(&v)?);
+            .await?;
         }
     }
     Ok(())
 }
 
-async fn print_json_or_text(text: String) -> anyhow::Result<()> {
-    match serde_json::from_str::<Value>(&text) {
+async fn health(client: &reqwest::Client, base: &str) -> anyhow::Result<()> {
+    match client.get(format!("{base}/health")).send().await {
+        Ok(response) => print_json_or_text(&response.text().await?),
+        Err(error) => {
+            eprintln!("daemon unreachable at {base}: {error}");
+            std::process::exit(1);
+        }
+    }
+}
+
+async fn status(
+    client: &reqwest::Client,
+    base: &str,
+    operator: Option<&str>,
+    had_token: bool,
+) -> anyhow::Result<()> {
+    let response = match as_operator(client.get(format!("{base}/v1/toolbar/status")), operator)
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            eprintln!("daemon unreachable at {base}: {error}");
+            std::process::exit(1);
+        }
+    };
+    if response.status().is_success() {
+        let value: Value = response.json().await?;
+        println!("{}", serde_json::to_string_pretty(&value)?);
+        return Ok(());
+    }
+
+    let response_status = response.status();
+    // A refused status says nothing about the daemon's age, so do not call it
+    // legacy: report what it was.
+    if matches!(
+        response_status,
+        reqwest::StatusCode::UNAUTHORIZED | reqwest::StatusCode::SERVICE_UNAVAILABLE
+    ) {
+        let body = response.text().await.unwrap_or_default();
+        eprintln!(
+            "status refused ({response_status}): {body}{}",
+            operator_hint(response_status, had_token)
+        );
+        std::process::exit(1);
+    }
+    let health = client
+        .get(format!("{base}/health"))
+        .send()
+        .await?
+        .text()
+        .await?;
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&json!({
+            "daemon": "legacy_or_partial",
+            "health": health.trim(),
+        }))?
+    );
+    Ok(())
+}
+
+async fn approve_device(
+    client: &reqwest::Client,
+    base: &str,
+    operator: Option<&str>,
+    had_token: bool,
+    user_code: String,
+    principal: String,
+) -> anyhow::Result<()> {
+    let response = match as_operator(
+        client
+            .post(format!("{base}/v1/toolbar/approve_device"))
+            .json(&json!({ "user_code": user_code, "principal": principal })),
+        operator,
+    )
+    .send()
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            eprintln!("authorize CLI failed — daemon unreachable at {base}: {error}");
+            std::process::exit(1);
+        }
+    };
+    if !response.status().is_success() {
+        let response_status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        eprintln!(
+            "authorize CLI failed ({response_status}): {body}{}",
+            operator_hint(response_status, had_token)
+        );
+        std::process::exit(1);
+    }
+    let value: Value = response.json().await?;
+    println!("{}", serde_json::to_string_pretty(&value)?);
+    Ok(())
+}
+
+async fn approve_claim(
+    client: &reqwest::Client,
+    base: &str,
+    operator: Option<&str>,
+    had_token: bool,
+    claim_id: String,
+    claim_token: String,
+    access_token: Option<String>,
+) -> anyhow::Result<()> {
+    let mut body = json!({ "claim_id": claim_id, "claim_token": claim_token });
+    if let Some(token) = access_token {
+        body["access_token"] = json!(token);
+    }
+    let response = match as_operator(
+        client
+            .post(format!("{base}/v1/toolbar/approve_claim"))
+            .json(&body),
+        operator,
+    )
+    .send()
+    .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            eprintln!("complete claim failed — daemon unreachable at {base}: {error}");
+            std::process::exit(1);
+        }
+    };
+    if !response.status().is_success() {
+        let response_status = response.status();
+        let text = response.text().await.unwrap_or_default();
+        eprintln!(
+            "complete claim failed ({response_status}): {text}{}",
+            operator_hint(response_status, had_token)
+        );
+        std::process::exit(1);
+    }
+    let value: Value = response.json().await?;
+    println!("{}", serde_json::to_string_pretty(&value)?);
+    Ok(())
+}
+
+fn print_json_or_text(text: &str) -> anyhow::Result<()> {
+    match serde_json::from_str::<Value>(text) {
         Ok(v) => println!("{}", serde_json::to_string_pretty(&v)?),
         Err(_) => println!("{}", json!({"status": text.trim()})),
     }

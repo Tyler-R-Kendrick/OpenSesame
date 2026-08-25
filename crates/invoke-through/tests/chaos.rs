@@ -25,7 +25,7 @@ const CANARY: &str = "CANARY-TOKEN-chaos-never-leaks";
 const DEADLINE: Duration = Duration::from_secs(10);
 
 /// Executor timeout for the chaos invoker — short, so a Stall case is fast
-/// while still an order of magnitude above the SlowDrip cadence.
+/// while still an order of magnitude above the `SlowDrip` cadence.
 const EXECUTOR_TIMEOUT: Duration = Duration::from_millis(300);
 
 fn loopback_invoker() -> Invoker {

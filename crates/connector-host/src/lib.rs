@@ -1,4 +1,4 @@
-//! Prefer ConnectionRef + Intent. SecretRef is internal under the connection broker.
+//! Prefer `ConnectionRef` + Intent. `SecretRef` is internal under the connection broker.
 //!
 //! Host capabilities: authorized HTTP / sign / opaque token handles.
 //! There is no secrets.get path for guests.
@@ -76,6 +76,10 @@ impl Default for HostPolicy {
     }
 }
 
+/// # Errors
+///
+/// Returns an error when a required signature is absent or the component
+/// digest is not trusted.
 pub fn assert_component_trusted(
     policy: &HostPolicy,
     digest: &str,
@@ -90,6 +94,10 @@ pub fn assert_component_trusted(
     Ok(())
 }
 
+/// # Errors
+///
+/// Returns an error when the URL is invalid, non-HTTPS, private, or outside
+/// the configured egress policy.
 pub fn assert_destination_allowed(policy: &HostPolicy, raw_url: &str) -> Result<(), HostError> {
     let url = Url::parse(raw_url).map_err(|_| HostError::DestinationDenied(raw_url.into()))?;
     if url.scheme() != "https" {
@@ -112,6 +120,7 @@ pub fn assert_destination_allowed(policy: &HostPolicy, raw_url: &str) -> Result<
 /// Literals are parsed rather than prefix-matched: `2130706433` and
 /// `::ffff:127.0.0.1` are both 127.0.0.1, and `fcbank.example.com` is not a
 /// unique-local address just because it starts with `fc`.
+#[must_use]
 pub fn is_blocked_host(host: &str) -> bool {
     let h = host.trim().to_lowercase();
     let h = h.trim_start_matches('[').trim_end_matches(']');
@@ -163,7 +172,7 @@ fn parse_inet_aton(h: &str) -> Option<Ipv4Addr> {
         raw = (raw << 8) | value;
     }
     // With n parts the last one covers the remaining 4 - (n - 1) bytes.
-    let trailing_bits = 8 * (4 - last_index as u32);
+    let trailing_bits = 8 * (4 - u32::try_from(last_index).ok()?);
     let last = values[last_index];
     if last >= (1u64 << trailing_bits) {
         return None;
@@ -244,7 +253,7 @@ fn is_blocked_v6(ip: Ipv6Addr) -> bool {
 
 /// The v4 address carried by a NAT64 or 6to4 address, if any.
 fn embedded_v4(seg: [u16; 8]) -> Option<Ipv4Addr> {
-    let from_pair = |hi: u16, lo: u16| Ipv4Addr::from(((hi as u32) << 16) | lo as u32);
+    let from_pair = |hi: u16, lo: u16| Ipv4Addr::from((u32::from(hi) << 16) | u32::from(lo));
     if seg[0] == 0x0064 && seg[1] == 0xff9b && seg[2..6] == [0, 0, 0, 0] {
         return Some(from_pair(seg[6], seg[7]));
     }
@@ -278,21 +287,28 @@ pub trait Connector: Send + Sync {
     fn version(&self) -> &str;
     fn component_digest(&self) -> &str;
     fn operations(&self) -> &[&str];
+    /// # Errors
+    ///
+    /// Returns an error when the request fails connector validation or execution.
     fn invoke(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError>;
 }
 
 /// Deterministic mock connector — no external network; never returns secret bytes.
 pub struct MockConnector;
 
+const MOCK_CONNECTOR_ID: &str = "mock";
+const MOCK_CONNECTOR_VERSION: &str = "1.0.0";
+const MOCK_CONNECTOR_DIGEST: &str = "sha256:mock-connector";
+
 impl Connector for MockConnector {
     fn id(&self) -> &str {
-        "mock"
+        MOCK_CONNECTOR_ID
     }
     fn version(&self) -> &str {
-        "1.0.0"
+        MOCK_CONNECTOR_VERSION
     }
     fn component_digest(&self) -> &str {
-        "sha256:mock-connector"
+        MOCK_CONNECTOR_DIGEST
     }
     fn operations(&self) -> &[&str] {
         &[
@@ -346,11 +362,19 @@ impl Connector for MockConnector {
     }
 }
 
+#[must_use]
+/// # Panics
+///
+/// Panics only if `serde_json::Value` cannot be canonically serialized.
 pub fn opensesame_param_digest(parameters: &Value) -> String {
     opensesame_domain::Intent::parameters_hash(parameters).expect("canonical parameters")
 }
 
 /// Host-mediated authorized HTTP — injects credentials; enforces egress; no secret to guest.
+///
+/// # Errors
+///
+/// Returns an error when the invoke level or destination policy denies the request.
 pub fn authorized_http_request(
     policy: &HostPolicy,
     level: InvokeLevel,
@@ -373,6 +397,9 @@ pub fn authorized_http_request(
     }))
 }
 
+/// # Errors
+///
+/// Returns an error when the redirect violates the egress policy.
 pub fn follow_redirect_with_credential(
     policy: &HostPolicy,
     from: &str,
@@ -397,6 +424,10 @@ pub struct SubstitutePlaceholderRequest<'a> {
     pub real_secret: &'a str,
 }
 
+/// # Errors
+///
+/// Returns an error when the destination, placeholder identity, or placement
+/// violates the projection policy.
 pub fn substitute_placeholder(
     egress: &EgressBinding,
     placement: &PlaceholderPlacement,
@@ -472,7 +503,7 @@ pub struct HostRuntime {
     pub policy: HostPolicy,
     connectors: HashMap<String, Arc<dyn Connector>>,
     connection_connectors: HashMap<String, String>,
-    /// connection_ref URI → what this host resolved for it.
+    /// `connection_ref` URI → what this host resolved for it.
     pub connections: std::collections::HashMap<String, HostConnection>,
 }
 
@@ -510,6 +541,9 @@ impl Default for HostRuntime {
 }
 
 impl HostRuntime {
+    /// # Errors
+    ///
+    /// Returns an error when a connector with the same identifier is registered.
     pub fn register_connector(&mut self, connector: Arc<dyn Connector>) -> Result<(), HostError> {
         let id = connector.id().to_owned();
         if self.connectors.contains_key(&id) {
@@ -521,6 +555,9 @@ impl HostRuntime {
         Ok(())
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the connector identifier is not registered.
     pub fn bind_connection(
         &mut self,
         connection_id: impl Into<String>,
@@ -536,11 +573,16 @@ impl HostRuntime {
         Ok(())
     }
 
+    #[must_use]
     pub fn component_digest(&self, connection_id: &str) -> Option<&str> {
         self.connector(connection_id)
-            .map(|connector| connector.component_digest())
+            .map(Connector::component_digest)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when trust, destination, invoke-level, operation, or
+    /// connector validation fails.
     pub fn invoke(
         &self,
         connection_id: &str,
@@ -555,12 +597,11 @@ impl HostRuntime {
         assert_component_trusted(&self.policy, connector.component_digest(), true)?;
         let level = req
             .invoke_level
-            .map(|n| match n {
+            .map_or(InvokeLevel::TypedOperation, |n| match n {
                 1 => InvokeLevel::TypedOperation,
                 2 => InvokeLevel::ConstrainedHttp,
                 _ => InvokeLevel::Materialize,
-            })
-            .unwrap_or(InvokeLevel::TypedOperation);
+            });
         // Materialize / resolve is denied at the host boundary before mock execution.
         // Prefer MaterializeDenied over InvokeLevelDenied so agents cannot confuse
         // "raise connection max" with "export is allowed".
@@ -676,6 +717,10 @@ pub mod wasm_guest {
     }
 
     /// Validate a prospective guest import set before Wasmtime instantiation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an import would expose secret materialization.
     pub fn assert_imports_safe(
         import_names: &[&str],
         policy: &WasmGuestPolicy,
@@ -694,6 +739,10 @@ pub mod wasm_guest {
     }
 
     /// Placeholder load path — real Wasmtime component linking lands behind compile feature.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the guest import set is unsafe.
     pub fn prepare_guest(_path: &Path, imports: &[&str]) -> Result<(), HostError> {
         assert_imports_safe(imports, &WasmGuestPolicy::default())?;
         Ok(())
@@ -1022,6 +1071,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one cohesive adversarial matrix documents placeholder binding invariants"
+    )]
     fn placeholder_header_ok_body_denied() {
         use opensesame_domain::{CredentialDeliveryMode, LegacyProjection, PlaceholderPlacement};
         let egress = EgressBinding {

@@ -65,6 +65,10 @@ pub struct CeilingCompilation {
 }
 
 impl CeilingCompilation {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn compile(inputs: Vec<CeilingInput>, now: DateTime<Utc>) -> Result<Self, DomainError> {
         if inputs.is_empty() {
             return Err(DomainError::TaskCeilingEmpty);
@@ -88,7 +92,7 @@ impl CeilingCompilation {
 pub enum RatchetRule {
     /// Removing a selector requires mediation acknowledgement.
     RestrictRequiresAck { mediation_point_id: String },
-    /// Credential renewal may not exceed maximum_expires_at.
+    /// Credential renewal may not exceed `maximum_expires_at`.
     CredentialRenewalBounded,
 }
 
@@ -117,6 +121,10 @@ pub struct CapabilityStateTransition {
 }
 
 impl TaskRun {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn compute_state_digest(&self) -> Result<String, DomainError> {
         let snapshot = serde_json::json!({
             "task_run_id": self.id,
@@ -128,6 +136,10 @@ impl TaskRun {
         crate::digest_json(&snapshot)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_active(&self) -> Result<(), DomainError> {
         if self.status != TaskRunStatus::Active && self.status != TaskRunStatus::Restricting {
             return Err(DomainError::TaskNotActive);
@@ -137,6 +149,10 @@ impl TaskRun {
 
     /// Task authority is time-boxed: `maximum_expires_at` is a hard ceiling on
     /// every capability assertion, not merely on credential renewal.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_not_expired(&self, now: DateTime<Utc>) -> Result<(), DomainError> {
         if now > self.maximum_expires_at {
             return Err(DomainError::TaskExpired);
@@ -145,6 +161,10 @@ impl TaskRun {
     }
 
     /// Fail closed: proposed capabilities must be subset of current (no widen).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn validate_restriction(&self, proposed: &CapabilitySet) -> Result<(), DomainError> {
         if !proposed.is_subset_of(&self.current_capabilities) {
             return Err(DomainError::CapabilityWidenForbidden);
@@ -155,6 +175,10 @@ impl TaskRun {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_state_version(&self, expected: u64) -> Result<(), DomainError> {
         if self.state_version != expected {
             return Err(DomainError::TaskStateVersionMismatch {

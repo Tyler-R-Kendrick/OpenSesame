@@ -37,6 +37,10 @@ pub struct ProtectedResource {
 }
 
 impl ProtectedResource {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_capabilities(&self, held: &CapabilitySet) -> Result<(), DomainError> {
         if !self.required_capabilities.is_subset_of(held) {
             return Err(DomainError::AuthorizationDenied(

@@ -8,6 +8,7 @@ type HmacSha256 = Hmac<Sha256>;
 /// Verify GitHub's `sha256=<hex>` signature header against `body` and `secret`.
 ///
 /// Constant-time compare on the MAC bytes. Missing/malformed headers fail closed.
+#[must_use]
 pub fn verify_hub_signature_256(secret: &str, body: &[u8], signature_header: &str) -> bool {
     let Some(hex) = signature_header
         .strip_prefix("sha256=")
@@ -34,6 +35,7 @@ pub fn verify_hub_signature_256(secret: &str, body: &[u8], signature_header: &st
 }
 
 /// Compute `sha256=<hex>` for tests and fuzz oracles.
+#[must_use]
 pub fn sign_hub_signature_256(secret: &str, body: &[u8]) -> Option<String> {
     let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).ok()?;
     mac.update(body);

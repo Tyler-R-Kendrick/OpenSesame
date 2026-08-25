@@ -38,6 +38,7 @@ pub struct DevicePollState {
 }
 
 impl DevicePollState {
+    #[must_use]
     pub fn new(auth: &DeviceAuthorization) -> Self {
         Self {
             interval_seconds: auth.interval_seconds.max(1),
@@ -50,6 +51,10 @@ impl DevicePollState {
         self.interval_seconds = self.interval_seconds.saturating_add(5);
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn next_action(
         &mut self,
         now: DateTime<Utc>,
@@ -88,6 +93,7 @@ pub enum DevicePollOutcome {
     Complete,
 }
 
+#[must_use]
 pub fn hash_device_code_for_tests_only(code: &str) -> String {
     let mut h = Sha256::new();
     h.update(code.as_bytes());
@@ -112,6 +118,7 @@ mod hex {
 /// prefix comparison is not enough: `https://issuer.example.evil.test/device`
 /// starts with `https://issuer.example` and would send the approval ceremony to
 /// an attacker.
+#[must_use]
 pub fn validate_verification_uri_complete(complete: &str, issuer_origin: &str) -> Option<String> {
     let candidate = url::Url::parse(complete).ok()?;
     let issuer = url::Url::parse(issuer_origin).ok()?;
@@ -139,6 +146,7 @@ pub fn validate_verification_uri_complete(complete: &str, issuer_origin: &str) -
     Some(complete.to_string())
 }
 
+#[must_use]
 pub fn demo_device_authorization(issuer_origin: &str) -> DeviceAuthorization {
     DeviceAuthorization {
         device_code: "IN_MEMORY_ONLY_DEVICE_CODE".into(),

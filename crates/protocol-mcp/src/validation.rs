@@ -3,6 +3,10 @@ use opensesame_domain::ProtectedResource;
 use url::Url;
 
 /// Validate token audience matches the protected resource audience.
+///
+/// # Errors
+///
+/// Returns an error when the token audience differs from the resource audience.
 pub fn validate_audience(
     token_audience: &str,
     resource: &ProtectedResource,
@@ -24,6 +28,11 @@ pub fn validate_audience(
 /// scheme/host/port would let a token minted for one tenant's resource pass the
 /// resource check for its neighbour, so a path-scoped audience confines the
 /// request to that path, at segment boundaries.
+///
+/// # Errors
+///
+/// Returns an error for malformed URLs, ambiguous user information, origin
+/// mismatch, or a request outside the audience path.
 pub fn validate_resource_uri(
     request_uri: &str,
     resource: &ProtectedResource,

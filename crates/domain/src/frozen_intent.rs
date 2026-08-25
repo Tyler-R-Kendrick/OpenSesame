@@ -56,6 +56,10 @@ fn default_uncomputed_digest() -> String {
 }
 
 impl FrozenIntentV2 {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn canonical_bytes(&self) -> Result<Vec<u8>, DomainError> {
         let payload = FrozenIntentCanonicalPayload {
             schema_version: self.schema_version,
@@ -88,6 +92,10 @@ impl FrozenIntentV2 {
     }
 
     /// Domain-separated digest: `OpenSesame/FrozenIntent/v2\0 || canonical bytes`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn compute_digest(&self) -> Result<String, DomainError> {
         let mut buf = Vec::with_capacity(FROZEN_INTENT_V2_DOMAIN.len() + 256);
         buf.extend_from_slice(FROZEN_INTENT_V2_DOMAIN);
@@ -96,11 +104,19 @@ impl FrozenIntentV2 {
     }
 
     /// Returns a copy with `intent_digest` populated from computation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn with_computed_digest(mut self) -> Result<Self, DomainError> {
         self.intent_digest = self.compute_digest()?;
         Ok(self)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_fresh(&self, now: DateTime<Utc>) -> Result<(), DomainError> {
         if now >= self.expires_at || now < self.issued_at {
             return Err(DomainError::GrantTimeWindow);
@@ -108,6 +124,10 @@ impl FrozenIntentV2 {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_digest(&self) -> Result<(), DomainError> {
         let computed = self.compute_digest()?;
         if self.intent_digest.is_empty() {
@@ -148,6 +168,7 @@ struct FrozenIntentCanonicalPayload {
 
 impl Intent {
     /// Documents that legacy V1 intents are not task-secured.
+    #[must_use]
     pub fn compatibility_notes(&self) -> LegacyIntentCompatibility {
         LegacyIntentCompatibility {
             source_intent_id: self.id,
@@ -159,6 +180,10 @@ impl Intent {
 
 impl FrozenIntentV2 {
     /// Explicit migration from legacy Intent — does NOT silently upgrade security posture.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_legacy(
         legacy: &Intent,
         task_run_id: TaskRunId,

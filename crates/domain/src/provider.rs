@@ -84,11 +84,19 @@ pub struct ConnectionRecord {
 }
 
 impl ConnectionRecord {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_public_config_safe(&self) -> Result<(), String> {
         assert_public_config_safe(&self.public_config)
     }
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_public_config_safe(value: &Value) -> Result<(), String> {
     const DENIED_EXACT: &[&str] = &["accesskey", "apikey", "privatekey", "credential"];
     match value {
@@ -96,7 +104,7 @@ pub fn assert_public_config_safe(value: &Value) -> Result<(), String> {
             for (key, value) in values {
                 let normalized: String = key
                     .chars()
-                    .filter(|c| c.is_ascii_alphanumeric())
+                    .filter(char::is_ascii_alphanumeric)
                     .flat_map(char::to_lowercase)
                     .collect();
                 if DENIED_EXACT.contains(&normalized.as_str())

@@ -1,6 +1,6 @@
 //! Tenant GitHub App provisioning via the GitHub App Manifest flow.
 //!
-//! Operators never paste client id/secret by hand: OpenSesame posts a manifest,
+//! Operators never paste client id/secret by hand: `OpenSesame` posts a manifest,
 //! GitHub creates the app under the operator's account, and the Host seals the
 //! resulting credentials as an organization integration (ADR 0035).
 
@@ -15,6 +15,7 @@ pub const GITHUB_APP_REGISTER_URL: &str = "https://github.com/settings/apps/new"
 pub const GITHUB_APP_MANIFEST_CONVERSIONS: &str = "https://api.github.com/app-manifests";
 
 /// GitHub App client ids are `Iv1.` / `Iv23`… Classic OAuth apps use other forms.
+#[must_use]
 pub fn is_github_app_client_id(client_id: &str) -> bool {
     let id = client_id.trim();
     id.starts_with("Iv1.") || id.starts_with("Iv23")
@@ -25,6 +26,7 @@ pub fn is_github_app_client_id(client_id: &str) -> bool {
 /// Classic OAuth `scope=repo` does **not** map onto GitHub App Administration.
 /// These fine-grained permissions are what the Manifest registers on the App and
 /// what user-to-server Authorize must grant (by omitting classic `scope=`).
+#[must_use]
 pub fn history_app_permissions() -> Value {
     json!({
         // List repos + identify the account.
@@ -41,8 +43,9 @@ pub fn history_app_permissions() -> Value {
 }
 
 /// Integration scope ceiling stored for GitHub App credentials.
-/// Classic-looking names so Pages / require_scope_subset keep working; Authorize
+/// Classic-looking names so Pages / `require_scope_subset` keep working; Authorize
 /// for GitHub Apps still omits `scope=` so the App permissions above are used.
+#[must_use]
 pub fn history_integration_scopes() -> Vec<String> {
     vec![
         "read:user".into(),
@@ -56,34 +59,33 @@ fn public_url_is_loopback(public_url: &str) -> bool {
     let Ok(url) = url::Url::parse(public_url) else {
         return false;
     };
-    matches!(
-        url.host_str(),
-        Some("127.0.0.1") | Some("localhost") | Some("::1")
-    )
+    matches!(url.host_str(), Some("127.0.0.1" | "localhost" | "::1"))
 }
 
 /// Loopback Hosts accept OAuth callbacks on both `127.0.0.1` and `localhost`
-/// so Pages (often on `localhost`) and the Host public_url stay interchangeable.
+/// so Pages (often on `localhost`) and the Host `public_url` stay interchangeable.
 fn oauth_callback_urls(config: &BrokerConfig) -> Vec<String> {
     let primary = config.callback_url("github");
     let mut urls = vec![primary.clone()];
     if !public_url_is_loopback(config.public_url()) {
         return urls;
     }
-    if let Ok(mut url) = url::Url::parse(&primary) {
-        let alt_host = match url.host_str() {
-            Some("127.0.0.1") => Some("localhost"),
-            Some("localhost") => Some("127.0.0.1"),
-            _ => None,
-        };
-        if let Some(host) = alt_host {
-            if url.set_host(Some(host)).is_ok() {
-                let alt = url.to_string();
-                if alt != primary {
-                    urls.push(alt);
-                }
-            }
-        }
+    let Ok(mut url) = url::Url::parse(&primary) else {
+        return urls;
+    };
+    let Some(host) = (match url.host_str() {
+        Some("127.0.0.1") => Some("localhost"),
+        Some("localhost") => Some("127.0.0.1"),
+        _ => None,
+    }) else {
+        return urls;
+    };
+    if url.set_host(Some(host)).is_err() {
+        return urls;
+    }
+    let alternate = url.to_string();
+    if alternate != primary {
+        urls.push(alternate);
     }
     urls
 }
@@ -98,6 +100,7 @@ fn oauth_callback_urls(config: &BrokerConfig) -> Vec<String> {
 /// `redirect_url` is the Manifest conversion callback on the Host.
 /// `setup_url` is where GitHub sends the operator after **Install App**
 /// (Pages Settings) — it must not be the conversion callback (needs `state`).
+#[must_use]
 pub fn build_manifest(
     config: &BrokerConfig,
     display_name: &str,
@@ -156,6 +159,11 @@ pub struct GithubAppCredentials {
 }
 
 /// Exchange the temporary manifest `code` for app credentials.
+///
+/// # Errors
+///
+/// Returns an error for an empty code, transport failure, rejected conversion,
+/// or malformed GitHub response.
 pub async fn convert_manifest_code(
     http: &reqwest::Client,
     code: &str,

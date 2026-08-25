@@ -40,14 +40,17 @@ impl std::fmt::Debug for TokenSet {
 }
 
 impl TokenSet {
+    #[must_use]
     pub fn refreshable(&self) -> bool {
         self.refresh_token.is_some()
     }
 
+    #[must_use]
     pub fn expired(&self, now: DateTime<Utc>) -> bool {
         self.expires_at.is_some_and(|e| now >= e)
     }
 
+    #[must_use]
     pub fn needs_refresh(&self, now: DateTime<Utc>) -> bool {
         match self.expires_at {
             Some(expiry) => now + Duration::seconds(REFRESH_SKEW_SECONDS) >= expiry,
@@ -118,6 +121,9 @@ impl TokenResponse {
 }
 
 impl TokenResponse {
+    /// # Errors
+    ///
+    /// Returns an error when the provider's lifetime is invalid or overflows.
     pub fn into_token_set(
         &self,
         now: DateTime<Utc>,
@@ -163,8 +169,7 @@ impl TokenResponse {
                 .scope
                 .as_deref()
                 .filter(|scope| !scope.trim().is_empty())
-                .map(split_scopes)
-                .unwrap_or_else(|| requested_scopes.to_vec()),
+                .map_or_else(|| requested_scopes.to_vec(), split_scopes),
             configuration: BTreeMap::new(),
         }
     }
@@ -182,18 +187,25 @@ pub fn split_scopes(raw: &str) -> Vec<String> {
 /// Rotation: a returned refresh token replaces its predecessor, and its absence
 /// retains the one we hold. Dropping a still-valid refresh token because the
 /// provider did not repeat it would strand the connection.
+///
+/// # Errors
+///
+/// Returns an error when the refreshed token lifetime is invalid.
 pub fn apply_refresh(
     previous: &TokenSet,
     response: TokenResponse,
     now: DateTime<Utc>,
 ) -> Result<TokenSet> {
     let mut next = response.into_token_set(now, &previous.scopes)?;
-    if next.refresh_token.is_none() {
-        next.refresh_token = previous.refresh_token.clone();
-    }
+    next.refresh_token = response
+        .refresh_token
+        .or_else(|| previous.refresh_token.clone());
     Ok(next)
 }
 
+/// # Errors
+///
+/// Returns an error when no refresh grant exists or the provider rejects it.
 pub async fn refresh(
     http: &reqwest::Client,
     provider: &Provider,
@@ -292,7 +304,7 @@ mod tests {
 
     /// Builds an unsigned JWT: the label reader never checks the signature, and
     /// the test should not imply otherwise by producing a real one.
-    fn id_token_with(claims: serde_json::Value) -> String {
+    fn id_token_with(claims: &serde_json::Value) -> String {
         use base64::Engine as _;
         let body = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(serde_json::to_vec(&claims).unwrap());
@@ -307,7 +319,7 @@ mod tests {
             token_type: None,
             expires_in: None,
             scope: None,
-            id_token: Some(id_token_with(claims)),
+            id_token: Some(id_token_with(&claims)),
         };
 
         assert_eq!(

@@ -5,12 +5,12 @@
 
 #![cfg(feature = "concurrency-test")]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 struct FakeStore {
-    intents: Mutex<HashMap<String, ()>>,
+    intents: Mutex<HashSet<String>>,
     receipts: Mutex<HashMap<String, u64>>,
     side_effects: AtomicUsize,
 }
@@ -18,25 +18,30 @@ struct FakeStore {
 impl FakeStore {
     fn new() -> Self {
         Self {
-            intents: Mutex::new(HashMap::new()),
+            intents: Mutex::new(HashSet::new()),
             receipts: Mutex::new(HashMap::new()),
             side_effects: AtomicUsize::new(0),
         }
     }
 
+    fn existing_result(&self, key: &str) -> Result<u64, &'static str> {
+        self.receipts
+            .lock()
+            .unwrap()
+            .get(key)
+            .copied()
+            .ok_or("idempotency conflict: prior intent has no receipt yet")
+    }
+
     fn invoke(&self, key: &str) -> Result<u64, &'static str> {
         {
             let intents = self.intents.lock().unwrap();
-            if intents.contains_key(key) {
+            if intents.contains(key) {
                 drop(intents);
-                let receipts = self.receipts.lock().unwrap();
-                if let Some(id) = receipts.get(key) {
-                    return Ok(*id);
-                }
-                return Err("idempotency conflict: prior intent has no receipt yet");
+                return self.existing_result(key);
             }
         }
-        self.intents.lock().unwrap().insert(key.to_string(), ());
+        self.intents.lock().unwrap().insert(key.to_string());
         let id = 1;
         self.side_effects.fetch_add(1, Ordering::SeqCst);
         self.receipts.lock().unwrap().insert(key.to_string(), id);

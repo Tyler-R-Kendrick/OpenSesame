@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 
 pub const DPOP_TYP: &str = "dpop+jwt";
 
-/// Public JWK embedded in DPoP proofs.
+/// Public JWK embedded in `DPoP` proofs.
 pub type DpopPublicJwk = Jwk;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -24,12 +24,17 @@ pub struct DpopClaims {
     pub ath: Option<String>,
 }
 
+#[must_use]
 pub fn access_token_hash(access_token: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(access_token.as_bytes());
     URL_SAFE_NO_PAD.encode(hasher.finalize())
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn normalize_htu(url: &str) -> Result<String, ProofError> {
     let parsed = url::Url::parse(url).map_err(|e| ProofError::InvalidProof(e.to_string()))?;
     let host = parsed
@@ -70,6 +75,10 @@ fn bit_length(bytes: &[u8]) -> usize {
 /// It does mean a token bound to such a key can be taken over by anyone who
 /// recovers the private key from the public one, which is the whole point of a
 /// 512-bit modulus or an exponent of 1.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_proof_key_strength(jwk: &Jwk) -> Result<(), ProofError> {
     match &jwk.algorithm {
         AlgorithmParameters::OctetKeyPair(params) => {
@@ -98,7 +107,7 @@ pub fn assert_proof_key_strength(jwk: &Jwk) -> Result<(), ProofError> {
             }
             let e = decode_b64("rsa e", &params.e)?;
             let exponent_bits = bit_length(&e);
-            let odd = e.last().map(|b| b % 2 == 1).unwrap_or(false);
+            let odd = e.last().is_some_and(|b| b % 2 == 1);
             // e = 1 makes a signature the message itself; an even e is not a
             // valid exponent at all.
             if exponent_bits < 2 || !odd {
@@ -115,6 +124,10 @@ pub fn assert_proof_key_strength(jwk: &Jwk) -> Result<(), ProofError> {
 }
 
 /// RFC 7638 JWK thumbprint (base64url-encoded SHA-256).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
     let canonical = match &jwk.algorithm {
         AlgorithmParameters::OctetKeyPair(params) => {
@@ -151,20 +164,24 @@ pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
 }
 
 fn decode_header(proof_jwt: &str) -> Result<Header, ProofError> {
-    let encoded = proof_jwt
+    let encoded_header = proof_jwt
         .split('.')
         .next()
         .ok_or_else(|| ProofError::InvalidProof("malformed jwt".into()))?;
-    let decoded = URL_SAFE_NO_PAD
-        .decode(encoded)
+    let header_bytes = URL_SAFE_NO_PAD
+        .decode(encoded_header)
         .map_err(|e| ProofError::InvalidProof(e.to_string()))?;
-    serde_json::from_slice(&decoded).map_err(|e| ProofError::InvalidProof(e.to_string()))
+    serde_json::from_slice(&header_bytes).map_err(|e| ProofError::InvalidProof(e.to_string()))
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn decode_dpop_proof(
     proof_jwt: &str,
-    expected_htm: &str,
-    expected_htu: &str,
+    expected_method: &str,
+    expected_uri: &str,
     expected_ath: Option<&str>,
     max_age_secs: i64,
     now: i64,
@@ -208,12 +225,12 @@ pub fn decode_dpop_proof(
         .map_err(|e| ProofError::InvalidProof(e.to_string()))?;
     let claims = token_data.claims;
 
-    if !claims.htm.eq_ignore_ascii_case(expected_htm) {
+    if !claims.htm.eq_ignore_ascii_case(expected_method) {
         return Err(ProofError::InvalidProof("htm mismatch".into()));
     }
 
     let normalized_htu = normalize_htu(&claims.htu)?;
-    let expected_normalized = normalize_htu(expected_htu)?;
+    let expected_normalized = normalize_htu(expected_uri)?;
     if normalized_htu != expected_normalized {
         return Err(ProofError::InvalidProof("htu mismatch".into()));
     }
@@ -231,7 +248,7 @@ pub fn decode_dpop_proof(
         (None, Some(_)) => {
             return Err(ProofError::InvalidProof("unexpected ath on proof".into()));
         }
-        (Some(_), None) | (Some(_), Some(_)) => {
+        (Some(_), None | Some(_)) => {
             return Err(ProofError::AccessTokenHashMismatch);
         }
     }
@@ -239,6 +256,7 @@ pub fn decode_dpop_proof(
     Ok((claims, jwk, jkt))
 }
 
+#[must_use]
 pub fn ed25519_jwk_from_seed(seed: &[u8; 32]) -> (Jwk, EncodingKey) {
     let signing_key = SigningKey::from_bytes(seed);
     let x = URL_SAFE_NO_PAD.encode(signing_key.verifying_key().as_bytes());
@@ -263,6 +281,10 @@ fn ed25519_private_der(seed: &[u8; 32]) -> Vec<u8> {
     der
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn sign_dpop_proof(
     jwk: &Jwk,
     encoding_key: &EncodingKey,

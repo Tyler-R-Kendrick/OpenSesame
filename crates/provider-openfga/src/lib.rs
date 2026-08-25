@@ -1,4 +1,4 @@
-//! OpenFGA remote PDP adapter — HTTP client against a live OpenFGA server.
+//! `OpenFGA` remote PDP adapter — HTTP client against a live `OpenFGA` server.
 //!
 //! When `OPENSESAME_OPENFGA_URL` is unset, callers may fall back to the in-process PEP.
 
@@ -22,6 +22,10 @@ pub enum OpenFgaError {
 pub type Result<T> = std::result::Result<T, OpenFgaError>;
 
 /// Operator PDP base URL: https, or loopback http. No userinfo (SSRF / credential leak).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_pdp_base_url(raw: &str) -> Result<()> {
     let url = url::Url::parse(raw.trim()).map_err(|e| OpenFgaError::Config(e.to_string()))?;
     if !url.username().is_empty() || url.password().is_some() {
@@ -44,10 +48,14 @@ pub fn assert_pdp_base_url(raw: &str) -> Result<()> {
     }
 }
 
-/// Interpret an OpenFGA Check HTTP body.
+/// Interpret an `OpenFGA` Check HTTP body.
 ///
 /// `allowed` is true only when the field is the JSON boolean `true`. A missing
 /// field is deny (fail closed). A non-boolean value is an error, never allow.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn parse_check_response(body: &Value) -> Result<bool> {
     match body.get("allowed") {
         None => Ok(false),
@@ -78,6 +86,10 @@ pub trait RemotePdp: Send + Sync {
 }
 
 impl OpenFgaClient {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_env() -> Result<Option<Self>> {
         let base = match std::env::var("OPENSESAME_OPENFGA_URL") {
             Ok(u) if !u.trim().is_empty() => u.trim_end_matches('/').to_string(),
@@ -98,6 +110,10 @@ impl OpenFgaClient {
         }
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn health(&self) -> Result<()> {
         assert_pdp_base_url(&self.base)?;
         let url = format!("{}/healthz", self.base);
@@ -117,6 +133,10 @@ impl OpenFgaClient {
         }
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn create_store(&self, name: &str) -> Result<String> {
         assert_pdp_base_url(&self.base)?;
         let url = format!("{}/stores", self.base);
@@ -137,10 +157,14 @@ impl OpenFgaClient {
         }
         body.get("id")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .ok_or_else(|| OpenFgaError::Http("missing store id".into()))
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn write_authorization_model(&self, model: Value) -> Result<String> {
         assert_pdp_base_url(&self.base)?;
         let url = format!(
@@ -169,6 +193,10 @@ impl OpenFgaClient {
             .to_string())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn write_tuples(&self, writes: &[TupleKey]) -> Result<()> {
         assert_pdp_base_url(&self.base)?;
         let url = format!("{}/stores/{}/write", self.base, self.store_id);
@@ -196,6 +224,10 @@ impl OpenFgaClient {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn check_tuple(&self, tuple: &TupleKey) -> Result<bool> {
         assert_pdp_base_url(&self.base)?;
         let url = format!("{}/stores/{}/check", self.base, self.store_id);
@@ -223,7 +255,8 @@ impl OpenFgaClient {
         parse_check_response(&body)
     }
 
-    /// Minimal OpenSesame connection model for live drills.
+    /// Minimal `OpenSesame` connection model for live drills.
+    #[must_use]
     pub fn connection_model() -> Value {
         json!({
             "schema_version": "1.1",
@@ -259,6 +292,10 @@ impl RemotePdp for OpenFgaClient {
 }
 
 /// Bootstrap helper used by live integration scripts/tests.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub async fn bootstrap_demo_store(base: &str) -> Result<(OpenFgaClient, String)> {
     let bootstrap = OpenFgaClient::new(base, "pending");
     bootstrap.health().await?;

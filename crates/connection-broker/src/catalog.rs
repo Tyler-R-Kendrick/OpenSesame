@@ -96,6 +96,7 @@ pub enum Category {
 }
 
 impl Category {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Encryption => "encryption",
@@ -138,7 +139,7 @@ pub enum AuthMethod {
         /// issued (Google's `access_type`, the `offline_access` family).
         extra_authorize_params: Vec<(String, String)>,
     },
-    /// OpenRouter exchanges PKCE directly for a user-scoped API key; no app
+    /// `OpenRouter` exchanges PKCE directly for a user-scoped API key; no app
     /// registration or deployment client secret is involved.
     #[serde(rename = "openrouter_pkce")]
     OpenRouterPkce {
@@ -157,6 +158,7 @@ pub enum AuthMethod {
 }
 
 impl AuthMethod {
+    #[must_use]
     pub fn kind(&self) -> &'static str {
         match self {
             Self::OAuth2AuthCode { .. } | Self::OpenRouterPkce { .. } => {
@@ -167,6 +169,7 @@ impl AuthMethod {
         }
     }
 
+    #[must_use]
     pub fn supports_refresh(&self) -> bool {
         matches!(
             self,
@@ -177,6 +180,7 @@ impl AuthMethod {
         )
     }
 
+    #[must_use]
     pub fn scope_separator(&self) -> &str {
         match self {
             Self::OAuth2AuthCode {
@@ -186,6 +190,7 @@ impl AuthMethod {
         }
     }
 
+    #[must_use]
     pub fn is_oauth(&self) -> bool {
         matches!(
             self,
@@ -193,6 +198,7 @@ impl AuthMethod {
         )
     }
 
+    #[must_use]
     pub fn requires_client_credentials(&self) -> bool {
         matches!(self, Self::OAuth2AuthCode { .. })
     }
@@ -206,9 +212,8 @@ impl AuthMethod {
 
     pub fn connection_configuration_fields(&self) -> &[ConfigurationFieldDef] {
         match self {
-            Self::OAuth2AuthCode { .. } | Self::OpenRouterPkce { .. } => &[],
+            Self::OAuth2AuthCode { .. } | Self::OpenRouterPkce { .. } | Self::Configuration => &[],
             Self::ApiKey { .. } => API_KEY_CONNECTION_FIELDS.as_slice(),
-            Self::Configuration => &[],
         }
     }
 }
@@ -232,6 +237,7 @@ pub struct EgressSpec {
 }
 
 impl EgressSpec {
+    #[must_use]
     pub fn binding(&self) -> EgressBinding {
         EgressBinding {
             scheme: self.scheme.clone(),
@@ -261,6 +267,7 @@ pub struct Provider {
 }
 
 impl Provider {
+    #[must_use]
     pub fn default_scopes(&self) -> Vec<String> {
         self.scopes
             .iter()
@@ -269,6 +276,7 @@ impl Provider {
             .collect()
     }
 
+    #[must_use]
     pub fn integration_configuration_fields(&self) -> &[ConfigurationFieldDef] {
         if self.integration_configuration_fields.is_empty() {
             self.auth.integration_configuration_fields()
@@ -277,6 +285,7 @@ impl Provider {
         }
     }
 
+    #[must_use]
     pub fn connection_configuration_fields(&self) -> &[ConfigurationFieldDef] {
         if self.connection_configuration_fields.is_empty() {
             self.auth.connection_configuration_fields()
@@ -303,6 +312,10 @@ pub struct Catalog {
 impl Catalog {
     /// Parse an untrusted catalog document. Unknown versions, empty provider
     /// lists, and duplicate ids are errors — never a silent empty catalog.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when parsing or catalog validation fails.
     pub fn parse(raw: &str) -> Result<Self, CatalogError> {
         let document: CatalogDocument = serde_json::from_str(raw)
             .map_err(|error| CatalogError::invalid(format!("catalog JSON is invalid: {error}")))?;
@@ -337,14 +350,17 @@ impl Catalog {
         })
     }
 
+    #[must_use]
     pub fn revision(&self) -> &str {
         &self.revision
     }
 
+    #[must_use]
     pub fn providers(&self) -> &[Provider] {
         &self.providers
     }
 
+    #[must_use]
     pub fn find(&self, id: &str) -> Option<&Provider> {
         self.providers.iter().find(|provider| provider.id == id)
     }
@@ -353,18 +369,30 @@ impl Catalog {
 static CATALOG: LazyLock<Result<Catalog, CatalogError>> =
     LazyLock::new(|| Catalog::parse(CATALOG_JSON));
 
+/// # Errors
+///
+/// Returns the catalog validation error when the bundled catalog is invalid.
 pub fn load() -> Result<&'static Catalog, CatalogError> {
     CATALOG.as_ref().map_err(Clone::clone)
 }
 
+/// # Errors
+///
+/// Returns the catalog validation error when the bundled catalog is invalid.
 pub fn all() -> Result<&'static [Provider], CatalogError> {
     Ok(load()?.providers())
 }
 
+/// # Errors
+///
+/// Returns the catalog validation error when the bundled catalog is invalid.
 pub fn find(id: &str) -> Result<Option<&'static Provider>, CatalogError> {
     Ok(load()?.find(id))
 }
 
+/// # Errors
+///
+/// Returns the catalog validation error when the bundled catalog is invalid.
 pub fn revision() -> Result<&'static str, CatalogError> {
     Ok(load()?.revision())
 }
@@ -402,7 +430,7 @@ fn validate_auth(provider: &Provider) -> Result<(), CatalogError> {
                     "too many authorization parameters",
                 ));
             }
-            if !matches!(scope_separator.as_deref(), None | Some(" ") | Some(",")) {
+            if !matches!(scope_separator.as_deref(), None | Some(" " | ",")) {
                 return Err(provider_error(provider, "invalid OAuth scope separator"));
             }
             let mut names = HashSet::with_capacity(extra_authorize_params.len());
@@ -547,10 +575,7 @@ fn validate_provider_url(provider: &Provider, raw: &str, field: &str) -> Result<
     let allowed = parsed.scheme() == "https"
         || (provider.id == "mock"
             && parsed.scheme() == "http"
-            && matches!(
-                parsed.host_str(),
-                Some("127.0.0.1") | Some("localhost") | Some("::1")
-            ));
+            && matches!(parsed.host_str(), Some("127.0.0.1" | "localhost" | "::1")));
     if !allowed
         || parsed.host_str().is_none()
         || !parsed.username().is_empty()

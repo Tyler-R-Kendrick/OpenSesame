@@ -29,6 +29,7 @@ fn associated_data(connection_id: &str, organization_id: &str) -> Vec<u8> {
 /// ciphertext transplanted to another key, config, tenant, or version slot
 /// does not open. Rollback therefore re-seals: old bytes are never copied
 /// into a new version slot.
+#[must_use]
 pub fn config_value_ad(
     organization_id: &str,
     project_id: &str,
@@ -45,13 +46,12 @@ pub fn config_value_ad(
 fn digest(aad: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(aad);
-    hex(&hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
+/// # Errors
+///
+/// Returns an error when credential sealing fails.
 pub fn seal(
     key: &[u8; 32],
     connection_id: &str,
@@ -65,6 +65,9 @@ pub fn seal(
     )
 }
 
+/// # Errors
+///
+/// Returns an error when the credential cannot be authenticated or opened.
 pub fn open(
     key: &[u8; 32],
     connection_id: &str,
@@ -76,6 +79,10 @@ pub fn open(
 
 /// Seal under caller-supplied associated data. The AAD builder chosen by the
 /// caller (connection vs config-value) is what scopes the ciphertext.
+///
+/// # Errors
+///
+/// Returns an error when credential sealing fails.
 pub fn seal_with_ad(key: &[u8; 32], aad: &[u8], plaintext: &[u8]) -> Result<SealedBlob> {
     let cipher = XChaCha20Poly1305::new(key.into());
     let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
@@ -95,6 +102,9 @@ pub fn seal_with_ad(key: &[u8; 32], aad: &[u8], plaintext: &[u8]) -> Result<Seal
     })
 }
 
+/// # Errors
+///
+/// Returns an error when the nonce is invalid or authentication fails.
 pub fn open_with_ad(key: &[u8; 32], aad: &[u8], blob: &SealedBlob) -> Result<Vec<u8>> {
     if blob.nonce.len() != 24 {
         return Err(BrokerError::SealUnavailable("nonce length".into()));

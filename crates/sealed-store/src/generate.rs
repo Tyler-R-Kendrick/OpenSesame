@@ -4,6 +4,7 @@ const ALNUM: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234
 const SYMBOLS: &[u8] = b"!@#$%^&*()-_=+[]{}:,.?";
 
 /// Generate a password with CSPRNG. When `symbols` is false, alphanumeric only.
+#[must_use]
 pub fn generate_password(length: usize, symbols: bool) -> String {
     let length = length.max(1);
     let alphabet: Vec<u8> = if symbols {

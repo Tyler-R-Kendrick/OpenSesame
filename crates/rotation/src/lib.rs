@@ -31,33 +31,40 @@ pub enum RotationError {
 }
 
 impl RotationState {
+    #[must_use]
     pub fn can_transition(self, to: Self) -> bool {
-        use RotationState::*;
+        use RotationState::{
+            CandidateActivated, CandidateGenerated, CandidateInstalled, CandidateVerified,
+            Completed, DependentsUpdated, Discovering, Observing, PreviousRevoked,
+            ReconciliationRequired, RevocationVerified, RollbackCompleted, RollbackFailed,
+            RollbackStarted, Scheduled,
+        };
         matches!(
             (self, to),
             (Scheduled, Discovering)
                 | (Discovering, CandidateGenerated)
                 | (CandidateGenerated, CandidateInstalled)
-                | (CandidateInstalled, CandidateVerified)
-                | (CandidateVerified, CandidateActivated)
-                | (CandidateActivated, DependentsUpdated)
-                | (DependentsUpdated, Observing)
-                | (Observing, PreviousRevoked)
-                | (PreviousRevoked, RevocationVerified)
+                | (
+                    CandidateInstalled,
+                    CandidateVerified | RollbackStarted | ReconciliationRequired
+                )
+                | (CandidateVerified, CandidateActivated | RollbackStarted)
+                | (
+                    CandidateActivated,
+                    DependentsUpdated | RollbackStarted | ReconciliationRequired
+                )
+                | (DependentsUpdated, Observing | RollbackStarted)
+                | (Observing, PreviousRevoked | RollbackStarted)
+                | (PreviousRevoked, RevocationVerified | ReconciliationRequired)
                 | (RevocationVerified, Completed)
-                | (CandidateInstalled, RollbackStarted)
-                | (CandidateVerified, RollbackStarted)
-                | (CandidateActivated, RollbackStarted)
-                | (DependentsUpdated, RollbackStarted)
-                | (Observing, RollbackStarted)
-                | (RollbackStarted, RollbackCompleted)
-                | (RollbackStarted, RollbackFailed)
-                | (CandidateInstalled, ReconciliationRequired)
-                | (CandidateActivated, ReconciliationRequired)
-                | (PreviousRevoked, ReconciliationRequired)
+                | (RollbackStarted, RollbackCompleted | RollbackFailed)
         )
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn transition(self, to: Self) -> Result<Self, RotationError> {
         if self.can_transition(to) {
             Ok(to)

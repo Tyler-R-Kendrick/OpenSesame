@@ -59,6 +59,7 @@ pub enum TombRegistryError {
     Duplicate(String),
 }
 
+#[must_use]
 pub fn default_tombs_config_path() -> PathBuf {
     if let Ok(p) = std::env::var("OPENSESAME_TOMBS_CONFIG") {
         if !p.is_empty() {
@@ -71,6 +72,10 @@ pub fn default_tombs_config_path() -> PathBuf {
     PathBuf::from("tombs.json")
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn load_tomb_registry(path: &Path) -> Result<TombRegistry, TombRegistryError> {
     if !path.exists() {
         return Ok(TombRegistry::default());
@@ -80,6 +85,10 @@ pub fn load_tomb_registry(path: &Path) -> Result<TombRegistry, TombRegistryError
     Ok(reg)
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn save_tomb_registry(path: &Path, reg: &TombRegistry) -> Result<(), TombRegistryError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -111,6 +120,10 @@ pub struct ResolvedTomb {
 }
 
 /// Resolve store/key paths for `name`, or the active tomb when `name` is None.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn resolve_tomb_paths(
     reg: &TombRegistry,
     name: Option<&str>,
@@ -134,6 +147,10 @@ pub fn resolve_tomb_paths(
 }
 
 impl TombRegistry {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn add(&mut self, entry: TombEntry) -> Result<(), TombRegistryError> {
         if self.tombs.iter().any(|t| t.name == entry.name) {
             return Err(TombRegistryError::Duplicate(entry.name));
@@ -145,6 +162,10 @@ impl TombRegistry {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn remove(&mut self, name: &str) -> Result<(), TombRegistryError> {
         let before = self.tombs.len();
         self.tombs.retain(|t| t.name != name);
@@ -157,6 +178,10 @@ impl TombRegistry {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn use_tomb(&mut self, name: &str) -> Result<(), TombRegistryError> {
         if !self.tombs.iter().any(|t| t.name == name) {
             return Err(TombRegistryError::NotFound(name.into()));
@@ -170,6 +195,7 @@ impl TombRegistry {
 pub const PERSONAL_PROJECT_TOMB_NAME: &str = "personal";
 
 /// Returns the frozen tomb name bound to the default personal project.
+#[must_use]
 pub fn personal_project_tomb_name() -> &'static str {
     PERSONAL_PROJECT_TOMB_NAME
 }
@@ -191,6 +217,10 @@ pub fn resolve_project_tomb_name(sealed_store_tomb_name: Option<&str>) -> &str {
 /// Resolve an existing personal-project tomb, or register a portable entry.
 ///
 /// Does not remove or rewrite other tombs — personal binding is additive.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn ensure_personal_project_tomb(
     reg: &mut TombRegistry,
     store: &str,

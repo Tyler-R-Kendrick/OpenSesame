@@ -173,6 +173,7 @@ impl Db {
         Ok(row.is_some())
     }
 
+    #[must_use]
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
     }
@@ -188,7 +189,7 @@ impl Db {
 
     pub async fn set_authority_quorum(&self, ok: bool) -> anyhow::Result<()> {
         sqlx::query("UPDATE authority_health SET quorum_ok = ?, updated_at = ? WHERE id = 1")
-            .bind(if ok { 1 } else { 0 })
+            .bind(i32::from(ok))
             .bind(Utc::now().to_rfc3339())
             .execute(&self.pool)
             .await?;
@@ -414,7 +415,7 @@ impl Db {
         .bind(inv.id.to_string())
         .bind(inv.intent_id.to_string())
         .bind(format!("{:?}", inv.state).to_lowercase())
-        .bind(inv.attempt as i64)
+        .bind(i64::from(inv.attempt))
         .bind(&inv.lease_owner)
         .bind(inv.lease_expires_at.map(|t| t.to_rfc3339()))
         .bind(serde_json::to_string(inv)?)
@@ -446,13 +447,13 @@ impl Db {
         let keyed = id.to_string();
         let bare = id.as_uuid().to_string();
         let row = sqlx::query(
-            r#"
+            r"
             SELECT r.body_json, i.organization_id AS authoritative_organization_id
             FROM receipts r
             JOIN invocations inv ON inv.id = r.invocation_id
             JOIN intents i ON i.id = inv.intent_id
             WHERE r.id = ? OR r.id = ?
-            "#,
+            ",
         )
         .bind(&keyed)
         .bind(&bare)
@@ -492,7 +493,7 @@ impl Db {
         key: &str,
     ) -> anyhow::Result<Option<InvocationReceipt>> {
         let row = sqlx::query(
-            r#"
+            r"
             SELECT r.body_json, i.organization_id AS authoritative_organization_id
             FROM receipts r
             JOIN invocations inv ON inv.id = r.invocation_id
@@ -500,7 +501,7 @@ impl Db {
             WHERE i.organization_id = ? AND i.idempotency_key = ?
             ORDER BY r.created_at ASC
             LIMIT 1
-            "#,
+            ",
         )
         .bind(org.to_string())
         .bind(key)
@@ -1213,6 +1214,7 @@ impl Store for Db {
     }
 }
 
+#[must_use]
 pub fn sqlite_file_url(path: &Path) -> String {
     format!("sqlite://{}?mode=rwc", path.display())
 }
@@ -1488,7 +1490,7 @@ mod tests {
             applied,
             MIGRATIONS
                 .iter()
-                .map(|(v, _)| v.to_string())
+                .map(|(v, _)| (*v).to_string())
                 .collect::<Vec<_>>()
         );
 

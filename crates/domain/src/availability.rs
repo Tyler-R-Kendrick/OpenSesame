@@ -15,10 +15,12 @@ pub enum AvailabilityClass {
 }
 
 impl AvailabilityClass {
+    #[must_use]
     pub fn requires_authority_quorum(self) -> bool {
         matches!(self, Self::A2AuthorityRequired | Self::A3ExternalSideEffect)
     }
 
+    #[must_use]
     pub fn allow_without_quorum(self, offline_permitted: bool) -> bool {
         match self {
             Self::A0Local => true,

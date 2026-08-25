@@ -16,6 +16,10 @@ pub struct AuthorizationRequirement {
 }
 
 impl AuthorizationRequirement {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_protected_resource(
         resource: &ProtectedResource,
         profile: &ProtocolProfile,
@@ -30,6 +34,10 @@ impl AuthorizationRequirement {
         })
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_satisfied(
         &self,
         held: &CapabilitySet,

@@ -1,4 +1,4 @@
-//! OpenSesame TaskBus: CloudEvents-shaped bus events behind a trait.
+//! `OpenSesame` `TaskBus`: CloudEvents-shaped bus events behind a trait.
 //!
 //! - [`InMemoryTaskBus`] — default for unit tests and local-only runs.
 //! - [`NatsJetStreamTaskBus`] — optional (`jetstream` feature); selected at
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
 
-/// JetStream stream that captures `opensesame.events.>`.
+/// `JetStream` stream that captures `opensesame.events.>`.
 pub const DEFAULT_STREAM_NAME: &str = "OPENSESAME_EVENTS";
 /// Subject prefix for identity / host bus events.
 pub const DEFAULT_SUBJECT_PREFIX: &str = "opensesame.events";
@@ -50,7 +50,7 @@ pub struct BusEvent {
 }
 
 impl BusEvent {
-    /// CloudEvents 1.0 helper used by producers (outbox drain, Host publishers).
+    /// `CloudEvents` 1.0 helper used by producers (outbox drain, Host publishers).
     pub fn cloud_event(
         id: impl Into<String>,
         source: impl Into<String>,
@@ -69,12 +69,14 @@ impl BusEvent {
     }
 
     /// Subject under `opensesame.events.>` for this event type.
+    #[must_use]
     pub fn subject(&self, prefix: &str) -> String {
         event_subject(prefix, &self.r#type)
     }
 }
 
 /// Build `opensesame.events.{type}` (type may contain dots).
+#[must_use]
 pub fn event_subject(prefix: &str, event_type: &str) -> String {
     let prefix = prefix.trim_end_matches('.');
     let ty = event_type.trim_start_matches('.');
@@ -101,6 +103,10 @@ impl TaskBusBackend {
     /// - `OPENSESAME_TASKBUS=nats` → nats (requires `NATS_URL`)
     /// - unset + `NATS_URL` set → nats
     /// - otherwise → memory (unit-test default)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_env() -> anyhow::Result<Self> {
         let explicit = std::env::var("OPENSESAME_TASKBUS")
             .ok()
@@ -112,8 +118,8 @@ impl TaskBusBackend {
             .filter(|v| !v.is_empty());
 
         match explicit.as_deref() {
-            Some("memory") | Some("inmemory") | Some("in-memory") => Ok(Self::Memory),
-            Some("nats") | Some("jetstream") => {
+            Some("memory" | "inmemory" | "in-memory") => Ok(Self::Memory),
+            Some("nats" | "jetstream") => {
                 if nats_url.is_none() {
                     anyhow::bail!("OPENSESAME_TASKBUS=nats requires NATS_URL");
                 }
@@ -133,10 +139,14 @@ impl TaskBusBackend {
     }
 }
 
-/// Construct a TaskBus from environment (memory by default).
+/// Construct a `TaskBus` from environment (memory by default).
 ///
 /// Precedence for callers that also load durable Host config should resolve
 /// env first, then stored URL — see gateway `taskbus_config`.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub async fn create_from_env() -> anyhow::Result<Arc<dyn TaskBus>> {
     match TaskBusBackend::from_env()? {
         TaskBusBackend::Memory => Ok(Arc::new(InMemoryTaskBus::default())),
@@ -147,7 +157,11 @@ pub async fn create_from_env() -> anyhow::Result<Arc<dyn TaskBus>> {
     }
 }
 
-/// Connect a JetStream TaskBus to an explicit URL (Host operator ping / apply).
+/// Connect a `JetStream` `TaskBus` to an explicit URL (Host operator ping / apply).
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub async fn create_nats(nats_url: &str) -> anyhow::Result<Arc<dyn TaskBus>> {
     #[cfg(feature = "jetstream")]
     {
@@ -166,6 +180,10 @@ pub async fn create_nats(nats_url: &str) -> anyhow::Result<Arc<dyn TaskBus>> {
 }
 
 /// Build memory or nats from explicit backend + optional URL.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub async fn create(
     backend: TaskBusBackend,
     nats_url: Option<&str>,

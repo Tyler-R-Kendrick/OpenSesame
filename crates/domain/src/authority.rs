@@ -7,7 +7,7 @@ use crate::{ConnectionId, CredentialHandleId, DomainError, OrganizationId, Proje
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Stable logical reference kinds under AuthorityHandle.
+/// Stable logical reference kinds under `AuthorityHandle`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorityKind {
@@ -61,6 +61,7 @@ impl AuthorityHandle {
         }
     }
 
+    #[must_use]
     pub fn uri(&self) -> String {
         let scope = match &self.project_id {
             Some(p) => format!("{}/{}", self.organization_id, p),
@@ -81,6 +82,7 @@ impl AuthorityHandle {
     }
 
     /// Knowing a URI is harmless; it is not authorization.
+    #[must_use]
     pub fn knowledge_is_not_authorization(&self) -> bool {
         true
     }
@@ -92,7 +94,7 @@ impl fmt::Display for AuthorityHandle {
     }
 }
 
-/// Agent-facing connection reference (preferred over SecretRef).
+/// Agent-facing connection reference (preferred over `SecretRef`).
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ConnectionRef {
     pub handle: AuthorityHandle,
@@ -100,6 +102,10 @@ pub struct ConnectionRef {
 }
 
 impl ConnectionRef {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn new(
         organization_id: OrganizationId,
         project_id: Option<ProjectId>,
@@ -138,11 +144,12 @@ pub enum AuthorityOperation {
     Lease,
     Exchange,
     Rotate,
-    /// Privileged compatibility — requires raw_credential_export grant.
+    /// Privileged compatibility — requires `raw_credential_export` grant.
     Resolve,
 }
 
 impl AuthorityOperation {
+    #[must_use]
     pub fn requires_export_privilege(self) -> bool {
         matches!(self, Self::Resolve)
     }
@@ -156,11 +163,12 @@ pub enum InvokeLevel {
     TypedOperation = 1,
     /// Constrained HTTP within connection egress allowlist.
     ConstrainedHttp = 2,
-    /// Credential materialization / SecretRef resolve.
+    /// Credential materialization / `SecretRef` resolve.
     Materialize = 3,
 }
 
 impl InvokeLevel {
+    #[must_use]
     pub fn as_u8(self) -> u8 {
         self as u8
     }
@@ -188,6 +196,10 @@ impl Default for EgressBinding {
 }
 
 impl EgressBinding {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn allows_url(&self, url: &str) -> Result<(), DomainError> {
         let parsed = url::Url::parse(url).map_err(|_| DomainError::InvalidId("url".into()))?;
         if parsed.scheme() != self.scheme {
@@ -235,6 +247,10 @@ impl EgressBinding {
     }
 
     /// Authenticated redirects must not cross authority unless explicitly allowed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn allows_redirect(&self, from_url: &str, to_url: &str) -> Result<(), DomainError> {
         self.allows_url(from_url)?;
         if self.allow_redirects_cross_authority {
@@ -253,7 +269,7 @@ impl EgressBinding {
     }
 }
 
-/// Mapping from ConnectionRef to optional internal SecretRef (never returned to agents).
+/// Mapping from `ConnectionRef` to optional internal `SecretRef` (never returned to agents).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConnectionAuthorityBinding {
     pub connection_ref: ConnectionRef,
@@ -271,13 +287,14 @@ pub enum CredentialDeliveryMode {
     Materialize,
     /// Shaped fake value; real secret only at placement-bound egress.
     Placeholder,
-    /// Opaque ConnectionRef / handle — Vault-aware apps.
+    /// Opaque `ConnectionRef` / handle — Vault-aware apps.
     Handle,
     /// Federation / signer / SPIFFE — no credential in env.
     Native,
 }
 
 impl CredentialDeliveryMode {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Materialize => "materialize",
@@ -287,6 +304,7 @@ impl CredentialDeliveryMode {
         }
     }
 
+    #[must_use]
     pub fn requires_export_privilege(self) -> bool {
         matches!(self, Self::Materialize)
     }
@@ -356,6 +374,64 @@ fn query_pair_occurrences(query: &str, name: &str, needle: &str) -> u32 {
         .sum()
 }
 
+fn header_placeholder_placement(
+    locations: &[PlaceholderLocation],
+    name: Option<&str>,
+    value: Option<&str>,
+    placeholder: &str,
+) -> (u32, bool) {
+    let Some((name, value)) = name.zip(value) else {
+        return (0, true);
+    };
+    let found = occurrences(value, placeholder);
+    let allowed = found == 0
+        || locations.iter().any(|location| {
+            matches!(location, PlaceholderLocation::Header { name: allowed_name }
+                if allowed_name.as_ref().is_none_or(|allowed| allowed.eq_ignore_ascii_case(name)))
+        });
+    (found, allowed)
+}
+
+fn query_placeholder_placement(
+    locations: &[PlaceholderLocation],
+    query: Option<&str>,
+    placeholder: &str,
+) -> (u32, bool) {
+    let Some(query) = query else {
+        return (0, true);
+    };
+    let found = occurrences(query, placeholder);
+    let covered = locations
+        .iter()
+        .filter_map(|location| match location {
+            PlaceholderLocation::Query { name: None } => Some(found),
+            PlaceholderLocation::Query { name: Some(name) } => {
+                Some(query_pair_occurrences(query, name, placeholder))
+            }
+            _ => None,
+        })
+        .max()
+        .unwrap_or(0);
+    (found, covered >= found)
+}
+
+fn body_placeholder_placement(
+    locations: &[PlaceholderLocation],
+    path: Option<&str>,
+    value: Option<&str>,
+    placeholder: &str,
+) -> (u32, bool) {
+    let Some((path, value)) = path.zip(value) else {
+        return (0, true);
+    };
+    let found = occurrences(value, placeholder);
+    let allowed = found == 0
+        || locations.iter().any(
+            |location| matches!(location, PlaceholderLocation::BodyField { path: allowed } if allowed == path),
+        );
+    (found, allowed)
+}
+
 impl PlaceholderPlacement {
     /// Count occurrences of `placeholder` in the given request parts and enforce policy.
     ///
@@ -363,6 +439,10 @@ impl PlaceholderPlacement {
     /// number of appearances — not the number of request parts touched — is what
     /// `max_occurrences` bounds. Substitution replaces every occurrence, so counting
     /// parts let a caller multiply the credential inside one allowed header.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_allowed(
         &self,
         req: &PlaceholderRequestView<'_>,
@@ -387,18 +467,15 @@ impl PlaceholderPlacement {
         let mut hits = 0u32;
         let mut denied_site: Option<&'static str> = None;
 
-        if let (Some(hn), Some(hv)) = (req.header_name, req.header_value) {
-            let found = occurrences(hv, placeholder);
-            if found > 0 {
-                hits += found;
-                let allowed = self.locations.iter().any(|loc| {
-                    matches!(loc, PlaceholderLocation::Header { name }
-                        if name.as_ref().map(|n| n.eq_ignore_ascii_case(hn)).unwrap_or(true))
-                });
-                if !allowed {
-                    denied_site = Some("header");
-                }
-            }
+        let (header_hits, header_allowed) = header_placeholder_placement(
+            &self.locations,
+            req.header_name,
+            req.header_value,
+            placeholder,
+        );
+        hits += header_hits;
+        if !header_allowed {
+            denied_site = Some("header");
         }
 
         let in_path = occurrences(req.path, placeholder);
@@ -413,41 +490,24 @@ impl PlaceholderPlacement {
             }
         }
 
-        if let Some(q) = req.query {
-            let found = occurrences(q, placeholder);
-            if found > 0 {
-                hits += found;
-                // A named query location covers its own parameter and nothing else,
-                // so an appearance elsewhere in the query string is its own site.
-                let covered: u32 = self
-                    .locations
-                    .iter()
-                    .filter_map(|loc| match loc {
-                        PlaceholderLocation::Query { name: None } => Some(found),
-                        PlaceholderLocation::Query { name: Some(n) } => {
-                            Some(query_pair_occurrences(q, n, placeholder))
-                        }
-                        _ => None,
-                    })
-                    .max()
-                    .unwrap_or(0);
-                if covered < found {
-                    denied_site = Some("query");
-                }
-            }
+        // A named query location covers its own parameter and nothing else,
+        // so an appearance elsewhere in the query string is its own site.
+        let (query_hits, query_allowed) =
+            query_placeholder_placement(&self.locations, req.query, placeholder);
+        hits += query_hits;
+        if !query_allowed {
+            denied_site = Some("query");
         }
 
-        if let (Some(fp), Some(fv)) = (req.body_field_path, req.body_field_value) {
-            let found = occurrences(fv, placeholder);
-            if found > 0 {
-                hits += found;
-                let allowed = self.locations.iter().any(
-                    |loc| matches!(loc, PlaceholderLocation::BodyField { path: p } if p == fp),
-                );
-                if !allowed {
-                    denied_site = Some("body field");
-                }
-            }
+        let (body_hits, body_allowed) = body_placeholder_placement(
+            &self.locations,
+            req.body_field_path,
+            req.body_field_value,
+            placeholder,
+        );
+        hits += body_hits;
+        if !body_allowed {
+            denied_site = Some("body field");
         }
 
         if hits == 0 {
@@ -468,7 +528,7 @@ impl PlaceholderPlacement {
     }
 }
 
-/// Project a ConnectionRef into a legacy env var shape for HTTP SDKs.
+/// Project a `ConnectionRef` into a legacy env var shape for HTTP SDKs.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LegacyProjection {
     pub env_var: String,
@@ -501,6 +561,7 @@ impl LegacyProjection {
     /// Substitution matches on placeholder text alone. Without this check a caller
     /// naming any string — `"a"`, or another connection's placeholder — has the
     /// real credential written wherever that string appears.
+    #[must_use]
     pub fn accepts_placeholder(&self, placeholder: &str) -> bool {
         if placeholder.is_empty() {
             return false;
@@ -548,6 +609,7 @@ impl LegacyProjection {
         rest.len() >= Self::MIN_PLACEHOLDER_FILL
     }
 
+    #[must_use]
     pub fn shaped_placeholder(&self, unique_suffix: &str) -> String {
         if self.placeholder_pattern.contains('*') {
             self.placeholder_pattern.replace('*', unique_suffix)
@@ -567,6 +629,7 @@ pub struct DevDeliveryPolicy {
 }
 
 impl DevDeliveryPolicy {
+    #[must_use]
     pub fn development_default() -> Self {
         Self {
             allow: vec![
@@ -578,6 +641,7 @@ impl DevDeliveryPolicy {
         }
     }
 
+    #[must_use]
     pub fn agent_default() -> Self {
         Self {
             allow: vec![
@@ -589,6 +653,7 @@ impl DevDeliveryPolicy {
         }
     }
 
+    #[must_use]
     pub fn allows(&self, mode: CredentialDeliveryMode) -> bool {
         if self.deny.contains(&mode) {
             return false;
@@ -596,6 +661,10 @@ impl DevDeliveryPolicy {
         self.allow.is_empty() || self.allow.contains(&mode)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_allows(&self, mode: CredentialDeliveryMode) -> Result<(), DomainError> {
         if self.allows(mode) {
             Ok(())
@@ -606,11 +675,16 @@ impl DevDeliveryPolicy {
 }
 
 impl ConnectionAuthorityBinding {
-    /// Agent-visible surface: ConnectionRef only.
+    /// Agent-visible surface: `ConnectionRef` only.
+    #[must_use]
     pub fn agent_view(&self) -> ConnectionRef {
         self.connection_ref.clone()
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn resolve_secret_for_agent(&self) -> Result<AuthorityHandle, DomainError> {
         Err(DomainError::ExportDenied)
     }

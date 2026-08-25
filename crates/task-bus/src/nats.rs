@@ -1,4 +1,4 @@
-//! NATS JetStream adapter behind [`TaskBus`].
+//! NATS `JetStream` adapter behind [`TaskBus`].
 //!
 //! Stream subjects: `opensesame.events.>` — durable consumer `opensesame-worker`.
 //! Auth callout subjects (`opensesame.callout.>`) are intentionally unused here.
@@ -18,7 +18,7 @@ pub struct NatsJetStreamConfig {
     pub stream_name: String,
     pub subject_prefix: String,
     pub consumer_name: String,
-    /// Optional JetStream filter (e.g. `opensesame.events.system.backup.>`).
+    /// Optional `JetStream` filter (e.g. `opensesame.events.system.backup.>`).
     /// When unset, defaults to `{subject_prefix}.>`.
     pub filter_subject: Option<String>,
     /// How long a pull fetch waits when the stream is idle.
@@ -38,7 +38,7 @@ impl Default for NatsJetStreamConfig {
     }
 }
 
-/// JetStream TaskBus: publish CloudEvents; drain via durable pull consumer.
+/// `JetStream` `TaskBus`: publish `CloudEvents`; drain via durable pull consumer.
 pub struct NatsJetStreamTaskBus {
     js: jetstream::Context,
     subject_prefix: String,
@@ -47,6 +47,10 @@ pub struct NatsJetStreamTaskBus {
 }
 
 impl NatsJetStreamTaskBus {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub async fn connect(config: NatsJetStreamConfig) -> anyhow::Result<Self> {
         crate::validate_nats_url(&config.nats_url).map_err(|e| anyhow::anyhow!("{e}"))?;
         let client = async_nats::connect(config.nats_url.as_str()).await?;

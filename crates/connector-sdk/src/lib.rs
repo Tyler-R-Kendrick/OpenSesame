@@ -1,10 +1,15 @@
-//! WIT guest helpers — ConnectionRef oriented; no secrets.get.
+//! WIT guest helpers — `ConnectionRef` oriented; no `secrets.get`.
 use opensesame_domain::DomainError;
 use std::path::Path;
 
 pub type Result<T> = std::result::Result<T, DomainError>;
 
 /// Structural guarantee: connector WIT must not expose secrets.get as an import.
+///
+/// # Errors
+///
+/// Returns an error if the WIT exposes secret retrieval or omits authorized
+/// requests.
 pub fn assert_wit_forbids_secrets_get(wit_source: &str) -> Result<()> {
     // Strip line comments so documentation mentioning the forbidden API is allowed.
     let code: String = wit_source
@@ -24,6 +29,11 @@ pub fn assert_wit_forbids_secrets_get(wit_source: &str) -> Result<()> {
     Ok(())
 }
 
+///
+/// # Errors
+///
+/// Returns an error if the connector WIT cannot be read or violates the
+/// secret-retrieval boundary.
 pub fn assert_repo_wit_forbids_secrets_get(repo_root: &Path) -> Result<()> {
     let path = repo_root.join("wit/connector/world.wit");
     let src = std::fs::read_to_string(&path)
@@ -44,13 +54,13 @@ mod tests {
 
     #[test]
     fn rejects_evil_wit() {
-        let evil = r#"
+        let evil = r"
           interface secrets { get: func(ref: string) -> string; }
-        "#;
+        ";
         // missing authorized-request and contains secrets.get pattern via "secrets" + get
         let evil2 = "secrets.get: func(ref: string) -> string;";
+        assert!(assert_wit_forbids_secrets_get(evil).is_err());
         assert!(assert_wit_forbids_secrets_get(evil2).is_err());
-        let _ = evil;
     }
 }
 
@@ -60,9 +70,9 @@ mod pact {
 
     #[test]
     fn property_authorized_request_wit_is_accepted() {
-        let ok = r#"
+        let ok = r"
           interface http { authorized-request: func(req: string) -> string; }
-        "#;
+        ";
         assert!(assert_wit_forbids_secrets_get(ok).is_ok());
     }
 
@@ -78,10 +88,10 @@ mod pact {
 
     #[test]
     fn chaos_commented_mention_does_not_open_secrets_get() {
-        let documented = r#"
+        let documented = r"
           // agents must never call secrets.get
           interface http { authorized-request: func(req: string) -> string; }
-        "#;
+        ";
         assert!(assert_wit_forbids_secrets_get(documented).is_ok());
     }
 

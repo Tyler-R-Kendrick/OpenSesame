@@ -7,7 +7,10 @@ use axum::{
     routing::post,
     Json, Router,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 
 use super::*;
 
@@ -114,7 +117,7 @@ async fn organization_oauth_broker_with_token_url(
                 scopes: vec!["read".into(), "offline_access".into()],
                 client_id: Some("mock-client".into()),
                 client_secret: Some("mock-secret".into()),
-                configuration: Default::default(),
+                configuration: BTreeMap::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -330,7 +333,7 @@ async fn organization_integrations_seal_secrets_and_enforce_scope_ceiling() {
                 scopes: vec!["read:user".into()],
                 client_id: Some("client-id".into()),
                 client_secret: Some("plain-secret".into()),
-                configuration: Default::default(),
+                configuration: BTreeMap::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -475,7 +478,7 @@ async fn disabled_api_key_integration_blocks_credentials_and_delete_is_guarded()
                 scopes: Vec::new(),
                 client_id: None,
                 client_secret: None,
-                configuration: Default::default(),
+                configuration: BTreeMap::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -534,7 +537,7 @@ async fn concurrent_integration_patches_preserve_disable_and_secret_rotation() {
                 scopes: vec!["read".into()],
                 client_id: Some("client".into()),
                 client_secret: Some("old-secret".into()),
-                configuration: Default::default(),
+                configuration: BTreeMap::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -654,7 +657,7 @@ async fn legacy_connection_is_pinned_before_authorization() {
                 scopes: vec!["read".into()],
                 client_id: Some("other-client".into()),
                 client_secret: Some("other-secret".into()),
-                configuration: Default::default(),
+                configuration: BTreeMap::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -698,7 +701,7 @@ async fn ambiguous_legacy_connections_remain_readable_with_null_integration() {
                 scopes: vec!["read:user".into()],
                 client_id: Some("second-client".into()),
                 client_secret: Some("second-secret".into()),
-                configuration: Default::default(),
+                configuration: BTreeMap::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -742,7 +745,7 @@ async fn ambiguous_legacy_connection_can_always_revoke_locally() {
                 scopes: Vec::new(),
                 client_id: None,
                 client_secret: None,
-                configuration: Default::default(),
+                configuration: BTreeMap::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -1240,7 +1243,7 @@ async fn concurrent_connection_create_and_integration_delete_never_orphan() {
                 scopes: Vec::new(),
                 client_id: None,
                 client_secret: None,
-                configuration: Default::default(),
+                configuration: BTreeMap::default(),
                 created_by: "principal:admin".into(),
             },
         )
@@ -1653,7 +1656,7 @@ async fn an_api_key_connection_activates_without_a_consent_screen() {
         .set_connection_configuration(
             &org,
             &view.connection_id,
-            Default::default(),
+            BTreeMap::default(),
             vec!["api_key".into()],
         )
         .await
@@ -2226,7 +2229,7 @@ async fn a_refresh_that_lost_a_race_does_not_report_reauth() {
         token_type: "api_key".into(),
         expires_at: None,
         scopes: Vec::new(),
-        configuration: Default::default(),
+        configuration: BTreeMap::default(),
     };
     // What is on record is still what this refresh read, so a rejection would be
     // the connection's own news.
@@ -2455,9 +2458,6 @@ mod sync_target_tests {
         use axum::{routing::post, Json, Router};
         use std::sync::{Arc as StdArc, Mutex};
 
-        let captured: StdArc<Mutex<Vec<serde_json::Value>>> = StdArc::new(Mutex::new(Vec::new()));
-        let captured_clone = StdArc::clone(&captured);
-
         async fn capture(
             State(store): State<StdArc<Mutex<Vec<serde_json::Value>>>>,
             Json(body): Json<serde_json::Value>,
@@ -2465,6 +2465,9 @@ mod sync_target_tests {
             store.lock().unwrap().push(body);
             Json(serde_json::json!({ "created": true }))
         }
+
+        let captured: StdArc<Mutex<Vec<serde_json::Value>>> = StdArc::new(Mutex::new(Vec::new()));
+        let captured_clone = StdArc::clone(&captured);
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();

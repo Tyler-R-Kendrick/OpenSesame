@@ -22,6 +22,7 @@ fn decode_key_bytes(encoded: &str, what: &str) -> Result<[u8; 32], DomainError> 
 
 /// `receipt-key:<hex public key>` — the id is derived from the key, so it cannot
 /// name a key other than the one that will check the signature.
+#[must_use]
 pub fn receipt_key_id(key: &VerifyingKey) -> String {
     format!("receipt-key:{}", hex::encode(key.as_bytes()))
 }
@@ -70,6 +71,7 @@ pub struct ReceiptVerifier {
 }
 
 impl ReceiptVerifier {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -81,6 +83,10 @@ impl ReceiptVerifier {
     }
 
     /// Trust a public key given as base64 32 bytes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn trust_b64(&mut self, encoded: &str) -> Result<String, DomainError> {
         let bytes = decode_key_bytes(encoded, "receipt verification key")?;
         let key = VerifyingKey::from_bytes(&bytes)
@@ -89,11 +95,13 @@ impl ReceiptVerifier {
     }
 
     /// Key ids this verifier will accept, for publication.
+    #[must_use]
     pub fn key_ids(&self) -> Vec<String> {
         self.keys.keys().cloned().collect()
     }
 
     /// Public keys as base64, paired with their ids, for publication.
+    #[must_use]
     pub fn published_keys(&self) -> Vec<(String, String)> {
         self.keys
             .iter()
@@ -101,6 +109,7 @@ impl ReceiptVerifier {
             .collect()
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }
@@ -108,6 +117,10 @@ impl ReceiptVerifier {
     /// Verify against the key the receipt names. An unknown key is reported as
     /// unknown rather than as a bad signature: a rotated or ephemeral key is a
     /// key-management fact, not tamper evidence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn verify(&self, receipt: &InvocationReceipt) -> Result<(), DomainError> {
         let Some(key) = self.keys.get(&receipt.authority_key_id) else {
             return Err(DomainError::Canonicalization(format!(
@@ -132,11 +145,16 @@ impl ReceiptSigner {
     }
 
     /// Load a stable signing key so receipts stay verifiable across restarts.
+    #[must_use]
     pub fn from_seed(seed: &[u8; 32]) -> Self {
         Self::from_signing_key(SigningKey::from_bytes(seed))
     }
 
     /// `from_seed` over a base64 (standard or URL-safe, padded or not) 32-byte seed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn from_seed_b64(encoded: &str) -> Result<Self, DomainError> {
         let seed = decode_key_bytes(encoded, "receipt signing key")?;
         Ok(Self::from_seed(&seed))
@@ -149,10 +167,15 @@ impl ReceiptSigner {
         }
     }
 
+    #[must_use]
     pub fn verifying_key(&self) -> VerifyingKey {
         self.signing_key.verifying_key()
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn sign_receipt(
         &self,
         mut receipt: InvocationReceipt,
@@ -163,7 +186,7 @@ impl ReceiptSigner {
                 "receipt summary contains secret material".into(),
             ));
         }
-        receipt.authority_key_id = self.key_id.clone();
+        receipt.authority_key_id.clone_from(&self.key_id);
         receipt.signature = String::new();
         let digest = digest_json(
             &serde_json::to_value(&receipt)
@@ -174,6 +197,10 @@ impl ReceiptSigner {
         Ok(receipt)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn verify_receipt(&self, receipt: &InvocationReceipt) -> Result<(), DomainError> {
         // A receipt signed by a key this signer does not hold is unverifiable, not
         // forged. Saying "invalid signature" for it reads as tamper evidence and
@@ -200,6 +227,7 @@ mod hex {
     }
 }
 
+#[must_use]
 pub fn redact_event(data: &Value) -> Value {
     opensesame_redaction::redact_json(data)
 }
@@ -245,8 +273,8 @@ mod tests {
             task_state_version: None,
             task_state_digest: None,
         };
-        let signed = signer.sign_receipt(receipt).unwrap();
-        signer.verify_receipt(&signed).unwrap();
+        let signed_receipt = signer.sign_receipt(receipt).unwrap();
+        signer.verify_receipt(&signed_receipt).unwrap();
     }
 
     #[test]
@@ -284,9 +312,9 @@ mod tests {
             task_state_version: None,
             task_state_digest: None,
         };
-        let mut signed = signer.sign_receipt(receipt).unwrap();
-        signed.operation = "admin.destroy".into();
-        assert!(signer.verify_receipt(&signed).is_err());
+        let mut signed_receipt = signer.sign_receipt(receipt).unwrap();
+        signed_receipt.operation = "admin.destroy".into();
+        assert!(signer.verify_receipt(&signed_receipt).is_err());
     }
 
     fn sample_receipt() -> InvocationReceipt {
@@ -327,8 +355,8 @@ mod tests {
     #[test]
     fn legacy_receipt_without_organization_round_trips_and_verifies() {
         let signer = ReceiptSigner::generate();
-        let signed = signer.sign_receipt(sample_receipt()).unwrap();
-        let encoded = serde_json::to_string(&signed).unwrap();
+        let signed_receipt = signer.sign_receipt(sample_receipt()).unwrap();
+        let encoded = serde_json::to_string(&signed_receipt).unwrap();
         assert!(!encoded.contains("organization_id"));
 
         let decoded: InvocationReceipt = serde_json::from_str(&encoded).unwrap();
@@ -342,11 +370,11 @@ mod tests {
         let mut receipt = sample_receipt();
         receipt.organization_id = Some(OrganizationId::new());
         receipt.receipt_schema_version = 3;
-        let mut signed = signer.sign_receipt(receipt).unwrap();
-        signer.verify_receipt(&signed).unwrap();
+        let mut signed_receipt = signer.sign_receipt(receipt).unwrap();
+        signer.verify_receipt(&signed_receipt).unwrap();
 
-        signed.organization_id = Some(OrganizationId::new());
-        assert!(signer.verify_receipt(&signed).is_err());
+        signed_receipt.organization_id = Some(OrganizationId::new());
+        assert!(signer.verify_receipt(&signed_receipt).is_err());
     }
 
     #[test]

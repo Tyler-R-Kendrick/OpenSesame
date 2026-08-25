@@ -1,4 +1,4 @@
-//! SQLite-backed TaskStore for durable local authority (not multi-node HA).
+//! SQLite-backed `TaskStore` for durable local authority (not multi-node HA).
 //!
 //! Proves CAS fencing and persistence without external Postgres. Production
 //! multi-node deployments must use [`crate::PostgresTaskStore`] (ADR 0031).
@@ -27,6 +27,10 @@ pub struct SqliteTaskStore {
 
 impl SqliteTaskStore {
     /// Sync connect — owns no nested runtime; uses a short-lived runtime for setup only.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn connect(database_url: &str) -> Result<Self, TaskAccessError> {
         let rt = Runtime::new().map_err(|e| TaskAccessError::Storage(e.to_string()))?;
         rt.block_on(async {
@@ -47,6 +51,10 @@ impl SqliteTaskStore {
         })
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn connect_memory() -> Result<Self, TaskAccessError> {
         Self::connect("sqlite::memory:")
     }
@@ -66,8 +74,12 @@ impl SqliteTaskStore {
         Ok(())
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn migrate(&self) -> Result<(), TaskAccessError> {
-        self.block_on(self.migrate_async())
+        Self::block_on(self.migrate_async())
     }
 
     pub fn authority_backend(&self) -> TaskAuthorityBackend {
@@ -78,7 +90,7 @@ impl SqliteTaskStore {
         self.migrated.load(Ordering::SeqCst)
     }
 
-    fn block_on<F: std::future::Future<Output = T>, T>(&self, fut: F) -> T {
+    fn block_on<F: std::future::Future<Output = T>, T>(fut: F) -> T {
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => tokio::task::block_in_place(|| handle.block_on(fut)),
             Err(_) => Runtime::new()
@@ -167,7 +179,7 @@ fn row_to_run(row: &SqliteRow) -> Result<TaskRun, TaskAccessError> {
         status: status_from_str(row.get::<String, _>("status").as_str())?,
         capability_ceiling: ceiling,
         current_capabilities: current,
-        state_version: row.get::<i64, _>("state_version") as u64,
+        state_version: crate::db_u64(row.get::<i64, _>("state_version"))?,
         state_digest: row.get("state_digest"),
         maximum_expires_at: parse_dt(&row.get::<String, _>("maximum_expires_at"))?,
         created_at: parse_dt(&row.get::<String, _>("created_at"))?,
@@ -175,18 +187,40 @@ fn row_to_run(row: &SqliteRow) -> Result<TaskRun, TaskAccessError> {
     })
 }
 
+fn row_to_transition(row: &SqliteRow) -> Result<CapabilityStateTransition, TaskAccessError> {
+    Ok(CapabilityStateTransition {
+        id: CapabilityStateTransitionId::parse(&row.get::<String, _>("id"))?,
+        task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
+        from_state_version: crate::db_u64(row.get::<i64, _>("from_state_version"))?,
+        to_state_version: crate::db_u64(row.get::<i64, _>("to_state_version"))?,
+        status: transition_status_from_str(row.get::<String, _>("status").as_str())?,
+        removed: serde_json::from_str(&row.get::<String, _>("removed"))
+            .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+        resulting_capabilities: serde_json::from_str(
+            &row.get::<String, _>("resulting_capabilities"),
+        )
+        .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
+        trigger_evidence_digest: row.get("trigger_evidence_digest"),
+        created_at: parse_dt(&row.get::<String, _>("created_at"))?,
+        committed_at: row
+            .get::<Option<String>, _>("committed_at")
+            .map(|value| parse_dt(&value))
+            .transpose()?,
+    })
+}
+
 impl TaskStore for SqliteTaskStore {
     fn get_run(&self, id: TaskRunId) -> Result<Option<TaskRun>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT id, template_id, organization_id, project_id, principal_id,
                        authority_context_id, status, capability_ceiling, current_capabilities,
                        state_version, state_digest, maximum_expires_at, created_at, updated_at
                 FROM task_runs WHERE id = ?
-                "#,
+                ",
             )
             .bind(&id_str)
             .fetch_optional(&pool)
@@ -199,7 +233,7 @@ impl TaskStore for SqliteTaskStore {
     fn save_run(&self, run: &TaskRun) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let run = run.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             let existing = sqlx::query(
                 "SELECT ceiling_digest, pending_transition_id FROM task_runs WHERE id = ?",
             )
@@ -219,7 +253,7 @@ impl TaskStore for SqliteTaskStore {
             let current_json = serde_json::to_string(&run.current_capabilities)
                 .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
             sqlx::query(
-                r#"
+                r"
                 INSERT INTO task_runs (
                     id, template_id, organization_id, project_id, principal_id,
                     authority_context_id, status, capability_ceiling, current_capabilities,
@@ -234,7 +268,7 @@ impl TaskStore for SqliteTaskStore {
                     maximum_expires_at = excluded.maximum_expires_at,
                     pending_transition_id = excluded.pending_transition_id,
                     updated_at = excluded.updated_at
-                "#,
+                ",
             )
             .bind(run.id.to_string())
             .bind(run.template_id.to_string())
@@ -245,7 +279,7 @@ impl TaskStore for SqliteTaskStore {
             .bind(status_to_str(run.status))
             .bind(ceiling_json)
             .bind(current_json)
-            .bind(run.state_version as i64)
+            .bind(crate::db_i64(run.state_version)?)
             .bind(&run.state_digest)
             .bind(ceiling_digest)
             .bind(run.maximum_expires_at.to_rfc3339())
@@ -266,11 +300,11 @@ impl TaskStore for SqliteTaskStore {
     ) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let run = run.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             let current_json = serde_json::to_string(&run.current_capabilities)
                 .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
             let result = sqlx::query(
-                r#"
+                r"
                 UPDATE task_runs SET
                     status = ?,
                     current_capabilities = ?,
@@ -278,15 +312,15 @@ impl TaskStore for SqliteTaskStore {
                     state_digest = ?,
                     updated_at = ?
                 WHERE id = ? AND state_version = ?
-                "#,
+                ",
             )
             .bind(status_to_str(run.status))
             .bind(current_json)
-            .bind(run.state_version as i64)
+            .bind(crate::db_i64(run.state_version)?)
             .bind(&run.state_digest)
             .bind(run.updated_at.to_rfc3339())
             .bind(run.id.to_string())
-            .bind(expected_state_version as i64)
+            .bind(crate::db_i64(expected_state_version)?)
             .execute(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
@@ -304,14 +338,14 @@ impl TaskStore for SqliteTaskStore {
 
     fn list_runs(&self) -> Result<Vec<TaskRun>, TaskAccessError> {
         let pool = self.pool.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             let rows = sqlx::query(
-                r#"
+                r"
                 SELECT id, template_id, organization_id, project_id, principal_id,
                        authority_context_id, status, capability_ceiling, current_capabilities,
                        state_version, state_digest, maximum_expires_at, created_at, updated_at
                 FROM task_runs ORDER BY created_at DESC
-                "#,
+                ",
             )
             .fetch_all(&pool)
             .await
@@ -326,41 +360,20 @@ impl TaskStore for SqliteTaskStore {
     ) -> Result<Option<CapabilityStateTransition>, TaskAccessError> {
         let pool = self.pool.clone();
         let id_str = id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT id, task_run_id, from_state_version, to_state_version, status,
                        removed, resulting_capabilities, trigger_evidence_digest,
                        created_at, committed_at
                 FROM capability_transitions WHERE id = ?
-                "#,
+                ",
             )
             .bind(&id_str)
             .fetch_optional(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-            row.map(|row| {
-                Ok(CapabilityStateTransition {
-                    id: CapabilityStateTransitionId::parse(&row.get::<String, _>("id"))?,
-                    task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
-                    from_state_version: row.get::<i64, _>("from_state_version") as u64,
-                    to_state_version: row.get::<i64, _>("to_state_version") as u64,
-                    status: transition_status_from_str(row.get::<String, _>("status").as_str())?,
-                    removed: serde_json::from_str(&row.get::<String, _>("removed"))
-                        .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
-                    resulting_capabilities: serde_json::from_str(
-                        &row.get::<String, _>("resulting_capabilities"),
-                    )
-                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
-                    trigger_evidence_digest: row.get("trigger_evidence_digest"),
-                    created_at: parse_dt(&row.get::<String, _>("created_at"))?,
-                    committed_at: row
-                        .get::<Option<String>, _>("committed_at")
-                        .map(|s| parse_dt(&s))
-                        .transpose()?,
-                })
-            })
-            .transpose()
+            row.as_ref().map(row_to_transition).transpose()
         })
     }
 
@@ -370,9 +383,9 @@ impl TaskStore for SqliteTaskStore {
     ) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let t = transition.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query(
-                r#"
+                r"
                 INSERT INTO capability_transitions (
                     id, task_run_id, from_state_version, to_state_version, status,
                     removed, resulting_capabilities, trigger_evidence_digest,
@@ -381,12 +394,12 @@ impl TaskStore for SqliteTaskStore {
                 ON CONFLICT(id) DO UPDATE SET
                     status = excluded.status,
                     committed_at = excluded.committed_at
-                "#,
+                ",
             )
             .bind(t.id.to_string())
             .bind(t.task_run_id.to_string())
-            .bind(t.from_state_version as i64)
-            .bind(t.to_state_version as i64)
+            .bind(crate::db_i64(t.from_state_version)?)
+            .bind(crate::db_i64(t.to_state_version)?)
             .bind(transition_status_to_str(t.status))
             .bind(
                 serde_json::to_string(&t.removed)
@@ -412,7 +425,7 @@ impl TaskStore for SqliteTaskStore {
     ) -> Result<Option<CapabilityStateTransition>, TaskAccessError> {
         let pool = self.pool.clone();
         let id = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let tid: Option<String> =
                 sqlx::query("SELECT pending_transition_id FROM task_runs WHERE id = ?")
                     .bind(&id)
@@ -425,41 +438,18 @@ impl TaskStore for SqliteTaskStore {
                     let tid = CapabilityStateTransitionId::parse(&tid)?;
                     // re-enter via pool query
                     let row = sqlx::query(
-                        r#"
+                        r"
                         SELECT id, task_run_id, from_state_version, to_state_version, status,
                                removed, resulting_capabilities, trigger_evidence_digest,
                                created_at, committed_at
                         FROM capability_transitions WHERE id = ?
-                        "#,
+                        ",
                     )
                     .bind(tid.to_string())
                     .fetch_optional(&pool)
                     .await
                     .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-                    row.map(|row| {
-                        Ok(CapabilityStateTransition {
-                            id: CapabilityStateTransitionId::parse(&row.get::<String, _>("id"))?,
-                            task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
-                            from_state_version: row.get::<i64, _>("from_state_version") as u64,
-                            to_state_version: row.get::<i64, _>("to_state_version") as u64,
-                            status: transition_status_from_str(
-                                row.get::<String, _>("status").as_str(),
-                            )?,
-                            removed: serde_json::from_str(&row.get::<String, _>("removed"))
-                                .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
-                            resulting_capabilities: serde_json::from_str(
-                                &row.get::<String, _>("resulting_capabilities"),
-                            )
-                            .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
-                            trigger_evidence_digest: row.get("trigger_evidence_digest"),
-                            created_at: parse_dt(&row.get::<String, _>("created_at"))?,
-                            committed_at: row
-                                .get::<Option<String>, _>("committed_at")
-                                .map(|s| parse_dt(&s))
-                                .transpose()?,
-                        })
-                    })
-                    .transpose()
+                    row.as_ref().map(row_to_transition).transpose()
                 }
                 None => Ok(None),
             }
@@ -472,7 +462,7 @@ impl TaskStore for SqliteTaskStore {
     ) -> Result<AcknowledgementSet, TaskAccessError> {
         let pool = self.pool.clone();
         let id = transition_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row =
                 sqlx::query("SELECT required, received FROM ack_sets WHERE transition_id = ?")
                     .bind(&id)
@@ -502,15 +492,15 @@ impl TaskStore for SqliteTaskStore {
         let pool = self.pool.clone();
         let id = transition_id.to_string();
         let set = set.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query(
-                r#"
+                r"
                 INSERT INTO ack_sets (transition_id, required, received)
                 VALUES (?, ?, ?)
                 ON CONFLICT(transition_id) DO UPDATE SET
                     required = excluded.required,
                     received = excluded.received
-                "#,
+                ",
             )
             .bind(id)
             .bind(
@@ -534,13 +524,13 @@ impl TaskStore for SqliteTaskStore {
     ) -> Result<Option<ProtectedResultBuffer>, TaskAccessError> {
         let pool = self.pool.clone();
         let id = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT task_run_id, transition_id, state_version, result_digest,
                        payload, released, created_at
                 FROM result_buffers WHERE task_run_id = ?
-                "#,
+                ",
             )
             .bind(&id)
             .fetch_optional(&pool)
@@ -550,7 +540,7 @@ impl TaskStore for SqliteTaskStore {
                 Ok(ProtectedResultBuffer {
                     task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
                     transition_id: row.get("transition_id"),
-                    state_version: row.get::<i64, _>("state_version") as u64,
+                    state_version: crate::db_u64(row.get::<i64, _>("state_version"))?,
                     result_digest: row.get("result_digest"),
                     payload: serde_json::from_str(&row.get::<String, _>("payload"))
                         .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
@@ -565,9 +555,9 @@ impl TaskStore for SqliteTaskStore {
     fn save_result_buffer(&self, buffer: &ProtectedResultBuffer) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let b = buffer.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query(
-                r#"
+                r"
                 INSERT INTO result_buffers (
                     task_run_id, transition_id, state_version, result_digest,
                     payload, released, created_at
@@ -578,17 +568,17 @@ impl TaskStore for SqliteTaskStore {
                     result_digest = excluded.result_digest,
                     payload = excluded.payload,
                     released = excluded.released
-                "#,
+                ",
             )
             .bind(b.task_run_id.to_string())
             .bind(&b.transition_id)
-            .bind(b.state_version as i64)
+            .bind(crate::db_i64(b.state_version)?)
             .bind(&b.result_digest)
             .bind(
                 serde_json::to_string(&b.payload)
                     .map_err(|e| TaskAccessError::Storage(e.to_string()))?,
             )
-            .bind(if b.released { 1 } else { 0 })
+            .bind(i32::from(b.released))
             .bind(b.created_at.to_rfc3339())
             .execute(&pool)
             .await
@@ -603,13 +593,13 @@ impl TaskStore for SqliteTaskStore {
     ) -> Result<Option<TaskCredentialRecord>, TaskAccessError> {
         let pool = self.pool.clone();
         let id = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query(
-                r#"
+                r"
                 SELECT id, task_run_id, credential_digest, state_version, issued_at, expires_at
                 FROM task_credentials WHERE task_run_id = ?
                 ORDER BY issued_at DESC LIMIT 1
-                "#,
+                ",
             )
             .bind(&id)
             .fetch_optional(&pool)
@@ -620,7 +610,7 @@ impl TaskStore for SqliteTaskStore {
                     id: opensesame_domain::TaskCredentialId::parse(&row.get::<String, _>("id"))?,
                     task_run_id: TaskRunId::parse(&row.get::<String, _>("task_run_id"))?,
                     credential_digest: row.get("credential_digest"),
-                    state_version: row.get::<i64, _>("state_version") as u64,
+                    state_version: crate::db_u64(row.get::<i64, _>("state_version"))?,
                     issued_at: parse_dt(&row.get::<String, _>("issued_at"))?,
                     expires_at: parse_dt(&row.get::<String, _>("expires_at"))?,
                 })
@@ -632,9 +622,9 @@ impl TaskStore for SqliteTaskStore {
     fn save_credential(&self, record: &TaskCredentialRecord) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let r = record.clone();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query(
-                r#"
+                r"
                 INSERT INTO task_credentials (
                     id, task_run_id, credential_digest, state_version, issued_at, expires_at
                 ) VALUES (?, ?, ?, ?, ?, ?)
@@ -642,12 +632,12 @@ impl TaskStore for SqliteTaskStore {
                     credential_digest = excluded.credential_digest,
                     state_version = excluded.state_version,
                     expires_at = excluded.expires_at
-                "#,
+                ",
             )
             .bind(r.id.to_string())
             .bind(r.task_run_id.to_string())
             .bind(&r.credential_digest)
-            .bind(r.state_version as i64)
+            .bind(crate::db_i64(r.state_version)?)
             .bind(r.issued_at.to_rfc3339())
             .bind(r.expires_at.to_rfc3339())
             .execute(&pool)
@@ -663,7 +653,7 @@ impl TaskStore for SqliteTaskStore {
     ) -> Result<Option<String>, TaskAccessError> {
         let pool = self.pool.clone();
         let id = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let row = sqlx::query("SELECT ceiling_digest FROM task_runs WHERE id = ?")
                 .bind(&id)
                 .fetch_optional(&pool)
@@ -684,7 +674,7 @@ impl TaskStore for SqliteTaskStore {
         let pool = self.pool.clone();
         let id = task_run_id.to_string();
         let digest = digest.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             let updated = sqlx::query(
                 "UPDATE task_runs SET ceiling_digest = ?1 \
                  WHERE id = ?2 AND (ceiling_digest = '' OR ceiling_digest = ?1)",
@@ -694,17 +684,18 @@ impl TaskStore for SqliteTaskStore {
             .execute(&pool)
             .await
             .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-            if updated.rows_affected() == 0 {
-                // No row yet is the ordinary start path: `save_run` derives the
-                // digest when it inserts. A row with a *different* digest is not.
-                let existing = sqlx::query("SELECT ceiling_digest FROM task_runs WHERE id = ?")
-                    .bind(&id)
-                    .fetch_optional(&pool)
-                    .await
-                    .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
-                if existing.is_some() {
-                    return Err(TaskAccessError::CeilingImmutable);
-                }
+            if updated.rows_affected() != 0 {
+                return Ok(());
+            }
+            // No row yet is the ordinary start path: `save_run` derives the
+            // digest when it inserts. A row with a *different* digest is not.
+            let existing = sqlx::query("SELECT ceiling_digest FROM task_runs WHERE id = ?")
+                .bind(&id)
+                .fetch_optional(&pool)
+                .await
+                .map_err(|e| TaskAccessError::Storage(e.to_string()))?;
+            if existing.is_some() {
+                return Err(TaskAccessError::CeilingImmutable);
             }
             Ok(())
         })
@@ -718,7 +709,7 @@ impl TaskStore for SqliteTaskStore {
         let pool = self.pool.clone();
         let run_id = task_run_id.to_string();
         let tid = transition_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query("UPDATE task_runs SET pending_transition_id = ? WHERE id = ?")
                 .bind(tid)
                 .bind(run_id)
@@ -732,7 +723,7 @@ impl TaskStore for SqliteTaskStore {
     fn clear_pending_transition(&self, task_run_id: TaskRunId) -> Result<(), TaskAccessError> {
         let pool = self.pool.clone();
         let run_id = task_run_id.to_string();
-        self.block_on(async move {
+        Self::block_on(async move {
             sqlx::query("UPDATE task_runs SET pending_transition_id = NULL WHERE id = ?")
                 .bind(run_id)
                 .execute(&pool)

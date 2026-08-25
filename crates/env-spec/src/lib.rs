@@ -78,6 +78,10 @@ fn bridge_bin() -> PathBuf {
 }
 
 /// Invoke the Node `@env-spec/parser` bridge.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn parse_schema_file(path: &Path) -> Result<EnvSpecDocument, EnvSpecError> {
     let bin = bridge_bin();
     // Run the bridge on a bare Node. An inherited `NODE_OPTIONS` decides what
@@ -98,11 +102,16 @@ pub fn parse_schema_file(path: &Path) -> Result<EnvSpecDocument, EnvSpecError> {
     Ok(serde_json::from_slice(&out.stdout)?)
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn parse_schema_json(json: &str) -> Result<EnvSpecDocument, EnvSpecError> {
     Ok(serde_json::from_str(json)?)
 }
 
 /// Schema-only view safe for agents/logs (no secret values).
+#[must_use]
 pub fn schema_summary(doc: &EnvSpecDocument) -> serde_json::Value {
     let items: Vec<_> = doc
         .items
@@ -127,8 +136,8 @@ pub fn schema_summary(doc: &EnvSpecDocument) -> serde_json::Value {
     })
 }
 
-fn starts_with_from_type(t: &Option<Value>) -> Option<String> {
-    let o = t.as_ref()?.as_object()?;
+fn starts_with_from_type(t: Option<&Value>) -> Option<String> {
+    let o = t?.as_object()?;
     if o.get("fn").and_then(|v| v.as_str()) != Some("string") {
         return None;
     }
@@ -191,7 +200,115 @@ fn placeholder_suffix() -> String {
     uuid::Uuid::new_v4().simple().to_string()
 }
 
+fn resolve_connection_entry(
+    item: &EnvSpecItem,
+    resolver: &EnvResolver,
+    uri: String,
+    policy: &DevDeliveryPolicy,
+) -> Result<ResolvedEnvEntry, EnvSpecError> {
+    let wants_legacy = projection_name(resolver).as_deref() == Some("legacy-token")
+        || resolver.fn_name == "opensesameConnection";
+    if !wants_legacy {
+        policy.assert_allows(CredentialDeliveryMode::Handle)?;
+        return Ok(ResolvedEnvEntry {
+            key: item.key.clone(),
+            delivery: CredentialDeliveryMode::Handle,
+            env_value: Some(uri.clone()),
+            connection_ref: Some(uri),
+            projection: None,
+            omitted: false,
+            warning: None,
+        });
+    }
+
+    policy.assert_allows(CredentialDeliveryMode::Placeholder)?;
+    let pattern = starts_with_from_type(item.r#type.as_ref()).unwrap_or_else(|| "sk_test_*".into());
+    let mut projection = LegacyProjection {
+        env_var: item.key.clone(),
+        connection_ref_uri: uri.clone(),
+        placeholder_pattern: pattern,
+        issued_placeholder: None,
+        placement: PlaceholderPlacement {
+            locations: vec![PlaceholderLocation::Header {
+                name: Some("Authorization".into()),
+            }],
+            methods: vec!["GET".into(), "POST".into(), "PUT".into(), "PATCH".into()],
+            max_occurrences: 1,
+        },
+        delivery: CredentialDeliveryMode::Placeholder,
+    };
+    // A fresh suffix binds substitution to this projection instead of a
+    // shared or guessable placeholder with the same shape.
+    let placeholder = projection.shaped_placeholder(&placeholder_suffix());
+    projection.issued_placeholder = Some(placeholder.clone());
+    Ok(ResolvedEnvEntry {
+        key: item.key.clone(),
+        delivery: CredentialDeliveryMode::Placeholder,
+        env_value: Some(placeholder),
+        connection_ref: Some(uri),
+        projection: Some(projection),
+        omitted: false,
+        warning: None,
+    })
+}
+
+fn resolve_item(
+    item: &EnvSpecItem,
+    policy: &DevDeliveryPolicy,
+    agent: bool,
+) -> Result<Option<ResolvedEnvEntry>, EnvSpecError> {
+    if !item.sensitive && item.resolver.is_none() {
+        return Ok(Some(ResolvedEnvEntry {
+            key: item.key.clone(),
+            delivery: CredentialDeliveryMode::Native,
+            env_value: item.value.clone(),
+            connection_ref: None,
+            projection: None,
+            omitted: false,
+            warning: None,
+        }));
+    }
+    if let Some(resolver) = &item.resolver {
+        let Some(uri) = connection_uri_from_resolver(resolver) else {
+            return Ok(Some(ResolvedEnvEntry {
+                key: item.key.clone(),
+                delivery: CredentialDeliveryMode::Handle,
+                env_value: None,
+                connection_ref: None,
+                projection: None,
+                omitted: true,
+                warning: Some(format!("unresolved resolver {}", resolver.fn_name)),
+            }));
+        };
+        return resolve_connection_entry(item, resolver, uri, policy).map(Some);
+    }
+    if !item.sensitive {
+        return Ok(None);
+    }
+    let denied = agent || !policy.allows(CredentialDeliveryMode::Materialize);
+    if !denied {
+        policy.assert_allows(CredentialDeliveryMode::Materialize)?;
+    }
+    Ok(Some(ResolvedEnvEntry {
+        key: item.key.clone(),
+        delivery: CredentialDeliveryMode::Materialize,
+        env_value: (!denied).then(|| item.value.clone()).flatten(),
+        connection_ref: None,
+        projection: None,
+        omitted: denied,
+        warning: Some(if denied {
+            "sensitive value omitted (materialize denied)".into()
+        } else {
+            "materialize allowed — legacy warning".into()
+        }),
+    }))
+}
+
 /// Apply delivery policy to schema items — never materializes secrets without policy allow.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn resolve_for_delivery(
     doc: &EnvSpecDocument,
     policy: &DevDeliveryPolicy,
@@ -199,114 +316,8 @@ pub fn resolve_for_delivery(
 ) -> Result<Vec<ResolvedEnvEntry>, EnvSpecError> {
     let mut out = Vec::new();
     for item in &doc.items {
-        if !item.sensitive && item.resolver.is_none() {
-            out.push(ResolvedEnvEntry {
-                key: item.key.clone(),
-                delivery: CredentialDeliveryMode::Native,
-                env_value: item.value.clone(),
-                connection_ref: None,
-                projection: None,
-                omitted: false,
-                warning: None,
-            });
-            continue;
-        }
-
-        if let Some(r) = &item.resolver {
-            if let Some(uri) = connection_uri_from_resolver(r) {
-                let proj_name = projection_name(r);
-                let wants_legacy = proj_name.as_deref() == Some("legacy-token")
-                    || r.fn_name == "opensesameConnection";
-                if wants_legacy {
-                    policy.assert_allows(CredentialDeliveryMode::Placeholder)?;
-                    let pattern =
-                        starts_with_from_type(&item.r#type).unwrap_or_else(|| "sk_test_*".into());
-                    let mut projection = LegacyProjection {
-                        env_var: item.key.clone(),
-                        connection_ref_uri: uri.clone(),
-                        placeholder_pattern: pattern,
-                        issued_placeholder: None,
-                        placement: PlaceholderPlacement {
-                            locations: vec![PlaceholderLocation::Header {
-                                name: Some("Authorization".into()),
-                            }],
-                            methods: vec![
-                                "GET".into(),
-                                "POST".into(),
-                                "PUT".into(),
-                                "PATCH".into(),
-                            ],
-                            max_occurrences: 1,
-                        },
-                        delivery: CredentialDeliveryMode::Placeholder,
-                    };
-                    // A fresh suffix per projection. The constant that used to be
-                    // here made every legacy projection with the same pattern share
-                    // one placeholder — and a placeholder that is shared, or
-                    // guessable, is a request the holder can have filled with a
-                    // credential that was never meant for it.
-                    let ph = projection.shaped_placeholder(&placeholder_suffix());
-                    // Record it, so substitution is bound to this exact placeholder
-                    // rather than to anything merely shaped like it.
-                    projection.issued_placeholder = Some(ph.clone());
-                    out.push(ResolvedEnvEntry {
-                        key: item.key.clone(),
-                        delivery: CredentialDeliveryMode::Placeholder,
-                        env_value: Some(ph),
-                        connection_ref: Some(uri),
-                        projection: Some(projection),
-                        omitted: false,
-                        warning: None,
-                    });
-                } else {
-                    policy.assert_allows(CredentialDeliveryMode::Handle)?;
-                    out.push(ResolvedEnvEntry {
-                        key: item.key.clone(),
-                        delivery: CredentialDeliveryMode::Handle,
-                        env_value: Some(uri.clone()),
-                        connection_ref: Some(uri),
-                        projection: None,
-                        omitted: false,
-                        warning: None,
-                    });
-                }
-                continue;
-            }
-            out.push(ResolvedEnvEntry {
-                key: item.key.clone(),
-                delivery: CredentialDeliveryMode::Handle,
-                env_value: None,
-                connection_ref: None,
-                projection: None,
-                omitted: true,
-                warning: Some(format!("unresolved resolver {}", r.fn_name)),
-            });
-            continue;
-        }
-
-        if item.sensitive {
-            if agent || !policy.allows(CredentialDeliveryMode::Materialize) {
-                out.push(ResolvedEnvEntry {
-                    key: item.key.clone(),
-                    delivery: CredentialDeliveryMode::Materialize,
-                    env_value: None,
-                    connection_ref: None,
-                    projection: None,
-                    omitted: true,
-                    warning: Some("sensitive value omitted (materialize denied)".into()),
-                });
-            } else {
-                policy.assert_allows(CredentialDeliveryMode::Materialize)?;
-                out.push(ResolvedEnvEntry {
-                    key: item.key.clone(),
-                    delivery: CredentialDeliveryMode::Materialize,
-                    env_value: item.value.clone(),
-                    connection_ref: None,
-                    projection: None,
-                    omitted: false,
-                    warning: Some("materialize allowed — legacy warning".into()),
-                });
-            }
+        if let Some(resolved) = resolve_item(item, policy, agent)? {
+            out.push(resolved);
         }
     }
     Ok(out)

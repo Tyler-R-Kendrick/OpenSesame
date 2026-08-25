@@ -48,7 +48,7 @@ pub enum BrokerError {
     #[error("secret config value not found")]
     ConfigValueNotFound,
     /// `POST /credential` against an OAuth provider, or `authorize` against an
-    /// api_key one.
+    /// `api_key` one.
     #[error("credential kind not supported by provider `{0}`")]
     UnsupportedCredential(String),
     #[error("credential sealing unavailable: {0}")]
@@ -68,6 +68,7 @@ pub enum BrokerError {
 }
 
 impl BrokerError {
+    #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
             Self::CatalogUnavailable(_) => "catalog_unavailable",
@@ -100,6 +101,7 @@ impl BrokerError {
 
     /// A sentence for a human. Storage and serde failures are deliberately opaque:
     /// their text is a server internal, not a hint.
+    #[must_use]
     pub fn hint(&self) -> String {
         match self {
             Self::ProviderUnconfigured { missing, .. } => {
@@ -111,6 +113,7 @@ impl BrokerError {
         }
     }
 
+    #[must_use]
     pub fn http_status(&self) -> u16 {
         match self {
             Self::ConnectionNotFound
@@ -121,8 +124,7 @@ impl BrokerError {
             | Self::IntegrationNotFound => 404,
             Self::ProviderUnconfigured { .. } | Self::SealUnavailable(_) => 503,
             Self::BindingExists | Self::IntegrationConflict | Self::IntegrationInUse => 409,
-            Self::IntegrationReadOnly => 403,
-            Self::MaterializationDenied => 403,
+            Self::IntegrationReadOnly | Self::MaterializationDenied => 403,
             Self::Unmintable(_) => 422,
             Self::ExchangeFailed(_) | Self::NeedsReauth(_) => 502,
             Self::CatalogUnavailable(_) | Self::Storage(_) | Self::Serde(_) => 500,

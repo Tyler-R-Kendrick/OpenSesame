@@ -1,4 +1,4 @@
-//! OpenSesame canonical domain model.
+//! `OpenSesame` canonical domain model.
 //!
 //! Stable principal identity is independent of keys, hostnames, and provider IDs.
 

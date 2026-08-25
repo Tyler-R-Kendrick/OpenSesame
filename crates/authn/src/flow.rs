@@ -11,6 +11,10 @@ pub enum LoginFlow {
 }
 
 #[derive(Clone, Debug, Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "public compatibility record of independent platform capability signals"
+)]
 pub struct EnvironmentSignals {
     pub ssh_connection: bool,
     pub codespaces: bool,
@@ -36,6 +40,7 @@ pub enum OpenBrowser {
 }
 
 /// Deterministic flow resolver. Heuristics influence usability, never security.
+#[must_use]
 pub fn resolve_login_flow(explicit: LoginFlow, signals: &EnvironmentSignals) -> LoginFlow {
     if signals.workload_configured && (explicit == LoginFlow::Workload || signals.non_interactive) {
         return LoginFlow::Workload;

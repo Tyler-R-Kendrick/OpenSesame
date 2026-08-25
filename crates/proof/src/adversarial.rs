@@ -1,4 +1,4 @@
-//! Adversarial tests for DPoP validation and key custody.
+//! Adversarial tests for `DPoP` validation and key custody.
 
 use crate::{
     assert_token_presentation, decode_dpop_proof, reject_dpop_bound_as_bearer, sign_dpop_proof,

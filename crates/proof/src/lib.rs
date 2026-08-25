@@ -1,4 +1,4 @@
-//! RFC 9449 DPoP validation and constrained key custody for OpenSesame.
+//! RFC 9449 `DPoP` validation and constrained key custody for `OpenSesame`.
 
 pub mod custody;
 pub mod error;

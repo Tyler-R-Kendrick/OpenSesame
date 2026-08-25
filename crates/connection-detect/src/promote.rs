@@ -30,6 +30,7 @@ pub enum PromotionMode {
 }
 
 impl PromotionMode {
+    #[must_use]
     pub fn name(self) -> &'static str {
         match self {
             PromotionMode::Mint => "mint",
@@ -38,6 +39,7 @@ impl PromotionMode {
         }
     }
 
+    #[must_use]
     pub fn capability(self) -> CapabilityClass {
         match self {
             PromotionMode::Mint => CapabilityClass::Mintable,

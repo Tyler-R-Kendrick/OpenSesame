@@ -1,9 +1,8 @@
-use once_cell::sync::Lazy;
 use regex::Regex;
 
 /// Whole-key match. `token` is sensitive; `token_type` is not.
 fn is_sensitive_key(key: &str) -> bool {
-    static SENSITIVE_KEYS: Lazy<Regex> = Lazy::new(|| {
+    static SENSITIVE_KEYS: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
         Regex::new(
             r"(?i)^(password|passwd|secret|token|authorization|refresh_token|access_token|id_token|client_secret|private_key|device_code|user_code|claim_token|cookie|set[_-]?cookie|api[_-]?key)$",
         )
@@ -13,7 +12,7 @@ fn is_sensitive_key(key: &str) -> bool {
 }
 
 /// Prefix-preserving patterns: the captured label survives, the value does not.
-static TEXT_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
+static TEXT_PATTERNS: std::sync::LazyLock<Vec<Regex>> = std::sync::LazyLock::new(|| {
     [
         r"(?i)(Bearer\s+)\S+",
         r"(?i)(Basic\s+)\S+",
@@ -27,8 +26,8 @@ static TEXT_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
 });
 
 /// `scheme://user:pass@host` — DSNs in connection errors are the usual carrier.
-static URL_USERINFO: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)([a-z][a-z0-9+.\-]*://)[^/\s@]*@").unwrap());
+static URL_USERINFO: std::sync::LazyLock<Regex> =
+    std::sync::LazyLock::new(|| Regex::new(r"(?i)([a-z][a-z0-9+.\-]*://)[^/\s@]*@").unwrap());
 
 pub fn redact_text(input: &str) -> String {
     let mut out = URL_USERINFO
@@ -39,8 +38,8 @@ pub fn redact_text(input: &str) -> String {
             .replace_all(&out, |caps: &regex::Captures<'_>| {
                 // Group 1 is the label (or auth scheme); the optional group 2 is
                 // the `=` / `:` separator we must keep to stay readable.
-                let label = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                let sep = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                let label = caps.get(1).map_or("", |m| m.as_str());
+                let sep = caps.get(2).map_or("", |m| m.as_str());
                 format!("{label}{sep}[REDACTED]")
             })
             .into_owned();

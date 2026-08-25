@@ -1,4 +1,4 @@
-//! OpenSesame **core sdk** — shared IR with no I/O.
+//! `OpenSesame` **core sdk** — shared IR with no I/O.
 //!
 //! WIT contracts: `wit/core/world.wit`.
 //! Prefer this facade for new host/client dependents (ADR 0017).

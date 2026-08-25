@@ -26,6 +26,7 @@ pub struct ProtectedResultBuffer {
 }
 
 impl ProtectedResultBuffer {
+    #[must_use]
     pub fn is_held(&self) -> bool {
         !self.released
     }

@@ -14,13 +14,14 @@ pub enum CalloutDenyReason {
     UnknownIssuer,
     /// Caller attempted email-only correlation (forbidden).
     EmailJoinForbidden,
-    /// Issuer+subject has no PrincipalMapping / external identity row.
+    /// Issuer+subject has no `PrincipalMapping` / external identity row.
     UnmappedPrincipal,
     /// Request missing required issuer or subject.
     MissingIdentity,
 }
 
 impl CalloutDenyReason {
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::UnknownIssuer => "unknown_issuer",
@@ -69,6 +70,7 @@ pub struct CalloutEval {
 /// Provisional principals get only the opaque capability inbox under
 /// `opensesame.callout.>` — never project event streams and never Host
 /// `opensesame.events.system.>` subjects.
+#[must_use]
 pub fn callout_permissions(
     principal_id: &str,
     provisional: bool,
@@ -108,6 +110,7 @@ fn subject_covers_system(subject: &str) -> bool {
 }
 
 /// True when a permission subject would cover Host system streams (forbidden for users).
+#[must_use]
 pub fn permissions_include_system(permissions: &CalloutPermissions) -> bool {
     permissions
         .publish
@@ -117,6 +120,10 @@ pub fn permissions_include_system(permissions: &CalloutPermissions) -> bool {
 }
 
 /// Pure allow/deny evaluation for NATS auth callout.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn evaluate_callout(eval: &CalloutEval) -> Result<CalloutAllow, CalloutDenyReason> {
     if eval.email_join_attempted {
         return Err(CalloutDenyReason::EmailJoinForbidden);

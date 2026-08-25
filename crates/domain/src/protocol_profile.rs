@@ -61,6 +61,10 @@ pub struct ProtocolProfile {
 }
 
 impl ProtocolProfile {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn parse_slug(slug: &str) -> Result<Self, DomainError> {
         let (family, maturity, minimum_presentation, requires_task_binding, requires_replay) =
             match slug {
@@ -71,7 +75,8 @@ impl ProtocolProfile {
                     true,
                     true,
                 ),
-                PROFILE_OAUTH_BEARER_RFC6750_V1 => (
+                PROFILE_OAUTH_BEARER_RFC6750_V1
+                | PROFILE_OAUTH_TOKEN_EXCHANGE_RFC8693_SEMANTICS_V1 => (
                     ProtocolFamily::OAuth,
                     ProtocolMaturity::Stable,
                     TokenPresentation::Bearer,
@@ -81,13 +86,6 @@ impl ProtocolProfile {
                 PROFILE_MCP_AUTHORIZATION_2026_07_28_BEARER => (
                     ProtocolFamily::Mcp,
                     ProtocolMaturity::Draft,
-                    TokenPresentation::Bearer,
-                    false,
-                    false,
-                ),
-                PROFILE_OAUTH_TOKEN_EXCHANGE_RFC8693_SEMANTICS_V1 => (
-                    ProtocolFamily::OAuth,
-                    ProtocolMaturity::Stable,
                     TokenPresentation::Bearer,
                     false,
                     false,
@@ -123,6 +121,10 @@ impl ProtocolProfile {
         })
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn assert_presentation_allowed(
         &self,
         presentation: TokenPresentation,

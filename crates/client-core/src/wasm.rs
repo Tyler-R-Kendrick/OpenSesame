@@ -10,6 +10,7 @@ pub struct WasmDeviceKey {
 #[wasm_bindgen]
 impl WasmDeviceKey {
     #[wasm_bindgen(constructor)]
+    #[must_use]
     pub fn generate() -> WasmDeviceKey {
         WasmDeviceKey {
             inner: DeviceKey::generate(),
@@ -18,11 +19,19 @@ impl WasmDeviceKey {
 }
 
 #[wasm_bindgen]
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn wasm_seal(key: &WasmDeviceKey, plaintext: &[u8], aad: &[u8]) -> Result<Vec<u8>, JsValue> {
     seal(&key.inner, plaintext, aad).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 #[wasm_bindgen]
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn wasm_open(key: &WasmDeviceKey, sealed: &[u8], aad: &[u8]) -> Result<Vec<u8>, JsValue> {
     open(&key.inner, sealed, aad).map_err(|e| JsValue::from_str(&e.to_string()))
 }
@@ -35,6 +44,7 @@ pub struct WasmSyncStore {
 #[wasm_bindgen]
 impl WasmSyncStore {
     #[wasm_bindgen(constructor)]
+    #[must_use]
     pub fn new(device_id: String) -> WasmSyncStore {
         WasmSyncStore {
             inner: SyncStore::new(device_id),
@@ -42,15 +52,21 @@ impl WasmSyncStore {
     }
 
     #[wasm_bindgen(getter)]
+    #[must_use]
     pub fn epoch(&self) -> u64 {
         self.inner.cursor.epoch
     }
 
     #[wasm_bindgen(getter)]
+    #[must_use]
     pub fn device_id(&self) -> String {
         self.inner.cursor.device_id.clone()
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn put_local(
         &mut self,
         key: &WasmDeviceKey,
@@ -64,12 +80,20 @@ impl WasmSyncStore {
         serde_wasm_bindgen::to_value(&blob).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn to_persisted_json(&self) -> Result<String, JsValue> {
         self.inner
             .to_persisted_json()
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn load_persisted_json(json: &str) -> Result<WasmSyncStore, JsValue> {
         let inner =
             SyncStore::from_persisted_json(json).map_err(|e| JsValue::from_str(&e.to_string()))?;
@@ -78,6 +102,7 @@ impl WasmSyncStore {
 }
 
 #[wasm_bindgen]
+#[must_use]
 pub fn wit_package() -> String {
     crate::wit_contract::PACKAGE.to_string()
 }

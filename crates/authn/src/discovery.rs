@@ -8,7 +8,7 @@ use crate::token::TokenValidationError;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-/// Hard ceiling so a huge document cannot become a parser DoS.
+/// Hard ceiling so a huge document cannot become a parser `DoS`.
 pub const MAX_DISCOVERY_BYTES: usize = 4096;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,15 +25,27 @@ pub struct OidcDiscovery {
 
 impl OidcDiscovery {
     /// Absolute HTTPS (or loopback HTTP) URL with no userinfo.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn issuer_url(&self) -> Result<Url, TokenValidationError> {
         parse_metadata_url(&self.issuer)
     }
 
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the underlying operation fails.
     pub fn jwks_url(&self) -> Result<Url, TokenValidationError> {
         parse_metadata_url(&self.jwks_uri)
     }
 }
 
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn parse_oidc_discovery(bytes: &[u8]) -> Result<OidcDiscovery, TokenValidationError> {
     if bytes.len() > MAX_DISCOVERY_BYTES {
         return Err(TokenValidationError::MalformedDiscovery);
@@ -54,6 +66,10 @@ pub fn parse_oidc_discovery(bytes: &[u8]) -> Result<OidcDiscovery, TokenValidati
 
 /// Bind a presented issuer to the configured one. Scheme/host/port/path must
 /// match after trailing-slash trim; a suffix host is not the same issuer.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn assert_discovery_issuer(
     document: &OidcDiscovery,
     configured_issuer: &str,

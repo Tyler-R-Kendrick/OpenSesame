@@ -34,6 +34,10 @@ pub enum AuthnError {
 
 /// Extract the kernel-attested credentials of a connected UDS peer.
 #[cfg(unix)]
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn peer_cred<S: std::os::fd::AsFd>(stream: &S) -> Result<PeerCred, AuthnError> {
     platform_peer_cred(stream)
 }
@@ -84,6 +88,10 @@ fn platform_peer_cred<S: std::os::fd::AsFd>(_stream: &S) -> Result<PeerCred, Aut
 
 /// Fail-closed authorization: `peer` passes only when its UID is listed, and
 /// an empty allowlist denies everyone rather than letting anyone through.
+///
+/// # Errors
+///
+/// Returns an error when validation or the underlying operation fails.
 pub fn authorize(peer: &PeerCred, allowed_uids: &[u32]) -> Result<(), AuthnError> {
     if allowed_uids.is_empty() {
         return Err(AuthnError::EmptyAllowlist);
@@ -99,6 +107,7 @@ pub fn authorize(peer: &PeerCred, allowed_uids: &[u32]) -> Result<(), AuthnError
 /// same-user rule — only processes running as the user who started the daemon
 /// may call its operator routes over the socket.
 #[cfg(unix)]
+#[must_use]
 pub fn default_allowed_uids() -> Vec<u32> {
     vec![nix::unistd::geteuid().as_raw()]
 }
@@ -111,6 +120,7 @@ pub fn default_allowed_uids() -> Vec<u32> {
 /// Parse a comma-separated UID list (`OPENSESAME_DAEMON_ALLOWED_UIDS`).
 /// Malformed entries are dropped, not guessed at; an all-malformed value
 /// yields an empty list, which [`authorize`] treats as deny-all.
+#[must_use]
 pub fn parse_allowed_uids(csv: &str) -> Vec<u32> {
     csv.split(',')
         .filter_map(|part| part.trim().parse::<u32>().ok())

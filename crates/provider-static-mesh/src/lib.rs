@@ -111,7 +111,7 @@ mod pact {
     async fn property_advertise_then_resolve_is_stable() {
         let mesh = StaticMesh {
             node_id: "n1".into(),
-            services: Default::default(),
+            services: std::sync::Mutex::default(),
         };
         mesh.advertise(MeshService {
             id: "svc".into(),

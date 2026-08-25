@@ -1,6 +1,7 @@
-/// OpenFGA model identifier for deployed policy.
+/// `OpenFGA` model identifier for deployed policy.
 pub const OPENFGA_MODEL_ID: &str = "opensesame-authz-v1";
 
+#[must_use]
 pub fn policy_version_digest() -> String {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();

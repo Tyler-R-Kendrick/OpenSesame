@@ -6,6 +6,7 @@ use sha2::{Digest, Sha256};
 /// Digest for a *high-entropy* secret (32 random bytes: claim tokens, device
 /// codes, session ids). A bare hash is enough there because the preimage space is
 /// not searchable.
+#[must_use]
 pub fn hash_secret(secret: &str) -> String {
     let mut h = Sha256::new();
     h.update(secret.as_bytes());
@@ -22,18 +23,25 @@ const LOW_ENTROPY_PURPOSE: &str = "opensesame:low-entropy:v1";
 /// the digest with a server-held pepper puts it out of reach, and binding the
 /// context (claim or device id) means one recovered code says nothing about
 /// any other.
+///
+/// # Panics
+///
+/// This function does not panic: `SimpleHmac` accepts keys of every length.
+#[must_use]
 pub fn hash_low_entropy(pepper: &str, context: &str, secret: &str) -> String {
     use hmac::{Mac, SimpleHmac};
     let mut mac = SimpleHmac::<Sha256>::new_from_slice(pepper.as_bytes())
         .expect("SimpleHmac accepts any key length");
     for part in [LOW_ENTROPY_PURPOSE, context, secret] {
-        mac.update(&(part.len() as u32).to_be_bytes());
+        let length_bytes = part.len().to_be_bytes();
+        mac.update(&length_bytes[length_bytes.len() - std::mem::size_of::<u32>()..]);
         mac.update(part.as_bytes());
     }
     format!("hmac-sha256:{:x}", mac.finalize().into_bytes())
 }
 
 /// Constant-time equality for `hash_secret` digests (and other equal-length hex strings).
+#[must_use]
 pub fn hash_eq(a: &str, b: &str) -> bool {
     let (aa, bb) = (a.as_bytes(), b.as_bytes());
     if aa.len() != bb.len() {
@@ -46,12 +54,14 @@ pub fn hash_eq(a: &str, b: &str) -> bool {
     diff == 0
 }
 
+#[must_use]
 pub fn generate_claim_token() -> String {
     let mut bytes = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut bytes);
     data_encoding::BASE64URL_NOPAD.encode(&bytes)
 }
 
+#[must_use]
 pub fn generate_user_code() -> String {
     const ALPHA: &[u8] = b"BCDFGHJKLMNPQRSTVWXZ";
     let mut rng = rand::thread_rng();
@@ -66,6 +76,11 @@ pub fn generate_user_code() -> String {
     )
 }
 
+///
+/// # Errors
+///
+/// Returns an error when the claim is not pending, has expired, or the token
+/// does not match.
 pub fn assert_claim_token(session: &ClaimSession, presented: &str) -> Result<(), DomainError> {
     if session.state != ClaimState::Pending {
         return Err(DomainError::InvalidTransition {
@@ -82,6 +97,10 @@ pub fn assert_claim_token(session: &ClaimSession, presented: &str) -> Result<(),
     Ok(())
 }
 
+///
+/// # Errors
+///
+/// Returns an error unless the claim session is pending.
 pub fn complete_claim(
     session: &mut ClaimSession,
     principal: opensesame_domain::PrincipalId,

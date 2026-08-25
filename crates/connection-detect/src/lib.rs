@@ -139,15 +139,16 @@ pub const ALIASES: &[AliasEntry] = aliases![
 
 /// Environment variables that conventionally carry this provider's field.
 /// Empty when the field has no convention beyond the explicit form.
+#[must_use]
 pub fn env_aliases(provider: &str, field: &str) -> &'static [&'static str] {
     ALIASES
         .iter()
         .find(|entry| entry.provider_id == provider && entry.field == field)
-        .map(|entry| entry.env_names)
-        .unwrap_or(&[])
+        .map_or(&[], |entry| entry.env_names)
 }
 
 /// The explicit, deployment-controlled variable for a provider field.
+#[must_use]
 pub fn env_var_name(provider_id: &str, suffix: &str) -> String {
     format!(
         "OPENSESAME_PROVIDER_{}_{suffix}",
@@ -155,10 +156,12 @@ pub fn env_var_name(provider_id: &str, suffix: &str) -> String {
     )
 }
 
+#[must_use]
 pub fn is_aws_provider(provider: &str) -> bool {
     AWS_IDS.contains(&provider)
 }
 
+#[must_use]
 pub fn is_aws_credential_field(field: &str) -> bool {
     matches!(
         field,
@@ -166,6 +169,7 @@ pub fn is_aws_credential_field(field: &str) -> bool {
     )
 }
 
+#[must_use]
 pub fn non_empty(v: Option<String>) -> Option<String> {
     v.filter(|s| !s.is_empty())
 }
@@ -383,6 +387,7 @@ pub fn scan(
 /// These files routinely hold raw API keys inside each server's `env` block,
 /// so only the server name and the *names* of its environment keys are read.
 /// No value from this file is returned, stored, or logged.
+#[must_use]
 pub fn mcp_server_names(contents: &str) -> Vec<String> {
     let Ok(parsed) = serde_json::from_str::<serde_json::Value>(contents) else {
         return Vec::new();
@@ -801,7 +806,7 @@ mod tests {
         }
     }
 
-    /// One report touching every ProbeSource variant, shared by the round-trip
+    /// One report touching every `ProbeSource` variant, shared by the round-trip
     /// and wire-shape pins so they cannot drift apart.
     fn sample_report() -> ProbeReport {
         ProbeReport {
