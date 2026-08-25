@@ -24,7 +24,7 @@ const bindCapabilityConnector = vi.fn(
   },
 );
 const authorizeCapabilityConnector = vi.fn();
-const openConsentPopup = vi.fn(() => ({}) as Window);
+const openConsentPopup = vi.fn(() => window);
 
 beforeEach(() => {
   binding = { providerId: "webcrypto" };

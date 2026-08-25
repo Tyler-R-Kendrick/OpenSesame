@@ -46,8 +46,10 @@ describe("ProvisionalPolicy", () => {
   it("denies high-risk actions for verified principals too", () => {
     for (const action of [
       "organization.delete",
+      "principal.merge",
       "grant.export_raw_credential",
       "admin.impersonate",
+      "oauth.client.register_privileged",
       "claim.force_complete",
     ]) {
       const d = policy.evaluate(fixtures.verifiedPrincipal(), {
@@ -59,6 +61,54 @@ describe("ProvisionalPolicy", () => {
       expect(d.reasons).toContain("high_risk_requires_explicit_authority");
     }
   });
+
+  it.each([
+    ["project.create_temporary", "temporaryProjects", "quota_projects"],
+    ["resource.create_temporary", "temporaryResources", "quota_resources"],
+    ["agent.register_ephemeral", "agents", "quota_agents"],
+    ["project.create", "projects", "quota_projects"],
+    ["claim.create", "claims", "quota_claims"],
+  ] as const)(
+    "maps %s to its exact provisional quota",
+    (action, field, reason) => {
+      const customQuota = {
+        maxTemporaryProjects: 0,
+        maxTemporaryResources: 0,
+        maxAgents: 0,
+        maxOrganizations: 0,
+        maxOAuthClients: 0,
+        maxProjects: 0,
+        maxClaims: 0,
+      };
+      const decision = new ProvisionalPolicy(customQuota).evaluate(
+        fixtures.provisionalPrincipal(),
+        {
+          subject: { type: "principal", id: "prn_x" },
+          action,
+          resource: { type: "resource", id: "new" },
+        },
+        usage({ [field]: 0 }),
+      );
+      expect(decision).toEqual({
+        effect: "deny",
+        reasons: [`provisional_${reason}`, reason],
+        obligations: ["upgrade_identity"],
+      });
+    },
+  );
+
+  it.each(["resource.read", "session.continue_anonymous"])(
+    "allows the complete bounded provisional action set: %s",
+    (action) => {
+      expect(
+        policy.evaluate(fixtures.provisionalPrincipal(), {
+          subject: { type: "principal", id: "prn_x" },
+          action,
+          resource: { type: "resource", id: "existing" },
+        }),
+      ).toEqual({ effect: "allow", reasons: ["provisional_policy_allow"] });
+    },
+  );
 
   it("holds verified principals to a larger quota, not to none", () => {
     const request = {
@@ -76,8 +126,30 @@ describe("ProvisionalPolicy", () => {
       request,
       usage({ temporaryProjects: DEFAULT_VERIFIED_QUOTA.maxTemporaryProjects }),
     );
-    expect(d.effect).toBe("deny");
-    expect(d.reasons).toContain("quota_projects");
+    expect(d).toEqual({ effect: "deny", reasons: ["quota_projects"] });
+  });
+
+  it("applies zero quotas when usage is omitted", () => {
+    const zero = {
+      maxTemporaryProjects: 0,
+      maxTemporaryResources: 0,
+      maxAgents: 0,
+      maxOrganizations: 0,
+      maxOAuthClients: 0,
+      maxProjects: 0,
+      maxClaims: 0,
+    };
+    expect(
+      new ProvisionalPolicy(zero).evaluate(fixtures.provisionalPrincipal(), {
+        subject: { type: "principal", id: "prn_x" },
+        action: "claim.create",
+        resource: { type: "claim", id: "new" },
+      }),
+    ).toEqual({
+      effect: "deny",
+      reasons: ["provisional_quota_claims", "quota_claims"],
+      obligations: ["upgrade_identity"],
+    });
   });
 
   it("enforces quotas", () => {
@@ -187,5 +259,21 @@ describe("ProvisionalPolicy", () => {
     });
     expect(d.effect).toBe("allow");
     expect(d.reasons).toContain("assurance_not_provisional");
+  });
+
+  it("denies an unlisted action only for a provisional principal", () => {
+    const request = {
+      subject: { type: "principal" as const, id: "prn_x" },
+      action: "resource.delete",
+      resource: { type: "resource", id: "res_1" },
+    };
+    expect(policy.evaluate(fixtures.provisionalPrincipal(), request)).toEqual({
+      effect: "deny",
+      reasons: ["provisional_action_not_permitted", "resource.delete"],
+    });
+    expect(policy.evaluate(fixtures.verifiedPrincipal(), request)).toEqual({
+      effect: "allow",
+      reasons: ["assurance_not_provisional"],
+    });
   });
 });

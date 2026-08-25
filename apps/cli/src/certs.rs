@@ -1,4 +1,4 @@
-//! Infisical-style private CA / dev-certificate commands.
+//! Automatic Host certificate issuance commands.
 //!
 //! The Host issues the certificate. This CLI never prints a private key unless
 //! `--reveal` or `--out-dir` is given (human operator only).
@@ -66,19 +66,27 @@ pub async fn cmd_ls(server: &str, output: &str) -> Result<()> {
     Ok(())
 }
 
-/// Arguments mirror the `cert issue` flags one for one; bundling them into
-/// a struct would relocate the same fields without simplifying the call.
-#[allow(clippy::too_many_arguments)]
-pub async fn cmd_issue(
-    server: &str,
-    output: &str,
-    common_name: String,
-    dns: Vec<String>,
-    ips: Vec<String>,
-    ttl_hours: u64,
-    out_dir: Option<PathBuf>,
-    reveal: bool,
-) -> Result<()> {
+pub struct IssueOptions {
+    pub common_name: String,
+    pub dns: Vec<String>,
+    pub ips: Vec<String>,
+    pub ttl_hours: u64,
+    pub out_dir: Option<PathBuf>,
+    pub reveal: bool,
+}
+
+pub async fn cmd_issue(server: &str, output: &str, options: IssueOptions) -> Result<()> {
+    let IssueOptions {
+        common_name,
+        dns,
+        ips,
+        ttl_hours,
+        out_dir,
+        reveal,
+    } = options;
+    if out_dir.is_none() && !reveal {
+        bail!("refusing to issue private-key material without --out-dir or --reveal");
+    }
     let mut dns_names = dns;
     if dns_names.is_empty() {
         dns_names.push(common_name.clone());
@@ -113,6 +121,7 @@ pub async fn cmd_issue(
         .get("ca_certificate")
         .and_then(Value::as_str)
         .unwrap_or("");
+    let delivery_id = body.get("delivery_id").and_then(Value::as_str);
 
     if let Some(ref dir) = out_dir {
         fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
@@ -138,6 +147,7 @@ pub async fn cmd_issue(
             bail!("refusing to print a private key on stdout; pass --out-dir or --reveal");
         }
         println!("{}", serde_json::to_string_pretty(&printed)?);
+        acknowledge_delivery(server, delivery_id).await?;
         return Ok(());
     }
 
@@ -150,8 +160,20 @@ pub async fn cmd_issue(
         if !key.ends_with('\n') {
             eprintln!();
         }
-    } else if out_dir.is_none() {
-        eprintln!("Private key omitted. Re-run with --out-dir DIR or --reveal (human only).");
+    }
+    acknowledge_delivery(server, delivery_id).await?;
+    Ok(())
+}
+
+async fn acknowledge_delivery(server: &str, delivery_id: Option<&str>) -> Result<()> {
+    if let Some(id) = delivery_id {
+        connect::api(
+            server,
+            reqwest::Method::POST,
+            &format!("/api/v1/certs/deliveries/{id}/ack"),
+            None,
+        )
+        .await?;
     }
     Ok(())
 }

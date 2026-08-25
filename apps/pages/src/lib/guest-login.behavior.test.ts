@@ -31,7 +31,6 @@ describe("guest login journey", () => {
       accessToken: "guest-tok",
       issuerOrigin: "http://127.0.0.1:18788",
     });
-    guestAuthDependencies.restoreSession = () => {};
   });
 
   afterEach(() => {

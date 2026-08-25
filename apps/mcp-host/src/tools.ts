@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { z } from "zod";
 import { forAgent, scrubLocalSecrets } from "./agent-payload.js";
 import { daemonFetch, hostFetch } from "./host-api.js";
@@ -38,19 +39,56 @@ const capabilitySchema = z.object({
   resource: z.string(),
 });
 
+const safeTokenSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9:._/-]{1,512}$/, "invalid opaque identifier");
+
 const taskStateResponseSchema = z.object({
-  task_run_id: z.string().optional(),
-  state_version: z.number().optional(),
+  task_run_id: safeTokenSchema.optional(),
+  state_version: z.number().int().nonnegative().optional(),
+  state_digest: safeTokenSchema.optional(),
+  ceiling_digest: safeTokenSchema.optional(),
+  status: z
+    .enum([
+      "pending",
+      "active",
+      "restricting",
+      "completed",
+      "failed",
+      "cancelled",
+    ])
+    .optional(),
+  capabilities: z.array(capabilitySchema).max(64).optional(),
+  capability_ceiling: z.array(capabilitySchema).max(64).optional(),
+  current_capabilities: z.array(capabilitySchema).max(64).optional(),
+  maximum_expires_at: z.string().datetime().optional(),
 });
 
 const intentResponseSchema = z.object({
-  intent_id: z.string(),
-  intent_digest: z.string(),
-  task_state_version: z.number().optional(),
+  intent_id: safeTokenSchema,
+  intent_digest: safeTokenSchema,
+  task_run_id: safeTokenSchema.optional(),
+  task_state_version: z.number().int().nonnegative().optional(),
   canonical_arguments: z.unknown().optional(),
 });
+const intentAgentResponseSchema = intentResponseSchema.omit({
+  canonical_arguments: true,
+});
 
-const errorResponseSchema = z.object({ error: z.string().optional() });
+const daemonStatusResponseSchema = z.object({
+  daemon: z.literal("ok"),
+  uptime_s: z.number().nonnegative().optional(),
+  sessions: z.number().int().nonnegative().optional(),
+  capabilities: z.number().int().nonnegative().optional(),
+  materialize: z.literal("denied_by_default").optional(),
+  approvals: z
+    .array(z.enum(["approve_device", "approve_claim"]))
+    .max(2)
+    .optional(),
+  auth: z.literal("operator_token_required_for_mutations").optional(),
+});
+
+const errorResponseSchema = z.object({ error: safeTokenSchema });
 
 export function registerHostTools(server: McpServer): void {
   assertsNoSecretTools(hostTools);
@@ -92,7 +130,9 @@ export function registerHostTools(server: McpServer): void {
           });
         }
         return {
-          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
+          content: textContent(
+            agentJson(body, res.ok, taskStateResponseSchema),
+          ),
           isError: !res.ok,
         };
       } catch (e) {
@@ -132,7 +172,9 @@ export function registerHostTools(server: McpServer): void {
           );
         }
         return {
-          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
+          content: textContent(
+            agentJson(body, res.ok, taskStateResponseSchema),
+          ),
           isError: !res.ok,
         };
       } catch (e) {
@@ -198,7 +240,9 @@ export function registerHostTools(server: McpServer): void {
           });
         }
         return {
-          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
+          content: textContent(
+            agentJson(body, res.ok, intentAgentResponseSchema),
+          ),
           isError: !res.ok,
         };
       } catch (e) {
@@ -237,7 +281,9 @@ export function registerHostTools(server: McpServer): void {
           setTaskContext(null);
         }
         return {
-          content: textContent(forAgent(JSON.stringify(body) ?? "null")),
+          content: textContent(
+            agentJson(body, res.ok, taskStateResponseSchema),
+          ),
           isError: !res.ok,
         };
       } catch (e) {
@@ -253,9 +299,13 @@ export function registerHostTools(server: McpServer): void {
     try {
       const res = await daemonFetch("/v1/toolbar/status");
       const body = await res.json();
-      return {
-        content: textContent(forAgent(JSON.stringify(body) ?? "null")),
+      const result = {
+        content: textContent(
+          agentJson(body, res.ok, daemonStatusResponseSchema),
+        ),
       };
+      if (!res.ok) return { ...result, isError: true };
+      return result;
     } catch (e) {
       return toolError(
         "daemon_unavailable",
@@ -267,13 +317,12 @@ export function registerHostTools(server: McpServer): void {
   server.tool("host_ready", "Host API readiness", {}, async () => {
     try {
       const res = await hostFetch("/health/ready");
-      const text = await res.text();
       return {
         content: textContent(
           forAgent(
             JSON.stringify({
               status: res.status,
-              body: text,
+              ready: res.ok,
               tools: hostTools,
             }),
           ),
@@ -335,6 +384,18 @@ export function registerHostTools(server: McpServer): void {
 
 function textContent(text: string) {
   return [{ type: "text" as const, text }];
+}
+
+function agentJson(body: BoundaryValue, ok: boolean, successSchema: z.ZodType) {
+  // Refuse a compromised response containing credential-shaped material even
+  // when that field is not part of the agent-visible allowlist.
+  forAgent(JSON.stringify(body));
+  const parsed = (ok ? successSchema : errorResponseSchema).safeParse(body);
+  return forAgent(
+    JSON.stringify(
+      parsed.success ? parsed.data : { error: "upstream_response_invalid" },
+    ),
+  );
 }
 
 function toolError(label: string, e: Error | string) {

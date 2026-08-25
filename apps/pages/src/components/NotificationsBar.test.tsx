@@ -10,17 +10,14 @@ import {
 } from "./NotificationsBar.js";
 
 const beginSignIn = vi.fn();
-const stashCurrentSession = vi.fn();
 Object.assign(notificationsBarDependencies, {
   beginSignIn,
-  stashCurrentSession,
 });
 
 afterEach(() => {
   cleanup();
   clearNotices();
   beginSignIn.mockReset();
-  stashCurrentSession.mockReset();
 });
 
 describe("NotificationsBar", () => {
@@ -53,7 +50,6 @@ describe("NotificationsBar", () => {
     expect(screen.getByRole("dialog", { name: "Notifications" })).toBeTruthy();
     expect(screen.getByText("WORD-WORD")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Sign in to claim" }));
-    expect(stashCurrentSession).toHaveBeenCalledTimes(1);
     expect(beginSignIn).toHaveBeenCalledTimes(1);
   });
 

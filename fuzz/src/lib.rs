@@ -599,16 +599,11 @@ pub fn fuzz_replay_cache(input: ReplayCacheInput) {
     let cap = (input.capacity % 8).max(1) as usize;
     let ttl = (input.ttl_secs % 600).max(1);
     let cache = InMemoryReplayCache::with_limits(ttl, cap);
-    let mut accepted = 0usize;
     for ev in input.events {
         let jti = if ev.jti.is_empty() { "j".into() } else { ev.jti };
-        let result = cache.check_and_record_at(&jti, ev.now);
-        match result {
-            Ok(()) => accepted += 1,
-            Err(_) => {}
-        }
+        let _ = cache.check_and_record_at(&jti, ev.now);
+        assert!(cache.len() <= cap, "cache must remain bounded at capacity");
     }
-    assert!(accepted <= cap, "cache must fail closed at capacity");
 }
 
 /// Oracle: honest GitHub HMAC accepts; body/header tampering never accepts.
@@ -935,7 +930,9 @@ pub fn fuzz_caps(set: impl IntoIterator<Item = Capability>) -> CapabilitySet {
 #[cfg(test)]
 mod oracle_smoke {
     use super::*;
-    use crate::types::{GithubWebhookHmacInput, NatsCalloutEvalInput};
+    use crate::types::{
+        GithubWebhookHmacInput, NatsCalloutEvalInput, ReplayCacheInput, ReplayEvent,
+    };
     use opensesame_task_bus::validate_nats_url;
 
     /// Seed corpus for `bitwarden_encstring`: the shapes a real vault emits
@@ -1010,6 +1007,24 @@ mod oracle_smoke {
             mapped: true,
             provisional: false,
             project_count: 1,
+        });
+    }
+
+    #[test]
+    fn replay_oracle_allows_expired_slots_to_be_reused() {
+        fuzz_replay_cache(ReplayCacheInput {
+            capacity: 1,
+            ttl_secs: 1,
+            events: vec![
+                ReplayEvent {
+                    jti: "first".into(),
+                    now: 1_000,
+                },
+                ReplayEvent {
+                    jti: "second".into(),
+                    now: 1_002,
+                },
+            ],
         });
     }
 }
