@@ -1,8 +1,3 @@
-#![expect(
-    clippy::excessive_nesting,
-    reason = "the route contract test is a cohesive parser and comparison of two declarative catalogs"
-)]
-
 //! Contract tests pinning the route table in `mod.rs` against the committed
 //! `OpenAPI` spec (`api/openapi/openapi.yaml`, `OpenAPI` 3.1, server `/api/v1`).
 //! Both directions are checked statically — a route added to `mod.rs` fails

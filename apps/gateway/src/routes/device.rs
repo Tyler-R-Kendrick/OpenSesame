@@ -347,10 +347,6 @@ pub async fn approve(
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::excessive_nesting,
-    reason = "the device-flow tests keep each transactional state-machine journey cohesive"
-)]
 mod tests {
     use super::*;
     use crate::app_state::DevicePending;

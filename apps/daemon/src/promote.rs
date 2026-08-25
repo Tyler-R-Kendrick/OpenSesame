@@ -672,10 +672,6 @@ mod tests {
         })
     }
 
-    #[expect(
-        clippy::excessive_nesting,
-        reason = "the cohesive HTTP stub keeps scripted route behavior together"
-    )]
     async fn spawn_stub(stub: Stub) -> String {
         let list_stub = stub.clone();
         let create_stub = stub.clone();

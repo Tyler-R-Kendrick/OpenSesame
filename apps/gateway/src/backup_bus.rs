@@ -102,11 +102,6 @@ async fn drain_system_wakes(state: &AppState, bus: &NatsJetStreamTaskBus) {
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::excessive_nesting,
-    clippy::items_after_statements,
-    reason = "the backup actor test keeps its fault-injection fixtures beside the single scenario"
-)]
 mod tests {
     use super::*;
 

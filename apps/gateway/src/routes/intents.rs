@@ -6,7 +6,12 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use opensesame_broker::InvokeInput;
-use opensesame_domain::{DetachedProof, Intent, IntentId};
+use opensesame_domain::{
+    AuthorityOperation, ConnectionAuthorityBinding, ConnectionId, ConnectionRef, DetachedProof,
+    Grant, GrantId, Intent, IntentId, InvokeLevel, OrganizationId, PrincipalId,
+};
+#[cfg(test)]
+use opensesame_domain::{EgressBinding, OrganizationRole};
 use opensesame_provider_openfga::TupleKey;
 use serde::Deserialize;
 use serde_json::{json, Value};

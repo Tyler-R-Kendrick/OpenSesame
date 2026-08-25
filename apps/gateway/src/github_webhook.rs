@@ -231,10 +231,6 @@ pub async fn webhook_get() -> Response {
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::excessive_nesting,
-    reason = "the webhook tests keep their bounded mock server protocol in each scenario"
-)]
 mod tests {
     use super::*;
     use crate::app_state::{self, AppState};

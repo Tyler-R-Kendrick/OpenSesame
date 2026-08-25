@@ -604,10 +604,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[expect(
-        clippy::excessive_nesting,
-        reason = "the cohesive chaos scenario keeps fault setup and assertions together"
-    )]
     async fn chaos_killed_source_tool_makes_zero_upstream_connections() {
         use crate::tests::fault::{Fault, FaultListener};
         use crate::token_source::CliTokenSource;
@@ -704,10 +700,6 @@ mod tests {
         /// local tracing event, never part of the HTTP response, so there is
         /// no receipt metadata to pin on the wire.
         #[tokio::test]
-        #[expect(
-            clippy::excessive_nesting,
-            reason = "the cohesive snapshot keeps response normalization visible"
-        )]
         async fn invoke_success_wire_shape_is_pinned() {
             let (base, _hits) = spawn_upstream().await;
             let app = router(canary_state(

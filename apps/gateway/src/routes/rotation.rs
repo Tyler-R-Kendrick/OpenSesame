@@ -190,19 +190,8 @@ pub async fn request(
         Err(resp) => return resp,
     };
 
-    if let RotationTarget::Connection { connection_id } = &target {
-        if st
-            .connection_broker
-            .get_connection(&organization_id, connection_id)
-            .await
-            .is_err()
-        {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({"error": "connection_not_found"})),
-            )
-                .into_response();
-        }
+    if let Err(response) = validate_target(&st, &organization_id, &target).await {
+        return response;
     }
 
     let mut policy_id = None;
@@ -291,6 +280,29 @@ pub async fn request(
     }
 
     (StatusCode::ACCEPTED, Json(response)).into_response()
+}
+
+async fn validate_target(
+    st: &AppState,
+    organization_id: &opensesame_domain::OrganizationId,
+    target: &RotationTarget,
+) -> Result<(), Response> {
+    let RotationTarget::Connection { connection_id } = target else {
+        return Ok(());
+    };
+    if st
+        .connection_broker
+        .get_connection(organization_id, connection_id)
+        .await
+        .is_ok()
+    {
+        return Ok(());
+    }
+    Err((
+        StatusCode::NOT_FOUND,
+        Json(json!({"error": "connection_not_found"})),
+    )
+        .into_response())
 }
 
 /// `GET /api/v1/rotations/{id}` — job status only (no secrets).

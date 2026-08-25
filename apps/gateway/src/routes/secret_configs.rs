@@ -189,7 +189,7 @@ pub async fn list_for_project(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -227,7 +227,7 @@ pub async fn create(
             }
             (StatusCode::CREATED, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -254,7 +254,7 @@ pub async fn get(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -275,7 +275,7 @@ pub async fn delete(
         .await
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -311,7 +311,7 @@ pub async fn put_secrets(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -338,7 +338,7 @@ pub async fn list_keys(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -368,7 +368,7 @@ pub async fn delete_secret(
             st.sync_notify.notify_one();
             StatusCode::NO_CONTENT.into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -405,7 +405,7 @@ pub async fn list_versions(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -443,7 +443,7 @@ pub async fn rollback(
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -464,11 +464,11 @@ pub async fn compare(
     let org = organization_id.to_string();
     let left = match st.connection_broker.config_key_meta(&org, &a).await {
         Ok(keys) => keys,
-        Err(e) => return broker_error(e),
+        Err(e) => return broker_error(&e),
     };
     let right = match st.connection_broker.config_key_meta(&org, &b).await {
         Ok(keys) => keys,
-        Err(e) => return broker_error(e),
+        Err(e) => return broker_error(&e),
     };
     let right_map: BTreeMap<&str, u64> = right
         .iter()
@@ -519,7 +519,7 @@ pub async fn branch(
     let org = organization_id.to_string();
     let parent = match st.connection_broker.get_secret_config_view(&org, &id).await {
         Ok(view) => view,
-        Err(e) => return broker_error(e),
+        Err(e) => return broker_error(&e),
     };
     match st
         .connection_broker
@@ -543,7 +543,7 @@ pub async fn branch(
             }
             (StatusCode::CREATED, Json(body)).into_response()
         }
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 

@@ -62,7 +62,7 @@ pub async fn list_for_project(
         .await
     {
         Ok(events) => events,
-        Err(e) => return crate::routes::connections::broker_error(e),
+        Err(e) => return crate::routes::connections::broker_error(&e),
     };
     let next_cursor = events.iter().filter_map(|e| e.seq).min();
     (
@@ -156,18 +156,13 @@ pub async fn record(
         .await
     {
         Ok(entry) => entry,
-        Err(e) => return crate::routes::connections::broker_error(e),
+        Err(e) => return crate::routes::connections::broker_error(&e),
     };
     let serialized = serde_json::to_value(&entry).unwrap_or_else(|_| json!({}));
     (StatusCode::CREATED, Json(serialized)).into_response()
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::excessive_nesting,
-    clippy::similar_names,
-    reason = "the changelog contract tests compare parallel header sets in cohesive scenarios"
-)]
 mod tests {
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
