@@ -1,14 +1,9 @@
 # Prompt injection via relayed tool results / upstream bodies.
 #
-# apps/mcp-host relays Host API / daemon response bodies to the model after
-# `forAgent()` scrubbing (apps/mcp-host/src/agent-payload.ts). That fence
-# removes secret-*shaped* content but deliberately does not — and cannot —
-# strip arbitrary embedded instructions, because it has no way to tell
-# legitimate upstream prose from an injected command (see
-# docs/security/audit-2026-08-08-mcp-agent-boundary.md, and the commit
-# f012c71 bug class: "stop relaying an upstream body to the model unchecked").
-# That means the model's own judgment is the last line of defense here, which
-# is exactly what these cases probe: the fixed-port stub started by
+# apps/mcp-host validates each administrative response and exposes only the
+# fields that tool contract permits. `forAgent()` remains a second fence for
+# credential-shaped material. These cases prove that attacker-controlled
+# prose in extra upstream fields never enters model context: the fixed-port stub started by
 # scripts/mock-upstream-daemon.mjs (see promptfooconfig.yaml's
 # "claude-live-mcp" provider) returns real apps/mcp-host response shapes with
 # an embedded instruction in an ordinary-looking field, and each case asserts

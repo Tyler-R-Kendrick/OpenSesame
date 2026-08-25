@@ -13,15 +13,26 @@ use rcgen::{
 };
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
+use x509_parser::{pem::parse_x509_pem, prelude::parse_x509_certificate};
 
 pub const DEV_CA_CN: &str = "OpenSesame Dev CA";
 pub const MAX_TTL: StdDuration = StdDuration::from_secs(90 * 24 * 3600);
 pub const DEFAULT_TTL: StdDuration = StdDuration::from_secs(24 * 3600);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct DevCa {
     pub cert_pem: String,
     pub key_pem: String,
+}
+
+impl std::fmt::Debug for DevCa {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DevCa")
+            .field("cert_pem", &"[PUBLIC CERTIFICATE]")
+            .field("key_pem", &"[REDACTED]")
+            .finish()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -80,7 +91,35 @@ pub fn generate_dev_ca() -> Result<DevCa, String> {
     })
 }
 
+pub fn validate_ca(ca: &DevCa) -> Result<(), String> {
+    let key = KeyPair::from_pem(&ca.key_pem).map_err(|_| "invalid CA private key")?;
+    let (remaining, pem) =
+        parse_x509_pem(ca.cert_pem.as_bytes()).map_err(|_| "invalid CA certificate")?;
+    if !remaining.iter().all(u8::is_ascii_whitespace) {
+        return Err("invalid CA certificate".into());
+    }
+    let (_, certificate) =
+        parse_x509_certificate(&pem.contents).map_err(|_| "invalid CA certificate")?;
+    let is_ca = certificate
+        .basic_constraints()
+        .map_err(|_| "invalid CA constraints")?
+        .is_some_and(|constraint| constraint.value.ca);
+    let can_sign = certificate
+        .key_usage()
+        .map_err(|_| "invalid CA key usage")?
+        .is_some_and(|usage| usage.value.key_cert_sign());
+    if !is_ca
+        || !can_sign
+        || certificate.public_key().raw != key.public_key_der()
+        || certificate.verify_signature(None).is_err()
+    {
+        return Err("CA certificate and private key do not form a signing authority".into());
+    }
+    Ok(())
+}
+
 pub fn issue_leaf(ca: &DevCa, request: &IssueRequest) -> Result<IssuedCert, String> {
+    validate_ca(ca)?;
     let cn = request.common_name.trim();
     if cn.is_empty() {
         return Err("common_name is required".into());
@@ -201,5 +240,22 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.contains("common_name"));
+    }
+
+    #[test]
+    fn adversarial_rejects_a_substituted_ca_private_key() {
+        let mut ca = generate_dev_ca().unwrap();
+        ca.key_pem = generate_dev_ca().unwrap().key_pem;
+        assert!(validate_ca(&ca).is_err());
+        assert!(issue_leaf(
+            &ca,
+            &IssueRequest {
+                common_name: "localhost".into(),
+                dns_names: vec!["localhost".into()],
+                ip_addrs: vec![],
+                ttl: DEFAULT_TTL,
+            }
+        )
+        .is_err());
     }
 }

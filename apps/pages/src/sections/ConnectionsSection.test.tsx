@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearNotices, listNotices } from "../lib/notices.js";
 import type { SecretItem } from "../lib/vault/model.js";
 
 const online = vi.hoisted(() => ({ value: true }));
@@ -60,9 +61,9 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => ({ addItems, saveItem }),
 });
 
-import { planeNoteSeams } from "../components/PlaneNote.js";
-const originalPlaneNoteSeams = { ...planeNoteSeams };
-Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
+import { pagesCannotHostNoteSeams } from "../components/PagesCannotHostNote.js";
+const originalPlaneNoteSeams = { ...pagesCannotHostNoteSeams };
+Object.assign(pagesCannotHostNoteSeams, { PagesCannotHostNote: () => null });
 
 const listProviders = vi.hoisted(() => vi.fn());
 const listConnections = vi.hoisted(() => vi.fn());
@@ -320,6 +321,7 @@ describe("ConnectionsSection gallery", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.clearAllMocks();
     embeddedCatalogSeams.bundledProviders =
       originalEmbeddedCatalogSeams.bundledProviders;
@@ -362,13 +364,19 @@ describe("ConnectionsSection gallery", () => {
     expect(container.querySelectorAll(".conn-tile").length).toBe(4);
   });
 
-  it("shows the unreachable-Host error when connections cannot load", async () => {
+  it("reports the unreachable Host as a notification, not a banner", async () => {
     listConnections.mockRejectedValue(
       new ConnectionsError(0, "unreachable", "fetch failed"),
     );
     renderAt("/connections");
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/Host API unavailable/);
+    await waitFor(() => {
+      const notice = listNotices().find((n) => n.id === "connections-load");
+      expect(notice?.title).toBe("Host API unavailable");
+      expect(notice?.tone).toBe("err");
+      expect(notice?.ceremony).toBe("host");
+    });
+    // The page itself stays clean of the load-error banner.
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("gates on organization setup when the Host session needs it", async () => {
@@ -381,16 +389,23 @@ describe("ConnectionsSection gallery", () => {
     ).toBeTruthy();
   });
 
-  it("warns when the catalog falls back to the bundled copy", async () => {
+  it("warns through a notification when the catalog falls back to the bundled copy", async () => {
     listProviders.mockRejectedValue(
       new ConnectionsError(0, "unreachable", "fetch failed"),
     );
     renderAt("/connections");
-    expect(
-      await screen.findByText(/Host catalog did not refresh/),
-    ).toBeTruthy();
+    await waitFor(() => {
+      const notice = listNotices().find((n) => n.id === "catalog-stale");
+      expect(notice?.title).toBe("Host catalog did not refresh");
+      expect(notice?.retryLabel).toBe("Try again");
+    });
     // Bundled providers still render.
     expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
+    // The notice's retry re-runs the catalog load.
+    listNotices()
+      .find((n) => n.id === "catalog-stale")
+      ?.retry?.();
+    await waitFor(() => expect(listProviders).toHaveBeenCalledTimes(2));
   });
 
   it("warns when the Host is missing its sealing key", async () => {
@@ -472,7 +487,12 @@ describe("ConnectionsSection gallery", () => {
     expect(
       screen.getAllByText(/Created, but nobody has approved it yet/).length,
     ).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("link", { name: /Fix/i })).toBeTruthy();
+    // Repair happens in place now: the primary finishes the authorization
+    // here, and only the quiet Details link goes to the connector page.
+    expect(
+      screen.getByRole("button", { name: /Finish authorization/i }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Details/i })).toBeTruthy();
   });
 
   it("shows managed connections with a status sentence", async () => {
@@ -510,6 +530,7 @@ describe("ConnectionsSection connector page", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.clearAllMocks();
     embeddedCatalogSeams.bundledProviders =
       originalEmbeddedCatalogSeams.bundledProviders;
@@ -887,6 +908,7 @@ describe("ConnectionsSection deeper branches", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.clearAllMocks();
     embeddedCatalogSeams.bundledProviders =
       originalEmbeddedCatalogSeams.bundledProviders;
@@ -1139,18 +1161,21 @@ describe("ConnectionsSection deeper branches", () => {
     ).toBe(true);
   });
 
-  it("shows the identity session note when connect previously failed", async () => {
+  it("reports a failed identity connect as a notification with a retry", async () => {
     session.current = null;
     hostEligible.value = false;
     shouldAutoConnect.mockReturnValue(false);
     connectState.error = "identity down";
     renderAt("/connections");
-    expect(
-      await screen.findByText(/OpenSesame Identity is unreachable/),
-    ).toBeTruthy();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Try Identity again/i }),
-    );
+    await waitFor(() => {
+      const notice = listNotices().find((n) => n.id === "identity-session");
+      expect(notice?.tone).toBe("err");
+      expect(notice?.body).toMatch(/identity down/);
+      expect(notice?.retryLabel).toBe("Try Identity again");
+    });
+    listNotices()
+      .find((n) => n.id === "identity-session")
+      ?.retry?.();
     expect(connect).toHaveBeenCalled();
   });
 });
@@ -1175,6 +1200,7 @@ describe("ConnectionsSection remaining branches", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.clearAllMocks();
     embeddedCatalogSeams.bundledProviders =
       originalEmbeddedCatalogSeams.bundledProviders;
@@ -1319,14 +1345,16 @@ describe("ConnectionsSection remaining branches", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("shows the establishing note while identity connects", async () => {
+  it("reports the establishing session as a notification while identity connects", async () => {
     session.current = null;
     hostEligible.value = false;
     connectState.connecting = true;
     renderAt("/connections");
-    expect(
-      await screen.findByText(/Establishing your private session/),
-    ).toBeTruthy();
+    await waitFor(() => {
+      const notice = listNotices().find((n) => n.id === "identity-session");
+      expect(notice?.tone).toBe("info");
+      expect(notice?.title).toBe("Starting your OpenSesame session");
+    });
   });
 
   it("links the provider docs from the connector page", async () => {

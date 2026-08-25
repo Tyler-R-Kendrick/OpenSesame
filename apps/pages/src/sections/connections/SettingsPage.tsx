@@ -7,7 +7,7 @@ import {
   IconExternal,
   IconX,
 } from "../../components/Icons.js";
-import { PagesCannotHostNote } from "../../components/PlaneNote.js";
+import { PagesCannotHostNote } from "../../components/PagesCannotHostNote.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
 import {

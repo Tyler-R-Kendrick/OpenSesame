@@ -48,6 +48,11 @@ Human, device, workload, service, agent, agent instance, malicious connector, co
 | Unconstrained placeholder substitution (email token away) | Placement + max occurrences fail-closed | `PlaceholderPlacement` / connector-host |
 | Same-UID agent reads host keychain | Host agent session capability; sandbox egress via broker | credential-agent + ADR 0006 |
 | Agent `materialize` via `.env` | DevDeliveryPolicy denies materialize for agents | `opensesame dev --agent` |
+| Root or leaf key exposed by certificate ceremony/storage | Host generates keys; authority and delivery records are sealed with organization/purpose AAD | gateway/storage certificate tests; ADR 0052 |
+| Duplicate request mints multiple certificates | Request digest + organization idempotency constraint + transactional issuance record | gateway certificate idempotency/chaos tests |
+| External CA outage silently downgrades trust | Selected/default external issuer fails closed; no private-CA fallback | `adversarial_external_issuer_failure_never_downgrades_to_private_ca` |
+| Certificate delivered to another actor | Expiring delivery is creator-bound and deleted after acknowledgement | gateway cross-actor/ack tests |
+| ACME or DNS endpoint pivots to internal network | Fixed HTTPS issuer endpoints, no redirects, bounded responses, DNS-01 connection allowlist | ACME/DNS adapter adversarial tests |
 
 See ADR 0005–0006 and SUDP (arXiv:2604.24920) for custodian execution semantics.
 

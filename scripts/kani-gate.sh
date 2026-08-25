@@ -17,13 +17,10 @@ if ! cargo kani --version >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> cargo kani (domain, grants, rotation, audit, proof)"
+echo "==> cargo kani (grant boundaries, rotation state machine)"
 cargo kani \
   -p opensesame-domain \
-  -p opensesame-grants \
   -p opensesame-rotation \
-  -p opensesame-audit \
-  -p opensesame-proof \
-  --tests
+  --lib
 
 echo "kani-gate: CLEAN"

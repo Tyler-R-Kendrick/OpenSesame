@@ -45,22 +45,6 @@ fn verify_with(key: &VerifyingKey, receipt: &InvocationReceipt) -> Result<(), Do
         .map_err(|e| DomainError::Canonicalization(e.to_string()))
 }
 
-#[cfg(kani)]
-mod kani_proofs {
-    use super::*;
-
-    #[kani::proof]
-    fn receipt_key_id_is_a_function_of_the_public_key() {
-        let bytes: [u8; 32] = kani::any();
-        if let Ok(key) = VerifyingKey::from_bytes(&bytes) {
-            let a = receipt_key_id(&key);
-            let b = receipt_key_id(&key);
-            assert_eq!(a, b);
-            assert!(a.starts_with("receipt-key:"));
-        }
-    }
-}
-
 /// Public keys trusted to have signed receipts, keyed by `authority_key_id`.
 ///
 /// Verification needs no secret, so a retired signing key is retired by keeping

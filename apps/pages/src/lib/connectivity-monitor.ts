@@ -195,12 +195,9 @@ function degraded(): boolean {
 }
 
 function jittered(ms: number): number {
-  // Deterministic jitter would defeat the point; Math.random is right here.
-  // Nothing downstream treats this delay as unpredictable-to-an-attacker: it
-  // only spreads probe traffic so a fleet does not sweep in lockstep.
   const spread = ms * JITTER;
-  // ast-grep-ignore: ts-math-random-security
-  return Math.round(ms - spread + Math.random() * spread * 2);
+  const random = crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+  return Math.round(ms - spread + random * spread * 2);
 }
 
 function nextDelay(): number {

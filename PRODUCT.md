@@ -38,7 +38,7 @@ An Infisical-class authority console that also keeps a human store on the device
 - Create and unlock an E2EE vault: PBKDF2-SHA256 master key, AES-GCM wrapped vault key, sealed blob in OPFS
 - Unlock with passkey (WebAuthn PRF), PIN, and/or master password; optional TOTP MFA after primary unwrap
 - Vault items: login, passkey, card, secret, note, certificate — full create/edit/delete, folders, favorites, trash
-- Dev certificates: Host private CA issues short-lived TLS certs (localhost / SAN / TTL); CLI `opensesame cert issue`, Pages vault “Issue from Host”
+- Certificates: enter names and lifetime; the Host generates the key/CSR and uses the sealed OpenSesame private CA by default, or a configured Let's Encrypt, ZeroSSL, or Cloudflare Origin CA connection without trust downgrade
 - Password generator (characters and passphrase), strength estimation, password health report (weak, reused, old)
 - TOTP codes generated in-page from stored seeds; store-bridge prefers pass-otp `otpauth://` trailer lines
 - Update password / secret on a single vault item (generate or enter); notes and TOTP preserved

@@ -19,7 +19,7 @@ const BASE: PagesSettings = {
     encryption: { providerId: "webcrypto" },
     history: { providerId: "github" },
   },
-} as PagesSettings;
+};
 
 let stored: PagesSettings;
 const saveSettings = vi.fn((next: PagesSettings) => {
@@ -124,15 +124,24 @@ describe("authorizeCapabilityConnector", () => {
   }
 
   function popup(): Window {
-    return { location: { href: "" }, close: vi.fn() } as unknown as Window;
+    const child: Window = Object.create(window);
+    Object.defineProperty(child, "location", {
+      value: { href: "" },
+      writable: true,
+    });
+    child.close = vi.fn();
+    return child;
   }
 
   it("short-circuits a connector that needs no authorization", async () => {
     arrange();
     const shut = vi.fn();
-    const outcome = await authorizeCapabilityConnector("encryption", {
-      close: shut,
-    } as unknown as Window);
+    const consentPopup = popup();
+    consentPopup.close = shut;
+    const outcome = await authorizeCapabilityConnector(
+      "encryption",
+      consentPopup,
+    );
     expect(outcome.tone).toBe("ok");
     // Nothing to consent to, so the popup must not be left hanging open.
     expect(shut).toHaveBeenCalled();
@@ -225,10 +234,12 @@ describe("authorizeCapabilityConnector", () => {
     arrange({
       ensureHostSession: vi.fn().mockRejectedValue(new Error("host is down")),
     });
-    const outcome = await authorizeCapabilityConnector("encryption", {
-      location: { href: "" },
-      close: shut,
-    } as unknown as Window);
+    const consentPopup = popup();
+    consentPopup.close = shut;
+    const outcome = await authorizeCapabilityConnector(
+      "encryption",
+      consentPopup,
+    );
     expect(outcome).toEqual({ tone: "err", text: "host is down" });
     // A popup left open on about:blank is a window the person has to go and
     // find and close themselves.

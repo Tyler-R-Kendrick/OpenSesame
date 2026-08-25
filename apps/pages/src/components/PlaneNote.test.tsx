@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearNotices, listNotices } from "../lib/notices.js";
 
 const env = vi.hoisted(() => ({
   plane: {
@@ -76,7 +77,8 @@ Object.assign(urlSeams, {
     url.includes("127.0.0.1") || url.includes("localhost"),
 });
 
-import { ConnectThisMachine, PagesCannotHostNote } from "./PlaneNote.js";
+import { PagesCannotHostNote } from "./PagesCannotHostNote.js";
+import { ConnectThisMachine } from "./PlaneNote.js";
 
 function withRouter(node: ReactNode) {
   return render(<MemoryRouter>{node}</MemoryRouter>);
@@ -98,7 +100,11 @@ function typeDaemonUrl(value: string) {
 
 /** Reach the manual field from the ceremony's opening step. */
 function goManual() {
-  fireEvent.click(screen.getByRole("button", { name: "Enter it myself" }));
+  // Manual entry is an alternative row now, not a peer button — it expands
+  // in the sheet instead of renaming itself per phase.
+  fireEvent.click(
+    screen.getByRole("button", { name: /Paste a Serve URL instead/ }),
+  );
 }
 
 describe("PagesCannotHostNote", () => {
@@ -106,7 +112,10 @@ describe("PagesCannotHostNote", () => {
     env.needsPairing = false;
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    clearNotices();
+  });
 
   it("stays quiet while the Host plane is live or pending", () => {
     for (const host of ["live", "pending"]) {
@@ -119,22 +128,33 @@ describe("PagesCannotHostNote", () => {
     }
   });
 
-  it("warns with the configured Host when it is simply down", () => {
+  it("reports a down Host to the notifications tray, not the page", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "https://h.example" };
-    withRouter(<PagesCannotHostNote ceremony="Backup" />);
-    expect(screen.getByText(/Backup needs the Host API/)).toBeTruthy();
-    expect(screen.getByText("https://h.example")).toBeTruthy();
-    expect(
-      screen
-        .getByRole("link", { name: "Change it in Settings" })
-        .getAttribute("href"),
-    ).toBe("/settings/connectivity");
+    const { container, unmount } = withRouter(
+      <PagesCannotHostNote ceremony="Backup" />,
+    );
+    expect(container.firstChild).toBeNull();
+    const notice = listNotices().find((item) => item.id === "host-down");
+    expect(notice?.tone).toBe("warn");
+    expect(notice?.body).toMatch(/Backup needs the Host API/);
+    expect(notice?.body).toMatch(/https:\/\/h\.example/);
+    // The way out is the Host ceremony, opened from the tray in place —
+    // never a route change.
+    expect(notice?.ceremony).toBe("host");
+    expect(notice?.ceremonyLabel).toBe("Repair the Host connection");
+    // The notice tracks the condition and this page — unmounting clears it.
+    unmount();
+    expect(listNotices().find((item) => item.id === "host-down")).toBe(
+      undefined,
+    );
   });
 
-  it("shows 'none' when no Host is configured and it is down", () => {
+  it("reports 'none' when no Host is configured and it is down", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "" };
     withRouter(<PagesCannotHostNote ceremony="Sync" />);
-    expect(screen.getByText("none")).toBeTruthy();
+    const notice = listNotices().find((item) => item.id === "host-down");
+    expect(notice?.body).toMatch(/Sync needs the Host API/);
+    expect(notice?.body).toMatch(/Configured Host: none/);
   });
 
   it("renders nothing for non-down hosts that do not need pairing", () => {
@@ -502,15 +522,26 @@ describe("ConnectThisMachine", () => {
   it("only offers the pairing QR for non-loopback URLs", () => {
     render(<ConnectThisMachine />);
     goManual();
-    expect(screen.queryByRole("button", { name: "Show QR" })).toBeNull();
-
     typeDaemonUrl("http://127.0.0.1:18790");
-    expect(screen.queryByRole("button", { name: "Show QR" })).toBeNull();
+    // A QR of 127.0.0.1 would open the scanning device's own loopback, so
+    // the alternative explains itself instead of rendering a dead square.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
+    expect(screen.queryByRole("img", { name: /another device/ })).toBeNull();
+    expect(screen.getByText(/non-loopback Serve URL first/)).toBeTruthy();
 
+    // Alternatives are exclusive, so reopen manual entry to change the URL.
+    goManual();
     typeDaemonUrl("https://box.tailnet.ts.net");
-    fireEvent.click(screen.getByRole("button", { name: "Show QR" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
     expect(screen.getByRole("img", { name: /another device/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Hide QR" }));
+    // Clicking the open row again collapses it.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
     expect(screen.queryByRole("img", { name: /another device/ })).toBeNull();
   });
 });

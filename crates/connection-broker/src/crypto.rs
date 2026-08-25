@@ -20,8 +20,8 @@ pub struct SealedBlob {
     pub aad_digest: String,
 }
 
-fn associated_data(connection_id: &str, organization_id: &str) -> Vec<u8> {
-    format!("opensesame:connection:v1:{connection_id}:{organization_id}").into_bytes()
+fn associated_data(scope: &str, record_id: &str, organization_id: &str) -> Vec<u8> {
+    format!("opensesame:{scope}:v1:{record_id}:{organization_id}").into_bytes()
 }
 
 /// Associated data for a project-config secret value (ADR 0052). Binds the
@@ -60,7 +60,27 @@ pub fn seal(
 ) -> Result<SealedBlob> {
     seal_with_ad(
         key,
-        &associated_data(connection_id, organization_id),
+        &associated_data("connection", connection_id, organization_id),
+        plaintext,
+    )
+}
+
+/// Seal Host-only material under purpose-separated associated data.
+/// `scope` must be a fixed code-owned label, never request input.
+///
+/// # Errors
+///
+/// Returns an error when material sealing fails.
+pub fn seal_scoped(
+    key: &[u8; 32],
+    scope: &str,
+    record_id: &str,
+    organization_id: &str,
+    plaintext: &[u8],
+) -> Result<SealedBlob> {
+    seal_with_ad(
+        key,
+        &associated_data(scope, record_id, organization_id),
         plaintext,
     )
 }
@@ -74,7 +94,11 @@ pub fn open(
     organization_id: &str,
     blob: &SealedBlob,
 ) -> Result<Vec<u8>> {
-    open_with_ad(key, &associated_data(connection_id, organization_id), blob)
+    open_with_ad(
+        key,
+        &associated_data("connection", connection_id, organization_id),
+        blob,
+    )
 }
 
 /// Seal under caller-supplied associated data. The AAD builder chosen by the
@@ -119,6 +143,25 @@ pub fn open_with_ad(key: &[u8; 32], aad: &[u8], blob: &SealedBlob) -> Result<Vec
             },
         )
         .map_err(|_| BrokerError::SealUnavailable("credential could not be opened".into()))
+}
+
+/// Open Host-only material under purpose-separated associated data.
+///
+/// # Errors
+///
+/// Returns an error when the nonce or authentication tag is invalid.
+pub fn open_scoped(
+    key: &[u8; 32],
+    scope: &str,
+    record_id: &str,
+    organization_id: &str,
+    blob: &SealedBlob,
+) -> Result<Vec<u8>> {
+    open_with_ad(
+        key,
+        &associated_data(scope, record_id, organization_id),
+        blob,
+    )
 }
 
 #[cfg(test)]
@@ -206,5 +249,13 @@ mod tests {
         let b = seal(&KEY, CID, "org:2", b"x").unwrap();
         assert_ne!(a.aad_digest, b.aad_digest);
         assert_eq!(a.aad_digest.len(), 64);
+    }
+
+    #[test]
+    fn purpose_separation_rejects_cross_subsystem_open() {
+        let blob = seal_scoped(&KEY, "certificate_authority", CID, ORG, b"ca-key").unwrap();
+        assert!(open_scoped(&KEY, "certificate_authority", CID, ORG, &blob).is_ok());
+        assert!(open_scoped(&KEY, "certificate_delivery", CID, ORG, &blob).is_err());
+        assert!(open(&KEY, CID, ORG, &blob).is_err());
     }
 }
