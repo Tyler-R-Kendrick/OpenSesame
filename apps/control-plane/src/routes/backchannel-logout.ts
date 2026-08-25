@@ -1,5 +1,10 @@
 import { appendAuditEvent } from "@opensesame/audit";
-import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
 import {
   type RemoteJWKSet,
@@ -134,7 +139,10 @@ async function keysFor(
   const blockPrivateHosts = !ctx.config.allowDevDefaults;
   let jwksUri: string;
   try {
-    jwksUri = await orgAssertionSeams.discoverJwksUri(issuer, blockPrivateHosts);
+    jwksUri = await orgAssertionSeams.discoverJwksUri(
+      issuer,
+      blockPrivateHosts,
+    );
   } catch {
     return undefined;
   }
@@ -168,17 +176,16 @@ type VerifiedLogoutToken = { subject?: string; sessionId?: string };
  * the signature. `undefined` means "refuse"; the caller never says which rule
  * failed.
  */
-function readLogoutClaims(payload: JsonObject): VerifiedLogoutToken | undefined {
+function readLogoutClaims(
+  payload: JsonObject,
+): VerifiedLogoutToken | undefined {
   // §2.6.2: a logout token MUST NOT contain a nonce. This is the fence against
   // presenting a stolen id_token as a logout instruction (T29).
   if (payload.nonce !== undefined) return undefined;
 
   const events = payload.events;
-  if (typeof events !== "object" || events === null || Array.isArray(events)) {
-    return undefined;
-  }
-  const declared: JsonObject = overlapCast(events);
-  if (!(LOGOUT_EVENT in declared)) return undefined;
+  if (!isJsonObject(events)) return undefined;
+  if (!(LOGOUT_EVENT in events)) return undefined;
 
   const subject = isString(payload.sub) ? payload.sub : undefined;
   const sessionId = isString(payload.sid) ? payload.sid : undefined;
@@ -221,7 +228,9 @@ async function endOrganizationMemberships(
   return ended;
 }
 
-export function createBackchannelLogoutRoutes(): Hono<{ Variables: Variables }> {
+export function createBackchannelLogoutRoutes(): Hono<{
+  Variables: Variables;
+}> {
   const routes = new Hono<{ Variables: Variables }>();
 
   routes.post("/backchannel-logout", async (c) => {
@@ -233,7 +242,7 @@ export function createBackchannelLogoutRoutes(): Hono<{ Variables: Variables }> 
 
     const invalid = () => c.json({ error: "invalid_request" }, 400);
 
-    let fields: Record<string, unknown>;
+    let fields: JsonObject;
     try {
       fields = overlapCast(await c.req.parseBody());
     } catch {
@@ -270,6 +279,10 @@ export function createBackchannelLogoutRoutes(): Hono<{ Variables: Variables }> 
     }
     if (!claims) return invalid();
 
+    // A `sid`-only token names an upstream session, and this service keeps no
+    // record of upstream session ids — there is nothing it could revoke. It is
+    // accepted (the spec allows either claim) and has no effect, which is also
+    // what the uniform 200 already says to every caller.
     const correlationId = c.get("correlationId");
     let sessionsRevoked = 0;
     let membershipsEnded = 0;

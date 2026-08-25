@@ -1,8 +1,10 @@
 /**
  * Account switcher — guest / personal plus org profiles on this principal.
  *
- * Adding an organization looks up the tenant slug, then starts SSO or SAML
- * (OIDC-brokered) against the issuer Identity advertised. Guests included.
+ * Adding an organization looks up the tenant slug, then starts the method it
+ * advertises: an OIDC round-trip run in this tab when the tenant published an
+ * issuer, and otherwise — native SAML, LDAP, anything with no browser leg —
+ * the same flow run for us by the Identity API (ADR 0056, D7/D8).
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -22,9 +24,11 @@ import {
   listOrgMemberships,
   lookupOrgTenant,
   orgAuthUpstream,
+  routeOrgMethod,
   setActiveOrgProfileId,
   subscribeOrgProfile,
 } from "../lib/orgs.js";
+import { brokeredOrgUpstream } from "../lib/providers.js";
 import { IconCheck, IconPlus, IconUser } from "./Icons.js";
 
 function guestLabel(hasSession: boolean, assurance?: string): string {
@@ -106,9 +110,19 @@ function AccountSwitcherDefault() {
     setError(null);
     try {
       await ensureIdentitySession();
+      const route = routeOrgMethod(method);
+      if (route.via === "brokered") {
+        // No issuer this browser can talk to. The Identity API runs the whole
+        // leg — SAML assertion or directory bind — and the return trip carries
+        // an access token this tab adopts, not an assertion it has to trust.
+        await beginSignIn(brokeredOrgUpstream(tenant), {
+          returnTo: location.pathname,
+        });
+        return;
+      }
       await beginSignIn(orgAuthUpstream(tenant, method), {
         orgSlug: tenant.slug,
-        orgMethod: method.kind,
+        orgMethod: route.kind,
         returnTo: location.pathname,
       });
     } catch (cause) {

@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fed = vi.hoisted(() => ({
   completeSignIn: vi.fn(),
+  adoptBrokeredSession: vi.fn(),
   joinOrgTenant: vi.fn(),
   ensureIdentitySession: vi.fn(),
   adoptFederatedIdentity: vi.fn(),
@@ -18,7 +19,10 @@ const fed = vi.hoisted(() => ({
 
 import { federationSeams } from "../lib/federation.js";
 const originalFederationSeams = { ...federationSeams };
-Object.assign(federationSeams, { completeSignIn: fed.completeSignIn });
+Object.assign(federationSeams, {
+  completeSignIn: fed.completeSignIn,
+  adoptBrokeredSession: fed.adoptBrokeredSession,
+});
 
 import { orgSeams } from "../lib/orgs.js";
 Object.assign(orgSeams, { joinOrgTenant: fed.joinOrgTenant });
@@ -52,6 +56,12 @@ describe("FederationReturn", () => {
     fed.ensureIdentitySession.mockReset();
     fed.adoptFederatedIdentity.mockReset();
     fed.adoptFederatedIdentity.mockResolvedValue(undefined);
+    fed.adoptBrokeredSession.mockReset();
+    fed.adoptBrokeredSession.mockResolvedValue({
+      principalId: "prn_broker",
+      accessToken: "pst_first_party",
+      issuerOrigin: "http://127.0.0.1:18788",
+    });
   });
 
   afterEach(cleanup);
@@ -142,6 +152,56 @@ describe("FederationReturn", () => {
     expect(await screen.findByText("settings landed")).toBeTruthy();
     expect(fed.ensureIdentitySession).not.toHaveBeenCalled();
     expect(fed.adoptFederatedIdentity).toHaveBeenCalledWith("id-token");
+  });
+
+  it("adopts a brokered sign-in through the session exchange, never the link path", async () => {
+    fed.completeSignIn.mockResolvedValue({
+      returnTo: "/settings",
+      accessToken: "at_brokered",
+      identity: { idToken: "pairwise-id-token" },
+    });
+    renderReturn();
+    expect(await screen.findByText("settings landed")).toBeTruthy();
+    expect(fed.adoptBrokeredSession).toHaveBeenCalledWith("at_brokered");
+    // T23: the pairwise id_token beside it is never linked to this tab's
+    // session, and the org join is not this branch either.
+    expect(fed.adoptFederatedIdentity).not.toHaveBeenCalled();
+    expect(fed.joinOrgTenant).not.toHaveBeenCalled();
+  });
+
+  it("prefers the org join when a brokered token rides along with an org return", async () => {
+    fed.ensureIdentitySession.mockResolvedValue({
+      principalId: "prn_guest",
+      accessToken: "tok",
+      issuerOrigin: "http://127.0.0.1:18788",
+    });
+    fed.joinOrgTenant.mockResolvedValue({ id: "org:acme" });
+    fed.completeSignIn.mockResolvedValue({
+      orgSlug: "acme",
+      orgMethod: "sso",
+      accessToken: "at_should_be_ignored",
+      returnTo: "/settings",
+      identity: { idToken: "id-token" },
+    });
+    renderReturn();
+    expect(await screen.findByText("settings landed")).toBeTruthy();
+    expect(fed.joinOrgTenant).toHaveBeenCalledWith("acme", "sso", "id-token");
+    expect(fed.adoptBrokeredSession).not.toHaveBeenCalled();
+  });
+
+  it("shows the failure card when a brokered session cannot be adopted", async () => {
+    fed.completeSignIn.mockResolvedValue({
+      returnTo: "/settings",
+      accessToken: "at_stale",
+      identity: { idToken: "pairwise-id-token" },
+    });
+    fed.adoptBrokeredSession.mockRejectedValue(
+      new Error("That sign-in expired before it could be adopted. Try again."),
+    );
+    renderReturn();
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("expired before it could be adopted");
+    expect(screen.queryByText("settings landed")).toBeNull();
   });
 
   it("shows the failure card when the identity cannot be attached", async () => {

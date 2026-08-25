@@ -1,9 +1,6 @@
 import { isFunction } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import {
-  type MagicLinkDelivery,
-  createUpstreamAuth,
-} from "../better-auth.js";
+import { type MagicLinkDelivery, createUpstreamAuth } from "../better-auth.js";
 import { noEmailAutoLinkPolicy } from "../email-link.js";
 import { MemoryPrincipalMappingStore } from "../mapping.js";
 import {
@@ -106,7 +103,10 @@ describe("createUpstreamAuth", () => {
     });
 
     await bundle.auth.api.signInMagicLink({
-      body: { email: "person@example.test", metadata: { interactionUid: "u1" } },
+      body: {
+        email: "person@example.test",
+        metadata: { interactionUid: "u1" },
+      },
       headers: new Headers(),
     });
 

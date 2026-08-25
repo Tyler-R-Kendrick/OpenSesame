@@ -133,9 +133,10 @@ export function createOrgDomainRoutes(): Hono<{ Variables: Variables }> {
     const gate = await requireOwner(c);
     if (gate instanceof Response) return gate;
     const { ctx, organization } = gate;
-    const domains = await ctx.stores.orgFederation.emailDomains.listByOrganization(
-      organization.id,
-    );
+    const domains =
+      await ctx.stores.orgFederation.emailDomains.listByOrganization(
+        organization.id,
+      );
     return c.json({ domains: domains.map(domainResponse) });
   });
 

@@ -11,6 +11,7 @@ import { sdkBrowserSeams } from "./sdk-browser";
 
 const mocks = {
   getSession: vi.fn(),
+  signIn: vi.fn(),
   continueAnonymously: vi.fn(),
   signOut: vi.fn(),
   createApiClient: vi.fn(),
@@ -82,6 +83,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   sdkBrowserSeams.createOpenSesame = () => ({
     getSession: mocks.getSession,
+    signIn: mocks.signIn,
     continueAnonymously: mocks.continueAnonymously,
     signOut: mocks.signOut,
   });
@@ -89,6 +91,7 @@ beforeEach(() => {
   clientCoreSeams.loadSealedStore = mocks.loadSealedStore;
   clientCoreSeams.persistSealedStore = mocks.persistSealedStore;
   mocks.getSession.mockResolvedValue(null);
+  mocks.signIn.mockResolvedValue(undefined);
   mocks.continueAnonymously.mockResolvedValue(makeSession());
   mocks.signOut.mockResolvedValue(undefined);
   mocks.health.mockResolvedValue({ ok: true, body: "ok" });
@@ -195,14 +198,41 @@ describe("App identity", () => {
     await renderApp();
     const button = findButton("Continue as guest");
     await click(button);
-    const busy = container.querySelector("button.primary");
-    expect(busy?.textContent).toBe("Starting…");
-    expect(busy?.hasAttribute("disabled")).toBe(true);
+    const busy = findButton("Starting…");
+    expect(busy.textContent).toBe("Starting…");
+    expect(busy.hasAttribute("disabled")).toBe(true);
     await act(async () => {
       pending.resolve(makeSession());
       await pending.promise;
     });
     expect(container.textContent).toContain("Guest session active");
+  });
+
+  it("offers federated sign-in beside the guest on-ramp", async () => {
+    await renderApp();
+    // D14: the shim's deliberate narrowing is reversed deliberately — this
+    // surface gets the same brokered catalog every other login surface has.
+    await click(findButton("Sign in"));
+    expect(mocks.signIn).toHaveBeenCalledTimes(1);
+    expect(mocks.signIn).toHaveBeenCalledWith({ returnTo: "/" });
+    expect(alertText()).toBeNull();
+  });
+
+  it("surfaces a sign-in that cannot start", async () => {
+    mocks.signIn.mockRejectedValue(new Error("identity is down"));
+    await renderApp();
+    await click(findButton("Sign in"));
+    expect(alertText()).toBe("identity is down");
+    expect(findButton("Continue as guest")).toBeDefined();
+  });
+
+  it("uses a fallback message for a non-Error sign-in failure", async () => {
+    mocks.signIn.mockRejectedValue("socket reset");
+    await renderApp();
+    await click(findButton("Sign in"));
+    expect(alertText()).toBe(
+      "Could not start sign-in. Is the Identity API up?",
+    );
   });
 
   it("signs out and returns to the guest on-ramp", async () => {

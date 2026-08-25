@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 // @vitest-environment jsdom
 import { type ReactElement, StrictMode, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
@@ -95,7 +95,42 @@ function buttonNamed(text: string): HTMLButtonElement {
   return button;
 }
 
+/** The catalog endpoint, answered before any component asks for it. */
+function stubCatalog(
+  providers: BoundaryValue[] | null,
+  status = 200,
+): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: string) => {
+      expect(String(input)).toContain("/v1/federated/providers");
+      return Promise.resolve(
+        new Response(
+          JSON.stringify(
+            providers === null ? { error: "not_found" } : { providers },
+          ),
+          {
+            status: providers === null ? 404 : status,
+            headers: { "content-type": "application/json" },
+          },
+        ),
+      );
+    }),
+  );
+}
+
+/** Let the catalog fetch settle into the rendered buttons. */
+async function settle(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 beforeEach(() => {
+  // The default: a deployment that publishes no catalog, so the console keeps
+  // the shoo fallback it has always had.
+  stubCatalog(null);
   client = {
     signIn: vi.fn(),
     handleRedirectCallback: vi.fn(),
@@ -113,6 +148,7 @@ afterEach(async () => {
     root.unmount();
   });
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 describe("SignInPage", () => {
@@ -230,6 +266,41 @@ describe("SignInPage", () => {
     await render(<SignInPage />);
     await click(buttonNamed("Sign in with Google"));
     expect(container.textContent).toContain("broker unreachable");
+  });
+
+  it("renders a button for every provider the Identity API publishes", async () => {
+    stubCatalog([
+      { id: "google", label: "Google", kind: "oidc", browserCapable: false },
+      { id: "github", label: "GitHub", kind: "oauth2", browserCapable: false },
+    ]);
+    client.signIn.mockResolvedValue(undefined);
+    await render(<SignInPage />);
+    await settle();
+    await click(buttonNamed("Sign in with GitHub"));
+    expect(client.signIn).toHaveBeenCalledWith({ provider: "github" });
+    // The static fallback is replaced by the published catalog, not added to.
+    expect(() => buttonNamed("Sign in with Google")).not.toThrow();
+  });
+
+  it("keeps the shoo fallback when the catalog is empty", async () => {
+    stubCatalog([]);
+    client.signIn.mockResolvedValue(undefined);
+    await render(<SignInPage />);
+    await settle();
+    await click(buttonNamed("Sign in with Google"));
+    expect(client.signIn).toHaveBeenCalledWith({ provider: "shoo" });
+  });
+
+  it("keeps the shoo fallback when the Identity API cannot be reached", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
+    );
+    client.signIn.mockResolvedValue(undefined);
+    await render(<SignInPage />);
+    await settle();
+    await click(buttonNamed("Sign in with Google"));
+    expect(client.signIn).toHaveBeenCalledWith({ provider: "shoo" });
   });
 
   it("does not touch the callback exchange on a plain visit", async () => {

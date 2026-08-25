@@ -41,6 +41,8 @@ import type { Variables } from "../middleware/context.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
+import { createByoInteractionRoutes } from "./interactions-byo.js";
+import { createEmailInteractionRoutes } from "./interactions-email.js";
 import { createOrgInteractionRoutes } from "./interactions-org.js";
 import { createRealmInteractionRoutes } from "./interactions-realm.js";
 import { createSamlInteractionRoutes } from "./interactions-saml.js";
@@ -165,14 +167,9 @@ export function createInteractionRoutes(): Hono<
    * posture covers them too. Each owns one route on this prefix and
    * re-implements the small `loadDetails` helper locally, so the files stay
    * disjoint.
-   *
-   * INTEGRATOR: one is still landing in a parallel swarm and its file is not
-   * in the tree yet. Add the import and the frozen mount line when it arrives,
-   * right here:
-   *
-   *   TODO(S4): routes.route("/", createByoInteractionRoutes(csrf));
-   *             — src/routes/interactions-byo.ts, POST /:uid/federated/byo
    */
+  routes.route("/", createByoInteractionRoutes(csrf));
+  routes.route("/", createEmailInteractionRoutes(csrf));
   routes.route("/", createOrgInteractionRoutes(csrf));
   routes.route("/", createRealmInteractionRoutes(csrf));
   routes.route("/", createSamlInteractionRoutes(csrf));

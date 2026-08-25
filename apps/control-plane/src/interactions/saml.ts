@@ -9,16 +9,24 @@ import {
 // material — is what keeps "what we routed on" and "what was verified" the
 // same document. The package pins exactly and publishes no `exports` map, so
 // the path is stable for this version and moves only when the pin does.
+import type { Profile } from "@node-saml/node-saml";
 import { parseDomFromString, xpath } from "@node-saml/node-saml/lib/xml.js";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   UnsafeMetadataUrlError,
   assertSafeMetadataUrl,
 } from "@opensesame/oauth-provider";
-import type { Organization } from "@opensesame/os-domain";
+import {
+  type Organization,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { ControlPlaneConfig } from "../config.js";
 import type { AppContext } from "../context.js";
-import { jitJoinOrganization, usesNativeSaml } from "../routes/organizations.js";
+import {
+  jitJoinOrganization,
+  usesNativeSaml,
+} from "../routes/organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "../routes/projects.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import {
@@ -129,6 +137,12 @@ export class SamlAuthError extends Error {
   }
 }
 
+/** What a started SP-initiated leg hands back to the route that started it. */
+export type SamlAuthStart = {
+  redirectUrl: string;
+  requestId: string;
+};
+
 export type SamlCompletion = {
   interactionUid: string;
   result: SamlAssertionResult;
@@ -164,7 +178,9 @@ function baseUrl(config: ControlPlaneConfig): string {
  * key, so claiming otherwise in metadata would make every IdP that honours it
  * reject our requests.
  */
-export function samlServiceProviderMetadata(config: ControlPlaneConfig): string {
+export function samlServiceProviderMetadata(
+  config: ControlPlaneConfig,
+): string {
   return generateServiceProviderMetadata({
     issuer: samlEntityId(config),
     callbackUrl: samlAcsUrl(config),
@@ -222,10 +238,7 @@ export function resetSamlCompletionCodes(): void {
   completionCodes.clear();
 }
 
-function issueCompletionCode(
-  completion: SamlCompletion,
-  now: number,
-): string {
+function issueCompletionCode(completion: SamlCompletion, now: number): string {
   for (const [code, entry] of completionCodes) {
     if (entry.expiresAt <= now) completionCodes.delete(code);
   }
@@ -350,8 +363,7 @@ async function parseIdpMetadata(xml: string): Promise<ResolvedIdpMetadata> {
     xpath
       .selectAttributes(
         doc,
-        "//*[local-name()='IDPSSODescriptor']/*[local-name()='SingleSignOnService']" +
-          `[@Binding='${BINDING_REDIRECT}']/@Location`,
+        `//*[local-name()='IDPSSODescriptor']/*[local-name()='SingleSignOnService'][@Binding='${BINDING_REDIRECT}']/@Location`,
       )
       .at(0)?.nodeValue ?? "";
   if (entityId.length === 0 || certificates.length === 0) {
@@ -382,7 +394,9 @@ export async function resolveIdpMetadata(
   const cached = metadataCache.get(key);
   if (cached && cached.expiresAt > now) return assertEntity(cfg, cached.value);
 
-  const xml = cfg.metadataXml ?? (await fetchMetadataDocument(ctx, cfg.metadataUrl ?? ""));
+  const xml =
+    cfg.metadataXml ??
+    (await fetchMetadataDocument(ctx, cfg.metadataUrl ?? ""));
   const resolved = await parseIdpMetadata(xml);
   metadataCache.set(key, {
     value: resolved,
@@ -459,7 +473,7 @@ export async function beginSamlAuth(
   ctx: AppContext,
   uid: string,
   org: SamlOrgConfig,
-): Promise<{ redirectUrl: string; requestId: string }> {
+): Promise<SamlAuthStart> {
   const metadata = await resolveIdpMetadata(ctx, org);
   if (metadata.ssoUrl.length === 0) {
     throw new SamlAuthError(
@@ -480,6 +494,15 @@ export async function beginSamlAuth(
   return { redirectUrl, requestId };
 }
 
+/**
+ * What the UNVERIFIED envelope says about where a response should be judged.
+ * Nothing here is trusted: it only chooses which tenant's certificate answers.
+ */
+type SamlResponseRouting = {
+  inResponseTo?: string;
+  issuer?: string;
+};
+
 type AssertionFacts = {
   assertionId: string;
   notOnOrAfter?: Date;
@@ -498,9 +521,8 @@ type AssertionFacts = {
 async function assertionFacts(assertionXml: string): Promise<AssertionFacts> {
   const doc = await parseDomFromString(assertionXml);
   const assertionId =
-    xpath
-      .selectAttributes(doc, "/*[local-name()='Assertion']/@ID")
-      .at(0)?.nodeValue ?? "";
+    xpath.selectAttributes(doc, "/*[local-name()='Assertion']/@ID").at(0)
+      ?.nodeValue ?? "";
   const notOnOrAfterRaw = xpath
     .selectAttributes(
       doc,
@@ -515,9 +537,7 @@ async function assertionFacts(assertionXml: string): Promise<AssertionFacts> {
         "/*[local-name()='SubjectConfirmationData']/@InResponseTo",
     )
     .at(0)?.nodeValue;
-  const notOnOrAfter = notOnOrAfterRaw
-    ? new Date(notOnOrAfterRaw)
-    : undefined;
+  const notOnOrAfter = notOnOrAfterRaw ? new Date(notOnOrAfterRaw) : undefined;
   return {
     assertionId,
     ...(notOnOrAfter && !Number.isNaN(notOnOrAfter.getTime())
@@ -527,17 +547,14 @@ async function assertionFacts(assertionXml: string): Promise<AssertionFacts> {
   };
 }
 
+/** The first attribute present among a set of equivalent names. */
 function firstAttribute(
-  profile: Record<string, unknown>,
+  attributes: ReadonlyMap<string, string>,
   names: string[],
 ): string | undefined {
   for (const name of names) {
-    const value = profile[name];
-    if (typeof value === "string" && value.length > 0) return value;
-    if (Array.isArray(value)) {
-      const first = value.find((v) => typeof v === "string" && v.length > 0);
-      if (typeof first === "string") return first;
-    }
+    const value = attributes.get(name);
+    if (value !== undefined && value.length > 0) return value;
   }
   return undefined;
 }
@@ -572,7 +589,7 @@ export function samlRelayPath(
 
 async function readResponseRouting(
   samlResponse: string,
-): Promise<{ inResponseTo?: string; issuer?: string }> {
+): Promise<SamlResponseRouting> {
   const raw = Buffer.from(samlResponse, "base64");
   if (raw.byteLength === 0 || raw.byteLength > MAX_SAML_RESPONSE_BYTES) {
     throw new SamlAuthError(
@@ -593,10 +610,7 @@ async function readResponseRouting(
     .selectAttributes(doc, "/*[local-name()='Response']/@InResponseTo")
     .at(0)?.nodeValue;
   const issuer = xpath
-    .selectElements(
-      doc,
-      "/*[local-name()='Response']/*[local-name()='Issuer']",
-    )
+    .selectElements(doc, "/*[local-name()='Response']/*[local-name()='Issuer']")
     .at(0)
     ?.textContent?.trim();
   return {
@@ -652,7 +666,7 @@ export async function completeSamlResponse(
 
   const metadata = await resolveIdpMetadata(ctx, cfg);
   const client = buildSamlClient(ctx, metadata);
-  let profile: Record<string, unknown> | null;
+  let profile: Profile | null;
   try {
     ({ profile } = await client.validatePostResponseAsync({
       SAMLResponse: body.SAMLResponse,
@@ -687,11 +701,8 @@ export async function completeSamlResponse(
     );
   }
 
-  const assertionXml =
-    typeof profile.getAssertionXml === "function"
-      ? profile.getAssertionXml()
-      : "";
-  if (typeof assertionXml !== "string" || assertionXml.length === 0) {
+  const assertionXml = profile.getAssertionXml?.() ?? "";
+  if (assertionXml.length === 0) {
     throw new SamlAuthError(
       "invalid_assertion",
       "That sign-in could not be completed.",
@@ -733,29 +744,34 @@ export async function completeSamlResponse(
     );
   }
 
-  const nameId = typeof profile.nameID === "string" ? profile.nameID : "";
+  const nameId = profile.nameID;
   if (nameId.length === 0) {
     throw new SamlAuthError(
       "invalid_assertion",
       "That sign-in could not be completed.",
     );
   }
-  const email = firstAttribute(profile, [
+  // SAML attribute values are open by protocol: one value or a repeated one.
+  // Flattened here, at the boundary, so nothing downstream reads an unparsed
+  // shape — and read for display only, never as an identity key (C14).
+  const attributes = new Map<string, string>();
+  for (const [key, value] of Object.entries(overlapCast(profile))) {
+    const first = Array.isArray(value) ? value.find(isString) : value;
+    if (isString(first) && first.length > 0) attributes.set(key, first);
+  }
+  const email = firstAttribute(attributes, [
     ATTR_EMAIL_OID,
     ATTR_EMAIL_CLAIM,
     ...ATTR_EMAIL_FRIENDLY,
   ]);
-  const name = firstAttribute(profile, [
+  const name = firstAttribute(attributes, [
     ATTR_NAME_OID,
     ATTR_NAME_CLAIM,
     ...ATTR_NAME_FRIENDLY,
   ]);
   const result: SamlAssertionResult = {
     subject: nameId,
-    nameIdFormat:
-      typeof profile.nameIDFormat === "string"
-        ? profile.nameIDFormat
-        : NAMEID_FORMAT_PERSISTENT,
+    nameIdFormat: profile.nameIDFormat || NAMEID_FORMAT_PERSISTENT,
     organizationId: cfg.organizationId,
     ...(email !== undefined ? { email } : undefined),
     ...(name !== undefined ? { name } : undefined),
@@ -856,6 +872,7 @@ export async function admitSamlSubject(
       }
       throw error;
     }
+    const displayHint = input.result.name ?? input.result.email;
     const attached = await attachVerifiedExternalIdentity(
       ctx,
       minted.principalId,
@@ -871,12 +888,7 @@ export async function admitSamlSubject(
         // Display only (C14). A SAML attribute carries no verification signal,
         // so `email` never reaches `emailNormalized` and can never become the
         // ADR 0057 auto-link key.
-        ...(input.result.name ?? input.result.email
-          ? {
-              displayHint: (input.result.name ??
-                input.result.email) as string,
-            }
-          : undefined),
+        ...(displayHint !== undefined ? { displayHint } : undefined),
       },
     );
     if (!attached.ok) {

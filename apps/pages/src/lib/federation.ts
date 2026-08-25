@@ -6,6 +6,12 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import {
+  type IdentitySession,
+  identityBase,
+  restoreSession,
+} from "./identity.js";
+import { localNetworkFetch } from "./local-network-fetch.js";
 /**
  * Federated sign-in against a trusted upstream broker (ADR 0033).
  *
@@ -63,6 +69,27 @@ function defaultUpstreamDefault(): TrustedUpstream {
 
 export function upstreamByIssuer(issuer: string): TrustedUpstream | undefined {
   return TRUSTED_UPSTREAMS.find((u) => u.issuer === issuer);
+}
+
+function trimSlashes(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+/**
+ * The configured Identity API is a trusted issuer for this app (C11).
+ *
+ * It is not in `TRUSTED_UPSTREAMS` because it is not compiled in: it is
+ * whatever the Settings store points at, and it is the one runtime issuer this
+ * app already trusts with everything else — sessions, principals, org joins.
+ * Brokered sign-in (D7/D8) is that same relationship, so its assertions are
+ * admitted here and nowhere else. This is deliberately NOT the `orgSlug`
+ * allowlist skip in `readIdentity`, which admits any runtime-constructed
+ * upstream and is left exactly as narrow as it was (T18).
+ */
+export function isBrokeredIssuer(issuer: string): boolean {
+  const base = trimSlashes(identityBase());
+  // An unconfigured Identity API is "" and must not make "" a trusted issuer.
+  return base.length > 0 && trimSlashes(issuer) === base;
 }
 
 /** The client id this origin has at any origin-profile broker. */
@@ -263,6 +290,18 @@ export type BeginSignInOptions = {
   returnTo?: string;
   orgSlug?: string;
   orgMethod?: "sso" | "saml";
+  /**
+   * Which provider the brokered login page should pre-select. Sent under both
+   * spellings the hosted page accepts, exactly as `packages/sdk-browser` does.
+   */
+  providerHint?: string;
+  /**
+   * Standard OIDC `login_hint`, carrying ONLY an email domain for home-realm
+   * discovery (D12). The local part never reaches this function — see
+   * `workEmailDomain` in `providers.ts` — so nothing personal ends up in the
+   * address bar, in history, or in the hosted page's request log (T28).
+   */
+  loginHint?: string;
 };
 
 async function beginSignInDefault(
@@ -295,6 +334,13 @@ async function beginSignInDefault(
   url.searchParams.set("code_challenge", challenge);
   url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("scope", scope);
+  if (options.providerHint) {
+    // Both names, because the hosted login page reads either one and the SDK
+    // has always sent both.
+    url.searchParams.set("kc_idp_hint", options.providerHint);
+    url.searchParams.set("login_hint_provider", options.providerHint);
+  }
+  if (options.loginHint) url.searchParams.set("login_hint", options.loginHint);
   location.assign(url.toString());
 }
 
@@ -310,6 +356,15 @@ export type CompletedSignIn = {
   returnTo?: string;
   orgSlug?: string;
   orgMethod?: "sso" | "saml";
+  /**
+   * The OAuth access token from the exchange, present only when the issuer was
+   * the Identity API itself — the brokered flow (D8). It is the credential
+   * `adoptBrokeredSession` trades for a first-party session bound to the SAME
+   * principal the hosted leg admitted. The id_token from that flow carries a
+   * pairwise subject for this origin and must never be linked to whatever
+   * session this tab happens to hold (T23).
+   */
+  accessToken?: string;
 };
 
 /**
@@ -384,9 +439,8 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     );
   }
 
-  const tokens: { id_token?: BoundaryValue } = overlapCast(
-    await response.json(),
-  );
+  const tokens: { id_token?: BoundaryValue; access_token?: BoundaryValue } =
+    overlapCast(await response.json());
   if (!isString(tokens.id_token)) {
     throw new FederationError(
       "exchange_failed",
@@ -398,12 +452,87 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   // Org SSO/SAML is a one-shot assertion for Identity join, not a durable
   // Pages federation session. Saving it would collide with Shoo/mock sign-in.
   if (!pending.orgSlug) saveSession(identity);
+  // Only the brokered issuer's access token is ever carried out of here: it is
+  // the one this app is entitled to spend, at the one endpoint that accepts it.
+  const brokered =
+    !pending.orgSlug &&
+    isBrokeredIssuer(pending.issuer) &&
+    isString(tokens.access_token);
   return {
     identity,
     returnTo: pending.returnTo,
     orgSlug: pending.orgSlug,
     orgMethod: pending.orgMethod,
+    ...(brokered && isString(tokens.access_token)
+      ? { accessToken: tokens.access_token }
+      : undefined),
   };
+}
+
+/**
+ * Trade the brokered access token for a first-party session (C13/D8).
+ *
+ * The Identity API looks the token up in its own store, reads the principal it
+ * was issued for, and mints a provisional bearer for that same principal. No
+ * identity row is written and no principal is minted — which is exactly why
+ * this, and not `link-identities`, is the brokered adoption path (T23).
+ */
+async function adoptBrokeredSessionDefault(
+  accessToken: string,
+): Promise<IdentitySession> {
+  const base = identityBase();
+  if (!base) {
+    throw new FederationError(
+      "no_identity_api",
+      "No Identity API is configured, so this sign-in cannot be adopted.",
+    );
+  }
+  let response: Response;
+  try {
+    response = await localNetworkFetch(
+      `${base}/v1/principals/federated-session`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        // The token IS the credential here; a cookie beside it would let a
+        // surviving session answer in its place.
+        credentials: "omit",
+        body: JSON.stringify({ accessToken }),
+      },
+    );
+  } catch {
+    throw new FederationError(
+      "identity_unavailable",
+      `Could not reach the Identity API at ${base} to finish signing in.`,
+    );
+  }
+  if (!response.ok) {
+    throw new FederationError(
+      "session_adoption_failed",
+      response.status === 401
+        ? "That sign-in expired before it could be adopted. Try again."
+        : `The Identity API refused the sign-in (${response.status}).`,
+    );
+  }
+  const body: {
+    principalId?: BoundaryValue;
+    accessToken?: BoundaryValue;
+    expiresAt?: BoundaryValue;
+  } = overlapCast(await response.json());
+  if (!isString(body.principalId) || !isString(body.accessToken)) {
+    throw new FederationError(
+      "session_adoption_failed",
+      "The Identity API returned an unusable session.",
+    );
+  }
+  const session: IdentitySession = {
+    principalId: body.principalId,
+    accessToken: body.accessToken,
+    issuerOrigin: new URL(base).origin,
+    ...(isString(body.expiresAt) ? { expiresAt: body.expiresAt } : undefined),
+  };
+  restoreSession(session);
+  return session;
 }
 
 /**
@@ -423,7 +552,11 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
       `Token was issued by ${issuer || "nobody"}, not ${pending.issuer}.`,
     );
   }
-  if (!pending.orgSlug && !upstreamByIssuer(issuer)) {
+  if (
+    !pending.orgSlug &&
+    !upstreamByIssuer(issuer) &&
+    !isBrokeredIssuer(issuer)
+  ) {
     throw new FederationError(
       "untrusted_issuer",
       `${issuer} is not a trusted broker.`,
@@ -446,15 +579,21 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
     throw new FederationError("expired", "Token was already expired.");
   }
 
+  // `sub` stands in for `pairwise_sub` on the two legs whose subject is already
+  // per-origin: an org round-trip, and the brokered issuer — the Identity API
+  // mints origin-profile subjects pairwise by construction (ADR 0050). Every
+  // other broker must say `pairwise_sub` and mean it.
+  const subjectIsPairwise =
+    Boolean(pending.orgSlug) || isBrokeredIssuer(issuer);
   const pairwiseSub = isString(claims.pairwise_sub)
     ? claims.pairwise_sub
-    : pending.orgSlug && isString(claims.sub)
+    : subjectIsPairwise && isString(claims.sub)
       ? claims.sub
       : "";
   if (!pairwiseSub) {
     throw new FederationError(
       "invalid_token",
-      pending.orgSlug
+      subjectIsPairwise
         ? "Token carries no subject, so it identifies nobody."
         : "Token carries no pairwise_sub, so it identifies nobody.",
     );
@@ -507,9 +646,13 @@ function loadSessionDefault(): UpstreamIdentity | null {
       sessionStorage.removeItem(SESSION_KEY);
       return null;
     }
-    if (!upstreamByIssuer(identity.issuer)) {
+    if (
+      !upstreamByIssuer(identity.issuer) &&
+      !isBrokeredIssuer(identity.issuer)
+    ) {
       // Trust can be withdrawn between sessions; a stored identity from an
-      // issuer no longer listed must not keep working.
+      // issuer no longer listed — or from an Identity API this app has since
+      // been pointed away from — must not keep working.
       sessionStorage.removeItem(SESSION_KEY);
       return null;
     }
@@ -531,6 +674,7 @@ export const federationSeams = {
   defaultUpstream: defaultUpstreamDefault,
   beginSignIn: beginSignInDefault,
   completeSignIn: completeSignInDefault,
+  adoptBrokeredSession: adoptBrokeredSessionDefault,
   loadSession: loadSessionDefault,
   clearSession: clearSessionDefault,
   displayName: displayNameDefault,
@@ -549,6 +693,12 @@ export async function beginSignIn(
 
 export async function completeSignIn(): Promise<CompletedSignIn | null> {
   return federationSeams.completeSignIn();
+}
+
+export async function adoptBrokeredSession(
+  accessToken: string,
+): Promise<IdentitySession> {
+  return federationSeams.adoptBrokeredSession(accessToken);
 }
 
 export function loadSession(): UpstreamIdentity | null {

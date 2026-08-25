@@ -10,6 +10,7 @@ async function stubAppSeams(): Promise<void> {
     ]);
   sdkBrowserSeams.createOpenSesame = () => ({
     getSession: vi.fn().mockResolvedValue(null),
+    signIn: vi.fn(),
     continueAnonymously: vi.fn(),
     signOut: vi.fn(),
   });

@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes } from "react-router";
 import { ClaimPage } from "./pages/ClaimPage.js";
 import { DevicePage } from "./pages/DevicePage.js";
+import { OrgSignInPage } from "./pages/OrgSignInPage.js";
 import { SignInPage } from "./pages/SignInPage.js";
 import { TaskAccessPage } from "./pages/TaskAccessPage.js";
 
@@ -23,12 +24,14 @@ export function App() {
         <NavLink to="/device">Authorize CLI</NavLink>
         <NavLink to="/claim">Claim ownership</NavLink>
         <NavLink to="/task-access">Task access</NavLink>
+        <NavLink to="/organization">Organization sign-in</NavLink>
       </nav>
       <Routes>
         <Route path="/" element={<SignInPage />} />
         <Route path="/device" element={<DevicePage />} />
         <Route path="/claim" element={<ClaimPage />} />
         <Route path="/task-access" element={<TaskAccessPage />} />
+        <Route path="/organization" element={<OrgSignInPage />} />
       </Routes>
     </div>
   );

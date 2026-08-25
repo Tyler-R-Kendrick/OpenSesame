@@ -24,7 +24,11 @@ import type { startServer } from "../server.js";
  */
 
 type Started = Awaited<ReturnType<typeof startServer>>;
-type PostBindingForm = { action: string; fields: Record<string, string> };
+type PostBindingForm = { action: string; fields: AcsFormFields };
+/** Exactly what the IdP's POST-binding form carries to the ACS. */
+type AcsFormFields = { SAMLResponse?: string; RelayState?: string };
+type LoginPage = { jar: Jar; uid: string; html: string };
+type StartedSamlLeg = { jar: Jar; uid: string; binding: PostBindingForm };
 
 const RP_ORIGIN = "http://127.0.0.1:4331";
 const RP_CLIENT_ID = `origin:${RP_ORIGIN}`;
@@ -115,11 +119,12 @@ async function req(
 /** The hidden inputs of the IdP's HTTP-POST binding document. */
 function parsePostBinding(html: string): PostBindingForm {
   const action = html.match(/<form[^>]+action="([^"]+)"/)?.[1] ?? "";
-  const fields: Record<string, string> = {};
+  const fields: AcsFormFields = {};
   for (const input of html.matchAll(/<input[^>]*>/g)) {
     const name = input[0].match(/name="([^"]+)"/)?.[1];
     const value = input[0].match(/value="([^"]*)"/)?.[1];
-    if (name) fields[name] = decodeHtml(value ?? "");
+    if (name === "SAMLResponse") fields.SAMLResponse = decodeHtml(value ?? "");
+    if (name === "RelayState") fields.RelayState = decodeHtml(value ?? "");
   }
   return { action, fields };
 }
@@ -133,9 +138,7 @@ function decodeHtml(value: string): string {
     .replaceAll("&amp;", "&");
 }
 
-async function openLoginPage(
-  base: string,
-): Promise<{ jar: Jar; uid: string; html: string }> {
+async function openLoginPage(base: string): Promise<LoginPage> {
   const jar = new Jar();
   const res = await req(
     base,
@@ -170,7 +173,7 @@ async function openLoginPage(
 async function runSamlLegToPostBinding(
   base: string,
   slug: string,
-): Promise<{ jar: Jar; uid: string; binding: PostBindingForm }> {
+): Promise<StartedSamlLeg> {
   const { jar, uid, html } = await openLoginPage(base);
   const start = await req(base, jar, `/interaction/${uid}/federated/saml`, {
     method: "POST",
@@ -188,13 +191,16 @@ async function runSamlLegToPostBinding(
 /** Post an assertion to the ACS the way a browser does: with NO cookies (T25). */
 async function postAcsCookieless(
   acsUrl: string,
-  fields: Record<string, string>,
+  fields: AcsFormFields,
 ): Promise<Response> {
+  const body = new URLSearchParams({ SAMLResponse: fields.SAMLResponse ?? "" });
+  if (fields.RelayState !== undefined)
+    body.set("RelayState", fields.RelayState);
   return fetch(acsUrl, {
     method: "POST",
     redirect: "manual",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(fields),
+    body,
   });
 }
 

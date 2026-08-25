@@ -2,10 +2,12 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import type { ScimUserRecord } from "@opensesame/database";
 import {
+  type BoundaryValue,
   type JsonObject,
   type Organization,
   type OrganizationRole,
   isBoolean,
+  isJsonObject,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -67,13 +69,7 @@ const ROLE_ATTRIBUTE = "urn:opensesame:params:scim:2.0:role";
 const NEVER_STORED = new Set(["password", "schemas", "meta", "id"]);
 
 /** Identity kinds an org sign-in can have linked a subject under (C5). */
-const ORG_IDENTITY_KINDS = [
-  "oidc",
-  "oauth2",
-  "saml",
-  "ldap",
-  "email",
-] as const;
+const ORG_IDENTITY_KINDS = ["oidc", "oauth2", "saml", "ldap", "email"] as const;
 
 const MAX_USER_NAME_LENGTH = 320;
 const MAX_DISPLAY_LENGTH = 512;
@@ -149,7 +145,7 @@ export async function provisionedRoleForSubject(
 }
 
 /** Attributes as the directory sent them, minus what we must never keep. */
-function sanitizeRaw(body: JsonObject, previous?: JsonObject): JsonObject {
+function sanitizeRaw(body: JsonObject): JsonObject {
   const raw: JsonObject = {};
   for (const [key, value] of Object.entries(body)) {
     // `password` is a real SCIM attribute and a real credential. It is dropped
@@ -158,8 +154,6 @@ function sanitizeRaw(body: JsonObject, previous?: JsonObject): JsonObject {
     if (NEVER_STORED.has(key) || key === ROLE_ATTRIBUTE) continue;
     raw[key] = value;
   }
-  const role = previous?.[ROLE_ATTRIBUTE];
-  if (isString(role)) raw[ROLE_ATTRIBUTE] = role;
   return raw;
 }
 
@@ -174,10 +168,7 @@ function scimBase(ctx: AppContext, organizationId: string): string {
 }
 
 /** The SCIM representation of a stored row — never the bookkeeping key. */
-function userResource(
-  ctx: AppContext,
-  user: ScimUserRecord,
-): JsonObject {
+function userResource(ctx: AppContext, user: ScimUserRecord): JsonObject {
   const attributes: JsonObject = {};
   for (const [key, value] of Object.entries(user.raw)) {
     if (key === ROLE_ATTRIBUTE) continue;
@@ -248,7 +239,8 @@ async function authenticate(
 async function requireOwner(
   c: Context<{ Variables: Variables }>,
 ): Promise<
-  { ctx: AppContext; organization: Organization; principalId: string } | Response
+  | { ctx: AppContext; organization: Organization; principalId: string }
+  | Response
 > {
   const ctx = c.get("ctx");
   const principalId = c.get("principalId") ?? "";
@@ -359,7 +351,11 @@ async function applyRole(
  * prefix does not have to be configured anywhere.
  */
 export function roleForGroupName(name: string): OrganizationRole | undefined {
-  const normalized = name.trim().toLowerCase().replace(/[^a-z]+/g, " ").trim();
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .trim();
   const last = normalized.split(" ").pop() ?? "";
   if (last === "owner" || last === "owners") return "owner";
   if (last === "admin" || last === "admins") return "admin";
@@ -370,7 +366,7 @@ export function roleForGroupName(name: string): OrganizationRole | undefined {
 type PatchOperation = {
   op: string;
   path?: string;
-  value?: unknown;
+  value?: BoundaryValue;
 };
 
 function patchOperations(body: JsonObject): PatchOperation[] {
@@ -378,8 +374,8 @@ function patchOperations(body: JsonObject): PatchOperation[] {
   if (!Array.isArray(raw)) return [];
   const operations: PatchOperation[] = [];
   for (const entry of raw) {
-    if (typeof entry !== "object" || entry === null) continue;
-    const record: JsonObject = overlapCast(entry);
+    if (!isJsonObject(entry)) continue;
+    const record: JsonObject = entry;
     const op = isString(record.op) ? record.op.toLowerCase() : "";
     if (!op) continue;
     operations.push({
@@ -396,7 +392,7 @@ function patchOperations(body: JsonObject): PatchOperation[] {
  * from Entra. Both mean the same thing, and reading only one of them is the
  * classic way a deprovisioning push silently does nothing.
  */
-function asActive(value: unknown): boolean | undefined {
+function asActive(value: BoundaryValue): boolean | undefined {
   if (isBoolean(value)) return value;
   if (!isString(value)) return undefined;
   const normalized = value.trim().toLowerCase();
@@ -405,7 +401,7 @@ function asActive(value: unknown): boolean | undefined {
   return undefined;
 }
 
-function bounded(value: unknown, max: number): string | undefined {
+function bounded(value: BoundaryValue, max: number): string | undefined {
   if (!isString(value)) return undefined;
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > max) return undefined;
@@ -422,7 +418,7 @@ type UserPatch = {
 /** Fold one PATCH body into the fields this service models. */
 function foldUserPatch(operations: PatchOperation[]): UserPatch {
   const patch: UserPatch = {};
-  const assign = (path: string, value: unknown) => {
+  const assign = (path: string, value: BoundaryValue) => {
     const attribute = path.split(".").pop()?.toLowerCase() ?? "";
     if (attribute === "active") {
       const active = asActive(value);
@@ -458,9 +454,8 @@ function foldUserPatch(operations: PatchOperation[]): UserPatch {
       assign(operation.path, operation.value);
       continue;
     }
-    if (typeof operation.value === "object" && operation.value !== null) {
-      const fields: JsonObject = overlapCast(operation.value);
-      for (const [key, value] of Object.entries(fields)) {
+    if (isJsonObject(operation.value)) {
+      for (const [key, value] of Object.entries(operation.value)) {
         assign(key, value);
       }
     }
@@ -469,7 +464,7 @@ function foldUserPatch(operations: PatchOperation[]): UserPatch {
 }
 
 /** Member ids named by one Groups operation. */
-function memberIds(value: unknown): string[] {
+function memberIds(value: BoundaryValue): string[] {
   const entries = Array.isArray(value) ? value : [value];
   const ids: string[] = [];
   for (const entry of entries) {
@@ -477,9 +472,8 @@ function memberIds(value: unknown): string[] {
       ids.push(entry);
       continue;
     }
-    if (typeof entry !== "object" || entry === null) continue;
-    const record: JsonObject = overlapCast(entry);
-    if (isString(record.value)) ids.push(record.value);
+    if (!isJsonObject(entry)) continue;
+    if (isString(entry.value)) ids.push(entry.value);
   }
   return ids;
 }
@@ -488,12 +482,8 @@ async function readJsonBody(
   c: Context<{ Variables: Variables }>,
 ): Promise<JsonObject | undefined> {
   try {
-    const parsed: unknown = await c.req.json();
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return undefined;
-    }
-    const body: JsonObject = overlapCast(parsed);
-    return body;
+    const parsed: BoundaryValue = overlapCast(await c.req.json());
+    return isJsonObject(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
@@ -510,43 +500,39 @@ function userNameFilter(filter: string): string | undefined {
 export function createScimRoutes(): Hono<{ Variables: Variables }> {
   const routes = new Hono<{ Variables: Variables }>();
 
-  routes.post(
-    "/:organizationId/scim/tokens",
-    requirePrincipal(),
-    async (c) => {
-      const gate = await requireOwner(c);
-      if (gate instanceof Response) return gate;
-      const { ctx, organization, principalId } = gate;
+  routes.post("/:organizationId/scim/tokens", requirePrincipal(), async (c) => {
+    const gate = await requireOwner(c);
+    if (gate instanceof Response) return gate;
+    const { ctx, organization, principalId } = gate;
 
-      // The only moment this value exists in plaintext. It is returned once,
-      // stored as a digest, and never written to a log or an audit row (T27).
-      const token = `${SCIM_TOKEN_PREFIX}${randomBytes(32).toString(
-        "base64url",
-      )}`;
-      const minted = await ctx.stores.scim.tokens.mint(
-        organization.id,
-        scimTokenHash(token),
-      );
-      await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "organization.scim_token_minted",
-        outcome: "succeeded",
-        principalId,
-        organizationId: organization.id,
-        correlationId: c.get("correlationId"),
-        targetType: "scim_token",
-        targetId: minted.id,
-        metadata: { action: "organization.scim_token.mint" },
-      });
-      return c.json(
-        {
-          id: minted.id,
-          token,
-          scimBaseUrl: scimBase(ctx, organization.id),
-        },
-        201,
-      );
-    },
-  );
+    // The only moment this value exists in plaintext. It is returned once,
+    // stored as a digest, and never written to a log or an audit row (T27).
+    const token = `${SCIM_TOKEN_PREFIX}${randomBytes(32).toString(
+      "base64url",
+    )}`;
+    const minted = await ctx.stores.scim.tokens.mint(
+      organization.id,
+      scimTokenHash(token),
+    );
+    await appendAuditEvent(ctx.repos.auditEvents, {
+      eventType: "organization.scim_token_minted",
+      outcome: "succeeded",
+      principalId,
+      organizationId: organization.id,
+      correlationId: c.get("correlationId"),
+      targetType: "scim_token",
+      targetId: minted.id,
+      metadata: { action: "organization.scim_token.mint" },
+    });
+    return c.json(
+      {
+        id: minted.id,
+        token,
+        scimBaseUrl: scimBase(ctx, organization.id),
+      },
+      201,
+    );
+  });
 
   routes.get("/:organizationId/scim/tokens", requirePrincipal(), async (c) => {
     const gate = await requireOwner(c);
@@ -657,7 +643,7 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
         return scimError(
           c,
           400,
-          "Only `userName eq \"…\"` is supported.",
+          'Only `userName eq "…"` is supported.',
           "invalidFilter",
         );
       }
@@ -813,7 +799,8 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
     let displayName = bounded(body.displayName, MAX_DISPLAY_LENGTH) ?? groupId;
     for (const operation of operations) {
       if (operation.path?.toLowerCase() === "displayname") {
-        displayName = bounded(operation.value, MAX_DISPLAY_LENGTH) ?? displayName;
+        displayName =
+          bounded(operation.value, MAX_DISPLAY_LENGTH) ?? displayName;
       }
     }
 

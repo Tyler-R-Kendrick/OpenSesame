@@ -136,6 +136,40 @@ describe("AccountSwitcher", () => {
     expect(options).toMatchObject({ orgSlug: "acme", orgMethod: "sso" });
   });
 
+  it("brokers a native-SAML method instead of breaking on its missing issuer", async () => {
+    identitySeams.connectProvisional = vi.fn(async () => ({
+      principalId: "prn_guest",
+      accessToken: "tok",
+      issuerOrigin: "http://127.0.0.1:18788",
+    }));
+    beginSignIn.mockResolvedValue(undefined);
+    renderSwitcher();
+    openMenu();
+    fireEvent.click(screen.getByRole("button", { name: "Add organization" }));
+    fireEvent.change(screen.getByLabelText("Organization slug"), {
+      target: { value: "acme" },
+    });
+    orgs.lookupOrgTenant.mockResolvedValue({
+      slug: "acme",
+      displayName: "Acme",
+      state: "active",
+      // Native SAML runs server-side; there is no issuer for this tab.
+      authMethods: [{ kind: "saml", label: "SAML", native: true }],
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Look up" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Continue with SAML" }),
+    );
+    await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(1));
+    const [upstream, options] = beginSignIn.mock.calls[0] ?? [];
+    expect(upstream).toMatchObject({
+      id: "broker:org:acme",
+      issuer: "http://127.0.0.1:18788",
+    });
+    // No org assertion comes back from a brokered leg, so no join is promised.
+    expect(options).not.toHaveProperty("orgSlug");
+  });
+
   it("lists org memberships for a connected guest", async () => {
     identitySeams.useIdentitySession = () => ({
       principalId: "prn_guest",

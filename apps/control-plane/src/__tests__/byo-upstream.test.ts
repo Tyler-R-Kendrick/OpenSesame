@@ -1,0 +1,636 @@
+import { createHash, randomBytes } from "node:crypto";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import {
+  type ReferenceIdp,
+  startReferenceIdp,
+} from "@opensesame/mock-upstream-idp/testkit";
+import { overlapCast } from "@opensesame/os-domain";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { AppContext } from "../context.js";
+import {
+  type ByoRegistrationResult,
+  registerByoUpstream,
+  resetByoBudget,
+} from "../interactions/byo.js";
+import {
+  decodePending,
+  resetFederatedDiscoveryCache,
+} from "../interactions/federated.js";
+import type { startServer } from "../server.js";
+
+/**
+ * Bring your own identity provider, end to end (S4: C9 + D5).
+ *
+ * Every counterparty here is the reference IdP (C18): a real OIDC server over
+ * real HTTP, with keys generated at startup, a real RFC 7591 registration
+ * endpoint when asked for one, and PKCE S256 enforced on the way through. The
+ * point of the feature is that a first-time visitor with no account can name
+ * an issuer this deployment has never heard of and end up as one canonical,
+ * verified principal — so the assertions below are about identity rows and
+ * principal state, not about redirects that merely look right.
+ */
+
+type Started = Awaited<ReturnType<typeof startServer>>;
+type ByoForm = {
+  _csrf: string;
+  issuer?: string;
+  client_id?: string;
+  client_secret?: string;
+};
+type LoginPageResult = { jar: Jar; uid: string; html: string };
+
+const RP_ORIGIN = "http://127.0.0.1:4317";
+const RP_CLIENT_ID = `origin:${RP_ORIGIN}`;
+const RP_REDIRECT = `${RP_ORIGIN}/opensesame/callback`;
+
+function pkce() {
+  const verifier = randomBytes(32).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
+}
+
+/** Minimal cookie jar: a superset of browser path-scoping, fine for tests. */
+class Jar {
+  private cookies = new Map<string, string>();
+
+  absorb(res: Response): void {
+    for (const sc of res.headers.getSetCookie()) {
+      const pair = sc.split(";")[0] ?? "";
+      const idx = pair.indexOf("=");
+      if (idx <= 0) continue;
+      const name = pair.slice(0, idx).trim();
+      const value = pair.slice(idx + 1).trim();
+      if (value) this.cookies.set(name, value);
+      else this.cookies.delete(name);
+    }
+  }
+
+  get(name: string): string | undefined {
+    return this.cookies.get(name);
+  }
+
+  header() {
+    if (this.cookies.size === 0) return {};
+    return {
+      cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; "),
+    };
+  }
+}
+
+async function startControlPlane(
+  upstreamIssuer: string,
+  port: number,
+): Promise<Started> {
+  const { startServer: start } = await import("../server.js");
+  return start({
+    config: {
+      host: "127.0.0.1",
+      port,
+      // publicUrl must match the real bound port: it is both the origin-profile
+      // client id and the base of the federated redirect_uri.
+      publicUrl: `http://127.0.0.1:${port}`,
+      issuer: `http://127.0.0.1:${port}`,
+    },
+    processEnv: {
+      ...process.env,
+      OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
+      OPENSESAME_TRUSTED_UPSTREAMS: upstreamIssuer,
+    },
+  });
+}
+
+/** Reserve a port so publicUrl can name it before the server binds. */
+async function reservePort(): Promise<number> {
+  const probe = createServer();
+  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
+  // SAFETY: probe.listen established the runtime AddressInfo invariant.
+  const port = (probe.address() as AddressInfo).port;
+  await new Promise<void>((r) => probe.close(() => r()));
+  return port;
+}
+
+function extractCsrf(html: string): string {
+  const match = html.match(/name="_csrf" value="([^"]+)"/);
+  if (!match?.[1]) throw new Error("no csrf token in page");
+  return match[1];
+}
+
+async function req(
+  base: string,
+  jar: Jar,
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const url = path.startsWith("http") ? path : `${base}${path}`;
+  const res = await fetch(url, {
+    redirect: "manual",
+    ...init,
+    headers: { ...jar.header(), ...overlapCast(init.headers) },
+  });
+  jar.absorb(res);
+  return res;
+}
+
+function postForm(fields: ByoForm): RequestInit {
+  return {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(fields),
+  };
+}
+
+/** The registration outcome as a record, or a failure naming the refusal. */
+function expectRecord(outcome: ByoRegistrationResult) {
+  if ("error" in outcome) {
+    throw new Error(`expected a record, got ${outcome.error}`);
+  }
+  return outcome.record;
+}
+
+describe("bring-your-own upstream", () => {
+  /** The deployment's own configured upstream; never the BYO one. */
+  let allowlisted: ReferenceIdp;
+  let manualIdp: ReferenceIdp;
+  let dcrIdp: ReferenceIdp;
+  let noDcrIdp: ReferenceIdp;
+  let reentryIdp: ReferenceIdp;
+  let roundTripIdp: ReferenceIdp;
+  let dcrRoundTripIdp: ReferenceIdp;
+  let started: Started;
+  let base: string;
+
+  beforeAll(async () => {
+    // The discovery cache is module-global and keyed by issuer + client id;
+    // a suite that starts fresh servers must clear it at both ends (T1).
+    resetFederatedDiscoveryCache();
+    [
+      allowlisted,
+      manualIdp,
+      dcrIdp,
+      noDcrIdp,
+      reentryIdp,
+      roundTripIdp,
+      dcrRoundTripIdp,
+    ] = await Promise.all([
+      startReferenceIdp(),
+      startReferenceIdp(),
+      startReferenceIdp({ registration: true }),
+      startReferenceIdp({ registration: false }),
+      startReferenceIdp(),
+      startReferenceIdp(),
+      startReferenceIdp({ registration: true }),
+    ]);
+    started = await startControlPlane(allowlisted.issuer, await reservePort());
+    base = `http://127.0.0.1:${started.port}`;
+  }, 60_000);
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) =>
+      started.server.close((err) => (err ? reject(err) : resolve())),
+    );
+    await Promise.all([
+      allowlisted.close(),
+      manualIdp.close(),
+      dcrIdp.close(),
+      noDcrIdp.close(),
+      reentryIdp.close(),
+      roundTripIdp.close(),
+      dcrRoundTripIdp.close(),
+    ]);
+    resetFederatedDiscoveryCache();
+  });
+
+  // The budget is module-local and deliberately survives requests, so every
+  // case starts from a clean one rather than inheriting its neighbours' spend.
+  beforeEach(() => {
+    resetByoBudget();
+  });
+
+  async function loginPage(): Promise<LoginPageResult> {
+    const jar = new Jar();
+    const { challenge } = pkce();
+    const params = new URLSearchParams({
+      client_id: RP_CLIENT_ID,
+      redirect_uri: RP_REDIRECT,
+      response_type: "code",
+      scope: "openid",
+      state: "s-1",
+      nonce: "n-1",
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+    });
+    const res = await req(base, jar, `/auth?${params.toString()}`);
+    expect(res.status).toBe(303);
+    const location = res.headers.get("location") ?? "";
+    const uid = location.slice("/interaction/".length);
+    const page = await req(base, jar, location);
+    return { jar, uid, html: await page.text() };
+  }
+
+  /** The interaction callback a dynamic registration has to name (D5). */
+  function callbackFor(uid: string): string {
+    return `${base}/interaction/${uid}/federated/callback`;
+  }
+
+  describe("registration", () => {
+    it("stores the client credentials a visitor brought themselves", async () => {
+      const record = expectRecord(
+        await registerByoUpstream(
+          started.ctx,
+          {
+            issuer: manualIdp.issuer,
+            clientId: manualIdp.clientId,
+            clientSecret: manualIdp.clientSecret,
+          },
+          "fp-manual",
+        ),
+      );
+      expect(record.issuer).toBe(manualIdp.issuer);
+      expect(record.clientId).toBe(manualIdp.clientId);
+      expect(record.clientAuth).toBe("client_secret_post");
+      expect(record.registrationSource).toBe("manual");
+      expect(record.state).toBe("active");
+
+      // Durable, because re-entry depends on it: the visitor comes back
+      // tomorrow, types the same URL, and this row is what admits them.
+      const stored = await started.ctx.repos.byoUpstreams.findByIssuer(
+        manualIdp.issuer,
+      );
+      expect(stored?.id).toBe(record.id);
+      expect(stored?.clientSecret).toBe(manualIdp.clientSecret);
+    });
+
+    it("registers itself dynamically when the issuer advertises RFC 7591", async () => {
+      const record = expectRecord(
+        await registerByoUpstream(
+          started.ctx,
+          { issuer: dcrIdp.issuer, redirectUri: callbackFor("uid-dcr") },
+          "fp-dcr",
+        ),
+      );
+      expect(record.registrationSource).toBe("dcr");
+      // Minted by the IdP's own registration endpoint, not by us.
+      expect(record.clientId).toMatch(/^dcr-/);
+      expect(record.clientAuth).toBe("client_secret_post");
+      expect(record.clientSecret).toBeTruthy();
+      expect(record.clientSecret).not.toBe(dcrIdp.clientSecret);
+    });
+
+    it("refuses an issuer that neither registers clients nor was given one", async () => {
+      const outcome = await registerByoUpstream(
+        started.ctx,
+        { issuer: noDcrIdp.issuer, redirectUri: callbackFor("uid-nodcr") },
+        "fp-nodcr",
+      );
+      expect(outcome).toEqual({
+        error: "registration_unsupported",
+        message: expect.stringContaining("client ID"),
+      });
+      expect(
+        await started.ctx.repos.byoUpstreams.findByIssuer(noDcrIdp.issuer),
+      ).toBeNull();
+    });
+
+    it("refuses an issuer that answers with no discovery document", async () => {
+      // A real, reachable, allowlist-safe host that is not an OIDC issuer:
+      // this deployment's own login surface.
+      const outcome = await registerByoUpstream(
+        started.ctx,
+        { issuer: `${base}/not-an-issuer`, clientId: "c" },
+        "fp-nodiscovery",
+      );
+      expect(outcome).toEqual({
+        error: "discovery_failed",
+        message: expect.stringContaining("discovery document"),
+      });
+    });
+
+    /**
+     * Re-entry (D5). The second submission names a different client id on
+     * purpose: the record is keyed by issuer, and a stranger who guesses
+     * somebody else's issuer must not be able to swap the client out from
+     * under it. Both answers are shaped identically, so nothing about the
+     * first registration leaks into the second.
+     */
+    it("reuses the record on re-entry without revealing it existed", async () => {
+      const first = await registerByoUpstream(
+        started.ctx,
+        {
+          issuer: reentryIdp.issuer,
+          clientId: reentryIdp.clientId,
+          clientSecret: reentryIdp.clientSecret,
+        },
+        "fp-reentry-1",
+      );
+      const second = await registerByoUpstream(
+        started.ctx,
+        { issuer: reentryIdp.issuer, clientId: "someone-elses-client" },
+        "fp-reentry-2",
+      );
+      const created = expectRecord(first);
+      const reused = expectRecord(second);
+      expect(reused.id).toBe(created.id);
+      expect(reused.clientId).toBe(reentryIdp.clientId);
+      expect(reused.createdAt).toEqual(created.createdAt);
+      expect(Object.keys(second)).toEqual(Object.keys(first));
+    });
+
+    /**
+     * The issuer arrives in an unauthenticated form field and this server then
+     * dereferences it, so the guard is the whole security of this endpoint.
+     * Loopback, link-local, cloud metadata, and the decimal spelling that
+     * classically walks past a string denylist all have to be refused.
+     */
+    it.each([
+      ["a loopback name", "http://localhost:9099"],
+      ["an https loopback name", "https://localhost"],
+      ["the cloud metadata address", "http://169.254.169.254"],
+      ["a decimal-encoded metadata address", "http://2852039166"],
+      ["a localhost subdomain", "http://idp.localhost:9099"],
+      ["an https localhost subdomain", "https://tenant.localhost"],
+      ["a private address", "https://10.1.2.3"],
+      ["a non-http scheme", "ftp://idp.example.com"],
+      ["a credential-bearing URL", "https://user:pw@idp.example.com"],
+      ["something that is not a URL", "idp.example.com"],
+    ])("refuses %s", async (_label, issuer) => {
+      const outcome = await registerByoUpstream(
+        started.ctx,
+        { issuer },
+        `fp-ssrf-${issuer}`,
+      );
+      expect(outcome).toEqual({
+        error: "invalid_issuer",
+        message: expect.stringContaining("cannot be used"),
+      });
+    });
+
+    /**
+     * The loopback exception exists for the dev stack and nothing else: the
+     * reference IdP lives on 127.0.0.1, and a deployment that has NOT opted
+     * into dev defaults must refuse it — in every spelling, including the
+     * decimal one WHATWG normalizes back to 127.0.0.1.
+     */
+    it.each([
+      ["a loopback literal", "http://127.0.0.1:9090"],
+      ["a decimal-encoded loopback", "http://2130706433"],
+      ["an https loopback literal", "https://127.0.0.1"],
+      ["an http issuer", "http://idp.example.com"],
+    ])("refuses %s without dev defaults", async (_label, issuer) => {
+      const production: AppContext = {
+        ...started.ctx,
+        config: { ...started.ctx.config, allowDevDefaults: false },
+      };
+      const outcome = await registerByoUpstream(
+        production,
+        { issuer },
+        `fp-prod-${issuer}`,
+      );
+      expect(outcome).toEqual({
+        error: "invalid_issuer",
+        message: expect.stringContaining("cannot be used"),
+      });
+    });
+
+    it("refuses a rejected issuer before it reaches the store", async () => {
+      await registerByoUpstream(
+        started.ctx,
+        { issuer: "http://169.254.169.254" },
+        "fp-ssrf-store",
+      );
+      expect(
+        await started.ctx.repos.byoUpstreams.findByIssuer(
+          "http://169.254.169.254",
+        ),
+      ).toBeNull();
+    });
+
+    /**
+     * The abuse fence (D5): five registrations per fingerprint per ten
+     * minutes, spent by every attempt that gets past URL validation — a
+     * returning visitor's reuse included, because "is this issuer already
+     * known?" is exactly the question an enumerator would like to ask for
+     * free.
+     */
+    it("spends a per-fingerprint budget and refuses the sixth attempt", async () => {
+      const fingerprint = "fp-budget";
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const outcome = await registerByoUpstream(
+          started.ctx,
+          {
+            issuer: manualIdp.issuer,
+            clientId: manualIdp.clientId,
+            clientSecret: manualIdp.clientSecret,
+          },
+          fingerprint,
+        );
+        expect(expectRecord(outcome).issuer).toBe(manualIdp.issuer);
+      }
+      expect(
+        await registerByoUpstream(
+          started.ctx,
+          { issuer: manualIdp.issuer },
+          fingerprint,
+        ),
+      ).toEqual({
+        error: "rate_limited",
+        message: expect.stringContaining("Too many"),
+      });
+
+      // Another browser is unaffected: the budget is per fingerprint.
+      expect(
+        expectRecord(
+          await registerByoUpstream(
+            started.ctx,
+            { issuer: manualIdp.issuer },
+            "fp-budget-other",
+          ),
+        ).issuer,
+      ).toBe(manualIdp.issuer);
+
+      resetByoBudget();
+      expect(
+        expectRecord(
+          await registerByoUpstream(
+            started.ctx,
+            { issuer: manualIdp.issuer },
+            fingerprint,
+          ),
+        ).issuer,
+      ).toBe(manualIdp.issuer);
+    });
+  });
+
+  describe("the hosted login page", () => {
+    it("offers the bring-your-own form", async () => {
+      const { html } = await loginPage();
+      expect(html).toContain("Use your own identity provider");
+      expect(html).toContain("/federated/byo");
+      // No script-src on these pages (T5): the flow is POST → 303 → GET.
+      expect(html).not.toContain("<script");
+    });
+
+    it("refuses a submission without the CSRF token", async () => {
+      const { jar, uid } = await loginPage();
+      const res = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/byo`,
+        postForm({ _csrf: "wrong", issuer: roundTripIdp.issuer }),
+      );
+      expect(res.status).toBe(403);
+      expect(jar.get(`os.fed.${uid}`)).toBeFalsy();
+    });
+
+    /**
+     * T13: `csrf.verify` consumes the token, so a 422 that echoed the spent
+     * one would 403 the visitor's correction — the single most likely thing
+     * to happen next on a form whose whole job is being retyped.
+     */
+    it("re-renders a refusal with a token the next attempt can spend", async () => {
+      const { jar, uid, html } = await loginPage();
+      const refused = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/byo`,
+        postForm({ _csrf: extractCsrf(html), issuer: "http://localhost:9099" }),
+      );
+      expect(refused.status).toBe(422);
+      const page = await refused.text();
+      expect(page).toContain("cannot be used for sign-in");
+      // The rejected URL comes back in the field rather than being wiped.
+      expect(page).toContain("http://localhost:9099");
+
+      roundTripIdp.setRedirectUris([callbackFor(uid)]);
+      const retried = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/byo`,
+        postForm({
+          _csrf: extractCsrf(page),
+          issuer: roundTripIdp.issuer,
+          client_id: roundTripIdp.clientId,
+          client_secret: roundTripIdp.clientSecret,
+        }),
+      );
+      expect(retried.status).toBe(303);
+    });
+
+    /**
+     * The definition of done for this swarm: a first-time visitor with no
+     * account names their own issuer and ends as ONE canonical principal,
+     * `active` + `verified`, with an `external_identities` row naming that
+     * issuer — asserted from the store, not inferred from the redirect.
+     */
+    it("signs a first-time visitor in through their own issuer", async () => {
+      const subject = `byo-${randomBytes(4).toString("hex")}`;
+      roundTripIdp.setSubject(subject);
+      const { jar, uid, html } = await loginPage();
+      roundTripIdp.setRedirectUris([callbackFor(uid)]);
+
+      const start = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/byo`,
+        postForm({
+          _csrf: extractCsrf(html),
+          issuer: roundTripIdp.issuer,
+          client_id: roundTripIdp.clientId,
+          client_secret: roundTripIdp.clientSecret,
+        }),
+      );
+      expect(start.status).toBe(303);
+      const authorize = new URL(start.headers.get("location") ?? "");
+      expect(authorize.origin).toBe(roundTripIdp.issuer);
+      // Their client, not our origin profile (T10).
+      expect(authorize.searchParams.get("client_id")).toBe(
+        roundTripIdp.clientId,
+      );
+      expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
+      expect(authorize.searchParams.get("redirect_uri")).toBe(callbackFor(uid));
+
+      const pending = decodePending(jar.get(`os.fed.${uid}`));
+      expect(pending?.kind).toBe("oidc");
+      expect(pending?.issuer).toBe(roundTripIdp.issuer);
+      expect(pending?.byoId).toBeTruthy();
+
+      const upstreamRes = await fetch(authorize, { redirect: "manual" });
+      const back = new URL(upstreamRes.headers.get("location") ?? "");
+      const completed = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/callback${back.search}`,
+      );
+      expect(completed.status).toBe(303);
+      expect(completed.headers.get("location")).toContain("/auth/");
+      expect(jar.get("os_provisional")).toBeTruthy();
+
+      const identity = await started.ctx.repos.externalIdentities.findByTuple({
+        kind: "oidc",
+        issuer: roundTripIdp.issuer,
+        // A confidential client sees the IdP's canonical subject; only
+        // origin-profile clients get a pairwise one.
+        subject,
+      });
+      expect(identity).toBeTruthy();
+      expect(identity?.assurance).toBe("verified");
+
+      const principal = await started.ctx.repos.principals.getById(
+        identity?.principalId ?? "",
+      );
+      expect(principal?.state).toBe("active");
+      expect(principal?.assurance).toBe("verified");
+
+      // The record is in use, which is what the operator surface lists by.
+      const record = await started.ctx.repos.byoUpstreams.getById(
+        pending?.byoId ?? "",
+      );
+      expect(record?.lastUsedAt).toBeTruthy();
+    }, 30_000);
+
+    /**
+     * The same round trip with no client credentials at all: the server
+     * registers ITSELF at the visitor's issuer over RFC 7591 and then signs
+     * them in as the client that registration minted. Nothing here is
+     * simulated — the client id in the authorize URL was issued by the
+     * reference IdP's own registration endpoint moments earlier.
+     */
+    it("registers dynamically and completes the leg as the minted client", async () => {
+      const subject = `byo-dcr-${randomBytes(4).toString("hex")}`;
+      dcrRoundTripIdp.setSubject(subject);
+      const { jar, uid, html } = await loginPage();
+
+      const start = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/byo`,
+        postForm({ _csrf: extractCsrf(html), issuer: dcrRoundTripIdp.issuer }),
+      );
+      expect(start.status).toBe(303);
+      const authorize = new URL(start.headers.get("location") ?? "");
+      expect(authorize.origin).toBe(dcrRoundTripIdp.issuer);
+      expect(authorize.searchParams.get("client_id")).toMatch(/^dcr-/);
+
+      const upstreamRes = await fetch(authorize, { redirect: "manual" });
+      const back = new URL(upstreamRes.headers.get("location") ?? "");
+      const completed = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/callback${back.search}`,
+      );
+      expect(completed.status).toBe(303);
+
+      const identity = await started.ctx.repos.externalIdentities.findByTuple({
+        kind: "oidc",
+        issuer: dcrRoundTripIdp.issuer,
+        subject,
+      });
+      expect(identity?.assurance).toBe("verified");
+      const principal = await started.ctx.repos.principals.getById(
+        identity?.principalId ?? "",
+      );
+      expect(principal?.state).toBe("active");
+      expect(principal?.assurance).toBe("verified");
+    }, 30_000);
+  });
+});

@@ -1,10 +1,15 @@
 import { createHash, hkdfSync, randomBytes, randomUUID } from "node:crypto";
-import { appendAuditEvent } from "@opensesame/audit";
 import {
+  type MagicLinkMetadata,
   type UpstreamAuthBundle,
   createUpstreamAuth,
 } from "@opensesame/auth-upstream";
-import { type ProvisionalSession, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type ProvisionalSession,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import {
   ProvisionalMintRefusedError,
@@ -46,8 +51,21 @@ export type BetterAuthBridgeErrorCode =
   | "principal_unavailable"
   /** The address is already bound to a different principal by tuple. */
   | "identity_collision"
-  /** The provisional-mint fence refused (capacity or per-fingerprint budget). */
+  /** The deployment is at its provisional-principal ceiling. */
+  | "provisional_capacity"
+  /** The per-address mint budget refused. */
   | "rate_limited";
+
+/**
+ * What a completed magic-link admission hands its caller: the canonical
+ * principal, and a first-party bearer bound to it. Deliberately the same shape
+ * `POST /v1/principals/federated-session` answers with (C13), so a client
+ * adopts either the same way.
+ */
+export type BridgedSession = {
+  principalId: string;
+  accessToken: string;
+};
 
 export class BetterAuthBridgeError extends Error {
   override readonly name = "BetterAuthBridgeError";
@@ -106,19 +124,28 @@ export function emailIdentityIssuer(ctx: AppContext): string {
  */
 function betterAuthSecret(ctx: AppContext): string {
   return Buffer.from(
-    hkdfSync("sha256", ctx.config.claimPepper, "", "opensesame/better-auth", 32),
+    hkdfSync(
+      "sha256",
+      ctx.config.claimPepper,
+      "",
+      "opensesame/better-auth",
+      32,
+    ),
   ).toString("base64url");
 }
 
 function magicLinkUrl(
   ctx: AppContext,
   token: string,
-  metadata: Record<string, unknown> | undefined,
+  metadata: MagicLinkMetadata | undefined,
 ): string {
   const base = ctx.config.publicUrl.replace(/\/+$/, "");
-  const uid = isString(metadata?.[MAGIC_LINK_INTERACTION_KEY])
-    ? metadata[MAGIC_LINK_INTERACTION_KEY]
-    : undefined;
+  // SAFETY: metadata is whatever the request handed `signInMagicLink`; the
+  // JSON boundary is exactly what `isString` is the guard for.
+  const claimed: BoundaryValue = overlapCast(
+    metadata?.[MAGIC_LINK_INTERACTION_KEY],
+  );
+  const uid = isString(claimed) ? claimed : undefined;
   const query = `?token=${encodeURIComponent(token)}`;
   // Two landing places, one token. A link started from the hosted login page
   // resumes that interaction; a link started by a first-party client (Pages,
@@ -271,7 +298,7 @@ export async function principalForBetterAuthSubject(
   ctx: AppContext,
   subject: BetterAuthSubject,
   correlationId: string = randomUUID(),
-): Promise<{ principalId: string; accessToken: string }> {
+): Promise<BridgedSession> {
   // Better Auth marks a magic-link user verified as part of consuming the
   // token; anything else did not prove control of an address and has no
   // business promoting a principal.
@@ -327,7 +354,7 @@ export async function principalForBetterAuthSubject(
     .update(emailNormalized)
     .digest("hex")
     .slice(0, 16);
-  let minted: { principalId: string; accessToken: string };
+  let minted: BridgedSession;
   try {
     minted = await mintProvisionalForInteraction(
       ctx,

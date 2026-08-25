@@ -9,6 +9,7 @@ import { apiSecurityHeaders } from "./middleware/security-headers.js";
 import { agentRoutes } from "./routes/agents.js";
 import { appClaimRoutes } from "./routes/app-claims.js";
 import { auditRoutes } from "./routes/audit.js";
+import { createUpstreamAuthRoutes } from "./routes/auth-upstream.js";
 import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
 import { createBackchannelLogoutRoutes } from "./routes/backchannel-logout.js";
 import { createByoAdminRoutes } from "./routes/byo-admin.js";
@@ -26,8 +27,8 @@ import { organizationRoutes } from "./routes/organizations.js";
 import { originClientAdminRoutes } from "./routes/origin-clients-admin.js";
 import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
-import { createScimRoutes } from "./routes/scim.js";
 import { createSamlRoutes } from "./routes/saml.js";
+import { createScimRoutes } from "./routes/scim.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
@@ -108,11 +109,15 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/federated", createBackchannelLogoutRoutes());
   // Operator lifecycle for visitor-registered BYO upstreams (D14).
   app.route("/v1/federated/admin/byo-upstreams", createByoAdminRoutes());
+  // The Better Auth mount (C20 / ADR 0057), enabling exactly one sign-in
+  // method: email magic-link. The router allowlists a single Better Auth path
+  // and answers 404 to the rest, so social stays unreachable (T22) and the
+  // Better Auth user record never crosses this boundary (T33).
+  app.route("/v1/auth", createUpstreamAuthRoutes(ctx));
   // INTEGRATOR — routes whose modules are landing with the other swarms of
   // this change. Each is mounted here the moment its module exists; the mount
   // line is the only thing missing, and every owner has left a factory with
   // the signature its contract names:
-  //   /v1/auth/*                             — C20, S11 (routes/auth-upstream.ts)
   //   /v1/organizations/:id/ldap             — C21, S12 (routes/org-ldap.ts)
   // The interaction sub-routers (C9: byo, org, realm, ldap, saml-complete)
   // mount inside createInteractionRoutes, not here.

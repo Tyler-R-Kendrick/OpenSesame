@@ -10,8 +10,8 @@ import type {
   ProviderInteractions,
 } from "../interactions/types.js";
 import type { Variables } from "../middleware/context.js";
-import { normalizeEmailDomain } from "./org-domains.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
+import { normalizeEmailDomain } from "./org-domains.js";
 
 type NodeEnv = { Bindings: HttpBindings };
 

@@ -38,6 +38,23 @@ export function App() {
     void sesame.getSession().then(setSession);
   }, [sesame]);
 
+  const signIn = useCallback(async () => {
+    setIdentityBusy(true);
+    setIdentityErr(null);
+    try {
+      // Sends the browser to the hosted login page, which runs whichever
+      // upstream this deployment brokers and comes back to this origin.
+      await sesame.signIn({ returnTo: "/" });
+    } catch (e) {
+      setIdentityErr(
+        e instanceof Error
+          ? e.message
+          : "Could not start sign-in. Is the Identity API up?",
+      );
+      setIdentityBusy(false);
+    }
+  }, [sesame]);
+
   const continueAsGuest = useCallback(async () => {
     setIdentityBusy(true);
     setIdentityErr(null);
@@ -168,15 +185,25 @@ export function App() {
               Sign out
             </button>
           ) : (
-            <button
-              type="button"
-              className="primary"
-              disabled={identityBusy}
-              aria-busy={identityBusy}
-              onClick={() => void continueAsGuest()}
-            >
-              {identityBusy ? "Starting…" : "Continue as guest"}
-            </button>
+            <>
+              <button
+                type="button"
+                className="primary"
+                disabled={identityBusy}
+                aria-busy={identityBusy}
+                onClick={() => void signIn()}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                disabled={identityBusy}
+                aria-busy={identityBusy}
+                onClick={() => void continueAsGuest()}
+              >
+                {identityBusy ? "Starting…" : "Continue as guest"}
+              </button>
+            </>
           )}
         </div>
         {identityErr ? (

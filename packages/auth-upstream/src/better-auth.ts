@@ -6,6 +6,16 @@ import type { PrincipalMappingStore } from "./mapping.js";
 import type { UpstreamOidcProviderRegistry } from "./oidc-registry.js";
 import type { PasskeySeam } from "./passkey.js";
 
+/**
+ * Round-trip context a caller attaches to a magic-link request and reads back
+ * when the link is delivered — e.g. the interaction the request started from.
+ *
+ * String values only, deliberately: this travels no further than the callback
+ * that builds the URL, and a value that needed parsing there would be a value
+ * whose meaning lived somewhere the type could not say.
+ */
+export type MagicLinkMetadata = Readonly<Record<string, string>>;
+
 /** What Better Auth hands the delivery callback for one magic link. */
 export interface MagicLinkDelivery {
   /** The address the human typed. */
@@ -15,7 +25,7 @@ export interface MagicLinkDelivery {
   /** The single-use verification token, consumed atomically on first verify. */
   token: string;
   /** Whatever the caller passed to `signInMagicLink` — e.g. an interaction uid. */
-  metadata?: Record<string, unknown>;
+  metadata?: MagicLinkMetadata;
 }
 
 export interface UpstreamMagicLinkOptions {
@@ -76,6 +86,24 @@ export interface BetterAuthUser {
   image?: string | null | undefined;
 }
 
+/**
+ * Better Auth's answer to a magic-link request: deliberately just an
+ * acknowledgement. It says nothing about whether the address is one this
+ * deployment knows, because the request surface is unauthenticated.
+ */
+export interface MagicLinkRequestAccepted {
+  status: boolean;
+}
+
+/**
+ * A social provider entry as Better Auth's own catalog holds it. Declared only
+ * so the facade can say the catalog is empty; nothing configures one (T22).
+ */
+export interface SocialProviderConfig {
+  clientId?: string;
+  clientSecret?: string;
+}
+
 export interface MagicLinkVerification {
   token: string;
   user: BetterAuthUser;
@@ -99,10 +127,10 @@ export interface UpstreamAuth {
         email: string;
         name?: string;
         callbackURL?: string;
-        metadata?: Record<string, unknown>;
+        metadata?: MagicLinkMetadata;
       };
       headers: Headers;
-    }): Promise<{ status: boolean }>;
+    }): Promise<MagicLinkRequestAccepted>;
     magicLinkVerify(input: {
       query: { token: string };
       headers: Headers;
@@ -111,7 +139,7 @@ export interface UpstreamAuth {
   options: {
     basePath?: string;
     emailAndPassword?: { enabled?: boolean };
-    socialProviders?: Record<string, unknown>;
+    socialProviders?: Readonly<Record<string, SocialProviderConfig>>;
     account?: { accountLinking?: { enabled?: boolean } };
     trustedOrigins?: string[];
   };
@@ -180,13 +208,18 @@ export function createUpstreamAuth(
         // usable sign-in links.
         storeToken: "hashed",
         sendMagicLink: async (data) => {
+          // SAFETY: `metadata` is echoed back verbatim from the request that
+          // asked for the link, and `signInMagicLink` above only accepts
+          // `MagicLinkMetadata` — Better Auth widens it in transit and does not
+          // read it.
+          const metadata: MagicLinkMetadata | undefined = overlapCast(
+            data.metadata,
+          );
           await options.magicLink.sendMagicLink({
             email: data.email,
             url: data.url,
             token: data.token,
-            ...(data.metadata !== undefined
-              ? { metadata: data.metadata }
-              : undefined),
+            ...(metadata !== undefined ? { metadata } : undefined),
           });
         },
       }),
