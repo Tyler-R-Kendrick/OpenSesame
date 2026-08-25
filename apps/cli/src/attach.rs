@@ -286,7 +286,7 @@ async fn sync_to_target(
         .map_err(|e| anyhow::anyhow!("could not read the attachment target: {e}"))?
         .json()
         .await?;
-    if target.get("target").is_none_or(|t| t.is_null()) {
+    if target.get("target").is_none_or(serde_json::Value::is_null) {
         anyhow::bail!(
             "no attachment target configured; set one with PUT {base}/api/v1/attachments/target, \
              or use --to-dir to copy ciphertext to a mounted encrypted volume"

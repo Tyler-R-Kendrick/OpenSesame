@@ -743,7 +743,7 @@ enum PassAttachCmd {
     /// Replicate attachment ciphertext to a configured target.
     ///
     /// The Host API base URL comes from the global `--server`, so this verb
-    /// honours OPENSESAME_SERVER like every other authenticated command.
+    /// honours `OPENSESAME_SERVER` like every other authenticated command.
     Sync {
         /// Copy ciphertext into this directory instead of using a connector.
         /// Point it at a mounted encrypted volume.
@@ -1098,7 +1098,7 @@ async fn main() -> anyhow::Result<()> {
                         path.as_deref(),
                         tomb.as_deref(),
                     )
-                    .await?
+                    .await?;
                 }
             },
             PassCmd::Otp { cmd } => match cmd {
