@@ -1144,8 +1144,11 @@ describe("control-plane API", () => {
         });
         if (url.endsWith("/api/v1/sessions/revoke")) {
           rolesSeenByHost.push(
-            ctx.stores.organizationMemberships.get(
-              `${organization.id}:${member.principalId}`,
+            (
+              await ctx.stores.organizationMemberships.find(
+                organization.id,
+                member.principalId,
+              )
             )?.role,
           );
         }

@@ -5,6 +5,7 @@ import {
   authenticatedPrincipalId,
   ensurePersonalOrganization,
   hostApiEndpoint,
+  revokeOrganizationMembership,
 } from "../routes/organizations.js";
 
 type App = ReturnType<typeof createControlPlane>["app"];
@@ -87,12 +88,64 @@ describe("organization helpers", () => {
     expect(hostApiEndpoint("not a url", "api/v1/x")).toBeUndefined();
   });
 
-  it("ensurePersonalOrganization is idempotent", () => {
+  it("ensurePersonalOrganization is idempotent", async () => {
     const { ctx } = createControlPlane({ config: testConfig() });
-    const first = ensurePersonalOrganization(ctx, "prn_1");
-    const second = ensurePersonalOrganization(ctx, "prn_1");
+    const first = await ensurePersonalOrganization(ctx, "prn_1");
+    const second = await ensurePersonalOrganization(ctx, "prn_1");
     expect(second.organizationId).toBe(first.organizationId);
-    expect(ctx.stores.organizations.size).toBe(1);
+    // Asserted through the store interface, not a Map: the same assertion has
+    // to hold against Postgres, where there is no `.size` to read.
+    expect(await ctx.stores.organizations.listByCreator("prn_1")).toHaveLength(
+      1,
+    );
+  });
+
+  it("revokeOrganizationMembership drops the row and every session it authorized", async () => {
+    // The shared deprovisioning helper: SCIM deactivation and an LDAP sync
+    // both land here, and a revocation that removed the membership but left
+    // live bearers behind would leave the user signed in regardless.
+    const { app, ctx } = createControlPlane({ config: testConfig() });
+    const member = await provisional(app);
+    const membership = await ensurePersonalOrganization(
+      ctx,
+      member.principalId,
+    );
+
+    const before = await app.request("/v1/principals/me", {
+      headers: auth(member.accessToken),
+    });
+    expect(before.status).toBe(200);
+
+    const result = await revokeOrganizationMembership(ctx, {
+      organizationId: membership.organizationId,
+      principalId: member.principalId,
+      correlationId: "corr-revoke",
+      reason: "deprovisioned",
+    });
+    expect(result.membershipRemoved).toBe(true);
+    expect(result.sessionsRevoked).toBeGreaterThan(0);
+
+    expect(
+      await ctx.stores.organizationMemberships.find(
+        membership.organizationId,
+        member.principalId,
+      ),
+    ).toBeUndefined();
+    const after = await app.request("/v1/principals/me", {
+      headers: auth(member.accessToken),
+    });
+    expect(after.status).toBe(401);
+
+    // Revoking again is a no-op rather than an error — a directory sync may
+    // see the same departure twice.
+    const again = await revokeOrganizationMembership(ctx, {
+      organizationId: membership.organizationId,
+      principalId: member.principalId,
+      correlationId: "corr-revoke-2",
+      reason: "deprovisioned",
+    });
+    expect(again.membershipRemoved).toBe(false);
+    expect(again.sessionsRevoked).toBe(0);
   });
 });
 
@@ -155,9 +208,12 @@ describe("organizations routes edge cases", () => {
     ).toBe(404);
 
     // A deleted org disappears from reads and lists.
-    const stored = ctx.stores.organizations.get(org.id);
+    const stored = await ctx.stores.organizations.get(org.id);
     if (!stored) throw new Error("org missing");
-    ctx.stores.organizations.set(org.id, { ...stored, state: "deleted" });
+    await ctx.stores.organizations.set(org.id, {
+      ...stored,
+      state: "deleted",
+    });
     expect(
       (
         await app.request(`/v1/organizations/${org.id}`, {
@@ -551,9 +607,9 @@ describe("device approve edge cases", () => {
     );
 
     // A suspended organization denies even its owner.
-    const stored = ctx.stores.organizations.get(foreignOrg.id);
+    const stored = await ctx.stores.organizations.get(foreignOrg.id);
     if (!stored) throw new Error("org missing");
-    ctx.stores.organizations.set(foreignOrg.id, {
+    await ctx.stores.organizations.set(foreignOrg.id, {
       ...stored,
       state: "suspended",
     });

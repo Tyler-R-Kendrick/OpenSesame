@@ -170,7 +170,9 @@ principalRoutes.post(
         }
 
         if (ctx.config.bootstrapPersonalOrganization) {
-          ensurePersonalOrganization(ctx, principal.id);
+          // Durable now (ADR 0055): awaited so a failed write surfaces here
+          // rather than as an unhandled rejection after the response.
+          await ensurePersonalOrganization(ctx, principal.id);
         }
 
         const accessToken = `pst_${randomBytes(24).toString("base64url")}`;

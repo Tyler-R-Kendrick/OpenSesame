@@ -10,7 +10,7 @@ export const OrganizationStateSchema = z.enum([
 export const OrganizationRoleSchema = z.enum(["owner", "admin", "member"]);
 export type OrganizationRole = z.infer<typeof OrganizationRoleSchema>;
 
-export const OrganizationAuthMethodKindSchema = z.enum(["sso", "saml"]);
+export const OrganizationAuthMethodKindSchema = z.enum(["sso", "saml", "ldap"]);
 export type OrganizationAuthMethodKind = z.infer<
   typeof OrganizationAuthMethodKindSchema
 >;
@@ -47,19 +47,34 @@ export type CreateOrganizationRequest = z.infer<
   typeof CreateOrganizationRequestSchema
 >;
 
+/** SAML IdP metadata document location. Fetched server-side under the SSRF guard. */
+export const SamlMetadataUrlSchema = OrganizationIssuerUrlSchema;
+/** Inline SAML IdP metadata, for operators who paste the document directly. */
+export const SamlMetadataXmlSchema = z.string().min(32).max(262_144);
+
 export const UpdateOrganizationRequestSchema = z
   .object({
     displayName: z.string().min(1).max(128).optional(),
     ssoIssuer: OrganizationIssuerUrlSchema.nullable().optional(),
     samlIssuer: OrganizationIssuerUrlSchema.nullable().optional(),
+    samlMetadataUrl: SamlMetadataUrlSchema.nullable().optional(),
+    samlMetadataXml: SamlMetadataXmlSchema.nullable().optional(),
+    provisioningEnabled: z.boolean().optional(),
   })
   .refine(
     (value) =>
       value.displayName !== undefined ||
       value.ssoIssuer !== undefined ||
-      value.samlIssuer !== undefined,
+      value.samlIssuer !== undefined ||
+      value.samlMetadataUrl !== undefined ||
+      value.samlMetadataXml !== undefined ||
+      value.provisioningEnabled !== undefined,
     { message: "at least one field is required" },
-  );
+  )
+  .refine((value) => !(value.samlMetadataUrl && value.samlMetadataXml), {
+    message: "samlMetadataUrl and samlMetadataXml are mutually exclusive",
+    path: ["samlMetadataXml"],
+  });
 export type UpdateOrganizationRequest = z.infer<
   typeof UpdateOrganizationRequestSchema
 >;
@@ -75,13 +90,32 @@ export const OrganizationResponseSchema = z.object({
   updatedAt: z.string().datetime(),
   ssoIssuer: z.string().optional(),
   samlIssuer: z.string().optional(),
+  samlMetadataUrl: z.string().optional(),
+  /**
+   * Whether inline SAML metadata is configured — never the document itself.
+   * The XML is multi-KB and of no use to an API caller.
+   */
+  samlMetadataConfigured: z.boolean().optional(),
+  provisioningEnabled: z.boolean().optional(),
 });
 export type OrganizationResponse = z.infer<typeof OrganizationResponseSchema>;
 
 export const OrganizationAuthMethodSchema = z.object({
   kind: OrganizationAuthMethodKindSchema,
   label: z.string(),
-  issuer: OrganizationIssuerUrlSchema,
+  /**
+   * The OIDC issuer the browser leg redirects to. Absent for methods that
+   * have none: native SAML runs entirely server-side, and LDAP is a
+   * first-party credential form on the hosted login page.
+   */
+  issuer: OrganizationIssuerUrlSchema.optional(),
+  /**
+   * Native SAML (ADR 0056): the tenant configured IdP metadata, so this
+   * method routes through the hosted login page rather than a brokered OIDC
+   * round-trip. Absent means the legacy `samlIssuer` meaning — the OIDC
+   * issuer of a SAML-brokering Keycloak (ADR 0016).
+   */
+  native: z.boolean().optional(),
 });
 export type OrganizationAuthMethod = z.infer<
   typeof OrganizationAuthMethodSchema

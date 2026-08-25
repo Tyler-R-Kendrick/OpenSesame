@@ -2,14 +2,12 @@ import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
-import type { Awaitable } from "@opensesame/database";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
   type Organization,
   type Principal,
   type ProvisionalSession,
   isString,
-  overlapCast,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { ensurePersonalOrganization } from "../routes/organizations.js";
@@ -94,20 +92,6 @@ export function matchProviderHint(
   return providers.find((provider) => provider.label.toLowerCase() === needle);
 }
 
-/**
- * The organization lookup the login page needs (C6). S6 lands `getBySlug` on
- * the organization store; until then `ctx.stores.organizations` is the
- * process-memory map that answers no such question, which is why the member
- * is optional here.
- *
- * INTEGRATOR: once S6 has landed, this view collapses to
- * `ctx.stores.organizations.getBySlug(slug)`.
- */
-type OrganizationSlugLookup = {
-  getBySlug(slug: string): Awaitable<Organization | undefined>;
-};
-type LoginPageStores = { organizations?: Partial<OrganizationSlugLookup> };
-
 type OrganizationMethod = {
   issuer: string;
   label: string;
@@ -151,11 +135,7 @@ async function resolveOrganizationBlock(
     };
   }
 
-  const stores: LoginPageStores = overlapCast(ctx.stores);
-  const organizations = stores.organizations;
-  const organization = organizations?.getBySlug
-    ? await organizations.getBySlug(slug)
-    : undefined;
+  const organization = await ctx.stores.organizations.getBySlug(slug);
   const methods =
     organization && organization.state !== "deleted"
       ? organizationMethods(organization)
@@ -352,8 +332,8 @@ export async function mintProvisionalForInteraction(
   }
 
   if (ctx.config.bootstrapPersonalOrganization) {
-    // Durable once the organization store lands (C6): awaited so a failed
-    // write surfaces here rather than as an unhandled rejection.
+    // Durable (C6): awaited so a failed write surfaces here rather than as an
+    // unhandled rejection after the response has gone out.
     await ensurePersonalOrganization(ctx, principal.id);
   }
 
