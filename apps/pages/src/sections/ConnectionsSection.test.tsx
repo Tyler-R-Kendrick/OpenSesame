@@ -63,9 +63,9 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => ({ addItems, saveItem }),
 });
 
-import { planeNoteSeams } from "../components/PlaneNote.js";
-const originalPlaneNoteSeams = { ...planeNoteSeams };
-Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
+import { pagesCannotHostNoteSeams } from "../components/PagesCannotHostNote.js";
+const originalPlaneNoteSeams = { ...pagesCannotHostNoteSeams };
+Object.assign(pagesCannotHostNoteSeams, { PagesCannotHostNote: () => null });
 
 const listProviders = vi.hoisted(() => vi.fn());
 const listConnections = vi.hoisted(() => vi.fn());
@@ -384,7 +384,7 @@ describe("ConnectionsSection gallery", () => {
       const notice = listNotices().find((n) => n.id === "connections-load");
       expect(notice?.title).toBe("Host API unavailable");
       expect(notice?.tone).toBe("err");
-      expect(notice?.linkTo).toBe("/settings/connectivity");
+      expect(notice?.ceremony).toBe("host");
     });
     // The page itself stays clean of the load-error banner.
     expect(screen.queryByRole("alert")).toBeNull();
@@ -498,7 +498,12 @@ describe("ConnectionsSection gallery", () => {
     expect(
       screen.getAllByText(/Created, but nobody has approved it yet/).length,
     ).toBeGreaterThanOrEqual(1);
-    expect(screen.getByRole("link", { name: /Fix/i })).toBeTruthy();
+    // Repair happens in place now: the primary finishes the authorization
+    // here, and only the quiet Details link goes to the connector page.
+    expect(
+      screen.getByRole("button", { name: /Finish authorization/i }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Details/i })).toBeTruthy();
   });
 
   it("shows the first-run three and dismisses them", async () => {

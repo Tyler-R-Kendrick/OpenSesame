@@ -17,8 +17,8 @@ export function useStatusNotice(notice: StatusNoticeInput | null): void {
   const tone = notice?.tone;
   const title = notice?.title;
   const body = notice?.body;
-  const linkTo = notice?.linkTo;
-  const linkLabel = notice?.linkLabel;
+  const ceremony = notice?.ceremony;
+  const ceremonyLabel = notice?.ceremonyLabel;
   const retry = notice?.retry;
   const retryLabel = notice?.retryLabel;
   useEffect(() => {
@@ -35,11 +35,11 @@ export function useStatusNotice(notice: StatusNoticeInput | null): void {
       tone,
       title,
       body,
-      linkTo,
-      linkLabel,
+      ceremony,
+      ceremonyLabel,
       retry,
       retryLabel,
     });
     return () => dismissNotice(id);
-  }, [id, tone, title, body, linkTo, linkLabel, retry, retryLabel]);
+  }, [id, tone, title, body, ceremony, ceremonyLabel, retry, retryLabel]);
 }

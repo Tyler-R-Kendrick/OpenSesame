@@ -57,15 +57,15 @@ describe("NotificationsBar", () => {
     expect(beginSignIn).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a status notice with its retry, link, and dismiss actions", () => {
+  it("shows a status notice with its retry, repair, and dismiss actions", () => {
     const retry = vi.fn();
     setStatusNotice({
       id: "host-down",
       tone: "warn",
       title: "Host API unavailable",
       body: "Host authorization needs the Host API.",
-      linkTo: "/settings/connectivity",
-      linkLabel: "Change it in Settings",
+      ceremony: "host",
+      ceremonyLabel: "Repair the Host connection",
       retry,
       retryLabel: "Try again",
     });
@@ -81,11 +81,11 @@ describe("NotificationsBar", () => {
     expect(
       screen.getByText("Host authorization needs the Host API."),
     ).toBeTruthy();
+    // Repair opens the Host ceremony in place — never a route change.
+    expect(screen.queryByRole("link")).toBeNull();
     expect(
-      screen
-        .getByRole("link", { name: "Change it in Settings" })
-        .getAttribute("href"),
-    ).toBe("/settings/connectivity");
+      screen.getByRole("button", { name: "Repair the Host connection" }),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));

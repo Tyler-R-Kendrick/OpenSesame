@@ -255,8 +255,14 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
+    // The tenant-App path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Create a GitHub App for this organization/i,
+      }),
+    );
     const deploy = await screen.findByRole("button", {
-      name: /Create GitHub App for this organization/i,
+      name: "Create GitHub App for this organization",
     });
     await userEvent.click(deploy);
     await waitFor(() =>
@@ -275,8 +281,14 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
+    // The tenant-App path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Create a GitHub App for this organization/i,
+      }),
+    );
     const deploy = await screen.findByRole("button", {
-      name: /Create GitHub App for this organization/i,
+      name: "Create GitHub App for this organization",
     });
     await userEvent.click(deploy);
     expect(await screen.findByText(/host offline/)).toBeTruthy();
@@ -387,6 +399,12 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
+    // The PAT path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/i,
+      }),
+    );
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Connect GitHub with token/i,
@@ -394,9 +412,7 @@ describe("CapabilityConnectorsPanel", () => {
     );
     // The button is disabled until a token is typed.
     expect(setConnectionCredential).not.toHaveBeenCalled();
-    const input = screen.getByLabelText(
-      /connect with a personal access token/i,
-    );
+    const input = screen.getByLabelText(/personal access token/i);
     await userEvent.type(input, "   ");
     expect(
       overlapCast(
@@ -415,9 +431,13 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    const input = await screen.findByLabelText(
-      /connect with a personal access token/i,
+    // The PAT path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/i,
+      }),
     );
+    const input = await screen.findByLabelText(/personal access token/i);
     await userEvent.type(input, "ghp_secret_token");
     await userEvent.click(
       screen.getByRole("button", { name: /Connect GitHub with token/i }),
@@ -445,9 +465,13 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    const input = await screen.findByLabelText(
-      /connect with a personal access token/i,
+    // The PAT path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/i,
+      }),
     );
+    const input = await screen.findByLabelText(/personal access token/i);
     await userEvent.type(input, "ghp_bad");
     await userEvent.click(
       screen.getByRole("button", { name: /Connect GitHub with token/i }),
@@ -732,9 +756,13 @@ describe("CapabilityConnectorsPanel edge branches", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    const input = await screen.findByLabelText(
-      /connect with a personal access token/i,
+    // The PAT path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/i,
+      }),
     );
+    const input = await screen.findByLabelText(/personal access token/i);
     await userEvent.type(input, "glpat-123");
     await userEvent.click(
       screen.getByRole("button", { name: /Connect GitLab with token/i }),

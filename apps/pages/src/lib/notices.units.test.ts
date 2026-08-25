@@ -115,8 +115,8 @@ describe("setStatusNotice", () => {
       { tone: "err" as const },
       { title: "t2" },
       { body: "b2" },
-      { linkTo: "/settings" },
-      { linkLabel: "Open" },
+      { ceremony: "identity" as const },
+      { ceremonyLabel: "Open" },
       { retryLabel: "Again" },
     ]) {
       clearNotices();

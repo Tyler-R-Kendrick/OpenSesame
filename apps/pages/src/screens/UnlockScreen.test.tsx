@@ -717,9 +717,15 @@ describe("UnlockScreen — password unlock", () => {
     expect(
       screen.getByText(/Passkey unlock needs a DNS hostname/),
     ).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: "localhost" }).getAttribute("href"),
-    ).toBe("http://localhost:5180/");
+    // A button, not an anchor — the same in-place repair the Settings twin
+    // uses, so the two surfaces stop disagreeing about how to fix the host.
+    const move = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign: move });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue on localhost" }),
+    );
+    expect(move).toHaveBeenCalledWith("http://localhost:5180/");
+    vi.unstubAllGlobals();
   });
 
   it("warns when the browser offers no persistent storage", () => {
@@ -873,12 +879,14 @@ describe("UnlockScreen — passkey unlock", () => {
     };
     v.store.unlockWithPasskey.mockResolvedValue(undefined);
     render(<UnlockScreen />);
-    expect(
-      screen
-        .getByRole("link", { name: "Continue on localhost" })
-        .getAttribute("href"),
-    ).toBe("http://localhost:5180/");
+    const move = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign: move });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Continue on localhost" }),
+    );
+    expect(move).toHaveBeenCalledWith("http://localhost:5180/");
     expect(v.store.unlockWithPasskey).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it("manual submit retries the passkey ceremony", async () => {

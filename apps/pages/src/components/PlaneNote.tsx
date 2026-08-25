@@ -1,4 +1,6 @@
+import { briefOrigin } from "@opensesame/os-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 import {
   type DaemonHealth,
   applyDaemonPairing,
@@ -21,9 +23,9 @@ import {
   waitForTailnet,
 } from "../lib/tailscale.js";
 import { isLoopbackUrl } from "../lib/urls.js";
-import { useStatusNotice } from "../lib/use-status-notice.js";
+import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
 import { FieldShell } from "./FieldShell.js";
-import { IconCheck, IconTerminal } from "./Icons.js";
+import { IconAlert, IconCheck, IconTerminal } from "./Icons.js";
 import { QrCode } from "./QrCode.js";
 
 /**
@@ -76,13 +78,11 @@ function ConnectThisMachineDefault({
   const [written, setWritten] = useState<Written | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [showQr, setShowQr] = useState(false);
   const [manualUrl, setManualUrl] = useState(
     () =>
       loadSettings().daemonApi ||
       (settingsSeams.pageIsLoopback() ? settingsSeams.shippedDaemonApi : ""),
   );
-  const [clipboardUrl, setClipboardUrl] = useState<string | null>(null);
   // A discovery that resolves after the operator has moved on must not drag
   // the ceremony back to a step they left.
   const live = useRef(true);
@@ -175,34 +175,6 @@ function ConnectThisMachineDefault({
     if (autoDiscover) void discover();
   }, [autoDiscover, discover]);
 
-  // Offering the clipboard is only worth it when it holds something that
-  // parses as a URL — otherwise the chip is a dead end.
-  useEffect(() => {
-    if (phase !== "manual") return;
-    if (!navigator.clipboard?.readText) return;
-    let cancelled = false;
-    void navigator.clipboard.readText().then(
-      (text) => {
-        const candidate = text.trim();
-        if (cancelled || !candidate) return;
-        try {
-          const url = new URL(candidate);
-          if (url.protocol === "http:" || url.protocol === "https:") {
-            setClipboardUrl(url.origin);
-          }
-        } catch {
-          // Not a URL — no chip.
-        }
-      },
-      () => {
-        // Permission denied or unavailable — no chip.
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [phase]);
-
   async function pairFound() {
     if (!found) return;
     setBusy(true);
@@ -231,45 +203,86 @@ function ConnectThisMachineDefault({
   }
 
   const pairingUrl = manualUrl.trim();
-  const canShowPairingQr = pairingUrl.length > 0 && !isLoopbackUrl(pairingUrl);
   const savedDaemon = loadSettings().daemonApi.trim();
-  const fills = [
-    savedDaemon && savedDaemon !== manualUrl ? savedDaemon : null,
-    settingsSeams.pageIsLoopback() &&
-    manualUrl !== settingsSeams.shippedDaemonApi
-      ? settingsSeams.shippedDaemonApi
-      : null,
-    clipboardUrl && clipboardUrl !== manualUrl ? clipboardUrl : null,
-  ].filter((value): value is string => value !== null);
 
-  return (
-    <div className="ceremony">
-      <div className="ceremony__head">
-        <h3>Connect this machine</h3>
-        <p>
-          {phase === "paired"
-            ? "Paired. The Host and Identity endpoints came with it."
-            : "This page cannot see 127.0.0.1, so it pairs your daemon over Tailscale Serve instead."}
-        </p>
-      </div>
-
-      {phase === "idle" ? (
+  // The same alternatives on every step, as rows that expand in place. They
+  // used to be a changing row of side-by-side buttons — "Enter it myself",
+  // "Use a different address", "Show QR" — that renamed themselves per phase,
+  // which is exactly the which-button-is-for-me problem the ceremony shape
+  // exists to remove.
+  const manualAlt: CeremonyAlt = {
+    id: "manual",
+    label: "Paste a Serve URL instead",
+    icon: <IconTerminal size={18} />,
+    render: () => (
+      <>
+        <ManualUrlField value={manualUrl} onChange={setManualUrl} />
         <div className="actions">
           <button
             type="button"
             className="btn btn--primary"
-            onClick={() => void discover()}
+            disabled={busy}
+            aria-busy={busy}
+            onClick={() => void pairManual()}
           >
-            Find my daemon
-          </button>
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={() => setPhase("manual")}
-          >
-            Enter it myself
+            {busy ? "Connecting…" : "Use this URL"}
           </button>
         </div>
+      </>
+    ),
+  };
+  const qrAlt: CeremonyAlt = {
+    id: "qr",
+    label: "Scan a QR on another device",
+    icon: <IconTerminal size={18} />,
+    render: () =>
+      pairingUrl && !isLoopbackUrl(pairingUrl) ? (
+        <div className="qr-block">
+          <QrCode
+            value={pairingUrl}
+            label="Scan to open this daemon Tailscale URL on another device"
+            size={144}
+          />
+          <p className="hint">
+            Scan on another device to open <code>{pairingUrl}</code>.
+          </p>
+        </div>
+      ) : (
+        <p className="hint">
+          Enter a non-loopback Serve URL first — a QR of 127.0.0.1 would open
+          the scanning device's own loopback, not this machine.
+        </p>
+      ),
+  };
+
+  const fronts = found
+    ? [
+        ...(found.health.hostApi
+          ? [{ key: "Host it fronts", value: found.health.hostApi }]
+          : []),
+        ...(found.health.identityApi
+          ? [{ key: "Identity it fronts", value: found.health.identityApi }]
+          : []),
+      ]
+    : [];
+
+  return (
+    // No heading of its own: this only ever renders inside the connection
+    // sheet, whose head already names the connector and carries the lead.
+    // The machine ceremony was the one of five that painted a second title
+    // under the first.
+    <div className="ceremony">
+      {phase === "idle" ? (
+        <CeremonyShell
+          ok={false}
+          top="Not paired"
+          name={savedDaemon ? briefOrigin(savedDaemon) : "No daemon connected"}
+          primary={{
+            label: "Find my daemon",
+            onClick: () => void discover(),
+          }}
+          alts={[manualAlt, qrAlt]}
+        />
       ) : null}
 
       {phase === "looking" ? (
@@ -280,54 +293,22 @@ function ConnectThisMachineDefault({
       ) : null}
 
       {phase === "found" && found ? (
-        <>
-          <div className="found">
-            <p className="found__top">
-              <IconCheck size={15} />
-              Found on your tailnet
-            </p>
-            <p className="found__name">{found.via}</p>
-            {/* /health is deliberately opaque, so a daemon usually does not
-                state its upstreams. Showing a placeholder for them would be
-                asserting ports nobody mentioned — the pairing result below
-                reports what was actually written instead. */}
-            {found.health.hostApi || found.health.identityApi ? (
-              <dl>
-                {found.health.hostApi ? (
-                  <>
-                    <dt>Host it fronts</dt>
-                    <dd>{found.health.hostApi}</dd>
-                  </>
-                ) : null}
-                {found.health.identityApi ? (
-                  <>
-                    <dt>Identity it fronts</dt>
-                    <dd>{found.health.identityApi}</dd>
-                  </>
-                ) : null}
-              </dl>
-            ) : null}
-            <div className="actions">
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy}
-                aria-busy={busy}
-                onClick={() => void pairFound()}
-              >
-                {busy ? "Pairing…" : "Pair this daemon"}
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={busy}
-                onClick={() => setPhase("manual")}
-              >
-                Use a different address
-              </button>
-            </div>
-          </div>
-        </>
+        <CeremonyShell
+          ok
+          top="Found on your tailnet"
+          name={found.via}
+          // /health is deliberately opaque, so a daemon usually does not
+          // state its upstreams. Showing a placeholder for them would be
+          // asserting ports nobody mentioned — the pairing result below
+          // reports what was actually written instead.
+          facts={fronts}
+          primary={{
+            label: busy ? "Pairing…" : "Pair this daemon",
+            onClick: () => void pairFound(),
+            busy,
+          }}
+          alts={[manualAlt, qrAlt]}
+        />
       ) : null}
 
       {phase === "paired" && written ? (
@@ -335,6 +316,9 @@ function ConnectThisMachineDefault({
           <span className="ceremony__done-mark" aria-hidden="true">
             <IconCheck size={24} />
           </span>
+          <p className="hint">
+            Paired. The Host and Identity endpoints came with it.
+          </p>
           <dl className="wrote">
             <div>
               <dt>Daemon</dt>
@@ -353,62 +337,26 @@ function ConnectThisMachineDefault({
       ) : null}
 
       {phase === "manual" ? (
-        <>
-          <FieldShell
-            id="daemon-url"
-            label="Daemon (Tailscale Serve URL)"
-            type="url"
-            mono
-            lead={<IconTerminal size={17} />}
-            placeholder="https://your-machine.tailnet.ts.net"
-            value={manualUrl}
-            onValueChange={setManualUrl}
-            fills={fills.map((value) => ({
-              label: value,
-              onPick: () => setManualUrl(value),
-            }))}
-          />
-          <div className="actions">
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={busy || !manualUrl.trim()}
-              aria-busy={busy}
-              onClick={() => void pairManual()}
-            >
-              {busy ? "Connecting…" : "Use this URL"}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => void discover()}
-            >
-              Look again
-            </button>
-            {canShowPairingQr ? (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                disabled={busy}
-                onClick={() => setShowQr((value) => !value)}
-              >
-                {showQr ? "Hide QR" : "Show QR"}
-              </button>
-            ) : null}
-          </div>
-          {showQr && canShowPairingQr ? (
-            <div className="conn-pair__qr">
-              <QrCode
-                value={pairingUrl}
-                label="Scan to open this daemon Tailscale URL on another device"
-                size={144}
-              />
-              <p className="hint">
-                Scan on another device to open <code>{pairingUrl}</code>.
-              </p>
-            </div>
-          ) : null}
+        <CeremonyShell
+          ok={false}
+          top="Nothing paired yet"
+          // The field is the card here, not an alternative: on the
+          // nothing-found path typing the URL *is* the primary action, which
+          // is exactly how the canvas draws the empty state.
+          name="Enter the Serve URL yourself"
+          primary={{
+            label: busy ? "Connecting…" : "Use this URL",
+            onClick: () => void pairManual(),
+            busy,
+          }}
+          secondary={{
+            label: "Look again",
+            onClick: () => void discover(),
+            disabled: busy,
+          }}
+          alts={[qrAlt]}
+        >
+          <ManualUrlField value={manualUrl} onChange={setManualUrl} />
           <p className="hint">
             On the daemon machine,{" "}
             <code>curl -s http://127.0.0.1:18790/health</code> prints{" "}
@@ -416,11 +364,81 @@ function ConnectThisMachineDefault({
             <code>tailscale_serve_enable_url</code> — open that, enable Serve,
             restart the daemon.
           </p>
-        </>
+        </CeremonyShell>
       ) : null}
 
       {message ? <p className="hint">{message}</p> : null}
     </div>
+  );
+}
+
+/**
+ * The Serve URL field, with its fill chips.
+ *
+ * Clipboard is read on mount rather than on a phase flag: this field now
+ * appears both as the manual card and inside an alternative row, and "it just
+ * became visible" is the one moment a clipboard suggestion is worth offering.
+ */
+function ManualUrlField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const [clipboardUrl, setClipboardUrl] = useState<string | null>(null);
+
+  // Offering the clipboard is only worth it when it holds something that
+  // parses as a URL — otherwise the chip is a dead end.
+  useEffect(() => {
+    if (!navigator.clipboard?.readText) return;
+    let cancelled = false;
+    void navigator.clipboard.readText().then(
+      (text) => {
+        const candidate = text.trim();
+        if (cancelled || !candidate) return;
+        try {
+          const url = new URL(candidate);
+          if (url.protocol === "http:" || url.protocol === "https:") {
+            setClipboardUrl(url.origin);
+          }
+        } catch {
+          // Not a URL — no chip.
+        }
+      },
+      () => {
+        // Permission denied or unavailable — no chip.
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const savedDaemon = loadSettings().daemonApi.trim();
+  const fills = [
+    savedDaemon && savedDaemon !== value ? savedDaemon : null,
+    settingsSeams.pageIsLoopback() && value !== settingsSeams.shippedDaemonApi
+      ? settingsSeams.shippedDaemonApi
+      : null,
+    clipboardUrl && clipboardUrl !== value ? clipboardUrl : null,
+  ].filter((entry): entry is string => entry !== null);
+
+  return (
+    <FieldShell
+      id="daemon-url"
+      label="Daemon (Tailscale Serve URL)"
+      type="url"
+      mono
+      lead={<IconTerminal size={17} />}
+      placeholder="https://your-machine.tailnet.ts.net"
+      value={value}
+      onValueChange={onChange}
+      fills={fills.map((entry) => ({
+        label: entry,
+        onPick: () => onChange(entry),
+      }))}
+    />
   );
 }
 
@@ -432,7 +450,6 @@ function errorText<Thrown>(error: Thrown): string {
 
 export const planeNoteSeams = {
   ConnectThisMachine: ConnectThisMachineDefault,
-  PagesCannotHostNote: PagesCannotHostNoteDefault,
   RailPlaneStatus: RailPlaneStatusDefault,
 };
 
@@ -440,50 +457,6 @@ export function ConnectThisMachine(
   props: Parameters<typeof ConnectThisMachineDefault>[0],
 ) {
   const Impl = planeNoteSeams.ConnectThisMachine;
-  return <Impl {...props} />;
-}
-
-function PagesCannotHostNoteDefault({
-  ceremony,
-}: {
-  ceremony: string;
-}) {
-  const status = usePlaneStatus();
-  // A down Host is standing trouble, not page furniture — it lives in the
-  // notifications tray so the section renders its own content clean.
-  const hostDown = status.host === "down" && !needsHostPairing(status);
-  useStatusNotice(
-    hostDown
-      ? {
-          id: "host-down",
-          tone: "warn",
-          title: "Host API unavailable",
-          body:
-            `${ceremony} needs the Host API. ${planeSeams.PAGES_CANNOT_HOST} ` +
-            `Configured Host: ${status.hostBase || "none"} (${hostStatusLabel(
-              status.host,
-            ).toLowerCase()}).`,
-          linkTo: "/settings/connectivity",
-          linkLabel: "Change it in Settings",
-        }
-      : null,
-  );
-  // Host plane is ready (or still probing a saved pairing) — do not ask again.
-  if (status.host === "live" || status.host === "pending") return null;
-  if (!needsHostPairing(status)) return null;
-  return (
-    <div className="panel">
-      <div className="panel__body">
-        <ConnectThisMachine />
-      </div>
-    </div>
-  );
-}
-
-export function PagesCannotHostNote(
-  props: Parameters<typeof PagesCannotHostNoteDefault>[0],
-) {
-  const Impl = planeNoteSeams.PagesCannotHostNote;
   return <Impl {...props} />;
 }
 

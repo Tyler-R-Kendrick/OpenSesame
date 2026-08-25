@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 import { Link } from "react-router";
+import { CeremonyLink } from "../components/CeremonyLauncher.js";
+import { CeremonyShell } from "../components/CeremonyShell.js";
 import {
   IconAgent,
   IconAlert,
@@ -19,7 +21,7 @@ import {
   IconSecret,
   IconShield,
 } from "../components/Icons.js";
-import { PagesCannotHostNote } from "../components/PlaneNote.js";
+import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
 import {
   IdentityError,
   currentSession,
@@ -783,17 +785,41 @@ function RegisterAgent({ online }: { online: boolean }) {
           </p>
         ) : null}
 
+        {/* What was minted, as the same found-card every ceremony ends on:
+            the agent, its facts, and the two ways a human completes the
+            claim. This was a bespoke block before — the last ceremony
+            outcome in the app that did not say it the standard way. */}
         {claim ? (
-          <div className="agents-claim">
-            <div className="agents-claim__top">
-              <span className="chip chip--warn">{claim.state}</span>
-              <span>
-                Registered as <code>{claim.agentId}</code>
-              </span>
-            </div>
-            <p>
+          <CeremonyShell
+            ok={false}
+            top={claim.state}
+            name={`Registered as ${claim.agentId}`}
+            facts={[
+              { key: "Instance", value: claim.instanceId },
+              { key: "Expires", value: formatTime(claim.expiresAt) },
+            ]}
+            primary={{
+              label:
+                copied === "token" ? "Claim token copied" : "Copy claim token",
+              onClick: () => copy(claim.claimToken, "token"),
+            }}
+            secondary={
+              verificationUrl
+                ? {
+                    label: "Open verification page",
+                    onClick: () =>
+                      window.open(
+                        verificationUrl,
+                        "_blank",
+                        "noopener,noreferrer",
+                      ),
+                  }
+                : undefined
+            }
+          >
+            <p className="hint">
               The agent stays provisional until a human completes the claim.
-              Either read the code below at the verification page, or take the
+              Either read the user code at the verification page, or take the
               claim token to <strong>Authority → Claim ownership</strong>, which
               accepts the token and nothing else.
             </p>
@@ -809,43 +835,20 @@ function RegisterAgent({ online }: { online: boolean }) {
                 {copied === "code" ? <IconCheck /> : <IconCopy />}
               </button>
             </div>
-            <div className="actions">
-              <button
-                type="button"
-                className="btn btn--sm"
-                onClick={() => copy(claim.claimToken, "token")}
-              >
-                {copied === "token" ? <IconCheck /> : <IconCopy />}
-                {copied === "token" ? "Claim token copied" : "Copy claim token"}
-              </button>
-            </div>
             <p className="hint">
               The claim token is a single-use bearer credential, so it is not
               shown here — copying it is the only way it leaves this page, and
               it is never written to disk.
             </p>
-            {verificationUrl ? (
-              <a
-                className="btn"
-                href={verificationUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <IconExternal /> Open verification page
-              </a>
-            ) : (
+            {!verificationUrl ? (
               <p className="note note--err" role="alert">
                 <span>
                   The Identity API returned a verification address this app will
                   not open: <code>{claim.verificationUri}</code>
                 </span>
               </p>
-            )}
-            <p className="hint">
-              Instance <code>{claim.instanceId}</code> · expires{" "}
-              {formatTime(claim.expiresAt)}
-            </p>
-          </div>
+            ) : null}
+          </CeremonyShell>
         ) : null}
       </div>
     </section>
@@ -1032,12 +1035,21 @@ function ConnectPrincipal({ online }: { online: boolean }) {
         </div>
       </div>
       <div className="panel__body">
-        <div className="empty">
-          <span className="empty__mark">
-            <IconAgent />
-          </span>
-          <h3>Not connected to Identity</h3>
-          <p>
+        {/* The same connect-a-principal ceremony shape used everywhere
+            else, instead of a bespoke empty state. */}
+        <CeremonyShell
+          ok={false}
+          top="Not connected"
+          name="No principal on this tab"
+          facts={[{ key: "Identity API", value: identityBase() }]}
+          primary={{
+            label: connecting ? "Connecting…" : "Connect to Identity",
+            onClick: () => void connect(),
+            busy: connecting,
+            disabled: !online,
+          }}
+        >
+          <p className="hint">
             Connecting creates a provisional principal on the Identity service
             when you need the full Identity plane. On a local Host with
             OPENSESAME_DEV_BOOTSTRAP, connector OAuth can use Host-local
@@ -1046,16 +1058,7 @@ function ConnectPrincipal({ online }: { online: boolean }) {
             demands a verified human, and the API will say so plainly when you
             hit that line.
           </p>
-          <button
-            type="button"
-            className="btn btn--primary"
-            onClick={() => void connect()}
-            disabled={connecting || !online}
-            aria-busy={connecting}
-          >
-            {connecting ? "Connecting…" : "Connect to Identity"}
-          </button>
-        </div>
+        </CeremonyShell>
         {!online ? (
           <output className="note note--warn">
             <IconAlert /> Offline — connecting needs the Identity service to
@@ -1064,8 +1067,11 @@ function ConnectPrincipal({ online }: { online: boolean }) {
         ) : null}
         {error ? (
           <p className="note note--err" role="alert">
-            <IconAlert /> {messageOf(error)} Check that Identity is running and
-            that its address under Settings is correct.
+            <IconAlert /> {messageOf(error)} Check that Identity is running, or
+            repair it in place:{" "}
+            <CeremonyLink id="identity">
+              Open the Identity ceremony
+            </CeremonyLink>
           </p>
         ) : null}
       </div>

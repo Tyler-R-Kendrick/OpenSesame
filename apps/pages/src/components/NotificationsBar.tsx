@@ -6,7 +6,6 @@
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Link } from "react-router";
 import { beginSignIn, defaultUpstream } from "../lib/federation.js";
 import { stashCurrentSession } from "../lib/guest-auth.js";
 import {
@@ -16,6 +15,8 @@ import {
   subscribeNotices,
 } from "../lib/notices.js";
 import { loadQueue } from "../lib/queue.js";
+import { CeremonyLink } from "./CeremonyLauncher.js";
+import { CeremonyShell } from "./CeremonyShell.js";
 import { IconAlert, IconBell, IconInfo, IconX } from "./Icons.js";
 
 export const notificationsBarDependencies = {
@@ -97,47 +98,45 @@ function NotificationsBarDefault() {
             </div>
             <div className="sheet__body">
               {count === 0 ? <p className="hint">Nothing waiting.</p> : null}
+              {/* The claim prompt already lived in the ceremony's own sheet
+                  and had all the ceremony's parts — a what-is statement, a
+                  fact, a primary, a dismissal — it just hand-rolled them in a
+                  one-off card. Same shape as every other ceremony now. Status
+                  notices — the standing trouble pages mirror here instead of
+                  stacking banners — keep their own tone-accented card. */}
               {notices.map((notice) =>
                 notice.kind === "status" ? (
-                  <StatusNoticeCard
-                    key={notice.id}
-                    notice={notice}
-                    onClose={() => setOpen(false)}
-                  />
+                  <StatusNoticeCard key={notice.id} notice={notice} />
                 ) : (
-                  <article key={notice.id} className="notice-card">
-                    <h3>{notice.title}</h3>
-                    <p>{notice.body}</p>
-                    {notice.userCode ? (
-                      <p className="hint">
-                        Consent code: <code>{notice.userCode}</code>
-                      </p>
-                    ) : null}
-                    <div className="actions">
-                      <button
-                        type="button"
-                        className="btn btn--primary"
-                        onClick={() => {
-                          notificationsBarDependencies.stashCurrentSession();
-                          void notificationsBarDependencies.beginSignIn(
-                            notificationsBarDependencies.defaultUpstream(),
-                            {
-                              returnTo: "/",
-                            },
-                          );
-                        }}
-                      >
-                        Sign in to claim
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--ghost"
-                        onClick={() => dismissNotice(notice.id)}
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  </article>
+                  <CeremonyShell
+                    key={notice.id}
+                    ok={false}
+                    top="Guest session"
+                    name={notice.title}
+                    facts={
+                      notice.userCode
+                        ? [{ key: "Consent code", value: notice.userCode }]
+                        : []
+                    }
+                    primary={{
+                      label: "Sign in to claim",
+                      onClick: () => {
+                        notificationsBarDependencies.stashCurrentSession();
+                        void notificationsBarDependencies.beginSignIn(
+                          notificationsBarDependencies.defaultUpstream(),
+                          {
+                            returnTo: "/",
+                          },
+                        );
+                      },
+                    }}
+                    secondary={{
+                      label: "Dismiss",
+                      onClick: () => dismissNotice(notice.id),
+                    }}
+                  >
+                    <p className="hint">{notice.body}</p>
+                  </CeremonyShell>
                 ),
               )}
               {queued > 0 ? (
@@ -154,13 +153,7 @@ function NotificationsBarDefault() {
   );
 }
 
-function StatusNoticeCard({
-  notice,
-  onClose,
-}: {
-  notice: Notice;
-  onClose: () => void;
-}) {
+function StatusNoticeCard({ notice }: { notice: Notice }) {
   const tone = notice.tone ?? "info";
   return (
     <article
@@ -183,10 +176,11 @@ function StatusNoticeCard({
             {notice.retryLabel ?? "Try again"}
           </button>
         ) : null}
-        {notice.linkTo ? (
-          <Link className="btn btn--sm" to={notice.linkTo} onClick={onClose}>
-            {notice.linkLabel ?? "Open Settings"}
-          </Link>
+        {notice.ceremony ? (
+          // Repair opens as a ceremony sheet in place — never a route change.
+          <CeremonyLink id={notice.ceremony}>
+            {notice.ceremonyLabel ?? "Repair the connection"}
+          </CeremonyLink>
         ) : null}
         <button
           type="button"

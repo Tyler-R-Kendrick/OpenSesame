@@ -4,6 +4,8 @@
  * vault it belonged to.
  */
 
+import type { ConnectorId } from "./connectors.js";
+
 export type NoticeTone = "info" | "warn" | "err";
 
 export type Notice = {
@@ -26,9 +28,12 @@ export type Notice = {
   userCode?: string;
   claimToken?: string;
   verificationUri?: string;
-  /** In-app destination for the fix ("Change it in Settings"). */
-  linkTo?: string;
-  linkLabel?: string;
+  /**
+   * Connector whose repair ceremony fixes this ("host") — opened in place
+   * from the tray, never a route change.
+   */
+  ceremony?: ConnectorId;
+  ceremonyLabel?: string;
   /** Re-attempt the failed work from the tray. */
   retry?: () => void;
   retryLabel?: string;
@@ -40,8 +45,8 @@ export type StatusNoticeInput = {
   tone: NoticeTone;
   title: string;
   body: string;
-  linkTo?: string;
-  linkLabel?: string;
+  ceremony?: ConnectorId;
+  ceremonyLabel?: string;
   retry?: () => void;
   retryLabel?: string;
 };
@@ -86,8 +91,8 @@ function setStatusNoticeDefault(input: StatusNoticeInput): Notice {
     existing.tone === input.tone &&
     existing.title === input.title &&
     existing.body === input.body &&
-    existing.linkTo === input.linkTo &&
-    existing.linkLabel === input.linkLabel &&
+    existing.ceremony === input.ceremony &&
+    existing.ceremonyLabel === input.ceremonyLabel &&
     existing.retryLabel === input.retryLabel
   ) {
     // Same words — only the retry closure may have changed. Swap it in place

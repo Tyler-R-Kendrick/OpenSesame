@@ -77,7 +77,8 @@ Object.assign(urlSeams, {
     url.includes("127.0.0.1") || url.includes("localhost"),
 });
 
-import { ConnectThisMachine, PagesCannotHostNote } from "./PlaneNote.js";
+import { PagesCannotHostNote } from "./PagesCannotHostNote.js";
+import { ConnectThisMachine } from "./PlaneNote.js";
 
 function withRouter(node: ReactNode) {
   return render(<MemoryRouter>{node}</MemoryRouter>);
@@ -99,7 +100,11 @@ function typeDaemonUrl(value: string) {
 
 /** Reach the manual field from the ceremony's opening step. */
 function goManual() {
-  fireEvent.click(screen.getByRole("button", { name: "Enter it myself" }));
+  // Manual entry is an alternative row now, not a peer button — it expands
+  // in the sheet instead of renaming itself per phase.
+  fireEvent.click(
+    screen.getByRole("button", { name: /Paste a Serve URL instead/ }),
+  );
 }
 
 describe("PagesCannotHostNote", () => {
@@ -133,8 +138,10 @@ describe("PagesCannotHostNote", () => {
     expect(notice?.tone).toBe("warn");
     expect(notice?.body).toMatch(/Backup needs the Host API/);
     expect(notice?.body).toMatch(/https:\/\/h\.example/);
-    expect(notice?.linkTo).toBe("/settings/connectivity");
-    expect(notice?.linkLabel).toBe("Change it in Settings");
+    // The way out is the Host ceremony, opened from the tray in place —
+    // never a route change.
+    expect(notice?.ceremony).toBe("host");
+    expect(notice?.ceremonyLabel).toBe("Repair the Host connection");
     // The notice tracks the condition and this page — unmounting clears it.
     unmount();
     expect(listNotices().find((item) => item.id === "host-down")).toBe(
@@ -515,15 +522,26 @@ describe("ConnectThisMachine", () => {
   it("only offers the pairing QR for non-loopback URLs", () => {
     render(<ConnectThisMachine />);
     goManual();
-    expect(screen.queryByRole("button", { name: "Show QR" })).toBeNull();
-
     typeDaemonUrl("http://127.0.0.1:18790");
-    expect(screen.queryByRole("button", { name: "Show QR" })).toBeNull();
+    // A QR of 127.0.0.1 would open the scanning device's own loopback, so
+    // the alternative explains itself instead of rendering a dead square.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
+    expect(screen.queryByRole("img", { name: /another device/ })).toBeNull();
+    expect(screen.getByText(/non-loopback Serve URL first/)).toBeTruthy();
 
+    // Alternatives are exclusive, so reopen manual entry to change the URL.
+    goManual();
     typeDaemonUrl("https://box.tailnet.ts.net");
-    fireEvent.click(screen.getByRole("button", { name: "Show QR" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
     expect(screen.getByRole("img", { name: /another device/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Hide QR" }));
+    // Clicking the open row again collapses it.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
     expect(screen.queryByRole("img", { name: /another device/ })).toBeNull();
   });
 });
