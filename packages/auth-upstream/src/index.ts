@@ -36,6 +36,11 @@ export {
 } from "./oidc-registry.js";
 export {
   createUpstreamAuth,
+  type BetterAuthUser,
   type CreateUpstreamAuthOptions,
+  type MagicLinkDelivery,
+  type MagicLinkVerification,
+  type UpstreamAuth,
   type UpstreamAuthBundle,
+  type UpstreamMagicLinkOptions,
 } from "./better-auth.js";

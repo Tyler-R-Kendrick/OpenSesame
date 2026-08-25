@@ -11,6 +11,8 @@ import { resetFederatedDiscoveryCache } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
+/** What a completed brokered round-trip hands back to the page that ran it. */
+type BrokeredSignIn = { accessToken: string; principalId: string };
 
 /**
  * Brokered session adoption, end to end (C13, D8).
@@ -48,7 +50,7 @@ class Jar {
     }
   }
 
-  header(): Record<string, string> {
+  header() {
     if (this.cookies.size === 0) return {};
     return {
       cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; "),
@@ -130,10 +132,7 @@ describe("POST /v1/principals/federated-session", () => {
    * server, sign in federated on its hosted page, consent, and exchange the
    * code at `/token` from the exact origin the client id names.
    */
-  async function brokeredAccessToken(): Promise<{
-    accessToken: string;
-    principalId: string;
-  }> {
+  async function brokeredAccessToken(): Promise<BrokeredSignIn> {
     const jar = new Jar();
     const { verifier, challenge } = pkce();
     const authorize = await req(
@@ -203,7 +202,8 @@ describe("POST /v1/principals/federated-session", () => {
       }
       location = res.headers.get("location") ?? "";
     }
-    if (!code) throw new Error("the brokered flow issued no authorization code");
+    if (!code)
+      throw new Error("the brokered flow issued no authorization code");
 
     const tokenRes = await fetch(`${base}/token`, {
       method: "POST",

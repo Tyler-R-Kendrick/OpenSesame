@@ -10,6 +10,8 @@ import { agentRoutes } from "./routes/agents.js";
 import { appClaimRoutes } from "./routes/app-claims.js";
 import { auditRoutes } from "./routes/audit.js";
 import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
+import { createBackchannelLogoutRoutes } from "./routes/backchannel-logout.js";
+import { createByoAdminRoutes } from "./routes/byo-admin.js";
 import { claimRoutes } from "./routes/claims.js";
 import { deviceRoutes } from "./routes/device.js";
 import { discoveryRoutes } from "./routes/discovery.js";
@@ -19,10 +21,13 @@ import { healthRoutes } from "./routes/health.js";
 import { createInteractionRoutes } from "./routes/interactions.js";
 import { mfaRoutes } from "./routes/mfa.js";
 import { oauthClientRoutes } from "./routes/oauth-clients.js";
+import { createOrgDomainRoutes } from "./routes/org-domains.js";
 import { organizationRoutes } from "./routes/organizations.js";
 import { originClientAdminRoutes } from "./routes/origin-clients-admin.js";
 import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
+import { createScimRoutes } from "./routes/scim.js";
+import { createSamlRoutes } from "./routes/saml.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
@@ -88,15 +93,25 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // same principal. Mounted on the principal prefix, in its own router because
   // routes/principals.ts belongs to another swarm this cycle.
   app.route("/v1/principals", createFederatedSessionRoutes());
+  // Native SAML SP (C14 / ADR 0056): the metadata an IdP is configured from,
+  // and the assertion consumer service it posts back to. Both are public by
+  // protocol — the assertion's XML-DSig is the authority, not a session.
+  app.route("/v1/saml", createSamlRoutes());
+  // SCIM 2.0 directory provisioning (C15) and the organization email domains
+  // home-realm discovery routes on (C16). Both hang off the organization
+  // prefix because both are per-tenant: the SCIM base URL a directory is
+  // configured with is `/v1/organizations/<id>/scim/v2`.
+  app.route("/v1/organizations", createScimRoutes());
+  app.route("/v1/organizations", createOrgDomainRoutes());
+  // OIDC Back-Channel Logout (C17): unauthenticated by design — the issuer's
+  // signature is the credential — and rate-limited because of it.
+  app.route("/v1/federated", createBackchannelLogoutRoutes());
+  // Operator lifecycle for visitor-registered BYO upstreams (D14).
+  app.route("/v1/federated/admin/byo-upstreams", createByoAdminRoutes());
   // INTEGRATOR — routes whose modules are landing with the other swarms of
   // this change. Each is mounted here the moment its module exists; the mount
   // line is the only thing missing, and every owner has left a factory with
   // the signature its contract names:
-  //   GET  /v1/saml/metadata, POST /v1/saml/acs — C14, S9 (routes/saml.ts)
-  //   /scim/v2/*                             — C15, S10 (routes/scim.ts)
-  //   /v1/organizations/:id/domains          — C16, S10 (routes/org-domains.ts)
-  //   POST /v1/federated/backchannel-logout  — C17, S10 (routes/backchannel-logout.ts)
-  //   /v1/federated/admin/byo-upstreams      — D14, S10 (routes/byo-admin.ts)
   //   /v1/auth/*                             — C20, S11 (routes/auth-upstream.ts)
   //   /v1/organizations/:id/ldap             — C21, S12 (routes/org-ldap.ts)
   // The interaction sub-routers (C9: byo, org, realm, ldap, saml-complete)

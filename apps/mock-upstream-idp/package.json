@@ -11,12 +11,19 @@
     "./testkit": {
       "types": "./src/testkit.ts",
       "default": "./src/testkit.ts"
+    },
+    "./ldap-server": {
+      "types": "./src/ldap-server.ts",
+      "default": "./src/ldap-server.ts"
     }
   },
   "bin": {
     "mock-upstream-idp": "./dist/cli.js"
   },
-  "files": ["dist", "src"],
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -35,6 +42,7 @@
     "@node-saml/node-saml": "5.1.0",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
+    "ldapjs": "3.0.7",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
     "vitest": "4.1.10"

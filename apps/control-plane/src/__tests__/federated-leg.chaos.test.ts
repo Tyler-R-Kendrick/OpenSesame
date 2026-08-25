@@ -386,9 +386,7 @@ describe("CHAOS — a broker that misbehaves must not admit anyone", () => {
       issuer: upstream.issuer,
       subject: "chaos-subject",
     });
-    expect(JSON.stringify(identity ?? {})).not.toContain(
-      "rt-nobody-asked-for",
-    );
+    expect(JSON.stringify(identity ?? {})).not.toContain("rt-nobody-asked-for");
   }, 20_000);
 
   it("does not let a replayed callback re-run a consumed code", async () => {

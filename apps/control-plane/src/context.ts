@@ -12,6 +12,7 @@ import type { Clock } from "@opensesame/os-domain";
 import type { ProvisionalPolicy } from "@opensesame/policy";
 import type { ControlPlaneConfig } from "./config.js";
 import type { IndexedClaimStore } from "./repos/claim-store.js";
+import type { Mailer } from "./services/mailer.js";
 import type { AppStores } from "./state.js";
 
 export type ControlPlaneRepositories = Omit<Repositories, "auditEvents"> & {
@@ -32,6 +33,12 @@ export interface AppContext {
   ready: boolean;
   passkeys: PasskeySeam;
   passkeyChallenges: PasskeyChallengeStore;
+  /**
+   * Outbound email (D16) — the email magic-link is the only sender today.
+   * nodemailer's SMTP transport wherever `OPENSESAME_SMTP_URL` is set, its
+   * `jsonTransport` under `allowDevDefaults`.
+   */
+  mailer: Mailer;
   /**
    * Deployment/system principal that owns auto-admitted origin clients until
    * an F5 claim transfers ownership (ADR 0050 R-A).

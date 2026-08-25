@@ -42,6 +42,8 @@ import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
 import { createOrgInteractionRoutes } from "./interactions-org.js";
+import { createRealmInteractionRoutes } from "./interactions-realm.js";
+import { createSamlInteractionRoutes } from "./interactions-saml.js";
 import { jitJoinOrganization } from "./organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
 
@@ -164,18 +166,16 @@ export function createInteractionRoutes(): Hono<
    * re-implements the small `loadDetails` helper locally, so the files stay
    * disjoint.
    *
-   * INTEGRATOR: three of the four are still landing in parallel swarms and
-   * their files are not in the tree yet. Add the import and the frozen mount
-   * line as each arrives, right here:
+   * INTEGRATOR: one is still landing in a parallel swarm and its file is not
+   * in the tree yet. Add the import and the frozen mount line when it arrives,
+   * right here:
    *
    *   TODO(S4): routes.route("/", createByoInteractionRoutes(csrf));
    *             — src/routes/interactions-byo.ts, POST /:uid/federated/byo
-   *   TODO(S10): routes.route("/", createRealmInteractionRoutes(csrf));
-   *             — src/routes/interactions-realm.ts, POST /:uid/federated/realm
-   *   TODO(S9): routes.route("/", createSamlCompleteRoutes());
-   *             — src/routes/saml.ts, GET /:uid/federated/saml/complete
    */
   routes.route("/", createOrgInteractionRoutes(csrf));
+  routes.route("/", createRealmInteractionRoutes(csrf));
+  routes.route("/", createSamlInteractionRoutes(csrf));
 
   async function loadDetails(
     c: { env: HttpBindings },

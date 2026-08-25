@@ -70,7 +70,10 @@ export async function mintAppleClientSecret(
 ): Promise<string> {
   const nowMs = now.getTime();
   const cached = secretCache.get(cacheKey(key, clientId));
-  if (cached && cached.expiresAtMs - APPLE_SECRET_REFRESH_SKEW_SECONDS * 1000 > nowMs) {
+  if (
+    cached &&
+    cached.expiresAtMs - APPLE_SECRET_REFRESH_SKEW_SECONDS * 1000 > nowMs
+  ) {
     return cached.token;
   }
 

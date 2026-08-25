@@ -44,6 +44,10 @@ import {
 } from "./config.js";
 import type { AppContext, ControlPlaneRepositories } from "./context.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
+// INTEGRATOR (S11): the mailer seam is the whole of this swarm's footprint in
+// this file — one import, one context field below. Email delivery for the
+// magic-link method (D16) lives in services/mailer.ts.
+import { createMailer } from "./services/mailer.js";
 import { createAppStores } from "./state.js";
 
 export interface CreateControlPlaneOptions {
@@ -290,6 +294,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ready: options.ready ?? true,
     passkeys,
     passkeyChallenges,
+    mailer: createMailer(processEnv, config),
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
     systemPrincipalReady,
   };

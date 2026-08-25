@@ -19,9 +19,29 @@ import type { startServer } from "../server.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
-type FederatedStartForm = Record<string, string>;
-type FederatedTestEnvironment = Record<string, string>;
+/** The fields the hosted login page's federated forms actually post. */
+type FederatedStartForm = {
+  _csrf: string;
+  /** Registry id (C10) — wins over `issuer` when both are present. */
+  provider?: string;
+  issuer?: string;
+};
+type FederatedTestEnvironment = {
+  OPENSESAME_UPSTREAM_ISSUER?: string;
+  OPENSESAME_UPSTREAM_CLIENT_ID?: string;
+  OPENSESAME_UPSTREAM_CLIENT_SECRET?: string;
+};
 type LoginPageResult = { jar: Jar; uid: string; html: string };
+/** The parsed `form_post` response body: where it posts, and what it carries. */
+type AutoSubmitForm = { action: string; fields: FormPostFields };
+type FormPostFields = {
+  code?: string;
+  state?: string;
+  error?: string;
+  error_description?: string;
+};
+type SignInOutcome = { principalId: string; cookie: string };
+type StartedLeg = { jar: Jar; uid: string; form: URL };
 
 const RP_ORIGIN = "http://127.0.0.1:4311";
 const RP_CLIENT_ID = `origin:${RP_ORIGIN}`;
@@ -138,12 +158,9 @@ function pairwiseSubjectFor(sub: string, clientOrigin: string): string {
 }
 
 /** The hidden inputs of a `form_post` auto-submitting response body. */
-function parseAutoSubmitForm(html: string): {
-  action: string;
-  fields: Record<string, string>;
-} {
+function parseAutoSubmitForm(html: string): AutoSubmitForm {
   const action = html.match(/<form[^>]+action="([^"]+)"/)?.[1] ?? "";
-  const fields: Record<string, string> = {};
+  const fields: FormPostFields = {};
   for (const input of html.matchAll(/<input[^>]*>/g)) {
     const name = input[0].match(/name="([^"]+)"/)?.[1];
     const value = input[0].match(/value="([^"]*)"/)?.[1];
@@ -245,9 +262,9 @@ describe("pending leg state", () => {
     ],
     [
       "an unknown kind",
-      Buffer.from(
-        JSON.stringify({ ...pending, kind: "saml" }),
-      ).toString("base64url"),
+      Buffer.from(JSON.stringify({ ...pending, kind: "saml" })).toString(
+        "base64url",
+      ),
     ],
   ])("rejects %s", (_label, raw) => {
     expect(decodePending(raw)).toBeUndefined();
@@ -648,7 +665,7 @@ describe("federated interaction leg", () => {
     const subject = `repeat-${randomBytes(4).toString("hex")}`;
     upstream.setSubject(subject);
 
-    async function signIn(): Promise<{ principalId: string; cookie: string }> {
+    async function signIn(): Promise<SignInOutcome> {
       const { jar, uid, html } = await loginPage();
       const start = await req(
         base,
@@ -1090,9 +1107,7 @@ describe("federated leg, confidential client", () => {
     const html = await (await req(base, jar, location)).text();
     // The confidential client's redirect URIs are registered at the IdP, so
     // this interaction's callback has to be among them.
-    upstream.setRedirectUris([
-      `${base}/interaction/${uid}/federated/callback`,
-    ]);
+    upstream.setRedirectUris([`${base}/interaction/${uid}/federated/callback`]);
 
     const start = await req(
       base,
@@ -1155,7 +1170,7 @@ describe("federated leg, form_post callback", () => {
     resetFederatedDiscoveryCache();
   });
 
-  async function startLeg(): Promise<{ jar: Jar; uid: string; form: URL }> {
+  async function startLeg(): Promise<StartedLeg> {
     const jar = new Jar();
     const { challenge } = pkce();
     const authRes = await req(
@@ -1194,9 +1209,7 @@ describe("federated leg, form_post callback", () => {
     const authorizeRes = await fetch(form, { redirect: "manual" });
     expect(authorizeRes.status).toBe(200);
     const posted = parseAutoSubmitForm(await authorizeRes.text());
-    expect(posted.action).toBe(
-      `${base}/interaction/${uid}/federated/callback`,
-    );
+    expect(posted.action).toBe(`${base}/interaction/${uid}/federated/callback`);
     expect(posted.fields.code).toBeTruthy();
 
     // A cross-site POST carries NO SameSite=Lax cookies. Sending the jar here
@@ -1208,10 +1221,7 @@ describe("federated leg, form_post callback", () => {
       body: new URLSearchParams(posted.fields),
     });
     expect(rematerialized.status).toBe(303);
-    const target = new URL(
-      rematerialized.headers.get("location") ?? "",
-      base,
-    );
+    const target = new URL(rematerialized.headers.get("location") ?? "", base);
     expect(target.pathname).toBe(`/interaction/${uid}/federated/callback`);
     expect(target.searchParams.get("code")).toBe(posted.fields.code);
     // Nothing was completed here: no session, no interaction result.
@@ -1219,7 +1229,11 @@ describe("federated leg, form_post callback", () => {
 
     // The top-level GET the 303 produces DOES carry the cookies, and that is
     // the request that finishes the sign-in.
-    const completed = await req(base, jar, `${target.pathname}${target.search}`);
+    const completed = await req(
+      base,
+      jar,
+      `${target.pathname}${target.search}`,
+    );
     expect(completed.status).toBe(303);
     expect(completed.headers.get("location")).toContain("/auth/");
     expect(jar.get("os_provisional")).toBeTruthy();
@@ -1227,25 +1241,22 @@ describe("federated leg, form_post callback", () => {
 
   it("copies only the four authorization-response parameters", async () => {
     const { uid } = await startLeg();
-    const res = await fetch(
-      `${base}/interaction/${uid}/federated/callback`,
-      {
-        method: "POST",
-        redirect: "manual",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          code: "c1",
-          state: "s1",
-          error: "e1",
-          error_description: "d1",
-          // Apple posts this on first consent; it is not ours to forward.
-          user: '{"name":{"firstName":"A"}}',
-          id_token: "not.a.token",
-          // A parameter longer than the cap is dropped, not truncated.
-          returnTo: "x".repeat(4096),
-        }),
-      },
-    );
+    const res = await fetch(`${base}/interaction/${uid}/federated/callback`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code: "c1",
+        state: "s1",
+        error: "e1",
+        error_description: "d1",
+        // Apple posts this on first consent; it is not ours to forward.
+        user: '{"name":{"firstName":"A"}}',
+        id_token: "not.a.token",
+        // A parameter longer than the cap is dropped, not truncated.
+        returnTo: "x".repeat(4096),
+      }),
+    });
     expect(res.status).toBe(303);
     const target = new URL(res.headers.get("location") ?? "", base);
     expect([...target.searchParams.keys()].sort()).toEqual([
@@ -1258,15 +1269,12 @@ describe("federated leg, form_post callback", () => {
 
   it("drops an over-long code rather than reflecting it", async () => {
     const { uid } = await startLeg();
-    const res = await fetch(
-      `${base}/interaction/${uid}/federated/callback`,
-      {
-        method: "POST",
-        redirect: "manual",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ code: "c".repeat(4096), state: "s1" }),
-      },
-    );
+    const res = await fetch(`${base}/interaction/${uid}/federated/callback`, {
+      method: "POST",
+      redirect: "manual",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ code: "c".repeat(4096), state: "s1" }),
+    });
     expect(res.status).toBe(303);
     const target = new URL(res.headers.get("location") ?? "", base);
     expect(target.searchParams.get("code")).toBeNull();

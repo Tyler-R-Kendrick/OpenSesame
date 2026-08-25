@@ -178,7 +178,9 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
         // Each v2 field is present or absent independently: a cookie from
         // before the field existed, and one from the leg that added it, are
         // both live at once during a deploy.
-        ...(rng() < 0.5 ? { kind: rng() < 0.5 ? "oidc" : "oauth2" } : undefined),
+        ...(rng() < 0.5
+          ? { kind: rng() < 0.5 ? "oidc" : "oauth2" }
+          : undefined),
         ...(rng() < 0.4 ? { providerId: randomString(rng, 12) } : undefined),
         ...(rng() < 0.3 ? { byoId: randomString(rng, 12) } : undefined),
         ...(rng() < 0.3 ? { orgId: randomString(rng, 12) } : undefined),

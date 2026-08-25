@@ -266,7 +266,9 @@ async function staticClientMode(
     }
     return {
       clientId,
-      auth: client.ClientSecretPost(await mintAppleClientSecret(apple, clientId)),
+      auth: client.ClientSecretPost(
+        await mintAppleClientSecret(apple, clientId),
+      ),
       originProfile: false,
       scopes,
       ...responseMode,
@@ -607,35 +609,50 @@ export function disposeRefreshToken(
   const metadata = config.serverMetadata();
   if (!metadata.revocation_endpoint) return;
 
-  // A dedicated Configuration so the short timeout applies here only: the
-  // cached discovery Configuration is shared by every interactive exchange.
-  const revocation = new client.Configuration(
-    metadata,
-    mode.clientId,
-    undefined,
-    mode.auth,
-  );
-  revocation.timeout = REFRESH_REVOCATION_TIMEOUT_SECONDS;
-  if (mode.originProfile) {
-    revocation[client.customFetch] = originPinnedFetch(siteOrigin(ctx.config));
-  }
-  if (ctx.config.allowDevDefaults) {
-    client.allowInsecureRequests(revocation);
-  }
-
-  void client
-    .tokenRevocation(revocation, refreshToken, {
-      token_type_hint: "refresh_token",
-    })
-    .catch((cause: unknown) => {
-      ctx.log.warn(
-        {
-          issuer: metadata.issuer,
-          error: cause instanceof Error ? cause.name : "unknown",
-        },
-        "upstream refresh-token revocation failed",
+  // Nothing in here may throw into the caller. It runs on the success path of
+  // a sign-in that has already completed; a courtesy call that failed loudly
+  // would turn a working sign-in into a 400.
+  try {
+    // A dedicated Configuration so the short timeout applies here only: the
+    // cached discovery Configuration is shared by every interactive exchange.
+    const revocation = new client.Configuration(
+      metadata,
+      mode.clientId,
+      undefined,
+      mode.auth,
+    );
+    revocation.timeout = REFRESH_REVOCATION_TIMEOUT_SECONDS;
+    if (mode.originProfile) {
+      revocation[client.customFetch] = originPinnedFetch(
+        siteOrigin(ctx.config),
       );
-    });
+    }
+    if (ctx.config.allowDevDefaults) {
+      client.allowInsecureRequests(revocation);
+    }
+
+    void client
+      .tokenRevocation(revocation, refreshToken, {
+        token_type_hint: "refresh_token",
+      })
+      .catch((cause: unknown) => {
+        ctx.log.warn(
+          {
+            issuer: metadata.issuer,
+            error: cause instanceof Error ? cause.name : "unknown",
+          },
+          "upstream refresh-token revocation failed",
+        );
+      });
+  } catch (cause) {
+    ctx.log.warn(
+      {
+        issuer: metadata.issuer,
+        error: cause instanceof Error ? cause.name : "unknown",
+      },
+      "upstream refresh-token revocation could not be attempted",
+    );
+  }
 }
 
 /**
