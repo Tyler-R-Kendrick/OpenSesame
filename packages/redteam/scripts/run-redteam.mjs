@@ -44,7 +44,14 @@ async function main() {
     {
       cwd: PACKAGE_DIR,
       stdio: "inherit",
-      env: process.env,
+      env: {
+        ...process.env,
+        OPENSESAME_SERVER:
+          process.env.OPENSESAME_SERVER ?? `http://127.0.0.1:${hostPort}`,
+        OPENSESAME_DAEMON_URL:
+          process.env.OPENSESAME_DAEMON_URL ??
+          `http://127.0.0.1:${daemonPort}`,
+      },
     },
   );
 
