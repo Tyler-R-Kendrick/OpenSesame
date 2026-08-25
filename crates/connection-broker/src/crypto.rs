@@ -67,6 +67,10 @@ pub fn seal(
 
 /// Seal Host-only material under purpose-separated associated data.
 /// `scope` must be a fixed code-owned label, never request input.
+///
+/// # Errors
+///
+/// Returns an error when material sealing fails.
 pub fn seal_scoped(
     key: &[u8; 32],
     scope: &str,

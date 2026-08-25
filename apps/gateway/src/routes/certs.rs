@@ -1,6 +1,6 @@
 //! Host-owned certificate issuance.
 //!
-//! OpenSesame generates keys and acts as the private CA by default. Persisted
+//! `OpenSesame` generates keys and acts as the private CA by default. Persisted
 //! authority and one-time delivery material is always sealed; development may
 //! use a clearly labeled process-ephemeral CA when no sealing key exists.
 
@@ -216,11 +216,7 @@ async fn load_or_create_ca(
             {
                 let legacy: DevCa = serde_json::from_str(&raw)
                     .map_err(|error| internal(error, "decode legacy certificate authority"))?;
-                if legacy.cert_pem != ca.cert_pem || legacy.key_pem != ca.key_pem {
-                    return Err(sealing_unavailable(
-                        "legacy and sealed certificate authorities conflict; operator review required",
-                    ));
-                }
+                reject_conflicting_legacy_ca(&legacy, &ca)?;
                 st.db
                     .delete_host_kv(KV_CA)
                     .await
@@ -305,6 +301,15 @@ async fn load_or_create_ca(
             .expect("ephemeral CA initialized")
             .clone(),
     ))
+}
+
+fn reject_conflicting_legacy_ca(legacy: &DevCa, sealed: &DevCa) -> Result<(), Response> {
+    if legacy.cert_pem != sealed.cert_pem || legacy.key_pem != sealed.key_pem {
+        return Err(sealing_unavailable(
+            "legacy and sealed certificate authorities conflict; operator review required",
+        ));
+    }
+    Ok(())
 }
 
 async fn load_issued(
@@ -428,8 +433,8 @@ pub async fn list_issued(State(st): State<AppState>, headers: axum::http::Header
                 "not_before": certificate.not_before,
                 "not_after": certificate.expires_at,
                 "issued_at": certificate.created_at,
-                "issuer": authority.map(|authority| authority.display_name.as_str()).unwrap_or("Unknown issuer"),
-                "issuer_kind": authority.map(|authority| authority.issuer_kind.as_str()).unwrap_or("unknown"),
+                "issuer": authority.map_or("Unknown issuer", |authority| authority.display_name.as_str()),
+                "issuer_kind": authority.map_or("unknown", |authority| authority.issuer_kind.as_str()),
                 "trust_scope": metadata.get("trust_scope").and_then(Value::as_str).unwrap_or("unknown"),
             })
         })
@@ -493,7 +498,7 @@ fn issue_response(
     issued: &dev_pki::IssuedCert,
     delivery_id: Option<&str>,
     persistent: bool,
-    issuer: &str,
+    issuer_label: &str,
     issuer_kind: &str,
     trust_scope: &str,
 ) -> Response {
@@ -509,7 +514,7 @@ fn issue_response(
             "not_before": issued.not_before,
             "not_after": issued.not_after,
             "delivery_id": delivery_id,
-            "issuer": issuer,
+            "issuer": issuer_label,
             "issuer_kind": issuer_kind,
             "purpose": "local_tls",
             "trust_scope": trust_scope,
@@ -561,11 +566,7 @@ fn request_digest(
     }
     hasher.update(b"\0ttl:");
     hasher.update(request.ttl.as_secs().to_be_bytes());
-    hasher
-        .finalize()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    hex::encode(hasher.finalize())
 }
 
 struct DeliveredCertificate {
@@ -748,10 +749,7 @@ async fn complete_persisted_issuance(
         ),
         expires_at: (Utc::now() + Duration::minutes(DELIVERY_TTL_MINUTES)).to_rfc3339(),
     };
-    let certificate_digest: String = Sha256::digest(issued.certificate.as_bytes())
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect();
+    let certificate_digest = hex::encode(Sha256::digest(issued.certificate.as_bytes()));
     let completed_at = Utc::now().to_rfc3339();
     let record = StoredIssuedCertificate {
         id: format!("certificate:{}", uuid::Uuid::new_v4()),
@@ -988,6 +986,73 @@ fn acme_provider(
     }
 }
 
+async fn restore_acme_account(
+    st: &AppState,
+    organization_id: &str,
+    authority_id: &str,
+    provider: AcmeProvider,
+) -> Result<Option<AcmeAccount>, Response> {
+    let Some(authority) = st
+        .db
+        .get_certificate_authority(organization_id, authority_id)
+        .await
+        .map_err(|error| internal(error, "read ACME account"))?
+    else {
+        return Ok(None);
+    };
+    let key = st
+        .connection_broker
+        .config()
+        .key()
+        .copied()
+        .ok_or_else(|| sealing_unavailable("certificate key protection is unavailable"))?;
+    let plaintext = open_scoped(
+        &key,
+        CA_SCOPE,
+        authority_id,
+        organization_id,
+        &sealed_blob(&authority.sealed_material),
+    )
+    .map_err(|error| internal(error, "open ACME account"))?;
+    let credentials = String::from_utf8(plaintext)
+        .map(AcmeAccountCredentials::from_unsealed)
+        .map_err(|error| internal(error, "decode ACME account"))?;
+    AcmeAccount::restore(provider, credentials)
+        .await
+        .map(Some)
+        .map_err(|error| internal(error, "restore ACME account"))
+}
+
+fn external_account_binding(
+    provider: AcmeProvider,
+    values: &BTreeMap<String, String>,
+) -> Result<Option<ExternalAccountBinding>, Response> {
+    if provider != AcmeProvider::ZeroSsl {
+        return Ok(None);
+    }
+    let key_id = values.get("eab_kid").cloned().unwrap_or_default();
+    let encoded = values.get("eab_hmac_key").map_or("", String::as_str);
+    let hmac_key = URL_SAFE_NO_PAD
+        .decode(encoded)
+        .or_else(|_| URL_SAFE.decode(encoded))
+        .map_err(|_| {
+            (
+                StatusCode::CONFLICT,
+                Json(json!({"error":"invalid_issuer_configuration","hint":"ZeroSSL eab_hmac_key must be base64url"})),
+            )
+                .into_response()
+        })?;
+    ExternalAccountBinding::new(key_id, hmac_key)
+        .map(Some)
+        .map_err(|error| {
+            (
+                StatusCode::CONFLICT,
+                Json(json!({"error":"invalid_issuer_configuration","hint":error.to_string()})),
+            )
+                .into_response()
+        })
+}
+
 async fn acme_account(
     st: &AppState,
     organization: &opensesame_domain::OrganizationId,
@@ -1018,32 +1083,9 @@ async fn acme_account(
     let kind = provider.issuer();
     let authority_id = format!("ca:{}:{}", issuer_kind_name(kind), connection.connection_id);
     let organization_id = organization.to_string();
-    if let Some(authority) = st
-        .db
-        .get_certificate_authority(&organization_id, &authority_id)
-        .await
-        .map_err(|error| internal(error, "read ACME account"))?
+    if let Some(account) =
+        restore_acme_account(st, &organization_id, &authority_id, provider).await?
     {
-        let key = st
-            .connection_broker
-            .config()
-            .key()
-            .copied()
-            .ok_or_else(|| sealing_unavailable("certificate key protection is unavailable"))?;
-        let plaintext = open_scoped(
-            &key,
-            CA_SCOPE,
-            &authority_id,
-            &organization_id,
-            &sealed_blob(&authority.sealed_material),
-        )
-        .map_err(|error| internal(error, "open ACME account"))?;
-        let credentials = String::from_utf8(plaintext)
-            .map(AcmeAccountCredentials::from_unsealed)
-            .map_err(|error| internal(error, "decode ACME account"))?;
-        let account = AcmeAccount::restore(provider, credentials)
-            .await
-            .map_err(|error| internal(error, "restore ACME account"))?;
         return Ok((authority_id, account));
     }
 
@@ -1054,39 +1096,7 @@ async fn acme_account(
         .filter(|email| !email.is_empty())
         .map(|email| vec![format!("mailto:{email}")])
         .unwrap_or_default();
-    let external_account = if provider == AcmeProvider::ZeroSsl {
-        let key_id = configuration
-            .values
-            .get("eab_kid")
-            .cloned()
-            .unwrap_or_default();
-        let encoded = configuration
-            .values
-            .get("eab_hmac_key")
-            .map(String::as_str)
-            .unwrap_or_default();
-        let hmac_key = URL_SAFE_NO_PAD
-            .decode(encoded)
-            .or_else(|_| URL_SAFE.decode(encoded))
-            .map_err(|_| {
-                (
-                    StatusCode::CONFLICT,
-                    Json(json!({"error":"invalid_issuer_configuration","hint":"ZeroSSL eab_hmac_key must be base64url"})),
-                )
-                    .into_response()
-            })?;
-        Some(
-            ExternalAccountBinding::new(key_id, hmac_key).map_err(|error| {
-                (
-                    StatusCode::CONFLICT,
-                    Json(json!({"error":"invalid_issuer_configuration","hint":error.to_string()})),
-                )
-                    .into_response()
-            })?,
-        )
-    } else {
-        None
-    };
+    let external_account = external_account_binding(provider, &configuration.values)?;
     let (account, credentials) = AcmeAccount::create(provider, &contacts, external_account)
         .await
         .map_err(|error| internal(error, "create ACME account"))?;
@@ -1127,6 +1137,183 @@ fn external_delivery(issued: IssuedCertificate) -> Result<dev_pki::IssuedCert, R
     })
 }
 
+async fn issue_acme(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+    actor: &str,
+    organization: &opensesame_domain::OrganizationId,
+    connection: &ConnectionView,
+    request: &CertificateRequest,
+    stored_request: &dev_pki::IssueRequest,
+) -> Result<(IssuerKind, DeliveredCertificate), Response> {
+    let dns = st
+        .connection_broker
+        .list_connections(organization)
+        .await
+        .map_err(|error| internal(error, "list DNS challenge connections"))?
+        .into_iter()
+        .find(|candidate| {
+            candidate.provider_id == "cloudflare" && candidate.status == ConnectionStatus::Active
+        })
+        .ok_or_else(|| {
+            (
+                StatusCode::CONFLICT,
+                Json(json!({"error":"dns01_unavailable","hint":"connect an active Cloudflare account for ACME DNS-01 challenges"})),
+            )
+                .into_response()
+        })?;
+    let (authority_id, account) = acme_account(st, organization, connection).await?;
+    let kind = account.provider_kind();
+    let prepared = prepare_persisted_issuance(
+        st,
+        headers,
+        &organization.to_string(),
+        &authority_id,
+        actor,
+        stored_request,
+    )
+    .await?;
+    let pending = match prepared {
+        PreparedIssuance::Delivered(issued) => return Ok((kind, issued)),
+        PreparedIssuance::New(pending) => pending,
+    };
+    let provisioner = CloudflareDns01::new(
+        st.connection_broker.clone(),
+        *organization,
+        dns.connection_id,
+    );
+    let issued = account
+        .issue_dns01(request, ChallengeKind::Dns01, &provisioner)
+        .await
+        .map_err(|error| internal(error, "issue ACME certificate"))
+        .and_then(external_delivery);
+    let issued = match issued {
+        Ok(issued) => issued,
+        Err(response) => {
+            fail_issuance(st, &organization.to_string(), &pending.request_id).await;
+            return Err(response);
+        }
+    };
+    let issued = complete_persisted_issuance(
+        st,
+        &organization.to_string(),
+        &authority_id,
+        actor,
+        pending,
+        &issued,
+    )
+    .await?;
+    Ok((kind, issued))
+}
+
+fn cloudflare_origin_validity(ttl: StdDuration) -> CloudflareOriginValidity {
+    if ttl <= StdDuration::from_secs(7 * 24 * 60 * 60) {
+        CloudflareOriginValidity::Days7
+    } else if ttl <= StdDuration::from_secs(30 * 24 * 60 * 60) {
+        CloudflareOriginValidity::Days30
+    } else {
+        CloudflareOriginValidity::Days90
+    }
+}
+
+async fn issue_cloudflare_origin(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+    actor: &str,
+    organization: &opensesame_domain::OrganizationId,
+    connection: &ConnectionView,
+    request: &CertificateRequest,
+    stored_request: &dev_pki::IssueRequest,
+) -> Result<(IssuerKind, DeliveredCertificate), Response> {
+    st.connection_broker
+        .certificate_issuer_configuration(organization, &connection.connection_id)
+        .await
+        .map_err(|error| {
+            (
+                StatusCode::CONFLICT,
+                Json(json!({"error":"issuer_unavailable","hint":error.hint()})),
+            )
+                .into_response()
+        })?;
+    let kind = IssuerKind::CloudflareOriginCa;
+    let authority_id =
+        persist_external_authority(st, organization, connection, kind, b"{}").await?;
+    let prepared = prepare_persisted_issuance(
+        st,
+        headers,
+        &organization.to_string(),
+        &authority_id,
+        actor,
+        stored_request,
+    )
+    .await?;
+    let pending = match prepared {
+        PreparedIssuance::Delivered(issued) => return Ok((kind, issued)),
+        PreparedIssuance::New(pending) => pending,
+    };
+    let leaf = match GeneratedLeafRequest::generate(request) {
+        Ok(leaf) => leaf,
+        Err(error) => {
+            fail_issuance(st, &organization.to_string(), &pending.request_id).await;
+            return Err(internal(error, "generate certificate request"));
+        }
+    };
+    let provider_request = match CloudflareOriginRequest::from_generated(
+        request,
+        &leaf,
+        cloudflare_origin_validity(request.ttl()),
+    ) {
+        Ok(request) => request,
+        Err(error) => {
+            fail_issuance(st, &organization.to_string(), &pending.request_id).await;
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error":"invalid_request","hint":error.to_string()})),
+            )
+                .into_response());
+        }
+    };
+    let response = st
+        .connection_broker
+        .authorized_json(
+            organization,
+            &connection.connection_id,
+            "POST",
+            "https://api.cloudflare.com/client/v4/certificates",
+            serde_json::to_value(provider_request).ok(),
+        )
+        .await
+        .map_err(|error| internal(error, "issue Cloudflare Origin certificate"));
+    let normalized = response
+        .and_then(|response| {
+            serde_json::from_value::<CloudflareOriginApiResponse>(response)
+                .map_err(|error| internal(error, "decode Cloudflare Origin certificate"))
+        })
+        .and_then(|response| {
+            response
+                .normalize(request, leaf)
+                .map_err(|error| internal(error, "validate Cloudflare Origin certificate"))
+        })
+        .and_then(external_delivery);
+    let issued = match normalized {
+        Ok(issued) => issued,
+        Err(response) => {
+            fail_issuance(st, &organization.to_string(), &pending.request_id).await;
+            return Err(response);
+        }
+    };
+    let issued = complete_persisted_issuance(
+        st,
+        &organization.to_string(),
+        &authority_id,
+        actor,
+        pending,
+        &issued,
+    )
+    .await?;
+    Ok((kind, issued))
+}
+
 async fn issue_external(
     st: &AppState,
     headers: &axum::http::HeaderMap,
@@ -1145,171 +1332,172 @@ async fn issue_external(
     })?;
     match connection.provider_id.as_str() {
         "letsencrypt" | "zerossl" => {
-            let dns = st
-                .connection_broker
-                .list_connections(organization)
-                .await
-                .map_err(|error| internal(error, "list DNS challenge connections"))?
-                .into_iter()
-                .find(|candidate| {
-                    candidate.provider_id == "cloudflare"
-                        && candidate.status == ConnectionStatus::Active
-                })
-                .ok_or_else(|| {
-                    (
-                        StatusCode::CONFLICT,
-                        Json(json!({"error":"dns01_unavailable","hint":"connect an active Cloudflare account for ACME DNS-01 challenges"})),
-                    )
-                        .into_response()
-                })?;
-            let (authority_id, account) = acme_account(st, organization, connection).await?;
-            let kind = account.provider_kind();
-            let prepared = prepare_persisted_issuance(
+            issue_acme(
                 st,
                 headers,
-                &organization.to_string(),
-                &authority_id,
                 actor,
+                organization,
+                connection,
+                request,
                 stored_request,
             )
-            .await?;
-            let pending = match prepared {
-                PreparedIssuance::Delivered(issued) => return Ok((kind, issued)),
-                PreparedIssuance::New(pending) => pending,
-            };
-            let provisioner = CloudflareDns01::new(
-                st.connection_broker.clone(),
-                *organization,
-                dns.connection_id,
-            );
-            let issued = match account
-                .issue_dns01(request, ChallengeKind::Dns01, &provisioner)
-                .await
-            {
-                Ok(issued) => match external_delivery(issued) {
-                    Ok(issued) => issued,
-                    Err(response) => {
-                        fail_issuance(st, &organization.to_string(), &pending.request_id).await;
-                        return Err(response);
-                    }
-                },
-                Err(error) => {
-                    fail_issuance(st, &organization.to_string(), &pending.request_id).await;
-                    return Err(internal(error, "issue ACME certificate"));
-                }
-            };
-            let issued = complete_persisted_issuance(
-                st,
-                &organization.to_string(),
-                &authority_id,
-                actor,
-                pending,
-                &issued,
-            )
-            .await?;
-            Ok((kind, issued))
+            .await
         }
         "cloudflare-origin-ca" => {
-            st.connection_broker
-                .certificate_issuer_configuration(organization, &connection.connection_id)
-                .await
-                .map_err(|error| {
-                    (
-                        StatusCode::CONFLICT,
-                        Json(json!({"error":"issuer_unavailable","hint":error.hint()})),
-                    )
-                        .into_response()
-                })?;
-            let kind = IssuerKind::CloudflareOriginCa;
-            let authority_id =
-                persist_external_authority(st, organization, connection, kind, b"{}").await?;
-            let prepared = prepare_persisted_issuance(
+            issue_cloudflare_origin(
                 st,
                 headers,
-                &organization.to_string(),
-                &authority_id,
                 actor,
+                organization,
+                connection,
+                request,
                 stored_request,
             )
-            .await?;
-            let pending = match prepared {
-                PreparedIssuance::Delivered(issued) => return Ok((kind, issued)),
-                PreparedIssuance::New(pending) => pending,
-            };
-            let leaf = match GeneratedLeafRequest::generate(request) {
-                Ok(leaf) => leaf,
-                Err(error) => {
-                    fail_issuance(st, &organization.to_string(), &pending.request_id).await;
-                    return Err(internal(error, "generate certificate request"));
-                }
-            };
-            let validity = if request.ttl() <= StdDuration::from_secs(7 * 24 * 60 * 60) {
-                CloudflareOriginValidity::Days7
-            } else if request.ttl() <= StdDuration::from_secs(30 * 24 * 60 * 60) {
-                CloudflareOriginValidity::Days30
-            } else {
-                CloudflareOriginValidity::Days90
-            };
-            let provider_request =
-                match CloudflareOriginRequest::from_generated(request, &leaf, validity) {
-                    Ok(request) => request,
-                    Err(error) => {
-                        fail_issuance(st, &organization.to_string(), &pending.request_id).await;
-                        return Err((
-                            StatusCode::BAD_REQUEST,
-                            Json(json!({"error":"invalid_request","hint":error.to_string()})),
-                        )
-                            .into_response());
-                    }
-                };
-            let response = match st
-                .connection_broker
-                .authorized_json(
-                    organization,
-                    &connection.connection_id,
-                    "POST",
-                    "https://api.cloudflare.com/client/v4/certificates",
-                    serde_json::to_value(provider_request).ok(),
-                )
-                .await
-            {
-                Ok(response) => response,
-                Err(error) => {
-                    fail_issuance(st, &organization.to_string(), &pending.request_id).await;
-                    return Err(internal(error, "issue Cloudflare Origin certificate"));
-                }
-            };
-            let normalized = serde_json::from_value::<CloudflareOriginApiResponse>(response)
-                .map_err(|error| internal(error, "decode Cloudflare Origin certificate"))
-                .and_then(|response| {
-                    response
-                        .normalize(request, leaf)
-                        .map_err(|error| internal(error, "validate Cloudflare Origin certificate"))
-                })
-                .and_then(external_delivery);
-            let issued = match normalized {
-                Ok(issued) => issued,
-                Err(response) => {
-                    fail_issuance(st, &organization.to_string(), &pending.request_id).await;
-                    return Err(response);
-                }
-            };
-            let issued = complete_persisted_issuance(
-                st,
-                &organization.to_string(),
-                &authority_id,
-                actor,
-                pending,
-                &issued,
-            )
-            .await?;
-            Ok((kind, issued))
+            .await
         }
         _ => Err((
             StatusCode::BAD_REQUEST,
             Json(json!({"error":"issuer_unavailable","hint":"unsupported certificate issuer"})),
         )
             .into_response()),
+    }
+}
+
+fn parse_issue_body(
+    body: IssueBody,
+) -> Result<(Option<String>, CertificateRequest, dev_pki::IssueRequest), Response> {
+    let mut ips = Vec::new();
+    for raw in &body.ip_addrs {
+        match raw.parse::<IpAddr>() {
+            Ok(ip) => ips.push(ip),
+            Err(_) => {
+                return Err((
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error":"invalid_request","hint": format!("not an IP address: {raw}")})),
+                )
+                    .into_response());
+            }
+        }
+    }
+    let ttl = body.ttl_hours.map_or(DEFAULT_TTL, |hours| {
+        StdDuration::from_secs(hours.saturating_mul(3600))
+    });
+    let requested_issuer = body.issuer_connection_id;
+    let validated = CertificateRequest::try_from(CertificateRequestInput {
+        common_name: body.common_name,
+        dns_names: body.dns_names,
+        ip_addrs: ips,
+        ttl: Some(ttl),
+    })
+    .map_err(|error| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":error.to_string()})),
+        )
+            .into_response()
+    })?;
+    let request = dev_pki::IssueRequest {
+        common_name: validated.common_name().into(),
+        dns_names: validated.dns_names().to_vec(),
+        ip_addrs: validated.ip_addrs().to_vec(),
+        ttl: validated.ttl(),
+    };
+    Ok((requested_issuer, validated, request))
+}
+
+async fn issue_private(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+    actor: &str,
+    organization: &opensesame_domain::OrganizationId,
+    request: &dev_pki::IssueRequest,
+) -> Response {
+    let resolved_ca = match load_or_create_ca(st, organization).await {
+        Ok(ca) => ca,
+        Err(response) => return response,
+    };
+    match resolved_ca {
+        ResolvedCa::Persisted { authority_id, ca } => {
+            let prepared = match prepare_persisted_issuance(
+                st,
+                headers,
+                &organization.to_string(),
+                &authority_id,
+                actor,
+                request,
+            )
+            .await
+            {
+                Ok(prepared) => prepared,
+                Err(response) => return response,
+            };
+            let delivered = match prepared {
+                PreparedIssuance::Delivered(delivered) => delivered,
+                PreparedIssuance::New(pending) => {
+                    let issued = match dev_pki::issue_leaf(&ca, request) {
+                        Ok(issued) => issued,
+                        Err(hint) => {
+                            fail_issuance(st, &organization.to_string(), &pending.request_id).await;
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                Json(json!({"error":"invalid_request","hint":hint})),
+                            )
+                                .into_response();
+                        }
+                    };
+                    match complete_persisted_issuance(
+                        st,
+                        &organization.to_string(),
+                        &authority_id,
+                        actor,
+                        pending,
+                        &issued,
+                    )
+                    .await
+                    {
+                        Ok(delivered) => delivered,
+                        Err(response) => return response,
+                    }
+                }
+            };
+            issue_response(
+                &delivered.issued,
+                delivered.delivery_id.as_deref(),
+                true,
+                "OpenSesame Private CA",
+                INTERNAL_ISSUER,
+                "private_local",
+            )
+        }
+        ResolvedCa::Ephemeral(ca) => {
+            let issued = match dev_pki::issue_leaf(&ca, request) {
+                Ok(issued) => issued,
+                Err(hint) => {
+                    return (
+                        StatusCode::BAD_REQUEST,
+                        Json(json!({"error":"invalid_request","hint":hint})),
+                    )
+                        .into_response();
+                }
+            };
+            let mut rows = match load_issued(st, organization).await {
+                Ok(rows) => rows,
+                Err(response) => return response,
+            };
+            rows.insert(0, dev_pki::to_record(&issued));
+            rows.truncate(MAX_ISSUED);
+            if let Err(response) = save_issued(st, organization, &rows).await {
+                return response;
+            }
+            issue_response(
+                &issued,
+                None,
+                false,
+                "OpenSesame Private CA",
+                INTERNAL_ISSUER,
+                "private_local",
+            )
+        }
     }
 }
 
@@ -1327,44 +1515,9 @@ pub async fn issue(
         Err(response) => return response,
     };
     let actor = delivery_actor(&who);
-    let mut ips = Vec::new();
-    for raw in &body.ip_addrs {
-        match raw.parse::<IpAddr>() {
-            Ok(ip) => ips.push(ip),
-            Err(_) => {
-                return (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"invalid_request","hint": format!("not an IP address: {raw}")})),
-                )
-                    .into_response();
-            }
-        }
-    }
-    let ttl = body
-        .ttl_hours
-        .map(|hours| StdDuration::from_secs(hours.saturating_mul(3600)))
-        .unwrap_or(DEFAULT_TTL);
-    let requested_issuer = body.issuer_connection_id;
-    let validated = match CertificateRequest::try_from(CertificateRequestInput {
-        common_name: body.common_name,
-        dns_names: body.dns_names,
-        ip_addrs: ips,
-        ttl: Some(ttl),
-    }) {
-        Ok(request) => request,
-        Err(error) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({"error":"invalid_request","hint":error.to_string()})),
-            )
-                .into_response();
-        }
-    };
-    let request = dev_pki::IssueRequest {
-        common_name: validated.common_name().into(),
-        dns_names: validated.dns_names().to_vec(),
-        ip_addrs: validated.ip_addrs().to_vec(),
-        ttl: validated.ttl(),
+    let (requested_issuer, validated, request) = match parse_issue_body(body) {
+        Ok(parsed) => parsed,
+        Err(response) => return response,
     };
     let external =
         match select_external_issuer(&st, &organization, requested_issuer.as_deref()).await {
@@ -1394,94 +1547,7 @@ pub async fn issue(
             Err(response) => response,
         };
     }
-    let resolved_ca = match load_or_create_ca(&st, &organization).await {
-        Ok(ca) => ca,
-        Err(response) => return response,
-    };
-    match resolved_ca {
-        ResolvedCa::Persisted { authority_id, ca } => {
-            let prepared = match prepare_persisted_issuance(
-                &st,
-                &headers,
-                &organization.to_string(),
-                &authority_id,
-                &actor,
-                &request,
-            )
-            .await
-            {
-                Ok(prepared) => prepared,
-                Err(response) => return response,
-            };
-            let delivered = match prepared {
-                PreparedIssuance::Delivered(delivered) => delivered,
-                PreparedIssuance::New(pending) => {
-                    let issued = match dev_pki::issue_leaf(&ca, &request) {
-                        Ok(issued) => issued,
-                        Err(hint) => {
-                            fail_issuance(&st, &organization.to_string(), &pending.request_id)
-                                .await;
-                            return (
-                                StatusCode::BAD_REQUEST,
-                                Json(json!({"error":"invalid_request","hint":hint})),
-                            )
-                                .into_response();
-                        }
-                    };
-                    match complete_persisted_issuance(
-                        &st,
-                        &organization.to_string(),
-                        &authority_id,
-                        &actor,
-                        pending,
-                        &issued,
-                    )
-                    .await
-                    {
-                        Ok(delivered) => delivered,
-                        Err(response) => return response,
-                    }
-                }
-            };
-            issue_response(
-                &delivered.issued,
-                delivered.delivery_id.as_deref(),
-                true,
-                "OpenSesame Private CA",
-                INTERNAL_ISSUER,
-                "private_local",
-            )
-        }
-        ResolvedCa::Ephemeral(ca) => {
-            let issued = match dev_pki::issue_leaf(&ca, &request) {
-                Ok(issued) => issued,
-                Err(hint) => {
-                    return (
-                        StatusCode::BAD_REQUEST,
-                        Json(json!({"error":"invalid_request","hint":hint})),
-                    )
-                        .into_response();
-                }
-            };
-            let mut rows = match load_issued(&st, &organization).await {
-                Ok(rows) => rows,
-                Err(response) => return response,
-            };
-            rows.insert(0, dev_pki::to_record(&issued));
-            rows.truncate(MAX_ISSUED);
-            if let Err(response) = save_issued(&st, &organization, &rows).await {
-                return response;
-            }
-            issue_response(
-                &issued,
-                None,
-                false,
-                "OpenSesame Private CA",
-                INTERNAL_ISSUER,
-                "private_local",
-            )
-        }
-    }
+    issue_private(&st, &headers, &actor, &organization, &request).await
 }
 
 #[cfg(test)]
@@ -1521,7 +1587,7 @@ mod tests {
         let mut request = Request::builder().method(method).uri(path);
         match headers {
             Some(map) => {
-                for (name, value) in map.iter() {
+                for (name, value) in &map {
                     request = request.header(name, value);
                 }
             }

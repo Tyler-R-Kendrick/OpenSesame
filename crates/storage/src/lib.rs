@@ -1126,6 +1126,11 @@ impl Db {
 
     // —— certificate authority and issuance —————————————————————
 
+    /// Insert a sealed certificate authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation, serialization, or persistence fails.
     pub async fn insert_certificate_authority(
         &self,
         authority: &StoredCertificateAuthority,
@@ -1168,6 +1173,9 @@ impl Db {
         Ok(())
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
     pub async fn get_certificate_authority(
         &self,
         organization_id: &str,
@@ -1180,9 +1188,12 @@ impl Db {
         .bind(authority_id)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.map(stored_certificate_authority))
+        Ok(row.as_ref().map(stored_certificate_authority))
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
     pub async fn get_default_certificate_authority(
         &self,
         organization_id: &str,
@@ -1193,9 +1204,12 @@ impl Db {
         .bind(organization_id)
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.map(stored_certificate_authority))
+        Ok(row.as_ref().map(stored_certificate_authority))
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
     pub async fn list_certificate_authorities(
         &self,
         organization_id: &str,
@@ -1206,11 +1220,15 @@ impl Db {
         .bind(organization_id)
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows.into_iter().map(stored_certificate_authority).collect())
+        Ok(rows.iter().map(stored_certificate_authority).collect())
     }
 
     /// Select one active default using compare-and-swap. This never falls back
     /// to another issuer when the selected row is absent, stale, or inactive.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the transaction fails.
     pub async fn set_default_certificate_authority(
         &self,
         organization_id: &str,
@@ -1261,6 +1279,9 @@ impl Db {
         Ok(true)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the update fails.
     pub async fn update_certificate_authority_status(
         &self,
         organization_id: &str,
@@ -1283,6 +1304,9 @@ impl Db {
         Ok(result.rows_affected() == 1)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when validation or insertion fails.
     pub async fn insert_certificate_issuance_request(
         &self,
         request: &StoredCertificateIssuanceRequest,
@@ -1320,6 +1344,9 @@ impl Db {
         Ok(result.rows_affected() == 1)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the lookup or stored-record decoding fails.
     pub async fn find_certificate_issuance_by_idempotency(
         &self,
         organization_id: &str,
@@ -1332,9 +1359,14 @@ impl Db {
         .bind(idempotency_key)
         .fetch_optional(&self.pool)
         .await?;
-        row.map(stored_certificate_issuance_request).transpose()
+        row.as_ref()
+            .map(stored_certificate_issuance_request)
+            .transpose()
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the state update fails.
     pub async fn transition_certificate_issuance(
         &self,
         organization_id: &str,
@@ -1364,6 +1396,10 @@ impl Db {
 
     /// Atomically records key-free certificate metadata and the encrypted,
     /// time-bounded delivery payload. A stale request cannot create a record.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the transaction fails.
     pub async fn complete_certificate_issuance(
         &self,
         organization_id: &str,
@@ -1433,6 +1469,10 @@ impl Db {
     /// Destructive read of a still-valid encrypted delivery. The clear and
     /// version bump happen in the same transaction, so concurrent readers get
     /// at most one payload.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when delivery decoding or the transaction fails.
     pub async fn take_certificate_delivery(
         &self,
         organization_id: &str,
@@ -1472,6 +1512,10 @@ impl Db {
     /// Reads a bounded encrypted delivery without consuming it. Callers must
     /// acknowledge only after the response has been durably stored by the
     /// holder; this avoids losing a generated private key on transport failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when delivery decoding or the transaction fails.
     pub async fn get_certificate_delivery(
         &self,
         organization_id: &str,
@@ -1508,6 +1552,10 @@ impl Db {
 
     /// Clears an encrypted delivery after holder acknowledgement. The CAS makes
     /// repeated or concurrent acknowledgements harmless.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the lookup or transaction fails.
     pub async fn acknowledge_certificate_delivery(
         &self,
         organization_id: &str,
@@ -1534,6 +1582,9 @@ impl Db {
         Ok(cleared)
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
     pub async fn get_issued_certificate(
         &self,
         organization_id: &str,
@@ -1545,9 +1596,12 @@ impl Db {
                 .bind(certificate_id)
                 .fetch_optional(&self.pool)
                 .await?;
-        Ok(row.map(stored_issued_certificate))
+        Ok(row.as_ref().map(stored_issued_certificate))
     }
 
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
     pub async fn list_issued_certificates_expiring_before(
         &self,
         organization_id: &str,
@@ -1560,7 +1614,7 @@ impl Db {
         .bind(before)
         .fetch_all(&self.pool)
         .await?;
-        Ok(rows.into_iter().map(stored_issued_certificate).collect())
+        Ok(rows.iter().map(stored_issued_certificate).collect())
     }
 
     // —— host operator kv ————————————————————————————————
@@ -1923,7 +1977,7 @@ fn validate_san_json(san_json: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn stored_certificate_authority(row: SqliteRow) -> StoredCertificateAuthority {
+fn stored_certificate_authority(row: &SqliteRow) -> StoredCertificateAuthority {
     StoredCertificateAuthority {
         id: row.get("id"),
         organization_id: row.get("organization_id"),
@@ -1946,7 +2000,7 @@ fn stored_certificate_authority(row: SqliteRow) -> StoredCertificateAuthority {
 }
 
 fn stored_certificate_issuance_request(
-    row: SqliteRow,
+    row: &SqliteRow,
 ) -> anyhow::Result<StoredCertificateIssuanceRequest> {
     let delivery = match row.get::<Option<String>, _>("delivery_key_id") {
         Some(key_id) => Some(SealedCertificateDelivery {
@@ -1986,7 +2040,7 @@ fn stored_certificate_issuance_request(
     })
 }
 
-fn stored_issued_certificate(row: SqliteRow) -> StoredIssuedCertificate {
+fn stored_issued_certificate(row: &SqliteRow) -> StoredIssuedCertificate {
     StoredIssuedCertificate {
         id: row.get("id"),
         organization_id: row.get("organization_id"),
@@ -2598,22 +2652,18 @@ mod tests {
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        for (_, migration) in &MIGRATIONS[..10] {
-            for statement in split_statements(migration) {
-                sqlx::query(&statement).execute(&pool).await.unwrap();
-            }
-        }
+        apply_migrations(&pool, &MIGRATIONS[..10]).await;
         sqlx::query(
             "INSERT INTO host_kv (key, value, updated_at) VALUES ('certs.dev_ca', 'legacy-unsealed-value', 't')",
         )
         .execute(&pool)
         .await
         .unwrap();
-        for statement in split_statements(include_str!(
-            "../../../migrations/0013_certificate_issuance.sql"
-        )) {
-            sqlx::query(&statement).execute(&pool).await.unwrap();
-        }
+        apply_migration(
+            &pool,
+            include_str!("../../../migrations/0013_certificate_issuance.sql"),
+        )
+        .await;
         assert_eq!(
             sqlx::query_scalar::<_, String>("SELECT value FROM host_kv WHERE key = 'certs.dev_ca'")
                 .fetch_one(&pool)

@@ -723,6 +723,10 @@ impl ConnectionBroker {
 
     /// Unseal a configured ACME issuer for the in-process certificate actor.
     /// Raw values never cross the Host HTTP, agent, audit, or receipt boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the connection is absent, ineligible, or cannot be opened.
     pub async fn certificate_issuer_configuration(
         &self,
         organization_id: &OrganizationId,
