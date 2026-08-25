@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { IconAlert, IconExternal, IconLock } from "../../components/Icons.js";
+import {
+  type CeremonyAlt,
+  CeremonyAlts,
+} from "../../components/CeremonyShell.js";
+import {
+  IconExternal,
+  IconLock,
+  IconPlus,
+  IconSecret,
+} from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import {
   CAPABILITIES,
@@ -36,6 +45,7 @@ import {
   shouldAutoConnect,
 } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
+import { useStatusNotice } from "../../lib/use-status-notice.js";
 import { GithubHistoryRemotePicker as GithubHistoryRemotePickerDefault } from "./GithubHistoryRemotePicker.js";
 
 export const capabilityConnectorsSeams = {
@@ -121,6 +131,29 @@ export function CapabilityConnectorsPanel() {
   const online = useOnline();
   const session = useIdentitySession();
   const { connecting, error: connectError, connect } = useConnect();
+  // Session trouble is standing state, so it reports to the notifications
+  // tray rather than a banner above the connector list.
+  useStatusNotice(
+    hostLocalSessionEligible()
+      ? null
+      : connectError
+        ? {
+            id: "identity-session",
+            tone: "err",
+            title: "Could not start an OpenSesame session",
+            body: `${connectError}. Check the Identity URL in Settings (OpenSesame control plane — not a third-party IdP).`,
+            retry: connect,
+            retryLabel: "Try Identity again",
+          }
+        : connecting && !session
+          ? {
+              id: "identity-session",
+              tone: "info",
+              title: "Starting your OpenSesame session",
+              body: "Connector OAuth and personal-access-token sealing unlock once the session is up.",
+            }
+          : null,
+  );
   const [bindings, setBindings] = useState<CapabilityConnectorMap>(
     () => loadSettings().capabilityConnectors,
   );
@@ -461,21 +494,7 @@ export function CapabilityConnectorsPanel() {
         </div>
       </div>
       <div className="panel__body">
-        {!hostLocalSessionEligible() && connectError ? (
-          <p className="note note--err" role="alert">
-            <IconAlert size={18} />
-            <span>
-              Could not start an OpenSesame session: {connectError}. Check the
-              Identity URL in Settings (OpenSesame control plane — not a
-              third-party IdP).
-            </span>
-          </p>
-        ) : !hostLocalSessionEligible() && connecting && !session ? (
-          <output className="note note--warn">
-            <IconLock size={18} />
-            <span>Starting your OpenSesame session…</span>
-          </output>
-        ) : hostLocalSessionEligible() ? (
+        {hostLocalSessionEligible() ? (
           <p className="hint">
             Local Host is the authority for this tab — Identity plane not
             required for connector OAuth.
@@ -627,47 +646,6 @@ export function CapabilityConnectorsPanel() {
                 {needsAuth &&
                 planes.host === "live" &&
                 !oauthReady &&
-                binding.providerId === "github" ? (
-                  <div className="cap-github-app">
-                    <p className="hint">
-                      OpenSesame deploys a tenant GitHub App for you — confirm
-                      it on GitHub, Authorize, then Install the App on your
-                      account (All repositories). Administration + Contents +
-                      Workflows are required so History can create/list private
-                      password repos and push ciphertext. OAuth alone is not
-                      enough to create repos. No env vars or client secrets to
-                      paste. On localhost, webhooks are omitted. If permissions
-                      change, Create the App again, Authorize, and Install.
-                    </p>
-                    <p className="hint">
-                      Prefer{" "}
-                      <Link to="/settings/data#github-backup">
-                        Settings → Data → GitHub persistence
-                      </Link>{" "}
-                      for Create App → Authorize → Install → private repo in one
-                      place. You can still create the App here if you only need
-                      History without backup.
-                    </p>
-                    <button
-                      type="button"
-                      className="btn btn--primary btn--sm"
-                      disabled={busy !== null || planes.host !== "live"}
-                      aria-busy={busy === def.id}
-                      onClick={() => void deployGithubApp(def.id)}
-                    >
-                      {busy === def.id
-                        ? "Opening GitHub…"
-                        : "Create GitHub App for this organization"}
-                    </button>
-                    <p className="hint">
-                      Continues in this tab on github.com (not a popup). Confirm
-                      the app there; GitHub returns you here when it is sealed.
-                    </p>
-                  </div>
-                ) : null}
-                {needsAuth &&
-                planes.host === "live" &&
-                !oauthReady &&
                 binding.providerId !== "github" &&
                 providerMeta?.missingConfig?.length ? (
                   <p className="hint">
@@ -676,55 +654,120 @@ export function CapabilityConnectorsPanel() {
                     ). Callback URL: <code>{providerMeta.callbackUrl}</code>
                   </p>
                 ) : null}
-
-                {showPat && planes.host === "live" ? (
-                  <div className="field cap-pat">
-                    <label htmlFor={`cap-pat-${def.id}`}>
-                      Or connect with a personal access token
-                    </label>
-                    <input
-                      id={`cap-pat-${def.id}`}
-                      type="password"
-                      autoComplete="off"
-                      spellCheck={false}
-                      placeholder={
-                        binding.providerId === "github"
-                          ? "ghp_… or github_pat_… (repo scope)"
-                          : "glpat-…"
-                      }
-                      value={patByCapability[def.id] ?? ""}
-                      disabled={busy === def.id}
-                      onChange={(event) =>
-                        setPatByCapability((current) => ({
-                          ...current,
-                          [def.id]: event.target.value,
-                        }))
-                      }
-                    />
-                    <p className="hint">
-                      Sealed on the Host immediately. Never stored in this
-                      browser. For GitHub history use a classic token with{" "}
-                      <code>repo</code> or a fine-grained token that can create
-                      private repositories.
-                    </p>
-                    <div className="actions">
-                      <button
-                        type="button"
-                        className="btn btn--primary btn--sm"
-                        disabled={
-                          busy !== null ||
-                          !(patByCapability[def.id] ?? "").trim()
-                        }
-                        aria-busy={busy === def.id}
-                        onClick={() => void connectWithPat(def.id)}
-                      >
-                        {busy === def.id
-                          ? "Connecting…"
-                          : `Connect ${connectorLabel(binding.providerId)} with token`}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
+                {/* The tenant GitHub App and PAT paths used to sit open below
+                    the OAuth primary as competing blocks — with a link out to
+                    Settings → Data mid-flow. Alternatives expand here, the
+                    same as in every ceremony, and the whole flow completes in
+                    this panel. */}
+                <CeremonyAlts
+                  alts={[
+                    ...(needsAuth &&
+                    planes.host === "live" &&
+                    !oauthReady &&
+                    binding.providerId === "github"
+                      ? ([
+                          {
+                            id: `github-app-${def.id}`,
+                            label: "Create a GitHub App for this organization",
+                            icon: <IconPlus size={18} />,
+                            render: () => (
+                              <>
+                                <p className="hint">
+                                  OpenSesame deploys a tenant GitHub App for you
+                                  — confirm it on GitHub, Authorize, then
+                                  Install the App on your account (All
+                                  repositories). Administration + Contents +
+                                  Workflows are required so History can
+                                  create/list private password repos and push
+                                  ciphertext. OAuth alone is not enough to
+                                  create repos. No env vars or client secrets to
+                                  paste. On localhost, webhooks are omitted. If
+                                  permissions change, Create the App again,
+                                  Authorize, and Install.
+                                </p>
+                                <button
+                                  type="button"
+                                  className="btn btn--primary btn--sm"
+                                  disabled={
+                                    busy !== null || planes.host !== "live"
+                                  }
+                                  aria-busy={busy === def.id}
+                                  onClick={() => void deployGithubApp(def.id)}
+                                >
+                                  {busy === def.id
+                                    ? "Opening GitHub…"
+                                    : "Create GitHub App for this organization"}
+                                </button>
+                                <p className="hint">
+                                  Continues in this tab on github.com (not a
+                                  popup). Confirm the app there; GitHub returns
+                                  you here when it is sealed.
+                                </p>
+                              </>
+                            ),
+                          },
+                        ] satisfies CeremonyAlt[])
+                      : []),
+                    ...(showPat && planes.host === "live"
+                      ? ([
+                          {
+                            id: `pat-${def.id}`,
+                            label: "Connect with a personal access token",
+                            icon: <IconSecret size={18} />,
+                            render: () => (
+                              <div className="field cap-pat">
+                                <label htmlFor={`cap-pat-${def.id}`}>
+                                  Personal access token
+                                </label>
+                                <input
+                                  id={`cap-pat-${def.id}`}
+                                  type="password"
+                                  autoComplete="off"
+                                  spellCheck={false}
+                                  placeholder={
+                                    binding.providerId === "github"
+                                      ? "ghp_… or github_pat_… (repo scope)"
+                                      : "glpat-…"
+                                  }
+                                  value={patByCapability[def.id] ?? ""}
+                                  disabled={busy === def.id}
+                                  onChange={(event) =>
+                                    setPatByCapability((current) => ({
+                                      ...current,
+                                      [def.id]: event.target.value,
+                                    }))
+                                  }
+                                />
+                                <p className="hint">
+                                  Sealed on the Host immediately. Never stored
+                                  in this browser. For GitHub history use a
+                                  classic token with <code>repo</code> or a
+                                  fine-grained token that can create private
+                                  repositories.
+                                </p>
+                                <div className="actions">
+                                  <button
+                                    type="button"
+                                    className="btn btn--primary btn--sm"
+                                    disabled={
+                                      busy !== null ||
+                                      !(patByCapability[def.id] ?? "").trim()
+                                    }
+                                    aria-busy={busy === def.id}
+                                    onClick={() => void connectWithPat(def.id)}
+                                  >
+                                    {busy === def.id
+                                      ? "Connecting…"
+                                      : `Connect ${connectorLabel(binding.providerId)} with token`}
+                                  </button>
+                                </div>
+                              </div>
+                            ),
+                          },
+                        ] satisfies CeremonyAlt[])
+                      : []),
+                  ]}
+                />
               </li>
             );
           })}

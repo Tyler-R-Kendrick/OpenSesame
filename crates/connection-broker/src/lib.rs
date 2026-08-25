@@ -209,6 +209,26 @@ pub struct ConnectionBroker {
     cleanup_attempts: Mutex<Vec<String>>,
 }
 
+/// Host-only certificate issuer configuration. This is never serialized or
+/// returned by a route; it exists for the in-process ACME adapter just as the
+/// GitHub App signing-material accessor exists for the backup actor.
+pub struct CertificateIssuerConfiguration {
+    pub connection_id: String,
+    pub provider_id: String,
+    pub values: BTreeMap<String, String>,
+}
+
+impl std::fmt::Debug for CertificateIssuerConfiguration {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("CertificateIssuerConfiguration")
+            .field("connection_id", &self.connection_id)
+            .field("provider_id", &self.provider_id)
+            .field("configured_fields", &self.values.keys().collect::<Vec<_>>())
+            .finish()
+    }
+}
+
 #[cfg(test)]
 pub(crate) struct TestActivationPause {
     target: usize,
@@ -699,6 +719,54 @@ impl ConnectionBroker {
     ) -> Result<ConnectionView> {
         let row = self.row_in_org(organization_id, id).await?;
         self.view(row).await
+    }
+
+    /// Unseal a configured ACME issuer for the in-process certificate actor.
+    /// Raw values never cross the Host HTTP, agent, audit, or receipt boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the connection is absent, ineligible, or cannot be opened.
+    pub async fn certificate_issuer_configuration(
+        &self,
+        organization_id: &OrganizationId,
+        id: &str,
+    ) -> Result<CertificateIssuerConfiguration> {
+        let row = self.row_in_org(organization_id, id).await?;
+        if !matches!(
+            row.provider_id.as_str(),
+            "letsencrypt" | "zerossl" | "cloudflare" | "cloudflare-origin-ca"
+        ) {
+            return Err(BrokerError::Invalid(
+                "connection is not a certificate issuer".into(),
+            ));
+        }
+        let provider = Self::provider(&row.provider_id)?;
+        if !provider.operations.iter().any(|operation| {
+            matches!(
+                operation.as_str(),
+                "certificate.issue" | "certificate.origin.issue" | "acme_dns_challenge.write"
+            )
+        }) {
+            return Err(BrokerError::Invalid(
+                "certificate issuer lacks certificate.issue".into(),
+            ));
+        }
+        if row.status != ConnectionStatus::Active {
+            return Err(BrokerError::NeedsReauth(format!(
+                "connection status is {}",
+                row.status.as_str()
+            )));
+        }
+        let credential = store::get_credential(&self.pool, &row.id)
+            .await?
+            .ok_or_else(|| BrokerError::NeedsReauth("issuer configuration missing".into()))?;
+        let tokens = Self::open_tokens(self.sealing_key()?, &row, &credential)?;
+        Ok(CertificateIssuerConfiguration {
+            connection_id: row.id,
+            provider_id: row.provider_id,
+            values: tokens.configuration,
+        })
     }
 
     /// # Errors

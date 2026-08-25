@@ -893,6 +893,27 @@ input[type="radio"] {
   margin: 0;
 }
 
+.notice-card h3 svg {
+  vertical-align: -0.15em;
+  margin-right: 0.35rem;
+}
+
+.notice-card--warn {
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--line));
+}
+
+.notice-card--warn h3 {
+  color: var(--warn);
+}
+
+.notice-card--err {
+  border-color: color-mix(in srgb, var(--err) 40%, var(--line));
+}
+
+.notice-card--err h3 {
+  color: var(--err);
+}
+
 /* ——— Connectivity bar ————————————————————————————————————
    A phone status bar for the fabric: glyph, state pip, nothing else. The
    accessible name carries the whole status, since the glyph carries none. */

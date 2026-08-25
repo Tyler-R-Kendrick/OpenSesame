@@ -23,17 +23,20 @@ import {
   IconSettings,
   IconX,
 } from "../components/Icons.js";
-import { PagesCannotHostNote } from "../components/PlaneNote.js";
+import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
 import {
   type Connection,
   ConnectionsError,
   type Provider,
   type ProviderCategory,
+  authorizeConnection,
+  awaitConsent,
   bindConnection,
   createConnection,
   discoverConnections,
   listConnections,
   listProviders,
+  openConsentPopup,
   revokeConnection,
 } from "../lib/connections.js";
 import {
@@ -64,6 +67,7 @@ import {
 } from "../lib/identity-graph.js";
 import {
   HostSessionError,
+  ensureHostSession,
   hostBase,
   hostLocalSessionEligible,
   useConnect,
@@ -71,6 +75,7 @@ import {
 } from "../lib/identity.js";
 import { shouldAutoConnect } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
+import { useStatusNotice } from "../lib/use-status-notice.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { ActivityLog } from "./connections/ActivityLog.js";
 import { BindingEditor } from "./connections/BindingEditor.js";
@@ -194,6 +199,44 @@ export function ConnectionsSection() {
     void connect();
   }, [session, online, connecting, connectError, connect]);
 
+  // Standing load trouble goes to the notifications tray, not the page.
+  useStatusNotice(
+    loadError && !loadError.setupRequired
+      ? {
+          id: "connections-load",
+          tone: "err",
+          title: loadError.unreachable
+            ? "Host API unavailable"
+            : "Connections could not load",
+          body: `${loadError.message} ${
+            loadError.unreachable
+              ? "Start the configured Host service, or repair it here."
+              : "Try refreshing the connection list."
+          }`,
+          ...(loadError.unreachable
+            ? {
+                ceremony: "host" as const,
+                ceremonyLabel: "Repair the Host connection",
+              }
+            : null),
+          retry: loadConnections,
+          retryLabel: "Reload",
+        }
+      : null,
+  );
+  useStatusNotice(
+    catalogError && (providers?.length ?? 0) > 0
+      ? {
+          id: "catalog-stale",
+          tone: "warn",
+          title: "Host catalog did not refresh",
+          body: "Showing the bundled connectors instead.",
+          retry: loadCatalog,
+          retryLabel: "Try again",
+        }
+      : null,
+  );
+
   if (providerId) {
     const provider = providers?.find((item) => item.id === providerId) ?? null;
     const providerConnections = (connections ?? []).filter(
@@ -262,48 +305,15 @@ export function ConnectionsSection() {
         </p>
       )}
 
-      {loadError && !loadError.setupRequired ? (
-        <div className="note note--err conn-error" role="alert">
-          <IconAlert />
-          <div className="conn-error__copy">
-            <strong>
-              {loadError.unreachable
-                ? "Host API unavailable"
-                : "Connections could not load"}
-            </strong>
-            <p>{loadError.message}</p>
-            <p>
-              {loadError.unreachable ? (
-                <>
-                  Start the configured Host service or{" "}
-                  <Link to="/settings/connectivity">
-                    review connection settings
-                  </Link>
-                  .
-                </>
-              ) : (
-                "Try refreshing the connection list."
-              )}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
       {catalogError && (providers?.length ?? 0) === 0 ? (
         <CatalogError failure={catalogError} onRetry={loadCatalog} />
-      ) : catalogError ? (
-        <p className="note note--warn">
-          <IconInfo /> Host catalog did not refresh. Showing the bundled
-          connectors.{" "}
-          <button type="button" className="btn btn--sm" onClick={loadCatalog}>
-            Try again
-          </button>
-        </p>
       ) : null}
 
       <UnfinishedInbox
         connections={connections ?? []}
         providers={providers ?? []}
+        onFlash={setFlash}
+        onChanged={() => void loadConnections()}
       />
 
       <FirstRunThree
@@ -675,39 +685,30 @@ function ConnectionsHead({ base }: { base: string }) {
 function IdentitySessionNote() {
   const session = useIdentitySession();
   const { connecting, error, connect } = useConnect();
-  const online = useOnline();
-  if (hostLocalSessionEligible()) return null;
-  if (session) return null;
-  if (!shouldAutoConnect() && !connecting && !error) return null;
-  return (
-    <div className="note note--warn conn-session-note">
-      <IconLock />
-      <div>
-        <p>
-          {error
-            ? "OpenSesame Identity is unreachable, so Host connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device."
-            : "Starting your OpenSesame session so Host connectors can authorize. Vault items on this identity stay available either way."}
-        </p>
-        {error ? (
-          <>
-            <p>{error}</p>
-            <button
-              type="button"
-              className="btn btn--sm"
-              onClick={() => void connect()}
-              disabled={connecting || !online}
-            >
-              {connecting ? "Connecting…" : "Try Identity again"}
-            </button>
-          </>
-        ) : connecting ? (
-          <p className="hint conn-connecting">
-            <IconClock /> Establishing your private session…
-          </p>
-        ) : null}
-      </div>
-    </div>
+  const relevant =
+    !hostLocalSessionEligible() &&
+    !session &&
+    (shouldAutoConnect() || connecting || Boolean(error));
+  useStatusNotice(
+    relevant
+      ? error
+        ? {
+            id: "identity-session",
+            tone: "err",
+            title: "OpenSesame Identity is unreachable",
+            body: `Host connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device. ${error}`,
+            retry: connect,
+            retryLabel: "Try Identity again",
+          }
+        : {
+            id: "identity-session",
+            tone: "info",
+            title: "Starting your OpenSesame session",
+            body: "Host connectors can authorize once the session is up. Vault items on this identity stay available either way.",
+          }
+      : null,
   );
+  return null;
 }
 
 /* ======================================================= authorized services */
@@ -950,12 +951,57 @@ function AutomaticService({
 function UnfinishedInbox({
   connections,
   providers,
+  onFlash,
+  onChanged,
 }: {
   connections: Connection[];
   providers: Provider[];
+  onFlash: (flash: Flash | null) => void;
+  onChanged: () => void;
 }) {
+  const [busy, setBusy] = useState<string | null>(null);
   const open = unfinishedConnections(connections);
   if (open.length === 0) return null;
+
+  // A panel headed "Needs you" used to answer with a link to another route —
+  // the exact failure the ceremony rule exists to prevent. Finishing an
+  // authorization is the same consent round trip the connection row already
+  // runs, so it runs here, where the problem was reported.
+  async function finish(connection: Connection) {
+    const popup = openConsentPopup("about:blank");
+    setBusy(connection.connectionId);
+    try {
+      await ensureHostSession();
+      const { authorizationUrl } = await authorizeConnection(
+        connection.connectionId,
+      );
+      if (popup) popup.location.href = authorizationUrl;
+      else window.location.href = authorizationUrl;
+      const outcome = await awaitConsent(connection.connectionId, popup);
+      if (outcome.result === "active") {
+        onFlash({
+          tone: "ok",
+          text: `${connection.displayName} is authorized.`,
+        });
+      } else if (outcome.result === "failed") {
+        onFlash({
+          tone: "err",
+          text:
+            outcome.connection.statusDetail ??
+            "The provider refused the authorization.",
+        });
+      } else {
+        onFlash({ tone: "warn", text: "Authorization was not completed." });
+      }
+      onChanged();
+    } catch (error) {
+      popup?.close();
+      onFlash({ tone: "err", text: errorText(error) });
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <section className="panel" aria-labelledby="conn-inbox-title">
       <div className="panel__head">
@@ -982,14 +1028,25 @@ function UnfinishedInbox({
                 <span className={`chip ${VERB_CHIP[verb]}`}>
                   {VERB_LABEL[verb]}
                 </span>
-                <Link
+                <button
+                  type="button"
                   className="btn btn--sm btn--primary"
+                  disabled={busy !== null}
+                  aria-busy={busy === connection.connectionId}
+                  onClick={() => void finish(connection)}
+                >
+                  {busy === connection.connectionId
+                    ? "Authorizing…"
+                    : "Finish authorization"}
+                </button>
+                <Link
+                  className="btn btn--sm btn--ghost"
                   to={connectorPath(
                     connection.providerId,
                     connection.connectionId,
                   )}
                 >
-                  Fix
+                  Details
                 </Link>
               </div>
             </li>

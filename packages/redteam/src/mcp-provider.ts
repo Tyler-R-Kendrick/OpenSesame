@@ -137,6 +137,9 @@ export default class McpHostStructuralProvider {
         ...processEnvStrings(),
         ...(vars.env ?? {}),
       };
+      env.NODE_OPTIONS = [env.NODE_OPTIONS, "--disable-warning=DEP0205"]
+        .filter(Boolean)
+        .join(" ");
       if (mock) {
         env.OPENSESAME_SERVER = mock.url;
         env.OPENSESAME_DAEMON_URL = mock.url;
