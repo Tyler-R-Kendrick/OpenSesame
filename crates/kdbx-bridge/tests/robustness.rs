@@ -54,23 +54,24 @@ fn unknown_secondary_id() -> Vec<u8> {
     bytes
 }
 
-#[test]
-fn malformed_inputs_are_classified_and_never_panic() {
-    let valid = build_weak_bytes();
+type MalformedCase = (&'static str, Vec<u8>, Option<&'static str>, Class);
 
-    let mut header_flipped = valid.clone();
+fn malformed_cases(valid: &[u8]) -> Vec<MalformedCase> {
+    let mut header_flipped = valid.to_vec();
     header_flipped[20] ^= 0xff;
 
-    let mut body_flipped = valid.clone();
+    let mut body_flipped = valid.to_vec();
     let middle = body_flipped.len() / 2;
     body_flipped[middle] ^= 0xff;
 
-    let mut trailing_junk = valid.clone();
-    trailing_junk.extend_from_slice(&[0xaa; 512]);
-
-    let cases: Vec<(&str, Vec<u8>, Option<&str>, Class)> = vec![
+    vec![
         ("empty", Vec::new(), Some(FIXTURE_PASSWORD), Class::NotKdbx),
-        ("one byte", vec![0x03], Some(FIXTURE_PASSWORD), Class::NotKdbx),
+        (
+            "one byte",
+            vec![0x03],
+            Some(FIXTURE_PASSWORD),
+            Class::NotKdbx,
+        ),
         (
             "bad magic",
             vec![0xff; 4096],
@@ -86,9 +87,9 @@ fn malformed_inputs_are_classified_and_never_panic() {
         (
             "signature plus zeros",
             {
-                let mut b = vec![0x03, 0xd9, 0xa2, 0x9a];
-                b.extend_from_slice(&[0u8; 64]);
-                b
+                let mut bytes = vec![0x03, 0xd9, 0xa2, 0x9a];
+                bytes.extend_from_slice(&[0u8; 64]);
+                bytes
             },
             Some(FIXTURE_PASSWORD),
             Class::Unsupported,
@@ -143,14 +144,27 @@ fn malformed_inputs_are_classified_and_never_panic() {
         ),
         (
             "wrong password",
-            valid.clone(),
+            valid.to_vec(),
             Some("wrong"),
             Class::Locked,
         ),
-        ("no credentials", valid.clone(), None, Class::MissingCredentials),
-    ];
+        (
+            "no credentials",
+            valid.to_vec(),
+            None,
+            Class::MissingCredentials,
+        ),
+    ]
+}
 
-    for (name, bytes, password, expected) in cases {
+#[test]
+fn malformed_inputs_are_classified_and_never_panic() {
+    let valid = build_weak_bytes();
+
+    let mut trailing_junk = valid.clone();
+    trailing_junk.extend_from_slice(&[0xaa; 512]);
+
+    for (name, bytes, password, expected) in malformed_cases(&valid) {
         let result = map_kdbx(&bytes, password, None, None);
         let err = match result {
             Ok((items, _)) => panic!("{name}: expected an error, mapped {} items", items.len()),
@@ -184,7 +198,7 @@ fn every_truncation_of_a_real_database_is_handled() {
 fn arbitrary_bytes_with_a_valid_signature_never_panic() {
     for seed in 0u8..64 {
         let mut bytes = vec![0x03, 0xd9, 0xa2, 0x9a];
-        bytes.extend((0..512u32).map(|i| (i as u8).wrapping_mul(seed.wrapping_add(1))));
+        bytes.extend((0..512u32).map(|i| i.to_le_bytes()[0].wrapping_mul(seed.wrapping_add(1))));
         let _ = map_kdbx(&bytes, Some("x"), None, None);
         let _ = map_kdbx(&bytes, None, Some(&bytes.clone()), None);
     }

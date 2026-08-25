@@ -23,7 +23,10 @@
 //! — there is no path that pairs a client without a person saying yes.
 
 use std::fs;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +39,10 @@ pub const ENV_BRIDGES_DIR: &str = "OPENSESAME_BRIDGES_DIR";
 pub const ASSOCIATION_FIELDS: [&str; 4] = ["id", "name", "id_key", "created_at"];
 
 /// Directory holding bridge pairing files.
+///
+/// # Errors
+///
+/// Returns an error when no user configuration directory is available.
 pub fn bridges_dir() -> Result<PathBuf, BridgeError> {
     if let Some(dir) = std::env::var_os(ENV_BRIDGES_DIR).filter(|v| !v.is_empty()) {
         return Ok(PathBuf::from(dir));
@@ -65,6 +72,7 @@ pub struct Association {
 
 impl Association {
     /// Short, human-comparable fingerprint of the public identification key.
+    #[must_use]
     pub fn fingerprint(&self) -> String {
         key_fingerprint(&self.id_key)
     }
@@ -84,12 +92,14 @@ fn one() -> u32 {
 }
 
 impl PairingFile {
+    #[must_use]
     pub fn find(&self, id: &str, id_key: &str) -> Option<&Association> {
         self.associations
             .iter()
             .find(|a| a.id == id && a.id_key == id_key)
     }
 
+    #[must_use]
     pub fn find_by_key(&self, id_key: &str) -> Option<&Association> {
         self.associations.iter().find(|a| a.id_key == id_key)
     }
@@ -103,11 +113,19 @@ impl PairingFile {
 }
 
 /// Path of the pairing file for `bridge` (e.g. `"keepassxc"`).
+///
+/// # Errors
+///
+/// Returns an error when the bridge configuration directory cannot be resolved.
 pub fn pairing_path(bridge: &str) -> Result<PathBuf, BridgeError> {
     Ok(bridges_dir()?.join(format!("{bridge}.json")))
 }
 
 /// Read the pairing file; a missing file is an empty one.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be read or contains malformed JSON.
 pub fn load_pairings(bridge: &str) -> Result<PairingFile, BridgeError> {
     let path = pairing_path(bridge)?;
     if !path.exists() {
@@ -122,6 +140,10 @@ pub fn load_pairings(bridge: &str) -> Result<PairingFile, BridgeError> {
 }
 
 /// Write the pairing file, creating the directory if needed.
+///
+/// # Errors
+///
+/// Returns an error when the pairing state cannot be serialized or written.
 pub fn save_pairings(bridge: &str, file: &PairingFile) -> Result<(), BridgeError> {
     let path = pairing_path(bridge)?;
     if let Some(parent) = path.parent() {
@@ -147,6 +169,7 @@ fn restrict_permissions(_path: &Path) {}
 ///
 /// `A1B2:C3D4:E5F6:0708` — eight bytes of SHA-256, which is plenty for a
 /// person eyeballing a one-time pairing prompt.
+#[must_use]
 pub fn key_fingerprint(key_b64: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
@@ -203,6 +226,11 @@ pub struct PairingWindow {
 }
 
 impl PairingWindow {
+    /// Resolve the pairing-window file for `bridge`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the bridge configuration directory cannot be resolved.
     pub fn for_bridge(bridge: &str) -> Result<Self, BridgeError> {
         Ok(Self {
             path: bridges_dir()?.join(format!("{bridge}-pairing.json")),
@@ -213,6 +241,7 @@ impl PairingWindow {
         Self { path: path.into() }
     }
 
+    #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -233,13 +262,17 @@ impl PairingWindow {
         }
         let json = serde_json::to_vec_pretty(file)
             .map_err(|e| BridgeError::Store(format!("unserializable pairing window: {e}")))?;
-        fs::write(&self.path, json)?;
+        write_window_file(&self.path, &json)?;
         restrict_permissions(&self.path);
         Ok(())
     }
 
     /// Open a window valid for `ttl_secs` from `now`. Overwrites any leftover
     /// state — a new ceremony always starts clean.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the window state cannot be written.
     pub fn open(&self, now: u64, ttl_secs: u64) -> Result<(), BridgeError> {
         self.write(&WindowFile {
             state: "open".into(),
@@ -250,6 +283,10 @@ impl PairingWindow {
     }
 
     /// Record an incoming client key. Only legal while a window is open.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when no window is open or its state cannot be read or written.
     pub fn request(&self, now: u64, fingerprint: &str, name: &str) -> Result<(), BridgeError> {
         match self.state(now)? {
             WindowState::Open { expires_at } => self.write(&WindowFile {
@@ -263,6 +300,10 @@ impl PairingWindow {
     }
 
     /// The human confirms the pending request.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when no request is pending or its state cannot be read or written.
     pub fn confirm(&self, now: u64) -> Result<(), BridgeError> {
         match self.state(now)? {
             WindowState::Requested {
@@ -280,6 +321,10 @@ impl PairingWindow {
     }
 
     /// The human rejects the pending request (or closes the window early).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the rejection state cannot be written.
     pub fn reject(&self) -> Result<(), BridgeError> {
         self.write(&WindowFile {
             state: "rejected".into(),
@@ -290,6 +335,10 @@ impl PairingWindow {
     }
 
     /// Remove the window file entirely.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when an existing window file cannot be removed.
     pub fn close(&self) -> Result<(), BridgeError> {
         match fs::remove_file(&self.path) {
             Ok(()) => Ok(()),
@@ -299,6 +348,10 @@ impl PairingWindow {
     }
 
     /// Current state, applying expiry at `now`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when persisted window state cannot be read or parsed.
     pub fn state(&self, now: u64) -> Result<WindowState, BridgeError> {
         let Some(file) = self.read()? else {
             return Ok(WindowState::Closed);
@@ -325,6 +378,34 @@ impl PairingWindow {
     }
 }
 
+#[cfg(unix)]
+fn write_window_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+    let sequence = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let temporary = path.with_extension(format!("tmp-{}-{sequence}", std::process::id()));
+    let result = (|| {
+        let mut output = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&temporary)?;
+        output.write_all(contents)?;
+        output.sync_all()?;
+        fs::rename(&temporary, path)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+
+#[cfg(not(unix))]
+fn write_window_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {
+    fs::write(path, contents)
+}
+
 /// Run `f` with [`ENV_BRIDGES_DIR`] pointed at a fresh tempdir.
 ///
 /// The env var is process-global, so every test that touches the pairing
@@ -332,7 +413,9 @@ impl PairingWindow {
 #[cfg(test)]
 pub(crate) fn with_bridges_dir<T>(f: impl FnOnce() -> T) -> T {
     static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _guard = LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let dir = tempfile::tempdir().expect("tempdir");
     std::env::set_var(ENV_BRIDGES_DIR, dir.path());
     let out = f();
@@ -385,6 +468,34 @@ mod tests {
                 name: "firefox".into(),
             }
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn concurrent_window_reads_never_observe_partial_json() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+
+        let (_directory, window) = window();
+        window.open(100, 60).unwrap();
+        let writer_window = window.clone();
+        let finished = Arc::new(AtomicBool::new(false));
+        let writer_finished = Arc::clone(&finished);
+        let writer = std::thread::spawn(move || {
+            let name = "browser".repeat(512);
+            for _ in 0..128 {
+                writer_window.open(100, 60).unwrap();
+                writer_window.request(100, "AAAA:BBBB", &name).unwrap();
+                std::thread::yield_now();
+            }
+            writer_finished.store(true, Ordering::Release);
+        });
+
+        while !finished.load(Ordering::Acquire) {
+            window.state(100).expect("window JSON remains complete");
+            std::thread::yield_now();
+        }
+        writer.join().unwrap();
     }
 
     #[test]
@@ -494,7 +605,12 @@ mod tests {
             let raw = fs::read_to_string(pairing_path("keepassxc").unwrap()).unwrap();
             let value: serde_json::Value = serde_json::from_str(&raw).unwrap();
             let entry = &value["associations"][0];
-            let keys: Vec<&str> = entry.as_object().unwrap().keys().map(|k| k.as_str()).collect();
+            let keys: Vec<&str> = entry
+                .as_object()
+                .unwrap()
+                .keys()
+                .map(std::string::String::as_str)
+                .collect();
             for key in &keys {
                 assert!(
                     ASSOCIATION_FIELDS.contains(key),

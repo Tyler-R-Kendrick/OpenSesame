@@ -99,10 +99,10 @@ macro_rules! organization_or_return {
     };
 }
 
-fn actor_of(who: &Caller) -> Option<String> {
+fn actor_of(who: &Caller) -> &str {
     match who {
-        Caller::Operator => Some("operator".into()),
-        Caller::Session { subject, .. } => Some(subject.clone()),
+        Caller::Operator => "operator",
+        Caller::Session { subject, .. } => subject,
     }
 }
 
@@ -216,7 +216,7 @@ pub async fn create(
                 environment: body.environment,
                 parent_config_id: body.parent_config_id,
             },
-            actor_of(&who).as_deref(),
+            Some(actor_of(&who)),
         )
         .await
     {
@@ -271,7 +271,7 @@ pub async fn delete(
     let organization_id = organization_or_return!(&st, &who, &headers);
     match st
         .connection_broker
-        .delete_secret_config(&organization_id.to_string(), &id, actor_of(&who).as_deref())
+        .delete_secret_config(&organization_id.to_string(), &id, Some(actor_of(&who)))
         .await
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
@@ -297,7 +297,7 @@ pub async fn put_secrets(
             &organization_id.to_string(),
             &id,
             &body.secrets,
-            actor_of(&who).as_deref(),
+            Some(actor_of(&who)),
         )
         .await
     {
@@ -359,7 +359,7 @@ pub async fn delete_secret(
             &organization_id.to_string(),
             &id,
             &key,
-            actor_of(&who).as_deref(),
+            Some(actor_of(&who)),
         )
         .await
     {
@@ -429,7 +429,7 @@ pub async fn rollback(
             &id,
             &key,
             body.to_version,
-            actor_of(&who).as_deref(),
+            Some(actor_of(&who)),
         )
         .await
     {
@@ -532,7 +532,7 @@ pub async fn branch(
                 environment: parent.environment,
                 parent_config_id: Some(parent.id),
             },
-            actor_of(&who).as_deref(),
+            Some(actor_of(&who)),
         )
         .await
     {

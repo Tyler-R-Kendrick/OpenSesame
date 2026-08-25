@@ -10,7 +10,7 @@ use crate::BridgeError;
 /// Version string reported to the extension.
 ///
 /// The extension gates features on the peer's version string, so this has to
-/// be a KeePassXC version number rather than an OpenSesame one. 2.7.0 is the
+/// be a `KeePassXC` version number rather than an `OpenSesame` one. 2.7.0 is the
 /// floor at which every action this bridge implements exists.
 pub const PROTOCOL_VERSION: &str = "2.7.0";
 
@@ -60,11 +60,13 @@ pub enum ErrorCode {
 }
 
 impl ErrorCode {
+    #[must_use]
     pub fn code(self) -> u16 {
         self as u16
     }
 
     /// A short, non-secret explanation. Never derived from entry contents.
+    #[must_use]
     pub fn message(self) -> &'static str {
         match self {
             ErrorCode::DatabaseNotOpened => "Database not opened",
@@ -89,7 +91,7 @@ impl ErrorCode {
 #[serde(default)]
 pub struct Envelope {
     pub action: String,
-    /// Base64 NaCl box. Absent on `change-public-keys`, `generate-password`,
+    /// Base64 `NaCl` box. Absent on `change-public-keys`, `generate-password`,
     /// and on unencrypted error replies.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
@@ -110,6 +112,10 @@ pub struct Envelope {
 }
 
 /// Parse an envelope, rejecting anything that is not a JSON object.
+///
+/// # Errors
+///
+/// Returns an error for oversized, malformed, or non-object JSON input.
 pub fn parse_envelope(bytes: &[u8]) -> Result<Envelope, BridgeError> {
     if bytes.len() > MAX_INNER_BYTES {
         return Err(BridgeError::Protocol("envelope too large".into()));
@@ -123,11 +129,12 @@ pub fn parse_envelope(bytes: &[u8]) -> Result<Envelope, BridgeError> {
         .map_err(|e| BridgeError::Protocol(format!("malformed envelope: {e}")))
 }
 
-/// Build the unencrypted error reply KeePassXC sends on a rejected request.
+/// Build the unencrypted error reply `KeePassXC` sends on a rejected request.
 ///
 /// `errorCode` is a **string** on the wire — that is what the extension
 /// parses, and matching it exactly is the difference between a useful error
 /// and a hung extension.
+#[must_use]
 pub fn error_reply(action: &str, code: ErrorCode, nonce: Option<&str>) -> Value {
     let mut value = json!({
         "action": action,
@@ -141,6 +148,10 @@ pub fn error_reply(action: &str, code: ErrorCode, nonce: Option<&str>) -> Value 
 }
 
 /// Decode base64 with a length expectation.
+///
+/// # Errors
+///
+/// Returns an error for invalid base64 or an unexpected decoded length.
 pub fn decode_b64(value: &str, expected_len: Option<usize>) -> Result<Vec<u8>, BridgeError> {
     let bytes = B64
         .decode(value.trim())
@@ -156,19 +167,21 @@ pub fn decode_b64(value: &str, expected_len: Option<usize>) -> Result<Vec<u8>, B
     Ok(bytes)
 }
 
+#[must_use]
 pub fn encode_b64(bytes: &[u8]) -> String {
     B64.encode(bytes)
 }
 
 /// Increment a 24-byte nonce as a little-endian integer, with carry.
 ///
-/// This is libsodium's `sodium_increment`, which is what both KeePassXC and
+/// This is libsodium's `sodium_increment`, which is what both `KeePassXC` and
 /// the extension use to derive a reply nonce. Wrapping past all-ones is
 /// mathematically correct and, at 2^192 messages, unreachable.
+#[must_use]
 pub fn increment_nonce(nonce: &[u8]) -> Vec<u8> {
     let mut out = nonce.to_vec();
     let mut carry: u16 = 1;
-    for byte in out.iter_mut() {
+    for byte in &mut out {
         carry += u16::from(*byte);
         *byte = (carry & 0xff) as u8;
         carry >>= 8;
@@ -177,6 +190,10 @@ pub fn increment_nonce(nonce: &[u8]) -> Vec<u8> {
 }
 
 /// Increment a base64 nonce, validating its width.
+///
+/// # Errors
+///
+/// Returns an error when the nonce is invalid base64 or is not 24 bytes.
 pub fn increment_nonce_b64(nonce_b64: &str) -> Result<String, BridgeError> {
     let bytes = decode_b64(nonce_b64, Some(NONCE_LEN))?;
     Ok(encode_b64(&increment_nonce(&bytes)))
@@ -241,8 +258,9 @@ mod tests {
 
     #[test]
     fn parses_an_envelope_and_rejects_junk() {
-        let env = parse_envelope(br#"{"action":"associate","message":"m","nonce":"n","clientID":"c"}"#)
-            .unwrap();
+        let env =
+            parse_envelope(br#"{"action":"associate","message":"m","nonce":"n","clientID":"c"}"#)
+                .unwrap();
         assert_eq!(env.action, "associate");
         assert_eq!(env.message.as_deref(), Some("m"));
         assert_eq!(env.client_id.as_deref(), Some("c"));

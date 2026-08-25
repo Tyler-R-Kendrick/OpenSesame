@@ -5,7 +5,7 @@
 //! Both real topologies are driven end to end:
 //! * **vaultwarden** — one origin, `/identity` + `/api`, Argon2id, user key
 //!   only on the sync profile;
-//! * **bitwarden.com** — two *separate* servers (identity and api), PascalCase
+//! * **bitwarden.com** — two *separate* servers (identity and api), `PascalCase`
 //!   payloads, PBKDF2, user key on the token response.
 
 mod common;
@@ -142,7 +142,10 @@ async fn the_server_only_ever_sees_the_master_password_hash() {
     let expected = shape
         .master_key()
         .password_hash_b64(shape.master_password().as_bytes());
-    assert_eq!(sent, expected, "the wire value must be the master password hash");
+    assert_eq!(
+        sent, expected,
+        "the wire value must be the master password hash"
+    );
     for body in [&prelogin.body, &token.body] {
         assert!(
             !body.contains(shape.master_password()),
@@ -150,8 +153,14 @@ async fn the_server_only_ever_sees_the_master_password_hash() {
         );
         assert!(!body.contains("correct+horse"), "form-encoded leak: {body}");
     }
-    assert_eq!(form_value(&token.body, "grant_type").as_deref(), Some("password"));
-    assert_eq!(form_value(&token.body, "scope").as_deref(), Some("api offline_access"));
+    assert_eq!(
+        form_value(&token.body, "grant_type").as_deref(),
+        Some("password")
+    );
+    assert_eq!(
+        form_value(&token.body, "scope").as_deref(),
+        Some("api offline_access")
+    );
     assert!(form_value(&token.body, "deviceIdentifier").is_some());
     assert!(form_value(&token.body, "deviceType").is_some());
 }
@@ -238,7 +247,10 @@ async fn read_returns_a_password_and_list_stays_secret_free() {
         .await
         .expect("unlock");
 
-    assert_eq!(&*client.read("Work/GitHub").await.unwrap(), "s3cr3t-github-password");
+    assert_eq!(
+        &*client.read("Work/GitHub").await.unwrap(),
+        "s3cr3t-github-password"
+    );
     assert_eq!(&*client.read("Router").await.unwrap(), "admin-password");
     assert_eq!(
         &*client.read(common::LOGIN_ID).await.unwrap(),
@@ -252,7 +264,10 @@ async fn read_returns_a_password_and_list_stays_secret_free() {
         !listing.contains("s3cr3t-github-password"),
         "listings must never carry a password: {listing}"
     );
-    assert!(!listing.contains("4815"), "hidden fields must not leak: {listing}");
+    assert!(
+        !listing.contains("4815"),
+        "hidden fields must not leak: {listing}"
+    );
     insta::assert_snapshot!("vaultwarden_listing", listing);
 }
 
@@ -294,7 +309,10 @@ async fn trashed_and_organization_items_are_counted_not_guessed_at() {
     let vault = client.vault().await.unwrap();
     assert_eq!(vault.skipped_deleted, 1);
     assert_eq!(vault.skipped_organization, 1);
-    assert_eq!(vault.password("Old thing").unwrap_err().code(), "item_not_found");
+    assert_eq!(
+        vault.password("Old thing").unwrap_err().code(),
+        "item_not_found"
+    );
     assert_eq!(
         vault.password("Shared deploy key").unwrap_err().code(),
         "item_not_found"
@@ -380,18 +398,27 @@ fn cloud_server_urls_expand_to_the_split_hosts() {
     }
     let eu = Endpoints::from_server_url("https://vault.bitwarden.eu").unwrap();
     assert_eq!(eu.api_base().as_str(), "https://api.bitwarden.eu/");
-    assert_eq!(eu.identity_base().as_str(), "https://identity.bitwarden.eu/");
+    assert_eq!(
+        eu.identity_base().as_str(),
+        "https://identity.bitwarden.eu/"
+    );
 }
 
 #[test]
 fn self_hosted_server_urls_mount_api_and_identity_under_the_origin() {
     let endpoints = Endpoints::from_server_url("https://vault.example.com/").unwrap();
-    assert_eq!(endpoints.api_base().as_str(), "https://vault.example.com/api");
+    assert_eq!(
+        endpoints.api_base().as_str(),
+        "https://vault.example.com/api"
+    );
     assert_eq!(
         endpoints.identity_base().as_str(),
         "https://vault.example.com/identity"
     );
-    assert_eq!(endpoints.pinned_hosts(), vec!["vault.example.com".to_owned()]);
+    assert_eq!(
+        endpoints.pinned_hosts(),
+        vec!["vault.example.com".to_owned()]
+    );
 }
 
 #[test]

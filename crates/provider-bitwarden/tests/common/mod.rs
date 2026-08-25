@@ -19,7 +19,7 @@ use serde_json::{json, Value};
 /// The two server topologies this client must drive.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shape {
-    /// bitwarden.com: separate api / identity hosts, PascalCase payloads,
+    /// `bitwarden.com`: separate api / identity hosts, `PascalCase` payloads,
     /// PBKDF2, user key delivered on the token response.
     Cloud,
     /// vaultwarden: one origin with `/api` and `/identity`, camelCase
@@ -80,7 +80,9 @@ impl Shape {
             Shape::Cloud => 3,
             Shape::Vaultwarden => 29,
         };
-        (0u8..64).map(|i| i.wrapping_mul(seed).wrapping_add(11)).collect()
+        (0u8..64)
+            .map(|i| i.wrapping_mul(seed).wrapping_add(11))
+            .collect()
     }
 
     pub fn user_key(self) -> SymmetricKey {
@@ -88,12 +90,8 @@ impl Shape {
     }
 
     pub fn master_key(self) -> MasterKey {
-        MasterKey::derive(
-            self.master_password().as_bytes(),
-            self.email(),
-            &self.kdf(),
-        )
-        .expect("fixture KDF parameters are valid")
+        MasterKey::derive(self.master_password().as_bytes(), self.email(), &self.kdf())
+            .expect("fixture KDF parameters are valid")
     }
 }
 
@@ -124,7 +122,7 @@ fn enc(key: &SymmetricKey, ivs: &mut Ivs, plaintext: &str) -> String {
         .to_string()
 }
 
-/// Recursively PascalCase every object key — the shape older Bitwarden
+/// Recursively `PascalCase` every object key — the shape older Bitwarden
 /// servers emit, and the reason every response struct carries aliases.
 fn pascalize(value: &Value) -> Value {
     match value {
@@ -155,6 +153,10 @@ pub const COSE_ID: &str = "77777777-7777-4777-8777-777777777777";
 
 /// Build every fixture payload for a shape, from the shape's own key
 /// material. Regenerating is deterministic: same bytes in, same bytes out.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the declarative fixture catalog is clearer as one auditable wire-format specimen"
+)]
 pub fn build_fixtures(shape: Shape) -> BTreeMap<&'static str, Value> {
     let master = shape.master_key();
     let user_key = shape.user_key();
@@ -355,6 +357,59 @@ pub struct Hit {
 
 pub type Route = (u16, String);
 
+async fn respond(
+    req: hyper::Request<hyper::body::Incoming>,
+    routes: Arc<BTreeMap<String, Route>>,
+    hits: Arc<Mutex<Vec<Hit>>>,
+) -> Result<hyper::Response<Full<Bytes>>, std::convert::Infallible> {
+    use http_body_util::BodyExt;
+
+    let method = req.method().to_string();
+    let path = req.uri().path().to_string();
+    let query = req.uri().query().map(str::to_string);
+    let authorization = req
+        .headers()
+        .get("authorization")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_string);
+    let body = req
+        .into_body()
+        .collect()
+        .await
+        .map(|collected| String::from_utf8_lossy(&collected.to_bytes()).into_owned())
+        .unwrap_or_default();
+    hits.lock().unwrap().push(Hit {
+        method,
+        path: path.clone(),
+        query,
+        authorization,
+        body,
+    });
+    let (status, body) = routes
+        .get(&path)
+        .cloned()
+        .unwrap_or_else(|| (404, r#"{"message":"no such route"}"#.to_owned()));
+    let response = hyper::Response::builder()
+        .status(status)
+        .header("content-type", "application/json");
+    let response = match status {
+        301..=308 => response.header("location", "https://evil.example.com/"),
+        _ => response,
+    };
+    Ok(response.body(Full::new(Bytes::from(body))).unwrap())
+}
+
+async fn serve_connection(
+    io: TokioIo<tokio::net::TcpStream>,
+    routes: Arc<BTreeMap<String, Route>>,
+    hits: Arc<Mutex<Vec<Hit>>>,
+) {
+    let service = service_fn(move |req| respond(req, routes.clone(), hits.clone()));
+    let _ = hyper::server::conn::http1::Builder::new()
+        .serve_connection(io, service)
+        .await;
+}
+
 /// A loopback HTTP stub serving a fixed path→(status, body) table and
 /// recording every hit. Any path not in the table answers 404, which is how
 /// "the client called the wrong endpoint" shows up as a test failure rather
@@ -373,53 +428,7 @@ pub async fn spawn_stub(routes: BTreeMap<String, Route>) -> (String, Arc<Mutex<V
             let io = TokioIo::new(stream);
             let routes = routes.clone();
             let hits = hits_task.clone();
-            tokio::spawn(async move {
-                let service = service_fn(move |req: hyper::Request<hyper::body::Incoming>| {
-                    let routes = routes.clone();
-                    let hits = hits.clone();
-                    async move {
-                        use http_body_util::BodyExt;
-                        let method = req.method().to_string();
-                        let path = req.uri().path().to_string();
-                        let query = req.uri().query().map(str::to_string);
-                        let authorization = req
-                            .headers()
-                            .get("authorization")
-                            .and_then(|v| v.to_str().ok())
-                            .map(str::to_string);
-                        let body = req
-                            .into_body()
-                            .collect()
-                            .await
-                            .map(|c| String::from_utf8_lossy(&c.to_bytes()).into_owned())
-                            .unwrap_or_default();
-                        hits.lock().unwrap().push(Hit {
-                            method,
-                            path: path.clone(),
-                            query,
-                            authorization,
-                            body,
-                        });
-                        let (status, body) = routes
-                            .get(&path)
-                            .cloned()
-                            .unwrap_or_else(|| (404, r#"{"message":"no such route"}"#.to_owned()));
-                        let response = hyper::Response::builder()
-                            .status(status)
-                            .header("content-type", "application/json");
-                        let response = match status {
-                            301..=308 => response.header("location", "https://evil.example.com/"),
-                            _ => response,
-                        };
-                        Ok::<_, std::convert::Infallible>(
-                            response.body(Full::new(Bytes::from(body))).unwrap(),
-                        )
-                    }
-                });
-                let _ = hyper::server::conn::http1::Builder::new()
-                    .serve_connection(io, service)
-                    .await;
-            });
+            tokio::spawn(serve_connection(io, routes, hits));
         }
     });
     (format!("http://127.0.0.1:{}", addr.port()), hits)
@@ -437,7 +446,10 @@ pub fn vaultwarden_routes() -> BTreeMap<String, Route> {
             "/identity/connect/token".to_owned(),
             (200, load_fixture(shape, "token.json")),
         ),
-        ("/api/sync".to_owned(), (200, load_fixture(shape, "sync.json"))),
+        (
+            "/api/sync".to_owned(),
+            (200, load_fixture(shape, "sync.json")),
+        ),
         (
             "/api/config".to_owned(),
             (200, load_fixture(shape, "config.json")),

@@ -57,7 +57,9 @@ struct Server {
 
 impl Server {
     fn start() -> Self {
-        let guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let fixture = Fixture::new();
         std::env::set_var("OPENSESAME_BRIDGES_DIR", fixture.config.path());
 
@@ -76,12 +78,7 @@ impl Server {
                 host_keys: opensesame_pm_bridges::keepassxc::crypto::HostKeys::generate(),
             },
         );
-        let thread = std::thread::spawn(move || {
-            for stream in listener.incoming() {
-                let Ok(mut stream) = stream else { break };
-                let _ = serve_uds_connection(&mut session, &mut stream);
-            }
-        });
+        let thread = std::thread::spawn(move || serve_connections(&listener, &mut session));
 
         Self {
             socket,
@@ -101,35 +98,42 @@ impl Server {
     /// fingerprint, then answer.
     fn spawn_human(&self, confirm: bool) -> std::thread::JoinHandle<Option<String>> {
         let window = self.window.clone();
-        std::thread::spawn(move || {
-            let deadline = Instant::now() + Duration::from_secs(10);
-            loop {
-                match window.state(now_unix()) {
-                    Ok(WindowState::Requested { fingerprint, .. }) => {
-                        if confirm {
-                            window.confirm(now_unix()).expect("confirm");
-                        } else {
-                            window.reject().expect("reject");
-                        }
-                        return Some(fingerprint);
-                    }
-                    _ => {
-                        if Instant::now() > deadline {
-                            return None;
-                        }
-                        std::thread::sleep(Duration::from_millis(5));
-                    }
-                }
-            }
-        })
+        std::thread::spawn(move || answer_pairing_request(&window, confirm))
     }
 }
 
-/// The extension's half of the protocol, with real NaCl boxes.
+fn serve_connections(listener: &std::os::unix::net::UnixListener, session: &mut Session) {
+    for stream in listener.incoming() {
+        let Ok(mut stream) = stream else {
+            break;
+        };
+        let _ = serve_uds_connection(session, &mut stream);
+    }
+}
+
+fn answer_pairing_request(window: &PairingWindow, confirm: bool) -> Option<String> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Ok(WindowState::Requested { fingerprint, .. }) = window.state(now_unix()) {
+            if confirm {
+                window.confirm(now_unix()).expect("confirm");
+            } else {
+                window.reject().expect("reject");
+            }
+            return Some(fingerprint);
+        }
+        if Instant::now() > deadline {
+            return None;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+/// The extension's half of the protocol, with real `NaCl` boxes.
 struct Client {
     stream: UnixStream,
-    client_id: String,
-    client_public: String,
+    id: String,
+    public: String,
     secret: ClientSecretKey,
     session: Option<SessionBox>,
     id_key: String,
@@ -142,13 +146,13 @@ impl Client {
         stream
             .set_read_timeout(Some(Duration::from_secs(10)))
             .expect("read timeout");
-        let (secret, client_public) = generate_client_keys();
+        let (secret, public) = generate_client_keys();
         // The identification key is a *separate*, persistent keypair.
         let (_id_secret, id_key) = generate_client_keys();
         Self {
             stream,
-            client_id: random_nonce_b64(),
-            client_public,
+            id: random_nonce_b64(),
+            public,
             secret,
             session: None,
             id_key,
@@ -181,13 +185,14 @@ impl Client {
         let nonce = random_nonce_b64();
         let response = self.send(&json!({
             "action": "change-public-keys",
-            "publicKey": self.client_public,
+            "publicKey": self.public,
             "nonce": nonce,
-            "clientID": self.client_id,
+            "clientID": self.id,
         }));
         assert_eq!(response["success"], "true", "response: {response}");
         assert_eq!(
-            response["nonce"], increment_nonce_b64(&nonce).unwrap(),
+            response["nonce"],
+            increment_nonce_b64(&nonce).unwrap(),
             "the reply must use the incremented nonce"
         );
         let host_public = response["publicKey"].as_str().expect("host publicKey");
@@ -198,17 +203,17 @@ impl Client {
     /// Send an encrypted action and return `(outer, inner)`.
     ///
     /// `inner` is `None` when the server answered with an unencrypted error.
-    fn action(&mut self, action: &str, inner: Value) -> (Value, Option<Value>) {
+    fn action(&mut self, action: &str, inner: &Value) -> (Value, Option<Value>) {
         let nonce = random_nonce_b64();
         let session = self.session.as_ref().expect("handshake first");
         let sealed = session
-            .seal(&serde_json::to_vec(&inner).unwrap(), &nonce)
+            .seal(&serde_json::to_vec(inner).unwrap(), &nonce)
             .expect("seal");
         let outer = self.send(&json!({
             "action": action,
             "message": sealed,
             "nonce": nonce,
-            "clientID": self.client_id,
+            "clientID": self.id,
         }));
         if outer.get("errorCode").is_some() {
             return (outer, None);
@@ -233,7 +238,7 @@ impl Client {
         let outer = self.send(&json!({
             "action": action,
             "nonce": nonce,
-            "clientID": self.client_id,
+            "clientID": self.id,
             "requestID": "abcd1234",
         }));
         if outer.get("errorCode").is_some() {
@@ -247,7 +252,10 @@ impl Client {
             .unwrap()
             .open(outer["message"].as_str().unwrap(), reply_nonce)
             .expect("open reply");
-        (outer.clone(), Some(serde_json::from_slice(&plaintext).unwrap()))
+        (
+            outer.clone(),
+            Some(serde_json::from_slice(&plaintext).unwrap()),
+        )
     }
 
     fn keys(&self) -> Value {
@@ -278,7 +286,7 @@ fn associate_is_refused_while_no_pairing_window_is_open() {
 
     let (outer, inner) = client.action(
         "associate",
-        json!({ "action": "associate", "key": client.client_public, "idKey": client.id_key }),
+        &json!({ "action": "associate", "key": client.public, "idKey": client.id_key }),
     );
     assert!(inner.is_none(), "an unpaired associate must not succeed");
     assert_eq!(outer["errorCode"], "6");
@@ -299,9 +307,12 @@ fn associate_is_refused_when_the_human_says_no() {
     let human = server.spawn_human(false);
     let (outer, inner) = client.action(
         "associate",
-        json!({ "action": "associate", "key": client.client_public, "idKey": client.id_key }),
+        &json!({ "action": "associate", "key": client.public, "idKey": client.id_key }),
     );
-    assert!(human.join().unwrap().is_some(), "the bridge posted a fingerprint");
+    assert!(
+        human.join().unwrap().is_some(),
+        "the bridge posted a fingerprint"
+    );
     assert!(inner.is_none());
     assert_eq!(outer["errorCode"], "6");
 }
@@ -316,7 +327,7 @@ fn associate_is_refused_when_the_echoed_session_key_is_wrong() {
     let (_other_secret, other_public) = generate_client_keys();
     let (outer, inner) = client.action(
         "associate",
-        json!({ "action": "associate", "key": other_public, "idKey": client.id_key }),
+        &json!({ "action": "associate", "key": other_public, "idKey": client.id_key }),
     );
     assert!(inner.is_none());
     assert_eq!(outer["errorCode"], "8");
@@ -332,7 +343,15 @@ fn the_full_paired_journey() {
     let server = Server::start();
     let mut client = server.connect();
 
-    // 1. Key exchange.
+    establish_pairing(&server, &mut client);
+    let uuid = verify_fixture_login(&mut client);
+    verify_totp(&mut client, &uuid);
+    verify_generated_password_and_groups(&mut client);
+    save_and_refind_login(&mut client);
+    lock_store_and_verify_refusal(&mut client);
+}
+
+fn establish_pairing(server: &Server, client: &mut Client) {
     let handshake = client.change_public_keys();
     insta::assert_json_snapshot!("change_public_keys", handshake, {
         ".publicKey" => "[host-public-key]",
@@ -340,9 +359,9 @@ fn the_full_paired_journey() {
         ".clientID" => "[client-id]",
     });
 
-    // 2. The database hash is available before pairing (the extension asks
-    //    for it to decide whether it already knows this database).
-    let (_outer, hash) = client.action("get-databasehash", json!({ "action": "get-databasehash" }));
+    // The extension asks for the database hash before pairing to recognize it.
+    let (_outer, hash) =
+        client.action("get-databasehash", &json!({ "action": "get-databasehash" }));
     let hash = hash.expect("hash reply");
     assert_eq!(hash["action"], "hash");
     insta::assert_json_snapshot!("get_databasehash", hash, {
@@ -350,12 +369,11 @@ fn the_full_paired_journey() {
         ".nonce" => "[nonce]",
     });
 
-    // 3. Pairing ceremony.
     server.window.open(now_unix(), 60).unwrap();
     let human = server.spawn_human(true);
-    let (_outer, associate) = client.action(
+    let (outer, associate) = client.action(
         "associate",
-        json!({ "action": "associate", "key": client.client_public, "idKey": client.id_key }),
+        &json!({ "action": "associate", "key": client.public, "idKey": client.id_key }),
     );
     let fingerprint = human.join().unwrap().expect("the human saw a fingerprint");
     assert_eq!(
@@ -363,7 +381,7 @@ fn the_full_paired_journey() {
         opensesame_pm_bridges::pairing::key_fingerprint(&client.id_key),
         "the human confirms the fingerprint of the key that actually arrived"
     );
-    let associate = associate.expect("associate reply");
+    let associate = associate.unwrap_or_else(|| panic!("associate reply: {outer}"));
     assert_eq!(associate["success"], "true");
     client.association_id = associate["id"].as_str().map(str::to_string);
     insta::assert_json_snapshot!("associate", associate, {
@@ -371,15 +389,13 @@ fn the_full_paired_journey() {
         ".nonce" => "[nonce]",
     });
 
-    // Only public material was written.
     let stored = opensesame_pm_bridges::pairing::load_pairings(BRIDGE_NAME).unwrap();
     assert_eq!(stored.associations.len(), 1);
     assert_eq!(stored.associations[0].id_key, client.id_key);
 
-    // 4. test-associate.
     let (_outer, tested) = client.action(
         "test-associate",
-        json!({
+        &json!({
             "action": "test-associate",
             "id": client.association_id,
             "key": client.id_key,
@@ -392,11 +408,12 @@ fn the_full_paired_journey() {
         ".nonce" => "[nonce]",
         ".id" => "[association-id]",
     });
+}
 
-    // 5. get-logins for a URL the fixture entry claims via its `url:` trailer.
+fn verify_fixture_login(client: &mut Client) -> String {
     let (_outer, logins) = client.action(
         "get-logins",
-        json!({
+        &json!({
             "action": "get-logins",
             "url": "https://login.example.com/signin",
             "keys": client.keys(),
@@ -412,9 +429,11 @@ fn the_full_paired_journey() {
         ".hash" => "[database-hash]",
         ".nonce" => "[nonce]",
     });
+    uuid
+}
 
-    // 6. get-totp for that entry.
-    let (_outer, totp) = client.action("get-totp", json!({ "action": "get-totp", "uuid": uuid }));
+fn verify_totp(client: &mut Client, uuid: &str) {
+    let (_outer, totp) = client.action("get-totp", &json!({ "action": "get-totp", "uuid": uuid }));
     let totp = totp.expect("get-totp reply");
     let code = totp["totp"].as_str().expect("totp");
     assert_eq!(code.len(), 6);
@@ -423,8 +442,9 @@ fn the_full_paired_journey() {
         ".totp" => "[totp]",
         ".nonce" => "[nonce]",
     });
+}
 
-    // 7. generate-password carries no encrypted request message.
+fn verify_generated_password_and_groups(client: &mut Client) {
     let (_outer, generated) = client.bare_action("generate-password");
     let generated = generated.expect("generate-password reply");
     assert_eq!(generated["password"].as_str().unwrap().len(), 24);
@@ -433,10 +453,9 @@ fn the_full_paired_journey() {
         ".nonce" => "[nonce]",
     });
 
-    // 8. get-database-groups.
     let (_outer, groups) = client.action(
         "get-database-groups",
-        json!({ "action": "get-database-groups" }),
+        &json!({ "action": "get-database-groups" }),
     );
     let groups = groups.expect("groups reply");
     assert_eq!(groups["groups"][0]["children"][0]["name"], "Dev");
@@ -445,11 +464,12 @@ fn the_full_paired_journey() {
         ".groups[0].uuid" => "[uuid]",
         ".groups[0].children[].uuid" => "[uuid]",
     });
+}
 
-    // 9. set-login writes a new entry under the bridge's own group.
+fn save_and_refind_login(client: &mut Client) {
     let (_outer, saved) = client.action(
         "set-login",
-        json!({
+        &json!({
             "action": "set-login",
             "url": "https://new.example/login",
             "login": "bob",
@@ -466,7 +486,7 @@ fn the_full_paired_journey() {
 
     let (_outer, refound) = client.action(
         "get-logins",
-        json!({
+        &json!({
             "action": "get-logins",
             "url": "https://new.example/",
             "keys": client.keys(),
@@ -475,18 +495,21 @@ fn the_full_paired_journey() {
     let refound = refound.expect("get-logins reply");
     assert_eq!(refound["entries"][0]["login"], "bob");
     assert_eq!(refound["entries"][0]["password"], "s3kr1t");
-    assert_eq!(refound["entries"][0]["name"], "keepassxc-browser/new.example/bob");
+    assert_eq!(
+        refound["entries"][0]["name"],
+        "keepassxc-browser/new.example/bob"
+    );
+}
 
-    // 10. lock-database answers with the protocol's documented "not opened"
-    //     error and really does close the store.
-    let (_outer, locked) = client.action("lock-database", json!({ "action": "lock-database" }));
+fn lock_store_and_verify_refusal(client: &mut Client) {
+    let (_outer, locked) = client.action("lock-database", &json!({ "action": "lock-database" }));
     let locked = locked.expect("lock reply");
     assert_eq!(locked["errorCode"], 1);
     insta::assert_json_snapshot!("lock_database", locked, { ".nonce" => "[nonce]" });
 
     let (outer, inner) = client.action(
         "get-logins",
-        json!({
+        &json!({
             "action": "get-logins",
             "url": "https://login.example.com/",
             "keys": client.keys(),
@@ -511,14 +534,17 @@ fn an_unassociated_client_is_refused_every_store_action() {
             "set-login",
             json!({ "action": "set-login", "url": "https://x.example", "login": "a", "password": "b" }),
         ),
-        ("get-totp", json!({ "action": "get-totp", "uuid": "deadbeef" })),
+        (
+            "get-totp",
+            json!({ "action": "get-totp", "uuid": "deadbeef" }),
+        ),
         (
             "get-database-groups",
             json!({ "action": "get-database-groups" }),
         ),
         ("lock-database", json!({ "action": "lock-database" })),
     ] {
-        let (outer, decrypted) = client.action(action, inner);
+        let (outer, decrypted) = client.action(action, &inner);
         assert!(decrypted.is_none(), "{action} answered an unpaired client");
         assert_eq!(outer["errorCode"], "8", "{action}: {outer}");
     }
@@ -526,7 +552,7 @@ fn an_unassociated_client_is_refused_every_store_action() {
     // A forged key that names no stored association is refused too.
     let (outer, decrypted) = client.action(
         "get-logins",
-        json!({
+        &json!({
             "action": "get-logins",
             "url": "https://login.example.com/",
             "keys": [{ "id": "made-up", "key": "AAAA" }],
@@ -543,7 +569,7 @@ fn passkeys_actions_answer_not_supported() {
     client.change_public_keys();
 
     for action in ["passkeys-get", "passkeys-register"] {
-        let (outer, inner) = client.action(action, json!({ "action": action }));
+        let (outer, inner) = client.action(action, &json!({ "action": action }));
         assert!(inner.is_none());
         assert_eq!(outer["errorCode"], "12", "{action}");
         assert_eq!(outer["action"], action);
@@ -570,7 +596,7 @@ fn malformed_traffic_is_answered_not_crashed() {
         "action": "get-databasehash",
         "message": "AAAAAAAAAAAAAAAAAAAAAAAA",
         "nonce": random_nonce_b64(),
-        "clientID": client.client_id,
+        "clientID": client.id,
     }));
     assert_eq!(response["errorCode"], "4");
 
@@ -579,7 +605,7 @@ fn malformed_traffic_is_answered_not_crashed() {
         "action": "get-databasehash",
         "message": "AAAA",
         "nonce": "AAAA",
-        "clientID": client.client_id,
+        "clientID": client.id,
     }));
     assert_eq!(response["errorCode"], "4");
 
@@ -587,7 +613,7 @@ fn malformed_traffic_is_answered_not_crashed() {
     let response = client.send(&json!({
         "action": "make-me-a-sandwich",
         "nonce": random_nonce_b64(),
-        "clientID": client.client_id,
+        "clientID": client.id,
     }));
     assert_eq!(response["errorCode"], "12");
 
@@ -597,7 +623,8 @@ fn malformed_traffic_is_answered_not_crashed() {
     assert_eq!(response["errorCode"], "4");
 
     // The connection is still usable afterwards.
-    let (_outer, hash) = client.action("get-databasehash", json!({ "action": "get-databasehash" }));
+    let (_outer, hash) =
+        client.action("get-databasehash", &json!({ "action": "get-databasehash" }));
     assert!(hash.is_some());
 }
 
@@ -609,7 +636,10 @@ fn nonces_are_the_documented_width_and_always_increment() {
 
     for _ in 0..3 {
         let nonce = random_nonce_b64();
-        assert_eq!(decode_b64(&nonce, Some(NONCE_LEN)).unwrap().len(), NONCE_LEN);
+        assert_eq!(
+            decode_b64(&nonce, Some(NONCE_LEN)).unwrap().len(),
+            NONCE_LEN
+        );
         let session = client.session.as_ref().unwrap();
         let sealed = session
             .seal(br#"{"action":"get-databasehash"}"#, &nonce)
@@ -618,9 +648,9 @@ fn nonces_are_the_documented_width_and_always_increment() {
             "action": "get-databasehash",
             "message": sealed,
             "nonce": nonce,
-            "clientID": client.client_id,
+            "clientID": client.id,
         }));
         assert_eq!(outer["nonce"], increment_nonce_b64(&nonce).unwrap());
-        assert_eq!(outer["clientID"], client.client_id);
+        assert_eq!(outer["clientID"], client.id);
     }
 }

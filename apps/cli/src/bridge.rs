@@ -25,7 +25,7 @@ use std::time::{Duration, Instant};
 
 use clap::{Subcommand, ValueEnum};
 use opensesame_pm_bridges::conflict::{keepassxc_socket_path, probe_unix_socket, SocketState};
-use opensesame_pm_bridges::manifest::{self, Browser, BridgeKind};
+use opensesame_pm_bridges::manifest::{self, BridgeKind, Browser};
 use opensesame_pm_bridges::now_unix;
 use opensesame_pm_bridges::pairing::{
     load_pairings, save_pairings, PairingWindow, WindowState, DEFAULT_WINDOW_SECS,
@@ -133,7 +133,7 @@ pub enum KeepassxcCmd {
     },
     /// Run the unix-socket server a stock `keepassxc-proxy` dials.
     Serve {
-        /// Socket to bind; defaults to the KeePassXC convention.
+        /// Socket to bind; defaults to the `KeePassXC` convention.
         #[arg(long)]
         socket: Option<PathBuf>,
         /// Remove a *verified-dead* socket first. Never a live one.
@@ -185,7 +185,10 @@ fn install(
     if print {
         let json = manifest::render_manifest(bridge, browser, &binary)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        println!("{}", manifest::manifest_path(bridge, browser, &home).display());
+        println!(
+            "{}",
+            manifest::manifest_path(bridge, browser, &home).display()
+        );
         print!("{json}");
         return Ok(());
     }
@@ -195,8 +198,8 @@ fn install(
             binary.display()
         );
     }
-    let installed = manifest::install(bridge, browser, &home, &binary)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let installed =
+        manifest::install(bridge, browser, &home, &binary).map_err(|e| anyhow::anyhow!("{e}"))?;
     println!(
         "installed {} → {}",
         installed.host_name,
@@ -240,7 +243,10 @@ fn status() -> anyhow::Result<()> {
     }
 
     let socket = keepassxc_socket_path();
-    println!("keepassxc socket: {}", probe_unix_socket(&socket).diagnostic(&socket));
+    println!(
+        "keepassxc socket: {}",
+        probe_unix_socket(&socket).diagnostic(&socket)
+    );
 
     let pairings = load_pairings(KEEPASSXC_BRIDGE).map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("keepassxc pairings: {}", pairings.associations.len());
@@ -250,9 +256,11 @@ fn status() -> anyhow::Result<()> {
 fn keepassxc(cmd: KeepassxcCmd) -> anyhow::Result<()> {
     match cmd {
         KeepassxcCmd::Pair { timeout, yes } => pair(timeout, yes),
-        KeepassxcCmd::InstallNativeHost { browser, bin, print } => {
-            install(BridgeKind::KeepassXc, browser.into(), bin, print)
-        }
+        KeepassxcCmd::InstallNativeHost {
+            browser,
+            bin,
+            print,
+        } => install(BridgeKind::KeepassXc, browser.into(), bin, print),
         KeepassxcCmd::Serve {
             socket,
             takeover,
@@ -279,7 +287,10 @@ fn pair(timeout_secs: u64, assume_yes: bool) -> anyhow::Result<()> {
 
     let deadline = Instant::now() + Duration::from_secs(timeout_secs + 2);
     let fingerprint = loop {
-        match window.state(now_unix()).map_err(|e| anyhow::anyhow!("{e}"))? {
+        match window
+            .state(now_unix())
+            .map_err(|e| anyhow::anyhow!("{e}"))?
+        {
             WindowState::Requested { fingerprint, .. } => break fingerprint,
             WindowState::Expired | WindowState::Closed => {
                 let _ = window.close();
@@ -330,7 +341,10 @@ fn prompt_yes_no(prompt: &str) -> anyhow::Result<bool> {
     let _ = io::stderr().flush();
     let mut line = String::new();
     io::stdin().read_line(&mut line)?;
-    Ok(matches!(line.trim().to_ascii_lowercase().as_str(), "y" | "yes"))
+    Ok(matches!(
+        line.trim().to_ascii_lowercase().as_str(),
+        "y" | "yes"
+    ))
 }
 
 /// Run the bridge binary's UDS server as a child process.
@@ -404,7 +418,9 @@ mod tests {
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     fn with_bridges_dir<T>(f: impl FnOnce(&std::path::Path) -> T) -> T {
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let dir = tempfile::tempdir().unwrap();
         std::env::set_var("OPENSESAME_BRIDGES_DIR", dir.path());
         let out = f(dir.path());
@@ -432,7 +448,10 @@ mod tests {
     #[test]
     fn arg_enums_map_onto_the_bridge_types() {
         assert_eq!(BridgeKind::from(BridgeArg::Gopass), BridgeKind::Gopass);
-        assert_eq!(BridgeKind::from(BridgeArg::Keepassxc), BridgeKind::KeepassXc);
+        assert_eq!(
+            BridgeKind::from(BridgeArg::Keepassxc),
+            BridgeKind::KeepassXc
+        );
         assert_eq!(
             BridgeKind::from(BridgeArg::Browserpass),
             BridgeKind::Browserpass

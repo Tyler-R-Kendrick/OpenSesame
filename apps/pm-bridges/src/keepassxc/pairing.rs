@@ -1,7 +1,7 @@
 //! The `associate` approval ceremony and the association store lookups.
 //!
 //! `associate` is the one moment a new caller identity is admitted, so it is
-//! the one moment a human must be in the loop (C2(b)). Real KeePassXC shows a
+//! the one moment a human must be in the loop (C2(b)). Real `KeePassXC` shows a
 //! dialog; a headless bridge cannot, so approval is brokered through the
 //! shared pairing-window file:
 //!
@@ -45,6 +45,10 @@ pub enum Approval {
 /// Ask for approval of `id_key`, blocking until the human decides.
 ///
 /// `sleep` is injected so tests drive the loop without real time passing.
+///
+/// # Errors
+///
+/// Returns an error when the pairing window cannot be read or updated.
 pub fn request_approval(
     window: &PairingWindow,
     id_key_b64: &str,
@@ -55,7 +59,9 @@ pub fn request_approval(
     match window.state(now_unix())? {
         WindowState::Open { .. } => {}
         WindowState::Requested { .. } => {
-            return Ok(Approval::Denied("another pairing request is already pending"))
+            return Ok(Approval::Denied(
+                "another pairing request is already pending",
+            ))
         }
         _ => return Ok(Approval::Denied("no pairing window is open")),
     }
@@ -80,7 +86,9 @@ pub fn request_approval(
                 };
                 return Ok(Approval::Granted { name });
             }
-            WindowState::Rejected => return Ok(Approval::Denied("the pairing request was rejected")),
+            WindowState::Rejected => {
+                return Ok(Approval::Denied("the pairing request was rejected"))
+            }
             WindowState::Expired | WindowState::Closed => {
                 return Ok(Approval::Denied("the pairing window closed"))
             }
@@ -94,6 +102,10 @@ pub fn request_approval(
 }
 
 /// Persist a newly approved client and return the association.
+///
+/// # Errors
+///
+/// Returns an error when pairing state cannot be read or written.
 pub fn persist_association(name: &str, id_key_b64: &str) -> Result<Association, BridgeError> {
     let mut file = load_pairings(BRIDGE_NAME)?;
     let association = Association {
@@ -108,6 +120,7 @@ pub fn persist_association(name: &str, id_key_b64: &str) -> Result<Association, 
 }
 
 /// A stable, human-legible id that does not collide with an existing one.
+#[must_use]
 pub fn allocate_id(file: &PairingFile, name: &str) -> String {
     let base: String = name
         .chars()
@@ -133,11 +146,19 @@ pub fn allocate_id(file: &PairingFile, name: &str) -> String {
 }
 
 /// Does `(id, key)` name a stored association?
+///
+/// # Errors
+///
+/// Returns an error when pairing state cannot be read or parsed.
 pub fn verify(id: &str, id_key_b64: &str) -> Result<Option<Association>, BridgeError> {
     Ok(load_pairings(BRIDGE_NAME)?.find(id, id_key_b64).cloned())
 }
 
 /// Does any of the `keys` the client offered name a stored association?
+///
+/// # Errors
+///
+/// Returns an error when pairing state cannot be read or parsed.
 pub fn verify_any(keys: &[(String, String)]) -> Result<Option<Association>, BridgeError> {
     let file = load_pairings(BRIDGE_NAME)?;
     Ok(keys
@@ -214,7 +235,8 @@ mod tests {
     fn a_racing_second_client_cannot_ride_an_open_request() {
         let (_d, w) = window();
         w.open(now_unix(), 60).unwrap();
-        w.request(now_unix(), &key_fingerprint(KEY), "firefox").unwrap();
+        w.request(now_unix(), &key_fingerprint(KEY), "firefox")
+            .unwrap();
         assert_eq!(
             request_approval(&w, "OTHER-KEY", "chrome", |_| {}).unwrap(),
             Approval::Denied("another pairing request is already pending")
@@ -265,12 +287,18 @@ mod tests {
     fn persist_and_verify_round_trip() {
         crate::pairing::with_bridges_dir(|| {
             let association = persist_association("firefox", KEY).unwrap();
-            assert_eq!(verify(&association.id, KEY).unwrap(), Some(association.clone()));
+            assert_eq!(
+                verify(&association.id, KEY).unwrap(),
+                Some(association.clone())
+            );
             assert_eq!(verify(&association.id, "other").unwrap(), None);
             assert_eq!(verify("nope", KEY).unwrap(), None);
             assert_eq!(
-                verify_any(&[("nope".into(), "x".into()), (association.id.clone(), KEY.into())])
-                    .unwrap(),
+                verify_any(&[
+                    ("nope".into(), "x".into()),
+                    (association.id.clone(), KEY.into())
+                ])
+                .unwrap(),
                 Some(association)
             );
             assert_eq!(verify_any(&[]).unwrap(), None);

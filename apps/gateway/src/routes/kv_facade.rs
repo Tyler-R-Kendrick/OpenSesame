@@ -1,9 +1,9 @@
-//! HashiCorp Vault **KV v2 read facade** (ops plane, default off).
+//! `HashiCorp` Vault **KV v2 read facade** (ops plane, default off).
 //!
 //! Dozens of operations tools speak Vault's KV v2 HTTP API natively — External
 //! Secrets Operator, the Terraform Vault provider, Vault Agent, CI plugins.
 //! `crates/provider-openbao` is already the *client* half of that protocol;
-//! this is the serving half, so those tools can read from OpenSesame without a
+//! this is the serving half, so those tools can read from `OpenSesame` without a
 //! bespoke integration.
 //!
 //! ## What it is, and what it deliberately is not
@@ -16,23 +16,23 @@
 //!   / `connection_events` rows (ADR 0032), read through the broker's own public
 //!   API. No table, no migration, and no second copy of anything is added here.
 //! * **Reference-first.** `secret/connections/{name}` yields the same
-//!   reference-only view `GET /api/v1/connections/{id}` yields: a ConnectionRef,
+//!   reference-only view `GET /api/v1/connections/{id}` yields: a `ConnectionRef`,
 //!   the provider, the status, and the *names* of configured fields. An External
 //!   Secrets `ExternalSecret` pointed at it materialises a Kubernetes Secret
-//!   holding a ConnectionRef — which is the whole product thesis (ADR 0005),
+//!   holding a `ConnectionRef` — which is the whole product thesis (ADR 0005),
 //!   not a workaround. `secret/materialize/{name}` is the only path that can
 //!   carry credential bytes, and only ever provider-minted short-lived ones,
 //!   and only where the connection's materialization policy already says
 //!   `derived_short_lived` (ADR 0049). A `deny` connection answers `403`.
 //! * **Ops plane, never agent plane.** This surface is reachable only over the
 //!   gateway's HTTP listener with an operator or session token; it has no
-//!   ConnectionRef entry point, no MCP tool, and no WIT import. It is the
+//!   `ConnectionRef` entry point, no MCP tool, and no WIT import. It is the
 //!   human/ops-plane exception, and it pays for that with a receipt.
 //! * **Receipted.** Every successful read signs and persists an
 //!   [`InvocationReceipt`] before the body is returned, and returns its id in
 //!   `X-OpenSesame-Receipt`. If the receipt cannot be recorded the read is
 //!   refused (`503`) rather than served unaccountably — no receipt, no read.
-//!   Receipt summaries carry counts and a ConnectionRef, never key names or
+//!   Receipt summaries carry counts and a `ConnectionRef`, never key names or
 //!   values, so a receipt can never become the leak the read avoided.
 //! * **Default off.** `OPENSESAME_KV_FACADE` gates the whole route group in
 //!   [`crate::routes::router`]; with it unset the routes are not mounted, so a
@@ -138,7 +138,7 @@ pub fn routes() -> Router<AppState> {
 
 // ---- Vault-shaped responses ------------------------------------------------
 
-fn vault_error<S: serde::Serialize>(status: StatusCode, errors: Vec<S>) -> Response {
+fn vault_error<S: serde::Serialize>(status: StatusCode, errors: &[S]) -> Response {
     (status, Json(json!({ "errors": errors }))).into_response()
 }
 
@@ -188,7 +188,7 @@ fn vault_caller(st: &AppState, headers: &HeaderMap) -> Result<Caller, Response> 
     let Some(raw) = headers.get(VAULT_TOKEN_HEADER) else {
         return Err(vault_error(
             StatusCode::BAD_REQUEST,
-            vec!["missing client token"],
+            &["missing client token"],
         ));
     };
     let Ok(token) = raw.to_str() else {
@@ -198,7 +198,7 @@ fn vault_caller(st: &AppState, headers: &HeaderMap) -> Result<Caller, Response> 
     if token.is_empty() {
         return Err(vault_error(
             StatusCode::BAD_REQUEST,
-            vec!["missing client token"],
+            &["missing client token"],
         ));
     }
     let mut mapped = HeaderMap::new();
@@ -216,7 +216,7 @@ fn vault_caller(st: &AppState, headers: &HeaderMap) -> Result<Caller, Response> 
 }
 
 fn permission_denied() -> Response {
-    vault_error(StatusCode::FORBIDDEN, vec!["permission denied"])
+    vault_error(StatusCode::FORBIDDEN, &["permission denied"])
 }
 
 // ---- handlers --------------------------------------------------------------
@@ -434,7 +434,7 @@ async fn materialized_data(
     if view.materialization != MaterializationPolicy::DerivedShortLived {
         return Err(vault_error(
             StatusCode::FORBIDDEN,
-            vec![
+            &[
                 "connection policy denies materialization (ADR 0049); set materialization to \
                  derived_short_lived to mint a short-lived derived credential",
             ],
@@ -458,7 +458,7 @@ async fn materialized_data(
             // is the broker's hint, which is written to be caller-safe.
             let status = StatusCode::from_u16(error.http_status())
                 .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-            vault_error(status, vec![error.hint()])
+            vault_error(status, &[error.hint()])
         })?;
     let mut data = Map::new();
     data.insert("connection_ref".into(), json!(view.connection_ref));
@@ -479,7 +479,7 @@ fn current_version(events: &[EventView]) -> u64 {
     events.len().max(1) as u64
 }
 
-fn envelope(data: Value) -> Value {
+fn envelope(data: &Value) -> Value {
     json!({
         "request_id": uuid::Uuid::new_v4().to_string(),
         "lease_id": "",
@@ -499,7 +499,7 @@ pub fn data_envelope(
     events: &[EventView],
     data: Map<String, Value>,
 ) -> Value {
-    envelope(json!({
+    envelope(&json!({
         "data": Value::Object(data),
         "metadata": {
             "created_time": view.created_at,
@@ -535,7 +535,7 @@ pub fn metadata_envelope(view: &ConnectionView, events: &[EventView]) -> Value {
             }),
         );
     }
-    envelope(json!({
+    envelope(&json!({
         "cas_required": false,
         "created_time": view.created_at,
         "current_version": current_version(events),
@@ -623,15 +623,14 @@ async fn emit_receipt(
         Caller::Session { subject, .. } => parse_principal(subject)
             .or_else(|| boot.as_ref().map(|b| b.principal))
             .unwrap_or_else(|| PrincipalId::from_uuid(uuid::Uuid::nil())),
-        Caller::Operator => boot
-            .as_ref()
-            .map(|b| b.principal)
-            .unwrap_or_else(|| PrincipalId::from_uuid(uuid::Uuid::nil())),
+        Caller::Operator => boot.as_ref().map_or_else(
+            || PrincipalId::from_uuid(uuid::Uuid::nil()),
+            |b| b.principal,
+        ),
     };
     let actor_id = boot
         .as_ref()
-        .map(|b| b.actor)
-        .unwrap_or_else(|| ActorId::from_uuid(uuid::Uuid::nil()));
+        .map_or_else(|| ActorId::from_uuid(uuid::Uuid::nil()), |b| b.actor);
     let now = Utc::now();
     let intent = Intent {
         id: IntentId::new(),
@@ -715,22 +714,32 @@ async fn emit_receipt(
         return Err(receipt_unavailable());
     }
     let id = receipt.id;
-    st.db
-        .insert_intent(&intent)
-        .await
-        .map_err(receipt_storage_failure)?;
-    st.db
-        .insert_invocation(&invocation)
-        .await
-        .map_err(receipt_storage_failure)?;
-    st.db
-        .insert_receipt(&receipt)
-        .await
-        .map_err(receipt_storage_failure)?;
+    persist_read_receipt(st, intent, invocation, receipt).await?;
     Ok(id)
 }
 
-fn receipt_storage_failure(error: anyhow::Error) -> Response {
+async fn persist_read_receipt(
+    st: &AppState,
+    intent: Intent,
+    invocation: Invocation,
+    receipt: opensesame_domain::InvocationReceipt,
+) -> Result<(), Response> {
+    st.db
+        .insert_intent(&intent)
+        .await
+        .map_err(|error| receipt_storage_failure(&error))?;
+    st.db
+        .insert_invocation(&invocation)
+        .await
+        .map_err(|error| receipt_storage_failure(&error))?;
+    st.db
+        .insert_receipt(&receipt)
+        .await
+        .map_err(|error| receipt_storage_failure(&error))?;
+    Ok(())
+}
+
+fn receipt_storage_failure(error: &anyhow::Error) -> Response {
     // Storage errors can echo identifiers; redact before they reach a log.
     tracing::error!(
         error = %opensesame_redaction::redact_text(&error.to_string()),
@@ -742,7 +751,7 @@ fn receipt_storage_failure(error: anyhow::Error) -> Response {
 fn receipt_unavailable() -> Response {
     vault_error(
         StatusCode::SERVICE_UNAVAILABLE,
-        vec!["read refused: the receipt for this read could not be recorded"],
+        &["read refused: the receipt for this read could not be recorded"],
     )
 }
 

@@ -26,6 +26,7 @@ use opensesame_provider_bitwarden::{MasterKey, Session, SymmetricKey, Vault};
 struct DebugProbe<'a, T>(#[allow(dead_code)] &'a T);
 impl<T: std::fmt::Debug> DebugProbe<'_, T> {
     fn is_debug(&self) -> bool {
+        let _ = self;
         true
     }
 }
@@ -39,6 +40,7 @@ impl<T> NotDebug for DebugProbe<'_, T> {}
 struct SerializeProbe<'a, T>(#[allow(dead_code)] &'a T);
 impl<T: serde::Serialize> SerializeProbe<'_, T> {
     fn is_serialize(&self) -> bool {
+        let _ = self;
         true
     }
 }
@@ -86,7 +88,12 @@ fn key_material_is_neither_debug_nor_serialize() {
 
 #[test]
 fn a_session_is_never_serializable_so_it_cannot_be_persisted() {
-    let session = Session::new(&token(3600), key(), Duration::from_secs(900), SystemTime::now());
+    let session = Session::new(
+        &token(3600),
+        key(),
+        Duration::from_secs(900),
+        SystemTime::now(),
+    );
     assert!(
         !SerializeProbe(&session).is_serialize(),
         "Session must not implement Serialize — there is no on-disk session by design"
@@ -99,9 +106,16 @@ fn a_session_is_never_serializable_so_it_cannot_be_persisted() {
 
 #[test]
 fn session_debug_redacts_tokens_and_keys() {
-    let session = Session::new(&token(3600), key(), Duration::from_secs(900), SystemTime::now());
+    let session = Session::new(
+        &token(3600),
+        key(),
+        Duration::from_secs(900),
+        SystemTime::now(),
+    );
     let rendered = format!("{session:?}");
     assert!(rendered.contains("redacted"), "{rendered}");
+    assert!(rendered.contains("token_expires_at"), "{rendered}");
+    assert!(rendered.contains("expires_at"), "{rendered}");
     assert!(!rendered.contains("access-token"), "{rendered}");
     assert!(!rendered.contains("refresh-token"), "{rendered}");
 }
@@ -132,7 +146,10 @@ fn the_ttl_is_a_hard_wall_even_for_a_long_lived_token() {
 fn refreshing_replaces_the_token_without_extending_the_session() {
     let start = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
     let mut session = Session::new(&token(60), key(), Duration::from_secs(900), start);
-    assert!(session.needs_refresh_at(start), "60s token is inside the skew");
+    assert!(
+        session.needs_refresh_at(start),
+        "60s token is inside the skew"
+    );
 
     let refreshed = serde_json::from_value::<TokenResponse>(serde_json::json!({
         "access_token": "second-access-token",
@@ -141,7 +158,10 @@ fn refreshing_replaces_the_token_without_extending_the_session() {
     }))
     .unwrap();
     session.adopt(&refreshed, start);
-    assert_eq!(session.access_token_at(start).unwrap(), "second-access-token");
+    assert_eq!(
+        session.access_token_at(start).unwrap(),
+        "second-access-token"
+    );
     assert_eq!(session.refresh_token(), Some("second-refresh-token"));
     assert!(!session.needs_refresh_at(start));
 
@@ -165,11 +185,19 @@ fn a_refresh_without_a_new_refresh_token_keeps_the_old_one() {
 
 #[test]
 fn expire_now_drops_the_session_immediately() {
-    let mut session = Session::new(&token(3600), key(), Duration::from_secs(900), SystemTime::now());
+    let mut session = Session::new(
+        &token(3600),
+        key(),
+        Duration::from_secs(900),
+        SystemTime::now(),
+    );
     assert!(!session.is_expired());
     session.expire_now();
     assert!(session.is_expired());
-    assert_eq!(session.access_token().unwrap_err().code(), "session_expired");
+    assert_eq!(
+        session.access_token().unwrap_err().code(),
+        "session_expired"
+    );
 }
 
 #[test]

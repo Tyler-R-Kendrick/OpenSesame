@@ -119,8 +119,12 @@ pub struct GcOutcome {
 fn now_unix_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
+        .map(|duration| saturating_millis(duration.as_millis()))
         .unwrap_or(0)
+}
+
+fn saturating_millis(millis: u128) -> u64 {
+    u64::try_from(millis).unwrap_or(u64::MAX)
 }
 
 /// Guess a content type from the extension alone. Never sniff content: the
@@ -150,6 +154,7 @@ fn mime_for(filename: &str) -> String {
 
 /// Strip a recorded filename down to something safe to use as a local output
 /// name. Returns `None` when nothing usable survives.
+#[must_use]
 pub fn sanitize_filename(filename: &str) -> Option<String> {
     let base = filename
         .rsplit(['/', '\\'])
@@ -243,6 +248,12 @@ impl StoreRoot {
     /// `total_bytes` must be the exact length of `source`; it fixes the chunk
     /// count, which is bound into every chunk's associated data and is what
     /// makes truncation detectable.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the path or metadata is invalid, the declared
+    /// length is unsupported or differs from the source, encryption fails, or
+    /// ciphertext and revision state cannot be written and committed.
     pub fn attach_add(
         &self,
         name: &str,
@@ -270,17 +281,21 @@ impl StoreRoot {
         let attachment_id = hex_lower(&id_bytes);
         let attachment_key = derive_attachment_key(key, &id_bytes);
 
-        let chunk_size = CHUNK_PLAINTEXT_BYTES as u64;
-        let chunk_count = total_bytes.div_ceil(chunk_size) as u32;
+        let chunk_size = u64::try_from(CHUNK_PLAINTEXT_BYTES)
+            .map_err(|_| StoreError::Crypto("chunk size exceeds the supported range".into()))?;
+        let chunk_count = chunk_count_for(total_bytes, chunk_size)?;
 
-        let mut chunks: Vec<ChunkRef> = Vec::with_capacity(chunk_count as usize);
+        let chunk_capacity = usize::try_from(chunk_count)
+            .map_err(|_| StoreError::Crypto("chunk count exceeds platform capacity".into()))?;
+        let mut chunks: Vec<ChunkRef> = Vec::with_capacity(chunk_capacity);
         let mut content = blake3::Hasher::new();
         let mut written: u64 = 0;
         let mut buffer = vec![0u8; CHUNK_PLAINTEXT_BYTES];
 
         for chunk_index in 0..chunk_count {
             let remaining = total_bytes - written;
-            let want = remaining.min(chunk_size) as usize;
+            let want = usize::try_from(remaining.min(chunk_size))
+                .map_err(|_| StoreError::Crypto("chunk length exceeds platform capacity".into()))?;
             read_exact_chunk(source, &mut buffer[..want])?;
             let plaintext = &buffer[..want];
             content.update(plaintext);
@@ -370,7 +385,10 @@ impl StoreRoot {
                 manifest.format
             )));
         }
-        if manifest.chunks.len() != manifest.chunk_count as usize {
+        let chunk_count = usize::try_from(manifest.chunk_count).map_err(|_| {
+            StoreError::Crypto("manifest chunk count exceeds platform capacity".into())
+        })?;
+        if manifest.chunks.len() != chunk_count {
             return Err(StoreError::Crypto("manifest chunk count mismatch".into()));
         }
         if manifest.filename.len() > MAX_FILENAME_BYTES {
@@ -384,6 +402,12 @@ impl StoreRoot {
     }
 
     /// Reassemble an attachment into `sink`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the manifest or chunk paths are invalid, stored
+    /// ciphertext is missing or inconsistent, authentication fails, or the
+    /// plaintext cannot be written to `sink`.
     pub fn attach_get(
         &self,
         name: &str,
@@ -413,11 +437,14 @@ impl StoreRoot {
                     "chunk {index} has unexpected ciphertext length"
                 )));
             }
+            let chunk_index = u32::try_from(index).map_err(|_| {
+                StoreError::Crypto("chunk index exceeds the supported range".into())
+            })?;
             let ad = ChunkAd {
                 envelope_version: ENVELOPE_VERSION,
                 attachment_id: manifest.attachment_id.clone(),
                 item_id: name.to_string(),
-                chunk_index: index as u32,
+                chunk_index,
                 chunk_count: manifest.chunk_count,
             };
             let plaintext = open_chunk(&attachment_key, &frame, &ad)
@@ -446,6 +473,10 @@ impl StoreRoot {
     }
 
     /// List attachment metadata, optionally filtered by logical-name prefix.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when attachment discovery or manifest validation fails.
     pub fn attach_ls(
         &self,
         prefix: Option<&str>,
@@ -453,10 +484,8 @@ impl StoreRoot {
     ) -> Result<Vec<AttachmentSummary>, StoreError> {
         let mut out = Vec::new();
         for name in self.attachment_names()? {
-            if let Some(prefix) = prefix {
-                if !name.starts_with(prefix) {
-                    continue;
-                }
+            if prefix.is_some_and(|prefix| !name.starts_with(prefix)) {
+                continue;
             }
             let manifest = self.open_manifest(&name, key)?;
             out.push(summary_of(&name, &manifest));
@@ -468,6 +497,12 @@ impl StoreRoot {
     /// Remove an attachment's manifest and reclaim whatever it alone held.
     ///
     /// This is not erasure: the ciphertext stays in git history.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the attachment does not exist, path-confined
+    /// removal or revision persistence fails, garbage collection cannot prove
+    /// an object is orphaned, or the Git auto-commit fails.
     pub fn attach_rm(&self, name: &str, key: &ItemDataKey) -> Result<(), StoreError> {
         let rel = attach_relative(name)?;
         if !self.path.join(&rel).exists() {
@@ -489,6 +524,11 @@ impl StoreRoot {
     }
 
     /// Reclaim chunk objects no manifest references.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any manifest cannot be authenticated, object
+    /// discovery or removal fails, or the Git auto-commit fails.
     pub fn attach_gc(&self, key: &ItemDataKey) -> Result<GcOutcome, StoreError> {
         let outcome = self.collect_garbage(key)?;
         if outcome.removed > 0 {
@@ -529,8 +569,7 @@ impl StoreRoot {
                 .and_then(|m| m.modified())
                 .ok()
                 .and_then(|m| now.duration_since(m).ok())
-                .map(|age| age.as_secs() >= GC_GRACE_SECONDS)
-                .unwrap_or(false);
+                .is_some_and(|age| age.as_secs() >= GC_GRACE_SECONDS);
             if !age_ok {
                 outcome.skipped_recent += 1;
                 continue;
@@ -546,6 +585,11 @@ impl StoreRoot {
     /// Returns `(relative path, absolute path)` pairs covering all manifests
     /// and all chunk objects. Orphans are included: they are ciphertext, and
     /// copying a few extra is cheaper than requiring a passphrase here.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when manifest or object discovery encounters an invalid
+    /// path or filesystem failure.
     pub fn attach_replication_units(&self) -> Result<Vec<(String, PathBuf)>, StoreError> {
         let mut units: Vec<(String, PathBuf)> = Vec::new();
         for name in self.attachment_names()? {
@@ -584,30 +628,56 @@ impl StoreRoot {
             if !shard.file_type().map_err(StoreError::Io)?.is_dir() {
                 continue;
             }
-            for object in std::fs::read_dir(shard.path()).map_err(StoreError::Io)? {
-                let object = object.map_err(StoreError::Io)?;
-                if !object.file_type().map_err(StoreError::Io)?.is_file() {
-                    continue;
-                }
-                let file_name = object.file_name();
-                let Some(file_name) = file_name.to_str() else {
-                    continue;
-                };
-                let Some(digest) = file_name.strip_suffix(&format!(".{CHUNK_EXT}")) else {
-                    continue;
-                };
-                if digest.len() != 64 || !digest.bytes().all(|b| b.is_ascii_hexdigit()) {
-                    continue;
-                }
-                let rel = PathBuf::from(OBJECTS_DIR)
-                    .join(shard.file_name())
-                    .join(file_name);
-                out.push((digest.to_ascii_lowercase(), rel));
-            }
+            collect_shard_objects(&shard, &mut out)?;
         }
         out.sort_by(|a, b| a.0.cmp(&b.0));
         Ok(out)
     }
+}
+
+fn chunk_count_for(total_bytes: u64, chunk_size: u64) -> Result<u32, StoreError> {
+    if chunk_size == 0 {
+        return Err(StoreError::Crypto("chunk size must be non-zero".into()));
+    }
+    u32::try_from(total_bytes.div_ceil(chunk_size))
+        .map_err(|_| StoreError::Crypto("attachment needs too many chunks".into()))
+}
+
+fn collect_shard_objects(
+    shard: &std::fs::DirEntry,
+    out: &mut Vec<(String, PathBuf)>,
+) -> Result<(), StoreError> {
+    for object in std::fs::read_dir(shard.path()).map_err(StoreError::Io)? {
+        let object = object.map_err(StoreError::Io)?;
+        if let Some(reference) = object_reference(shard, &object)? {
+            out.push(reference);
+        }
+    }
+    Ok(())
+}
+
+fn object_reference(
+    shard: &std::fs::DirEntry,
+    object: &std::fs::DirEntry,
+) -> Result<Option<(String, PathBuf)>, StoreError> {
+    if !object.file_type().map_err(StoreError::Io)?.is_file() {
+        return Ok(None);
+    }
+    let file_name = object.file_name();
+    let Some(file_name) = file_name.to_str() else {
+        return Ok(None);
+    };
+    let suffix = format!(".{CHUNK_EXT}");
+    let Some(digest) = file_name.strip_suffix(&suffix) else {
+        return Ok(None);
+    };
+    if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Ok(None);
+    }
+    let rel = PathBuf::from(OBJECTS_DIR)
+        .join(shard.file_name())
+        .join(file_name);
+    Ok(Some((digest.to_ascii_lowercase(), rel)))
 }
 
 fn summary_of(name: &str, manifest: &AttachmentManifest) -> AttachmentSummary {
@@ -654,7 +724,7 @@ fn collect_manifests(root: &Path, dir: &Path, out: &mut Vec<String>) -> Result<(
             .path()
             .parent()
             .and_then(|p| p.strip_prefix(root).ok())
-            .map(|p| p.to_path_buf())
+            .map(Path::to_path_buf)
             .unwrap_or_default();
         let logical = if rel_dir.as_os_str().is_empty() {
             stem.to_string()
@@ -677,7 +747,7 @@ fn read_exact_chunk(source: &mut dyn Read, buf: &mut [u8]) -> Result<(), StoreEr
                 ))
             }
             Ok(n) => filled += n,
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
             Err(e) => return Err(StoreError::Io(e)),
         }
     }
@@ -685,9 +755,11 @@ fn read_exact_chunk(source: &mut dyn Read, buf: &mut [u8]) -> Result<(), StoreEr
 }
 
 fn hex_lower(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
     for byte in bytes {
-        out.push_str(&format!("{byte:02x}"));
+        out.push(char::from(HEX[usize::from(byte >> 4)]));
+        out.push(char::from(HEX[usize::from(byte & 0x0f)]));
     }
     out
 }
@@ -722,7 +794,7 @@ mod pact {
         root.attach_add(
             name,
             &mut source,
-            bytes.len() as u64,
+            u64::try_from(bytes.len()).expect("fixture length fits u64"),
             AttachMeta {
                 filename: "scan.pdf".into(),
                 mime: None,
@@ -755,7 +827,9 @@ mod pact {
         .into_iter()
         .enumerate()
         {
-            let payload: Vec<u8> = (0..size).map(|n| (n % 251) as u8).collect();
+            let payload: Vec<u8> = (0..size)
+                .map(|n| u8::try_from(n % 251).expect("fixture byte fits u8"))
+                .collect();
             let name = format!("Taxes/doc{i}");
             add(&root, &key, &name, &payload);
             assert_eq!(get(&root, &key, &name).unwrap(), payload, "size {size}");
@@ -955,6 +1029,22 @@ mod pact {
         assert_eq!(sanitize_filename(""), None);
     }
 
+    #[test]
+    fn integer_boundaries_fail_closed_instead_of_truncating() {
+        assert_eq!(saturating_millis(u128::from(u64::MAX)), u64::MAX);
+        assert_eq!(saturating_millis(u128::from(u64::MAX) + 1), u64::MAX);
+
+        assert_eq!(chunk_count_for(u64::from(u32::MAX), 1).unwrap(), u32::MAX);
+        assert!(matches!(
+            chunk_count_for(u64::from(u32::MAX) + 1, 1),
+            Err(StoreError::Crypto(message)) if message == "attachment needs too many chunks"
+        ));
+        assert!(matches!(
+            chunk_count_for(1, 0),
+            Err(StoreError::Crypto(message)) if message == "chunk size must be non-zero"
+        ));
+    }
+
     // --- chaos --------------------------------------------------------------
 
     #[test]
@@ -1101,7 +1191,7 @@ mod pact {
         // A digest that is not a digest never reaches the filesystem as a path.
         add(&root, &key, "E/five", b"payload five");
         reseal_manifest_with(&root, &key, "E/five", |m| {
-            m.chunks[0].digest = "../../etc/passwd".into()
+            m.chunks[0].digest = "../../etc/passwd".into();
         });
         assert!(get(&root, &key, "E/five").is_err(), "digest must be hex");
     }

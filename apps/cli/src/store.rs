@@ -76,9 +76,9 @@ pub(crate) fn prompt_secret_hidden(prompt: &str) -> anyhow::Result<String> {
 }
 
 /// Resolve store root: explicit `--path` > `--tomb` / active registry > env defaults.
-pub fn resolve_root(path: Option<PathBuf>, tomb: Option<&str>) -> anyhow::Result<PathBuf> {
+pub fn resolve_root(path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<PathBuf> {
     if let Some(p) = path {
-        return Ok(p);
+        return Ok(p.to_path_buf());
     }
     let cfg = default_tombs_config_path();
     let reg = load_tomb_registry(&cfg).map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -94,7 +94,7 @@ pub fn resolve_root(path: Option<PathBuf>, tomb: Option<&str>) -> anyhow::Result
 }
 
 pub(crate) fn open_unlocked(
-    path: Option<PathBuf>,
+    path: Option<&Path>,
     tomb: Option<&str>,
 ) -> anyhow::Result<(StoreRoot, opensesame_sealed_store::ItemDataKey)> {
     let root_path = resolve_root(path, tomb)?;
@@ -106,13 +106,13 @@ pub(crate) fn open_unlocked(
 }
 
 pub fn cmd_init(
-    path: Option<PathBuf>,
-    recipients: Vec<String>,
+    path: Option<&Path>,
+    recipients: &[String],
     git: bool,
-    remote: Option<String>,
+    remote: Option<&str>,
 ) -> anyhow::Result<()> {
-    let root_path = path.unwrap_or_else(resolve_store_dir);
-    init_store(&root_path, &recipients).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let root_path = path.map_or_else(resolve_store_dir, Path::to_path_buf);
+    init_store(&root_path, recipients).map_err(|e| anyhow::anyhow!("{e}"))?;
     let password = prompt_password("New store passphrase")?;
     let confirm = if std::env::var("OPENSESAME_STORE_PASSWORD").is_ok() {
         password.clone()
@@ -125,7 +125,7 @@ pub fn cmd_init(
     init_store_key(&root_path, password.as_bytes()).map_err(|e| anyhow::anyhow!("{e}"))?;
     if git || remote.is_some() {
         ensure_git_repo(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
-        if let Some(url) = &remote {
+        if let Some(url) = remote {
             set_remote(&root_path, url).map_err(|e| anyhow::anyhow!("{e}"))?;
         }
         // The key and recipients files are part of the store's history from
@@ -138,12 +138,12 @@ pub fn cmd_init(
 }
 
 pub fn cmd_insert(
-    name: String,
+    name: &str,
     echo: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     let prompt = format!("Enter password for {name}");
     let secret = if echo {
         prompt_line(&prompt)?
@@ -151,7 +151,7 @@ pub fn cmd_insert(
         prompt_secret_hidden(&prompt)?
     };
     root.insert(
-        &name,
+        name,
         &Entry {
             secret,
             trailer: String::new(),
@@ -165,16 +165,16 @@ pub fn cmd_insert(
 }
 
 pub fn cmd_generate(
-    name: String,
+    name: &str,
     length: usize,
     no_symbols: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     let secret = generate_password(length, !no_symbols);
     root.insert(
-        &name,
+        name,
         &Entry {
             secret: secret.clone(),
             trailer: String::new(),
@@ -188,30 +188,26 @@ pub fn cmd_generate(
 }
 
 pub fn cmd_show(
-    name: String,
+    name: &str,
     reveal: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
     require_reveal(reveal)?;
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     let age_id = std::env::var("OPENSESAME_AGE_IDENTITY").ok();
     let entry = root
-        .show_with_age_identity(&name, &key, age_id.as_deref())
+        .show_with_age_identity(name, &key, age_id.as_deref())
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     print!("{}", entry.render());
     Ok(())
 }
 
-pub fn cmd_ls(
-    prefix: Option<String>,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
-) -> anyhow::Result<()> {
-    let root_path = resolve_root(path, tomb.as_deref())?;
+pub fn cmd_ls(prefix: Option<&str>, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let root_path = resolve_root(path, tomb)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
     for name in root
-        .ls(prefix.as_deref().unwrap_or(""))
+        .ls(prefix.unwrap_or(""))
         .map_err(|e| anyhow::anyhow!("{e}"))?
     {
         println!("{name}");
@@ -219,74 +215,60 @@ pub fn cmd_ls(
     Ok(())
 }
 
-pub fn cmd_find(query: String, path: Option<PathBuf>, tomb: Option<String>) -> anyhow::Result<()> {
-    let root_path = resolve_root(path, tomb.as_deref())?;
+pub fn cmd_find(query: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let root_path = resolve_root(path, tomb)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
-    for name in root.find(&query).map_err(|e| anyhow::anyhow!("{e}"))? {
+    for name in root.find(query).map_err(|e| anyhow::anyhow!("{e}"))? {
         println!("{name}");
     }
     Ok(())
 }
 
-pub fn cmd_rm(name: String, path: Option<PathBuf>, tomb: Option<String>) -> anyhow::Result<()> {
-    let root_path = resolve_root(path, tomb.as_deref())?;
+pub fn cmd_rm(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let root_path = resolve_root(path, tomb)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
-    root.rm(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
+    root.rm(name).map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("removed {name}");
     Ok(())
 }
 
-pub fn cmd_cp(
-    from: String,
-    to: String,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
-) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+pub fn cmd_cp(from: &str, to: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb)?;
     let age_id = std::env::var("OPENSESAME_AGE_IDENTITY").ok();
-    root.cp(&from, &to, &key, age_id.as_deref())
+    root.cp(from, to, &key, age_id.as_deref())
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
 
-pub fn cmd_mv(
-    from: String,
-    to: String,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
-) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+pub fn cmd_mv(from: &str, to: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb)?;
     let age_id = std::env::var("OPENSESAME_AGE_IDENTITY").ok();
-    root.mv(&from, &to, &key, age_id.as_deref())
+    root.mv(from, to, &key, age_id.as_deref())
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     Ok(())
 }
 
-pub fn cmd_git(
-    args: Vec<String>,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
-) -> anyhow::Result<i32> {
-    let root_path = resolve_root(path, tomb.as_deref())?;
-    git_passthrough(&root_path, &args).map_err(|e| anyhow::anyhow!("{e}"))
+pub fn cmd_git(args: &[String], path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<i32> {
+    let root_path = resolve_root(path, tomb)?;
+    git_passthrough(&root_path, args).map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 /// Seal a Pages "store path manifest" (plaintext JSON export) into encrypted
 /// entries, then optionally shred the manifest so plaintext never lingers.
 pub fn cmd_seal(
-    manifest: PathBuf,
+    manifest: &Path,
     replace: bool,
     shred: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    let json = std::fs::read_to_string(&manifest)?;
+    let (root, key) = open_unlocked(path, tomb)?;
+    let json = std::fs::read_to_string(manifest)?;
     let entries = parse_manifest(&json).map_err(|e| anyhow::anyhow!("{e}"))?;
     let outcome =
         seal_manifest(&root, &key, &entries, replace).map_err(|e| anyhow::anyhow!("{e}"))?;
     if shred {
-        shred_file(&manifest)?;
+        shred_file(manifest)?;
     }
     println!(
         "{}",
@@ -315,11 +297,16 @@ pub fn cmd_seal(
 /// against journaling filesystems, but better than leaving the bytes named.
 pub(crate) fn shred_file(path: &Path) -> anyhow::Result<()> {
     if let Ok(meta) = std::fs::metadata(path) {
-        let zeros = vec![0u8; meta.len() as usize];
+        let zeros = vec![0u8; checked_file_length(meta.len())?];
         let _ = std::fs::write(path, &zeros);
     }
     std::fs::remove_file(path)?;
     Ok(())
+}
+
+fn checked_file_length(length: u64) -> anyhow::Result<usize> {
+    usize::try_from(length)
+        .map_err(|_| anyhow::anyhow!("file is too large to shred on this platform"))
 }
 
 /// Commit outstanding changes and push the store to its backup remote.
@@ -329,10 +316,10 @@ pub(crate) fn shred_file(path: &Path) -> anyhow::Result<()> {
 pub async fn cmd_backup(
     remote: Option<String>,
     auto_push: Option<bool>,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let root_path = resolve_root(path, tomb.as_deref())?;
+    let root_path = resolve_root(path, tomb)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
     ensure_git_repo(&root.path).map_err(|e| anyhow::anyhow!("{e}"))?;
     opensesame_sealed_store::auto_commit(&root.path, "Backup sealed store")
@@ -390,13 +377,9 @@ fn read_uri_input(echo: bool) -> anyhow::Result<String> {
     }
 }
 
-pub fn cmd_otp_code(
-    name: String,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
-) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    let entry = root.show(&name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+pub fn cmd_otp_code(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb)?;
+    let entry = root.show(name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
     let otp = entry
         .otp
         .ok_or_else(|| anyhow::anyhow!("no otpauth:// URI in {name}"))?;
@@ -415,13 +398,13 @@ pub fn cmd_otp_insert(
     name: Option<String>,
     force: bool,
     echo: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
     let uri = read_uri_input(echo)?;
     let otp = parse_otpauth(&uri).map_err(|e| anyhow::anyhow!("{e}"))?;
     let name = name.or(otp.label.clone()).unwrap_or_else(|| "otp".into());
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     if root.show(&name, &key).is_ok() && !force {
         anyhow::bail!("{name} already exists; pass --force to overwrite");
     }
@@ -438,33 +421,29 @@ pub fn cmd_otp_insert(
 }
 
 pub fn cmd_otp_append(
-    name: String,
+    name: &str,
     force: bool,
     echo: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
     let uri = read_uri_input(echo)?;
     let otp = parse_otpauth(&uri).map_err(|e| anyhow::anyhow!("{e}"))?;
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    let mut entry = root.show(&name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let (root, key) = open_unlocked(path, tomb)?;
+    let mut entry = root.show(name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
     if entry.otp.is_some() && !force {
         anyhow::bail!("{name} already has an otpauth URI; pass --force to replace");
     }
     entry = entry.with_otp(Some(otp));
-    root.insert_or_replace(&name, &entry, &key)
+    root.insert_or_replace(name, &entry, &key)
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("otp appended to {name}");
     Ok(())
 }
 
-pub fn cmd_otp_uri(
-    name: String,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
-) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    let entry = root.show(&name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+pub fn cmd_otp_uri(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let (root, key) = open_unlocked(path, tomb)?;
+    let entry = root.show(name, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
     let otp = entry
         .otp
         .ok_or_else(|| anyhow::anyhow!("no otpauth:// URI in {name}"))?;
@@ -472,8 +451,8 @@ pub fn cmd_otp_uri(
     Ok(())
 }
 
-pub fn cmd_otp_validate(uri: String) -> anyhow::Result<()> {
-    if validate_otpauth(&uri) {
+pub fn cmd_otp_validate(uri: &str) -> anyhow::Result<()> {
+    if validate_otpauth(uri) {
         println!("ok");
         Ok(())
     } else {
@@ -483,6 +462,10 @@ pub fn cmd_otp_validate(uri: String) -> anyhow::Result<()> {
 
 // —— update ———————————————————————————————————————————————
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "these independent booleans directly represent stable pass update CLI flags"
+)]
 pub struct UpdateCliOpts {
     pub length: usize,
     pub auto_length: bool,
@@ -495,12 +478,12 @@ pub struct UpdateCliOpts {
 }
 
 pub fn cmd_update(
-    names: Vec<String>,
-    opts: UpdateCliOpts,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    names: &[String],
+    opts: &UpdateCliOpts,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     let mut update_opts = UpdateOptions {
         mode: if opts.multiline {
             UpdateMode::Multiline
@@ -526,11 +509,11 @@ pub fn cmd_update(
 
     let mut targets = Vec::new();
     for name in names {
-        let listed = root.ls(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let listed = root.ls(name).map_err(|e| anyhow::anyhow!("{e}"))?;
         if listed.is_empty() {
             // Exact entry?
-            if root.show(&name, &key).is_ok() {
-                targets.push(name);
+            if root.show(name, &key).is_ok() {
+                targets.push(name.clone());
             } else {
                 anyhow::bail!("no entries under {name}");
             }
@@ -574,10 +557,10 @@ pub fn cmd_update(
         };
         root.insert_or_replace(&name, &next, &key)
             .map_err(|e| anyhow::anyhow!("{e}"))?;
-        if !opts.provide {
-            println!("The generated password for {name} is:\n{}", next.secret);
-        } else {
+        if opts.provide {
             println!("updated {name}");
+        } else {
+            println!("The generated password for {name} is:\n{}", next.secret);
         }
         let _ = &mut update_opts;
     }
@@ -587,13 +570,13 @@ pub fn cmd_update(
 /// Rotate first-line secrets without printing plaintext unless `--reveal`.
 /// Agents must not call this path for secret disclosure (ADR 0005).
 pub fn cmd_rotate(
-    names: Vec<String>,
-    opts: UpdateCliOpts,
+    names: &[String],
+    opts: &UpdateCliOpts,
     reveal: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     let update_opts = UpdateOptions {
         mode: if opts.multiline {
             UpdateMode::Multiline
@@ -619,10 +602,10 @@ pub fn cmd_rotate(
 
     let mut targets = Vec::new();
     for name in names {
-        let listed = root.ls(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let listed = root.ls(name).map_err(|e| anyhow::anyhow!("{e}"))?;
         if listed.is_empty() {
-            if root.show(&name, &key).is_ok() {
-                targets.push(name);
+            if root.show(name, &key).is_ok() {
+                targets.push(name.clone());
             } else {
                 anyhow::bail!("no entries under {name}");
             }
@@ -677,17 +660,12 @@ pub fn cmd_rotate(
 
 /// List the commits touching an entry's ciphertext file, newest first.
 /// Metadata only (sha, timestamp, subject) — no unlock, no plaintext.
-pub fn cmd_history(
-    name: String,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
-) -> anyhow::Result<()> {
-    let root_path = resolve_root(path, tomb.as_deref())?;
+pub fn cmd_history(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
+    let root_path = resolve_root(path, tomb)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
-    for item in entry_history(&root, &name).map_err(|e| anyhow::anyhow!("{e}"))? {
+    for item in entry_history(&root, name).map_err(|e| anyhow::anyhow!("{e}"))? {
         let when = chrono::DateTime::from_timestamp(item.timestamp, 0)
-            .map(|t| t.to_rfc3339())
-            .unwrap_or_else(|| item.timestamp.to_string());
+            .map_or_else(|| item.timestamp.to_string(), |t| t.to_rfc3339());
         println!("{} {} {}", item.commit, when, item.subject);
     }
     Ok(())
@@ -696,14 +674,13 @@ pub fn cmd_history(
 /// Restore an entry's content from a past commit as a NEW commit; the
 /// anti-rollback revision counter only ever advances.
 pub fn cmd_restore(
-    name: String,
-    rev: String,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    name: &str,
+    rev: &str,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
-    let new_revision =
-        restore_entry(&root, &name, &rev, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let (root, key) = open_unlocked(path, tomb)?;
+    let new_revision = restore_entry(&root, name, rev, &key).map_err(|e| anyhow::anyhow!("{e}"))?;
     match new_revision {
         Some(revision) => println!("restored {name} from {rev} (revision {revision})"),
         None => println!("restored {name} from {rev}"),
@@ -735,7 +712,7 @@ pub fn cmd_tomb_list() -> anyhow::Result<()> {
 }
 
 pub fn cmd_tomb_add(
-    name: String,
+    name: &str,
     store: String,
     key: String,
     volume: Option<String>,
@@ -744,7 +721,7 @@ pub fn cmd_tomb_add(
     let cfg = default_tombs_config_path();
     let mut reg = load_tomb_registry(&cfg).map_err(|e| anyhow::anyhow!("{e}"))?;
     reg.add(TombEntry {
-        name: name.clone(),
+        name: name.to_owned(),
         store,
         key,
         volume,
@@ -760,19 +737,19 @@ pub fn cmd_tomb_add(
     Ok(())
 }
 
-pub fn cmd_tomb_rm(name: String) -> anyhow::Result<()> {
+pub fn cmd_tomb_rm(name: &str) -> anyhow::Result<()> {
     let cfg = default_tombs_config_path();
     let mut reg = load_tomb_registry(&cfg).map_err(|e| anyhow::anyhow!("{e}"))?;
-    reg.remove(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
+    reg.remove(name).map_err(|e| anyhow::anyhow!("{e}"))?;
     save_tomb_registry(&cfg, &reg).map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("unregistered {name}");
     Ok(())
 }
 
-pub fn cmd_tomb_use(name: String) -> anyhow::Result<()> {
+pub fn cmd_tomb_use(name: &str) -> anyhow::Result<()> {
     let cfg = default_tombs_config_path();
     let mut reg = load_tomb_registry(&cfg).map_err(|e| anyhow::anyhow!("{e}"))?;
-    reg.use_tomb(&name).map_err(|e| anyhow::anyhow!("{e}"))?;
+    reg.use_tomb(name).map_err(|e| anyhow::anyhow!("{e}"))?;
     save_tomb_registry(&cfg, &reg).map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("active tomb: {name}");
     Ok(())
@@ -804,12 +781,12 @@ pub fn linux_tomb_args(open: bool, volume: &Path, key: &Path, mount: &Path) -> V
     }
 }
 
-pub fn cmd_open(name: Option<String>) -> anyhow::Result<()> {
+pub fn cmd_open(name: Option<&str>) -> anyhow::Result<()> {
     let cfg = default_tombs_config_path();
     let mut reg = load_tomb_registry(&cfg).map_err(|e| anyhow::anyhow!("{e}"))?;
-    let resolved = resolve_tomb_paths(&reg, name.as_deref()).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let resolved = resolve_tomb_paths(&reg, name).map_err(|e| anyhow::anyhow!("{e}"))?;
     if let Some(n) = name {
-        reg.use_tomb(&n).map_err(|e| anyhow::anyhow!("{e}"))?;
+        reg.use_tomb(n).map_err(|e| anyhow::anyhow!("{e}"))?;
         save_tomb_registry(&cfg, &reg).map_err(|e| anyhow::anyhow!("{e}"))?;
     }
     if resolved.entry.backend == TombBackend::LinuxTomb {
@@ -829,10 +806,10 @@ pub fn cmd_open(name: Option<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn cmd_close(name: Option<String>) -> anyhow::Result<()> {
+pub fn cmd_close(name: Option<&str>) -> anyhow::Result<()> {
     let cfg = default_tombs_config_path();
     let reg = load_tomb_registry(&cfg).map_err(|e| anyhow::anyhow!("{e}"))?;
-    let resolved = resolve_tomb_paths(&reg, name.as_deref()).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let resolved = resolve_tomb_paths(&reg, name).map_err(|e| anyhow::anyhow!("{e}"))?;
     if resolved.entry.backend == TombBackend::LinuxTomb {
         let tomb = which_tomb().ok_or_else(|| {
             anyhow::anyhow!("tomb binary not found on PATH; install Tomb or use a portable tomb")
@@ -847,21 +824,21 @@ pub fn cmd_close(name: Option<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Import a KeePass database into the sealed store (ADR 0052).
+/// Import a `KeePass` database into the sealed store (ADR 0052).
 ///
 /// Entries merge by store path, so re-importing the same database is a no-op.
 /// Only paths and mapping notes are printed — never secret material.
 pub fn cmd_import_kdbx(
-    file: PathBuf,
+    file: &Path,
     keyfile: Option<PathBuf>,
     prefix: Option<String>,
     replace: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    let bytes = std::fs::read(&file)?;
+    let bytes = std::fs::read(file)?;
     let keyfile_bytes = keyfile.map(std::fs::read).transpose()?;
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     let kdbx_password = prompt_secret_hidden("KDBX password")?;
     let password = (!kdbx_password.is_empty()).then_some(kdbx_password.as_str());
 
@@ -904,19 +881,19 @@ pub fn cmd_import_kdbx(
     Ok(())
 }
 
-/// Export the sealed store as a KeePass database (ADR 0052).
+/// Export the sealed store as a `KeePass` database (ADR 0052).
 ///
 /// The output is a portable copy of the store guarded only by the password
 /// chosen here, so it carries the same human ceremony as `pass show`.
 pub fn cmd_export_kdbx(
-    dest: PathBuf,
-    prefix: Option<String>,
+    dest: &Path,
+    prefix: Option<&str>,
     reveal: bool,
-    path: Option<PathBuf>,
-    tomb: Option<String>,
+    path: Option<&Path>,
+    tomb: Option<&str>,
 ) -> anyhow::Result<()> {
     require_reveal(reveal)?;
-    let (root, key) = open_unlocked(path, tomb.as_deref())?;
+    let (root, key) = open_unlocked(path, tomb)?;
     let password = prompt_secret_hidden("KDBX password for the export")?;
     if password.is_empty() {
         anyhow::bail!("refusing to write an unprotected KDBX export");
@@ -927,15 +904,9 @@ pub fn cmd_export_kdbx(
             anyhow::bail!("passwords did not match");
         }
     }
-    let bytes = export_kdbx(
-        &root,
-        &key,
-        prefix.as_deref(),
-        &password,
-        ExportOptions::default(),
-    )
-    .map_err(|e| anyhow::anyhow!("{e}"))?;
-    std::fs::write(&dest, &bytes)?;
+    let bytes = export_kdbx(&root, &key, prefix, &password, ExportOptions::default())
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    std::fs::write(dest, &bytes)?;
     println!("wrote {} ({} bytes)", dest.display(), bytes.len());
     Ok(())
 }
@@ -947,6 +918,16 @@ mod tests {
     #[test]
     fn require_reveal_allows_flag() {
         assert!(require_reveal(true).is_ok());
+    }
+
+    #[test]
+    fn checked_file_length_handles_platform_boundary() {
+        assert_eq!(checked_file_length(0).unwrap(), 0);
+        let platform_max = u64::try_from(usize::MAX).unwrap();
+        assert_eq!(checked_file_length(platform_max).unwrap(), usize::MAX);
+        if usize::BITS < u64::BITS {
+            assert!(checked_file_length(u64::MAX).is_err());
+        }
     }
 
     #[test]

@@ -16,9 +16,7 @@ use serde_json::Value;
 /// Encode a JSON value as a native-messaging frame.
 pub fn frame(value: &Value) -> Vec<u8> {
     let bytes = serde_json::to_vec(value).expect("serialize request");
-    let mut out = (bytes.len() as u32).to_le_bytes().to_vec();
-    out.extend_from_slice(&bytes);
-    out
+    opensesame_pm_bridges::framing::encode_frame(&bytes).expect("fixture request fits frame cap")
 }
 
 /// Split a native-messaging stream into JSON values.

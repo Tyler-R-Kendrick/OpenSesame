@@ -37,7 +37,11 @@ fn stdout(out: &Output) -> String {
 /// A deterministic payload spanning three chunks, so the journey exercises
 /// real chunk boundaries rather than a single-chunk special case.
 fn payload() -> Vec<u8> {
-    (0..2_621_440usize).map(|i| (i % 251) as u8).collect()
+    (0..2_621_440usize).map(fixture_byte).collect()
+}
+
+fn fixture_byte(index: usize) -> u8 {
+    u8::try_from(index % 251).expect("modulo 251 always fits in u8")
 }
 
 struct Fixture {
@@ -70,7 +74,13 @@ fn a_person_can_seal_a_document_and_get_the_same_bytes_back() {
     // When they attach it...
     let added = run(
         &f.store,
-        &["pass", "attach", "add", "Taxes/w2", f.source.to_str().unwrap()],
+        &[
+            "pass",
+            "attach",
+            "add",
+            "Taxes/w2",
+            f.source.to_str().unwrap(),
+        ],
     );
     assert!(added.status.success(), "attach add failed: {added:?}");
     assert!(stdout(&added).contains("3 chunk(s)"), "{}", stdout(&added));
@@ -109,7 +119,13 @@ fn an_agent_cannot_read_a_document_out_of_the_store() {
     let f = given_a_store_with_a_document();
     run(
         &f.store,
-        &["pass", "attach", "add", "Taxes/w2", f.source.to_str().unwrap()],
+        &[
+            "pass",
+            "attach",
+            "add",
+            "Taxes/w2",
+            f.source.to_str().unwrap(),
+        ],
     );
 
     // No TTY and no --reveal is exactly the shape of an agent invocation.
@@ -131,10 +147,7 @@ fn an_agent_cannot_read_a_document_out_of_the_store() {
         "the refusal should name the flag: {}",
         String::from_utf8_lossy(&denied.stderr)
     );
-    assert!(
-        !out.exists(),
-        "a refused read must not leave a file behind"
-    );
+    assert!(!out.exists(), "a refused read must not leave a file behind");
 }
 
 #[test]
@@ -142,7 +155,13 @@ fn sealed_bytes_reach_git_and_local_state_does_not() {
     let f = given_a_store_with_a_document();
     run(
         &f.store,
-        &["pass", "attach", "add", "Taxes/w2", f.source.to_str().unwrap()],
+        &[
+            "pass",
+            "attach",
+            "add",
+            "Taxes/w2",
+            f.source.to_str().unwrap(),
+        ],
     );
 
     let tracked = Command::new("git")
@@ -172,12 +191,18 @@ fn nothing_in_the_store_reveals_the_document() {
     let f = given_a_store_with_a_document();
     run(
         &f.store,
-        &["pass", "attach", "add", "Taxes/w2", f.source.to_str().unwrap()],
+        &[
+            "pass",
+            "attach",
+            "add",
+            "Taxes/w2",
+            f.source.to_str().unwrap(),
+        ],
     );
 
     // The plaintext has a long, highly distinctive run; if any of it survived
     // into the store unencrypted, this finds it.
-    let needle: Vec<u8> = (0..64usize).map(|i| (i % 251) as u8).collect();
+    let needle: Vec<u8> = (0..64usize).map(fixture_byte).collect();
     let mut checked = 0usize;
     for entry in walk(&f.store) {
         let bytes = std::fs::read(&entry).unwrap_or_default();
@@ -189,6 +214,16 @@ fn nothing_in_the_store_reveals_the_document() {
         );
     }
     assert!(checked > 3, "expected to have scanned real files");
+}
+
+#[test]
+fn fixture_byte_conversion_covers_modulus_boundary() {
+    assert_eq!(fixture_byte(250), 250);
+    assert_eq!(fixture_byte(251), 0);
+    assert_eq!(
+        fixture_byte(usize::MAX),
+        u8::try_from(usize::MAX % 251).unwrap()
+    );
 }
 
 fn walk(dir: &Path) -> Vec<PathBuf> {

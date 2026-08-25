@@ -672,6 +672,21 @@ mod tests {
         })
     }
 
+    fn seal_credential(stub: &Stub, id: &str, body: Value) -> Response {
+        if let Some(gate) = stub.seal_gate.lock().unwrap().as_ref() {
+            gate();
+        }
+        stub.record(
+            "POST",
+            &format!("/api/v1/connections/{id}/credential"),
+            body,
+        );
+        if *stub.fail_seal.lock().unwrap() {
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+        Json(connection_view("github")).into_response()
+    }
+
     async fn spawn_stub(stub: Stub) -> String {
         let list_stub = stub.clone();
         let create_stub = stub.clone();
@@ -705,20 +720,7 @@ mod tests {
                     move |axum::extract::Path(id): axum::extract::Path<String>,
                           Json(body): Json<Value>| {
                         let stub = seal_stub.clone();
-                        async move {
-                            if let Some(gate) = stub.seal_gate.lock().unwrap().as_ref() {
-                                gate();
-                            }
-                            stub.record(
-                                "POST",
-                                &format!("/api/v1/connections/{id}/credential"),
-                                body,
-                            );
-                            if *stub.fail_seal.lock().unwrap() {
-                                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-                            }
-                            Json(connection_view("github")).into_response()
-                        }
+                        async move { seal_credential(&stub, &id, body) }
                     },
                 ),
             )

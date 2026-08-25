@@ -20,18 +20,19 @@ pub const ROOT_GROUP_NAME: &str = "OpenSesame";
 
 /// Outer cipher for an exported database.
 ///
-/// Deliberately only the two the KDBX 4 spec and every mainstream client
-/// agree on. Twofish is reachable in the `keepass` crate and is not offered.
+/// Deliberately only the two the `KDBX 4` specification and every mainstream
+/// client agree on. `Twofish` is reachable in the `keepass` crate and is not
+/// offered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ExportCipher {
-    /// AES-256 in CBC mode (the KeePass default).
+    /// `AES-256` in `CBC` mode (the `KeePass` default).
     #[default]
     Aes256,
-    /// ChaCha20.
+    /// `ChaCha20`.
     ChaCha20,
 }
 
-/// Argon2id work factors for an exported database.
+/// `Argon2id` work factors for an exported database.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Argon2Params {
     /// Passes over memory.
@@ -43,7 +44,7 @@ pub struct Argon2Params {
 }
 
 impl Default for Argon2Params {
-    /// KeePassXC's own defaults: 64 MiB, 2 passes, 4 lanes.
+    /// `KeePassXC`'s own defaults: 64 MiB, 2 passes, 4 lanes.
     fn default() -> Self {
         Self {
             iterations: 2,
@@ -78,7 +79,7 @@ pub struct ExportOptions {
 }
 
 impl ExportOptions {
-    /// Use ChaCha20 instead of AES-256.
+    /// Use `ChaCha20` instead of `AES-256`.
     #[must_use]
     pub fn with_cipher(mut self, cipher: ExportCipher) -> Self {
         self.cipher = cipher;
@@ -100,18 +101,24 @@ impl ExportOptions {
     }
 }
 
-/// Write the store (or the subtree under `prefix`) as a KDBX 4 database.
+/// Write the store (or the subtree under `prefix`) as a `KDBX 4` database.
 ///
 /// Output is constrained on purpose — the `keepass` crate's KDBX4 writer is
 /// experimental, so this emits only the configuration mainstream clients read
-/// without argument: KDBX 4.1, AES-256 or ChaCha20 outer, ChaCha20 inner,
-/// GZip, Argon2id. `fixtures/kdbx/roundtrip.kdbx` is the cross-implementation
-/// guard on that claim.
+/// without argument: `KDBX 4.1`, `AES-256` or `ChaCha20` outer, `ChaCha20`
+/// inner, `GZip`, `Argon2id`. `fixtures/kdbx/roundtrip.kdbx` is the
+/// cross-implementation guard on that claim.
 ///
 /// The returned bytes are plaintext-equivalent: every store secret under
 /// `prefix` is inside them, protected only by `password`/`opts.keyfile`. This
 /// is a human-plane operation (constitution C2) and callers must gate it
 /// behind the same ceremony as `pass show --reveal`.
+///
+/// # Errors
+///
+/// Returns an error when credentials are absent, store traversal or decryption
+/// fails, the constrained writer configuration is unavailable, keyfile parsing
+/// fails, or the encrypted database cannot be written.
 pub fn export_kdbx(
     root: &StoreRoot,
     key: &ItemDataKey,
@@ -119,11 +126,16 @@ pub fn export_kdbx(
     password: &str,
     opts: ExportOptions,
 ) -> Result<Vec<u8>, KdbxError> {
-    if password.is_empty() && opts.keyfile.is_none() {
+    let ExportOptions {
+        cipher,
+        argon2,
+        keyfile,
+    } = opts;
+    if password.is_empty() && keyfile.is_none() {
         return Err(KdbxError::MissingCredentials);
     }
 
-    let mut db = Database::with_config(database_config(&opts)?);
+    let mut db = Database::with_config(database_config(cipher, &argon2)?);
     let root_id = db.root().id();
     db.root_mut().name = ROOT_GROUP_NAME.to_string();
 
@@ -139,21 +151,17 @@ pub fn export_kdbx(
         let mut walked: Vec<String> = Vec::new();
         for segment in &unmapped.group_path {
             walked.push(segment.clone());
-            parent = match groups.get(&walked) {
-                Some(id) => *id,
-                None => {
-                    let id = {
-                        let mut parent_group = db
-                            .group_mut(parent)
-                            .ok_or_else(|| KdbxError::Write("lost a group while building the tree".into()))?;
-                        let mut child = parent_group.add_group();
-                        child.name = segment.clone();
-                        child.id()
-                    };
-                    groups.insert(walked.clone(), id);
-                    id
-                }
-            };
+            if let Some(id) = groups.get(&walked) {
+                parent = *id;
+                continue;
+            }
+            let mut parent_group = db
+                .group_mut(parent)
+                .ok_or_else(|| KdbxError::Write("lost a group while building the tree".into()))?;
+            let mut child = parent_group.add_group();
+            child.name.clone_from(segment);
+            parent = child.id();
+            groups.insert(walked.clone(), parent);
         }
 
         let mut parent_group = db
@@ -170,7 +178,7 @@ pub fn export_kdbx(
     }
 
     let mut db_key = DatabaseKey::new().with_password(password);
-    if let Some(keyfile) = &opts.keyfile {
+    if let Some(keyfile) = &keyfile {
         db_key = db_key
             .with_keyfile(&mut Cursor::new(keyfile))
             .map_err(|e| KdbxError::Write(format!("keyfile: {e}")))?;
@@ -186,18 +194,21 @@ pub fn export_kdbx(
 }
 
 /// Build the constrained writer configuration.
-fn database_config(opts: &ExportOptions) -> Result<DatabaseConfig, KdbxError> {
+fn database_config(
+    cipher: ExportCipher,
+    argon2: &Argon2Params,
+) -> Result<DatabaseConfig, KdbxError> {
     // `argon2::Version` is not re-exported by `keepass`, so the version is
     // taken from the library's own default rather than by adding a direct
     // `rust-argon2` dependency just to name one enum variant.
-    let argon2_version = match DatabaseConfig::default().kdf_config {
-        KdfConfig::Argon2 { version, .. } | KdfConfig::Argon2id { version, .. } => version,
-        _ => {
-            return Err(KdbxError::Write(
-                "the keepass crate no longer defaults to an Argon2 KDF".to_string(),
-            ))
-        }
+    let (KdfConfig::Argon2 { version, .. } | KdfConfig::Argon2id { version, .. }) =
+        DatabaseConfig::default().kdf_config
+    else {
+        return Err(KdbxError::Write(
+            "the keepass crate no longer defaults to an Argon2 KDF".to_string(),
+        ));
     };
+    let argon2_version = version;
 
     // `DatabaseConfig` is `#[non_exhaustive]`, so it can only be built by
     // mutating a default — struct and functional-update syntax are both
@@ -205,16 +216,16 @@ fn database_config(opts: &ExportOptions) -> Result<DatabaseConfig, KdbxError> {
     #[allow(clippy::field_reassign_with_default)]
     let mut config = DatabaseConfig::default();
     config.version = DatabaseVersion::KDB4(EXPORT_KDBX_MINOR_VERSION);
-    config.outer_cipher_config = match opts.cipher {
+    config.outer_cipher_config = match cipher {
         ExportCipher::Aes256 => OuterCipherConfig::AES256,
         ExportCipher::ChaCha20 => OuterCipherConfig::ChaCha20,
     };
     config.compression_config = CompressionConfig::GZip;
     config.inner_cipher_config = InnerCipherConfig::ChaCha20;
     config.kdf_config = KdfConfig::Argon2id {
-        iterations: opts.argon2.iterations.max(1),
-        memory: opts.argon2.memory_kib.max(8).saturating_mul(1024),
-        parallelism: opts.argon2.parallelism.max(1),
+        iterations: argon2.iterations.max(1),
+        memory: argon2.memory_kib.max(8).saturating_mul(1024),
+        parallelism: argon2.parallelism.max(1),
         version: argon2_version,
     };
     Ok(config)
@@ -234,7 +245,8 @@ mod tests {
 
     #[test]
     fn defaults_are_the_constrained_profile() {
-        let config = database_config(&ExportOptions::default()).expect("config");
+        let opts = ExportOptions::default();
+        let config = database_config(opts.cipher, &opts.argon2).expect("config");
         assert_eq!(config.version, DatabaseVersion::KDB4(1));
         assert_eq!(config.outer_cipher_config, OuterCipherConfig::AES256);
         assert_eq!(config.compression_config, CompressionConfig::GZip);
@@ -257,7 +269,7 @@ mod tests {
     #[test]
     fn chacha20_is_selectable() {
         let opts = ExportOptions::default().with_cipher(ExportCipher::ChaCha20);
-        let config = database_config(&opts).expect("config");
+        let config = database_config(opts.cipher, &opts.argon2).expect("config");
         assert_eq!(config.outer_cipher_config, OuterCipherConfig::ChaCha20);
     }
 
@@ -268,7 +280,10 @@ mod tests {
             memory_kib: 0,
             parallelism: 0,
         });
-        match database_config(&opts).expect("config").kdf_config {
+        match database_config(opts.cipher, &opts.argon2)
+            .expect("config")
+            .kdf_config
+        {
             KdfConfig::Argon2id {
                 iterations,
                 memory,

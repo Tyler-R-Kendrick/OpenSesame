@@ -53,10 +53,7 @@ fn trailer_rendering_is_pinned() {
             "reserved keys only",
             render(&[("login", "alice"), ("url", "https://x"), ("notes", "n")]),
         ),
-        (
-            "multi-line value",
-            render(&[("notes", "one\ntwo\n\nfour")]),
-        ),
+        ("multi-line value", render(&[("notes", "one\ntwo\n\nfour")])),
         (
             "value whose lines are already indented",
             render(&[("notes", "  two spaces\n    four spaces")]),

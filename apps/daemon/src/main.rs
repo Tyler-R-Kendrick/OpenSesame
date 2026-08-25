@@ -1199,31 +1199,36 @@ mod tests {
             accept_loop: JoinHandle<()>,
         }
 
+        async fn accept_connections(
+            listener: tokio::net::TcpListener,
+            connections: Arc<AtomicUsize>,
+            fault: Fault,
+        ) {
+            // Dropping the JoinSet (when the accept loop is aborted) aborts
+            // every parked Stall connection with it.
+            let mut tasks = JoinSet::new();
+            while let Ok((stream, _)) = listener.accept().await {
+                connections.fetch_add(1, Ordering::SeqCst);
+                tasks.spawn(apply_fault(stream, fault));
+            }
+        }
+
+        async fn apply_fault(stream: tokio::net::TcpStream, fault: Fault) {
+            if matches!(fault, Fault::Stall) {
+                // Hold the socket open and say nothing.
+                std::future::pending::<()>().await;
+                drop(stream);
+            }
+            // Reset: drop on the spot — an abrupt close.
+        }
+
         impl FaultListener {
             pub(crate) async fn spawn(fault: Fault) -> Self {
                 let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
                 let addr = listener.local_addr().unwrap();
                 let connections = Arc::new(AtomicUsize::new(0));
                 let counting = connections.clone();
-                let accept_loop = tokio::spawn(async move {
-                    // Dropping the JoinSet (when the accept loop is aborted)
-                    // aborts every parked Stall connection with it.
-                    let mut tasks = JoinSet::new();
-                    loop {
-                        let Ok((stream, _)) = listener.accept().await else {
-                            break;
-                        };
-                        counting.fetch_add(1, Ordering::SeqCst);
-                        tasks.spawn(async move {
-                            if matches!(fault, Fault::Stall) {
-                                // Hold the socket open and say nothing.
-                                std::future::pending::<()>().await;
-                                drop(stream);
-                            }
-                            // Reset: drop on the spot — an abrupt close.
-                        });
-                    }
-                });
+                let accept_loop = tokio::spawn(accept_connections(listener, counting, fault));
                 Self {
                     url: format!("http://{addr}"),
                     connections,

@@ -14,7 +14,7 @@ pub enum Error {
     #[error("malformed EncString: {0}")]
     MalformedEncString(&'static str),
 
-    /// EncString type 7. Bitwarden is mid-migration to COSE
+    /// `EncString` type 7. Bitwarden is mid-migration to COSE
     /// (`CoseEncrypt0` / XChaCha20-Poly1305); a best-effort decode would
     /// silently corrupt data, so this client refuses instead.
     #[error(
@@ -38,7 +38,7 @@ pub enum Error {
     )]
     UnsupportedEncStringType(u8),
 
-    /// The `{type}` prefix was not a known EncString type at all.
+    /// The `{type}` prefix was not a known `EncString` type at all.
     #[error("unknown EncString type `{0}`")]
     UnknownEncStringType(String),
 
@@ -47,14 +47,11 @@ pub enum Error {
     #[error("EncString MAC verification failed — wrong key or tampered ciphertext")]
     MacMismatch,
 
-    /// A type-2 EncString was presented to a key with no MAC half, or a
-    /// type-0 EncString to a key that has one. Mixing them is how
+    /// A type-2 `EncString` was presented to a key with no MAC half, or a
+    /// type-0 `EncString` to a key that has one. Mixing them is how
     /// authentication gets silently dropped.
     #[error("EncString type {enc_type} cannot be opened with this key: {reason}")]
-    KeyKindMismatch {
-        enc_type: u8,
-        reason: &'static str,
-    },
+    KeyKindMismatch { enc_type: u8, reason: &'static str },
 
     /// AES-CBC unpadding failed after the MAC verified. Structurally this
     /// should not happen; it means the plaintext was not PKCS#7 padded.
@@ -70,7 +67,9 @@ pub enum Error {
     InvalidKeyLength(usize),
 
     /// `prelogin` named a KDF this client does not implement.
-    #[error("unsupported KDF type {0} — this client implements PBKDF2-SHA256 (0) and Argon2id (1)")]
+    #[error(
+        "unsupported KDF type {0} — this client implements PBKDF2-SHA256 (0) and Argon2id (1)"
+    )]
     UnsupportedKdf(u32),
 
     /// KDF parameters outside the band this client is willing to run.
@@ -137,6 +136,7 @@ pub enum Error {
 impl Error {
     /// Stable machine-readable code, for receipts and for tests that assert a
     /// *named* error rather than a message substring.
+    #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
             Error::MalformedEncString(_) => "malformed_enc_string",

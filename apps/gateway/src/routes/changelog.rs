@@ -165,7 +165,7 @@ pub async fn record(
 #[cfg(test)]
 mod tests {
     use axum::body::Body;
-    use axum::http::{Request, StatusCode};
+    use axum::http::{HeaderMap, Request, StatusCode};
     use opensesame_domain::OrganizationRole;
     use tower::ServiceExt;
 
@@ -173,6 +173,40 @@ mod tests {
         let state = crate::app_state::test_demo_state().await;
         let router = crate::routes::router(state.clone());
         (router, state)
+    }
+
+    fn with_headers(mut request: Request<Body>, headers: &HeaderMap) -> Request<Body> {
+        for (name, value) in headers {
+            request.headers_mut().insert(name, value.clone());
+        }
+        request
+    }
+
+    async fn post_record(
+        router: axum::Router,
+        headers: HeaderMap,
+        project: String,
+        key_name: &'static str,
+        version: String,
+    ) -> axum::response::Response {
+        let request = Request::builder()
+            .method("POST")
+            .uri("/api/v1/changelog")
+            .header(axum::http::header::CONTENT_TYPE, "application/json")
+            .body(Body::from(
+                serde_json::json!({
+                    "event_type": "secret.value.changed",
+                    "project_id": project,
+                    "key_names": [key_name],
+                    "version_id": version,
+                })
+                .to_string(),
+            ))
+            .unwrap();
+        router
+            .oneshot(with_headers(request, &headers))
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
@@ -191,7 +225,7 @@ mod tests {
             axum::http::header::CONTENT_TYPE,
             "application/json".parse().unwrap(),
         );
-        let record_req = Request::builder()
+        let record_request = Request::builder()
             .method("POST")
             .uri("/api/v1/changelog")
             .body(Body::from(
@@ -211,14 +245,10 @@ mod tests {
                 .to_string(),
             ))
             .unwrap();
-        // Attach auth headers
-        let mut record_req = record_req;
-        for (k, v) in &record_headers {
-            record_req.headers_mut().insert(k, v.clone());
-        }
-        let record_res = router.clone().oneshot(record_req).await.unwrap();
-        assert_eq!(record_res.status(), StatusCode::CREATED);
-        let record_body = axum::body::to_bytes(record_res.into_body(), usize::MAX)
+        let record_request = with_headers(record_request, &record_headers);
+        let record_response = router.clone().oneshot(record_request).await.unwrap();
+        assert_eq!(record_response.status(), StatusCode::CREATED);
+        let record_body = axum::body::to_bytes(record_response.into_body(), usize::MAX)
             .await
             .unwrap();
         let record_json: serde_json::Value = serde_json::from_slice(&record_body).unwrap();
@@ -227,7 +257,7 @@ mod tests {
         assert!(!record_text.contains("nope"));
         assert!(!record_text.contains("leak"));
 
-        let list_req = Request::builder()
+        let list_request = Request::builder()
             .method("GET")
             .uri(format!(
                 "/api/v1/projects/{}/changelog?limit=10",
@@ -235,13 +265,10 @@ mod tests {
             ))
             .body(Body::empty())
             .unwrap();
-        let mut list_req = list_req;
-        for (k, v) in &headers {
-            list_req.headers_mut().insert(k, v.clone());
-        }
-        let list_res = router.oneshot(list_req).await.unwrap();
-        assert_eq!(list_res.status(), StatusCode::OK);
-        let list_body = axum::body::to_bytes(list_res.into_body(), usize::MAX)
+        let list_request = with_headers(list_request, &headers);
+        let list_response = router.oneshot(list_request).await.unwrap();
+        assert_eq!(list_response.status(), StatusCode::OK);
+        let list_body = axum::body::to_bytes(list_response.into_body(), usize::MAX)
             .await
             .unwrap();
         let list_json: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
@@ -256,16 +283,17 @@ mod tests {
     #[tokio::test]
     async fn list_requires_auth() {
         let (router, _) = app().await;
-        let req = Request::builder()
+        let request = Request::builder()
             .method("GET")
             .uri("/api/v1/projects/project_x/changelog")
             .body(Body::empty())
             .unwrap();
-        let res = router.oneshot(req).await.unwrap();
+        let response = router.oneshot(request).await.unwrap();
         assert!(
-            res.status() == StatusCode::UNAUTHORIZED || res.status() == StatusCode::FORBIDDEN,
+            response.status() == StatusCode::UNAUTHORIZED
+                || response.status() == StatusCode::FORBIDDEN,
             "unexpected status {}",
-            res.status()
+            response.status()
         );
     }
 
@@ -284,7 +312,7 @@ mod tests {
             axum::http::header::CONTENT_TYPE,
             "application/json".parse().unwrap(),
         );
-        let mut record_req = Request::builder()
+        let record_request = Request::builder()
             .method("POST")
             .uri("/api/v1/changelog")
             .body(Body::from(
@@ -296,11 +324,9 @@ mod tests {
                 .to_string(),
             ))
             .unwrap();
-        for (k, v) in &record_headers {
-            record_req.headers_mut().insert(k, v.clone());
-        }
-        let record_res = router.clone().oneshot(record_req).await.unwrap();
-        assert_eq!(record_res.status(), StatusCode::CREATED);
+        let record_request = with_headers(record_request, &record_headers);
+        let record_response = router.clone().oneshot(record_request).await.unwrap();
+        assert_eq!(record_response.status(), StatusCode::CREATED);
 
         let foreign = opensesame_domain::OrganizationId::new();
         let other = crate::app_state::test_session_headers(
@@ -309,7 +335,7 @@ mod tests {
             foreign,
             OrganizationRole::Owner,
         );
-        let mut list_req = Request::builder()
+        let list_request = Request::builder()
             .method("GET")
             .uri(format!(
                 "/api/v1/projects/{}/changelog?limit=10",
@@ -317,12 +343,10 @@ mod tests {
             ))
             .body(Body::empty())
             .unwrap();
-        for (k, v) in &other {
-            list_req.headers_mut().insert(k, v.clone());
-        }
-        let list_res = router.oneshot(list_req).await.unwrap();
-        assert_eq!(list_res.status(), StatusCode::OK);
-        let list_body = axum::body::to_bytes(list_res.into_body(), usize::MAX)
+        let list_request = with_headers(list_request, &other);
+        let list_response = router.oneshot(list_request).await.unwrap();
+        assert_eq!(list_response.status(), StatusCode::OK);
+        let list_body = axum::body::to_bytes(list_response.into_body(), usize::MAX)
             .await
             .unwrap();
         let list_json: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
@@ -345,7 +369,7 @@ mod tests {
             axum::http::header::CONTENT_TYPE,
             "application/json".parse().unwrap(),
         );
-        let mut req = Request::builder()
+        let request = Request::builder()
             .method("POST")
             .uri("/api/v1/changelog")
             .body(Body::from(
@@ -356,11 +380,9 @@ mod tests {
                 .to_string(),
             ))
             .unwrap();
-        for (k, v) in &headers {
-            req.headers_mut().insert(k, v.clone());
-        }
-        let res = router.oneshot(req).await.unwrap();
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        let request = with_headers(request, &headers);
+        let response = router.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
@@ -388,44 +410,34 @@ mod tests {
         );
         let mut joins = Vec::new();
         for i in 0..16 {
-            for headers in [&org_a, &org_b] {
-                let mut req = Request::builder()
-                    .method("POST")
-                    .uri("/api/v1/changelog")
-                    .header(axum::http::header::CONTENT_TYPE, "application/json")
-                    .body(Body::from(
-                        serde_json::json!({
-                            "event_type": "secret.value.changed",
-                            "project_id": project,
-                            "key_names": [if headers.get(axum::http::header::AUTHORIZATION)
-                                == org_a.get(axum::http::header::AUTHORIZATION) { "ORG_A_KEY" } else { "ORG_B_KEY" }],
-                            "version_id": format!("v{i}")
-                        })
-                        .to_string(),
-                    ))
-                    .unwrap();
-                for (k, v) in headers {
-                    req.headers_mut().insert(k, v.clone());
-                }
-                let r = router.clone();
-                joins.push(tokio::spawn(async move { r.oneshot(req).await.unwrap() }));
-            }
+            joins.push(tokio::spawn(post_record(
+                router.clone(),
+                org_a.clone(),
+                project.clone(),
+                "ORG_A_KEY",
+                format!("v{i}"),
+            )));
+            joins.push(tokio::spawn(post_record(
+                router.clone(),
+                org_b.clone(),
+                project.clone(),
+                "ORG_B_KEY",
+                format!("v{i}"),
+            )));
         }
         for join in joins {
             assert_eq!(join.await.unwrap().status(), StatusCode::CREATED);
         }
         for (headers, forbidden) in [(&org_a, "ORG_B_KEY"), (&org_b, "ORG_A_KEY")] {
-            let mut list = Request::builder()
+            let list_request = Request::builder()
                 .method("GET")
                 .uri(format!("/api/v1/projects/{project}/changelog?limit=200"))
                 .body(Body::empty())
                 .unwrap();
-            for (k, v) in headers {
-                list.headers_mut().insert(k, v.clone());
-            }
-            let res = router.clone().oneshot(list).await.unwrap();
-            assert_eq!(res.status(), StatusCode::OK);
-            let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            let list_request = with_headers(list_request, headers);
+            let response = router.clone().oneshot(list_request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
                 .await
                 .unwrap();
             let json: serde_json::Value = serde_json::from_slice(&body).unwrap();

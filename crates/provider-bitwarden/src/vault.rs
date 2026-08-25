@@ -2,7 +2,7 @@
 //!
 //! Everything here is already plaintext, so it exists only on the human
 //! plane: `apps/cli` builds it under a TTY ceremony and drops it when the
-//! process exits. No agent surface (ConnectionRef, MCP tool, WIT import) can
+//! process exits. No agent surface (`ConnectionRef`, MCP tool, WIT import) can
 //! reach it — constitution C1.
 //!
 //! Per-item decryption failures do **not** poison the whole sync. An item
@@ -99,6 +99,7 @@ pub struct Item {
 
 impl Item {
     /// `Folder/Name` when foldered, otherwise just `Name`.
+    #[must_use]
     pub fn path(&self) -> String {
         match self.folder.as_deref() {
             Some(folder) if !folder.is_empty() => format!("{folder}/{}", self.name),
@@ -142,10 +143,18 @@ pub struct Vault {
 
 impl Vault {
     /// Decrypt a `/api/sync` payload with the account's user key.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named decryption or response error only when vault-level
+    /// processing cannot continue. Per-item failures are retained in
+    /// [`Self::unreadable`].
     pub fn from_sync(sync: &SyncResponse, key: &SymmetricKey) -> Result<Self> {
         let mut vault = Vault::default();
         for folder in &sync.folders {
-            let Some(id) = folder.id.clone() else { continue };
+            let Some(id) = folder.id.clone() else {
+                continue;
+            };
             let name = match decrypt_opt(key, folder.name.as_deref()) {
                 Ok(name) => name.unwrap_or_default(),
                 Err(error) => {
@@ -185,13 +194,20 @@ impl Vault {
                 }),
             }
         }
-        vault.items.sort_by(|a, b| a.path().cmp(&b.path()).then(a.id.cmp(&b.id)));
+        vault
+            .items
+            .sort_by(|a, b| a.path().cmp(&b.path()).then(a.id.cmp(&b.id)));
         vault.unreadable.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(vault)
     }
 
     /// Resolve a resource: exact id, then `Folder/Name`, then bare name
     /// (case-insensitive). An ambiguous name is an error, never a guess.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named unreadable-item error, [`Error::ItemNotFound`], or
+    /// [`Error::AmbiguousItem`] when the resource cannot be resolved exactly.
     pub fn find(&self, resource: &str) -> Result<&Item> {
         let needle = resource.trim();
         if let Some(item) = self.items.iter().find(|item| item.id == needle) {
@@ -223,11 +239,11 @@ impl Vault {
         match by_name.as_slice() {
             [only] => Ok(only),
             [] => {
-                if let Some(unreadable) = self
-                    .unreadable
-                    .iter()
-                    .find(|u| u.name.as_deref().is_some_and(|n| n.eq_ignore_ascii_case(needle)))
-                {
+                if let Some(unreadable) = self.unreadable.iter().find(|u| {
+                    u.name
+                        .as_deref()
+                        .is_some_and(|n| n.eq_ignore_ascii_case(needle))
+                }) {
                     return Err(unreadable_error(unreadable));
                 }
                 Err(Error::ItemNotFound(needle.to_owned()))
@@ -241,6 +257,11 @@ impl Vault {
 
     /// The login password for a resource — the native equivalent of
     /// `bw get password <id> --raw`.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors from [`Self::find`] or [`Error::NoPassword`] when
+    /// the matched item has no login password.
     pub fn password(&self, resource: &str) -> Result<Zeroizing<String>> {
         let item = self.find(resource)?;
         item.login
@@ -251,6 +272,7 @@ impl Vault {
     }
 
     /// Secret-free listing rows, sorted by path.
+    #[must_use]
     pub fn summaries(&self) -> Vec<ItemSummary> {
         self.items
             .iter()
@@ -259,10 +281,7 @@ impl Vault {
                 name: item.name.clone(),
                 folder: item.folder.clone(),
                 kind: item.kind,
-                username: item
-                    .login
-                    .as_ref()
-                    .and_then(|login| login.username.clone()),
+                username: item.login.as_ref().and_then(|login| login.username.clone()),
                 uris: item
                     .login
                     .as_ref()
@@ -431,7 +450,10 @@ mod tests {
         });
         assert_eq!(vault.password("Empty").unwrap_err().code(), "no_password");
         assert_eq!(vault.password("Note").unwrap_err().code(), "no_password");
-        assert_eq!(vault.password("Absent").unwrap_err().code(), "item_not_found");
+        assert_eq!(
+            vault.password("Absent").unwrap_err().code(),
+            "item_not_found"
+        );
     }
 
     #[test]
@@ -443,7 +465,10 @@ mod tests {
             code: "cose_encrypt_unsupported",
             reason: "…".into(),
         });
-        assert_eq!(vault.find("z").unwrap_err().code(), "cose_encrypt_unsupported");
+        assert_eq!(
+            vault.find("z").unwrap_err().code(),
+            "cose_encrypt_unsupported"
+        );
         assert_eq!(
             vault.find("cose item").unwrap_err().code(),
             "cose_encrypt_unsupported"

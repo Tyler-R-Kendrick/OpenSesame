@@ -400,6 +400,42 @@ mod tests {
         serde_json::from_slice(&body).unwrap()
     }
 
+    fn spawn_authorize(state: AppState) -> tokio::task::JoinHandle<StatusCode> {
+        tokio::spawn(async move {
+            authorize(
+                State(state),
+                Json(DeviceAuthorizeRequest {
+                    client_id: "opensesame-cli".into(),
+                    scope: None,
+                }),
+            )
+            .await
+            .into_response()
+            .status()
+        })
+    }
+
+    fn spawn_failed_approve(
+        state: AppState,
+        headers: axum::http::HeaderMap,
+    ) -> tokio::task::JoinHandle<StatusCode> {
+        tokio::spawn(async move {
+            approve(
+                State(state),
+                headers,
+                Json(DeviceApproveRequest {
+                    user_code: "XXXX-YYYY".into(),
+                    principal: None,
+                    organization_id: None,
+                    organization_role: None,
+                }),
+            )
+            .await
+            .into_response()
+            .status()
+        })
+    }
+
     #[test]
     fn authorize_capacity_check_holds_the_map_lock() {
         opensesame_host_core::pact::assert_source_order(
@@ -696,37 +732,23 @@ mod tests {
     #[tokio::test]
     async fn authorize_capacity_fence_holds_under_interleaving() {
         let state = crate::app_state::test_demo_state().await;
-        {
-            let mut map = state.device_codes.lock().unwrap();
-            for i in 0..500 {
-                map.insert(format!("fill-{i}"), pending("digest", "BCDFGHJK"));
-            }
-        }
+        state
+            .device_codes
+            .lock()
+            .unwrap()
+            .extend((0..500).map(|index| (format!("fill-{index}"), pending("digest", "BCDFGHJK"))));
         let mut joins = Vec::new();
         for _ in 0..32 {
-            let st = state.clone();
-            joins.push(tokio::spawn(async move {
-                authorize(
-                    State(st),
-                    Json(DeviceAuthorizeRequest {
-                        client_id: "opensesame-cli".into(),
-                        scope: None,
-                    }),
-                )
-                .await
-                .into_response()
-                .status()
-            }));
+            joins.push(spawn_authorize(state.clone()));
         }
         let mut created = 0usize;
         let mut fenced = 0usize;
         for join in joins {
             let status = join.await.expect("join");
-            if status == StatusCode::OK {
-                created += 1;
-            } else {
-                assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
-                fenced += 1;
+            match status {
+                StatusCode::OK => created += 1,
+                StatusCode::TOO_MANY_REQUESTS => fenced += 1,
+                _ => panic!("unexpected authorize status {status}"),
             }
         }
         assert_eq!(created, 32, "old unapproved grants should be evicted");
@@ -744,33 +766,16 @@ mod tests {
         headers.insert("x-opensesame-operator", DEV_OPERATOR_TOKEN.parse().unwrap());
         let mut joins = Vec::new();
         for _ in 0..32 {
-            let st = state.clone();
-            let h = headers.clone();
-            joins.push(tokio::spawn(async move {
-                approve(
-                    State(st),
-                    h,
-                    Json(DeviceApproveRequest {
-                        user_code: "XXXX-YYYY".into(),
-                        principal: None,
-                        organization_id: None,
-                        organization_role: None,
-                    }),
-                )
-                .await
-                .into_response()
-                .status()
-            }));
+            joins.push(spawn_failed_approve(state.clone(), headers.clone()));
         }
         let mut unknown = 0usize;
         let mut limited = 0usize;
         for join in joins {
             let status = join.await.expect("join");
-            if status == StatusCode::NOT_FOUND {
-                unknown += 1;
-            } else {
-                assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
-                limited += 1;
+            match status {
+                StatusCode::NOT_FOUND => unknown += 1,
+                StatusCode::TOO_MANY_REQUESTS => limited += 1,
+                _ => panic!("unexpected approve status {status}"),
             }
         }
         assert!(

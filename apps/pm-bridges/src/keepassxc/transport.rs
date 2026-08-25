@@ -3,7 +3,7 @@
 //! # 1. stdio native-messaging host — the recommended install
 //!
 //! The browser `exec`s this binary and speaks length-prefixed JSON on the
-//! pipe. There is no shared name to contend for, so KeePassXC and this bridge
+//! pipe. There is no shared name to contend for, so `KeePassXC` and this bridge
 //! can be installed side by side; whichever manifest is present under the
 //! host name `org.keepassxc.keepassxc_browser` wins, and swapping is a file
 //! copy. This sidesteps the socket singleton entirely.
@@ -35,6 +35,10 @@ use crate::BridgeError;
 pub const MAX_UDS_MESSAGE: usize = 1024 * 1024;
 
 /// Serve the native-messaging protocol on a reader/writer pair until EOF.
+///
+/// # Errors
+///
+/// Returns a framing, protocol, or I/O error that prevents continued service.
 pub fn serve_stdio(
     session: &mut Session,
     reader: &mut impl Read,
@@ -54,6 +58,10 @@ pub fn serve_stdio(
 }
 
 /// Serve one already-connected UDS client until it disconnects.
+///
+/// # Errors
+///
+/// Returns an I/O or protocol error, including oversized requests.
 pub fn serve_uds_connection(
     session: &mut Session,
     stream: &mut (impl Read + Write),
@@ -88,8 +96,7 @@ pub fn serve_uds_connection(
 /// Pull the first complete JSON value out of `buffer`, if there is one.
 fn next_json(buffer: &[u8]) -> Option<(Value, usize)> {
     let start = buffer.iter().position(|b| !b.is_ascii_whitespace())?;
-    let mut stream =
-        serde_json::Deserializer::from_slice(&buffer[start..]).into_iter::<Value>();
+    let mut stream = serde_json::Deserializer::from_slice(&buffer[start..]).into_iter::<Value>();
     match stream.next()? {
         Ok(value) => Some((value, start + stream.byte_offset())),
         // Distinguish "not yet complete" from "definitely broken": only the
@@ -103,6 +110,10 @@ fn next_json(buffer: &[u8]) -> Option<(Value, usize)> {
 ///
 /// The refusal carries the owner's identity, because "address in use" is a
 /// useless thing to tell someone whose passwords just stopped autofilling.
+///
+/// # Errors
+///
+/// Returns a conflict error for an occupied path or an I/O error while binding.
 #[cfg(unix)]
 pub fn bind_uds(
     path: &Path,

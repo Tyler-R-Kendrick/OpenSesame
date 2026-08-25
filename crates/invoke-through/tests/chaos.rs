@@ -210,6 +210,10 @@ async fn chaos_failed_acquisition_makes_zero_upstream_connections() {
 }
 
 #[tokio::test]
+#[expect(
+    clippy::excessive_nesting,
+    reason = "the concurrent fault matrix intentionally keeps task creation and collection together"
+)]
 async fn chaos_concurrent_faults_all_fail_closed() {
     tokio::time::timeout(DEADLINE, async {
         let reset = FaultListener::spawn(Fault::Reset).await;

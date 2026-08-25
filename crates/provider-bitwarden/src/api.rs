@@ -2,7 +2,7 @@
 //!
 //! Four endpoints are enough to read a personal vault:
 //! `POST {identity}/accounts/prelogin`, `POST {identity}/connect/token`
-//! (password and refresh_token grants), `GET {api}/sync`, `GET {api}/config`.
+//! (password and `refresh_token` grants), `GET {api}/sync`, `GET {api}/config`.
 //!
 //! Two topologies must both work:
 //! * **bitwarden.com / bitwarden.eu** — *separate* hosts,
@@ -83,6 +83,11 @@ impl Endpoints {
     /// expands to the cloud's split hosts; everything else is treated as a
     /// self-hosted/vaultwarden origin with `/api` and `/identity` mounted
     /// under it, which is exactly what vaultwarden serves.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidServerUrl`] when the URL is malformed, lacks a
+    /// usable host, or uses a forbidden scheme.
     pub fn from_server_url(raw: &str) -> Result<Self> {
         let base = parse_base(raw)?;
         if let Some(suffix) = cloud_suffix(&base) {
@@ -96,6 +101,11 @@ impl Endpoints {
     }
 
     /// Explicit split bases, for a deployment that mounts them elsewhere.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidServerUrl`] when either URL is malformed,
+    /// lacks a usable host, or uses a forbidden scheme.
     pub fn split(api: &str, identity: &str) -> Result<Self> {
         Ok(Self {
             api: parse_base(api)?,
@@ -103,15 +113,18 @@ impl Endpoints {
         })
     }
 
+    #[must_use]
     pub fn api_base(&self) -> &Url {
         &self.api
     }
 
+    #[must_use]
     pub fn identity_base(&self) -> &Url {
         &self.identity
     }
 
     /// The hosts this client is pinned to. Any other host is out of bounds.
+    #[must_use]
     pub fn pinned_hosts(&self) -> Vec<String> {
         let mut hosts = vec![host_of(&self.api), host_of(&self.identity)];
         hosts.dedup();
@@ -186,8 +199,8 @@ pub struct PreloginResponse {
     pub kdf_parallelism: Option<u32>,
 }
 
-/// `POST /identity/connect/token` — OAuth fields are snake_case, Bitwarden's
-/// own additions are PascalCase. Both shapes are accepted.
+/// `POST /identity/connect/token` — OAuth fields are `snake_case`, Bitwarden's
+/// own additions are `PascalCase`. Both shapes are accepted.
 #[derive(Clone, Debug, Deserialize)]
 pub struct TokenResponse {
     pub access_token: String,
@@ -313,6 +326,12 @@ pub struct Client {
 }
 
 impl Client {
+    /// Create a redirect-refusing HTTP client pinned to the supplied endpoints.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Transport`] when the underlying HTTP client cannot be
+    /// constructed.
     pub fn new(endpoints: Endpoints, device: DeviceIdentity) -> Result<Self> {
         let http = reqwest::Client::builder()
             // A 3xx is a response, never a chase.
@@ -331,10 +350,16 @@ impl Client {
         })
     }
 
+    #[must_use]
     pub fn endpoints(&self) -> &Endpoints {
         &self.endpoints
     }
 
+    /// Fetch the account's key-derivation parameters.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, redirect, API, URL, or response-validation error.
     pub async fn prelogin(&self, email: &str) -> Result<PreloginResponse> {
         let url = self.endpoints.identity_url("/accounts/prelogin")?;
         let response = self
@@ -343,12 +368,17 @@ impl Client {
             .json(&serde_json::json!({ "email": crate::crypto::normalize_email(email) }))
             .send()
             .await
-            .map_err(|e| transport(&url, e))?;
+            .map_err(|e| transport(&url, &e))?;
         self.decode(&url, response).await
     }
 
     /// Password grant. `password_hash_b64` is the *master password hash* —
     /// PBKDF2 over the master key — not the password and not the key.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, redirect, authentication, API, URL, or
+    /// response-validation error.
     pub async fn login_password(
         &self,
         email: &str,
@@ -371,6 +401,11 @@ impl Client {
 
     /// Refresh grant. Bitwarden access tokens are short-lived; the refresh
     /// token stays in memory with the session and never reaches disk.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, redirect, authentication, API, URL, or
+    /// response-validation error.
     pub async fn refresh(&self, refresh_token: &str) -> Result<TokenResponse> {
         let form = [
             ("grant_type", "refresh_token"),
@@ -390,11 +425,15 @@ impl Client {
             .form(form)
             .send()
             .await
-            .map_err(|e| transport(&url, e))?;
+            .map_err(|e| transport(&url, &e))?;
         self.decode(&url, response).await
     }
 
     /// Full vault sync. `excludeDomains` keeps the payload to vault data.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, redirect, API, URL, or response-validation error.
     pub async fn sync(&self, access_token: &str) -> Result<SyncResponse> {
         let url = self.endpoints.api_url("/sync?excludeDomains=true")?;
         let response = self
@@ -404,10 +443,15 @@ impl Client {
             .header("accept", "application/json")
             .send()
             .await
-            .map_err(|e| transport(&url, e))?;
+            .map_err(|e| transport(&url, &e))?;
         self.decode(&url, response).await
     }
 
+    /// Fetch nonsecret server version and feature information.
+    ///
+    /// # Errors
+    ///
+    /// Returns a transport, redirect, API, URL, or response-validation error.
     pub async fn config(&self) -> Result<ConfigResponse> {
         let url = self.endpoints.api_url("/config")?;
         let response = self
@@ -416,7 +460,7 @@ impl Client {
             .header("accept", "application/json")
             .send()
             .await
-            .map_err(|e| transport(&url, e))?;
+            .map_err(|e| transport(&url, &e))?;
         self.decode(&url, response).await
     }
 
@@ -436,7 +480,7 @@ impl Client {
         let body = response
             .bytes()
             .await
-            .map_err(|e| transport(url, e))?
+            .map_err(|e| transport(url, &e))?
             .to_vec();
         if body.len() > MAX_BODY {
             return Err(Error::MalformedResponse {
@@ -454,7 +498,7 @@ impl Client {
     }
 }
 
-fn transport(url: &Url, error: reqwest::Error) -> Error {
+fn transport(url: &Url, error: &reqwest::Error) -> Error {
     Error::Transport {
         host: host_of(url),
         message: error.to_string(),
@@ -475,8 +519,8 @@ fn classify_error(path: &str, status: u16, body: &[u8]) -> Error {
             .map(str::to_owned)
     };
     if let Some(value) = parsed.as_ref() {
-        let two_factor = value.get("TwoFactorProviders").is_some()
-            || value.get("twoFactorProviders").is_some();
+        let two_factor =
+            value.get("TwoFactorProviders").is_some() || value.get("twoFactorProviders").is_some();
         if two_factor {
             return Error::TwoFactorRequired;
         }

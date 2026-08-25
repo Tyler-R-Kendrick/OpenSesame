@@ -49,7 +49,7 @@ pub fn is_allowed_changelog_event_type(event_type: &str) -> bool {
 /// Metadata-only changelog row for Host listing APIs.
 #[derive(Debug, Clone, Serialize)]
 pub struct ChangelogEntry {
-    /// Durable-store cursor (assigned by SQLite); None for cache-only rows.
+    /// Durable-store cursor (assigned by `SQLite`); `None` for cache-only rows.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seq: Option<i64>,
     pub id: String,
@@ -245,6 +245,10 @@ pub fn list_secret_changelog(
 /// Record a changelog event durably into the given pool: validates the frozen
 /// vocabulary (fail closed — an unknown name records nothing anywhere),
 /// appends to the `secret_changelog` table, and updates the in-memory cache.
+///
+/// # Errors
+///
+/// Returns an error when the event type is unknown or durable insertion fails.
 pub async fn record_secret_changelog_durable(
     pool: &SqlitePool,
     input: RecordSecretChangelog,
@@ -262,6 +266,10 @@ pub async fn record_secret_changelog_durable(
 }
 
 /// Durable read: newest first, `before_seq` pages backwards.
+///
+/// # Errors
+///
+/// Returns an error when durable changelog storage cannot be read.
 pub async fn list_secret_changelog_durable(
     pool: &SqlitePool,
     organization_id: &str,
@@ -273,7 +281,7 @@ pub async fn list_secret_changelog_durable(
         pool,
         organization_id,
         project_id,
-        limit.clamp(1, 200) as i64,
+        i64::try_from(limit.clamp(1, 200)).unwrap_or(200),
         before_seq,
     )
     .await

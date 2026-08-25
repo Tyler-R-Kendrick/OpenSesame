@@ -40,7 +40,9 @@ makes the hook scripts executable. `pnpm bootstrap` now runs this automatically,
 fresh clone that runs `pnpm bootstrap` does not need a separate step.
 
 ### What the hooks do
-- **`pre-commit`** — runs `biome check` and anti-slop against staged files, then
+- **`pre-commit`** — runs `biome check` and anti-slop against staged files,
+  runs the full Rust formatting and Clippy gate when Rust or Cargo configuration
+  is staged, then
   the gitleaks secret scan (`scripts/gitleaks-gate.sh`) if the
   `gitleaks` binary is available on `PATH`; otherwise it prints a one-line notice and
   continues. On failure it prints remediation hints (e.g. run `pnpm lint:fix` and
@@ -50,12 +52,17 @@ fresh clone that runs `pnpm bootstrap` does not need a separate step.
   `pnpm lint:all`, both hooks, and `pnpm verify`; nested configs and unused
   disable directives fail the gate. `pnpm test:anti-slop` runs every plugin
   RuleTester case and verifies the installer assets match the vendored copy.
+- **`pnpm audit:clippy`** — checks `rustfmt` and runs Rust 1.88 Clippy across
+  every workspace target and feature. Warnings, the full pedantic group, and
+  the complexity thresholds in `clippy.toml` fail the gate. Prefer fixing the
+  shared responsibility; use a narrow `#[expect(clippy::lint, reason = "...")]`
+  only when a cohesive declarative table or test matrix is clearer unsplit.
 - **`pre-push`** — runs a verification pass sized by the `OPENSESAME_PREPUSH`
   environment variable:
   - `off` — skip entirely.
   - `fast` (default when unset) — `pnpm typecheck && pnpm test`.
-  - `full` — `pnpm verify` (the complete gate suite, including the audit scripts and
-    Rust tests).
+  - `full` — `pnpm verify` (the complete local gate, including Rust formatting,
+    Clippy, and Rust tests).
 
   Set your preferred mode with `export OPENSESAME_PREPUSH=off|fast|full` (e.g. in your
   shell profile) to change it from the default.

@@ -55,8 +55,8 @@ fn caller_subject(caller: &Caller) -> String {
     }
 }
 
-fn broker_error(e: BrokerError) -> Response {
-    let status = match &e {
+fn broker_error(e: &BrokerError) -> Response {
+    let status = match e {
         BrokerError::ConnectionNotFound => StatusCode::NOT_FOUND,
         BrokerError::StateExpired => StatusCode::GONE,
         BrokerError::InvalidState => StatusCode::CONFLICT,
@@ -93,7 +93,7 @@ pub async fn mint(
         .await
     {
         Ok(minted) => (StatusCode::CREATED, Json(json!(minted))).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -113,7 +113,7 @@ pub async fn present(State(st): State<AppState>, Json(body): Json<PresentRequest
         .await
     {
         Ok(offer) => Json(json!({"offer": offer})).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -137,7 +137,7 @@ pub async fn claim(
             Json(json!({"delegations": delegations})),
         )
             .into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -157,7 +157,7 @@ pub async fn list(State(st): State<AppState>, headers: axum::http::HeaderMap) ->
         .await
     {
         Ok(delegations) => Json(json!({"delegations": delegations})).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -177,7 +177,7 @@ pub async fn list_offers(State(st): State<AppState>, headers: axum::http::Header
         .await
     {
         Ok(offers) => Json(json!({"offers": offers})).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -202,7 +202,7 @@ pub async fn revoke_offer(
         .await
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -226,7 +226,7 @@ pub async fn revoke(
         .await
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 
@@ -269,7 +269,7 @@ pub async fn narrow(
         .await
     {
         Ok(delegation) => Json(json!({"delegation": delegation})).into_response(),
-        Err(e) => broker_error(e),
+        Err(e) => broker_error(&e),
     }
 }
 

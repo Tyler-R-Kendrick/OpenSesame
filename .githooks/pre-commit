@@ -1,5 +1,5 @@
 #!/bin/sh
-# pre-commit — Biome check on staged files, plus an optional gitleaks scan.
+# pre-commit — staged source linting plus an optional gitleaks scan.
 # Installed via `pnpm setup:hooks` (see scripts/setup-hooks.sh).
 set -e
 
@@ -39,6 +39,12 @@ if [ -n "$anti_slop_files" ]; then
   echo "==> anti-slop (staged source files only)"
   # shellcheck disable=SC2086
   pnpm lint:anti-slop:files $anti_slop_files
+fi
+
+rust_lint_files=$(printf '%s\n' "$staged_files" | grep -E '(^|/)(Cargo\.toml|Cargo\.lock|clippy\.toml|rustfmt\.toml)$|\.rs$' || true)
+if [ -n "$rust_lint_files" ]; then
+  echo "==> rustfmt + Clippy (full workspace)"
+  pnpm audit:clippy
 fi
 
 if command -v gitleaks >/dev/null 2>&1; then

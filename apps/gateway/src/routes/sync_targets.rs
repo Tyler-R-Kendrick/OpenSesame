@@ -357,7 +357,7 @@ pub async fn sync_one(
     }
 }
 
-/// `POST /api/v1/sync-targets/sync-all` — fan-out by config_id.
+/// `POST /api/v1/sync-targets/sync-all` — fan-out by `config_id`.
 pub async fn sync_all(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -435,13 +435,14 @@ mod tests {
         BrokerConfig, BrokerError, ConnectionBroker, CreateConnection, MapSecretSource,
     };
     use opensesame_domain::{OrganizationRole, Shareability};
+    use std::collections::BTreeMap;
     use tower::ServiceExt;
 
     fn router(state: AppState) -> Router {
         crate::routes::router(state)
     }
 
-    async fn auth_headers(st: &AppState) -> axum::http::HeaderMap {
+    fn auth_headers(st: &AppState) -> axum::http::HeaderMap {
         let org = st.connection_organization;
         test_session_headers(st, "principal:sync-tester", org, OrganizationRole::Admin)
     }
@@ -498,7 +499,7 @@ mod tests {
             .await
             .unwrap();
 
-        let headers = auth_headers(&st).await;
+        let headers = auth_headers(&st);
         let app = router(st.clone());
 
         let create_req = Request::builder()
@@ -556,9 +557,13 @@ mod tests {
             assert!(!event.data.to_string().contains("vercel_live_token"));
         }
 
-        // MapSecretSource path is Host-only — ensure trait object compiles in tests.
+        assert_host_only_secret_source_compiles();
+    }
+
+    /// `MapSecretSource` is Host-only; keep its trait-object boundary compiled.
+    fn assert_host_only_secret_source_compiles() {
         let _host_only: Arc<dyn SyncSecretSource> = Arc::new(MapSecretSource {
-            entries: Default::default(),
+            entries: BTreeMap::default(),
         });
         let _ = BrokerError::SyncTargetNotFound;
     }

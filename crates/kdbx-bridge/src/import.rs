@@ -9,9 +9,7 @@ use opensesame_sealed_store::{ItemDataKey, StoreError, StoreRoot};
 use serde::Serialize;
 use zeroize::Zeroize;
 
-use crate::map::{
-    self, KdbxEntryView, MapWarning, MappedItem, PathAllocator, MAX_GROUP_DEPTH,
-};
+use crate::map::{self, KdbxEntryView, MapWarning, MappedItem, PathAllocator, MAX_GROUP_DEPTH};
 use crate::KdbxError;
 
 /// The four bytes every KDBX file starts with (`0x9AA2D903`, little-endian).
@@ -121,6 +119,11 @@ impl ImportSummary {
 /// `password` of `Some("")` means "an empty password is a key component";
 /// `None` means "there is no password component". Supplying neither a
 /// password nor a keyfile is [`KdbxError::MissingCredentials`].
+///
+/// # Errors
+///
+/// Returns an error when credentials are absent, resource limits are exceeded,
+/// the database cannot be unlocked or parsed, or its version is unsupported.
 pub fn map_kdbx(
     bytes: &[u8],
     password: Option<&str>,
@@ -171,6 +174,11 @@ pub fn map_kdbx(
 /// same file leaves the store — including its anti-rollback revisions —
 /// untouched. A path that holds *different* content is overwritten only when
 /// [`ImportOptions::replace`] is set; otherwise it is skipped.
+///
+/// # Errors
+///
+/// Returns an error when mapping fails or the sealed store rejects a read,
+/// insert, or replacement.
 pub fn import_kdbx(
     bytes: &[u8],
     password: Option<&str>,
@@ -179,14 +187,15 @@ pub fn import_kdbx(
     key: &ItemDataKey,
     opts: ImportOptions,
 ) -> Result<ImportSummary, KdbxError> {
-    let (items, warnings) = map_kdbx(bytes, password, keyfile, opts.prefix.as_deref())?;
+    let ImportOptions { prefix, replace } = opts;
+    let (items, warnings) = map_kdbx(bytes, password, keyfile, prefix.as_deref())?;
     let mut summary = ImportSummary {
         warnings,
         ..Default::default()
     };
 
     for item in &items {
-        match merge_one(root, key, &item.path, &item.entry, opts.replace)? {
+        match merge_one(root, key, &item.path, &item.entry, replace)? {
             MergeOutcome::Created => summary.created.push(item.path.clone()),
             MergeOutcome::Updated => summary.updated.push(item.path.clone()),
             MergeOutcome::Unchanged => summary.unchanged.push(item.path.clone()),

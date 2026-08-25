@@ -46,12 +46,13 @@ pub struct TtyPrompt;
 
 impl CredentialPrompt for TtyPrompt {
     fn email(&self, server_url: &str) -> anyhow::Result<String> {
-        for name in EMAIL_ENV {
-            if let Ok(value) = std::env::var(name) {
-                if !value.trim().is_empty() {
-                    return Ok(value.trim().to_owned());
-                }
-            }
+        if let Some(value) = EMAIL_ENV.into_iter().find_map(|name| {
+            std::env::var(name)
+                .ok()
+                .map(|value| value.trim().to_owned())
+                .filter(|value| !value.is_empty())
+        }) {
+            return Ok(value);
         }
         let value = prompt_line(&format!("Bitwarden email for {server_url}"))?;
         if value.is_empty() {
@@ -128,9 +129,9 @@ pub async fn execute_native_plan_with(
             .to_string(),
         HumanProviderOperation::List => client.list().await.context("listing vault items")?,
         // Unreachable: refused above, before any prompt or socket.
-        HumanProviderOperation::Lease | HumanProviderOperation::Revoke => unreachable!(
-            "lease and revoke are refused before the vault is unlocked"
-        ),
+        HumanProviderOperation::Lease | HumanProviderOperation::Revoke => {
+            unreachable!("lease and revoke are refused before the vault is unlocked")
+        }
     };
     Ok(Some(value))
 }
@@ -208,7 +209,10 @@ mod tests {
 
     impl CredentialPrompt for StubPrompt {
         fn email(&self, server_url: &str) -> anyhow::Result<String> {
-            self.calls.lock().unwrap().push(format!("email:{server_url}"));
+            self.calls
+                .lock()
+                .unwrap()
+                .push(format!("email:{server_url}"));
             Ok(EMAIL.to_owned())
         }
         fn master_password(&self, email: &str) -> anyhow::Result<SecretString> {
@@ -223,10 +227,16 @@ mod tests {
     /// A minimal vaultwarden-shaped stub built from real crypto: the same
     /// ladder the provider crate implements, so nothing is faked but the
     /// transport. No network — `127.0.0.1:0` only.
+    #[expect(
+        clippy::excessive_nesting,
+        reason = "the nested tasks are a cohesive in-process HTTP test fixture"
+    )]
     async fn spawn_vaultwarden_stub() -> String {
         let kdf = Kdf::Pbkdf2 { iterations: 10_000 };
         let master = MasterKey::derive(MASTER_PASSWORD.as_bytes(), EMAIL, &kdf).unwrap();
-        let user_key_bytes: Vec<u8> = (0u8..64).map(|i| i.wrapping_mul(31).wrapping_add(5)).collect();
+        let user_key_bytes: Vec<u8> = (0u8..64)
+            .map(|i| i.wrapping_mul(31).wrapping_add(5))
+            .collect();
         let user_key = SymmetricKey::from_bytes(&user_key_bytes).unwrap();
         let wrapped = master
             .stretch()
@@ -370,10 +380,7 @@ mod tests {
         assert_eq!(value.as_deref(), Some(PASSWORD));
         assert_eq!(
             *prompt.calls.lock().unwrap(),
-            vec![
-                format!("email:{base}"),
-                format!("master_password:{EMAIL}"),
-            ]
+            vec![format!("email:{base}"), format!("master_password:{EMAIL}"),]
         );
     }
 
@@ -398,7 +405,10 @@ mod tests {
     #[tokio::test]
     async fn a_password_manager_can_never_mint_a_lease() {
         let prompt = StubPrompt::default();
-        for operation in [HumanProviderOperation::Lease, HumanProviderOperation::Revoke] {
+        for operation in [
+            HumanProviderOperation::Lease,
+            HumanProviderOperation::Revoke,
+        ] {
             let error = execute_native_plan_with(
                 &bitwarden_plan("https://vault.example.com", operation),
                 &prompt,

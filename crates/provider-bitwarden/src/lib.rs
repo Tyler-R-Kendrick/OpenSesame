@@ -3,7 +3,7 @@
 //! This crate replaces "shell out to the `bw` CLI" for the
 //! `bitwarden` / `vaultwarden` providers: a user's real Bitwarden account or
 //! self-hosted vaultwarden becomes an upstream credential source that
-//! OpenSesame reads directly, with no Node runtime, no `BW_SESSION`
+//! `OpenSesame` reads directly, with no `Node.js` runtime, no `BW_SESSION`
 //! environment variable, and no unlocked key living outside the process that
 //! asked for it.
 //!
@@ -14,7 +14,7 @@
 //! drop, and never written to disk, never placed in argv, never placed in an
 //! environment variable. The unlocked session ([`session::Session`]) is
 //! in-memory and TTL-bound. Nothing in this crate is reachable from an agent
-//! surface: no MCP tool, no WIT import, no ConnectionRef invoke path.
+//! surface: no MCP tool, no WIT import, no `ConnectionRef` invoke path.
 //!
 //! # Egress
 //!
@@ -70,7 +70,9 @@ pub use crypto::{
 };
 pub use error::{Error, Result};
 pub use session::{Session, DEFAULT_SESSION_TTL};
-pub use vault::{CustomField, Folder, Item, ItemKind, ItemSummary, Login, UnreadableItem, Uri, Vault};
+pub use vault::{
+    CustomField, Folder, Item, ItemKind, ItemSummary, Login, UnreadableItem, Uri, Vault,
+};
 
 /// Everything needed to reach a server, and nothing secret.
 #[derive(Clone, Debug)]
@@ -83,6 +85,11 @@ pub struct Config {
 impl Config {
     /// One configured server URL — cloud or self-hosted, resolved by
     /// [`Endpoints::from_server_url`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidServerUrl`] when the URL is not a permitted,
+    /// usable authority base.
     pub fn from_server_url(server_url: &str) -> Result<Self> {
         Ok(Self {
             endpoints: Endpoints::from_server_url(server_url)?,
@@ -93,6 +100,11 @@ impl Config {
 
     /// Explicit split bases, for `api.bitwarden.com`-style deployments that a
     /// single URL cannot describe.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidServerUrl`] when either URL is not a permitted,
+    /// usable authority base.
     pub fn from_split_urls(api_url: &str, identity_url: &str) -> Result<Self> {
         Ok(Self {
             endpoints: Endpoints::split(api_url, identity_url)?,
@@ -130,6 +142,11 @@ impl BitwardenClient {
     /// The server only ever sees the master password *hash* (PBKDF2 over the
     /// master key, salted with the password itself), never the password and
     /// never anything that decrypts the vault.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named configuration, transport, protocol, KDF, authentication,
+    /// response-validation, or cryptographic error if unlock cannot complete.
     pub async fn unlock(
         config: Config,
         email: &str,
@@ -178,34 +195,49 @@ impl BitwardenClient {
     }
 
     /// The in-memory session. There is no way to persist it.
+    #[must_use]
     pub fn session(&self) -> &Session {
         &self.session
     }
 
+    /// The endpoint-pinned HTTP client used by this unlocked client.
+    #[must_use]
     pub fn api(&self) -> &Client {
         &self.api
     }
 
     /// Sync and decrypt the personal vault.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named session, transport, protocol, response-validation, or
+    /// cryptographic error when the vault cannot be obtained safely.
     pub async fn vault(&mut self) -> Result<Vault> {
-        let sync = match self.pending_sync.take() {
-            Some(sync) => sync,
-            None => {
-                self.refresh_if_needed().await?;
-                let token = self.session.access_token()?.to_owned();
-                self.api.sync(&token).await?
-            }
+        let sync = if let Some(sync) = self.pending_sync.take() {
+            sync
+        } else {
+            self.refresh_if_needed().await?;
+            let token = self.session.access_token()?.to_owned();
+            self.api.sync(&token).await?
         };
         Vault::from_sync(&sync, self.session.user_key()?)
     }
 
     /// `bw get password <resource> --raw`, natively.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named vault-sync, lookup, or missing-password error.
     pub async fn read(&mut self, resource: &str) -> Result<Zeroizing<String>> {
         self.vault().await?.password(resource)
     }
 
     /// `bw list items --raw`, natively — and secret-free: names, folders,
     /// usernames and URIs only, never a password.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named vault-sync or response-serialization error.
     pub async fn list(&mut self) -> Result<String> {
         let vault = self.vault().await?;
         serde_json::to_string_pretty(&vault.summaries()).map_err(|e| Error::MalformedResponse {
@@ -215,6 +247,11 @@ impl BitwardenClient {
     }
 
     /// Server version/flags, for diagnostics.
+    ///
+    /// # Errors
+    ///
+    /// Returns a named transport, redirect, API, URL, or response-validation
+    /// error.
     pub async fn server_config(&self) -> Result<ConfigResponse> {
         self.api.config().await
     }
