@@ -65,9 +65,10 @@ async function render(): Promise<void> {
   }
   container = document.createElement("div");
   document.body.appendChild(container);
-  root = createRoot(container);
+  const next = createRoot(container);
+  root = next;
   await act(async () => {
-    root.render(<OrgSignInPage />);
+    next.render(<OrgSignInPage />);
   });
   await settle();
 }

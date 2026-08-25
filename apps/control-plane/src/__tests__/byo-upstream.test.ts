@@ -367,6 +367,41 @@ describe("bring-your-own upstream", () => {
     });
 
     /**
+     * A record an operator disabled (D14) signs nobody in — and re-submitting
+     * its issuer must not become a way to register around the decision. The
+     * refusal lands before any network call, and the stored row is untouched.
+     */
+    it("refuses a record an operator disabled, without re-creating it", async () => {
+      const issuer = "https://disabled.idp.example";
+      const id = "byo_disabled_case";
+      await started.ctx.repos.byoUpstreams.create({
+        id,
+        issuer,
+        label: "disabled.idp.example",
+        clientId: "original-client",
+        clientAuth: "none",
+        registrationSource: "manual",
+        state: "active",
+        createdAt: started.ctx.clock(),
+      });
+      await started.ctx.repos.byoUpstreams.setState(id, "disabled");
+
+      const outcome = await registerByoUpstream(
+        started.ctx,
+        { issuer, clientId: "replacement-client" },
+        "fp-disabled",
+      );
+      expect(outcome).toEqual({
+        error: "discovery_failed",
+        message: expect.any(String),
+      });
+      const record = await started.ctx.repos.byoUpstreams.findByIssuer(issuer);
+      expect(record?.id).toBe(id);
+      expect(record?.state).toBe("disabled");
+      expect(record?.clientId).toBe("original-client");
+    });
+
+    /**
      * The issuer arrives in an unauthenticated form field and this server then
      * dereferences it, so the guard is the whole security of this endpoint.
      * Loopback, link-local, cloud metadata, and the decimal spelling that

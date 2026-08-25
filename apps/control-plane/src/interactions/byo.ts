@@ -397,7 +397,7 @@ async function persist(
     metadata: {
       action: "byo_upstream.register",
       issuer: created.issuer,
-      via: source === "dcr" ? "dynamic_registration" : "operator_supplied",
+      via: source === "dcr" ? "dynamic_registration" : "visitor_supplied",
     },
   });
   ctx.log.info(
