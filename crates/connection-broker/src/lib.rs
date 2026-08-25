@@ -12,6 +12,7 @@ pub mod changelog_hook;
 pub mod config;
 pub mod configuration;
 pub mod crypto;
+pub mod custom_provider;
 pub mod delegation;
 pub mod egress;
 pub mod error;
@@ -51,6 +52,7 @@ pub use crate::changelog_hook::{
     CHANGELOG_EVENT_TYPES,
 };
 pub use crate::config::{BrokerConfig, ProviderConfig};
+pub use crate::custom_provider::{CreateCustomProvider, CustomAuthSpec, CUSTOM_PROVIDER_PREFIX};
 pub use crate::egress::GithubRepo;
 pub use crate::error::{BrokerError, Result};
 pub use crate::github_app::{
@@ -377,6 +379,135 @@ impl ConnectionBroker {
         catalog::find(id)?.ok_or_else(|| BrokerError::ProviderUnknown(id.to_string()))
     }
 
+    /// Resolve a provider for an organization: the static catalog first, then
+    /// the org's own custom connector definitions.
+    pub(crate) async fn resolve_provider(
+        &self,
+        organization_id: &str,
+        id: &str,
+    ) -> Result<Provider> {
+        if let Ok(provider) = Self::provider(id) {
+            return Ok(provider.clone());
+        }
+        self.custom_provider(organization_id, id)
+            .await?
+            .ok_or_else(|| BrokerError::ProviderUnknown(id.to_string()))
+    }
+
+    pub(crate) async fn custom_provider(
+        &self,
+        organization_id: &str,
+        id: &str,
+    ) -> Result<Option<Provider>> {
+        if !id.starts_with(custom_provider::CUSTOM_PROVIDER_PREFIX) {
+            return Ok(None);
+        }
+        let Some(json) = store::get_custom_provider(&self.pool, organization_id, id).await? else {
+            return Ok(None);
+        };
+        let provider: Provider = serde_json::from_str(&json)
+            .map_err(|_| BrokerError::Invalid("stored custom provider is invalid".into()))?;
+        Ok(Some(provider))
+    }
+
+    pub(crate) async fn custom_providers(&self, organization_id: &str) -> Result<Vec<Provider>> {
+        let mut providers = Vec::new();
+        for json in store::list_custom_providers(&self.pool, organization_id).await? {
+            let provider: Provider = serde_json::from_str(&json)
+                .map_err(|_| BrokerError::Invalid("stored custom provider is invalid".into()))?;
+            providers.push(provider);
+        }
+        Ok(providers)
+    }
+
+    /// Register an org-scoped custom connector (MCP server, `OpenAPI` backend,
+    /// internal API). The definition holds no secrets; its egress allowlist is
+    /// derived from the base URL and never stated by the caller.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation fails, the id collides with the
+    /// catalog or an existing definition, or storage fails.
+    pub async fn create_custom_provider(
+        &self,
+        organization_id: &OrganizationId,
+        request: CreateCustomProvider,
+        created_by: &str,
+    ) -> Result<ProviderView> {
+        let provider = custom_provider::derive_provider(&request)?;
+        if catalog::find(&provider.id)?.is_some() {
+            return Err(BrokerError::Invalid("id collides with the catalog".into()));
+        }
+        let json = serde_json::to_string(&provider)
+            .map_err(|_| BrokerError::Invalid("custom provider is not serializable".into()))?;
+        store::insert_custom_provider(
+            &self.pool,
+            &organization_id.to_string(),
+            &provider.id,
+            &json,
+            created_by,
+        )
+        .await?;
+        Ok(self.provider_view(&provider))
+    }
+
+    /// Remove a custom connector definition. Refused while any non-revoked
+    /// connection still points at it.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the definition is missing, still in use, or
+    /// storage fails.
+    pub async fn delete_custom_provider(
+        &self,
+        organization_id: &OrganizationId,
+        id: &str,
+    ) -> Result<()> {
+        let org = organization_id.to_string();
+        if self.custom_provider(&org, id).await?.is_none() {
+            return Err(BrokerError::ProviderUnknown(id.to_string()));
+        }
+        let live = store::count_live_connections_for_provider(&self.pool, &org, id).await?;
+        if live > 0 {
+            return Err(BrokerError::Invalid(
+                "custom provider still has connections; revoke them first".into(),
+            ));
+        }
+        store::delete_custom_provider(&self.pool, &org, id).await?;
+        Ok(())
+    }
+
+    fn provider_view(&self, provider: &Provider) -> ProviderView {
+        let missing = self.config.missing_config(provider);
+        ProviderView::new(
+            provider,
+            missing.is_empty(),
+            false,
+            missing,
+            provider
+                .auth
+                .is_oauth()
+                .then(|| self.config.callback_url(&provider.id)),
+            "custom",
+        )
+    }
+
+    /// The static catalog plus the organization's custom connectors.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the catalog or storage is unavailable.
+    pub async fn list_providers_for(
+        &self,
+        organization_id: &OrganizationId,
+    ) -> Result<Vec<ProviderView>> {
+        let mut views = self.list_providers()?;
+        for provider in self.custom_providers(&organization_id.to_string()).await? {
+            views.push(self.provider_view(&provider));
+        }
+        Ok(views)
+    }
+
     fn automatic_connection_configuration(
         &self,
         provider_id: &str,
@@ -544,7 +675,8 @@ impl ConnectionBroker {
     ) -> Result<ConnectionView> {
         let requested_provider = request.provider_id.trim();
         if !requested_provider.is_empty() {
-            Self::provider(requested_provider)?;
+            self.resolve_provider(&organization_id.to_string(), requested_provider)
+                .await?;
         }
         let (integration_id, provider_id, _provider_config, integration_scopes, _) = self
             .resolve_integration(
@@ -553,9 +685,11 @@ impl ConnectionBroker {
                 request.integration_id.as_deref(),
             )
             .await?;
-        let provider = Self::provider(&provider_id)?;
+        let provider = self
+            .resolve_provider(&organization_id.to_string(), &provider_id)
+            .await?;
         let automatic_configuration = self.automatic_connection_configuration(&provider.id);
-        self.validate_automatic_configuration(provider, automatic_configuration.as_ref())?;
+        self.validate_automatic_configuration(&provider, automatic_configuration.as_ref())?;
         if let Some(scopes) = request.scopes.as_ref() {
             require_scope_subset(scopes, &integration_scopes)?;
         }
@@ -619,7 +753,7 @@ impl ConnectionBroker {
         tracing::info!(connection_id = %row.id, provider_id = provider.id, "connection created");
         if let Some(configuration) = automatic_configuration {
             return self
-                .configure_automatic_connection(organization_id, &row, provider, configuration)
+                .configure_automatic_connection(organization_id, &row, &provider, configuration)
                 .await;
         }
         self.view(row).await
@@ -868,7 +1002,9 @@ impl ConnectionBroker {
                 "connection is revoked; create a new one".into(),
             ));
         }
-        let provider = Self::provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
         let (integration_id, _, provider_config, integration_scopes, _) = self
             .resolve_integration(
                 organization_id,
@@ -887,7 +1023,7 @@ impl ConnectionBroker {
         if !provider.auth.is_oauth() {
             return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
         }
-        let missing = config.missing_config(provider);
+        let missing = config.missing_config(&provider);
         if !missing.is_empty() {
             return Err(BrokerError::ProviderUnconfigured {
                 provider: provider.id.to_string(),
@@ -917,7 +1053,7 @@ impl ConnectionBroker {
                 &scopes
             };
         let authorization_url = flow::build_authorize_url(
-            provider,
+            &provider,
             &config,
             flow::AuthorizeParams {
                 client_id: &client_id,
@@ -976,7 +1112,9 @@ impl ConnectionBroker {
         let (authorization, row) = self
             .consume_authorization_for_provider(provider_id, state)
             .await?;
-        let provider = Self::provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
         let organization_id = OrganizationId::parse(&row.organization_id)
             .map_err(|_| BrokerError::Invalid("stored organization_id is invalid".into()))?;
         let (_, _, provider_config, initial_ceiling, expected_integration_updated_at) = self
@@ -993,7 +1131,7 @@ impl ConnectionBroker {
             .with_provider(&provider.id, provider_config);
         let key = *self.sealing_key()?;
         let response = self
-            .exchange_authorization_code(&row, &authorization, provider, &config, &key, code)
+            .exchange_authorization_code(&row, &authorization, &provider, &config, &key, code)
             .await?;
 
         let account_label = response.account_label();
@@ -1001,7 +1139,7 @@ impl ConnectionBroker {
             Ok(tokens) => tokens,
             Err(error) => {
                 let issued = response.issued_tokens_for_cleanup(&authorization.scopes);
-                self.revoke_issued_tokens(provider, &config, &issued).await;
+                self.revoke_issued_tokens(&provider, &config, &issued).await;
                 let detail = error.hint();
                 let _ = store::invalidate_credential_unless_revoked(
                     &self.pool,
@@ -1024,7 +1162,7 @@ impl ConnectionBroker {
             )
             .await
         else {
-            self.revoke_issued_tokens(provider, &config, &tokens).await;
+            self.revoke_issued_tokens(&provider, &config, &tokens).await;
             let detail = "integration changed while authorization was in flight";
             let _ = store::invalidate_credential_unless_revoked(
                 &self.pool,
@@ -1039,7 +1177,7 @@ impl ConnectionBroker {
         if let Err(error) = require_scope_subset(&authorization.scopes, &current_ceiling)
             .and_then(|()| require_scope_subset(&tokens.scopes, &current_ceiling))
         {
-            self.revoke_issued_tokens(provider, &config, &tokens).await;
+            self.revoke_issued_tokens(&provider, &config, &tokens).await;
             let detail = error.hint();
             let _ = store::invalidate_credential_unless_revoked(
                 &self.pool,
@@ -1053,7 +1191,7 @@ impl ConnectionBroker {
         }
         self.activate_authorized_tokens(AuthorizationActivation {
             row: &row,
-            provider,
+            provider: &provider,
             config: &config,
             key: &key,
             tokens: &tokens,
@@ -1337,7 +1475,9 @@ impl ConnectionBroker {
         id: &str,
     ) -> Result<ConnectionView> {
         let mut row = self.row_in_org(organization_id, id).await?;
-        let provider = Self::provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
         let (integration_id, _, provider_config, initial_ceiling, expected_integration_updated_at) =
             self.resolve_integration(
                 organization_id,
@@ -1363,7 +1503,7 @@ impl ConnectionBroker {
         if !tokens.refreshable() || !provider.auth.supports_refresh() {
             return Err(BrokerError::NotRefreshable);
         }
-        let missing = config.missing_config(provider);
+        let missing = config.missing_config(&provider);
         if !missing.is_empty() {
             return Err(BrokerError::ProviderUnconfigured {
                 provider: provider.id.to_string(),
@@ -1373,7 +1513,7 @@ impl ConnectionBroker {
         #[cfg(test)]
         self.pause_after_refresh_read().await;
 
-        let response = match token::refresh(&self.http, provider, &config, &tokens).await {
+        let response = match token::refresh(&self.http, &provider, &config, &tokens).await {
             Ok(response) => response,
             Err(error) => {
                 return self
@@ -1382,7 +1522,7 @@ impl ConnectionBroker {
             }
         };
         let next = self
-            .refreshed_tokens_or_invalidate(&row, provider, &config, &tokens, response)
+            .refreshed_tokens_or_invalidate(&row, &provider, &config, &tokens, response)
             .await?;
         let refreshed_at = Utc::now();
         #[cfg(test)]
@@ -1390,7 +1530,7 @@ impl ConnectionBroker {
         self.validate_refreshed_scopes(
             organization_id,
             &row,
-            provider,
+            &provider,
             &config,
             &next,
             expected_integration_updated_at.as_deref(),
@@ -1398,7 +1538,7 @@ impl ConnectionBroker {
         .await?;
         self.activate_refreshed_tokens(RefreshActivation {
             row: &row,
-            provider,
+            provider: &provider,
             config: &config,
             key: &key,
             credential: &credential,
@@ -1467,7 +1607,9 @@ impl ConnectionBroker {
             )));
         }
         let mut row = self.row_in_org(organization_id, id).await?;
-        let provider = Self::provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
         if !accepts_pasted_access_token(&provider.id) {
             return Err(BrokerError::UnsupportedCredential(provider.id.to_string()));
         }
@@ -1605,7 +1747,9 @@ impl ConnectionBroker {
         configuration_clear: Vec<String>,
     ) -> Result<ConnectionView> {
         let mut row = self.row_in_org(organization_id, id).await?;
-        let provider = Self::provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
         let (integration_id, _, _, _, expected_integration_updated_at) = self
             .resolve_integration(
                 organization_id,
@@ -1709,8 +1853,11 @@ impl ConnectionBroker {
         id: &str,
     ) -> Result<RevokeOutcome> {
         let row = self.row_in_org(organization_id, id).await?;
-        let provider = Self::provider(&row.provider_id).ok();
-        let config = match provider {
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await
+            .ok();
+        let config = match &provider {
             Some(provider) => {
                 let provider_config = if row.integration_id.is_empty() {
                     self.resolve_integration(organization_id, Some(&provider.id), None)
@@ -1742,7 +1889,7 @@ impl ConnectionBroker {
         tracing::info!(connection_id = %row.id, provider_id = row.provider_id, "connection revoked");
         let provider_revocation = match (provider, config.as_ref(), token_set.as_ref()) {
             (Some(provider), Some(config), Some(tokens)) => {
-                self.revoke_issued_tokens(provider, config, tokens).await
+                self.revoke_issued_tokens(&provider, config, tokens).await
             }
             _ => ProviderRevocation::Unsupported,
         };
@@ -1902,7 +2049,9 @@ impl ConnectionBroker {
             .unwrap_or_else(|| "operator".into());
         match row.provider_id.as_str() {
             "github" => {
-                let provider = Self::provider(&row.provider_id)?;
+                let provider = self
+                    .resolve_provider(&row.organization_id, &row.provider_id)
+                    .await?;
                 let (integration_id, _, _, _, _) = self
                     .resolve_integration(
                         organization_id,

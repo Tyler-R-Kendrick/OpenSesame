@@ -110,6 +110,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0012_connection_delegations",
         include_str!("../../../migrations/0012_connection_delegations.sql"),
     ),
+    (
+        "0013_custom_providers",
+        include_str!("../../../migrations/0013_custom_providers.sql"),
+    ),
 ];
 
 impl Db {

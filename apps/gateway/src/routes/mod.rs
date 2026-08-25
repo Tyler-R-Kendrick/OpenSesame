@@ -83,6 +83,14 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/providers", get(connections::list_providers))
         .route(
+            "/api/v1/custom-providers",
+            post(connections::create_custom_provider).layer(DefaultBodyLimit::max(16 * 1024)),
+        )
+        .route(
+            "/api/v1/custom-providers/{id}",
+            delete(connections::delete_custom_provider),
+        )
+        .route(
             "/api/v1/providers/github/app",
             post(github_app::register_start).layer(DefaultBodyLimit::max(8 * 1024)),
         )

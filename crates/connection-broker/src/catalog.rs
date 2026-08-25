@@ -93,6 +93,8 @@ pub enum Category {
     Payments,
     Identity,
     Testing,
+    /// Org-defined connectors (MCP servers, `OpenAPI` backends, internal APIs).
+    Custom,
 }
 
 impl Category {
@@ -111,19 +113,20 @@ impl Category {
             Self::Payments => "payments",
             Self::Identity => "identity",
             Self::Testing => "testing",
+            Self::Custom => "custom",
         }
     }
 }
 
 /// How the token endpoint authenticates the client.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TokenAuth {
     ClientSecretPost,
     ClientSecretBasic,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
 pub enum AuthMethod {
     #[serde(rename = "oauth2_authorization_code")]
@@ -228,7 +231,7 @@ pub struct ScopeDef {
     pub default: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct EgressSpec {
     pub scheme: String,
@@ -248,7 +251,7 @@ impl EgressSpec {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Provider {
     pub id: String,
