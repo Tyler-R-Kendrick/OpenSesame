@@ -666,14 +666,14 @@ mod tests {
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
         assert_eq!(catalog.revision(), "2026-08-22.2");
-        assert_eq!(catalog.providers().len(), 88);
+        assert_eq!(catalog.providers().len(), 89);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            87
+            88
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     }
