@@ -192,6 +192,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0013_certificate_issuance",
         include_str!("../../../migrations/0013_certificate_issuance.sql"),
     ),
+    (
+        "0014_custom_providers",
+        include_str!("../../../migrations/0014_custom_providers.sql"),
+    ),
 ];
 
 impl Db {

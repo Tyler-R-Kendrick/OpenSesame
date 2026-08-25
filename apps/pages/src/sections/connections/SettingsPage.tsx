@@ -1,4 +1,5 @@
-import { Link } from "react-router";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router";
 import {
   IconAlert,
   IconCheck,
@@ -9,6 +10,7 @@ import {
 } from "../../components/Icons.js";
 import { PagesCannotHostNote } from "../../components/PagesCannotHostNote.js";
 import type { Connection, Provider } from "../../lib/connections.js";
+import { deleteCustomProvider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
 import {
   VERB_CHIP,
@@ -30,6 +32,7 @@ import {
   CATEGORY_LABELS,
   type Flash,
   STATUS_CHIP,
+  errorText,
   statusSentence,
 } from "./shared.js";
 
@@ -142,6 +145,9 @@ export function ConnectorSettingsPage({
         >
           Docs <IconExternal size={14} />
         </a>
+        {provider.category === "custom" ? (
+          <DeleteCustomConnector provider={provider} onFlash={onFlash} />
+        ) : null}
       </header>
 
       {flash ? (
@@ -334,5 +340,39 @@ function AuthorizedAccount({
         </Link>
       </div>
     </li>
+  );
+}
+
+function DeleteCustomConnector({
+  provider,
+  onFlash,
+}: {
+  provider: Provider;
+  onFlash: (flash: Flash | null) => void;
+}) {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+
+  async function remove() {
+    setBusy(true);
+    try {
+      await deleteCustomProvider(provider.id);
+      navigate("/connections");
+    } catch (error) {
+      onFlash({ tone: "err", text: errorText(error) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn btn--sm btn--danger"
+      disabled={busy}
+      onClick={() => void remove()}
+    >
+      {busy ? "Deleting…" : "Delete connector"}
+    </button>
   );
 }

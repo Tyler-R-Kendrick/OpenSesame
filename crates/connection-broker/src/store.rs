@@ -2413,3 +2413,106 @@ pub async fn append_config_sync_dirty_for_connection(
     tx.commit().await?;
     Ok(rows.len())
 }
+
+/* ------------------------------------------------- custom providers (0013) */
+
+/// Stored derived-`Provider` JSON for one org-scoped custom connector.
+///
+/// # Errors
+///
+/// Returns an error when the id already exists or storage fails.
+pub async fn insert_custom_provider(
+    pool: &SqlitePool,
+    organization_id: &str,
+    provider_id: &str,
+    provider_json: &str,
+    created_by: &str,
+) -> Result<()> {
+    let now = Utc::now().to_rfc3339();
+    let result = sqlx::query(
+        "INSERT OR IGNORE INTO custom_providers (organization_id, id, provider_json, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .bind(organization_id)
+    .bind(provider_id)
+    .bind(provider_json)
+    .bind(created_by)
+    .bind(&now)
+    .bind(&now)
+    .execute(pool)
+    .await?;
+    if result.rows_affected() == 0 {
+        return Err(BrokerError::Invalid(format!(
+            "custom provider `{provider_id}` already exists"
+        )));
+    }
+    Ok(())
+}
+
+/// # Errors
+///
+/// Returns an error when storage fails.
+pub async fn get_custom_provider(
+    pool: &SqlitePool,
+    organization_id: &str,
+    provider_id: &str,
+) -> Result<Option<String>> {
+    let row = sqlx::query(
+        "SELECT provider_json FROM custom_providers WHERE organization_id = ? AND id = ?",
+    )
+    .bind(organization_id)
+    .bind(provider_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|row| row.get("provider_json")))
+}
+
+/// # Errors
+///
+/// Returns an error when storage fails.
+pub async fn list_custom_providers(
+    pool: &SqlitePool,
+    organization_id: &str,
+) -> Result<Vec<String>> {
+    let rows = sqlx::query(
+        "SELECT provider_json FROM custom_providers WHERE organization_id = ? ORDER BY created_at, id",
+    )
+    .bind(organization_id)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows.iter().map(|row| row.get("provider_json")).collect())
+}
+
+/// # Errors
+///
+/// Returns an error when storage fails.
+pub async fn delete_custom_provider(
+    pool: &SqlitePool,
+    organization_id: &str,
+    provider_id: &str,
+) -> Result<bool> {
+    let result = sqlx::query("DELETE FROM custom_providers WHERE organization_id = ? AND id = ?")
+        .bind(organization_id)
+        .bind(provider_id)
+        .execute(pool)
+        .await?;
+    Ok(result.rows_affected() > 0)
+}
+
+/// Non-revoked connections still pointing at a provider — the delete guard.
+/// # Errors
+///
+/// Returns an error when storage fails.
+pub async fn count_live_connections_for_provider(
+    pool: &SqlitePool,
+    organization_id: &str,
+    provider_id: &str,
+) -> Result<i64> {
+    let row = sqlx::query(
+        "SELECT COUNT(*) AS n FROM connections WHERE organization_id = ? AND provider_id = ? AND status != 'revoked'",
+    )
+    .bind(organization_id)
+    .bind(provider_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(row.get("n"))
+}

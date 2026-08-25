@@ -32,6 +32,7 @@ import { useOnline } from "../lib/use-online.js";
 import { useStatusNotice } from "../lib/use-status-notice.js";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
+import { CustomConnectorPage } from "./connections/CustomConnectorPage.js";
 import { IdentitySessionNote } from "./connections/IdentitySessionNote.js";
 import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
@@ -181,6 +182,10 @@ export function ConnectionsSection() {
         }
       : null,
   );
+
+  if (providerId === "new") {
+    return <CustomConnectorPage />;
+  }
 
   if (providerId) {
     const provider = providers?.find((item) => item.id === providerId) ?? null;

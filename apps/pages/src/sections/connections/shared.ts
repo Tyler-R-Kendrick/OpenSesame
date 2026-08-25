@@ -21,6 +21,7 @@ export type LoadFailure = {
 };
 
 export const CATEGORY_LABELS: Record<ProviderCategory, string> = {
+  custom: "Custom connectors",
   encryption: "Encryption (secrets in git)",
   cloud_secret_storage: "Cloud secret storage",
   password_managers: "Password managers",
@@ -36,6 +37,7 @@ export const CATEGORY_LABELS: Record<ProviderCategory, string> = {
 };
 
 export const CATEGORY_ORDER: ProviderCategory[] = [
+  "custom",
   "encryption",
   "cloud_secret_storage",
   "password_managers",

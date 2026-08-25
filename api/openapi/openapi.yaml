@@ -406,8 +406,10 @@ paths:
         "404": { $ref: "#/components/responses/Error" }
         "409": { $ref: "#/components/responses/Error" }
   /providers:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
     get:
-      summary: List immutable provider templates
+      summary: List provider templates plus the organization's custom connectors
       security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
       description: Includes safe OAuth callback URLs and catalog-derived egress policy.
       responses:
@@ -420,6 +422,45 @@ paths:
                 required: [providers]
                 properties:
                   providers: { type: array, items: { $ref: "#/components/schemas/Provider" } }
+  /custom-providers:
+    parameters:
+      - $ref: "#/components/parameters/OperatorOrganization"
+    post:
+      summary: Register an organization-scoped custom connector
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      description: >-
+        Owner/admin only. The definition carries no secrets; egress is derived
+        from the base URL and never stated by the caller. OAuth clients for a
+        custom connector are sealed through integrations; API keys through
+        connection credentials.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateCustomProvider" }
+      responses:
+        "201":
+          description: The derived provider view
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Provider" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /custom-providers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - $ref: "#/components/parameters/OperatorOrganization"
+    delete:
+      summary: Delete a custom connector definition with no live connections
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "204": { description: Deleted }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
   /integrations:
     parameters:
       - $ref: "#/components/parameters/OperatorOrganization"
@@ -1662,7 +1703,7 @@ components:
       properties:
         id: { type: string }
         display_name: { type: string }
-        category: { type: string, enum: [encryption, cloud_secret_storage, password_managers, local_storage, developer, productivity, communication, storage, crm, payments, identity, testing] }
+        category: { type: string, enum: [encryption, cloud_secret_storage, password_managers, local_storage, developer, productivity, communication, storage, crm, payments, identity, testing, custom] }
         docs_url: { type: string, format: uri }
         provenance_url: { type: string, format: uri }
         catalog_revision: { type: string, minLength: 1 }
@@ -1681,6 +1722,34 @@ components:
         connection_configuration_fields:
           type: array
           items: { $ref: "#/components/schemas/ConfigurationFieldDef" }
+    CreateCustomProvider:
+      type: object
+      additionalProperties: false
+      required: [id, display_name, base_url, auth]
+      properties:
+        id: { type: string, pattern: "^custom-[a-z0-9][a-z0-9-]*$", maxLength: 64 }
+        display_name: { type: string, minLength: 1, maxLength: 80 }
+        base_url: { type: string, format: uri, maxLength: 512 }
+        docs_url: { type: [string, "null"], format: uri, maxLength: 512 }
+        auth: { $ref: "#/components/schemas/CustomProviderAuth" }
+    CustomProviderAuth:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [kind, authorize_url, token_url]
+          properties:
+            kind: { type: string, enum: [oauth2_authorization_code] }
+            authorize_url: { type: string, format: uri, maxLength: 512 }
+            token_url: { type: string, format: uri, maxLength: 512 }
+            supports_refresh: { type: boolean }
+            scopes: { type: array, maxItems: 32, items: { type: string, maxLength: 64 } }
+        - type: object
+          additionalProperties: false
+          required: [kind, header]
+          properties:
+            kind: { type: string, enum: [api_key] }
+            header: { type: string, maxLength: 64 }
+            value_prefix: { type: string, maxLength: 32 }
     Binding:
       type: object
       additionalProperties: false
