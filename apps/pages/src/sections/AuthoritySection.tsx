@@ -3,6 +3,7 @@ import type { ClaimPresentation, StorageLike } from "@opensesame/sdk-browser";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Link } from "react-router";
+import { CeremonyLink } from "../components/CeremonyLauncher.js";
 import {
   IconAlert,
   IconCheck,
@@ -17,8 +18,8 @@ import {
   IconUpload,
   IconX,
 } from "../components/Icons.js";
+import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
 import { PasskeyCeremonyNote } from "../components/PasskeyCeremonyNote.js";
-import { PagesCannotHostNote } from "../components/PlaneNote.js";
 import {
   type HealthState,
   IdentityError,
@@ -420,11 +421,11 @@ function PlaneStatus() {
           <PlaneCard name="Host API" url={hostBase()} probe={host} />
         </div>
         <p className="hint">
-          GitHub Pages cannot host these planes. Both addresses come from
-          Settings. Loopback defaults will not answer from github.io.{" "}
-          <Link to="/settings/connectivity">Change them in Settings</Link> if
-          you run Host and Identity yourself.
+          GitHub Pages cannot host these planes. Loopback defaults will not
+          answer from github.io. Pairing this machine writes both addresses; the
+          Host ceremony also takes one you run yourself.
         </p>
+        <CeremonyLink id="host">Open the Host ceremony</CeremonyLink>
       </div>
     </section>
   );

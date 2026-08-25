@@ -49,9 +49,9 @@ import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 
-import { planeNoteSeams } from "../components/PlaneNote.js";
-const originalPlaneNoteSeams = { ...planeNoteSeams };
-Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
+import { pagesCannotHostNoteSeams } from "../components/PagesCannotHostNote.js";
+const originalPlaneNoteSeams = { ...pagesCannotHostNoteSeams };
+Object.assign(pagesCannotHostNoteSeams, { PagesCannotHostNote: () => null });
 
 import { AgentsSection } from "./AgentsSection.js";
 

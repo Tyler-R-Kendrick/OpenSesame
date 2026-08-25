@@ -85,9 +85,9 @@ Object.assign(queueSeams, { enqueue, dequeue, loadQueue });
 
 const fetchMock = vi.hoisted(() => vi.fn());
 
-import { planeNoteSeams } from "../components/PlaneNote.js";
-const originalPlaneNoteSeams = { ...planeNoteSeams };
-Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
+import { pagesCannotHostNoteSeams } from "../components/PagesCannotHostNote.js";
+const originalPlaneNoteSeams = { ...pagesCannotHostNoteSeams };
+Object.assign(pagesCannotHostNoteSeams, { PagesCannotHostNote: () => null });
 import { passkeyCeremonyNoteSeams } from "../components/PasskeyCeremonyNote.js";
 const originalPasskeyCeremonyNoteSeams = { ...passkeyCeremonyNoteSeams };
 Object.assign(passkeyCeremonyNoteSeams, { PasskeyCeremonyNote: () => null });

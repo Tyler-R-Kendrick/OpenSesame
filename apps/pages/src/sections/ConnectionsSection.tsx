@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { Link, useParams } from "react-router";
+import { CeremonyLink } from "../components/CeremonyLauncher.js";
 import {
   IconAlert,
   IconCheck,
@@ -26,8 +27,8 @@ import {
   IconTrash,
   IconX,
 } from "../components/Icons.js";
+import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
 import { PasskeyCeremonyNote } from "../components/PasskeyCeremonyNote.js";
-import { PagesCannotHostNote } from "../components/PlaneNote.js";
 import {
   type Binding,
   type BindingTargetKind,
@@ -473,19 +474,16 @@ export function ConnectionsSection() {
                 : "Connections could not load"}
             </strong>
             <p>{loadError.message}</p>
-            <p>
-              {loadError.unreachable ? (
-                <>
-                  Start the configured Host service or{" "}
-                  <Link to="/settings/connectivity">
-                    review connection settings
-                  </Link>
-                  .
-                </>
-              ) : (
-                "Try refreshing the connection list."
-              )}
-            </p>
+            {loadError.unreachable ? (
+              <>
+                <p>Start the configured Host service, or repair it here.</p>
+                <CeremonyLink id="host">
+                  Repair the Host connection
+                </CeremonyLink>
+              </>
+            ) : (
+              <p>Try refreshing the connection list.</p>
+            )}
           </div>
         </div>
       ) : null}

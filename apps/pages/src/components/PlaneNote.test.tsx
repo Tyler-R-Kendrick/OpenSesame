@@ -76,7 +76,8 @@ Object.assign(urlSeams, {
     url.includes("127.0.0.1") || url.includes("localhost"),
 });
 
-import { ConnectThisMachine, PagesCannotHostNote } from "./PlaneNote.js";
+import { PagesCannotHostNote } from "./PagesCannotHostNote.js";
+import { ConnectThisMachine } from "./PlaneNote.js";
 
 function withRouter(node: ReactNode) {
   return render(<MemoryRouter>{node}</MemoryRouter>);
@@ -98,7 +99,11 @@ function typeDaemonUrl(value: string) {
 
 /** Reach the manual field from the ceremony's opening step. */
 function goManual() {
-  fireEvent.click(screen.getByRole("button", { name: "Enter it myself" }));
+  // Manual entry is an alternative row now, not a peer button — it expands
+  // in the sheet instead of renaming itself per phase.
+  fireEvent.click(
+    screen.getByRole("button", { name: /Paste a Serve URL instead/ }),
+  );
 }
 
 describe("PagesCannotHostNote", () => {
@@ -119,16 +124,21 @@ describe("PagesCannotHostNote", () => {
     }
   });
 
-  it("warns with the configured Host when it is simply down", () => {
+  it("warns with the configured Host and repairs it in place when down", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "https://h.example" };
     withRouter(<PagesCannotHostNote ceremony="Backup" />);
     expect(screen.getByText(/Backup needs the Host API/)).toBeTruthy();
     expect(screen.getByText("https://h.example")).toBeTruthy();
+    // This used to be a link to Settings — a route change to fix a
+    // connection, exactly what the ceremonies exist to remove. The way out
+    // is the Host ceremony, opened here.
+    expect(screen.queryByRole("link")).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Repair the Host connection" }),
+    );
     expect(
-      screen
-        .getByRole("link", { name: "Change it in Settings" })
-        .getAttribute("href"),
-    ).toBe("/settings/connectivity");
+      screen.getByRole("dialog", { name: "Host connection" }),
+    ).toBeTruthy();
   });
 
   it("shows 'none' when no Host is configured and it is down", () => {
@@ -502,15 +512,26 @@ describe("ConnectThisMachine", () => {
   it("only offers the pairing QR for non-loopback URLs", () => {
     render(<ConnectThisMachine />);
     goManual();
-    expect(screen.queryByRole("button", { name: "Show QR" })).toBeNull();
-
     typeDaemonUrl("http://127.0.0.1:18790");
-    expect(screen.queryByRole("button", { name: "Show QR" })).toBeNull();
+    // A QR of 127.0.0.1 would open the scanning device's own loopback, so
+    // the alternative explains itself instead of rendering a dead square.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
+    expect(screen.queryByRole("img", { name: /another device/ })).toBeNull();
+    expect(screen.getByText(/non-loopback Serve URL first/)).toBeTruthy();
 
+    // Alternatives are exclusive, so reopen manual entry to change the URL.
+    goManual();
     typeDaemonUrl("https://box.tailnet.ts.net");
-    fireEvent.click(screen.getByRole("button", { name: "Show QR" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
     expect(screen.getByRole("img", { name: /another device/ })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Hide QR" }));
+    // Clicking the open row again collapses it.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Scan a QR on another device/ }),
+    );
     expect(screen.queryByRole("img", { name: /another device/ })).toBeNull();
   });
 });

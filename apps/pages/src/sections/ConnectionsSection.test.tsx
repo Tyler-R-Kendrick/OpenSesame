@@ -62,9 +62,9 @@ Object.assign(vaultHooksSeams, {
   useVaultStore: () => ({ addItems, saveItem }),
 });
 
-import { planeNoteSeams } from "../components/PlaneNote.js";
-const originalPlaneNoteSeams = { ...planeNoteSeams };
-Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
+import { pagesCannotHostNoteSeams } from "../components/PagesCannotHostNote.js";
+const originalPlaneNoteSeams = { ...pagesCannotHostNoteSeams };
+Object.assign(pagesCannotHostNoteSeams, { PagesCannotHostNote: () => null });
 
 const listProviders = vi.hoisted(() => vi.fn());
 const listConnections = vi.hoisted(() => vi.fn());

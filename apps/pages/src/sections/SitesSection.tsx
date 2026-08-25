@@ -20,7 +20,7 @@ import {
   IconTrash,
   IconX,
 } from "../components/Icons.js";
-import { PagesCannotHostNote } from "../components/PlaneNote.js";
+import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
 import {
   fetchPrincipal,
   identityBase,

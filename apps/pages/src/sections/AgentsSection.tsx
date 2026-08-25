@@ -19,7 +19,7 @@ import {
   IconSecret,
   IconShield,
 } from "../components/Icons.js";
-import { PagesCannotHostNote } from "../components/PlaneNote.js";
+import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
 import {
   IdentityError,
   currentSession,
