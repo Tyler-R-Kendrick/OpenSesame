@@ -65,6 +65,42 @@ A successful email join emits `principal.identity_email_linked` naming the *exis
 identity's kind and issuer, alongside the usual `principal.identity_linked` naming the new
 one, under one correlation id — so both ends of the join are reconstructible.
 
+### 1a. Only an issuer with standing may use email as a join key
+The link in §1 hands whoever controls an issuer the power to decide who signs in as whom, so
+"the issuer is trusted" is not the question that governs it.
+
+The tuple `(kind, issuer, subject)` is safe to take from any trusted issuer, because it is
+scoped to that issuer and can only ever name that issuer's own accounts. An email address is
+not: it is a **global** name, and an issuer asserting one is making a claim about a namespace
+it may have no authority over. `resolveTrustedIssuer` answers "may we federate here?" — and a
+visitor who types their own issuer into the bring-your-own form passes it *by design*, because
+that is the feature. Wiring that answer to the join would have meant anyone able to run an OIDC
+server could sign in as any existing user: register the issuer, mint an id_token claiming the
+victim's address is verified, be handed the victim's principal. Every signature check passes,
+because the attacker owns the issuer. The victim does nothing and is not notified.
+
+Authority is therefore decided per trust source, in one shared function
+(`services/email-authority.ts`) that every admission leg calls:
+
+| Source | May its `email_verified` join accounts? |
+| --- | --- |
+| Static registry provider | Only with `emailAuthoritative` — set for Google, Microsoft, Apple and GitHub, which verify ownership before claiming it; off for anything else until an operator sets `_EMAIL_AUTHORITATIVE=true` |
+| Bring-your-own record | **Never.** It may mint a new principal and nothing else |
+| Organization issuer | Only for a domain the organization DNS-verified (§6) |
+
+A leg that does not clear the bar **drops the claim** rather than storing it unhonoured. Storing
+an unhonoured `emailVerified: true` would leave a row that a later, genuinely verified sign-in
+attaches itself to — the same takeover with the steps reversed. The address is still recorded,
+because it is worth having for support and it is what the denied-collision audit event reports
+on; it simply carries no verification.
+
+For the same reason `findVerifiedByEmail` requires the stored side to be **explicitly** true,
+never merely not-false. `email_verified` is nullable and an absent flag is the common case, not
+an edge one: every row written before this policy carries NULL, as does every row from a
+provider that supplies an address and no verification claim. Accepting those as link *targets*
+would let an attacker put a victim's address on their own principal, unverified, and capture the
+victim's first real sign-in.
+
 ### 2. Determinism in code, not in a constraint
 `external_identities.email_normalized` stays indexed and **not** unique. Pre-existing rows may
 already share an address — the column was deliberately non-unique — so a migration adding a

@@ -512,10 +512,15 @@ export class PostgresRepositories implements Repositories {
           and(
             eq(schema.externalIdentities.emailNormalized, emailNormalized),
             eq(schema.externalIdentities.assurance, "verified"),
-            or(
-              isNull(schema.externalIdentities.emailVerified),
-              eq(schema.externalIdentities.emailVerified, true),
-            ),
+            // Explicitly true, never merely not-false. A NULL here means the
+            // address was recorded without anyone checking it — every row
+            // written before the verified-email policy existed is NULL, and so
+            // is every row from a provider that supplies an address and no
+            // verification claim. Accepting those as link *targets* would let
+            // an attacker pre-plant a victim's address on their own principal
+            // and capture the victim's account on the victim's first real
+            // sign-in, which is the exact inversion of the policy.
+            eq(schema.externalIdentities.emailVerified, true),
           ),
         )
         .orderBy(

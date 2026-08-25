@@ -587,11 +587,16 @@ Callback validation, in this order:
    **The configured field must be stable**: GitHub's `id` is immutable, its `login` is
    renameable and re-registrable by somebody else, and a renameable subject is an
    account-takeover path.
-8. `email` and `name` are read from the descriptor's `profileMap` (defaults `email`/`name`)
-   and are display/linking hints only. `emailVerified` is set only when the descriptor names
-   an `emailVerifiedField` and the value is a boolean; the shipped GitHub descriptor names
-   none, so a GitHub email never satisfies §14.3's verified-email join. `/user/emails` is
-   never called — a private profile email is simply absent.
+8. `name` and the `profileMap` `email` are display hints. A **verified** address comes from
+   the descriptor's `emailsEndpoint` when it names one — a second authenticated read, which
+   for GitHub is `/user/emails`, where the provider reports the `verified` flag it set
+   itself. The primary confirmed address wins, else any confirmed one. The read is
+   soft-failing: an outage, a revoked scope or an unreadable body degrades to the profile
+   address as an unverified hint rather than failing the sign-in, and it never reports an
+   address as verified that the provider did not. A descriptor with no `emailsEndpoint` uses
+   `emailVerifiedField` if it names one, and otherwise carries no verification at all.
+   Whether the resulting claim may *join* accounts is a separate question, answered by
+   §14.3's authority table — not by this step.
 
 Every endpoint on this leg comes from static operator configuration, so nothing user-supplied
 decides where the server connects. Bring-your-own upstreams are OIDC-only and never reach it.
@@ -1031,7 +1036,8 @@ leg — after the tuple lookup and before the mint:
    anybody else → `identity_collision`. **Unchanged.**
 2. On a miss, **and only if this sign-in asserts `emailVerified === true` with a non-empty
    `emailNormalized`**, look for an existing principal owning a *verified* identity with that
-   address.
+   address. The stored side must be **explicitly** verified — a NULL `email_verified` is not a
+   candidate, or an address nobody ever checked would be a way onto its owner's principal.
 3. A match owned by a different principal → the new identity row is created against **that**
    principal, which is promoted if provisional; audit `principal.identity_email_linked` naming
    the pre-existing identity's kind and issuer, alongside the usual
@@ -1039,6 +1045,23 @@ leg — after the tuple lookup and before the mint:
 4. A match owned by the caller is no match. No match, or an unverified/absent email → today's
    behaviour: the row is created against the caller's principal. An unverified collision still
    emits the *denied* `principal.identity_link_email_collision` event and then links by tuple.
+
+**Whose claim counts.** `emailVerified: true` reaching this chokepoint is the *caller's*
+assertion that the address may join, not a passthrough of whatever the upstream said. Each leg
+decides that through one shared function (`services/email-authority.ts`), because the trust
+fence is the wrong question here: it admits an issuer a visitor registered themselves, and an
+email address is a global name rather than one scoped to the issuer asserting it.
+
+| Trust source | May its `email_verified` join accounts? |
+| --- | --- |
+| Static registry provider | Only with `emailAuthoritative` (`_EMAIL_AUTHORITATIVE=true`); set for Google, Microsoft, Apple, GitHub |
+| Bring-your-own record | Never — it may mint a new principal and nothing else |
+| Organization issuer | Only for a domain the organization DNS-verified (§12.4) |
+| SAML assertion, LDAP directory | Only for a domain the organization DNS-verified — same rule, same function |
+| Email magic-link | Yes: following the link *is* the proof of control |
+
+A leg that does not clear the bar drops the claim rather than storing it unhonoured — an
+unhonoured `true` would leave a row a later, genuinely verified sign-in attaches itself to.
 
 Determinism: `email_normalized` is indexed and deliberately **not** unique, so when several
 verified rows share an address the oldest owning principal wins, tie-broken by principal id

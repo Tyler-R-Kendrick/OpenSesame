@@ -36,6 +36,8 @@ export type OidcProviderDescriptor = {
   /** Apple only: the assertion comes back as a cross-site form POST. */
   responseMode?: "form_post";
   apple?: { teamId: string; keyId: string; privateKeyPem: string };
+  /** See {@link OAuth2ProviderDescriptor.emailAuthoritative}. */
+  emailAuthoritative?: boolean;
 };
 
 export type OAuth2ProviderDescriptor = {
@@ -54,6 +56,22 @@ export type OAuth2ProviderDescriptor = {
    * renameable, and a renameable subject is an account-takeover path.
    */
   subjectField: string;
+  /**
+   * Whether this provider's `email_verified` claim may act as an
+   * account-JOIN key (ADR 0057 D15), not merely as a display hint.
+   *
+   * Off unless the operator says otherwise, because the claim is only as good
+   * as the issuer making it. An IdP that lets a person type any address and
+   * marks it verified is asserting something it never checked, and honouring
+   * that would let whoever controls such an issuer attach themselves to the
+   * principal that already owns the address — an account takeover with no
+   * interaction from the victim.
+   *
+   * The four built-ins below set it because they are known to verify ownership
+   * before making the claim. Any other provider an operator adds is off until
+   * they set `_EMAIL_AUTHORITATIVE=true`, which is them vouching for it.
+   */
+  emailAuthoritative?: boolean;
   profileMap?: { email?: string; name?: string; emailVerifiedField?: string };
   /**
    * A second authenticated read that answers "which of this account's
@@ -111,6 +129,7 @@ type BuiltInProvider = {
   emailsEndpoint?: string;
   subjectField?: string;
   profileMap?: { email?: string; name?: string; emailVerifiedField?: string };
+  emailAuthoritative?: boolean;
 };
 
 /**
@@ -122,10 +141,15 @@ type BuiltInProvider = {
 const BUILT_IN_PROVIDERS: ReadonlyMap<string, BuiltInProvider> = new Map([
   [
     "google",
-    { kind: "oidc", label: "Google", issuer: "https://accounts.google.com" },
+    {
+      kind: "oidc",
+      label: "Google",
+      issuer: "https://accounts.google.com",
+      emailAuthoritative: true,
+    },
   ],
   // No issuer default: it is derived from the required tenant id below.
-  ["microsoft", { kind: "oidc", label: "Microsoft" }],
+  ["microsoft", { kind: "oidc", label: "Microsoft", emailAuthoritative: true }],
   [
     "github",
     {
@@ -143,6 +167,9 @@ const BUILT_IN_PROVIDERS: ReadonlyMap<string, BuiltInProvider> = new Map([
       scopes: "read:user user:email",
       subjectField: "id",
       profileMap: { email: "email", name: "name" },
+      // Only the `/user/emails` read above is honoured as verified; the public
+      // profile address is a hint the account holder typed.
+      emailAuthoritative: true,
     },
   ],
   [
@@ -154,6 +181,7 @@ const BUILT_IN_PROVIDERS: ReadonlyMap<string, BuiltInProvider> = new Map([
       // Apple's own scope values; it has no `profile` scope.
       scopes: "openid email name",
       responseMode: "form_post",
+      emailAuthoritative: true,
     },
   ],
 ]);
@@ -200,6 +228,18 @@ function readEnv(env: NodeJS.ProcessEnv, name: string): string | undefined {
   if (raw === undefined) return undefined;
   const value = raw.trim();
   return value.length > 0 ? value : undefined;
+}
+
+/**
+ * A tri-state flag: set-and-true, set-and-false, or unset.
+ *
+ * Unset has to be distinguishable from false so a built-in default can supply
+ * the value, and an operator can still turn a built-in default OFF.
+ */
+function readFlag(env: NodeJS.ProcessEnv, name: string): boolean | undefined {
+  const raw = readEnv(env, name);
+  if (raw === undefined) return undefined;
+  return raw.toLowerCase() === "true";
 }
 
 function providerEnvPrefix(id: string): string {
@@ -406,6 +446,12 @@ function readProvider(env: NodeJS.ProcessEnv, id: string): ProviderDescriptor {
           readEnv(env, `${prefix}EMAILS_URL`) ?? builtIn?.emailsEndpoint;
         return emails ? { emailsEndpoint: emails } : undefined;
       })(),
+      // Operator opt-in for anything not shipped: the claim only joins
+      // accounts when somebody vouched for the issuer making it.
+      ...((readFlag(env, `${prefix}EMAIL_AUTHORITATIVE`) ??
+      builtIn?.emailAuthoritative)
+        ? { emailAuthoritative: true }
+        : undefined),
       ...(builtIn?.profileMap ? { profileMap: builtIn.profileMap } : undefined),
     };
     return descriptor;
@@ -431,6 +477,12 @@ function readProvider(env: NodeJS.ProcessEnv, id: string): ProviderDescriptor {
     ...(clientSecret !== undefined ? { clientSecret } : undefined),
     ...(responseMode !== undefined ? { responseMode } : undefined),
     ...(apple !== undefined ? { apple } : undefined),
+    // Operator opt-in for anything not shipped: the claim only joins accounts
+    // when somebody vouched for the issuer making it.
+    ...((readFlag(env, `${prefix}EMAIL_AUTHORITATIVE`) ??
+    builtIn?.emailAuthoritative)
+      ? { emailAuthoritative: true }
+      : undefined),
   };
   return descriptor;
 }

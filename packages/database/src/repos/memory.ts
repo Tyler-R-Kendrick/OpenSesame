@@ -98,7 +98,10 @@ function verifiedEmailCandidate(
   return (
     row.emailNormalized === emailNormalized &&
     row.assurance === "verified" &&
-    row.emailVerified !== false
+    // Explicitly true, never merely not-false — see the Postgres predicate.
+    // An absent flag means nobody checked the address, and a link target
+    // nobody checked is a way onto somebody else's principal.
+    row.emailVerified === true
   );
 }
 

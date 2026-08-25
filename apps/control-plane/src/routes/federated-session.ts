@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
+import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
   type ProvisionalSession,
   isString,
@@ -178,6 +179,31 @@ export function createFederatedSessionRoutes(): Hono<{ Variables: Variables }> {
     // A client-credentials token has no account. It authenticates software,
     // and no session belongs to it.
     if (!isString(accountId) || accountId.length === 0) return invalid();
+
+    /*
+     * Which client the token was issued to decides whether it may be spent
+     * here at all.
+     *
+     * What this route hands back is a first-party `pst_` bearer, and that is
+     * not scope-limited: `authMiddleware` resolves it to a full principal for
+     * every route behind `requirePrincipal()` — projects, claims,
+     * organizations, SCIM token minting. An OAuth access token is narrower
+     * than that by construction, so exchanging *any* of them for one would let
+     * a pre-registered relying party that a user granted `openid` alone walk
+     * away with the user's whole identity-plane session.
+     *
+     * The exchange exists for exactly one caller: an origin-profile static
+     * site completing the brokered flow against this deployment (D8/C13). So
+     * the client is looked up and required to have been admitted through that
+     * path. A `origin:`-shaped id is not enough on its own — that is a string,
+     * and a pre-registered client could be given one.
+     */
+    const clientId = token.clientId;
+    if (!isString(clientId) || parseOriginClientId(clientId) === undefined) {
+      return invalid();
+    }
+    const client = await ctx.oauth.clientStore.findById(clientId);
+    if (!client || client.admissionMode !== "origin_profile") return invalid();
 
     const principal = await ctx.repos.principals.getById(accountId);
     if (!principal || principal.state !== "active") return invalid();

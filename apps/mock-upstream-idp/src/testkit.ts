@@ -101,6 +101,14 @@ export type ReferenceIdp = {
   metadataUrl: string;
   close(): Promise<void>;
   setSubject(sub: string): void;
+  /**
+   * Claim an address, verified or not, in the OIDC id_token.
+   *
+   * A real IdP decides for itself what it puts in `email`/`email_verified`,
+   * including an address it never checked. Tests that assert what this
+   * deployment does with such a claim need to be able to make it.
+   */
+  setEmail(email: string, verified: boolean): void;
   lastNonce(): string | undefined;
   tokenOriginSeen(): string | undefined;
   tokenClientSeen(): ReferenceIdpTokenClient;
@@ -174,6 +182,10 @@ export async function startReferenceIdp(
     issuer,
     metadataUrl: metadataUrlFor(protocol, issuer),
     close: () => idp.close(),
+    setEmail(email: string, verified: boolean) {
+      idp.config.testUser.email = email;
+      idp.config.testUser.emailVerified = verified;
+    },
     setSubject(sub: string) {
       idp.config.testUser.sub = sub;
     },

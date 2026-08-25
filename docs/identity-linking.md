@@ -16,6 +16,13 @@
   address into a profile field would otherwise be an account-takeover path. An unverified
   collision produces a denied `principal.identity_link_email_collision` audit event and then
   links normally by tuple: evidence for a human reading the trail, never a matching rule.
+- **The issuer must have standing to speak about the address.** A verified-email link hands
+  whoever controls an issuer the power to decide who signs in as whom, so passing the trust
+  fence is not sufficient: that fence admits an issuer a visitor registered themselves through
+  the bring-your-own form, and an email address is a global name rather than one scoped to its
+  issuer. Only a provider the operator marked authoritative, an organization speaking for a
+  domain it DNS-verified, or a magic link somebody actually followed may join. A bring-your-own
+  issuer never can — it may mint a new principal and nothing else.
 - **An organization-asserted address needs a domain proof.** A SAML `mail` attribute and an
   LDAP directory attribute are both set by the tenant, not typed by the person signing in — good
   provenance, but neither protocol carries a verification signal, and an organization owner must

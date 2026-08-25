@@ -23,10 +23,12 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { decodeJwt } from "jose";
+import { resolveTrustedIssuer } from "../interactions/trust.js";
 import { cookieAuthAllowed, requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
+import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { OrgAssertionError, verifyOrgIdToken } from "./org-assertion.js";
 import {
@@ -580,9 +582,24 @@ async function linkFromVerifiedIdToken(
     throw error;
   }
 
-  // Claims captured for display/support only. Email is never a join key — see
-  // the security invariant in services/identity-link.ts.
-  const emailNormalized = verified.email?.trim().toLowerCase();
+  /*
+   * Email may join accounts (ADR 0057 D15), but only when the issuer that
+   * asserted it has the standing to. Passing the allowlist above says this
+   * deployment federates to the issuer; it does not say the issuer verifies
+   * the addresses it claims. An issuer that hands out `email_verified: true`
+   * for anything typed into a profile would otherwise be a way onto whichever
+   * principal already owns the address.
+   */
+  const trust = await resolveTrustedIssuer(ctx, issuer);
+  if (!trust) {
+    return c.json(
+      {
+        error: "untrusted_issuer",
+        message: "That identity issuer is not in the allowlist.",
+      },
+      403,
+    );
+  }
   const result = await attachVerifiedExternalIdentity(ctx, principalId, {
     issuer,
     subject: verified.sub,
@@ -590,10 +607,12 @@ async function linkFromVerifiedIdToken(
     ...(verified.name !== undefined
       ? { displayHint: verified.name }
       : undefined),
-    ...(emailNormalized ? { emailNormalized } : undefined),
-    ...(verified.emailVerified !== undefined
-      ? { emailVerified: verified.emailVerified }
-      : undefined),
+    ...(await emailLinkFields(
+      ctx,
+      trust,
+      verified.email,
+      verified.emailVerified,
+    )),
   });
 
   if (!result.ok) {

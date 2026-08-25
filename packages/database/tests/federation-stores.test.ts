@@ -887,6 +887,38 @@ describe.each(backends)("$name federation storage", ({ create }) => {
       ).toBeNull();
     });
 
+    /**
+     * The gap the `false` case above did not cover.
+     *
+     * `email_verified` is nullable, and an absent flag is the common case, not
+     * an edge one: every row written before the verified-email policy existed
+     * carries NULL, as does every row from a provider that supplies an address
+     * and no verification claim. A predicate that accepted "not false" made all
+     * of those valid link *targets* — so an attacker could put a victim's
+     * address on their own principal, unverified, and have the victim's first
+     * genuinely verified sign-in attach to the attacker's account instead of
+     * the victim's own. The policy has to be explicitly-true on both sides.
+     */
+    it("ignores a row whose verification was never recorded at all", async () => {
+      const email = `unrecorded-${randomUUID().slice(0, 8)}@example.test`;
+      const owner = await principal();
+      const identity = await backend.repos.externalIdentities.create(
+        makeIdentity(owner, {
+          issuer: `https://idp-${randomUUID().slice(0, 8)}.example`,
+          emailNormalized: email,
+          assurance: "verified",
+        }),
+      );
+      // The row exists and carries the address; it simply never claimed the
+      // address was checked.
+      expect(identity.emailNormalized).toBe(email);
+      expect(identity.emailVerified).toBeUndefined();
+
+      expect(
+        await backend.repos.externalIdentities.findVerifiedByEmail(email),
+      ).toBeNull();
+    });
+
     it("returns null when no identity carries the email", async () => {
       expect(
         await backend.repos.externalIdentities.findVerifiedByEmail(

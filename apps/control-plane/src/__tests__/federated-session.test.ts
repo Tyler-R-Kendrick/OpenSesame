@@ -340,6 +340,65 @@ describe("POST /v1/principals/federated-session", () => {
     expect(await res.json()).toEqual({ error: "invalid_token" });
   });
 
+  /**
+   * A token issued to somebody else's client is not a session.
+   *
+   * What this route returns is a first-party `pst_` bearer, which
+   * `authMiddleware` resolves to a full principal for every route behind
+   * `requirePrincipal()` — projects, claims, organizations, SCIM token
+   * minting. An OAuth access token is narrower than that by construction, so
+   * accepting any of them would let a relying party a user granted `openid`
+   * alone trade it for the user's whole identity-plane session.
+   *
+   * The exchange exists for one caller: an origin-profile static site
+   * finishing the brokered flow (C13). Anything else is refused with the same
+   * answer every other failure gets.
+   */
+  it("refuses a token issued to a pre-registered client", async () => {
+    upstream.setSubject(currentSubject);
+    const { principalId } = await brokeredAccessToken();
+
+    // A confidential client of the same deployment, registered the ordinary
+    // way. Its token is perfectly valid; it is simply not this route's.
+    const confidentialId = `rp-confidential-${randomBytes(4).toString("hex")}`;
+    await started.ctx.oauth.clientStore.insertAtomic({
+      id: confidentialId,
+      admissionMode: "pre_registered",
+      displayName: "Confidential RP",
+      redirectUris: ["https://rp.example/callback"],
+      sectorIdentifier: "rp.example",
+      grantTypes: ["authorization_code"],
+      responseTypes: ["code"],
+      // Public: a confidential one needs a secret in its metadata, and the
+      // admission mode is what this test is about, not the auth method.
+      tokenEndpointAuthMethod: "none",
+      allowedScopes: ["openid"],
+      allowedResources: [],
+      state: "active",
+    });
+
+    const provider = started.ctx.oauth.provider;
+    const client = await provider.Client.find(confidentialId);
+    const issued = new provider.AccessToken(
+      overlapCast({
+        client,
+        accountId: principalId,
+        scope: "openid",
+        clientId: confidentialId,
+      }),
+    );
+    const asToken: { save(): Promise<string> } = overlapCast(issued);
+    const value = await asToken.save();
+
+    const res = await fetch(`${base}/v1/principals/federated-session`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ accessToken: value }),
+    });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "invalid_token" });
+  }, 30_000);
+
   it("refuses an expired access token", async () => {
     currentSubject = `expired-${randomBytes(4).toString("hex")}`;
     upstream.setSubject(currentSubject);

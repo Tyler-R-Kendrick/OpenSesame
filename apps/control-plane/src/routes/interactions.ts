@@ -33,12 +33,14 @@ import {
   providerById,
   providerByIssuer,
 } from "../interactions/registry.js";
+import { resolveTrustedIssuer } from "../interactions/trust.js";
 import type {
   InteractionDetails,
   ProviderInteractions,
 } from "../interactions/types.js";
 import type { Variables } from "../middleware/context.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
+import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
 import { createByoInteractionRoutes } from "./interactions-byo.js";
@@ -452,6 +454,15 @@ export function createInteractionRoutes(): Hono<
       throw error;
     }
 
+    // Resolved again rather than carried from the leg: the same read decides
+    // both what may be federated to and what its email claim is worth, and a
+    // value threaded through the pending cookie would be one a forged cookie
+    // could choose.
+    const trust = await resolveTrustedIssuer(ctx, identity.issuer);
+    if (!trust) {
+      return c.text("That sign-in provider is not trusted by this server", 403);
+    }
+
     const correlationId = c.get("correlationId");
     const existing = await ctx.repos.externalIdentities.findByTuple({
       kind: identity.kind,
@@ -503,12 +514,20 @@ export function createInteractionRoutes(): Hono<
           ...(identity.name !== undefined
             ? { displayHint: identity.name }
             : undefined),
-          ...(identity.email !== undefined
-            ? { emailNormalized: identity.email }
-            : undefined),
-          ...(identity.emailVerified !== undefined
-            ? { emailVerified: identity.emailVerified }
-            : undefined),
+          /*
+           * Whether this upstream's `email_verified` may JOIN accounts, not
+           * just whether it said so. The trust fence admits issuers a visitor
+           * registered themselves through the bring-your-own form; honouring
+           * their email claim would let anyone who can run an OIDC server sign
+           * in as any existing user (ADR 0057 §1a). The address is still
+           * recorded either way.
+           */
+          ...(await emailLinkFields(
+            ctx,
+            trust,
+            identity.email,
+            identity.emailVerified,
+          )),
         },
       );
       if (!attached.ok) {

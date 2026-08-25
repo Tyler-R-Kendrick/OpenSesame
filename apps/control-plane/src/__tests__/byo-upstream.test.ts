@@ -677,6 +677,99 @@ describe("bring-your-own upstream", () => {
     }, 30_000);
 
     /**
+     * Account takeover through the bring-your-own form, refused.
+     *
+     * The verified-email auto-link attaches a new identity to whichever
+     * principal already owns the address. That is safe only from an issuer
+     * with standing to speak about the address — and a bring-your-own record
+     * has none: it is created by an unauthenticated stranger naming a server
+     * they control, which is the entire point of the feature.
+     *
+     * So the attack is cheap. Stand up an OIDC server, register it through
+     * the login page with no account at all, and mint an id_token claiming
+     * the victim's address is verified. Every signature check passes, because
+     * the attacker owns the issuer. Only the authority fence stops the
+     * hand-back from completing as the victim.
+     */
+    it("refuses to hand a visitor's own issuer somebody else's account", async () => {
+      // A victim who already exists, with a verified address, exactly as a
+      // Google or Entra sign-in would have left them.
+      const victimEmail = `victim-${randomBytes(4).toString("hex")}@corp.example`;
+      const victim = await started.ctx.repos.principals.create({
+        id: `prn_victim_${randomBytes(6).toString("hex")}`,
+        state: "active",
+        assurance: "verified",
+        createdAt: started.ctx.clock(),
+        updatedAt: started.ctx.clock(),
+        version: 1,
+      });
+      await started.ctx.repos.externalIdentities.create({
+        id: `xid_${randomBytes(8).toString("hex")}`,
+        principalId: victim.id,
+        kind: "oidc",
+        issuer: "https://accounts.google.com",
+        subject: `google-${randomBytes(4).toString("hex")}`,
+        assurance: "verified",
+        linkedAt: started.ctx.clock(),
+        metadata: {},
+        emailNormalized: victimEmail,
+        emailVerified: true,
+      });
+
+      // The attacker's issuer asserts the victim's address, verified.
+      const attackerSubject = `attacker-${randomBytes(4).toString("hex")}`;
+      roundTripIdp.setSubject(attackerSubject);
+      roundTripIdp.setEmail(victimEmail, true);
+      roundTripIdp.setRedirectUris([stableCallback()]);
+
+      const { jar, uid, html } = await loginPage();
+      const start = await req(
+        base,
+        jar,
+        `/interaction/${uid}/federated/byo`,
+        postForm({
+          _csrf: extractCsrf(html),
+          issuer: roundTripIdp.issuer,
+          client_id: roundTripIdp.clientId,
+          client_secret: roundTripIdp.clientSecret,
+        }),
+      );
+      expect(start.status).toBe(303);
+      const authorize = new URL(start.headers.get("location") ?? "");
+      const upstream = await fetch(authorize, { redirect: "manual" });
+      const back = new URL(upstream.headers.get("location") ?? "");
+      const handBack = await req(base, jar, `${back.pathname}${back.search}`);
+      const completed = await req(
+        base,
+        jar,
+        handBack.headers.get("location") ?? "",
+      );
+      // The sign-in itself succeeds — the attacker is entitled to an account.
+      expect(completed.status).toBe(303);
+
+      const planted = await started.ctx.repos.externalIdentities.findByTuple({
+        kind: "oidc",
+        issuer: roundTripIdp.issuer,
+        subject: attackerSubject,
+      });
+      expect(planted).toBeTruthy();
+
+      // ...but it is THEIR account, not the victim's.
+      expect(planted?.principalId).not.toBe(victim.id);
+      // And the claim was not stored as verified, so it cannot become the
+      // target of the victim's next genuinely verified sign-in either.
+      expect(planted?.emailVerified).not.toBe(true);
+
+      const victimIdentities =
+        await started.ctx.repos.externalIdentities.listByPrincipal(victim.id);
+      expect(
+        victimIdentities.some((row) => row.issuer === roundTripIdp.issuer),
+      ).toBe(false);
+
+      roundTripIdp.setEmail("mock@example.com", true);
+    }, 30_000);
+
+    /**
      * The regression the per-interaction callback caused, for the leg that
      * kept it longest.
      *

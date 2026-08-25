@@ -26,6 +26,7 @@ import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
+import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { getUsage } from "../state.js";
 import {
@@ -612,12 +613,21 @@ organizationRoutes.post(
       ...(assertion.name !== undefined
         ? { displayHint: assertion.name }
         : undefined),
-      ...(assertion.email !== undefined
-        ? { emailNormalized: assertion.email }
-        : undefined),
-      ...(assertion.emailVerified !== undefined
-        ? { emailVerified: assertion.emailVerified }
-        : undefined),
+      // The tenant's own IdP asserted this address. It joins accounts only
+      // for a domain the organization proved it controls, the same rule the
+      // SAML and directory legs use — an owner may speak for their own
+      // namespace, not for `@gmail.com` (ADR 0057 §6).
+      ...(await emailLinkFields(
+        ctx,
+        {
+          source: "org",
+          organizationId: org.id,
+          issuer,
+          method: parsed.data.method === "saml" ? "saml" : "sso",
+        },
+        assertion.email,
+        assertion.emailVerified,
+      )),
     });
     if (!attached.ok) {
       return c.json({ error: attached.error, message: attached.message }, 409);
