@@ -16,16 +16,17 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::app_state::AppState;
-use crate::dev_pki::{
-    self, DevCa, IssuedRecord, DEFAULT_TTL, DEV_CA_CN, MAX_TTL,
-};
+use crate::dev_pki::{self, DevCa, IssuedRecord, DEFAULT_TTL, DEV_CA_CN, MAX_TTL};
 use crate::middleware::auth::{resolve_caller, Caller};
 
 const KV_CA: &str = "certs.dev_ca";
 const KV_ISSUED: &str = "certs.issued";
 const MAX_ISSUED: usize = 256;
 
-fn require_configurator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
+fn require_configurator(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<Caller, Response> {
     let who = resolve_caller(st, headers)?;
     if !who.can_configure_integrations() {
         return Err((
@@ -41,18 +42,13 @@ fn require_configurator(st: &AppState, headers: &axum::http::HeaderMap) -> Resul
 }
 
 async fn load_or_create_ca(st: &AppState) -> Result<DevCa, Response> {
-    if let Some(raw) = st
-        .db
-        .get_host_kv(KV_CA)
-        .await
-        .map_err(|error| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error":"internal","hint": error.to_string()})),
-            )
-                .into_response()
-        })?
-    {
+    if let Some(raw) = st.db.get_host_kv(KV_CA).await.map_err(|error| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error":"internal","hint": error.to_string()})),
+        )
+            .into_response()
+    })? {
         return serde_json::from_str(&raw).map_err(|error| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -144,13 +140,16 @@ async fn save_issued(st: &AppState, rows: &[IssuedRecord]) -> Result<(), Respons
         )
             .into_response()
     })?;
-    st.db.set_host_kv(KV_ISSUED, &encoded).await.map_err(|error| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error":"internal","hint": error.to_string()})),
-        )
-            .into_response()
-    })
+    st.db
+        .set_host_kv(KV_ISSUED, &encoded)
+        .await
+        .map_err(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error":"internal","hint": error.to_string()})),
+            )
+                .into_response()
+        })
 }
 
 pub async fn get_ca(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
@@ -357,12 +356,22 @@ mod tests {
         )
         .await;
         assert_eq!(status, StatusCode::OK, "{body}");
-        assert!(body["certificate"].as_str().unwrap().contains("BEGIN CERTIFICATE"));
+        assert!(body["certificate"]
+            .as_str()
+            .unwrap()
+            .contains("BEGIN CERTIFICATE"));
         assert!(body["private_key"].as_str().unwrap().contains("BEGIN"));
         assert_eq!(body["common_name"], "localhost");
         assert_eq!(body["purpose"], "dev");
 
-        let (status, ca) = call(&state, "GET", "/api/v1/certs/ca", Some(headers.clone()), None).await;
+        let (status, ca) = call(
+            &state,
+            "GET",
+            "/api/v1/certs/ca",
+            Some(headers.clone()),
+            None,
+        )
+        .await;
         assert_eq!(status, StatusCode::OK, "{ca}");
         assert_eq!(ca["ca"]["certificate"], body["ca_certificate"]);
 

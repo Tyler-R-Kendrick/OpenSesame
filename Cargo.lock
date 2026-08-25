@@ -3203,6 +3203,7 @@ dependencies = [
  "opensesame-provider-openbao",
  "opensesame-provider-openfga",
  "opensesame-redaction",
+ "opensesame-relay",
  "opensesame-storage",
  "opensesame-task-access",
  "opensesame-task-bus",

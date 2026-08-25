@@ -192,6 +192,13 @@ impl TestActivationPause {
 }
 
 impl ConnectionBroker {
+    /// The shared authority-plane pool, for gateway surfaces that persist
+    /// rows beside the broker's (relay requests). Nothing here exposes
+    /// credential tables — those are reachable only through broker methods.
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
+    }
+
     pub fn new(pool: SqlitePool, config: BrokerConfig) -> Result<Self> {
         catalog::load()?;
         let http = reqwest::Client::builder()

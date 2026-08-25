@@ -19,7 +19,10 @@ use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, Caller};
 use crate::taskbus_config::{self, TaskBusConfigView, TaskBusSource};
 
-fn require_configurator(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
+fn require_configurator(
+    st: &AppState,
+    headers: &axum::http::HeaderMap,
+) -> Result<Caller, Response> {
     let who = resolve_caller(st, headers)?;
     if !who.can_configure_integrations() {
         return Err((

@@ -55,12 +55,16 @@ pub struct IssuedRecord {
 }
 
 pub fn generate_dev_ca() -> Result<DevCa, String> {
-    let mut params = CertificateParams::new(Vec::<String>::new())
-        .map_err(|error| error.to_string())?;
+    let mut params =
+        CertificateParams::new(Vec::<String>::new()).map_err(|error| error.to_string())?;
     params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
     params.distinguished_name = DistinguishedName::new();
-    params.distinguished_name.push(DnType::CommonName, DEV_CA_CN);
-    params.distinguished_name.push(DnType::OrganizationName, "OpenSesame");
+    params
+        .distinguished_name
+        .push(DnType::CommonName, DEV_CA_CN);
+    params
+        .distinguished_name
+        .push(DnType::OrganizationName, "OpenSesame");
     params.key_usages = vec![
         KeyUsagePurpose::DigitalSignature,
         KeyUsagePurpose::KeyCertSign,
@@ -101,8 +105,7 @@ pub fn issue_leaf(ca: &DevCa, request: &IssueRequest) -> Result<IssuedCert, Stri
     }
 
     let ca_key = KeyPair::from_pem(&ca.key_pem).map_err(|e| e.to_string())?;
-    let ca_params =
-        CertificateParams::from_ca_cert_pem(&ca.cert_pem).map_err(|e| e.to_string())?;
+    let ca_params = CertificateParams::from_ca_cert_pem(&ca.cert_pem).map_err(|e| e.to_string())?;
     let issuer_cert = ca_params.self_signed(&ca_key).map_err(|e| e.to_string())?;
 
     let mut params = CertificateParams::new(dns.clone()).map_err(|e| e.to_string())?;
@@ -110,7 +113,9 @@ pub fn issue_leaf(ca: &DevCa, request: &IssueRequest) -> Result<IssuedCert, Stri
     params.distinguished_name.push(DnType::CommonName, cn);
     params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
     params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
-    params.serial_number = Some(SerialNumber::from_slice(&uuid::Uuid::new_v4().as_bytes()[..]));
+    params.serial_number = Some(SerialNumber::from_slice(
+        &uuid::Uuid::new_v4().as_bytes()[..],
+    ));
     let not_before = OffsetDateTime::now_utc() - Duration::minutes(1);
     let not_after = OffsetDateTime::now_utc()
         + Duration::seconds(i64::try_from(ttl.as_secs()).unwrap_or(i64::MAX));
@@ -166,7 +171,9 @@ mod tests {
     fn issues_a_localhost_leaf_signed_by_the_dev_ca() {
         let ca = generate_dev_ca().expect("ca");
         assert!(ca.cert_pem.contains("BEGIN CERTIFICATE"));
-        assert!(ca.key_pem.contains("BEGIN PRIVATE KEY") || ca.key_pem.contains("BEGIN EC PRIVATE KEY"));
+        assert!(
+            ca.key_pem.contains("BEGIN PRIVATE KEY") || ca.key_pem.contains("BEGIN EC PRIVATE KEY")
+        );
         let issued = issue_leaf(
             &ca,
             &IssueRequest {

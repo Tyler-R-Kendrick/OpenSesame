@@ -76,6 +76,10 @@ pub struct AppState {
     pub connection_ref: Option<ConnectionRef>,
     /// Third-party service authorizations (ADR 0032).
     pub connection_broker: Arc<ConnectionBroker>,
+    /// Relay holder liveness: subject -> last heartbeat. Process-local on
+    /// purpose — a restart forgets everyone, and an unknown holder is
+    /// *offline*, which is the fail-closed direction (ADR 0046 decision 5).
+    pub relay_presence: Arc<Mutex<std::collections::HashMap<String, std::time::Instant>>>,
     /// Organization connections are created under until caller metadata carries
     /// the organization directly.
     pub connection_organization: OrganizationId,
@@ -173,6 +177,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         openbao,
         connection_ref: boot.connection_ref,
         connection_broker,
+        relay_presence: Arc::new(Mutex::new(std::collections::HashMap::new())),
         connection_organization,
         operator_token: config::resolve_operator_token(),
         claim_pepper: config::resolve_claim_pepper(),

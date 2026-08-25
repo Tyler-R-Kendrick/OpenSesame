@@ -802,6 +802,339 @@ paths:
       responses:
         "200":
           description: Claim session; bearer token returned once
+  /delegations:
+    get:
+      summary: Delegations where the caller is owner or claimant (ADR 0044)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Delegation views — grant ids and scopes, never token bytes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [delegations]
+                properties:
+                  delegations: { type: array, items: { $ref: "#/components/schemas/Delegation" } }
+        "401": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Mint a claimable delegation offer over the caller's connections
+      description: Every fence runs per item and any failure fails the whole mint. The claim token and consent code are returned once and stored only as hashes.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [connection_id]
+                    properties:
+                      connection_id: { type: string }
+                      actions: { type: array, items: { type: string } }
+                      resources: { type: array, items: { type: string } }
+                      expires_in_seconds: { type: integer }
+                      budgets: { type: object, additionalProperties: { type: integer } }
+                      execution_mode: { type: string, enum: [broker, relay] }
+                      required: { type: boolean }
+                      dependencies: { type: array, items: { type: integer } }
+                ttl_seconds: { type: integer }
+      responses:
+        "201":
+          description: The offer, its single-use claim token, and its consent code
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [offer, claim_token, user_code]
+                properties:
+                  offer: { $ref: "#/components/schemas/DelegationOffer" }
+                  claim_token: { type: string }
+                  user_code: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /delegations/present:
+    post:
+      summary: Spend an offer's single presentation and read its manifest
+      description: Token-authenticated; no session. A token seen again after spend burns the offer and revokes every delegation minted from it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [claim_token]
+              properties:
+                claim_token: { type: string }
+      responses:
+        "200":
+          description: The offer manifest to review before claiming
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [offer]
+                properties:
+                  offer: { $ref: "#/components/schemas/DelegationOffer" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "410": { $ref: "#/components/responses/ContractError" }
+  /delegations/claim:
+    post:
+      summary: Complete a presented offer with the out-of-band consent code
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [claim_token, user_code, accepted_item_ids]
+              properties:
+                claim_token: { type: string }
+                user_code: { type: string }
+                accepted_item_ids: { type: array, items: { type: string } }
+      responses:
+        "201":
+          description: One delegation per accepted item, minted atomically
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [delegations]
+                properties:
+                  delegations: { type: array, items: { $ref: "#/components/schemas/Delegation" } }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "410": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /delegations/offers:
+    get:
+      summary: Offers the caller minted, burned ones surfaced distinctly
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Offer views
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [offers]
+                properties:
+                  offers: { type: array, items: { $ref: "#/components/schemas/DelegationOffer" } }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /delegations/offers/{id}:
+    delete:
+      summary: Revoke an offer and, if claimed, every delegation in its set
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Revoked }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /delegations/{id}:
+    delete:
+      summary: Revoke one delegation (owner) or drop one held (claimant)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Revoked }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /delegations/{id}/narrow:
+    post:
+      summary: Attenuation-only edit — revoke-and-replace with a narrower grant
+      description: Validated against the parent AND the grant it replaces; widening is refused. Widening is a new offer and a new ceremony (ADR 0046 decision 10).
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actions: { type: array, items: { type: string } }
+                resources: { type: array, items: { type: string } }
+                expires_in_seconds: { type: integer }
+      responses:
+        "200":
+          description: The delegation with its replacement grant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [delegation]
+                properties:
+                  delegation: { $ref: "#/components/schemas/Delegation" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /relay/heartbeat:
+    post:
+      summary: A credential holder's runtime announcing liveness (ADR 0046)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Acknowledged, with the freshness window
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, fresh_for_seconds]
+                properties:
+                  ok: { type: boolean }
+                  fresh_for_seconds: { type: integer }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /relay/requests:
+    post:
+      summary: Submit a relayed request against a relay-mode delegation
+      description: Refused unless the delegation is relay-mode and the holder has a fresh heartbeat — an absent holder is the end of the request, never a queue.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delegation_id, operation, resource]
+              properties:
+                delegation_id: { type: string }
+                operation: { type: string }
+                resource: { type: string }
+                parameters: { type: object }
+      responses:
+        "202":
+          description: Parked in the holder's inbox, digest-bound
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, state, request_digest, expires_in]
+                properties:
+                  id: { type: string }
+                  state: { type: string }
+                  request_digest: { type: string }
+                  expires_in: { type: integer }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/pending:
+    get:
+      summary: The holder drains its relay inbox (draining proves liveness)
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Undecided and approved requests awaiting this holder
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [requests]
+                properties:
+                  requests: { type: array, items: { type: object } }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/{id}:
+    get:
+      summary: Delegate or holder polls one relayed request
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: State, digest, and (when completed) the safe result
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/{id}/approve:
+    post:
+      summary: The holder consents, echoing the digest it reviewed
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_digest]
+              properties:
+                request_digest: { type: string }
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/{id}/deny:
+    post:
+      summary: The holder refuses, echoing the digest it reviewed
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_digest]
+              properties:
+                request_digest: { type: string }
+      responses:
+        "200":
+          description: Denied
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /relay/requests/{id}/result:
+    post:
+      summary: The holder reports the executed outcome, digest-bound
+      description: The full admission runs here — approval required and executed digest must equal the approved one. Summaries are leak-checked before they land.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [executed_digest, outcome]
+              properties:
+                executed_digest: { type: string }
+                outcome: { type: string, enum: [succeeded, failed] }
+                safe_summary: { type: object }
+      responses:
+        "200":
+          description: Completed
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "410": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
 components:
   securitySchemes:
     HostBearer:
@@ -855,6 +1188,44 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ContractError" }
   schemas:
+    DelegationOffer:
+      type: object
+      required: [id, state, manifest_digest, expires_at, items]
+      properties:
+        id: { type: string }
+        state: { type: string, enum: [pending, presented, claimed, revoked, expired, burned] }
+        manifest_digest: { type: string }
+        expires_at: { type: string }
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, connection_id, provider_id, actions, execution_mode, required]
+            properties:
+              id: { type: string }
+              connection_id: { type: string }
+              provider_id: { type: string }
+              display_name: { type: string }
+              actions: { type: array, items: { type: string } }
+              resources: { type: array, items: { type: string } }
+              expires_in_seconds: { type: integer }
+              execution_mode: { type: string, enum: [broker, relay] }
+              required: { type: boolean }
+              dependencies: { type: array, items: { type: string } }
+    Delegation:
+      type: object
+      required: [id, offer_id, connection_id, claimant_subject, grant_id, execution_mode, expires_at]
+      properties:
+        id: { type: string }
+        offer_id: { type: string }
+        connection_id: { type: string }
+        claimant_subject: { type: string }
+        grant_id: { type: string }
+        execution_mode: { type: string, enum: [broker, relay] }
+        actions: { type: array, items: { type: string } }
+        resources: { type: array, items: { type: string } }
+        expires_at: { type: string }
+        revoked_at: { type: string, nullable: true }
     AttachmentTargetView:
       type: object
       description: Where sealed attachment ciphertext is replicated. Carries no token material.
