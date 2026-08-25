@@ -1,3 +1,12 @@
+import {
+  type ProviderDescriptor,
+  assertProviderDescriptor,
+  configuredProviders,
+  loadProviderRegistry,
+  mergeProviderIssuers,
+  normalizeIssuer,
+} from "./interactions/registry.js";
+
 export interface ControlPlaneConfig {
   host: string;
   port: number;
@@ -46,6 +55,13 @@ export interface ControlPlaneConfig {
     clientId: string;
     clientSecret: string;
   };
+  /**
+   * The federated provider catalog (ADR 0055): every upstream this deployment
+   * offers, from `OPENSESAME_PROVIDERS` plus its per-provider variables. Every
+   * entry's issuer is also merged into `trustedUpstreamIssuers`, so a
+   * configured provider is a trusted provider by construction.
+   */
+  providers: ProviderDescriptor[];
   protocolFeatures: {
     oid4vp: boolean;
     oid4vci: boolean;
@@ -123,6 +139,12 @@ export function loadConfig(
     );
   }
 
+  // Parsed before the config literal: a provider entry that configuration
+  // cannot satisfy (a multi-tenant Microsoft issuer, an Apple entry with no
+  // signing key) must refuse the boot rather than surface as a sign-in that
+  // fails for one user at a time.
+  const providers = loadProviderRegistry(env);
+
   const config: ControlPlaneConfig = {
     host,
     port,
@@ -170,15 +192,19 @@ export function loadConfig(
       // Local/dev default aligned with gateway callout shared secret.
       return allowDevDefaults ? "opensesame-dev-mapping-resolve" : "";
     })(),
-    trustedUpstreamIssuers: (
-      env.OPENSESAME_TRUSTED_UPSTREAMS ??
-      (allowDevDefaults
-        ? "https://shoo.dev,http://127.0.0.1:9090,http://localhost:9090"
-        : "https://shoo.dev")
-    )
-      .split(",")
-      .map((s) => s.trim().replace(/\/+$/, ""))
-      .filter(Boolean),
+    trustedUpstreamIssuers: mergeProviderIssuers(
+      (
+        env.OPENSESAME_TRUSTED_UPSTREAMS ??
+        (allowDevDefaults
+          ? "https://shoo.dev,http://127.0.0.1:9090,http://localhost:9090"
+          : "https://shoo.dev")
+      )
+        .split(",")
+        .map((s) => s.trim().replace(/\/+$/, ""))
+        .filter(Boolean),
+      providers,
+    ),
+    providers,
     protocolFeatures: {
       oid4vp: truthy(env.OPENSESAME_OID4VP_ENABLED),
       oid4vci: truthy(env.OPENSESAME_OID4VCI_ENABLED),
@@ -282,6 +308,30 @@ export function assertSecureConfig(
     if (!config.trustedUpstreamIssuers.includes(credentials.issuer)) {
       throw new Error(
         "OPENSESAME_UPSTREAM_ISSUER carries client credentials but is not listed in OPENSESAME_TRUSTED_UPSTREAMS",
+      );
+    }
+  }
+  // The same two questions, asked of every registry provider (ADR 0055).
+  // `loadConfig` merges registry issuers into the allowlist, so these fire
+  // only when a config reached us another way — which is exactly when a
+  // fail-closed check earns its keep.
+  const trusted = new Set(config.trustedUpstreamIssuers.map(normalizeIssuer));
+  for (const provider of configuredProviders(config)) {
+    assertProviderDescriptor(provider);
+    const issuer = normalizeIssuer(provider.issuer);
+    if (config.isProduction && !issuer.startsWith("https://")) {
+      throw new Error(
+        `provider \`${provider.id}\` must use an https issuer in production; got \`${issuer}\``,
+      );
+    }
+    // A client secret is only ever sent to the issuer it was configured for,
+    // so that issuer must be one we actually trust. Not production-gated, for
+    // the same reason the legacy check above is not.
+    const carriesSecret =
+      provider.kind === "oauth2" || provider.clientAuth !== "none";
+    if (carriesSecret && !trusted.has(issuer)) {
+      throw new Error(
+        `provider \`${provider.id}\` carries client credentials but its issuer is not listed in OPENSESAME_TRUSTED_UPSTREAMS`,
       );
     }
   }

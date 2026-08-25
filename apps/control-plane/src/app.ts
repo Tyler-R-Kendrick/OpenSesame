@@ -13,6 +13,7 @@ import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
 import { claimRoutes } from "./routes/claims.js";
 import { deviceRoutes } from "./routes/device.js";
 import { discoveryRoutes } from "./routes/discovery.js";
+import { federatedProviderRoutes } from "./routes/federated-providers.js";
 import { healthRoutes } from "./routes/health.js";
 import { createInteractionRoutes } from "./routes/interactions.js";
 import { mfaRoutes } from "./routes/mfa.js";
@@ -78,6 +79,23 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/oauth/applications", appClaimRoutes);
   app.route("/v1/oauth/admin/clients", originClientAdminRoutes);
   app.route("/v1/audit", auditRoutes);
+  // Public provider catalog (ADR 0055 / C8): id, label, kind, browserCapable —
+  // never issuers, endpoints or secrets.
+  app.route("/v1/federated", federatedProviderRoutes);
+  // INTEGRATOR — routes whose modules are landing with the other swarms of
+  // this change. Each is mounted here the moment its module exists; the mount
+  // line is the only thing missing, and every owner has left a factory with
+  // the signature its contract names:
+  //   POST /v1/principals/federated-session  — C13, S2 (routes/federated-session.ts)
+  //   GET  /v1/saml/metadata, POST /v1/saml/acs — C14, S9 (routes/saml.ts)
+  //   /scim/v2/*                             — C15, S10 (routes/scim.ts)
+  //   /v1/organizations/:id/domains          — C16, S10 (routes/org-domains.ts)
+  //   POST /v1/federated/backchannel-logout  — C17, S10 (routes/backchannel-logout.ts)
+  //   /v1/federated/admin/byo-upstreams      — D14, S10 (routes/byo-admin.ts)
+  //   /v1/auth/*                             — C20, S11 (routes/auth-upstream.ts)
+  //   /v1/organizations/:id/ldap             — C21, S12 (routes/org-ldap.ts)
+  // The interaction sub-routers (C9: byo, org, realm, ldap, saml-complete)
+  // mount inside createInteractionRoutes, not here.
   // The oidc-provider interaction slot (ADR 0050 F6): /auth 303-redirects
   // here for login/consent. server.ts only intercepts protocol paths, so
   // /interaction/* falls through to Hono.

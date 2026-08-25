@@ -2,11 +2,14 @@ import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
+import type { Awaitable } from "@opensesame/database";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
+  type Organization,
   type Principal,
   type ProvisionalSession,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { ensurePersonalOrganization } from "../routes/organizations.js";
@@ -19,7 +22,11 @@ import {
   type LoginPageModel,
   collectConsentScopes,
 } from "../ui/interaction-pages.js";
-import { federatedUpstreams, matchUpstreamHint } from "./federated.js";
+import {
+  type ProviderDescriptor,
+  normalizeIssuer,
+  staticProviders,
+} from "./registry.js";
 import type {
   GrantHandle,
   InteractionDetails,
@@ -35,13 +42,154 @@ function interactionBase(uid: string): string {
   return `/interaction/${encodeURIComponent(uid)}`;
 }
 
-export function buildLoginPageModel(
+/**
+ * Everything the login page needs that is not in the interaction itself: the
+ * organization slug from `?org=<slug>`, and the re-render state a rejected
+ * BYO / email / work-email submission hands back.
+ */
+export type LoginPageOptions = {
+  /** `?org=<slug>` on the interaction GET (D6, second step). */
+  orgSlug?: string;
+  orgError?: string;
+  byoError?: string;
+  byoIssuer?: string;
+  emailSent?: boolean;
+  emailError?: string;
+  realmError?: string;
+};
+
+/**
+ * Resolve a provider hint (`kc_idp_hint` / `login_hint_provider`) against the
+ * offered providers, id first (T7).
+ *
+ * Precedence is the whole point of this function existing: the day a real
+ * `google` registry id sits next to shoo.dev's "Google" label, both match the
+ * hint `google`, and the id — the thing a client actually asked for — must
+ * win. A matched hint is rendered first and primary and never auto-submitted:
+ * an upstream error 303s back to this page, so a page that redirected itself
+ * would loop forever (T14).
+ */
+export function matchProviderHint(
+  providers: readonly ProviderDescriptor[],
+  hint: string | undefined,
+): ProviderDescriptor | undefined {
+  const needle = (hint ?? "").trim().toLowerCase();
+  if (!needle) return undefined;
+  const byId = providers.find(
+    (provider) => provider.id.toLowerCase() === needle,
+  );
+  if (byId) return byId;
+  const byIssuer = providers.find(
+    (provider) => normalizeIssuer(provider.issuer).toLowerCase() === needle,
+  );
+  if (byIssuer) return byIssuer;
+  const byHost = providers.find((provider) => {
+    try {
+      return new URL(provider.issuer).host.toLowerCase() === needle;
+    } catch {
+      return false;
+    }
+  });
+  if (byHost) return byHost;
+  return providers.find((provider) => provider.label.toLowerCase() === needle);
+}
+
+/**
+ * The organization lookup the login page needs (C6). S6 lands `getBySlug` on
+ * the organization store; until then `ctx.stores.organizations` is the
+ * process-memory map that answers no such question, which is why the member
+ * is optional here.
+ *
+ * INTEGRATOR: once S6 has landed, this view collapses to
+ * `ctx.stores.organizations.getBySlug(slug)`.
+ */
+type OrganizationSlugLookup = {
+  getBySlug(slug: string): Awaitable<Organization | undefined>;
+};
+type LoginPageStores = { organizations?: Partial<OrganizationSlugLookup> };
+
+type OrganizationMethod = {
+  issuer: string;
+  label: string;
+  kind: "sso" | "saml";
+};
+
+/**
+ * The tenant's configured sign-in methods, as buttons. Mirrors
+ * `tenantAuthMethods` in `routes/organizations.ts` (the public tenant
+ * endpoint), so the hosted page and the Pages account switcher offer a tenant
+ * the same choices under the same names.
+ */
+function organizationMethods(organization: Organization): OrganizationMethod[] {
+  const methods: OrganizationMethod[] = [];
+  if (organization.ssoIssuer) {
+    methods.push({ kind: "sso", label: "SSO", issuer: organization.ssoIssuer });
+  }
+  if (organization.samlIssuer) {
+    methods.push({
+      kind: "saml",
+      label: "SAML",
+      issuer: organization.samlIssuer,
+    });
+  }
+  return methods;
+}
+
+async function resolveOrganizationBlock(
+  ctx: AppContext,
+  base: string,
+  options: LoginPageOptions,
+): Promise<NonNullable<LoginPageModel["org"]>> {
+  const lookupAction = `${base}/federated/org`;
+  const slug = options.orgSlug?.trim();
+  if (!slug) {
+    return {
+      lookupAction,
+      ...(options.orgError !== undefined
+        ? { error: options.orgError }
+        : undefined),
+    };
+  }
+
+  const stores: LoginPageStores = overlapCast(ctx.stores);
+  const organizations = stores.organizations;
+  const organization = organizations?.getBySlug
+    ? await organizations.getBySlug(slug)
+    : undefined;
+  const methods =
+    organization && organization.state !== "deleted"
+      ? organizationMethods(organization)
+      : [];
+  if (methods.length === 0) {
+    // One answer for "no such organization", "suspended" and "configured no
+    // methods": the login page is unauthenticated, and telling a stranger
+    // which slugs exist is an enumeration oracle.
+    return {
+      lookupAction,
+      slug,
+      error:
+        options.orgError ??
+        "No organization sign-in is configured for that name.",
+    };
+  }
+  return {
+    lookupAction,
+    slug,
+    methods,
+    ...(options.orgError !== undefined
+      ? { error: options.orgError }
+      : undefined),
+  };
+}
+
+export async function buildLoginPageModel(
   ctx: AppContext,
   details: InteractionDetails,
   csrfToken: string,
   principalId: string | undefined,
-): LoginPageModel {
-  const upstreams = federatedUpstreams(ctx.config);
+  options: LoginPageOptions = {},
+): Promise<LoginPageModel> {
+  const providers = staticProviders(ctx.config);
   // The SDK sends both spellings (packages/sdk-browser signIn({provider}));
   // oidc-provider only surfaces them because they are declared extraParams.
   const hint = isString(details.params.login_hint_provider)
@@ -49,28 +197,51 @@ export function buildLoginPageModel(
     : isString(details.params.kc_idp_hint)
       ? details.params.kc_idp_hint
       : undefined;
-  const preferred = matchUpstreamHint(upstreams, hint);
+  const preferred = matchProviderHint(providers, hint);
+  const base = interactionBase(details.uid);
 
   return {
     uid: details.uid,
     csrfToken,
-    loginAction: `${interactionBase(details.uid)}/login`,
+    loginAction: `${base}/login`,
     ...(principalId !== undefined ? { principalId } : undefined),
     publicUrl: ctx.config.publicUrl,
-    ...(upstreams.length > 0
-      ? {
-          federated: {
-            startAction: `${interactionBase(details.uid)}/federated/start`,
-            upstreams: upstreams.map((u) => ({
-              issuer: u.issuer,
-              label: u.label,
-            })),
-            ...(preferred !== undefined
-              ? { preferredIssuer: preferred.issuer }
-              : undefined),
-          },
-        }
-      : undefined),
+    federated: {
+      startAction: `${base}/federated/start`,
+      upstreams: providers.map((provider) => ({
+        issuer: provider.issuer,
+        label: provider.label,
+        provider: provider.id,
+      })),
+      ...(preferred !== undefined
+        ? { preferredIssuer: preferred.issuer }
+        : undefined),
+    },
+    byo: {
+      startAction: `${base}/federated/byo`,
+      ...(options.byoError !== undefined
+        ? { error: options.byoError }
+        : undefined),
+      ...(options.byoIssuer !== undefined
+        ? { issuerValue: options.byoIssuer }
+        : undefined),
+    },
+    org: await resolveOrganizationBlock(ctx, base, options),
+    email: {
+      requestAction: `${base}/federated/email`,
+      ...(options.emailSent !== undefined
+        ? { sent: options.emailSent }
+        : undefined),
+      ...(options.emailError !== undefined
+        ? { error: options.emailError }
+        : undefined),
+    },
+    realm: {
+      requestAction: `${base}/federated/realm`,
+      ...(options.realmError !== undefined
+        ? { error: options.realmError }
+        : undefined),
+    },
   };
 }
 
@@ -181,7 +352,9 @@ export async function mintProvisionalForInteraction(
   }
 
   if (ctx.config.bootstrapPersonalOrganization) {
-    ensurePersonalOrganization(ctx, principal.id);
+    // Durable once the organization store lands (C6): awaited so a failed
+    // write surfaces here rather than as an unhandled rejection.
+    await ensurePersonalOrganization(ctx, principal.id);
   }
 
   const accessToken = `pst_${randomBytes(24).toString("base64url")}`;

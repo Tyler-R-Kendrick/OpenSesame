@@ -7,6 +7,7 @@ export * from "./organizations.js";
 export * from "./oauth-clients.js";
 export * from "./audit.js";
 export * from "./connections.js";
+export * from "./federated-providers.js";
 export * from "./secret-configs.js";
 export * from "./sync-targets.js";
 

@@ -32,6 +32,22 @@ const BASE = {
 };
 
 const START_ACTION = "/interaction/uid-fixed-for-snapshots/federated/start";
+const BYO_ACTION = "/interaction/uid-fixed-for-snapshots/federated/byo";
+const ORG_ACTION = "/interaction/uid-fixed-for-snapshots/federated/org";
+const EMAIL_ACTION = "/interaction/uid-fixed-for-snapshots/federated/email";
+const REALM_ACTION = "/interaction/uid-fixed-for-snapshots/federated/realm";
+
+/** Every hidden field the page relies on, per form action. */
+function hiddenFields(html: string, action: string): string[] {
+  const start = html.indexOf(`action="${action}"`);
+  if (start < 0) throw new Error(`no form posts to ${action}`);
+  const end = html.indexOf("</form>", start);
+  return [
+    ...html
+      .slice(start, end)
+      .matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)"\/>/g),
+  ].map((match) => `${match[1]}=${match[2]}`);
+}
 
 describe("hosted login page characterization", () => {
   it("offers nothing but a session when no upstream is allowlisted", () => {
@@ -44,7 +60,9 @@ describe("hosted login page characterization", () => {
         ...BASE,
         federated: {
           startAction: START_ACTION,
-          upstreams: [{ issuer: "https://shoo.dev", label: "Google" }],
+          upstreams: [
+            { issuer: "https://shoo.dev", label: "Google", provider: "shoo" },
+          ],
         },
       }),
     ).toMatchSnapshot();
@@ -57,10 +75,11 @@ describe("hosted login page characterization", () => {
         federated: {
           startAction: START_ACTION,
           upstreams: [
-            { issuer: "https://shoo.dev", label: "Google" },
+            { issuer: "https://shoo.dev", label: "Google", provider: "shoo" },
             {
               issuer: "http://127.0.0.1:9090",
               label: "a local test account",
+              provider: "mock",
             },
           ],
         },
@@ -78,8 +97,9 @@ describe("hosted login page characterization", () => {
             {
               issuer: "http://127.0.0.1:9090",
               label: "a local test account",
+              provider: "mock",
             },
-            { issuer: "https://shoo.dev", label: "Google" },
+            { issuer: "https://shoo.dev", label: "Google", provider: "shoo" },
           ],
           preferredIssuer: "https://shoo.dev",
         },
@@ -94,10 +114,152 @@ describe("hosted login page characterization", () => {
         principalId: "prn_fixed",
         federated: {
           startAction: START_ACTION,
-          upstreams: [{ issuer: "https://shoo.dev", label: "Google" }],
+          upstreams: [
+            { issuer: "https://shoo.dev", label: "Google", provider: "shoo" },
+          ],
         },
       }),
     ).toMatchSnapshot();
+  });
+
+  /**
+   * The full catalog page: registry providers, the organization entry with the
+   * work-email router, email magic link, and bring-your-own. This is what a
+   * first-time visitor sees on a fully configured deployment.
+   */
+  it("renders the full entry set: providers, organization, email, BYO", () => {
+    expect(
+      renderLoginPage({
+        ...BASE,
+        federated: {
+          startAction: START_ACTION,
+          upstreams: [
+            {
+              issuer: "https://accounts.google.com",
+              label: "Google",
+              provider: "google",
+            },
+            {
+              issuer: "https://github.com",
+              label: "GitHub",
+              provider: "github",
+            },
+          ],
+        },
+        byo: { startAction: BYO_ACTION },
+        org: { lookupAction: ORG_ACTION },
+        email: { requestAction: EMAIL_ACTION },
+        realm: { requestAction: REALM_ACTION },
+      }),
+    ).toMatchSnapshot();
+  });
+
+  /**
+   * The second step of organization sign-in (D6): the slug resolved, so the
+   * tenant's own methods are what the page leads with.
+   */
+  it("leads with a resolved organization's methods", () => {
+    const html = renderLoginPage({
+      ...BASE,
+      federated: {
+        startAction: START_ACTION,
+        upstreams: [
+          { issuer: "https://shoo.dev", label: "Google", provider: "shoo" },
+        ],
+      },
+      org: {
+        lookupAction: ORG_ACTION,
+        slug: "acme",
+        methods: [
+          { issuer: "https://sso.acme.example", label: "SSO", kind: "sso" },
+          { issuer: "https://saml.acme.example", label: "SAML", kind: "saml" },
+        ],
+      },
+      realm: { requestAction: REALM_ACTION },
+    });
+    expect(html.indexOf("Continue with SSO")).toBeLessThan(
+      html.indexOf("Sign in with Google"),
+    );
+    expect(html).toMatchSnapshot();
+  });
+
+  it("re-renders each block's own failure without losing the others", () => {
+    expect(
+      renderLoginPage({
+        ...BASE,
+        federated: {
+          startAction: START_ACTION,
+          upstreams: [
+            { issuer: "https://shoo.dev", label: "Google", provider: "shoo" },
+          ],
+        },
+        byo: {
+          startAction: BYO_ACTION,
+          error: "That provider could not be reached.",
+          issuerValue: "https://id.example.com",
+        },
+        org: {
+          lookupAction: ORG_ACTION,
+          slug: "acme",
+          error: "No organization sign-in is configured for that name.",
+        },
+        email: {
+          requestAction: EMAIL_ACTION,
+          sent: true,
+        },
+        realm: {
+          requestAction: REALM_ACTION,
+          error: "No organization uses that email domain.",
+        },
+      }),
+    ).toMatchSnapshot();
+  });
+
+  /**
+   * Every POST on this page is a state change, so every form carries the
+   * synchronizer token; the provider forms additionally carry the registry id
+   * the start route prefers over the raw issuer.
+   */
+  it("carries the CSRF token on every form and the provider id on the offers", () => {
+    const html = renderLoginPage({
+      ...BASE,
+      federated: {
+        startAction: START_ACTION,
+        upstreams: [
+          {
+            issuer: "https://accounts.google.com",
+            label: "Google",
+            provider: "google",
+          },
+        ],
+      },
+      byo: { startAction: BYO_ACTION },
+      org: { lookupAction: ORG_ACTION },
+      email: { requestAction: EMAIL_ACTION },
+      realm: { requestAction: REALM_ACTION },
+    });
+
+    expect(hiddenFields(html, START_ACTION)).toEqual([
+      "_csrf=csrf-fixed-for-snapshots",
+      "issuer=https://accounts.google.com",
+      "provider=google",
+    ]);
+    for (const action of [
+      BYO_ACTION,
+      ORG_ACTION,
+      EMAIL_ACTION,
+      REALM_ACTION,
+      BASE.loginAction,
+    ]) {
+      expect(hiddenFields(html, action)).toContain(
+        "_csrf=csrf-fixed-for-snapshots",
+      );
+    }
+    // No script anywhere: the CSP has no script-src, so an auto-submit or an
+    // inline handler would be dead on arrival in a browser (T5).
+    expect(html).not.toContain("<script");
+    expect(html).not.toContain("onsubmit");
+    expect(html).not.toContain("onclick");
   });
 
   /**
@@ -114,11 +276,37 @@ describe("hosted login page characterization", () => {
           {
             issuer: 'https://e.test/"><script>alert(1)</script>',
             label: '<img src=x onerror="alert(1)">',
+            provider: '"><script>alert(2)</script>',
           },
         ],
       },
     });
     expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).not.toContain("<script>alert(2)</script>");
+    expect(html).not.toContain("<img src=x");
+    expect(html).toMatchSnapshot();
+  });
+
+  /**
+   * The organization slug and the BYO issuer are echoed back on a failed
+   * submission — the two places on this page where a *visitor's* own text is
+   * re-rendered, which is where reflected XSS lives if escaping slips.
+   */
+  it("escapes hostile organization and BYO values echoed back to the visitor", () => {
+    const html = renderLoginPage({
+      ...BASE,
+      byo: {
+        startAction: BYO_ACTION,
+        issuerValue: '"><script>alert(3)</script>',
+        error: '<img src=x onerror="alert(4)">',
+      },
+      org: {
+        lookupAction: ORG_ACTION,
+        slug: '"><script>alert(5)</script>',
+        error: "No organization sign-in is configured for that name.",
+      },
+    });
+    expect(html).not.toContain("<script");
     expect(html).not.toContain("<img src=x");
     expect(html).toMatchSnapshot();
   });
