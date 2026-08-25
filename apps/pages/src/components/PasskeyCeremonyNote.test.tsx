@@ -71,19 +71,19 @@ describe("PasskeyCeremonyNote", () => {
     expect(link.getAttribute("href")).toBe("https://mfa.example.com/");
   });
 
-  it("points at Settings when no MFA URL is configured", async () => {
+  it("offers the MFA URL field in place when none is configured", async () => {
+    // This used to be a sentence pointing at Settings — a dead end with
+    // nothing to click. Setting the URL is one field, so it happens here.
     state.support = "partial";
     render(<PasskeyCeremonyNote />);
-    expect(
-      await screen.findByText(/Set a Mobile MFA URL in Settings/),
-    ).toBeTruthy();
+    expect(await screen.findByLabelText("Mobile MFA app URL")).toBeTruthy();
     expect(screen.queryByRole("img")).toBeNull();
   });
 
   it("reacts to settings changes", async () => {
     state.support = "missing";
     render(<PasskeyCeremonyNote />);
-    await screen.findByText(/Set a Mobile MFA URL in Settings/);
+    await screen.findByLabelText("Mobile MFA app URL");
 
     state.mfaAppUrl = "https://mfa.example.com/";
     act(() => {

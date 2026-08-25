@@ -38,9 +38,9 @@ Object.assign(identitySeams, {
 import { useOnlineSeams } from "../lib/use-online.js";
 const originalUseOnlineSeams = { ...useOnlineSeams };
 Object.assign(useOnlineSeams, { useOnline: () => online.value });
-import { planeNoteSeams } from "../components/PlaneNote.js";
-const originalPlaneNoteSeams = { ...planeNoteSeams };
-Object.assign(planeNoteSeams, { PagesCannotHostNote: () => null });
+import { pagesCannotHostNoteSeams } from "../components/PagesCannotHostNote.js";
+const originalPlaneNoteSeams = { ...pagesCannotHostNoteSeams };
+Object.assign(pagesCannotHostNoteSeams, { PagesCannotHostNote: () => null });
 
 import { kvDelete } from "../lib/kv.js";
 import { SitesSection } from "./SitesSection.js";

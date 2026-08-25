@@ -68,10 +68,6 @@ export function CeremonyShell({
   /** Extra content inside the card, below the facts and above the action. */
   children?: ReactNode;
 }) {
-  // At most one alternative is open: two sets of controls at once is the
-  // three-buttons-side-by-side problem the ceremony exists to remove.
-  const [open, setOpen] = useState<string | null>(null);
-
   return (
     <>
       <div className={`found${ok ? "" : " found--attn"}`}>
@@ -122,45 +118,58 @@ export function CeremonyShell({
         ) : null}
       </div>
 
-      {alts.length > 0 ? (
-        <>
-          <p className="or">
-            <span>or</span>
-          </p>
-          <div className="alt">
-            {alts.map((entry) => {
-              const isOpen = open === entry.id;
-              return (
-                <div key={entry.id} className="alt__item">
-                  <button
-                    type="button"
-                    className="alt__btn"
-                    aria-expanded={isOpen}
-                    aria-controls={`alt-${entry.id}`}
-                    onClick={() => setOpen(isOpen ? null : entry.id)}
-                  >
-                    <span className="alt__mark" aria-hidden="true">
-                      {entry.icon}
-                    </span>
-                    <span className="alt__grow">{entry.label}</span>
-                    <span
-                      className={`alt__chev${isOpen ? " is-open" : ""}`}
-                      aria-hidden="true"
-                    >
-                      <IconChevronRight size={16} />
-                    </span>
-                  </button>
-                  {isOpen ? (
-                    <div className="alt__body" id={`alt-${entry.id}`}>
-                      {entry.render()}
-                    </div>
-                  ) : null}
+      <CeremonyAlts alts={alts} />
+    </>
+  );
+}
+
+/**
+ * The alternatives list on its own, for a surface that has a card of its own
+ * — a settings panel with its own head and form — but still owes its
+ * alternatives the same expand-in-place treatment. One open at a time, and
+ * never a navigation: the same rules as inside the shell, because a second
+ * dialect of "or do something else" is how the last drift started.
+ */
+export function CeremonyAlts({ alts }: { alts: CeremonyAlt[] }) {
+  const [open, setOpen] = useState<string | null>(null);
+  if (alts.length === 0) return null;
+  return (
+    <>
+      <p className="or">
+        <span>or</span>
+      </p>
+      <div className="alt">
+        {alts.map((entry) => {
+          const isOpen = open === entry.id;
+          return (
+            <div key={entry.id} className="alt__item">
+              <button
+                type="button"
+                className="alt__btn"
+                aria-expanded={isOpen}
+                aria-controls={`alt-${entry.id}`}
+                onClick={() => setOpen(isOpen ? null : entry.id)}
+              >
+                <span className="alt__mark" aria-hidden="true">
+                  {entry.icon}
+                </span>
+                <span className="alt__grow">{entry.label}</span>
+                <span
+                  className={`alt__chev${isOpen ? " is-open" : ""}`}
+                  aria-hidden="true"
+                >
+                  <IconChevronRight size={16} />
+                </span>
+              </button>
+              {isOpen ? (
+                <div className="alt__body" id={`alt-${entry.id}`}>
+                  {entry.render()}
                 </div>
-              );
-            })}
-          </div>
-        </>
-      ) : null}
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
     </>
   );
 }

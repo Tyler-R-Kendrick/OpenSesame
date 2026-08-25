@@ -12,6 +12,7 @@ import {
   subscribeNotices,
 } from "../lib/notices.js";
 import { loadQueue } from "../lib/queue.js";
+import { CeremonyShell } from "./CeremonyShell.js";
 import { IconBell, IconX } from "./Icons.js";
 
 export const notificationsBarDependencies = {
@@ -93,40 +94,40 @@ function NotificationsBarDefault() {
             </div>
             <div className="sheet__body">
               {count === 0 ? <p className="hint">Nothing waiting.</p> : null}
+              {/* The claim prompt already lived in the ceremony's own sheet
+                  and had all the ceremony's parts — a what-is statement, a
+                  fact, a primary, a dismissal — it just hand-rolled them in a
+                  one-off card. Same shape as every other ceremony now. */}
               {notices.map((notice) => (
-                <article key={notice.id} className="notice-card">
-                  <h3>{notice.title}</h3>
-                  <p>{notice.body}</p>
-                  {notice.userCode ? (
-                    <p className="hint">
-                      Consent code: <code>{notice.userCode}</code>
-                    </p>
-                  ) : null}
-                  <div className="actions">
-                    <button
-                      type="button"
-                      className="btn btn--primary"
-                      onClick={() => {
-                        notificationsBarDependencies.stashCurrentSession();
-                        void notificationsBarDependencies.beginSignIn(
-                          notificationsBarDependencies.defaultUpstream(),
-                          {
-                            returnTo: "/",
-                          },
-                        );
-                      }}
-                    >
-                      Sign in to claim
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--ghost"
-                      onClick={() => dismissNotice(notice.id)}
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </article>
+                <CeremonyShell
+                  key={notice.id}
+                  ok={false}
+                  top="Guest session"
+                  name={notice.title}
+                  facts={
+                    notice.userCode
+                      ? [{ key: "Consent code", value: notice.userCode }]
+                      : []
+                  }
+                  primary={{
+                    label: "Sign in to claim",
+                    onClick: () => {
+                      notificationsBarDependencies.stashCurrentSession();
+                      void notificationsBarDependencies.beginSignIn(
+                        notificationsBarDependencies.defaultUpstream(),
+                        {
+                          returnTo: "/",
+                        },
+                      );
+                    },
+                  }}
+                  secondary={{
+                    label: "Dismiss",
+                    onClick: () => dismissNotice(notice.id),
+                  }}
+                >
+                  <p className="hint">{notice.body}</p>
+                </CeremonyShell>
               ))}
               {queued > 0 ? (
                 <p className="hint">

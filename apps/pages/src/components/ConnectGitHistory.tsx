@@ -1,6 +1,8 @@
+import { repoHint } from "@opensesame/os-domain";
 import { useEffect, useState } from "react";
 import type { CapabilityConnectorBinding } from "../lib/capabilities.js";
 import { capabilityDef, connectorLabel } from "../lib/capabilities.js";
+import { bindCapabilityConnector } from "../lib/capability-bind.js";
 import {
   type Connection,
   type Provider,
@@ -20,6 +22,9 @@ import { usePlaneStatus } from "../lib/planes.js";
 import { loadSettings, saveSettings } from "../lib/settings.js";
 import { useSettingsEpoch } from "../lib/use-settings.js";
 import { GithubHistoryRemotePicker as GithubHistoryRemotePickerDefault } from "../sections/settings/GithubHistoryRemotePicker.js";
+import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
+import { FieldShell } from "./FieldShell.js";
+import { IconGitBranch, IconPlus, IconSecret } from "./Icons.js";
 import { StatusNote } from "./StatusNote.js";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
@@ -375,143 +380,227 @@ function ConnectGitHistoryDefault() {
     (binding.providerId === "github" || binding.providerId === "gitlab");
   const showCreateApp =
     needsAuth && hostLive && !oauthReady && binding.providerId === "github";
+  const authorized = !needsAuth || connection?.status === "active";
+  const bound = Boolean(binding.connectionId || binding.remote);
+
+  // The same shape every other connector's ceremony wears: card, primary in
+  // the card, alternatives as rows. This used to be a flat stack — a primary,
+  // a ghost disconnect, a create-app block, a PAT field and a repo picker all
+  // visible at once — which is exactly the three-buttons-side-by-side problem
+  // the ceremony shape exists to remove.
+  const alts: CeremonyAlt[] = [
+    {
+      id: "provider",
+      label: "Use a different git provider",
+      icon: <IconGitBranch size={18} />,
+      render: () => (
+        <div className="picker">
+          {def.connectorIds
+            .filter((id) => id !== binding.providerId)
+            .map((id) => (
+              <button
+                key={id}
+                type="button"
+                className="picker__opt"
+                disabled={busy}
+                onClick={() => {
+                  // Drops the connection on a provider change: consent given
+                  // to GitHub must not be carried over as though GitLab had
+                  // granted it.
+                  bindCapabilityConnector("history", id);
+                  setFlash({
+                    tone: "ok",
+                    text: `${connectorLabel(id)} bound. ${
+                      capabilityDef("history").requiresAuth(id)
+                        ? "Authorize it to finish."
+                        : "Nothing else to do."
+                    }`,
+                  });
+                }}
+              >
+                <IconGitBranch size={16} />
+                <span>{connectorLabel(id)}</span>
+              </button>
+            ))}
+        </div>
+      ),
+    },
+    ...(showPat
+      ? [
+          {
+            id: "pat",
+            label: "Connect with a personal access token",
+            icon: <IconSecret size={18} />,
+            render: () =>
+              hostLive ? (
+                <>
+                  <FieldShell
+                    id="git-history-pat"
+                    label="Personal access token"
+                    type="password"
+                    mono
+                    autoComplete="off"
+                    lead={<IconSecret size={17} />}
+                    placeholder={
+                      binding.providerId === "github"
+                        ? "ghp_… or github_pat_… (repo scope)"
+                        : "glpat-…"
+                    }
+                    value={pat}
+                    onValueChange={setPat}
+                    disabled={busy}
+                  />
+                  <div className="actions">
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      disabled={busy || !pat.trim()}
+                      onClick={() => void connectWithPat()}
+                    >
+                      Connect with token
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="hint">
+                  Host API is not reachable from this tab yet. Pair or start the
+                  local Host first — the token is sealed there, never held in
+                  the browser.
+                </p>
+              ),
+          },
+        ]
+      : []),
+    ...(showCreateApp
+      ? [
+          {
+            id: "github-app",
+            label: "Create a GitHub App for this tenant",
+            icon: <IconPlus size={18} />,
+            render: () => (
+              <>
+                <p className="hint">
+                  OpenSesame deploys a tenant GitHub App for you — confirm it on
+                  GitHub, authorize, then install it on your account (All
+                  repositories) so History can create private password repos.
+                </p>
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    disabled={busy || !hostLive}
+                    aria-busy={busy}
+                    onClick={() => void deployGithubApp()}
+                  >
+                    {busy ? "Opening GitHub…" : "Create GitHub App"}
+                  </button>
+                </div>
+              </>
+            ),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <>
-      <p className="hint">
-        The vault already lives on this device. Git is optional persistence —
-        ciphertext only, never plaintext. Agents never see these values.
-      </p>
-      <StatusNote message={flash} onDismiss={() => setFlash(null)} />
-      {needsAuth && !hostLive ? (
+      <CeremonyShell
+        ok={authorized}
+        top={
+          !needsAuth
+            ? "Local store — nothing to authorize"
+            : authorized
+              ? "Authorized"
+              : "Not yet authorized"
+        }
+        name={
+          binding.remote
+            ? repoHint(binding.remote)
+            : connectorLabel(binding.providerId)
+        }
+        facts={[
+          { key: "Connector", value: connectorLabel(binding.providerId) },
+          {
+            key: "Remote",
+            value: binding.remote ? repoHint(binding.remote) : "not chosen",
+          },
+        ]}
+        primary={
+          needsAuth
+            ? {
+                label: busy
+                  ? "Authorizing…"
+                  : connection?.status === "active"
+                    ? "Re-authorize with OAuth"
+                    : `Connect ${connectorLabel(binding.providerId)}`,
+                onClick: () => void authorize(),
+                busy,
+                disabled: !hostLive,
+              }
+            : undefined
+        }
+        secondary={
+          bound
+            ? {
+                label: "Disconnect git",
+                onClick: disconnect,
+                disabled: busy,
+              }
+            : undefined
+        }
+        alts={alts}
+      >
         <p className="hint">
-          Host API is not reachable from this tab yet. Pair or start the local
-          Host so GitHub OAuth can complete.
+          The vault already lives on this device. Git is optional persistence —
+          ciphertext only, never plaintext.
         </p>
-      ) : null}
-
-      <div className="actions">
-        {needsAuth ? (
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={busy || !hostLive}
-            aria-busy={busy}
-            onClick={() => void authorize()}
-          >
-            {busy
-              ? "Authorizing…"
-              : connection?.status === "active"
-                ? "Re-authorize with OAuth"
-                : `Connect ${connectorLabel(binding.providerId)}`}
-          </button>
-        ) : null}
-        {binding.connectionId || binding.remote ? (
-          <button
-            type="button"
-            className="btn btn--ghost"
-            disabled={busy}
-            onClick={disconnect}
-          >
-            Disconnect git
-          </button>
-        ) : null}
-      </div>
-
-      {showCreateApp ? (
-        <div className="cap-github-app">
+        {needsAuth && !hostLive ? (
           <p className="hint">
-            OpenSesame deploys a tenant GitHub App for you — confirm it on
-            GitHub, authorize, then install it on your account (All
-            repositories) so History can create private password repos.
+            Host API is not reachable from this tab yet. Pair or start the local
+            Host so OAuth can complete.
           </p>
-          <button
-            type="button"
-            className="btn btn--primary btn--sm"
-            disabled={busy || !hostLive}
-            aria-busy={busy}
-            onClick={() => void deployGithubApp()}
-          >
-            {busy ? "Opening GitHub…" : "Create GitHub App"}
-          </button>
-        </div>
-      ) : null}
-
-      {showPat && hostLive ? (
-        <div className="field cap-pat">
-          <label htmlFor="git-history-pat">
-            Or connect with a personal access token
-          </label>
-          <input
-            id="git-history-pat"
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={
-              binding.providerId === "github"
-                ? "ghp_… or github_pat_… (repo scope)"
-                : "glpat-…"
-            }
-            value={pat}
+        ) : null}
+        {binding.providerId === "github" ? (
+          <Picker
+            binding={binding}
+            connection={connection}
             disabled={busy}
-            onChange={(event) => setPat(event.target.value)}
-          />
-          <div className="actions">
-            <button
-              type="button"
-              className="btn btn--ghost"
-              disabled={busy || !pat.trim()}
-              onClick={() => void connectWithPat()}
-            >
-              Connect with token
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {binding.providerId === "github" ? (
-        <Picker
-          binding={binding}
-          connection={connection}
-          disabled={busy}
-          onSelectRemote={(remote) =>
-            persistHistory({
-              providerId: binding.providerId,
-              connectionId: binding.connectionId,
-              remote,
-            })
-          }
-        />
-      ) : null}
-
-      {binding.providerId === "gitlab" ? (
-        <div className="field">
-          <label htmlFor="git-history-remote">
-            Git remote for encrypted store
-          </label>
-          <input
-            id="git-history-remote"
-            type="url"
-            placeholder="https://gitlab.com/org/opensesame-store.git"
-            value={binding.remote ?? ""}
-            disabled={busy}
-            onChange={(event) =>
+            onSelectRemote={(remote) =>
               persistHistory({
                 providerId: binding.providerId,
                 connectionId: binding.connectionId,
-                remote: event.target.value,
+                remote,
               })
             }
           />
-        </div>
-      ) : null}
-
-      {!needsAuth ? (
-        <p className="hint">
-          Local git password-store needs no Host OAuth. Ciphertext stays on this
-          machine.
-        </p>
-      ) : null}
+        ) : null}
+        {binding.providerId === "gitlab" ? (
+          <FieldShell
+            id="git-history-remote"
+            label="Git remote for encrypted store"
+            type="url"
+            mono
+            lead={<IconGitBranch size={17} />}
+            placeholder="https://gitlab.com/org/opensesame-store.git"
+            value={binding.remote ?? ""}
+            disabled={busy}
+            onValueChange={(value) =>
+              persistHistory({
+                providerId: binding.providerId,
+                connectionId: binding.connectionId,
+                remote: value,
+              })
+            }
+          />
+        ) : null}
+        {!needsAuth ? (
+          <p className="hint">
+            Local git password-store needs no Host OAuth. Ciphertext stays on
+            this machine.
+          </p>
+        ) : null}
+      </CeremonyShell>
+      <StatusNote message={flash} onDismiss={() => setFlash(null)} />
     </>
   );
 }
