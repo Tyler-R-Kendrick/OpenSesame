@@ -7,7 +7,7 @@ import {
   IconRefresh,
   IconX,
 } from "../components/Icons.js";
-import { PagesCannotHostNote } from "../components/PlaneNote.js";
+import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
 import {
   type Connection,
   ConnectionsError,
@@ -29,6 +29,7 @@ import {
 } from "../lib/identity.js";
 import { shouldAutoConnect } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
+import { useStatusNotice } from "../lib/use-status-notice.js";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
 import { IdentitySessionNote } from "./connections/IdentitySessionNote.js";
@@ -143,6 +144,44 @@ export function ConnectionsSection() {
     void connect();
   }, [session, online, connecting, connectError, connect]);
 
+  // Standing load trouble goes to the notifications tray, not the page.
+  useStatusNotice(
+    loadError && !loadError.setupRequired
+      ? {
+          id: "connections-load",
+          tone: "err",
+          title: loadError.unreachable
+            ? "Host API unavailable"
+            : "Connections could not load",
+          body: `${loadError.message} ${
+            loadError.unreachable
+              ? "Start the configured Host service, or repair it here."
+              : "Try refreshing the connection list."
+          }`,
+          ...(loadError.unreachable
+            ? {
+                ceremony: "host" as const,
+                ceremonyLabel: "Repair the Host connection",
+              }
+            : null),
+          retry: loadConnections,
+          retryLabel: "Reload",
+        }
+      : null,
+  );
+  useStatusNotice(
+    catalogError && (providers?.length ?? 0) > 0
+      ? {
+          id: "catalog-stale",
+          tone: "warn",
+          title: "Host catalog did not refresh",
+          body: "Showing the bundled connectors instead.",
+          retry: loadCatalog,
+          retryLabel: "Try again",
+        }
+      : null,
+  );
+
   if (providerId) {
     const provider = providers?.find((item) => item.id === providerId) ?? null;
     const providerConnections = (connections ?? []).filter(
@@ -228,33 +267,6 @@ export function ConnectionsSection() {
         </p>
       )}
 
-      {loadError && !loadError.setupRequired ? (
-        <div className="note note--err conn-error" role="alert">
-          <IconAlert />
-          <div className="conn-error__copy">
-            <strong>
-              {loadError.unreachable
-                ? "Host API unavailable"
-                : "Connections could not load"}
-            </strong>
-            <p>{loadError.message}</p>
-            <p>
-              {loadError.unreachable ? (
-                <>
-                  Start the configured Host service or{" "}
-                  <Link to="/settings/connectivity">
-                    review connection settings
-                  </Link>
-                  .
-                </>
-              ) : (
-                "Try refreshing the connection list."
-              )}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
       {catalogError && (providers?.length ?? 0) === 0 ? (
         <div className="note note--err conn-error" role="alert">
           <IconAlert />
@@ -266,19 +278,13 @@ export function ConnectionsSection() {
             </button>
           </div>
         </div>
-      ) : catalogError ? (
-        <p className="note note--warn">
-          <IconInfo /> Host catalog did not refresh. Showing the bundled
-          connectors.{" "}
-          <button type="button" className="btn btn--sm" onClick={loadCatalog}>
-            Try again
-          </button>
-        </p>
       ) : null}
 
       <NeedsAttention
         connections={connections ?? []}
         providers={providers ?? []}
+        onFlash={setFlash}
+        onChanged={() => void loadConnections()}
       />
 
       {rememberOffer ? (

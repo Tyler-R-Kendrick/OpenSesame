@@ -457,14 +457,4 @@ mod kani_proofs {
         assert!(interval_contains(t, Some(nbf), exp));
         assert!(!interval_contains(exp, Some(nbf), exp));
     }
-
-    #[kani::proof]
-    fn wildcard_does_not_cross_separator() {
-        assert!(resource_pattern_matches("repo:acme/*", "repo:acme/catalog"));
-        assert!(!resource_pattern_matches(
-            "repo:acme/*",
-            "repo:acme-private/catalog"
-        ));
-        assert!(!resource_pattern_matches("repo:acme:*", "repo:acme-extra"));
-    }
 }

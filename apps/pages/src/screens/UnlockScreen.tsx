@@ -533,8 +533,17 @@ export function UnlockScreen() {
                   {passkeyHost.fixUrl ? (
                     <>
                       {" "}
-                      — open <a href={passkeyHost.fixUrl}>localhost</a> (not a
-                      raw IP), unlock, then enroll under Settings.
+                      — continue on localhost (not a raw IP), unlock, then
+                      enroll under Settings.{" "}
+                      <button
+                        type="button"
+                        className="unlock__switch"
+                        onClick={() =>
+                          window.location.assign(passkeyHost.fixUrl ?? "")
+                        }
+                      >
+                        Continue on localhost
+                      </button>
                     </>
                   ) : (
                     <> before it can be enrolled in Settings.</>
@@ -589,7 +598,18 @@ export function UnlockScreen() {
                   {passkeyHost.fixUrl ? (
                     <>
                       {" "}
-                      <a href={passkeyHost.fixUrl}>Continue on localhost</a>{" "}
+                      {/* A button, same as the Settings twin's healPasskeyHost
+                          — the unlock screen was the one auth surface still
+                          repairing its environment through a raw anchor. */}
+                      <button
+                        type="button"
+                        className="unlock__switch"
+                        onClick={() =>
+                          window.location.assign(passkeyHost.fixUrl ?? "")
+                        }
+                      >
+                        Continue on localhost
+                      </button>{" "}
                       (same vault data), then unlock with passkey.
                     </>
                   ) : (

@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { clearNotices, listNotices } from "../../lib/notices.js";
 
 const online = vi.hoisted(() => ({ value: true }));
 const planes = vi.hoisted(() => ({
@@ -140,6 +141,7 @@ describe("CapabilityConnectorsPanel", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.clearAllMocks();
   });
 
@@ -194,7 +196,7 @@ describe("CapabilityConnectorsPanel", () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
-  it("surfaces identity connect errors", () => {
+  it("reports identity connect errors to the notifications tray", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     connectState.error = "identity plane down";
     render(
@@ -202,11 +204,16 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    const alert = screen.getByRole("alert");
-    expect(alert.textContent).toMatch(/identity plane down/);
+    const notice = listNotices().find((n) => n.id === "identity-session");
+    expect(notice?.tone).toBe("err");
+    expect(notice?.body).toMatch(/identity plane down/);
+    notice?.retry?.();
+    expect(connect).toHaveBeenCalled();
+    // The panel itself stays clean of the session banner.
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("shows a connecting note while the session starts", () => {
+  it("reports the starting session to the notifications tray", () => {
     hostLocalSessionEligible.mockReturnValue(false);
     session.current = null;
     connectState.connecting = true;
@@ -215,7 +222,9 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    expect(screen.getByText(/Starting your OpenSesame session/)).toBeTruthy();
+    const notice = listNotices().find((n) => n.id === "identity-session");
+    expect(notice?.tone).toBe("info");
+    expect(notice?.title).toBe("Starting your OpenSesame session");
   });
 
   it("warns that OAuth needs the GitHub App when none is configured", async () => {
@@ -246,8 +255,14 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
+    // The tenant-App path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Create a GitHub App for this organization/i,
+      }),
+    );
     const deploy = await screen.findByRole("button", {
-      name: /Create GitHub App for this organization/i,
+      name: "Create GitHub App for this organization",
     });
     await userEvent.click(deploy);
     await waitFor(() =>
@@ -266,8 +281,14 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
+    // The tenant-App path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Create a GitHub App for this organization/i,
+      }),
+    );
     const deploy = await screen.findByRole("button", {
-      name: /Create GitHub App for this organization/i,
+      name: "Create GitHub App for this organization",
     });
     await userEvent.click(deploy);
     expect(await screen.findByText(/host offline/)).toBeTruthy();
@@ -378,6 +399,12 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
+    // The PAT path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/i,
+      }),
+    );
     await userEvent.click(
       await screen.findByRole("button", {
         name: /Connect GitHub with token/i,
@@ -385,9 +412,7 @@ describe("CapabilityConnectorsPanel", () => {
     );
     // The button is disabled until a token is typed.
     expect(setConnectionCredential).not.toHaveBeenCalled();
-    const input = screen.getByLabelText(
-      /connect with a personal access token/i,
-    );
+    const input = screen.getByLabelText(/personal access token/i);
     await userEvent.type(input, "   ");
     expect(
       overlapCast(
@@ -406,9 +431,13 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    const input = await screen.findByLabelText(
-      /connect with a personal access token/i,
+    // The PAT path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/i,
+      }),
     );
+    const input = await screen.findByLabelText(/personal access token/i);
     await userEvent.type(input, "ghp_secret_token");
     await userEvent.click(
       screen.getByRole("button", { name: /Connect GitHub with token/i }),
@@ -436,9 +465,13 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    const input = await screen.findByLabelText(
-      /connect with a personal access token/i,
+    // The PAT path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/i,
+      }),
     );
+    const input = await screen.findByLabelText(/personal access token/i);
     await userEvent.type(input, "ghp_bad");
     await userEvent.click(
       screen.getByRole("button", { name: /Connect GitHub with token/i }),
@@ -589,6 +622,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
 
   afterEach(() => {
     cleanup();
+    clearNotices();
     vi.clearAllMocks();
   });
 
@@ -722,9 +756,13 @@ describe("CapabilityConnectorsPanel edge branches", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    const input = await screen.findByLabelText(
-      /connect with a personal access token/i,
+    // The PAT path is an alternative row now — expand it first.
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: /Connect with a personal access token/i,
+      }),
     );
+    const input = await screen.findByLabelText(/personal access token/i);
     await userEvent.type(input, "glpat-123");
     await userEvent.click(
       screen.getByRole("button", { name: /Connect GitLab with token/i }),

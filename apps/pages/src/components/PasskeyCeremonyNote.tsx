@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
-import { loadSettings, subscribeSettings } from "../lib/settings.js";
+import {
+  loadSettings,
+  saveSettings,
+  subscribeSettings,
+} from "../lib/settings.js";
 import { webauthnSeams } from "../lib/webauthn.js";
-import { IconAlert } from "./Icons.js";
+import { FieldShell } from "./FieldShell.js";
+import { IconAlert, IconPhone } from "./Icons.js";
 import { QrCode } from "./QrCode.js";
 
 function PasskeyCeremonyNoteDefault() {
@@ -45,12 +50,36 @@ function PasskeyCeremonyNoteDefault() {
             </p>
           </div>
         ) : (
-          <p className="hint">
-            Set a Mobile MFA URL in Settings to show a handoff QR here.
-          </p>
+          // Setting the URL is one field, so it happens here — a sentence
+          // pointing at Settings was a dead end with nothing to click.
+          <MfaUrlField />
         )}
       </div>
     </div>
+  );
+}
+
+/** The Mobile MFA URL, editable in place. Commits on blur, like Endpoints. */
+function MfaUrlField() {
+  const [value, setValue] = useState("");
+  return (
+    <FieldShell
+      id="passkey-note-mfa-url"
+      label="Mobile MFA app URL"
+      type="url"
+      mono
+      lead={<IconPhone size={17} />}
+      placeholder="https://phone.example/mfa"
+      value={value}
+      onValueChange={setValue}
+      onCommit={(raw) => {
+        const next = raw.trim().replace(/\/$/, "");
+        const current = loadSettings();
+        if (!next || current.mfaAppUrl === next) return;
+        saveSettings({ ...current, mfaAppUrl: next });
+      }}
+      hint="Saves when you leave the field; the handoff QR appears here."
+    />
   );
 }
 

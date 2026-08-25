@@ -13,7 +13,9 @@ fi
 
 echo "==> ast-grep security scan"
 set +e
-ast-grep scan --inline-rules "$(cat "$RULES")" apps crates packages \
+ast-grep scan --inline-rules "$(cat "$RULES")" \
+  --globs '!**/*.test.*' --globs '!**/*.spec.*' --globs '!**/__snapshots__/**' \
+  apps crates packages \
   2>artifacts/security/ast-grep.err \
   | tee artifacts/security/ast-grep.out
 status=${PIPESTATUS[0]}

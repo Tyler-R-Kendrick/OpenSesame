@@ -11,10 +11,12 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  type StatusNoticeInput,
   clearNotices,
   dismissNotice,
   listNotices,
   pushNotice,
+  setStatusNotice,
   subscribeNotices,
 } from "./notices.js";
 
@@ -67,6 +69,82 @@ describe("pushNotice", () => {
     subscribeNotices(listener);
     push("guest_claim");
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+});
+
+function statusInput(over: Partial<StatusNoticeInput> = {}): StatusNoticeInput {
+  return {
+    id: "host-down",
+    tone: "warn",
+    title: "Host API unavailable",
+    body: "b",
+    ...over,
+  };
+}
+
+describe("setStatusNotice", () => {
+  it("stores a status notice keyed by id and emits", () => {
+    const listener = vi.fn();
+    subscribeNotices(listener);
+    const notice = setStatusNotice(statusInput());
+    expect(notice.kind).toBe("status");
+    expect(notice.createdAt).toBeTruthy();
+    expect(listNotices()).toEqual([notice]);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not collapse status notices with claim notices or each other", () => {
+    const claim = pushNotice({ kind: "guest_claim", title: "t", body: "b" });
+    const first = setStatusNotice(statusInput());
+    const second = setStatusNotice(statusInput({ id: "identity-session" }));
+    expect(listNotices()).toEqual([claim, first, second]);
+  });
+
+  it("replaces the notice with the same id when the words change", () => {
+    const first = setStatusNotice(statusInput({ body: "first" }));
+    const listener = vi.fn();
+    subscribeNotices(listener);
+    const second = setStatusNotice(statusInput({ body: "second" }));
+    expect(listNotices()).toEqual([second]);
+    expect(second.createdAt).toBe(first.createdAt);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("compares every wording field when deciding to replace", () => {
+    for (const over of [
+      { tone: "err" as const },
+      { title: "t2" },
+      { body: "b2" },
+      { ceremony: "identity" as const },
+      { ceremonyLabel: "Open" },
+      { retryLabel: "Again" },
+    ]) {
+      clearNotices();
+      setStatusNotice(statusInput());
+      const listener = vi.fn();
+      const unsubscribe = subscribeNotices(listener);
+      setStatusNotice(statusInput(over));
+      expect(listener).toHaveBeenCalledTimes(1);
+      unsubscribe();
+    }
+  });
+
+  it("swaps only the retry closure in place, without an emit", () => {
+    setStatusNotice(statusInput());
+    const listener = vi.fn();
+    subscribeNotices(listener);
+    const retry = vi.fn();
+    const kept = setStatusNotice(statusInput({ retry }));
+    expect(listener).not.toHaveBeenCalled();
+    expect(listNotices()).toEqual([kept]);
+    kept.retry?.();
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
+
+  it("is dismissible like any other notice", () => {
+    const notice = setStatusNotice(statusInput());
+    dismissNotice(notice.id);
+    expect(listNotices()).toEqual([]);
   });
 });
 
