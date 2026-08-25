@@ -4,8 +4,7 @@ import {
   planeSeams,
   usePlaneStatus,
 } from "../lib/planes.js";
-import { CeremonyLink } from "./CeremonyLauncher.js";
-import { IconAlert } from "./Icons.js";
+import { useStatusNotice } from "../lib/use-status-notice.js";
 import { ConnectThisMachine } from "./PlaneNote.js";
 
 /**
@@ -16,9 +15,10 @@ import { ConnectThisMachine } from "./PlaneNote.js";
  * body needs the machine ceremony, and keeping all three in one another's
  * modules made a cycle.
  *
- * When the Host is down, the way out is the Host ceremony — opened here, in
- * place. This used to be a link to Settings, which broke the one rule the
- * ceremonies keep: repairing a connection must put you back where you were.
+ * A down Host is standing trouble, not page furniture — it reports to the
+ * notifications tray so the section renders its own content clean. The way
+ * out stays the Host ceremony, opened from the tray in place: repairing a
+ * connection must put you back where you were.
  */
 function PagesCannotHostNoteDefault({
   ceremony,
@@ -26,28 +26,26 @@ function PagesCannotHostNoteDefault({
   ceremony: string;
 }) {
   const status = usePlaneStatus();
+  const hostDown = status.host === "down" && !needsHostPairing(status);
+  useStatusNotice(
+    hostDown
+      ? {
+          id: "host-down",
+          tone: "warn",
+          title: "Host API unavailable",
+          body:
+            `${ceremony} needs the Host API. ${planeSeams.PAGES_CANNOT_HOST} ` +
+            `Configured Host: ${status.hostBase || "none"} (${hostStatusLabel(
+              status.host,
+            ).toLowerCase()}).`,
+          ceremony: "host",
+          ceremonyLabel: "Repair the Host connection",
+        }
+      : null,
+  );
   // Host plane is ready (or still probing a saved pairing) — do not ask again.
   if (status.host === "live" || status.host === "pending") return null;
-  if (!needsHostPairing(status)) {
-    if (status.host === "down") {
-      return (
-        <output className="note note--warn">
-          <IconAlert />
-          <div>
-            <p>
-              {ceremony} needs the Host API. {planeSeams.PAGES_CANNOT_HOST}
-            </p>
-            <p>
-              Configured Host: <code>{status.hostBase || "none"}</code> (
-              {hostStatusLabel(status.host).toLowerCase()}).
-            </p>
-            <CeremonyLink id="host">Repair the Host connection</CeremonyLink>
-          </div>
-        </output>
-      );
-    }
-    return null;
-  }
+  if (!needsHostPairing(status)) return null;
   return (
     <div className="panel">
       {/* The heading lives on the panel, not in the ceremony: inline, this
