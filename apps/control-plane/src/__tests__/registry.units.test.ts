@@ -921,15 +921,25 @@ describe("resolveTrustedIssuer", () => {
     },
   );
 
-  it("resolves static providers without any BYO or organization store", async () => {
-    // The stores land with S6; a deployment without them still federates.
-    const bare: AppContext = overlapCast({ config, repos: {}, stores: {} });
-    expect((await resolveTrustedIssuer(bare, "https://shoo.dev"))?.source).toBe(
-      "static",
-    );
+  it("answers a static issuer without reading either store", async () => {
+    // The order in C2 is not cosmetic: the operator's entry carries the client
+    // credentials, so it must be decided before anything a visitor or a tenant
+    // owner could have written. A store that throws proves it is never asked.
+    const refuses = () => {
+      throw new Error("store consulted for a static issuer");
+    };
+    const fenced: AppContext = overlapCast({
+      config,
+      repos: { byoUpstreams: { findByIssuer: refuses } },
+      stores: { organizations: { findByIssuer: refuses } },
+    });
     expect(
-      await resolveTrustedIssuer(bare, "https://byo.example"),
-    ).toBeUndefined();
+      (await resolveTrustedIssuer(fenced, "https://shoo.dev"))?.source,
+    ).toBe("static");
+    expect(
+      (await resolveTrustedIssuer(fenced, "https://accounts.google.com"))
+        ?.source,
+    ).toBe("static");
   });
 });
 

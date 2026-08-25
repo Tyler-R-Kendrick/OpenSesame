@@ -5,10 +5,12 @@ import type { OpenSesameProviderBundle } from "@opensesame/oauth-provider";
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
+import type { AppContext } from "../context.js";
 import { createInteractionCsrf } from "../interactions/csrf.js";
 import {
   FederatedAuthError,
   type FederatedIdentity,
+  type PendingFederatedAuth,
   beginFederatedAuth,
   completeFederatedAuth,
   decodePending,
@@ -24,6 +26,13 @@ import {
   finishLoginInteraction,
   mintProvisionalForInteraction,
 } from "../interactions/handlers.js";
+import { beginOAuth2Auth, completeOAuth2Auth } from "../interactions/oauth2.js";
+import {
+  type ProviderDescriptor,
+  normalizeIssuer,
+  providerById,
+  providerByIssuer,
+} from "../interactions/registry.js";
 import type {
   InteractionDetails,
   ProviderInteractions,
@@ -32,12 +41,35 @@ import type { Variables } from "../middleware/context.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
+import { createOrgInteractionRoutes } from "./interactions-org.js";
+import { jitJoinOrganization } from "./organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
 
 type NodeEnv = { Bindings: HttpBindings };
 
 /** The upstream round-trip is interactive; ten minutes is generous for it. */
 const FEDERATED_PENDING_TTL_SECONDS = 600;
+
+/**
+ * The only parameters copied out of a `form_post` callback body (D3).
+ *
+ * An allowlist, not a filter: everything else a provider posts — `user`,
+ * `id_token`, anything a future revision adds — is dropped rather than
+ * reflected into a URL this server then redirects the browser to.
+ */
+const FORM_POST_CALLBACK_PARAMS = [
+  "code",
+  "state",
+  "error",
+  "error_description",
+] as const;
+
+/**
+ * Length cap for a re-materialized parameter. Authorization codes are a few
+ * hundred bytes; anything near this is not a code, and a redirect URL
+ * assembled from unbounded form input is a denial-of-service in a header.
+ */
+const MAX_FORM_POST_PARAM_LENGTH = 2048;
 
 function interactionPath(uid: string): string {
   return `/interaction/${encodeURIComponent(uid)}`;
@@ -61,6 +93,57 @@ function nodeHttp(c: {
 }
 
 /**
+ * The registry descriptor a start request names: by id when a catalog button
+ * posted one, by issuer for the legacy form. Both are re-resolved here against
+ * the static registry and re-fenced inside the leg by `resolveTrustedIssuer`
+ * (C2) — the rendered buttons are a convenience, never the fence.
+ */
+function requestedProvider(
+  ctx: AppContext,
+  providerId: string,
+  issuer: string,
+): ProviderDescriptor | undefined {
+  if (providerId) return providerById(ctx.config, providerId);
+  if (issuer) return providerByIssuer(ctx.config, issuer);
+  return undefined;
+}
+
+/**
+ * Complete whichever leg started this (C3/C4).
+ *
+ * `kind` rides in the pending cookie and an absent one means `"oidc"` — the
+ * shape of every cookie written before this release. An `"oauth2"` pending
+ * must never be finished by the OIDC leg: that leg's whole guarantee is a
+ * JWKS-verified id_token, and a provider that issues none would otherwise be
+ * admitted on whatever its token endpoint happened to return.
+ */
+async function completeFederatedLeg(
+  ctx: AppContext,
+  pending: PendingFederatedAuth,
+  currentUrl: URL,
+): Promise<FederatedIdentity> {
+  if ((pending.kind ?? "oidc") !== "oauth2") {
+    return completeFederatedAuth(ctx, pending, currentUrl);
+  }
+  const descriptor = pending.providerId
+    ? providerById(ctx.config, pending.providerId)
+    : undefined;
+  if (
+    !descriptor ||
+    descriptor.kind !== "oauth2" ||
+    normalizeIssuer(descriptor.issuer) !== normalizeIssuer(pending.issuer)
+  ) {
+    // The cookie named a provider this deployment no longer offers, or one
+    // whose issuer it does not match. Either way, nothing vouches for it.
+    throw new FederatedAuthError(
+      "untrusted_issuer",
+      "That sign-in provider is not trusted by this server",
+    );
+  }
+  return completeOAuth2Auth(ctx, descriptor, pending, currentUrl);
+}
+
+/**
  * The oidc-provider interaction slot (ADR 0050 F6). `/auth` 303-redirects
  * here when login or consent is needed; `devInteractions` stays off. The
  * routes sit behind the same HTML security-header posture as the claim
@@ -74,6 +157,25 @@ export function createInteractionRoutes(): Hono<
   const csrf = createInteractionCsrf();
 
   routes.use("*", claimPageSecurityHeaders());
+
+  /*
+   * C9 sub-routers, mounted after the security headers so the hosted-page
+   * posture covers them too. Each owns one route on this prefix and
+   * re-implements the small `loadDetails` helper locally, so the files stay
+   * disjoint.
+   *
+   * INTEGRATOR: three of the four are still landing in parallel swarms and
+   * their files are not in the tree yet. Add the import and the frozen mount
+   * line as each arrives, right here:
+   *
+   *   TODO(S4): routes.route("/", createByoInteractionRoutes(csrf));
+   *             — src/routes/interactions-byo.ts, POST /:uid/federated/byo
+   *   TODO(S10): routes.route("/", createRealmInteractionRoutes(csrf));
+   *             — src/routes/interactions-realm.ts, POST /:uid/federated/realm
+   *   TODO(S9): routes.route("/", createSamlCompleteRoutes());
+   *             — src/routes/saml.ts, GET /:uid/federated/saml/complete
+   */
+  routes.route("/", createOrgInteractionRoutes(csrf));
 
   async function loadDetails(
     c: { env: HttpBindings },
@@ -209,9 +311,12 @@ export function createInteractionRoutes(): Hono<
   });
 
   /**
-   * Hand the browser to a trusted upstream (ADR 0033 §4). The issuer arrives
-   * as a form field and is re-checked against the allowlist inside
-   * `beginFederatedAuth` — the rendered buttons are a convenience, not the
+   * Hand the browser to a trusted upstream (ADR 0033 §4, ADR 0055).
+   *
+   * The provider arrives as a form field — `provider` (a registry id, which
+   * wins) or the legacy `issuer` — and both are re-validated server-side, here
+   * against the static registry and again inside the leg by
+   * `resolveTrustedIssuer`. The rendered buttons are a convenience, not the
    * fence. The leg state rides in a cookie scoped to this interaction.
    */
   routes.post("/:uid/federated/start", async (c) => {
@@ -230,13 +335,21 @@ export function createInteractionRoutes(): Hono<
       return c.text("Prompt mismatch", 400);
     }
 
+    const providerId = isString(fields.provider) ? fields.provider.trim() : "";
     const issuer = isString(fields.issuer) ? fields.issuer : "";
+    const descriptor = requestedProvider(ctx, providerId, issuer);
+    if (providerId && !descriptor) {
+      // A named provider that resolves to nothing is not a legacy issuer to
+      // fall back on: it is a request for a provider this server does not
+      // offer, and falling through would sign the user in somewhere else.
+      return c.text("That sign-in provider is not trusted by this server", 403);
+    }
+
     try {
-      const { authorizationUrl, pending } = await beginFederatedAuth(
-        ctx,
-        uid,
-        issuer,
-      );
+      const { authorizationUrl, pending } =
+        descriptor?.kind === "oauth2"
+          ? await beginOAuth2Auth(ctx, uid, descriptor)
+          : await beginFederatedAuth(ctx, uid, descriptor?.issuer ?? issuer);
       setCookie(c, pendingCookieName(uid), encodePending(pending), {
         httpOnly: true,
         sameSite: "Lax",
@@ -254,6 +367,40 @@ export function createInteractionRoutes(): Hono<
       }
       throw error;
     }
+  });
+
+  /**
+   * `response_mode=form_post` re-materialization (D3, T4).
+   *
+   * Apple returns the authorization response as a cross-site POST from
+   * `appleid.apple.com`. Both the `os.fed.<uid>` pending cookie and
+   * oidc-provider's interaction cookie are `SameSite=Lax`, so NEITHER is on
+   * that request — a handler that completed the sign-in here would pass a
+   * same-origin test and fail against real Apple every single time.
+   *
+   * So this route does no completion work at all. It copies four allowlisted
+   * parameters into a 303 to the GET callback; the browser then makes a
+   * top-level same-site GET, which does carry both cookies, and the existing
+   * callback runs unchanged. There is no CSRF token because there is no
+   * authority here to abuse: the redirect target is this server's own
+   * callback, and `state` byte-equality against the pending cookie is still
+   * the binding that decides whether anything completes.
+   */
+  routes.post("/:uid/federated/callback", async (c) => {
+    const uid = c.req.param("uid");
+    const fields = overlapCast(await c.req.parseBody());
+    const params = new URLSearchParams();
+    for (const name of FORM_POST_CALLBACK_PARAMS) {
+      const value = fields[name];
+      if (!isString(value) || value.length === 0) continue;
+      if (value.length > MAX_FORM_POST_PARAM_LENGTH) continue;
+      params.set(name, value);
+    }
+    const query = params.toString();
+    return c.redirect(
+      `${interactionPath(uid)}/federated/callback${query ? `?${query}` : ""}`,
+      303,
+    );
   });
 
   /**
@@ -294,7 +441,7 @@ export function createInteractionRoutes(): Hono<
 
     let identity: FederatedIdentity;
     try {
-      identity = await completeFederatedAuth(ctx, pending, new URL(c.req.url));
+      identity = await completeFederatedLeg(ctx, pending, new URL(c.req.url));
     } catch (error) {
       if (error instanceof FederatedAuthError) {
         return c.text(
@@ -307,7 +454,7 @@ export function createInteractionRoutes(): Hono<
 
     const correlationId = c.get("correlationId");
     const existing = await ctx.repos.externalIdentities.findByTuple({
-      kind: "oidc",
+      kind: identity.kind,
       issuer: identity.issuer,
       subject: identity.subject,
     });
@@ -349,6 +496,7 @@ export function createInteractionRoutes(): Hono<
         ctx,
         minted.principalId,
         {
+          kind: identity.kind,
           issuer: identity.issuer,
           subject: identity.subject,
           correlationId,
@@ -366,23 +514,59 @@ export function createInteractionRoutes(): Hono<
       if (!attached.ok) {
         return c.text(attached.message, 409);
       }
-      accountId = minted.principalId;
+      // The verified-email policy (D15) may have attached this identity to a
+      // principal that already existed, in which case the principal minted a
+      // moment ago is not the account signing in. Follow the identity row,
+      // never the mint — the alternative is signing somebody in as a guest
+      // that carries none of their history.
+      accountId = attached.identity.principalId;
       // The same first-authenticated-session guarantee POST
       // /v1/principals/link-identities gives: a principal that just became
       // verified gets its personal project. Both federated surfaces have to
       // agree here, or where you signed in decides whether you have one.
-      await ensurePersonalOnAuthenticatedSession(
-        ctx,
-        minted.principalId,
-        correlationId,
-      );
-      setCookie(c, ctx.config.provisionalCookieName, minted.accessToken, {
-        httpOnly: true,
-        sameSite: "Lax",
-        path: "/",
-        maxAge: Math.floor(ctx.config.provisionalTtlMs / 1000),
-        secure: ctx.config.publicUrl.startsWith("https://"),
-      });
+      await ensurePersonalOnAuthenticatedSession(ctx, accountId, correlationId);
+      if (accountId === minted.principalId) {
+        // The minted session belongs to the minted principal and to nothing
+        // else. When D15 sent the identity to an existing principal instead,
+        // this browser is a returning user (T6) and gets no cookie here —
+        // handing it the throwaway principal's bearer would leave it holding
+        // a session for an account the interaction did not complete as.
+        setCookie(c, ctx.config.provisionalCookieName, minted.accessToken, {
+          httpOnly: true,
+          sameSite: "Lax",
+          path: "/",
+          maxAge: Math.floor(ctx.config.provisionalTtlMs / 1000),
+          secure: ctx.config.publicUrl.startsWith("https://"),
+        });
+      }
+    }
+
+    // A bring-your-own upstream that just signed somebody in is in use, and
+    // the admin surface lists records by last use (D14).
+    if (pending.byoId) {
+      await ctx.repos.byoUpstreams.touchLastUsed(pending.byoId, ctx.clock());
+    }
+
+    // Organization sign-in JIT-joins on completion (D6): the tenant's own IdP
+    // vouched for this subject, so membership follows the sign-in rather than
+    // waiting for a separate join call. Refused when the tenant provisions
+    // through a directory and this subject is not in it (C15) — the sign-in
+    // itself already happened, and refusing here is what keeps a
+    // deprovisioned employee out of the tenant.
+    if (pending.orgId) {
+      const organization = await ctx.stores.organizations.get(pending.orgId);
+      if (organization) {
+        const joined = await jitJoinOrganization(ctx, {
+          organization,
+          principalId: accountId,
+          subject: identity.subject,
+          method: "sso",
+          correlationId,
+        });
+        if (!joined.ok) {
+          return c.text(joined.message, 403);
+        }
+      }
     }
 
     const returnTo = await finishLoginInteraction(

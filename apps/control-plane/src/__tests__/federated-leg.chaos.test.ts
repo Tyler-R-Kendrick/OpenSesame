@@ -39,9 +39,12 @@ type Fault =
   | "unsigned_alg"
   | "foreign_key"
   | "no_subject"
-  | "no_id_token";
+  | "no_id_token"
+  | "revocation_500";
 
 let fault: Fault = "none";
+/** How many times the broker's revocation endpoint was called (D13). */
+let revocationsSeen = 0;
 
 async function startChaosUpstream() {
   const { privateKey, publicKey } = await generateKeyPair("RS256", {
@@ -73,6 +76,10 @@ async function startChaosUpstream() {
         issuer,
         authorization_endpoint: `${issuer}/authorize`,
         token_endpoint: `${issuer}/token`,
+        // Advertised so the D13 disposal path is genuinely exercised: the
+        // token response below always carries a refresh token nobody asked
+        // for, and the leg has to try to hand it back.
+        revocation_endpoint: `${issuer}/revoke`,
         jwks_uri: `${issuer}/jwks`,
         response_types_supported: ["code"],
         subject_types_supported: ["pairwise"],
@@ -82,6 +89,13 @@ async function startChaosUpstream() {
     }
 
     if (url.pathname === "/jwks") return void json(200, { keys: [jwk] });
+
+    if (url.pathname === "/revoke" && req.method === "POST") {
+      revocationsSeen += 1;
+      if (fault === "revocation_500") return void res.writeHead(500).end("no");
+      // RFC 7009: 200 whether or not the token was known.
+      return void res.writeHead(200).end();
+    }
 
     if (url.pathname === "/authorize") {
       const code = randomBytes(16).toString("hex");
@@ -149,6 +163,9 @@ async function startChaosUpstream() {
             access_token: "at",
             token_type: "Bearer",
             expires_in: 300,
+            // Nobody asked for this. Brokers issue them anyway, and the leg
+            // must dispose of it rather than take custody (D13).
+            refresh_token: "rt-nobody-asked-for",
             // A broker that answers the grant but omits the assertion entirely.
             ...(fault === "no_id_token" ? undefined : { id_token: idToken }),
           });
@@ -333,6 +350,46 @@ describe("CHAOS — a broker that misbehaves must not admit anyone", () => {
     },
     20_000,
   );
+
+  /**
+   * The mirror image of every case above: this one must NOT fail closed.
+   *
+   * D13 hands an unasked-for refresh token back to the issuer that minted it,
+   * best effort. A revocation endpoint that 500s has not endangered anybody —
+   * the token was never stored — and turning that into a failed sign-in would
+   * let a broken endpoint at the upstream lock every user out.
+   */
+  it("completes the sign-in even when revoking the refresh token fails", async () => {
+    const { jar, uid, csrf } = await toLoginPage();
+    const start = await startLeg(jar, uid, csrf);
+    expect(start.status).toBe(303);
+
+    fault = "revocation_500";
+    const before = revocationsSeen;
+    const authorize = new URL(start.headers.get("location") ?? "");
+    const upstreamRes = await fetch(authorize, { redirect: "manual" });
+    const back = new URL(upstreamRes.headers.get("location") ?? "");
+    const res = await req(
+      jar,
+      `/interaction/${uid}/federated/callback${back.search}`,
+    );
+
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location") ?? "").toContain("/auth/");
+    // Fire-and-forget: the attempt is made, and the answer is not waited on.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(revocationsSeen).toBeGreaterThan(before);
+
+    // And the token is nowhere in the record it left behind.
+    const identity = await started.ctx.repos.externalIdentities.findByTuple({
+      kind: "oidc",
+      issuer: upstream.issuer,
+      subject: "chaos-subject",
+    });
+    expect(JSON.stringify(identity ?? {})).not.toContain(
+      "rt-nobody-asked-for",
+    );
+  }, 20_000);
 
   it("does not let a replayed callback re-run a consumed code", async () => {
     const { jar, uid, csrf } = await toLoginPage();

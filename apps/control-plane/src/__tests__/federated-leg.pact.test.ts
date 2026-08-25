@@ -62,23 +62,68 @@ function config(overrides: Partial<ControlPlaneConfig> = {}) {
  * catch.
  */
 describeSourceOracle("PACT — federated leg fail-closed ordering", () => {
-  it("checks the issuer allowlist before it ever talks to the network", () => {
+  it("resolves trust before it ever talks to the network", () => {
+    // `resolveTrustedIssuer` (C2) is the fence, and `resolveOrRefuse` is the
+    // only caller: an issuer nothing vouches for must be refused before
+    // discovery, or the mere attempt has already told an attacker's server
+    // that this deployment will dereference an arbitrary URL.
     assertSourceOrder(federatedSource, [
       "export async function beginFederatedAuth",
-      "isTrustedUpstream(ctx.config, issuer)",
-      "untrusted_issuer",
-      "upstreamConfiguration(ctx, issuer)",
+      "resolveOrRefuse(ctx, issuer)",
+      "clientModeFor(ctx.config, trust)",
+      "upstreamConfiguration(ctx, issuer, mode)",
     ]);
   });
 
-  it("re-checks the allowlist on the way back in, not only on the way out", () => {
+  it("re-resolves trust on the way back in, not only on the way out", () => {
     // The pending cookie names its own issuer. Trusting it because "we checked
-    // at start" would let a stale cookie outlive a withdrawn trust decision.
+    // at start" would let a stale cookie outlive a withdrawn trust decision —
+    // a BYO record disabled by an operator, or an org that removed its issuer.
     assertSourceOrder(federatedSource, [
       "export async function completeFederatedAuth",
-      "isTrustedUpstream(ctx.config, pending.issuer)",
-      "untrusted_issuer",
+      "resolveOrRefuse(ctx, pending.issuer)",
+      "clientModeFor(ctx.config, trust)",
       "authorizationCodeGrant",
+    ]);
+  });
+
+  it("maps an unresolved issuer to untrusted_issuer and nothing softer", () => {
+    assertSourceOrder(federatedSource, [
+      "async function resolveOrRefuse",
+      "resolveTrustedIssuer(ctx, issuer)",
+      "if (!trust)",
+      "untrusted_issuer",
+    ]);
+  });
+
+  it("pins the Origin header to origin-profile mode alone (T10)", () => {
+    // A confidential client is bound by its secret; one that also claimed a
+    // browser origin is a mode violation, and a secret sent to a broker that
+    // expects the origin-profile contract is a secret sent somewhere it was
+    // never registered.
+    assertSourceOrder(federatedSource, [
+      "async function upstreamConfiguration",
+      "mode.originProfile",
+      "originPinnedFetch(siteOrigin(ctx.config))",
+    ]);
+  });
+
+  it("keys the discovery cache by client id as well as issuer (T1)", () => {
+    assertSourceOrder(federatedSource, [
+      "function discoveryCacheKey",
+      "${issuer}|${clientId}",
+      "async function upstreamConfiguration",
+      "discoveryCacheKey(issuer, mode.clientId)",
+      "discoveryCache.get(key)",
+    ]);
+  });
+
+  it("disposes of an upstream refresh token instead of storing one", () => {
+    // D13: the identity plane takes no custody of somebody else's long-lived
+    // credential. Revocation is best effort; dropping it is the guarantee.
+    assertSourceOrder(federatedSource, [
+      "rawIdToken = tokens.id_token",
+      "disposeRefreshToken(ctx, config, mode, tokens.refresh_token)",
     ]);
   });
 
@@ -124,7 +169,7 @@ describe("PACT — federated route ordering", () => {
     assertSourceOrder(routesSource, [
       "decodePending(getCookie",
       "deleteCookie(c, pendingCookieName(uid)",
-      "completeFederatedAuth",
+      "completeFederatedLeg(ctx, pending",
     ]);
   });
 
@@ -137,6 +182,15 @@ describe("PACT — federated route ordering", () => {
     ]);
   });
 
+  it("refuses an unknown provider id instead of falling back to the issuer", () => {
+    assertSourceOrder(routesSource, [
+      "requestedProvider(ctx, providerId, issuer)",
+      "if (providerId && !descriptor)",
+      "not trusted by this server",
+      "beginOAuth2Auth",
+    ]);
+  });
+
   it("resolves an existing identity before minting anything new", () => {
     // Reversing these would mint a throwaway principal on every sign-in and
     // then collide with the identity already bound to the real one.
@@ -144,6 +198,40 @@ describe("PACT — federated route ordering", () => {
       "externalIdentities.findByTuple",
       "mintProvisionalForInteraction",
       "attachVerifiedExternalIdentity",
+    ]);
+  });
+
+  it("follows the attached identity's principal, not the mint (D15)", () => {
+    // The verified-email policy may attach to a principal that already exists.
+    // Binding the interaction to `minted.principalId` regardless would sign
+    // the human in as an empty guest and strand their real account.
+    assertSourceOrder(routesSource, [
+      "attachVerifiedExternalIdentity",
+      "accountId = attached.identity.principalId",
+      "if (accountId === minted.principalId)",
+      "ctx.config.provisionalCookieName",
+    ]);
+  });
+
+  it("joins the organization only after the principal is resolved", () => {
+    assertSourceOrder(routesSource, [
+      "externalIdentities.findByTuple",
+      "if (pending.orgId)",
+      "jitJoinOrganization",
+      "finishLoginInteraction",
+    ]);
+  });
+
+  it("re-materializes a form_post callback without completing anything", () => {
+    // T4: the POST handler must do no completion work. It copies four
+    // allowlisted parameters into a 303 and stops — the GET that follows is
+    // the request that carries the SameSite=Lax cookies.
+    assertSourceOrder(routesSource, [
+      'routes.post("/:uid/federated/callback"',
+      "for (const name of FORM_POST_CALLBACK_PARAMS)",
+      "MAX_FORM_POST_PARAM_LENGTH",
+      "return c.redirect(",
+      'routes.get("/:uid/federated/callback"',
     ]);
   });
 });
@@ -210,7 +298,7 @@ describe("PACT — pending leg state", () => {
     verifier: "ve",
   };
 
-  it("round-trips exactly the four fields and nothing else", () => {
+  it("round-trips exactly the four v1 fields and invents no others", () => {
     const decoded = decodePending(encodePending(pending));
     expect(decoded).toEqual(pending);
     expect(Object.keys(decoded ?? {}).sort()).toEqual([
@@ -219,6 +307,23 @@ describe("PACT — pending leg state", () => {
       "state",
       "verifier",
     ]);
+  });
+
+  it("accepts a v1 cookie unchanged, with no defaulted kind (T12)", () => {
+    // A cookie written by the previous release is in somebody's browser while
+    // the new one boots. It must still decode, and `kind` must stay absent
+    // rather than become a present `undefined` that re-encodes as null.
+    const decoded = decodePending(encodePending(pending));
+    expect(decoded && "kind" in decoded).toBe(false);
+    expect(decodePending(encodePending(decoded ?? pending))).toEqual(pending);
+  });
+
+  it("carries the v2 provenance a leg started from, and only that", () => {
+    const v2 = { ...pending, kind: "oidc" as const, orgId: "org_1" };
+    const decoded = decodePending(encodePending(v2));
+    expect(decoded).toEqual(v2);
+    expect(decoded && "byoId" in decoded).toBe(false);
+    expect(decoded && "providerId" in decoded).toBe(false);
   });
 
   it("refuses any record missing a field, rather than defaulting one", () => {

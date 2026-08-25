@@ -14,6 +14,7 @@ import { claimRoutes } from "./routes/claims.js";
 import { deviceRoutes } from "./routes/device.js";
 import { discoveryRoutes } from "./routes/discovery.js";
 import { federatedProviderRoutes } from "./routes/federated-providers.js";
+import { createFederatedSessionRoutes } from "./routes/federated-session.js";
 import { healthRoutes } from "./routes/health.js";
 import { createInteractionRoutes } from "./routes/interactions.js";
 import { mfaRoutes } from "./routes/mfa.js";
@@ -82,11 +83,15 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // Public provider catalog (ADR 0055 / C8): id, label, kind, browserCapable —
   // never issuers, endpoints or secrets.
   app.route("/v1/federated", federatedProviderRoutes);
+  // Brokered session adoption (C13): a static page exchanges the access token
+  // from its origin-profile code flow for a first-party bearer bound to the
+  // same principal. Mounted on the principal prefix, in its own router because
+  // routes/principals.ts belongs to another swarm this cycle.
+  app.route("/v1/principals", createFederatedSessionRoutes());
   // INTEGRATOR — routes whose modules are landing with the other swarms of
   // this change. Each is mounted here the moment its module exists; the mount
   // line is the only thing missing, and every owner has left a factory with
   // the signature its contract names:
-  //   POST /v1/principals/federated-session  — C13, S2 (routes/federated-session.ts)
   //   GET  /v1/saml/metadata, POST /v1/saml/acs — C14, S9 (routes/saml.ts)
   //   /scim/v2/*                             — C15, S10 (routes/scim.ts)
   //   /v1/organizations/:id/domains          — C16, S10 (routes/org-domains.ts)
