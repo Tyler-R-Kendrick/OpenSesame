@@ -356,6 +356,39 @@ function listIntegrationsDefault(): Promise<Integration[]> {
   });
 }
 
+/** Seal an org-level OAuth client (or other provider credentials) on the Host.
+ *  Requires an owner/admin role; the secret is write-only from here on. */
+function createIntegrationDefault(body: {
+  key: string;
+  providerId: string;
+  displayName: string;
+  scopes?: string[];
+  clientId?: string;
+  clientSecret?: string;
+  configuration?: Record<string, string>;
+}): Promise<Integration> {
+  return call(
+    "/integrations",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        key: body.key,
+        provider_id: body.providerId,
+        display_name: body.displayName,
+        scopes: body.scopes ?? [],
+        ...(body.clientId ? { client_id: body.clientId } : undefined),
+        ...(body.clientSecret
+          ? { client_secret: body.clientSecret }
+          : undefined),
+        ...(body.configuration
+          ? { configuration: body.configuration }
+          : undefined),
+      }),
+    },
+    toIntegration,
+  );
+}
+
 /** Begin tenant GitHub App Manifest registration (Host seals client credentials). */
 function startGithubAppRegistrationDefault(body: {
   returnTo: string;
@@ -725,6 +758,7 @@ export const connectionSeams = {
   unbindConnection: unbindConnectionDefault,
 
   listIntegrations: listIntegrationsDefault,
+  createIntegration: createIntegrationDefault,
   startGithubAppRegistration: startGithubAppRegistrationDefault,
   submitGithubAppManifest: submitGithubAppManifestDefault,
   listProviders: listProvidersDefault,
@@ -740,6 +774,11 @@ export const connectionSeams = {
 
 export function listIntegrations(): Promise<Integration[]> {
   return connectionSeams.listIntegrations();
+}
+export function createIntegration(
+  body: Parameters<typeof createIntegrationDefault>[0],
+): Promise<Integration> {
+  return connectionSeams.createIntegration(body);
 }
 export function startGithubAppRegistration(
   body: Parameters<typeof startGithubAppRegistrationDefault>[0],

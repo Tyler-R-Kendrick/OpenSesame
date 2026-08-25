@@ -80,6 +80,7 @@ const connectionEvents = vi.hoisted(() => vi.fn());
 const setConnectionCredential = vi.hoisted(() => vi.fn());
 const setConnectionConfiguration = vi.hoisted(() => vi.fn());
 const listIntegrations = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const createIntegration = vi.hoisted(() => vi.fn());
 const openConsentPopup = vi.hoisted(() => vi.fn(() => null));
 const startGithubAppRegistration = vi.hoisted(() => vi.fn());
 const submitGithubAppManifest = vi.hoisted(() => vi.fn());
@@ -108,6 +109,7 @@ Object.assign(connectionSeams, {
   setConnectionCredential,
   setConnectionConfiguration,
   listIntegrations,
+  createIntegration,
   openConsentPopup,
   startGithubAppRegistration,
   submitGithubAppManifest,
@@ -990,16 +992,64 @@ describe("ConnectionsSection deeper branches", () => {
     expect(screen.getByText("Add another authorization")).toBeTruthy();
   });
 
-  it("shows the deployment guide for an unconfigured non-GitHub provider", async () => {
+  it("offers OAuth client setup for an unconfigured non-GitHub provider", async () => {
     listProviders.mockResolvedValue([
       { ...catalog[1], configured: false, missingConfig: ["LINEAR_CLIENT_ID"] },
     ]);
     renderAt("/connections/linear");
     expect(
-      await screen.findByText(/Create an OAuth app registration/),
+      await screen.findByText(/has no Linear OAuth client yet/),
     ).toBeTruthy();
-    expect(screen.getByText(/LINEAR_CLIENT_ID/)).toBeTruthy();
-    expect(screen.getByText(/Register this exact callback URL/)).toBeTruthy();
+    expect(screen.getByLabelText("Client ID")).toBeTruthy();
+    expect(screen.getByLabelText("Client secret")).toBeTruthy();
+    expect(screen.getByText(/api\/v1\/oauth\/callback\/linear/)).toBeTruthy();
+    // Authorize stays off until a client is sealed.
+    expect(
+      screen
+        .getByRole("button", { name: /Authorize with Linear/i })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+  });
+
+  it("seals an OAuth client and unlocks Authorize", async () => {
+    listProviders.mockResolvedValue([
+      { ...catalog[1], configured: false, missingConfig: ["LINEAR_CLIENT_ID"] },
+    ]);
+    createIntegration.mockResolvedValue({
+      id: "int_1",
+      key: "linear-oauth",
+      providerId: "linear",
+      displayName: "Linear OAuth client",
+      source: "organization",
+      enabled: true,
+      configured: true,
+      scopes: [],
+      githubAppHtmlUrl: null,
+    });
+    renderAt("/connections/linear");
+    await screen.findByText(/has no Linear OAuth client yet/);
+    await userEvent.type(screen.getByLabelText("Client ID"), "lin_client");
+    await userEvent.type(screen.getByLabelText("Client secret"), "s3cret");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Save OAuth client/i }),
+    );
+    await waitFor(() =>
+      expect(createIntegration).toHaveBeenCalledWith({
+        key: "linear-oauth",
+        providerId: "linear",
+        displayName: "Linear OAuth client",
+        clientId: "lin_client",
+        clientSecret: "s3cret",
+      }),
+    );
+    expect(await screen.findByText(/OAuth client ready/)).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("button", { name: /Authorize with Linear/i })
+          .hasAttribute("disabled"),
+      ).toBe(false),
+    );
   });
 
   it("re-authorizes from the connection card", async () => {

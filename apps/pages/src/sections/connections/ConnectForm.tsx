@@ -18,7 +18,7 @@ import {
   needsScopeSelection,
 } from "../../lib/connector-guidance.js";
 import { ensureHostSession } from "../../lib/identity.js";
-import { GithubTenantAppPanel } from "./GithubAppPanel.js";
+import { OauthClientPanel } from "./OauthClientPanel.js";
 import { ConnectorSetupGuide } from "./guides.js";
 import { type Flash, errorText } from "./shared.js";
 
@@ -359,26 +359,25 @@ function OauthConnectBody({
   onSaveKey: (event: FormEvent) => Promise<void>;
 }) {
   const acceptsPat = provider.id === "github" || provider.id === "gitlab";
-  const [oauthReady, setOauthReady] = useState(
-    () => provider.configured || provider.id !== "github",
-  );
+  const [hasClient, setHasClient] = useState(false);
+  // Derived, not latched: the bundled catalog can briefly claim a provider is
+  // configured before the Host's answer replaces it.
+  const oauthReady = provider.configured || hasClient;
 
   return (
     <div className="conn-tile__body">
-      {provider.id === "github" ? (
-        <GithubTenantAppPanel
-          provider={provider}
-          online={online}
-          onFlash={onFlash}
-          onReady={() => setOauthReady(true)}
-        />
-      ) : null}
+      <OauthClientPanel
+        provider={provider}
+        online={online}
+        onFlash={onFlash}
+        onClientState={setHasClient}
+      />
       <form onSubmit={(event) => void onConnectOauth(event)}>
         <PasskeyCeremonyNote />
         <ConnectorSetupGuide provider={provider} />
         {!oauthReady && acceptsPat ? (
           <p className="hint">
-            After the GitHub App is created (above), Authorize works. A personal
+            Once the OAuth client above exists, Authorize works. A personal
             access token below is an alternative if you already have one.
           </p>
         ) : null}
@@ -422,12 +421,7 @@ function OauthConnectBody({
           <button
             type="submit"
             className="btn btn--primary btn--sm"
-            disabled={
-              busy ||
-              !online ||
-              missingScope ||
-              (provider.id === "github" ? !oauthReady : !provider.configured)
-            }
+            disabled={busy || !online || missingScope || !oauthReady}
           >
             <IconExternal size={16} />
             {busy
@@ -440,15 +434,10 @@ function OauthConnectBody({
             Pick at least one scope — an authorization with none can do nothing.
           </p>
         ) : null}
-        {provider.id === "github" && !oauthReady ? (
+        {!oauthReady ? (
           <p className="hint">
-            Create the organization GitHub App above first, or use a personal
-            access token below.
-          </p>
-        ) : null}
-        {provider.id !== "github" && !provider.configured ? (
-          <p className="hint">
-            OAuth authorize needs Host client credentials for this provider.
+            Set up the OAuth client above first
+            {acceptsPat ? ", or use a personal access token below" : ""}.
           </p>
         ) : null}
       </form>

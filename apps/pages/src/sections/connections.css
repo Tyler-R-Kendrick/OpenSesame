@@ -764,6 +764,69 @@
   }
 }
 
+/* ------------------------------------------------------- oauth client setup */
+
+.conn-client-setup {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+.conn-client-setup > .hint {
+  max-width: 64ch;
+}
+
+.conn-client-form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 34rem;
+}
+
+.conn-client-ready {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ok);
+}
+
+.conn-callback {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 0.8125rem;
+}
+
+.conn-callback__label {
+  flex: none;
+  color: var(--ink-2);
+}
+
+.conn-callback code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.conn-client-alt > summary {
+  width: fit-content;
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.conn-client-alt[open] > summary {
+  margin-bottom: 0.75rem;
+}
+
 /* ------------------------------------------------------------ brand marks */
 
 .conn-mark {
