@@ -169,6 +169,12 @@ impl ConnectionBroker {
     /// is read only up to a cap, since a provider error page is not something
     /// we need in full. And no part of the credential is ever returned or
     /// logged: on failure the caller learns the status and a short snippet.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the connection is unavailable, inactive, or
+    /// unauthorized for the URL, request headers are unsafe, credentials
+    /// cannot be opened, or the provider request fails.
     pub async fn authorized_bytes(
         &self,
         organization_id: &OrganizationId,

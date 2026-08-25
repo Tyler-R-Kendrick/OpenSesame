@@ -32,7 +32,7 @@ use opensesame_domain::{
 use opensesame_relay::ExecutionMode;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use sqlx::Row;
+use sqlx::{sqlite::SqliteRow, Row, Sqlite, Transaction};
 
 use crate::error::{BrokerError, Result};
 use crate::model::{BindingTargetKind, EventKind};
@@ -58,13 +58,15 @@ pub const BUDGET_INVOCATIONS: &str = "invocations";
 /// other token purpose, even for identical bytes (docs/claims.md rule).
 const TOKEN_PURPOSE: &str = "opensesame:delegation-token:v1";
 
-fn token_hash(token: &str) -> String {
+fn token_hash(token: &str) -> Result<String> {
     let mut h = Sha256::new();
     for part in [TOKEN_PURPOSE, token] {
-        h.update((part.len() as u32).to_be_bytes());
+        let length = u32::try_from(part.len())
+            .map_err(|_| BrokerError::Invalid("delegation token is too large".into()))?;
+        h.update(length.to_be_bytes());
         h.update(part.as_bytes());
     }
-    format!("sha256:{:x}", h.finalize())
+    Ok(format!("sha256:{:x}", h.finalize()))
 }
 
 fn code_context(offer_id: &str) -> String {
@@ -120,6 +122,40 @@ struct ItemTemplate {
     audiences: Vec<String>,
     expires_in_seconds: i64,
     budgets: BTreeMap<String, i64>,
+}
+
+struct PreparedMintItem {
+    row: ConnectionRow,
+    template: ItemTemplate,
+    spec: OfferItemSpec,
+}
+
+struct PreparedMintOffer {
+    items: Vec<PreparedMintItem>,
+    item_ids: Vec<String>,
+    manifest: Vec<serde_json::Value>,
+    manifest_digest: String,
+    offer_id: String,
+    claim_token: String,
+    user_code: String,
+    created_at: DateTime<Utc>,
+    expires_at: DateTime<Utc>,
+}
+
+struct PreparedClaim {
+    item_id: String,
+    connection_id: String,
+    child: Grant,
+    owner_grant_id: GrantId,
+    execution_mode: ExecutionMode,
+    budgets: BTreeMap<String, i64>,
+}
+
+struct ClaimContext {
+    offer_id: String,
+    owner_subject: String,
+    claimant_subject: String,
+    now: DateTime<Utc>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -334,6 +370,11 @@ impl ConnectionBroker {
     /// Mint an offer. Every fence runs per item, and any failure fails the
     /// whole mint: silently dropping an ineligible member would hand the
     /// claimant a different bundle than the owner reviewed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request is invalid, an item is not owned and
+    /// delegable, attenuation fails, or persistence fails.
     pub async fn mint_delegation_offer(
         &self,
         organization_id: &OrganizationId,
@@ -341,6 +382,33 @@ impl ConnectionBroker {
         request: MintOfferRequest,
         pepper: &str,
     ) -> Result<MintedOffer> {
+        let ttl = Self::validate_mint_request(&request)?;
+        let now = Utc::now();
+        let items = self
+            .prepare_mint_items(organization_id, owner_subject, request.items, now)
+            .await?;
+        let prepared = Self::assemble_mint_offer(items, now, ttl)?;
+        self.persist_mint_offer(organization_id, owner_subject, pepper, &prepared)
+            .await?;
+
+        for item in &prepared.items {
+            store::append_event(
+                &self.pool,
+                &item.row.id,
+                EventKind::Delegated,
+                Some(&format!("offer {} minted", prepared.offer_id)),
+            )
+            .await?;
+        }
+
+        Ok(MintedOffer {
+            offer: self.offer_view(&prepared.offer_id).await?,
+            claim_token: prepared.claim_token,
+            user_code: prepared.user_code,
+        })
+    }
+
+    fn validate_mint_request(request: &MintOfferRequest) -> Result<i64> {
         if request.items.is_empty() {
             return Err(BrokerError::Invalid(
                 "an offer needs at least one item".into(),
@@ -357,153 +425,188 @@ impl ConnectionBroker {
                 "offer ttl must be 30..={OFFER_TTL_CEILING_SECONDS} seconds"
             )));
         }
-        for item in &request.items {
-            for dep in &item.dependencies {
-                if *dep >= request.items.len() {
-                    return Err(BrokerError::Invalid(
-                        "item dependency references a missing sibling".into(),
-                    ));
-                }
-            }
+        let missing_sibling = request
+            .items
+            .iter()
+            .flat_map(|item| &item.dependencies)
+            .any(|dependency| *dependency >= request.items.len());
+        if missing_sibling {
+            return Err(BrokerError::Invalid(
+                "item dependency references a missing sibling".into(),
+            ));
+        }
+        Ok(ttl)
+    }
+
+    async fn prepare_mint_items(
+        &self,
+        organization_id: &OrganizationId,
+        owner_subject: &str,
+        items: Vec<OfferItemSpec>,
+        now: DateTime<Utc>,
+    ) -> Result<Vec<PreparedMintItem>> {
+        let mut prepared = Vec::with_capacity(items.len());
+        for item in items {
+            prepared.push(
+                self.prepare_mint_item(organization_id, owner_subject, item, now)
+                    .await?,
+            );
+        }
+        Ok(prepared)
+    }
+
+    async fn prepare_mint_item(
+        &self,
+        organization_id: &OrganizationId,
+        owner_subject: &str,
+        spec: OfferItemSpec,
+        now: DateTime<Utc>,
+    ) -> Result<PreparedMintItem> {
+        let row = store::get_connection(&self.pool, &spec.connection_id)
+            .await?
+            .ok_or(BrokerError::ConnectionNotFound)?;
+        if row.organization_id != organization_id.to_string()
+            || row.owner_subject.as_deref() != Some(owner_subject)
+        {
+            return Err(BrokerError::ConnectionNotFound);
+        }
+        if row.status != crate::model::ConnectionStatus::Active {
+            return Err(BrokerError::Invalid(format!(
+                "connection {} is not active",
+                row.id
+            )));
+        }
+        if parse_shareability(&row.shareability) == Shareability::Private {
+            return Err(BrokerError::Invalid(format!(
+                "connection {} is private and cannot be delegated",
+                row.id
+            )));
         }
 
-        let now = Utc::now();
-        let mut prepared: Vec<(ConnectionRow, ItemTemplate, &OfferItemSpec)> = Vec::new();
-        for item in &request.items {
-            let row = store::get_connection(&self.pool, &item.connection_id)
-                .await?
-                .ok_or(BrokerError::ConnectionNotFound)?;
-            if row.organization_id != organization_id.to_string() {
-                return Err(BrokerError::ConnectionNotFound);
-            }
-            // Owner fence, per item: a bundle must not smuggle in a connection
-            // the minter merely knows the id of.
-            if row.owner_subject.as_deref() != Some(owner_subject) {
-                return Err(BrokerError::ConnectionNotFound);
-            }
-            if row.status != crate::model::ConnectionStatus::Active {
-                return Err(BrokerError::Invalid(format!(
-                    "connection {} is not active",
-                    row.id
-                )));
-            }
-            // Shareability's first enforcement consumer (ADR 0044 decision 7):
-            // Private refuses; OrganizationWide behaves as Delegable until the
-            // OpenFGA tuple-writer lands, because approximating org membership
-            // without real tuples would be an authorization check that lies.
-            if parse_shareability(&row.shareability) == Shareability::Private {
-                return Err(BrokerError::Invalid(format!(
-                    "connection {} is private and cannot be delegated",
-                    row.id
-                )));
-            }
-            let owner_grant = self.owner_grant_for(&row).await?;
-            owner_grant
-                .assert_active(now)
-                .map_err(|e| BrokerError::Invalid(format!("owner grant is not active: {e}")))?;
-
-            let provider = catalog_provider(&row.provider_id)?;
-            let actions = item
-                .actions
-                .clone()
-                .unwrap_or_else(|| default_delegate_actions(&provider.operations));
-            if actions.is_empty() {
-                return Err(BrokerError::Invalid(format!(
-                    "item for {} delegates no actions",
-                    row.id
-                )));
-            }
-            let resources = item.resources.clone().unwrap_or_else(|| vec!["*".into()]);
-            let expires_in = item
-                .expires_in_seconds
-                .unwrap_or(DELEGATION_TTL_DEFAULT_SECONDS);
-            if expires_in <= 0 {
-                return Err(BrokerError::Invalid(
-                    "delegation lifetime must be positive".into(),
-                ));
-            }
-            let budgets = item.budgets.clone().unwrap_or_default();
-            let template = ItemTemplate {
-                actions,
-                resources,
-                audiences: owner_grant.constraints.audiences.clone(),
-                expires_in_seconds: expires_in,
-                budgets,
-            };
-            // Fail at mint, not at claim: build the child exactly as claim
-            // will and validate it, so an offer that cannot be honored never
-            // becomes a link somebody shares.
-            let rehearsal = child_grant_from(&owner_grant, &template, now);
-            Grant::validate_attenuation(&owner_grant, &rehearsal).map_err(|e| {
-                BrokerError::Invalid(format!("proposed grant is not an attenuation: {e}"))
-            })?;
-            prepared.push((row, template, item));
+        let owner_grant = self.owner_grant_for(&row).await?;
+        owner_grant
+            .assert_active(now)
+            .map_err(|error| BrokerError::Invalid(format!("owner grant is not active: {error}")))?;
+        let provider = catalog_provider(&row.provider_id)?;
+        let actions = spec
+            .actions
+            .clone()
+            .unwrap_or_else(|| default_delegate_actions(&provider.operations));
+        if actions.is_empty() {
+            return Err(BrokerError::Invalid(format!(
+                "item for {} delegates no actions",
+                row.id
+            )));
         }
+        let expires_in_seconds = spec
+            .expires_in_seconds
+            .unwrap_or(DELEGATION_TTL_DEFAULT_SECONDS);
+        if expires_in_seconds <= 0 {
+            return Err(BrokerError::Invalid(
+                "delegation lifetime must be positive".into(),
+            ));
+        }
+        let template = ItemTemplate {
+            actions,
+            resources: spec.resources.clone().unwrap_or_else(|| vec!["*".into()]),
+            audiences: owner_grant.constraints.audiences.clone(),
+            expires_in_seconds,
+            budgets: spec.budgets.clone().unwrap_or_default(),
+        };
+        let rehearsal = child_grant_from(&owner_grant, &template, now);
+        Grant::validate_attenuation(&owner_grant, &rehearsal).map_err(|error| {
+            BrokerError::Invalid(format!("proposed grant is not an attenuation: {error}"))
+        })?;
+        Ok(PreparedMintItem {
+            row,
+            template,
+            spec,
+        })
+    }
 
+    fn assemble_mint_offer(
+        items: Vec<PreparedMintItem>,
+        now: DateTime<Utc>,
+        ttl: i64,
+    ) -> Result<PreparedMintOffer> {
         let offer_id = format!("dlgo_{}", uuid::Uuid::now_v7().simple());
-        let secret = generate_claim_token();
-        let claim_token = format!("osc_dlg_{offer_id}.{secret}");
-        let user_code = generate_user_code();
-        let expires_at = now + Duration::seconds(ttl);
+        let claim_token = format!("osc_dlg_{offer_id}.{}", generate_claim_token());
+        let item_ids: Vec<String> = items
+            .iter()
+            .map(|_| format!("dlgi_{}", uuid::Uuid::now_v7().simple()))
+            .collect();
 
-        let mut item_ids = Vec::with_capacity(prepared.len());
-        for _ in &prepared {
-            item_ids.push(format!("dlgi_{}", uuid::Uuid::now_v7().simple()));
-        }
-
-        // Canonical manifest: what the claimant will be shown is exactly what
-        // was digested at mint, so the review step cannot be quietly edited.
-        let manifest: Vec<serde_json::Value> = prepared
+        let manifest: Vec<serde_json::Value> = items
             .iter()
             .zip(&item_ids)
-            .map(|((row, template, spec), id)| {
+            .map(|(item, id)| {
                 serde_json::json!({
                     "id": id,
-                    "connection_id": row.id,
-                    "actions": template.actions,
-                    "resources": template.resources,
-                    "expires_in_seconds": template.expires_in_seconds,
-                    "execution_mode": execution_mode_str(spec.execution_mode),
-                    "required": spec.required,
-                    "dependencies": spec.dependencies.iter().map(|d| item_ids[*d].clone()).collect::<Vec<_>>(),
+                    "connection_id": item.row.id,
+                    "actions": item.template.actions,
+                    "resources": item.template.resources,
+                    "expires_in_seconds": item.template.expires_in_seconds,
+                    "execution_mode": execution_mode_str(item.spec.execution_mode),
+                    "required": item.spec.required,
+                    "dependencies": item.spec.dependencies.iter().map(|dependency| item_ids[*dependency].clone()).collect::<Vec<_>>(),
                 })
             })
             .collect();
-        let manifest_digest = {
-            let mut h = Sha256::new();
-            h.update(
-                serde_json::to_string(&manifest)
-                    .map_err(internal)?
-                    .as_bytes(),
-            );
-            format!("sha256:{:x}", h.finalize())
-        };
+        let mut hasher = Sha256::new();
+        hasher.update(
+            serde_json::to_string(&manifest)
+                .map_err(internal)?
+                .as_bytes(),
+        );
+        Ok(PreparedMintOffer {
+            items,
+            item_ids,
+            manifest,
+            manifest_digest: format!("sha256:{:x}", hasher.finalize()),
+            offer_id,
+            claim_token,
+            user_code: generate_user_code(),
+            created_at: now,
+            expires_at: now + Duration::seconds(ttl),
+        })
+    }
 
+    async fn persist_mint_offer(
+        &self,
+        organization_id: &OrganizationId,
+        owner_subject: &str,
+        pepper: &str,
+        prepared: &PreparedMintOffer,
+    ) -> Result<()> {
         let mut tx = self.pool.begin().await.map_err(internal)?;
         sqlx::query(
             "INSERT INTO connection_delegation_offers
              (id, organization_id, owner_subject, claim_token_hash, user_code_hash,
-              manifest_digest, code_attempts, state, expires_at, created_at)
+             manifest_digest, code_attempts, state, expires_at, created_at)
              VALUES (?, ?, ?, ?, ?, ?, 0, 'pending', ?, ?)",
         )
-        .bind(&offer_id)
+        .bind(&prepared.offer_id)
         .bind(organization_id.to_string())
         .bind(owner_subject)
-        .bind(token_hash(&claim_token))
+        .bind(token_hash(&prepared.claim_token)?)
         .bind(hash_low_entropy(
             pepper,
-            &code_context(&offer_id),
-            &user_code,
+            &code_context(&prepared.offer_id),
+            &prepared.user_code,
         ))
-        .bind(&manifest_digest)
-        .bind(expires_at.to_rfc3339())
-        .bind(now.to_rfc3339())
+        .bind(&prepared.manifest_digest)
+        .bind(prepared.expires_at.to_rfc3339())
+        .bind(prepared.created_at.to_rfc3339())
         .execute(&mut *tx)
         .await
         .map_err(internal)?;
 
-        for (((row, template, spec), item_id), manifest_entry) in
-            prepared.iter().zip(&item_ids).zip(&manifest)
+        for (((row, template, spec), item_id), manifest_entry) in prepared
+            .items
+            .iter()
+            .map(|item| (&item.row, &item.template, &item.spec))
+            .zip(&prepared.item_ids)
+            .zip(&prepared.manifest)
         {
             sqlx::query(
                 "INSERT INTO connection_delegation_offer_items
@@ -511,11 +614,11 @@ impl ConnectionBroker {
                  VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')",
             )
             .bind(item_id)
-            .bind(&offer_id)
+            .bind(&prepared.offer_id)
             .bind(&row.id)
             .bind(serde_json::to_string(template).map_err(internal)?)
             .bind(execution_mode_str(spec.execution_mode))
-            .bind(spec.required as i64)
+            .bind(i64::from(spec.required))
             .bind(
                 serde_json::to_string(&manifest_entry["dependencies"]).map_err(internal)?,
             )
@@ -524,23 +627,7 @@ impl ConnectionBroker {
             .map_err(internal)?;
         }
         tx.commit().await.map_err(internal)?;
-
-        for (row, _, _) in &prepared {
-            store::append_event(
-                &self.pool,
-                &row.id,
-                EventKind::Delegated,
-                Some(&format!("offer {offer_id} minted")),
-            )
-            .await?;
-        }
-
-        let offer = self.offer_view(&offer_id).await?;
-        Ok(MintedOffer {
-            offer,
-            claim_token,
-            user_code,
-        })
+        Ok(())
     }
 
     async fn offer_view(&self, offer_id: &str) -> Result<OfferView> {
@@ -597,8 +684,13 @@ impl ConnectionBroker {
     /// and burns the offer with everything minted from it. Expired offers
     /// answer the same way as unknown tokens where possible: this surface is
     /// reached by URL alone and must not become an oracle.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the token is unknown, expired, reused, or when
+    /// the state transition cannot be persisted.
     pub async fn present_delegation_offer(&self, claim_token: &str) -> Result<OfferView> {
-        let hash = token_hash(claim_token);
+        let hash = token_hash(claim_token)?;
         let offer = sqlx::query(
             "SELECT id, state, expires_at FROM connection_delegation_offers WHERE claim_token_hash = ?",
         )
@@ -657,16 +749,52 @@ impl ConnectionBroker {
     /// Complete a presented offer: verify the out-of-band code, check the
     /// accepted set, and mint one child grant + delegation per accepted item
     /// in a single transaction. Partial success does not exist.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the token, state, code, accepted item set, or
+    /// attenuation is invalid, or when the atomic persistence step fails.
     pub async fn claim_delegation_offer(
         &self,
         request: ClaimOfferRequest,
         claimant_subject: &str,
         pepper: &str,
     ) -> Result<Vec<DelegationView>> {
+        let context = self
+            .validate_claim_offer(&request, claimant_subject, pepper)
+            .await?;
+        let items = self.load_offer_items(&context.offer_id).await?;
+        Self::validate_accepted_items(&items, &request.accepted_item_ids)?;
+        let (accepted, rejected) = self
+            .prepare_claims(&items, &request.accepted_item_ids, context.now)
+            .await?;
+        if accepted.is_empty() {
+            return Err(BrokerError::Invalid("nothing was accepted".into()));
+        }
+        let (views, touched_connections) =
+            self.persist_claims(&context, &accepted, &rejected).await?;
+        for connection_id in touched_connections {
+            store::append_event(
+                &self.pool,
+                &connection_id,
+                EventKind::Delegated,
+                Some(&format!("offer {} claimed", context.offer_id)),
+            )
+            .await?;
+        }
+        Ok(views)
+    }
+
+    async fn validate_claim_offer(
+        &self,
+        request: &ClaimOfferRequest,
+        claimant_subject: &str,
+        pepper: &str,
+    ) -> Result<ClaimContext> {
         if claimant_subject.trim().is_empty() {
             return Err(BrokerError::Invalid("claimant subject required".into()));
         }
-        let hash = token_hash(&request.claim_token);
+        let hash = token_hash(&request.claim_token)?;
         let offer = sqlx::query(
             "SELECT id, organization_id, owner_subject, user_code_hash, code_attempts, state, expires_at
              FROM connection_delegation_offers WHERE claim_token_hash = ?",
@@ -685,9 +813,6 @@ impl ConnectionBroker {
         if state != "presented" {
             return Err(BrokerError::InvalidState);
         }
-        // The claimant must not be the offer's owner wearing a second hat:
-        // self-claiming would mint a "delegation" that launders the owner's
-        // own authority into a second, separately-revocable handle.
         let owner_subject: String = offer.get("owner_subject");
         if owner_subject == claimant_subject {
             return Err(BrokerError::Invalid(
@@ -714,106 +839,121 @@ impl ConnectionBroker {
             }
             return Err(BrokerError::Invalid("user code mismatch".into()));
         }
+        Ok(ClaimContext {
+            offer_id,
+            owner_subject,
+            claimant_subject: claimant_subject.to_string(),
+            now,
+        })
+    }
 
-        let items = sqlx::query(
+    async fn load_offer_items(&self, offer_id: &str) -> Result<Vec<SqliteRow>> {
+        sqlx::query(
             "SELECT id, connection_id, proposed_grant, execution_mode, required, dependencies
              FROM connection_delegation_offer_items WHERE offer_id = ?",
         )
-        .bind(&offer_id)
+        .bind(offer_id)
         .fetch_all(&self.pool)
         .await
-        .map_err(internal)?;
+        .map_err(internal)
+    }
 
-        // The accepted set must name every accepted item, cover every
-        // required one, and be dependency-closed.
+    fn validate_accepted_items(items: &[SqliteRow], accepted_item_ids: &[String]) -> Result<()> {
         let known: Vec<String> = items.iter().map(|i| i.get::<String, _>("id")).collect();
-        for accepted in &request.accepted_item_ids {
+        for accepted in accepted_item_ids {
             if !known.contains(accepted) {
                 return Err(BrokerError::Invalid(
                     "accepted item is not in this offer".into(),
                 ));
             }
         }
-        for item in &items {
+        for item in items {
             let id: String = item.get("id");
             let required = item.get::<i64, _>("required") != 0;
-            if required && !request.accepted_item_ids.contains(&id) {
+            if required && !accepted_item_ids.contains(&id) {
                 return Err(BrokerError::Invalid(format!(
                     "required item {id} was not accepted"
                 )));
             }
-            if request.accepted_item_ids.contains(&id) {
-                let deps: Vec<String> =
-                    serde_json::from_str(&item.get::<String, _>("dependencies"))
-                        .map_err(internal)?;
-                for dep in deps {
-                    if !request.accepted_item_ids.contains(&dep) {
-                        return Err(BrokerError::Invalid(format!(
-                            "accepted item {id} depends on {dep}, which was not accepted"
-                        )));
-                    }
-                }
-            }
-        }
-
-        // Every read happens before the transaction opens: the pool may hold a
-        // single connection (in-memory SQLite does), and a read through the
-        // pool while the transaction owns that connection deadlocks.
-        struct PreparedClaim {
-            item_id: String,
-            connection_id: String,
-            child: Grant,
-            owner_grant_id: GrantId,
-            execution_mode: ExecutionMode,
-            budgets: BTreeMap<String, i64>,
-        }
-        let mut accepted_plans: Vec<PreparedClaim> = Vec::new();
-        let mut rejected_item_ids: Vec<String> = Vec::new();
-        for item in &items {
-            let item_id: String = item.get("id");
-            if !request.accepted_item_ids.contains(&item_id) {
-                rejected_item_ids.push(item_id);
+            if !accepted_item_ids.contains(&id) {
                 continue;
             }
-            let connection_id: String = item.get("connection_id");
-            let row = store::get_connection(&self.pool, &connection_id)
-                .await?
-                .ok_or(BrokerError::ConnectionNotFound)?;
-            if row.status != crate::model::ConnectionStatus::Active {
+            let dependencies: Vec<String> =
+                serde_json::from_str(&item.get::<String, _>("dependencies")).map_err(internal)?;
+            if let Some(missing) = dependencies
+                .into_iter()
+                .find(|dependency| !accepted_item_ids.contains(dependency))
+            {
                 return Err(BrokerError::Invalid(format!(
-                    "connection {connection_id} is no longer active"
+                    "accepted item {id} depends on {missing}, which was not accepted"
                 )));
             }
-            let template: ItemTemplate =
-                serde_json::from_str(&item.get::<String, _>("proposed_grant")).map_err(internal)?;
-            let owner_grant = self.owner_grant_for(&row).await?;
-            owner_grant
-                .assert_active(now)
-                .map_err(|e| BrokerError::Invalid(format!("owner grant is not active: {e}")))?;
-
-            let mut child = child_grant_from(&owner_grant, &template, now);
-            child.parent_grant_id = Some(owner_grant.id);
-            child.delegation_depth = owner_grant.delegation_depth + 1;
-            Grant::validate_attenuation(&owner_grant, &child)
-                .map_err(|e| BrokerError::Invalid(format!("attenuation failed at claim: {e}")))?;
-            accepted_plans.push(PreparedClaim {
-                item_id,
-                connection_id,
-                child,
-                owner_grant_id: owner_grant.id,
-                execution_mode: parse_execution_mode(&item.get::<String, _>("execution_mode")),
-                budgets: template.budgets,
-            });
         }
-        if accepted_plans.is_empty() {
-            // Nothing accepted: an all-optional offer claimed empty would
-            // spend the token for nothing. Refuse — and refuse before the
-            // spend, so the presentation is still claimable.
-            return Err(BrokerError::Invalid("nothing was accepted".into()));
-        }
+        Ok(())
+    }
 
-        // Mint everything, or nothing: the CAS to `claimed` and every child
-        // grant share one transaction, so a failed mint rolls the spend back.
+    async fn prepare_claims(
+        &self,
+        items: &[SqliteRow],
+        accepted_item_ids: &[String],
+        now: DateTime<Utc>,
+    ) -> Result<(Vec<PreparedClaim>, Vec<String>)> {
+        let mut accepted = Vec::new();
+        let mut rejected = Vec::new();
+        for item in items {
+            let item_id: String = item.get("id");
+            if !accepted_item_ids.contains(&item_id) {
+                rejected.push(item_id);
+                continue;
+            }
+            accepted.push(self.prepare_claim(item, item_id, now).await?);
+        }
+        Ok((accepted, rejected))
+    }
+
+    async fn prepare_claim(
+        &self,
+        item: &SqliteRow,
+        item_id: String,
+        now: DateTime<Utc>,
+    ) -> Result<PreparedClaim> {
+        let connection_id: String = item.get("connection_id");
+        let row = store::get_connection(&self.pool, &connection_id)
+            .await?
+            .ok_or(BrokerError::ConnectionNotFound)?;
+        if row.status != crate::model::ConnectionStatus::Active {
+            return Err(BrokerError::Invalid(format!(
+                "connection {connection_id} is no longer active"
+            )));
+        }
+        let template: ItemTemplate =
+            serde_json::from_str(&item.get::<String, _>("proposed_grant")).map_err(internal)?;
+        let owner_grant = self.owner_grant_for(&row).await?;
+        owner_grant
+            .assert_active(now)
+            .map_err(|error| BrokerError::Invalid(format!("owner grant is not active: {error}")))?;
+        let mut child = child_grant_from(&owner_grant, &template, now);
+        child.parent_grant_id = Some(owner_grant.id);
+        child.delegation_depth = owner_grant.delegation_depth + 1;
+        Grant::validate_attenuation(&owner_grant, &child).map_err(|error| {
+            BrokerError::Invalid(format!("attenuation failed at claim: {error}"))
+        })?;
+        Ok(PreparedClaim {
+            item_id,
+            connection_id,
+            child,
+            owner_grant_id: owner_grant.id,
+            execution_mode: parse_execution_mode(&item.get::<String, _>("execution_mode")),
+            budgets: template.budgets,
+        })
+    }
+
+    async fn persist_claims(
+        &self,
+        context: &ClaimContext,
+        accepted: &[PreparedClaim],
+        rejected_item_ids: &[String],
+    ) -> Result<(Vec<DelegationView>, Vec<String>)> {
         let mut tx = self.pool.begin().await.map_err(internal)?;
         let claimed = sqlx::query(
             "UPDATE connection_delegation_offers
@@ -821,14 +961,14 @@ impl ConnectionBroker {
              WHERE id = ? AND state = 'presented'",
         )
         .bind(now_rfc3339())
-        .bind(&offer_id)
+        .bind(&context.offer_id)
         .execute(&mut *tx)
         .await
         .map_err(internal)?;
         if claimed.rows_affected() != 1 {
             return Err(BrokerError::InvalidState);
         }
-        for item_id in &rejected_item_ids {
+        for item_id in rejected_item_ids {
             sqlx::query(
                 "UPDATE connection_delegation_offer_items SET state = 'rejected' WHERE id = ?",
             )
@@ -838,105 +978,90 @@ impl ConnectionBroker {
             .map_err(internal)?;
         }
 
-        let mut views = Vec::new();
-        let mut touched_connections = Vec::new();
-        for plan in &accepted_plans {
-            let PreparedClaim {
-                item_id,
-                connection_id,
-                child,
-                owner_grant_id,
-                execution_mode,
-                budgets,
-            } = plan;
-            let child = child.clone();
-            sqlx::query(
-                "UPDATE connection_delegation_offer_items SET state = 'accepted' WHERE id = ?",
-            )
-            .bind(item_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(internal)?;
-            sqlx::query(
-                "INSERT INTO grants (id, organization_id, body_json, revoked_at, created_at)
-                 VALUES (?, ?, ?, NULL, ?)",
-            )
-            .bind(child.id.to_string())
-            .bind(child.organization_id.to_string())
-            .bind(serde_json::to_string(&child).map_err(internal)?)
-            .bind(child.created_at.to_rfc3339())
-            .execute(&mut *tx)
-            .await
-            .map_err(internal)?;
-
-            let delegation_id = format!("dlg_{}", uuid::Uuid::now_v7().simple());
-            sqlx::query(
-                "INSERT INTO connection_delegations
-                 (id, offer_id, offer_item_id, connection_id, organization_id, owner_subject,
-                  claimant_subject, claimant_instance_jkt, grant_id, parent_grant_id,
-                  delegation_depth, execution_mode, budget_remaining, expires_at, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)",
-            )
-            .bind(&delegation_id)
-            .bind(&offer_id)
-            .bind(item_id)
-            .bind(connection_id)
-            .bind(child.organization_id.to_string())
-            .bind(&owner_subject)
-            .bind(claimant_subject)
-            .bind(child.id.to_string())
-            .bind(owner_grant_id.to_string())
-            .bind(child.delegation_depth as i64)
-            .bind(execution_mode_str(*execution_mode))
-            .bind(serde_json::to_string(budgets).map_err(internal)?)
-            .bind(child.constraints.expires_at.to_rfc3339())
-            .bind(now.to_rfc3339())
-            .execute(&mut *tx)
-            .await
-            .map_err(internal)?;
-
-            // A binding row makes the delegation discoverable through the
-            // existing connection surfaces; it carries no authority itself.
-            sqlx::query(
-                "INSERT OR IGNORE INTO connection_bindings (id, connection_id, target_kind, target_id, target_label, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?)",
-            )
-            .bind(uuid::Uuid::now_v7().to_string())
-            .bind(connection_id)
-            .bind(BindingTargetKind::Identity.as_str())
-            .bind(claimant_subject)
-            .bind(Some(format!("delegation {delegation_id}")))
-            .bind(now.to_rfc3339())
-            .execute(&mut *tx)
-            .await
-            .map_err(internal)?;
-
-            touched_connections.push(connection_id.clone());
-            views.push(DelegationView {
-                id: delegation_id,
-                offer_id: offer_id.clone(),
-                connection_id: connection_id.clone(),
-                claimant_subject: claimant_subject.to_string(),
-                grant_id: child.id.to_string(),
-                execution_mode: *execution_mode,
-                actions: child.actions.clone(),
-                resources: child.resources.clone(),
-                expires_at: child.constraints.expires_at.to_rfc3339(),
-                revoked_at: None,
-            });
+        let mut views = Vec::with_capacity(accepted.len());
+        let mut touched_connections = Vec::with_capacity(accepted.len());
+        for plan in accepted {
+            views.push(Self::persist_claim(&mut tx, context, plan).await?);
+            touched_connections.push(plan.connection_id.clone());
         }
         tx.commit().await.map_err(internal)?;
+        Ok((views, touched_connections))
+    }
 
-        for connection_id in touched_connections {
-            store::append_event(
-                &self.pool,
-                &connection_id,
-                EventKind::Delegated,
-                Some(&format!("offer {offer_id} claimed")),
-            )
-            .await?;
-        }
-        Ok(views)
+    async fn persist_claim(
+        tx: &mut Transaction<'_, Sqlite>,
+        context: &ClaimContext,
+        plan: &PreparedClaim,
+    ) -> Result<DelegationView> {
+        sqlx::query("UPDATE connection_delegation_offer_items SET state = 'accepted' WHERE id = ?")
+            .bind(&plan.item_id)
+            .execute(&mut **tx)
+            .await
+            .map_err(internal)?;
+        sqlx::query(
+            "INSERT INTO grants (id, organization_id, body_json, revoked_at, created_at)
+             VALUES (?, ?, ?, NULL, ?)",
+        )
+        .bind(plan.child.id.to_string())
+        .bind(plan.child.organization_id.to_string())
+        .bind(serde_json::to_string(&plan.child).map_err(internal)?)
+        .bind(plan.child.created_at.to_rfc3339())
+        .execute(&mut **tx)
+        .await
+        .map_err(internal)?;
+
+        let delegation_id = format!("dlg_{}", uuid::Uuid::now_v7().simple());
+        sqlx::query(
+            "INSERT INTO connection_delegations
+             (id, offer_id, offer_item_id, connection_id, organization_id, owner_subject,
+              claimant_subject, claimant_instance_jkt, grant_id, parent_grant_id,
+              delegation_depth, execution_mode, budget_remaining, expires_at, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&delegation_id)
+        .bind(&context.offer_id)
+        .bind(&plan.item_id)
+        .bind(&plan.connection_id)
+        .bind(plan.child.organization_id.to_string())
+        .bind(&context.owner_subject)
+        .bind(&context.claimant_subject)
+        .bind(plan.child.id.to_string())
+        .bind(plan.owner_grant_id.to_string())
+        .bind(i64::from(plan.child.delegation_depth))
+        .bind(execution_mode_str(plan.execution_mode))
+        .bind(serde_json::to_string(&plan.budgets).map_err(internal)?)
+        .bind(plan.child.constraints.expires_at.to_rfc3339())
+        .bind(context.now.to_rfc3339())
+        .execute(&mut **tx)
+        .await
+        .map_err(internal)?;
+
+        sqlx::query(
+            "INSERT OR IGNORE INTO connection_bindings (id, connection_id, target_kind, target_id, target_label, created_at)
+             VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(uuid::Uuid::now_v7().to_string())
+        .bind(&plan.connection_id)
+        .bind(BindingTargetKind::Identity.as_str())
+        .bind(&context.claimant_subject)
+        .bind(Some(format!("delegation {delegation_id}")))
+        .bind(context.now.to_rfc3339())
+        .execute(&mut **tx)
+        .await
+        .map_err(internal)?;
+
+        Ok(DelegationView {
+            id: delegation_id,
+            offer_id: context.offer_id.clone(),
+            connection_id: plan.connection_id.clone(),
+            claimant_subject: context.claimant_subject.clone(),
+            grant_id: plan.child.id.to_string(),
+            execution_mode: plan.execution_mode,
+            actions: plan.child.actions.clone(),
+            resources: plan.child.resources.clone(),
+            expires_at: plan.child.constraints.expires_at.to_rfc3339(),
+            revoked_at: None,
+        })
     }
 
     /// Burn an offer: the token was seen after its spend, or the code was
@@ -997,6 +1122,11 @@ impl ConnectionBroker {
     }
 
     /// Owner revokes an unclaimed offer (or the whole set, if claimed).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the offer is not owned by the caller or the
+    /// atomic revocation cannot be persisted.
     pub async fn revoke_delegation_offer(
         &self,
         organization_id: &OrganizationId,
@@ -1051,6 +1181,11 @@ impl ConnectionBroker {
 
     /// Revoke one delegation. The owner may revoke any; a claimant may drop
     /// what they hold, never anyone else's.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the delegation is not visible to the caller or
+    /// its grant and delegation records cannot be revoked atomically.
     pub async fn revoke_delegation(
         &self,
         organization_id: &OrganizationId,
@@ -1107,6 +1242,11 @@ impl ConnectionBroker {
     /// Narrow a live delegation (ADR 0046 decision 10): revoke-and-replace
     /// with a grant validated against the parent AND the child it replaces.
     /// Widening is refused there, so this endpoint cannot grow authority back.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the delegation is unavailable, the replacement
+    /// widens authority, or the revoke-and-replace transaction fails.
     pub async fn narrow_delegation(
         &self,
         organization_id: &OrganizationId,
@@ -1220,7 +1360,12 @@ impl ConnectionBroker {
     }
 
     /// The caller's live delegation for a connection, with its child grant —
-    /// what the invoke path resolves a submitted ConnectionRef against.
+    /// what the invoke path resolves a submitted `ConnectionRef` against.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when stored identifiers or grants are malformed, or
+    /// when persistence cannot be queried.
     pub async fn find_live_delegation(
         &self,
         claimant_subject: &str,
@@ -1278,19 +1423,26 @@ impl ConnectionBroker {
     /// Spend one unit of a delegation budget, atomically. Deny when the
     /// decrement cannot be performed — exhausted or contended past retry —
     /// the same fail-closed posture as `authority_quorum_ok` (ADR 0044).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the delegation is missing, the budget is
+    /// exhausted or malformed, contention persists, or persistence fails.
     pub async fn spend_delegation_budget(&self, delegation_id: &str, key: &str) -> Result<()> {
         for _ in 0..3 {
-            let row =
+            let budget_row =
                 sqlx::query("SELECT budget_remaining FROM connection_delegations WHERE id = ?")
                     .bind(delegation_id)
                     .fetch_optional(&self.pool)
                     .await
                     .map_err(internal)?
                     .ok_or(BrokerError::ConnectionNotFound)?;
-            let raw: Option<String> = row.get("budget_remaining");
-            let Some(raw) = raw else { return Ok(()) };
+            let serialized: Option<String> = budget_row.get("budget_remaining");
+            let Some(serialized) = serialized else {
+                return Ok(());
+            };
             let mut budgets: BTreeMap<String, i64> =
-                serde_json::from_str(&raw).map_err(internal)?;
+                serde_json::from_str(&serialized).map_err(internal)?;
             let Some(remaining) = budgets.get(key).copied() else {
                 // No budget on this key means the offer chose not to meter it.
                 return Ok(());
@@ -1304,7 +1456,7 @@ impl ConnectionBroker {
             )
             .bind(serde_json::to_string(&budgets).map_err(internal)?)
             .bind(delegation_id)
-            .bind(&raw)
+            .bind(&serialized)
             .execute(&self.pool)
             .await
             .map_err(internal)?;
@@ -1316,6 +1468,10 @@ impl ConnectionBroker {
     }
 
     /// Offers minted by this owner (management surface).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the offer records cannot be loaded.
     pub async fn list_delegation_offers(
         &self,
         organization_id: &OrganizationId,
@@ -1341,6 +1497,10 @@ impl ConnectionBroker {
     }
 
     /// Delegations where the caller is owner or claimant.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when delegation or grant records cannot be loaded.
     pub async fn list_delegations_for(
         &self,
         organization_id: &OrganizationId,

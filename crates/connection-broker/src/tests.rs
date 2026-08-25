@@ -3779,6 +3779,31 @@ mod authorized_bytes_tests {
         extra: Vec<String>,
     }
 
+    async fn handle_upload(
+        State((sink, answer)): MockState,
+        headers: HeaderMap,
+        body: Bytes,
+    ) -> Response {
+        let mut seen = sink.lock().unwrap();
+        seen.bodies.push(body.to_vec());
+        seen.auth.push(
+            headers
+                .get("authorization")
+                .and_then(|value| value.to_str().ok())
+                .unwrap_or_default()
+                .to_string(),
+        );
+        seen.extra.push(
+            headers
+                .get("dropbox-api-arg")
+                .and_then(|value| value.to_str().ok())
+                .unwrap_or_default()
+                .to_string(),
+        );
+        drop(seen);
+        answer()
+    }
+
     /// An activated `mock` connection: Active, with a real sealed credential.
     async fn active_mock_connection() -> (Arc<ConnectionBroker>, OrganizationId, String) {
         let (_db, broker, org, integration) =
@@ -3810,30 +3835,6 @@ mod authorized_bytes_tests {
     ) -> (String, Arc<StdMutex<Seen>>) {
         let seen = Arc::new(StdMutex::new(Seen::default()));
         let sink = seen.clone();
-        async fn handle(
-            State((sink, answer)): MockState,
-            headers: HeaderMap,
-            body: Bytes,
-        ) -> Response {
-            let mut seen = sink.lock().unwrap();
-            seen.bodies.push(body.to_vec());
-            seen.auth.push(
-                headers
-                    .get("authorization")
-                    .and_then(|v| v.to_str().ok())
-                    .unwrap_or_default()
-                    .to_string(),
-            );
-            seen.extra.push(
-                headers
-                    .get("dropbox-api-arg")
-                    .and_then(|v| v.to_str().ok())
-                    .unwrap_or_default()
-                    .to_string(),
-            );
-            drop(seen);
-            answer()
-        }
         let answer: Answer = Arc::new(answer);
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
@@ -3841,8 +3842,8 @@ mod authorized_bytes_tests {
             let _ = axum::serve(
                 listener,
                 Router::new()
-                    .route("/upload", axum_post(handle))
-                    .route("/elsewhere", axum_post(handle))
+                    .route("/upload", axum_post(handle_upload))
+                    .route("/elsewhere", axum_post(handle_upload))
                     .with_state((sink, answer)),
             )
             .await;
@@ -3853,15 +3854,17 @@ mod authorized_bytes_tests {
     #[tokio::test]
     async fn uploads_bytes_with_the_credential_injected() {
         let (broker, org, connection) = active_mock_connection().await;
-        let (base, seen) =
-            recording_server(|| (StatusCode::OK, "{}").into_response()).await;
+        let (base, seen) = recording_server(|| (StatusCode::OK, "{}").into_response()).await;
 
         broker
             .authorized_bytes(
                 &org,
                 &connection,
                 &format!("{base}/upload"),
-                &[("Dropbox-API-Arg".to_string(), "{\"path\":\"/x\"}".to_string())],
+                &[(
+                    "Dropbox-API-Arg".to_string(),
+                    "{\"path\":\"/x\"}".to_string(),
+                )],
                 b"sealed ciphertext".to_vec(),
             )
             .await
@@ -3912,7 +3915,13 @@ mod authorized_bytes_tests {
         .await;
 
         let error = broker
-            .authorized_bytes(&org, &connection, &format!("{base}/upload"), &[], b"x".to_vec())
+            .authorized_bytes(
+                &org,
+                &connection,
+                &format!("{base}/upload"),
+                &[],
+                b"x".to_vec(),
+            )
             .await
             .expect_err("a redirect must not be followed");
         assert!(
@@ -3965,7 +3974,13 @@ mod authorized_bytes_tests {
         .await;
 
         let error = broker
-            .authorized_bytes(&org, &connection, &format!("{base}/upload"), &[], b"x".to_vec())
+            .authorized_bytes(
+                &org,
+                &connection,
+                &format!("{base}/upload"),
+                &[],
+                b"x".to_vec(),
+            )
             .await
             .expect_err("a 400 must surface as an error");
         let text = error.to_string();
