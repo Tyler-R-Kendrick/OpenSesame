@@ -99,6 +99,13 @@
       "when": 1787597113238,
       "tag": "0013_smiling_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1787618618000,
+      "tag": "0014_closed_yellowjacket",
+      "breakpoints": true
     }
   ]
 }

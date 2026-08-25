@@ -4,9 +4,12 @@ import {
   type AuthorizationRequest,
   type AuthorizationRequestStatus,
   type BetterAuthSubject,
+  type ByoUpstream,
   type ClaimItem,
   type ClaimSession,
   type ExternalIdentity,
+  type Organization,
+  type OrganizationMembership,
   type OutboxEvent,
   PERSONAL_PROJECT_SLUG,
   type Principal,
@@ -91,7 +94,50 @@ export interface ExternalIdentityRepository {
   }): Promise<ExternalIdentity | null>;
   listByPrincipal(principalId: string): Promise<ExternalIdentity[]>;
   listByEmailNormalized(email: string): Promise<ExternalIdentity[]>;
+  /**
+   * The verified identity whose owning principal is the oldest, for the
+   * verified-email auto-link policy (ADR 0057).
+   *
+   * `email_normalized` is deliberately NOT unique — pre-existing rows may
+   * already share an address — so the answer must be deterministic in code:
+   * oldest owning principal wins, ties broken by principal id then identity
+   * id. Rows carrying an explicitly unverified email are never candidates: an
+   * upstream that lets a user type an arbitrary address must not become an
+   * account-takeover path. `null` when nothing matches.
+   */
+  findVerifiedByEmail(
+    emailNormalized: string,
+  ): Promise<ExternalIdentity | null>;
   deleteById(id: string, uow?: UnitOfWork): Promise<boolean>;
+}
+
+/**
+ * Trailing-slash-normalized issuer, the form every issuer comparison uses.
+ * `https://idp.example/` and `https://idp.example` are the same issuer, and a
+ * store that disagreed would mint a second upstream for the second spelling.
+ */
+export function normalizeIssuer(issuer: string): string {
+  return issuer.trim().replace(/\/+$/, "");
+}
+
+/**
+ * Bring-your-own upstreams (ADR 0055). Durable so a returning visitor who
+ * re-enters their issuer resumes the same registration; `findByIssuer` is the
+ * anti-enumeration read — callers never reveal whether a record pre-existed.
+ */
+export interface ByoUpstreamRepository {
+  create(record: ByoUpstream): Promise<ByoUpstream>;
+  getById(id: string): Promise<ByoUpstream | null>;
+  /** Matches on the normalized issuer, whatever spelling the caller passes. */
+  findByIssuer(issuer: string): Promise<ByoUpstream | null>;
+  touchLastUsed(id: string, at: Date): Promise<void>;
+  /** Operator surface: every record, newest registration first. */
+  list(): Promise<ByoUpstream[]>;
+  /** Operator surface: disable or re-enable one record. */
+  setState(
+    id: string,
+    state: ByoUpstream["state"],
+  ): Promise<ByoUpstream | null>;
 }
 
 export interface BetterAuthSubjectRepository {
@@ -275,6 +321,96 @@ export interface ProjectStores {
   projectMemberships: ProjectMembershipStore;
 }
 
+/**
+ * Durable organization rows. Tenant SSO/SAML config lives on this row and is
+ * read on the login path, so it cannot stay in process memory: a restart that
+ * forgets an org's issuer silently turns enterprise sign-in off.
+ *
+ * `set` keeps the Map upsert semantics the control-plane routes were written
+ * against — the caller owns the full row and the store persists it verbatim.
+ */
+export interface OrganizationStore {
+  get(id: string): Awaitable<Organization | undefined>;
+  /** Full-row upsert (Map `set` semantics). */
+  set(id: string, organization: Organization): Awaitable<void>;
+  getBySlug(slug: string): Awaitable<Organization | undefined>;
+  /**
+   * The org whose `ssoIssuer` OR `samlIssuer` is this issuer, compared
+   * trailing-slash-normalized (the stored spelling is left as the operator
+   * typed it). Undefined when no org claims it.
+   */
+  findByIssuer(issuer: string): Awaitable<Organization | undefined>;
+  listByCreator(principalId: string): Awaitable<Organization[]>;
+}
+
+/** Durable organization membership rows keyed by (organizationId, principalId). */
+export interface OrganizationMembershipStore {
+  find(
+    organizationId: string,
+    principalId: string,
+  ): Awaitable<OrganizationMembership | undefined>;
+  upsert(membership: OrganizationMembership): Awaitable<OrganizationMembership>;
+  remove(organizationId: string, principalId: string): Awaitable<boolean>;
+  listByOrganization(
+    organizationId: string,
+  ): Awaitable<OrganizationMembership[]>;
+  listByPrincipal(principalId: string): Awaitable<OrganizationMembership[]>;
+  /** Owner count — the fence against demoting or removing the last owner. */
+  countOwners(organizationId: string): Awaitable<number>;
+}
+
+/** The pair travels together, as projects do. */
+export interface OrganizationStores {
+  organizations: OrganizationStore;
+  organizationMemberships: OrganizationMembershipStore;
+}
+
+/**
+ * Row shape both organization stores agree on.
+ *
+ * Optional fields are present only when set — a Postgres NULL reads back as an
+ * absent key, so the memory store must drop empty values too or a round-trip
+ * that passes in memory fails against the database (and vice versa).
+ */
+export function normalizeOrganizationRow(
+  organization: Organization,
+): Organization {
+  const row: Organization = {
+    id: organization.id,
+    slug: organization.slug,
+    displayName: organization.displayName,
+    state: organization.state,
+    createdBy: organization.createdBy,
+    createdAt: organization.createdAt,
+    updatedAt: organization.updatedAt,
+  };
+  if (organization.ssoIssuer) row.ssoIssuer = organization.ssoIssuer;
+  if (organization.samlIssuer) row.samlIssuer = organization.samlIssuer;
+  if (organization.samlMetadataUrl) {
+    row.samlMetadataUrl = organization.samlMetadataUrl;
+  }
+  if (organization.samlMetadataXml) {
+    row.samlMetadataXml = organization.samlMetadataXml;
+  }
+  if (organization.provisioningEnabled) row.provisioningEnabled = true;
+  return row;
+}
+
+/** True when either issuer column of `organization` names `issuer`. */
+export function organizationClaimsIssuer(
+  organization: Organization,
+  issuer: string,
+): boolean {
+  const target = normalizeIssuer(issuer);
+  if (!target) return false;
+  return (
+    (organization.ssoIssuer !== undefined &&
+      normalizeIssuer(organization.ssoIssuer) === target) ||
+    (organization.samlIssuer !== undefined &&
+      normalizeIssuer(organization.samlIssuer) === target)
+  );
+}
+
 export interface WebhookEndpointRepository {
   create(endpoint: WebhookEndpoint, uow?: UnitOfWork): Promise<WebhookEndpoint>;
   getById(id: string): Promise<WebhookEndpoint | null>;
@@ -307,6 +443,7 @@ export interface Repositories {
   principals: PrincipalRepository;
   authorizationRequests: AuthorizationRequestRepository;
   externalIdentities: ExternalIdentityRepository;
+  byoUpstreams: ByoUpstreamRepository;
   betterAuthSubjects: BetterAuthSubjectRepository;
   claimSessions: ClaimSessionRepository;
   claimItems: ClaimItemRepository;

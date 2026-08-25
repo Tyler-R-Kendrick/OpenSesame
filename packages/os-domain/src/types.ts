@@ -81,10 +81,85 @@ export interface Organization {
    */
   ssoIssuer?: string;
   /**
-   * OIDC issuer that brokers this tenant's SAML directory (ADR 0016).
-   * OpenSesame does not speak SAML on the wire.
+   * SAML IdP entityID for native SAML (ADR 0056) when SAML metadata is
+   * configured; otherwise the legacy meaning — the OIDC issuer of a
+   * SAML-brokering Keycloak (ADR 0016).
    */
   samlIssuer?: string;
+  /** Location of the SAML IdP metadata document (fetched under the SSRF guard). */
+  samlMetadataUrl?: string;
+  /** Inline SAML IdP metadata document, when the operator pasted it directly. */
+  samlMetadataXml?: string;
+  /**
+   * SCIM directory provisioning is authoritative for this tenant: JIT-join
+   * requires an active provisioned user. Absent means disabled.
+   */
+  provisioningEnabled?: boolean;
+}
+
+/**
+ * Per-organization LDAP directory configuration (ADR 0057).
+ *
+ * The subject is a stable directory attribute, never the DN: a DN moves when
+ * a person changes team, and a moved DN would mint a second principal.
+ * `serviceBindSecret` is presented to the directory verbatim, so it is held
+ * as-is — it is never an agent-facing value and never leaves the host plane.
+ */
+export interface OrgLdapConfig {
+  organizationId: string;
+  /** `ldap://` or `ldaps://`. Plain ldap is dev-only. */
+  url: string;
+  bindMode: OrgLdapBindMode;
+  /** `bind_template` mode, e.g. `uid={username},ou=people,dc=acme,dc=com`. */
+  bindTemplate?: string;
+  /** `search_bind` mode: where and how to find the entry before binding. */
+  searchBaseDn?: string;
+  searchFilter?: string;
+  serviceBindDn?: string;
+  serviceBindSecret?: string;
+  /** Stable subject attribute, e.g. `entryUUID` / `objectGUID` — NEVER the DN. */
+  subjectAttribute: string;
+  attributeMap: OrgLdapAttributeMap;
+  /** Group DN/cn → org role. */
+  groupRoleMap: Record<string, OrganizationRole>;
+}
+
+export type OrgLdapBindMode = "bind_template" | "search_bind";
+
+export interface OrgLdapAttributeMap {
+  email?: string;
+  name?: string;
+}
+
+/** How a bring-your-own upstream's client credentials were obtained. */
+export type ByoUpstreamRegistrationSource = "manual" | "dcr";
+
+export type ByoUpstreamState = "active" | "disabled";
+
+export type ByoUpstreamClientAuth = "none" | "client_secret_post";
+
+/**
+ * A bring-your-own OIDC upstream a visitor registered at sign-in (ADR 0055):
+ * their own issuer plus either credentials they registered themselves or ones
+ * RFC 7591 dynamic client registration minted for us.
+ *
+ * `clientSecret` is held verbatim rather than hashed: it must be presented to
+ * the upstream token endpoint as issued, so a digest could never be used. It
+ * sits behind the same trust boundary as env-held provider secrets and is
+ * never agent-facing.
+ */
+export interface ByoUpstream {
+  id: string;
+  /** Trailing-slash-normalized issuer — the record's identity. */
+  issuer: string;
+  label: string;
+  clientId: string;
+  clientSecret?: string;
+  clientAuth: ByoUpstreamClientAuth;
+  registrationSource: ByoUpstreamRegistrationSource;
+  state: ByoUpstreamState;
+  createdAt: Date;
+  lastUsedAt?: Date;
 }
 
 export type OrganizationRole = "owner" | "admin" | "member";

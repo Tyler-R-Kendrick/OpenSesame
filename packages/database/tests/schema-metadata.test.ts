@@ -14,6 +14,14 @@ const EXPECTED_TABLES = [
   "external_identities",
   "better_auth_subjects",
   "organizations",
+  "organization_memberships",
+  "byo_upstreams",
+  "saml_pending",
+  "saml_assertion_replay",
+  "scim_users",
+  "scim_tokens",
+  "org_email_domains",
+  "org_ldap_config",
   "teams",
   "projects",
   "project_memberships",
@@ -99,6 +107,30 @@ describe("schema metadata contract", () => {
     expect(fkTargets(schema.teams)).toEqual([
       { target: schema.organizations, onDelete: "cascade" },
     ]);
+
+    const orgMembershipFks = fkTargets(schema.organizationMemberships);
+    expect(orgMembershipFks).toContainEqual({
+      target: schema.organizations,
+      onDelete: "cascade",
+    });
+    expect(orgMembershipFks).toContainEqual({
+      target: schema.principals,
+      onDelete: "cascade",
+    });
+
+    // Deleting a tenant takes its federation configuration with it: an
+    // orphaned SCIM row or email domain would keep routing sign-ins.
+    for (const table of [
+      schema.samlPending,
+      schema.scimUsers,
+      schema.scimTokens,
+      schema.orgEmailDomains,
+      schema.orgLdapConfig,
+    ]) {
+      expect(fkTargets(table)).toEqual([
+        { target: schema.organizations, onDelete: "cascade" },
+      ]);
+    }
     expect(fkTargets(schema.agentInstances)).toEqual([
       { target: schema.agents, onDelete: "cascade" },
     ]);
@@ -198,5 +230,32 @@ describe("schema metadata contract", () => {
     expect(uniqueNames(schema.pairwiseSubjects)).toContain(
       "pairwise_subjects_sector_subject_uidx",
     );
+    // One record per normalized BYO issuer — the anti-duplication fence.
+    expect(uniqueNames(schema.byoUpstreams)).toContain(
+      "byo_upstreams_issuer_uidx",
+    );
+    expect(uniqueNames(schema.scimUsers)).toContain(
+      "scim_users_org_user_name_uidx",
+    );
+    expect(uniqueNames(schema.organizationMemberships)).toContain(
+      "organization_memberships_org_principal_uidx",
+    );
+  });
+
+  it("leaves external_identities.email_normalized non-unique (T32)", () => {
+    // Pre-existing rows may already share an address, and the verified-email
+    // link policy is enforced in code (deterministically), not by a constraint
+    // a migration could never apply to existing data.
+    const emailIndexes = getTableConfig(
+      schema.externalIdentities,
+    ).indexes.filter((idx) =>
+      idx.config.columns.some(
+        (column) => "name" in column && column.name === "email_normalized",
+      ),
+    );
+    expect(emailIndexes.length).toBeGreaterThan(0);
+    for (const index of emailIndexes) {
+      expect(index.config.unique).toBeFalsy();
+    }
   });
 });

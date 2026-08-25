@@ -1,19 +1,52 @@
 export * from "./schema/index.js";
 export * from "./repos/interfaces.js";
 export {
+  MemoryOrganizationMembershipStore,
+  MemoryOrganizationStore,
   MemoryProjectMembershipStore,
   MemoryProjectStore,
   MemoryRepositories,
+  createMemoryOrganizationStores,
   createMemoryProjectStores,
 } from "./repos/memory.js";
 export {
+  PostgresOrganizationMembershipStore,
+  PostgresOrganizationStore,
   PostgresProjectMembershipStore,
   PostgresProjectStore,
   PostgresRepositories,
+  createPostgresOrganizationStores,
   createPostgresProjectStores,
   createPostgresRepositories,
   type Database,
 } from "./repos/postgres.js";
+export {
+  SAML_PENDING_TTL_MS,
+  createMemorySamlStores,
+  createPostgresSamlStores,
+  type SamlPendingRecord,
+  type SamlPendingStore,
+  type SamlReplayCache,
+  type SamlStores,
+} from "./saml-store.js";
+export {
+  createMemoryScimStores,
+  createPostgresScimStores,
+  type ScimStores,
+  type ScimTokenRecord,
+  type ScimTokenStore,
+  type ScimUserRecord,
+  type ScimUserStore,
+} from "./scim-store.js";
+export {
+  OrgEmailDomainConflictError,
+  createMemoryOrgFederationStores,
+  createPostgresOrgFederationStores,
+  type OrgEmailDomain,
+  type OrgEmailDomainStore,
+  type OrgFederationStores,
+  type OrgLdapConfigStore,
+} from "./org-federation-store.js";
 export {
   createRepositories,
   createDrizzle,

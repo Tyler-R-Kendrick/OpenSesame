@@ -125,6 +125,18 @@ export const organizations = pgTable(
     createdBy: text("created_by")
       .notNull()
       .references(() => principals.id),
+    /**
+     * Tenant federation config. Queried by issuer on the login path (home-realm
+     * routing and trust resolution), so these are columns and not a jsonb blob.
+     */
+    ssoIssuer: text("sso_issuer"),
+    samlIssuer: text("saml_issuer"),
+    samlMetadataUrl: text("saml_metadata_url"),
+    samlMetadataXml: text("saml_metadata_xml"),
+    /** SCIM is authoritative for membership when true (ADR 0056). */
+    provisioningEnabled: boolean("provisioning_enabled")
+      .notNull()
+      .default(false),
     ...timestamps,
   },
   (t) => [
@@ -132,6 +144,234 @@ export const organizations = pgTable(
     check(
       "organizations_state_check",
       sql`${t.state} in ('provisional','active','suspended','deleted')`,
+    ),
+    index("organizations_sso_issuer_idx").on(t.ssoIssuer),
+    index("organizations_saml_issuer_idx").on(t.samlIssuer),
+  ],
+);
+
+/**
+ * Organization membership — durable for the same reason as the org row: an
+ * enterprise sign-in that JIT-joins a tenant must still be a member after a
+ * restart, and owner counts fence the last-owner removal.
+ */
+export const organizationMemberships = pgTable(
+  "organization_memberships",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("organization_memberships_org_principal_uidx").on(
+      t.organizationId,
+      t.principalId,
+    ),
+    index("organization_memberships_principal_id_idx").on(t.principalId),
+    check(
+      "organization_memberships_role_check",
+      sql`${t.role} in ('owner','admin','member')`,
+    ),
+  ],
+);
+
+/**
+ * Bring-your-own upstreams registered by visitors at sign-in (ADR 0055).
+ *
+ * Durable because re-entry depends on it: a returning user types their issuer
+ * again and the server reuses this record instead of re-registering. The
+ * issuer is stored trailing-slash-normalized so the unique index is the
+ * anti-duplication fence.
+ */
+export const byoUpstreams = pgTable(
+  "byo_upstreams",
+  {
+    id: text("id").primaryKey(),
+    issuer: text("issuer").notNull(),
+    label: text("label").notNull(),
+    clientId: text("client_id").notNull(),
+    /**
+     * Presented to the upstream verbatim, so it cannot be a digest. Same trust
+     * boundary as env-held provider secrets; never agent-facing.
+     */
+    clientSecret: text("client_secret"),
+    clientAuth: text("client_auth").notNull(),
+    registrationSource: text("registration_source").notNull(),
+    state: text("state").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp("last_used_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+  },
+  (t) => [
+    uniqueIndex("byo_upstreams_issuer_uidx").on(t.issuer),
+    check(
+      "byo_upstreams_state_check",
+      sql`${t.state} in ('active','disabled')`,
+    ),
+    check(
+      "byo_upstreams_client_auth_check",
+      sql`${t.clientAuth} in ('none','client_secret_post')`,
+    ),
+    check(
+      "byo_upstreams_registration_source_check",
+      sql`${t.registrationSource} in ('manual','dcr')`,
+    ),
+  ],
+);
+
+/**
+ * SP-initiated SAML requests awaiting their response (ADR 0056).
+ *
+ * Server-side, not a cookie: the ACS receives a cross-site POST that carries
+ * no SameSite=Lax cookies, and the response is matched on `InResponseTo`.
+ */
+export const samlPending = pgTable(
+  "saml_pending",
+  {
+    requestId: text("request_id").primaryKey(),
+    interactionUid: text("interaction_uid").notNull(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("saml_pending_created_at_idx").on(t.createdAt)],
+);
+
+/**
+ * Assertion ids already consumed. IdP-initiated sign-in has no request to bind
+ * to, so re-posting a captured assertion is refused here instead; rows live at
+ * least as long as the assertion's own validity window.
+ */
+export const samlAssertionReplay = pgTable(
+  "saml_assertion_replay",
+  {
+    assertionId: text("assertion_id").primaryKey(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    seenAt: timestamp("seen_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("saml_assertion_replay_expires_at_idx").on(t.expiresAt)],
+);
+
+/**
+ * SCIM 2.0 provisioned users (ADR 0056). No principal is minted at provision
+ * time — the row is the org's answer to "may this subject join?" at sign-in.
+ */
+export const scimUsers = pgTable(
+  "scim_users",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    externalId: text("external_id"),
+    userName: text("user_name").notNull(),
+    active: boolean("active").notNull().default(true),
+    displayName: text("display_name"),
+    /** Attributes as the IdP sent them; SCIM leniency means we keep the rest. */
+    raw: jsonb("raw").$type<JsonObject>().notNull().default({}),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("scim_users_org_user_name_uidx").on(
+      t.organizationId,
+      t.userName,
+    ),
+    index("scim_users_org_external_id_idx").on(t.organizationId, t.externalId),
+  ],
+);
+
+/**
+ * Org-scoped SCIM provisioning tokens. Only the hash is stored — the plaintext
+ * `sct_` value exists exactly once, in the mint response.
+ */
+export const scimTokens = pgTable(
+  "scim_tokens",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+  },
+  (t) => [
+    uniqueIndex("scim_tokens_token_hash_uidx").on(t.tokenHash),
+    index("scim_tokens_organization_id_idx").on(t.organizationId),
+  ],
+);
+
+/**
+ * Email domains an organization claims, for home-realm discovery (ADR 0056).
+ * The domain is the primary key: one organization owns a domain globally, or
+ * routing would be ambiguous. Only `verifiedAt` rows route anything.
+ */
+export const orgEmailDomains = pgTable(
+  "org_email_domains",
+  {
+    domain: text("domain").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    verificationToken: text("verification_token").notNull(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("org_email_domains_organization_id_idx").on(t.organizationId)],
+);
+
+/** Per-organization LDAP directory configuration (ADR 0057). */
+export const orgLdapConfig = pgTable(
+  "org_ldap_config",
+  {
+    organizationId: text("organization_id")
+      .primaryKey()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    bindMode: text("bind_mode").notNull(),
+    bindTemplate: text("bind_template"),
+    searchBaseDn: text("search_base_dn"),
+    searchFilter: text("search_filter"),
+    serviceBindDn: text("service_bind_dn"),
+    /** Presented to the directory verbatim, so it cannot be a digest. */
+    serviceBindSecret: text("service_bind_secret"),
+    /** Stable subject attribute — never the DN, which moves. */
+    subjectAttribute: text("subject_attribute").notNull(),
+    attributeMap: jsonb("attribute_map")
+      .$type<JsonObject>()
+      .notNull()
+      .default({}),
+    groupRoleMap: jsonb("group_role_map")
+      .$type<JsonObject>()
+      .notNull()
+      .default({}),
+    ...timestamps,
+  },
+  (t) => [
+    check(
+      "org_ldap_config_bind_mode_check",
+      sql`${t.bindMode} in ('bind_template','search_bind')`,
     ),
   ],
 );
@@ -871,6 +1111,14 @@ export const schema = {
   externalIdentities,
   betterAuthSubjects,
   organizations,
+  organizationMemberships,
+  byoUpstreams,
+  samlPending,
+  samlAssertionReplay,
+  scimUsers,
+  scimTokens,
+  orgEmailDomains,
+  orgLdapConfig,
   teams,
   projects,
   projectMemberships,
