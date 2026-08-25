@@ -778,6 +778,65 @@ export const auditEvents = pgTable(
   ],
 );
 
+/**
+ * Registered webhook receivers for a principal's authorization-request
+ * events (ADR 0046 decision 12). The secret column holds the whsec_ signing
+ * key — signing requires the raw bytes, so unlike claim tokens it cannot be
+ * stored as a hash; GET surfaces mask it and it is shown whole only at
+ * registration.
+ */
+export const webhookEndpoints = pgTable(
+  "webhook_endpoints",
+  {
+    id: text("id").primaryKey(),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    secret: text("secret").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    disabledAt: timestamp("disabled_at", { withTimezone: true, mode: "date" }),
+  },
+  (t) => [index("webhook_endpoints_principal_id_idx").on(t.principalId)],
+);
+
+/**
+ * One attempted delivery per endpoint per event. Durable so a receiver that
+ * is down retries with backoff instead of silently missing the event; the
+ * inbox itself stays the source of truth either way.
+ */
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: text("id").primaryKey(),
+    endpointId: text("endpoint_id")
+      .notNull()
+      .references(() => webhookEndpoints.id, { onDelete: "cascade" }),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload").$type<JsonObject>().notNull().default({}),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    deliveredAt: timestamp("delivered_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    deadAt: timestamp("dead_at", { withTimezone: true, mode: "date" }),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("webhook_deliveries_next_attempt_idx").on(t.nextAttemptAt)],
+);
+
 export const outboxEvents = pgTable(
   "outbox_events",
   {

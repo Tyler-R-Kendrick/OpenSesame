@@ -3,6 +3,7 @@ import type { OidcStore, Repositories } from "@opensesame/database";
 import type { Logger } from "@opensesame/observability";
 import type { Clock, Project, ProvisionalSession } from "@opensesame/os-domain";
 import { MemoryTaskBus, type TaskBus, outboxToBusEvent } from "./taskBus.js";
+import { deliverWebhooks, fanOutWebhooks } from "./webhooks.js";
 
 export interface FakeClock {
   now: Date;
@@ -35,6 +36,8 @@ export interface ClaimListStore {
 }
 
 export interface CleanupDeps {
+  /** Injected for webhook-delivery tests; the worker passes global fetch. */
+  fetchImpl?: typeof fetch;
   /**
    * Claim, session and project state to expire.
    *
@@ -73,6 +76,9 @@ export interface CleanupResult {
   expiredProjects: number;
   reapedProjects: number;
   outboxPublished: number;
+  webhooksEnqueued: number;
+  webhooksDelivered: number;
+  webhooksDead: number;
   /** Expired issuer rows removed, or undefined when there is no such store. */
   prunedOidcRows?: number;
   /**
@@ -204,9 +210,23 @@ export async function runCleanupTick(
   const pending = await withOutboxDrainLock(() =>
     deps.repos.outbox.claimUnpublished(100, now),
   );
+  let webhooksEnqueued = 0;
   for (const event of pending) {
     try {
       await taskBus.publish(outboxToBusEvent(event));
+      // Fan inbox events out to registered webhook endpoints before the
+      // event is marked published: a crash between the two re-runs the
+      // fan-out next tick, and duplicate deliveries are the receiver's
+      // idempotency problem (webhook-id exists for exactly that) — a lost
+      // doorbell is the failure mode that matters.
+      webhooksEnqueued += await fanOutWebhooks(
+        {
+          repos: deps.repos,
+          clock: deps.clock,
+          ...(deps.log ? { log: deps.log } : undefined),
+        },
+        event,
+      );
       await deps.repos.outbox.markPublished(event.id, now);
       outboxPublished += 1;
     } catch (err) {
@@ -226,6 +246,13 @@ export async function runCleanupTick(
     }
   }
 
+  const webhookDelivery = await deliverWebhooks({
+    repos: deps.repos,
+    clock: deps.clock,
+    ...(deps.fetchImpl ? { fetchImpl: deps.fetchImpl } : undefined),
+    ...(deps.log ? { log: deps.log } : undefined),
+  });
+
   deps.log?.info(
     {
       expiredClaims,
@@ -233,6 +260,9 @@ export async function runCleanupTick(
       expiredProjects,
       reapedProjects,
       outboxPublished,
+      webhooksEnqueued,
+      webhooksDelivered: webhookDelivery.delivered,
+      webhooksDead: webhookDelivery.dead,
       expiryEnforced,
       ...(prunedOidcRows === undefined ? undefined : { prunedOidcRows }),
     },
@@ -245,6 +275,9 @@ export async function runCleanupTick(
     expiredProjects,
     reapedProjects,
     outboxPublished,
+    webhooksEnqueued,
+    webhooksDelivered: webhookDelivery.delivered,
+    webhooksDead: webhookDelivery.dead,
     expiryEnforced,
     ...(prunedOidcRows === undefined ? undefined : { prunedOidcRows }),
   };

@@ -34,6 +34,8 @@ const EXPECTED_TABLES = [
   "device_authorization_sessions",
   "audit_events",
   "outbox_events",
+  "webhook_endpoints",
+  "webhook_deliveries",
   "oidc_payloads",
 ] as const;
 

@@ -12,6 +12,8 @@ import {
   type Principal,
   type Project,
   type ProjectMembership,
+  type WebhookDelivery,
+  type WebhookEndpoint,
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -47,6 +49,8 @@ import {
   type Repositories,
   type TransactionFn,
   type UnitOfWork,
+  type WebhookDeliveryRepository,
+  type WebhookEndpointRepository,
   buildPersonalProject,
   outboxClaimToken,
   outboxHoldActive,
@@ -213,6 +217,37 @@ function mapOutbox(row: typeof schema.outboxEvents.$inferSelect): OutboxEvent {
     attempts: row.attempts,
     ...(row.publishedAt ? { publishedAt: row.publishedAt } : undefined),
     ...(row.lastError ? { lastError: row.lastError } : undefined),
+  };
+}
+
+function mapWebhookEndpoint(
+  row: typeof schema.webhookEndpoints.$inferSelect,
+): WebhookEndpoint {
+  return {
+    id: row.id,
+    principalId: row.principalId,
+    url: row.url,
+    secret: row.secret,
+    ...(row.description ? { description: row.description } : undefined),
+    createdAt: row.createdAt,
+    ...(row.disabledAt ? { disabledAt: row.disabledAt } : undefined),
+  };
+}
+
+function mapWebhookDelivery(
+  row: typeof schema.webhookDeliveries.$inferSelect,
+): WebhookDelivery {
+  return {
+    id: row.id,
+    endpointId: row.endpointId,
+    eventType: row.eventType,
+    payload: overlapCast(row.payload ?? {}),
+    attempts: row.attempts,
+    nextAttemptAt: row.nextAttemptAt,
+    ...(row.deliveredAt ? { deliveredAt: row.deliveredAt } : undefined),
+    ...(row.deadAt ? { deadAt: row.deadAt } : undefined),
+    ...(row.lastError ? { lastError: row.lastError } : undefined),
+    createdAt: row.createdAt,
   };
 }
 
@@ -826,6 +861,135 @@ export class PostgresRepositories implements Repositories {
       }
       const rows = await query;
       return rows.map(mapAuditEvent);
+    },
+  };
+
+  readonly webhookEndpoints: WebhookEndpointRepository = {
+    create: async (endpoint, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.webhookEndpoints)
+          .values({
+            id: endpoint.id,
+            principalId: endpoint.principalId,
+            url: endpoint.url,
+            secret: endpoint.secret,
+            description: endpoint.description ?? null,
+            createdAt: endpoint.createdAt,
+            disabledAt: endpoint.disabledAt ?? null,
+          })
+          .returning();
+        if (!row) throw new Error("insert webhook endpoint failed");
+        return mapWebhookEndpoint(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
+          throw new ConflictError(`webhook endpoint conflict: ${endpoint.id}`);
+        }
+        throw err;
+      }
+    },
+
+    getById: async (id) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.webhookEndpoints)
+        .where(eq(schema.webhookEndpoints.id, id))
+        .limit(1);
+      return row ? mapWebhookEndpoint(row) : null;
+    },
+
+    listForPrincipal: async (principalId) => {
+      const rows = await this.db
+        .select()
+        .from(schema.webhookEndpoints)
+        .where(
+          and(
+            eq(schema.webhookEndpoints.principalId, principalId),
+            isNull(schema.webhookEndpoints.disabledAt),
+          ),
+        )
+        .orderBy(schema.webhookEndpoints.createdAt);
+      return rows.map(mapWebhookEndpoint);
+    },
+
+    deleteById: async (id, uow) => {
+      const result = await dbOf(uow, this.db)
+        .delete(schema.webhookEndpoints)
+        .where(eq(schema.webhookEndpoints.id, id))
+        .returning({ id: schema.webhookEndpoints.id });
+      return result.length === 1;
+    },
+  };
+
+  readonly webhookDeliveries: WebhookDeliveryRepository = {
+    enqueue: async (delivery, uow) => {
+      const [row] = await dbOf(uow, this.db)
+        .insert(schema.webhookDeliveries)
+        .values({
+          id: delivery.id,
+          endpointId: delivery.endpointId,
+          eventType: delivery.eventType,
+          payload: delivery.payload,
+          attempts: delivery.attempts,
+          nextAttemptAt: delivery.nextAttemptAt,
+          deliveredAt: delivery.deliveredAt ?? null,
+          deadAt: delivery.deadAt ?? null,
+          lastError: delivery.lastError ?? null,
+          createdAt: delivery.createdAt,
+        })
+        .returning();
+      if (!row) throw new Error("insert webhook delivery failed");
+      return mapWebhookDelivery(row);
+    },
+
+    claimDue: async (limit, now) => {
+      // Same discipline as the outbox drain: SKIP LOCKED so two dispatchers
+      // racing split the due set instead of double-delivering it, and the
+      // attempt is counted on claim so a crash mid-send still burned a try.
+      return this.db.transaction(async (tx) => {
+        const candidates = await tx
+          .select()
+          .from(schema.webhookDeliveries)
+          .where(
+            and(
+              isNull(schema.webhookDeliveries.deliveredAt),
+              isNull(schema.webhookDeliveries.deadAt),
+              sql`${schema.webhookDeliveries.nextAttemptAt} <= ${now}`,
+            ),
+          )
+          .orderBy(schema.webhookDeliveries.nextAttemptAt)
+          .limit(limit)
+          .for("update", { skipLocked: true });
+        const claimed: WebhookDelivery[] = [];
+        for (const row of candidates) {
+          const [updated] = await tx
+            .update(schema.webhookDeliveries)
+            .set({ attempts: row.attempts + 1 })
+            .where(eq(schema.webhookDeliveries.id, row.id))
+            .returning();
+          if (updated) claimed.push(mapWebhookDelivery(updated));
+        }
+        return claimed;
+      });
+    },
+
+    markDelivered: async (id, at) => {
+      await this.db
+        .update(schema.webhookDeliveries)
+        .set({ deliveredAt: at })
+        .where(eq(schema.webhookDeliveries.id, id));
+    },
+
+    recordFailure: async (id, error, nextAttemptAt, dead) => {
+      await this.db
+        .update(schema.webhookDeliveries)
+        .set({
+          lastError: error,
+          nextAttemptAt,
+          ...(dead ? { deadAt: nextAttemptAt } : undefined),
+        })
+        .where(eq(schema.webhookDeliveries.id, id));
     },
   };
 

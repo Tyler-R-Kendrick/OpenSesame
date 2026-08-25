@@ -5,3 +5,7 @@ export const issuer =
 /** Console origin, offered when a ceremony is better finished signed in. */
 export const consoleOrigin =
   import.meta.env.VITE_OPENSESAME_CONSOLE ?? "http://127.0.0.1:5173";
+
+/** Host API origin — where delegation offers are presented and claimed. */
+export const gateway =
+  import.meta.env.VITE_OPENSESAME_GATEWAY ?? "http://127.0.0.1:8787";

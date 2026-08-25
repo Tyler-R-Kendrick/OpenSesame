@@ -24,6 +24,7 @@
     "@opensesame/claims": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/database": "workspace:*",
+    "@opensesame/webhooks": "workspace:*",
     "@opensesame/device-auth": "workspace:*",
     "@opensesame/oauth-provider": "workspace:*",
     "@opensesame/observability": "workspace:*",

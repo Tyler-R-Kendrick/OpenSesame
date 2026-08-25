@@ -18,6 +18,7 @@
   "dependencies": {
     "@opensesame/claims": "workspace:*",
     "@opensesame/database": "workspace:*",
+    "@opensesame/webhooks": "workspace:*",
     "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "nats": "2.29.3"

@@ -526,6 +526,30 @@ export interface AuditEvent {
   digest?: string;
 }
 
+export interface WebhookEndpoint {
+  id: string;
+  principalId: string;
+  url: string;
+  /** whsec_ signing key. Masked on every surface after registration. */
+  secret: string;
+  description?: string;
+  createdAt: Date;
+  disabledAt?: Date;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  endpointId: string;
+  eventType: string;
+  payload: JsonObject;
+  attempts: number;
+  nextAttemptAt: Date;
+  deliveredAt?: Date;
+  deadAt?: Date;
+  lastError?: string;
+  createdAt: Date;
+}
+
 export interface OutboxEvent {
   id: string;
   aggregateType: string;

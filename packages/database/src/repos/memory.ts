@@ -10,6 +10,8 @@ import type {
   Principal,
   Project,
   ProjectMembership,
+  WebhookDelivery,
+  WebhookEndpoint,
 } from "@opensesame/os-domain";
 import {
   type AuditEventRepository,
@@ -31,6 +33,8 @@ import {
   type Repositories,
   type TransactionFn,
   type UnitOfWork,
+  type WebhookDeliveryRepository,
+  type WebhookEndpointRepository,
   buildPersonalProject,
   outboxClaimToken,
   outboxHoldActive,
@@ -120,6 +124,8 @@ class MemoryStore {
   audit = new Map<string, AuditEvent>();
   outbox = new Map<string, OutboxEvent>();
   authorizationRequests = new Map<string, AuthorizationRequest>();
+  webhookEndpoints = new Map<string, WebhookEndpoint>();
+  webhookDeliveries = new Map<string, WebhookDelivery>();
 }
 
 function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void) {
@@ -539,6 +545,106 @@ export class MemoryRepositories implements Repositories {
       }
       if (row.publishedAt !== undefined) return;
       this.#store.outbox.set(id, { ...row, publishedAt });
+    },
+  };
+
+  readonly webhookEndpoints: WebhookEndpointRepository = {
+    create: async (endpoint, uow) => {
+      if (this.#store.webhookEndpoints.has(endpoint.id)) {
+        throw new ConflictError(
+          `webhook endpoint already exists: ${endpoint.id}`,
+        );
+      }
+      const row: WebhookEndpoint = { ...endpoint };
+      applyNowOrDefer(uow, () => {
+        this.#store.webhookEndpoints.set(row.id, { ...row });
+      });
+      return { ...row };
+    },
+
+    getById: async (id) => {
+      const row = this.#store.webhookEndpoints.get(id);
+      return row ? { ...row } : null;
+    },
+
+    listForPrincipal: async (principalId) => {
+      return [...this.#store.webhookEndpoints.values()]
+        .filter(
+          (row) =>
+            row.principalId === principalId && row.disabledAt === undefined,
+        )
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((row) => ({ ...row }));
+    },
+
+    deleteById: async (id, uow) => {
+      const existed = this.#store.webhookEndpoints.has(id);
+      applyNowOrDefer(uow, () => {
+        this.#store.webhookEndpoints.delete(id);
+        // Cascade, as Postgres does: deliveries for a gone endpoint are noise.
+        for (const [deliveryId, delivery] of this.#store.webhookDeliveries) {
+          if (delivery.endpointId === id) {
+            this.#store.webhookDeliveries.delete(deliveryId);
+          }
+        }
+      });
+      return existed;
+    },
+  };
+
+  readonly webhookDeliveries: WebhookDeliveryRepository = {
+    enqueue: async (delivery, uow) => {
+      // structuredClone for the same reason as cloneAuthorizationRequest:
+      // payload is nested JSON and Postgres round-trips it.
+      const row = structuredClone(delivery);
+      applyNowOrDefer(uow, () => {
+        this.#store.webhookDeliveries.set(row.id, structuredClone(row));
+      });
+      return structuredClone(row);
+    },
+
+    claimDue: async (limit, now) => {
+      const due = [...this.#store.webhookDeliveries.values()]
+        .filter(
+          (row) =>
+            row.deliveredAt === undefined &&
+            row.deadAt === undefined &&
+            row.nextAttemptAt <= now,
+        )
+        .sort((a, b) => a.nextAttemptAt.getTime() - b.nextAttemptAt.getTime())
+        .slice(0, limit);
+      const claimed: WebhookDelivery[] = [];
+      for (const row of due) {
+        const next = structuredClone(row);
+        next.attempts = row.attempts + 1;
+        this.#store.webhookDeliveries.set(row.id, structuredClone(next));
+        claimed.push(next);
+      }
+      return claimed;
+    },
+
+    markDelivered: async (id, at) => {
+      const row = this.#store.webhookDeliveries.get(id);
+      if (!row) {
+        throw new NotFoundError(`webhook delivery not found: ${id}`);
+      }
+      this.#store.webhookDeliveries.set(id, {
+        ...structuredClone(row),
+        deliveredAt: at,
+      });
+    },
+
+    recordFailure: async (id, error, nextAttemptAt, dead) => {
+      const row = this.#store.webhookDeliveries.get(id);
+      if (!row) {
+        throw new NotFoundError(`webhook delivery not found: ${id}`);
+      }
+      this.#store.webhookDeliveries.set(id, {
+        ...structuredClone(row),
+        lastError: error,
+        nextAttemptAt,
+        ...(dead ? { deadAt: nextAttemptAt } : undefined),
+      });
     },
   };
 
