@@ -29,6 +29,10 @@ pub struct AuthorityUse<'a> {
     /// The action this use claims to exercise. A grant lists actions; a use that
     /// names none cannot be checked against them.
     pub requested_action: Option<&'a str>,
+    /// The id the relationship store keys this connection under. Owner
+    /// eligibility is a tuple on this id; delegates pass on their grant's
+    /// lineage instead (see `PolicyEngine::decide`).
+    pub connection_policy_id: &'a str,
 }
 
 /// Enforce: reference ≠ capability; Level 3 export denied unless grant says so;
@@ -45,6 +49,7 @@ pub fn authorize_authority_use(
         level,
         requested_url,
         requested_action,
+        connection_policy_id,
     } = *use_;
     if binding.connection_ref.handle.kind != AuthorityKind::Connection {
         return Err(AuthzError::Denied(
@@ -101,7 +106,13 @@ pub fn authorize_authority_use(
             id: binding.connection_ref.connection_id.to_string(),
         },
         context: json!({
-            "connection_id": "demo-conn",
+            // The policy id the relationship store knows this connection by —
+            // an earlier version hardcoded the demo id here, which made every
+            // non-demo authority use check somebody else's tuple.
+            "connection_id": connection_policy_id,
+            // The durable connection id, for the delegated-capability check:
+            // a child grant is eligibility only for the connection it names.
+            "connection_uuid": binding.connection_ref.connection_id.to_string(),
             "audience": grant.constraints.audiences.first(),
             "invoke_level": level.as_u8(),
             "connection_ref": binding.connection_ref.handle.uri(),
@@ -275,6 +286,8 @@ mod tests {
                 level: InvokeLevel::Materialize,
                 requested_url: None,
                 requested_action: None,
+
+                connection_policy_id: "demo-conn",
             },
         )
         .unwrap_err();
@@ -296,6 +309,8 @@ mod tests {
                 level: InvokeLevel::ConstrainedHttp,
                 requested_url: Some("https://evil.example/exfil"),
                 requested_action: Some("pull_request.create"),
+
+                connection_policy_id: "demo-conn",
             },
         )
         .unwrap_err();
@@ -317,6 +332,8 @@ mod tests {
                 level: InvokeLevel::ConstrainedHttp,
                 requested_url: Some("https://api.github.com/repos/acme/catalog/pulls"),
                 requested_action: Some("pull_request.create"),
+
+                connection_policy_id: "demo-conn",
             },
         )
         .unwrap();
@@ -340,6 +357,8 @@ mod tests {
                 level: InvokeLevel::ConstrainedHttp,
                 requested_url: url,
                 requested_action: Some("repository.delete"),
+
+                connection_policy_id: "demo-conn",
             },
         )
         .unwrap_err();
@@ -356,6 +375,8 @@ mod tests {
                 level: InvokeLevel::ConstrainedHttp,
                 requested_url: url,
                 requested_action: None,
+
+                connection_policy_id: "demo-conn",
             },
         )
         .unwrap_err();
@@ -373,6 +394,8 @@ mod tests {
                     level: InvokeLevel::ConstrainedHttp,
                     requested_url: url,
                     requested_action: Some(action),
+
+                    connection_policy_id: "demo-conn",
                 },
             )
             .unwrap();

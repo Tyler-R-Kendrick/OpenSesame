@@ -2,8 +2,8 @@ use anyhow::Context;
 use async_trait::async_trait;
 use chrono::Utc;
 use opensesame_domain::{
-    ConnectionId, ConnectionRecord, Grant, Intent, Invocation, InvocationReceipt, OrganizationId,
-    ProjectId,
+    ConnectionId, ConnectionRecord, Grant, GrantId, Intent, Invocation, InvocationReceipt,
+    OrganizationId, ProjectId,
 };
 use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
 use std::path::Path;
@@ -101,6 +101,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "0011_attachment_targets",
         include_str!("../../../migrations/0011_attachment_targets.sql"),
+    ),
+    (
+        "0012_connection_delegations",
+        include_str!("../../../migrations/0012_connection_delegations.sql"),
     ),
 ];
 
@@ -326,6 +330,67 @@ impl Db {
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    pub async fn find_grant(&self, id: &GrantId) -> anyhow::Result<Option<Grant>> {
+        let row = sqlx::query("SELECT body_json, revoked_at FROM grants WHERE id = ?")
+            .bind(id.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
+        let Some(row) = row else { return Ok(None) };
+        let mut grant: Grant = serde_json::from_str(&row.get::<String, _>("body_json"))?;
+        // The column is the authority on revocation: `revoke_grant` writes it
+        // without rewriting body_json, so a stale body must not resurrect a
+        // revoked grant.
+        if let Some(revoked) = row.get::<Option<String>, _>("revoked_at") {
+            grant.revoked_at = grant.revoked_at.or_else(|| {
+                chrono::DateTime::parse_from_rfc3339(&revoked)
+                    .ok()
+                    .map(|t| t.with_timezone(&chrono::Utc))
+            });
+        }
+        Ok(Some(grant))
+    }
+
+    pub async fn revoke_grant(
+        &self,
+        id: &GrantId,
+        at: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<bool> {
+        let result =
+            sqlx::query("UPDATE grants SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
+                .bind(at.to_rfc3339())
+                .bind(id.to_string())
+                .execute(&self.pool)
+                .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Assert every hop of a delegation chain is live, walking `parent_grant_id`
+    /// up from `grant` to the root. Ancestor revocation must kill descendants:
+    /// a child that stayed "active" after its parent died would be authority
+    /// that outlived the thing it narrowed (ADR 0044 decision 8).
+    pub async fn assert_grant_chain_active(
+        &self,
+        grant: &Grant,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<()> {
+        grant.assert_active(now)?;
+        let mut cursor = grant.parent_grant_id;
+        // Bounded walk: depth is validated at mint, but a storage cycle must
+        // fail closed rather than spin.
+        for _ in 0..16 {
+            let Some(parent_id) = cursor else {
+                return Ok(());
+            };
+            let parent = self
+                .find_grant(&parent_id)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("delegation chain hop missing: {parent_id}"))?;
+            parent.assert_active(now)?;
+            cursor = parent.parent_grant_id;
+        }
+        anyhow::bail!("delegation chain too deep to verify")
     }
 
     pub async fn insert_intent(&self, intent: &Intent) -> anyhow::Result<()> {
