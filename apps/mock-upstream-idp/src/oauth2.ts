@@ -31,12 +31,19 @@ import {
 export const OAUTH2_AUTHORIZE_PATH = "/login/oauth/authorize";
 export const OAUTH2_TOKEN_PATH = "/login/oauth/access_token";
 export const OAUTH2_USERINFO_PATH = "/api/user";
+/**
+ * GitHub's `/user/emails`. Separate from the profile because the answers are
+ * different: the profile carries whatever address the account chose to make
+ * public, this carries every address with the `verified` flag GitHub set.
+ */
+export const OAUTH2_EMAILS_PATH = "/api/user/emails";
 export const OAUTH2_METADATA_PATH = "/.well-known/oauth-authorization-server";
 
 export interface OAuth2Urls {
   authorizeUrl: string;
   tokenUrl: string;
   userinfoUrl: string;
+  emailsUrl: string;
   metadataUrl: string;
 }
 
@@ -45,6 +52,7 @@ export function oauth2Urls(issuer: string): OAuth2Urls {
     authorizeUrl: `${issuer}${OAUTH2_AUTHORIZE_PATH}`,
     tokenUrl: `${issuer}${OAUTH2_TOKEN_PATH}`,
     userinfoUrl: `${issuer}${OAUTH2_USERINFO_PATH}`,
+    emailsUrl: `${issuer}${OAUTH2_EMAILS_PATH}`,
     metadataUrl: `${issuer}${OAUTH2_METADATA_PATH}`,
   };
 }
@@ -308,11 +316,38 @@ export function createOAuth2Surface(config: MockIdpConfig): OAuth2Surface {
         node_id: `MDQ6VXNlcg${config.oauth2.userId}`,
         type: "User",
         name: config.testUser.name,
-        email: config.testUser.email,
+        // `null` for an account that keeps its address off the public
+        // profile — GitHub's real answer, and the case that makes the
+        // separate emails read necessary rather than merely better.
+        email: config.oauth2.emailPrivate ? null : config.testUser.email,
         avatar_url: `${config.issuer}/avatars/${config.oauth2.login}.png`,
       },
       config.issuer,
     );
+  }
+
+  /**
+   * GitHub's `/user/emails`: every address on the account, each with the
+   * `primary` and `verified` booleans GitHub itself set. Requires the same
+   * bearer as the profile; a token without the `user:email` scope would get a
+   * 403 from the real thing, and an unauthenticated one a 401, which is why
+   * this refuses the same way the profile does.
+   */
+  function handleEmails(req: IncomingMessage, res: ServerResponse): void {
+    const token = bearerToken(req);
+    if (token === undefined || !accessTokens.has(token)) {
+      sendJson(
+        res,
+        401,
+        {
+          message: "Bad credentials",
+          documentation_url: `${config.issuer}/docs/oauth2`,
+        },
+        config.issuer,
+      );
+      return;
+    }
+    sendJson(res, 200, config.oauth2.emails, config.issuer);
   }
 
   function handleMetadata(res: ServerResponse): void {
@@ -346,6 +381,10 @@ export function createOAuth2Surface(config: MockIdpConfig): OAuth2Surface {
       }
       if (req.method === "POST" && path === OAUTH2_TOKEN_PATH) {
         return handleToken(req, res).then(() => true);
+      }
+      if (req.method === "GET" && path === OAUTH2_EMAILS_PATH) {
+        handleEmails(req, res);
+        return true;
       }
       if (req.method === "GET" && path === OAUTH2_USERINFO_PATH) {
         handleUserinfo(req, res);

@@ -5,7 +5,7 @@ import {
   startReferenceIdp,
 } from "@opensesame/mock-upstream-idp/testkit";
 import { overlapCast } from "@opensesame/os-domain";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
   resetSamlCompletionCodes,
   resetSamlMetadataCache,
@@ -364,6 +364,111 @@ describe("native SAML SP, SP-initiated", () => {
     );
     expect(membership?.role).toBe("member");
   }, 30_000);
+
+  /**
+   * Whether an assertion's email may act as a linking key (ADR 0057).
+   *
+   * SAML has no `email_verified`, so for a long time the attribute was carried
+   * as a display hint and nothing else — which meant somebody who signed in
+   * with Google at work and then through their employer's SAML IdP quietly got
+   * two accounts. The attribute does have provenance: the tenant's own IdP set
+   * it, inside an assertion this server verified. What it lacks is any bound
+   * on WHICH addresses that tenant may speak for, and an owner who could
+   * assert `someone-else@gmail.com` would walk straight onto that person's
+   * principal.
+   *
+   * The DNS-TXT domain proof is that bound, and it is the same one the
+   * directory leg already uses.
+   */
+  describe("an assertion's email as a linking key", () => {
+    /** Drive one full SP-initiated sign-in and return the identity row. */
+    async function signIn(subject: string) {
+      idp.setSubject(subject);
+      const { jar, binding } = await runSamlLegToPostBinding(base, "acme");
+      const acs = await postAcsCookieless(binding.action, {
+        SAMLResponse: binding.fields.SAMLResponse ?? "",
+      });
+      expect(acs.status).toBe(303);
+      const complete = await req(base, jar, acs.headers.get("location") ?? "");
+      expect(complete.status).toBe(303);
+      return started.ctx.repos.externalIdentities.findByTuple({
+        kind: "saml",
+        issuer: idp.saml.entityId,
+        subject,
+      });
+    }
+
+    afterEach(async () => {
+      await started.ctx.stores.orgFederation.emailDomains.remove(
+        organizationId,
+        "example.com",
+      );
+    });
+
+    it("counts it verified for a domain the organization proved", async () => {
+      await started.ctx.stores.orgFederation.emailDomains.claim({
+        organizationId,
+        domain: "example.com",
+        verificationToken: "tok-saml-verified",
+      });
+      await started.ctx.stores.orgFederation.emailDomains.markVerified(
+        "example.com",
+        started.ctx.clock(),
+      );
+
+      const identity = await signIn(`saml-domain-ok-${Date.now()}`);
+      expect(identity?.emailNormalized).toBe("mock@example.com");
+      expect(identity?.emailVerified).toBe(true);
+    }, 30_000);
+
+    it("refuses it for a domain claimed but never proved", async () => {
+      // A claim is a statement of intent; the TXT record is the proof. Acting
+      // on the claim alone would make the whole check ceremonial.
+      await started.ctx.stores.orgFederation.emailDomains.claim({
+        organizationId,
+        domain: "example.com",
+        verificationToken: "tok-saml-unverified",
+      });
+
+      const identity = await signIn(`saml-domain-unverified-${Date.now()}`);
+      expect(identity?.emailNormalized).toBeUndefined();
+      expect(identity?.emailVerified).toBeFalsy();
+    }, 30_000);
+
+    it("refuses it for a domain a different organization proved", async () => {
+      // Another tenant's proof says nothing about what this one may assert.
+      // Borrowing it would make every verified domain a shared credential.
+      const other = "org_saml_other_tenant";
+      const now = started.ctx.clock();
+      await started.ctx.stores.organizations.set(other, {
+        id: other,
+        slug: "other",
+        displayName: "Other",
+        state: "active",
+        createdBy: "prn_seed_owner",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await started.ctx.stores.orgFederation.emailDomains.claim({
+        organizationId: other,
+        domain: "example.com",
+        verificationToken: "tok-saml-other",
+      });
+      await started.ctx.stores.orgFederation.emailDomains.markVerified(
+        "example.com",
+        now,
+      );
+
+      const identity = await signIn(`saml-domain-foreign-${Date.now()}`);
+      expect(identity?.emailNormalized).toBeUndefined();
+      expect(identity?.emailVerified).toBeFalsy();
+
+      await started.ctx.stores.orgFederation.emailDomains.remove(
+        other,
+        "example.com",
+      );
+    }, 30_000);
+  });
 
   it("spends a completion code exactly once", async () => {
     idp.setSubject(`saml-once-${Date.now()}`);

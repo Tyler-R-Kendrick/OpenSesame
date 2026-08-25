@@ -816,11 +816,12 @@ Identity: `kind: "saml"`, `issuer` = the IdP entityID **resolved from the tenant
 configuration** (never from the assertion — the row names what this deployment trusts),
 `subject` = the NameID value, `metadata.nameIdFormat` = the NameID Format as provenance.
 
-`email` and `name` attributes (standard OID, WS-Fed claim URI, or friendly names) are read for
-**display only** and never reach `emailNormalized`: a SAML attribute carries no verification
-signal an SP can trust, and an `emailAddress`-format NameID is a subject string that merely
-looks like an address. The SAML leg therefore never participates in §14.3's verified-email
-join.
+`name` is read for display. `email` (standard OID, WS-Fed claim URI, or friendly names)
+reaches `emailNormalized` — and so §14.3's verified-email join — only when the organization has
+DNS-verified that address's domain; otherwise it too is display only. SAML defines no
+`email_verified`, so the domain proof is what bounds which addresses a tenant may speak for
+(ADR 0056 §6, shared with the directory leg). An `emailAddress`-format NameID remains a subject
+string that merely looks like an address and is never treated as one.
 
 Then the shared path: find-or-mint per §7.6, personal-project provisioning on first
 authenticated session, `jitJoinOrganization`, and a provisional cookie **only** for a newly

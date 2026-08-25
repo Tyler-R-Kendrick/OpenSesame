@@ -44,12 +44,24 @@ export type ReferenceIdpOAuth2 = {
   authorizeUrl: string;
   tokenUrl: string;
   userinfoUrl: string;
+  /** GitHub's `/user/emails` — where a *confirmed* address comes from. */
+  emailsUrl: string;
   metadataUrl: string;
   clientId: string;
   clientSecret: string;
   /** GitHub's numeric, immutable `id` — the only stable OAuth2 subject. */
   userId: number;
   login: string;
+  /**
+   * Rewrite what `/user/emails` reports, and whether the profile keeps its
+   * address private. Both are real GitHub states: an account may have no
+   * public email, and an address it has not confirmed is one GitHub marks
+   * `verified: false`.
+   */
+  setEmails(
+    emails: { email: string; primary: boolean; verified: boolean }[],
+    options?: { profilePrivate?: boolean },
+  ): void;
 };
 
 export type IdpInitiatedSamlOptions = {
@@ -206,11 +218,18 @@ export async function startReferenceIdp(
       authorizeUrl: oauth2Endpoints.authorizeUrl,
       tokenUrl: oauth2Endpoints.tokenUrl,
       userinfoUrl: oauth2Endpoints.userinfoUrl,
+      emailsUrl: oauth2Endpoints.emailsUrl,
       metadataUrl: oauth2Endpoints.metadataUrl,
       clientId: idp.config.oauth2.clientId,
       clientSecret: idp.config.oauth2.clientSecret,
       userId: idp.config.oauth2.userId,
       login: idp.config.oauth2.login,
+      setEmails(emails, emailOptions) {
+        idp.config.oauth2.emails = emails;
+        if (emailOptions?.profilePrivate !== undefined) {
+          idp.config.oauth2.emailPrivate = emailOptions.profilePrivate;
+        }
+      },
     },
     saml: {
       entityId: `${issuer}${SAML_METADATA_PATH}`,

@@ -20,6 +20,20 @@ export interface MockIdpOAuth2Config {
   /** GitHub's `id` is a number — the subject-stability rule depends on it. */
   userId: number;
   login: string;
+  /**
+   * Whether the account keeps its email off the public profile.
+   *
+   * GitHub's `/user` returns `email: null` for such an account — a real and
+   * common case that used to make an OpenSesame sign-in carry no email at all.
+   * `/user/emails` still answers for it, which is the whole reason that
+   * endpoint is consulted.
+   */
+  emailPrivate: boolean;
+  /**
+   * What `/user/emails` reports. GitHub sets `verified` itself, so an entry
+   * marked false is one the account holder added and never confirmed.
+   */
+  emails: { email: string; primary: boolean; verified: boolean }[];
 }
 
 export interface MockIdpConfig {
@@ -128,6 +142,14 @@ export function readMockIdpConfig(
         .filter(Boolean),
       userId: Number(env.OPENSESAME_MOCK_IDP_OAUTH2_USER_ID ?? "4242001"),
       login: env.OPENSESAME_MOCK_IDP_OAUTH2_LOGIN ?? "mock-octocat",
+      emailPrivate: env.OPENSESAME_MOCK_IDP_OAUTH2_EMAIL_PRIVATE === "true",
+      emails: [
+        {
+          email: env.OPENSESAME_MOCK_IDP_USER_EMAIL ?? "mock@example.com",
+          primary: true,
+          verified: true,
+        },
+      ],
     },
     ...(env.OPENSESAME_MOCK_IDP_SAML_ACS_URL !== undefined
       ? { samlAcsUrl: env.OPENSESAME_MOCK_IDP_SAML_ACS_URL }

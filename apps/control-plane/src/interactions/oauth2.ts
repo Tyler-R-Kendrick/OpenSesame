@@ -246,6 +246,71 @@ async function fetchProfile(
 }
 
 /**
+ * The address the provider itself has confirmed, from a descriptor's
+ * `emailsEndpoint` (ADR 0057).
+ *
+ * GitHub's shape, which is the one this ships for: an array of
+ * `{ email, primary, verified }`. The primary verified address wins; failing
+ * that, any verified one, because an account whose primary is unverified may
+ * still have a confirmed address and that address is just as much a proof.
+ *
+ * Deliberately soft-failing. This is an *extra* read, and a provider outage,
+ * a revoked scope or an unexpected body must not turn a sign-in that would
+ * otherwise succeed into an error — the caller falls back to the profile
+ * email as an unverified hint, which is what happened before this existed.
+ * The one thing it must never do is report an address as verified that the
+ * provider did not say was verified.
+ */
+async function fetchVerifiedEmail(
+  provider: OAuth2ProviderDescriptor,
+  accessToken: string,
+): Promise<string | undefined> {
+  if (provider.emailsEndpoint === undefined) return undefined;
+  let endpoint: URL;
+  try {
+    endpoint = endpointUrl(
+      "emails endpoint",
+      provider.emailsEndpoint,
+      provider.issuer,
+    );
+  } catch {
+    return undefined;
+  }
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${accessToken}`,
+        "user-agent": USER_AGENT,
+      },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+  } catch {
+    return undefined;
+  }
+  if (!response.ok) return undefined;
+  let entries: unknown;
+  try {
+    entries = JSON.parse(await response.text());
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(entries)) return undefined;
+
+  let fallback: string | undefined;
+  for (const entry of entries) {
+    if (!isJsonObject(entry)) continue;
+    if (entry.verified !== true) continue;
+    const address = readEmail(entry, "email");
+    if (address === undefined) continue;
+    if (entry.primary === true) return address;
+    fallback ??= address;
+  }
+  return fallback;
+}
+
+/**
  * The stable subject, per the descriptor's `subjectField`.
  *
  * Scalars only. A structured value (`{ id: ... }`, an array of ids) is not a
@@ -364,14 +429,39 @@ export async function completeOAuth2Auth(
     );
   }
 
-  // GitHub's `/user` carries the public profile email, or none when the user
-  // keeps it private. That is the whole of it: `/user/emails` is a different
-  // scope and a different question, and this leg never asks it (T15).
-  const email = readEmail(profile, provider.profileMap?.email ?? "email");
+  /*
+   * The profile email first, then the confirmed one.
+   *
+   * A provider's profile document may carry an address the account holder
+   * typed, with no claim that anyone checked it — GitHub's `/user` email is
+   * exactly that, and absent entirely for a private account. Such an address
+   * is a display hint and nothing else; treating it as a join key would let
+   * anyone who can type `someone@else.example` into a profile walk onto that
+   * person's account.
+   *
+   * `emailsEndpoint`, where a descriptor names one, answers the different
+   * question: which address did the provider itself confirm. Only that one is
+   * reported verified, and only it can reach the D15 link.
+   */
+  const profileEmail = readEmail(
+    profile,
+    provider.profileMap?.email ?? "email",
+  );
   const name = readString(profile[provider.profileMap?.name ?? "name"]);
   const verifiedField = provider.profileMap?.emailVerifiedField;
-  const emailVerified =
+  const profileVerified =
     verifiedField === undefined ? undefined : profile[verifiedField];
+
+  const confirmed = await fetchVerifiedEmail(provider, accessToken);
+  const email = confirmed ?? profileEmail;
+  // Verified iff the confirmed read produced this address, or the profile
+  // document itself carries a provider-set verified flag for it.
+  const emailVerified =
+    confirmed !== undefined
+      ? true
+      : isBoolean(profileVerified)
+        ? profileVerified
+        : undefined;
 
   return {
     kind: "oauth2",
@@ -379,6 +469,6 @@ export async function completeOAuth2Auth(
     subject,
     ...(email !== undefined ? { email } : undefined),
     ...(name !== undefined ? { name } : undefined),
-    ...(isBoolean(emailVerified) ? { emailVerified } : undefined),
+    ...(emailVerified !== undefined ? { emailVerified } : undefined),
   };
 }

@@ -30,6 +30,7 @@ import type {
 } from "../interactions/types.js";
 import type { Variables } from "../middleware/context.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
+import { organizationAssertedEmailIsVerified } from "../services/org-email-trust.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
 import { jitJoinOrganization } from "./organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
@@ -133,30 +134,6 @@ function clientFingerprint(
     .update(origin ?? "")
     .digest("hex")
     .slice(0, 16);
-}
-
-/**
- * Whether a directory-sourced address may act as a linking key (D15/D17).
- *
- * A `mail` attribute is administratively assigned rather than typed by its
- * owner, which is exactly the property the verified-email policy wants — but
- * the directory itself is configured by an organization owner, and an owner
- * who could assert `someone-else@gmail.com` as verified would be able to walk
- * onto that person's principal. So the address only counts as verified when
- * the organization has proved control of its domain through the DNS-TXT
- * verification the home-realm-discovery surface already requires (C16).
- * Anything else is stored as a contact hint and never joins anything.
- */
-async function directoryEmailIsVerified(
-  ctx: AppContext,
-  organizationId: string,
-  email: string,
-): Promise<boolean> {
-  const domain = email.split("@")[1]?.trim().toLowerCase();
-  if (!domain) return false;
-  const claimed =
-    await ctx.stores.orgFederation.emailDomains.findVerified(domain);
-  return claimed?.organizationId === organizationId;
 }
 
 export function createLdapInteractionRoutes(
@@ -319,7 +296,11 @@ export function createLdapInteractionRoutes(
 
       const emailVerified =
         bound.email !== undefined &&
-        (await directoryEmailIsVerified(ctx, organization.id, bound.email));
+        (await organizationAssertedEmailIsVerified(
+          ctx,
+          organization.id,
+          bound.email,
+        ));
       const attached = await attachVerifiedExternalIdentity(
         ctx,
         minted.principalId,

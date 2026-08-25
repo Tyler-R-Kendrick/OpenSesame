@@ -200,7 +200,7 @@ once — and a reconciler that trusted that number would end every membership an
 in the tenant on the strength of a typo. The two cases are genuinely indistinguishable from
 here, so the safe reading wins and emptying a tenant stays a deliberate act.
 
-### 6. A directory-supplied email is verified only for a DNS-verified domain
+### 6. An organization-asserted email is verified only for a DNS-verified domain
 This is the sharp edge where §1 and §5 meet. A `mail` attribute is administratively assigned
 rather than typed by its owner, which is exactly the property the verified-email policy wants.
 But the directory is configured by an organization *owner*, and an owner who could assert
@@ -211,7 +211,37 @@ So a directory-supplied address counts as verified only when the organization ha
 that domain through the home-realm-discovery machinery (ADR 0056 §8). Otherwise it is stored
 as a contact hint with `emailVerified: false` and joins nothing. The owner's authority over
 `@theircompany.example` is something they proved; their authority over any other domain is
-something they merely claimed.
+something they merely claimed. A domain a *different* tenant proved is no help either — one
+organization's proof says nothing about what another may assert.
+
+**A SAML assertion's email is the same case, and gets the same rule.** It was originally
+excluded outright, on the grounds that SAML defines no `email_verified` and so carries no
+signal an SP can trust. That reasoning proves too much: it is equally true of a directory
+attribute, which §5 admits. Both are set by the tenant rather than typed by the person signing
+in, and both need the same bound on which addresses that tenant may speak for. Excluding SAML
+had a real cost — somebody who signed in with Google and later through their employer's SAML
+IdP silently got two accounts, which is precisely what §1 exists to prevent. The check is one
+shared function, `organizationAssertedEmailIsVerified`, deliberately not copied into each leg:
+the day one accepts a domain the other refuses is the day the weaker one becomes the way in.
+
+### 6a. A provider's profile email is not its verified email
+The same distinction, one layer out. GitHub's `/user` returns the address the account chose to
+make public — absent entirely for an account that keeps it private, and never accompanied by a
+verified flag, because GitHub is not claiming anyone checked it. `/user/emails` is where GitHub
+reports every address on the account with the `primary` and `verified` booleans it set itself.
+
+Only the second answers §1's question. Reading the profile address alone meant a GitHub sign-in
+could never satisfy the verified-email policy at all, so the duplicate-account outcome above
+applied to GitHub too. An OAuth2 descriptor may therefore name an `emailsEndpoint`; where one
+is configured the leg makes that second authenticated read and reports the primary confirmed
+address (or any confirmed one, when the primary is unconfirmed) as verified. The profile
+address remains an unverified hint.
+
+That read is deliberately soft-failing. It is an *extra* request, and an outage, a revoked
+scope, or an unexpected body must not turn a sign-in that would otherwise succeed into an
+error — the leg falls back to exactly the previous behaviour. The one thing it must never do is
+report an address as verified that the provider did not say was verified. GitHub's built-in
+descriptor therefore requests `user:email`, which is read-only and grants nothing else.
 
 ## Consequences
 - Two people who genuinely share a verified address at different providers become one

@@ -16,9 +16,17 @@
   address into a profile field would otherwise be an account-takeover path. An unverified
   collision produces a denied `principal.identity_link_email_collision` audit event and then
   links normally by tuple: evidence for a human reading the trail, never a matching rule.
-- A SAML assertion's email attributes never participate: they are read for display only, and an
-  `emailAddress`-format NameID is a subject string, not an address. A directory-supplied
-  address counts as verified only when the organization has DNS-verified that domain.
+- **An organization-asserted address needs a domain proof.** A SAML `mail` attribute and an
+  LDAP directory attribute are both set by the tenant, not typed by the person signing in — good
+  provenance, but neither protocol carries a verification signal, and an organization owner must
+  not be able to assert an address outside their own namespace. Both therefore count as verified
+  only for a domain the organization has DNS-verified, through one shared check. An
+  `emailAddress`-format NameID is still a subject string, not an address.
+- **A provider's profile email is not its verified email.** GitHub's `/user` carries whatever
+  address the account made public, with no verified flag and nothing at all for a private
+  account; `/user/emails` is where GitHub reports what it confirmed. Only the second answers the
+  linking question, so an `emailsEndpoint` descriptor is read when one is configured and the
+  profile address stays an unverified hint.
 - Determinism, not a constraint: `external_identities.email_normalized` is indexed and
   deliberately **not** unique (existing data may hold duplicates). When several verified rows
   share an address, the oldest owning principal wins, tie-broken by principal id and then

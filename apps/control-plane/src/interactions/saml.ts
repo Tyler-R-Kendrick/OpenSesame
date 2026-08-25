@@ -30,6 +30,7 @@ import {
 import { ensurePersonalOnAuthenticatedSession } from "../routes/projects.js";
 import { provisionedRoleForSubject } from "../routes/scim.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
+import { organizationAssertedEmailIsVerified } from "../services/org-email-trust.js";
 import {
   ProvisionalMintRefusedError,
   mintProvisionalForInteraction,
@@ -874,6 +875,25 @@ export async function admitSamlSubject(
       throw error;
     }
     const displayHint = input.result.name ?? input.result.email;
+    /*
+     * SAML defines nothing like OIDC's `email_verified`, so the assertion
+     * cannot say whether anyone checked this address. What it does have is
+     * provenance: the attribute was set by the tenant's own IdP, in an
+     * assertion this server verified the signature of, not typed by whoever is
+     * signing in. That is enough exactly where the organization has proved it
+     * controls the domain — the same DNS-TXT rule the directory leg uses, and
+     * for the same reason (see `organizationAssertedEmailIsVerified`).
+     *
+     * Everything else stays a display hint: `emailNormalized` is only set
+     * alongside a true `emailVerified`, so an unproven address cannot become
+     * an ADR 0057 auto-link key by any path.
+     */
+    const emailNormalized = input.result.email?.trim().toLowerCase();
+    const emailVerified = await organizationAssertedEmailIsVerified(
+      ctx,
+      input.result.organizationId,
+      emailNormalized,
+    );
     const attached = await attachVerifiedExternalIdentity(
       ctx,
       minted.principalId,
@@ -886,10 +906,10 @@ export async function admitSamlSubject(
         // what tells a later reader whether this subject is a stable opaque
         // identifier or an address the IdP happened to spell as one.
         metadata: { nameIdFormat: input.result.nameIdFormat },
-        // Display only (C14). A SAML attribute carries no verification signal,
-        // so `email` never reaches `emailNormalized` and can never become the
-        // ADR 0057 auto-link key.
         ...(displayHint !== undefined ? { displayHint } : undefined),
+        ...(emailVerified && emailNormalized !== undefined
+          ? { emailNormalized, emailVerified: true }
+          : undefined),
       },
     );
     if (!attached.ok) {

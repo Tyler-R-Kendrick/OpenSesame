@@ -136,10 +136,19 @@ this subject is a stable opaque identifier or an address the IdP happened to spe
 `persistent` is requested.
 
 SAML attributes (`mail`, the standard OID and claim spellings, display name) are read for
-**display only** and never reach `emailNormalized`. A SAML attribute carries no verification
-signal an SP can trust, and an `emailAddress`-format NameID is a subject string that looks
-like an address — treating either as a verified email would hand ADR 0057's auto-link a key
-that the tenant's IdP administrator can set to anything.
+display, and an `emailAddress`-format NameID is treated as a subject string that merely looks
+like an address — never as a verified email.
+
+The `mail` attribute reaches `emailNormalized` under exactly one condition: the organization
+has proved control of that address's domain through the DNS-TXT verification the home-realm
+surface already requires. SAML defines nothing like `email_verified`, so the assertion cannot
+say whether anyone checked the address; what it can establish is provenance, since the tenant's
+own IdP set the attribute inside an assertion this SP verified the signature of. The missing
+piece was any bound on *which* addresses that tenant may speak for — without one, an IdP
+administrator asserting `someone-else@gmail.com` would walk onto that person's principal. The
+domain proof is that bound, and it is the same rule the directory leg uses, in the shared
+`organizationAssertedEmailIsVerified`. Anything that does not pass it stays a display hint and
+joins nothing.
 
 ### 7. SCIM 2.0, Users first, and no principal at provision time
 Per-organization endpoints under `/v1/organizations/:organizationId/scim/v2`, authenticated by

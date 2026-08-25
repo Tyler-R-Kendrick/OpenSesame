@@ -178,7 +178,8 @@ describe("built-in provider defaults", () => {
       authorizationEndpoint: "https://github.com/login/oauth/authorize",
       tokenEndpoint: "https://github.com/login/oauth/access_token",
       userinfoEndpoint: "https://api.github.com/user",
-      scopes: "read:user",
+      emailsEndpoint: "https://api.github.com/user/emails",
+      scopes: "read:user user:email",
       // `id`, never `login`: a renameable subject is an account-takeover path.
       subjectField: "id",
       profileMap: { email: "email", name: "name" },

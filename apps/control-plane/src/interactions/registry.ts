@@ -55,6 +55,22 @@ export type OAuth2ProviderDescriptor = {
    */
   subjectField: string;
   profileMap?: { email?: string; name?: string; emailVerifiedField?: string };
+  /**
+   * A second authenticated read that answers "which of this account's
+   * addresses has the provider itself confirmed?".
+   *
+   * Some providers do not put a verified email on the profile document at all.
+   * GitHub is the shipped example: `/user` carries the *public* profile email,
+   * absent for anyone who keeps it private and never accompanied by a verified
+   * flag, while `/user/emails` returns every address with `primary` and
+   * `verified` booleans GitHub set itself. Without this read a GitHub sign-in
+   * can never satisfy the verified-email policy, so a person signing in with
+   * Google and later with GitHub silently gets two accounts.
+   *
+   * On the descriptor rather than baked into the leg so the leg stays generic;
+   * a provider without one behaves exactly as before.
+   */
+  emailsEndpoint?: string;
   clientId: string;
   clientSecret: string;
 };
@@ -92,6 +108,7 @@ type BuiltInProvider = {
   authorizationEndpoint?: string;
   tokenEndpoint?: string;
   userinfoEndpoint?: string;
+  emailsEndpoint?: string;
   subjectField?: string;
   profileMap?: { email?: string; name?: string; emailVerifiedField?: string };
 };
@@ -118,8 +135,12 @@ const BUILT_IN_PROVIDERS: ReadonlyMap<string, BuiltInProvider> = new Map([
       authorizationEndpoint: "https://github.com/login/oauth/authorize",
       tokenEndpoint: "https://github.com/login/oauth/access_token",
       userinfoEndpoint: "https://api.github.com/user",
-      // Only what a sign-in needs: the profile, not the account.
-      scopes: "read:user",
+      emailsEndpoint: "https://api.github.com/user/emails",
+      // Only what a sign-in needs: the profile and the addresses GitHub has
+      // confirmed. `user:email` is read-only and grants nothing else; without
+      // it a GitHub identity can never carry a verified email, and so can
+      // never join the account the same person already has (ADR 0057 D15).
+      scopes: "read:user user:email",
       subjectField: "id",
       profileMap: { email: "email", name: "name" },
     },
@@ -377,6 +398,14 @@ function readProvider(env: NodeJS.ProcessEnv, id: string): ProviderDescriptor {
         readEnv(env, `${prefix}SUBJECT_FIELD`) ?? builtIn?.subjectField ?? "",
       clientId: clientId ?? "",
       clientSecret: clientSecret ?? "",
+      // Optional everywhere: a provider that puts a verified address on the
+      // profile document needs no second read, and one that offers neither
+      // simply never carries a verified email.
+      ...(() => {
+        const emails =
+          readEnv(env, `${prefix}EMAILS_URL`) ?? builtIn?.emailsEndpoint;
+        return emails ? { emailsEndpoint: emails } : undefined;
+      })(),
       ...(builtIn?.profileMap ? { profileMap: builtIn.profileMap } : undefined),
     };
     return descriptor;

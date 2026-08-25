@@ -5,7 +5,7 @@ import {
   startReferenceIdp,
 } from "@opensesame/mock-upstream-idp/testkit";
 import { overlapCast } from "@opensesame/os-domain";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { ControlPlaneConfig } from "../config.js";
 import { loadConfig } from "../config.js";
 import type { AppContext } from "../context.js";
@@ -132,6 +132,9 @@ function configFor(overrides: EnvOverrides = {}): ControlPlaneConfig {
     OPENSESAME_PROVIDER_GITHUB_AUTHORIZE_URL: idp.oauth2.authorizeUrl,
     OPENSESAME_PROVIDER_GITHUB_TOKEN_URL: idp.oauth2.tokenUrl,
     OPENSESAME_PROVIDER_GITHUB_USERINFO_URL: idp.oauth2.userinfoUrl,
+    // Overridden, or the built-in default would send these tests at the real
+    // api.github.com.
+    OPENSESAME_PROVIDER_GITHUB_EMAILS_URL: idp.oauth2.emailsUrl,
     OPENSESAME_PROVIDER_GITHUB_CLIENT_ID: idp.oauth2.clientId,
     OPENSESAME_PROVIDER_GITHUB_CLIENT_SECRET: idp.oauth2.clientSecret,
     ...overrides,
@@ -183,7 +186,9 @@ describe("starting the oauth2 leg", () => {
     expect(url.searchParams.get("client_id")).toBe(idp.oauth2.clientId);
     expect(url.searchParams.get("redirect_uri")).toBe(CALLBACK);
     // Only what a sign-in needs; `user:email` is a different question (T15).
-    expect(url.searchParams.get("scope")).toBe("read:user");
+    // `user:email` is read-only and is what makes a GitHub identity able to
+    // carry a verified address at all (ADR 0057).
+    expect(url.searchParams.get("scope")).toBe("read:user user:email");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("code_challenge")).toBeTruthy();
     // `state` names the interaction, which is how the shared callback knows
@@ -235,20 +240,96 @@ describe("finishing the oauth2 leg", () => {
       // Numeric and immutable — never the renameable `login`.
       subject: String(idp.oauth2.userId),
       email: "mock@example.com",
+      // GitHub confirmed this address itself, so it can join an account the
+      // same human already has (ADR 0057 D15).
+      emailVerified: true,
       name: "Mock User",
     });
     expect(identity.subject).not.toBe(idp.oauth2.login);
   });
 
-  it("claims nothing about whether the address was verified", async () => {
-    // GitHub's /user says only what the address is. Asserting verification the
-    // provider never made would feed the verified-email auto-link a lie.
-    const start = await beginOAuth2Auth(ctx, UID, github);
-    const back = await authorize(start.authorizationUrl);
+  /**
+   * The read that makes GitHub usable as a linking identity.
+   *
+   * `/user` carries only the *public* profile address, with no verified flag
+   * and nothing at all for an account that keeps it private. `/user/emails` is
+   * where GitHub reports which addresses it confirmed. Without consulting it,
+   * a GitHub sign-in could never satisfy the verified-email policy, so someone
+   * who had signed in with Google would silently get a second account.
+   */
+  describe("where a verified address comes from", () => {
+    afterEach(() => {
+      idp.oauth2.setEmails(
+        [{ email: "mock@example.com", primary: true, verified: true }],
+        { profilePrivate: false },
+      );
+    });
 
-    const identity = await completeOAuth2Auth(ctx, github, start.pending, back);
+    async function identity() {
+      const start = await beginOAuth2Auth(ctx, UID, github);
+      const back = await authorize(start.authorizationUrl);
+      return completeOAuth2Auth(ctx, github, start.pending, back);
+    }
 
-    expect(identity.emailVerified).toBeUndefined();
+    it("takes the primary verified address over the profile's", async () => {
+      idp.oauth2.setEmails([
+        { email: "old@example.com", primary: false, verified: true },
+        { email: "primary@example.com", primary: true, verified: true },
+      ]);
+      const result = await identity();
+      expect(result.email).toBe("primary@example.com");
+      expect(result.emailVerified).toBe(true);
+    });
+
+    it("finds an address for an account with no public profile email", async () => {
+      // GitHub answers `email: null` here, which used to mean the identity
+      // carried no address at all.
+      idp.oauth2.setEmails(
+        [{ email: "private@example.com", primary: true, verified: true }],
+        { profilePrivate: true },
+      );
+      const result = await identity();
+      expect(result.email).toBe("private@example.com");
+      expect(result.emailVerified).toBe(true);
+    });
+
+    it("falls back to any confirmed address when the primary is not", async () => {
+      idp.oauth2.setEmails([
+        { email: "unconfirmed@example.com", primary: true, verified: false },
+        { email: "confirmed@example.com", primary: false, verified: true },
+      ]);
+      const result = await identity();
+      expect(result.email).toBe("confirmed@example.com");
+      expect(result.emailVerified).toBe(true);
+    });
+
+    it("claims nothing when the provider confirmed nothing", async () => {
+      // Every address unconfirmed. The profile's is still reported as a
+      // display hint, but asserting verification the provider never made is
+      // how an account-takeover path gets built.
+      idp.oauth2.setEmails([
+        { email: "unconfirmed@example.com", primary: true, verified: false },
+      ]);
+      const result = await identity();
+      expect(result.email).toBe("mock@example.com");
+      expect(result.emailVerified).toBeUndefined();
+    });
+
+    it("degrades to the unverified hint when the extra read is unavailable", async () => {
+      // A descriptor with no emails endpoint is every provider but GitHub, and
+      // is also what a revoked scope looks like. It must not fail the sign-in.
+      const { emailsEndpoint: _dropped, ...withoutEmails } = github;
+      const start = await beginOAuth2Auth(ctx, UID, withoutEmails);
+      const back = await authorize(start.authorizationUrl);
+      const result = await completeOAuth2Auth(
+        ctx,
+        withoutEmails,
+        start.pending,
+        back,
+      );
+      expect(result.email).toBe("mock@example.com");
+      expect(result.emailVerified).toBeUndefined();
+    });
   });
 
   it("refuses a callback whose state is not the one this browser started", async () => {
