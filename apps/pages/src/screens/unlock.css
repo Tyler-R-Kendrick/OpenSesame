@@ -301,6 +301,42 @@
   gap: 0.5rem;
 }
 
+/* Bring-your-own provider sheet. */
+.byo {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.byo__form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.byo__ready {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.byo__uri {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.3rem 0.45rem 0.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.byo__uri code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.byo__uri .icon-btn {
+  margin-left: auto;
+}
+
 /* Sign-in outcome banner — the pre-unlock surface for a federated return. */
 .unlock__outcome {
   align-items: center;

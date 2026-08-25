@@ -25,13 +25,16 @@ import {
   orgAuthUpstream,
   routeOrgMethod,
 } from "../../lib/orgs.js";
+import type { ByoRegistration } from "../../lib/byo.js";
 import {
   type FederatedProviderSummary,
+  brokeredByoUpstream,
   brokeredOrgUpstream,
   brokeredRealmUpstream,
   brokeredUpstream,
   requestEmailMagicLink,
 } from "../../lib/providers.js";
+import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
 
 type Props = {
@@ -45,6 +48,7 @@ export function SignInPanel({ providers, onUseLocalOnly }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [byoOpen, setByoOpen] = useState(false);
   const [linkEmail, setLinkEmail] = useState("");
   const [linkSent, setLinkSent] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -123,6 +127,18 @@ export function SignInPanel({ providers, onUseLocalOnly }: Props) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function startByo(registration: ByoRegistration): void {
+    // The BYO leg always runs server-side: sign in against the Identity API
+    // with the registered issuer as the hint, which the hosted page renders
+    // as the preferred button (and its trust fence re-validates).
+    startFederated(() =>
+      beginSignIn(brokeredByoUpstream(registration), {
+        providerHint: registration.issuer,
+        returnTo: "/",
+      }),
+    );
   }
 
   function startGuest(): void {
@@ -244,6 +260,18 @@ export function SignInPanel({ providers, onUseLocalOnly }: Props) {
               </p>
             ) : null}
           </div>
+          <button
+            type="button"
+            className="unlock__switch"
+            aria-expanded={byoOpen}
+            disabled={busy}
+            onClick={() => setByoOpen((open) => !open)}
+          >
+            Use your own identity provider
+          </button>
+          {byoOpen ? (
+            <ByoProviderSheet disabled={busy} onContinue={startByo} />
+          ) : null}
           <button
             type="button"
             className="unlock__switch"

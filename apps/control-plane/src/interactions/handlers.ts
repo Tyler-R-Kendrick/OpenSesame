@@ -5,6 +5,7 @@ import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import type { OrganizationAuthMethod } from "@opensesame/contracts";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
+  type ByoUpstream,
   type Principal,
   type ProvisionalSession,
   isString,
@@ -95,6 +96,27 @@ export function matchProviderHint(
   });
   if (byHost) return byHost;
   return providers.find((provider) => provider.label.toLowerCase() === needle);
+}
+
+/**
+ * An ACTIVE bring-your-own record the hint names — by issuer URL, or by bare
+ * host (the two spellings a client that registered the issuer would send).
+ * Misses answer `undefined`; nothing here consults the network.
+ */
+async function matchByoHint(
+  ctx: AppContext,
+  hint: string | undefined,
+): Promise<ByoUpstream | undefined> {
+  const needle = (hint ?? "").trim().replace(/\/+$/, "");
+  if (!needle) return undefined;
+  const candidates = needle.includes("://")
+    ? [needle]
+    : [`https://${needle}`, `http://${needle}`];
+  for (const candidate of candidates) {
+    const record = await ctx.repos.byoUpstreams.findByIssuer(candidate);
+    if (record?.state === "active") return record;
+  }
+  return undefined;
 }
 
 /**
@@ -218,6 +240,13 @@ export async function buildLoginPageModel(
       ? details.params.kc_idp_hint
       : undefined;
   const preferred = matchProviderHint(providers, hint);
+  // A hint no registry provider claims may name a bring-your-own issuer the
+  // visitor registered earlier (routes/byo-public.ts). Rendering it as the
+  // preferred button spares them re-typing the issuer into the BYO form; the
+  // form still posts the issuer to /federated/start, which re-validates it
+  // through the trust fence's byo branch — this is presentation, never trust.
+  const byoPreferred =
+    preferred === undefined ? await matchByoHint(ctx, hint) : undefined;
   const base = interactionBase(details.uid);
   const organization = await resolveOrganizationBlock(ctx, base, options);
 
@@ -229,14 +258,21 @@ export async function buildLoginPageModel(
     publicUrl: ctx.config.publicUrl,
     federated: {
       startAction: `${base}/federated/start`,
-      upstreams: providers.map((provider) => ({
-        issuer: provider.issuer,
-        label: provider.label,
-        provider: provider.id,
-      })),
+      upstreams: [
+        ...providers.map((provider) => ({
+          issuer: provider.issuer,
+          label: provider.label,
+          provider: provider.id,
+        })),
+        ...(byoPreferred !== undefined
+          ? [{ issuer: byoPreferred.issuer, label: byoPreferred.label }]
+          : []),
+      ],
       ...(preferred !== undefined
         ? { preferredIssuer: preferred.issuer }
-        : undefined),
+        : byoPreferred !== undefined
+          ? { preferredIssuer: byoPreferred.issuer }
+          : undefined),
     },
     byo: {
       startAction: `${base}/federated/byo`,
