@@ -1,0 +1,98 @@
+# Deploy Pages — publish apps/pages to GitHub Pages on every push to main.
+#
+# Replaces the manual scripts/deploy-pages.sh gh-pages-branch flow: with the
+# merge queue gating what reaches main, every merged PR ships automatically.
+# Requires the repository's Pages source to be set to "GitHub Actions"
+# (Settings → Pages → Build and deployment → Source).
+#
+# Deployment endpoints ride beside the bundle as os-runtime-config.json,
+# read by the app at boot (apps/pages/src/lib/runtime-config.ts). Set them
+# as repository Actions *variables* (Settings → Secrets and variables →
+# Actions → Variables): PAGES_IDENTITY_API, PAGES_HOST_API,
+# PAGES_DAEMON_API, PAGES_MFA_APP_URL. All optional — with none set the
+# deploy ships without the file and the app shows its "not connected to an
+# identity service" notice, same as scripts/deploy-pages.sh.
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; queued runs supersede, in-flight deploys finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PAGES_BASE_PATH: /OpenSesame/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build @opensesame/pages
+        # Through turbo, not `pnpm --filter ... build`: the app depends on six
+        # workspace packages and turbo's `dependsOn: ["^build"]` builds those
+        # first. A bare filtered build would bundle stale or missing dist output.
+        run: VITE_BASE="$PAGES_BASE_PATH" pnpm exec turbo run build --filter=@opensesame/pages
+      - name: SPA fallback (404.html)
+        # GitHub Pages has no SPA rewrite; serving index.html as 404.html
+        # makes deep links load the app instead of a dead page.
+        run: cp apps/pages/dist/index.html apps/pages/dist/404.html
+      - name: Write os-runtime-config.json (deployment endpoints)
+        env:
+          PAGES_IDENTITY_API: ${{ vars.PAGES_IDENTITY_API }}
+          PAGES_HOST_API: ${{ vars.PAGES_HOST_API }}
+          PAGES_DAEMON_API: ${{ vars.PAGES_DAEMON_API }}
+          PAGES_MFA_APP_URL: ${{ vars.PAGES_MFA_APP_URL }}
+        run: |
+          if [ -z "$PAGES_IDENTITY_API$PAGES_HOST_API$PAGES_DAEMON_API$PAGES_MFA_APP_URL" ]; then
+            echo "no PAGES_* variables set — deploying without os-runtime-config.json"
+            exit 0
+          fi
+          node -e '
+            const keys = {
+              identityApi: process.env.PAGES_IDENTITY_API,
+              hostApi: process.env.PAGES_HOST_API,
+              daemonApi: process.env.PAGES_DAEMON_API,
+              mfaAppUrl: process.env.PAGES_MFA_APP_URL,
+            };
+            const config = Object.fromEntries(
+              Object.entries(keys).filter(([, value]) => value),
+            );
+            require("node:fs").writeFileSync(
+              "apps/pages/dist/os-runtime-config.json",
+              JSON.stringify(config, null, 2) + "\n",
+            );
+          '
+          cat apps/pages/dist/os-runtime-config.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/pages/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

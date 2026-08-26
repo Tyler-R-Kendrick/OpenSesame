@@ -61,7 +61,7 @@ An Infisical-class authority console that also keeps a human store on the device
 - Vault key and master key live in memory only; never persisted.
 - Demo/synthetic data must be labeled.
 - ADR 0017 dual-plane separation preserved.
-- No custom GitHub Actions runners for deploy (use `scripts/deploy-pages.sh` / `gh`).
+- Deploys publish from `main` via GitHub Pages' own Actions deployment (`.github/workflows/deploy-pages.yml`, GitHub-hosted runners only — no custom/self-hosted runners); `scripts/deploy-pages.sh` remains the manual fallback.
 
 ## Accessibility
 
