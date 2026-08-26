@@ -72,9 +72,24 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-async function completeFirstRunUnlock(page: Page): Promise<void> {
+/**
+ * First run opens on the sign-in panel, not the seal form.
+ *
+ * ADR 0033 §4 puts identity before encryption, so the local-only road is an
+ * explicit choice behind "Use without an account" rather than the first thing
+ * a visitor sees. Every capture below that wants the seal form has to take
+ * that road first; walking straight to `#master` was the old shape and is why
+ * this suite went red when the sign-in flow was redesigned.
+ */
+async function openLocalOnlySeal(page: Page): Promise<void> {
   await page.goto("/");
   await page.locator(".unlock__card").waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Use without an account" }).click();
+  await page.locator("#master").waitFor({ state: "visible" });
+}
+
+async function completeFirstRunUnlock(page: Page): Promise<void> {
+  await openLocalOnlySeal(page);
 
   await page.locator("#master").fill(MASTER_PASSWORD);
   await page.locator("#confirm").fill(MASTER_PASSWORD);
@@ -100,8 +115,7 @@ test.describe("Authority Vault visual contract", () => {
   test("vault-unlock: first-run master-password form, settled", async ({
     page,
   }, testInfo) => {
-    await page.goto("/");
-    await page.locator(".unlock__card").waitFor({ state: "visible" });
+    await openLocalOnlySeal(page);
     await expect(
       page.getByRole("heading", { name: "Seal this device" }),
     ).toBeVisible();
