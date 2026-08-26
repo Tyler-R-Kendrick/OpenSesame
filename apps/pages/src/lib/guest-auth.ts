@@ -155,6 +155,16 @@ function describeLinkFailure(caught: Error | null): string {
 }
 
 /**
+ * What `adoptFederatedIdentity` did with the verified identity — the caller
+ * (the federation return screen) surfaces this instead of guessing, so a
+ * sign-in that could not finish is said out loud rather than swallowed.
+ */
+export type FederatedAdoptOutcome =
+  | { kind: "linked" }
+  | { kind: "pending_link" }
+  | { kind: "link_failed"; reason: string };
+
+/**
  * Attach a verified upstream identity to a principal, whatever state this
  * device is in when the browser comes back from the upstream (ADR 0033 §4).
  *
@@ -163,7 +173,9 @@ function describeLinkFailure(caught: Error | null): string {
  * way "Continue as guest" creates one; sealing it with a passkey, PIN, or
  * password stays a later choice in Settings.
  */
-async function adoptFederatedIdentityDefault(idToken: string): Promise<void> {
+async function adoptFederatedIdentityDefault(
+  idToken: string,
+): Promise<FederatedAdoptOutcome> {
   const status = guestAuthDependencies.vaultStatus();
 
   if (status === "empty") {
@@ -171,18 +183,22 @@ async function adoptFederatedIdentityDefault(idToken: string): Promise<void> {
     try {
       await linkGuestAccountDefault(idToken);
       clearPendingLink();
+      return { kind: "linked" };
     } catch (caught) {
       // The user is already inside the app; throwing here would push them back
       // out of a sign-in that, from their side, worked. The verified assertion
       // survives in sessionStorage, so the bell can retry.
+      const reason = describeLinkFailure(
+        caught instanceof Error ? caught : null,
+      );
       markPendingLink();
       pushNotice({
         kind: "guest_claim",
         title: GUEST_NOTICE_TITLE,
-        body: `Signed in on this device. Attach the account when Identity is reachable — ${describeLinkFailure(caught instanceof Error ? caught : null)}`,
+        body: `Signed in on this device. Attach the account when Identity is reachable — ${reason}`,
       });
+      return { kind: "link_failed", reason };
     }
-    return;
   }
 
   if (status === "locked" && !guestAuthDependencies.currentSession()) {
@@ -195,7 +211,7 @@ async function adoptFederatedIdentityDefault(idToken: string): Promise<void> {
       title: FEDERATED_NOTICE_TITLE,
       body: FEDERATED_NOTICE_BODY,
     });
-    return;
+    return { kind: "pending_link" };
   }
 
   try {
@@ -207,6 +223,7 @@ async function adoptFederatedIdentityDefault(idToken: string): Promise<void> {
     throw caught;
   }
   clearPendingLink();
+  return { kind: "linked" };
 }
 
 /**
@@ -251,7 +268,9 @@ export async function linkGuestAccount(idToken: string): Promise<void> {
   return guestAuthSeams.linkGuestAccount(idToken);
 }
 
-export async function adoptFederatedIdentity(idToken: string): Promise<void> {
+export async function adoptFederatedIdentity(
+  idToken: string,
+): Promise<FederatedAdoptOutcome> {
   return guestAuthSeams.adoptFederatedIdentity(idToken);
 }
 

@@ -12,6 +12,10 @@
 
 .unlock__card {
   width: min(100%, 27rem);
+  /* Grid items default to min-width auto, so one unbreakable string (a
+     redirect URI, a pairwise subject) would stretch the whole card past its
+     27rem and bleed content off its edge. Pin the card and its children. */
+  min-width: 0;
   display: grid;
   gap: 1rem;
   padding: 1.85rem 1.75rem 1.6rem;
@@ -21,6 +25,15 @@
   color: var(--ink);
   box-shadow: var(--shadow-lg);
   animation: settle 520ms var(--ease) both;
+}
+
+.unlock__card > *,
+.signin > *,
+.signin__more-panel > *,
+.identifier > *,
+.byo > *,
+.byo__ready > * {
+  min-width: 0;
 }
 
 .unlock__brand {
@@ -175,6 +188,18 @@
   text-underline-offset: 2px;
 }
 
+.unlock__optional summary {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.unlock__optional[open] summary {
+  margin-bottom: 0.5rem;
+}
+
 .unlock__hint {
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--line);
@@ -196,6 +221,205 @@
 .unlock__danger p {
   font-size: 0.8125rem;
   line-height: 1.5;
+}
+
+/* First-run sign-in panel — identity before sealing. */
+.signin {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.signin__providers {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.signin__provider {
+  min-height: 2.6rem;
+  font-weight: 600;
+}
+
+.signin__provider-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.signin__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.signin__divider::before,
+.signin__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.signin__more {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.85rem;
+  padding-top: 0.15rem;
+}
+
+.signin__back {
+  justify-self: start;
+  text-decoration: none;
+}
+
+.signin__back:hover {
+  text-decoration: underline;
+}
+
+/* One tall choice per row on the "More options" stage: a title and one
+   honest line, nothing else — picking one opens ONLY that step. */
+.signin__option {
+  appearance: none;
+  display: grid;
+  gap: 0.15rem;
+  justify-items: start;
+  text-align: left;
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease);
+}
+
+.signin__option:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.signin__option strong {
+  font-size: 0.9375rem;
+}
+
+/* The one "Email or organization" field and its resolved/fallback states. */
+.identifier {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.identifier__form {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.identifier__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.identifier__row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.identifier__error {
+  color: var(--err);
+}
+
+.identifier__resolved,
+.identifier__fallback {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.identifier__org {
+  display: grid;
+  line-height: 1.35;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.identifier__methods {
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* Bring-your-own provider sheet. */
+.byo {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.byo__form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.byo__ready {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.byo__uri {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.3rem 0.45rem 0.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.byo__uri code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.byo__uri .icon-btn {
+  margin-left: auto;
+}
+
+/* Sign-in outcome banner — the pre-unlock surface for a federated return. */
+.unlock__outcome {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.unlock__outcome span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.unlock__outcome-dismiss {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+/* "No identity service" notice with its inline connect field. */
+.unlock__unconfigured-body {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.unlock__unconfigured-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.unlock__unconfigured-form input {
+  flex: 1;
+  min-width: 0;
 }
 
 @media (max-width: 480px) {

@@ -31,7 +31,10 @@ import type {
 import type { Variables } from "../middleware/context.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
 import { organizationAssertedEmailIsVerified } from "../services/org-email-trust.js";
-import { renderLoginPage } from "../ui/interaction-pages.js";
+import {
+  renderLoginPage,
+  renderResumeHopPage,
+} from "../ui/interaction-pages.js";
 import { jitJoinOrganization } from "./organizations.js";
 import { ensurePersonalOnAuthenticatedSession } from "./projects.js";
 import { provisionedRoleForSubject } from "./scim.js";
@@ -362,7 +365,10 @@ export function createLdapInteractionRoutes(
       http.res,
       accountId,
     );
-    return c.redirect(returnTo, 303);
+    // Not a 303: the resume can end at the relying party's origin, and
+    // Chromium refuses cross-origin redirects of a form submission under
+    // `form-action 'self'` (see renderHopPage).
+    return c.html(renderResumeHopPage(returnTo));
   });
 
   return routes;

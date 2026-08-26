@@ -5,6 +5,7 @@ import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import type { OrganizationAuthMethod } from "@opensesame/contracts";
 import { parseOriginClientId } from "@opensesame/oauth-provider";
 import {
+  type ByoUpstream,
   type Principal,
   type ProvisionalSession,
   isString,
@@ -53,6 +54,12 @@ function interactionBase(uid: string): string {
 export type LoginPageOptions = {
   /** `?org=<slug>` on the interaction GET (D6, second step). */
   orgSlug?: string;
+  /**
+   * An upstream refusal carried back on `?fed_error=<code>`, already in
+   * plain words. Rendered as the page's lead banner instead of the silent
+   * 303-home the refusal used to get.
+   */
+  federatedError?: string;
   orgError?: string;
   byoError?: string;
   byoIssuer?: string;
@@ -94,7 +101,55 @@ export function matchProviderHint(
     }
   });
   if (byHost) return byHost;
-  return providers.find((provider) => provider.label.toLowerCase() === needle);
+  const byLabel = providers.find(
+    (provider) => provider.label.toLowerCase() === needle,
+  );
+  if (byLabel) return byLabel;
+  // A label that names its broker beside the account kind it fronts —
+  // "Google (via shoo.dev)" — still answers to the bare account kind, so a
+  // client that has always hinted `google` keeps preselecting the broker
+  // when no first-party `google` id is configured.
+  return providers.find((provider) =>
+    provider.label.toLowerCase().startsWith(`${needle} (`),
+  );
+}
+
+/**
+ * The registry provider a login interaction's hint resolves to, if any —
+ * the same extraction and precedence `buildLoginPageModel` uses, exported so
+ * the GET route can decide whether an auto-continue is even on the table.
+ */
+export function preferredProviderForDetails(
+  ctx: AppContext,
+  details: InteractionDetails,
+): ProviderDescriptor | undefined {
+  const hint = isString(details.params.login_hint_provider)
+    ? details.params.login_hint_provider
+    : isString(details.params.kc_idp_hint)
+      ? details.params.kc_idp_hint
+      : undefined;
+  return matchProviderHint(catalogProviders(ctx.config), hint);
+}
+
+/**
+ * An ACTIVE bring-your-own record the hint names — by issuer URL, or by bare
+ * host (the two spellings a client that registered the issuer would send).
+ * Misses answer `undefined`; nothing here consults the network.
+ */
+async function matchByoHint(
+  ctx: AppContext,
+  hint: string | undefined,
+): Promise<ByoUpstream | undefined> {
+  const needle = (hint ?? "").trim().replace(/\/+$/, "");
+  if (!needle) return undefined;
+  const candidates = needle.includes("://")
+    ? [needle]
+    : [`https://${needle}`, `http://${needle}`];
+  for (const candidate of candidates) {
+    const record = await ctx.repos.byoUpstreams.findByIssuer(candidate);
+    if (record?.state === "active") return record;
+  }
+  return undefined;
 }
 
 /**
@@ -218,6 +273,13 @@ export async function buildLoginPageModel(
       ? details.params.kc_idp_hint
       : undefined;
   const preferred = matchProviderHint(providers, hint);
+  // A hint no registry provider claims may name a bring-your-own issuer the
+  // visitor registered earlier (routes/byo-public.ts). Rendering it as the
+  // preferred button spares them re-typing the issuer into the BYO form; the
+  // form still posts the issuer to /federated/start, which re-validates it
+  // through the trust fence's byo branch — this is presentation, never trust.
+  const byoPreferred =
+    preferred === undefined ? await matchByoHint(ctx, hint) : undefined;
   const base = interactionBase(details.uid);
   const organization = await resolveOrganizationBlock(ctx, base, options);
 
@@ -225,18 +287,28 @@ export async function buildLoginPageModel(
     uid: details.uid,
     csrfToken,
     loginAction: `${base}/login`,
+    ...(options.federatedError !== undefined
+      ? { error: options.federatedError }
+      : undefined),
     ...(principalId !== undefined ? { principalId } : undefined),
     publicUrl: ctx.config.publicUrl,
     federated: {
       startAction: `${base}/federated/start`,
-      upstreams: providers.map((provider) => ({
-        issuer: provider.issuer,
-        label: provider.label,
-        provider: provider.id,
-      })),
+      upstreams: [
+        ...providers.map((provider) => ({
+          issuer: provider.issuer,
+          label: provider.label,
+          provider: provider.id,
+        })),
+        ...(byoPreferred !== undefined
+          ? [{ issuer: byoPreferred.issuer, label: byoPreferred.label }]
+          : []),
+      ],
       ...(preferred !== undefined
         ? { preferredIssuer: preferred.issuer }
-        : undefined),
+        : byoPreferred !== undefined
+          ? { preferredIssuer: byoPreferred.issuer }
+          : undefined),
     },
     byo: {
       startAction: `${base}/federated/byo`,

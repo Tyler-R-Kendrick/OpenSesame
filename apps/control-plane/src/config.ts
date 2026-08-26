@@ -24,6 +24,14 @@ export interface ControlPlaneConfig {
   allowPrincipalBearer: boolean;
   /** Explicit opt-in to default claim pepper and other local-only shortcuts. */
   allowDevDefaults: boolean;
+  /**
+   * Opt-in (OPENSESAME_INTERACTION_AUTO_CONTINUE): a login interaction whose
+   * provider hint matches a registry provider 303s straight into that
+   * provider's leg instead of rendering the login page — one silent hop, with
+   * a per-interaction cookie as the loop guard so an upstream refusal always
+   * comes back to a rendered page (T14). Default off.
+   */
+  interactionAutoContinue: boolean;
   /** Give a local provisional principal one owner workspace for the bundled Host. */
   bootstrapPersonalOrganization: boolean;
   isProduction: boolean;
@@ -159,6 +167,7 @@ export function loadConfig(
     logLevel: env.OPENSESAME_LOG_LEVEL ?? env.LOG_LEVEL ?? "info",
     allowPrincipalBearer,
     allowDevDefaults,
+    interactionAutoContinue: truthy(env.OPENSESAME_INTERACTION_AUTO_CONTINUE),
     // Pages (and Host device sessions) need an organization claim. Local/dev
     // stacks mint a personal workspace with the provisional principal — do not
     // gate that on OPENSESAME_DEV_BOOTSTRAP (Host demo seed only).

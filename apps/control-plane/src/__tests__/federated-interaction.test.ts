@@ -17,6 +17,7 @@ import {
 } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
+import { hopUrl } from "./upstream-hop.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 /** The fields the hosted login page's federated forms actually post. */
@@ -177,7 +178,8 @@ describe("federated upstream table", () => {
     expect(shoo).toEqual({
       id: "shoo",
       issuer: "https://shoo.dev",
-      label: "Google",
+      // Honest: the broker is named beside the account kind it fronts.
+      label: "Google (via shoo.dev)",
     });
   });
 
@@ -337,6 +339,53 @@ describe("login page federated block", () => {
     expect(html).not.toContain("<img src=x");
     expect(html).toContain("&lt;img");
   });
+
+  it("folds everything but the hinted provider behind a script-free collapse", () => {
+    const html = renderLoginPage({
+      ...base,
+      federated: {
+        startAction: "/interaction/u1/federated/start",
+        upstreams: [
+          { issuer: "http://127.0.0.1:9090", label: "a local test account" },
+          { issuer: "https://shoo.dev", label: "Google" },
+        ],
+        preferredIssuer: "https://shoo.dev",
+      },
+    });
+    const details = html.indexOf('<details class="more-options">');
+    expect(details).toBeGreaterThan(-1);
+    expect(html).toContain("<summary>More sign-in options</summary>");
+    // The hinted provider is the page; everything else waits inside.
+    expect(html.indexOf("Sign in with Google")).toBeLessThan(details);
+    expect(html.indexOf("Sign in with a local test account")).toBeGreaterThan(
+      details,
+    );
+    expect(html.indexOf("Start a session")).toBeGreaterThan(details);
+  });
+
+  it("keeps the full page, banner first, after an upstream refusal", () => {
+    const html = renderLoginPage({
+      ...base,
+      error:
+        "The provider reported: access was denied. Try again, or choose another way in.",
+      federated: {
+        startAction: "/interaction/u1/federated/start",
+        upstreams: [
+          { issuer: "http://127.0.0.1:9090", label: "a local test account" },
+          { issuer: "https://shoo.dev", label: "Google" },
+        ],
+        preferredIssuer: "https://shoo.dev",
+      },
+    });
+    // A person choosing again needs every exit visible: no focused collapse —
+    // each method stands as its own named card instead of one giant form.
+    expect(html).not.toContain('class="more-options"');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("access was denied");
+    expect(html.indexOf("access was denied")).toBeLessThan(
+      html.indexOf("Sign in with Google"),
+    );
+  });
 });
 
 /**
@@ -444,8 +493,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    expect(res.status).toBe(303);
-    const target = new URL(res.headers.get("location") ?? "");
+    const target = new URL(await hopUrl(res));
     expect(target.origin).toBe(upstream.issuer);
     expect(target.searchParams.get("code_challenge_method")).toBe("S256");
     expect(target.searchParams.get("code_challenge")).toBeTruthy();
@@ -475,10 +523,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), provider: "mock" }),
     );
-    expect(res.status).toBe(303);
-    expect(new URL(res.headers.get("location") ?? "").origin).toBe(
-      upstream.issuer,
-    );
+    expect(new URL(await hopUrl(res)).origin).toBe(upstream.issuer);
     const pending = decodePending(jar.get(`os.fed.${uid}`));
     expect(pending?.issuer).toBe(upstream.issuer);
     expect(pending?.kind).toBe("oidc");
@@ -496,7 +541,7 @@ describe("federated interaction leg", () => {
     expect(await res.text()).toContain("did not match");
   });
 
-  it("sends a refusal back to the login page", async () => {
+  it("sends a refusal back to the login page, named as a coded banner", async () => {
     const { jar, uid, html } = await loginPage();
     await req(
       base,
@@ -510,7 +555,19 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/callback?error=access_denied`,
     );
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe(`/interaction/${uid}`);
+    // The code (never the upstream's free text) rides along so the page can
+    // say what happened instead of silently looking like a broken button.
+    expect(res.headers.get("location")).toBe(
+      `/interaction/${uid}?fed_error=access_denied`,
+    );
+    const page = await req(
+      base,
+      jar,
+      `/interaction/${uid}?fed_error=access_denied`,
+    );
+    const body = await page.text();
+    expect(body).toContain('role="alert"');
+    expect(body).toContain("access was denied");
   });
 
   it("rejects a callback whose state does not match the pending cookie", async () => {
@@ -521,7 +578,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
     back.searchParams.set("state", "tampered");
@@ -547,7 +604,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
 
@@ -587,7 +644,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
 
@@ -644,7 +701,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
     const res = await req(
@@ -680,7 +737,7 @@ describe("federated interaction leg", () => {
         `/interaction/${uid}/federated/start`,
         postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
       );
-      const authorize = new URL(start.headers.get("location") ?? "");
+      const authorize = new URL(await hopUrl(start));
       const upstreamRes = await fetch(authorize, { redirect: "manual" });
       const back = new URL(upstreamRes.headers.get("location") ?? "");
       const res = await req(
@@ -776,7 +833,7 @@ describe("federated leg, upstream logout", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
     const completed = await req(
@@ -919,11 +976,10 @@ describe("federated leg, organization sign-in", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: tenantIdp.issuer }),
     );
-    expect(start.status).toBe(303);
     // The organization is what vouched for this issuer, and the cookie says so.
     expect(decodePending(jar.get(`os.fed.${uid}`))?.orgId).toBe(organizationId);
 
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     // A tenant admin registers one redirect URI in their IdP's console, and
     // Okta, Entra and Google Workspace match it byte for byte. It must
     // therefore name no interaction (ADR 0055).
@@ -1013,8 +1069,7 @@ describe("federated leg, organization sign-in", () => {
         `/interaction/${uid}/federated/start`,
         postForm({ _csrf: extractCsrf(html), issuer: enterpriseIdp.issuer }),
       );
-      expect(start.status).toBe(303);
-      const authorize = new URL(start.headers.get("location") ?? "");
+      const authorize = new URL(await hopUrl(start));
 
       // The credentials the tenant registered, not our origin profile.
       expect(authorize.searchParams.get("client_id")).toBe(
@@ -1162,8 +1217,7 @@ describe("federated leg, two clients at one issuer", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    expect(start.status).toBe(303);
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     expect(authorize.searchParams.get("client_id")).toBe(`origin:${base}`);
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
@@ -1259,8 +1313,7 @@ describe("federated leg, confidential client", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    expect(start.status).toBe(303);
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     // The authorization request must name the configured client, not origin:.
     expect(authorize.searchParams.get("client_id")).toBe(upstream.clientId);
     // The registered URI, not this interaction's path.
@@ -1397,8 +1450,7 @@ describe("federated leg, form_post callback", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    expect(start.status).toBe(303);
-    return { jar, uid, form: new URL(start.headers.get("location") ?? "") };
+    return { jar, uid, form: new URL(await hopUrl(start)) };
   }
 
   it("completes a sign-in whose response arrives as a cookie-less POST", async () => {

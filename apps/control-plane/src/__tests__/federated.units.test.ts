@@ -311,6 +311,8 @@ describe("describing an issuer that is not a URL", () => {
     // Allowlist order is preserved, which is also the order the buttons
     // render in — a broken entry must not reshuffle the working ones.
     expect(upstreams.map((u) => u.id)).toEqual(["shoo", ":::", "mock"]);
-    expect(upstreams.find((u) => u.id === "shoo")?.label).toBe("Google");
+    expect(upstreams.find((u) => u.id === "shoo")?.label).toBe(
+      "Google (via shoo.dev)",
+    );
   });
 });

@@ -18,6 +18,7 @@ import {
   resetFederatedDiscoveryCache,
 } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
+import { hopUrl } from "./upstream-hop.js";
 
 /**
  * Bring your own identity provider, end to end (S4: C9 + D5).
@@ -588,7 +589,7 @@ describe("bring-your-own upstream", () => {
           client_secret: roundTripIdp.clientSecret,
         }),
       );
-      expect(retried.status).toBe(303);
+      expect(new URL(await hopUrl(retried)).origin).toBe(roundTripIdp.issuer);
     });
 
     /**
@@ -614,8 +615,7 @@ describe("bring-your-own upstream", () => {
           client_secret: roundTripIdp.clientSecret,
         }),
       );
-      expect(start.status).toBe(303);
-      const authorize = new URL(start.headers.get("location") ?? "");
+      const authorize = new URL(await hopUrl(start));
       expect(authorize.origin).toBe(roundTripIdp.issuer);
       // Their client, not our origin profile (T10).
       expect(authorize.searchParams.get("client_id")).toBe(
@@ -734,8 +734,7 @@ describe("bring-your-own upstream", () => {
           client_secret: roundTripIdp.clientSecret,
         }),
       );
-      expect(start.status).toBe(303);
-      const authorize = new URL(start.headers.get("location") ?? "");
+      const authorize = new URL(await hopUrl(start));
       const upstream = await fetch(authorize, { redirect: "manual" });
       const back = new URL(upstream.headers.get("location") ?? "");
       const handBack = await req(base, jar, `${back.pathname}${back.search}`);
@@ -800,8 +799,7 @@ describe("bring-your-own upstream", () => {
             client_secret: roundTripIdp.clientSecret,
           }),
         );
-        expect(start.status).toBe(303);
-        const authorize = new URL(start.headers.get("location") ?? "");
+        const authorize = new URL(await hopUrl(start));
         expect(authorize.searchParams.get("redirect_uri")).toBe(
           stableCallback(),
         );
@@ -865,8 +863,7 @@ describe("bring-your-own upstream", () => {
           client_secret: "",
         }),
       );
-      expect(start.status).toBe(303);
-      const authorize = new URL(start.headers.get("location") ?? "");
+      const authorize = new URL(await hopUrl(start));
       expect(authorize.origin).toBe(dcrRoundTripIdp.issuer);
       expect(authorize.searchParams.get("client_id")).toMatch(/^dcr-/);
 
@@ -930,8 +927,7 @@ describe("bring-your-own upstream", () => {
             client_secret: "",
           }),
         );
-        expect(start.status).toBe(303);
-        const authorize = new URL(start.headers.get("location") ?? "");
+        const authorize = new URL(await hopUrl(start));
         // Deployment-wide, and deliberately naming no interaction: this is the
         // URI the registration handed the IdP, on both visits.
         expect(authorize.searchParams.get("redirect_uri")).toBe(

@@ -6,6 +6,7 @@ import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { resetFederatedDiscoveryCache } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
+import { hopUrl } from "./upstream-hop.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 type ChaosClaims = {
@@ -330,10 +331,10 @@ describe("CHAOS — a broker that misbehaves must not admit anyone", () => {
     async (_label, injected) => {
       const { jar, uid, csrf } = await toLoginPage();
       const start = await startLeg(jar, uid, csrf);
-      expect(start.status).toBe(303);
+      const startTarget = await hopUrl(start);
 
       fault = injected;
-      const authorize = new URL(start.headers.get("location") ?? "");
+      const authorize = new URL(startTarget);
       const upstreamRes = await fetch(authorize, { redirect: "manual" });
       const back = new URL(upstreamRes.headers.get("location") ?? "");
 
@@ -362,11 +363,11 @@ describe("CHAOS — a broker that misbehaves must not admit anyone", () => {
   it("completes the sign-in even when revoking the refresh token fails", async () => {
     const { jar, uid, csrf } = await toLoginPage();
     const start = await startLeg(jar, uid, csrf);
-    expect(start.status).toBe(303);
+    const startTarget = await hopUrl(start);
 
     fault = "revocation_500";
     const before = revocationsSeen;
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(startTarget);
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
     const res = await req(
@@ -392,7 +393,7 @@ describe("CHAOS — a broker that misbehaves must not admit anyone", () => {
   it("does not let a replayed callback re-run a consumed code", async () => {
     const { jar, uid, csrf } = await toLoginPage();
     const start = await startLeg(jar, uid, csrf);
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
 

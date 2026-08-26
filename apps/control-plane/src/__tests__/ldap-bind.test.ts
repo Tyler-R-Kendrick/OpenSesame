@@ -26,6 +26,7 @@ import {
 } from "../interactions/ldap.js";
 import { resetLdapAttemptBudget } from "../routes/interactions-ldap.js";
 import type { startServer } from "../server.js";
+import { hopUrl } from "./upstream-hop.js";
 
 /**
  * Native LDAP sign-in, against a REAL directory.
@@ -574,7 +575,7 @@ describe("directory sign-in from the hosted login page", () => {
       `/interaction/${uid}/federated/ldap`,
       postCredentials(csrf, "alice", directory.alicePassword),
     );
-    expect(response.status).toBe(303);
+    expect(await hopUrl(response)).toContain("/auth/");
 
     const ctx = started.ctx;
     const identity = await ctx.repos.externalIdentities.findByTuple({
@@ -615,7 +616,7 @@ describe("directory sign-in from the hosted login page", () => {
       `/interaction/${uid}/federated/ldap`,
       postCredentials(csrf, "alice", directory.alicePassword),
     );
-    expect(response.status).toBe(303);
+    expect(await hopUrl(response)).toContain("/auth/");
     // A returning user gets no fresh provisional cookie (T6).
     expect(
       response.headers
@@ -689,7 +690,7 @@ describe("directory sign-in from the hosted login page", () => {
     );
     vi.restoreAllMocks();
 
-    expect(success.status).toBe(303);
+    expect(await hopUrl(success)).toContain("/auth/");
     expect(failure.status).toBe(401);
 
     const events = await started.ctx.repos.auditEvents.list({ limit: 500 });

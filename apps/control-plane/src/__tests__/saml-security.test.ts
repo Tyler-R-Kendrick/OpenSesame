@@ -12,6 +12,7 @@ import {
   resetSamlMetadataCache,
 } from "../interactions/saml.js";
 import type { startServer } from "../server.js";
+import { hopUrl } from "./upstream-hop.js";
 
 /**
  * What the SAML SP refuses (T26 / D10).
@@ -177,10 +178,7 @@ async function runSamlLegToPostBinding(
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ _csrf: extractCsrf(html), slug }),
   });
-  if (start.status !== 303) {
-    throw new Error(`saml start answered ${start.status}`);
-  }
-  const idpRes = await fetch(start.headers.get("location") ?? "", {
+  const idpRes = await fetch(await hopUrl(start), {
     redirect: "manual",
   });
   return { jar, uid, binding: parsePostBinding(await idpRes.text()) };

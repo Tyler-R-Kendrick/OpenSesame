@@ -25,6 +25,7 @@ import {
   finishConsentDeny,
   finishLoginInteraction,
   mintProvisionalForInteraction,
+  preferredProviderForDetails,
 } from "../interactions/handlers.js";
 import { beginOAuth2Auth, completeOAuth2Auth } from "../interactions/oauth2.js";
 import {
@@ -42,7 +43,12 @@ import type { Variables } from "../middleware/context.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
-import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
+import {
+  renderConsentPage,
+  renderLoginPage,
+  renderResumeHopPage,
+  renderUpstreamHopPage,
+} from "../ui/interaction-pages.js";
 import { createByoInteractionRoutes } from "./interactions-byo.js";
 import { createEmailInteractionRoutes } from "./interactions-email.js";
 import { createLdapInteractionRoutes } from "./interactions-ldap.js";
@@ -57,6 +63,30 @@ type NodeEnv = { Bindings: HttpBindings };
 
 /** The upstream round-trip is interactive; ten minutes is generous for it. */
 const FEDERATED_PENDING_TTL_SECONDS = 600;
+
+/**
+ * Loop guard for the opt-in auto-continue: present means this interaction
+ * already spent its one silent hop, so every later GET renders the page.
+ */
+function autoContinueCookieName(uid: string): string {
+  return `os.auto.${uid}`;
+}
+
+/**
+ * Plain words for an upstream refusal code. Only the two codes with a
+ * distinct meaning for the person get their own copy; everything else says
+ * the provider stopped and what to do about it.
+ */
+function describeUpstreamRefusal(code: string): string {
+  switch (code) {
+    case "access_denied":
+      return "The provider reported: access was denied. Try again, or choose another way in.";
+    case "login_required":
+      return "The provider needs you to sign in there first. Try again to go back.";
+    default:
+      return "Sign-in at the provider didn't finish. Try again, or choose another way in.";
+  }
+}
 
 /**
  * The only parameters copied out of a `form_post` callback body (D3).
@@ -223,6 +253,57 @@ export function createInteractionRoutes(): Hono<
       // `?org=<slug>` is the second step of organization sign-in (D6): the
       // slug form 303s back here and the model renders that tenant's methods.
       const orgSlug = c.req.query("org");
+      const fedErrorCode = c.req.query("fed_error");
+
+      // Opt-in auto-continue: the relying party already named the provider,
+      // so the hinted leg starts without a second click. The per-interaction
+      // cookie is the loop guard T14 demands: it is set before the redirect,
+      // so a refusal that comes back (as ?fed_error) — or any second visit —
+      // renders the full page instead of bouncing again. No CSRF token is
+      // involved because no form authority is being spent: this is the
+      // server acting on its own GET, and /federated/start's trust fence
+      // still decides what may be federated to.
+      if (
+        ctx.config.interactionAutoContinue &&
+        fedErrorCode === undefined &&
+        orgSlug === undefined &&
+        getCookie(c, autoContinueCookieName(details.uid)) === undefined
+      ) {
+        const preferred = preferredProviderForDetails(ctx, details);
+        if (preferred) {
+          try {
+            const { authorizationUrl, pending } =
+              preferred.kind === "oauth2"
+                ? await beginOAuth2Auth(ctx, details.uid, preferred)
+                : await beginFederatedAuth(ctx, details.uid, preferred.issuer);
+            setCookie(c, autoContinueCookieName(details.uid), "1", {
+              httpOnly: true,
+              sameSite: "Lax",
+              path: interactionPath(details.uid),
+              maxAge: FEDERATED_PENDING_TTL_SECONDS,
+              secure: ctx.config.publicUrl.startsWith("https://"),
+            });
+            setCookie(
+              c,
+              pendingCookieName(details.uid),
+              encodePending(pending),
+              {
+                httpOnly: true,
+                sameSite: "Lax",
+                path: interactionPath(details.uid),
+                maxAge: FEDERATED_PENDING_TTL_SECONDS,
+                secure: ctx.config.publicUrl.startsWith("https://"),
+              },
+            );
+            return c.redirect(authorizationUrl, 303);
+          } catch (error) {
+            // A leg that cannot start renders the page like always — the
+            // silent fallback here is to the CHOICE, never past it.
+            if (!(error instanceof FederatedAuthError)) throw error;
+          }
+        }
+      }
+
       return c.html(
         renderLoginPage(
           await buildLoginPageModel(
@@ -230,7 +311,12 @@ export function createInteractionRoutes(): Hono<
             details,
             csrfToken,
             c.get("principalId"),
-            { ...(orgSlug !== undefined ? { orgSlug } : undefined) },
+            {
+              ...(orgSlug !== undefined ? { orgSlug } : undefined),
+              ...(fedErrorCode !== undefined
+                ? { federatedError: describeUpstreamRefusal(fedErrorCode) }
+                : undefined),
+            },
           ),
         ),
       );
@@ -309,7 +395,10 @@ export function createInteractionRoutes(): Hono<
       http.res,
       accountId,
     );
-    return c.redirect(returnTo, 303);
+    // Not a 303: the resume can end at the relying party's origin, and
+    // Chromium refuses cross-origin redirects of a form submission under
+    // `form-action 'self'` (see renderHopPage).
+    return c.html(renderResumeHopPage(returnTo));
   });
 
   /**
@@ -359,7 +448,9 @@ export function createInteractionRoutes(): Hono<
         maxAge: FEDERATED_PENDING_TTL_SECONDS,
         secure: ctx.config.publicUrl.startsWith("https://"),
       });
-      return c.redirect(authorizationUrl, 303);
+      // Not a 303: Chromium refuses cross-origin redirects of a form
+      // submission under `form-action 'self'` (see renderUpstreamHopPage).
+      return c.html(renderUpstreamHopPage(authorizationUrl));
     } catch (error) {
       if (error instanceof FederatedAuthError) {
         return c.text(
@@ -430,9 +521,18 @@ export function createInteractionRoutes(): Hono<
     deleteCookie(c, pendingCookieName(uid), { path: interactionPath(uid) });
 
     // A refusal upstream is a normal outcome — return to the login page so the
-    // user can pick another provider or start a plain session.
-    if (c.req.query("error")) {
-      return c.redirect(interactionPath(uid), 303);
+    // user can pick another provider or start a plain session. The CODE (never
+    // the upstream's free text) rides along so the page can say what happened
+    // instead of silently looking like a broken button.
+    const upstreamError = c.req.query("error");
+    if (upstreamError) {
+      const code = /^[a-z0-9_]{1,40}$/.test(upstreamError)
+        ? upstreamError
+        : "upstream_error";
+      return c.redirect(
+        `${interactionPath(uid)}?fed_error=${encodeURIComponent(code)}`,
+        303,
+      );
     }
     if (!pending) {
       return c.text(
@@ -634,7 +734,9 @@ export function createInteractionRoutes(): Hono<
       details,
       c.get("correlationId"),
     );
-    return c.redirect(returnTo, 303);
+    // Not a 303: the resume ends at the relying party's origin (see
+    // renderHopPage for the Chromium form-action rule).
+    return c.html(renderResumeHopPage(returnTo));
   });
 
   routes.post("/:uid/abort", async (c) => {
@@ -659,7 +761,9 @@ export function createInteractionRoutes(): Hono<
       details,
       c.get("correlationId"),
     );
-    return c.redirect(returnTo, 303);
+    // Not a 303: the denial resume ends at the relying party's origin (see
+    // renderHopPage for the Chromium form-action rule).
+    return c.html(renderResumeHopPage(returnTo));
   });
 
   return routes;

@@ -408,11 +408,19 @@ export async function createMockUpstreamIdp(
         req.method === "GET" &&
         path === "/.well-known/openid-configuration"
       ) {
-        return sendJson(res, 200, discoveryDocument(), config.issuer);
+        // Public read-only document. A browser-capable upstream must let any
+        // origin read it — the Pages direct leg fetches discovery cross-origin
+        // (vite :5180 → :9090) before it can navigate anywhere, and without
+        // this header that fetch dies in CORS and the button can never work.
+        return sendJson(res, 200, discoveryDocument(), config.issuer, {
+          "access-control-allow-origin": "*",
+        });
       }
 
       if (req.method === "GET" && path === "/jwks") {
-        return sendJson(res, 200, { keys: [keys.publicJwk] }, config.issuer);
+        return sendJson(res, 200, { keys: [keys.publicJwk] }, config.issuer, {
+          "access-control-allow-origin": "*",
+        });
       }
 
       if (req.method === "POST" && path === "/register") {

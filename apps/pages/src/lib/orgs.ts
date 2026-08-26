@@ -112,6 +112,32 @@ async function lookupOrgTenantDefault(slug: string): Promise<OrgTenant> {
   );
 }
 
+/**
+ * Home-realm discovery by email DOMAIN (never the address), against the
+ * public `GET /v1/organizations/by-domain/:domain` twin of the login page's
+ * realm router. Answers null for the uniform not-found — unknown, unverified,
+ * and malformed domains are indistinguishable by design (anti-enumeration),
+ * so "no organization uses that email domain" is all a caller can say.
+ */
+async function lookupOrgByDomainDefault(
+  domain: string,
+): Promise<OrgTenant | null> {
+  if (!identityBase()) {
+    throw new IdentityError(
+      "No Identity API is configured. Set the Identity URL in Settings.",
+      0,
+    );
+  }
+  try {
+    return await identityJson<OrgTenant>(
+      `/v1/organizations/by-domain/${encodeURIComponent(domain)}`,
+    );
+  } catch (caught) {
+    if (caught instanceof IdentityError && caught.status === 404) return null;
+    throw caught;
+  }
+}
+
 async function listOrgMembershipsDefault(): Promise<OrgMembership[]> {
   if (!identityBase()) return [];
   const body = await identityJson<{ organizations: OrgMembership[] }>(
@@ -141,12 +167,19 @@ export const orgSeams = {
   activeOrgProfileId: activeOrgProfileIdDefault,
   setActiveOrgProfileId: setActiveOrgProfileIdDefault,
   lookupOrgTenant: lookupOrgTenantDefault,
+  lookupOrgByDomain: lookupOrgByDomainDefault,
   listOrgMemberships: listOrgMembershipsDefault,
   joinOrgTenant: joinOrgTenantDefault,
 };
 
 export async function lookupOrgTenant(slug: string): Promise<OrgTenant> {
   return orgSeams.lookupOrgTenant(slug);
+}
+
+export async function lookupOrgByDomain(
+  domain: string,
+): Promise<OrgTenant | null> {
+  return orgSeams.lookupOrgByDomain(domain);
 }
 
 export async function listOrgMemberships(): Promise<OrgMembership[]> {

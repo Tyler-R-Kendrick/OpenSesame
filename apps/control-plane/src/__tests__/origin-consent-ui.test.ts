@@ -6,6 +6,7 @@ import {
   collectConsentScopes,
   renderConsentPage,
 } from "../ui/interaction-pages.js";
+import { hopUrl } from "./upstream-hop.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 interface AuthorizationOverrides {
@@ -182,8 +183,7 @@ async function loginAndConsent(
     `/interaction/${uid}/login`,
     postForm({ _csrf: csrf, action: "start" }),
   );
-  expect(login.status).toBe(303);
-  const resume = login.headers.get("location") ?? "";
+  const resume = await hopUrl(login);
   expect(resume).toContain("/auth/");
 
   const resumed = await req(started, jar, resume);
@@ -212,8 +212,7 @@ async function confirmAndCode(
     `/interaction/${uid}/confirm`,
     postForm({ _csrf: csrf }),
   );
-  expect(confirm.status).toBe(303);
-  const resume = confirm.headers.get("location") ?? "";
+  const resume = await hopUrl(confirm);
   const done = await req(started, jar, resume);
   expect(done.status).toBe(303);
   const final = done.headers.get("location") ?? "";
@@ -237,7 +236,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
       expect(consent.html).toContain(`<code>${ORIGIN}</code>`);
       expect(consent.html).toContain("Automatically admitted application");
       expect(consent.html).toContain('role="status"');
-      expect(consent.html).toContain("<code>openid</code>");
+      expect(consent.html).toContain('<span class="scope-tag">openid</span>');
 
       // POST confirm → code redirect.
       const final = await confirmAndCode(
@@ -330,14 +329,10 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
           origin: "http://127.0.0.1:0",
         },
       });
-      expect(login.status).toBe(303);
+      const loginResume = await hopUrl(login);
 
       const consent = await (async () => {
-        const resumed = await req(
-          started,
-          jar,
-          login.headers.get("location") ?? "",
-        );
+        const resumed = await req(started, jar, loginResume);
         const consentLocation = resumed.headers.get("location") ?? "";
         const page = await req(started, jar, consentLocation);
         return {
@@ -379,8 +374,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
         `/interaction/${consent.uid}/abort`,
         postForm({ _csrf: csrf }),
       );
-      expect(abort.status).toBe(303);
-      const done = await req(started, jar, abort.headers.get("location") ?? "");
+      const done = await req(started, jar, await hopUrl(abort));
       expect(done.status).toBe(303);
       const final = new URL(done.headers.get("location") ?? "");
       expect(final.origin).toBe(ORIGIN);
@@ -575,7 +569,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
       const uid = thirdLocation.slice("/interaction/".length);
       const page = await req(started, jar, thirdLocation);
       const html = await page.text();
-      expect(html).toContain("<code>profile</code>");
+      expect(html).toContain('<span class="scope-tag">profile</span>');
 
       const final3 = await confirmAndCode(started, jar, uid, html);
       expect(new URL(final3).searchParams.get("code")).toBeTruthy();

@@ -549,7 +549,7 @@ describe("static provider lookup", () => {
       [],
     );
     expect(staticProviders(config).map((p) => [p.id, p.label])).toEqual([
-      ["shoo", "Google"],
+      ["shoo", "Google (via shoo.dev)"],
       ["mock", "a local test account"],
       ["idp.example.com", "idp.example.com"],
     ]);
@@ -621,7 +621,7 @@ describe("static provider lookup", () => {
 const SHOO: ProviderDescriptor = {
   id: "shoo",
   kind: "oidc",
-  label: "Google",
+  label: "Google (via shoo.dev)",
   issuer: "https://shoo.dev",
   scopes: "openid email profile",
   clientAuth: "none",
@@ -727,7 +727,11 @@ describe("buildLoginPageModel", () => {
       undefined,
     );
     expect(model.federated?.upstreams).toEqual([
-      { issuer: "https://shoo.dev", label: "Google", provider: "shoo" },
+      {
+        issuer: "https://shoo.dev",
+        label: "Google (via shoo.dev)",
+        provider: "shoo",
+      },
       {
         issuer: "https://accounts.google.com",
         label: "Google",
@@ -1048,7 +1052,12 @@ describe("GET /v1/federated/providers", () => {
 
     expect(JSON.parse(body)).toEqual({
       providers: [
-        { id: "shoo", label: "Google", kind: "oidc", browserCapable: true },
+        {
+          id: "shoo",
+          label: "Google (via shoo.dev)",
+          kind: "oidc",
+          browserCapable: true,
+        },
         {
           id: "mock",
           label: "a local test account",
@@ -1067,8 +1076,11 @@ describe("GET /v1/federated/providers", () => {
 
     for (const leaked of [
       "accounts.google.com",
+      // NOT "shoo.dev": naming the zero-config broker in its own label is
+      // deliberate honesty, not a topology leak — the browser is sent to
+      // shoo.dev in plain sight the moment that button is used. Configured
+      // providers' endpoints and credentials below stay unpublished.
       "github.com",
-      "shoo.dev",
       "127.0.0.1",
       "google-cid",
       "google-secret",

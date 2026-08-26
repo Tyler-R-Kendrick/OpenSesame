@@ -9,6 +9,7 @@ import { overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { resetFederatedDiscoveryCache } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
+import { hopUrl } from "./upstream-hop.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 /** What a completed brokered round-trip hands back to the page that ran it. */
@@ -161,11 +162,9 @@ describe("POST /v1/principals/federated-session", () => {
         issuer: upstream.issuer,
       }),
     });
-    expect(start.status).toBe(303);
-    const upstreamRes = await fetch(
-      new URL(start.headers.get("location") ?? ""),
-      { redirect: "manual" },
-    );
+    const upstreamRes = await fetch(new URL(await hopUrl(start)), {
+      redirect: "manual",
+    });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
     const completed = await req(
       jar,
@@ -196,8 +195,7 @@ describe("POST /v1/principals/federated-session", () => {
           headers: { "content-type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams({ _csrf: extractCsrf(html) }),
         });
-        expect(confirm.status).toBe(303);
-        location = confirm.headers.get("location") ?? "";
+        location = await hopUrl(confirm);
         continue;
       }
       location = res.headers.get("location") ?? "";

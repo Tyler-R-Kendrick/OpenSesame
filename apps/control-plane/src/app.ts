@@ -13,6 +13,7 @@ import { createUpstreamAuthRoutes } from "./routes/auth-upstream.js";
 import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
 import { createBackchannelLogoutRoutes } from "./routes/backchannel-logout.js";
 import { createByoAdminRoutes } from "./routes/byo-admin.js";
+import { byoPublicRoutes } from "./routes/byo-public.js";
 import { claimRoutes } from "./routes/claims.js";
 import { deviceRoutes } from "./routes/device.js";
 import { discoveryRoutes } from "./routes/discovery.js";
@@ -91,6 +92,9 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // Public provider catalog (ADR 0055 / C8): id, label, kind, browserCapable —
   // never issuers, endpoints or secrets.
   app.route("/v1/federated", federatedProviderRoutes);
+  // Visitor-facing BYO issuer registration — the JSON twin of the hosted
+  // login page's form POST (routes/byo-public.ts).
+  app.route("/v1/federated", byoPublicRoutes);
   // The stable, deployment-wide federated callback (ADR 0055): one registered
   // redirect URI for every upstream an operator or an RFC 7591 registration
   // configured, because Google, Entra and Apple match it byte for byte and a

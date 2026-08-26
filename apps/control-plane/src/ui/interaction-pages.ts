@@ -22,6 +22,12 @@ export type OrganizationLoginMethod = {
 export interface LoginPageModel {
   uid: string;
   csrfToken: string;
+  /**
+   * A refusal from the upstream on the way back (`?fed_error=<code>`),
+   * already translated to plain words. Rendered as the page's lead banner —
+   * a denial that 303s home silently reads as a broken button (T14).
+   */
+  error?: string;
   /** POST target for both login forms (`/interaction/<uid>/login`). */
   loginAction: string;
   /** Set when the browser already holds an authenticated session. */
@@ -130,24 +136,29 @@ export interface ConsentPageModel {
   clientDisplayName?: string;
 }
 
+/* The product's navy+teal tokens (apps/pages/src/styles.css) — the hosted
+   pages are the same ceremony as the vault's, so they wear the same skin. */
 const sharedStyles = `
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -169,7 +180,7 @@ const sharedStyles = `
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -183,11 +194,43 @@ const sharedStyles = `
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
   }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -196,16 +239,20 @@ const sharedStyles = `
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -215,7 +262,7 @@ const sharedStyles = `
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -254,6 +301,51 @@ function pageShell(title: string, body: string): string {
 }
 
 /**
+ * Continue the ceremony after a form POST without carrying the form's
+ * navigation any further.
+ *
+ * A 303 answer to a form POST is dead on arrival in Chromium the moment its
+ * redirect chain leaves this origin: CSP `form-action 'self'` is enforced
+ * against every redirect of a form submission, so the hop to an upstream
+ * provider — or the final hand-back to the relying party after the resume —
+ * is silently refused and the button "just does nothing". A 200 page whose
+ * meta refresh starts a NEW navigation sits outside that check, needs no
+ * script under the `default-src 'none'` CSP, and keeps form-action pinned
+ * to this origin. The link is the fallback for anything that refuses meta
+ * refresh.
+ */
+export function renderHopPage(url: string, lede: string): string {
+  const href = escapeHtml(url);
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta http-equiv="refresh" content="0;url=${href}"/>
+  <title>Continuing sign-in</title>
+  <style>${sharedStyles}</style>
+</head>
+<body>
+  <main>
+    <h1>Continuing sign-in</h1>
+    <p class="lede">${escapeHtml(lede)}</p>
+    <p><a class="btn btn-primary" href="${href}">Continue</a></p>
+  </main>
+</body>
+</html>`;
+}
+
+/** The hop page for handing the browser to an upstream identity provider. */
+export function renderUpstreamHopPage(url: string): string {
+  return renderHopPage(url, "Handing you to your sign-in provider…");
+}
+
+/** The hop page for resuming the authorization after a completed step. */
+export function renderResumeHopPage(url: string): string {
+  return renderHopPage(url, "Picking the authorization back up…");
+}
+
+/**
  * Sign-in step. The account never travels in a form field: "Continue"
  * re-uses the session the cookie middleware already authenticated, and
  * "Start a session" mints a fresh provisional principal server-side.
@@ -284,6 +376,39 @@ export function renderLoginPage(model: LoginPageModel): string {
   // question; its answer goes first. Otherwise the shipped providers lead.
   const orgFirst =
     (model.org?.methods?.length ?? 0) > 0 || model.ldap !== undefined;
+
+  // A matched provider hint is a decision already made at the relying party:
+  // that provider's button is the whole page, and everything else folds into
+  // a plain <details> — no script, so the collapse costs the CSP nothing.
+  // The banner state keeps the full page: after an upstream refusal the
+  // person is choosing again, and hiding the choices would bury the exits.
+  const focused =
+    !orgFirst &&
+    model.error === undefined &&
+    model.federated?.preferredIssuer !== undefined;
+  if (focused) {
+    const rest = [
+      renderFederatedBlock(model, "others"),
+      renderOrgBlock(model),
+      renderLdapBlock(model),
+      renderEmailBlock(model),
+      renderByoBlock(model),
+    ]
+      .filter(Boolean)
+      .join("\n       ");
+    return pageShell(
+      "Sign in — OpenSesame",
+      `<h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at ${escapeHtml(model.publicUrl)}.</p>
+     ${renderFederatedBlock(model, "preferred")}
+     <details class="more-options">
+       <summary>More sign-in options</summary>
+       ${rest}
+       ${methodFold("Continue without a provider", continueBlock, false)}
+     </details>`,
+    );
+  }
+
   const identityBlocks = orgFirst
     ? [
         renderOrgBlock(model),
@@ -300,15 +425,22 @@ export function renderLoginPage(model: LoginPageModel): string {
         renderByoBlock(model),
       ];
 
+  // With any provider on the page the anonymous session steps into a fold of
+  // its own; with none it IS the page and stands open as a panel.
+  const sessionBlock = hasFederated
+    ? methodFold("Continue without a provider", continueBlock, false)
+    : `<div class="panel">
+       <p class="lede">or continue without a provider</p>
+       ${continueBlock}
+     </div>`;
+
   return pageShell(
     "Sign in — OpenSesame",
     `<h1>Sign in</h1>
      <p class="lede">Authenticate to continue authorization at ${escapeHtml(model.publicUrl)}.</p>
+     ${renderError(model.error)}
      ${identityBlocks.filter(Boolean).join("\n     ")}
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       ${continueBlock}
-     </div>`,
+     ${sessionBlock}`,
   );
 }
 
@@ -319,17 +451,29 @@ export function renderLoginPage(model: LoginPageModel): string {
  * nothing to auto-submit and the provider travels as a hidden field that the
  * start route re-resolves through the trust fence.
  */
-function renderFederatedBlock(model: LoginPageModel): string {
+function renderFederatedBlock(
+  model: LoginPageModel,
+  subset: "all" | "preferred" | "others" = "all",
+): string {
   const federated = model.federated;
   if (!federated || federated.upstreams.length === 0) return "";
 
   const csrf = escapeHtml(model.csrfToken);
   const startAction = escapeHtml(federated.startAction);
-  const ordered = [...federated.upstreams].sort((a, b) => {
-    const preferred = federated.preferredIssuer;
-    if (!preferred) return 0;
-    return a.issuer === preferred ? -1 : b.issuer === preferred ? 1 : 0;
-  });
+  const ordered = [...federated.upstreams]
+    .filter((upstream) =>
+      subset === "all"
+        ? true
+        : subset === "preferred"
+          ? upstream.issuer === federated.preferredIssuer
+          : upstream.issuer !== federated.preferredIssuer,
+    )
+    .sort((a, b) => {
+      const preferred = federated.preferredIssuer;
+      if (!preferred) return 0;
+      return a.issuer === preferred ? -1 : b.issuer === preferred ? 1 : 0;
+    });
+  if (ordered.length === 0) return "";
 
   const forms = ordered
     .map((upstream, index) => {
@@ -359,6 +503,40 @@ function renderError(message: string | undefined): string {
 }
 
 /**
+ * Plain words for the scopes people actually meet. Anything unlisted renders
+ * as its raw name — an unexplained scope must stay visible, never invisible.
+ */
+function describeScope(
+  scope: string,
+): { title: string; detail: string } | undefined {
+  switch (scope) {
+    case "openid":
+      return {
+        title: "Confirm who you are",
+        detail:
+          "A pairwise ID unique to this application — it cannot be linked to your identity elsewhere.",
+      };
+    case "profile":
+      return {
+        title: "See your basic profile",
+        detail: "Your display name and picture, nothing more.",
+      };
+    case "email":
+      return {
+        title: "See your email address",
+        detail: "The verified address on your account.",
+      };
+    case "offline_access":
+      return {
+        title: "Stay signed in",
+        detail: "Keep access when you are not using the application.",
+      };
+    default:
+      return undefined;
+  }
+}
+
+/**
  * Enterprise sign-in: the work-email router (D12) and the organization slug
  * form (D6), then — once a slug has resolved — one button per configured
  * method. Both steps are plain POSTs; the CSP forbids the script that would
@@ -382,7 +560,11 @@ function renderOrgBlock(model: LoginPageModel): string {
     : "";
 
   if (!org) {
-    return `<div class="panel"><h2>Your organization</h2>${realmForm}</div>`;
+    return methodFold(
+      "Your organization",
+      realmForm,
+      realm?.error !== undefined,
+    );
   }
 
   const methods = org.methods ?? [];
@@ -420,13 +602,35 @@ function renderOrgBlock(model: LoginPageModel): string {
          <button type="submit" class="btn">Continue with your organization</button>
        </form>`;
 
-  return `<div class="panel">
+  // A resolved organization is the step the visitor asked for: its method
+  // buttons stand open, and re-picking the organization folds away.
+  if (methods.length > 0) {
+    return `<div class="panel">
        <h2>Your organization</h2>
        ${renderError(org.error)}
        ${methodForms}
-       ${lookupForm}
-       ${realmForm}
-     </div>`;
+     </div>
+     ${methodFold("Use a different organization", `${lookupForm}${realmForm}`, false)}`;
+  }
+  return methodFold(
+    "Your organization",
+    `${renderError(org.error)}${methodForms}${lookupForm}${realmForm}`,
+    org.error !== undefined || realm?.error !== undefined,
+  );
+}
+
+/**
+ * One method per card, one card open at a time: a `<details>` fold so the
+ * page shows a method's fields only when the visitor picks it — script-free,
+ * so it costs the CSP nothing. A fold holding fresh state (an error to fix,
+ * a resolved answer) starts open; burying an outcome would read as silence.
+ */
+function methodFold(summary: string, inner: string, open: boolean): string {
+  if (!inner) return "";
+  return `<details class="method"${open ? " open" : ""}>
+       <summary>${escapeHtml(summary)}</summary>
+       <div class="method-body">${inner}</div>
+     </details>`;
 }
 
 /**
@@ -444,9 +648,9 @@ function renderLdapBlock(model: LoginPageModel): string {
   const ldap = model.ldap;
   if (!ldap) return "";
   const csrf = escapeHtml(model.csrfToken);
-  return `<div class="panel">
-       <h2>Sign in with your directory account</h2>
-       <form method="post" action="${escapeHtml(ldap.requestAction)}">
+  return methodFold(
+    "Sign in with your directory account",
+    `<form method="post" action="${escapeHtml(ldap.requestAction)}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
          <input type="hidden" name="slug" value="${escapeHtml(ldap.slug)}"/>
          <label class="field" for="ldap-username"><span>Username</span>
@@ -456,8 +660,11 @@ function renderLdapBlock(model: LoginPageModel): string {
            <input id="ldap-password" name="password" type="password" autocomplete="current-password" required/>
          </label>
          <button type="submit" class="btn btn-primary">Sign in</button>
-       </form>
-     </div>`;
+       </form>`,
+    // The one password form on the page: reached by resolving this tenant's
+    // slug, so it is the step being taken.
+    true,
+  );
 }
 
 /** Email magic link (D18): the address is the identifier, deliberately. */
@@ -468,9 +675,9 @@ function renderEmailBlock(model: LoginPageModel): string {
   const sent = email.sent
     ? `<p class="note" role="status">Check your email for a sign-in link.</p>`
     : "";
-  return `<div class="panel">
-       <h2>Continue with email</h2>
-       ${renderError(email.error)}
+  return methodFold(
+    "Continue with email",
+    `${renderError(email.error)}
        ${sent}
        <form method="post" action="${escapeHtml(email.requestAction)}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
@@ -478,8 +685,9 @@ function renderEmailBlock(model: LoginPageModel): string {
            <input id="magic-email" name="email" type="email" autocomplete="email" required/>
          </label>
          <button type="submit" class="btn">Email me a sign-in link</button>
-       </form>
-     </div>`;
+       </form>`,
+    email.sent === true || email.error !== undefined,
+  );
 }
 
 /**
@@ -491,9 +699,9 @@ function renderByoBlock(model: LoginPageModel): string {
   const byo = model.byo;
   if (!byo) return "";
   const csrf = escapeHtml(model.csrfToken);
-  return `<div class="panel">
-       <h2>Use your own identity provider</h2>
-       ${renderError(byo.error)}
+  return methodFold(
+    "Use your own identity provider",
+    `${renderError(byo.error)}
        <form method="post" action="${escapeHtml(byo.startAction)}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
@@ -509,8 +717,9 @@ function renderByoBlock(model: LoginPageModel): string {
          </label>
          <button type="submit" class="btn">Continue with your provider</button>
        </form>
-       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p>
-     </div>`;
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p>`,
+    byo.error !== undefined || Boolean(byo.issuerValue),
+  );
 }
 
 /**
@@ -525,7 +734,14 @@ export function renderConsentPage(model: ConsentPageModel): string {
   const scopes =
     model.scopes.length > 0
       ? `<ul class="scopes" aria-label="Requested scopes">${model.scopes
-          .map((s) => `<li><code>${escapeHtml(s)}</code></li>`)
+          .map((s) => {
+            const explained = describeScope(s);
+            // The protocol name rides along as a small tag beside the plain
+            // words, never dangling inside the sentence.
+            return explained === undefined
+              ? `<li><code>${escapeHtml(s)}</code></li>`
+              : `<li><strong>${escapeHtml(explained.title)}</strong><span class="scope-tag">${escapeHtml(s)}</span><br/><span class="scope-detail">${escapeHtml(explained.detail)}</span></li>`;
+          })
           .join("")}</ul>`
       : "<p>No additional scopes requested.</p>";
   const autoBadge = model.showAutoAdmitted

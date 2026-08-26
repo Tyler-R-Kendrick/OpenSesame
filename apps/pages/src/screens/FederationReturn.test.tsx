@@ -36,7 +36,10 @@ import { guestAuthSeams } from "../lib/guest-auth.js";
 guestAuthSeams.adoptFederatedIdentity = fed.adoptFederatedIdentity;
 
 import { FederationError } from "../lib/federation.js";
-import { FederationReturn } from "./FederationReturn.js";
+import {
+  FederationReturn,
+  resetFederationReturnCeremony,
+} from "./FederationReturn.js";
 
 function renderReturn() {
   return render(
@@ -51,11 +54,14 @@ function renderReturn() {
 
 describe("FederationReturn", () => {
   beforeEach(() => {
+    // The ceremony is single-flight per page load; a test that deliberately
+    // leaves it unsettled must not poison the next one.
+    resetFederationReturnCeremony();
     fed.completeSignIn.mockReset();
     fed.joinOrgTenant.mockReset();
     fed.ensureIdentitySession.mockReset();
     fed.adoptFederatedIdentity.mockReset();
-    fed.adoptFederatedIdentity.mockResolvedValue(undefined);
+    fed.adoptFederatedIdentity.mockResolvedValue({ kind: "linked" });
     fed.adoptBrokeredSession.mockReset();
     fed.adoptBrokeredSession.mockResolvedValue({
       principalId: "prn_broker",
@@ -92,10 +98,12 @@ describe("FederationReturn", () => {
     );
     renderReturn();
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Sign-in failed");
-    expect(alert.textContent).toContain("Upstream refused the login.");
+    expect(alert.textContent).toContain("Sign-in didn't finish");
+    // Mapped to plain words, with the no-change anchor — never the raw code.
+    expect(alert.textContent).toContain("Access was denied at the provider.");
+    expect(alert.textContent).toContain("Nothing was changed on this device.");
     // The way back does not re-attempt sign-in.
-    fireEvent.click(screen.getByRole("button", { name: "Back to OpenSesame" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to sign-in" }));
     expect(fed.completeSignIn).toHaveBeenCalledTimes(1);
   });
 
@@ -216,7 +224,7 @@ describe("FederationReturn", () => {
     );
     renderReturn();
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Sign-in failed");
+    expect(alert.textContent).toContain("Sign-in didn't finish");
     expect(alert.textContent).toContain("already attached to a different");
     expect(screen.queryByText("settings landed")).toBeNull();
   });

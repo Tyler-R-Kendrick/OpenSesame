@@ -179,7 +179,7 @@ describe("adoptFederatedIdentity", () => {
 
     await expect(
       adoptFederatedIdentity("id.token.here"),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({ kind: "link_failed" });
 
     expect(createGuest).toHaveBeenCalledTimes(1);
     const notices = listNotices();

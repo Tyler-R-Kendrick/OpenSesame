@@ -63,10 +63,56 @@ const LEGACY_IDENTITY_APIS = [
   "http://localhost:18788",
 ] as const;
 
-const runtimeHostApi = import.meta.env.VITE_HOST_API?.trim();
-const runtimeIdentityApi = import.meta.env.VITE_IDENTITY_API?.trim();
-const runtimeDaemonApi = import.meta.env.VITE_DAEMON_API?.trim();
-const runtimeMfaAppUrl = import.meta.env.VITE_MFA_APP_URL?.trim();
+const builtHostApi = import.meta.env.VITE_HOST_API?.trim();
+const builtIdentityApi = import.meta.env.VITE_IDENTITY_API?.trim();
+const builtDaemonApi = import.meta.env.VITE_DAEMON_API?.trim();
+const builtMfaAppUrl = import.meta.env.VITE_MFA_APP_URL?.trim();
+
+/**
+ * Deployment-provided endpoints, loaded at boot from a same-origin
+ * `os-runtime-config.json` beside the bundle (written by deploy-pages.sh).
+ *
+ * `VITE_*` values are baked at build time, which a static Pages deploy never
+ * sets — that gap is exactly how the deployed vault shipped with no Identity
+ * API and every sign-in silently dead-ended. This layer carries the same
+ * values without a rebuild. It feeds `identityBase()` and friends only; the
+ * compiled `TRUSTED_UPSTREAMS` allowlist is deliberately out of its reach
+ * (ADR 0033 §2).
+ */
+export type RuntimeEndpointConfig = {
+  hostApi?: string;
+  identityApi?: string;
+  daemonApi?: string;
+  mfaAppUrl?: string;
+};
+
+let deployedConfig: RuntimeEndpointConfig = {};
+
+export function applyRuntimeConfig(config: RuntimeEndpointConfig): void {
+  const next: RuntimeEndpointConfig = {};
+  if (config.hostApi?.trim()) next.hostApi = config.hostApi.trim();
+  if (config.identityApi?.trim()) next.identityApi = config.identityApi.trim();
+  if (config.daemonApi?.trim()) next.daemonApi = config.daemonApi.trim();
+  if (config.mfaAppUrl?.trim()) next.mfaAppUrl = config.mfaAppUrl.trim();
+  deployedConfig = next;
+  emitSettings();
+}
+
+function runtimeHostApiValue(): string | undefined {
+  return deployedConfig.hostApi || builtHostApi;
+}
+
+function runtimeIdentityApiValue(): string | undefined {
+  return deployedConfig.identityApi || builtIdentityApi;
+}
+
+function runtimeDaemonApiValue(): string | undefined {
+  return deployedConfig.daemonApi || builtDaemonApi;
+}
+
+function runtimeMfaAppUrlValue(): string | undefined {
+  return deployedConfig.mfaAppUrl || builtMfaAppUrl;
+}
 
 const listeners = new Set<() => void>();
 
@@ -89,11 +135,11 @@ function pageIsLoopbackDefault(hostname?: string): boolean {
 
 function localDefaults(): PersistedSettings {
   return {
-    hostApi: runtimeHostApi || shippedHostApi,
-    identityApi: runtimeIdentityApi || shippedIdentityApi,
-    daemonApi: runtimeDaemonApi || shippedDaemonApi,
+    hostApi: runtimeHostApiValue() || shippedHostApi,
+    identityApi: runtimeIdentityApiValue() || shippedIdentityApi,
+    daemonApi: runtimeDaemonApiValue() || shippedDaemonApi,
     tursoUrl: "",
-    mfaAppUrl: runtimeMfaAppUrl || shippedMfaAppUrl,
+    mfaAppUrl: runtimeMfaAppUrlValue() || shippedMfaAppUrl,
     capabilityConnectors: defaultCapabilityConnectors(),
     activeProjectId: "",
   };
@@ -101,14 +147,14 @@ function localDefaults(): PersistedSettings {
 
 function remoteDefaults(): PersistedSettings {
   return {
-    hostApi: runtimeHostApi || "",
-    identityApi: runtimeIdentityApi || "",
+    hostApi: runtimeHostApiValue() || "",
+    identityApi: runtimeIdentityApiValue() || "",
     // github.io cannot reach loopback — leave empty so the pairing UI asks for
     // the Tailscale Serve FQDN instead of looking like localhost will work.
-    daemonApi: runtimeDaemonApi || "",
+    daemonApi: runtimeDaemonApiValue() || "",
     tursoUrl: "",
     // Remote Pages: operator must point at a reachable MFA PWA.
-    mfaAppUrl: runtimeMfaAppUrl || "",
+    mfaAppUrl: runtimeMfaAppUrlValue() || "",
     capabilityConnectors: defaultCapabilityConnectors(),
     activeProjectId: "",
   };
@@ -167,7 +213,7 @@ function loadPersisted(): PersistedSettings {
       hostApi:
         hostApi &&
         !(
-          runtimeHostApi &&
+          runtimeHostApiValue() &&
           LEGACY_HOST_APIS.some((legacy) => legacy === hostApi)
         )
           ? hostApi
@@ -175,7 +221,7 @@ function loadPersisted(): PersistedSettings {
       identityApi:
         identityApi &&
         !(
-          runtimeIdentityApi &&
+          runtimeIdentityApiValue() &&
           LEGACY_IDENTITY_APIS.some((legacy) => legacy === identityApi)
         )
           ? identityApi

@@ -121,6 +121,25 @@ export function brokeredOrgUpstream(org: {
 }
 
 /**
+ * The brokered upstream for a bring-your-own issuer the visitor registered
+ * (ADR 0055 / D5). BYO legs always run server-side, so the leg starts at the
+ * Identity API with the registered issuer as the provider hint — the hosted
+ * login page renders it as the preferred button and its trust fence
+ * re-validates the issuer on the way through.
+ */
+export function brokeredByoUpstream(registration: {
+  issuer: string;
+  label: string;
+}): TrustedUpstream {
+  return {
+    id: `broker:byo:${registration.issuer}`,
+    issuer: identityBase(),
+    displayName: registration.label,
+    accountKind: `your ${registration.label} account`,
+  };
+}
+
+/**
  * The brokered upstream for home-realm discovery: no provider, no org — the
  * hosted login page routes on the work-email domain it is handed.
  */

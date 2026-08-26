@@ -34,6 +34,30 @@ export default defineConfig({
   // Dependency pre-bundling in dev has its own target and hits the same limitation.
   esbuild: { target: "es2022" },
   plugins: [
+    {
+      // The Identity API's auto-admitted origin client returns brokered legs
+      // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which
+      // sits OUTSIDE this app's base. In production GitHub Pages serves it via
+      // the 404 SPA fallback; the dev server has no such fallback outside the
+      // base, so bounce it onto the base with the auth response intact — the
+      // app routes on `?code`, never on the path.
+      name: "origin-profile-canonical-callback",
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.startsWith("/opensesame/callback")) {
+            const query = req.url.slice("/opensesame/callback".length);
+            res.statusCode = 302;
+            res.setHeader(
+              "location",
+              `${base}${query.startsWith("?") ? query : ""}`,
+            );
+            res.end();
+            return;
+          }
+          next();
+        });
+      },
+    },
     react(),
     VitePWA({
       strategies: "injectManifest",

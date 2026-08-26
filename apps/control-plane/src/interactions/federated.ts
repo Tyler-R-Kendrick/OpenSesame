@@ -137,11 +137,13 @@ function isLoopback(issuer: string): boolean {
 /**
  * Label and id for an allowlisted issuer. Mirrors the Pages `TRUSTED_UPSTREAMS`
  * table (`apps/pages/src/lib/federation.ts`) so both surfaces name the same
- * broker the same way — shoo.dev fronts Google, so its button says Google.
+ * broker the same way — shoo.dev fronts Google sign-in but is a third-party
+ * broker, and the label says so instead of impersonating first-party Google
+ * (real `accounts.google.com` is registry id `google`, ADR 0055).
  */
 function describeUpstream(issuer: string): FederatedUpstream {
   if (issuer === "https://shoo.dev") {
-    return { id: "shoo", issuer, label: "Google" };
+    return { id: "shoo", issuer, label: "Google (via shoo.dev)" };
   }
   if (isLoopback(issuer)) {
     return { id: "mock", issuer, label: MOCK_UPSTREAM_LABEL };
@@ -180,7 +182,12 @@ export function matchUpstreamHint(
       u.id.toLowerCase() === needle ||
       u.issuer.toLowerCase() === needle ||
       issuerHost(u.issuer).toLowerCase() === needle ||
-      u.label.toLowerCase() === needle,
+      u.label.toLowerCase() === needle ||
+      // "Google (via shoo.dev)" still answers to the bare account kind, so a
+      // client that has always hinted `google` keeps preselecting the broker.
+      u.label
+        .toLowerCase()
+        .startsWith(`${needle} (`),
   );
 }
 
