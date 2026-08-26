@@ -1,0 +1,1 @@
+import{_ as o}from"./index-B4G5V8F0.js";async function t(n){return(await o(()=>import("./promise-default-C7JSW0XY.js"),[])).connect(n)}const c={connect:t};async function u(n){return c.connect(n)}export{u as connectTurso,c as tursoConnectSeams};
