@@ -22,7 +22,9 @@ use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{resolve_caller, Caller};
+#[cfg(test)]
+use crate::middleware::auth::OPERATOR_ORGANIZATION_HEADER;
+use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
 
 #[allow(clippy::result_large_err)]
 fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
@@ -44,42 +46,12 @@ fn may_discover(who: &Caller, production: bool) -> bool {
     who.can_configure_integrations() && (matches!(who, Caller::Operator) || !production)
 }
 
-const OPERATOR_ORGANIZATION_HEADER: &str = "x-opensesame-organization";
-
 fn caller_organization(
     st: &AppState,
     who: &Caller,
     headers: &axum::http::HeaderMap,
 ) -> Result<opensesame_domain::OrganizationId, Response> {
-    let selected = headers.get(OPERATOR_ORGANIZATION_HEADER);
-    match who {
-        Caller::Operator => match selected {
-            Some(raw) => match raw.to_str().ok().and_then(|value| {
-                opensesame_domain::OrganizationId::parse(value)
-                    .ok()
-                    .filter(|id| id.to_string() == value)
-            }) {
-                Some(id) => Ok(id),
-                _ => Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({"error":"invalid_request","hint":"x-opensesame-organization must be a canonical organization id"})),
-                )
-                    .into_response()),
-            },
-            None => Ok(who.organization(st.connection_organization)),
-        },
-        Caller::Session { .. } => {
-            if selected.is_some() {
-                Err((
-                    StatusCode::FORBIDDEN,
-                    Json(json!({"error":"forbidden","hint":"sessions cannot select an organization header"})),
-                )
-                    .into_response())
-            } else {
-                Ok(who.organization(st.connection_organization))
-            }
-        }
-    }
+    resolve_caller_organization(st, who, headers)
 }
 
 macro_rules! organization_or_return {
@@ -149,11 +121,80 @@ pub async fn list_providers(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> Response {
-    if let Err(resp) = authorize(&st, &headers) {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    match st
+        .connection_broker
+        .list_providers_for(&organization_id)
+        .await
+    {
+        Ok(providers) => Json(json!({"providers": providers})).into_response(),
+        Err(error) => broker_error(&error),
+    }
+}
+
+/// Register an org-scoped custom connector (MCP server, `OpenAPI` backend,
+/// internal API). Owner/admin only, like integrations: the definition decides
+/// where credentials may ever be sent.
+pub async fn create_custom_provider(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    body: String,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    if let Err(resp) = require_integration_admin(&who) {
         return resp;
     }
-    match st.connection_broker.list_providers() {
-        Ok(providers) => Json(json!({"providers": providers})).into_response(),
+    // No Default fallback: an empty body is not a definable connector.
+    let request: opensesame_connection_broker::CreateCustomProvider = match serde_json::from_str(
+        &body,
+    ) {
+        Ok(request) => request,
+        Err(_) => {
+            return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error":"invalid_request","hint":"request body is not a valid custom provider definition"})),
+                )
+                    .into_response();
+        }
+    };
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    let created_by = caller_subject(&who).unwrap_or_else(|| "operator".into());
+    match st
+        .connection_broker
+        .create_custom_provider(&organization_id, request, &created_by)
+        .await
+    {
+        Ok(provider) => (StatusCode::CREATED, Json(provider)).into_response(),
+        Err(error) => broker_error(&error),
+    }
+}
+
+pub async fn delete_custom_provider(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> Response {
+    let who = match authorize(&st, &headers) {
+        Ok(who) => who,
+        Err(resp) => return resp,
+    };
+    if let Err(resp) = require_integration_admin(&who) {
+        return resp;
+    }
+    let organization_id = organization_or_return!(&st, &who, &headers);
+    match st
+        .connection_broker
+        .delete_custom_provider(&organization_id, &id)
+        .await
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(error) => broker_error(&error),
     }
 }

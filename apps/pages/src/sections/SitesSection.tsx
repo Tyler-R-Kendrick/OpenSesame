@@ -7,6 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { CeremonyLink } from "../components/CeremonyLauncher.js";
+import { CeremonyShell } from "../components/CeremonyShell.js";
 import {
   IconAlert,
   IconCheck,
@@ -20,7 +22,7 @@ import {
   IconTrash,
   IconX,
 } from "../components/Icons.js";
-import { PagesCannotHostNote } from "../components/PlaneNote.js";
+import { PagesCannotHostNote } from "../components/PagesCannotHostNote.js";
 import {
   fetchPrincipal,
   identityBase,
@@ -537,40 +539,43 @@ export function SitesSection() {
           {!session ? (
             <div className="panel">
               <div className="panel__body">
-                <div className="empty sites-connect">
-                  <span className="empty__mark">
-                    <IconSite />
-                  </span>
-                  <h3>Connect Identity to manage registered clients</h3>
-                  <p>
-                    Client registration and audit events live on the Identity
-                    plane at <code>{base}</code>. Static-site broker auth above
-                    works without this.
-                  </p>
-                  {online ? null : (
-                    <p className="note note--warn">
-                      <IconAlert /> This browser is offline. Connecting needs a
-                      reachable Identity plane — reconnect and try again.
-                    </p>
-                  )}
-                  {connectError ? (
-                    <p className="note note--err">
-                      <IconAlert /> {errorText(connectError)} Check that the
-                      Identity API is running at <code>{base}</code>, or change
-                      the address under Settings.
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    onClick={() => void connect()}
-                    disabled={connecting || !online}
-                  >
-                    {connecting
+                {/* The same connect-a-principal ceremony shape used
+                    everywhere else, instead of a bespoke empty state. */}
+                <CeremonyShell
+                  ok={false}
+                  top="Not connected"
+                  name="Connect Identity to manage registered clients"
+                  facts={[{ key: "Identity API", value: base }]}
+                  primary={{
+                    label: connecting
                       ? "Connecting…"
-                      : "Connect a provisional session"}
-                  </button>
-                </div>
+                      : "Connect a provisional session",
+                    onClick: () => void connect(),
+                    busy: connecting,
+                    disabled: !online,
+                  }}
+                >
+                  <p className="hint">
+                    Client registration and audit events live on the Identity
+                    plane. Static-site broker auth above works without this.
+                  </p>
+                </CeremonyShell>
+                {online ? null : (
+                  <p className="note note--warn">
+                    <IconAlert /> This browser is offline. Connecting needs a
+                    reachable Identity plane — reconnect and try again.
+                  </p>
+                )}
+                {connectError ? (
+                  <p className="note note--err">
+                    <IconAlert /> {errorText(connectError)} Check that the
+                    Identity API is running at <code>{base}</code>, or repair it
+                    in place:{" "}
+                    <CeremonyLink id="identity">
+                      Open the Identity ceremony
+                    </CeremonyLink>
+                  </p>
+                ) : null}
               </div>
             </div>
           ) : (

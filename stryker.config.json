@@ -10,6 +10,7 @@
     "packages/policy/src/provisional.ts",
     "apps/control-plane/src/services/identity-link.ts",
     "packages/audit/src/redact.ts",
+    "apps/pages/src/lib/certs.ts",
     "packages/audit/src/chain.ts"
   ],
   "ignorePatterns": [

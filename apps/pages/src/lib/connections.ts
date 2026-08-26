@@ -43,7 +43,8 @@ export type ProviderCategory =
   | "crm"
   | "payments"
   | "identity"
-  | "testing";
+  | "testing"
+  | "custom";
 
 export type AuthKind =
   | "oauth2_authorization_code"
@@ -354,6 +355,94 @@ function listIntegrationsDefault(): Promise<Integration[]> {
     const raw: { integrations?: BoundaryValue[] } = overlapCast(body);
     return (raw.integrations ?? []).map(toIntegration);
   });
+}
+
+export type CustomProviderAuth =
+  | {
+      kind: "oauth2_authorization_code";
+      authorizeUrl: string;
+      tokenUrl: string;
+      supportsRefresh: boolean;
+      scopes: string[];
+    }
+  | { kind: "api_key"; header: string; valuePrefix: string };
+
+/** Register an org-scoped custom connector (MCP server, OpenAPI backend,
+ *  internal API). Owner/admin only; egress is derived from the base URL. */
+function createCustomProviderDefault(body: {
+  id: string;
+  displayName: string;
+  baseUrl: string;
+  docsUrl?: string;
+  auth: CustomProviderAuth;
+}): Promise<Provider> {
+  const auth =
+    body.auth.kind === "oauth2_authorization_code"
+      ? {
+          kind: "oauth2_authorization_code",
+          authorize_url: body.auth.authorizeUrl,
+          token_url: body.auth.tokenUrl,
+          supports_refresh: body.auth.supportsRefresh,
+          scopes: body.auth.scopes,
+        }
+      : {
+          kind: "api_key",
+          header: body.auth.header,
+          value_prefix: body.auth.valuePrefix,
+        };
+  return call(
+    "/custom-providers",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        id: body.id,
+        display_name: body.displayName,
+        base_url: body.baseUrl,
+        ...(body.docsUrl ? { docs_url: body.docsUrl } : undefined),
+        auth,
+      }),
+    },
+    toProvider,
+  );
+}
+
+function deleteCustomProviderDefault(id: string): Promise<void> {
+  return call(`/custom-providers/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+/** Seal an org-level OAuth client (or other provider credentials) on the Host.
+ *  Requires an owner/admin role; the secret is write-only from here on. */
+function createIntegrationDefault(body: {
+  key: string;
+  providerId: string;
+  displayName: string;
+  scopes?: string[];
+  clientId?: string;
+  clientSecret?: string;
+  configuration?: Record<string, string>;
+}): Promise<Integration> {
+  return call(
+    "/integrations",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        key: body.key,
+        provider_id: body.providerId,
+        display_name: body.displayName,
+        scopes: body.scopes ?? [],
+        ...(body.clientId ? { client_id: body.clientId } : undefined),
+        ...(body.clientSecret
+          ? { client_secret: body.clientSecret }
+          : undefined),
+        ...(body.configuration
+          ? { configuration: body.configuration }
+          : undefined),
+      }),
+    },
+    toIntegration,
+  );
 }
 
 /** Begin tenant GitHub App Manifest registration (Host seals client credentials). */
@@ -725,6 +814,9 @@ export const connectionSeams = {
   unbindConnection: unbindConnectionDefault,
 
   listIntegrations: listIntegrationsDefault,
+  createIntegration: createIntegrationDefault,
+  createCustomProvider: createCustomProviderDefault,
+  deleteCustomProvider: deleteCustomProviderDefault,
   startGithubAppRegistration: startGithubAppRegistrationDefault,
   submitGithubAppManifest: submitGithubAppManifestDefault,
   listProviders: listProvidersDefault,
@@ -740,6 +832,19 @@ export const connectionSeams = {
 
 export function listIntegrations(): Promise<Integration[]> {
   return connectionSeams.listIntegrations();
+}
+export function createIntegration(
+  body: Parameters<typeof createIntegrationDefault>[0],
+): Promise<Integration> {
+  return connectionSeams.createIntegration(body);
+}
+export function createCustomProvider(
+  body: Parameters<typeof createCustomProviderDefault>[0],
+): Promise<Provider> {
+  return connectionSeams.createCustomProvider(body);
+}
+export function deleteCustomProvider(id: string): Promise<void> {
+  return connectionSeams.deleteCustomProvider(id);
 }
 export function startGithubAppRegistration(
   body: Parameters<typeof startGithubAppRegistrationDefault>[0],

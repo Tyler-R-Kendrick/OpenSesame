@@ -289,7 +289,10 @@ impl ConnectionBroker {
     }
 
     async fn row_view(&self, row: IntegrationRow) -> Result<IntegrationView> {
-        let provider = Self::provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
+        let provider = &provider;
         let configuration = self.integration_configuration(&row)?;
         let configured_fields =
             configuration::views(provider.integration_configuration_fields(), &configuration);
@@ -401,6 +404,17 @@ impl ConnectionBroker {
                 views.push(view);
             }
         }
+        // Custom api-key connectors need no client material, so they get the
+        // same synthesized deployment integration as catalog key providers —
+        // that is what lets a connection be created without an org row.
+        for provider in self.custom_providers(&organization_id.to_string()).await? {
+            if let Some(mut view) = self.deployment_view(&provider) {
+                view.connection_count = self
+                    .integration_count(&organization_id.to_string(), &view.id)
+                    .await?;
+                views.push(view);
+            }
+        }
         Ok(views)
     }
 
@@ -430,7 +444,10 @@ impl ConnectionBroker {
         let key = text(&request.key, "key")?;
         let provider_id = text(&request.provider_id, "provider_id")?;
         let display_name = text(&request.display_name, "display_name")?;
-        let provider = Self::provider(&provider_id)?;
+        let provider = self
+            .resolve_provider(&organization_id.to_string(), &provider_id)
+            .await?;
+        let provider = &provider;
         let id = format!("integration_{}", uuid::Uuid::new_v4());
         let mut configuration = request.configuration;
         for (name, value) in supplied_credentials(request.client_id, request.client_secret) {
@@ -631,6 +648,33 @@ impl ConnectionBroker {
         .map_err(|e| BrokerError::Invalid(e.to_string()))
     }
 
+    fn apply_configuration_mutation(
+        &self,
+        row: &mut IntegrationRow,
+        provider: &Provider,
+        configuration_set: Configuration,
+        configuration_clear: &[String],
+    ) -> Result<()> {
+        configuration::validate_mutation(
+            provider.integration_configuration_fields(),
+            &configuration_set,
+            configuration_clear,
+        )?;
+        let mut configuration = self.integration_configuration(row)?;
+        configuration::apply(&mut configuration, configuration_set, configuration_clear);
+        configuration::validate_mutation(
+            provider.integration_configuration_fields(),
+            &configuration,
+            &[],
+        )?;
+        row.configuration =
+            self.seal_integration_configuration(&row.id, &row.organization_id, &configuration)?;
+        row.client_id = None;
+        row.secret = None;
+        row.configured_field_names = configuration.keys().cloned().collect();
+        Ok(())
+    }
+
     /// # Errors
     ///
     /// Returns an error when mutation validation, transactional storage, or sealing fails.
@@ -688,29 +732,20 @@ impl ConnectionBroker {
         if let Some(enabled) = request.enabled {
             row.enabled = enabled;
         }
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
         if let Some(scopes) = request.scopes {
-            validate_scopes(Self::provider(&row.provider_id)?, &scopes)?;
+            validate_scopes(&provider, &scopes)?;
             row.scopes = scopes;
         }
         if configuration_changed {
-            let provider = Self::provider(&row.provider_id)?;
-            configuration::validate_mutation(
-                provider.integration_configuration_fields(),
-                &configuration_set,
+            self.apply_configuration_mutation(
+                &mut row,
+                &provider,
+                configuration_set,
                 &configuration_clear,
             )?;
-            let mut configuration = self.integration_configuration(&row)?;
-            configuration::apply(&mut configuration, configuration_set, &configuration_clear);
-            configuration::validate_mutation(
-                provider.integration_configuration_fields(),
-                &configuration,
-                &[],
-            )?;
-            row.configuration =
-                self.seal_integration_configuration(&row.id, &row.organization_id, &configuration)?;
-            row.client_id = None;
-            row.secret = None;
-            row.configured_field_names = configuration.keys().cloned().collect();
         }
         row.updated_at = Utc::now();
         let updated = sqlx::query("UPDATE integrations SET key = ?, display_name = ?, enabled = ?, scopes = ?, client_id = ?, client_secret_ciphertext = ?, client_secret_nonce = ?, client_secret_aad_digest = ?, configuration_ciphertext = ?, configuration_nonce = ?, configuration_aad_digest = ?, configured_fields = ?, updated_at = ? WHERE id = ? AND organization_id = ?")
@@ -842,7 +877,10 @@ impl ConnectionBroker {
             ));
         }
         let row = self.integration_row(organization_id, &view.id).await?;
-        let provider = Self::provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
+        let provider = &provider;
         let configuration = self.integration_configuration(&row)?;
         if !row.enabled
             || provider_id.is_some_and(|requested| requested != row.provider_id)

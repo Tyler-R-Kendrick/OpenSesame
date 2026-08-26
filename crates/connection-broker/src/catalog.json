@@ -976,7 +976,74 @@
         "authorities": ["api.cloudflare.com"],
         "path_prefixes": []
       },
-      "operations": ["zone.read", "dns_record.write", "account.read"]
+      "operations": [
+        "zone.read",
+        "dns_record.write",
+        "account.read",
+        "acme_dns_challenge.write"
+      ]
+    },
+    {
+      "id": "cloudflare-origin-ca",
+      "display_name": "Cloudflare Origin CA",
+      "category": "developer",
+      "docs_url": "https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/",
+      "provenance_url": "https://developers.cloudflare.com/api/resources/origin_ca_certificates/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.cloudflare.com"],
+        "path_prefixes": ["/client/v4/certificates"]
+      },
+      "operations": ["certificate.origin.issue"]
+    },
+    {
+      "id": "letsencrypt",
+      "display_name": "Let's Encrypt",
+      "category": "developer",
+      "docs_url": "https://letsencrypt.org/docs/",
+      "provenance_url": "https://letsencrypt.org/docs/client-options/",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "contact_email", "secret": false, "required": false },
+        { "name": "accept_terms", "secret": false, "required": true },
+        { "name": "environment", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": [
+          "acme-v02.api.letsencrypt.org",
+          "acme-staging-v02.api.letsencrypt.org"
+        ],
+        "path_prefixes": []
+      },
+      "operations": ["certificate.issue", "certificate.renew"]
+    },
+    {
+      "id": "zerossl",
+      "display_name": "ZeroSSL",
+      "category": "developer",
+      "docs_url": "https://zerossl.com/documentation/acme",
+      "provenance_url": "https://zerossl.com/documentation/acme",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "eab_kid", "secret": false, "required": true },
+        { "name": "eab_hmac_key", "secret": true, "required": true },
+        { "name": "contact_email", "secret": false, "required": false }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["acme.zerossl.com"],
+        "path_prefixes": []
+      },
+      "operations": ["certificate.issue", "certificate.renew"]
     },
     {
       "id": "vercel",
@@ -1953,6 +2020,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-08-22.1",
+  "revision": "2026-08-22.2",
   "schema_version": 1
 }

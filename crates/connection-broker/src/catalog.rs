@@ -93,6 +93,8 @@ pub enum Category {
     Payments,
     Identity,
     Testing,
+    /// Org-defined connectors (MCP servers, `OpenAPI` backends, internal APIs).
+    Custom,
 }
 
 impl Category {
@@ -111,19 +113,20 @@ impl Category {
             Self::Payments => "payments",
             Self::Identity => "identity",
             Self::Testing => "testing",
+            Self::Custom => "custom",
         }
     }
 }
 
 /// How the token endpoint authenticates the client.
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TokenAuth {
     ClientSecretPost,
     ClientSecretBasic,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
 pub enum AuthMethod {
     #[serde(rename = "oauth2_authorization_code")]
@@ -228,7 +231,7 @@ pub struct ScopeDef {
     pub default: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct EgressSpec {
     pub scheme: String,
@@ -248,7 +251,7 @@ impl EgressSpec {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Provider {
     pub id: String,
@@ -665,17 +668,55 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-22.1");
-        assert_eq!(catalog.providers().len(), 86);
+        assert_eq!(catalog.revision(), "2026-08-22.2");
+        assert_eq!(catalog.providers().len(), 89);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            85
+            88
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
+    }
+
+    #[test]
+    fn certificate_connections_are_capability_scoped() {
+        let catalog = load().expect("embedded catalog");
+        let letsencrypt = catalog.find("letsencrypt").expect("letsencrypt");
+        assert!(matches!(letsencrypt.auth, AuthMethod::Configuration));
+        assert_eq!(
+            letsencrypt.egress.authorities,
+            [
+                "acme-v02.api.letsencrypt.org",
+                "acme-staging-v02.api.letsencrypt.org"
+            ]
+        );
+
+        let zerossl = catalog.find("zerossl").expect("zerossl");
+        assert!(zerossl
+            .connection_configuration_fields()
+            .iter()
+            .any(|field| field.name == "eab_hmac_key" && field.secret));
+
+        let cloudflare = catalog.find("cloudflare").expect("cloudflare");
+        assert!(cloudflare
+            .operations
+            .iter()
+            .any(|operation| operation == "acme_dns_challenge.write"));
+        assert!(!cloudflare
+            .operations
+            .iter()
+            .any(|operation| operation == "certificate.origin.issue"));
+        let origin = catalog
+            .find("cloudflare-origin-ca")
+            .expect("cloudflare origin CA");
+        assert!(origin
+            .operations
+            .iter()
+            .any(|operation| operation == "certificate.origin.issue"));
+        assert_eq!(origin.egress.path_prefixes, ["/client/v4/certificates"]);
     }
 
     #[test]

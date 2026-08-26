@@ -1,7 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { overlapCast } from "@opensesame/os-domain";
 import {
   authorizeCapabilityConnector,
   bindCapabilityConnector,
@@ -10,7 +9,6 @@ import {
 } from "./capability-bind.js";
 import type { PagesSettings } from "./settings.js";
 
-// SAFETY: every field these tests read is checked present in this literal; the assertion covers only optional fields no test dereferences.
 const BASE: PagesSettings = {
   hostApi: "http://127.0.0.1:18787",
   identityApi: "http://127.0.0.1:18788",
@@ -21,7 +19,7 @@ const BASE: PagesSettings = {
     encryption: { providerId: "webcrypto" },
     history: { providerId: "github" },
   },
-} as PagesSettings;
+};
 
 let stored: PagesSettings;
 const saveSettings = vi.fn((next: PagesSettings) => {
@@ -126,18 +124,24 @@ describe("authorizeCapabilityConnector", () => {
   }
 
   function popup(): Window {
-    const stub: Window = overlapCast({
-      location: { href: "" },
-      close: vi.fn(),
+    const child: Window = Object.create(window);
+    Object.defineProperty(child, "location", {
+      value: { href: "" },
+      writable: true,
     });
-    return stub;
+    child.close = vi.fn();
+    return child;
   }
 
   it("short-circuits a connector that needs no authorization", async () => {
     arrange();
     const shut = vi.fn();
-    const bare: Window = overlapCast({ close: shut });
-    const outcome = await authorizeCapabilityConnector("encryption", bare);
+    const consentPopup = popup();
+    consentPopup.close = shut;
+    const outcome = await authorizeCapabilityConnector(
+      "encryption",
+      consentPopup,
+    );
     expect(outcome.tone).toBe("ok");
     // Nothing to consent to, so the popup must not be left hanging open.
     expect(shut).toHaveBeenCalled();
@@ -230,8 +234,12 @@ describe("authorizeCapabilityConnector", () => {
     arrange({
       ensureHostSession: vi.fn().mockRejectedValue(new Error("host is down")),
     });
-    const blank: Window = overlapCast({ location: { href: "" }, close: shut });
-    const outcome = await authorizeCapabilityConnector("encryption", blank);
+    const consentPopup = popup();
+    consentPopup.close = shut;
+    const outcome = await authorizeCapabilityConnector(
+      "encryption",
+      consentPopup,
+    );
     expect(outcome).toEqual({ tone: "err", text: "host is down" });
     // A popup left open on about:blank is a window the person has to go and
     // find and close themselves.

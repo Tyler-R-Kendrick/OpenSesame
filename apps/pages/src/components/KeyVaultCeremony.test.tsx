@@ -24,8 +24,7 @@ const bindCapabilityConnector = vi.fn(
   },
 );
 const authorizeCapabilityConnector = vi.fn();
-// SAFETY: checked against the code under test — the popup handle is only compared to null, no Window member is dereferenced.
-const openConsentPopup = vi.fn(() => ({}) as Window);
+const openConsentPopup = vi.fn(() => window);
 
 beforeEach(() => {
   binding = { providerId: "webcrypto" };

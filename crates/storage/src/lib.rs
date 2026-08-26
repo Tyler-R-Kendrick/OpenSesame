@@ -5,7 +5,7 @@ use opensesame_domain::{
     ConnectionId, ConnectionRecord, Grant, GrantId, Intent, Invocation, InvocationReceipt,
     OrganizationId, ProjectId,
 };
-use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
+use sqlx::{sqlite::SqlitePoolOptions, sqlite::SqliteRow, Row, SqlitePool};
 use std::path::Path;
 
 #[derive(Clone)]
@@ -31,6 +31,84 @@ pub enum SyncWriteOutcome {
     OwnerQuota,
     StoreFull,
     StaleEpoch,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct SealedCertificateMaterial {
+    pub key_id: String,
+    pub ciphertext: Vec<u8>,
+    pub nonce: Vec<u8>,
+    pub aad_digest: String,
+}
+
+impl std::fmt::Debug for SealedCertificateMaterial {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("SealedCertificateMaterial")
+            .field("key_id", &self.key_id)
+            .field("ciphertext", &"[REDACTED]")
+            .field("nonce", &"[REDACTED]")
+            .field("aad_digest", &self.aad_digest)
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredCertificateAuthority {
+    pub id: String,
+    pub organization_id: String,
+    pub issuer_kind: String,
+    pub issuer_connection_id: Option<String>,
+    pub display_name: String,
+    pub public_metadata_json: String,
+    pub sealed_material: SealedCertificateMaterial,
+    pub is_default: bool,
+    pub status: String,
+    pub version: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SealedCertificateDelivery {
+    pub material: SealedCertificateMaterial,
+    pub expires_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredCertificateIssuanceRequest {
+    pub id: String,
+    pub organization_id: String,
+    pub authority_id: String,
+    pub request_digest: String,
+    pub idempotency_key: String,
+    pub created_by: String,
+    pub state: String,
+    pub common_name: String,
+    pub san_json: String,
+    pub delivery: Option<SealedCertificateDelivery>,
+    pub expires_at: String,
+    pub version: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredIssuedCertificate {
+    pub id: String,
+    pub organization_id: String,
+    pub authority_id: String,
+    pub request_id: String,
+    pub certificate_digest: String,
+    pub serial_number: String,
+    pub common_name: String,
+    pub san_json: String,
+    pub not_before: String,
+    pub expires_at: String,
+    pub status: String,
+    pub version: i64,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 /// Receipt evidence plus the authoritative organization resolved through its
@@ -109,6 +187,14 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "0012_connection_delegations",
         include_str!("../../../migrations/0012_connection_delegations.sql"),
+    ),
+    (
+        "0013_certificate_issuance",
+        include_str!("../../../migrations/0013_certificate_issuance.sql"),
+    ),
+    (
+        "0014_custom_providers",
+        include_str!("../../../migrations/0014_custom_providers.sql"),
     ),
 ];
 
@@ -1042,6 +1128,499 @@ impl Db {
         )
     }
 
+    // —— certificate authority and issuance —————————————————————
+
+    /// Insert a sealed certificate authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation, serialization, or persistence fails.
+    pub async fn insert_certificate_authority(
+        &self,
+        authority: &StoredCertificateAuthority,
+    ) -> anyhow::Result<()> {
+        validate_sealed_material(&authority.sealed_material)?;
+        if authority.is_default && authority.status != "active" {
+            anyhow::bail!("only an active certificate authority may be default");
+        }
+        serde_json::from_str::<serde_json::Value>(&authority.public_metadata_json)
+            .context("certificate authority public metadata is not valid JSON")?;
+        let mut transaction = self.pool.begin().await?;
+        sqlx::query("INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, ?, ?)")
+            .bind(&authority.organization_id)
+            .bind(&authority.organization_id)
+            .bind(&authority.created_at)
+            .execute(&mut *transaction)
+            .await?;
+        sqlx::query(
+            "INSERT INTO certificate_authorities (id, organization_id, issuer_kind, issuer_connection_id, display_name, public_metadata_json, sealed_key_id, sealed_ciphertext, sealed_nonce, sealed_aad_digest, is_default, status, version, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&authority.id)
+        .bind(&authority.organization_id)
+        .bind(&authority.issuer_kind)
+        .bind(&authority.issuer_connection_id)
+        .bind(&authority.display_name)
+        .bind(&authority.public_metadata_json)
+        .bind(&authority.sealed_material.key_id)
+        .bind(&authority.sealed_material.ciphertext)
+        .bind(&authority.sealed_material.nonce)
+        .bind(&authority.sealed_material.aad_digest)
+        .bind(i64::from(authority.is_default))
+        .bind(&authority.status)
+        .bind(authority.version)
+        .bind(&authority.created_at)
+        .bind(&authority.updated_at)
+        .execute(&mut *transaction)
+        .await?;
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
+    pub async fn get_certificate_authority(
+        &self,
+        organization_id: &str,
+        authority_id: &str,
+    ) -> anyhow::Result<Option<StoredCertificateAuthority>> {
+        let row = sqlx::query(
+            "SELECT * FROM certificate_authorities WHERE organization_id = ? AND id = ?",
+        )
+        .bind(organization_id)
+        .bind(authority_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.as_ref().map(stored_certificate_authority))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
+    pub async fn get_default_certificate_authority(
+        &self,
+        organization_id: &str,
+    ) -> anyhow::Result<Option<StoredCertificateAuthority>> {
+        let row = sqlx::query(
+            "SELECT * FROM certificate_authorities WHERE organization_id = ? AND is_default = 1",
+        )
+        .bind(organization_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.as_ref().map(stored_certificate_authority))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
+    pub async fn list_certificate_authorities(
+        &self,
+        organization_id: &str,
+    ) -> anyhow::Result<Vec<StoredCertificateAuthority>> {
+        let rows = sqlx::query(
+            "SELECT * FROM certificate_authorities WHERE organization_id = ? ORDER BY is_default DESC, created_at, id",
+        )
+        .bind(organization_id)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(stored_certificate_authority).collect())
+    }
+
+    /// Select one active default using compare-and-swap. This never falls back
+    /// to another issuer when the selected row is absent, stale, or inactive.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the transaction fails.
+    pub async fn set_default_certificate_authority(
+        &self,
+        organization_id: &str,
+        authority_id: &str,
+        expected_version: i64,
+    ) -> anyhow::Result<bool> {
+        let mut transaction = self.pool.begin().await?;
+        let target = sqlx::query(
+            "SELECT version, status FROM certificate_authorities WHERE organization_id = ? AND id = ?",
+        )
+        .bind(organization_id)
+        .bind(authority_id)
+        .fetch_optional(&mut *transaction)
+        .await?;
+        let Some(target) = target else {
+            return Ok(false);
+        };
+        if target.get::<i64, _>("version") != expected_version
+            || target.get::<String, _>("status") != "active"
+        {
+            return Ok(false);
+        }
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "UPDATE certificate_authorities SET is_default = 0, version = version + 1, updated_at = ? \
+             WHERE organization_id = ? AND is_default = 1 AND id <> ?",
+        )
+        .bind(&now)
+        .bind(organization_id)
+        .bind(authority_id)
+        .execute(&mut *transaction)
+        .await?;
+        let updated = sqlx::query(
+            "UPDATE certificate_authorities SET is_default = 1, version = version + 1, updated_at = ? \
+             WHERE organization_id = ? AND id = ? AND version = ? AND status = 'active'",
+        )
+        .bind(&now)
+        .bind(organization_id)
+        .bind(authority_id)
+        .bind(expected_version)
+        .execute(&mut *transaction)
+        .await?;
+        if updated.rows_affected() != 1 {
+            transaction.rollback().await?;
+            return Ok(false);
+        }
+        transaction.commit().await?;
+        Ok(true)
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the update fails.
+    pub async fn update_certificate_authority_status(
+        &self,
+        organization_id: &str,
+        authority_id: &str,
+        expected_version: i64,
+        status: &str,
+    ) -> anyhow::Result<bool> {
+        let result = sqlx::query(
+            "UPDATE certificate_authorities SET status = ?, is_default = CASE WHEN ? = 'active' THEN is_default ELSE 0 END, version = version + 1, updated_at = ? \
+             WHERE organization_id = ? AND id = ? AND version = ?",
+        )
+        .bind(status)
+        .bind(status)
+        .bind(Utc::now().to_rfc3339())
+        .bind(organization_id)
+        .bind(authority_id)
+        .bind(expected_version)
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when validation or insertion fails.
+    pub async fn insert_certificate_issuance_request(
+        &self,
+        request: &StoredCertificateIssuanceRequest,
+    ) -> anyhow::Result<bool> {
+        validate_san_json(&request.san_json)?;
+        if request.state != "created" || request.delivery.is_some() {
+            anyhow::bail!("new certificate issuance requests must be unfulfilled and created");
+        }
+        let result = sqlx::query(
+            "INSERT INTO certificate_issuance_requests (id, organization_id, authority_id, request_digest, idempotency_key, created_by, state, common_name, san_json, delivery_key_id, delivery_ciphertext, delivery_nonce, delivery_aad_digest, delivery_expires_at, expires_at, version, created_at, updated_at) \
+             SELECT ?, ?, id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? FROM certificate_authorities \
+             WHERE id = ? AND organization_id = ? AND status = 'active'",
+        )
+        .bind(&request.id)
+        .bind(&request.organization_id)
+        .bind(&request.request_digest)
+        .bind(&request.idempotency_key)
+        .bind(&request.created_by)
+        .bind(&request.state)
+        .bind(&request.common_name)
+        .bind(&request.san_json)
+        .bind(request.delivery.as_ref().map(|d| &d.material.key_id))
+        .bind(request.delivery.as_ref().map(|d| &d.material.ciphertext))
+        .bind(request.delivery.as_ref().map(|d| &d.material.nonce))
+        .bind(request.delivery.as_ref().map(|d| &d.material.aad_digest))
+        .bind(request.delivery.as_ref().map(|d| &d.expires_at))
+        .bind(&request.expires_at)
+        .bind(request.version)
+        .bind(&request.created_at)
+        .bind(&request.updated_at)
+        .bind(&request.authority_id)
+        .bind(&request.organization_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the lookup or stored-record decoding fails.
+    pub async fn find_certificate_issuance_by_idempotency(
+        &self,
+        organization_id: &str,
+        idempotency_key: &str,
+    ) -> anyhow::Result<Option<StoredCertificateIssuanceRequest>> {
+        let row = sqlx::query(
+            "SELECT * FROM certificate_issuance_requests WHERE organization_id = ? AND idempotency_key = ?",
+        )
+        .bind(organization_id)
+        .bind(idempotency_key)
+        .fetch_optional(&self.pool)
+        .await?;
+        row.as_ref()
+            .map(stored_certificate_issuance_request)
+            .transpose()
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the state update fails.
+    pub async fn transition_certificate_issuance(
+        &self,
+        organization_id: &str,
+        request_id: &str,
+        expected_version: i64,
+        expected_state: &str,
+        next_state: &str,
+    ) -> anyhow::Result<bool> {
+        if certificate_issuance_state_is_terminal(expected_state) || next_state == "completed" {
+            return Ok(false);
+        }
+        let result = sqlx::query(
+            "UPDATE certificate_issuance_requests SET state = ?, version = version + 1, updated_at = ? \
+             WHERE organization_id = ? AND id = ? AND version = ? AND state = ? AND julianday(expires_at) > julianday(?)",
+        )
+        .bind(next_state)
+        .bind(Utc::now().to_rfc3339())
+        .bind(organization_id)
+        .bind(request_id)
+        .bind(expected_version)
+        .bind(expected_state)
+        .bind(Utc::now().to_rfc3339())
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// Atomically records key-free certificate metadata and the encrypted,
+    /// time-bounded delivery payload. A stale request cannot create a record.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation or the transaction fails.
+    pub async fn complete_certificate_issuance(
+        &self,
+        organization_id: &str,
+        request_id: &str,
+        expected_version: i64,
+        expected_state: &str,
+        delivery: &SealedCertificateDelivery,
+        issued: &StoredIssuedCertificate,
+    ) -> anyhow::Result<bool> {
+        if certificate_issuance_state_is_terminal(expected_state) {
+            return Ok(false);
+        }
+        validate_sealed_material(&delivery.material)?;
+        validate_san_json(&issued.san_json)?;
+        if issued.organization_id != organization_id || issued.request_id != request_id {
+            anyhow::bail!("issued certificate ownership does not match request");
+        }
+        let mut transaction = self.pool.begin().await?;
+        let updated = sqlx::query(
+            "UPDATE certificate_issuance_requests SET state = 'completed', delivery_key_id = ?, delivery_ciphertext = ?, delivery_nonce = ?, delivery_aad_digest = ?, delivery_expires_at = ?, version = version + 1, updated_at = ? \
+             WHERE organization_id = ? AND id = ? AND authority_id = ? AND common_name = ? AND san_json = ? AND version = ? AND state = ? AND julianday(expires_at) > julianday(?)",
+        )
+        .bind(&delivery.material.key_id)
+        .bind(&delivery.material.ciphertext)
+        .bind(&delivery.material.nonce)
+        .bind(&delivery.material.aad_digest)
+        .bind(&delivery.expires_at)
+        .bind(Utc::now().to_rfc3339())
+        .bind(organization_id)
+        .bind(request_id)
+        .bind(&issued.authority_id)
+        .bind(&issued.common_name)
+        .bind(&issued.san_json)
+        .bind(expected_version)
+        .bind(expected_state)
+        .bind(Utc::now().to_rfc3339())
+        .execute(&mut *transaction)
+        .await?;
+        if updated.rows_affected() != 1 {
+            transaction.rollback().await?;
+            return Ok(false);
+        }
+        sqlx::query(
+            "INSERT INTO issued_certificates (id, organization_id, authority_id, request_id, certificate_digest, serial_number, common_name, san_json, not_before, expires_at, status, version, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&issued.id)
+        .bind(&issued.organization_id)
+        .bind(&issued.authority_id)
+        .bind(&issued.request_id)
+        .bind(&issued.certificate_digest)
+        .bind(&issued.serial_number)
+        .bind(&issued.common_name)
+        .bind(&issued.san_json)
+        .bind(&issued.not_before)
+        .bind(&issued.expires_at)
+        .bind(&issued.status)
+        .bind(issued.version)
+        .bind(&issued.created_at)
+        .bind(&issued.updated_at)
+        .execute(&mut *transaction)
+        .await?;
+        transaction.commit().await?;
+        Ok(true)
+    }
+
+    /// Destructive read of a still-valid encrypted delivery. The clear and
+    /// version bump happen in the same transaction, so concurrent readers get
+    /// at most one payload.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when delivery decoding or the transaction fails.
+    pub async fn take_certificate_delivery(
+        &self,
+        organization_id: &str,
+        request_id: &str,
+        now: &str,
+    ) -> anyhow::Result<Option<SealedCertificateDelivery>> {
+        let mut transaction = self.pool.begin().await?;
+        let row = sqlx::query(
+            "SELECT version, delivery_key_id, delivery_ciphertext, delivery_nonce, delivery_aad_digest, delivery_expires_at \
+             FROM certificate_issuance_requests WHERE organization_id = ? AND id = ? AND state = 'completed'",
+        )
+        .bind(organization_id)
+        .bind(request_id)
+        .fetch_optional(&mut *transaction)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let version: i64 = row.get("version");
+        let Some(expires_at) = row.get::<Option<String>, _>("delivery_expires_at") else {
+            return Ok(None);
+        };
+        if certificate_time_is_expired(&expires_at, now)? {
+            clear_certificate_delivery(&mut transaction, request_id, version).await?;
+            transaction.commit().await?;
+            return Ok(None);
+        }
+        let delivery = sealed_certificate_delivery(&row)?;
+        if !clear_certificate_delivery(&mut transaction, request_id, version).await? {
+            transaction.rollback().await?;
+            return Ok(None);
+        }
+        transaction.commit().await?;
+        Ok(Some(delivery))
+    }
+
+    /// Reads a bounded encrypted delivery without consuming it. Callers must
+    /// acknowledge only after the response has been durably stored by the
+    /// holder; this avoids losing a generated private key on transport failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when delivery decoding or the transaction fails.
+    pub async fn get_certificate_delivery(
+        &self,
+        organization_id: &str,
+        request_id: &str,
+        created_by: &str,
+        now: &str,
+    ) -> anyhow::Result<Option<SealedCertificateDelivery>> {
+        let mut transaction = self.pool.begin().await?;
+        let row = sqlx::query(
+            "SELECT version, delivery_key_id, delivery_ciphertext, delivery_nonce, delivery_aad_digest, delivery_expires_at \
+             FROM certificate_issuance_requests WHERE organization_id = ? AND id = ? AND created_by = ? AND state = 'completed'",
+        )
+        .bind(organization_id)
+        .bind(request_id)
+        .bind(created_by)
+        .fetch_optional(&mut *transaction)
+        .await?;
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let version: i64 = row.get("version");
+        let Some(expires_at) = row.get::<Option<String>, _>("delivery_expires_at") else {
+            return Ok(None);
+        };
+        if certificate_time_is_expired(&expires_at, now)? {
+            clear_certificate_delivery(&mut transaction, request_id, version).await?;
+            transaction.commit().await?;
+            return Ok(None);
+        }
+        let delivery = sealed_certificate_delivery(&row)?;
+        transaction.commit().await?;
+        Ok(Some(delivery))
+    }
+
+    /// Clears an encrypted delivery after holder acknowledgement. The CAS makes
+    /// repeated or concurrent acknowledgements harmless.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the lookup or transaction fails.
+    pub async fn acknowledge_certificate_delivery(
+        &self,
+        organization_id: &str,
+        request_id: &str,
+        created_by: &str,
+    ) -> anyhow::Result<bool> {
+        let row = sqlx::query(
+            "SELECT version FROM certificate_issuance_requests \
+             WHERE organization_id = ? AND id = ? AND created_by = ? AND state = 'completed' AND delivery_ciphertext IS NOT NULL",
+        )
+        .bind(organization_id)
+        .bind(request_id)
+        .bind(created_by)
+        .fetch_optional(&self.pool)
+        .await?;
+        let Some(row) = row else {
+            return Ok(false);
+        };
+        let mut transaction = self.pool.begin().await?;
+        let cleared =
+            clear_certificate_delivery(&mut transaction, request_id, row.get::<i64, _>("version"))
+                .await?;
+        transaction.commit().await?;
+        Ok(cleared)
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
+    pub async fn get_issued_certificate(
+        &self,
+        organization_id: &str,
+        certificate_id: &str,
+    ) -> anyhow::Result<Option<StoredIssuedCertificate>> {
+        let row =
+            sqlx::query("SELECT * FROM issued_certificates WHERE organization_id = ? AND id = ?")
+                .bind(organization_id)
+                .bind(certificate_id)
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(row.as_ref().map(stored_issued_certificate))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
+    pub async fn list_issued_certificates_expiring_before(
+        &self,
+        organization_id: &str,
+        before: &str,
+    ) -> anyhow::Result<Vec<StoredIssuedCertificate>> {
+        let rows = sqlx::query(
+            "SELECT * FROM issued_certificates WHERE organization_id = ? AND status = 'active' AND julianday(expires_at) <= julianday(?) ORDER BY expires_at, id",
+        )
+        .bind(organization_id)
+        .bind(before)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(stored_issued_certificate).collect())
+    }
+
     // —— host operator kv ————————————————————————————————
 
     /// Read a host-operator key/value entry.
@@ -1369,6 +1948,172 @@ impl Db {
     }
 }
 
+fn validate_sealed_material(material: &SealedCertificateMaterial) -> anyhow::Result<()> {
+    if material.key_id.is_empty()
+        || material.ciphertext.is_empty()
+        || material.nonce.is_empty()
+        || material.aad_digest.is_empty()
+    {
+        anyhow::bail!("sealed certificate material must be complete");
+    }
+    Ok(())
+}
+
+fn validate_san_json(san_json: &str) -> anyhow::Result<()> {
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields)]
+    struct Sans {
+        dns_names: Vec<String>,
+        ip_addrs: Vec<String>,
+    }
+    let sans: Sans = serde_json::from_str(san_json)
+        .context("certificate SAN metadata must contain DNS names and IP addresses")?;
+    if sans.dns_names.len() > 100
+        || sans.ip_addrs.len() > 16
+        || sans
+            .dns_names
+            .iter()
+            .chain(&sans.ip_addrs)
+            .any(|value| value.is_empty() || value.len() > 253)
+    {
+        anyhow::bail!("certificate SAN metadata exceeds bounds");
+    }
+    Ok(())
+}
+
+fn stored_certificate_authority(row: &SqliteRow) -> StoredCertificateAuthority {
+    StoredCertificateAuthority {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        issuer_kind: row.get("issuer_kind"),
+        issuer_connection_id: row.get("issuer_connection_id"),
+        display_name: row.get("display_name"),
+        public_metadata_json: row.get("public_metadata_json"),
+        sealed_material: SealedCertificateMaterial {
+            key_id: row.get("sealed_key_id"),
+            ciphertext: row.get("sealed_ciphertext"),
+            nonce: row.get("sealed_nonce"),
+            aad_digest: row.get("sealed_aad_digest"),
+        },
+        is_default: row.get::<i64, _>("is_default") != 0,
+        status: row.get("status"),
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn stored_certificate_issuance_request(
+    row: &SqliteRow,
+) -> anyhow::Result<StoredCertificateIssuanceRequest> {
+    let delivery = match row.get::<Option<String>, _>("delivery_key_id") {
+        Some(key_id) => Some(SealedCertificateDelivery {
+            material: SealedCertificateMaterial {
+                key_id,
+                ciphertext: row
+                    .get::<Option<Vec<u8>>, _>("delivery_ciphertext")
+                    .context("certificate delivery ciphertext is missing")?,
+                nonce: row
+                    .get::<Option<Vec<u8>>, _>("delivery_nonce")
+                    .context("certificate delivery nonce is missing")?,
+                aad_digest: row
+                    .get::<Option<String>, _>("delivery_aad_digest")
+                    .context("certificate delivery AAD digest is missing")?,
+            },
+            expires_at: row
+                .get::<Option<String>, _>("delivery_expires_at")
+                .context("certificate delivery expiry is missing")?,
+        }),
+        None => None,
+    };
+    Ok(StoredCertificateIssuanceRequest {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        authority_id: row.get("authority_id"),
+        request_digest: row.get("request_digest"),
+        idempotency_key: row.get("idempotency_key"),
+        created_by: row.get("created_by"),
+        state: row.get("state"),
+        common_name: row.get("common_name"),
+        san_json: row.get("san_json"),
+        delivery,
+        expires_at: row.get("expires_at"),
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    })
+}
+
+fn stored_issued_certificate(row: &SqliteRow) -> StoredIssuedCertificate {
+    StoredIssuedCertificate {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        authority_id: row.get("authority_id"),
+        request_id: row.get("request_id"),
+        certificate_digest: row.get("certificate_digest"),
+        serial_number: row.get("serial_number"),
+        common_name: row.get("common_name"),
+        san_json: row.get("san_json"),
+        not_before: row.get("not_before"),
+        expires_at: row.get("expires_at"),
+        status: row.get("status"),
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn sealed_certificate_delivery(row: &SqliteRow) -> anyhow::Result<SealedCertificateDelivery> {
+    Ok(SealedCertificateDelivery {
+        material: SealedCertificateMaterial {
+            key_id: row
+                .get::<Option<String>, _>("delivery_key_id")
+                .context("certificate delivery key ID is missing")?,
+            ciphertext: row
+                .get::<Option<Vec<u8>>, _>("delivery_ciphertext")
+                .context("certificate delivery ciphertext is missing")?,
+            nonce: row
+                .get::<Option<Vec<u8>>, _>("delivery_nonce")
+                .context("certificate delivery nonce is missing")?,
+            aad_digest: row
+                .get::<Option<String>, _>("delivery_aad_digest")
+                .context("certificate delivery AAD digest is missing")?,
+        },
+        expires_at: row
+            .get::<Option<String>, _>("delivery_expires_at")
+            .context("certificate delivery expiry is missing")?,
+    })
+}
+
+async fn clear_certificate_delivery(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    request_id: &str,
+    expected_version: i64,
+) -> anyhow::Result<bool> {
+    let result = sqlx::query(
+        "UPDATE certificate_issuance_requests SET delivery_key_id = NULL, delivery_ciphertext = NULL, delivery_nonce = NULL, delivery_aad_digest = NULL, delivery_expires_at = NULL, version = version + 1, updated_at = ? \
+         WHERE id = ? AND version = ? AND delivery_ciphertext IS NOT NULL",
+    )
+    .bind(Utc::now().to_rfc3339())
+    .bind(request_id)
+    .bind(expected_version)
+    .execute(&mut **transaction)
+    .await?;
+    Ok(result.rows_affected() == 1)
+}
+
+fn certificate_issuance_state_is_terminal(state: &str) -> bool {
+    matches!(state, "completed" | "failed" | "expired" | "revoked")
+}
+
+fn certificate_time_is_expired(expires_at: &str, now: &str) -> anyhow::Result<bool> {
+    let expires_at = chrono::DateTime::parse_from_rfc3339(expires_at)
+        .context("certificate delivery expiry is not RFC 3339")?;
+    let now = chrono::DateTime::parse_from_rfc3339(now)
+        .context("certificate delivery comparison time is not RFC 3339")?;
+    Ok(expires_at <= now)
+}
+
 #[derive(Clone, Debug)]
 pub struct OutboxEvent {
     pub id: String,
@@ -1629,6 +2374,92 @@ mod tests {
         (intent, invocation, receipt)
     }
 
+    fn certificate_authority(
+        organization_id: &str,
+        id: &str,
+        is_default: bool,
+    ) -> StoredCertificateAuthority {
+        StoredCertificateAuthority {
+            id: id.into(),
+            organization_id: organization_id.into(),
+            issuer_kind: "opensesame_private_ca".into(),
+            issuer_connection_id: None,
+            display_name: "OpenSesame Private CA".into(),
+            public_metadata_json: r#"{"algorithm":"ES256"}"#.into(),
+            sealed_material: SealedCertificateMaterial {
+                key_id: "seal:v1".into(),
+                ciphertext: vec![1, 2, 3],
+                nonce: vec![4, 5, 6],
+                aad_digest: "sha256:authority".into(),
+            },
+            is_default,
+            status: "active".into(),
+            version: 1,
+            created_at: "2026-08-21T00:00:00+00:00".into(),
+            updated_at: "2026-08-21T00:00:00+00:00".into(),
+        }
+    }
+
+    fn certificate_request(
+        organization_id: &str,
+        authority_id: &str,
+        id: &str,
+        idempotency_key: &str,
+    ) -> StoredCertificateIssuanceRequest {
+        StoredCertificateIssuanceRequest {
+            id: id.into(),
+            organization_id: organization_id.into(),
+            authority_id: authority_id.into(),
+            request_digest: format!("sha256:{id}"),
+            idempotency_key: idempotency_key.into(),
+            created_by: "principal:owner".into(),
+            state: "created".into(),
+            common_name: "localhost".into(),
+            san_json: r#"{"dns_names":["localhost"],"ip_addrs":["127.0.0.1"]}"#.into(),
+            delivery: None,
+            expires_at: "2099-01-01T00:00:00+00:00".into(),
+            version: 1,
+            created_at: "2026-08-21T00:00:00+00:00".into(),
+            updated_at: "2026-08-21T00:00:00+00:00".into(),
+        }
+    }
+
+    fn issued_certificate(
+        organization_id: &str,
+        authority_id: &str,
+        request_id: &str,
+        id: &str,
+    ) -> StoredIssuedCertificate {
+        StoredIssuedCertificate {
+            id: id.into(),
+            organization_id: organization_id.into(),
+            authority_id: authority_id.into(),
+            request_id: request_id.into(),
+            certificate_digest: format!("sha256:{id}"),
+            serial_number: id.into(),
+            common_name: "localhost".into(),
+            san_json: r#"{"dns_names":["localhost"],"ip_addrs":["127.0.0.1"]}"#.into(),
+            not_before: "2026-08-21T00:00:00+00:00".into(),
+            expires_at: "2026-08-22T00:00:00+00:00".into(),
+            status: "active".into(),
+            version: 1,
+            created_at: "2026-08-21T00:00:00+00:00".into(),
+            updated_at: "2026-08-21T00:00:00+00:00".into(),
+        }
+    }
+
+    fn certificate_delivery(expires_at: &str) -> SealedCertificateDelivery {
+        SealedCertificateDelivery {
+            material: SealedCertificateMaterial {
+                key_id: "seal:v1".into(),
+                ciphertext: vec![9, 8, 7],
+                nonce: vec![6, 5, 4],
+                aad_digest: "sha256:delivery".into(),
+            },
+            expires_at: expires_at.into(),
+        }
+    }
+
     #[tokio::test]
     async fn migrate_and_org_boundary() {
         let db = Db::connect_memory().await.unwrap();
@@ -1816,6 +2647,295 @@ mod tests {
         // A second boot must be a no-op rather than replaying schema changes.
         db.migrate().await.unwrap();
         assert_eq!(db.applied_migrations().await.unwrap(), applied);
+    }
+
+    #[tokio::test]
+    async fn migration_preserves_legacy_certificate_host_kv() {
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+        apply_migrations(&pool, &MIGRATIONS[..10]).await;
+        sqlx::query(
+            "INSERT INTO host_kv (key, value, updated_at) VALUES ('certs.dev_ca', 'legacy-unsealed-value', 't')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        apply_migration(
+            &pool,
+            include_str!("../../../migrations/0013_certificate_issuance.sql"),
+        )
+        .await;
+        assert_eq!(
+            sqlx::query_scalar::<_, String>("SELECT value FROM host_kv WHERE key = 'certs.dev_ca'")
+                .fetch_one(&pool)
+                .await
+                .unwrap(),
+            "legacy-unsealed-value"
+        );
+    }
+
+    #[tokio::test]
+    async fn atomic_certificate_authority_default_is_org_scoped_and_cas_guarded() {
+        let db = Db::connect_memory().await.unwrap();
+        let internal = certificate_authority("org:one", "ca:internal", true);
+        let external = certificate_authority("org:one", "ca:external", false);
+        db.insert_certificate_authority(&internal).await.unwrap();
+        db.insert_certificate_authority(&external).await.unwrap();
+
+        assert!(!db
+            .set_default_certificate_authority("org:two", "ca:external", 1)
+            .await
+            .unwrap());
+        assert!(db
+            .set_default_certificate_authority("org:one", "ca:external", 1)
+            .await
+            .unwrap());
+        assert_eq!(
+            db.get_default_certificate_authority("org:one")
+                .await
+                .unwrap()
+                .unwrap()
+                .id,
+            "ca:external"
+        );
+        assert!(!db
+            .set_default_certificate_authority("org:one", "ca:internal", 1)
+            .await
+            .unwrap());
+
+        let duplicate_default = certificate_authority("org:one", "ca:duplicate", true);
+        assert!(db
+            .insert_certificate_authority(&duplicate_default)
+            .await
+            .is_err());
+    }
+
+    #[tokio::test]
+    async fn adversarial_certificate_completion_rejects_substitution_and_replay() {
+        let db = Db::connect_memory().await.unwrap();
+        let authority = certificate_authority("org:one", "ca:one", true);
+        db.insert_certificate_authority(&authority).await.unwrap();
+        let request = certificate_request("org:one", "ca:one", "request:one", "idem:one");
+        assert!(db
+            .insert_certificate_issuance_request(&request)
+            .await
+            .unwrap());
+
+        let mut duplicate = certificate_request("org:one", "ca:one", "request:two", "idem:one");
+        duplicate.request_digest = "sha256:other".into();
+        assert!(db
+            .insert_certificate_issuance_request(&duplicate)
+            .await
+            .is_err());
+
+        let delivery = certificate_delivery("2099-01-01T00:00:00+00:00");
+        let mut substituted =
+            issued_certificate("org:one", "ca:one", "request:one", "certificate:one");
+        substituted.common_name = "attacker.example".into();
+        assert!(!db
+            .complete_certificate_issuance(
+                "org:one",
+                "request:one",
+                1,
+                "created",
+                &delivery,
+                &substituted,
+            )
+            .await
+            .unwrap());
+
+        let issued = issued_certificate("org:one", "ca:one", "request:one", "certificate:one");
+        assert!(db
+            .complete_certificate_issuance(
+                "org:one",
+                "request:one",
+                1,
+                "created",
+                &delivery,
+                &issued,
+            )
+            .await
+            .unwrap());
+        assert!(!db
+            .complete_certificate_issuance(
+                "org:one",
+                "request:one",
+                1,
+                "created",
+                &delivery,
+                &issued,
+            )
+            .await
+            .unwrap());
+        assert_eq!(
+            db.get_issued_certificate("org:one", "certificate:one")
+                .await
+                .unwrap(),
+            Some(issued)
+        );
+        assert!(db
+            .get_issued_certificate("org:two", "certificate:one")
+            .await
+            .unwrap()
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn atomic_certificate_delivery_is_encrypted_expiring_and_single_use() {
+        let db = Db::connect_memory().await.unwrap();
+        let authority = certificate_authority("org:one", "ca:one", true);
+        db.insert_certificate_authority(&authority).await.unwrap();
+        let request = certificate_request("org:one", "ca:one", "request:one", "idem:one");
+        db.insert_certificate_issuance_request(&request)
+            .await
+            .unwrap();
+        let delivery = certificate_delivery("2099-01-01T00:00:00+00:00");
+        let debug = format!("{delivery:?}");
+        assert!(!debug.contains("[9, 8, 7]"));
+        assert!(!debug.contains("[6, 5, 4]"));
+        let issued = issued_certificate("org:one", "ca:one", "request:one", "certificate:one");
+        db.complete_certificate_issuance(
+            "org:one",
+            "request:one",
+            1,
+            "created",
+            &delivery,
+            &issued,
+        )
+        .await
+        .unwrap();
+
+        assert!(db
+            .take_certificate_delivery("org:two", "request:one", "2026-08-21T00:00:00+00:00")
+            .await
+            .unwrap()
+            .is_none());
+        assert_eq!(
+            db.take_certificate_delivery("org:one", "request:one", "2026-08-21T00:00:00+00:00")
+                .await
+                .unwrap(),
+            Some(delivery)
+        );
+        assert!(db
+            .take_certificate_delivery("org:one", "request:one", "2026-08-21T00:00:00+00:00")
+            .await
+            .unwrap()
+            .is_none());
+
+        let expired_request =
+            certificate_request("org:one", "ca:one", "request:expired", "idem:expired");
+        db.insert_certificate_issuance_request(&expired_request)
+            .await
+            .unwrap();
+        let expired_issued = issued_certificate(
+            "org:one",
+            "ca:one",
+            "request:expired",
+            "certificate:expired",
+        );
+        db.complete_certificate_issuance(
+            "org:one",
+            "request:expired",
+            1,
+            "created",
+            &certificate_delivery("2026-08-20T00:00:00+00:00"),
+            &expired_issued,
+        )
+        .await
+        .unwrap();
+        assert!(db
+            .take_certificate_delivery("org:one", "request:expired", "2026-08-21T00:00:00+00:00")
+            .await
+            .unwrap()
+            .is_none());
+        assert!(sqlx::query_scalar::<_, Option<Vec<u8>>>(
+            "SELECT delivery_ciphertext FROM certificate_issuance_requests WHERE id = 'request:expired'",
+        )
+        .fetch_one(db.pool())
+        .await
+        .unwrap()
+        .is_none());
+
+        let columns = sqlx::query("PRAGMA table_info(issued_certificates)")
+            .fetch_all(db.pool())
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|row| row.get::<String, _>("name"))
+            .collect::<Vec<_>>();
+        assert!(columns.iter().all(|column| {
+            !column.contains("private")
+                && !column.contains("ciphertext")
+                && !column.contains("nonce")
+        }));
+    }
+
+    #[tokio::test]
+    async fn contract_certificate_delivery_retries_until_holder_acknowledges() {
+        let db = Db::connect_memory().await.unwrap();
+        db.insert_certificate_authority(&certificate_authority("org:one", "ca:one", true))
+            .await
+            .unwrap();
+        let request = certificate_request("org:one", "ca:one", "request:one", "idem:one");
+        db.insert_certificate_issuance_request(&request)
+            .await
+            .unwrap();
+        let delivery = certificate_delivery("2099-01-01T00:00:00+00:00");
+        db.complete_certificate_issuance(
+            "org:one",
+            "request:one",
+            1,
+            "created",
+            &delivery,
+            &issued_certificate("org:one", "ca:one", "request:one", "certificate:one"),
+        )
+        .await
+        .unwrap();
+
+        assert!(db
+            .get_certificate_delivery(
+                "org:one",
+                "request:one",
+                "principal:attacker",
+                "2026-08-21T00:00:00+00:00",
+            )
+            .await
+            .unwrap()
+            .is_none());
+        for _ in 0..2 {
+            assert_eq!(
+                db.get_certificate_delivery(
+                    "org:one",
+                    "request:one",
+                    "principal:owner",
+                    "2026-08-21T00:00:00+00:00",
+                )
+                .await
+                .unwrap(),
+                Some(delivery.clone())
+            );
+        }
+        assert!(db
+            .acknowledge_certificate_delivery("org:one", "request:one", "principal:owner")
+            .await
+            .unwrap());
+        assert!(db
+            .get_certificate_delivery(
+                "org:one",
+                "request:one",
+                "principal:owner",
+                "2026-08-21T00:00:00+00:00",
+            )
+            .await
+            .unwrap()
+            .is_none());
+        assert!(!db
+            .acknowledge_certificate_delivery("org:one", "request:one", "principal:owner")
+            .await
+            .unwrap());
     }
 
     #[tokio::test]

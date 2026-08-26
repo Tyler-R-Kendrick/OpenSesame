@@ -4,6 +4,10 @@
  * vault it belonged to.
  */
 
+import type { ConnectorId } from "./connectors.js";
+
+export type NoticeTone = "info" | "warn" | "err";
+
 export type Notice = {
   id: string;
   /**
@@ -11,14 +15,40 @@ export type Notice = {
    * to a principal yet — the vault was locked when the browser came back, or a
    * reload dropped the in-memory prompt while the assertion lived on in
    * sessionStorage.
+   *
+   * `status` is a page condition mirrored into the tray — Host down, Identity
+   * unreachable, a list that failed to load — so the page itself stays clean.
+   * Status notices are keyed by id, not deduped by kind, and go through
+   * `setStatusNotice`.
    */
-  kind: "guest_claim" | "federated_link";
+  kind: "guest_claim" | "federated_link" | "status";
+  tone?: NoticeTone;
   title: string;
   body: string;
   userCode?: string;
   claimToken?: string;
   verificationUri?: string;
+  /**
+   * Connector whose repair ceremony fixes this ("host") — opened in place
+   * from the tray, never a route change.
+   */
+  ceremony?: ConnectorId;
+  ceremonyLabel?: string;
+  /** Re-attempt the failed work from the tray. */
+  retry?: () => void;
+  retryLabel?: string;
   createdAt: string;
+};
+
+export type StatusNoticeInput = {
+  id: string;
+  tone: NoticeTone;
+  title: string;
+  body: string;
+  ceremony?: ConnectorId;
+  ceremonyLabel?: string;
+  retry?: () => void;
+  retryLabel?: string;
 };
 
 type Listener = () => void;
@@ -54,6 +84,33 @@ function pushNoticeDefault(
   return notice;
 }
 
+function setStatusNoticeDefault(input: StatusNoticeInput): Notice {
+  const existing = notices.find((notice) => notice.id === input.id);
+  if (
+    existing &&
+    existing.tone === input.tone &&
+    existing.title === input.title &&
+    existing.body === input.body &&
+    existing.ceremony === input.ceremony &&
+    existing.ceremonyLabel === input.ceremonyLabel &&
+    existing.retryLabel === input.retryLabel
+  ) {
+    // Same words — only the retry closure may have changed. Swap it in place
+    // so the click calls the fresh one, without an emit that would loop the
+    // effect that mirrors a page condition into this store.
+    existing.retry = input.retry;
+    return existing;
+  }
+  const notice: Notice = {
+    ...input,
+    kind: "status",
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+  };
+  notices = [...notices.filter((item) => item.id !== input.id), notice];
+  emit();
+  return notice;
+}
+
 function dismissNoticeDefault(id: string): void {
   const next = notices.filter((notice) => notice.id !== id);
   if (next.length === notices.length) return;
@@ -71,6 +128,7 @@ export const noticeSeams = {
   listNotices: listNoticesDefault,
   subscribeNotices: subscribeNoticesDefault,
   pushNotice: pushNoticeDefault,
+  setStatusNotice: setStatusNoticeDefault,
   dismissNotice: dismissNoticeDefault,
   clearNotices: clearNoticesDefault,
 };
@@ -87,6 +145,10 @@ export function pushNotice(
   input: Omit<Notice, "id" | "createdAt"> & { id?: string },
 ): Notice {
   return noticeSeams.pushNotice(input);
+}
+
+export function setStatusNotice(input: StatusNoticeInput): Notice {
+  return noticeSeams.setStatusNotice(input);
 }
 
 export function dismissNotice(id: string): void {
