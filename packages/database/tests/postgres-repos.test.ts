@@ -502,7 +502,16 @@ describe("PostgresRepositories.outbox", () => {
 
   it("claim hides a row until the hold expires", async () => {
     const now = new Date();
-    const event = await ctx.repos.outbox.append(makeEvent());
+    // `availableAt` defaults to the database clock at INSERT, which is strictly
+    // later than a `now` captured before the append. Claiming as of that `now`
+    // then finds the row only when both land in the same tick — true on a fast
+    // machine, false on a loaded runner, where the claim comes back empty and
+    // `mine` is undefined. Pinning the row into the past makes this a test of
+    // the hold rather than of which clock won the race.
+    const event = await ctx.repos.outbox.append({
+      ...makeEvent(),
+      availableAt: new Date(now.getTime() - 1_000),
+    });
 
     const claimed = await ctx.repos.outbox.claimUnpublished(100, now, 30_000);
     const mine = claimed.find((e) => e.id === event.id);
