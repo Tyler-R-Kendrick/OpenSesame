@@ -25,9 +25,10 @@ from).
 
 ## Hard rules (apply on every firing, no exceptions)
 
-- **No GitHub Actions, ever.** No `.github/` directory exists and none may be
-  created. You are an ordinary Claude Code session running `git`/`gh`
-  yourself.
+- **This routine never becomes a GitHub Actions job.** `.github/workflows/`
+  holds exactly two workflows — `ci.yml` (the merge-queue gate) and
+  `deploy-pages.yml` — and the audit gates below are not to be moved into
+  them. You are an ordinary Claude Code session running `git`/`gh` yourself.
 - **No new paid dependencies or services.**
 - **Never commit secrets.** Describe a finding's location, never its value.
 - **Do not touch Rust/`Cargo.*` files** unless the finding you are fixing is

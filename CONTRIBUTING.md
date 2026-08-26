@@ -16,9 +16,12 @@ cargo +1.88.0 test --workspace --lib
 
 Identity CLI binary is `opensesame-id` (Rust authority CLI remains `opensesame`).
 
-## Local gates (no CI)
-This repo intentionally runs **no GitHub Actions** — there is no `.github/` workflow
-directory, and none should be added. Verification instead happens through:
+## Gates
+CI is deliberately thin: `.github/workflows/ci.yml` runs `pnpm lint`,
+`pnpm typecheck`, `pnpm test` and `cargo test --workspace --all-targets` on every
+pull request, and those two checks gate the merge queue into `main`. A merge to
+`main` then publishes `apps/pages` through `.github/workflows/deploy-pages.yml`.
+Everything heavier stays local:
 
 - Local git hooks (below), run on every commit and push.
 - `pnpm verify`, runnable locally or on demand, for the full gate suite.

@@ -15,9 +15,10 @@ it's cut), a port or version number changes in one place and not another.
 
 ## Hard rules (apply on every firing, no exceptions)
 
-- **No GitHub Actions, ever.** No `.github/` directory exists and none may be
-  created. You are an ordinary Claude Code session running `git`/`gh`
-  yourself.
+- **This routine never becomes a GitHub Actions job.** `.github/workflows/`
+  holds only `ci.yml` (the merge-queue gate) and `deploy-pages.yml`; doc-drift
+  sweeps are not to be added there. You are an ordinary Claude Code session
+  running `git`/`gh` yourself.
 - **No new paid dependencies or services.**
 - **Never commit secrets.**
 - **Do not touch Rust/`Cargo.*` files** unless the drift you are fixing is a
@@ -45,13 +46,14 @@ landed, or has since been renamed/removed"**:
   added the script, that specific item is resolved and you should look for
   the *next* instance of this pattern instead).
 - `docs/security/tooling-evaluation.md` claimed dependency/security gates
-  were "wired ... into CI `security` job" (referencing `.github/` CI that
-  does not exist in this repo — there is no CI, only local git hooks + these
-  Routines + CodeRabbit). Treat any doc anywhere in the tree that says "CI"
-  meaning GitHub Actions, or implies a `.github/` workflow exists, as this
-  same class of drift, not a new discovery — reword it to describe what
-  actually runs (local git hooks via `scripts/setup-hooks.sh` /
-  `.githooks/`, and these Routines).
+  were "wired ... into CI `security` job". No such job exists: CI is exactly
+  the two workflows in `.github/workflows/` — `ci.yml` (lint, typecheck,
+  `pnpm test`, `cargo test`, gating the merge queue) and `deploy-pages.yml`.
+  Treat any doc that attributes a gate to CI which those two workflows do not
+  actually run as this same class of drift — reword it to name what really
+  runs it (local git hooks via `scripts/setup-hooks.sh` / `.githooks/`, these
+  Routines, or CodeRabbit). Docs asserting the repo has *no* CI or no
+  `.github/` directory are now themselves drift.
 
 Watch for the same pattern anywhere else: a referenced file path, script
 name, package name, or command that no longer exists or never existed.

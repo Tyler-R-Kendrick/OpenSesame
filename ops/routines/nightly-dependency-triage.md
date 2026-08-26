@@ -16,9 +16,10 @@ already been accepted or fixed.
 
 ## Hard rules (apply on every firing, no exceptions)
 
-- **No GitHub Actions, ever.** This repo has no `.github/` directory and none
-  may be created. You operate as an ordinary Claude Code session running `git`
-  and `gh` yourself — nothing here touches Actions minutes.
+- **This routine never becomes a GitHub Actions job.** `.github/workflows/`
+  holds only `ci.yml` (the merge-queue gate) and `deploy-pages.yml`; dependency
+  triage is not to be added there. You operate as an ordinary Claude Code
+  session running `git` and `gh` yourself.
 - **No new paid dependencies or services.** Only use tools already vendored
   in this repo (see the command list below).
 - **Never commit secrets.** If a scanner finding involves an actual leaked
