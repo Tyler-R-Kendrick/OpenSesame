@@ -24,6 +24,7 @@ const vault: VaultHarness = {
 };
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
+import { takeImportFile } from "../lib/vault/import/handoff.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 
@@ -82,6 +83,7 @@ function renderSection(initial = "/vault") {
           <Route index element={<div>welcome pane</div>} />
           <Route path=":itemId" element={<div>detail pane</div>} />
         </Route>
+        <Route path="/settings/data" element={<div>settings pane</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -95,6 +97,8 @@ describe("VaultSection", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    // A file stashed by a test must not leak into the next one.
+    takeImportFile();
   });
 
   it("shows the empty state with new and import actions", () => {
@@ -103,9 +107,29 @@ describe("VaultSection", () => {
     expect(
       screen.getByRole("link", { name: /New item/i }).getAttribute("href"),
     ).toBe("/vault/new/login");
-    expect(
-      screen.getByRole("link", { name: /Import/i }).getAttribute("href"),
-    ).toBe("/settings/data#import");
+    // The header and the empty state both open the import picker directly.
+    expect(screen.getAllByRole("button", { name: /^Import$/i })).toHaveLength(
+      2,
+    );
+  });
+
+  it("picking a file from Import hands it to the settings import panel", () => {
+    vault.current = {
+      items: [makeLogin()],
+      folders: [],
+      header: null,
+    };
+    renderSection();
+    // Import sits next to New even when the vault has items.
+    expect(screen.getByRole("button", { name: /^Import$/i })).toBeTruthy();
+    const file = new File(["KEY=value"], "app.env", { type: "text/plain" });
+    fireEvent.change(screen.getByLabelText("Choose a file to import"), {
+      target: { files: [file] },
+    });
+    // The file waits in the handoff for the panel, and the view moved to the
+    // data settings where the panel will consume it.
+    expect(takeImportFile()?.name).toBe("app.env");
+    expect(screen.getByText("settings pane")).toBeTruthy();
   });
 
   it("lists items with names and count", () => {

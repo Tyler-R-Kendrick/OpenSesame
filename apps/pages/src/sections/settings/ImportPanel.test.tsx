@@ -1,6 +1,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,8 +24,27 @@ const location = vi.hoisted(() => ({ hash: "" }));
 
 import { importPanelSeams } from "./ImportPanel.js";
 const originalImportPanelSeams = { ...importPanelSeams };
-Object.assign(importPanelSeams, { useLocation: () => location });
+Object.assign(importPanelSeams, {
+  useLocation: () => location,
+  Link: ({
+    to,
+    className,
+    children,
+  }: {
+    to: string;
+    className?: string;
+    children?: ReactNode;
+  }) => (
+    <a href={to} className={className}>
+      {children}
+    </a>
+  ),
+});
 
+import {
+  stashImportFile,
+  takeImportFile,
+} from "../../lib/vault/import/handoff.js";
 import type { VaultItem } from "../../lib/vault/model.js";
 import { ImportPanel } from "./ImportPanel.js";
 
@@ -110,6 +130,19 @@ describe("ImportPanel", () => {
       "Imported .env",
     ]);
     expect(await screen.findByText(/Imported 2 items/)).toBeTruthy();
+    // The way back to the vault is offered once the import lands.
+    expect(
+      screen.getByRole("link", { name: /View in vault/i }).getAttribute("href"),
+    ).toBe("/vault");
+  });
+
+  it("reads a file handed off from the vault without asking again", async () => {
+    stashImportFile(makeFile("app.env", "API_KEY=sk-123\n"));
+    render(<ImportPanel />);
+    // No idle drop zone, no second picker — straight to the preview.
+    expect(await screen.findByText(/Recognised as/)).toBeTruthy();
+    expect(screen.queryByText(/Choose an export file/)).toBeNull();
+    expect(takeImportFile()).toBeNull();
   });
 
   it("scrolls into view when navigated with #import", () => {
