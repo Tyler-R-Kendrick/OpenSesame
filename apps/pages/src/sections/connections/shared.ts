@@ -20,7 +20,7 @@ export type LoadFailure = {
   setupRequired?: boolean;
 };
 
-export const CATEGORY_LABELS: Record<ProviderCategory, string> = {
+export const CATEGORY_LABELS = {
   custom: "Custom connectors",
   encryption: "Encryption (secrets in git)",
   cloud_secret_storage: "Cloud secret storage",
@@ -34,7 +34,7 @@ export const CATEGORY_LABELS: Record<ProviderCategory, string> = {
   payments: "Payments",
   identity: "Identity",
   testing: "Testing",
-};
+} satisfies Record<ProviderCategory, string>;
 
 export const CATEGORY_ORDER: ProviderCategory[] = [
   "custom",
@@ -141,17 +141,14 @@ export function errorText<Thrown>(error: Thrown): string {
   return "Something went wrong.";
 }
 
-export const STATUS_CHIP: Record<
-  Connection["status"],
-  { tone: string; label: string }
-> = {
+export const STATUS_CHIP = {
   pending: { tone: VERB_CHIP.needs_you, label: VERB_LABEL.needs_you },
   active: { tone: VERB_CHIP.connected, label: VERB_LABEL.connected },
   needs_reauth: { tone: VERB_CHIP.needs_you, label: VERB_LABEL.needs_you },
   expired: { tone: VERB_CHIP.needs_you, label: VERB_LABEL.needs_you },
   revoked: { tone: VERB_CHIP.idle, label: "Revoked" },
   error: { tone: VERB_CHIP.broken, label: VERB_LABEL.broken },
-};
+} satisfies Record<Connection["status"], { tone: string; label: string }>;
 
 /** One sentence answering "is this working, and do I have to do anything?". */
 export function statusSentence(

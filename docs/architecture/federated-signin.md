@@ -30,6 +30,78 @@ and this file disagree, one of them is a bug.
 Only the upstream leg mints anything. The PWA relays; it holds no signing key, because a
 static deployment cannot hold one that stays private.
 
+## 0. A static site with no backend
+
+The shoo.dev scenario, stated once, because it is the shape everything else here
+serves: a site with no server of its own signs a human in, and never holds a
+client secret, because it cannot keep one.
+
+That works because the thing it signs in against is a **broker** — a deployment
+that speaks OIDC to the browser and does the parts a browser cannot do. Three
+properties make a broker usable from a static page, and shoo.dev and an
+OpenSesame control plane both have all three:
+
+| | What it means for a page with no server |
+| --- | --- |
+| **Origin-profile clients** (`client_id = origin:<origin>`) | No registration step, no client secret. The origin *is* the identity of the client. |
+| **CORS on `POST /token`**, exact-origin | The page finishes the code exchange itself, in the tab. Without this the flow dies at the last step and a backend is the only fix. |
+| **The provider leg run server-side** | Real Google, Microsoft, GitHub and Apple serve no CORS and never will. Only a broker can talk to them; it hands the page an `id_token` the page can verify. |
+
+So "social login without a backend" always has a broker in it. The question is
+only *whose*. A static site may point at shoo.dev, or at an OpenSesame
+deployment — the ceremony it performs is byte-for-byte the same one.
+
+### The ceremony
+
+```text
+static page                     broker                        provider
+    │  /auth?client_id=origin:…                                   │
+    │        &kc_idp_hint=google  ─────────►                       │
+    │                              (names a provider, so no        │
+    │                               picker is rendered)            │
+    │                                        303 ────────────────► │
+    │                                                    human signs in
+    │                              ◄──────────── /v1/federated/callback
+    │  ◄──────── 303 <origin>/opensesame/callback?code=…           │
+    │                                                              │
+    │  POST /token  (CORS, PKCE verifier, no secret) ─────►        │
+    │  ◄──────── id_token + access_token                           │
+```
+
+The hop that matters is the second one. A broker that renders **its own login
+page** there is asking the visitor to choose a provider their relying party
+already chose, and that is the one thing that made an OpenSesame deployment feel
+unlike the public brokers static sites already use. It does not: a sign-in
+carrying a provider hint goes straight through (§8.6 and
+`OPENSESAME_INTERACTION_AUTO_CONTINUE`, on by default). A sign-in that names no
+provider still gets the full page, because then there is a real choice to make.
+
+### What a static site needs
+
+Nothing but a URL. `apps/example-static-rp` is the worked proof — two HTML files,
+no server, no build step for auth:
+
+```js
+const sesame = createOpenSesame({ issuer: "https://<broker>" });
+await sesame.signIn({ returnTo: "/" });        // on the page
+await sesame.handleRedirectCallback();          // on /opensesame/callback
+```
+
+The redirect URI is always `<origin>/opensesame/callback` (ADR 0050's canonical
+path); the broker admits the origin on first `/auth` and needs no registration.
+For the OpenSesame PWA the same URL arrives at runtime through
+`os-runtime-config.json`, so a deploy can be pointed at a broker without a
+rebuild.
+
+### What the broker operator must do
+
+Run one deployment, with `OPENSESAME_ORIGIN_CLIENTS_ENABLED=true`, a public
+`OPENSESAME_PUBLIC_URL` the browser really reaches, and credentials for whichever
+providers it fronts (`OPENSESAME_PROVIDERS` and each provider's client id and
+secret). Every provider registers exactly one redirect URI —
+`{OPENSESAME_PUBLIC_URL}/v1/federated/callback` (§8.6). That is the whole
+configuration; every static site downstream needs none of it.
+
 ## 1. Upstream contract
 
 A trusted broker is admissible only if it provides all of:
@@ -490,6 +562,32 @@ frozen at **id > issuer > host > label**, so the day a genuine `google` registry
 beside shoo.dev's "Google" label, the id wins. A matched hint is rendered first and primary
 and is **never** auto-submitted: an upstream error 303s back to the login page, so a page
 that redirected itself would loop forever. An unknown hint is ignored and never echoed.
+
+### 8.5a A hinted sign-in does not render a page
+
+A relying party that names a provider — `kc_idp_hint` or `login_hint_provider`,
+resolved by `matchProviderHint` at the precedence §8.5 freezes — has already made
+the only choice the login page exists to offer. The interaction therefore `303`s
+straight into that provider's leg instead of rendering.
+
+This is what makes a deployment a **broker** rather than a login site, and it is
+the ceremony §0 describes: a static page with no backend names a provider and is
+sent to it, exactly as it would be by any public broker. Rendering a picker there
+asks a visitor to choose something already chosen for them.
+
+`OPENSESAME_INTERACTION_AUTO_CONTINUE` governs it and is **on unless set to
+`false`**. The behaviour is deliberately narrow, and each bound is load-bearing:
+
+| Bound | Why |
+| --- | --- |
+| Only with a hint | `preferredProviderForDetails` returns `undefined` when the relying party named nothing, so a hint-less visitor always gets the full page. The default removes a click that was already made; it never removes a choice nobody made. |
+| Only once per interaction | A per-interaction cookie, set *before* the redirect. Any second visit renders the page (T14). |
+| Never on a refusal | An upstream refusal returns as `?fed_error`, which suppresses the hop — otherwise a provider that keeps saying no becomes an infinite redirect. |
+| Never during org resolution | An `?org=` slug is a different flow, mid-choice. |
+| Never past the choice | A leg that cannot start (discovery down, misconfigured credentials) falls back to *rendering the page*, never to some other provider. |
+
+The trust fence is untouched: `/federated/start` still decides what may be
+federated to. This only decides whether a page is drawn first.
 
 ### 8.6 The stable federated callback
 
