@@ -413,6 +413,15 @@ input to it. On the Pages first-run surface the federated path therefore creates
 ephemeral guest vault as "Continue as guest", and sealing remains a later, separate step
 (ADR 0052 §1).
 
+The same separation is what makes the entry safe to offer on the **returning** unlock screen,
+where a sealed vault already exists. Sign-in there is deliberately identity-only: the panel
+sits under the unlock form rather than replacing it, and says so — the vault still opens with
+the passkey, PIN or password. A leg that returns to a locked vault does not mint a throwaway
+principal to bind the identity to (it would collide, `409`, with the real principal behind the
+lock). It records a pending link and tells the visitor to unlock and finish from the
+notifications bell. The two roads that would create a *second* vault beside the existing one —
+"Use without an account" and "Continue as guest" — are not offered on that screen.
+
 ### 7.8 Bring-your-own issuer (`POST /interaction/:uid/federated/byo`)
 
 A visitor with no account may name their own OIDC issuer on the hosted login page —
@@ -543,9 +552,10 @@ discovery deletes its own entry so a failure does not poison later attempts.
 
 `GET /v1/federated/providers` (unauthenticated) answers
 `{ providers: [{ id, label, kind, browserCapable }] }` and deliberately carries **no**
-issuers, endpoints, client ids, secrets or tenant ids. Pages' first-run screen and the
-console's sign-in page render it before anyone has an identity; the leg itself runs
-server-side, where the registry already knows the rest.
+issuers, endpoints, client ids, secrets or tenant ids. Both Pages unlock screens — first run
+and a returning device with a sealed vault (§7.7) — and the console's sign-in page render it
+before anyone has an identity; the leg itself runs server-side, where the registry already
+knows the rest.
 
 `browserCapable` is true only for a secret-less OIDC provider whose issuer is `https://shoo.dev`
 or loopback — the origin-profile brokers, which serve CORS on their token endpoint. Google,

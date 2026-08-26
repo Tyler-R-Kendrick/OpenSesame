@@ -223,6 +223,22 @@
   line-height: 1.5;
 }
 
+/* Federated sign-in under the unlock form, for a device that already has a
+   vault. Deliberately quieter than the form above it: unlocking is still the
+   job of this screen, and signing in here attaches an account rather than
+   opening anything. */
+.unlock__signin {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.unlock__signin h2 {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  text-align: center;
+  color: var(--ink-2);
+}
+
 /* First-run sign-in panel — identity before sealing. */
 .signin {
   display: grid;

@@ -1,11 +1,24 @@
 /**
- * First-run sign-in — identity before vault sealing (ADR 0033 §4).
+ * Federated sign-in, on both screens a person can land on.
  *
  * One decision per screen, literally: the panel is a stage machine. The hub
  * shows the deployment's providers and the one "Email or organization" field;
  * everything rarer — magic link, bring-your-own provider, guest — lives on
  * its own stage reached through "More options", each with only that step's
  * fields and a way back. Nothing renders beside the step being taken.
+ *
+ * Two placements, because a returning visitor is not a new one:
+ *
+ *  - `primary` — first run. Identity comes before sealing (ADR 0033 §4), so
+ *    this panel *is* the screen, and it owns the two roads out of it: sign in,
+ *    or seal a local-only vault instead.
+ *  - `secondary` — a vault already exists on this device. The unlock form is
+ *    the screen; this sits under it. The vault key still comes from the
+ *    passkey, PIN, or password, so signing in here attaches an account rather
+ *    than opening anything — `adoptFederatedIdentity` says exactly that when
+ *    it comes back to a locked vault. The two roads that would make a second
+ *    vault beside the existing one — "Use without an account" and guest — are
+ *    not offered.
  *
  * Every federated entry ends in a navigation, so success never returns here —
  * only a failure gets to clear `busy` and say why, in plain words.
@@ -37,17 +50,27 @@ import {
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
 
-type Props = {
-  /** The deployment's provider catalog; empty falls back to the default upstream. */
-  providers: FederatedProviderSummary[];
-  /** Switch to the local-only seal form — no account, no sync, no recovery. */
-  onUseLocalOnly: () => void;
-};
+type Props =
+  | {
+      /** First run: this panel is the screen. */
+      placement: "primary";
+      /** The deployment's provider catalog; empty falls back to the default upstream. */
+      providers: FederatedProviderSummary[];
+      /** Switch to the local-only seal form — no account, no sync, no recovery. */
+      onUseLocalOnly: () => void;
+    }
+  | {
+      /** A vault already exists here: the unlock form is the screen. */
+      placement: "secondary";
+      providers: FederatedProviderSummary[];
+    };
 
 /** Which single step of the ceremony is on screen. */
 type Stage = "hub" | "more" | "magic-link" | "byo";
 
-export function SignInPanel({ providers, onUseLocalOnly }: Props) {
+export function SignInPanel(props: Props) {
+  const { placement, providers } = props;
+  const firstRun = placement === "primary";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("hub");
@@ -206,15 +229,17 @@ export function SignInPanel({ providers, onUseLocalOnly }: Props) {
             accounts.
           </span>
         </button>
-        <button
-          type="button"
-          className="signin__option"
-          disabled={busy}
-          onClick={startGuest}
-        >
-          <strong>Continue as guest</strong>
-          <span className="hint">Nothing leaves this device.</span>
-        </button>
+        {firstRun ? (
+          <button
+            type="button"
+            className="signin__option"
+            disabled={busy}
+            onClick={startGuest}
+          >
+            <strong>Continue as guest</strong>
+            <span className="hint">Nothing leaves this device.</span>
+          </button>
+        ) : null}
         {errorNote}
       </div>
     );
@@ -309,7 +334,9 @@ export function SignInPanel({ providers, onUseLocalOnly }: Props) {
               </button>
             )}
             <p className="hint signin__provider-note">
-              No passkey or password — this device opens with your account.
+              {firstRun
+                ? "No passkey or password — this device opens with your account."
+                : "Attaches your account to this device so it can sync. The vault still opens with your passkey, PIN, or password."}
             </p>
           </div>
 
@@ -338,14 +365,16 @@ export function SignInPanel({ providers, onUseLocalOnly }: Props) {
           >
             More options
           </button>
-          <button
-            type="button"
-            className="unlock__switch"
-            disabled={busy}
-            onClick={onUseLocalOnly}
-          >
-            Use without an account
-          </button>
+          {props.placement === "primary" ? (
+            <button
+              type="button"
+              className="unlock__switch"
+              disabled={busy}
+              onClick={props.onUseLocalOnly}
+            >
+              Use without an account
+            </button>
+          ) : null}
         </div>
       )}
     </div>

@@ -102,6 +102,11 @@ export function UnlockScreen() {
   // road — not a wall of fields competing with it.
   const [localOnly, setLocalOnly] = useState(false);
   const signInStage = firstRun && !localOnly;
+  // A returning visitor gets federated sign-in too — under the unlock form,
+  // never instead of it. Signing in from here attaches an account; the vault
+  // key still comes from the passkey, PIN, or password above. Withheld only
+  // mid-MFA, where the one thing on screen is the code being asked for.
+  const returningSignIn = !firstRun && !awaitingTotp;
 
   const methods = useMemo(() => {
     if (!firstRun) return listAvailableUnlockMethods(header);
@@ -150,15 +155,13 @@ export function UnlockScreen() {
   const passkeyAttempted = useRef(false);
   const passkeyAbort = useRef<AbortController | null>(null);
 
-  // First run offers whatever this deployment brokers (D7). An empty catalog —
+  // Whatever this deployment brokers (D7), on both screens. An empty catalog —
   // no Identity API, an unreachable one, a deployment older than the endpoint —
   // is not an error state: SignInPanel falls back to the single default
-  // upstream this screen has always shown, because first run must never
-  // dead-end.
+  // upstream this screen has always shown, because neither screen may dead-end.
   const [providers, setProviders] = useState<FederatedProviderSummary[]>([]);
 
   useEffect(() => {
-    if (!firstRun) return;
     let cancelled = false;
     void listFederatedProviders().then((list) => {
       if (!cancelled) setProviders(list);
@@ -166,7 +169,7 @@ export function UnlockScreen() {
     return () => {
       cancelled = true;
     };
-  }, [firstRun]);
+  }, []);
 
   // Switching methods (or leaving the passkey tab) must cancel any pending
   // platform prompt — a blocking WebAuthn request must never hold the other
@@ -355,6 +358,7 @@ export function UnlockScreen() {
 
         {signInStage ? (
           <SignInPanel
+            placement="primary"
             providers={providers}
             onUseLocalOnly={() => setLocalOnly(true)}
           />
@@ -701,6 +705,16 @@ export function UnlockScreen() {
             ) : null}
           </form>
         )}
+
+        {returningSignIn ? (
+          <section className="unlock__signin" aria-labelledby="unlock-signin-h">
+            <div className="signin__divider" aria-hidden="true">
+              or
+            </div>
+            <h2 id="unlock-signin-h">Sign in to this device</h2>
+            <SignInPanel placement="secondary" providers={providers} />
+          </section>
+        ) : null}
 
         <div className="unlock__foot">
           {signInStage ? (
