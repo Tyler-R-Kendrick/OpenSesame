@@ -26,8 +26,14 @@ The six baselines it enforces:
 
 ## Running it locally
 
+Run it explicitly — pixel baselines are deliberately *not* part of `pnpm test`
+or of `.github/workflows/ci.yml`. Screenshots depend on the host's fonts and
+renderer, so a hosted CI runner would fail them for reasons that have nothing
+to do with the diff under review. `pnpm test` in this package runs the unit
+suite (`src/compare.*.test.ts`) only.
+
 ```bash
-# from the repo root, after `pnpm install` — also part of `pnpm test`
+# from the repo root, after `pnpm install`
 pnpm test:visual
 # equivalent to:
 pnpm --filter @opensesame/visual-contract test:visual
@@ -41,8 +47,8 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    overriding that app's GitHub-Pages default of `/OpenSesame/` (Playwright's
    `baseURL` + a leading-`/` `page.goto()` resolves against the origin, not a
    non-root base path, so serving at `/` keeps every test's navigation
-   simple). `reuseExistingServer: !process.env.CI` is kept as a default even
-   though this repo runs no CI by policy.
+   simple). `reuseExistingServer: !process.env.CI` is kept as a default; this
+   suite is not part of `.github/workflows/ci.yml` and runs locally.
 2. Runs `tests/vault-visual-contract.spec.ts` under two projects —
    `desktop` (1440×900, matching the checked-in baselines) and `mobile`
    (390×844, `devices["iPhone 13"]` with
