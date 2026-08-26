@@ -89,7 +89,7 @@ export function adaptiveHex(hex: string): string | null {
   return luminance < MIN_LUMINANCE ? null : `#${hex}`;
 }
 
-const MARKS: Record<string, ConnectorMarkDef> = {
+const MARKS = {
   github: markOf(siGithub),
   gitlab: markOf(siGitlab),
   google: markOf(siGoogle),
@@ -138,10 +138,16 @@ const MARKS: Record<string, ConnectorMarkDef> = {
   vault: markOf(siVault),
   "password-store": markOf(siGnuprivacyguard),
   yubikey: markOf(siYubico),
-};
+} satisfies Record<string, ConnectorMarkDef>;
 
 export function connectorMark(providerId: string): ConnectorMarkDef | null {
-  return MARKS[providerId] ?? null;
+  // `MARKS` keeps its literal keys so a typo in one is a compile error rather
+  // than a silently missing logo; the lookup itself takes any provider id,
+  // because the catalog is server-driven and may name a connector this build
+  // has no mark for. An unknown id is a null, not a crash.
+  if (!Object.hasOwn(MARKS, providerId)) return null;
+  // SAFETY: `Object.hasOwn` established the key one line above.
+  return MARKS[providerId as keyof typeof MARKS];
 }
 
 /** Microsoft's four squares are simple enough to state as data. */

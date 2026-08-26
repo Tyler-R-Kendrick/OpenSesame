@@ -55,6 +55,65 @@ cargo run -p opensesame-cli -- invoke \
   --resource 'repo:acme/catalog'
 ```
 
+## Sign a static site in, with no backend of its own
+
+A site with no server cannot hold a client secret and cannot talk to Google
+directly (Google serves no CORS). It signs people in by pointing at a **broker**
+that does both parts for it. An OpenSesame control plane is such a broker — the
+same shape as the public ones a static site would otherwise use. The full
+contract is `docs/architecture/federated-signin.md` §0.
+
+Run the broker:
+
+```bash
+OPENSESAME_ORIGIN_CLIENTS_ENABLED=true \
+OPENSESAME_PUBLIC_URL=http://127.0.0.1:8788 \
+OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=true \
+pnpm --filter @opensesame/control-plane start
+```
+
+`OPENSESAME_PUBLIC_URL` must be the URL the **browser** really reaches: it is the
+origin inside the origin-profile client id and the base of the one redirect URI
+every upstream is registered against. Over Tailscale, that is the serve FQDN,
+not loopback:
+
+```bash
+tailscale serve --bg 8788      # https://<host>.<tailnet>.ts.net
+# then restart the broker with OPENSESAME_PUBLIC_URL set to that URL
+```
+
+Point a static site at it. Nothing is registered in advance — the broker admits
+an origin on its first `/auth`:
+
+```js
+const sesame = createOpenSesame({ issuer: "https://<broker>" });
+await sesame.signIn({ returnTo: "/" });   // provider: sesame.signIn({ provider: "google" })
+```
+
+`apps/example-static-rp` is that page, ready to run:
+
+```bash
+pnpm --filter @opensesame/example-static-rp dev:4101
+```
+
+For the OpenSesame PWA the broker URL arrives at deploy time rather than build
+time, so a static deploy is repointed without a rebuild:
+
+```bash
+PAGES_IDENTITY_API=https://<broker> scripts/deploy-pages.sh
+```
+
+Without it the deploy ships no `os-runtime-config.json` and the vault says it is
+not connected to an identity service — which is the honest answer, not a bug.
+
+**Real providers.** Google, Microsoft, GitHub and Apple are configured on the
+*broker*, never on the static site: set `OPENSESAME_PROVIDERS` plus each
+provider's client id and secret, and register exactly one redirect URI with each
+— `{OPENSESAME_PUBLIC_URL}/v1/federated/callback`. A site naming a provider
+(`signIn({ provider: "google" })`) is sent straight there, with no OpenSesame
+page in between; a site naming none gets the picker, because then there is a
+choice to make.
+
 ## Fail-closed quorum drill
 
 ```bash

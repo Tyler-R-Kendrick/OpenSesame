@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -132,7 +133,11 @@ import { UnlockScreen } from "./UnlockScreen.js";
 const STRONG = "correct horse battery staple";
 
 function submitButton(): HTMLButtonElement {
-  const buttons = screen
+  // Scoped to the unlock form: on an existing vault the sign-in panel below it
+  // carries a submit button of its own (the identifier field's "Continue").
+  const form = document.querySelector<HTMLElement>(".unlock__form");
+  if (!form) throw new Error("unlock form not found");
+  const buttons = within(form)
     .getAllByRole("button")
     .filter((el) => el.getAttribute("type") === "submit");
   if (buttons.length !== 1) throw new Error("submit button not found");
@@ -167,6 +172,28 @@ function submitIdentifier(value: string): void {
   fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 }
 
+// Every unlock screen now fetches the catalog and can start a leg, not just
+// first run, so the federation seams need a known state before every test in
+// this file rather than inside the one block that used to be the sole caller.
+beforeEach(() => {
+  continueAsGuest.mockReset();
+  continueAsGuest.mockResolvedValue(undefined);
+  beginSignIn.mockReset();
+  // Real sign-in navigates away and never settles; a pending promise is the
+  // honest stand-in.
+  beginSignIn.mockReturnValue(new Promise(() => {}));
+  lookupOrgTenant.mockReset();
+  lookupOrgByDomain.mockReset();
+  lookupOrgByDomain.mockResolvedValue(null);
+  requestEmailMagicLink.mockReset();
+  requestEmailMagicLink.mockResolvedValue(undefined);
+  listFederatedProviders.mockReset();
+  // No catalog is the default: every expectation below that names the single
+  // fallback button is the empty-catalog path (an unreachable or older
+  // Identity API).
+  listFederatedProviders.mockResolvedValue([]);
+});
+
 describe("UnlockScreen — first run", () => {
   beforeEach(() => {
     v.state = {
@@ -184,21 +211,6 @@ describe("UnlockScreen — first run", () => {
     v.store.create.mockResolvedValue(undefined);
     v.store.createWithPasskey.mockResolvedValue(undefined);
     v.store.createWithPin.mockResolvedValue(undefined);
-    continueAsGuest.mockReset();
-    continueAsGuest.mockResolvedValue(undefined);
-    beginSignIn.mockReset();
-    // Real sign-in navigates away and never settles; a pending promise is the
-    // honest stand-in.
-    beginSignIn.mockReturnValue(new Promise(() => {}));
-    lookupOrgTenant.mockReset();
-    lookupOrgByDomain.mockReset();
-    lookupOrgByDomain.mockResolvedValue(null);
-    requestEmailMagicLink.mockReset();
-    requestEmailMagicLink.mockResolvedValue(undefined);
-    listFederatedProviders.mockReset();
-    // No catalog is the default: every existing first-run expectation below is
-    // the fallback path (an unreachable or older Identity API).
-    listFederatedProviders.mockResolvedValue([]);
   });
 
   afterEach(cleanup);
@@ -658,14 +670,23 @@ describe("UnlockScreen — first run", () => {
     expect(await screen.findByText(/not available/)).toBeTruthy();
   });
 
-  it("keeps the sign-in entries off an existing vault", () => {
+  it("offers the sign-in entries on an existing vault too, minus the two that would make a second one", () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
-    expect(screen.queryByLabelText("Email or organization")).toBeNull();
-    expect(screen.queryByRole("button", { name: "More options" })).toBeNull();
+    expect(screen.getByLabelText("Email or organization")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "More options" })).toBeTruthy();
+    // Sealing a local-only vault beside the existing one is not a road out of
+    // this screen, and neither is a guest principal.
     expect(
       screen.queryByRole("button", { name: "Use without an account" }),
     ).toBeNull();
+    openMoreOptions();
+    expect(
+      screen.queryByRole("button", { name: /Continue as guest/ }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /Email me a sign-in link/ }),
+    ).toBeTruthy();
   });
 
   it("does not offer the reset affordance on first run", () => {
@@ -695,8 +716,35 @@ describe("UnlockScreen — password unlock", () => {
 
   afterEach(cleanup);
 
-  it("keeps federated sign-in off the unlock card for an existing vault", () => {
+  it("offers federated sign-in under the unlock form, as identity only", () => {
     render(<UnlockScreen />);
+    const federated = screen.getByRole("button", { name: FEDERATED_BUTTON });
+    // Unlocking is still the job of this screen: the form comes first in the
+    // document, and the copy never promises that signing in opens the vault.
+    expect(
+      masterInput().compareDocumentPosition(federated) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/still opens with your passkey, PIN, or password/),
+    ).toBeTruthy();
+  });
+
+  it("starts the leg from the unlock card", async () => {
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("button", { name: FEDERATED_BUTTON }));
+    await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(1));
+    expect(beginSignIn.mock.calls[0]?.[0]).toEqual(UPSTREAM);
+  });
+
+  it("renders the deployment's catalog on an existing vault", async () => {
+    listFederatedProviders.mockResolvedValue([
+      { id: "google", label: "Google", kind: "oidc", browserCapable: false },
+    ]);
+    render(<UnlockScreen />);
+    expect(
+      await screen.findByRole("button", { name: "Continue with Google" }),
+    ).toBeTruthy();
     expect(screen.queryByRole("button", { name: FEDERATED_BUTTON })).toBeNull();
   });
 
@@ -1042,5 +1090,11 @@ describe("UnlockScreen — TOTP step-up", () => {
       screen.getByRole("button", { name: "Use a different unlock method" }),
     );
     expect(v.store.cancelTotpChallenge).toHaveBeenCalledTimes(1);
+  });
+
+  it("withholds sign-in while the authenticator code is the question", () => {
+    render(<UnlockScreen />);
+    expect(screen.queryByRole("button", { name: FEDERATED_BUTTON })).toBeNull();
+    expect(screen.queryByLabelText("Email or organization")).toBeNull();
   });
 });
