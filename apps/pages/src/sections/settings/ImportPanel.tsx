@@ -1,8 +1,12 @@
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation as useLocationDefault } from "react-router";
+import {
+  Link as LinkDefault,
+  useLocation as useLocationDefault,
+} from "react-router";
 
 export const importPanelSeams = {
   useLocation: useLocationDefault,
+  Link: LinkDefault,
 };
 import {
   IconAlert,
@@ -18,6 +22,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
+import { takeImportFile } from "../../lib/vault/import/handoff.js";
 import {
   ADAPTERS,
   type ParseResult,
@@ -121,12 +126,21 @@ export function ImportPanel() {
   const panelRef = useRef<HTMLElement>(null);
   const { hash } = importPanelSeams.useLocation();
 
-  // The vault's empty state links here with #import. React Router does not act
-  // on a hash, so the panel brings itself into view.
+  // The vault's Import buttons navigate here with #import. React Router does
+  // not act on a hash, so the panel brings itself into view.
   useEffect(() => {
     if (hash !== "#import") return;
     panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [hash]);
+
+  // A file already picked from the vault's Import button waits in the
+  // handoff; start reading it immediately rather than asking for it again.
+  // readFile closes only over stable setters and refs, and the handoff must
+  // be consumed exactly once, on mount.
+  useEffect(() => {
+    const file = takeImportFile();
+    if (file) void readFile(file);
+  }, []);
 
   const result = stage.step === "preview" ? stage.result : null;
 
@@ -702,6 +716,11 @@ export function ImportPanel() {
               </span>
             </p>
             <div className="actions">
+              {/* The import usually started in the vault — offer the way back,
+                  not just another round. */}
+              <importPanelSeams.Link className="btn btn--primary" to="/vault">
+                View in vault
+              </importPanelSeams.Link>
               <button type="button" className="btn" onClick={reset}>
                 Import another file
               </button>

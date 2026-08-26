@@ -3,6 +3,7 @@ import {
   Link,
   Outlet,
   useLocation,
+  useNavigate,
   useParams,
   useSearchParams,
 } from "react-router";
@@ -22,6 +23,7 @@ import {
 } from "../components/Icons.js";
 import { buildHealthReport } from "../lib/vault/health.js";
 import { useVault } from "../lib/vault/hooks.js";
+import { stashImportFile } from "../lib/vault/import/handoff.js";
 import {
   type Folder,
   type ItemKind,
@@ -110,6 +112,44 @@ function MobileFilters({
         Health
       </Link>
     </fieldset>
+  );
+}
+
+const IMPORT_ACCEPT =
+  ".env,.csv,.json,.1pux,.zip,.kdbx,text/plain,text/csv,application/json";
+
+/**
+ * Import starts at the OS file picker, not at a settings screen: the chosen
+ * file is handed to the Settings import panel through `stashImportFile` so
+ * clicking Import here is the only click before the file dialog opens.
+ */
+function ImportButton() {
+  const navigate = useNavigate();
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <button
+        type="button"
+        className="btn btn--sm"
+        onClick={() => fileRef.current?.click()}
+      >
+        <IconUpload size={16} />
+        Import
+      </button>
+      <input
+        ref={fileRef}
+        type="file"
+        accept={IMPORT_ACCEPT}
+        className="visually-hidden"
+        aria-label="Choose a file to import"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (!file) return;
+          stashImportFile(file);
+          navigate("/settings/data#import");
+        }}
+      />
+    </>
   );
 }
 
@@ -213,10 +253,16 @@ export function VaultSection() {
         <div className="vault__listhead">
           <div className="vault__titlerow">
             <h1>{title}</h1>
-            <Link className="btn btn--primary btn--sm" to="/vault/new/login">
-              <IconPlus size={16} />
-              New
-            </Link>
+            <div className="actions">
+              {/* Import sits next to New even with items present — arriving
+                  from another manager should not require an empty vault or a
+                  hunt through Settings to find it. */}
+              <ImportButton />
+              <Link className="btn btn--primary btn--sm" to="/vault/new/login">
+                <IconPlus size={16} />
+                New
+              </Link>
+            </div>
           </div>
           <div className="vault__search">
             <IconSearch size={17} />
@@ -270,10 +316,7 @@ export function VaultSection() {
                   <IconPlus size={16} />
                   New item
                 </Link>
-                <Link className="btn btn--sm" to="/settings/data#import">
-                  <IconUpload size={16} />
-                  Import
-                </Link>
+                <ImportButton />
               </div>
             ) : null}
           </div>
@@ -327,10 +370,7 @@ export function VaultWelcome() {
             </Link>
             {/* An empty vault is exactly when someone is arriving from another
                 manager, so the import is offered here and not only in Settings. */}
-            <Link className="btn btn--sm" to="/settings/data#import">
-              <IconUpload size={16} />
-              Import
-            </Link>
+            <ImportButton />
           </div>
         </div>
       </div>
