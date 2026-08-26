@@ -25,11 +25,27 @@ export interface ControlPlaneConfig {
   /** Explicit opt-in to default claim pepper and other local-only shortcuts. */
   allowDevDefaults: boolean;
   /**
-   * Opt-in (OPENSESAME_INTERACTION_AUTO_CONTINUE): a login interaction whose
-   * provider hint matches a registry provider 303s straight into that
-   * provider's leg instead of rendering the login page — one silent hop, with
-   * a per-interaction cookie as the loop guard so an upstream refusal always
-   * comes back to a rendered page (T14). Default off.
+   * A login interaction whose provider hint matches a registry provider 303s
+   * straight into that provider's leg instead of rendering the login page —
+   * one silent hop, with a per-interaction cookie as the loop guard so an
+   * upstream refusal always comes back to a rendered page (T14).
+   *
+   * **On by default** (`OPENSESAME_INTERACTION_AUTO_CONTINUE=false` opts out),
+   * because it is what makes this deployment a broker rather than a login
+   * site. A static page with no backend of its own signs in by naming a
+   * provider and being sent to it; interposing our own picker at that point
+   * asks the visitor to choose something their relying party already chose,
+   * and is the one behaviour that made this broker feel unlike the
+   * public brokers static sites already use (shoo.dev fronting Google).
+   *
+   * Safe by construction, and narrow: it fires ONLY when the relying party
+   * named a provider (`preferredProviderForDetails` returns undefined without
+   * a hint, so a hint-less visitor always gets the full page), ONLY once per
+   * interaction, never when an upstream refusal is coming back (`fed_error`)
+   * or an organization slug is being resolved, and never past the choice —
+   * a leg that cannot start falls back to rendering the page. The trust
+   * fence in `/federated/start` still decides what may be federated to; this
+   * only removes a click the relying party already made.
    */
   interactionAutoContinue: boolean;
   /** Give a local provisional principal one owner workspace for the bundled Host. */
@@ -86,6 +102,12 @@ const DEV_CLAIM_PEPPER = "dev-claim-pepper-change-me";
 
 function truthy(v: string | undefined): boolean {
   return v === "true" || v === "1";
+}
+
+/** Like {@link truthy}, but an unset value means on. Only `false`/`0` opt out. */
+function truthyDefaultOn(v: string | undefined): boolean {
+  if (v === undefined || v.trim() === "") return true;
+  return !(v === "false" || v === "0");
 }
 
 /** True when a bind host is loopback (matches Rust host-core daemon policy). */
@@ -167,7 +189,11 @@ export function loadConfig(
     logLevel: env.OPENSESAME_LOG_LEVEL ?? env.LOG_LEVEL ?? "info",
     allowPrincipalBearer,
     allowDevDefaults,
-    interactionAutoContinue: truthy(env.OPENSESAME_INTERACTION_AUTO_CONTINUE),
+    // Default ON: absent means "broker", and only an explicit `false` opts a
+    // deployment back into rendering its own picker for a hinted sign-in.
+    interactionAutoContinue: truthyDefaultOn(
+      env.OPENSESAME_INTERACTION_AUTO_CONTINUE,
+    ),
     // Pages (and Host device sessions) need an organization claim. Local/dev
     // stacks mint a personal workspace with the provisional principal — do not
     // gate that on OPENSESAME_DEV_BOOTSTRAP (Host demo seed only).

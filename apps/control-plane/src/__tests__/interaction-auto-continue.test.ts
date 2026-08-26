@@ -1,5 +1,5 @@
 /**
- * Opt-in auto-continue (OPENSESAME_INTERACTION_AUTO_CONTINUE): a login
+ * Auto-continue (OPENSESAME_INTERACTION_AUTO_CONTINUE, ON by default): a login
  * interaction whose provider hint matches 303s straight into the provider's
  * leg — once. The per-interaction cookie is the loop guard T14 demands: any
  * second visit, and every refusal return, renders the full page.
@@ -65,6 +65,103 @@ async function req(base: string, jar: Jar, path: string): Promise<Response> {
   jar.absorb(res);
   return res;
 }
+
+/**
+ * The default, pinned.
+ *
+ * Every case below sets the flag explicitly, which is exactly what let the
+ * behaviour ship switched off: a broker that renders its own picker for a
+ * sign-in the relying party already directed is not a broker, and no test
+ * noticed because none of them ran without the env var. This suite boots a
+ * control plane with the variable ABSENT and asserts the hop happens anyway.
+ */
+describe("interaction auto-continue is the default", () => {
+  let upstream: ReferenceIdp;
+  let started: Started;
+  let base: string;
+
+  beforeAll(async () => {
+    upstream = await startReferenceIdp();
+    const port = await reservePort();
+    const { startServer: start } = await import("../server.js");
+    // Deliberately no OPENSESAME_INTERACTION_AUTO_CONTINUE — and scrubbed
+    // from the inherited environment, so a developer who exports it cannot
+    // make this pass for the wrong reason.
+    const { OPENSESAME_INTERACTION_AUTO_CONTINUE: _unset, ...cleanEnv } =
+      process.env;
+    started = await start({
+      config: {
+        host: "127.0.0.1",
+        port,
+        publicUrl: `http://127.0.0.1:${port}`,
+        issuer: `http://127.0.0.1:${port}`,
+      },
+      processEnv: {
+        ...cleanEnv,
+        OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
+        OPENSESAME_TRUSTED_UPSTREAMS: upstream.issuer,
+      },
+    });
+    base = `http://127.0.0.1:${port}`;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve, reject) =>
+      started.server.close((err) => (err ? reject(err) : resolve())),
+    );
+    await upstream.close();
+  });
+
+  it("hops a hinted sign-in with no env var set", async () => {
+    const jar = new Jar();
+    const verifier = randomBytes(32).toString("base64url");
+    const params = new URLSearchParams({
+      client_id: RP_CLIENT_ID,
+      redirect_uri: RP_REDIRECT,
+      response_type: "code",
+      scope: "openid",
+      state: "s-default",
+      nonce: "n-default",
+      code_challenge: createHash("sha256").update(verifier).digest("base64url"),
+      code_challenge_method: "S256",
+      kc_idp_hint: "mock",
+    });
+    const auth = await req(base, jar, `/auth?${params.toString()}`);
+    expect(auth.status).toBe(303);
+    const location = auth.headers.get("location") ?? "";
+
+    const interaction = await req(base, jar, location);
+    // Straight to the provider, no page in between: the whole point.
+    expect(interaction.status).toBe(303);
+    expect(interaction.headers.get("location") ?? "").toContain(
+      upstream.issuer,
+    );
+  }, 30_000);
+
+  it("still renders the page when the relying party named nothing", async () => {
+    // The default removes a click the relying party already made; it never
+    // removes a choice nobody made.
+    const jar = new Jar();
+    const verifier = randomBytes(32).toString("base64url");
+    const params = new URLSearchParams({
+      client_id: RP_CLIENT_ID,
+      redirect_uri: RP_REDIRECT,
+      response_type: "code",
+      scope: "openid",
+      state: "s-nohint",
+      nonce: "n-nohint",
+      code_challenge: createHash("sha256").update(verifier).digest("base64url"),
+      code_challenge_method: "S256",
+    });
+    const auth = await req(base, jar, `/auth?${params.toString()}`);
+    const interaction = await req(
+      base,
+      jar,
+      auth.headers.get("location") ?? "",
+    );
+    expect(interaction.status).toBe(200);
+  }, 30_000);
+});
 
 describe("interaction auto-continue", () => {
   let upstream: ReferenceIdp;
