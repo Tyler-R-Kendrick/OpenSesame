@@ -403,9 +403,21 @@ pnpm verify   # lint + rustfmt/full-feature Clippy + test:all
               #   + ./scripts/battle-test.sh
 ```
 
-This repo intentionally has **no GitHub Actions / CI** — there is no
-`.github/` directory, and it should stay that way. Verification is local:
-git hooks plus the commands above, supplemented by scheduled Claude Code
-sessions documented in `docs/operations/agent-routines.md`. Run the
-relevant `pnpm audit:*` gates (§3/§6) for changes touching auth, crypto, or
+CI lives in `.github/workflows/`:
+
+- `ci.yml` — runs on `pull_request` and `merge_group`: TypeScript job
+  (`pnpm bootstrap` + `pnpm lint` + `pnpm typecheck` + `pnpm test`) and
+  Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0). Merges
+  to `main` go through the GitHub merge queue with these two checks
+  required.
+- `deploy-pages.yml` — on every push to `main`, builds `apps/pages` and
+  publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
+  must be "GitHub Actions"). `scripts/deploy-pages.sh` remains as the
+  manual/local fallback publisher.
+
+CI is the merge gate, not the whole story: the heavier suites
+(`pnpm verify`, integration/e2e, `pnpm audit:*`) stay local — git hooks
+plus the commands above, supplemented by scheduled Claude Code sessions
+documented in `docs/operations/agent-routines.md`. Run the relevant
+`pnpm audit:*` gates (§3/§6) for changes touching auth, crypto, or
 dependency surfaces.

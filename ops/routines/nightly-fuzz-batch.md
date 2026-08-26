@@ -16,7 +16,8 @@ first.
 
 ## Hard rules
 
-- **No GitHub Actions, ever.** Do not create `.github/`.
+- **This routine never becomes a GitHub Actions job.** Long fuzz batches stay
+  in local sessions; do not add them to `.github/workflows/`.
 - **No OSS-Fuzz upstream PR** from this routine.
 - **Never commit secrets.** A crash input is a test fixture, not a credential.
 - Do not add hour-long fuzz to `pnpm verify`.

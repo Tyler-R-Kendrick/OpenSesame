@@ -1452,7 +1452,7 @@ mod tests {
         use axum::http::Request;
         use tower::ServiceExt;
 
-        let (app, _) = test_app("http://127.0.0.1:8787");
+        let (app, state) = test_app("http://127.0.0.1:8787");
         let discover = || {
             Request::builder()
                 .method("POST")
@@ -1463,6 +1463,13 @@ mod tests {
         };
         let first = app.clone().oneshot(discover()).await.unwrap();
         assert_eq!(first.status(), StatusCode::OK);
+        // The probe walk behind that first call spawns processes and talks to
+        // the keychain, so it can outlast the bucket's five-second refill on a
+        // loaded machine — leaving the budget replenished and the call below
+        // allowed for want of a rate limit rather than because none applies.
+        // Spend the caller's budget outright so what follows tests the limit
+        // instead of racing it.
+        while state.discover_limiter.check(RateKey::TcpOperator).is_ok() {}
         let second = app.oneshot(discover()).await.unwrap();
         assert_eq!(second.status(), StatusCode::TOO_MANY_REQUESTS);
         let retry: u64 = second

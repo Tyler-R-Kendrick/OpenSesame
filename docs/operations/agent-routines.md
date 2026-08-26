@@ -1,8 +1,10 @@
-# Agent routines — standing automation without GitHub Actions
+# Agent routines — standing automation outside CI
 
-This repo intentionally has no `.github/` directory and runs no GitHub
-Actions. Verification instead comes from three layers, described in
-`CONTRIBUTING.md` under "Local gates (no CI)":
+CI is deliberately thin. `.github/workflows/ci.yml` runs lint, typecheck,
+`pnpm test` and `cargo test` as the merge-queue gate, and
+`.github/workflows/deploy-pages.yml` publishes `apps/pages` from `main`;
+nothing else belongs in Actions. The deeper verification comes from three
+layers, described in `CONTRIBUTING.md` under "Gates":
 
 1. **Local git hooks** (`.githooks/` + `scripts/setup-hooks.sh`) — run on
    every commit and push, on the contributor's own machine.
@@ -49,7 +51,7 @@ to run, the same way this document restates context for you.
 |---|---|---|
 | `ops/routines/nightly-dependency-triage.md` | Nightly | Fix PR (`fix(deps): ...`) or a dated note in `docs/security/tooling-evaluation.md` |
 | `ops/routines/weekly-security-audit.md` | Weekly | New `docs/security/audit-YYYY-MM-DD-<topic>.md` + PR with any small fixes |
-| `ops/routines/nightly-fuzz-batch.md` | Nightly | Crash fix PR or a CLEAN log; never a `.github/` workflow |
+| `ops/routines/nightly-fuzz-batch.md` | Nightly | Crash fix PR or a CLEAN log; never an Actions workflow |
 | `ops/routines/weekly-docs-drift.md` | Weekly | Fix PR (`fix(docs): ...`) correcting stale references |
 | `ops/routines/pr-security-review.md` | On demand | One structured review comment on a named PR |
 
@@ -117,7 +119,8 @@ record it if you need to `update_trigger`, `fire_trigger`, or
 session's context after creation.
 
 Each of these three routine files already restates, inline, the hard rules
-that must hold on every firing (no GitHub Actions, no new paid
+that must hold on every firing (the routine never becomes an Actions job,
+no new paid
 dependencies/services, never commit secrets, don't touch Rust/Cargo files
 unless the finding is in Rust, never expose `getSecret()`/raw secrets,
 respect ADR 0004/0008/0017) — registering the trigger does not require
