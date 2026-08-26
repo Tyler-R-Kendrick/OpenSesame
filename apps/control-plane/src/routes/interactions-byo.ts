@@ -20,7 +20,10 @@ import type {
   ProviderInteractions,
 } from "../interactions/types.js";
 import type { Variables } from "../middleware/context.js";
-import { renderLoginPage } from "../ui/interaction-pages.js";
+import {
+  renderLoginPage,
+  renderUpstreamHopPage,
+} from "../ui/interaction-pages.js";
 
 type NodeEnv = { Bindings: HttpBindings };
 
@@ -196,7 +199,9 @@ export function createByoInteractionRoutes(
         maxAge: FEDERATED_PENDING_TTL_SECONDS,
         secure: ctx.config.publicUrl.startsWith("https://"),
       });
-      return c.redirect(authorizationUrl, 303);
+      // Not a 303: Chromium refuses cross-origin redirects of a form
+      // submission under `form-action 'self'` (see renderUpstreamHopPage).
+      return c.html(renderUpstreamHopPage(authorizationUrl));
     } catch (error) {
       if (error instanceof FederatedAuthError) {
         return rejected(START_FAILED_MESSAGE);

@@ -270,6 +270,51 @@ function pageShell(title: string, body: string): string {
 }
 
 /**
+ * Continue the ceremony after a form POST without carrying the form's
+ * navigation any further.
+ *
+ * A 303 answer to a form POST is dead on arrival in Chromium the moment its
+ * redirect chain leaves this origin: CSP `form-action 'self'` is enforced
+ * against every redirect of a form submission, so the hop to an upstream
+ * provider — or the final hand-back to the relying party after the resume —
+ * is silently refused and the button "just does nothing". A 200 page whose
+ * meta refresh starts a NEW navigation sits outside that check, needs no
+ * script under the `default-src 'none'` CSP, and keeps form-action pinned
+ * to this origin. The link is the fallback for anything that refuses meta
+ * refresh.
+ */
+export function renderHopPage(url: string, lede: string): string {
+  const href = escapeHtml(url);
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta http-equiv="refresh" content="0;url=${href}"/>
+  <title>Continuing sign-in</title>
+  <style>${sharedStyles}</style>
+</head>
+<body>
+  <main>
+    <h1>Continuing sign-in</h1>
+    <p class="lede">${escapeHtml(lede)}</p>
+    <p><a class="btn btn-primary" href="${href}">Continue</a></p>
+  </main>
+</body>
+</html>`;
+}
+
+/** The hop page for handing the browser to an upstream identity provider. */
+export function renderUpstreamHopPage(url: string): string {
+  return renderHopPage(url, "Handing you to your sign-in provider…");
+}
+
+/** The hop page for resuming the authorization after a completed step. */
+export function renderResumeHopPage(url: string): string {
+  return renderHopPage(url, "Picking the authorization back up…");
+}
+
+/**
  * Sign-in step. The account never travels in a form field: "Continue"
  * re-uses the session the cookie middleware already authenticated, and
  * "Start a session" mints a fresh provisional principal server-side.

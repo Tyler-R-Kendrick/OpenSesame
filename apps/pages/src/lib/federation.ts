@@ -110,6 +110,21 @@ export function redirectUri(): string {
   return `${location.origin}${base}`;
 }
 
+/**
+ * The ONE redirect URI the Identity API's auto-admitted origin client has:
+ * `<origin>/opensesame/callback` (ADR 0050's canonical callback path). Every
+ * brokered leg must use it — the base-path URI above is unregistered there
+ * and dies at the authorize endpoint as an invalid redirect_uri, which is
+ * exactly how every brokered button used to dead-end. GitHub Pages serves
+ * this path through the 404 SPA fallback (the project prefix is matched
+ * case-insensitively), and the dev server redirects it onto the base; either
+ * way the app boots, sees `?code`, and finishes on the federation return
+ * screen, which never cared what path it renders at.
+ */
+export function originCallbackUri(): string {
+  return `${location.origin}/opensesame/callback`;
+}
+
 export type OidcDiscovery = {
   issuer: string;
   authorization_endpoint: string;
@@ -260,6 +275,13 @@ type PendingAuth = {
   tokenEndpoint: string;
   jwksUri: string;
   scope: string;
+  /**
+   * The redirect_uri the authorize request carried — the token exchange must
+   * repeat it byte for byte. Brokered legs use the canonical origin callback,
+   * direct legs the app base; absent (a pending from an older build) falls
+   * back to the base.
+   */
+  redirectUri?: string;
   /** Where to send the human once they are back, if they were mid-task. */
   returnTo?: string;
   /** Tenant slug when this round-trip is org SSO/SAML, not a global broker. */
@@ -324,6 +346,11 @@ async function beginSignInDefault(
   const { verifier, challenge } = await createPkce();
   const state = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
   const scope = options.scope ?? "openid";
+  // Brokered legs return to the Identity API's registered canonical callback;
+  // direct legs to the app base the loopback/mock brokers accept.
+  const returnUri = isBrokeredIssuer(upstream.issuer)
+    ? originCallbackUri()
+    : redirectUri();
 
   storePending({
     upstreamId: upstream.id,
@@ -333,6 +360,7 @@ async function beginSignInDefault(
     tokenEndpoint: discovery.token_endpoint,
     jwksUri: discovery.jwks_uri,
     scope,
+    redirectUri: returnUri,
     returnTo: options.returnTo,
     orgSlug: options.orgSlug,
     orgMethod: options.orgMethod,
@@ -341,7 +369,7 @@ async function beginSignInDefault(
   const url = new URL(discovery.authorization_endpoint);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", originClientId());
-  url.searchParams.set("redirect_uri", redirectUri());
+  url.searchParams.set("redirect_uri", returnUri);
   url.searchParams.set("state", state);
   url.searchParams.set("code_challenge", challenge);
   url.searchParams.set("code_challenge_method", "S256");
@@ -423,7 +451,9 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code,
-    redirect_uri: redirectUri(),
+    // Byte-identical to what the authorize request carried, whichever shape
+    // that was — token endpoints compare, not resolve.
+    redirect_uri: pending.redirectUri ?? redirectUri(),
     client_id: originClientId(),
     code_verifier: pending.verifier,
   });

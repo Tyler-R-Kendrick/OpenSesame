@@ -101,10 +101,10 @@ export interface CreateControlPlaneOptions {
  * claim flow transfers ownership to the claiming verified principal. The id
  * is fixed so the row is ensured idempotently across restarts and replicas.
  */
-export /** Late-binding slot: the consent store lands here once `stores` exists. */
-type ConsentLookupSlot = { store?: ConsentStore };
+export const SYSTEM_OWNER_PRINCIPAL_ID = "prn_opensesame_system";
 
-const SYSTEM_OWNER_PRINCIPAL_ID = "prn_opensesame_system";
+/** Late-binding slot: the consent store lands here once `stores` exists. */
+type ConsentLookupSlot = { store?: ConsentStore };
 
 /**
  * Ensure the deployment/system principal row exists (idempotent). The

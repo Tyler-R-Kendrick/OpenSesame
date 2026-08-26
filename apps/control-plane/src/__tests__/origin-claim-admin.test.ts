@@ -8,7 +8,6 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import { SYSTEM_OWNER_PRINCIPAL_ID } from "../create-app.js";
 import type { startServer } from "../server.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
@@ -208,7 +207,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
     const started = await startControlPlane();
     try {
       const principal = await started.ctx.repos.principals.getById(
-        SYSTEM_OWNER_PRINCIPAL_ID,
+        started.ctx.systemOwnerPrincipalId,
       );
       expect(principal).toMatchObject({ state: "active" });
 
@@ -224,7 +223,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
       expect(record).toMatchObject({
         admissionMode: "origin_profile",
         ownershipStatus: "unclaimed",
-        ownerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
+        ownerPrincipalId: started.ctx.systemOwnerPrincipalId,
       });
     } finally {
       await stop(started);
@@ -482,7 +481,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
 
       const record = await started.ctx.oauth.clientStore.findById(doc.clientId);
       expect(record).toMatchObject({
-        ownerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
+        ownerPrincipalId: started.ctx.systemOwnerPrincipalId,
         ownershipStatus: "unclaimed",
       });
       expect(record?.claimedAt).toBeUndefined();
@@ -550,7 +549,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
       expect(
         (await started.ctx.oauth.clientStore.findById(doc.clientId))
           ?.ownerPrincipalId,
-      ).toBe(SYSTEM_OWNER_PRINCIPAL_ID);
+      ).toBe(started.ctx.systemOwnerPrincipalId);
     } finally {
       await stop(started);
       await stopDocServer(doc);
@@ -585,7 +584,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
       expect(
         (await started.ctx.oauth.clientStore.findById(doc.clientId))
           ?.ownerPrincipalId,
-      ).toBe(SYSTEM_OWNER_PRINCIPAL_ID);
+      ).toBe(started.ctx.systemOwnerPrincipalId);
     } finally {
       await stop(started);
       await stopDocServer(doc);
@@ -767,7 +766,7 @@ describe("origin claim flow (ADR 0050 F5/R-A, slice 3b)", () => {
         expect(
           (await started.ctx.oauth.clientStore.findById(otherDoc.clientId))
             ?.ownerPrincipalId,
-        ).toBe(SYSTEM_OWNER_PRINCIPAL_ID);
+        ).toBe(started.ctx.systemOwnerPrincipalId);
       } finally {
         await stopDocServer(otherDoc);
       }

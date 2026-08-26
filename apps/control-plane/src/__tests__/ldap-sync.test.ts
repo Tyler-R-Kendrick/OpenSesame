@@ -11,6 +11,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { syncLdapDirectory } from "../interactions/ldap.js";
 import { resetLdapAttemptBudget } from "../routes/interactions-ldap.js";
 import type { startServer } from "../server.js";
+import { hopUrl } from "./upstream-hop.js";
 
 /**
  * Directory sync — the pull twin of SCIM push (D17), against a real directory.
@@ -212,7 +213,7 @@ describe("LDAP directory sync", () => {
         password,
       }),
     });
-    expect(completed.status).toBe(303);
+    expect(await hopUrl(completed)).toContain("/auth/");
     const cookie = completed.headers
       .getSetCookie()
       .find((value) => value.startsWith("os_provisional="));

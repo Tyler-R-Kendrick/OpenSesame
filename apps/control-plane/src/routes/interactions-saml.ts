@@ -21,7 +21,10 @@ import type {
   ProviderInteractions,
 } from "../interactions/types.js";
 import type { Variables } from "../middleware/context.js";
-import { renderLoginPage } from "../ui/interaction-pages.js";
+import {
+  renderLoginPage,
+  renderUpstreamHopPage,
+} from "../ui/interaction-pages.js";
 
 type NodeEnv = { Bindings: HttpBindings };
 
@@ -121,7 +124,9 @@ export function createSamlInteractionRoutes(
     if (cfg) {
       try {
         const { redirectUrl } = await beginSamlAuth(ctx, uid, cfg);
-        return c.redirect(redirectUrl, 303);
+        // Not a 303: Chromium refuses cross-origin redirects of a form
+        // submission under `form-action 'self'` (see renderUpstreamHopPage).
+        return c.html(renderUpstreamHopPage(redirectUrl));
       } catch (error) {
         if (!(error instanceof SamlAuthError)) throw error;
         ctx.log.warn(

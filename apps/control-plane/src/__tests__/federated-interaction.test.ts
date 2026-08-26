@@ -17,6 +17,7 @@ import {
 } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
+import { hopUrl } from "./upstream-hop.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 /** The fields the hosted login page's federated forms actually post. */
@@ -491,8 +492,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    expect(res.status).toBe(303);
-    const target = new URL(res.headers.get("location") ?? "");
+    const target = new URL(await hopUrl(res));
     expect(target.origin).toBe(upstream.issuer);
     expect(target.searchParams.get("code_challenge_method")).toBe("S256");
     expect(target.searchParams.get("code_challenge")).toBeTruthy();
@@ -522,10 +522,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), provider: "mock" }),
     );
-    expect(res.status).toBe(303);
-    expect(new URL(res.headers.get("location") ?? "").origin).toBe(
-      upstream.issuer,
-    );
+    expect(new URL(await hopUrl(res)).origin).toBe(upstream.issuer);
     const pending = decodePending(jar.get(`os.fed.${uid}`));
     expect(pending?.issuer).toBe(upstream.issuer);
     expect(pending?.kind).toBe("oidc");
@@ -580,7 +577,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
     back.searchParams.set("state", "tampered");
@@ -606,7 +603,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
 
@@ -646,7 +643,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
 
@@ -703,7 +700,7 @@ describe("federated interaction leg", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
     const res = await req(
@@ -739,7 +736,7 @@ describe("federated interaction leg", () => {
         `/interaction/${uid}/federated/start`,
         postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
       );
-      const authorize = new URL(start.headers.get("location") ?? "");
+      const authorize = new URL(await hopUrl(start));
       const upstreamRes = await fetch(authorize, { redirect: "manual" });
       const back = new URL(upstreamRes.headers.get("location") ?? "");
       const res = await req(
@@ -835,7 +832,7 @@ describe("federated leg, upstream logout", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
     const completed = await req(
@@ -978,11 +975,10 @@ describe("federated leg, organization sign-in", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: tenantIdp.issuer }),
     );
-    expect(start.status).toBe(303);
     // The organization is what vouched for this issuer, and the cookie says so.
     expect(decodePending(jar.get(`os.fed.${uid}`))?.orgId).toBe(organizationId);
 
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     // A tenant admin registers one redirect URI in their IdP's console, and
     // Okta, Entra and Google Workspace match it byte for byte. It must
     // therefore name no interaction (ADR 0055).
@@ -1072,8 +1068,7 @@ describe("federated leg, organization sign-in", () => {
         `/interaction/${uid}/federated/start`,
         postForm({ _csrf: extractCsrf(html), issuer: enterpriseIdp.issuer }),
       );
-      expect(start.status).toBe(303);
-      const authorize = new URL(start.headers.get("location") ?? "");
+      const authorize = new URL(await hopUrl(start));
 
       // The credentials the tenant registered, not our origin profile.
       expect(authorize.searchParams.get("client_id")).toBe(
@@ -1221,8 +1216,7 @@ describe("federated leg, two clients at one issuer", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    expect(start.status).toBe(303);
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     expect(authorize.searchParams.get("client_id")).toBe(`origin:${base}`);
     const upstreamRes = await fetch(authorize, { redirect: "manual" });
     const back = new URL(upstreamRes.headers.get("location") ?? "");
@@ -1318,8 +1312,7 @@ describe("federated leg, confidential client", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    expect(start.status).toBe(303);
-    const authorize = new URL(start.headers.get("location") ?? "");
+    const authorize = new URL(await hopUrl(start));
     // The authorization request must name the configured client, not origin:.
     expect(authorize.searchParams.get("client_id")).toBe(upstream.clientId);
     // The registered URI, not this interaction's path.
@@ -1456,8 +1449,7 @@ describe("federated leg, form_post callback", () => {
       `/interaction/${uid}/federated/start`,
       postForm({ _csrf: extractCsrf(html), issuer: upstream.issuer }),
     );
-    expect(start.status).toBe(303);
-    return { jar, uid, form: new URL(start.headers.get("location") ?? "") };
+    return { jar, uid, form: new URL(await hopUrl(start)) };
   }
 
   it("completes a sign-in whose response arrives as a cookie-less POST", async () => {

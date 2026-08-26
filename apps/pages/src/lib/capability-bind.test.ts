@@ -1,13 +1,13 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { overlapCast } from "@opensesame/os-domain";
 import {
   authorizeCapabilityConnector,
   bindCapabilityConnector,
   bindingNeedsAuth,
   capabilityBindDependencies,
 } from "./capability-bind.js";
-import { overlapCast } from "@opensesame/os-domain";
 import type { PagesSettings } from "./settings.js";
 
 // SAFETY: every field these tests read is checked present in this literal; the assertion covers only optional fields no test dereferences.
@@ -126,7 +126,10 @@ describe("authorizeCapabilityConnector", () => {
   }
 
   function popup(): Window {
-    const stub: Window = overlapCast({ location: { href: "" }, close: vi.fn() });
+    const stub: Window = overlapCast({
+      location: { href: "" },
+      close: vi.fn(),
+    });
     return stub;
   }
 

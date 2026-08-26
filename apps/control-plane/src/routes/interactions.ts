@@ -43,7 +43,12 @@ import type { Variables } from "../middleware/context.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
-import { renderConsentPage, renderLoginPage } from "../ui/interaction-pages.js";
+import {
+  renderConsentPage,
+  renderLoginPage,
+  renderResumeHopPage,
+  renderUpstreamHopPage,
+} from "../ui/interaction-pages.js";
 import { createByoInteractionRoutes } from "./interactions-byo.js";
 import { createEmailInteractionRoutes } from "./interactions-email.js";
 import { createLdapInteractionRoutes } from "./interactions-ldap.js";
@@ -390,7 +395,10 @@ export function createInteractionRoutes(): Hono<
       http.res,
       accountId,
     );
-    return c.redirect(returnTo, 303);
+    // Not a 303: the resume can end at the relying party's origin, and
+    // Chromium refuses cross-origin redirects of a form submission under
+    // `form-action 'self'` (see renderHopPage).
+    return c.html(renderResumeHopPage(returnTo));
   });
 
   /**
@@ -440,7 +448,9 @@ export function createInteractionRoutes(): Hono<
         maxAge: FEDERATED_PENDING_TTL_SECONDS,
         secure: ctx.config.publicUrl.startsWith("https://"),
       });
-      return c.redirect(authorizationUrl, 303);
+      // Not a 303: Chromium refuses cross-origin redirects of a form
+      // submission under `form-action 'self'` (see renderUpstreamHopPage).
+      return c.html(renderUpstreamHopPage(authorizationUrl));
     } catch (error) {
       if (error instanceof FederatedAuthError) {
         return c.text(
@@ -724,7 +734,9 @@ export function createInteractionRoutes(): Hono<
       details,
       c.get("correlationId"),
     );
-    return c.redirect(returnTo, 303);
+    // Not a 303: the resume ends at the relying party's origin (see
+    // renderHopPage for the Chromium form-action rule).
+    return c.html(renderResumeHopPage(returnTo));
   });
 
   routes.post("/:uid/abort", async (c) => {
@@ -749,7 +761,9 @@ export function createInteractionRoutes(): Hono<
       details,
       c.get("correlationId"),
     );
-    return c.redirect(returnTo, 303);
+    // Not a 303: the denial resume ends at the relying party's origin (see
+    // renderHopPage for the Chromium form-action rule).
+    return c.html(renderResumeHopPage(returnTo));
   });
 
   return routes;

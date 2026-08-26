@@ -13,6 +13,7 @@ import {
   samlServiceProviderMetadata,
 } from "../interactions/saml.js";
 import type { startServer } from "../server.js";
+import { hopUrl } from "./upstream-hop.js";
 
 /**
  * Native SAML SP, end to end against the reference IdP (C14 / ADR 0056).
@@ -180,10 +181,7 @@ async function runSamlLegToPostBinding(
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ _csrf: extractCsrf(html), slug }),
   });
-  if (start.status !== 303) {
-    throw new Error(`saml start answered ${start.status}`);
-  }
-  const authnRequestUrl = start.headers.get("location") ?? "";
+  const authnRequestUrl = await hopUrl(start);
   const idpRes = await fetch(authnRequestUrl, { redirect: "manual" });
   return { jar, uid, binding: parsePostBinding(await idpRes.text()) };
 }
@@ -303,8 +301,7 @@ describe("native SAML SP, SP-initiated", () => {
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ _csrf: extractCsrf(html), slug: "acme" }),
     });
-    expect(start.status).toBe(303);
-    const target = new URL(start.headers.get("location") ?? "");
+    const target = new URL(await hopUrl(start));
     expect(`${target.origin}${target.pathname}`).toBe(idp.saml.ssoRedirectUrl);
     expect(target.searchParams.get("SAMLRequest")).toBeTruthy();
     // T25: nothing about this leg is in a cookie. The only thing the browser

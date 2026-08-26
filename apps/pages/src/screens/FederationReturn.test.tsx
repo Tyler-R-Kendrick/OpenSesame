@@ -36,7 +36,10 @@ import { guestAuthSeams } from "../lib/guest-auth.js";
 guestAuthSeams.adoptFederatedIdentity = fed.adoptFederatedIdentity;
 
 import { FederationError } from "../lib/federation.js";
-import { FederationReturn } from "./FederationReturn.js";
+import {
+  FederationReturn,
+  resetFederationReturnCeremony,
+} from "./FederationReturn.js";
 
 function renderReturn() {
   return render(
@@ -51,6 +54,9 @@ function renderReturn() {
 
 describe("FederationReturn", () => {
   beforeEach(() => {
+    // The ceremony is single-flight per page load; a test that deliberately
+    // leaves it unsettled must not poison the next one.
+    resetFederationReturnCeremony();
     fed.completeSignIn.mockReset();
     fed.joinOrgTenant.mockReset();
     fed.ensureIdentitySession.mockReset();
