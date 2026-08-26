@@ -8,7 +8,7 @@
  * run on explicit continue, never per keystroke.
  */
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { classifyIdentifier } from "../../lib/identifier.js";
 import {
   type OrgAuthMethod,
@@ -33,12 +33,19 @@ type Props = {
   onStartOrgMethod: (tenant: OrgTenant, method: OrgAuthMethod) => void;
   /** Optional escape hatch: hand the domain to the hosted page's realm router. */
   onContinueWithDomain?: (domain: string) => void;
+  /**
+   * Fires when a lookup result takes over the step (true) or is dismissed
+   * (false), so the parent can clear everything else off the screen — the
+   * result IS the step, not an addition to it.
+   */
+  onEngagedChange?: (engaged: boolean) => void;
 };
 
 export function IdentifierField({
   disabled,
   onStartOrgMethod,
   onContinueWithDomain,
+  onEngagedChange,
 }: Props) {
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,6 +55,11 @@ export function IdentifierField({
   const [fallbackEmail, setFallbackEmail] = useState<string | null>(null);
   const [fallbackDomain, setFallbackDomain] = useState<string | null>(null);
   const [linkSent, setLinkSent] = useState(false);
+
+  const engaged = tenant !== null || fallbackEmail !== null || linkSent;
+  useEffect(() => {
+    onEngagedChange?.(engaged);
+  }, [engaged, onEngagedChange]);
 
   function reset(): void {
     setError(null);
@@ -113,6 +125,98 @@ export function IdentifierField({
     }
   }
 
+  // A result takes over the step: only the resolved organization (or the
+  // fallback offer) is on screen, with one way back — never the input row,
+  // the providers, and the result stacked together.
+  if (engaged) {
+    return (
+      <div className="identifier">
+        <button
+          type="button"
+          className="unlock__switch signin__back"
+          disabled={disabled || busy}
+          onClick={reset}
+        >
+          ‹ Use a different email or organization
+        </button>
+
+        {error ? (
+          <p className="hint identifier__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+
+        {tenant ? (
+          <div className="identifier__resolved">
+            <div className="identifier__org">
+              <strong>{tenant.displayName}</strong>
+              <span className="hint">
+                {tenant.slug} · verified organization
+              </span>
+            </div>
+            {tenant.authMethods.length === 0 ? (
+              <p className="hint">
+                This organization has no sign-in methods configured yet. Ask its
+                owner to finish setup.
+              </p>
+            ) : (
+              <div className="identifier__methods">
+                {tenant.authMethods.map((method, index) => (
+                  <button
+                    key={method.kind}
+                    type="button"
+                    className={
+                      index === 0
+                        ? "btn btn--primary btn--block"
+                        : "btn btn--block"
+                    }
+                    disabled={disabled || busy}
+                    onClick={() => onStartOrgMethod(tenant, method)}
+                  >
+                    Continue with {method.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {fallbackEmail && !linkSent ? (
+          <div className="identifier__fallback">
+            <p className="hint">
+              {NO_ORG_MESSAGE} That's fine — you can still sign in with this
+              address.
+            </p>
+            <button
+              type="button"
+              className="btn btn--primary btn--block"
+              disabled={disabled || busy}
+              onClick={() => void sendLink()}
+            >
+              Email me a sign-in link
+            </button>
+            {onContinueWithDomain && fallbackDomain ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--block"
+                disabled={disabled || busy}
+                onClick={() => onContinueWithDomain(fallbackDomain)}
+              >
+                Use the hosted sign-in page instead
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {linkSent ? (
+          <output className="note note--ok identifier__sent">
+            Check your inbox — the link signs this device in.
+          </output>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="identifier">
       <form className="identifier__form" onSubmit={(e) => void resolve(e)}>
@@ -151,72 +255,6 @@ export function IdentifierField({
         <p className="hint identifier__error" role="alert">
           {error}
         </p>
-      ) : null}
-
-      {tenant ? (
-        <div className="identifier__resolved">
-          <div className="identifier__org">
-            <strong>{tenant.displayName}</strong>
-            <span className="hint">{tenant.slug} · verified organization</span>
-          </div>
-          {tenant.authMethods.length === 0 ? (
-            <p className="hint">
-              This organization has no sign-in methods configured yet. Ask its
-              owner to finish setup.
-            </p>
-          ) : (
-            <div className="identifier__methods">
-              {tenant.authMethods.map((method, index) => (
-                <button
-                  key={method.kind}
-                  type="button"
-                  className={
-                    index === 0
-                      ? "btn btn--primary btn--block"
-                      : "btn btn--block"
-                  }
-                  disabled={disabled || busy}
-                  onClick={() => onStartOrgMethod(tenant, method)}
-                >
-                  Continue with {method.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {fallbackEmail && !linkSent ? (
-        <div className="identifier__fallback">
-          <p className="hint">
-            {NO_ORG_MESSAGE} That's fine — you can still sign in with this
-            address.
-          </p>
-          <button
-            type="button"
-            className="btn btn--primary btn--block"
-            disabled={disabled || busy}
-            onClick={() => void sendLink()}
-          >
-            Email me a sign-in link
-          </button>
-          {onContinueWithDomain && fallbackDomain ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--block"
-              disabled={disabled || busy}
-              onClick={() => onContinueWithDomain(fallbackDomain)}
-            >
-              Continue on the hosted sign-in page instead
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {linkSent ? (
-        <output className="note note--ok identifier__sent">
-          Check your inbox — the link signs this device in.
-        </output>
       ) : null}
     </div>
   );

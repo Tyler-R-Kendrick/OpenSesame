@@ -38,15 +38,28 @@ type BannerModel = {
   text: string;
 };
 
+/**
+ * A name worth saying out loud: an email or a human name. A pairwise subject
+ * is an opaque token — "Signed in as FpbWr3dA8kM_…" reads as a bug, so an
+ * identifier that doesn't look human stays out of the banner.
+ */
+function humanWho(who: string | undefined): string | null {
+  if (!who) return null;
+  const looksHuman = who.includes("@") || /\s/.test(who);
+  return looksHuman || who.length <= 24 ? who : null;
+}
+
 function describeOutcome(outcome: AuthOutcome): BannerModel {
   switch (outcome.kind) {
-    case "linked":
+    case "linked": {
+      const who = humanWho(outcome.who);
       return {
         tone: "ok",
-        text: outcome.who
-          ? `Signed in as ${outcome.who}.`
+        text: who
+          ? `Signed in as ${who}.`
           : "Signed in. Your account is attached to this device.",
       };
+    }
     case "pending_link":
       return {
         tone: "ok",

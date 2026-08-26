@@ -1,17 +1,17 @@
 /**
  * First-run sign-in — identity before vault sealing (ADR 0033 §4).
  *
- * One decision per screen: the deployment's providers up top, the one
- * "Email or organization" field under them, and everything rarer — magic
- * link, guest — behind "More options". Sealing this device is the NEXT step,
- * not a form competing with sign-in; the local-only path is an explicit
- * choice, not the default.
+ * One decision per screen, literally: the panel is a stage machine. The hub
+ * shows the deployment's providers and the one "Email or organization" field;
+ * everything rarer — magic link, bring-your-own provider, guest — lives on
+ * its own stage reached through "More options", each with only that step's
+ * fields and a way back. Nothing renders beside the step being taken.
  *
  * Every federated entry ends in a navigation, so success never returns here —
  * only a failure gets to clear `busy` and say why, in plain words.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { type ReactElement, useCallback, useState } from "react";
 import type { ByoRegistration } from "../../lib/byo.js";
 import { describeFederationError } from "../../lib/federation-copy.js";
 import {
@@ -44,11 +44,15 @@ type Props = {
   onUseLocalOnly: () => void;
 };
 
+/** Which single step of the ceremony is on screen. */
+type Stage = "hub" | "more" | "magic-link" | "byo";
+
 export function SignInPanel({ providers, onUseLocalOnly }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const [byoOpen, setByoOpen] = useState(false);
+  const [stage, setStage] = useState<Stage>("hub");
+  /** True while the identifier field is showing a result step of its own. */
+  const [identifierEngaged, setIdentifierEngaged] = useState(false);
   const [linkEmail, setLinkEmail] = useState("");
   const [linkSent, setLinkSent] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -153,137 +157,197 @@ export function SignInPanel({ providers, onUseLocalOnly }: Props) {
       .finally(() => setBusy(false));
   }
 
+  function backButton(label: string, to: Stage): ReactElement {
+    return (
+      <button
+        type="button"
+        className="unlock__switch signin__back"
+        disabled={busy}
+        onClick={() => {
+          setError(null);
+          setStage(to);
+        }}
+      >
+        ‹ {label}
+      </button>
+    );
+  }
+
+  const errorNote = error ? (
+    <p className="note note--err" role="alert">
+      <span>{error}</span>
+    </p>
+  ) : null;
+
+  if (stage === "more") {
+    return (
+      <div className="signin">
+        {backButton("Back to sign-in", "hub")}
+        <button
+          type="button"
+          className="signin__option"
+          disabled={busy}
+          onClick={() => setStage("magic-link")}
+        >
+          <strong>Email me a sign-in link</strong>
+          <span className="hint">
+            Passwordless. Works anywhere your inbox does.
+          </span>
+        </button>
+        <button
+          type="button"
+          className="signin__option"
+          disabled={busy}
+          onClick={() => setStage("byo")}
+        >
+          <strong>Use your own identity provider</strong>
+          <span className="hint">
+            Any OpenID Connect issuer you control — never merged with email
+            accounts.
+          </span>
+        </button>
+        <button
+          type="button"
+          className="signin__option"
+          disabled={busy}
+          onClick={startGuest}
+        >
+          <strong>Continue as guest</strong>
+          <span className="hint">Nothing leaves this device.</span>
+        </button>
+        {errorNote}
+      </div>
+    );
+  }
+
+  if (stage === "magic-link") {
+    return (
+      <div className="signin">
+        {backButton("More options", "more")}
+        <div className="field">
+          <label htmlFor="signin-link-email">Email me a sign-in link</label>
+          <div className="identifier__row">
+            <input
+              id="signin-link-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={linkEmail}
+              placeholder="you@example.com"
+              disabled={busy || linkSent}
+              onChange={(e) => {
+                setLinkEmail(e.target.value);
+                setLinkError(null);
+              }}
+            />
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || linkSent || linkEmail.trim().length === 0}
+              onClick={() => void sendMagicLink()}
+            >
+              {linkSent ? "Sent" : "Send link"}
+            </button>
+          </div>
+          {linkSent ? (
+            <p className="hint">
+              Check your email for a sign-in link. It signs you in on this
+              device.
+            </p>
+          ) : (
+            <p className="hint">
+              Passwordless. Works anywhere your inbox does.
+            </p>
+          )}
+          {linkError ? (
+            <p className="hint identifier__error" role="alert">
+              {linkError}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  if (stage === "byo") {
+    return (
+      <div className="signin">
+        {backButton("More options", "more")}
+        <ByoProviderSheet disabled={busy} onContinue={startByo} />
+        {errorNote}
+      </div>
+    );
+  }
+
   return (
     <div className="signin">
-      <div className="signin__providers">
-        {providers.length > 0 ? (
-          providers.map((provider) => (
-            <button
-              key={provider.id}
-              type="button"
-              className="btn btn--block signin__provider"
-              disabled={busy}
-              onClick={() => startProvider(provider)}
-            >
-              Continue with {provider.label}
-            </button>
-          ))
-        ) : (
-          <button
-            type="button"
-            className="btn btn--block signin__provider"
-            disabled={busy}
-            onClick={() =>
-              startFederated(() => beginSignIn(upstream, { returnTo: "/" }))
-            }
-          >
-            Continue with {upstream.accountKind}
-          </button>
-        )}
-        <p className="hint signin__provider-note">
-          No passkey or password — this device opens with your account.
-        </p>
-      </div>
+      {identifierEngaged ? null : (
+        <>
+          <div className="signin__providers">
+            {providers.length > 0 ? (
+              providers.map((provider) => (
+                <button
+                  key={provider.id}
+                  type="button"
+                  className="btn btn--block signin__provider"
+                  disabled={busy}
+                  onClick={() => startProvider(provider)}
+                >
+                  Continue with {provider.label}
+                </button>
+              ))
+            ) : (
+              <button
+                type="button"
+                className="btn btn--block signin__provider"
+                disabled={busy}
+                onClick={() =>
+                  startFederated(() => beginSignIn(upstream, { returnTo: "/" }))
+                }
+              >
+                Continue with {upstream.accountKind}
+              </button>
+            )}
+            <p className="hint signin__provider-note">
+              No passkey or password — this device opens with your account.
+            </p>
+          </div>
 
-      <div className="signin__divider" aria-hidden="true">
-        or
-      </div>
+          <div className="signin__divider" aria-hidden="true">
+            or
+          </div>
+        </>
+      )}
 
       <IdentifierField
         disabled={busy}
         onStartOrgMethod={startOrgMethod}
         onContinueWithDomain={continueWithDomain}
+        onEngagedChange={setIdentifierEngaged}
       />
 
-      {error ? (
-        <p className="note note--err" role="alert">
-          <span>{error}</span>
-        </p>
-      ) : null}
+      {errorNote}
 
-      <div className="signin__more">
-        <button
-          type="button"
-          className="unlock__switch"
-          aria-expanded={moreOpen}
-          onClick={() => setMoreOpen((open) => !open)}
-        >
-          More options
-        </button>
-        <button
-          type="button"
-          className="unlock__switch"
-          disabled={busy}
-          onClick={onUseLocalOnly}
-        >
-          Use without an account
-        </button>
-      </div>
-
-      {moreOpen ? (
-        <div className="signin__more-panel">
-          <div className="field">
-            <label htmlFor="signin-link-email">Email me a sign-in link</label>
-            <div className="identifier__row">
-              <input
-                id="signin-link-email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={linkEmail}
-                placeholder="you@example.com"
-                disabled={busy || linkSent}
-                onChange={(e) => {
-                  setLinkEmail(e.target.value);
-                  setLinkError(null);
-                }}
-              />
-              <button
-                type="button"
-                className="btn"
-                disabled={busy || linkSent || linkEmail.trim().length === 0}
-                onClick={() => void sendMagicLink()}
-              >
-                {linkSent ? "Sent" : "Send link"}
-              </button>
-            </div>
-            <p className="hint">
-              Passwordless. Works anywhere your inbox does.
-            </p>
-            {linkSent ? (
-              <p className="hint">
-                Check your email for a sign-in link. It signs you in on this
-                device.
-              </p>
-            ) : null}
-            {linkError ? (
-              <p className="hint identifier__error" role="alert">
-                {linkError}
-              </p>
-            ) : null}
-          </div>
+      {identifierEngaged ? null : (
+        <div className="signin__more">
           <button
             type="button"
             className="unlock__switch"
-            aria-expanded={byoOpen}
             disabled={busy}
-            onClick={() => setByoOpen((open) => !open)}
+            onClick={() => setStage("more")}
           >
-            Use your own identity provider
+            More options
           </button>
-          {byoOpen ? (
-            <ByoProviderSheet disabled={busy} onContinue={startByo} />
-          ) : null}
           <button
             type="button"
             className="unlock__switch"
             disabled={busy}
-            onClick={startGuest}
+            onClick={onUseLocalOnly}
           >
-            Continue as guest — nothing leaves this device
+            Use without an account
           </button>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

@@ -297,7 +297,8 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.getByRole("heading", { name: "Seal this device" }),
     ).toBeTruthy();
-    expect(screen.getByText("Enter a master password")).toBeTruthy();
+    // Nothing to judge yet: the strength meter stays off a pristine field.
+    expect(screen.queryByText("Enter a master password")).toBeNull();
     expect(screen.getByText(/600,000 PBKDF2-SHA256/)).toBeTruthy();
     expect(submitButton().disabled).toBe(true);
   });
@@ -372,11 +373,7 @@ describe("UnlockScreen — first run", () => {
   it("continues as a guest without a passkey or password", async () => {
     render(<UnlockScreen />);
     openMoreOptions();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Continue as guest — nothing leaves this device",
-      }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Continue as guest/ }));
     await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
     expect(v.store.create).not.toHaveBeenCalled();
     expect(v.store.createWithPasskey).not.toHaveBeenCalled();
@@ -594,7 +591,7 @@ describe("UnlockScreen — first run", () => {
     submitIdentifier("ada.lovelace@acme.example");
     fireEvent.click(
       await screen.findByRole("button", {
-        name: "Continue on the hosted sign-in page instead",
+        name: "Use the hosted sign-in page instead",
       }),
     );
     const [upstream, options] = beginSignIn.mock.calls[0] ?? [];
@@ -630,6 +627,10 @@ describe("UnlockScreen — first run", () => {
   it("sends a magic link from More options to an address the human owns", async () => {
     render(<UnlockScreen />);
     openMoreOptions();
+    // The chooser stage: picking the option opens ONLY the magic-link step.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Email me a sign-in link/ }),
+    );
     fireEvent.change(screen.getByLabelText("Email me a sign-in link"), {
       target: { value: "ada@example.com" },
     });
@@ -646,6 +647,10 @@ describe("UnlockScreen — first run", () => {
     );
     render(<UnlockScreen />);
     openMoreOptions();
+    // The chooser stage: picking the option opens ONLY the magic-link step.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Email me a sign-in link/ }),
+    );
     fireEvent.change(screen.getByLabelText("Email me a sign-in link"), {
       target: { value: "ada@example.com" },
     });

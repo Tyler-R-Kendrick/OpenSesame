@@ -10,21 +10,24 @@ exports[`hosted login page characterization > escapes a hostile issuer and label
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -46,7 +49,7 @@ exports[`hosted login page characterization > escapes a hostile issuer and label
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -60,9 +63,18 @@ exports[`hosted login page characterization > escapes a hostile issuer and label
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -75,6 +87,19 @@ exports[`hosted login page characterization > escapes a hostile issuer and label
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -83,16 +108,20 @@ exports[`hosted login page characterization > escapes a hostile issuer and label
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -102,7 +131,7 @@ exports[`hosted login page characterization > escapes a hostile issuer and label
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -134,15 +163,15 @@ exports[`hosted login page characterization > escapes a hostile issuer and label
          <input type="hidden" name="provider" value="&quot;&gt;&lt;script&gt;alert(2)&lt;/script&gt;"/>
          <button type="submit" class="btn btn-primary">Sign in with &lt;img src=x onerror=&quot;alert(1)&quot;&gt;</button>
        </form></div>
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       <p>No session yet. Start a session to authorize this application.</p>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="start"/>
          <button type="submit" class="btn">Start a session</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
   </main>
 </body>
 </html>"
@@ -158,21 +187,24 @@ exports[`hosted login page characterization > escapes hostile organization and B
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -194,7 +226,7 @@ exports[`hosted login page characterization > escapes hostile organization and B
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -208,9 +240,18 @@ exports[`hosted login page characterization > escapes hostile organization and B
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -223,6 +264,19 @@ exports[`hosted login page characterization > escapes hostile organization and B
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -231,16 +285,20 @@ exports[`hosted login page characterization > escapes hostile organization and B
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -250,7 +308,7 @@ exports[`hosted login page characterization > escapes hostile organization and B
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -276,22 +334,19 @@ exports[`hosted login page characterization > escapes hostile organization and B
     <h1>Sign in</h1>
      <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
      
-     <div class="panel">
-       <h2>Your organization</h2>
-       <p class="error" role="alert">No organization sign-in is configured for that name.</p>
-       
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+     <details class="method" open>
+       <summary>Your organization</summary>
+       <div class="method-body"><p class="error" role="alert">No organization sign-in is configured for that name.</p><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="org-slug"><span>Organization name</span>
            <input id="org-slug" name="slug" value="&quot;&gt;&lt;script&gt;alert(5)&lt;/script&gt;" autocomplete="organization" required/>
          </label>
          <button type="submit" class="btn">Continue with your organization</button>
-       </form>
-       
-     </div>
-     <div class="panel">
-       <h2>Use your own identity provider</h2>
-       <p class="error" role="alert">&lt;img src=x onerror=&quot;alert(4)&quot;&gt;</p>
+       </form></div>
+     </details>
+     <details class="method" open>
+       <summary>Use your own identity provider</summary>
+       <div class="method-body"><p class="error" role="alert">&lt;img src=x onerror=&quot;alert(4)&quot;&gt;</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/byo">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
@@ -307,8 +362,8 @@ exports[`hosted login page characterization > escapes hostile organization and B
          </label>
          <button type="submit" class="btn">Continue with your provider</button>
        </form>
-       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p>
-     </div>
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p></div>
+     </details>
      <div class="panel">
        <p class="lede">or continue without a provider</p>
        <p>No session yet. Start a session to authorize this application.</p>
@@ -333,21 +388,24 @@ exports[`hosted login page characterization > leads with a resolved organization
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -369,7 +427,7 @@ exports[`hosted login page characterization > leads with a resolved organization
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -383,9 +441,18 @@ exports[`hosted login page characterization > leads with a resolved organization
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -398,6 +465,19 @@ exports[`hosted login page characterization > leads with a resolved organization
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -406,16 +486,20 @@ exports[`hosted login page characterization > leads with a resolved organization
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -425,7 +509,7 @@ exports[`hosted login page characterization > leads with a resolved organization
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -464,37 +548,39 @@ exports[`hosted login page characterization > leads with a resolved organization
          <input type="hidden" name="issuer" value="https://saml.acme.example"/>
          <button type="submit" class="btn btn-primary">Continue with SAML</button>
        </form>
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+     </div>
+     <details class="method">
+       <summary>Use a different organization</summary>
+       <div class="method-body"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="org-slug"><span>Organization name</span>
            <input id="org-slug" name="slug" value="acme" autocomplete="organization" required/>
          </label>
          <button type="submit" class="btn">Continue with your organization</button>
-       </form>
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
+       </form><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="realm-email"><span>Work email</span>
            <input id="realm-email" name="email" type="email" autocomplete="email" required/>
          </label>
          
          <button type="submit" class="btn">Continue with your work email</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
      <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="issuer" value="https://shoo.dev"/>
          <input type="hidden" name="provider" value="shoo"/>
          <button type="submit" class="btn btn-primary">Sign in with Google</button>
        </form></div>
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       <p>No session yet. Start a session to authorize this application.</p>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="start"/>
          <button type="submit" class="btn">Start a session</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
   </main>
 </body>
 </html>"
@@ -510,21 +596,24 @@ exports[`hosted login page characterization > offers native SAML and a directory
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -546,7 +635,7 @@ exports[`hosted login page characterization > offers native SAML and a directory
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -560,9 +649,18 @@ exports[`hosted login page characterization > offers native SAML and a directory
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -575,6 +673,19 @@ exports[`hosted login page characterization > offers native SAML and a directory
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -583,16 +694,20 @@ exports[`hosted login page characterization > offers native SAML and a directory
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -602,7 +717,7 @@ exports[`hosted login page characterization > offers native SAML and a directory
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -641,25 +756,27 @@ exports[`hosted login page characterization > offers native SAML and a directory
          <input type="hidden" name="slug" value="acme"/>
          <button type="submit" class="btn btn-primary">Continue with SAML</button>
        </form>
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+     </div>
+     <details class="method">
+       <summary>Use a different organization</summary>
+       <div class="method-body"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="org-slug"><span>Organization name</span>
            <input id="org-slug" name="slug" value="acme" autocomplete="organization" required/>
          </label>
          <button type="submit" class="btn">Continue with your organization</button>
-       </form>
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
+       </form><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="realm-email"><span>Work email</span>
            <input id="realm-email" name="email" type="email" autocomplete="email" required/>
          </label>
          
          <button type="submit" class="btn">Continue with your work email</button>
-       </form>
-     </div>
-     <div class="panel">
-       <h2>Sign in with your directory account</h2>
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/ldap">
+       </form></div>
+     </details>
+     <details class="method" open>
+       <summary>Sign in with your directory account</summary>
+       <div class="method-body"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/ldap">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="slug" value="acme"/>
          <label class="field" for="ldap-username"><span>Username</span>
@@ -669,23 +786,23 @@ exports[`hosted login page characterization > offers native SAML and a directory
            <input id="ldap-password" name="password" type="password" autocomplete="current-password" required/>
          </label>
          <button type="submit" class="btn btn-primary">Sign in</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
      <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="issuer" value="https://shoo.dev"/>
          <input type="hidden" name="provider" value="shoo"/>
          <button type="submit" class="btn btn-primary">Sign in with Google</button>
        </form></div>
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       <p>No session yet. Start a session to authorize this application.</p>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="start"/>
          <button type="submit" class="btn">Start a session</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
   </main>
 </body>
 </html>"
@@ -701,21 +818,24 @@ exports[`hosted login page characterization > offers nothing but a session when 
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -737,7 +857,7 @@ exports[`hosted login page characterization > offers nothing but a session when 
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -751,9 +871,18 @@ exports[`hosted login page characterization > offers nothing but a session when 
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -766,6 +895,19 @@ exports[`hosted login page characterization > offers nothing but a session when 
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -774,16 +916,20 @@ exports[`hosted login page characterization > offers nothing but a session when 
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -793,7 +939,7 @@ exports[`hosted login page characterization > offers nothing but a session when 
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -844,21 +990,24 @@ exports[`hosted login page characterization > promotes the hinted provider to fi
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -880,7 +1029,7 @@ exports[`hosted login page characterization > promotes the hinted provider to fi
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -894,9 +1043,18 @@ exports[`hosted login page characterization > promotes the hinted provider to fi
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -909,6 +1067,19 @@ exports[`hosted login page characterization > promotes the hinted provider to fi
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -917,16 +1088,20 @@ exports[`hosted login page characterization > promotes the hinted provider to fi
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -936,7 +1111,7 @@ exports[`hosted login page characterization > promotes the hinted provider to fi
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -975,15 +1150,15 @@ exports[`hosted login page characterization > promotes the hinted provider to fi
          <input type="hidden" name="provider" value="mock"/>
          <button type="submit" class="btn">Sign in with a local test account</button>
        </form></div>
-       <div class="panel">
-         <p class="lede">or continue without a provider</p>
-         <p>No session yet. Start a session to authorize this application.</p>
+       <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="start"/>
          <button type="submit" class="btn">Start a session</button>
-       </form>
-       </div>
+       </form></div>
+     </details>
      </details>
   </main>
 </body>
@@ -1000,21 +1175,24 @@ exports[`hosted login page characterization > re-renders each block's own failur
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -1036,7 +1214,7 @@ exports[`hosted login page characterization > re-renders each block's own failur
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -1050,9 +1228,18 @@ exports[`hosted login page characterization > re-renders each block's own failur
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -1065,6 +1252,19 @@ exports[`hosted login page characterization > re-renders each block's own failur
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -1073,16 +1273,20 @@ exports[`hosted login page characterization > re-renders each block's own failur
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -1092,7 +1296,7 @@ exports[`hosted login page characterization > re-renders each block's own failur
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -1124,29 +1328,26 @@ exports[`hosted login page characterization > re-renders each block's own failur
          <input type="hidden" name="provider" value="shoo"/>
          <button type="submit" class="btn btn-primary">Sign in with Google</button>
        </form></div>
-     <div class="panel">
-       <h2>Your organization</h2>
-       <p class="error" role="alert">No organization sign-in is configured for that name.</p>
-       
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+     <details class="method" open>
+       <summary>Your organization</summary>
+       <div class="method-body"><p class="error" role="alert">No organization sign-in is configured for that name.</p><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="org-slug"><span>Organization name</span>
            <input id="org-slug" name="slug" value="acme" autocomplete="organization" required/>
          </label>
          <button type="submit" class="btn">Continue with your organization</button>
-       </form>
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
+       </form><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="realm-email"><span>Work email</span>
            <input id="realm-email" name="email" type="email" autocomplete="email" required/>
          </label>
          <p class="error" role="alert">No organization uses that email domain.</p>
          <button type="submit" class="btn">Continue with your work email</button>
-       </form>
-     </div>
-     <div class="panel">
-       <h2>Continue with email</h2>
-       
+       </form></div>
+     </details>
+     <details class="method" open>
+       <summary>Continue with email</summary>
+       <div class="method-body">
        <p class="note" role="status">Check your email for a sign-in link.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/email">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
@@ -1154,11 +1355,11 @@ exports[`hosted login page characterization > re-renders each block's own failur
            <input id="magic-email" name="email" type="email" autocomplete="email" required/>
          </label>
          <button type="submit" class="btn">Email me a sign-in link</button>
-       </form>
-     </div>
-     <div class="panel">
-       <h2>Use your own identity provider</h2>
-       <p class="error" role="alert">That provider could not be reached.</p>
+       </form></div>
+     </details>
+     <details class="method" open>
+       <summary>Use your own identity provider</summary>
+       <div class="method-body"><p class="error" role="alert">That provider could not be reached.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/byo">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
@@ -1174,17 +1375,17 @@ exports[`hosted login page characterization > re-renders each block's own failur
          </label>
          <button type="submit" class="btn">Continue with your provider</button>
        </form>
-       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p>
-     </div>
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       <p>No session yet. Start a session to authorize this application.</p>
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p></div>
+     </details>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="start"/>
          <button type="submit" class="btn">Start a session</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
   </main>
 </body>
 </html>"
@@ -1200,21 +1401,24 @@ exports[`hosted login page characterization > renders a dev stack: the local bro
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -1236,7 +1440,7 @@ exports[`hosted login page characterization > renders a dev stack: the local bro
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -1250,9 +1454,18 @@ exports[`hosted login page characterization > renders a dev stack: the local bro
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -1265,6 +1478,19 @@ exports[`hosted login page characterization > renders a dev stack: the local bro
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -1273,16 +1499,20 @@ exports[`hosted login page characterization > renders a dev stack: the local bro
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -1292,7 +1522,7 @@ exports[`hosted login page characterization > renders a dev stack: the local bro
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -1330,15 +1560,15 @@ exports[`hosted login page characterization > renders a dev stack: the local bro
          <input type="hidden" name="provider" value="mock"/>
          <button type="submit" class="btn">Sign in with a local test account</button>
        </form></div>
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       <p>No session yet. Start a session to authorize this application.</p>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="start"/>
          <button type="submit" class="btn">Start a session</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
   </main>
 </body>
 </html>"
@@ -1354,21 +1584,24 @@ exports[`hosted login page characterization > renders the full entry set: provid
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -1390,7 +1623,7 @@ exports[`hosted login page characterization > renders the full entry set: provid
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -1404,9 +1637,18 @@ exports[`hosted login page characterization > renders the full entry set: provid
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -1419,6 +1661,19 @@ exports[`hosted login page characterization > renders the full entry set: provid
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -1427,16 +1682,20 @@ exports[`hosted login page characterization > renders the full entry set: provid
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -1446,7 +1705,7 @@ exports[`hosted login page characterization > renders the full entry set: provid
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -1484,29 +1743,26 @@ exports[`hosted login page characterization > renders the full entry set: provid
          <input type="hidden" name="provider" value="github"/>
          <button type="submit" class="btn">Sign in with GitHub</button>
        </form></div>
-     <div class="panel">
-       <h2>Your organization</h2>
-       
-       
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+     <details class="method">
+       <summary>Your organization</summary>
+       <div class="method-body"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="org-slug"><span>Organization name</span>
            <input id="org-slug" name="slug" value="" autocomplete="organization" required/>
          </label>
          <button type="submit" class="btn">Continue with your organization</button>
-       </form>
-       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
+       </form><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="realm-email"><span>Work email</span>
            <input id="realm-email" name="email" type="email" autocomplete="email" required/>
          </label>
          
          <button type="submit" class="btn">Continue with your work email</button>
-       </form>
-     </div>
-     <div class="panel">
-       <h2>Continue with email</h2>
-       
+       </form></div>
+     </details>
+     <details class="method">
+       <summary>Continue with email</summary>
+       <div class="method-body">
        
        <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/email">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
@@ -1514,11 +1770,11 @@ exports[`hosted login page characterization > renders the full entry set: provid
            <input id="magic-email" name="email" type="email" autocomplete="email" required/>
          </label>
          <button type="submit" class="btn">Email me a sign-in link</button>
-       </form>
-     </div>
-     <div class="panel">
-       <h2>Use your own identity provider</h2>
-       
+       </form></div>
+     </details>
+     <details class="method">
+       <summary>Use your own identity provider</summary>
+       <div class="method-body">
        <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/byo">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
@@ -1534,17 +1790,17 @@ exports[`hosted login page characterization > renders the full entry set: provid
          </label>
          <button type="submit" class="btn">Continue with your provider</button>
        </form>
-       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p>
-     </div>
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       <p>No session yet. Start a session to authorize this application.</p>
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p></div>
+     </details>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="start"/>
          <button type="submit" class="btn">Start a session</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
   </main>
 </body>
 </html>"
@@ -1560,21 +1816,24 @@ exports[`hosted login page characterization > renders the production shape: Goog
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -1596,7 +1855,7 @@ exports[`hosted login page characterization > renders the production shape: Goog
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -1610,9 +1869,18 @@ exports[`hosted login page characterization > renders the production shape: Goog
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -1625,6 +1893,19 @@ exports[`hosted login page characterization > renders the production shape: Goog
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -1633,16 +1914,20 @@ exports[`hosted login page characterization > renders the production shape: Goog
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -1652,7 +1937,7 @@ exports[`hosted login page characterization > renders the production shape: Goog
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -1684,15 +1969,15 @@ exports[`hosted login page characterization > renders the production shape: Goog
          <input type="hidden" name="provider" value="shoo"/>
          <button type="submit" class="btn btn-primary">Sign in with Google</button>
        </form></div>
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       <p>No session yet. Start a session to authorize this application.</p>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="start"/>
          <button type="submit" class="btn">Start a session</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
   </main>
 </body>
 </html>"
@@ -1708,21 +1993,24 @@ exports[`hosted login page characterization > shows the continue path when a ses
   <style>
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -1744,7 +2032,7 @@ exports[`hosted login page characterization > shows the continue path when a ses
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -1758,9 +2046,18 @@ exports[`hosted login page characterization > shows the continue path when a ses
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -1773,6 +2070,19 @@ exports[`hosted login page characterization > shows the continue path when a ses
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -1781,16 +2091,20 @@ exports[`hosted login page characterization > shows the continue path when a ses
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -1800,7 +2114,7 @@ exports[`hosted login page characterization > shows the continue path when a ses
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -1832,15 +2146,15 @@ exports[`hosted login page characterization > shows the continue path when a ses
          <input type="hidden" name="provider" value="shoo"/>
          <button type="submit" class="btn btn-primary">Sign in with Google</button>
        </form></div>
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       <p>Signed in as <code>prn_fixed</code>.</p>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>Signed in as <code>prn_fixed</code>.</p>
        <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
          <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
          <input type="hidden" name="action" value="continue"/>
          <button type="submit" class="btn">Continue</button>
-       </form>
-     </div>
+       </form></div>
+     </details>
   </main>
 </body>
 </html>"

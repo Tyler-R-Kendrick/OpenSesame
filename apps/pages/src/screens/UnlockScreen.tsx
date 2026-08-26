@@ -552,7 +552,12 @@ export function UnlockScreen() {
 
             {firstRun && activeMethod === "password" ? (
               <>
-                <StrengthMeter password={password} />
+                {/* Nothing to judge before anything is typed — a meter with a
+                    red "enter a password" under a pristine field reads as an
+                    error the person hasn't earned yet. */}
+                {password.length > 0 ? (
+                  <StrengthMeter password={password} />
+                ) : null}
                 <div className="field">
                   <label htmlFor="confirm">Confirm master password</label>
                   <input
@@ -564,21 +569,24 @@ export function UnlockScreen() {
                     onChange={(e) => setConfirm(e.target.value)}
                   />
                 </div>
-                <div className="field">
-                  <label htmlFor="hint">Reminder (optional)</label>
-                  <input
-                    id="hint"
-                    type="text"
-                    value={hint}
-                    maxLength={80}
-                    placeholder="Something only you would understand"
-                    onChange={(e) => setHint(e.target.value)}
-                  />
-                  <p className="hint">
-                    Stored unencrypted beside the vault so it can be shown
-                    before you unlock. Never put the password itself here.
-                  </p>
-                </div>
+                <details className="unlock__optional">
+                  <summary>Add an unlock reminder (optional)</summary>
+                  <div className="field">
+                    <input
+                      id="hint"
+                      type="text"
+                      value={hint}
+                      maxLength={80}
+                      aria-label="Reminder"
+                      placeholder="Something only you would understand"
+                      onChange={(e) => setHint(e.target.value)}
+                    />
+                    <p className="hint">
+                      Stored unencrypted beside the vault so it can be shown
+                      before you unlock. Never put the password itself here.
+                    </p>
+                  </div>
+                </details>
               </>
             ) : null}
 
@@ -601,10 +609,10 @@ export function UnlockScreen() {
               <div className="unlock__terms">
                 <p id="master-help">
                   {activeMethod === "passkey"
-                    ? "There is no recovery. The vault key is wrapped by this device's passkey. Lose the authenticator and the encrypted items on this device are unreadable, by you and by us. A password is optional later in Settings."
+                    ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us."
                     : activeMethod === "pin"
-                      ? "There is no recovery. The vault key is wrapped by this PIN. Forget it and the encrypted items on this device are unreadable, by you and by us. A password is optional later in Settings."
-                      : "There is no recovery. The key exists only while this password is in your head — forget it and the encrypted items on this device are unreadable, by you and by us. Add a passkey or PIN in Settings so you are not limited to typing a password."}
+                      ? "There is no recovery. Forget this PIN and the encrypted items on this device are unreadable — by you and by us."
+                      : "There is no recovery. Forget this password and the encrypted items on this device are unreadable — by you and by us."}
                 </p>
                 <label className="check">
                   <input

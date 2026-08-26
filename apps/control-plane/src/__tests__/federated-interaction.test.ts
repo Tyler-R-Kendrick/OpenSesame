@@ -377,8 +377,9 @@ describe("login page federated block", () => {
         preferredIssuer: "https://shoo.dev",
       },
     });
-    // A person choosing again needs every exit visible — no collapse now.
-    expect(html).not.toContain("<details");
+    // A person choosing again needs every exit visible: no focused collapse —
+    // each method stands as its own named card instead of one giant form.
+    expect(html).not.toContain('class="more-options"');
     expect(html).toContain('role="alert"');
     expect(html).toContain("access was denied");
     expect(html.indexOf("access was denied")).toBeLessThan(

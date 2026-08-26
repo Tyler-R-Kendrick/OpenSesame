@@ -236,7 +236,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
       expect(consent.html).toContain(`<code>${ORIGIN}</code>`);
       expect(consent.html).toContain("Automatically admitted application");
       expect(consent.html).toContain('role="status"');
-      expect(consent.html).toContain("<code>openid</code>");
+      expect(consent.html).toContain('<span class="scope-tag">openid</span>');
 
       // POST confirm → code redirect.
       const final = await confirmAndCode(
@@ -569,7 +569,7 @@ describe("origin consent UI (ADR 0050 slice 3c, F6)", () => {
       const uid = thirdLocation.slice("/interaction/".length);
       const page = await req(started, jar, thirdLocation);
       const html = await page.text();
-      expect(html).toContain("<code>profile</code>");
+      expect(html).toContain('<span class="scope-tag">profile</span>');
 
       const final3 = await confirmAndCode(started, jar, uid, html);
       expect(new URL(final3).searchParams.get("code")).toBeTruthy();

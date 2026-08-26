@@ -128,13 +128,13 @@ describe("IdentifierField", () => {
     await waitFor(() => {
       expect(
         screen.getByRole("button", {
-          name: "Continue on the hosted sign-in page instead",
+          name: "Use the hosted sign-in page instead",
         }),
       ).toBeTruthy();
     });
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Continue on the hosted sign-in page instead",
+        name: "Use the hosted sign-in page instead",
       }),
     );
 

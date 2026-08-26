@@ -136,24 +136,29 @@ export interface ConsentPageModel {
   clientDisplayName?: string;
 }
 
+/* The product's navy+teal tokens (apps/pages/src/styles.css) — the hosted
+   pages are the same ceremony as the vault's, so they wear the same skin. */
 const sharedStyles = `
   :root {
     color-scheme: light dark;
-    --bg: #0f1419;
-    --fg: #e7ecf3;
-    --muted: #9aa7b5;
-    --accent: #3d8bfd;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
     --danger: #f07178;
-    --surface: #1c2430;
-    --border: #2a3441;
+    --surface: #17253a;
+    --border: #24354e;
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --bg: #f6f8fa;
-      --fg: #1f2328;
-      --muted: #59636e;
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
       --surface: #ffffff;
-      --border: #d1d9e0;
+      --border: #dce4ef;
     }
   }
   * { box-sizing: border-box; }
@@ -175,7 +180,7 @@ const sharedStyles = `
   .panel {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 1.25rem;
     margin-bottom: 1rem;
   }
@@ -189,9 +194,18 @@ const sharedStyles = `
     margin-top: 0.75rem;
     padding: 0.25rem 0.6rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
     color: var(--fg);
     font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
   }
   ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
   ul.scopes li { margin: 0 0 0.5rem; }
@@ -204,6 +218,19 @@ const sharedStyles = `
     padding: 0.25rem 0;
   }
   details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
   .actions {
     display: flex;
     flex-wrap: wrap;
@@ -212,16 +239,20 @@ const sharedStyles = `
   }
   button, .btn {
     appearance: none;
-    border: 0;
-    border-radius: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
     padding: 0.65rem 1rem;
     font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
     cursor: pointer;
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
   .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
   button:focus-visible, .btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
     outline-offset: 2px;
   }
   h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
@@ -231,7 +262,7 @@ const sharedStyles = `
     width: 100%;
     margin-top: 0.25rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--fg);
@@ -373,10 +404,7 @@ export function renderLoginPage(model: LoginPageModel): string {
      <details class="more-options">
        <summary>More sign-in options</summary>
        ${rest}
-       <div class="panel">
-         <p class="lede">or continue without a provider</p>
-         ${continueBlock}
-       </div>
+       ${methodFold("Continue without a provider", continueBlock, false)}
      </details>`,
     );
   }
@@ -397,16 +425,22 @@ export function renderLoginPage(model: LoginPageModel): string {
         renderByoBlock(model),
       ];
 
+  // With any provider on the page the anonymous session steps into a fold of
+  // its own; with none it IS the page and stands open as a panel.
+  const sessionBlock = hasFederated
+    ? methodFold("Continue without a provider", continueBlock, false)
+    : `<div class="panel">
+       <p class="lede">or continue without a provider</p>
+       ${continueBlock}
+     </div>`;
+
   return pageShell(
     "Sign in — OpenSesame",
     `<h1>Sign in</h1>
      <p class="lede">Authenticate to continue authorization at ${escapeHtml(model.publicUrl)}.</p>
      ${renderError(model.error)}
      ${identityBlocks.filter(Boolean).join("\n     ")}
-     <div class="panel">
-       <p class="lede">or continue without a provider</p>
-       ${continueBlock}
-     </div>`,
+     ${sessionBlock}`,
   );
 }
 
@@ -526,7 +560,11 @@ function renderOrgBlock(model: LoginPageModel): string {
     : "";
 
   if (!org) {
-    return `<div class="panel"><h2>Your organization</h2>${realmForm}</div>`;
+    return methodFold(
+      "Your organization",
+      realmForm,
+      realm?.error !== undefined,
+    );
   }
 
   const methods = org.methods ?? [];
@@ -564,13 +602,35 @@ function renderOrgBlock(model: LoginPageModel): string {
          <button type="submit" class="btn">Continue with your organization</button>
        </form>`;
 
-  return `<div class="panel">
+  // A resolved organization is the step the visitor asked for: its method
+  // buttons stand open, and re-picking the organization folds away.
+  if (methods.length > 0) {
+    return `<div class="panel">
        <h2>Your organization</h2>
        ${renderError(org.error)}
        ${methodForms}
-       ${lookupForm}
-       ${realmForm}
-     </div>`;
+     </div>
+     ${methodFold("Use a different organization", `${lookupForm}${realmForm}`, false)}`;
+  }
+  return methodFold(
+    "Your organization",
+    `${renderError(org.error)}${methodForms}${lookupForm}${realmForm}`,
+    org.error !== undefined || realm?.error !== undefined,
+  );
+}
+
+/**
+ * One method per card, one card open at a time: a `<details>` fold so the
+ * page shows a method's fields only when the visitor picks it — script-free,
+ * so it costs the CSP nothing. A fold holding fresh state (an error to fix,
+ * a resolved answer) starts open; burying an outcome would read as silence.
+ */
+function methodFold(summary: string, inner: string, open: boolean): string {
+  if (!inner) return "";
+  return `<details class="method"${open ? " open" : ""}>
+       <summary>${escapeHtml(summary)}</summary>
+       <div class="method-body">${inner}</div>
+     </details>`;
 }
 
 /**
@@ -588,9 +648,9 @@ function renderLdapBlock(model: LoginPageModel): string {
   const ldap = model.ldap;
   if (!ldap) return "";
   const csrf = escapeHtml(model.csrfToken);
-  return `<div class="panel">
-       <h2>Sign in with your directory account</h2>
-       <form method="post" action="${escapeHtml(ldap.requestAction)}">
+  return methodFold(
+    "Sign in with your directory account",
+    `<form method="post" action="${escapeHtml(ldap.requestAction)}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
          <input type="hidden" name="slug" value="${escapeHtml(ldap.slug)}"/>
          <label class="field" for="ldap-username"><span>Username</span>
@@ -600,8 +660,11 @@ function renderLdapBlock(model: LoginPageModel): string {
            <input id="ldap-password" name="password" type="password" autocomplete="current-password" required/>
          </label>
          <button type="submit" class="btn btn-primary">Sign in</button>
-       </form>
-     </div>`;
+       </form>`,
+    // The one password form on the page: reached by resolving this tenant's
+    // slug, so it is the step being taken.
+    true,
+  );
 }
 
 /** Email magic link (D18): the address is the identifier, deliberately. */
@@ -612,9 +675,9 @@ function renderEmailBlock(model: LoginPageModel): string {
   const sent = email.sent
     ? `<p class="note" role="status">Check your email for a sign-in link.</p>`
     : "";
-  return `<div class="panel">
-       <h2>Continue with email</h2>
-       ${renderError(email.error)}
+  return methodFold(
+    "Continue with email",
+    `${renderError(email.error)}
        ${sent}
        <form method="post" action="${escapeHtml(email.requestAction)}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
@@ -622,8 +685,9 @@ function renderEmailBlock(model: LoginPageModel): string {
            <input id="magic-email" name="email" type="email" autocomplete="email" required/>
          </label>
          <button type="submit" class="btn">Email me a sign-in link</button>
-       </form>
-     </div>`;
+       </form>`,
+    email.sent === true || email.error !== undefined,
+  );
 }
 
 /**
@@ -635,9 +699,9 @@ function renderByoBlock(model: LoginPageModel): string {
   const byo = model.byo;
   if (!byo) return "";
   const csrf = escapeHtml(model.csrfToken);
-  return `<div class="panel">
-       <h2>Use your own identity provider</h2>
-       ${renderError(byo.error)}
+  return methodFold(
+    "Use your own identity provider",
+    `${renderError(byo.error)}
        <form method="post" action="${escapeHtml(byo.startAction)}">
          <input type="hidden" name="_csrf" value="${csrf}"/>
          <label class="field" for="byo-issuer"><span>Issuer URL</span>
@@ -653,8 +717,9 @@ function renderByoBlock(model: LoginPageModel): string {
          </label>
          <button type="submit" class="btn">Continue with your provider</button>
        </form>
-       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p>
-     </div>`;
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p>`,
+    byo.error !== undefined || Boolean(byo.issuerValue),
+  );
 }
 
 /**
@@ -671,9 +736,11 @@ export function renderConsentPage(model: ConsentPageModel): string {
       ? `<ul class="scopes" aria-label="Requested scopes">${model.scopes
           .map((s) => {
             const explained = describeScope(s);
+            // The protocol name rides along as a small tag beside the plain
+            // words, never dangling inside the sentence.
             return explained === undefined
               ? `<li><code>${escapeHtml(s)}</code></li>`
-              : `<li><strong>${escapeHtml(explained.title)}</strong><br/><span class="scope-detail">${escapeHtml(explained.detail)} <code>${escapeHtml(s)}</code></span></li>`;
+              : `<li><strong>${escapeHtml(explained.title)}</strong><span class="scope-tag">${escapeHtml(s)}</span><br/><span class="scope-detail">${escapeHtml(explained.detail)}</span></li>`;
           })
           .join("")}</ul>`
       : "<p>No additional scopes requested.</p>";
