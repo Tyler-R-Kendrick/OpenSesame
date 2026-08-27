@@ -48,7 +48,14 @@ export type LoginItem = BaseItem & {
   uris: LoginUri[];
   /** ISO date the password itself last changed — drives the health report. */
   passwordChangedAt: string;
+  supersededById?: string;
+  retiredAt?: string | null;
+  reenrollState?: ReenrollState;
 };
+
+export type PasskeyCustody = "vault" | "external";
+export type PasskeyProvenance = "imported" | "generated" | "recorded";
+export type ReenrollState = "none" | "new-enrolled" | "old-retired";
 
 export type PasskeyItem = BaseItem & {
   kind: "passkey";
@@ -56,10 +63,29 @@ export type PasskeyItem = BaseItem & {
   username: string;
   credentialIdB64: string;
   publicKeyB64: string;
-  /** Where the private key actually lives. The vault never holds it. */
+  /** Provider class presented to WebAuthn clients. */
   authenticator: "platform" | "cross-platform";
   /** True when this credential can unlock the vault via the WebAuthn PRF extension. */
   unlocksVault: boolean;
+  /** PKCS#8 private key, base64; present only for vault custody. */
+  privateKeyPkcs8B64?: string;
+  /** COSE_Key public key, base64. */
+  cosePublicKeyB64?: string;
+  /** Synced passkeys use zero to avoid false clone detection across devices. */
+  signCount?: number;
+  userHandleB64?: string;
+  discoverable?: boolean;
+  /** COSE algorithm identifier; ES256 (-7) is the required baseline. */
+  alg?: number;
+  transports?: string[];
+  /** Absent on legacy metadata-only items and therefore treated as external. */
+  custody?: PasskeyCustody;
+  provenance?: PasskeyProvenance;
+  importedFrom?: string;
+  duplicateOfExternal?: boolean;
+  supersededById?: string;
+  retiredAt?: string | null;
+  reenrollState?: ReenrollState;
 };
 
 export type CardItem = BaseItem & {
@@ -157,6 +183,56 @@ export function newId(): string {
 
 export function emptyBody(): VaultBody {
   return { v: 1, items: [], folders: [], rev: 0 };
+}
+
+/** Deterministic, no-data-loss merge for two encrypted whole-vault snapshots. */
+export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
+  const items = new Map(left.items.map((item) => [item.id, item]));
+  for (const incoming of right.items) {
+    const current = items.get(incoming.id);
+    if (!current || itemVersion(incoming) > itemVersion(current)) {
+      items.set(incoming.id, incoming);
+    }
+  }
+  const folders = new Map(left.folders.map((folder) => [folder.id, folder]));
+  for (const incoming of right.folders) {
+    const current = folders.get(incoming.id);
+    if (!current || JSON.stringify(incoming) > JSON.stringify(current)) {
+      folders.set(incoming.id, incoming);
+    }
+  }
+  return {
+    v: 1,
+    items: [...items.values()],
+    folders: [...folders.values()],
+    rev: Math.max(left.rev ?? 0, right.rev ?? 0),
+  };
+}
+
+function itemVersion(item: VaultItem): string {
+  const changedAt =
+    item.deletedAt && item.deletedAt > item.updatedAt
+      ? item.deletedAt
+      : item.updatedAt;
+  return `${changedAt}\0${JSON.stringify(item)}`;
+}
+
+/** True only when OpenSesame has complete signing material for the passkey. */
+export function isVaultCustodied(item: PasskeyItem): boolean {
+  return item.custody === "vault" && Boolean(item.privateKeyPkcs8B64);
+}
+
+/** Legacy records and explicit external records cannot satisfy assertions. */
+export function isForeignPasskey(item: PasskeyItem): boolean {
+  return !isVaultCustodied(item);
+}
+
+export function isRetired(item: VaultItem): boolean {
+  return "retiredAt" in item && Boolean(item.retiredAt);
+}
+
+export function activeItems(items: VaultItem[]): VaultItem[] {
+  return items.filter((item) => item.deletedAt === null && !isRetired(item));
 }
 
 export function newUri(uri = "", match: UriMatch = "domain"): LoginUri {

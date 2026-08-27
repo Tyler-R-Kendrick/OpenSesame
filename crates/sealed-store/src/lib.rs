@@ -13,7 +13,11 @@ mod git;
 mod gpg;
 mod history;
 mod manifest;
-mod otp;
+mod otp {
+    #[cfg(test)]
+    pub use opensesame_authenticator_core::parse_otpauth;
+    pub use opensesame_authenticator_core::{find_otpauth_in_trailer, sync_trailer_otp, OtpUri};
+}
 mod path;
 mod recipients;
 mod root;
@@ -39,9 +43,9 @@ pub use gpg::{decrypt_gpg_file, encrypt_gpg_file, read_gpg_id};
 pub use history::{entry_history, restore_entry, HistoryEntry};
 // —— end entry history / restore ——————————————————————————————————————————
 pub use manifest::{parse_manifest, seal_manifest, ManifestEntry, SealOutcome};
-pub use otp::{
-    find_otpauth_in_trailer, parse_otpauth, sync_trailer_otp, totp_code, validate_otpauth,
-    OtpError, OtpUri,
+pub use opensesame_authenticator_core::{
+    find_otpauth_in_trailer, hotp_code, parse_otpauth, sync_trailer_otp, totp_code,
+    validate_otpauth, OtpAlgorithm, OtpError, OtpKind, OtpUri,
 };
 pub use path::{logical_to_relative, relative_to_logical};
 pub use recipients::Recipients;

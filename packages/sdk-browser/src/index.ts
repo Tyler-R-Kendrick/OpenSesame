@@ -1,6 +1,11 @@
 export { createOpenSesame } from "./client.js";
 export { ClaimRequestError } from "./errors.js";
 export {
+  createAuthenticationClient,
+  type AuthenticationClientConfig,
+  type PasswordlessSignin,
+} from "./authentication-service.js";
+export {
   BrowserOriginError,
   OriginError,
   assertSafeReturnTo,
@@ -24,3 +29,17 @@ export type {
   StorageLike,
   TokenResponse,
 } from "./types.js";
+export {
+  assertionPayload,
+  authenticationResponseJson,
+  b64urlToBytes,
+  bytesToB64url,
+  creationOptionsFromJson,
+  isPublicKeyCredential,
+  parsePublicKeyCredentialCreationOptionsJson,
+  parsePublicKeyCredentialRequestOptionsJson,
+  registrationResponseJson,
+  requestOptionsFromJson,
+  type PublicKeyCredentialCreationOptionsJSON,
+  type PublicKeyCredentialRequestOptionsJSON,
+} from "./webauthn.js";

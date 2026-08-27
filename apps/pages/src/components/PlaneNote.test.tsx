@@ -81,7 +81,7 @@ import { PagesCannotHostNote } from "./PagesCannotHostNote.js";
 import { ConnectThisMachine } from "./PlaneNote.js";
 
 function withRouter(node: ReactNode) {
-  return render(<MemoryRouter>{node}</MemoryRouter>);
+  return render(<MemoryRouter>{overlapCast(node)}</MemoryRouter>);
 }
 
 const HEALTH = {

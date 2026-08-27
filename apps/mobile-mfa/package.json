@@ -12,6 +12,7 @@
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^",
+    "@opensesame/sdk-browser": "workspace:*",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

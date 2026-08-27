@@ -8,6 +8,10 @@ export type TotpConfig = {
   algorithm: "SHA-1" | "SHA-256" | "SHA-512";
 };
 
+export type HotpConfig = Omit<TotpConfig, "period"> & {
+  counter: number;
+};
+
 export class TotpParseError extends Error {
   constructor(detail: string) {
     super(`This is not a usable authenticator secret: ${detail}`);
@@ -66,6 +70,9 @@ function parseTotpDefault(raw: string): TotpConfig {
     } catch {
       throw new TotpParseError("the otpauth URI is malformed");
     }
+    if (url.protocol !== "otpauth:" || url.hostname.toLowerCase() !== "totp") {
+      throw new TotpParseError("the URI is not TOTP");
+    }
     const secret = url.searchParams.get("secret");
     if (!secret)
       throw new TotpParseError("the otpauth URI has no secret parameter");
@@ -93,6 +100,13 @@ async function totpCodeDefault(
   atMs: number = Date.now(),
 ): Promise<string> {
   const counter = Math.floor(atMs / 1000 / config.period);
+  return hmacOtpCode(config, counter);
+}
+
+async function hmacOtpCode(
+  config: Pick<TotpConfig, "secret" | "digits" | "algorithm">,
+  counter: number,
+): Promise<string> {
   const buffer = new ArrayBuffer(8);
   const view = new DataView(buffer);
   view.setUint32(0, Math.floor(counter / 2 ** 32));
@@ -111,6 +125,46 @@ async function totpCodeDefault(
   const offset = mac.getUint8(mac.byteLength - 1) & 0x0f;
   const binary = mac.getUint32(offset) & 0x7fff_ffff;
   return String(binary % 10 ** config.digits).padStart(config.digits, "0");
+}
+
+/** Parse a counter-based RFC 4226 otpauth URI. */
+export function parseHotp(raw: string): HotpConfig {
+  const trimmed = raw.trim();
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new TotpParseError("the otpauth URI is malformed");
+  }
+  if (url.protocol !== "otpauth:" || url.hostname.toLowerCase() !== "hotp") {
+    throw new TotpParseError("the URI is not HOTP");
+  }
+  const secret = url.searchParams.get("secret");
+  if (!secret)
+    throw new TotpParseError("the otpauth URI has no secret parameter");
+  const digits = Number(url.searchParams.get("digits") ?? 6);
+  const counterRaw = url.searchParams.get("counter");
+  const counter = counterRaw === null ? Number.NaN : Number(counterRaw);
+  if (!Number.isSafeInteger(counter) || counter < 0) {
+    throw new TotpParseError("the HOTP counter is missing or invalid");
+  }
+  return {
+    secret: decodeBase32(secret),
+    digits: Number.isFinite(digits) && digits >= 6 && digits <= 10 ? digits : 6,
+    counter,
+    algorithm: normalizeAlgorithm(url.searchParams.get("algorithm")),
+  };
+}
+
+/** Generate RFC 4226 HOTP for an explicit counter. Persist the increment first. */
+export function hotpCode(
+  config: HotpConfig,
+  counter = config.counter,
+): Promise<string> {
+  if (!Number.isSafeInteger(counter) || counter < 0) {
+    return Promise.reject(new TotpParseError("the HOTP counter is invalid"));
+  }
+  return hmacOtpCode(config, counter);
 }
 
 function secondsRemainingDefault(

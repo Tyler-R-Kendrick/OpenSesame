@@ -992,11 +992,19 @@ export class PostgresRepositories implements Repositories {
         .orderBy(desc(schema.auditEvents.seq))
         .limit(limit)
         .$dynamic();
+      const filters = [];
       if (filter?.principalId) {
-        query = query.where(
-          eq(schema.auditEvents.principalId, filter.principalId),
+        filters.push(eq(schema.auditEvents.principalId, filter.principalId));
+      }
+      if (filter?.clientId) {
+        filters.push(eq(schema.auditEvents.clientId, filter.clientId));
+      }
+      if (filter?.organizationId) {
+        filters.push(
+          eq(schema.auditEvents.organizationId, filter.organizationId),
         );
       }
+      if (filters.length > 0) query = query.where(and(...filters));
       const rows = await query;
       return rows.map(mapAuditEvent);
     },

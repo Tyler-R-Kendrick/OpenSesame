@@ -13,7 +13,6 @@ const REAL_FETCH = runtimeConfigSeams.fetchRuntimeConfig;
 afterEach(() => {
   runtimeConfigSeams.fetchRuntimeConfig = REAL_FETCH;
   applyRuntimeConfig({});
-  localStorage.clear();
   vi.restoreAllMocks();
 });
 

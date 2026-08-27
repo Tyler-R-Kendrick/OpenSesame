@@ -29,6 +29,7 @@ Object.assign(projectSeams, {
 import {
   flushPendingVaultHostBackup,
   getVaultHostBackupState,
+  hostBackupSeams,
   installVaultHostBackupFlushHooks,
   pushSealedVaultToHost,
   subscribeVaultHostBackup,
@@ -76,6 +77,7 @@ beforeEach(() => {
   project.current = { id: "personal", name: "Personal", kind: "personal" };
   project.explode = false;
   clearOfflineMutations();
+  hostBackupSeams.mergePulledVault = undefined;
 });
 
 afterEach(() => {
@@ -89,7 +91,7 @@ describe("vault host backup state", () => {
     const off = subscribeVaultHostBackup(() => {
       calls += 1;
     });
-    hostFetch.mockResolvedValue(ok());
+    hostFetch.mockImplementation(async () => ok());
     await pushSealedVaultToHost(INPUT);
     expect(calls).toBeGreaterThan(0);
 
@@ -163,6 +165,43 @@ describe("push failure modes", () => {
     expect(getVaultHostBackupState().lastError).toMatch(/accepted no vault/);
   });
 
+  it("queues an atomic retry when Host reports a stale batch", async () => {
+    hostFetch.mockResolvedValue(
+      ok({ accepted: 0, rejected_stale_epoch: 1, rejected_batch: 1 }),
+    );
+    await pushSealedVaultToHost(INPUT);
+    expect(getVaultHostBackupState().lastError).toMatch(/unlock the vault/);
+    expect(listOfflineMutations()).toHaveLength(1);
+  });
+
+  it("pulls and merges a complete Host revision when the vault is unlocked", async () => {
+    const merge = vi.fn().mockResolvedValue(undefined);
+    hostBackupSeams.mergePulledVault = merge;
+    const encoded = (text: string) =>
+      Array.from(new TextEncoder().encode(text));
+    hostFetch.mockResolvedValueOnce(
+      ok({ accepted: 0, rejected_stale_epoch: 1, rejected_batch: 1 }),
+    );
+    hostFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          blobs: [
+            { id: "vault:header", epoch: 8, ciphertext: encoded("header") },
+            { id: "vault:body", epoch: 8, ciphertext: encoded("body") },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+    await pushSealedVaultToHost(INPUT);
+    expect(merge).toHaveBeenCalledWith({
+      headerJson: "header",
+      bodyJson: "body",
+      epoch: 8,
+    });
+    expect(listOfflineMutations()).toHaveLength(0);
+  });
+
   it("tolerates a response with no JSON body at all", async () => {
     hostFetch.mockResolvedValue(
       new Response("not json", {
@@ -201,7 +240,7 @@ describe("flushPendingVaultHostBackup", () => {
 
   it("decodes queued base64 back into bytes for the push", async () => {
     queueOne();
-    hostFetch.mockResolvedValue(ok());
+    hostFetch.mockImplementation(async () => ok());
     await expect(flushPendingVaultHostBackup()).resolves.toBe(1);
     const body = pushedBody();
     expect(body.blobs[0]?.ciphertext).toEqual(
@@ -266,7 +305,7 @@ describe("installVaultHostBackupFlushHooks", () => {
       kind: "push_sync_blobs",
       blobs: [{ id: "vault:body", epoch: 9, ciphertextB64: btoa("x") }],
     });
-    hostFetch.mockResolvedValue(ok());
+    hostFetch.mockImplementation(async () => ok());
 
     windowListeners.get("online")?.();
     await vi.waitFor(() => {

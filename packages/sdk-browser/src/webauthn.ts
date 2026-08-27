@@ -8,7 +8,7 @@ import {
   isUndefined,
   overlapCast,
 } from "@opensesame/os-domain";
-/** Minimal WebAuthn JSON ↔ ArrayBuffer helpers (no extra deps). */
+/** Shared browser WebAuthn JSON ↔ ArrayBuffer helpers (no extra deps). */
 
 export function b64urlToBytes(value: string): Uint8Array {
   const pad = "=".repeat((4 - (value.length % 4)) % 4);
@@ -188,18 +188,23 @@ export function isPublicKeyCredential(
 export function creationOptionsFromJson(
   json: PublicKeyCredentialCreationOptionsJSON,
 ): CredentialCreationOptions {
+  const { excludeCredentials, ...rest } = json;
   return {
     publicKey: {
-      ...json,
+      ...rest,
       challenge: b64urlToBytes(json.challenge),
       user: {
         ...json.user,
         id: b64urlToBytes(json.user.id),
       },
-      excludeCredentials: json.excludeCredentials?.map((c) => ({
-        ...c,
-        id: b64urlToBytes(c.id),
-      })),
+      ...(excludeCredentials
+        ? {
+            excludeCredentials: excludeCredentials.map((c) => ({
+              ...c,
+              id: b64urlToBytes(c.id),
+            })),
+          }
+        : undefined),
     },
   };
 }
@@ -207,14 +212,19 @@ export function creationOptionsFromJson(
 export function requestOptionsFromJson(
   json: PublicKeyCredentialRequestOptionsJSON,
 ): CredentialRequestOptions {
+  const { allowCredentials, ...rest } = json;
   return {
     publicKey: {
-      ...json,
+      ...rest,
       challenge: b64urlToBytes(json.challenge),
-      allowCredentials: json.allowCredentials?.map((c) => ({
-        ...c,
-        id: b64urlToBytes(c.id),
-      })),
+      ...(allowCredentials
+        ? {
+            allowCredentials: allowCredentials.map((c) => ({
+              ...c,
+              id: b64urlToBytes(c.id),
+            })),
+          }
+        : undefined),
     },
   };
 }
@@ -265,5 +275,28 @@ export function assertionPayload(cred: PublicKeyCredential) {
     clientDataJSON: bytesToB64url(response.clientDataJSON),
     authenticatorData: bytesToB64url(response.authenticatorData),
     signature: bytesToB64url(response.signature),
+  };
+}
+
+export function authenticationResponseJson(cred: PublicKeyCredential) {
+  const payload = assertionPayload(cred);
+  return {
+    id: cred.id,
+    rawId: bytesToB64url(cred.rawId),
+    type: "public-key" as const,
+    response: {
+      clientDataJSON: payload.clientDataJSON,
+      authenticatorData: payload.authenticatorData,
+      signature: payload.signature,
+      ...(() => {
+        const response: Partial<AuthenticatorAssertionResponse> = overlapCast(
+          cred.response,
+        );
+        return response.userHandle instanceof ArrayBuffer
+          ? { userHandle: bytesToB64url(response.userHandle) }
+          : {};
+      })(),
+    },
+    clientExtensionResults: cred.getClientExtensionResults(),
   };
 }

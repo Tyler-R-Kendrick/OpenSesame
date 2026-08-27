@@ -32,6 +32,7 @@ const SECTIONS = [
   { to: "/connections", label: "Connections", Icon: IconConnection },
   { to: "/agents", label: "Agents", Icon: IconAgent },
   { to: "/authority", label: "Authority", Icon: IconAuthority },
+  { to: "/authentication", label: "Authentication", Icon: IconPasskey },
   { to: "/sites", label: "Sites", Icon: IconSite },
   { to: "/settings", label: "Settings", Icon: IconSettings },
 ] as const;

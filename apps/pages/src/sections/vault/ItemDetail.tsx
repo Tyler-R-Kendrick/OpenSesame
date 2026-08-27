@@ -32,6 +32,7 @@ import {
   type VaultItem,
   browsableUrl,
   hostOf,
+  isVaultCustodied,
 } from "../../lib/vault/model.js";
 import { estimateStrength, generate } from "../../lib/vault/password.js";
 import { totpSetupUri } from "../../lib/vault/totp.js";
@@ -614,7 +615,8 @@ function ItemFields({
         </>
       );
 
-    case "passkey":
+    case "passkey": {
+      const vaultCustodied = isVaultCustodied(item);
       return (
         <>
           <section className="detail__group">
@@ -629,9 +631,11 @@ function ItemFields({
             ) : null}
             <FieldRow label="Authenticator">
               <span className="frow__value">
-                {item.authenticator === "platform"
-                  ? "This device"
-                  : "Security key or another device"}
+                {vaultCustodied
+                  ? "OpenSesame synced passkey"
+                  : item.authenticator === "platform"
+                    ? "This device or platform provider"
+                    : "Security key or another device"}
               </span>
             </FieldRow>
             {item.credentialIdB64 ? (
@@ -661,14 +665,14 @@ function ItemFields({
           </section>
           <div className="note">
             <span>
-              A passkey's private key lives in the authenticator and cannot be
-              exported. This record is the public half plus the metadata needed
-              to recognise the credential — the vault never holds the key
-              itself.
+              {vaultCustodied
+                ? "OpenSesame holds this passkey's encrypted private key and can answer system credential-provider requests after device authentication."
+                : "This is a metadata-only record for a passkey held by another authenticator. OpenSesame cannot use it to sign in."}
             </span>
           </div>
         </>
       );
+    }
 
     case "card":
       return (

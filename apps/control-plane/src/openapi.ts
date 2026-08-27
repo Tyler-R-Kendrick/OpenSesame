@@ -1,5 +1,9 @@
 import type { ControlPlaneConfig } from "./config.js";
 
+const authenticationUnauthorizedResponse = {
+  "401": { description: "Authentication required" },
+} as const;
+
 /** Minimal OpenAPI 3.1 document for product APIs. */
 export function buildOpenApiDocument(config: ControlPlaneConfig) {
   return {
@@ -977,6 +981,340 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           },
         },
       },
+      "/v1/authentication/applications": {
+        get: {
+          summary: "List managed passwordless applications",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "Applications" },
+            "401": { description: "Unauthorized" },
+          },
+        },
+        post: {
+          summary:
+            "Create a passwordless application and shown-once API secret",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "201": { description: "Application and API secret" },
+            ...authenticationUnauthorizedResponse,
+            "403": { description: "Verified administrator required" },
+          },
+        },
+      },
+      "/v1/authentication/applications/{applicationId}": {
+        patch: {
+          summary:
+            "Update application state, features, or authentication policies",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "applicationId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "Application updated" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Not found" },
+          },
+        },
+      },
+      "/v1/authentication/applications/{applicationId}/rotate-secret": {
+        post: {
+          summary: "Replace all backend API keys with one shown-once secret",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "applicationId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "Secret rotated" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Not found" },
+          },
+        },
+      },
+      "/v1/authentication/applications/{applicationId}/api-keys": {
+        post: {
+          summary: "Create an additional shown-once backend API key",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "applicationId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "201": { description: "API key created" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Not found" },
+          },
+        },
+      },
+      "/v1/authentication/applications/{applicationId}/api-keys/{keyId}": {
+        patch: {
+          summary: "Lock or unlock a backend API key",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "applicationId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+            {
+              name: "keyId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "API key updated" },
+            ...authenticationUnauthorizedResponse,
+            "409": { description: "Last active key" },
+          },
+        },
+        delete: {
+          summary: "Delete a locked backend API key",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: "applicationId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+            {
+              name: "keyId",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            "200": { description: "API key deleted" },
+            ...authenticationUnauthorizedResponse,
+            "409": { description: "Lock key first" },
+          },
+        },
+      },
+      "/v1/authentication/backend/registration-tokens": {
+        post: {
+          summary: "Create a one-time passkey registration token",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "201": { description: "Registration token" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/authentication/backend/signin/generate-token": {
+        post: {
+          summary: "Generate a manual authentication token",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "201": { description: "Authentication token" },
+            ...authenticationUnauthorizedResponse,
+            "403": { description: "Feature disabled" },
+          },
+        },
+      },
+      "/v1/authentication/backend/signin/verify-token": {
+        post: {
+          summary: "Exchange an authentication result exactly once",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "200": { description: "Verified application user" },
+            ...authenticationUnauthorizedResponse,
+            "403": { description: "Invalid or consumed token" },
+          },
+        },
+      },
+      "/v1/authentication/backend/aliases": {
+        post: {
+          summary: "Replace a user's aliases, hashed by default",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "204": { description: "Aliases replaced" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "User not found" },
+          },
+        },
+      },
+      "/v1/authentication/backend/credentials/list": {
+        post: {
+          summary: "List public passkey credentials for an application user",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "200": { description: "Credentials" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "User not found" },
+          },
+        },
+      },
+      "/v1/authentication/backend/credentials/delete": {
+        post: {
+          summary: "Revoke a passkey credential",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "204": { description: "Credential revoked" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Credential not found" },
+          },
+        },
+      },
+      "/v1/authentication/backend/magic-links/send": {
+        post: {
+          summary:
+            "Send a one-time authentication link through the configured mailer",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "204": { description: "Message sent" },
+            ...authenticationUnauthorizedResponse,
+            "403": { description: "Feature or origin denied" },
+            "503": { description: "Mail delivery failed" },
+          },
+        },
+      },
+      "/v1/authentication/backend/auth-configurations": {
+        get: {
+          summary: "List authentication configurations",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "200": { description: "Configurations" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+        post: {
+          summary: "Create an authentication configuration",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "201": { description: "Configuration created" },
+            ...authenticationUnauthorizedResponse,
+            "409": { description: "Purpose exists" },
+          },
+        },
+      },
+      "/v1/authentication/backend/auth-configurations/{purpose}": {
+        patch: {
+          summary: "Update an authentication configuration",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "204": { description: "Configuration updated" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Purpose not found" },
+          },
+        },
+        delete: {
+          summary: "Delete a custom authentication configuration",
+          security: [{ authenticationApiSecret: [] }],
+          responses: {
+            "204": { description: "Configuration deleted" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Purpose not found" },
+            "409": { description: "Built-in configuration" },
+          },
+        },
+      },
+      "/v1/authentication/applications/{applicationId}/users": {
+        get: {
+          summary: "List application users, aliases, and credentials",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "Users" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Not found" },
+          },
+        },
+      },
+      "/v1/authentication/applications/{applicationId}/credentials/{credentialId}":
+        {
+          patch: {
+            summary: "Rename an application credential",
+            security: [{ bearerAuth: [] }],
+            responses: {
+              "200": { description: "Credential renamed" },
+              ...authenticationUnauthorizedResponse,
+              "404": { description: "Not found" },
+            },
+          },
+          delete: {
+            summary: "Revoke an application credential",
+            security: [{ bearerAuth: [] }],
+            responses: {
+              "200": { description: "Credential revoked" },
+              ...authenticationUnauthorizedResponse,
+              "404": { description: "Not found" },
+            },
+          },
+        },
+      "/v1/authentication/applications/{applicationId}/events": {
+        get: {
+          summary: "List tamper-evident application authentication events",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "Events" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Not found" },
+          },
+        },
+      },
+      "/v1/authentication/organizations/{organizationId}/events": {
+        get: {
+          summary: "List organization authentication events",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "Events" },
+            ...authenticationUnauthorizedResponse,
+            "404": { description: "Not found" },
+          },
+        },
+      },
+      "/v1/authentication/public/register/options": {
+        post: {
+          summary: "Start a WebAuthn registration ceremony",
+          responses: {
+            "200": { description: "PublicKeyCredentialCreationOptionsJSON" },
+            "403": { description: "Origin or token denied" },
+          },
+        },
+      },
+      "/v1/authentication/public/register/verify": {
+        post: {
+          summary: "Verify and persist a WebAuthn registration",
+          responses: {
+            "201": { description: "Credential registered" },
+            "400": { description: "Invalid attestation" },
+          },
+        },
+      },
+      "/v1/authentication/public/signin/options": {
+        post: {
+          summary: "Start autofill, discoverable, alias, or user-ID sign-in",
+          responses: {
+            "200": { description: "PublicKeyCredentialRequestOptionsJSON" },
+            "404": { description: "User or policy not found" },
+          },
+        },
+      },
+      "/v1/authentication/public/signin/verify": {
+        post: {
+          summary: "Verify a WebAuthn assertion and mint a one-time result",
+          responses: {
+            "200": { description: "Authentication result token" },
+            "400": { description: "Invalid assertion" },
+          },
+        },
+      },
     },
     components: {
       schemas: {
@@ -1247,6 +1585,11 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       },
       securitySchemes: {
         bearerAuth: { type: "http", scheme: "bearer" },
+        authenticationApiSecret: {
+          type: "http",
+          scheme: "bearer",
+          description: "Shown-once osa_ backend API secret",
+        },
         provisionalCookie: {
           type: "apiKey",
           in: "cookie",

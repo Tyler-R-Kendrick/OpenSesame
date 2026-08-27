@@ -16,3 +16,4 @@ export * from "./taskbus.js";
 export * from "./taskbus.openapi.js";
 export * from "./trust.js";
 export * from "./webhooks.js";
+export * from "./authentication-service.js";

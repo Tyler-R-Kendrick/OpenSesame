@@ -9,6 +9,11 @@ import { createOpenSesame } from "./client.js";
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe("PACT — browser SDK claim complete", () => {
+  it("does not log WebAuthn assertion bytes", () => {
+    const src = readFileSync(join(here, "webauthn.ts"), "utf8");
+    expect(src).not.toMatch(/console\.(log|debug|info)/);
+    expect(src).toContain("bytesToB64url");
+  });
   it("sends claimToken on complete after encoding the path id", () => {
     assertSourceOrder(readFileSync(join(here, "client.ts"), "utf8"), [
       "async completeClaim",

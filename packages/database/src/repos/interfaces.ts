@@ -169,6 +169,8 @@ export interface AuditEventRepository {
   append(event: AuditEvent, uow?: UnitOfWork): Promise<AuditEvent>;
   list(filter?: {
     principalId?: string;
+    clientId?: string;
+    organizationId?: string;
     limit?: number;
   }): Promise<AuditEvent[]>;
 }

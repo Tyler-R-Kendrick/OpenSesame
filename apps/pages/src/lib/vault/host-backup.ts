@@ -79,7 +79,17 @@ function subscribeVaultHostBackupDefault(listener: () => void): () => void {
   };
 }
 
-export const hostBackupSeams = {
+type HostBackupSeams = {
+  getVaultHostBackupState: () => VaultHostBackupState;
+  subscribeVaultHostBackup: (listener: () => void) => () => void;
+  mergePulledVault?: (input: {
+    headerJson: string;
+    bodyJson: string;
+    epoch: number;
+  }) => Promise<void>;
+};
+
+export const hostBackupSeams: HostBackupSeams = {
   getVaultHostBackupState: getVaultHostBackupStateDefault,
   subscribeVaultHostBackup: subscribeVaultHostBackupDefault,
 };
@@ -147,25 +157,17 @@ export async function pushSealedVaultToHost(input: {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ blobs }),
     });
-    if (!res.ok) {
-      const body: BoundaryValue = await res.json().catch(() => ({}));
-      throw new Error(responseError(body, `Host sync refused (${res.status})`));
-    }
-    const outcome: BoundaryValue = await res.json().catch(() => ({}));
-    const row: BoundaryObject =
-      isTypeofObject(outcome) && outcome !== null && !Array.isArray(outcome)
-        ? overlapCast(outcome)
-        : {};
-    const rejectedOversize = isNumber(row.rejected_oversize)
-      ? row.rejected_oversize
-      : 0;
-    const accepted = isNumber(row.accepted) ? row.accepted : 0;
-    if (rejectedOversize > 0) {
+    const outcome = await readPushResult(res);
+    if (outcome.rejectedOversize > 0) {
       throw new Error(
         "Vault ciphertext exceeds Host sync size limit — backup did not accept this write",
       );
     }
-    if (accepted < 1) {
+    if (outcome.rejectedStale > 0 || outcome.rejectedBatch > 0) {
+      await mergeLatestHostVault(projectId);
+      return;
+    }
+    if (outcome.accepted < 1) {
       throw new Error("Host accepted no vault sync blobs");
     }
     emit({
@@ -207,6 +209,103 @@ function b64ToBytes(b64: string): number[] {
   return out;
 }
 
+type SyncPushResult = {
+  accepted: number;
+  rejectedOversize: number;
+  rejectedStale: number;
+  rejectedBatch: number;
+};
+
+async function readPushResult(res: Response): Promise<SyncPushResult> {
+  if (!res.ok) {
+    const body: BoundaryValue = await res.json().catch(() => ({}));
+    throw new Error(responseError(body, `Host sync refused (${res.status})`));
+  }
+  const outcome: BoundaryValue = await res.json().catch(() => ({}));
+  const row: BoundaryObject =
+    isTypeofObject(outcome) && outcome !== null && !Array.isArray(outcome)
+      ? overlapCast(outcome)
+      : {};
+  return {
+    accepted: isNumber(row.accepted) ? row.accepted : 0,
+    rejectedOversize: isNumber(row.rejected_oversize)
+      ? row.rejected_oversize
+      : 0,
+    rejectedStale: isNumber(row.rejected_stale_epoch)
+      ? row.rejected_stale_epoch
+      : 0,
+    rejectedBatch: isNumber(row.rejected_batch) ? row.rejected_batch : 0,
+  };
+}
+
+async function mergeLatestHostVault(projectId: string): Promise<void> {
+  const merge = hostBackupSeams.mergePulledVault;
+  if (!merge) throw new Error("unlock the vault before merging");
+  const res = await hostFetch("/api/v1/sync/blobs/pull", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ since_epoch: 0 }),
+  });
+  if (!res.ok) throw new Error(`Host sync pull failed (${res.status})`);
+  const parsed: BoundaryValue = await res.json();
+  if (!isTypeofObject(parsed) || parsed === null || Array.isArray(parsed)) {
+    throw new Error("Host returned a malformed sync pull");
+  }
+  const blobs = overlapCast(parsed).blobs;
+  if (!Array.isArray(blobs)) throw new Error("Host returned no sync blobs");
+  const headerId = vaultBlobId("header", projectId);
+  const bodyId = vaultBlobId("body", projectId);
+  const candidates: Array<{
+    id: string;
+    epoch: number;
+    ciphertext: number[];
+  }> = [];
+  for (const blob of blobs) {
+    if (!isTypeofObject(blob) || blob === null || Array.isArray(blob)) continue;
+    const row: BoundaryObject = overlapCast(blob);
+    const ciphertext =
+      Array.isArray(row.ciphertext) && row.ciphertext.every(isNumber)
+        ? row.ciphertext.map(Number)
+        : null;
+    if (
+      (row.id === headerId || row.id === bodyId) &&
+      isString(row.id) &&
+      isNumber(row.epoch) &&
+      ciphertext
+    ) {
+      candidates.push({
+        id: row.id,
+        epoch: row.epoch,
+        ciphertext,
+      });
+    }
+  }
+  const epochs = candidates
+    .filter((blob) => blob.id === headerId)
+    .map((blob) => blob.epoch)
+    .filter((epoch) =>
+      candidates.some((blob) => blob.id === bodyId && blob.epoch === epoch),
+    );
+  const epoch = Math.max(...epochs);
+  if (!Number.isSafeInteger(epoch)) {
+    throw new Error("Host has no complete vault revision");
+  }
+  const decode = (id: string): string => {
+    const bytes = candidates.find(
+      (blob) => blob.id === id && blob.epoch === epoch,
+    )?.ciphertext;
+    if (!bytes) throw new Error("Host has an incomplete vault revision");
+    return new TextDecoder("utf-8", { fatal: true }).decode(
+      Uint8Array.from(bytes),
+    );
+  };
+  await merge({
+    headerJson: decode(headerId),
+    bodyJson: decode(bodyId),
+    epoch,
+  });
+}
+
 /** Drain queued ciphertext pushes (online / foreground). */
 export async function flushPendingVaultHostBackup(): Promise<number> {
   const pending = listOfflineMutations().filter(
@@ -235,9 +334,14 @@ export async function flushPendingVaultHostBackup(): Promise<number> {
           })),
         }),
       });
-      if (!res.ok) {
-        const body: BoundaryValue = await res.json().catch(() => ({}));
-        throw new Error(responseError(body, `sync ${res.status}`));
+      const outcome = await readPushResult(res);
+      if (outcome.rejectedOversize > 0) {
+        throw new Error("queued vault ciphertext exceeds the Host size limit");
+      }
+      if (outcome.rejectedStale > 0 || outcome.rejectedBatch > 0) {
+        await mergeLatestHostVault(item.projectId ?? "personal");
+      } else if (outcome.accepted < 1) {
+        throw new Error("Host accepted no queued vault sync blobs");
       }
       dequeueOfflineMutation(item.id);
       flushed += 1;

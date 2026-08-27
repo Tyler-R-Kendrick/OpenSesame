@@ -1,6 +1,6 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 // @vitest-environment jsdom
-import { type ReactElement, StrictMode, act } from "react";
+import { StrictMode, act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,14 +36,14 @@ function visit(url: string): void {
   window.history.replaceState(null, "", url);
 }
 
-async function render(ui: ReactElement): Promise<void> {
+async function render(): Promise<void> {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => {
     root.render(
       <MemoryRouter>
-        {ui}
+        <SignInPage />
         <RouteProbe />
       </MemoryRouter>,
     );
@@ -54,7 +54,7 @@ async function render(ui: ReactElement): Promise<void> {
  * StrictMode mounts, tears down, and remounts the same instance — the shape a
  * single-use PKCE verifier is most easily spent twice by.
  */
-async function renderTwiceMounted(ui: ReactElement): Promise<void> {
+async function renderTwiceMounted(): Promise<void> {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -62,7 +62,7 @@ async function renderTwiceMounted(ui: ReactElement): Promise<void> {
     root.render(
       <StrictMode>
         <MemoryRouter>
-          {ui}
+          <SignInPage />
           <RouteProbe />
         </MemoryRouter>
       </StrictMode>,
@@ -73,7 +73,7 @@ async function renderTwiceMounted(ui: ReactElement): Promise<void> {
     root.render(
       <StrictMode>
         <MemoryRouter>
-          {ui}
+          <SignInPage />
           <RouteProbe />
         </MemoryRouter>
       </StrictMode>,
@@ -150,7 +150,7 @@ afterEach(async () => {
 
 describe("SignInPage", () => {
   it("offers upstream sign-in, a provisional session, and sign-out", async () => {
-    await render(<SignInPage />);
+    await render();
     expect(container.textContent).toContain("Sign in");
     expect(buttonNamed("Sign in with OpenSesame")).toBeDefined();
     expect(buttonNamed("Sign in with Google")).toBeDefined();
@@ -163,7 +163,7 @@ describe("SignInPage", () => {
 
   it("returns to idle when upstream sign-in succeeds", async () => {
     client.signIn.mockResolvedValue(undefined);
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Sign in with OpenSesame"));
     expect(client.signIn).toHaveBeenCalledTimes(1);
     expect(container.querySelector(".err")).toBeNull();
@@ -172,14 +172,14 @@ describe("SignInPage", () => {
 
   it("shows the error message when upstream sign-in fails", async () => {
     client.signIn.mockRejectedValue(new Error("popup blocked"));
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Sign in with OpenSesame"));
     expect(container.textContent).toContain("popup blocked");
   });
 
   it("falls back to a generic message for non-Error sign-in failures", async () => {
     client.signIn.mockRejectedValue("weird");
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Sign in with OpenSesame"));
     expect(container.textContent).toContain(
       "Sign-in failed. Check the Identity API and try again.",
@@ -192,7 +192,7 @@ describe("SignInPage", () => {
       JSON.stringify({ token: "osc_clm_x.secret", presented: false }),
     );
     client.continueAnonymously.mockResolvedValue({ anonymous: true });
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Continue anonymously"));
     expect(container.textContent).toContain("Provisional session active");
     expect(sessionStorage.getItem("opensesame.claim")).toBeNull();
@@ -203,28 +203,28 @@ describe("SignInPage", () => {
       anonymous: false,
       sub: "prn_9",
     });
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Continue anonymously"));
     expect(container.textContent).toContain("Signed in as prn_9");
   });
 
   it("says unknown when the session carries no principal id", async () => {
     client.continueAnonymously.mockResolvedValue({ anonymous: false });
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Continue anonymously"));
     expect(container.textContent).toContain("Signed in as unknown");
   });
 
   it("shows the failure when a provisional session cannot start", async () => {
     client.continueAnonymously.mockRejectedValue(new Error("IdP down"));
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Continue anonymously"));
     expect(container.textContent).toContain("IdP down");
   });
 
   it("falls back to a generic message for non-Error provisional failures", async () => {
     client.continueAnonymously.mockRejectedValue(503);
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Continue anonymously"));
     expect(container.textContent).toContain(
       "Could not start a provisional session.",
@@ -239,7 +239,7 @@ describe("SignInPage", () => {
     client.signIn.mockRejectedValue(new Error("popup blocked"));
     client.continueAnonymously.mockResolvedValue({ anonymous: true });
     client.signOut.mockResolvedValue(undefined);
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Sign in with OpenSesame"));
     await click(buttonNamed("Continue anonymously"));
     expect(container.textContent).toContain("Provisional session active");
@@ -252,7 +252,7 @@ describe("SignInPage", () => {
 
   it("sends the Google button through the shoo broker", async () => {
     client.signIn.mockResolvedValue(undefined);
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Sign in with Google"));
     expect(client.signIn).toHaveBeenCalledTimes(1);
     expect(client.signIn).toHaveBeenCalledWith({ provider: "shoo" });
@@ -260,7 +260,7 @@ describe("SignInPage", () => {
 
   it("shows the error message when broker sign-in fails", async () => {
     client.signIn.mockRejectedValue(new Error("broker unreachable"));
-    await render(<SignInPage />);
+    await render();
     await click(buttonNamed("Sign in with Google"));
     expect(container.textContent).toContain("broker unreachable");
   });
@@ -271,7 +271,7 @@ describe("SignInPage", () => {
       { id: "github", label: "GitHub", kind: "oauth2", browserCapable: false },
     ]);
     client.signIn.mockResolvedValue(undefined);
-    await render(<SignInPage />);
+    await render();
     await settle();
     await click(buttonNamed("Sign in with GitHub"));
     expect(client.signIn).toHaveBeenCalledWith({ provider: "github" });
@@ -282,7 +282,7 @@ describe("SignInPage", () => {
   it("keeps the shoo fallback when the catalog is empty", async () => {
     stubCatalog([]);
     client.signIn.mockResolvedValue(undefined);
-    await render(<SignInPage />);
+    await render();
     await settle();
     await click(buttonNamed("Sign in with Google"));
     expect(client.signIn).toHaveBeenCalledWith({ provider: "shoo" });
@@ -294,14 +294,14 @@ describe("SignInPage", () => {
       vi.fn(() => Promise.reject(new TypeError("Failed to fetch"))),
     );
     client.signIn.mockResolvedValue(undefined);
-    await render(<SignInPage />);
+    await render();
     await settle();
     await click(buttonNamed("Sign in with Google"));
     expect(client.signIn).toHaveBeenCalledWith({ provider: "shoo" });
   });
 
   it("does not touch the callback exchange on a plain visit", async () => {
-    await render(<SignInPage />);
+    await render();
     expect(client.handleRedirectCallback).not.toHaveBeenCalled();
     expect(buttonNamed("Sign in with OpenSesame")).toBeDefined();
     expect(buttonNamed("Sign in with Google")).toBeDefined();
@@ -315,7 +315,7 @@ describe("SignInPage", () => {
       anonymous: false,
       sub: "prn_7",
     });
-    await renderTwiceMounted(<SignInPage />);
+    await renderTwiceMounted();
     // The verifier is single-use: a second exchange would fail on state the
     // first one already spent.
     expect(client.handleRedirectCallback).toHaveBeenCalledTimes(1);
@@ -328,7 +328,7 @@ describe("SignInPage", () => {
       anonymous: false,
       sub: "prn_3",
     });
-    await render(<SignInPage />);
+    await render();
     expect(client.handleRedirectCallback).toHaveBeenCalledTimes(1);
     expect(container.querySelector("output.ok")?.textContent).toBe(
       "Signed in as prn_3",
@@ -339,7 +339,7 @@ describe("SignInPage", () => {
   it("names the session unknown when the exchange carries no principal", async () => {
     visit("/?code=abc&state=xyz");
     client.handleRedirectCallback.mockResolvedValue({ anonymous: false });
-    await render(<SignInPage />);
+    await render();
     expect(container.textContent).toContain("Signed in as unknown");
   });
 
@@ -350,7 +350,7 @@ describe("SignInPage", () => {
       sub: "prn_7",
     });
     client.getReturnTo.mockReturnValue("/task-access");
-    await render(<SignInPage />);
+    await render();
     expect(routedTo()).toBe("/task-access");
   });
 
@@ -360,7 +360,7 @@ describe("SignInPage", () => {
       anonymous: false,
       sub: "prn_7",
     });
-    await render(<SignInPage />);
+    await render();
     expect(routedTo()).toBe("/");
   });
 
@@ -369,7 +369,7 @@ describe("SignInPage", () => {
     client.handleRedirectCallback.mockRejectedValue(
       new Error("Authorization error: access_denied"),
     );
-    await render(<SignInPage />);
+    await render();
     expect(client.handleRedirectCallback).toHaveBeenCalledTimes(1);
     const shown = container.querySelector(".err");
     expect(shown?.textContent).toContain("access_denied");
@@ -381,7 +381,7 @@ describe("SignInPage", () => {
   it("falls back to a generic message for non-Error callback failures", async () => {
     visit("/?code=abc&state=xyz");
     client.handleRedirectCallback.mockRejectedValue("boom");
-    await render(<SignInPage />);
+    await render();
     expect(container.querySelector(".err")?.textContent).toContain(
       "Sign-in could not be completed. Try again.",
     );

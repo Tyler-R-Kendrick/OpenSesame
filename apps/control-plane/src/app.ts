@@ -10,6 +10,7 @@ import { agentRoutes } from "./routes/agents.js";
 import { appClaimRoutes } from "./routes/app-claims.js";
 import { auditRoutes } from "./routes/audit.js";
 import { createUpstreamAuthRoutes } from "./routes/auth-upstream.js";
+import { authenticationServiceRoutes } from "./routes/authentication-service.js";
 import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
 import { createBackchannelLogoutRoutes } from "./routes/backchannel-logout.js";
 import { createByoAdminRoutes } from "./routes/byo-admin.js";
@@ -53,7 +54,8 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.use(
     "*",
     cors({
-      origin: (origin) => {
+      origin: (origin, c) => {
+        if (c.req.path.startsWith("/v1/authentication/public/")) return origin;
         if (!origin) return ctx.config.corsOrigins[0] ?? "";
         return ctx.config.corsOrigins.includes(origin) ? origin : "";
       },
@@ -83,6 +85,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/webhooks", webhookRoutes);
   app.route("/v1/agents", agentRoutes);
   app.route("/v1/mfa", mfaRoutes);
+  app.route("/v1/authentication", authenticationServiceRoutes);
   app.route("/v1/device", deviceRoutes);
   app.route("/v1/organizations", organizationRoutes);
   app.route("/v1/oauth/clients", oauthClientRoutes);

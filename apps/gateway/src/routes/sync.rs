@@ -60,30 +60,33 @@ pub async fn push(
     let mut rejected_foreign = 0u32;
     let mut rejected_oversize = 0u32;
     let mut rejected_quota = 0u32;
+    let mut rejected_stale_epoch = 0u32;
+    let mut stored_blobs = Vec::new();
     for blob in body.blobs {
         if blob.ciphertext.len() > MAX_CIPHERTEXT_BYTES {
             rejected_oversize += 1;
             continue;
         }
-        let stored = StoredSyncBlob {
+        stored_blobs.push(StoredSyncBlob {
             id: blob.id,
             epoch: blob.epoch,
             ciphertext: blob.ciphertext,
-        };
+        });
+    }
+    let outcomes = if rejected_oversize > 0 {
+        vec![SyncWriteOutcome::BatchAborted; stored_blobs.len()]
+    } else {
         match st
             .db
-            .write_sync_blob(
+            .write_sync_blobs(
                 &owner_id,
-                &stored,
+                &stored_blobs,
                 i64::try_from(MAX_SYNC_BLOBS).expect("sync blob limit fits i64"),
                 i64::try_from(MAX_BLOBS_PER_OWNER).expect("owner blob limit fits i64"),
             )
             .await
         {
-            Ok(SyncWriteOutcome::Accepted) => accepted += 1,
-            Ok(SyncWriteOutcome::ForeignOwner) => rejected_foreign += 1,
-            Ok(SyncWriteOutcome::OwnerQuota) => rejected_quota += 1,
-            Ok(SyncWriteOutcome::StoreFull | SyncWriteOutcome::StaleEpoch) => {}
+            Ok(outcomes) => outcomes,
             Err(error) => {
                 tracing::error!(error = %error, "encrypted sync write failed");
                 return (
@@ -92,6 +95,17 @@ pub async fn push(
                 )
                     .into_response();
             }
+        }
+    };
+    let mut rejected_batch = 0u32;
+    for outcome in outcomes {
+        match outcome {
+            SyncWriteOutcome::Accepted => accepted += 1,
+            SyncWriteOutcome::BatchAborted => rejected_batch += 1,
+            SyncWriteOutcome::ForeignOwner => rejected_foreign += 1,
+            SyncWriteOutcome::OwnerQuota => rejected_quota += 1,
+            SyncWriteOutcome::StaleEpoch => rejected_stale_epoch += 1,
+            SyncWriteOutcome::StoreFull => {}
         }
     }
     if accepted > 0 {
@@ -104,6 +118,8 @@ pub async fn push(
             "rejected_foreign_owner": rejected_foreign,
             "rejected_oversize": rejected_oversize,
             "rejected_session_quota": rejected_quota,
+            "rejected_stale_epoch": rejected_stale_epoch,
+            "rejected_batch": rejected_batch,
             "owner_capacity": MAX_BLOBS_PER_OWNER,
             "max_ciphertext_bytes": MAX_CIPHERTEXT_BYTES
         })),
@@ -206,7 +222,7 @@ fn push_outcome(
         return PushOutcome::ForeignOwner;
     }
     match existing_epoch {
-        Some(epoch) if epoch > incoming_epoch => PushOutcome::StaleEpoch,
+        Some(epoch) if epoch >= incoming_epoch => PushOutcome::StaleEpoch,
         None if store_len >= MAX_SYNC_BLOBS => PushOutcome::StoreFull,
         None if session_owned >= MAX_BLOBS_PER_OWNER => PushOutcome::SessionQuota,
         Some(_) | None => PushOutcome::Accept,
@@ -277,6 +293,10 @@ mod tests {
     fn stale_epochs_do_not_overwrite() {
         assert_eq!(
             outcome(16, Some("sess_a"), Some(9), 0),
+            PushOutcome::StaleEpoch
+        );
+        assert_eq!(
+            outcome(16, Some("sess_a"), Some(7), 0),
             PushOutcome::StaleEpoch
         );
     }

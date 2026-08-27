@@ -121,6 +121,8 @@ export interface AppStores {
   provisionalMints: Map<string, number[]>;
   /** unauthenticated MFA fingerprint → attempt timestamps */
   mfaAnon: Map<string, number[]>;
+  /** authentication-service public ceremony fingerprint → request timestamps */
+  authenticationAnon: Map<string, number[]>;
 }
 
 export function createAppStores(options?: {
@@ -167,6 +169,7 @@ export function createAppStores(options?: {
     idempotencyLocks: new Map(),
     provisionalMints: new Map(),
     mfaAnon: new Map(),
+    authenticationAnon: new Map(),
   };
 }
 

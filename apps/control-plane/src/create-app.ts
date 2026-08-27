@@ -2,6 +2,7 @@ import { createChainedAuditSink } from "@opensesame/audit";
 import {
   MemoryPrincipalMappingStore,
   type UpstreamAuthDatabase,
+  createAuthenticationService,
   createMemoryChallengeStore,
   createPasskeySeam,
   createSimpleWebAuthnVerifyFn,
@@ -21,6 +22,8 @@ import {
   betterAuthUsers,
   betterAuthVerifications,
   createDrizzle,
+  createMemoryAuthenticationServiceStores,
+  createPostgresAuthenticationServiceStores,
   createPostgresClientClaimChallengeStore,
   createPostgresClientOriginStore,
   createPostgresClientRecordStore,
@@ -41,6 +44,7 @@ import {
 } from "@opensesame/oauth-provider";
 import { createLogger } from "@opensesame/observability";
 import type { Clock } from "@opensesame/os-domain";
+import type { AuthenticationServiceStores } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import { createHonoApp } from "./app.js";
 import {
@@ -92,6 +96,8 @@ export interface CreateControlPlaneOptions {
   orgFederationStores?: OrgFederationStores;
   /** Test seam: inject the SAML pending/replay stores. */
   samlStores?: SamlStores;
+  /** Durable Passwordless/WebAuthn application, user, credential, and token stores. */
+  authenticationStores?: AuthenticationServiceStores;
 }
 
 /**
@@ -248,6 +254,15 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const samlStores =
     options.samlStores ??
     (drizzleBundle ? createPostgresSamlStores(drizzleBundle.db) : undefined);
+  const authenticationStores =
+    options.authenticationStores ??
+    (drizzleBundle
+      ? createPostgresAuthenticationServiceStores(drizzleBundle.db)
+      : createMemoryAuthenticationServiceStores());
+  const authentication = createAuthenticationService(
+    authenticationStores,
+    clock,
+  );
   // The system owner principal must exist before the first auto-admission
   // writes owner_principal_id (a FK against Postgres). createControlPlane is
   // synchronous, so the promise travels on the context and the server awaits
@@ -340,6 +355,8 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ready: options.ready ?? true,
     passkeys,
     passkeyChallenges,
+    authentication,
+    authenticationStores,
     mailer: createMailer(processEnv, config),
     // The same pool everything else on this context uses, so a magic link
     // written by one request is readable by the next — and by another replica.

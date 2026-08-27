@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5181 --strictPort",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/write-authenticator-associations.mjs",
     "preview": "vite preview --port 5181",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

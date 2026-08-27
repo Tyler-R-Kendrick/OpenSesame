@@ -499,13 +499,17 @@ describe("ItemDetail", () => {
       publicKeyB64: "cHVi",
       authenticator: "platform",
       unlocksVault: true,
+      custody: "vault",
+      privateKeyPkcs8B64: "cHJpdmF0ZQ",
     };
     vault.current = { items: [passkey], folders: [] };
     renderAt("itm_pk");
     expect(screen.getByText("example.com")).toBeTruthy();
-    expect(screen.getByText("This device")).toBeTruthy();
+    expect(screen.getByText("OpenSesame synced passkey")).toBeTruthy();
     expect(screen.getByText("Yes, via WebAuthn PRF")).toBeTruthy();
-    expect(screen.getByText(/cannot be exported/)).toBeTruthy();
+    expect(
+      screen.getByText(/can answer system credential-provider requests/),
+    ).toBeTruthy();
   });
 
   it("renders a note and its empty fallback", () => {

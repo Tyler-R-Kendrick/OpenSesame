@@ -263,6 +263,20 @@ button.primary:hover:not(:disabled) {
   border-color: transparent;
 }
 
+a.button {
+  display: inline-block;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 650;
+  padding: 0.65rem 0.9rem;
+  text-decoration: none;
+}
+
+a.button:hover {
+  background: var(--accent-hover);
+}
+
 .err,
 .ok {
   display: block;

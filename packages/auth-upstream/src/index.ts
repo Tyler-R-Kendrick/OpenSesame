@@ -20,6 +20,24 @@ export {
   type PasskeyVerifyResult,
 } from "./passkey.js";
 export {
+  AuthenticationServiceError,
+  DEFAULT_AUTHENTICATION_CONFIGURATIONS,
+  authenticationApplicationSecretMatches,
+  createAuthenticationService,
+  hashAuthenticationToken,
+  mintAuthenticationApplicationSecret,
+  visibleAuthenticationAlias,
+  type AuthenticationService,
+  type AuthenticationSigninMode,
+} from "./authentication-service.js";
+export {
+  generatePasskeyAuthenticationOptions,
+  generatePasskeyRegistrationOptions,
+  verifyPasskeyAuthentication,
+  verifyPasskeyRegistration,
+} from "./webauthn.js";
+export { simpleWebAuthnSeams } from "./simplewebauthn.js";
+export {
   createMemoryChallengeStore,
   createSimpleWebAuthnVerifyFn,
   issueAuthenticationChallenge,

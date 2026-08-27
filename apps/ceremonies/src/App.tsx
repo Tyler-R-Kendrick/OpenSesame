@@ -1,5 +1,6 @@
 import { Link, Route, Routes } from "react-router";
 import { issuer } from "./lib/issuer.js";
+import { AuthenticatorInvocation } from "./pages/AuthenticatorInvocation.js";
 import { ClaimCeremony } from "./pages/ClaimCeremony.js";
 import { DelegateClaim } from "./pages/DelegateClaim.js";
 import { DeviceApprove } from "./pages/DeviceApprove.js";
@@ -66,6 +67,7 @@ export function App() {
         <Route path="/device" element={<DeviceApprove />} />
         <Route path="/delegate" element={<DelegateClaim />} />
         <Route path="/inbox" element={<Inbox />} />
+        <Route path="/invoke/:kind" element={<AuthenticatorInvocation />} />
       </Routes>
     </div>
   );
