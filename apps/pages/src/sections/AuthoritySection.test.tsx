@@ -582,33 +582,17 @@ describe("AuthoritySection", () => {
     ).toBeTruthy();
   });
 
-  it("maps present failures by status", async () => {
-    mockClaimTransport({ presentStatus: 410 });
+  it.each([
+    [410, /That claim has expired/],
+    [401, /That claim token is not valid/],
+    [404, /No claim exists for that token/],
+    [409, /Someone else is completing this claim/],
+    [422, /not in a presentable state/],
+  ])("maps a %i present failure", async (presentStatus, message) => {
+    mockClaimTransport({ presentStatus });
     renderAuthority();
     await presentToken();
-    expect(await screen.findByText(/That claim has expired/)).toBeTruthy();
-
-    mockClaimTransport({ presentStatus: 401 });
-    await presentToken("osc_clm_two.dot");
-    expect(
-      await screen.findByText(/That claim token is not valid/),
-    ).toBeTruthy();
-
-    mockClaimTransport({ presentStatus: 404 });
-    await presentToken("osc_clm_three.dot");
-    expect(
-      await screen.findByText(/No claim exists for that token/),
-    ).toBeTruthy();
-
-    mockClaimTransport({ presentStatus: 409 });
-    await presentToken("osc_clm_four.dot");
-    expect(
-      await screen.findByText(/Someone else is completing this claim/),
-    ).toBeTruthy();
-
-    mockClaimTransport({ presentStatus: 422 });
-    await presentToken("osc_clm_five.dot");
-    expect(await screen.findByText(/not in a presentable state/)).toBeTruthy();
+    expect(await screen.findByText(message)).toBeTruthy();
   });
 
   it("reports an unreachable Identity API when presenting", async () => {
