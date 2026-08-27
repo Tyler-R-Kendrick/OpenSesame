@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { QrEncodeError, encodeQrSvg } from "@opensesame/qr";
+import { b64urlToBytes, bytesToB64url } from "@opensesame/sdk-browser";
 import { assertSourceOrder } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
-import { b64urlToBytes, bytesToB64url } from "./webauthn.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -32,11 +32,5 @@ describe("PACT — mobile-mfa", () => {
       Array.from({ length: 16 }, () => Promise.resolve(encodeQrSvg(payload))),
     );
     expect(new Set(svgs).size).toBe(1);
-  });
-
-  it("contract: webauthn helpers do not log assertion bytes", () => {
-    const src = readFileSync(join(here, "webauthn.ts"), "utf8");
-    expect(src).not.toMatch(/console\.(log|debug|info)/);
-    expect(src).toContain("bytesToB64url");
   });
 });

@@ -27,6 +27,7 @@ fn db_u64(value: i64, field: &str) -> anyhow::Result<u64> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SyncWriteOutcome {
     Accepted,
+    BatchAborted,
     ForeignOwner,
     OwnerQuota,
     StoreFull,
@@ -816,64 +817,132 @@ impl Db {
         store_limit: i64,
         owner_limit: i64,
     ) -> anyhow::Result<SyncWriteOutcome> {
-        let epoch = i64::try_from(blob.epoch).context("sync epoch exceeds SQLite range")?;
-        let mut transaction = self.pool.begin().await?;
-        let existing = sqlx::query("SELECT owner_id, epoch FROM encrypted_sync_blobs WHERE id = ?")
-            .bind(&blob.id)
-            .fetch_optional(&mut *transaction)
-            .await?;
-        if let Some(row) = existing {
-            let existing_owner: String = row.get("owner_id");
-            if existing_owner != owner_id {
-                return Ok(SyncWriteOutcome::ForeignOwner);
-            }
-            let existing_epoch: i64 = row.get("epoch");
-            if existing_epoch > epoch {
-                return Ok(SyncWriteOutcome::StaleEpoch);
-            }
-            sqlx::query(
-                "UPDATE encrypted_sync_blobs SET epoch = ?, ciphertext = ?, updated_at = ? WHERE id = ? AND owner_id = ?",
+        let outcomes = self
+            .write_sync_blobs(
+                owner_id,
+                std::slice::from_ref(blob),
+                store_limit,
+                owner_limit,
             )
-            .bind(epoch)
-            .bind(&blob.ciphertext)
-            .bind(Utc::now().to_rfc3339())
-            .bind(&blob.id)
-            .bind(owner_id)
-            .execute(&mut *transaction)
             .await?;
-            append_sync_blob_outbox(&mut transaction, owner_id, &blob.id, epoch).await?;
-            transaction.commit().await?;
-            return Ok(SyncWriteOutcome::Accepted);
+        outcomes
+            .into_iter()
+            .next()
+            .context("single sync write produced no outcome")
+    }
+
+    /// Atomically write a related set of opaque sync blobs.
+    ///
+    /// If any member conflicts or exceeds quota, no member is written. This
+    /// keeps a sealed vault header/body pair at one epoch and gives clients a
+    /// reliable pull-merge-retry boundary.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when an epoch exceeds `SQLite`'s range or the database
+    /// transaction fails.
+    pub async fn write_sync_blobs(
+        &self,
+        owner_id: &str,
+        blobs: &[StoredSyncBlob],
+        store_limit: i64,
+        owner_limit: i64,
+    ) -> anyhow::Result<Vec<SyncWriteOutcome>> {
+        if blobs.is_empty() {
+            return Ok(Vec::new());
         }
+        let epochs = blobs
+            .iter()
+            .map(|blob| i64::try_from(blob.epoch).context("sync epoch exceeds SQLite range"))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let mut transaction = self.pool.begin().await?;
         let store_count: i64 = sqlx::query("SELECT COUNT(*) AS count FROM encrypted_sync_blobs")
             .fetch_one(&mut *transaction)
             .await?
             .get("count");
-        if store_count >= store_limit {
-            return Ok(SyncWriteOutcome::StoreFull);
-        }
         let owner_count: i64 =
             sqlx::query("SELECT COUNT(*) AS count FROM encrypted_sync_blobs WHERE owner_id = ?")
                 .bind(owner_id)
                 .fetch_one(&mut *transaction)
                 .await?
                 .get("count");
-        if owner_count >= owner_limit {
-            return Ok(SyncWriteOutcome::OwnerQuota);
+
+        let mut outcomes = Vec::with_capacity(blobs.len());
+        let mut existing = Vec::with_capacity(blobs.len());
+        let mut new_count = 0i64;
+        for (index, blob) in blobs.iter().enumerate() {
+            // ponytail: batches are capped at 64 by the route; a linear scan is
+            // smaller than another set allocation. Replace if that cap grows.
+            if blobs[..index].iter().any(|prior| prior.id == blob.id) {
+                outcomes.push(SyncWriteOutcome::BatchAborted);
+                existing.push(false);
+                continue;
+            }
+            let row = sqlx::query("SELECT owner_id, epoch FROM encrypted_sync_blobs WHERE id = ?")
+                .bind(&blob.id)
+                .fetch_optional(&mut *transaction)
+                .await?;
+            let outcome = match row {
+                Some(ref row) if row.get::<String, _>("owner_id") != owner_id => {
+                    SyncWriteOutcome::ForeignOwner
+                }
+                Some(ref row) if row.get::<i64, _>("epoch") >= epochs[index] => {
+                    SyncWriteOutcome::StaleEpoch
+                }
+                Some(_) => SyncWriteOutcome::Accepted,
+                None if store_count + new_count >= store_limit => SyncWriteOutcome::StoreFull,
+                None if owner_count + new_count >= owner_limit => SyncWriteOutcome::OwnerQuota,
+                None => {
+                    new_count += 1;
+                    SyncWriteOutcome::Accepted
+                }
+            };
+            existing.push(row.is_some());
+            outcomes.push(outcome);
         }
-        sqlx::query(
-            "INSERT INTO encrypted_sync_blobs (id, owner_id, epoch, ciphertext, updated_at) VALUES (?, ?, ?, ?, ?)",
-        )
-        .bind(&blob.id)
-        .bind(owner_id)
-        .bind(epoch)
-        .bind(&blob.ciphertext)
-        .bind(Utc::now().to_rfc3339())
-        .execute(&mut *transaction)
-        .await?;
-        append_sync_blob_outbox(&mut transaction, owner_id, &blob.id, epoch).await?;
+
+        if outcomes
+            .iter()
+            .any(|outcome| *outcome != SyncWriteOutcome::Accepted)
+        {
+            for outcome in outcomes
+                .iter_mut()
+                .filter(|outcome| **outcome == SyncWriteOutcome::Accepted)
+            {
+                *outcome = SyncWriteOutcome::BatchAborted;
+            }
+            return Ok(outcomes);
+        }
+
+        let updated_at = Utc::now().to_rfc3339();
+        for ((blob, epoch), exists) in blobs.iter().zip(epochs).zip(existing) {
+            if exists {
+                sqlx::query(
+                    "UPDATE encrypted_sync_blobs SET epoch = ?, ciphertext = ?, updated_at = ? WHERE id = ? AND owner_id = ?",
+                )
+                .bind(epoch)
+                .bind(&blob.ciphertext)
+                .bind(&updated_at)
+                .bind(&blob.id)
+                .bind(owner_id)
+                .execute(&mut *transaction)
+                .await?;
+            } else {
+                sqlx::query(
+                    "INSERT INTO encrypted_sync_blobs (id, owner_id, epoch, ciphertext, updated_at) VALUES (?, ?, ?, ?, ?)",
+                )
+                .bind(&blob.id)
+                .bind(owner_id)
+                .bind(epoch)
+                .bind(&blob.ciphertext)
+                .bind(&updated_at)
+                .execute(&mut *transaction)
+                .await?;
+            }
+            append_sync_blob_outbox(&mut transaction, owner_id, &blob.id, epoch).await?;
+        }
         transaction.commit().await?;
-        Ok(SyncWriteOutcome::Accepted)
+        Ok(outcomes)
     }
 
     /// List owner-scoped encrypted sync blobs newer than `since_epoch`.
@@ -2525,6 +2594,12 @@ mod tests {
             SyncWriteOutcome::ForeignOwner
         );
         assert_eq!(
+            db.write_sync_blob("principal:alice", &blob, 10, 5)
+                .await
+                .unwrap(),
+            SyncWriteOutcome::StaleEpoch
+        );
+        assert_eq!(
             db.list_sync_blobs("principal:alice", 0).await.unwrap(),
             vec![blob]
         );
@@ -2551,6 +2626,49 @@ mod tests {
                 .unwrap(),
             Some(9)
         );
+    }
+
+    #[tokio::test]
+    async fn encrypted_sync_batch_is_atomic_on_equal_epoch_conflict() {
+        let db = Db::connect_memory().await.unwrap();
+        let header = StoredSyncBlob {
+            id: "vault:header".into(),
+            epoch: 1,
+            ciphertext: vec![1],
+        };
+        let body = StoredSyncBlob {
+            id: "vault:body".into(),
+            epoch: 1,
+            ciphertext: vec![2],
+        };
+        assert_eq!(
+            db.write_sync_blobs("owner", &[header.clone(), body.clone()], 10, 10)
+                .await
+                .unwrap(),
+            vec![SyncWriteOutcome::Accepted, SyncWriteOutcome::Accepted]
+        );
+
+        let conflicting_header = StoredSyncBlob {
+            ciphertext: vec![9],
+            ..header
+        };
+        let newer_body = StoredSyncBlob {
+            epoch: 2,
+            ciphertext: vec![8],
+            ..body
+        };
+        assert_eq!(
+            db.write_sync_blobs("owner", &[conflicting_header, newer_body], 10, 10)
+                .await
+                .unwrap(),
+            vec![SyncWriteOutcome::StaleEpoch, SyncWriteOutcome::BatchAborted]
+        );
+        let stored = db.list_sync_blobs("owner", 0).await.unwrap();
+        assert_eq!(stored.len(), 2);
+        assert!(stored.iter().all(|blob| blob.epoch == 1));
+        assert!(stored
+            .iter()
+            .any(|blob| blob.id == "vault:body" && blob.ciphertext == vec![2]));
     }
 
     #[test]

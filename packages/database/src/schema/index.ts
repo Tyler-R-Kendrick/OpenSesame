@@ -5,6 +5,7 @@ import {
   boolean,
   check,
   customType,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -164,6 +165,219 @@ export const betterAuthSessions = pgTable(
   (t) => [
     uniqueIndex("better_auth_sessions_token_uidx").on(t.token),
     index("better_auth_sessions_user_idx").on(t.userId),
+  ],
+);
+
+/** Passwordless relying parties. API secrets are write-only SHA-256 digests. */
+export const authenticationApplications = pgTable(
+  "authentication_applications",
+  {
+    id: text("id").primaryKey(),
+    ownerPrincipalId: text("owner_principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    displayName: text("display_name").notNull(),
+    rpId: text("rp_id").notNull(),
+    origins: jsonb("origins").$type<string[]>().notNull(),
+    secretHash: text("secret_hash").notNull(),
+    secretPrefix: text("secret_prefix").notNull(),
+    apiKeys: jsonb("api_keys")
+      .$type<
+        Array<{
+          id: string;
+          secretHash: string;
+          secretPrefix: string;
+          state: "active" | "locked";
+          createdAt: string;
+        }>
+      >()
+      .notNull()
+      .default([]),
+    configurations: jsonb("configurations")
+      .$type<
+        Array<{
+          purpose: string;
+          timeToLiveSeconds: number;
+          userVerification: "discouraged" | "preferred" | "required";
+          hints: Array<"client-device" | "hybrid" | "security-key">;
+        }>
+      >()
+      .notNull()
+      .default([]),
+    manualTokensEnabled: boolean("manual_tokens_enabled")
+      .notNull()
+      .default(false),
+    magicLinksEnabled: boolean("magic_links_enabled").notNull().default(false),
+    state: text("state").notNull().default("active"),
+    ...timestamps,
+  },
+  (t) => [
+    index("authentication_applications_owner_idx").on(t.ownerPrincipalId),
+    index("authentication_applications_org_idx").on(t.organizationId),
+    check(
+      "authentication_applications_state_check",
+      sql`${t.state} in ('active','suspended','revoked')`,
+    ),
+  ],
+);
+
+/** Application-local users; no OpenSesame principal is minted for them. */
+export const authenticationUsers = pgTable(
+  "authentication_users",
+  {
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => authenticationApplications.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    userName: text("user_name").notNull(),
+    displayName: text("display_name").notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.applicationId, t.userId] }),
+    index("authentication_users_app_idx").on(t.applicationId),
+  ],
+);
+
+/** Alias uniqueness is enforced by the database, per application. */
+export const authenticationAliases = pgTable(
+  "authentication_aliases",
+  {
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => authenticationApplications.id, { onDelete: "cascade" }),
+    alias: text("alias").notNull(),
+    userId: text("user_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.applicationId, t.alias] }),
+    index("authentication_aliases_user_idx").on(t.applicationId, t.userId),
+    foreignKey({
+      columns: [t.applicationId, t.userId],
+      foreignColumns: [
+        authenticationUsers.applicationId,
+        authenticationUsers.userId,
+      ],
+      name: "authentication_aliases_user_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+/** WebAuthn public keys and monotonic signature counters. */
+export const authenticationCredentials = pgTable(
+  "authentication_credentials",
+  {
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => authenticationApplications.id, { onDelete: "cascade" }),
+    credentialId: text("credential_id").notNull(),
+    userId: text("user_id").notNull(),
+    publicKey: bytea("public_key").notNull(),
+    counter: integer("counter").notNull().default(0),
+    transports: jsonb("transports").$type<string[]>().notNull().default([]),
+    name: text("name"),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: "date" }),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.applicationId, t.credentialId] }),
+    index("authentication_credentials_user_idx").on(t.applicationId, t.userId),
+    foreignKey({
+      columns: [t.applicationId, t.userId],
+      foreignColumns: [
+        authenticationUsers.applicationId,
+        authenticationUsers.userId,
+      ],
+      name: "authentication_credentials_user_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const authenticationRegistrationTokens = pgTable(
+  "authentication_registration_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => authenticationApplications.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    userName: text("user_name").notNull(),
+    displayName: text("display_name").notNull(),
+    aliases: jsonb("aliases").$type<string[]>().notNull().default([]),
+    aliasHashing: boolean("alias_hashing").notNull().default(true),
+    authenticatorAttachment: text("authenticator_attachment"),
+    userVerification: text("user_verification").notNull().default("required"),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+  },
+  (t) => [
+    index("authentication_registration_tokens_expiry_idx").on(t.expiresAt),
+  ],
+);
+
+/** One-use ceremony challenges; durable so another replica may verify them. */
+export const authenticationChallenges = pgTable(
+  "authentication_challenges",
+  {
+    challenge: text("challenge").primaryKey(),
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => authenticationApplications.id, { onDelete: "cascade" }),
+    purpose: text("purpose").notNull(),
+    authenticationPurpose: text("authentication_purpose"),
+    requireUserVerification: boolean("require_user_verification")
+      .notNull()
+      .default(true),
+    origin: text("origin").notNull(),
+    userId: text("user_id"),
+    registrationTokenHash: text("registration_token_hash"),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+  },
+  (t) => [
+    index("authentication_challenges_expiry_idx").on(t.expiresAt),
+    check(
+      "authentication_challenges_purpose_check",
+      sql`${t.purpose} in ('registration','authentication')`,
+    ),
+  ],
+);
+
+/** Authentication results exchanged once by the application's backend. */
+export const authenticationSigninTokens = pgTable(
+  "authentication_signin_tokens",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    applicationId: text("application_id")
+      .notNull()
+      .references(() => authenticationApplications.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
+    purpose: text("purpose").notNull().default("sign-in"),
+    type: text("type").notNull().default("passkey"),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+  },
+  (t) => [
+    index("authentication_signin_tokens_expiry_idx").on(t.expiresAt),
+    foreignKey({
+      columns: [t.applicationId, t.userId],
+      foreignColumns: [
+        authenticationUsers.applicationId,
+        authenticationUsers.userId,
+      ],
+      name: "authentication_signin_tokens_user_fk",
+    }).onDelete("cascade"),
   ],
 );
 

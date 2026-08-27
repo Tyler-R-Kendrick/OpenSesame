@@ -119,7 +119,6 @@ export function DelegateClaim() {
     }
     // present() is stable for the mount-time call; deps stay empty because
     // this must run exactly once — re-running would re-present a spent token.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: single-spend mount effect
   }, []);
 
   async function present(token: string) {

@@ -117,6 +117,7 @@ export function crumbsFor(
   if (parts[0] === "agents") return current("Agents");
   if (parts[0] === "sites") return current("Sites");
   if (parts[0] === "authority") return current("Authority");
+  if (parts[0] === "authentication") return current("Authentication");
   return [];
 }
 

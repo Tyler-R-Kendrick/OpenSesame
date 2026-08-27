@@ -1,4 +1,4 @@
-//! OTP (pass-otp Key URI Format) and RFC 6238 TOTP.
+//! Portable OTP (Key URI Format, RFC 4226, and RFC 6238) implementation.
 
 use hmac::{Hmac, Mac};
 use sha1::Sha1;
@@ -17,13 +17,21 @@ pub enum OtpAlgorithm {
     Sha512,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OtpKind {
+    Totp,
+    Hotp,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OtpUri {
     /// Full otpauth:// URI as stored.
     pub uri: String,
     pub secret: Vec<u8>,
+    pub kind: OtpKind,
     pub digits: u32,
     pub period: u64,
+    pub counter: Option<u64>,
     pub algorithm: OtpAlgorithm,
     pub label: Option<String>,
     pub issuer: Option<String>,
@@ -35,13 +43,15 @@ pub enum OtpError {
     InvalidUri(String),
     #[error("otpauth URI has no secret")]
     MissingSecret,
-    #[error("unsupported OTP type (only totp is generated)")]
+    #[error("HOTP URI has no counter")]
+    MissingCounter,
+    #[error("OTP operation does not match URI type")]
     UnsupportedType,
     #[error("base32 decode failed: {0}")]
     Base32(String),
 }
 
-/// Validate and parse an otpauth:// URI (TOTP).
+/// Validate and parse an otpauth:// URI (TOTP or HOTP).
 ///
 /// # Errors
 ///
@@ -59,35 +69,62 @@ pub fn parse_otpauth(raw: &str) -> Result<OtpUri, OtpError> {
     if host != "totp" && host != "hotp" {
         return Err(OtpError::InvalidUri(format!("unknown type {host}")));
     }
-    // Generation only supports TOTP; HOTP may still validate/store.
-    let secret_param = url
-        .query_pairs()
-        .find(|(k, _)| k == "secret")
-        .map(|(_, v)| v.into_owned())
-        .ok_or(OtpError::MissingSecret)?;
-    let secret = decode_base32(&secret_param)?;
-    let digits = url
-        .query_pairs()
-        .find(|(k, _)| k == "digits")
-        .and_then(|(_, v)| v.parse().ok())
-        .unwrap_or(6);
-    let digits = if (6..=10).contains(&digits) {
-        digits
+    let kind = if host == "hotp" {
+        OtpKind::Hotp
     } else {
-        6
+        OtpKind::Totp
     };
-    let period = url
-        .query_pairs()
-        .find(|(k, _)| k == "period")
-        .and_then(|(_, v)| v.parse().ok())
+    if !url.username().is_empty() || url.password().is_some() || url.fragment().is_some() {
+        return Err(OtpError::InvalidUri(
+            "credentials and fragments are forbidden".into(),
+        ));
+    }
+    let pairs: Vec<_> = url.query_pairs().collect();
+    let parameter = |name: &str| -> Result<Option<&str>, OtpError> {
+        let mut values = pairs
+            .iter()
+            .filter(|(key, _)| key == name)
+            .map(|(_, value)| value.as_ref());
+        let value = values.next();
+        if values.next().is_some() {
+            return Err(OtpError::InvalidUri(format!("duplicate {name} parameter")));
+        }
+        Ok(value)
+    };
+    let secret_param = parameter("secret")?.ok_or(OtpError::MissingSecret)?;
+    let secret = decode_base32(secret_param)?;
+    let digits = parameter("digits")?
+        .map(|value| {
+            value
+                .parse::<u32>()
+                .ok()
+                .filter(|digits| (6..=10).contains(digits))
+                .ok_or_else(|| OtpError::InvalidUri("digits must be between 6 and 10".into()))
+        })
+        .transpose()?
+        .unwrap_or(6);
+    let period = parameter("period")?
+        .map(|value| {
+            value
+                .parse::<u64>()
+                .ok()
+                .filter(|period| *period > 0)
+                .ok_or_else(|| OtpError::InvalidUri("period must be positive".into()))
+        })
+        .transpose()?
         .unwrap_or(30);
-    let period = if period > 0 { period } else { 30 };
-    let algorithm = match url
-        .query_pairs()
-        .find(|(k, _)| k == "algorithm")
-        .map(|(_, v)| v.to_ascii_uppercase())
-        .as_deref()
-    {
+    let counter = parameter("counter")?
+        .map(|value| {
+            value
+                .parse()
+                .map_err(|_| OtpError::InvalidUri("invalid HOTP counter".into()))
+        })
+        .transpose()?;
+    if kind == OtpKind::Hotp && counter.is_none() {
+        return Err(OtpError::MissingCounter);
+    }
+    let algorithm_value = parameter("algorithm")?.map(str::to_ascii_uppercase);
+    let algorithm = match algorithm_value.as_deref() {
         None | Some("SHA1" | "SHA-1") => OtpAlgorithm::Sha1,
         Some("SHA256" | "SHA-256") => OtpAlgorithm::Sha256,
         Some("SHA512" | "SHA-512") => OtpAlgorithm::Sha512,
@@ -105,15 +142,14 @@ pub fn parse_otpauth(raw: &str) -> Result<OtpUri, OtpError> {
             Some(path.to_string())
         }
     };
-    let issuer = url
-        .query_pairs()
-        .find(|(k, _)| k == "issuer")
-        .map(|(_, v)| v.into_owned());
+    let issuer = parameter("issuer")?.map(str::to_owned);
     Ok(OtpUri {
         uri: trimmed.to_string(),
         secret,
+        kind,
         digits,
         period,
+        counter,
         algorithm,
         label,
         issuer,
@@ -131,10 +167,27 @@ pub fn validate_otpauth(raw: &str) -> bool {
 ///
 /// Returns an error when validation or the underlying operation fails.
 pub fn totp_code(otp: &OtpUri, at_unix: u64) -> Result<String, OtpError> {
-    if otp.uri.to_ascii_lowercase().contains("otpauth://hotp/") {
+    if otp.kind != OtpKind::Totp {
         return Err(OtpError::UnsupportedType);
     }
     let counter = at_unix / otp.period;
+    hotp_digest(otp, counter)
+}
+
+/// RFC 4226 HOTP at an explicit counter. Callers must persist a successful
+/// counter advance atomically before returning the code to the user.
+///
+/// # Errors
+///
+/// Returns an error when the URI is not HOTP or HMAC evaluation fails.
+pub fn hotp_code(otp: &OtpUri, counter: u64) -> Result<String, OtpError> {
+    if otp.kind != OtpKind::Hotp {
+        return Err(OtpError::UnsupportedType);
+    }
+    hotp_digest(otp, counter)
+}
+
+fn hotp_digest(otp: &OtpUri, counter: u64) -> Result<String, OtpError> {
     let mut msg = [0u8; 8];
     msg[..8].copy_from_slice(&counter.to_be_bytes());
     let digest = match otp.algorithm {
@@ -158,13 +211,13 @@ pub fn totp_code(otp: &OtpUri, at_unix: u64) -> Result<String, OtpError> {
         }
     };
     let offset = (digest[digest.len() - 1] & 0x0f) as usize;
-    let binary = u32::from_be_bytes([
+    let binary = u64::from(u32::from_be_bytes([
         digest[offset] & 0x7f,
         digest[offset + 1],
         digest[offset + 2],
         digest[offset + 3],
-    ]);
-    let modulus = 10u32.pow(otp.digits);
+    ]));
+    let modulus = 10u64.pow(otp.digits);
     let code = binary % modulus;
     Ok(format!("{:0width$}", code, width = otp.digits as usize))
 }
@@ -265,8 +318,59 @@ mod tests {
     }
 
     #[test]
+    fn rfc4226_hotp_vectors() {
+        let otp = parse_otpauth(&format!(
+            "otpauth://hotp/Example:alice@example.com?secret={RFC_SEED}&issuer=Example&digits=6&counter=0"
+        ))
+        .unwrap();
+        let expected = [
+            "755224", "287082", "359152", "969429", "338314", "254676", "287922", "162583",
+            "399871", "520489",
+        ];
+        for (counter, code) in expected.iter().enumerate() {
+            assert_eq!(hotp_code(&otp, counter as u64).unwrap(), *code);
+        }
+    }
+
+    #[test]
+    fn hotp_requires_counter_and_type_specific_generation() {
+        assert_eq!(
+            parse_otpauth(&format!("otpauth://hotp/x?secret={RFC_SEED}"))
+                .unwrap_err()
+                .to_string(),
+            "HOTP URI has no counter"
+        );
+        let totp = parse_otpauth(&rfc_uri(6)).unwrap();
+        assert!(matches!(
+            hotp_code(&totp, 0),
+            Err(OtpError::UnsupportedType)
+        ));
+    }
+
+    #[test]
     fn validate_rejects_missing_secret() {
         assert!(!validate_otpauth("otpauth://totp/Example?issuer=Example"));
+    }
+
+    #[test]
+    fn rejects_ambiguous_or_silently_normalized_parameters() {
+        for uri in [
+            format!("otpauth://totp/x?secret={RFC_SEED}&secret={RFC_SEED}"),
+            format!("otpauth://totp/x?secret={RFC_SEED}&digits=5"),
+            format!("otpauth://totp/x?secret={RFC_SEED}&digits=garbage"),
+            format!("otpauth://totp/x?secret={RFC_SEED}&period=0"),
+            format!("otpauth://totp/x?secret={RFC_SEED}#fragment"),
+        ] {
+            assert!(parse_otpauth(&uri).is_err(), "accepted {uri}");
+        }
+    }
+
+    #[test]
+    fn ten_digits_do_not_overflow() {
+        let otp = parse_otpauth(&rfc_uri(10)).unwrap();
+        let code = totp_code(&otp, 59).unwrap();
+        assert_eq!(code.len(), 10);
+        assert!(code.bytes().all(|byte| byte.is_ascii_digit()));
     }
 
     #[test]

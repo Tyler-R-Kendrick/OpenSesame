@@ -18,6 +18,7 @@ import { BrokerAuthorize as DefaultBrokerAuthorize } from "./screens/BrokerAutho
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 import { AgentsSection as DefaultAgentsSection } from "./sections/AgentsSection.js";
+import { AuthenticationSection as DefaultAuthenticationSection } from "./sections/AuthenticationSection.js";
 import { AuthoritySection as DefaultAuthoritySection } from "./sections/AuthoritySection.js";
 import { ConnectionsSection as DefaultConnectionsSection } from "./sections/ConnectionsSection.js";
 import { SettingsSection as DefaultSettingsSection } from "./sections/SettingsSection.js";
@@ -43,6 +44,7 @@ export type AppSlots = {
   FederationReturn: ComponentType;
   UnlockScreen: ComponentType;
   AgentsSection: ComponentType;
+  AuthenticationSection: ComponentType;
   AuthoritySection: ComponentType;
   ConnectionsSection: ComponentType;
   SettingsSection: ComponentType;
@@ -64,6 +66,7 @@ const defaultSlots: AppSlots = {
   FederationReturn: DefaultFederationReturn,
   UnlockScreen: DefaultUnlockScreen,
   AgentsSection: DefaultAgentsSection,
+  AuthenticationSection: DefaultAuthenticationSection,
   AuthoritySection: DefaultAuthoritySection,
   ConnectionsSection: DefaultConnectionsSection,
   SettingsSection: DefaultSettingsSection,
@@ -120,6 +123,14 @@ function VaultApp() {
           element={
             <Framed>
               <slots.AgentsSection />
+            </Framed>
+          }
+        />
+        <Route
+          path="/authentication"
+          element={
+            <Framed>
+              <slots.AuthenticationSection />
             </Framed>
           }
         />

@@ -29,6 +29,7 @@ import {
   wrapVaultKeyWithPassword,
 } from "./crypto.js";
 import {
+  hostBackupSeams,
   installVaultHostBackupFlushHooks,
   pushSealedVaultToHost,
 } from "./host-backup.js";
@@ -37,6 +38,7 @@ import {
   type VaultBody,
   type VaultItem,
   emptyBody,
+  mergeVaultBodies,
 } from "./model.js";
 import { estimateStrength } from "./password.js";
 import { totpSetupUri } from "./totp.js";
@@ -824,6 +826,50 @@ export class VaultStore {
     }
   }
 
+  /** Merge a complete newer Host snapshot while both bodies are authenticated. */
+  async mergeHostSnapshot(input: {
+    headerJson: string;
+    bodyJson: string;
+    epoch: number;
+  }): Promise<void> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    let remoteHeader: VaultHeader;
+    let sealed: SealedBlob;
+    try {
+      remoteHeader = overlapCast(JSON.parse(input.headerJson));
+      sealed = overlapCast(JSON.parse(input.bodyJson));
+    } catch {
+      throw new VaultCorruptError("Host vault snapshot is not valid JSON");
+    }
+    if (
+      remoteHeader.v !== 1 ||
+      remoteHeader.createdAt !== header.createdAt ||
+      !sealed.ivB64 ||
+      !sealed.ctB64
+    ) {
+      throw new VaultCorruptError(
+        "Host vault snapshot belongs to another vault",
+      );
+    }
+    const incoming = await openJson<VaultBody>(vaultKey, sealed);
+    if (
+      incoming.v !== 1 ||
+      !Array.isArray(incoming.items) ||
+      !Array.isArray(incoming.folders)
+    ) {
+      throw new VaultCorruptError("Host vault body is malformed");
+    }
+    if ((incoming.rev ?? 0) !== input.epoch) {
+      throw new VaultCorruptError("Host vault epoch does not match its body");
+    }
+    const merged = mergeVaultBodies(this.#body, incoming);
+    await this.#mutate((body) => {
+      body.items = merged.items;
+      body.folders = merged.folders;
+      body.rev = merged.rev;
+    });
+  }
+
   /**
    * Note in the header how far the body has got. Written after the body, never
    * before: trailing by one is harmless — the body is simply newer — while
@@ -1139,5 +1185,8 @@ export class VaultStore {
 }
 
 export const vaultStore = new VaultStore();
+
+hostBackupSeams.mergePulledVault = (input) =>
+  vaultStore.mergeHostSnapshot(input);
 
 export { WrongPasswordError, VaultCorruptError };

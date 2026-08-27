@@ -18,6 +18,8 @@ Mandatory local suite does **not** require cloud IdP credentials.
 | CIMD | Draft | oidc-provider (gated) | SSRF fetcher; **disabled by default** |
 | DCR | RFC 7591 | oidc-provider (gated) | **Disabled by default** |
 | auth.md / Agent Card | Product profile | agent-protocols | Generated from config |
+| OID4VP holder | OpenID4VP 1.0 + HAIP 1.0 | Multipaz 0.100.0 (native) | Vault selection, consent, verified invocation |
+| OID4VCI wallet | OpenID4VCI 1.0 + HAIP 1.0 | Multipaz 0.100.0 (native) | Issuer policy, encrypted custody, verified invocation |
 
 ## Draft features (pinned / gated)
 
@@ -30,13 +32,24 @@ Mandatory local suite does **not** require cloud IdP credentials.
 
 Do **not** claim OAuth 2.1 RFC compliance; follow RFC 9700 BCP.
 
-## Trust-broker implementation status
+## Authenticator and wallet implementation status
 
-The repository also ships the trust-broker domain contracts and assurance
-evaluator. OIDC4VP, OIDC4VCI, FedCM, Digital Credentials API, OpenID
-Federation, SD-JWT VC, and Token Status List adapters are not implemented in
-this slice and their flags default to `false`. No conformance or hardware
-assurance claim is made for those protocols.
+OID4VP and OID4VCI are product requirements, not excluded protocols. The
+repository implements their trust-domain records, strict by-reference native
+invocation, encrypted SD-JWT VC/mdoc custody types, user-verification policy,
+and the website association artifacts needed to hand a request to the signed
+native app. ADR 0058 fixes Multipaz as the native protocol engine so request
+objects, DCQL, issuer metadata, proofs, presentations, and response modes are
+not reimplemented ad hoc.
+
+The feature flags remain deployment gates until the signed native builds pass
+the OpenID Foundation conformance profiles. A false flag means "not enabled in
+this deployment"; it does not mean the product excludes OID4VP or OID4VCI.
+No certification or hardware-backed-key claim may be made from repository
+unit tests alone.
+
+FedCM, OpenID Federation, and Token Status List adapters remain separate work;
+they are not prerequisites for implementing the OID4VP/OID4VCI wallet roles.
 
 The implemented invariant surface is covered by
 `packages/trust-broker/src/index.test.ts`: evidence expiry, subject-kind

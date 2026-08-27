@@ -4,8 +4,6 @@ import {
   isJsonObject,
   readString,
 } from "@opensesame/os-domain";
-import { useEffect, useMemo, useState } from "react";
-import { QrCode } from "./QrCode.js";
 import {
   assertionPayload,
   creationOptionsFromJson,
@@ -14,7 +12,9 @@ import {
   parsePublicKeyCredentialRequestOptionsJson,
   registrationResponseJson,
   requestOptionsFromJson,
-} from "./webauthn.js";
+} from "@opensesame/sdk-browser";
+import { useEffect, useMemo, useState } from "react";
+import { QrCode } from "./QrCode.js";
 
 const identityApi =
   import.meta.env.VITE_IDENTITY_API ?? "http://127.0.0.1:8788";

@@ -13,3 +13,4 @@ export * from "./machines/presentation.js";
 export { fixtures } from "./__tests__/fixtures.js";
 export * from "./trust.js";
 export * from "./presentation.js";
+export * from "./authentication-service.js";

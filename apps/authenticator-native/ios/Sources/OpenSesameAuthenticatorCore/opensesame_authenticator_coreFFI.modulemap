@@ -1,0 +1,7 @@
+module opensesame_authenticator_coreFFI {
+    header "opensesame_authenticator_coreFFI.h"
+    export *
+    use "Darwin"
+    use "_Builtin_stdbool"
+    use "_Builtin_stdint"
+}

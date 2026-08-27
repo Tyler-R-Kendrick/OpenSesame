@@ -33,6 +33,135 @@ export interface WebAuthnRpConfig {
   origin: string;
 }
 
+const AUTHENTICATOR_TRANSPORTS: AuthenticatorTransportFuture[] = [
+  "internal",
+  "hybrid",
+  "usb",
+  "ble",
+  "nfc",
+];
+
+export interface PasskeyRegistrationOptionsInput {
+  rp: WebAuthnRpConfig;
+  rpName: string;
+  userId: string;
+  userName: string;
+  userDisplayName: string;
+  excludeCredentialIds?: string[];
+  authenticatorAttachment?: "cross-platform" | "platform";
+  userVerification?: "discouraged" | "preferred" | "required";
+}
+
+export async function generatePasskeyRegistrationOptions(
+  input: PasskeyRegistrationOptionsInput,
+) {
+  const excludeCredentials = input.excludeCredentialIds?.map((id) => ({
+    id,
+    transports: AUTHENTICATOR_TRANSPORTS,
+  }));
+  return generateRegistrationOptions({
+    rpName: input.rpName,
+    rpID: input.rp.rpID,
+    userID: new TextEncoder().encode(input.userId),
+    userName: input.userName,
+    userDisplayName: input.userDisplayName,
+    attestationType: "none",
+    authenticatorSelection: {
+      residentKey: "required",
+      requireResidentKey: true,
+      userVerification: input.userVerification ?? "required",
+      ...(input.authenticatorAttachment
+        ? { authenticatorAttachment: input.authenticatorAttachment }
+        : undefined),
+    },
+    ...(excludeCredentials ? { excludeCredentials } : undefined),
+  });
+}
+
+export interface PasskeyAuthenticationOptionsInput {
+  rp: WebAuthnRpConfig;
+  allowCredentialIds?: string[];
+  userVerification?: "discouraged" | "preferred" | "required";
+  hints?: Array<"client-device" | "hybrid" | "security-key">;
+}
+
+export async function generatePasskeyAuthenticationOptions(
+  input: PasskeyAuthenticationOptionsInput,
+) {
+  const allowCredentials = input.allowCredentialIds?.map((id) => ({
+    id,
+    transports: AUTHENTICATOR_TRANSPORTS,
+  }));
+  return generateAuthenticationOptions({
+    rpID: input.rp.rpID,
+    userVerification: input.userVerification ?? "required",
+    ...(input.hints && input.hints.length > 0
+      ? { hints: input.hints }
+      : undefined),
+    ...(allowCredentials ? { allowCredentials } : undefined),
+  });
+}
+
+export interface VerifyPasskeyRegistrationInput {
+  rp: WebAuthnRpConfig;
+  challenge: string;
+  response: RegistrationResponseJSON;
+  requireUserVerification?: boolean;
+}
+
+export async function verifyPasskeyRegistration(
+  input: VerifyPasskeyRegistrationInput,
+): Promise<VerifiedRegistration | null> {
+  try {
+    const result = await simpleWebAuthnSeams.verifyRegistrationResponse({
+      response: input.response,
+      expectedChallenge: input.challenge,
+      expectedOrigin: input.rp.origin,
+      expectedRPID: input.rp.rpID,
+      requireUserVerification: input.requireUserVerification ?? true,
+    });
+    if (!result.verified || !result.registrationInfo) return null;
+    const { credential } = result.registrationInfo;
+    return {
+      credentialId: credential.id,
+      publicKey: credential.publicKey,
+      counter: credential.counter,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export interface VerifyPasskeyAuthenticationInput {
+  rp: WebAuthnRpConfig;
+  challenge: string;
+  response: AuthenticationResponseJSON;
+  credential: Pick<PasskeyCredential, "credentialId" | "publicKey" | "counter">;
+  requireUserVerification?: boolean;
+}
+
+export async function verifyPasskeyAuthentication(
+  input: VerifyPasskeyAuthenticationInput,
+): Promise<number | null | undefined> {
+  try {
+    const result = await simpleWebAuthnSeams.verifyAuthenticationResponse({
+      response: input.response,
+      expectedChallenge: input.challenge,
+      expectedOrigin: input.rp.origin,
+      expectedRPID: input.rp.rpID,
+      credential: {
+        id: input.credential.credentialId,
+        publicKey: input.credential.publicKey,
+        counter: input.credential.counter,
+      },
+      requireUserVerification: input.requireUserVerification ?? true,
+    });
+    return result.verified ? result.authenticationInfo?.newCounter : null;
+  } catch {
+    return null;
+  }
+}
+
 export type ChallengePurpose = "authentication" | "registration";
 
 export interface ChallengeMeta {
@@ -192,20 +321,7 @@ export async function verifyRegistrationAttestation(
   if (issued.principalId !== expectedPrincipalId) return null;
 
   try {
-    const result = await simpleWebAuthnSeams.verifyRegistrationResponse({
-      response,
-      expectedChallenge: challenge,
-      expectedOrigin: rp.origin,
-      expectedRPID: rp.rpID,
-      requireUserVerification: true,
-    });
-    if (!result.verified || !result.registrationInfo) return null;
-    const { credential } = result.registrationInfo;
-    return {
-      credentialId: credential.id,
-      publicKey: credential.publicKey,
-      counter: credential.counter,
-    };
+    return verifyPasskeyRegistration({ rp, challenge, response });
   } catch {
     return null;
   }
@@ -245,22 +361,14 @@ export function createSimpleWebAuthnVerifyFn(
     };
 
     try {
-      const result = await simpleWebAuthnSeams.verifyAuthenticationResponse({
+      const newCounter = await verifyPasskeyAuthentication({
+        rp,
+        challenge,
         response,
-        expectedChallenge: challenge,
-        expectedOrigin: rp.origin,
-        expectedRPID: rp.rpID,
-        credential: {
-          id: credential.credentialId,
-          publicKey: credential.publicKey,
-          counter: credential.counter,
-        },
-        requireUserVerification: true,
+        credential,
       });
-      if (!result.verified) return false;
-      // Hand the fresh counter back so the seam can persist it; without this the
-      // stored counter stays at its registration value and clone detection is dead.
-      return { ok: true, newCounter: result.authenticationInfo?.newCounter };
+      if (newCounter === null) return false;
+      return newCounter === undefined ? { ok: true } : { ok: true, newCounter };
     } catch {
       return false;
     }

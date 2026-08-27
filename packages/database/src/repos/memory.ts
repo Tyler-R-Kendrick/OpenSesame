@@ -567,6 +567,12 @@ export class MemoryRepositories implements Repositories {
       if (filter?.principalId) {
         rows = rows.filter((r) => r.principalId === filter.principalId);
       }
+      if (filter?.clientId) {
+        rows = rows.filter((r) => r.clientId === filter.clientId);
+      }
+      if (filter?.organizationId) {
+        rows = rows.filter((r) => r.organizationId === filter.organizationId);
+      }
       const limit = filter?.limit ?? 50;
       return rows.slice(0, limit).map((r) => ({
         ...r,

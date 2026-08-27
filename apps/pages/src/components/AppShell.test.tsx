@@ -106,6 +106,7 @@ describe("AppShell", () => {
       "Connections",
       "Agents",
       "Authority",
+      "Authentication",
       "Sites",
       "Settings",
     ]) {

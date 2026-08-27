@@ -93,3 +93,7 @@ export {
 export { withOutbox, appendOutboxInTransaction } from "./tx.js";
 export { runMigrations } from "./migrate.js";
 export { resetDatabase } from "./reset.js";
+export {
+  createMemoryAuthenticationServiceStores,
+  createPostgresAuthenticationServiceStores,
+} from "./authentication-service-store.js";

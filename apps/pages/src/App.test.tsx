@@ -20,6 +20,7 @@ const testSlots: Partial<AppSlots> = {
   FederationReturn: () => <p>federation return stub</p>,
   UnlockScreen: () => <p>unlock screen stub</p>,
   AgentsSection: () => <p>agents section</p>,
+  AuthenticationSection: () => <p>authentication section</p>,
   AuthoritySection: () => <p>authority section</p>,
   ConnectionsSection: () => <p>connections section</p>,
   SettingsSection: () => <p>settings section</p>,
@@ -104,6 +105,7 @@ describe("App", () => {
       ["/connections/github/conn_1", "connections section"],
       ["/sites", "sites section"],
       ["/authority", "authority section"],
+      ["/authentication", "authentication section"],
       ["/settings", "settings section"],
       ["/settings/connectivity", "settings section"],
     ];

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   TotpParseError,
   decodeBase32,
+  hotpCode,
+  parseHotp,
   parseTotp,
   secondsRemaining,
   totpCode,
@@ -54,6 +56,39 @@ describe("RFC 6238 test vectors (SHA-1, 8 digits)", () => {
       await expect(totpCode(config, seconds * 1000)).resolves.toBe(expected);
     });
   }
+});
+
+describe("RFC 4226 HOTP test vectors", () => {
+  const config = parseHotp(
+    `otpauth://hotp/Example:alice@example.com?secret=${RFC_SEED_BASE32}&digits=6&counter=0`,
+  );
+  const expected = [
+    "755224",
+    "287082",
+    "359152",
+    "969429",
+    "338314",
+    "254676",
+    "287922",
+    "162583",
+    "399871",
+    "520489",
+  ];
+
+  for (const [counter, code] of expected.entries()) {
+    it(`counter ${counter} produces ${code}`, async () => {
+      await expect(hotpCode(config, counter)).resolves.toBe(code);
+    });
+  }
+
+  it("requires an explicit non-negative counter", () => {
+    expect(() =>
+      parseHotp(`otpauth://hotp/x?secret=${RFC_SEED_BASE32}`),
+    ).toThrow(/counter/);
+    expect(() =>
+      parseTotp(`otpauth://hotp/x?secret=${RFC_SEED_BASE32}&counter=0`),
+    ).toThrow(/not TOTP/);
+  });
 });
 
 describe("parsing", () => {

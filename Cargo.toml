@@ -6,6 +6,7 @@ members = [
   "crates/core",
   "crates/host-core",
   "crates/client-core",
+  "crates/authenticator-core",
   "crates/domain",
   "crates/proof",
   "crates/task-access",

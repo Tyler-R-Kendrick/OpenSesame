@@ -15,7 +15,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --maxWorkers=4 --testTimeout=15000",
-    "generate:openapi": "tsx src/generate-openapi.ts && biome format --write openapi.json"
+    "test:authentication-browser": "vitest run --config vitest.authentication.config.ts",
+    "generate:openapi": "tsx src/generate-openapi.ts && pnpm --workspace-root exec biome format --write apps/control-plane/openapi.json"
   },
   "dependencies": {
     "@hono/node-server": "2.1.0",
@@ -43,6 +44,7 @@
     "@electric-sql/pglite": "0.2.17",
     "@opensesame/mock-upstream-idp": "workspace:*",
     "@opensesame/testing": "workspace:*",
+    "@playwright/test": "1.55.1",
     "@types/node": "22.15.29",
     "fast-check": "4.9.0",
     "tsx": "4.19.4",

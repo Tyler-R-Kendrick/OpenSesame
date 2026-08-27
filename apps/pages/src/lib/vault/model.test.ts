@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
   KIND_LABEL,
   KIND_PLURAL,
+  activeItems,
   browsableUrl,
   createItem,
   emptyBody,
   hostOf,
   initialOf,
+  isForeignPasskey,
+  isVaultCustodied,
   itemSubtitle,
+  mergeVaultBodies,
   newGrant,
   newId,
   newUri,
@@ -57,6 +61,28 @@ describe("createItem", () => {
 describe("id and body helpers", () => {
   it("mints unique ids", () => {
     expect(newId()).not.toBe(newId());
+  });
+
+  it("merges concurrent snapshots without dropping either device's items", () => {
+    const local = createItem("note", "Local");
+    const shared = createItem("note", "Old");
+    shared.updatedAt = "2026-01-01T00:00:00.000Z";
+    const remoteShared = {
+      ...shared,
+      name: "Remote edit",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+    };
+    const remote = createItem("note", "Remote");
+    const merged = mergeVaultBodies(
+      { v: 1, items: [local, shared], folders: [], rev: 4 },
+      { v: 1, items: [remoteShared, remote], folders: [], rev: 7 },
+    );
+    expect(merged.rev).toBe(7);
+    expect(merged.items.map((item) => item.name)).toEqual([
+      "Local",
+      "Remote edit",
+      "Remote",
+    ]);
   });
 
   it("starts an empty body at revision zero", () => {
@@ -246,6 +272,30 @@ describe("sortItems", () => {
     expect(sorted.map((item) => item.name)).toEqual(["Beta", "alpha", "gamma"]);
     // The input array is left alone.
     expect([c, b, a][0]?.name).toBe("gamma");
+  });
+});
+
+describe("passkey custody", () => {
+  it("never offers legacy metadata as a usable OpenSesame passkey", () => {
+    const passkey = createItem("passkey", "Account");
+    if (passkey.kind !== "passkey") throw new Error("expected passkey");
+    expect(isForeignPasskey(passkey)).toBe(true);
+    expect(isVaultCustodied(passkey)).toBe(false);
+
+    passkey.custody = "vault";
+    passkey.privateKeyPkcs8B64 = "encrypted-inside-the-vault";
+    expect(isVaultCustodied(passkey)).toBe(true);
+    expect(isForeignPasskey(passkey)).toBe(false);
+  });
+
+  it("excludes deleted and retired credentials from provider surfaces", () => {
+    const active = createItem("passkey", "Active");
+    const retired = createItem("passkey", "Retired");
+    const deleted = createItem("login", "Deleted");
+    if (retired.kind !== "passkey") throw new Error("expected passkey");
+    retired.retiredAt = new Date().toISOString();
+    deleted.deletedAt = new Date().toISOString();
+    expect(activeItems([active, retired, deleted])).toEqual([active]);
   });
 });
 
