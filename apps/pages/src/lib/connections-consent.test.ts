@@ -43,6 +43,7 @@ function connectionWire(overrides: JsonObject = {}) {
     project_id: null,
     owner_kind: "organization",
     shareability: "delegable",
+    materialization: "deny",
     requested_scopes: [],
     granted_scopes: [],
     account_label: "acme",

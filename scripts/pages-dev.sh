@@ -14,6 +14,8 @@ export VITE_HOST_API="${VITE_HOST_API:-$OPENSESAME_PUBLIC_URL}"
 export OPENSESAME_CORS_ORIGINS="${OPENSESAME_CORS_ORIGINS:-http://127.0.0.1:5180,http://localhost:5180}"
 export OPENSESAME_DEV_BOOTSTRAP="${OPENSESAME_DEV_BOOTSTRAP:-true}"
 export OPENSESAME_CONNECTION_KEY="${OPENSESAME_CONNECTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}"
+mkdir -p .tools/run
+export OPENSESAME_DB="${OPENSESAME_DB:-sqlite://$REPO_ROOT/.tools/run/opensesame.db?mode=rwc}"
 # Optional: seal GitHub history without an OAuth App (Settings PAT form also works).
 # export GITHUB_TOKEN=ghp_…
 # OAuth App path (Authorize button): OPENSESAME_PROVIDER_GITHUB_CLIENT_ID / _CLIENT_SECRET

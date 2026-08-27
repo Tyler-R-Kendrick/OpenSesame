@@ -305,7 +305,9 @@ impl ConnectionBroker {
             return Ok(grant);
         }
 
-        let provider = catalog_provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
         if provider.operations.is_empty() {
             return Err(BrokerError::Invalid(format!(
                 "provider {} has no operation vocabulary; nothing to delegate",
@@ -365,6 +367,25 @@ impl ConnectionBroker {
         .await
         .map_err(internal)?;
         Ok(grant)
+    }
+
+    /// Resolve the durable full-operation grant for a connection's owner.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the connection is outside the organization or the
+    /// caller is not its owner.
+    pub async fn owner_invocation_grant(
+        &self,
+        organization_id: &OrganizationId,
+        connection_id: &str,
+        owner_subject: &str,
+    ) -> Result<Grant> {
+        let row = self.row_in_org(organization_id, connection_id).await?;
+        if row.owner_subject.as_deref() != Some(owner_subject) {
+            return Err(BrokerError::ConnectionNotFound);
+        }
+        self.owner_grant_for(&row).await
     }
 
     /// Mint an offer. Every fence runs per item, and any failure fails the
@@ -487,7 +508,9 @@ impl ConnectionBroker {
         owner_grant
             .assert_active(now)
             .map_err(|error| BrokerError::Invalid(format!("owner grant is not active: {error}")))?;
-        let provider = catalog_provider(&row.provider_id)?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
         let actions = spec
             .actions
             .clone()
@@ -1582,10 +1605,6 @@ fn child_grant_from(owner: &Grant, template: &ItemTemplate, now: DateTime<Utc>) 
         created_at: now,
         revoked_at: None,
     }
-}
-
-fn catalog_provider(id: &str) -> Result<&'static crate::catalog::Provider> {
-    crate::catalog::find(id)?.ok_or_else(|| BrokerError::ProviderUnknown(id.to_string()))
 }
 
 fn internal<E: std::fmt::Display>(e: E) -> BrokerError {

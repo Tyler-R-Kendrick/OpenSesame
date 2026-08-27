@@ -82,6 +82,7 @@ function connectionWire(overrides: JsonObject = {}) {
     project_id: null,
     owner_kind: "organization",
     shareability: "delegable",
+    materialization: "deny",
     requested_scopes: ["repo"],
     granted_scopes: ["repo", "read:user"],
     account_label: "acme",

@@ -17,6 +17,25 @@ use super::*;
 
 const KEY: [u8; 32] = [42u8; 32];
 
+#[test]
+fn every_network_catalog_connector_has_a_generic_execution_contract() {
+    for provider in catalog::all().expect("catalog") {
+        if matches!(&provider.auth, catalog::AuthMethod::Configuration) {
+            continue;
+        }
+        assert_ne!(
+            provider.egress.scheme, "none",
+            "{} has no egress",
+            provider.id
+        );
+        assert!(
+            !provider.operations.is_empty(),
+            "{} has no executable operations",
+            provider.id
+        );
+    }
+}
+
 fn key_config() -> BrokerConfig {
     let mut config = BrokerConfig::in_memory(Some(KEY), "http://127.0.0.1:8787");
     for provider in catalog::all().expect("catalog") {
@@ -87,6 +106,98 @@ async fn token_server_with_expiry(expires_in: i64) -> String {
         .await;
     });
     format!("http://{address}/token")
+}
+
+#[tokio::test]
+async fn catalog_connection_executes_real_credentialed_egress() {
+    async fn token(Form(_form): Form<HashMap<String, String>>) -> Json<serde_json::Value> {
+        Json(serde_json::json!({
+            "access_token": "network-token-do-not-return",
+            "token_type": "Bearer"
+        }))
+    }
+
+    async fn fixture(headers: axum::http::HeaderMap) -> Json<serde_json::Value> {
+        Json(serde_json::json!({
+            "authorized": headers
+                .get("authorization")
+                .and_then(|value| value.to_str().ok())
+                == Some("Bearer network-token-do-not-return")
+        }))
+    }
+
+    async fn leak(headers: axum::http::HeaderMap) -> Json<serde_json::Value> {
+        Json(serde_json::json!({
+            "echo": headers
+                .get("authorization")
+                .and_then(|value| value.to_str().ok())
+        }))
+    }
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:9090")
+        .await
+        .expect("bind bundled mock provider");
+    tokio::spawn(async move {
+        let _ = axum::serve(
+            listener,
+            Router::new()
+                .route("/token", post(token))
+                .route("/fixture", axum::routing::get(fixture))
+                .route("/leak", axum::routing::get(leak)),
+        )
+        .await;
+    });
+
+    let config = BrokerConfig::in_memory(Some(KEY), "http://127.0.0.1:8787").with_provider(
+        "mock",
+        ProviderConfig {
+            client_id: Some("mock-client".into()),
+            client_secret: Some("mock-secret".into()),
+            token_url: Some("http://127.0.0.1:9090/token".into()),
+            ..Default::default()
+        },
+    );
+    let (_db, broker) = broker_with(config).await;
+    let organization = OrganizationId::new();
+    let connection = broker
+        .create_connection(&organization, create("mock"))
+        .await
+        .expect("create connection");
+    let start = broker
+        .start_authorization(&organization, &connection.connection_id, None, None)
+        .await
+        .expect("start authorization");
+    broker
+        .complete_authorization("mock", "code", &start.state)
+        .await
+        .expect("complete authorization");
+
+    let response = broker
+        .invoke_network_json(
+            &organization,
+            &connection.connection_id,
+            "fixture.read",
+            "GET",
+            "http://127.0.0.1:9090/fixture",
+            None,
+        )
+        .await
+        .expect("invoke provider");
+    assert_eq!(response, serde_json::json!({"authorized": true}));
+    assert!(!response.to_string().contains("network-token"));
+
+    let leak = broker
+        .invoke_network_json(
+            &organization,
+            &connection.connection_id,
+            "fixture.read",
+            "GET",
+            "http://127.0.0.1:9090/leak",
+            None,
+        )
+        .await
+        .expect_err("credential-echoing upstream must fail closed");
+    assert!(!leak.to_string().contains("network-token"));
 }
 
 async fn organization_oauth_broker() -> (Db, Arc<ConnectionBroker>, OrganizationId, String) {

@@ -84,10 +84,15 @@ Provider = {
 }
 ```
 
-`configuration` connectors cover the provider types published by Fnox. They
-seal the provider-specific fields shown by the marketplace, but deliberately
-publish no network egress; provider execution requires a separate authority-
-checked adapter.
+OAuth and API-key catalog entries share one constrained-HTTP execution path:
+the operation must be in the provider row, the URL must satisfy its exact
+egress binding, and the Host injects the sealed credential after authorization.
+The request accepts only `url`, `method`, and an optional JSON `body`; callers
+cannot supply headers or credential placement.
+
+`configuration` rows expose their declared fields in Pages and seal completed
+configuration on the Host. Provider execution still requires an
+authority-owned adapter for the provider-specific protocol.
 
 ### Integrations
 
@@ -333,5 +338,5 @@ remain local ciphertext history for the human store.
 
 `opensesame-mock-upstream-idp` speaks authorization-code + PKCE S256 + `refresh_token`, so
 it backs the `mock` catalog provider and the full loop — create, authorize, callback,
-exchange, refresh, revoke — is exercised end to end in `apps/gateway` integration tests
-without reaching the network.
+exchange, credential injection, real HTTP egress, refresh, and revoke — is exercised end
+to end in local integration tests.

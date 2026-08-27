@@ -224,12 +224,45 @@ const catalog = vi.hoisted(() => {
     ],
   };
 
+  const betterAuthProvider: Provider = {
+    id: "better-auth",
+    displayName: "Better Auth",
+    category: "identity",
+    docsUrl: "https://better-auth.com/docs/plugins/api-key",
+    authKind: "configuration",
+    supportsRefresh: false,
+    configured: true,
+    autoConfigurable: false,
+    missingConfig: [],
+    callbackUrl: null,
+    scopes: [],
+    egress: { scheme: "none", authorities: [], pathPrefixes: [] },
+    operations: ["identity.configure"],
+    configurationFields: [
+      { name: "base_url", label: "Base URL", secret: false, required: true },
+      { name: "api_key", label: "API key", secret: true, required: true },
+      {
+        name: "api_key_header",
+        label: "API key header",
+        secret: false,
+        required: true,
+      },
+      {
+        name: "config_id",
+        label: "Configuration ID",
+        secret: false,
+        required: false,
+      },
+    ],
+  };
+
   return [
     githubProvider,
     linearProvider,
     vercelProvider,
     plainProvider,
     vaultwardenProvider,
+    betterAuthProvider,
   ];
 });
 
@@ -337,6 +370,7 @@ describe("ConnectionsSection gallery", () => {
     expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Linear").length).toBeGreaterThan(0);
     expect(screen.getByText("Vaultwarden")).toBeTruthy();
+    expect(screen.getByText("Better Auth")).toBeTruthy();
     expect(screen.getByText("Developer tools")).toBeTruthy();
     expect(screen.getByText("Password managers")).toBeTruthy();
     // The automatic provider is offered as a switch, not a marketplace tile.
@@ -363,7 +397,7 @@ describe("ConnectionsSection gallery", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Clear search/i }),
     );
-    expect(container.querySelectorAll(".conn-tile").length).toBe(4);
+    expect(container.querySelectorAll(".conn-tile").length).toBe(5);
   });
 
   it("reports the unreachable Host as a notification, not a banner", async () => {
@@ -692,6 +726,48 @@ describe("ConnectionsSection connector page", () => {
     expect(
       await screen.findByText(/Vaultwarden configuration saved on this Host/),
     ).toBeTruthy();
+  });
+
+  it("shows only required Better Auth inputs and applies hidden defaults", async () => {
+    const created = makeConnection({ providerId: "better-auth" });
+    createConnection.mockResolvedValue(created);
+    setConnectionConfiguration.mockResolvedValue(created);
+    renderAt("/connections/better-auth");
+    await userEvent.type(
+      await screen.findByLabelText(/Base URL/),
+      "https://auth.example.com/api/auth",
+    );
+    await userEvent.type(
+      screen.getByLabelText(/^API key \(required\)/),
+      "ba_secret",
+    );
+    const optional = screen.getByText("Optional settings").closest("details");
+    expect(optional?.open).toBe(false);
+    expect(
+      (
+        screen.getByLabelText(
+          /API key header \(automatic\)/,
+        ) as HTMLInputElement
+      ).value,
+    ).toBe("x-api-key");
+    expect(
+      (
+        screen.getByLabelText(
+          /Configuration ID \(automatic\)/,
+        ) as HTMLInputElement
+      ).value,
+    ).toBe("default");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Save configuration/i }),
+    );
+    await waitFor(() =>
+      expect(setConnectionConfiguration).toHaveBeenCalledWith("con_1", {
+        base_url: "https://auth.example.com/api/auth",
+        api_key: "ba_secret",
+        api_key_header: "x-api-key",
+        config_id: "default",
+      }),
+    );
   });
 
   it("shows the connection card with scopes, egress, and renewal", async () => {

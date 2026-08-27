@@ -7,6 +7,7 @@ use opensesame_domain::OrganizationId;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
+use crate::catalog::AuthMethod;
 use crate::error::{BrokerError, Result};
 use crate::model::ConnectionStatus;
 use crate::store;
@@ -17,6 +18,7 @@ use crate::ConnectionBroker;
 /// page is not worth holding in full, and the cap keeps a hostile upstream from
 /// deciding how much of our memory its message occupies.
 const MAX_ERROR_SNIPPET: usize = 512;
+const MAX_JSON_RESPONSE_BYTES: usize = 1024 * 1024;
 
 /// Headers the broker owns on a credentialed upload. A caller supplying any of
 /// these would be competing with the injected credential or the framing of the
@@ -30,6 +32,25 @@ const RESERVED_HEADERS: &[&str] = &[
     "transfer-encoding",
 ];
 
+fn credential_header(auth: &AuthMethod, tokens: &TokenSet) -> Result<(String, String)> {
+    match auth {
+        AuthMethod::OAuth2AuthCode { .. } | AuthMethod::OpenRouterPkce { .. } => Ok((
+            "Authorization".into(),
+            format!("Bearer {}", tokens.access_token),
+        )),
+        AuthMethod::ApiKey {
+            header,
+            value_prefix,
+        } => Ok((
+            header.clone(),
+            format!("{value_prefix}{}", tokens.access_token),
+        )),
+        AuthMethod::Configuration => {
+            Err(BrokerError::UnsupportedCredential("configuration".into()))
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GithubRepo {
     pub full_name: String,
@@ -41,6 +62,54 @@ pub struct GithubRepo {
 }
 
 impl ConnectionBroker {
+    /// Execute one catalog operation through the connection's sealed credential.
+    ///
+    /// This is the common constrained-HTTP adapter for OAuth and API-key
+    /// providers. Configuration-only providers stay unavailable until a typed
+    /// adapter owns their local or provider-specific protocol.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the operation, method, provider adapter, egress,
+    /// credential, or upstream response is invalid.
+    pub async fn invoke_network_json(
+        &self,
+        organization_id: &OrganizationId,
+        connection_id: &str,
+        operation: &str,
+        method: &str,
+        url: &str,
+        body: Option<Value>,
+    ) -> Result<Value> {
+        let row = self.row_in_org(organization_id, connection_id).await?;
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
+        if matches!(&provider.auth, AuthMethod::Configuration) {
+            return Err(BrokerError::UnsupportedCredential(provider.id));
+        }
+        if !provider
+            .operations
+            .iter()
+            .any(|candidate| candidate == operation)
+        {
+            return Err(BrokerError::Invalid(format!(
+                "provider `{}` does not implement operation `{operation}`",
+                provider.id
+            )));
+        }
+        if !matches!(
+            method.to_ascii_uppercase().as_str(),
+            "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD"
+        ) {
+            return Err(BrokerError::Invalid(format!(
+                "method `{method}` is not allowed"
+            )));
+        }
+        self.authorized_json(organization_id, connection_id, method, url, body)
+            .await
+    }
+
     /// GET <https://api.github.com/user/repos> (authenticated).
     /// Prefer repositories the user owns so History can pick a personal password store.
     ///
@@ -146,9 +215,12 @@ impl ConnectionBroker {
         if tokens.access_token.is_empty() {
             return Err(BrokerError::NeedsReauth("access token missing".into()));
         }
+        let provider = self
+            .resolve_provider(&row.organization_id, &row.provider_id)
+            .await?;
 
         let response = self
-            .http_authorized(&tokens, method, url, body)
+            .http_authorized(&provider.id, &provider.auth, &tokens, method, url, body)
             .await
             .map_err(BrokerError::ExchangeFailed)?;
 
@@ -254,6 +326,8 @@ impl ConnectionBroker {
 
     async fn http_authorized(
         &self,
+        provider_id: &str,
+        auth: &AuthMethod,
         tokens: &TokenSet,
         method: &str,
         url: &str,
@@ -263,21 +337,44 @@ impl ConnectionBroker {
             .parse::<reqwest::Method>()
             .map_err(|_| format!("unsupported method {method}"))?;
         let mut request = self
-            .http
+            .http_bytes
             .request(parsed_method, url)
-            .header("Authorization", format!("Bearer {}", tokens.access_token))
-            .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "OpenSesame-Host/0.1")
-            .header("X-GitHub-Api-Version", "2022-11-28");
+            .header("Accept", "application/json")
+            .header("User-Agent", "OpenSesame-Host/0.1");
+        let (credential_name, credential_value) =
+            credential_header(auth, tokens).map_err(|error| error.to_string())?;
+        request = request.header(credential_name, credential_value);
+        if provider_id == "github" {
+            request = request
+                .header("Accept", "application/vnd.github+json")
+                .header("X-GitHub-Api-Version", "2022-11-28");
+        }
         if let Some(body) = body {
             request = request.json(&body);
         }
-        let response = request.send().await.map_err(|e| e.to_string())?;
+        let mut response = request.send().await.map_err(|e| e.to_string())?;
         let status = response.status();
-        let text = response.text().await.map_err(|e| e.to_string())?;
+        if response
+            .content_length()
+            .is_some_and(|length| length > MAX_JSON_RESPONSE_BYTES as u64)
+        {
+            return Err("upstream response exceeds the 1 MiB limit".into());
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = response.chunk().await.map_err(|e| e.to_string())? {
+            if bytes.len() + chunk.len() > MAX_JSON_RESPONSE_BYTES {
+                return Err("upstream response exceeds the 1 MiB limit".into());
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let text = String::from_utf8(bytes).map_err(|e| e.to_string())?;
         if !(200..300).contains(&status.as_u16()) {
-            let snippet: String = text.chars().take(240).collect();
+            let safe = text.replace(&tokens.access_token, "[REDACTED]");
+            let snippet: String = safe.chars().take(MAX_ERROR_SNIPPET).collect();
             return Err(format!("upstream {status}: {snippet}"));
+        }
+        if text.contains(&tokens.access_token) {
+            return Err("upstream response contained the injected credential".into());
         }
         if text.trim().is_empty() {
             return Ok(json!({}));
@@ -340,6 +437,39 @@ fn map_github_repo_create_error(error: BrokerError) -> BrokerError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn token() -> TokenSet {
+        TokenSet {
+            access_token: "do-not-return".into(),
+            refresh_token: None,
+            token_type: "test".into(),
+            expires_at: None,
+            scopes: Vec::new(),
+            configuration: std::collections::BTreeMap::default(),
+        }
+    }
+
+    #[test]
+    fn places_oauth_and_api_key_credentials_from_catalog_auth() {
+        let oauth = AuthMethod::OpenRouterPkce {
+            authorize_url: "https://openrouter.ai/auth".into(),
+            exchange_url: "https://openrouter.ai/api/v1/auth/keys".into(),
+        };
+        assert_eq!(
+            credential_header(&oauth, &token()).unwrap(),
+            ("Authorization".into(), "Bearer do-not-return".into())
+        );
+
+        let api_key = AuthMethod::ApiKey {
+            header: "X-Api-Key".into(),
+            value_prefix: "Key ".into(),
+        };
+        assert_eq!(
+            credential_header(&api_key, &token()).unwrap(),
+            ("X-Api-Key".into(), "Key do-not-return".into())
+        );
+        assert!(credential_header(&AuthMethod::Configuration, &token()).is_err());
+    }
 
     #[test]
     fn parses_private_repo() {
