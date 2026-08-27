@@ -21,6 +21,7 @@ const connection = {
   project_id: null,
   owner_kind: "organization",
   shareability: "private",
+  materialization: "deny",
   requested_scopes: ["repo"],
   granted_scopes: ["repo"],
   account_label: "acme",

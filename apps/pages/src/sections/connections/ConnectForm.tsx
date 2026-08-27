@@ -179,65 +179,84 @@ export function ConnectForm({
   }
 
   if (provider.authKind === "configuration") {
+    const defaults = defaultsFor(provider);
+    const fields = provider.configurationFields ?? [];
+    const requiredFields = fields.filter(
+      (field) => field.required && defaults[field.name] === undefined,
+    );
+    const optionalFields = fields.filter(
+      (field) => !requiredFields.includes(field),
+    );
+    const renderFields = (configurationFields: typeof fields) =>
+      configurationFields.map((field) => {
+        const id = `${nameId}-${field.name}`;
+        const guidance = fieldGuidance(field);
+        const automatic = defaults[field.name];
+        return (
+          <div className="field" key={field.name}>
+            <label className="label conn-field-label" htmlFor={id}>
+              {field.label}
+              {automatic
+                ? " (automatic)"
+                : field.required
+                  ? " (required)"
+                  : " (optional)"}
+              <span title={guidance.help} aria-hidden="true">
+                <IconInfo size={14} />
+              </span>
+            </label>
+            <input
+              id={id}
+              name={field.name}
+              type={
+                field.secret
+                  ? "password"
+                  : field.name.endsWith("_url")
+                    ? "url"
+                    : "text"
+              }
+              autoComplete="off"
+              required={field.required}
+              placeholder={guidance.placeholder}
+              aria-describedby={`${id}-help`}
+              title={guidance.help}
+              value={configuration[field.name] ?? ""}
+              onChange={(event) =>
+                setConfiguration((current) => ({
+                  ...current,
+                  [field.name]: event.target.value,
+                }))
+              }
+            />
+            <p className="hint" id={`${id}-help`}>
+              {guidance.help}
+              {automatic ? " Filled automatically; change it if needed." : ""}
+            </p>
+          </div>
+        );
+      });
+
     return (
       <form className="conn-tile__body" onSubmit={saveConfiguration}>
         <ConnectorSetupGuide provider={provider} />
-        <div className="field">
-          <label className="label" htmlFor={nameId}>
-            Name it
-          </label>
-          <input
-            id={nameId}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <p className="hint">
-            Only changes the label in OpenSesame; the provider never sees it.
-          </p>
-        </div>
-        {(provider.configurationFields ?? []).map((field) => {
-          const id = `${nameId}-${field.name}`;
-          const guidance = fieldGuidance(field);
-          const automatic = defaultsFor(provider)[field.name];
-          return (
-            <div className="field" key={field.name}>
-              <label className="label conn-field-label" htmlFor={id}>
-                {field.label}
-                {field.required ? " (required)" : " (optional)"}
-                <span title={guidance.help} aria-hidden="true">
-                  <IconInfo size={14} />
-                </span>
-              </label>
-              <input
-                id={id}
-                name={field.name}
-                type={
-                  field.secret
-                    ? "password"
-                    : field.name.endsWith("_url")
-                      ? "url"
-                      : "text"
-                }
-                autoComplete="off"
-                required={field.required}
-                placeholder={guidance.placeholder}
-                aria-describedby={`${id}-help`}
-                title={guidance.help}
-                value={configuration[field.name] ?? ""}
-                onChange={(event) =>
-                  setConfiguration((current) => ({
-                    ...current,
-                    [field.name]: event.target.value,
-                  }))
-                }
-              />
-              <p className="hint" id={`${id}-help`}>
-                {guidance.help}
-                {automatic ? " Filled automatically; change it if needed." : ""}
-              </p>
-            </div>
-          );
-        })}
+        {renderFields(requiredFields)}
+        <details className="conn-client-alt">
+          <summary>Optional settings</summary>
+          <div className="field">
+            <label className="label" htmlFor={nameId}>
+              Name it (optional)
+            </label>
+            <input
+              id={nameId}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <p className="hint">
+              Only changes the label in OpenSesame; the provider never sees it.
+            </p>
+          </div>
+          {renderFields(optionalFields)}
+        </details>
         <p className="hint">
           Secret fields are sealed on arrival and are never returned to this
           browser.
@@ -260,19 +279,6 @@ export function ConnectForm({
       <form className="conn-tile__body" onSubmit={saveKey}>
         <ConnectorSetupGuide provider={provider} />
         <div className="field">
-          <label className="label" htmlFor={nameId}>
-            Name it
-          </label>
-          <input
-            id={nameId}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <p className="hint">
-            Only changes the label in OpenSesame; the provider never sees it.
-          </p>
-        </div>
-        <div className="field">
           <label className="label" htmlFor={keyId}>
             API key
           </label>
@@ -291,6 +297,22 @@ export function ConnectForm({
             here, and no agent can read it back.
           </p>
         </div>
+        <details className="conn-client-alt">
+          <summary>Optional settings</summary>
+          <div className="field">
+            <label className="label" htmlFor={nameId}>
+              Name it (optional)
+            </label>
+            <input
+              id={nameId}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <p className="hint">
+              Only changes the label in OpenSesame; the provider never sees it.
+            </p>
+          </div>
+        </details>
         <div className="actions">
           <button
             type="submit"
@@ -381,19 +403,22 @@ function OauthConnectBody({
             access token below is an alternative if you already have one.
           </p>
         ) : null}
-        <div className="field">
-          <label className="label" htmlFor={nameId}>
-            Name it
-          </label>
-          <input
-            id={nameId}
-            value={name}
-            onChange={(event) => onName(event.target.value)}
-          />
-          <p className="hint">
-            How it reads in this list. The provider never sees it.
-          </p>
-        </div>
+        <details className="conn-client-alt">
+          <summary>Optional settings</summary>
+          <div className="field">
+            <label className="label" htmlFor={nameId}>
+              Name it (optional)
+            </label>
+            <input
+              id={nameId}
+              value={name}
+              onChange={(event) => onName(event.target.value)}
+            />
+            <p className="hint">
+              How it reads in this list. The provider never sees it.
+            </p>
+          </div>
+        </details>
 
         {provider.scopes.length > 0 ? (
           <fieldset className="conn-scope-picker">

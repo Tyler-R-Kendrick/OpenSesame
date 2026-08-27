@@ -77,6 +77,47 @@ impl Broker {
     /// Returns an error when validation, authorization, execution, or durable
     /// receipt persistence fails.
     pub async fn invoke(&self, input: InvokeInput) -> anyhow::Result<InvocationReceipt> {
+        let request = InvokeRequest {
+            operation: input.intent.operation.clone(),
+            resource: input.intent.resource.clone(),
+            audience: input.intent.audience.clone(),
+            parameters: input.parameters.clone(),
+            parameters_digest: input.intent.normalized_parameters_hash.clone(),
+            authorized_operation: input.intent.operation.clone(),
+            invoke_level: Some(1),
+        };
+        let connection_policy_id = input.connection_policy_id.clone();
+        self.invoke_with(input, || async {
+            self.host.invoke(&connection_policy_id, &request)
+        })
+        .await
+    }
+
+    /// Run an invocation with an authority-owned asynchronous executor.
+    ///
+    /// The closure is called only after freshness, grant, policy, quorum, and
+    /// idempotency checks pass. This is the path for credentialed network
+    /// connectors, whose egress cannot run inside the synchronous component
+    /// host.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when validation, authorization, execution, or durable
+    /// receipt persistence fails.
+    pub async fn invoke_with<E, F>(
+        &self,
+        input: InvokeInput,
+        execute: E,
+    ) -> anyhow::Result<InvocationReceipt>
+    where
+        E: FnOnce() -> F,
+        F: std::future::Future<
+            Output = Result<
+                opensesame_connector_host::InvokeResult,
+                opensesame_connector_host::HostError,
+            >,
+        >,
+    {
         let now = Utc::now();
         input.intent.assert_fresh(now)?;
         input.grant.assert_active(now)?;
@@ -161,35 +202,35 @@ impl Broker {
             inv,
             &decision.decision_id,
             &decision.policy_version_digest,
+            execute,
         )
         .await
     }
 
-    async fn execute_authorized(
+    async fn execute_authorized<E, F>(
         &self,
         input: &InvokeInput,
         mut invocation: Invocation,
         decision_id: &str,
         policy_digest: &str,
-    ) -> anyhow::Result<InvocationReceipt> {
+        execute: E,
+    ) -> anyhow::Result<InvocationReceipt>
+    where
+        E: FnOnce() -> F,
+        F: std::future::Future<
+            Output = Result<
+                opensesame_connector_host::InvokeResult,
+                opensesame_connector_host::HostError,
+            >,
+        >,
+    {
         invocation.transition(InvocationState::Authorized, Utc::now())?;
         invocation.transition(InvocationState::Leased, Utc::now())?;
         invocation.lease_owner = Some("worker-local".into());
         invocation.transition(InvocationState::Executing, Utc::now())?;
         self.db.insert_invocation(&invocation).await?;
 
-        let result = self.host.invoke(
-            &input.connection_policy_id,
-            &InvokeRequest {
-                operation: input.intent.operation.clone(),
-                resource: input.intent.resource.clone(),
-                audience: input.intent.audience.clone(),
-                parameters: input.parameters.clone(),
-                parameters_digest: input.intent.normalized_parameters_hash.clone(),
-                authorized_operation: input.intent.operation.clone(),
-                invoke_level: Some(1),
-            },
-        );
+        let result = execute().await;
 
         let (outcome, summary, ext) = match result {
             Ok(r) => {

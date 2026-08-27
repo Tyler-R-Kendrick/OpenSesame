@@ -136,6 +136,14 @@ export type ConnectionShareability = z.infer<
   typeof ConnectionShareabilitySchema
 >;
 
+export const ConnectionMaterializationSchema = z.enum([
+  "deny",
+  "derived_short_lived",
+]);
+export type ConnectionMaterialization = z.infer<
+  typeof ConnectionMaterializationSchema
+>;
+
 export const BindingTargetKindSchema = z.enum([
   "organization",
   "project",
@@ -171,6 +179,7 @@ export const ConnectionSchema = z
     project_id: z.string().nullable(),
     owner_kind: z.string().min(1),
     shareability: ConnectionShareabilitySchema,
+    materialization: ConnectionMaterializationSchema,
     requested_scopes: z.array(z.string()),
     granted_scopes: z.array(z.string()),
     account_label: z.string().nullable(),

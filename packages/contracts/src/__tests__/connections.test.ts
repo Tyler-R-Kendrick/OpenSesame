@@ -81,6 +81,7 @@ const connection = {
   project_id: null,
   owner_kind: "organization",
   shareability: "private",
+  materialization: "deny",
   requested_scopes: ["repo"],
   granted_scopes: [],
   account_label: null,

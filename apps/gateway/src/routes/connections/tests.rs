@@ -105,6 +105,35 @@ async fn credential_value_limit_applies_to_the_value_not_json_overhead() {
 }
 
 #[tokio::test]
+async fn better_auth_configuration_is_accepted_and_sealed_through_the_host_api() {
+    let (state, _server) = harness().await;
+    let (status, created) = call(
+        &state,
+        "POST",
+        "/api/v1/connections",
+        Some(json!({"provider_id":"better-auth"})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let id = created["connection_id"].as_str().unwrap();
+    let (status, active) = call(
+        &state,
+        "POST",
+        &format!("/api/v1/connections/{id}/credential"),
+        Some(json!({"configuration_set": {
+            "base_url": "https://auth.example.com/api/auth",
+            "api_key": "route-do-not-return",
+            "api_key_header": "x-api-key",
+            "config_id": "default"
+        }})),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{active}");
+    assert_eq!(active["status"], "active");
+    assert!(!active.to_string().contains("route-do-not-return"));
+}
+
+#[tokio::test]
 async fn discovery_configures_complete_host_credentials_once() {
     let (mut state, _server) = harness().await;
     let config = BrokerConfig::in_memory(Some([11u8; 32]), "http://127.0.0.1:8787")

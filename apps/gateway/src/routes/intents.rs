@@ -6,9 +6,10 @@ use axum::{
 };
 use chrono::{Duration, Utc};
 use opensesame_broker::InvokeInput;
+use opensesame_connector_host::{HostError, InvokeResult};
 use opensesame_domain::{
     AuthorityOperation, ConnectionAuthorityBinding, ConnectionId, ConnectionRef, DetachedProof,
-    Grant, GrantId, Intent, IntentId, InvokeLevel, OrganizationId, PrincipalId,
+    Grant, GrantId, Intent, IntentId, InvocationReceipt, InvokeLevel, OrganizationId, PrincipalId,
 };
 #[cfg(test)]
 use opensesame_domain::{EgressBinding, OrganizationRole};
@@ -33,6 +34,9 @@ struct ResolvedInvocation {
     connection_policy_id: String,
     /// Budget to decrement after authorization, when the path is delegated.
     spend_budget: Option<String>,
+    /// True when this resolved through the durable connection broker rather
+    /// than the development bootstrap fixture.
+    broker_connection: bool,
 }
 
 /// The connector component that executes operations for a provider. The WASM
@@ -73,6 +77,51 @@ fn claims_task_authority(body: &InvokeBody, headers: &axum::http::HeaderMap) -> 
         || body.intent_digest.is_some()
         || headers.contains_key("x-opensesame-task-run-id")
         || headers.contains_key("x-opensesame-intent-digest")
+}
+
+struct ConstrainedHttpInput {
+    method: String,
+    url: String,
+    body: Option<Value>,
+}
+
+fn constrained_http_input(parameters: &Value) -> Result<ConstrainedHttpInput, Response> {
+    let Some(object) = parameters.as_object() else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"parameters must be an object","type":"about:blank"})),
+        )
+            .into_response());
+    };
+    if object
+        .keys()
+        .any(|key| !matches!(key.as_str(), "url" | "method" | "body"))
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error":"constrained HTTP accepts only url, method, and body",
+                "type":"about:blank"
+            })),
+        )
+            .into_response());
+    }
+    let Some(url) = object.get("url").and_then(Value::as_str) else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"url is required for constrained HTTP","type":"about:blank"})),
+        )
+            .into_response());
+    };
+    Ok(ConstrainedHttpInput {
+        method: object
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or("GET")
+            .to_string(),
+        url: url.to_string(),
+        body: object.get("body").cloned(),
+    })
 }
 
 async fn authorize_openfga(st: &AppState, subject: &str) -> Result<(), Response> {
@@ -172,6 +221,7 @@ fn bootstrap_invocation(
         binding: opensesame_authz::github_binding(connection_ref, "github/main"),
         connection_policy_id: "demo-conn".into(),
         spend_budget: None,
+        broker_connection: false,
     })
 }
 
@@ -194,7 +244,7 @@ async fn broker_connection(
         .ok()?;
     let id = views
         .iter()
-        .find(|view| view.logical_name == requested_ref)?
+        .find(|view| view.logical_name == requested_ref || view.connection_ref == requested_ref)?
         .connection_id
         .clone();
     broker_store::get_connection(st.connection_broker.pool(), &id)
@@ -213,6 +263,50 @@ async fn delegated_invocation(
     let Some(row) = broker_connection(st, boot, requested_ref).await else {
         return Err(not_found());
     };
+    let connection_id = ConnectionId::parse(&row.id).map_err(|_| not_found())?;
+    let organization_id = OrganizationId::parse(&row.organization_id).unwrap_or(boot.org);
+    let connection_ref = ConnectionRef::new(
+        organization_id,
+        None,
+        row.logical_name.clone(),
+        connection_id,
+    )
+    .map_err(|_| not_found())?;
+    let max_invoke_level = if row.max_invoke_level >= 2 {
+        InvokeLevel::ConstrainedHttp
+    } else {
+        InvokeLevel::TypedOperation
+    };
+    if row.owner_subject.as_deref() == Some(subject) {
+        if level > row.max_invoke_level {
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(json!({"error":"invoke_level_denied"})),
+            )
+                .into_response());
+        }
+        let grant = st
+            .connection_broker
+            .owner_invocation_grant(&organization_id, &row.id, subject)
+            .await
+            .map_err(|_| not_found())?;
+        return Ok(ResolvedInvocation {
+            delegation_chain: vec![grant.id],
+            connection_id,
+            principal_id: grant.beneficiary_principal_id,
+            binding: ConnectionAuthorityBinding {
+                connection_ref,
+                internal_secret: None,
+                credential_handle: None,
+                egress: row.egress,
+                max_invoke_level,
+            },
+            connection_policy_id: component_for_provider(&row.provider_id).to_string(),
+            grant,
+            spend_budget: None,
+            broker_connection: true,
+        });
+    }
     let Ok(Some(delegation)) = st
         .connection_broker
         .find_live_delegation(subject, &row.id)
@@ -229,15 +323,6 @@ async fn delegated_invocation(
         )
             .into_response());
     }
-    let connection_id = ConnectionId::parse(&row.id).map_err(|_| not_found())?;
-    let organization_id = OrganizationId::parse(&row.organization_id).unwrap_or(boot.org);
-    let connection_ref = ConnectionRef::new(
-        organization_id,
-        None,
-        row.logical_name.clone(),
-        connection_id,
-    )
-    .map_err(|_| not_found())?;
     Ok(ResolvedInvocation {
         grant: delegation.grant.clone(),
         delegation_chain: vec![delegation.parent_grant_id, delegation.grant.id],
@@ -252,6 +337,7 @@ async fn delegated_invocation(
         },
         connection_policy_id: component_for_provider(&row.provider_id).to_string(),
         spend_budget: Some(delegation.delegation_id.clone()),
+        broker_connection: true,
     })
 }
 
@@ -345,6 +431,41 @@ async fn spend_delegation_budget(
         })
 }
 
+async fn execute_invocation(
+    st: &AppState,
+    organization_id: OrganizationId,
+    resolved: &ResolvedInvocation,
+    input: InvokeInput,
+    constrained_http: Option<ConstrainedHttpInput>,
+) -> anyhow::Result<InvocationReceipt> {
+    let Some(network) = constrained_http else {
+        return st.broker.invoke(input).await;
+    };
+    let broker = st.connection_broker.clone();
+    let connection_id = resolved.connection_id.to_string();
+    let operation = input.intent.operation.clone();
+    st.broker
+        .invoke_with(input, || async move {
+            broker
+                .invoke_network_json(
+                    &organization_id,
+                    &connection_id,
+                    &operation,
+                    &network.method,
+                    &network.url,
+                    network.body,
+                )
+                .await
+                .map(|safe_summary| InvokeResult {
+                    ok: true,
+                    safe_summary,
+                    external_request_digest: None,
+                })
+                .map_err(|error| HostError::Connector(error.to_string()))
+        })
+        .await
+}
+
 pub async fn create(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -401,6 +522,14 @@ pub async fn create(
         Ok(resolved) => resolved,
         Err(response) => return response,
     };
+    let constrained_http = if level == 2 && resolved.broker_connection {
+        match constrained_http_input(&parameters) {
+            Ok(input) => Some(input),
+            Err(response) => return response,
+        }
+    } else {
+        None
+    };
 
     // The ADR 0005 fence, on the invoke path at last: reference is not
     // capability, level ceilings hold, egress fences L2, and the action must
@@ -425,17 +554,16 @@ pub async fn create(
         Err(response) => return response,
     };
 
-    match st
-        .broker
-        .invoke(InvokeInput {
-            intent,
-            grant: resolved.grant.clone(),
-            subject,
-            connection_policy_id: resolved.connection_policy_id.clone(),
-            parameters,
-        })
-        .await
-    {
+    let invoke_input = InvokeInput {
+        intent,
+        grant: resolved.grant.clone(),
+        subject,
+        connection_policy_id: resolved.connection_policy_id.clone(),
+        parameters: parameters.clone(),
+    };
+    let result = execute_invocation(&st, boot.org, &resolved, invoke_input, constrained_http).await;
+
+    match result {
         Ok(receipt) => {
             let mut body = serde_json::to_value(&receipt).unwrap_or(json!({}));
             if let Some(obj) = body.as_object_mut() {
@@ -508,6 +636,23 @@ mod tests {
             HeaderValue::from_static("tsk_1"),
         );
         assert!(claims_task_authority(&body(), &headers));
+    }
+
+    #[test]
+    fn constrained_http_accepts_only_the_host_owned_request_shape() {
+        let input = constrained_http_input(&json!({
+            "url": "https://api.example.test/items",
+            "method": "POST",
+            "body": {"name": "one"}
+        }))
+        .expect("valid constrained request");
+        assert_eq!(input.method, "POST");
+        assert_eq!(input.url, "https://api.example.test/items");
+        assert!(constrained_http_input(&json!({
+            "url": "https://api.example.test/items",
+            "headers": {"authorization": "attacker-owned"}
+        }))
+        .is_err());
     }
 
     #[tokio::test]
@@ -685,6 +830,34 @@ mod delegated_invoke_tests {
         );
         assert_eq!(receipt["credential_bytes_returned"], json!(false));
         assert_eq!(receipt["outcome"], json!("succeeded"));
+    }
+
+    #[tokio::test]
+    async fn owner_can_reach_constrained_http_without_delegating_to_itself() {
+        let state = crate::app_state::test_demo_state().await;
+        let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
+        let connection_id = delegable_github_row(&state, org).await;
+        let connection_ref = state
+            .connection_broker
+            .get_connection(&org, &connection_id)
+            .await
+            .expect("connection")
+            .connection_ref;
+        let headers =
+            crate::app_state::test_session_headers(&state, OWNER, org, OrganizationRole::Member);
+        let mut body = invoke_body(&connection_ref, "repository.read");
+        body.invoke_level = Some(2);
+
+        let response = create(State(state), headers, Json(body)).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let bytes = axum::body::to_bytes(response.into_body(), 1 << 20)
+            .await
+            .expect("body");
+        let problem: Value = serde_json::from_slice(&bytes).expect("problem json");
+        assert_eq!(
+            problem["error"],
+            json!("url is required for constrained HTTP")
+        );
     }
 
     #[tokio::test]
