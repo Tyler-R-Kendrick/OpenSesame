@@ -284,6 +284,16 @@ export function IconChevronLeft(props: IconProps) {
   );
 }
 
+export function IconDots(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="5.5" cy="12" r="0.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="0.6" fill="currentColor" />
+      <circle cx="18.5" cy="12" r="0.6" fill="currentColor" />
+    </Svg>
+  );
+}
+
 export function IconFolder(props: IconProps) {
   return (
     <Svg {...props}>

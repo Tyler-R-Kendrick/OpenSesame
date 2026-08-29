@@ -274,6 +274,36 @@ describe("adoptFederatedIdentity", () => {
   });
 });
 
+describe("openVaultAfterSignIn", () => {
+  it("opens an ephemeral vault on a device that has none, and lands in the app", async () => {
+    const createGuest = vi.fn(async () => undefined);
+    const vaultStatus = vi
+      .fn<() => VaultStatus>()
+      .mockReturnValueOnce("empty")
+      .mockReturnValue("unlocked");
+    withDeps({ vaultStatus, createGuest });
+
+    await expect(guestAuthSeams.openVaultAfterSignIn()).resolves.toBe(true);
+    expect(createGuest).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not create a vault when one is already open", async () => {
+    const createGuest = vi.fn(async () => undefined);
+    withDeps({ vaultStatus: () => "unlocked", createGuest });
+
+    await expect(guestAuthSeams.openVaultAfterSignIn()).resolves.toBe(true);
+    expect(createGuest).not.toHaveBeenCalled();
+  });
+
+  it("keeps a locked vault locked — sign-in never decrypts it", async () => {
+    const createGuest = vi.fn(async () => undefined);
+    withDeps({ vaultStatus: () => "locked", createGuest });
+
+    await expect(guestAuthSeams.openVaultAfterSignIn()).resolves.toBe(false);
+    expect(createGuest).not.toHaveBeenCalled();
+  });
+});
+
 describe("recoverPendingFederatedLink", () => {
   it("does nothing when no link is pending", () => {
     withDeps({ loadFederationSession: () => ({ idToken: "t" }) });

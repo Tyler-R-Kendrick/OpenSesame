@@ -143,9 +143,7 @@ export function IdentityCeremony({
                     className="btn btn--primary"
                     onClick={() => {
                       identityCeremonyDependencies.clearSession();
-                      void identityCeremonyDependencies.beginSignIn(upstream, {
-                        returnTo: "/",
-                      });
+                      void identityCeremonyDependencies.beginSignIn(upstream);
                     }}
                   >
                     Sign in with {upstream.accountKind}
@@ -187,9 +185,7 @@ export function IdentityCeremony({
             : {
                 label: `Sign in with ${upstream.accountKind}`,
                 onClick: () => {
-                  void identityCeremonyDependencies.beginSignIn(upstream, {
-                    returnTo: "/",
-                  });
+                  void identityCeremonyDependencies.beginSignIn(upstream);
                 },
                 disabled: connecting || busy !== null,
               }

@@ -20,14 +20,14 @@ afterEach(() => {
 describe("auth outcome store", () => {
   it("round-trips an outcome with detail and who", () => {
     storeAuthOutcome({
-      kind: "pending_link",
-      detail: "unlock to attach",
+      kind: "link_failed",
+      detail: "Identity unreachable.",
       who: "sam@acme.com",
     });
 
     expect(readAuthOutcome()).toEqual({
-      kind: "pending_link",
-      detail: "unlock to attach",
+      kind: "link_failed",
+      detail: "Identity unreachable.",
       who: "sam@acme.com",
     });
   });

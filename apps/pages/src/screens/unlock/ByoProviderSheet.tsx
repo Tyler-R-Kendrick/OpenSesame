@@ -1,5 +1,5 @@
 /**
- * "Use your own identity provider" — BYO OIDC at registration (ADR 0055/D5).
+ * "Continue with your IdP" — BYO OIDC at registration (ADR 0055/D5).
  *
  * Two steps: name the issuer and check it (the server runs SSRF-fenced
  * discovery and, where the provider supports RFC 7591, registers a client

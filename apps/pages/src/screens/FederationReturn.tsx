@@ -2,10 +2,11 @@
  * FederationReturn — finish upstream OIDC after redirect to the Pages root.
  * Must run without unlocking the vault (session is sessionStorage-only).
  *
- * Whatever happens here is said out loud: success and pending-link outcomes
- * are stored for the unlock screen's banner (the notifications bell only
- * exists after unlock), and failures render in plain words with a way back —
- * never a silent bounce to the start.
+ * Whatever happens here is said out loud: a ceremony that ends with the vault
+ * open lands inside the app (the notifications bell carries anything
+ * unfinished), while one that comes back to a locked vault stores its outcome
+ * for the unlock screen's banner — and failures render in plain words with a
+ * way back, never a silent bounce to the start.
  *
  * The ceremony is single-flight ON PURPOSE. `completeSignIn` spends one-shot
  * state synchronously (the PKCE record, the code in the address bar), so a
@@ -26,7 +27,10 @@ import {
   completeSignIn,
   displayName,
 } from "../lib/federation.js";
-import { adoptFederatedIdentity } from "../lib/guest-auth.js";
+import {
+  adoptFederatedIdentity,
+  openVaultAfterSignIn,
+} from "../lib/guest-auth.js";
 import { ensureIdentitySession } from "../lib/identity.js";
 import { joinOrgTenant } from "../lib/orgs.js";
 import "./broker.css";
@@ -51,23 +55,36 @@ async function processReturn(): Promise<ReturnOutcome> {
     // this origin and is deliberately never linked — doing so would attach it
     // to whichever session this tab holds (T23).
     await adoptBrokeredSession(result.accessToken);
-    storeAuthOutcome({ kind: "linked", who: displayName(result.identity) });
+    // A finished ceremony lands in the app, not back on the sign-in screen —
+    // unless this leg is resuming somewhere specific (broker consent), where
+    // inventing a vault would fake an unlocked state. When the vault stays
+    // locked, the banner carries the outcome instead.
+    const inApp =
+      result.returnTo === undefined && (await openVaultAfterSignIn());
+    if (!inApp) {
+      storeAuthOutcome({ kind: "linked", who: displayName(result.identity) });
+    }
   } else if (result.identity?.idToken) {
     // Attach the identity in whatever state this device is in: a true first
     // run opens a guest vault first, a locked vault defers to a notice rather
     // than binding the identity to a throwaway principal.
     const adopted = await adoptFederatedIdentity(result.identity.idToken);
-    storeAuthOutcome(
-      adopted.kind === "linked"
-        ? { kind: "linked", who: displayName(result.identity) }
-        : adopted.kind === "pending_link"
-          ? { kind: "pending_link", who: displayName(result.identity) }
+    // An open vault means the person is inside the app and the bell already
+    // carries anything unfinished — a stored banner would only resurface
+    // stale on the next lock. A locked vault gets the banner — except for a
+    // deferred link, which the bell's "finish attaching" prompt already owns.
+    const inApp = await openVaultAfterSignIn();
+    if (!inApp && adopted.kind !== "pending_link") {
+      storeAuthOutcome(
+        adopted.kind === "linked"
+          ? { kind: "linked", who: displayName(result.identity) }
           : {
               kind: "link_failed",
               detail: adopted.reason,
               who: displayName(result.identity),
             },
-    );
+      );
+    }
   }
   return result.returnTo !== undefined ? { returnTo: result.returnTo } : {};
 }

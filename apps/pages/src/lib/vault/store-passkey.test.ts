@@ -130,7 +130,7 @@ describe("VaultStore passkey unlock", () => {
 
     const reopened = new VaultStore();
     await expect(reopened.unlockWithPasskey()).rejects.toThrow(
-      /no passkey unlock/,
+      /did not unlock/,
     );
   });
 

@@ -554,6 +554,13 @@ export class VaultStore {
   async unlock(password: string): Promise<void> {
     this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
+    // A challenge this vault never enrolled must fail exactly like a wrong
+    // secret — same error, same lockout count — or the unlock screen would
+    // enumerate which methods this vault uses.
+    if (!this.#header.wrap || !this.#header.kdf) {
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError();
+    }
 
     let raw: Uint8Array;
     try {
@@ -572,7 +579,11 @@ export class VaultStore {
     this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
     const record = this.#header.unlocks?.pin;
-    if (!record) throw new Error("This vault has no PIN unlock.");
+    // Unenrolled challenge: fail like a wrong PIN, lockout included (see unlock).
+    if (!record) {
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError("That PIN did not unlock the vault.");
+    }
 
     let raw: Uint8Array;
     try {
@@ -591,7 +602,11 @@ export class VaultStore {
     this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
     const record = this.#header.unlocks?.passkey;
-    if (!record) throw new Error("This vault has no passkey unlock.");
+    // Unenrolled challenge: fail like a wrong passkey, lockout included (see unlock).
+    if (!record) {
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError("That passkey did not unlock the vault.");
+    }
 
     let prfOutput: ArrayBuffer;
     try {

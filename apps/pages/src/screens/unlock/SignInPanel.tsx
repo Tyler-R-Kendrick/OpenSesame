@@ -2,29 +2,45 @@
  * Federated sign-in, on both screens a person can land on.
  *
  * One decision per screen, literally: the panel is a stage machine. The hub
- * shows the deployment's providers and the one "Email or organization" field;
- * everything rarer — magic link, bring-your-own provider, guest — lives on
- * its own stage reached through "More options", each with only that step's
- * fields and a way back. Nothing renders beside the step being taken.
+ * leads with a single-row social bar — one icon button per provider (official
+ * brand marks, no text), a globe for bring-your-own OIDC, and a ⋯ that opens
+ * the remaining roads (overflow providers, magic link) as a dropdown. Guest
+ * stays a full-size button of its own (the most common road in, first run
+ * only). Below the bar sits the one "Email or organization" field, focused on
+ * arrival so typing starts immediately. Nothing renders beside the step being
+ * taken.
  *
  * Two placements, because a returning visitor is not a new one:
  *
  *  - `primary` — first run. Identity comes before sealing (ADR 0033 §4), so
  *    this panel *is* the screen, and it owns the two roads out of it: sign in,
  *    or seal a local-only vault instead.
- *  - `secondary` — a vault already exists on this device. The unlock form is
- *    the screen; this sits under it. The vault key still comes from the
- *    passkey, PIN, or password, so signing in here attaches an account rather
- *    than opening anything — `adoptFederatedIdentity` says exactly that when
- *    it comes back to a locked vault. The two roads that would make a second
- *    vault beside the existing one — "Use without an account" and guest — are
- *    not offered.
+ *  - `secondary` — a vault already exists on this device, and this panel is
+ *    the Unlock screen's "Sign in" tab. The vault key still comes from the
+ *    passkey, PIN, or password on the Unlock tab, so signing in here attaches
+ *    an account rather than opening anything — `adoptFederatedIdentity` says
+ *    exactly that when it comes back to a locked vault. The two roads that
+ *    would make a second vault beside the existing one — "Use without an
+ *    account" and guest — are not offered; a live session gets a Sign out
+ *    instead.
  *
  * Every federated entry ends in a navigation, so success never returns here —
  * only a failure gets to clear `busy` and say why, in plain words.
  */
 
-import { type ReactElement, useCallback, useState } from "react";
+import {
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  IconDots,
+  IconLogin,
+  IconSite,
+  IconUser,
+} from "../../components/Icons.js";
 import type { ByoRegistration } from "../../lib/byo.js";
 import { describeFederationError } from "../../lib/federation-copy.js";
 import {
@@ -33,6 +49,7 @@ import {
   defaultUpstream,
 } from "../../lib/federation.js";
 import { continueAsGuest } from "../../lib/guest-auth.js";
+import { endSession, useIdentitySession } from "../../lib/identity.js";
 import {
   type OrgAuthMethod,
   type OrgTenant,
@@ -49,6 +66,7 @@ import {
 } from "../../lib/providers.js";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
+import { brandFor } from "./ProviderBrand.js";
 
 type Props =
   | {
@@ -66,7 +84,19 @@ type Props =
     };
 
 /** Which single step of the ceremony is on screen. */
-type Stage = "hub" | "more" | "magic-link" | "byo";
+type Stage = "hub" | "magic-link" | "byo";
+
+/**
+ * How many providers get an icon button in the social bar before the rest
+ * move into the ⋯ menu. The bar holds this many plus the BYO globe and the ⋯
+ * itself, in one row, at the card's narrowest width.
+ */
+const VISIBLE_PROVIDERS = 4;
+
+/** What a provider's button announces — bar buttons are icon-only. */
+function providerLabel(provider: FederatedProviderSummary): string {
+  return `Continue with ${brandFor(provider.id)?.label ?? provider.label}`;
+}
 
 export function SignInPanel(props: Props) {
   const { placement, providers } = props;
@@ -79,9 +109,54 @@ export function SignInPanel(props: Props) {
   const [linkEmail, setLinkEmail] = useState("");
   const [linkSent, setLinkSent] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const session = useIdentitySession();
   // Reads location.hostname, so it must be resolved at render, not at import:
   // loopback deployments get the local mock IdP, everything else the broker.
   const upstream = defaultUpstream();
+  // Broker disclosures the branded buttons owe the reader (e.g. Google via
+  // shoo.dev) — under the buttons, never in the label.
+  const brokerNotes = [
+    ...new Set(
+      providers
+        .map((provider) => brandFor(provider.id)?.note)
+        .filter((note): note is string => Boolean(note)),
+    ),
+  ];
+  // The loopback mock IdP is development plumbing, never a sign-in road: the
+  // catalog's "mock" entry is filtered out before anything renders, and a mock
+  // default upstream means there is NO fallback button at all.
+  const catalogProviders = providers.filter(
+    (provider) => provider.id !== "mock",
+  );
+  const visibleProviders = catalogProviders.slice(0, VISIBLE_PROVIDERS);
+  const overflowProviders = catalogProviders.slice(VISIBLE_PROVIDERS);
+  const upstreamBrand = brandFor(upstream.id);
+  const fallbackUpstream = upstream.id === "mock" ? null : upstream;
+
+  // The ⋯ menu closes on Escape and on any press outside it — the two ways a
+  // person says "not that, actually" without picking anything.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   const startFederated = useCallback((run: () => Promise<void>) => {
     setError(null);
@@ -101,12 +176,14 @@ export function SignInPanel(props: Props) {
           (upstreamEntry) => upstreamEntry.id === provider.id,
         )
       : undefined;
+    // No returnTo: the return screen already lands on the app root, and an
+    // explicit one would read as "resume a task", which would skip opening
+    // the vault for a first-run sign-in.
     startFederated(() =>
       direct
-        ? beginSignIn(direct, { returnTo: "/" })
+        ? beginSignIn(direct)
         : beginSignIn(brokeredUpstream(provider), {
             providerHint: provider.id,
-            returnTo: "/",
           }),
     );
   }
@@ -117,11 +194,10 @@ export function SignInPanel(props: Props) {
       route.via === "brokered"
         ? // Native SAML and LDAP have no browser leg: the Identity API runs
           // the whole ceremony and hands this tab a session to adopt.
-          beginSignIn(brokeredOrgUpstream(tenant), { returnTo: "/" })
+          beginSignIn(brokeredOrgUpstream(tenant))
         : beginSignIn(orgAuthUpstream(tenant, method), {
             orgSlug: tenant.slug,
             orgMethod: route.kind,
-            returnTo: "/",
           }),
     );
   }
@@ -131,7 +207,6 @@ export function SignInPanel(props: Props) {
     // `login_hint`; the address it came from never leaves the identifier field.
     startFederated(() =>
       beginSignIn(brokeredRealmUpstream(), {
-        returnTo: "/",
         loginHint: domain,
       }),
     );
@@ -163,7 +238,6 @@ export function SignInPanel(props: Props) {
     startFederated(() =>
       beginSignIn(brokeredByoUpstream(registration), {
         providerHint: registration.issuer,
-        returnTo: "/",
       }),
     );
   }
@@ -202,53 +276,10 @@ export function SignInPanel(props: Props) {
     </p>
   ) : null;
 
-  if (stage === "more") {
-    return (
-      <div className="signin">
-        {backButton("Back to sign-in", "hub")}
-        <button
-          type="button"
-          className="signin__option"
-          disabled={busy}
-          onClick={() => setStage("magic-link")}
-        >
-          <strong>Email me a sign-in link</strong>
-          <span className="hint">
-            Passwordless. Works anywhere your inbox does.
-          </span>
-        </button>
-        <button
-          type="button"
-          className="signin__option"
-          disabled={busy}
-          onClick={() => setStage("byo")}
-        >
-          <strong>Use your own identity provider</strong>
-          <span className="hint">
-            Any OpenID Connect issuer you control — never merged with email
-            accounts.
-          </span>
-        </button>
-        {firstRun ? (
-          <button
-            type="button"
-            className="signin__option"
-            disabled={busy}
-            onClick={startGuest}
-          >
-            <strong>Continue as guest</strong>
-            <span className="hint">Nothing leaves this device.</span>
-          </button>
-        ) : null}
-        {errorNote}
-      </div>
-    );
-  }
-
   if (stage === "magic-link") {
     return (
       <div className="signin">
-        {backButton("More options", "more")}
+        {backButton("Back to sign-in", "hub")}
         <div className="field">
           <label htmlFor="signin-link-email">Email me a sign-in link</label>
           <div className="identifier__row">
@@ -297,7 +328,7 @@ export function SignInPanel(props: Props) {
   if (stage === "byo") {
     return (
       <div className="signin">
-        {backButton("More options", "more")}
+        {backButton("Back to sign-in", "hub")}
         <ByoProviderSheet disabled={busy} onContinue={startByo} />
         {errorNote}
       </div>
@@ -308,36 +339,177 @@ export function SignInPanel(props: Props) {
     <div className="signin">
       {identifierEngaged ? null : (
         <>
+          {/* The anonymous road out of this screen, in the card's top-right
+              corner where a "skip" always lives. First run only — beside an
+              existing vault a guest principal would seal a second one. */}
+          {firstRun ? (
+            <button
+              type="button"
+              className="unlock__switch signin__skip"
+              aria-label="Skip sign-in and continue as guest"
+              disabled={busy}
+              onClick={startGuest}
+            >
+              Skip
+            </button>
+          ) : null}
+          {!firstRun && session ? (
+            <p className="hint signin__session">
+              This device is signed in. Signing in again starts a fresh ceremony
+              — or{" "}
+              <button
+                type="button"
+                className="unlock__switch"
+                disabled={busy}
+                onClick={() => endSession()}
+              >
+                sign out
+              </button>{" "}
+              first.
+            </p>
+          ) : null}
           <div className="signin__providers">
-            {providers.length > 0 ? (
-              providers.map((provider) => (
+            {/* Social sign-in is the default road: one row of official brand
+                marks, no text — the accessible name still says which is which.
+                An existing upstream session (a Google profile already
+                authorized in this browser) is detected by the provider itself
+                once the leg starts. */}
+            <div className="signin__bar">
+              {catalogProviders.length > 0 ? (
+                visibleProviders.map((provider) => {
+                  const brand = brandFor(provider.id);
+                  return (
+                    <button
+                      key={provider.id}
+                      type="button"
+                      className={`btn signin__social${
+                        brand ? ` ${brand.className}` : ""
+                      }`}
+                      aria-label={providerLabel(provider)}
+                      title={providerLabel(provider)}
+                      disabled={busy}
+                      onClick={() => startProvider(provider)}
+                    >
+                      {brand ? (
+                        <brand.Icon size={20} />
+                      ) : (
+                        <IconLogin size={20} />
+                      )}
+                    </button>
+                  );
+                })
+              ) : fallbackUpstream ? (
                 <button
-                  key={provider.id}
                   type="button"
-                  className="btn btn--block signin__provider"
+                  className={`btn signin__social${
+                    upstreamBrand ? ` ${upstreamBrand.className}` : ""
+                  }`}
+                  aria-label={`Continue with ${fallbackUpstream.accountKind}`}
+                  title={`Continue with ${fallbackUpstream.accountKind}`}
                   disabled={busy}
-                  onClick={() => startProvider(provider)}
+                  onClick={() =>
+                    startFederated(() => beginSignIn(fallbackUpstream))
+                  }
                 >
-                  Continue with {provider.label}
+                  {upstreamBrand ? (
+                    <upstreamBrand.Icon size={20} />
+                  ) : (
+                    <IconLogin size={20} />
+                  )}
                 </button>
-              ))
-            ) : (
+              ) : null}
+              {/* BYO OIDC as an icon in the same row: the globe is the
+                  conventional mark for "my own identity provider". */}
+              <button
+                type="button"
+                className="btn signin__social"
+                aria-label="Continue with your IdP"
+                title="Continue with your IdP"
+                disabled={busy}
+                onClick={() => setStage("byo")}
+              >
+                <IconSite size={20} />
+              </button>
+              <div className="signin__menuwrap" ref={menuRef}>
+                <button
+                  type="button"
+                  className="btn signin__social"
+                  aria-label="More sign-in options"
+                  title="More sign-in options"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  disabled={busy}
+                  onClick={() => setMenuOpen((open) => !open)}
+                >
+                  <IconDots size={20} />
+                </button>
+                {menuOpen ? (
+                  <div className="signin__menu" role="menu">
+                    {overflowProviders.map((provider) => {
+                      const brand = brandFor(provider.id);
+                      return (
+                        <button
+                          key={provider.id}
+                          type="button"
+                          role="menuitem"
+                          className="signin__menu-item"
+                          disabled={busy}
+                          onClick={() => {
+                            setMenuOpen(false);
+                            startProvider(provider);
+                          }}
+                        >
+                          {brand ? (
+                            <brand.Icon size={18} />
+                          ) : (
+                            <IconLogin size={18} />
+                          )}
+                          {providerLabel(provider)}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="signin__menu-item"
+                      disabled={busy}
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setStage("magic-link");
+                      }}
+                    >
+                      <IconLogin size={18} />
+                      Email me a sign-in link
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            {/* Guest is the most common road in, so it is a full-size button
+                beside the social bar — never a footnote. First run only:
+                beside an existing vault a guest principal would seal a
+                second one. */}
+            {firstRun ? (
               <button
                 type="button"
                 className="btn btn--block signin__provider"
                 disabled={busy}
-                onClick={() =>
-                  startFederated(() => beginSignIn(upstream, { returnTo: "/" }))
-                }
+                onClick={startGuest}
               >
-                Continue with {upstream.accountKind}
+                <IconUser size={18} />
+                Continue as guest
               </button>
-            )}
+            ) : null}
             <p className="hint signin__provider-note">
               {firstRun
                 ? "No passkey or password — this device opens with your account."
                 : "Attaches your account to this device so it can sync. The vault still opens with your passkey, PIN, or password."}
             </p>
+            {brokerNotes.map((note) => (
+              <p className="hint signin__provider-note" key={note}>
+                {note}
+              </p>
+            ))}
           </div>
 
           <div className="signin__divider" aria-hidden="true">
@@ -348,6 +520,7 @@ export function SignInPanel(props: Props) {
 
       <IdentifierField
         disabled={busy}
+        autoFocus
         onStartOrgMethod={startOrgMethod}
         onContinueWithDomain={continueWithDomain}
         onEngagedChange={setIdentifierEngaged}
@@ -357,14 +530,6 @@ export function SignInPanel(props: Props) {
 
       {identifierEngaged ? null : (
         <div className="signin__more">
-          <button
-            type="button"
-            className="unlock__switch"
-            disabled={busy}
-            onClick={() => setStage("more")}
-          >
-            More options
-          </button>
           {props.placement === "primary" ? (
             <button
               type="button"

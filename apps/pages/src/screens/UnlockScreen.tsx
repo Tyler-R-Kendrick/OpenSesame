@@ -12,12 +12,14 @@ import {
   IconLock,
   IconPasskey,
   IconShield,
+  IconUser,
   IconVault,
 } from "../components/Icons.js";
 import {
   type FederatedProviderSummary,
   listFederatedProviders,
 } from "../lib/providers.js";
+import { WrongPasswordError } from "../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
 import {
@@ -25,8 +27,6 @@ import {
   type UnlockMethodId,
   checkWebauthnHost,
   describeWebauthnError,
-  listAvailableUnlockMethods,
-  preferredUnlockMethod,
 } from "../lib/vault/unlock-methods.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -102,40 +102,32 @@ export function UnlockScreen() {
   // road — not a wall of fields competing with it.
   const [localOnly, setLocalOnly] = useState(false);
   const signInStage = firstRun && !localOnly;
-  // A returning visitor gets federated sign-in too — under the unlock form,
-  // never instead of it. Signing in from here attaches an account; the vault
-  // key still comes from the passkey, PIN, or password above. Withheld only
-  // mid-MFA, where the one thing on screen is the code being asked for.
-  const returningSignIn = !firstRun && !awaitingTotp;
+  // A device that already has a vault gets two separate ceremonies behind
+  // tabs — never one stacked form: "Unlock" is the simple
+  // passkey/PIN/password challenge, "Sign in" is the federated ceremony
+  // (a different user, or attaching an account). Only one is on screen at a
+  // time. Mid-MFA there is no choice to offer: the code field is the screen.
+  const [screenTab, setScreenTab] = useState<"unlock" | "signin">("unlock");
+  const returningTabs = !firstRun && !awaitingTotp;
+  const signInTabActive = returningTabs && screenTab === "signin";
 
-  const methods = useMemo(() => {
-    if (!firstRun) return listAvailableUnlockMethods(header);
+  const methods = useMemo<UnlockMethodId[]>(() => {
+    // A returning vault gets the same menu as every other vault: which
+    // challenges are enrolled is the user's own knowledge, not something the
+    // screen should enumerate for whoever is holding the device.
+    if (!firstRun) return ["passkey", "pin", "password"];
     const available: UnlockMethodId[] = [];
     if (passkeyHost.ok) available.push("passkey");
     available.push("pin", "password");
     return available;
-  }, [firstRun, header, passkeyHost.ok]);
+  }, [firstRun, passkeyHost.ok]);
   const [method, setMethod] = useState<UnlockMethodId | null>(null);
-  const fallbackMethod: UnlockMethodId | null = firstRun
-    ? passkeyHost.ok
-      ? "passkey"
-      : "password"
-    : preferredUnlockMethod(header);
+  // The default tab is uniform too — never shaped by what this vault uses.
+  const fallbackMethod: UnlockMethodId =
+    firstRun && !passkeyHost.ok ? "password" : "passkey";
   const activeMethod =
     method && methods.includes(method) ? method : fallbackMethod;
-  // Show the method switcher whenever a non-password unlock exists (even alone),
-  // or whenever there is more than one method. Password-only vaults stay simple.
-  const showMethodTabs =
-    !awaitingTotp &&
-    (firstRun ||
-      methods.length > 1 ||
-      methods.includes("passkey") ||
-      methods.includes("pin"));
-  const passwordOnlyUnlock =
-    !firstRun &&
-    !awaitingTotp &&
-    methods.length === 1 &&
-    methods[0] === "password";
+  const showMethodTabs = !awaitingTotp;
 
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
@@ -152,7 +144,6 @@ export function UnlockScreen() {
   const totpRef = useRef<HTMLInputElement>(null);
 
   const lockedFor = useCountdown(lockedOutUntil);
-  const passkeyAttempted = useRef(false);
   const passkeyAbort = useRef<AbortController | null>(null);
 
   // Whatever this deployment brokers (D7), on both screens. An empty catalog —
@@ -189,47 +180,6 @@ export function UnlockScreen() {
     if (activeMethod === "pin") pinRef.current?.focus();
     else if (activeMethod === "password") passwordRef.current?.focus();
   }, [activeMethod, awaitingTotp]);
-
-  // Prefer passkey silently: offer the platform prompt once when it is the
-  // default method, so unlock is not password-shaped by default.
-  useEffect(() => {
-    if (activeMethod !== "passkey") {
-      passkeyAttempted.current = false;
-      return;
-    }
-    if (firstRun || awaitingTotp || lockedFor > 0 || passkeyAttempted.current) {
-      return;
-    }
-    // Do not auto-prompt on an IP origin — Chrome fails with a useless
-    // "invalid domain" error; show remediation instead.
-    if (!checkWebauthnHost().ok) {
-      return;
-    }
-    passkeyAttempted.current = true;
-    const controller = new AbortController();
-    passkeyAbort.current = controller;
-    setBusy(true);
-    setError(null);
-    void store
-      .unlockWithPasskey(controller.signal)
-      .catch((caught) => {
-        if (caught instanceof DOMException && caught.name === "AbortError") {
-          return;
-        }
-        setError(describeWebauthnError(caught));
-      })
-      .finally(() => {
-        // Only the still-current ceremony clears busy — a newer one may
-        // already have taken over.
-        if (passkeyAbort.current === controller) {
-          passkeyAbort.current = null;
-          setBusy(false);
-        }
-      });
-    return () => {
-      controller.abort();
-    };
-  }, [firstRun, awaitingTotp, activeMethod, lockedFor, store]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -283,13 +233,20 @@ export function UnlockScreen() {
         return;
       }
       setError(
-        activeMethod === "passkey" ||
-          (caught instanceof Error &&
-            /invalid domain|SecurityError/i.test(caught.message))
-          ? describeWebauthnError(caught)
-          : caught instanceof Error
-            ? caught.message
-            : "Unlock failed.",
+        // A wrong-or-unenrolled credential already says exactly what the
+        // screen may say — WebAuthn remediation would invent a browser problem
+        // that did not happen. The TOTP step is never a WebAuthn problem
+        // either.
+        caught instanceof WrongPasswordError
+          ? caught.message
+          : !awaitingTotp &&
+              (activeMethod === "passkey" ||
+                (caught instanceof Error &&
+                  /invalid domain|SecurityError/i.test(caught.message)))
+            ? describeWebauthnError(caught)
+            : caught instanceof Error
+              ? caught.message
+              : "Unlock failed.",
       );
       setPassword("");
       setPin("");
@@ -335,7 +292,9 @@ export function UnlockScreen() {
       ? `Local-only vault: no account, no sync, no recovery. ${firstRunSealCopy}`
       : awaitingTotp
         ? "Enter the code from your authenticator app to finish unlocking."
-        : "Unlock with a passkey, PIN, or password — whichever you enrolled. The vault key is not stored; a reload asks again.";
+        : signInTabActive
+          ? "Sign in as a different user, or attach an account this device can sync through. The vault itself opens from the Unlock tab."
+          : "Unlock with the challenge you enrolled — passkey, PIN, or password. The vault key is not stored; a reload asks again.";
 
   return (
     <div className="unlock">
@@ -356,12 +315,60 @@ export function UnlockScreen() {
           <p>{brandCopy}</p>
         </div>
 
+        {returningTabs ? (
+          <div
+            className="unlock__methods"
+            role="tablist"
+            aria-label="Unlock or sign in"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={screenTab === "unlock"}
+              className={
+                screenTab === "unlock"
+                  ? "unlock__method unlock__method--active"
+                  : "unlock__method"
+              }
+              onClick={() => {
+                setScreenTab("unlock");
+                setError(null);
+              }}
+            >
+              <IconLock size={16} />
+              Unlock
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={screenTab === "signin"}
+              className={
+                screenTab === "signin"
+                  ? "unlock__method unlock__method--active"
+                  : "unlock__method"
+              }
+              onClick={() => {
+                // Leaving the unlock form must drop any pending platform
+                // passkey prompt — one ceremony at a time.
+                cancelPasskeyCeremony();
+                setScreenTab("signin");
+                setError(null);
+              }}
+            >
+              <IconUser size={16} />
+              Sign in
+            </button>
+          </div>
+        ) : null}
+
         {signInStage ? (
           <SignInPanel
             placement="primary"
             providers={providers}
             onUseLocalOnly={() => setLocalOnly(true)}
           />
+        ) : signInTabActive ? (
+          <SignInPanel placement="secondary" providers={providers} />
         ) : (
           <form className="unlock__form" onSubmit={(e) => void onSubmit(e)}>
             {showMethodTabs ? (
@@ -403,40 +410,6 @@ export function UnlockScreen() {
                   </button>
                 ))}
               </div>
-            ) : null}
-
-            {passwordOnlyUnlock ? (
-              <p className="hint">
-                {passkeyHost.ok ? (
-                  <>
-                    No passkey unlock on this vault yet. After you unlock, open{" "}
-                    <strong>Settings → Unlock methods</strong> and enroll a
-                    passkey.
-                  </>
-                ) : (
-                  <>
-                    Passkey unlock needs a DNS hostname
-                    {passkeyHost.fixUrl ? (
-                      <>
-                        {" "}
-                        — continue on localhost (not a raw IP), unlock, then
-                        enroll under Settings.{" "}
-                        <button
-                          type="button"
-                          className="unlock__switch"
-                          onClick={() =>
-                            window.location.assign(passkeyHost.fixUrl ?? "")
-                          }
-                        >
-                          Continue on localhost
-                        </button>
-                      </>
-                    ) : (
-                      <> before it can be enrolled in Settings.</>
-                    )}
-                  </>
-                )}
-              </p>
             ) : null}
 
             {awaitingTotp ? (
@@ -706,16 +679,6 @@ export function UnlockScreen() {
           </form>
         )}
 
-        {returningSignIn ? (
-          <section className="unlock__signin" aria-labelledby="unlock-signin-h">
-            <div className="signin__divider" aria-hidden="true">
-              or
-            </div>
-            <h2 id="unlock-signin-h">Sign in to this device</h2>
-            <SignInPanel placement="secondary" providers={providers} />
-          </section>
-        ) : null}
-
         <div className="unlock__foot">
           {signInStage ? (
             <p>
@@ -740,7 +703,7 @@ export function UnlockScreen() {
               Sign in instead
             </button>
           ) : null}
-          {!firstRun ? (
+          {!firstRun && !signInTabActive ? (
             showReset ? (
               <div className="unlock__danger">
                 <p>

@@ -15,6 +15,7 @@ const fed = vi.hoisted(() => ({
   joinOrgTenant: vi.fn(),
   ensureIdentitySession: vi.fn(),
   adoptFederatedIdentity: vi.fn(),
+  openVaultAfterSignIn: vi.fn(),
 }));
 
 import { federationSeams } from "../lib/federation.js";
@@ -34,6 +35,9 @@ identitySeams.identityBase = () => "http://127.0.0.1:18788";
 
 import { guestAuthSeams } from "../lib/guest-auth.js";
 guestAuthSeams.adoptFederatedIdentity = fed.adoptFederatedIdentity;
+guestAuthSeams.openVaultAfterSignIn = fed.openVaultAfterSignIn;
+
+import { readAuthOutcome } from "../lib/auth-outcome.js";
 
 import { FederationError } from "../lib/federation.js";
 import {
@@ -54,6 +58,7 @@ function renderReturn() {
 
 describe("FederationReturn", () => {
   beforeEach(() => {
+    sessionStorage.clear();
     // The ceremony is single-flight per page load; a test that deliberately
     // leaves it unsettled must not poison the next one.
     resetFederationReturnCeremony();
@@ -62,6 +67,9 @@ describe("FederationReturn", () => {
     fed.ensureIdentitySession.mockReset();
     fed.adoptFederatedIdentity.mockReset();
     fed.adoptFederatedIdentity.mockResolvedValue({ kind: "linked" });
+    fed.openVaultAfterSignIn.mockReset();
+    // Default posture: the vault stayed locked, so outcomes are bannered.
+    fed.openVaultAfterSignIn.mockResolvedValue(false);
     fed.adoptBrokeredSession.mockReset();
     fed.adoptBrokeredSession.mockResolvedValue({
       principalId: "prn_broker",
@@ -227,5 +235,69 @@ describe("FederationReturn", () => {
     expect(alert.textContent).toContain("Sign-in didn't finish");
     expect(alert.textContent).toContain("already attached to a different");
     expect(screen.queryByText("settings landed")).toBeNull();
+  });
+
+  it("opens the vault after a brokered sign-in so a first run lands in the app", async () => {
+    // No returnTo: this is a plain sign-in, not a broker-consent resume.
+    fed.completeSignIn.mockResolvedValue({
+      accessToken: "at_brokered",
+      identity: { idToken: "pairwise-id-token" },
+    });
+    fed.openVaultAfterSignIn.mockResolvedValue(true);
+    renderReturn();
+    await waitFor(() =>
+      expect(fed.openVaultAfterSignIn).toHaveBeenCalledTimes(1),
+    );
+    // Landing in the app means no banner is stored — a stored one would only
+    // resurface stale on the next lock.
+    expect(readAuthOutcome()).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("banners a brokered sign-in that comes back to a locked vault", async () => {
+    fed.completeSignIn.mockResolvedValue({
+      accessToken: "at_brokered",
+      identity: { idToken: "pairwise-id-token" },
+    });
+    fed.openVaultAfterSignIn.mockResolvedValue(false);
+    renderReturn();
+    await waitFor(() => expect(readAuthOutcome()?.kind).toBe("linked"));
+    expect(fed.openVaultAfterSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it("never invents a vault when the sign-in is resuming somewhere specific", async () => {
+    fed.completeSignIn.mockResolvedValue({
+      returnTo: "/settings",
+      accessToken: "at_brokered",
+      identity: { idToken: "pairwise-id-token" },
+    });
+    renderReturn();
+    expect(await screen.findByText("settings landed")).toBeTruthy();
+    expect(fed.openVaultAfterSignIn).not.toHaveBeenCalled();
+    expect(readAuthOutcome()?.kind).toBe("linked");
+  });
+
+  it("skips the banner when a direct sign-in lands inside the app", async () => {
+    fed.completeSignIn.mockResolvedValue({
+      identity: { idToken: "id-token" },
+    });
+    fed.openVaultAfterSignIn.mockResolvedValue(true);
+    renderReturn();
+    await waitFor(() =>
+      expect(fed.adoptFederatedIdentity).toHaveBeenCalledWith("id-token"),
+    );
+    expect(readAuthOutcome()).toBeNull();
+  });
+
+  it("stores no banner when the locked vault defers the link — the bell owns that", async () => {
+    fed.completeSignIn.mockResolvedValue({
+      identity: { idToken: "id-token" },
+    });
+    fed.adoptFederatedIdentity.mockResolvedValue({ kind: "pending_link" });
+    renderReturn();
+    await waitFor(() =>
+      expect(fed.adoptFederatedIdentity).toHaveBeenCalledWith("id-token"),
+    );
+    expect(readAuthOutcome()).toBeNull();
   });
 });

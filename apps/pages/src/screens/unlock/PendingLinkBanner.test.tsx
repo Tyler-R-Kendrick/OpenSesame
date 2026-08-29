@@ -1,8 +1,9 @@
 /** @vitest-environment jsdom */
 /**
  * The pre-unlock outcome banner: a stored outcome renders in the right tone,
- * a pending-link notice renders without one, dismissal clears the record, and
- * silence stays silent.
+ * dismissal clears the record, and silence stays silent. A deferred account
+ * link renders nothing here — the bell's "finish attaching" prompt owns that
+ * state once the vault is open.
  */
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -18,8 +19,20 @@ afterEach(() => {
 });
 
 describe("PendingLinkBanner", () => {
-  it("renders nothing when there is no outcome and no pending notice", () => {
+  it("renders nothing when there is no outcome", () => {
     const { container } = render(<PendingLinkBanner />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders nothing for a pending-link notice — the bell owns that prompt", () => {
+    pushNotice({
+      kind: "federated_link",
+      title: "Finish attaching your sign-in",
+      body: "…",
+    });
+
+    const { container } = render(<PendingLinkBanner />);
+
     expect(container.firstChild).toBeNull();
   });
 
@@ -31,32 +44,12 @@ describe("PendingLinkBanner", () => {
     expect(screen.getByText(/Signed in as sam@acme.com/)).toBeTruthy();
   });
 
-  it("renders the pending-link outcome as unlock-to-attach", () => {
-    storeAuthOutcome({ kind: "pending_link" });
-
-    render(<PendingLinkBanner />);
-
-    expect(screen.getByText(/unlock to attach/)).toBeTruthy();
-  });
-
   it("renders a link failure with its stored detail", () => {
     storeAuthOutcome({ kind: "link_failed", detail: "Identity unreachable." });
 
     render(<PendingLinkBanner />);
 
     expect(screen.getByText("Identity unreachable.")).toBeTruthy();
-  });
-
-  it("renders from a federated_link notice when no outcome is stored", () => {
-    pushNotice({
-      kind: "federated_link",
-      title: "Finish attaching your sign-in",
-      body: "…",
-    });
-
-    render(<PendingLinkBanner />);
-
-    expect(screen.getByText(/unlock to attach/)).toBeTruthy();
   });
 
   it("dismisses a stored outcome and clears the record", () => {
