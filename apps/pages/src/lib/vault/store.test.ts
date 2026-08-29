@@ -300,9 +300,9 @@ describe("VaultStore multi-method unlock", () => {
     store.lock();
 
     const reopened = new VaultStore();
-    await expect(reopened.unlock(PASSWORD)).rejects.toBeInstanceOf(
-      VaultCorruptError,
-    );
+    // A challenge the vault no longer enrolls fails like a wrong secret —
+    // same generic error, same lockout count.
+    await expect(reopened.unlock(PASSWORD)).rejects.toThrow(/did not unlock/);
     await reopened.unlockWithPin("48291037");
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });

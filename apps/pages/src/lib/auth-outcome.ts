@@ -17,7 +17,7 @@ import {
 const OUTCOME_KEY = "opensesame:federation:outcome";
 
 export type AuthOutcome = {
-  kind: "linked" | "pending_link" | "link_failed" | "error";
+  kind: "linked" | "link_failed" | "error";
   /** Plain-words detail, already user-ready (see federation-copy.ts). */
   detail?: string;
   /** Who signed in, when the leg got far enough to know. */
@@ -28,7 +28,6 @@ function isAuthOutcome(value: BoundaryValue): value is AuthOutcome {
   if (!isJsonObject(value)) return false;
   return (
     value.kind === "linked" ||
-    value.kind === "pending_link" ||
     value.kind === "link_failed" ||
     value.kind === "error"
   );

@@ -52,7 +52,7 @@ export const TRUSTED_UPSTREAMS: readonly TrustedUpstream[] = [
     id: "mock",
     displayName: "Local mock IdP",
     issuer: "http://127.0.0.1:9090",
-    accountKind: "a seeded test account",
+    accountKind: "a test account",
   },
 ];
 

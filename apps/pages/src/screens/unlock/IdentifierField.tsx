@@ -8,7 +8,7 @@
  * run on explicit continue, never per keystroke.
  */
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { classifyIdentifier } from "../../lib/identifier.js";
 import {
   type OrgAuthMethod,
@@ -29,6 +29,11 @@ const NO_ORG_MESSAGE = "No organization uses that email domain.";
 
 type Props = {
   disabled?: boolean;
+  /**
+   * Focus the input on mount. The sign-in panel sets this: the field is the
+   * one typed step of the ceremony, so the caret is already waiting.
+   */
+  autoFocus?: boolean;
   /** Start sign-in against a resolved organization method. */
   onStartOrgMethod: (tenant: OrgTenant, method: OrgAuthMethod) => void;
   /** Optional escape hatch: hand the domain to the hosted page's realm router. */
@@ -43,6 +48,7 @@ type Props = {
 
 export function IdentifierField({
   disabled,
+  autoFocus,
   onStartOrgMethod,
   onContinueWithDomain,
   onEngagedChange,
@@ -55,11 +61,19 @@ export function IdentifierField({
   const [fallbackEmail, setFallbackEmail] = useState<string | null>(null);
   const [fallbackDomain, setFallbackDomain] = useState<string | null>(null);
   const [linkSent, setLinkSent] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const engaged = tenant !== null || fallbackEmail !== null || linkSent;
   useEffect(() => {
     onEngagedChange?.(engaged);
   }, [engaged, onEngagedChange]);
+
+  // The field is the ceremony's one typed step — the caret waits in it. A ref
+  // + effect rather than the autoFocus attribute (lint/a11y/noAutofocus), the
+  // same pattern the unlock form uses for its PIN and password inputs.
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
 
   function reset(): void {
     setError(null);
@@ -226,6 +240,7 @@ export function IdentifierField({
         <div className="identifier__row">
           <input
             id="identifier-input"
+            ref={inputRef}
             type="text"
             autoComplete="username"
             placeholder="you@acme.com  ·  acme-corp"

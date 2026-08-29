@@ -315,11 +315,11 @@ describe("VaultStore session lifecycle", () => {
     await expect(store.unlockWithPasskey()).rejects.toThrow(/no vault/);
   });
 
-  it("refuses PIN unlock when no PIN is enrolled", async () => {
+  it("fails PIN unlock like a wrong secret when no PIN is enrolled", async () => {
     const store = await unlockedStore();
     store.lock();
     await expect(store.unlockWithPin("48291037")).rejects.toThrow(
-      /no PIN unlock/,
+      /did not unlock/,
     );
   });
 
@@ -449,7 +449,7 @@ describe("VaultStore unlock method management", () => {
 
     const reopened = new VaultStore();
     await expect(reopened.unlockWithPin("48291037")).rejects.toThrow(
-      /no PIN unlock/,
+      /did not unlock/,
     );
   });
 

@@ -121,9 +121,6 @@ function NotificationsBarDefault() {
                       onClick: () => {
                         void notificationsBarDependencies.beginSignIn(
                           notificationsBarDependencies.defaultUpstream(),
-                          {
-                            returnTo: "/",
-                          },
                         );
                       },
                     }}

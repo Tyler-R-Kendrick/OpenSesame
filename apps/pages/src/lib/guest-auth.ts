@@ -227,6 +227,25 @@ async function adoptFederatedIdentityDefault(
 }
 
 /**
+ * Land a finished ceremony inside the app, not back on the sign-in screen.
+ *
+ * A verified sign-in with no vault on this device opens the same ephemeral
+ * vault "Continue as guest" would — the session says who you are, and sealing
+ * the vault with a passkey, PIN, or password stays a later choice in Settings.
+ * A locked vault stays locked: federation never decrypts the local E2EE vault,
+ * so the caller keeps its "signed in, now unlock" banner for that case.
+ *
+ * Returns whether the vault is open afterwards — i.e. whether the person
+ * landed in the app.
+ */
+async function openVaultAfterSignInDefault(): Promise<boolean> {
+  if (guestAuthDependencies.vaultStatus() === "empty") {
+    await guestAuthDependencies.createGuest();
+  }
+  return guestAuthDependencies.vaultStatus() === "unlocked";
+}
+
+/**
  * Re-raise the "finish attaching this sign-in" prompt after a reload. Notices
  * are in-memory, so a refresh drops them while the upstream assertion lives on
  * in sessionStorage. The prompt reuses the notifications bell's existing claim
@@ -253,6 +272,7 @@ export const guestAuthSeams = {
   claimGuestAuth: claimGuestAuthDefault,
   linkGuestAccount: linkGuestAccountDefault,
   adoptFederatedIdentity: adoptFederatedIdentityDefault,
+  openVaultAfterSignIn: openVaultAfterSignInDefault,
   recoverPendingFederatedLink: recoverPendingFederatedLinkDefault,
 };
 
@@ -272,6 +292,10 @@ export async function adoptFederatedIdentity(
   idToken: string,
 ): Promise<FederatedAdoptOutcome> {
   return guestAuthSeams.adoptFederatedIdentity(idToken);
+}
+
+export async function openVaultAfterSignIn(): Promise<boolean> {
+  return guestAuthSeams.openVaultAfterSignIn();
 }
 
 export function recoverPendingFederatedLink(): void {

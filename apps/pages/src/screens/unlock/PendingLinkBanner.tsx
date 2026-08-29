@@ -2,36 +2,21 @@
  * Pre-unlock surface for the last sign-in's outcome.
  *
  * The notifications bell only exists inside the unlocked shell, so a sign-in
- * that came back to a locked (or empty) vault used to vanish without a word —
- * the literal "the Google button just fails" bug. This banner renders the
- * stored outcome right on the unlock screen instead.
+ * that came back to a locked vault used to vanish without a word — the
+ * literal "the Google button just fails" bug. This banner renders the stored
+ * outcome right on the unlock screen instead. (An empty vault no longer lands
+ * here: the return screen opens it and the person goes straight into the app.
+ * A deferred account link gets no banner either — the bell's "Finish
+ * attaching your sign-in" prompt is already waiting after unlock.)
  */
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useEffect, useReducer } from "react";
 import {
   type AuthOutcome,
   clearAuthOutcome,
   readAuthOutcome,
 } from "../../lib/auth-outcome.js";
 import { recoverPendingFederatedLink } from "../../lib/guest-auth.js";
-import { listNotices, subscribeNotices } from "../../lib/notices.js";
-
-let renderEpoch = 0;
-const epochListeners = new Set<() => void>();
-
-function bumpEpoch(): void {
-  renderEpoch += 1;
-  for (const listener of epochListeners) listener();
-}
-
-function subscribeEpoch(listener: () => void): () => void {
-  epochListeners.add(listener);
-  const unsubscribeNotices = subscribeNotices(listener);
-  return () => {
-    epochListeners.delete(listener);
-    unsubscribeNotices();
-  };
-}
 
 type BannerModel = {
   tone: "ok" | "warn" | "err";
@@ -60,11 +45,6 @@ function describeOutcome(outcome: AuthOutcome): BannerModel {
           : "Signed in. Your account is attached to this device.",
       };
     }
-    case "pending_link":
-      return {
-        tone: "ok",
-        text: "Sign-in verified — unlock to attach it to this vault.",
-      };
     case "link_failed":
       return {
         tone: "warn",
@@ -82,38 +62,17 @@ function describeOutcome(outcome: AuthOutcome): BannerModel {
 
 export function PendingLinkBanner() {
   // A reload drops in-memory notices while the assertion lives on in
-  // sessionStorage — re-raise the pending-link prompt. Idempotent, and the
-  // notice subscription below re-renders this banner when it lands.
+  // sessionStorage — re-raise the pending-link prompt for the bell.
+  // Idempotent, and a no-op unless a link is actually outstanding.
   useEffect(() => {
     recoverPendingFederatedLink();
   }, []);
 
-  useSyncExternalStore(
-    subscribeEpoch,
-    () => `${renderEpoch}:${listNotices().length}`,
-    () => "server",
-  );
+  const [, bump] = useReducer((epoch: number) => epoch + 1, 0);
 
   const outcome = readAuthOutcome();
-  const pendingNotice = listNotices().some(
-    (notice) => notice.kind === "federated_link",
-  );
-
-  const dismiss = useCallback(() => {
-    clearAuthOutcome();
-    bumpEpoch();
-  }, []);
-
-  const model: BannerModel | null = outcome
-    ? describeOutcome(outcome)
-    : pendingNotice
-      ? {
-          tone: "ok",
-          text: "Sign-in verified — unlock to attach it to this vault.",
-        }
-      : null;
-
-  if (!model) return null;
+  if (!outcome) return null;
+  const model = describeOutcome(outcome);
 
   return (
     <output
@@ -121,27 +80,28 @@ export function PendingLinkBanner() {
       aria-live="polite"
     >
       <span>{model.text}</span>
-      {outcome ? (
-        <button
-          type="button"
-          className="icon-btn unlock__outcome-dismiss"
-          aria-label="Dismiss"
-          onClick={dismiss}
+      <button
+        type="button"
+        className="icon-btn unlock__outcome-dismiss"
+        aria-label="Dismiss"
+        onClick={() => {
+          clearAuthOutcome();
+          bump();
+        }}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          aria-hidden="true"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            <path d="m6 6 12 12M18 6 6 18" />
-          </svg>
-        </button>
-      ) : null}
+          <path d="m6 6 12 12M18 6 6 18" />
+        </svg>
+      </button>
     </output>
   );
 }

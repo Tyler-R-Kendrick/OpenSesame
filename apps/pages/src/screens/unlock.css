@@ -11,6 +11,7 @@
 }
 
 .unlock__card {
+  position: relative;
   width: min(100%, 27rem);
   /* Grid items default to min-width auto, so one unbreakable string (a
      redirect URI, a pairwise subject) would stretch the whole card past its
@@ -223,22 +224,6 @@
   line-height: 1.5;
 }
 
-/* Federated sign-in under the unlock form, for a device that already has a
-   vault. Deliberately quieter than the form above it: unlocking is still the
-   job of this screen, and signing in here attaches an account rather than
-   opening anything. */
-.unlock__signin {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.unlock__signin h2 {
-  font-size: 0.9375rem;
-  font-weight: 650;
-  text-align: center;
-  color: var(--ink-2);
-}
-
 /* First-run sign-in panel — identity before sealing. */
 .signin {
   display: grid;
@@ -250,9 +235,147 @@
   gap: 0.45rem;
 }
 
+.signin__session {
+  text-align: center;
+}
+
+/* The anonymous road out, pinned to the card's top-right corner. */
+.signin__skip {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.25rem;
+  text-decoration: none;
+}
+
+.signin__skip:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+/* The social bar: one row of official brand marks, icon-only. */
+.signin__bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.signin__social {
+  width: 2.75rem;
+  min-height: 2.6rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.signin__social svg {
+  flex: none;
+}
+
+/* The ⋯ overflow: remaining providers and the rarer roads, on demand. */
+.signin__menuwrap {
+  position: relative;
+  flex: none;
+}
+
+.signin__menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  gap: 0.1rem;
+  min-width: 13.5rem;
+  padding: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.signin__menu-item {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.signin__menu-item:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.signin__menu-item svg {
+  flex: none;
+}
+
 .signin__provider {
   min-height: 2.6rem;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.signin__provider svg {
+  flex: none;
+}
+
+/* Official brand treatments — colors prescribed by each provider's own
+   sign-in button guidelines, so they stay fixed in dark mode too. */
+.signin__provider--google {
+  background: #ffffff;
+  color: #1f1f1f;
+  border-color: #dadce0;
+}
+
+.signin__provider--google:hover:not(:disabled) {
+  background: #f7f8f8;
+  border-color: #d2d3d5;
+}
+
+.signin__provider--github {
+  background: #24292f;
+  color: #ffffff;
+  border-color: #24292f;
+}
+
+.signin__provider--github:hover:not(:disabled) {
+  background: #32383f;
+  border-color: #32383f;
+}
+
+.signin__provider--apple {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.signin__provider--apple:hover:not(:disabled) {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+}
+
+.signin__provider--microsoft {
+  background: #ffffff;
+  color: #1f1f1f;
+  border-color: #8c8c8c;
+}
+
+.signin__provider--microsoft:hover:not(:disabled) {
+  background: #f5f5f5;
 }
 
 .signin__provider-note {
@@ -295,33 +418,6 @@
 
 .signin__back:hover {
   text-decoration: underline;
-}
-
-/* One tall choice per row on the "More options" stage: a title and one
-   honest line, nothing else — picking one opens ONLY that step. */
-.signin__option {
-  appearance: none;
-  display: grid;
-  gap: 0.15rem;
-  justify-items: start;
-  text-align: left;
-  width: 100%;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  cursor: pointer;
-  transition: border-color 160ms var(--ease);
-}
-
-.signin__option:hover:not(:disabled) {
-  border-color: var(--accent);
-}
-
-.signin__option strong {
-  font-size: 0.9375rem;
 }
 
 /* The one "Email or organization" field and its resolved/fallback states. */
