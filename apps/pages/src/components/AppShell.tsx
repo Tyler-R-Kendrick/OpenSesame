@@ -7,7 +7,6 @@ import { AccountSwitcher } from "./AccountSwitcher.js";
 import { ConnectivityBar } from "./ConnectivityBar.js";
 import { Crumbs } from "./Crumbs.js";
 import {
-  IconAgent,
   IconAuthority,
   IconCard,
   IconCert,
@@ -30,7 +29,7 @@ import { ProjectSwitcher } from "./ProjectSwitcher.js";
 const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
   { to: "/connections", label: "Connections", Icon: IconConnection },
-  { to: "/agents", label: "Agents", Icon: IconAgent },
+  { to: "/access", label: "Access", Icon: IconAuthority },
   { to: "/authority", label: "Authority", Icon: IconAuthority },
   { to: "/authentication", label: "Authentication", Icon: IconPasskey },
   { to: "/sites", label: "Sites", Icon: IconSite },

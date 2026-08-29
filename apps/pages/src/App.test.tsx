@@ -19,7 +19,7 @@ const testSlots: Partial<AppSlots> = {
   BrokerAuthorize: () => <p>broker authorize stub</p>,
   FederationReturn: () => <p>federation return stub</p>,
   UnlockScreen: () => <p>unlock screen stub</p>,
-  AgentsSection: () => <p>agents section</p>,
+  AccessSection: () => <p>access section</p>,
   AuthenticationSection: () => <p>authentication section</p>,
   AuthoritySection: () => <p>authority section</p>,
   ConnectionsSection: () => <p>connections section</p>,
@@ -100,7 +100,7 @@ describe("App", () => {
   it("frames each top-level section", () => {
     env.vaultStatus = "unlocked";
     const cases: Array<[string, string]> = [
-      ["/agents", "agents section"],
+      ["/access", "access section"],
       ["/connections", "connections section"],
       ["/connections/github/conn_1", "connections section"],
       ["/sites", "sites section"],
@@ -115,6 +115,12 @@ describe("App", () => {
       expect(screen.getByTestId("app-shell")).toBeTruthy();
       unmount();
     }
+  });
+
+  it("redirects /agents to the Access section", () => {
+    env.vaultStatus = "unlocked";
+    renderApp("/agents");
+    expect(screen.getByText("access section")).toBeTruthy();
   });
 
   it("redirects unknown routes to the vault", () => {

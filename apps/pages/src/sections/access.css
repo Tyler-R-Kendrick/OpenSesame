@@ -1,0 +1,544 @@
+/* Access section — prefixed .access-*; primitives and tokens do the rest. */
+
+/* --- tabs ----------------------------------------------------------------- */
+
+.access-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.access-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  padding: 0.4375rem 0.875rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.access-tab:hover {
+  color: var(--ink);
+}
+
+.access-tab.is-active {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.access-tab[aria-selected="true"] {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.access-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+  font-size: 0.6875rem;
+  font-weight: 650;
+}
+
+/* --- search --------------------------------------------------------------- */
+
+.access-search {
+  max-width: 26rem;
+  margin-bottom: 1rem;
+}
+
+.access-search .label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.access-search .label svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* --- inventory ------------------------------------------------------------ */
+
+.access-thesis {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 0.875rem;
+  border-left: 1px solid var(--accent-line);
+  background: var(--accent-wash);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--ink-2);
+}
+
+.access-thesis em {
+  font-style: normal;
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.access-resources {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.access-resource {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.access-resource__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.access-resource__id {
+  flex: 1 1 14rem;
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.access-resource__id h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+
+.access-resource__bindings {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.access-resource__detail {
+  display: grid;
+  gap: 0.4375rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--line);
+}
+
+.access-resource__label {
+  margin: 0;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.access-resource__bound {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.access-resource__bound li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.access-ref {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  padding: 0.0625rem 0.5rem;
+  word-break: break-all;
+}
+
+/* --- secrets -------------------------------------------------------------- */
+
+.access-secret {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.access-secret__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.75rem;
+}
+
+.access-secret__top h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+
+.access-secret__noref,
+.access-secret__none {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  margin: 0;
+}
+
+.access-secret__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.access-secret__label svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.access-secret__grantees {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.625rem;
+}
+
+.access-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3125rem;
+}
+
+.access-ceiling {
+  display: grid;
+  gap: 0.4375rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--line);
+}
+
+.access-caps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.access-cap {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.access-cap__action {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.access-cap__arrow {
+  color: var(--ink-3);
+}
+
+.access-cap__resource,
+.access-compare__res {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  word-break: break-word;
+}
+
+/* --- task runs ------------------------------------------------------------ */
+
+.access-runs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.access-run {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem 0.875rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.access-run__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.access-run__id {
+  flex: 1 1 14rem;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.access-run__version {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.access-run__detail {
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--line);
+}
+
+.access-task {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.access-compare {
+  min-width: 34rem;
+}
+
+.access-compare__caption {
+  caption-side: top;
+  text-align: left;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  padding-bottom: 0.625rem;
+}
+
+.access-compare th,
+.access-compare td {
+  padding-block: 0.625rem;
+  vertical-align: top;
+}
+
+.access-compare__warn {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--err);
+}
+
+/* --- requests ------------------------------------------------------------- */
+
+.access-requests {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.access-request {
+  display: grid;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.access-request__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.access-request__top h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+
+.access-request__params {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-3);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  overflow-x: auto;
+  max-height: 12rem;
+}
+
+.access-request__digest {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.access-request__digest code {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.access-offers__label {
+  margin: 0 0 0.625rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.access-offer__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.access-offer__items li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.5rem;
+}
+
+.access-claim {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.access-claim__code {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.access-claim__code code {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* --- registration --------------------------------------------------------- */
+
+.access-key {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.access-key__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.access-key__value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.access-key__value code {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+.access-key .hint {
+  max-width: 58ch;
+}
+
+/* --- activity trail ------------------------------------------------------- */
+
+.access-trail {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.access-trail li {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.8125rem;
+}
+
+.access-trail li:last-child {
+  border-bottom: 0;
+}
+
+.access-trail__when {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.access-trail__when svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.access-trail__type {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+  word-break: break-word;
+}
