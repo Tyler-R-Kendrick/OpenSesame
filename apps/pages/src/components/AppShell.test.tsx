@@ -104,7 +104,7 @@ describe("AppShell", () => {
     // labels the filter group while inside the vault).
     for (const label of [
       "Connections",
-      "Agents",
+      "Access",
       "Authority",
       "Authentication",
       "Sites",
@@ -176,7 +176,7 @@ describe("AppShell", () => {
   });
 
   it("hides vault filters outside the vault section", () => {
-    const { container } = renderShell("/agents");
+    const { container } = renderShell("/access");
     expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();
     expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
     expect(screen.queryByText("All items")).toBeNull();
