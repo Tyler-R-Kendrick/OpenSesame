@@ -20,6 +20,7 @@ const testSlots: Partial<AppSlots> = {
   FederationReturn: () => <p>federation return stub</p>,
   UnlockScreen: () => <p>unlock screen stub</p>,
   AccessSection: () => <p>access section</p>,
+  IdentitySection: () => <p>identity section</p>,
   AuthenticationSection: () => <p>authentication section</p>,
   AuthoritySection: () => <p>authority section</p>,
   ConnectionsSection: () => <p>connections section</p>,
@@ -101,6 +102,7 @@ describe("App", () => {
     env.vaultStatus = "unlocked";
     const cases: Array<[string, string]> = [
       ["/access", "access section"],
+      ["/identity", "identity section"],
       ["/connections", "connections section"],
       ["/connections/github/conn_1", "connections section"],
       ["/sites", "sites section"],

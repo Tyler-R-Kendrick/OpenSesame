@@ -22,6 +22,7 @@ and connector decisions stay honest about parity and deliberate gaps.
 | Oomol Open Connector | Adjacent | OSS agent SaaS gateway (Actions + MCP; credentials stay behind gateway) | [`oomol-open-connector.md`](oomol-open-connector.md) |
 | Nango | Study | Embedded OAuth/API integrations + Functions/MCP | [`nango.md`](nango.md) |
 | Border0 + Tailscale (Tailscale PAM) | **Craft bar (Access screen)** — design parity target ([ADR 0054](../adr/0054-access-screen-pam.md)) | Privileged access management: sockets/services, policies, sessions + recordings, JIT approval flows, ZSP | [`border0-tailscale-pam.md`](border0-tailscale-pam.md) |
+| Tailscale — Identity | **Craft bar (Identity screen)** — design parity target ([ADR 0060](../adr/0060-identity-screen-idp-brokering.md)) | IdP-bound tailnet: mandatory IdP signup ceremony, users/roles/states, service identities, groups, SCIM | [`tailscale-identity.md`](tailscale-identity.md) |
 | Vaultwarden | Study / client-bridge prior art ([ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md)) | Self-hosted Bitwarden-compatible server; AGPL-3.0, clean-room study only | — (see [REUSE.md](../../REUSE.md), [bitwarden.md](bitwarden.md)) |
 | Varlock | Peer / compatibility | `.env.schema` + credential proxy | — (see [REUSE.md](../../REUSE.md)) |
 

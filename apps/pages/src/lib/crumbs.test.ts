@@ -32,6 +32,7 @@ describe("crumbsFor", () => {
     expect(crumbsFor("/vault")).toEqual([{ label: "Vault" }]);
     expect(crumbsFor("/connections")).toEqual([{ label: "Connections" }]);
     expect(crumbsFor("/settings")).toEqual([{ label: "Settings" }]);
+    expect(crumbsFor("/identity")).toEqual([{ label: "Identity" }]);
   });
 
   it("links ancestors on vault rest paths", () => {

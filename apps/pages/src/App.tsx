@@ -21,6 +21,7 @@ import { AccessSection as DefaultAccessSection } from "./sections/AccessSection.
 import { AuthenticationSection as DefaultAuthenticationSection } from "./sections/AuthenticationSection.js";
 import { AuthoritySection as DefaultAuthoritySection } from "./sections/AuthoritySection.js";
 import { ConnectionsSection as DefaultConnectionsSection } from "./sections/ConnectionsSection.js";
+import { IdentitySection as DefaultIdentitySection } from "./sections/IdentitySection.js";
 import { SettingsSection as DefaultSettingsSection } from "./sections/SettingsSection.js";
 import { SitesSection as DefaultSitesSection } from "./sections/SitesSection.js";
 import {
@@ -47,6 +48,7 @@ export type AppSlots = {
   AuthenticationSection: ComponentType;
   AuthoritySection: ComponentType;
   ConnectionsSection: ComponentType;
+  IdentitySection: ComponentType;
   SettingsSection: ComponentType;
   SitesSection: ComponentType;
   VaultSection: ComponentType;
@@ -69,6 +71,7 @@ const defaultSlots: AppSlots = {
   AuthenticationSection: DefaultAuthenticationSection,
   AuthoritySection: DefaultAuthoritySection,
   ConnectionsSection: DefaultConnectionsSection,
+  IdentitySection: DefaultIdentitySection,
   SettingsSection: DefaultSettingsSection,
   SitesSection: DefaultSitesSection,
   VaultSection: DefaultVaultSection,
@@ -127,6 +130,14 @@ function VaultApp() {
           }
         />
         <Route path="/agents" element={<Navigate to="/access" replace />} />
+        <Route
+          path="/identity"
+          element={
+            <Framed>
+              <slots.IdentitySection />
+            </Framed>
+          }
+        />
         <Route
           path="/authentication"
           element={
