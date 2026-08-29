@@ -21,6 +21,7 @@ import {
   IconSite,
   IconStar,
   IconTrash,
+  IconUser,
   IconVault,
 } from "./Icons.js";
 import { NotificationsBar } from "./NotificationsBar.js";
@@ -30,6 +31,7 @@ const SECTIONS = [
   { to: "/vault", label: "Vault", Icon: IconVault },
   { to: "/connections", label: "Connections", Icon: IconConnection },
   { to: "/access", label: "Access", Icon: IconAuthority },
+  { to: "/identity", label: "Identity", Icon: IconUser },
   { to: "/authority", label: "Authority", Icon: IconAuthority },
   { to: "/authentication", label: "Authentication", Icon: IconPasskey },
   { to: "/sites", label: "Sites", Icon: IconSite },

@@ -115,6 +115,7 @@ export function crumbsFor(
     return settingsCrumbs(parts);
   }
   if (parts[0] === "access") return current("Access");
+  if (parts[0] === "identity") return current("Identity");
   if (parts[0] === "sites") return current("Sites");
   if (parts[0] === "authority") return current("Authority");
   if (parts[0] === "authentication") return current("Authentication");

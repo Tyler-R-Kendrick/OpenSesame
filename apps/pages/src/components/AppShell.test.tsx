@@ -105,6 +105,7 @@ describe("AppShell", () => {
     for (const label of [
       "Connections",
       "Access",
+      "Identity",
       "Authority",
       "Authentication",
       "Sites",

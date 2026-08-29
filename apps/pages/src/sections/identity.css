@@ -1,0 +1,188 @@
+/* Identity section — prefixed .identity-*; primitives and tokens do the rest.
+   The tab bar mirrors access.css exactly: same pattern, own prefix. */
+
+/* --- tabs ----------------------------------------------------------------- */
+
+.identity-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 1.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.identity-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  padding: 0.4375rem 0.875rem;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.identity-tab:hover {
+  color: var(--ink);
+}
+
+.identity-tab.is-active,
+.identity-tab[aria-selected="true"] {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 550;
+}
+
+/* --- ceremony ------------------------------------------------------------- */
+
+.identity-ceremony__bar {
+  margin-bottom: 0.5rem;
+}
+
+.identity-ceremony .signin__divider {
+  margin: 1rem 0;
+}
+
+.identity-ceremony__later {
+  display: block;
+  margin: 1rem auto 0;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.identity-ceremony__later:hover {
+  color: var(--ink);
+}
+
+.identity-ceremony__later-note {
+  margin-top: 0.375rem;
+  text-align: center;
+}
+
+.identity-byoidc {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.identity-byoidc .label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.identity-byoidc .label svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+/* --- rows ----------------------------------------------------------------- */
+
+.identity-rows {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.identity-row {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.identity-row__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.identity-row__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-2);
+  flex: none;
+}
+
+.identity-row__id {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.identity-row__id h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.identity-ref {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.identity-row__when {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.identity-row .actions {
+  display: inline-flex;
+  gap: 0.375rem;
+  margin-left: auto;
+}
+
+.identity-row .hint {
+  margin: 0;
+}
+
+/* --- guest note + member add ---------------------------------------------- */
+
+.identity-guest {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.identity-guest .hint {
+  margin: 0;
+}
+
+.identity-addmember {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
