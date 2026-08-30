@@ -18,6 +18,7 @@ pub(crate) mod github_app;
 mod health;
 mod intents;
 mod kv_facade;
+mod lifecycle;
 mod nats_callout;
 mod protected_resource;
 mod receipts;
@@ -396,6 +397,20 @@ pub fn router(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route("/api/v1/rotations/{id}", get(rotation::get_job))
+        // ADR 0073: expiry lifecycle hooks. The read view is any caller; the
+        // subscription surface is integration configuration (owner/admin or
+        // operator), like sync targets and rotation policies.
+        .route("/api/v1/lifecycle/expiring", get(lifecycle::list_expiring))
+        .route(
+            "/api/v1/lifecycle/hooks",
+            get(lifecycle::list_hooks).put(lifecycle::put_hook),
+        )
+        .route(
+            "/api/v1/lifecycle/hooks/{id}",
+            delete(lifecycle::delete_hook),
+        )
+        .route("/api/v1/lifecycle/deliveries", get(lifecycle::list_deliveries))
+        .route("/api/v1/lifecycle/scan", post(lifecycle::scan))
         // WP-9: durable rotation policies (owner/admin configuration surface).
         .route(
             "/api/v1/rotation/policies",

@@ -241,18 +241,25 @@ async fn rotation_policies(
         .collect())
 }
 
+/// A policy that has never run, expressed as a deadline already past.
+///
+/// It has to be a *stable* instant, not `now`: the ladder resets whenever a
+/// subject's deadline moves, so a drifting sentinel would re-fire the renewal
+/// rung on every tick and rotate on every tick with it. It also has to leave
+/// room underneath — the ladder dates a rung by subtracting its threshold from
+/// the deadline, and `DateTime::MIN_UTC` overflows the moment it does.
+const NEVER_ROTATED: DateTime<Utc> = DateTime::UNIX_EPOCH;
+
 /// A policy's deadline is the moment it next comes due.
 ///
 /// A policy that has never run is due immediately, which
 /// [`opensesame_connection_broker::policy_due_at`] also says — expressed here
-/// as a deadline in the past, which lands on the actionable rung.
+/// as [`NEVER_ROTATED`], which lands on the actionable rung.
 pub fn policy_subject(policy: RotationPolicy) -> Option<ExpirySubject> {
     let interval = chrono::Duration::from_std(policy.interval_duration()).ok()?;
     let expires_at = match policy.last_rotated() {
         Some(last) => last.checked_add_signed(interval)?,
-        // Never rotated: due now. `DateTime::UNIX_EPOCH` would also work but
-        // reads as a bug; an explicitly past instant does not.
-        None => DateTime::<Utc>::MIN_UTC,
+        None => NEVER_ROTATED,
     };
     let (kind, subject_id) = match &policy.target {
         RotationTarget::Connection { connection_id } => (
@@ -336,6 +343,27 @@ mod tests {
         assert!(subject.expires_at < Utc::now());
         assert!(subject.auto_respond);
         assert!(!subject.alerting, "a schedule must not narrate");
+    }
+
+    #[test]
+    fn the_never_rotated_sentinel_is_stable_and_leaves_room_underneath() {
+        // Stable: a sentinel derived from `now` would move every tick, which
+        // resets the ladder, which would rotate on every tick.
+        let first = policy_subject(policy(3_600, None)).unwrap().expires_at;
+        let second = policy_subject(policy(3_600, None)).unwrap().expires_at;
+        assert_eq!(first, second);
+
+        // Room underneath: the inventory dates each rung by subtracting its
+        // threshold from the deadline, and `DateTime::MIN_UTC` overflows.
+        for stage in opensesame_lifecycle::ExpiryStage::ALL {
+            let threshold = stage.threshold_seconds(opensesame_lifecycle::NOTICE_SECONDS);
+            assert!(
+                first
+                    .checked_sub_signed(chrono::Duration::seconds(threshold))
+                    .is_some(),
+                "dating {stage:?} must not overflow",
+            );
+        }
     }
 
     #[test]
