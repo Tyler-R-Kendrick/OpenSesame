@@ -1,0 +1,22 @@
+---
+source: apps/gateway/src/routes/certmgr_ca.rs
+expression: config
+---
+{
+  "signing_config": {
+    "awaiting_external_signature": false,
+    "certificate_authority_id": "[id]",
+    "crl_enabled": true,
+    "crl_mirrors": [
+      "https://mirror.example.com/root.crl"
+    ],
+    "hsm_connector_id": null,
+    "hsm_key_label": null,
+    "key_algorithm": "ecdsa-p256",
+    "key_source": "sealed",
+    "kind": "root",
+    "parent_id": null,
+    "path_len": 1,
+    "version": 2
+  }
+}

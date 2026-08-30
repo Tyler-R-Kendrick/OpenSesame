@@ -1,0 +1,8 @@
+---
+source: apps/gateway/src/routes/certmgr_ca.rs
+expression: bad_algorithm
+---
+{
+  "error": "unsupported_ca_key_algorithm",
+  "hint": "ed25519 is not accepted for a certificate authority; use ecdsa-p256, ecdsa-p384, rsa-2048 or rsa-4096"
+}

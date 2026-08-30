@@ -23,7 +23,16 @@
 | SCIM 2.0 | Final | When directory sync enabled | future IdP sync path |
 | AuthZEN 1.0 | Final | External PDP contract | `crates/authz` |
 | SPIFFE Workload API | Final | Workload identity model only | `crates/domain` |
-| ACME | Final | Planned | — |
+| RFC 5280 X.509 / CRL | Final | Issuance + CRL v2 with `CRLReason`, CDP/AIA extensions; documented subset, not certified | `crates/pki-core`, `apps/gateway/src/routes/revocation.rs` |
+| RFC 8555 ACME (client) | Final | DNS-01 only; HTTP-01 and TLS-ALPN-01 refused (ADR 0068 §6) | `apps/gateway/src/cert_issuers/acme.rs` |
+| RFC 8555 ACME (server) | Final | Profile-scoped directory; EAB required; HTTP-01 or admin-enabled skip-validation | `apps/gateway/src/routes/acme_server.rs` |
+| RFC 7030 EST | Final | Server: `cacerts` / `simpleenroll` / `simplereenroll`; passphrase, bootstrap chain, mTLS re-enroll | `apps/gateway/src/routes/est_server.rs` |
+| RFC 8894 SCEP | Final | Server: `GetCACaps` / `GetCACert` / `PKIOperation`; static + one-time dynamic challenges | `apps/gateway/src/routes/scep_server.rs`, `crates/scep` |
+| RFC 6960 OCSP | Final | Responder; CA-direct or `id-kp-OCSPSigning` delegate. Deliberate differentiator (ADR 0067) | `apps/gateway/src/routes/revocation.rs` |
+| RFC 7468 PEM encodings | Final | Certificate / chain / CSR textual encoding | `crates/pki-core` |
+| RFC 7292 PKCS#12 | Final | Password-encrypted build; multi-entry parse for import | `crates/pki-core` |
+| PKCS#11 v2.40 | Final | HSM client (`cryptoki`) + sign-only provider module; SoftHSM2 is the CI target, not hardware | `crates/hsm-client`, `crates/pkcs11-provider` |
+| ACME | Final | Superseded by the two RFC 8555 rows above | `apps/gateway/src/cert_issuers` |
 | OpenAPI 3.1 | Final | Generated contracts | `api/openapi` |
 | CloudEvents | Final | Lifecycle events | `api/events` |
 | WASI Component Model / WIT | Final | Connector boundary | `wit/` |
@@ -35,3 +44,12 @@
 | OAuth 2.1 / ID-JAG / Txn Tokens / WIMSE / WIT-SVID | Draft/experimental | Adapter only; no schema lock-in | evidence envelopes |
 
 Draft claim names are never first-class DB columns; store `IdentityEvidence` digests.
+
+"Support stance" describes the profile OpenSesame implements. Per
+[docs/protocol-conformance.md](protocol-conformance.md), repository evidence
+establishes an implementation profile only — it is never a conformance
+certification, and none is claimed. The certificate-plane locations
+`crates/pki-core`, `crates/scep`, `crates/hsm-client`, `crates/pkcs11-provider`
+and the `certmgr`/enrollment route modules are created by the Certificate
+Manager work recorded in ADR 0066–0072; validation depth per area is in
+[docs/validation/certificate-manager.md](validation/certificate-manager.md).

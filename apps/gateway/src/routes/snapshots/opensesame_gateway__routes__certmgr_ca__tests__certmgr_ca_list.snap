@@ -1,0 +1,42 @@
+---
+source: apps/gateway/src/routes/certmgr_ca.rs
+expression: listed
+---
+{
+  "certificate_authorities": [
+    {
+      "awaiting_external_signature": false,
+      "certificate": "[certificate-pem]",
+      "chain": "[chain-pem]",
+      "created_at": "[timestamp]",
+      "crl_distribution_points": [
+        "https://crl.example.com/root.crl"
+      ],
+      "crl_enabled": true,
+      "crl_mirrors": [
+        "https://mirror.example.com/root.crl"
+      ],
+      "display_name": "Snapshot Root",
+      "fingerprint_sha256": "[fingerprint]",
+      "id": "[id]",
+      "key_algorithm": "ecdsa-p256",
+      "key_source": "sealed",
+      "kind": "root",
+      "not_after": "[timestamp]",
+      "not_before": "[timestamp]",
+      "parent_id": null,
+      "path_len": 1,
+      "renewed_by": null,
+      "renewed_from": null,
+      "serial_hex": "[serial]",
+      "status": "active",
+      "subject": {
+        "c": "US",
+        "cn": "Snapshot Root",
+        "o": "OpenSesame"
+      },
+      "updated_at": "[timestamp]",
+      "version": 2
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+---
+source: crates/storage/tests/certmgr_snapshot.rs
+expression: "json!({\n    \"empty_filter_sql\": empty.sql, \"empty_filter_binds\": empty.text_binds,\n    \"full_filter_sql\": full.sql, \"full_filter_bind_count\":\n    full.text_binds.len(), \"full_filter_limit\": full.limit,\n})"
+---
+{
+  "empty_filter_binds": [],
+  "empty_filter_sql": "SELECT * FROM issued_certificates WHERE organization_id = ? ORDER BY expires_at, id",
+  "full_filter_bind_count": 8,
+  "full_filter_limit": 50,
+  "full_filter_sql": "SELECT * FROM issued_certificates WHERE organization_id = ? AND status = ? AND common_name LIKE ? ESCAPE '\\' AND san_json LIKE ? ESCAPE '\\' AND profile_id = ? AND application_id = ? AND julianday(expires_at) <= julianday(?) AND EXISTS (SELECT 1 FROM json_each(issued_certificates.metadata_json) WHERE json_each.key = ? AND json_each.value = ?) ORDER BY expires_at, id LIMIT ?"
+}

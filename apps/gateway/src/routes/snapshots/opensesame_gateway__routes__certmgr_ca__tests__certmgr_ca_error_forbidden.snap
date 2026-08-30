@@ -1,0 +1,8 @@
+---
+source: apps/gateway/src/routes/certmgr_ca.rs
+expression: forbidden
+---
+{
+  "error": "forbidden",
+  "hint": "owner or admin role required to manage certificate authorities"
+}

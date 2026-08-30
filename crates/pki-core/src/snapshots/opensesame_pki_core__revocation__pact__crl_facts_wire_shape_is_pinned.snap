@@ -1,0 +1,13 @@
+---
+source: crates/pki-core/src/revocation.rs
+expression: parse_crl(&der).unwrap()
+---
+{
+  "crl_number": 99,
+  "this_update": "2027-01-15T08:00:00Z",
+  "next_update": "2027-01-22T08:00:00Z",
+  "serials": [
+    "0102030405060708090a0b0c0d0e0f10",
+    "aabbccdd"
+  ]
+}

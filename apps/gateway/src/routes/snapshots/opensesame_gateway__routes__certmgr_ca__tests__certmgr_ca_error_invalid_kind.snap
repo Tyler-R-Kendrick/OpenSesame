@@ -1,0 +1,8 @@
+---
+source: apps/gateway/src/routes/certmgr_ca.rs
+expression: bad_kind
+---
+{
+  "error": "invalid_kind",
+  "hint": "kind must be \"root\" or \"intermediate\""
+}
