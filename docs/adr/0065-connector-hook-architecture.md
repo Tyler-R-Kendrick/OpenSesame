@@ -202,17 +202,39 @@ per path: gating paths fail closed; observer paths are async,
 outbox-delivered, and unable to influence decisions. A connector author
 never chooses which they are.
 
-### 8. Roadmap — deliberately not in this change
+### 8. Roadmap
 
-Recorded so their absence is a decision, not an oversight: OCI component
-pulling and sigstore signature verification (`signaturesRequired` currently
-means "digest must be operator-pinned"); promoting `doppler`/`vault`/etc.
-off `AuthMethod::Configuration` (needs per-provider egress and credential
-UX review); the PM metadata connector of §6; the local-storage
-`ObjectStore`; additional `BrokeredDns01` provider rows (route53 first);
-a DB-backed identity descriptor registry (file + env only for now); and a
-`backup.commit` connector operation superseding the Tier 2 snapshot
-target.
+Recorded so each item's status is a decision, not an oversight.
+
+**Landed after the initial change:**
+
+- **OCI component pull by pinned digest** —
+  `apps/gateway/src/oci_component.rs`. A connector entry without a local
+  `component.wasm` fetches its component as a single digest-addressed blob
+  GET; the registry is untrusted transport and the local sha256 (plus the
+  operator pin re-verified in `WasmConnector::load`) is the integrity
+  boundary. Anonymous token flow only; SSRF-fenced; size-capped; fail
+  closed. Gate: `oci_component` unit tests + `scripts/clippy-gate.sh`.
+- **First cloud-secrets promotion** — `doppler` is off
+  `AuthMethod::Configuration`: real API-key auth with egress path prefixes
+  carved so L2 reaches only metadata endpoints (`/v3/projects`,
+  `/v3/configs/config/secrets/names`); the secret-*values* endpoint matches
+  no prefix and is structurally unreachable, keeping the agent plane
+  value-blind. Gate: `catalog::tests::doppler_promotion_is_value_blind`.
+- **Local-storage `ObjectStore`** — the ciphertext-only trait beneath
+  `path::confined_*` (`crates/sealed-store/src/object_store.rs`), never at
+  the `StoreRoot` level, per §6. `FsObjectStore` is the byte-for-byte
+  default.
+- **Second `BrokeredDns01` provider** — DigitalOcean, which hardened the
+  `DnsProviderShape` with a record-name style (`Fqdn` vs `RelativeToZone`)
+  and string-or-number id extraction.
+
+**Still deferred:** sigstore signature verification
+(`signaturesRequired` remains "digest must be operator-pinned"); promoting
+`vault`/`openbao` (self-hosted addresses need per-connection egress
+derivation first); the PM metadata connector of §6; a DB-backed identity
+descriptor registry (file + env only for now); and a `backup.commit`
+connector operation superseding the Tier 2 snapshot target.
 
 ## Consequences
 

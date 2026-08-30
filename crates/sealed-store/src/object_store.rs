@@ -115,7 +115,7 @@ mod tests {
         store.delete(rel).unwrap();
         assert!(matches!(
             store.get(rel),
-            Err(StoreError::Io(_)) | Err(StoreError::NotFound(_))
+            Err(StoreError::Io(_) | StoreError::NotFound(_))
         ));
     }
 
