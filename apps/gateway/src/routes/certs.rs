@@ -813,10 +813,7 @@ fn external_issuer_label(kind: IssuerKind) -> &'static str {
 
 fn eligible_issuer(connection: &ConnectionView) -> bool {
     connection.status == ConnectionStatus::Active
-        && matches!(
-            connection.provider_id.as_str(),
-            "letsencrypt" | "zerossl" | "cloudflare-origin-ca"
-        )
+        && crate::cert_issuers::issuer_for_provider(&connection.provider_id).is_some()
 }
 
 async fn select_external_issuer(
@@ -876,11 +873,10 @@ async fn select_external_issuer(
         }
         return Ok(Some(connection.clone()));
     }
-    for provider in ["letsencrypt", "zerossl", "cloudflare-origin-ca"] {
-        if let Some(connection) = connections
-            .iter()
-            .find(|connection| eligible_issuer(connection) && connection.provider_id == provider)
-        {
+    for descriptor in crate::cert_issuers::issuers_by_priority() {
+        if let Some(connection) = connections.iter().find(|connection| {
+            eligible_issuer(connection) && connection.provider_id == descriptor.provider_id
+        }) {
             return Ok(Some(connection.clone()));
         }
     }
@@ -1153,12 +1149,13 @@ async fn issue_acme(
         .map_err(|error| internal(error, "list DNS challenge connections"))?
         .into_iter()
         .find(|candidate| {
-            candidate.provider_id == "cloudflare" && candidate.status == ConnectionStatus::Active
+            candidate.status == ConnectionStatus::Active
+                && crate::cert_issuers::dns_shape_for_provider(&candidate.provider_id).is_some()
         })
         .ok_or_else(|| {
             (
                 StatusCode::CONFLICT,
-                Json(json!({"error":"dns01_unavailable","hint":"connect an active Cloudflare account for ACME DNS-01 challenges"})),
+                Json(json!({"error":"dns01_unavailable","hint":"connect an active DNS provider (e.g. Cloudflare) for ACME DNS-01 challenges"})),
             )
                 .into_response()
         })?;
@@ -1177,14 +1174,31 @@ async fn issue_acme(
         PreparedIssuance::Delivered(issued) => return Ok((kind, issued)),
         PreparedIssuance::New(pending) => pending,
     };
-    let provisioner = CloudflareDns01::new(
-        st.connection_broker.clone(),
-        *organization,
-        dns.connection_id,
-    );
-    let issued = account
-        .issue_dns01(request, ChallengeKind::Dns01, &provisioner)
-        .await
+    // Cloudflare keeps its wired implementation; every other declared DNS
+    // provider rides the data-driven brokered provisioner (ADR 0061 §6).
+    let issued = if dns.provider_id == "cloudflare" {
+        let provisioner = CloudflareDns01::new(
+            st.connection_broker.clone(),
+            *organization,
+            dns.connection_id,
+        );
+        account
+            .issue_dns01(request, ChallengeKind::Dns01, &provisioner)
+            .await
+    } else {
+        let shape = crate::cert_issuers::dns_shape_for_provider(&dns.provider_id)
+            .expect("selection above requires a declared shape");
+        let provisioner = crate::cert_issuers::BrokeredDns01::new(
+            st.connection_broker.clone(),
+            *organization,
+            dns.connection_id,
+            shape,
+        );
+        account
+            .issue_dns01(request, ChallengeKind::Dns01, &provisioner)
+            .await
+    };
+    let issued = issued
         .map_err(|error| internal(error, "issue ACME certificate"))
         .and_then(external_delivery);
     let issued = match issued {
@@ -1330,8 +1344,15 @@ async fn issue_external(
         )
             .into_response()
     })?;
-    match connection.provider_id.as_str() {
-        "letsencrypt" | "zerossl" => {
+    let Some(descriptor) = crate::cert_issuers::issuer_for_provider(&connection.provider_id) else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"issuer_unavailable","hint":"unsupported certificate issuer"})),
+        )
+            .into_response());
+    };
+    match descriptor.protocol {
+        crate::cert_issuers::IssuerProtocol::Acme => {
             issue_acme(
                 st,
                 headers,
@@ -1343,7 +1364,7 @@ async fn issue_external(
             )
             .await
         }
-        "cloudflare-origin-ca" => {
+        crate::cert_issuers::IssuerProtocol::CloudflareOriginCa => {
             issue_cloudflare_origin(
                 st,
                 headers,
@@ -1355,11 +1376,6 @@ async fn issue_external(
             )
             .await
         }
-        _ => Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error":"issuer_unavailable","hint":"unsupported certificate issuer"})),
-        )
-            .into_response()),
     }
 }
 
@@ -1863,5 +1879,24 @@ mod tests {
             .await
             .unwrap()
             .is_empty());
+    }
+
+    /// Registry rows and the IssuerKind-level vocabulary must agree: the
+    /// registry names/labels are what the wire and receipts carry.
+    #[test]
+    fn registry_rows_agree_with_kind_names_and_labels() {
+        for descriptor in crate::cert_issuers::EXTERNAL_ISSUERS {
+            assert_eq!(
+                super::external_issuer_label(descriptor.kind),
+                descriptor.label
+            );
+            // Kind names are snake_case spellings of the provider id.
+            assert_eq!(
+                super::issuer_kind_name(descriptor.kind),
+                descriptor.provider_id.replace('-', "_"),
+                "kind name and provider id must stay in lockstep for {}",
+                descriptor.provider_id
+            );
+        }
     }
 }

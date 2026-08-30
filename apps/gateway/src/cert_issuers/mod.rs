@@ -9,6 +9,7 @@ mod acme;
 mod cloudflare_dns;
 mod cloudflare_origin;
 mod model;
+mod registry;
 
 pub use acme::{
     AcmeAccount, AcmeAccountCredentials, AcmeEnvironment, AcmeProvider, Dns01Failure, Dns01Lease,
@@ -21,4 +22,8 @@ pub use cloudflare_origin::{
 pub use model::{
     CertificateRequest, CertificateRequestInput, ChallengeKind, GeneratedLeafRequest,
     IssuedCertificate, IssuerKind, TrustClass,
+};
+pub use registry::{
+    dns_shape_for_provider, issuer_for_provider, issuers_by_priority, BrokeredDns01,
+    DnsProviderShape, ExternalIssuerDescriptor, IssuerProtocol, EXTERNAL_ISSUERS,
 };
