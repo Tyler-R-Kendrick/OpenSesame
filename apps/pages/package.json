@@ -20,7 +20,6 @@
     "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",
     "@opensesame/webmcp": "workspace:*",
-    "@pierre/trees": "1.0.0-beta.6",
     "@tursodatabase/sync-wasm": "0.7.2",
     "hash-wasm": "4.12.0",
     "kdbxweb": "2.1.1",

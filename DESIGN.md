@@ -156,18 +156,30 @@ Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
 ### VFS interaction model
 
-The vault is a filesystem, not a webpage. Every vault is a tomb with a
+The workspace is a filesystem, not a webpage. Every vault is a tomb with a
 canonical path space — `personal:/Work/GitHub` — folders are directories,
-items are files, and the list renders as a compact file tree via
-`@pierre/trees`, never as a card wall.
+items are files with kind pseudo-extensions (`GitHub.login`, `Deploy
+webhook.secret`), and the vault list renders as a compact first-party mono
+file tree (ADR 0066), never as a card wall. The navigation rail is the same
+tree one level up: sections are directories off the tomb root (`vault/`,
+`connections/`, `access/`, `identity/`, `settings/`), each advertising its
+`g`-jump key; the active section is the open directory, with the vault's
+filter views, folders, and `health` — and the settings categories — hanging
+under it as entries with live counts. A path strip pins the tomb root at the
+top of the vault pane; the mobile tab bar keeps labeled icons.
 
-A visible cursor row owns focus. `j`/`k`/arrows move it, `l`/`→` opens,
-`h`/`←` collapses or climbs, `gg`/`G` jump, and `Enter` activates. `/` opens
-hide-non-matches search; `Esc` closes it. Item verbs are single keys: `y`
-copies the secret, `u` the username, `e` edits, `x` trashes, `n` creates, `.`
-toggles favorite, and `s` shares a secret once. `g v/c/a/i/s` jumps between
-sections and `?` shows the keymap. A mono status line always shows the focused
-path, item count, and active filter. Pointer access remains complete.
+A visible cursor row owns focus — accent wash plus a hairline ring, always
+rendered. `j`/`k`/arrows move it, `l`/`→` opens, `h`/`←` collapses or climbs,
+`gg`/`G` jump, and `Enter` activates. `/` opens a vim-style command line at
+the foot of the pane, backed by a real input so typed keys never leak into
+the keymap; matches highlight, non-matches hide, `Esc` closes it. Item verbs
+are single keys: `y` copies the secret, `u` the username, `e` edits, `x`
+trashes, `n` creates, `.` toggles favorite, and `s` shares a secret once.
+`g v/c/a/i/s` jumps between sections and `?` shows the keymap. A mono status
+line always shows the focused path, item count, and active filter (or the
+live query). Pointer access remains complete: rows click, directories
+toggle, a `⋯` menu on the cursor or hovered row carries the verbs, and the
+`/` and `?` key chips in the path strip are buttons.
 
 ## Elevation & Depth
 

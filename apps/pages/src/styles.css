@@ -680,66 +680,113 @@ input[type="radio"] {
   scrollbar-color: var(--rail-line) transparent;
 }
 
-.rail__group {
-  margin-top: 0.9rem;
+/* —— The rail as a filesystem: sections are directories ————— */
+
+.railtree {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
 }
 
-.rail__group-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-  padding: 0 0.5rem 0.35rem;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.railtree__root {
+  margin: 0;
+  padding: 0.3rem 0.55rem 0.45rem;
+  font-size: 0.75rem;
   color: var(--rail-muted);
 }
 
-.rail__link {
+.railtree__tomb {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.railtree__row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.55rem;
-  border-radius: 8px;
+  gap: 0.4rem;
+  height: 1.75rem;
+  padding: 0 0.55rem;
   color: var(--rail-fg);
   text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 500;
+  white-space: nowrap;
   opacity: 0.85;
   transition: background 140ms var(--ease), opacity 140ms var(--ease);
 }
 
-.rail__link:hover {
+.railtree__row:hover {
   background: var(--rail-2);
   opacity: 1;
 }
 
-.rail__link.is-active {
-  background: color-mix(in srgb, var(--accent) 26%, var(--rail-2));
+.railtree__row.is-active {
+  background: color-mix(in srgb, var(--accent) 24%, var(--rail-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
   opacity: 1;
-  font-weight: 600;
 }
 
-.rail__link svg {
+.railtree__row.is-active .railtree__name {
+  font-weight: 650;
+}
+
+.railtree__kids {
+  display: flex;
+  flex-direction: column;
+  margin-left: 0.875rem;
+  border-left: 1px solid var(--rail-line);
+}
+
+.railtree__caret {
   flex: none;
-  opacity: 0.85;
+  color: var(--rail-muted);
+  transition: transform 140ms var(--ease);
 }
 
-.rail__link.is-active svg {
-  opacity: 1;
+.railtree__caret.is-open {
+  transform: rotate(90deg);
 }
 
-.rail__count {
+.railtree__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.railtree__dim {
+  color: var(--rail-muted);
+}
+
+.railtree__count {
   margin-left: auto;
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--rail-muted);
 }
 
-.rail__link.is-active .rail__count {
+.railtree__row.is-active .railtree__count {
   color: inherit;
+}
+
+.railtree__jump {
+  flex: none;
+  margin-left: auto;
+  padding: 0.05rem 0.25rem;
+  border: 1px solid var(--rail-line);
+  border-radius: 4px;
+  color: var(--rail-muted);
+  font-family: inherit;
+  font-size: 0.625rem;
+  line-height: 1.2;
+}
+
+.railtree__count + .railtree__jump,
+.railtree__name + .railtree__jump {
+  margin-left: auto;
+}
+
+.railtree__count ~ .railtree__jump {
+  margin-left: 0.4rem;
 }
 
 .rail__foot {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Link,
   Outlet,
@@ -13,7 +13,6 @@ import {
   IconUpload,
   IconVault,
 } from "../components/Icons.js";
-import { activeProject } from "../lib/projects.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { stashImportFile } from "../lib/vault/import/handoff.js";
@@ -25,7 +24,6 @@ import {
   type VaultItem,
   sortItems,
 } from "../lib/vault/model.js";
-import { itemPath, tombPath } from "../lib/vault/paths.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
 
@@ -164,10 +162,6 @@ export function VaultSection() {
   const store = useVaultStore();
   const copySecret = useCopySecret();
   const navigate = useNavigate();
-  const [focused, setFocused] = useState<{
-    item: VaultItem | null;
-    path: string | null;
-  }>({ item: null, path: null });
 
   const filter = params.get("f") ?? "all";
   const folderId = params.get("folder");
@@ -215,10 +209,6 @@ export function VaultSection() {
     const used = new Set(visible.map((item) => item.folderId).filter(Boolean));
     return folders.filter((folder) => used.has(folder.id));
   }, [filter, folderId, folders, items, visible]);
-  const onFocus = useCallback(
-    (item: VaultItem | null, path: string | null) => setFocused({ item, path }),
-    [],
-  );
   const actions = useMemo(
     () => ({
       open: (item: VaultItem) =>
@@ -241,9 +231,6 @@ export function VaultSection() {
     }),
     [copySecret, createKind, location.search, navigate, store],
   );
-  const focusedPath = focused.item
-    ? itemPath(focused.item, folders)
-    : focused.path;
   const total = items.filter((item) =>
     filter === "trash" ? item.deletedAt !== null : item.deletedAt === null,
   ).length;
@@ -304,27 +291,14 @@ export function VaultSection() {
             ) : null}
           </div>
         ) : (
-          <>
-            <VaultTree
-              items={visible}
-              folders={treeFolders}
-              activeItemId={itemId}
-              actions={actions}
-              onFocus={onFocus}
-            />
-            <output
-              className="vault__status"
-              aria-live="polite"
-              aria-label={`${tombPath(activeProject().id, focusedPath)}, ${visible.length} of ${total} items, ${title}`}
-            >
-              <span className="vault__status-path">
-                {tombPath(activeProject().id, focusedPath)}
-              </span>
-              <span className="vault__status-meta">
-                {visible.length}/{total} · {title}
-              </span>
-            </output>
-          </>
+          <VaultTree
+            items={visible}
+            folders={treeFolders}
+            activeItemId={itemId}
+            actions={actions}
+            title={title}
+            total={total}
+          />
         )}
       </div>
 

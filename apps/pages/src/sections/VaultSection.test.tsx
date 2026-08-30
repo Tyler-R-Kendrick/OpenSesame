@@ -1,12 +1,6 @@
 import type { JsonObject } from "@opensesame/os-domain";
 import {
-  type FileTreeDirectoryHandle,
-  type FileTreeItemHandle,
-  FileTree as FileTreeModel,
-  type FileTreeOptions,
-} from "@pierre/trees";
-import type { FileTreeProps } from "@pierre/trees/react";
-import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -14,7 +8,6 @@ import {
   waitFor,
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
-import { useState } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,8 +44,7 @@ const store = {
   trashItem: vi.fn(),
   toggleFavorite: vi.fn(),
 };
-let treeOptions: FileTreeOptions | null = null;
-let treeModel: FileTreeModel | null = null;
+const saveCollapsed = vi.fn(async () => undefined);
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
   useVaultStore: () => store,
@@ -60,48 +52,9 @@ Object.assign(vaultHooksSeams, {
 });
 Object.assign(vaultTreeSeams, {
   activeTomb: () => "personal",
-  loadExpanded: async () => [],
-  saveExpanded: vi.fn(async () => undefined),
-  useFileTree: (options: FileTreeOptions) => {
-    const [model] = useState(() => new FileTreeModel(options));
-    treeOptions = options;
-    treeModel = model;
-    return { model };
-  },
-  FileTree: ({ model }: FileTreeProps) => (
-    <div data-testid="vault-tree">
-      {model.getVisibleRows(0, model.getVisibleCount()).map((row) => {
-        const item = { kind: row.kind, name: row.name, path: row.path };
-        const decoration = treeOptions?.renderRowDecoration?.({ item, row });
-        return (
-          <button
-            type="button"
-            key={row.path}
-            onClick={() => treeOptions?.onSelectionChange?.([row.path])}
-          >
-            {row.name}
-            {decoration?.title ? (
-              <span title={decoration.title}>
-                {"text" in decoration ? decoration.text : decoration.title}
-              </span>
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
-  ),
+  loadCollapsed: async (): Promise<string[]> => [],
+  saveCollapsed,
 });
-
-function currentTree(): FileTreeModel {
-  if (!treeModel) throw new Error("Vault tree was not mounted.");
-  return treeModel;
-}
-
-function isDirectory(
-  item: FileTreeItemHandle | null,
-): item is FileTreeDirectoryHandle {
-  return item?.isDirectory() === true;
-}
 
 import { VaultSection, VaultWelcome } from "./VaultSection.js";
 
@@ -184,10 +137,28 @@ function renderSection(initial = "/vault") {
   );
 }
 
+function keymap() {
+  return createKeymapHandler({ navigate: vi.fn(), showHelp: vi.fn() });
+}
+
+function press(handler: (event: KeyboardEvent) => void, key: string) {
+  act(() => {
+    handler(new KeyboardEvent("keydown", { key, cancelable: true }));
+  });
+}
+
+function cursorRow(): HTMLElement {
+  const row = screen
+    .getAllByRole("treeitem")
+    .find((candidate) => candidate.getAttribute("aria-selected") === "true");
+  if (!row) throw new Error("No cursor row.");
+  return row;
+}
+
 describe("VaultSection", () => {
   beforeEach(() => {
     vault.current = { items: [], folders: [], header: null };
-    vaultTreeSeams.loadExpanded = async () => [];
+    vaultTreeSeams.loadCollapsed = async () => [];
   });
 
   afterEach(() => {
@@ -195,8 +166,6 @@ describe("VaultSection", () => {
     vi.clearAllMocks();
     // A file stashed by a test must not leak into the next one.
     takeImportFile();
-    treeOptions = null;
-    treeModel = null;
   });
 
   it("shows the empty state with new and import actions", () => {
@@ -230,16 +199,42 @@ describe("VaultSection", () => {
     expect(screen.getByText("settings pane")).toBeTruthy();
   });
 
-  it("lists items with names and count", () => {
+  it("lists items as files with kind extensions and a status line", () => {
     vault.current = {
       items: [makeLogin(), makeNote()],
       folders: [],
       header: null,
     };
     renderSection();
-    expect(screen.getByText("Webmail")).toBeTruthy();
-    expect(screen.getByText("Scratch pad")).toBeTruthy();
+    const rows = screen.getAllByRole("treeitem");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "Scratch pad.note",
+      "Webmail.login",
+    ]);
     expect(screen.getByText(/2\/2 · All items/)).toBeTruthy();
+  });
+
+  it("owns a visible cursor that the keymap moves", () => {
+    vault.current = {
+      items: [makeLogin(), makeNote()],
+      folders: [],
+      header: null,
+    };
+    renderSection();
+    const handler = keymap();
+    // The cursor lands on the first row without any input.
+    expect(cursorRow().textContent).toBe("Scratch pad.note");
+    press(handler, "j");
+    expect(cursorRow().textContent).toBe("Webmail.login");
+    // The status line follows the cursor with the tomb-rooted path.
+    expect(screen.getByText("personal:/Webmail.login")).toBeTruthy();
+    press(handler, "k");
+    expect(cursorRow().textContent).toBe("Scratch pad.note");
+    press(handler, "G");
+    expect(cursorRow().textContent).toBe("Webmail.login");
+    press(handler, "g");
+    press(handler, "g");
+    expect(cursorRow().textContent).toBe("Scratch pad.note");
   });
 
   it("shows a timer with the expiry on hover for items with temporality", () => {
@@ -256,34 +251,38 @@ describe("VaultSection", () => {
     expect(screen.getAllByTitle(/^Expires /)).toHaveLength(1);
   });
 
-  it("uses the tree model for search", () => {
+  it("opens a / command line that filters and never leaks keys", () => {
     vault.current = {
       items: [makeLogin(), makeNote()],
       folders: [],
       header: null,
     };
     renderSection();
-    const model = currentTree();
-    model.openSearch();
-    model.setSearch("webmail");
-    expect(model.getSearchMatchingPaths()).toEqual(["Webmail"]);
-    model.closeSearch();
-    expect(model.isSearchOpen()).toBe(false);
+    const handler = keymap();
+    press(handler, "/");
+    const input = screen.getByLabelText("Search items");
+    fireEvent.change(input, { target: { value: "web" } });
+    expect(
+      screen.getAllByRole("treeitem").map((row) => row.textContent),
+    ).toEqual(["Webmail.login"]);
+    expect(screen.getByText(/1\/2 · \/web/)).toBeTruthy();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByLabelText("Search items")).toBeNull();
+    expect(
+      screen.getAllByRole("treeitem").map((row) => row.textContent),
+    ).toEqual(["Scratch pad.note", "Webmail.login"]);
   });
 
-  it("returns no tree matches for a fruitless search", () => {
+  it("returns no rows for a fruitless search", () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection();
-    const model = currentTree();
-    model.setSearch("zzzzzz");
-    expect(model.getSearchMatchingPaths()).toEqual([]);
-  });
-
-  it("configures built-in hide-non-matches search", () => {
-    vault.current = { items: [makeLogin()], folders: [], header: null };
-    renderSection();
-    expect(treeOptions?.search).toBe(true);
-    expect(treeOptions?.fileTreeSearchMode).toBe("hide-non-matches");
+    const handler = keymap();
+    press(handler, "/");
+    fireEvent.change(screen.getByLabelText("Search items"), {
+      target: { value: "zzzzzz" },
+    });
+    expect(screen.queryAllByRole("treeitem")).toHaveLength(0);
+    expect(screen.getByText(/0\/1 · \/zzzzzz/)).toBeTruthy();
   });
 
   it("filters to favorites", () => {
@@ -294,8 +293,11 @@ describe("VaultSection", () => {
     };
     renderSection("/vault?f=favorites");
     expect(screen.getByRole("heading", { name: "Favorites" })).toBeTruthy();
-    expect(screen.getByText("Webmail")).toBeTruthy();
-    expect(screen.queryByText("Scratch pad")).toBeNull();
+    const rows = screen.getAllByRole("treeitem");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.querySelector(".vtree__name")?.textContent).toBe(
+      "Webmail.login",
+    );
     expect(screen.getByText(/1\/2 · Favorites/)).toBeTruthy();
   });
 
@@ -307,8 +309,9 @@ describe("VaultSection", () => {
     };
     renderSection("/vault?f=note");
     expect(screen.getByRole("heading", { name: "Secure notes" })).toBeTruthy();
-    expect(screen.queryByText("Webmail")).toBeNull();
-    expect(screen.getByText("Scratch pad")).toBeTruthy();
+    expect(
+      screen.getAllByRole("treeitem").map((row) => row.textContent),
+    ).toEqual(["Scratch pad.note"]);
   });
 
   it("shows only trashed items under the trash filter", () => {
@@ -319,8 +322,9 @@ describe("VaultSection", () => {
     };
     renderSection("/vault?f=trash");
     expect(screen.getByRole("heading", { name: "Trash" })).toBeTruthy();
-    expect(screen.getByText("Webmail")).toBeTruthy();
-    expect(screen.queryByText("Scratch pad")).toBeNull();
+    expect(
+      screen.getAllByRole("treeitem").map((row) => row.textContent),
+    ).toEqual(["Webmail.login"]);
   });
 
   it("shows the trash empty state", () => {
@@ -337,19 +341,21 @@ describe("VaultSection", () => {
     };
     renderSection("/vault?folder=fld_1");
     expect(screen.getByRole("heading", { name: "Folder" })).toBeTruthy();
-    expect(screen.getByText("Webmail")).toBeTruthy();
-    expect(screen.queryByText("Scratch pad")).toBeNull();
+    expect(
+      screen.getAllByRole("treeitem").map((row) => row.textContent),
+    ).toEqual(["Webmail.login"]);
   });
 
-  it("focuses the open item in the tree", () => {
+  it("puts the cursor on the open item", () => {
     vault.current = {
-      items: [makeLogin({ favorite: true })],
+      items: [makeLogin({ favorite: true }), makeNote()],
       folders: [],
       header: null,
     };
     renderSection("/vault/itm_1?f=favorites");
     expect(screen.getByText("detail pane")).toBeTruthy();
-    expect(currentTree().getFocusedPath()).toBe("Webmail");
+    expect(cursorRow().id).toBe("vtree-row-itm_1");
+    expect(screen.getByText("personal:/Webmail.login")).toBeTruthy();
   });
 
   it("shows sample and favorite markers on rows", () => {
@@ -385,40 +391,89 @@ describe("VaultSection", () => {
     const item = makeLogin();
     vault.current = { items: [item], folders: [], header: null };
     renderSection();
-    const handler = createKeymapHandler({
-      navigate: vi.fn(),
-      showHelp: vi.fn(),
-    });
+    const handler = keymap();
 
-    handler(new KeyboardEvent("keydown", { key: "y", cancelable: true }));
-    handler(new KeyboardEvent("keydown", { key: ".", cancelable: true }));
-    handler(new KeyboardEvent("keydown", { key: "x", cancelable: true }));
+    press(handler, "y");
+    press(handler, ".");
+    press(handler, "x");
 
     expect(copySecret).toHaveBeenCalledWith(item.password);
     expect(store.toggleFavorite).toHaveBeenCalledWith(item.id);
     expect(store.trashItem).toHaveBeenCalledWith(item.id);
   });
 
-  it("restores and persists folder expansion per tomb", async () => {
+  it("offers the row actions menu as a pointer twin of the verbs", () => {
+    const item = makeLogin();
+    vault.current = { items: [item], folders: [], header: null };
+    renderSection();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Actions for Webmail" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Trash" }));
+    expect(store.trashItem).toHaveBeenCalledWith(item.id);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("folders render as directories, expanded until collapsed by hand", async () => {
     vault.current = {
       items: [makeLogin({ folderId: "fld_1" })],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
       header: null,
     };
-    vaultTreeSeams.loadExpanded = async () => ["Work/"];
     renderSection();
+    const dir = screen.getByRole("treeitem", { name: /Work/ });
+    expect(dir.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText(/Webmail/)).toBeTruthy();
 
-    let folder = currentTree().getItem("Work/");
+    await waitFor(() => expect(dir.getAttribute("aria-selected")).toBe("true"));
+    fireEvent.click(dir);
+    expect(dir.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText(/Webmail/)).toBeNull();
     await waitFor(() => {
-      folder = currentTree().getItem("Work/");
-      expect(isDirectory(folder) && folder.isExpanded()).toBe(true);
+      expect(saveCollapsed).toHaveBeenCalledWith("personal", ["Work/"]);
     });
-    if (!isDirectory(folder)) throw new Error("Work folder was not mounted.");
-    folder.toggle();
+  });
 
+  it("restores the persisted collapse set per tomb", async () => {
+    vault.current = {
+      items: [makeLogin({ folderId: "fld_1" })],
+      folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
+      header: null,
+    };
+    vaultTreeSeams.loadCollapsed = async () => ["Work/"];
+    renderSection();
     await waitFor(() => {
-      expect(vaultTreeSeams.saveExpanded).toHaveBeenCalledWith("personal", []);
+      expect(
+        screen
+          .getByRole("treeitem", { name: /Work/ })
+          .getAttribute("aria-expanded"),
+      ).toBe("false");
     });
+    expect(screen.queryByText(/Webmail/)).toBeNull();
+  });
+
+  it("climbs and dives directories with h and l", async () => {
+    vault.current = {
+      items: [makeLogin({ folderId: "fld_1" })],
+      folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
+      header: null,
+    };
+    renderSection();
+    const handler = keymap();
+    await waitFor(() => expect(cursorRow().textContent).toContain("Work"));
+    // l on an expanded directory steps onto its first child.
+    press(handler, "l");
+    expect(cursorRow().textContent).toBe("Webmail.login");
+    // h climbs back to the directory row.
+    press(handler, "h");
+    expect(cursorRow().textContent).toContain("Work");
+    // h on the expanded directory collapses it.
+    press(handler, "h");
+    expect(
+      screen
+        .getByRole("treeitem", { name: /Work/ })
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
   });
 
   it("renders kind and folder filter chips only for present kinds", () => {

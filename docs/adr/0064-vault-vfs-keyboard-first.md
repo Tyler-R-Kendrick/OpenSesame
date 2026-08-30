@@ -1,6 +1,7 @@
 # ADR 0064 — The vault renders as a VFS; the keyboard is first-class
 
-Status: Accepted
+Status: Accepted — rendering decision superseded by
+[ADR 0066](0066-first-party-vfs-tree.md) (interaction contract stands)
 Date: 2026-08-29
 References: ADR 0061 (ceremony per action, no prose), ADR 0063 (each vault
 is a tomb), design language in `DESIGN.md` ("VFS interaction model"),
