@@ -712,5 +712,4 @@ export function registerReadTools(server: McpServer): void {
       }
     },
   );
-
 }
