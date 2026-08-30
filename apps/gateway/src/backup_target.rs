@@ -107,7 +107,7 @@ impl ConnectorSnapshotTarget {
                     file.content.clone().into_bytes(),
                 )
                 .await
-                .map_err(map_broker_error)?;
+                .map_err(|e| map_broker_error(&e))?;
             manifest_entries.push(serde_json::json!({
                 "path": file.path,
                 "sha256": format!("{:x}", Sha256::digest(file.content.as_bytes())),
@@ -129,13 +129,13 @@ impl ConnectorSnapshotTarget {
                 manifest_bytes,
             )
             .await
-            .map_err(map_broker_error)?;
+            .map_err(|e| map_broker_error(&e))?;
         Ok(CommitOutcome::Committed(manifest_digest))
     }
 }
 
-fn map_broker_error(error: opensesame_connection_broker::BrokerError) -> StepError {
-    match &error {
+fn map_broker_error(error: &opensesame_connection_broker::BrokerError) -> StepError {
+    match error {
         opensesame_connection_broker::BrokerError::NeedsReauth(reason) => {
             StepError::Suspend(format!("connection needs reauthorization: {reason}"))
         }

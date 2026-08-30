@@ -159,7 +159,8 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         &mut boot.broker.host,
         &connection_broker,
         connection_organization,
-    )?;
+    )
+    .await?;
     let resolved = crate::taskbus_config::resolve(&db).await?;
     let task_bus = match crate::taskbus_config::build_bus(&resolved).await {
         Ok(bus) => bus,

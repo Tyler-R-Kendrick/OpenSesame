@@ -14,6 +14,7 @@ mod dev_pki;
 mod github_webhook;
 mod identity_mapping;
 mod middleware;
+mod oci_component;
 mod rotation_scheduler;
 mod routes;
 mod sync_actor;

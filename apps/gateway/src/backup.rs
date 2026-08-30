@@ -104,48 +104,8 @@ pub async fn pass(
     // Connector-kind targets (ADR 0065 §6) deliver through the connection
     // broker's authorized egress — no GitHub App leg, same saga semantics.
     if target.kind == crate::backup_target::KIND_CONNECTOR {
-        let connector_target = match crate::backup_target::ConnectorSnapshotTarget::from_row(
-            state.connection_broker.clone(),
-            state.connection_organization,
-            &target,
-        ) {
-            Ok(connector_target) => connector_target,
-            Err(StepError::Suspend(reason)) => {
-                return compensate_suspend(state, &organization, &ids, &reason).await;
-            }
-            Err(StepError::Retry(reason)) => {
-                return compensate_retry(state, &ids, max_attempts, &reason).await;
-            }
-        };
-        let files = snapshot(state).await?;
-        let event_summary = summarize(&events);
-        return match connector_target
-            .commit_snapshot(&files, &event_summary)
-            .await
-        {
-            Ok(CommitOutcome::Committed(sha)) => {
-                state.db.mark_outbox_published(&ids).await?;
-                state
-                    .db
-                    .record_backup_outcome(&organization, "ok", Some(&sha), None)
-                    .await?;
-                Ok(())
-            }
-            Ok(CommitOutcome::NoChanges) => {
-                state.db.mark_outbox_published(&ids).await?;
-                state
-                    .db
-                    .record_backup_outcome(&organization, "ok", None, None)
-                    .await?;
-                Ok(())
-            }
-            Err(StepError::Suspend(reason)) => {
-                compensate_suspend(state, &organization, &ids, &reason).await
-            }
-            Err(StepError::Retry(reason)) => {
-                compensate_retry(state, &ids, max_attempts, &reason).await
-            }
-        };
+        return pass_connector_target(state, &target, &events, &ids, max_attempts, &organization)
+            .await;
     }
 
     // Step 1: authenticate as the installed GitHub App.
@@ -197,6 +157,59 @@ pub async fn pass(
             compensate_suspend(state, &organization, &ids, &reason).await
         }
         Err(StepError::Retry(reason)) => compensate_retry(state, &ids, max_attempts, &reason).await,
+    }
+}
+
+/// The connector-kind delivery leg of [`pass`]: same claim, snapshot, and
+/// compensation semantics, with `ConnectorSnapshotTarget` in place of the
+/// GitHub App client.
+async fn pass_connector_target(
+    state: &AppState,
+    target: &BackupTarget,
+    events: &[opensesame_storage::OutboxEvent],
+    ids: &[String],
+    max_attempts: i64,
+    organization: &str,
+) -> anyhow::Result<()> {
+    let connector_target = match crate::backup_target::ConnectorSnapshotTarget::from_row(
+        state.connection_broker.clone(),
+        state.connection_organization,
+        target,
+    ) {
+        Ok(connector_target) => connector_target,
+        Err(StepError::Suspend(reason)) => {
+            return compensate_suspend(state, organization, ids, &reason).await;
+        }
+        Err(StepError::Retry(reason)) => {
+            return compensate_retry(state, ids, max_attempts, &reason).await;
+        }
+    };
+    let files = snapshot(state).await?;
+    let event_summary = summarize(events);
+    match connector_target
+        .commit_snapshot(&files, &event_summary)
+        .await
+    {
+        Ok(CommitOutcome::Committed(sha)) => {
+            state.db.mark_outbox_published(ids).await?;
+            state
+                .db
+                .record_backup_outcome(organization, "ok", Some(&sha), None)
+                .await?;
+            Ok(())
+        }
+        Ok(CommitOutcome::NoChanges) => {
+            state.db.mark_outbox_published(ids).await?;
+            state
+                .db
+                .record_backup_outcome(organization, "ok", None, None)
+                .await?;
+            Ok(())
+        }
+        Err(StepError::Suspend(reason)) => {
+            compensate_suspend(state, organization, ids, &reason).await
+        }
+        Err(StepError::Retry(reason)) => compensate_retry(state, ids, max_attempts, &reason).await,
     }
 }
 

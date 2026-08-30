@@ -18,6 +18,7 @@ mod otp {
     pub use opensesame_authenticator_core::parse_otpauth;
     pub use opensesame_authenticator_core::{find_otpauth_in_trailer, sync_trailer_otp, OtpUri};
 }
+mod object_store;
 mod path;
 mod recipients;
 mod root;
@@ -43,6 +44,7 @@ pub use gpg::{decrypt_gpg_file, encrypt_gpg_file, read_gpg_id};
 pub use history::{entry_history, restore_entry, HistoryEntry};
 // —— end entry history / restore ——————————————————————————————————————————
 pub use manifest::{parse_manifest, seal_manifest, ManifestEntry, SealOutcome};
+pub use object_store::{assert_confined_rel, FsObjectStore, ObjectStore};
 pub use opensesame_authenticator_core::{
     find_otpauth_in_trailer, hotp_code, parse_otpauth, sync_trailer_otp, totp_code,
     validate_otpauth, OtpAlgorithm, OtpError, OtpKind, OtpUri,

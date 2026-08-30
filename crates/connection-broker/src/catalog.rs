@@ -774,7 +774,7 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-30.1");
+        assert_eq!(catalog.revision(), "2026-08-30.3");
         assert_eq!(catalog.providers().len(), 89);
         assert_eq!(
             catalog
@@ -863,8 +863,45 @@ mod tests {
                 .find(id)
                 .unwrap_or_else(|| panic!("missing Fnox provider {id}"));
             assert_eq!(provider.category, category, "wrong category for {id}");
-            assert!(matches!(&provider.auth, AuthMethod::Configuration));
+            // Doppler is promoted to real API-key auth with value-blind
+            // egress (ADR 0065 §8); the rest stay configuration-only until
+            // their own promotion review.
+            if id == "doppler" {
+                assert!(matches!(&provider.auth, AuthMethod::ApiKey { .. }));
+            } else {
+                assert!(matches!(&provider.auth, AuthMethod::Configuration));
+            }
         }
+    }
+
+    /// The promoted doppler row must stay value-blind: its egress prefixes
+    /// allow the metadata endpoints and structurally exclude the
+    /// secret-*values* endpoint, which no L2 caller may ever reach.
+    #[test]
+    fn doppler_promotion_is_value_blind() {
+        let catalog = load().expect("embedded catalog");
+        let doppler = catalog.find("doppler").expect("doppler provider");
+        assert!(matches!(&doppler.auth, AuthMethod::ApiKey { .. }));
+        let binding = doppler.egress.binding();
+        assert!(binding
+            .allows_url("https://api.doppler.com/v3/projects")
+            .is_ok());
+        assert!(binding
+            .allows_url(
+                "https://api.doppler.com/v3/configs/config/secrets/names?project=a&config=b"
+            )
+            .is_ok());
+        // The values endpoint is the whole point of the fence.
+        assert!(binding
+            .allows_url("https://api.doppler.com/v3/configs/config/secrets?project=a&config=b")
+            .is_err());
+        assert!(binding
+            .allows_url("https://api.doppler.com/v3/configs/config/secret?name=X")
+            .is_err());
+        assert!(!doppler
+            .operations
+            .iter()
+            .any(|op| op == "secret.read" || op == "secret.download"));
     }
 
     /// Passbolt is not an fnox provider: it is a self-hosted, PGP-keyed

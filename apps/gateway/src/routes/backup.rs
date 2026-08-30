@@ -229,7 +229,7 @@ async fn resolve_integration_id(
 /// Configure a connector-kind target (ADR 0065 §6): snapshots deliver
 /// through the named Host connection's authorized egress. Configuration is
 /// refused unless the connection exists and the config is secret-free with
-/// an https base_url — the same checks the actor re-runs at delivery time.
+/// an https `base_url` — the same checks the actor re-runs at delivery time.
 async fn put_connector_target(
     st: &AppState,
     organization: &opensesame_domain::OrganizationId,
@@ -249,19 +249,16 @@ async fn put_connector_target(
         )
             .into_response();
     };
-    let view = match st
+    let Ok(view) = st
         .connection_broker
         .get_connection(organization, connection_id)
         .await
-    {
-        Ok(view) => view,
-        Err(_) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({"error":"connection_not_found"})),
-            )
-                .into_response();
-        }
+    else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error":"connection_not_found"})),
+        )
+            .into_response();
     };
     let Some(config) = body.config else {
         return (
