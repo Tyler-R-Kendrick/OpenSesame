@@ -66,14 +66,30 @@ mod enabled {
             let method = req.method.clone();
             let url = req.url.clone();
             tokio::task::block_in_place(|| {
-                self.handle.block_on(async move {
-                    broker
-                        .authorized_json(&organization, &connection, &method, &url, body)
-                        .await
-                        .map_err(|e| format!("egress failed: {e}"))
-                })
+                self.handle.block_on(fetch_json(
+                    broker,
+                    organization,
+                    connection,
+                    method,
+                    url,
+                    body,
+                ))
             })
         }
+    }
+
+    async fn fetch_json(
+        broker: Arc<ConnectionBroker>,
+        organization: OrganizationId,
+        connection: String,
+        method: String,
+        url: String,
+        body: Option<serde_json::Value>,
+    ) -> Result<serde_json::Value, String> {
+        broker
+            .authorized_json(&organization, &connection, &method, &url, body)
+            .await
+            .map_err(|e| format!("egress failed: {e}"))
     }
 
     impl HostEgress for GatewayEgress {
