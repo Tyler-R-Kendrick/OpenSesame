@@ -1,4 +1,4 @@
--- Backup targets grow a kind discriminator (ADR 0061 §6). Additive: existing
+-- Backup targets grow a kind discriminator (ADR 0065 §6). Additive: existing
 -- GitHub rows read back kind='github_app' and keep working unchanged.
 --
 -- kind='connector' rows deliver ciphertext snapshots through the connection

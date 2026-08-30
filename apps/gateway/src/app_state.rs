@@ -153,7 +153,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         db.pool().clone(),
         BrokerConfig::from_env()?,
     )?);
-    // Community Wasm connectors (ADR 0061 §5): loaded only when the operator
+    // Community Wasm connectors (ADR 0065 §5): loaded only when the operator
     // configured a directory + pinned digests; any failure refuses boot.
     crate::connector_egress::load_wasm_connectors(
         &mut boot.broker.host,

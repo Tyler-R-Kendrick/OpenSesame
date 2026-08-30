@@ -1,4 +1,4 @@
-//! Snapshot delivery targets (ADR 0061 §6).
+//! Snapshot delivery targets (ADR 0065 §6).
 //!
 //! The saga in `backup.rs` stays target-agnostic: it claims events, builds
 //! the ciphertext snapshot, and hands the files to a [`SnapshotTarget`].

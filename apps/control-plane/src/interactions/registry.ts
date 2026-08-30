@@ -543,7 +543,7 @@ export function loadProviderRegistry(
     providers.push(descriptor);
   }
 
-  // Manifest descriptors (ADR 0061 §6) join the same static set under the
+  // Manifest descriptors (ADR 0065 §6) join the same static set under the
   // same one-issuer-one-provider rule, so `resolveTrustedIssuer`'s
   // static → BYO → org order needs no change to see them. Shadowing an
   // env-configured id or issuer refuses the boot: manifests extend the

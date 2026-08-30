@@ -2,7 +2,7 @@ import { isString } from "@opensesame/os-domain";
 /**
  * Platform capability → connector bindings.
  *
- * OpenSesame's brokered capabilities are organized as families (ADR 0061):
+ * OpenSesame's brokered capabilities are organized as families (ADR 0065):
  * encryption key vault (local storage), git history/persistence (backup and
  * file storage), cloud secret storage, password managers, identity, and
  * certificates. Settings binds each capability to a Host catalog connector.

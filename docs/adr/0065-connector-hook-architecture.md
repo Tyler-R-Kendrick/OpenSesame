@@ -1,4 +1,4 @@
-# ADR 0061 — Connector/hook architecture: Wasm-first community connectors
+# ADR 0065 — Connector/hook architecture: Wasm-first community connectors
 
 Status: Accepted
 Date: 2026-08-30

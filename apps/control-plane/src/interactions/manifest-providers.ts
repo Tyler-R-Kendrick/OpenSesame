@@ -1,5 +1,5 @@
 /**
- * Community identity provider descriptors from manifest files (ADR 0061 §6).
+ * Community identity provider descriptors from manifest files (ADR 0065 §6).
  *
  * Identity extensibility is descriptor-shaped, never code-shaped: a manifest
  * file declares endpoints, scopes and a subject field, and the platform's
@@ -23,6 +23,13 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import {
+  type JsonObject,
+  type JsonValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   type OAuth2ProviderDescriptor,
   type OidcProviderDescriptor,
@@ -67,38 +74,34 @@ function fail(file: string, message: string): never {
   throw new ProviderConfigError(`provider manifest ${file}: ${message}`);
 }
 
-function asRecord(file: string, raw: string): Record<string, unknown> {
+function asManifestObject(file: string, raw: string): JsonObject {
   if (raw.length > MAX_MANIFEST_BYTES) {
     fail(file, `exceeds ${MAX_MANIFEST_BYTES} bytes`);
   }
-  let parsed: unknown;
+  let parsed: JsonValue;
   try {
-    parsed = JSON.parse(raw);
+    parsed = overlapCast(JSON.parse(raw));
   } catch {
     fail(file, "is not valid JSON");
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+  if (!isJsonObject(parsed)) {
     fail(file, "must be a JSON object");
   }
-  return parsed as Record<string, unknown>;
+  return parsed;
 }
 
 function optionalString(
   file: string,
-  doc: Record<string, unknown>,
+  doc: JsonObject,
   key: string,
 ): string | undefined {
   const value = doc[key];
   if (value === undefined) return undefined;
-  if (typeof value !== "string") fail(file, `${key} must be a string`);
+  if (!isString(value)) fail(file, `${key} must be a string`);
   return value;
 }
 
-function requiredString(
-  file: string,
-  doc: Record<string, unknown>,
-  key: string,
-): string {
+function requiredString(file: string, doc: JsonObject, key: string): string {
   const value = optionalString(file, doc, key);
   if (value === undefined || value.length === 0) {
     fail(file, `${key} is required`);
@@ -113,7 +116,7 @@ function requiredString(
  */
 function resolveClientSecret(
   file: string,
-  doc: Record<string, unknown>,
+  doc: JsonObject,
   env: NodeJS.ProcessEnv,
 ): string | undefined {
   for (const banned of ["clientSecret", "client_secret", "apple"]) {
@@ -138,7 +141,7 @@ function resolveClientSecret(
 
 function assertKnownKeys(
   file: string,
-  doc: Record<string, unknown>,
+  doc: JsonObject,
   allowed: Set<string>,
 ): void {
   for (const key of Object.keys(doc)) {
@@ -148,30 +151,32 @@ function assertKnownKeys(
   }
 }
 
-const PROFILE_MAP_KEYS = new Set(["email", "name", "emailVerifiedField"]);
+type ProfileMap = NonNullable<OAuth2ProviderDescriptor["profileMap"]>;
 
 function parseProfileMap(
   file: string,
-  raw: unknown,
-): OAuth2ProviderDescriptor["profileMap"] {
+  raw: JsonValue | undefined,
+): ProfileMap | undefined {
   if (raw === undefined) return undefined;
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (!isJsonObject(raw)) {
     fail(file, "profileMap must map identity fields to userinfo fields");
   }
-  const map: { email?: string; name?: string; emailVerifiedField?: string } =
-    {};
+  const map: ProfileMap = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (!PROFILE_MAP_KEYS.has(key) || typeof value !== "string") {
+    if (value === undefined || !isString(value)) {
       fail(file, `profileMap key \`${key}\` is not a known string field`);
     }
-    map[key as "email" | "name" | "emailVerifiedField"] = value;
+    if (key === "email") map.email = value;
+    else if (key === "name") map.name = value;
+    else if (key === "emailVerifiedField") map.emailVerifiedField = value;
+    else fail(file, `profileMap key \`${key}\` is not a known string field`);
   }
   return map;
 }
 
 function descriptorFrom(
   file: string,
-  doc: Record<string, unknown>,
+  doc: JsonObject,
   env: NodeJS.ProcessEnv,
 ): ProviderDescriptor {
   const kind = requiredString(file, doc, "kind");
@@ -251,7 +256,7 @@ export function loadManifestProviders(
         `provider manifest ${path} is not readable: ${String(error)}`,
       );
     }
-    const descriptor = descriptorFrom(entry, asRecord(entry, raw), env);
+    const descriptor = descriptorFrom(entry, asManifestObject(entry, raw), env);
     assertProviderDescriptor(descriptor);
     providers.push(descriptor);
   }

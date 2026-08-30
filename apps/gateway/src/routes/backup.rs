@@ -73,7 +73,7 @@ pub async fn get_target(State(st): State<AppState>, headers: axum::http::HeaderM
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PutTargetBody {
-    /// `github_app` (default) or `connector` (ADR 0061 §6).
+    /// `github_app` (default) or `connector` (ADR 0065 §6).
     #[serde(default)]
     pub kind: Option<String>,
     /// GitHub kind: a GitHub connection that can list/create repos.
@@ -226,7 +226,7 @@ async fn resolve_integration_id(
         })
 }
 
-/// Configure a connector-kind target (ADR 0061 §6): snapshots deliver
+/// Configure a connector-kind target (ADR 0065 §6): snapshots deliver
 /// through the named Host connection's authorized egress. Configuration is
 /// refused unless the connection exists and the config is secret-free with
 /// an https base_url — the same checks the actor re-runs at delivery time.

@@ -1,4 +1,4 @@
-//! Wasm component runtime for community connectors — ADR 0061 §3.
+//! Wasm component runtime for community connectors — ADR 0065 §3.
 //!
 //! Shopify-Functions posture, enforced by construction:
 //! - the linker binds exactly `types`, `host-http`, `host-crypto`, and
@@ -114,7 +114,7 @@ pub trait HostEgress: Send + Sync {
 }
 
 /// Platform-set execution limits. The manifest has no field that can raise
-/// them (ADR 0061 §3 — the hook author never chooses their budget).
+/// them (ADR 0065 §3 — the hook author never chooses their budget).
 #[derive(Clone, Copy, Debug)]
 pub struct GuestLimits {
     /// CPU meter: instructions burn fuel; exhaustion traps the invocation.
@@ -538,7 +538,7 @@ impl Connector for WasmConnector {
     }
 
     fn invoke(&self, req: &InvokeRequest) -> Result<InvokeResult, HostError> {
-        // Dispatcher-enforced checks (ADR 0061 §7): the guest cannot forget
+        // Dispatcher-enforced checks (ADR 0065 §7): the guest cannot forget
         // them because they run before it does.
         let _ = &req.connection_ref;
         if req.operation != req.authorized_operation {

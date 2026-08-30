@@ -40,7 +40,7 @@ const _: () = assert!(MAX_CHUNK_BODY > 1_048_576 + 48);
 const _: () = assert!(MAX_MANIFEST_BODY >= 1_048_576);
 
 /// Providers that can receive attachments declare an `attachment_upload`
-/// shape in the catalog (ADR 0061 §6): pure data the gateway renders.
+/// shape in the catalog (ADR 0065 §6): pure data the gateway renders.
 /// Providers without one are refused at configuration time rather than
 /// failing later on the first replicate call.
 fn upload_shape(

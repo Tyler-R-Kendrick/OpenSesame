@@ -592,7 +592,7 @@ impl HostRuntime {
 
     /// Route a provider's typed operations to a registered connection-policy
     /// id. Refuses ids that nothing is bound to — a provider can never be
-    /// pointed at a connector that does not exist (ADR 0061 §5).
+    /// pointed at a connector that does not exist (ADR 0065 §5).
     ///
     /// # Errors
     ///

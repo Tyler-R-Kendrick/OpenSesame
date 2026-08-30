@@ -1,4 +1,4 @@
-//! Runtime tests for the Wasm connector host (ADR 0061 §3).
+//! Runtime tests for the Wasm connector host (ADR 0065 §3).
 //!
 //! The guest is a hand-authored WAT component implementing the
 //! `opensesame:connector` world: `describe` reports id `echo`, and `invoke`

@@ -101,7 +101,7 @@ pub async fn pass(
         return Ok(());
     }
 
-    // Connector-kind targets (ADR 0061 §6) deliver through the connection
+    // Connector-kind targets (ADR 0065 §6) deliver through the connection
     // broker's authorized egress — no GitHub App leg, same saga semantics.
     if target.kind == crate::backup_target::KIND_CONNECTOR {
         let connector_target = match crate::backup_target::ConnectorSnapshotTarget::from_row(

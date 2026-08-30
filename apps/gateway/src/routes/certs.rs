@@ -1175,7 +1175,7 @@ async fn issue_acme(
         PreparedIssuance::New(pending) => pending,
     };
     // Cloudflare keeps its wired implementation; every other declared DNS
-    // provider rides the data-driven brokered provisioner (ADR 0061 §6).
+    // provider rides the data-driven brokered provisioner (ADR 0065 §6).
     let issued = if dns.provider_id == "cloudflare" {
         let provisioner = CloudflareDns01::new(
             st.connection_broker.clone(),

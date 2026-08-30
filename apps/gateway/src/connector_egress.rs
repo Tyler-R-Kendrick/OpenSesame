@@ -1,4 +1,4 @@
-//! Boot-time loading of community Wasm connectors (ADR 0061 §5) and the
+//! Boot-time loading of community Wasm connectors (ADR 0065 §5) and the
 //! gateway's [`HostEgress`] bridge.
 //!
 //! Operator contract, fail-closed at every step:
@@ -37,7 +37,7 @@ mod enabled {
     /// host-side and returns only the response.
     ///
     /// `sign`/`oauth` stay refused until the catalog promotion recorded in
-    /// ADR 0061 §8 defines which keys and token endpoints a community
+    /// ADR 0065 §8 defines which keys and token endpoints a community
     /// connector may exercise. Refusing here is deliberate fail-closed
     /// posture, not a stub to quietly widen later.
     struct GatewayEgress {
@@ -91,7 +91,7 @@ mod enabled {
         }
 
         fn sign(&self, _purpose: &str, _digest: &[u8]) -> Result<Vec<u8>, String> {
-            Err("host-crypto.sign is not yet open to community connectors (ADR 0061 §8)".into())
+            Err("host-crypto.sign is not yet open to community connectors (ADR 0065 §8)".into())
         }
 
         fn oauth_acquire(
@@ -101,7 +101,7 @@ mod enabled {
             _audience: Option<&str>,
             _scopes: &[String],
         ) -> Result<u32, String> {
-            Err("host-oauth.acquire is not yet open to community connectors (ADR 0061 §8)".into())
+            Err("host-oauth.acquire is not yet open to community connectors (ADR 0065 §8)".into())
         }
 
         fn authenticated_request(
@@ -111,7 +111,7 @@ mod enabled {
             _req: EgressRequest,
         ) -> Result<EgressResponse, String> {
             Err(
-                "host-oauth.authenticated-request is not yet open to community connectors (ADR 0061 §8)"
+                "host-oauth.authenticated-request is not yet open to community connectors (ADR 0065 §8)"
                     .into(),
             )
         }
@@ -142,7 +142,7 @@ mod enabled {
         anyhow::ensure!(
             !pinned.is_empty(),
             "{ENV_CONNECTOR_DIR} is set but {ENV_TRUSTED_DIGESTS} pins nothing; \
-             consent is a pinned digest (ADR 0061 §3)"
+             consent is a pinned digest (ADR 0065 §3)"
         );
         host.policy.trusted_digests.extend(pinned);
 

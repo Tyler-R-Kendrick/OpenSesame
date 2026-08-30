@@ -19,7 +19,7 @@ base64 = { workspace = true }
 wasmtime = { workspace = true, optional = true }
 
 [features]
-# ADR 0061 §3: the component runtime is default-off; only the gateway may
+# ADR 0065 §3: the component runtime is default-off; only the gateway may
 # enable it. The daemon dependency gate bans wasmtime from daemon trees.
 wasm-connectors = ["dep:wasmtime"]
 

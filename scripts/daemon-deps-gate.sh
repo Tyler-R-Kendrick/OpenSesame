@@ -54,7 +54,7 @@ if [[ -n "$unexpected" ]]; then
 fi
 
 # ——— (b) credential-exchange surface must stay off the daemon ————————————
-# wasmtime/cranelift: the ADR 0061 connector runtime is a gateway concern;
+# wasmtime/cranelift: the ADR 0065 connector runtime is a gateway concern;
 # a Wasm engine must never enter a daemon-adjacent tree.
 BANNED=(sqlx oauth2 jsonwebtoken chacha20poly1305 task-bus wasmtime cranelift-codegen)
 

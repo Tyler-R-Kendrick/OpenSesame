@@ -1,8 +1,8 @@
-//! Connector manifest (`connectors/<id>/connector.yaml`) — ADR 0061 §4.
+//! Connector manifest (`connectors/<id>/connector.yaml`) — ADR 0065 §4.
 //!
 //! A manifest is inert data. Parsing one never causes execution, network
 //! access, or registration; registration happens only through `HostRuntime`
-//! under the digest-pinning rules of ADR 0061 §3/§5. Every struct rejects
+//! under the digest-pinning rules of ADR 0065 §3/§5. Every struct rejects
 //! unknown fields (the config-file-as-code lesson: an attacker must not be
 //! able to smuggle a field this parser silently ignores today and some
 //! future consumer honors tomorrow), and the schema has no field capable of
@@ -23,7 +23,7 @@ pub const MANIFEST_WIT_WORLD: &str = "opensesame:connector/connector@1.0.0";
 /// Manifests larger than this are refused before parsing.
 pub const MAX_MANIFEST_BYTES: usize = 64 * 1024;
 
-/// Capability families a connector may claim (ADR 0061 §1). Kept in sync with
+/// Capability families a connector may claim (ADR 0065 §1). Kept in sync with
 /// `CapabilityId` in `apps/pages/src/lib/capabilities.ts`.
 pub const MANIFEST_FAMILIES: [&str; 6] = [
     "encryption",
@@ -92,7 +92,7 @@ pub struct ManifestSpec {
     pub operations: Vec<OperationSpec>,
     #[serde(default)]
     pub rotation: Option<RotationCaps>,
-    /// Capability families this connector serves (ADR 0061 §1).
+    /// Capability families this connector serves (ADR 0065 §1).
     #[serde(default)]
     pub families: Option<Vec<String>>,
 }

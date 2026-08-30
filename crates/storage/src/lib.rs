@@ -2221,7 +2221,7 @@ pub struct BackupTarget {
     pub last_commit_sha: Option<String>,
     pub last_synced_at: Option<String>,
     pub last_error: Option<String>,
-    /// `github_app` (historical default) or `connector` (ADR 0061 §6).
+    /// `github_app` (historical default) or `connector` (ADR 0065 §6).
     pub kind: String,
     /// Connector-kind routing: the provider and Host connection that carry
     /// the ciphertext. Empty for `github_app` rows.

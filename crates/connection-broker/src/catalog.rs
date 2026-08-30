@@ -93,7 +93,7 @@ pub enum Category {
     Payments,
     Identity,
     Testing,
-    /// Certificate authorities and issuance surfaces (ADR 0061).
+    /// Certificate authorities and issuance surfaces (ADR 0065).
     Certificates,
     /// Org-defined connectors (MCP servers, `OpenAPI` backends, internal APIs).
     Custom,
@@ -254,7 +254,7 @@ impl EgressSpec {
     }
 }
 
-/// How an upload names its destination path (ADR 0061 §6). Data, not code:
+/// How an upload names its destination path (ADR 0065 §6). Data, not code:
 /// the gateway renders the request; a descriptor can never widen egress
 /// because `validate_provider` requires the URL inside the row's egress.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -293,7 +293,7 @@ pub struct Provider {
     pub scopes: Vec<ScopeDef>,
     pub egress: EgressSpec,
     pub operations: Vec<String>,
-    /// Present when the provider can receive sealed uploads (ADR 0061 §6).
+    /// Present when the provider can receive sealed uploads (ADR 0065 §6).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment_upload: Option<AttachmentUploadShape>,
     #[serde(default)]

@@ -13,14 +13,11 @@ import {
 
 const dirs: string[] = [];
 
-function manifestDir(files: Record<string, unknown>): string {
+function manifestDir(files: ReadonlyArray<readonly [string, string]>): string {
   const dir = mkdtempSync(join(tmpdir(), "os-provider-manifests-"));
   dirs.push(dir);
-  for (const [name, body] of Object.entries(files)) {
-    writeFileSync(
-      join(dir, name),
-      typeof body === "string" ? body : JSON.stringify(body),
-    );
+  for (const [name, body] of files) {
+    writeFileSync(join(dir, name), body);
   }
   return dir;
 }
@@ -43,13 +40,15 @@ const OIDC_MANIFEST = {
   clientSecretEnv: "COMMUNITY_IDP_SECRET",
 };
 
-describe("manifest provider descriptors (ADR 0061 §6)", () => {
+describe("manifest provider descriptors (ADR 0065 §6)", () => {
   it("returns nothing when the directory variable is unset", () => {
     expect(loadManifestProviders({})).toEqual([]);
   });
 
   it("loads a valid descriptor and resolves its secret from the environment", () => {
-    const dir = manifestDir({ "community.provider.json": OIDC_MANIFEST });
+    const dir = manifestDir([
+      ["community.provider.json", JSON.stringify(OIDC_MANIFEST)],
+    ]);
     const providers = loadManifestProviders({
       [MANIFEST_DIR_ENV]: dir,
       COMMUNITY_IDP_SECRET: "s3cret-value",
@@ -65,55 +64,66 @@ describe("manifest provider descriptors (ADR 0061 §6)", () => {
   });
 
   it("refuses an inline clientSecret — files carry references, never values", () => {
-    const dir = manifestDir({
-      "leaky.provider.json": {
-        ...OIDC_MANIFEST,
-        clientSecretEnv: undefined,
-        clientSecret: "oops-a-secret",
-      },
-    });
+    const dir = manifestDir([
+      [
+        "leaky.provider.json",
+        JSON.stringify({
+          ...OIDC_MANIFEST,
+          clientSecretEnv: undefined,
+          clientSecret: "oops-a-secret",
+        }),
+      ],
+    ]);
     expect(() => loadManifestProviders({ [MANIFEST_DIR_ENV]: dir })).toThrow(
       /may not carry `clientSecret`/,
     );
   });
 
   it("refuses Apple signing material — not manifestable", () => {
-    const dir = manifestDir({
-      "apple.provider.json": {
-        ...OIDC_MANIFEST,
-        clientSecretEnv: undefined,
-        apple: { teamId: "T", keyId: "K", privateKeyPem: "PEM" },
-      },
-    });
+    const dir = manifestDir([
+      [
+        "apple.provider.json",
+        JSON.stringify({
+          ...OIDC_MANIFEST,
+          clientSecretEnv: undefined,
+          apple: { teamId: "T", keyId: "K", privateKeyPem: "PEM" },
+        }),
+      ],
+    ]);
     expect(() => loadManifestProviders({ [MANIFEST_DIR_ENV]: dir })).toThrow(
       /may not carry `apple`/,
     );
   });
 
   it("refuses when the referenced secret variable is unset", () => {
-    const dir = manifestDir({ "community.provider.json": OIDC_MANIFEST });
+    const dir = manifestDir([
+      ["community.provider.json", JSON.stringify(OIDC_MANIFEST)],
+    ]);
     expect(() => loadManifestProviders({ [MANIFEST_DIR_ENV]: dir })).toThrow(
       /COMMUNITY_IDP_SECRET, which is unset/,
     );
   });
 
   it("refuses unknown keys instead of ignoring them", () => {
-    const dir = manifestDir({
-      "extra.provider.json": {
-        ...OIDC_MANIFEST,
-        clientSecretEnv: undefined,
-        clientAuth: "none",
-        clientId: undefined,
-        surprise: true,
-      },
-    });
+    const dir = manifestDir([
+      [
+        "extra.provider.json",
+        JSON.stringify({
+          ...OIDC_MANIFEST,
+          clientSecretEnv: undefined,
+          clientAuth: "none",
+          clientId: undefined,
+          surprise: true,
+        }),
+      ],
+    ]);
     expect(() => loadManifestProviders({ [MANIFEST_DIR_ENV]: dir })).toThrow(
       /unknown key `surprise`/,
     );
   });
 
   it("refuses malformed JSON and unreadable directories loudly", () => {
-    const dir = manifestDir({ "broken.provider.json": "{not json" });
+    const dir = manifestDir([["broken.provider.json", "{not json"]]);
     expect(() => loadManifestProviders({ [MANIFEST_DIR_ENV]: dir })).toThrow(
       ProviderConfigError,
     );
@@ -123,8 +133,10 @@ describe("manifest provider descriptors (ADR 0061 §6)", () => {
   });
 
   it("joins the static registry and cannot shadow configured providers", () => {
-    const dir = manifestDir({ "community.provider.json": OIDC_MANIFEST });
-    const env: NodeJS.ProcessEnv = {
+    const dir = manifestDir([
+      ["community.provider.json", JSON.stringify(OIDC_MANIFEST)],
+    ]);
+    const env = {
       [MANIFEST_DIR_ENV]: dir,
       COMMUNITY_IDP_SECRET: "s3cret-value",
     };
@@ -132,7 +144,7 @@ describe("manifest provider descriptors (ADR 0061 §6)", () => {
     expect(registry.map((provider) => provider.id)).toContain("communityidp");
 
     // Same issuer already configured via the environment → refuse the boot.
-    const shadowEnv: NodeJS.ProcessEnv = {
+    const shadowEnv = {
       ...env,
       OPENSESAME_PROVIDERS: "shadow",
       OPENSESAME_PROVIDER_SHADOW_KIND: "oidc",
@@ -147,10 +159,10 @@ describe("manifest provider descriptors (ADR 0061 §6)", () => {
   });
 
   it("non-manifest files in the directory are ignored", () => {
-    const dir = manifestDir({
-      "README.md": "docs, not a descriptor",
-      "community.provider.json": OIDC_MANIFEST,
-    });
+    const dir = manifestDir([
+      ["README.md", "docs, not a descriptor"],
+      ["community.provider.json", JSON.stringify(OIDC_MANIFEST)],
+    ]);
     const providers = loadManifestProviders({
       [MANIFEST_DIR_ENV]: dir,
       COMMUNITY_IDP_SECRET: "s3cret-value",

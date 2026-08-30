@@ -1,4 +1,4 @@
-//! External certificate issuer registry (ADR 0061 §6).
+//! External certificate issuer registry (ADR 0065 §6).
 //!
 //! Issuer *rows* are data; trust semantics are not. `IssuerKind` and its
 //! `trust()` mapping stay closed in `model.rs` — a community connector may

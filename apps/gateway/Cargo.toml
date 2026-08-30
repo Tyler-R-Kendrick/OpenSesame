@@ -59,7 +59,7 @@ x509-parser = "0.16.0"
 zeroize = { workspace = true }
 
 [features]
-# Pass-through for the ADR 0061 §3 community connector runtime. Default off;
+# Pass-through for the ADR 0065 §3 community connector runtime. Default off;
 # enabling it is a gateway deployment decision, never the daemon's.
 wasm-connectors = ["opensesame-connector-host/wasm-connectors"]
 

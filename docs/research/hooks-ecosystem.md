@@ -1,10 +1,10 @@
 # Hooks as an extensibility mechanism — ecosystem research
 
-Research input for [ADR 0061](../adr/0061-connector-hook-architecture.md).
+Research input for [ADR 0065](../adr/0065-connector-hook-architecture.md).
 This document records *what other ecosystems did and what happened to them*,
 maps their lessons onto OpenSesame's existing surfaces, and derives the
 use-case tiers the ADR turns into rules. It is research, not a decision
-record: where this document and ADR 0061 disagree, the ADR wins.
+record: where this document and ADR 0065 disagree, the ADR wins.
 
 The question under study: OpenSesame wants communities to extend its
 brokered capabilities — a user missing a connector should be able to write
@@ -282,7 +282,7 @@ already has:
 ## 4. Use-case tiers
 
 The survey sorts community-extension use cases into four tiers by the
-authority they require. The tier vocabulary is used by ADR 0061 and by the
+authority they require. The tier vocabulary is used by ADR 0065 and by the
 per-family rules below.
 
 **Tier 1 — data-only descriptors.** The extension is a reviewable data
@@ -335,7 +335,7 @@ template for client-plane community surfaces.
 
 ## 6. Invariants any hook system inherits
 
-Restated from the survey and the repo's own gates; ADR 0061 turns these
+Restated from the survey and the repo's own gates; ADR 0065 turns these
 into decisions:
 
 - No `secrets.get`/materialize affordance reachable from any extension, in

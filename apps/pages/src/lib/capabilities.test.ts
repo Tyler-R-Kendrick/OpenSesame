@@ -53,7 +53,7 @@ describe("capability connectors", () => {
     expect(connectorLabel("webcrypto")).toMatch(/WebCrypto/i);
   });
 
-  it("covers the six capability families of ADR 0061", () => {
+  it("covers the six capability families of ADR 0065", () => {
     expect(CAPABILITIES.map((c) => c.id).sort()).toEqual([
       "certificates",
       "cloud_secrets",

@@ -442,7 +442,7 @@ pub fn fuzz_connector_manifest(data: &[u8]) {
     }
 }
 
-/// `connector.yaml` manifests (ADR 0061 §4): arbitrary bytes must either be
+/// `connector.yaml` manifests (ADR 0065 §4): arbitrary bytes must either be
 /// refused with a typed error or parse into a manifest whose invariants all
 /// hold — a pinned digest, non-empty operations, and outbound hosts with no
 /// wildcard, scheme, or path.
