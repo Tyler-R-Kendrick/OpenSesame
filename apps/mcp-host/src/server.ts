@@ -7,6 +7,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { wrapServerWithTelemetry } from "./telemetry.js";
 import { registerHostTools } from "./tools.js";
 import { connectStdio } from "./transports/stdio.js";
+import { connectStreamableHttp } from "./transports/streamable-http.js";
 
 const server = new McpServer({
   name: "opensesame-mcp-host",
@@ -18,4 +19,11 @@ const server = new McpServer({
 wrapServerWithTelemetry(server);
 registerHostTools(server);
 
-await connectStdio(server);
+const transportMode = process.env.OPENSESAME_MCP_TRANSPORT?.trim() || "stdio";
+if (transportMode === "http") {
+  await connectStreamableHttp(server);
+} else if (transportMode === "stdio") {
+  await connectStdio(server);
+} else {
+  throw new Error(`mcp_transport_unknown:${transportMode}`);
+}
