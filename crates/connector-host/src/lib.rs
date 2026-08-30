@@ -510,6 +510,10 @@ pub struct HostRuntime {
     pub policy: HostPolicy,
     connectors: HashMap<String, Arc<dyn Connector>>,
     connection_connectors: HashMap<String, String>,
+    /// Provider id → connection-policy id (the `connection_connectors` key)
+    /// that executes that provider's typed operations. Unbound providers
+    /// fall back to the mock policy id, preserving pre-registry behavior.
+    provider_connectors: HashMap<String, String>,
     /// `connection_ref` URI → what this host resolved for it.
     pub connections: std::collections::HashMap<String, HostConnection>,
 }
@@ -542,10 +546,16 @@ impl Default for HostRuntime {
             policy,
             connectors,
             connection_connectors,
+            provider_connectors: HashMap::new(),
             connections,
         }
     }
 }
+
+/// The connection-policy id every unbound provider resolves to — the mock
+/// connector mounted by `HostRuntime::default()`. Unknown operations on it
+/// fail closed with a typed connector error.
+pub const FALLBACK_CONNECTION_POLICY_ID: &str = "demo-conn";
 
 impl HostRuntime {
     /// # Errors
@@ -578,6 +588,41 @@ impl HostRuntime {
         self.connection_connectors
             .insert(connection_id.into(), connector_id.into());
         Ok(())
+    }
+
+    /// Route a provider's typed operations to a registered connection-policy
+    /// id. Refuses ids that nothing is bound to — a provider can never be
+    /// pointed at a connector that does not exist (ADR 0061 §5).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `connection_policy_id` has no bound connector.
+    pub fn bind_provider(
+        &mut self,
+        provider_id: impl Into<String>,
+        connection_policy_id: &str,
+    ) -> Result<(), HostError> {
+        if !self
+            .connection_connectors
+            .contains_key(connection_policy_id)
+        {
+            return Err(HostError::Connector(format!(
+                "connection policy {connection_policy_id} has no connector"
+            )));
+        }
+        self.provider_connectors
+            .insert(provider_id.into(), connection_policy_id.into());
+        Ok(())
+    }
+
+    /// The connection-policy id that executes `provider_id`'s typed
+    /// operations. Unbound providers keep the historical mock fallback,
+    /// byte-for-byte: unknown operations there fail closed.
+    #[must_use]
+    pub fn connector_for_provider(&self, provider_id: &str) -> &str {
+        self.provider_connectors
+            .get(provider_id)
+            .map_or(FALLBACK_CONNECTION_POLICY_ID, String::as_str)
     }
 
     #[must_use]
@@ -1324,5 +1369,17 @@ mod tests {
             )
             .unwrap_err();
         assert!(matches!(err, HostError::PlacementDenied(_)), "{err:?}");
+    }
+
+    #[test]
+    fn provider_binding_routes_and_falls_back() {
+        let mut host = HostRuntime::default();
+        // Unbound: historical fallback, byte-for-byte.
+        assert_eq!(host.connector_for_provider("github"), "demo-conn");
+        // Binding to a policy id nothing serves is refused.
+        assert!(host.bind_provider("github", "nope").is_err());
+        // Binding to the mounted policy id routes the provider there.
+        host.bind_provider("github", "demo-conn").expect("bind");
+        assert_eq!(host.connector_for_provider("github"), "demo-conn");
     }
 }

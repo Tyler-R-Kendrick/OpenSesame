@@ -8,6 +8,7 @@ mod backup_bus;
 mod bootstrap;
 pub use opensesame_gateway::cert_issuers;
 mod config;
+mod connector_egress;
 mod dev_pki;
 mod github_webhook;
 mod identity_mapping;
