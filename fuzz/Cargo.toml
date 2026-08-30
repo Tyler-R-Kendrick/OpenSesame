@@ -30,6 +30,7 @@ opensesame-rotation = { path = "../crates/rotation" }
 opensesame-protocol-mcp = { path = "../crates/protocol-mcp" }
 opensesame-protocol-aauth = { path = "../crates/protocol-aauth", features = ["experimental-aauth"] }
 opensesame-connection-broker = { path = "../crates/connection-broker" }
+opensesame-connector-host = { path = "../crates/connector-host" }
 opensesame-authz = { path = "../crates/authz" }
 opensesame-task-bus = { path = "../crates/task-bus" }
 opensesame-xkeys = { path = "../crates/xkeys" }
@@ -153,6 +154,13 @@ bench = false
 [[bin]]
 name = "connector_manifest"
 path = "fuzz_targets/connector_manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "connector_yaml"
+path = "fuzz_targets/connector_yaml.rs"
 test = false
 doc = false
 bench = false

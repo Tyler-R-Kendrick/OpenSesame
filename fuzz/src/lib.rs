@@ -13,6 +13,9 @@ use opensesame_authn::{
     assert_discovery_issuer, parse_oidc_discovery, reject_foreign_resource_token,
     validate_verification_uri_complete, DevicePollState, DeviceServerStatus,
 };
+use opensesame_authz::{
+    callout_permissions, evaluate_callout, permissions_include_system, CalloutEval,
+};
 use opensesame_claims::{assert_claim_token, complete_claim, hash_secret};
 use opensesame_connection_broker::catalog::Catalog;
 use opensesame_connection_broker::crypto::{open, seal, SealedBlob};
@@ -22,13 +25,10 @@ use opensesame_connection_broker::github_webhook_hmac::{
 use opensesame_connection_detect::{
     ini_value, mcp_server_env_keys, mcp_server_names, PromoteRequest,
 };
-use opensesame_kdbx_bridge::map_kdbx;
-use opensesame_authz::{
-    callout_permissions, evaluate_callout, permissions_include_system, CalloutEval,
-};
+use opensesame_connector_host::manifest::ConnectorManifest;
 use opensesame_domain::{
-    canonicalize_json, digest_json, resource_pattern_matches, ActorId, ActorInstanceId,
-    Capability, CapabilitySet, ClaimSession, ClaimSessionId, ClaimState, DowngradePolicy, Grant,
+    canonicalize_json, digest_json, resource_pattern_matches, ActorId, ActorInstanceId, Capability,
+    CapabilitySet, ClaimSession, ClaimSessionId, ClaimState, DowngradePolicy, Grant,
     InvocationReceipt, PrincipalId, ProtectedResource, ProtocolProfile, ReceiptOutcome,
     TokenPresentation,
 };
@@ -38,6 +38,7 @@ use opensesame_human_vault::{
     ad_digest, decrypt_item, derive_attachment_key, encrypt_item, open_chunk, seal_chunk,
     AssociatedData, ChunkAd, EncryptedEnvelope, ItemDataKey, ENVELOPE_VERSION,
 };
+use opensesame_kdbx_bridge::map_kdbx;
 use opensesame_proof::{
     assert_proof_key_strength, decode_dpop_proof, normalize_htu, InMemoryReplayCache, ReplayCache,
 };
@@ -55,20 +56,18 @@ use crate::oracles::{
     assert_no_secret_fields, assert_redacted_text_hides, assert_roundtrip_caps,
 };
 use crate::types::{
-    BoundedJson, CapabilityAlgebraInput, ClaimReplayInput, DeviceAuthInput, FuzzGrant,
-    GithubWebhookHmacInput, GrantPairInput, JwtJwkInput, NatsCalloutEvalInput, RedactionInput,
-    ReplayCacheInput, ResourceMatchInput, RotationSeqInput, TokenAudienceInput, UriNormalizeInput,
-    VaultMutateInput, AttachmentChunkInput};
+    AttachmentChunkInput, BoundedJson, CapabilityAlgebraInput, ClaimReplayInput, DeviceAuthInput,
+    FuzzGrant, GithubWebhookHmacInput, GrantPairInput, JwtJwkInput, NatsCalloutEvalInput,
+    RedactionInput, ReplayCacheInput, ResourceMatchInput, RotationSeqInput, TokenAudienceInput,
+    UriNormalizeInput, VaultMutateInput,
+};
 
 pub const MAX_PARSER_BYTES: usize = 4096;
 
 pub fn fuzz_capability_algebra(input: CapabilityAlgebraInput) {
     let a = input.a.into_set();
     let b = input.b.into_set();
-    assert!(
-        a.is_subset_of(&a),
-        "subset must be reflexive"
-    );
+    assert!(a.is_subset_of(&a), "subset must be reflexive");
     let inter = a.intersection(&b);
     assert_intersection_subset(&a, &b, &inter);
     let inter2 = b.intersection(&a);
@@ -141,8 +140,8 @@ pub fn fuzz_canonical_json(input: BoundedJson) {
     let value = input.0;
     match canonicalize_json(&value) {
         Ok(canon) => {
-            let reparsed: Value = serde_json::from_slice(&canon)
-                .expect("canonical bytes must be valid JSON");
+            let reparsed: Value =
+                serde_json::from_slice(&canon).expect("canonical bytes must be valid JSON");
             let canon2 = canonicalize_json(&reparsed).expect("re-canonicalize");
             assert_eq!(canon, canon2, "canonicalization must be idempotent");
             let d1 = digest_json(&value).expect("digest");
@@ -196,7 +195,14 @@ pub fn fuzz_jwt_jwk(input: JwtJwkInput) {
         let _ = opensesame_proof::jwk_thumbprint(&jwk);
     }
     let jwt = String::from_utf8_lossy(truncate(&input.jwt));
-    let _ = decode_dpop_proof(&jwt, "POST", "https://example.test/token", None, 300, 1_700_000_000);
+    let _ = decode_dpop_proof(
+        &jwt,
+        "POST",
+        "https://example.test/token",
+        None,
+        300,
+        1_700_000_000,
+    );
     if !input.htu.is_empty() {
         let _ = normalize_htu(&input.htu);
     }
@@ -340,8 +346,12 @@ pub fn fuzz_claim_replay(input: ClaimReplayInput) {
         return;
     }
     first.expect("fresh pending claim token must verify");
-    complete_claim(&mut session, PrincipalId::from_uuid(Uuid::from_u128(4)), now)
-        .expect("pending → claimed");
+    complete_claim(
+        &mut session,
+        PrincipalId::from_uuid(Uuid::from_u128(4)),
+        now,
+    )
+    .expect("pending → claimed");
     assert!(
         assert_claim_token(&session, &token).is_err(),
         "single-use claim must not verify after complete"
@@ -432,6 +442,33 @@ pub fn fuzz_connector_manifest(data: &[u8]) {
     }
 }
 
+/// `connector.yaml` manifests (ADR 0061 §4): arbitrary bytes must either be
+/// refused with a typed error or parse into a manifest whose invariants all
+/// hold — a pinned digest, non-empty operations, and outbound hosts with no
+/// wildcard, scheme, or path.
+pub fn fuzz_connector_yaml(data: &[u8]) {
+    let bytes = truncate(data);
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return;
+    };
+    if let Ok(manifest) = ConnectorManifest::from_yaml(text) {
+        let digest = manifest.component_digest();
+        assert!(
+            digest
+                .strip_prefix("sha256:")
+                .is_some_and(|h| h.len() == 64),
+            "accepted manifest must carry a pinned digest"
+        );
+        assert!(!manifest.spec.operations.is_empty());
+        for host in &manifest.spec.outbound.hosts {
+            assert!(
+                !host.contains('*') && !host.contains('/') && !host.contains("://"),
+                "accepted outbound host must be exact"
+            );
+        }
+    }
+}
+
 pub fn fuzz_vault_envelope(input: VaultMutateInput) {
     let idk = ItemDataKey(input.key);
     let ad = AssociatedData {
@@ -446,7 +483,10 @@ pub fn fuzz_vault_envelope(input: VaultMutateInput) {
     let Ok(env) = encrypt_item(&idk, b"vault-secret", ad) else {
         return;
     };
-    assert_eq!(decrypt_item(&idk, &env).expect("honest decrypt"), b"vault-secret");
+    assert_eq!(
+        decrypt_item(&idk, &env).expect("honest decrypt"),
+        b"vault-secret"
+    );
 
     let mut mutated = env.clone();
     if input.bump_version {
@@ -489,7 +529,10 @@ pub fn fuzz_broker_seal(data: &[u8]) {
     let Ok(blob) = seal(&key, conn, org, b"refresh-token") else {
         return;
     };
-    assert_eq!(open(&key, conn, org, &blob).expect("honest open"), b"refresh-token");
+    assert_eq!(
+        open(&key, conn, org, &blob).expect("honest open"),
+        b"refresh-token"
+    );
     assert!(
         open(&key, conn, "other-org", &blob).is_err(),
         "tenant AAD mismatch must fail"
@@ -600,7 +643,11 @@ pub fn fuzz_replay_cache(input: ReplayCacheInput) {
     let ttl = (input.ttl_secs % 600).max(1);
     let cache = InMemoryReplayCache::with_limits(ttl, cap);
     for ev in input.events {
-        let jti = if ev.jti.is_empty() { "j".into() } else { ev.jti };
+        let jti = if ev.jti.is_empty() {
+            "j".into()
+        } else {
+            ev.jti
+        };
         let _ = cache.check_and_record_at(&jti, ev.now);
         assert!(cache.len() <= cap, "cache must remain bounded at capacity");
     }
@@ -677,11 +724,8 @@ pub fn fuzz_nats_callout_eval(input: NatsCalloutEvalInput) {
             assert!(input.mapped);
             assert!(!eval.issuer.is_empty() && !eval.subject.is_empty());
             assert!(!permissions_include_system(&allow.permissions));
-            let perms = callout_permissions(
-                &allow.principal_id,
-                allow.provisional,
-                &eval.project_ids,
-            );
+            let perms =
+                callout_permissions(&allow.principal_id, allow.provisional, &eval.project_ids);
             assert!(!permissions_include_system(&perms));
             assert!(
                 !perms.publish.iter().any(|s| s.contains(".system.")),
@@ -870,7 +914,10 @@ pub fn fuzz_bitwarden_encstring(data: &[u8]) {
             let reparsed: EncString = rendered
                 .parse()
                 .expect("an EncString must re-parse its own Display output");
-            assert_eq!(parsed, reparsed, "EncString Display is not round-trip stable");
+            assert_eq!(
+                parsed, reparsed,
+                "EncString Display is not round-trip stable"
+            );
             assert_eq!(rendered, reparsed.to_string());
             // Neither key is the right one, so both must fail — but neither
             // may panic, and neither may leak a partial plaintext.
@@ -879,7 +926,10 @@ pub fn fuzz_bitwarden_encstring(data: &[u8]) {
             let _ = legacy.decrypt_string(&parsed);
         }
         Err(error) => {
-            assert!(!error.code().is_empty(), "every parse failure must be named");
+            assert!(
+                !error.code().is_empty(),
+                "every parse failure must be named"
+            );
             assert!(!error.to_string().is_empty());
         }
     }

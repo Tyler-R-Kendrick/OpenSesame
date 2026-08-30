@@ -3,6 +3,7 @@
 //! Host capabilities: authorized HTTP / sign / opaque token handles.
 //! There is no secrets.get path for guests.
 
+pub mod manifest;
 pub mod providers;
 
 use opensesame_domain::{EgressBinding, InvokeLevel, LegacyProjection, PlaceholderPlacement};
