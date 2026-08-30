@@ -169,8 +169,12 @@ function vaultItemToEntryDefault(
       [item.commonName, item.certificatePem, item.caPem, item.notes]
         .filter(Boolean)
         .join("\n") || undefined;
-  } else {
+  } else if (item.kind === "passkey") {
     secret = item.credentialIdB64;
+  } else {
+    // A drop record carries no syncable secret — the payload is sealed into
+    // its claim, not the vault. Only its path matters for merge bookkeeping.
+    secret = "";
   }
 
   const jsonTrailer = `${JSON.stringify(meta)}\n`;

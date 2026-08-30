@@ -85,7 +85,7 @@ describe("entryToVaultItem kinds", () => {
     expect(item.notes).toBe("seed words here\nkeep offline");
   });
 
-  it("builds an agent secret with its connection ref", () => {
+  it("builds a secret with its connection ref", () => {
     const item = entryToVaultItem({
       path: "agents/deploy",
       secret: "whsec_123",

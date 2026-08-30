@@ -365,6 +365,16 @@ export function IconUpload(props: IconProps) {
   );
 }
 
+export function IconDrop(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M7 3.5h10M7 20.5h10" />
+      <path d="M8.5 3.5c0 3.2 1.8 4.7 3.5 5.7 1.7-1 3.5-2.5 3.5-5.7" />
+      <path d="M8.5 20.5c0-3.2 1.8-4.7 3.5-5.7 1.7 1 3.5 2.5 3.5 5.7" />
+    </Svg>
+  );
+}
+
 export function IconClock(props: IconProps) {
   return (
     <Svg {...props}>

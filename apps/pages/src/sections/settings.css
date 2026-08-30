@@ -46,7 +46,7 @@
 }
 
 .set__nav-link--danger[aria-current="page"] {
-  color: #fff;
+  color: var(--err-ink);
   background: var(--err);
 }
 

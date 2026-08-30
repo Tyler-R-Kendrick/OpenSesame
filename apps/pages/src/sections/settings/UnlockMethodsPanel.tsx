@@ -11,6 +11,7 @@ import {
   checkWebauthnHost,
   describeWebauthnError,
   listAvailableUnlockMethods,
+  pinPolicyProblems,
 } from "../../lib/vault/unlock-methods.js";
 
 const ENROLL_PASSKEY_PARAM = "enroll-passkey";
@@ -93,11 +94,16 @@ export function UnlockMethodsPanel() {
       setMessage({ tone: "err", text: "The two PINs do not match." });
       return;
     }
-    void run(async () => {
-      await store.enrollPin(pin);
-      setPin("");
-      setPinConfirm("");
-    }, "PIN unlock enrolled. You can unlock with this PIN next time.");
+    void run(
+      async () => {
+        await store.enrollPin(pin);
+        setPin("");
+        setPinConfirm("");
+      },
+      hasPin
+        ? "PIN updated."
+        : "PIN unlock enrolled. You can unlock with this PIN next time.",
+    );
   }
 
   function enrollPasswordForm(event: FormEvent) {
@@ -113,8 +119,14 @@ export function UnlockMethodsPanel() {
     }, "Password unlock enrolled.");
   }
 
-  const pinStrengthOk =
-    pin.length >= MIN_PIN_LENGTH && pin.length <= MAX_PIN_LENGTH;
+  const pinProblems = pinPolicyProblems(pin);
+  const pinProblem = pin.length > 0 ? (pinProblems[0] ?? null) : null;
+  const pinMismatch =
+    pinConfirm.length > 0 && pin !== pinConfirm
+      ? "The two PINs do not match."
+      : null;
+  const pinReady =
+    pin.length > 0 && pinProblems.length === 0 && pin === pinConfirm;
   const passwordStrength = estimateStrength(password);
   const passwordOk =
     password.length >= 12 &&
@@ -222,21 +234,10 @@ export function UnlockMethodsPanel() {
             <p className="hint">
               {hasPin
                 ? "Enrolled. Same PBKDF2 wrap path as the master password, shorter input."
-                : `${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters. Not a substitute for a strong password on hostile devices.`}
+                : `${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters · no spaces · no repeated character · no sequential digits.`}
             </p>
           </div>
-          {hasPin ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              disabled={busy || methods.length < 2}
-              onClick={() =>
-                void run(() => store.removePin(), "PIN unlock removed.")
-              }
-            >
-              Remove
-            </button>
-          ) : (
+          <div className="set__unlock-actions">
             <form className="set__unlock-form" onSubmit={enrollPinForm}>
               <input
                 type="password"
@@ -261,12 +262,33 @@ export function UnlockMethodsPanel() {
               <button
                 type="submit"
                 className="btn btn--primary btn--sm"
-                disabled={busy || !pinStrengthOk || pin !== pinConfirm}
+                disabled={busy || !pinReady}
               >
-                Enroll PIN
+                {hasPin ? "Change PIN" : "Enroll PIN"}
               </button>
             </form>
-          )}
+            {pinProblem ? (
+              <p className="note note--err" aria-live="polite">
+                <IconAlert size={16} /> {pinProblem}
+              </p>
+            ) : pinMismatch ? (
+              <p className="note note--err" aria-live="polite">
+                <IconAlert size={16} /> {pinMismatch}
+              </p>
+            ) : null}
+            {hasPin ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                disabled={busy || methods.length < 2}
+                onClick={() =>
+                  void run(() => store.removePin(), "PIN unlock removed.")
+                }
+              >
+                Remove
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="set__unlock-row">

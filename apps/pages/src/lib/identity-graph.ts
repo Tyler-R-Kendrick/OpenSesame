@@ -177,7 +177,7 @@ export function buildConnectorReminder(
     item.value = "";
     item.connectionRef = connection.connectionRef;
     item.notes =
-      "Credential stays on the Host. This item is a reminder and a grant target for agents.";
+      "Credential stays on the Host. This item is a reminder and a grant target.";
   }
   return item;
 }

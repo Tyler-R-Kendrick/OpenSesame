@@ -7,15 +7,17 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 /**
- * Access screen client (Host plane) — the PAM surfaces that had no UI.
+ * Access screen client (Host plane) — the PAM verbs (ADR 0061).
  *
- * Three existing Host APIs, bound read/decide only (ADR 0054):
+ * Four existing Host APIs, bound read/decide/grant only:
  *
+ * - the delegation lifecycle (ADR 0044): list grants, revoke, narrow, mint a
+ *   time-boxed claimable offer, list and revoke the caller's own offers;
  * - the relay authorization inbox, where a human approves or denies a relayed
  *   execution and consent binds to the request digest (ADR 0046);
  * - task runs: list, inspect the immutable ceiling against what is held, and
  *   terminate (ADR 0019);
- * - claimable delegation offers (ADR 0044).
+ * - claiming an offered delegation (ADR 0044).
  *
  * Nothing here ever receives a credential — the APIs do not expose them.
  */
@@ -86,6 +88,29 @@ export type Delegation = {
   revokedAt: string | null;
 };
 
+/** Attenuation-only edit; every omitted field stays as granted. */
+export type NarrowInput = {
+  actions?: string[];
+  resources?: string[];
+  expiresInSeconds?: number;
+};
+
+/** One connection inside an offer, as the minting owner proposes it. */
+export type OfferItemInput = {
+  connectionId: string;
+  actions?: string[];
+  resources?: string[];
+  expiresInSeconds?: number;
+  executionMode?: string;
+};
+
+/** Returned once, at mint; the token and code are never shown by the API again. */
+export type MintedOffer = {
+  offer: DelegationOffer;
+  claimToken: string;
+  userCode: string;
+};
+
 export class AccessError extends Error {
   constructor(
     readonly status: number,
@@ -152,6 +177,8 @@ async function call<T>(
         : null;
     throw new AccessError(res.status, code, plainWords(res.status, detail));
   }
+  // DELETE endpoints answer 204 with no body to parse.
+  if (res.status === 204) return map(null);
   return map(await res.json());
 }
 
@@ -326,9 +353,80 @@ function terminateTaskDefault(
 }
 
 /** Offers this principal minted; claiming is gated server-side per offer. */
-function listDelegationOffersDefault(): Promise<DelegationOffer[]> {
+function listMyOffersDefault(): Promise<DelegationOffer[]> {
   return call("/delegations/offers", {}, (body) =>
     list(obj(body).offers).map(toOffer),
+  );
+}
+
+/** Grants where the caller is owner or claimant. */
+function listDelegationsDefault(): Promise<Delegation[]> {
+  return call("/delegations", {}, (body) =>
+    list(obj(body).delegations).map(toDelegation),
+  );
+}
+
+function revokeDelegationDefault(id: string): Promise<void> {
+  return call(
+    `/delegations/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    () => undefined,
+  );
+}
+
+function narrowDelegationDefault(
+  id: string,
+  input: NarrowInput,
+): Promise<Delegation> {
+  return call(
+    `/delegations/${encodeURIComponent(id)}/narrow`,
+    {
+      method: "POST",
+      // Undefined keys drop out of the JSON, which is exactly how the server
+      // reads "leave this field as granted".
+      body: JSON.stringify({
+        actions: input.actions,
+        resources: input.resources,
+        expires_in_seconds: input.expiresInSeconds,
+      }),
+    },
+    (body) => toDelegation(obj(body).delegation),
+  );
+}
+
+function mintOfferDefault(input: {
+  items: OfferItemInput[];
+}): Promise<MintedOffer> {
+  return call(
+    "/delegations",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        items: input.items.map((item) => ({
+          connection_id: item.connectionId,
+          actions: item.actions,
+          resources: item.resources,
+          expires_in_seconds: item.expiresInSeconds,
+          execution_mode: item.executionMode,
+        })),
+      }),
+    },
+    (body) => {
+      const raw = obj(body);
+      return {
+        offer: toOffer(raw.offer),
+        claimToken: String(raw.claim_token ?? ""),
+        userCode: String(raw.user_code ?? ""),
+      };
+    },
+  );
+}
+
+function revokeOfferDefault(id: string): Promise<void> {
+  return call(
+    `/delegations/offers/${encodeURIComponent(id)}`,
+    { method: "DELETE" },
+    () => undefined,
   );
 }
 
@@ -358,8 +456,13 @@ export const accessSeams = {
   listTasks: listTasksDefault,
   getTask: getTaskDefault,
   terminateTask: terminateTaskDefault,
-  listDelegationOffers: listDelegationOffersDefault,
+  listMyOffers: listMyOffersDefault,
   claimDelegation: claimDelegationDefault,
+  listDelegations: listDelegationsDefault,
+  revokeDelegation: revokeDelegationDefault,
+  narrowDelegation: narrowDelegationDefault,
+  mintOffer: mintOfferDefault,
+  revokeOffer: revokeOfferDefault,
 };
 
 export function listRelayRequests(): Promise<RelayRequest[]> {
@@ -386,11 +489,30 @@ export function terminateTask(
 ): ReturnType<typeof terminateTaskDefault> {
   return accessSeams.terminateTask(...args);
 }
-export function listDelegationOffers(): Promise<DelegationOffer[]> {
-  return accessSeams.listDelegationOffers();
+export function listMyOffers(): Promise<DelegationOffer[]> {
+  return accessSeams.listMyOffers();
 }
 export function claimDelegation(
   ...args: Parameters<typeof claimDelegationDefault>
 ): ReturnType<typeof claimDelegationDefault> {
   return accessSeams.claimDelegation(...args);
+}
+export function listDelegations(): Promise<Delegation[]> {
+  return accessSeams.listDelegations();
+}
+export function revokeDelegation(id: string): Promise<void> {
+  return accessSeams.revokeDelegation(id);
+}
+export function narrowDelegation(
+  ...args: Parameters<typeof narrowDelegationDefault>
+): ReturnType<typeof narrowDelegationDefault> {
+  return accessSeams.narrowDelegation(...args);
+}
+export function mintOffer(
+  ...args: Parameters<typeof mintOfferDefault>
+): ReturnType<typeof mintOfferDefault> {
+  return accessSeams.mintOffer(...args);
+}
+export function revokeOffer(id: string): Promise<void> {
+  return accessSeams.revokeOffer(id);
 }

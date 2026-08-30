@@ -252,10 +252,10 @@ describe("UnlockScreen — first run", () => {
     expect(submitButton().textContent).toContain("Seal with PIN");
     expect(submitButton().disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Device PIN"), {
-      target: { value: "12345678" },
+      target: { value: "48291037" },
     });
     fireEvent.change(screen.getByLabelText("Confirm PIN"), {
-      target: { value: "12345678" },
+      target: { value: "48291037" },
     });
     expect(submitButton().disabled).toBe(true);
     fireEvent.click(
@@ -264,9 +264,27 @@ describe("UnlockScreen — first run", () => {
     expect(submitButton().disabled).toBe(false);
     fireEvent.click(submitButton());
     await waitFor(() =>
-      expect(v.store.createWithPin).toHaveBeenCalledWith("12345678"),
+      expect(v.store.createWithPin).toHaveBeenCalledWith("48291037"),
     );
     expect(v.store.create).not.toHaveBeenCalled();
+  });
+
+  it("names the PIN format problem live on first run", () => {
+    render(<UnlockScreen />);
+    goLocalOnly();
+    chooseSealMethod("PIN");
+    fireEvent.change(screen.getByLabelText("Device PIN"), {
+      target: { value: "12345678" },
+    });
+    expect(screen.getByText(/sequential run of digits/)).toBeTruthy();
+    fireEvent.click(
+      screen.getByLabelText("I understand this vault cannot be recovered."),
+    );
+    fireEvent.change(screen.getByLabelText("Confirm PIN"), {
+      target: { value: "12345678" },
+    });
+    expect(submitButton().disabled).toBe(true);
+    expect(v.store.createWithPin).not.toHaveBeenCalled();
   });
 
   it("hides passkey and falls back to password when WebAuthn cannot run", () => {
@@ -726,7 +744,7 @@ describe("UnlockScreen — first run", () => {
       screen.getByRole("button", { name: "More sign-in options" }),
     );
     fireEvent.click(
-      screen.getByRole("menuitem", { name: /Email me a sign-in link/ }),
+      screen.getByRole("button", { name: /Email me a sign-in link/ }),
     );
     fireEvent.change(screen.getByLabelText("Email me a sign-in link"), {
       target: { value: "ada@example.com" },
@@ -747,7 +765,7 @@ describe("UnlockScreen — first run", () => {
       screen.getByRole("button", { name: "More sign-in options" }),
     );
     fireEvent.click(
-      screen.getByRole("menuitem", { name: /Email me a sign-in link/ }),
+      screen.getByRole("button", { name: /Email me a sign-in link/ }),
     );
     fireEvent.change(screen.getByLabelText("Email me a sign-in link"), {
       target: { value: "ada@example.com" },
@@ -771,7 +789,7 @@ describe("UnlockScreen — first run", () => {
       screen.getByRole("button", { name: "More sign-in options" }),
     );
     expect(
-      screen.getByRole("menuitem", { name: /Email me a sign-in link/ }),
+      screen.getByRole("button", { name: /Email me a sign-in link/ }),
     ).toBeTruthy();
     // Sealing a local-only vault beside the existing one is not a road out of
     // this screen, and neither is a guest principal.
@@ -805,7 +823,7 @@ describe("UnlockScreen — first run", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "More sign-in options" }),
     );
-    fireEvent.click(screen.getByRole("menuitem", { name: "Continue with P5" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue with P5" }));
     await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(1));
     expect(beginSignIn.mock.calls[0]?.[1]).toEqual({ providerHint: "p5" });
   });

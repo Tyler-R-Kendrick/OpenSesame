@@ -34,42 +34,6 @@
   font-size: 1.0625rem;
 }
 
-.vault__search {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.vault__search svg {
-  position: absolute;
-  left: 0.6rem;
-  color: var(--ink-3);
-  pointer-events: none;
-}
-
-.vault__search input {
-  padding-left: 2.1rem;
-  background: var(--surface-2);
-}
-
-.vault__search kbd {
-  position: absolute;
-  right: 0.5rem;
-  padding: 0.05rem 0.3rem;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
-  background: var(--surface);
-  color: var(--ink-3);
-  font-size: 0.6875rem;
-  pointer-events: none;
-}
-
-.vault__count {
-  font-size: 0.75rem;
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
-}
-
 /* Desktop keeps these in the rail; the row only exists where the rail is gone. */
 .vault__chips {
   display: none;
@@ -110,105 +74,73 @@
     color: var(--accent);
     font-weight: 600;
   }
-
-  /* No physical keyboard to press it with. */
-  .vault__search kbd {
-    display: none;
-  }
 }
 
-.vault__rows {
+.vault-tree {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  list-style: none;
-  margin: 0;
-  padding: 0.4rem;
-  display: grid;
-  gap: 2px;
-  align-content: start;
+  --trees-accent: var(--accent);
+  --trees-bg-override: var(--surface);
+  --trees-bg-muted-override: var(--surface-3);
+  --trees-border-color-override: var(--line);
+  --trees-fg-override: var(--ink);
+  --trees-fg-muted-override: var(--ink-2);
+  --trees-focus-ring-color-override: var(--accent);
+  --trees-font-family-override: var(--font);
+  --trees-font-size-override: 0.8125rem;
+  --trees-input-bg-override: var(--surface-2);
+  --trees-search-bg-override: var(--surface-2);
+  --trees-selected-bg-override: var(--accent-wash);
 }
 
-.vault__row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.5rem 0.55rem;
-  border-radius: 8px;
-  text-decoration: none;
-  color: inherit;
-  border: 1px solid transparent;
-  transition: background 120ms var(--ease);
-}
-
-.vault__row:hover {
-  background: var(--surface-3);
-}
-
-.vault__row.is-active {
-  background: var(--accent-wash);
-  border-color: var(--accent-line);
-}
-
-.vault__avatar {
-  display: grid;
-  place-items: center;
-  width: 2.125rem;
-  height: 2.125rem;
-  flex: none;
-  border-radius: 8px;
-  background: var(--surface-3);
-  color: var(--ink-2);
-  font-size: 0.875rem;
-  font-weight: 650;
-}
-
-.vault__row.is-active .vault__avatar {
-  background: var(--surface);
-  color: var(--accent);
-}
-
-.vault__text {
-  min-width: 0;
-  display: grid;
-  gap: 0.05rem;
-}
-
-.vault__name {
-  font-size: 0.9063rem;
-  font-weight: 550;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.vault__sub {
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.vault__rowmeta {
+.vault__status {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.35rem 0.75rem;
+  border-top: 1px solid var(--line);
   color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.vault__rowmeta .is-fav {
-  color: var(--warn);
+.vault__status-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.vault__group {
-  padding: 0.75rem 0.6rem 0.25rem;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+.vault__status-meta {
+  flex: none;
+}
+
+.vault-tree-menu {
+  display: grid;
+  min-width: 9rem;
+  padding: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.vault-tree-menu button {
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0.4rem 0.55rem;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vault-tree-menu button:hover,
+.vault-tree-menu button:focus-visible {
+  background: var(--surface-3);
+  outline: none;
 }
 
 /* —— Detail pane ——————————————————————————————————————————— */
@@ -244,7 +176,7 @@
   width: 2.75rem;
   height: 2.75rem;
   flex: none;
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--accent-wash);
   color: var(--accent);
 }
@@ -257,7 +189,7 @@
 }
 
 .detail__heading h1 {
-  font-size: 1.3125rem;
+  font-size: 1.4rem;
   overflow-wrap: anywhere;
 }
 
@@ -351,7 +283,7 @@
 
 .frow__value--mono {
   font-family: var(--mono);
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 }
 
 .frow__value--muted {
@@ -388,7 +320,7 @@
 
 .totp__code {
   font-family: var(--mono);
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
@@ -440,7 +372,7 @@
   padding: 0.6rem 0.95rem;
   border-bottom: 1px solid var(--line);
   font-family: var(--mono);
-  font-size: 0.8438rem;
+  font-size: 0.8125rem;
 }
 
 .ceil:last-child {
@@ -470,7 +402,7 @@
 }
 
 .sbar__label {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
 }
 
@@ -644,7 +576,7 @@
 }
 
 .wel__countnum {
-  font-size: 1.375rem;
+  font-size: 1.4rem;
   font-weight: 650;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -668,7 +600,7 @@
   box-shadow: var(--shadow-sm);
   text-decoration: none;
   color: var(--ink);
-  font-size: 0.9063rem;
+  font-size: 0.9375rem;
   transition: border-color 140ms var(--ease), background 140ms var(--ease);
 }
 
@@ -697,7 +629,7 @@
   border-bottom: 1px solid var(--line);
   text-decoration: none;
   color: inherit;
-  font-size: 0.9063rem;
+  font-size: 0.9375rem;
 }
 
 .wel__recent:last-child {
@@ -735,7 +667,7 @@
 }
 
 .health__statnum {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
@@ -800,7 +732,7 @@
 }
 
 .health__why {
-  font-size: 0.8438rem;
+  font-size: 0.8125rem;
   color: var(--ink-2);
   line-height: 1.5;
   max-width: 64ch;
@@ -854,4 +786,20 @@
   .vault__rows {
     padding-bottom: 5rem;
   }
+}
+
+/* Drop kind: row share shortcut + the drop card's long link. */
+.vault__rowwrap {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.vault__rowwrap .vault__row {
+  flex: 1;
+  min-width: 0;
+}
+
+.drop-card__link {
+  overflow-wrap: anywhere;
 }

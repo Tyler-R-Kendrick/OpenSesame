@@ -6,6 +6,7 @@ import {
   CreateClaimRequestSchema,
   CreateClaimResponseSchema,
   PresentClaimRequestSchema,
+  PresentClaimResponseSchema,
 } from "@opensesame/contracts";
 import {
   applySlowDown,
@@ -288,6 +289,51 @@ claimRoutes.post("/present", async (c) => {
     return c.json({ error: "invalid_token" }, 401);
   }
   try {
+    // Optional second factor (ADR 0062): a supplied user code is verified
+    // before the single-use CAS, behind the same per-claim attempt fence as
+    // completion — a wrong code must neither burn the claim nor release it.
+    if (parsed.data.userCode !== undefined) {
+      const gated = await ctx.claims.get(parts.publicId);
+      if (!gated) return c.json({ error: "not_found" }, 404);
+      const attempts =
+        (ctx.stores.claimApprovalAttempts.get(gated.id) ?? 0) + 1;
+      ctx.stores.claimApprovalAttempts.set(gated.id, attempts);
+      if (attempts > MAX_CLAIM_APPROVAL_ATTEMPTS) {
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "claim.presented",
+          outcome: "denied",
+          claimId: gated.id,
+          ...(c.get("principalId") !== undefined
+            ? { principalId: c.get("principalId") }
+            : undefined),
+          correlationId: c.get("correlationId"),
+          metadata: { action: "claim.present", reason: "too_many_attempts" },
+        });
+        return c.json({ error: "too_many_attempts" }, 429);
+      }
+      if (
+        !gated.userCodeDigest ||
+        !verifyUserCode(
+          ctx.config.claimPepper,
+          gated.id,
+          parsed.data.userCode,
+          gated.userCodeDigest,
+        )
+      ) {
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "claim.presented",
+          outcome: "denied",
+          claimId: gated.id,
+          ...(c.get("principalId") !== undefined
+            ? { principalId: c.get("principalId") }
+            : undefined),
+          correlationId: c.get("correlationId"),
+          metadata: { action: "claim.present", reason: "invalid_user_code" },
+        });
+        return c.json({ error: "invalid_user_code" }, 401);
+      }
+      ctx.stores.claimApprovalAttempts.delete(gated.id);
+    }
     const session = await ctx.claims.presentClaim(
       parts.publicId,
       parsed.data.token,
@@ -302,7 +348,14 @@ claimRoutes.post("/present", async (c) => {
       correlationId: c.get("correlationId"),
       metadata: { action: "claim.present", state: session.state },
     });
-    return c.json(toClaimResponse(session));
+    // Presentation is the single-use transition, so the manifest is served
+    // exactly once, here (ADR 0062); GET/poll/complete project only its digest.
+    return c.json(
+      PresentClaimResponseSchema.parse({
+        ...toClaimResponse(session),
+        targetManifest: session.targetManifest,
+      }),
+    );
   } catch (err) {
     if (err instanceof DomainError) {
       return c.json({ error: err.code }, domainErrorStatus(err));

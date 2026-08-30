@@ -32,12 +32,15 @@ An Infisical-class authority console that also keeps a human store on the device
 - Agents get ConnectionRefs and grants, never plaintext. There is no `getSecret()` affordance anywhere in the UI.
 - Demonstration data is labeled SYNTHETIC and deletable, never seeded silently.
 - The rail tells the truth about Host and Identity. "Online" is not a Host status.
+- Guests and anonymous use are first-class everywhere; sign-in is never required to be useful.
+- The UI is terse: table headers, actions, one-line empty states — no descriptive prose. Controls use iconography where idiom allows.
+- Every distinct user action is its own focused ceremony (grant, claim, approve, share, add IdP), never a fork inside one long form.
 
 ## Capabilities (this surface)
 
 - Create and unlock an E2EE vault: PBKDF2-SHA256 master key, AES-GCM wrapped vault key, sealed blob in OPFS
 - Unlock with passkey (WebAuthn PRF), PIN, and/or master password; optional TOTP MFA after primary unwrap
-- Vault items: login, passkey, card, secret, note, certificate — full create/edit/delete, folders, favorites, trash
+- Vault items: login, passkey, card, secret, note, certificate, drop — full create/edit/delete, folders, favorites, trash
 - Certificates: enter names and lifetime; the Host generates the key/CSR and uses the sealed OpenSesame private CA by default, or a configured Let's Encrypt, ZeroSSL, or Cloudflare Origin CA connection without trust downgrade
 - Password generator (characters and passphrase), strength estimation, password health report (weak, reused, old)
 - TOTP codes generated in-page from stored seeds; store-bridge prefers pass-otp `otpauth://` trailer lines
@@ -45,8 +48,12 @@ An Infisical-class authority console that also keeps a human store on the device
 - Clipboard copy with automatic clear; auto-lock on idle and on tab hide
 - Passkey unlock via WebAuthn PRF where the platform supports it (enroll in Settings)
 - Agents: scoped secret grants with capability ceilings; live task inspection against the Host API
+- Access screen: the PAM plane — time-boxed JIT grants (mint → claim → revoke), digest-pinned approval inbox, live sessions, per-resource policies (ADR 0061; Border0/Tailscale PAM parity)
+- Identity screen: broker multiple IdP sources (first-class + custom OIDC ceremonies), device approval, claimant-side JIT ("My access"), service accounts, organization binding (ADR 0060/0061)
+- Secret drop: one-time E2EE sharing of secrets and files — client-sealed payload, key in the URL fragment, single-use presentation, burner drop records disposed on consumption (ADR 0062)
+- Encrypted VFS: each vault is a tomb (`personal` + per-project) with config sealed alongside items; git persistence is Host-mediated ciphertext backup (ADR 0063)
 - Sites: origin-derived clients, application claim ceremony, integration snippet
-- Authority: device/CLI authorization, ownership claims, protocol profile honesty, offline ceremony outbox
+- Device/CLI authorization approval (Identity → Devices), offline ceremony outbox
 - Encrypted export and import; installable PWA
 - Settings capability connectors: encryption key vault (default WebCrypto) and git history/persistence (default GitHub with OAuth)
 - Host CLI sealed store: `opensesame pass otp` / `pass update` / multi-tomb registry (`pass tomb`, `open`/`close`) — see ADR 0038

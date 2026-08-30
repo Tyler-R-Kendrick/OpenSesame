@@ -3,13 +3,21 @@
  *
  * Tailscale locks a tailnet to an IdP at creation; OpenSesame records, per
  * device, every identity provider this browser brokers: BYO upstreams it
- * registered itself (ADR 0055) and first-class catalog providers chosen in the
- * Identity ceremony. The record is a mirror, not the source of truth — the
+ * registered itself (ADR 0055) and first-class catalog providers chosen in
+ * the Identity ceremony. The record is a mirror, not the source of truth — the
  * server-side registration list is operator-token-only, so a browser can only
  * ever see what it registered itself, and the UI says exactly that.
  *
  * The registry also carries the ceremony gate: `ceremonyDismissed` is the
  * operator's explicit "set up later", which lifts the gate without a binding.
+ *
+ * Storage (ADR 0063): the registry lives sealed in the active tomb at
+ * `tomb/<name>/config/idp-registry` — it left localStorage with the encrypted
+ * VFS. Hydrated into memory on unlock (`hydrateIdpRegistryFromVfs`) and
+ * discarded on lock (`discardIdpRegistry`), so while the vault is locked the
+ * registry is unreadable. Every consumer (the Identity screen) is already
+ * post-unlock; the sign-in hub never consults the registry — the first-class
+ * catalog is server-fetched and the BYO hint comes from the sheet flow.
  */
 
 import {
@@ -18,16 +26,37 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { VfsError, readFile, writeFile } from "./vfs.js";
 
-const STORAGE_KEY = "opensesame.idp-registry.v1";
+/** Legacy localStorage key — migrated into the tomb on unlock, then deleted. */
+const LEGACY_STORAGE_KEY = "opensesame.idp-registry.v1";
+
+/** Sealed VFS path (within a tomb) holding the registry JSON. */
+export const IDP_REGISTRY_CONFIG_PATH = "config/idp-registry";
 
 export type IdpKind = "first-class" | "byo";
+
+/** The enterprise SSO preset a BYO record was registered through, if any. */
+export type IdpProviderType = "workos" | "okta" | "auth0" | "better-auth";
+
+const IDP_PROVIDER_TYPES: ReadonlySet<string> = new Set([
+  "workos",
+  "okta",
+  "auth0",
+  "better-auth",
+]);
+
+function isIdpProviderType(value: BoundaryValue): value is IdpProviderType {
+  return isString(value) && IDP_PROVIDER_TYPES.has(value);
+}
 
 export type IdpRecord = {
   id: string;
   issuer: string;
   label: string;
   kind: IdpKind;
+  /** Preset the record was registered through; legacy BYO rows have none. */
+  providerType?: IdpProviderType;
   /** BYO only: the client the deployment registered (or was handed). */
   clientId?: string;
   clientAuth?: string;
@@ -54,6 +83,8 @@ function isIdpRecord(value: BoundaryValue): value is IdpRecord {
     isString(value.issuer) &&
     isString(value.label) &&
     (value.kind === "first-class" || value.kind === "byo") &&
+    (value.providerType === undefined ||
+      isIdpProviderType(value.providerType)) &&
     (value.clientId === undefined || isString(value.clientId)) &&
     (value.clientAuth === undefined || isString(value.clientAuth)) &&
     (value.redirectUri === undefined || isString(value.redirectUri)) &&
@@ -97,35 +128,96 @@ function saveRegistry(registry: StoredRegistry): void {
 
 /* ------------------------------------------------------------- transport */
 
-function readRawDefault(): string | null {
+/**
+ * The decrypted registry, cached in memory for the unlocked session. The
+ * exported API stays synchronous (callers don't change); the VFS read that
+ * fills the cache runs at unlock, and every write-through persists sealed.
+ */
+let activeTomb: string | null = null;
+let cachedRaw: string | null = null;
+let hydrated = false;
+
+function readCachedDefault(): string | null {
+  // Locked (never hydrated): the registry is unreadable — empty posture.
+  return hydrated ? cachedRaw : null;
+}
+
+function writeCachedDefault(raw: string): void {
+  cachedRaw = raw;
+  hydrated = true;
+  const tomb = activeTomb;
+  if (!tomb) return;
+  void writeFile(
+    tomb,
+    IDP_REGISTRY_CONFIG_PATH,
+    new TextEncoder().encode(raw),
+  ).catch(() => {
+    /* a mirror, never the source of truth — the next unlock re-reads */
+  });
+}
+
+function clearCachedDefault(): void {
+  cachedRaw = null;
+  hydrated = true;
+  const tomb = activeTomb;
+  if (!tomb) return;
+  void writeFile(
+    tomb,
+    IDP_REGISTRY_CONFIG_PATH,
+    new TextEncoder().encode(JSON.stringify(EMPTY_REGISTRY)),
+  ).catch(() => {
+    /* a mirror, never the source of truth — the next unlock re-reads */
+  });
+}
+
+export const idpRegistrySeams = {
+  read: readCachedDefault,
+  write: writeCachedDefault,
+  clear: clearCachedDefault,
+};
+
+/**
+ * Fill the in-memory cache from the tomb's sealed config. Runs on unlock,
+ * after `migrateTombConfigOnUnlock` has moved any legacy localStorage copy.
+ * An unreadable file reads as empty — the mirror posture: the ceremony shows
+ * again and nothing is lost.
+ */
+export async function hydrateIdpRegistryFromVfs(tomb: string): Promise<void> {
+  activeTomb = tomb;
   try {
-    return localStorage.getItem(STORAGE_KEY);
+    const bytes = await readFile(tomb, IDP_REGISTRY_CONFIG_PATH);
+    cachedRaw = new TextDecoder().decode(bytes);
+  } catch (error) {
+    if (error instanceof VfsError && error.code === "locked") throw error;
+    cachedRaw = null;
+  }
+  hydrated = true;
+}
+
+/** Lock: forget the decrypted registry and which tomb it belonged to. */
+export function discardIdpRegistry(): void {
+  activeTomb = null;
+  cachedRaw = null;
+  hydrated = false;
+}
+
+/** Legacy localStorage copy, for the unlock-time migration only. */
+export function readLegacyIdpRegistry(): string | null {
+  try {
+    return localStorage.getItem(LEGACY_STORAGE_KEY);
   } catch {
-    // Storage can be denied outright (private mode); the registry reads empty.
+    // Storage can be denied outright (private mode); nothing to migrate.
     return null;
   }
 }
 
-function writeRawDefault(raw: string): void {
-  // A mirror of IdP bindings — no secret material, so durable local storage is
-  // the right home (the binding is meant to survive restarts).
-  // ast-grep-ignore: ts-localstorage-set
-  localStorage.setItem(STORAGE_KEY, raw);
-}
-
-function clearRawDefault(): void {
+export function clearLegacyIdpRegistry(): void {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
     /* storage unavailable — nothing to clear */
   }
 }
-
-export const idpRegistrySeams = {
-  read: readRawDefault,
-  write: writeRawDefault,
-  clear: clearRawDefault,
-};
 
 /* ----------------------------------------------------------------- API */
 

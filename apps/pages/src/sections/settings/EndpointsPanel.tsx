@@ -170,7 +170,7 @@ export function EndpointsPanel() {
             status={savedChip("mfaAppUrl")}
             onValueChange={(value) => edit("mfaAppUrl", value)}
             onCommit={(value) => commit("mfaAppUrl", value)}
-            hint="When this browser cannot finish a passkey, Authority shows a QR that opens this URL on your phone."
+            hint="When this browser cannot finish a passkey, the passkey note shows a QR that opens this URL on your phone."
           />
         </div>
       ) : null}

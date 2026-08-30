@@ -27,6 +27,7 @@ import {
   type UnlockMethodId,
   checkWebauthnHost,
   describeWebauthnError,
+  pinPolicyProblems,
 } from "../lib/vault/unlock-methods.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -260,12 +261,16 @@ export function UnlockScreen() {
   }
 
   const strength = estimateStrength(password);
+  const pinProblems =
+    firstRun && activeMethod === "pin" ? pinPolicyProblems(pin) : [];
+  const pinProblem =
+    activeMethod === "pin" && pin.length > 0 ? (pinProblems[0] ?? null) : null;
   const createBlocked =
     !accepted ||
     (activeMethod === "passkey"
       ? !passkeyHost.ok
       : activeMethod === "pin"
-        ? pin.length < MIN_PIN_LENGTH || pin !== confirm
+        ? pinProblems.length > 0 || pin !== confirm
         : password.length < 12 || password !== confirm || strength.score < 2);
 
   let unlockBlocked = true;
@@ -494,6 +499,17 @@ export function UnlockScreen() {
                   disabled={busy || lockedFor > 0}
                   onChange={(e) => setPin(e.target.value)}
                 />
+                {firstRun ? (
+                  <p className="hint">
+                    {MIN_PIN_LENGTH}–12 characters · no repeated character · no
+                    sequential digits.
+                  </p>
+                ) : null}
+                {pinProblem ? (
+                  <p className="note note--err" aria-live="polite">
+                    {pinProblem}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

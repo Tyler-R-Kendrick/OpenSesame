@@ -1,7 +1,9 @@
 import {
   type ComponentType,
   type ReactNode,
+  Suspense,
   createContext,
+  lazy,
   useContext,
   useEffect,
 } from "react";
@@ -17,13 +19,6 @@ import {
 import { BrokerAuthorize as DefaultBrokerAuthorize } from "./screens/BrokerAuthorize.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
-import { AccessSection as DefaultAccessSection } from "./sections/AccessSection.js";
-import { AuthenticationSection as DefaultAuthenticationSection } from "./sections/AuthenticationSection.js";
-import { AuthoritySection as DefaultAuthoritySection } from "./sections/AuthoritySection.js";
-import { ConnectionsSection as DefaultConnectionsSection } from "./sections/ConnectionsSection.js";
-import { IdentitySection as DefaultIdentitySection } from "./sections/IdentitySection.js";
-import { SettingsSection as DefaultSettingsSection } from "./sections/SettingsSection.js";
-import { SitesSection as DefaultSitesSection } from "./sections/SitesSection.js";
 import {
   VaultSection as DefaultVaultSection,
   VaultWelcome as DefaultVaultWelcome,
@@ -31,6 +26,30 @@ import {
 import { HealthPanel as DefaultHealthPanel } from "./sections/vault/HealthPanel.js";
 import { ItemDetail as DefaultItemDetail } from "./sections/vault/ItemDetail.js";
 import { ItemEditor as DefaultItemEditor } from "./sections/vault/ItemEditor.js";
+
+// Route-level code splitting: the four big sections load on first visit.
+// Vault, unlock and the broker/federation returns stay eager — they are the
+// critical path every session goes through.
+const DefaultAccessSection = lazy(() =>
+  import("./sections/AccessSection.js").then((m) => ({
+    default: m.AccessSection,
+  })),
+);
+const DefaultConnectionsSection = lazy(() =>
+  import("./sections/ConnectionsSection.js").then((m) => ({
+    default: m.ConnectionsSection,
+  })),
+);
+const DefaultIdentitySection = lazy(() =>
+  import("./sections/IdentitySection.js").then((m) => ({
+    default: m.IdentitySection,
+  })),
+);
+const DefaultSettingsSection = lazy(() =>
+  import("./sections/SettingsSection.js").then((m) => ({
+    default: m.SettingsSection,
+  })),
+);
 
 type VaultStatus = { status: string };
 type EditorProps = { mode: "edit" | "new" };
@@ -45,12 +64,9 @@ export type AppSlots = {
   FederationReturn: ComponentType;
   UnlockScreen: ComponentType;
   AccessSection: ComponentType;
-  AuthenticationSection: ComponentType;
-  AuthoritySection: ComponentType;
   ConnectionsSection: ComponentType;
   IdentitySection: ComponentType;
   SettingsSection: ComponentType;
-  SitesSection: ComponentType;
   VaultSection: ComponentType;
   VaultWelcome: ComponentType;
   HealthPanel: ComponentType;
@@ -68,12 +84,9 @@ const defaultSlots: AppSlots = {
   FederationReturn: DefaultFederationReturn,
   UnlockScreen: DefaultUnlockScreen,
   AccessSection: DefaultAccessSection,
-  AuthenticationSection: DefaultAuthenticationSection,
-  AuthoritySection: DefaultAuthoritySection,
   ConnectionsSection: DefaultConnectionsSection,
   IdentitySection: DefaultIdentitySection,
   SettingsSection: DefaultSettingsSection,
-  SitesSection: DefaultSitesSection,
   VaultSection: DefaultVaultSection,
   VaultWelcome: DefaultVaultWelcome,
   HealthPanel: DefaultHealthPanel,
@@ -85,7 +98,11 @@ const AppSlotsContext = createContext<AppSlots>(defaultSlots);
 
 /** Scrolling frame for every section except the vault, which owns its own panes. */
 function Framed({ children }: { children: ReactNode }) {
-  return <main className="section">{children}</main>;
+  return (
+    <main id="main" className="section">
+      {children}
+    </main>
+  );
 }
 
 function VaultApp() {
@@ -109,77 +126,56 @@ function VaultApp() {
 
   return (
     <slots.AppShell>
-      <Routes>
-        <Route path="/" element={<Navigate to="/vault" replace />} />
-        <Route path="/vault" element={<slots.VaultSection />}>
-          <Route index element={<slots.VaultWelcome />} />
-          <Route path="health" element={<slots.HealthPanel />} />
-          <Route path="new/:kind" element={<slots.ItemEditor mode="new" />} />
+      <Suspense fallback={<p className="hint">Loading…</p>}>
+        <Routes>
+          <Route path="/" element={<Navigate to="/vault" replace />} />
+          <Route path="/vault" element={<slots.VaultSection />}>
+            <Route index element={<slots.VaultWelcome />} />
+            <Route path="health" element={<slots.HealthPanel />} />
+            <Route path="new/:kind" element={<slots.ItemEditor mode="new" />} />
+            <Route
+              path=":itemId/edit"
+              element={<slots.ItemEditor mode="edit" />}
+            />
+            <Route path=":itemId" element={<slots.ItemDetail />} />
+          </Route>
           <Route
-            path=":itemId/edit"
-            element={<slots.ItemEditor mode="edit" />}
+            path="/access"
+            element={
+              <Framed>
+                <slots.AccessSection />
+              </Framed>
+            }
           />
-          <Route path=":itemId" element={<slots.ItemDetail />} />
-        </Route>
-        <Route
-          path="/access"
-          element={
-            <Framed>
-              <slots.AccessSection />
-            </Framed>
-          }
-        />
-        <Route path="/agents" element={<Navigate to="/access" replace />} />
-        <Route
-          path="/identity"
-          element={
-            <Framed>
-              <slots.IdentitySection />
-            </Framed>
-          }
-        />
-        <Route
-          path="/authentication"
-          element={
-            <Framed>
-              <slots.AuthenticationSection />
-            </Framed>
-          }
-        />
-        <Route
-          path="/connections/:providerId?/:connectionId?"
-          element={
-            <Framed>
-              <slots.ConnectionsSection />
-            </Framed>
-          }
-        />
-        <Route
-          path="/sites"
-          element={
-            <Framed>
-              <slots.SitesSection />
-            </Framed>
-          }
-        />
-        <Route
-          path="/authority"
-          element={
-            <Framed>
-              <slots.AuthoritySection />
-            </Framed>
-          }
-        />
-        <Route
-          path="/settings/:category?"
-          element={
-            <Framed>
-              <slots.SettingsSection />
-            </Framed>
-          }
-        />
-        <Route path="*" element={<Navigate to="/vault" replace />} />
-      </Routes>
+          <Route path="/agents" element={<Navigate to="/access" replace />} />
+          <Route path="/sites" element={<Navigate to="/access" replace />} />
+          <Route
+            path="/identity"
+            element={
+              <Framed>
+                <slots.IdentitySection />
+              </Framed>
+            }
+          />
+          <Route
+            path="/connections/:providerId?/:connectionId?"
+            element={
+              <Framed>
+                <slots.ConnectionsSection />
+              </Framed>
+            }
+          />
+          <Route
+            path="/settings/:category?"
+            element={
+              <Framed>
+                <slots.SettingsSection />
+              </Framed>
+            }
+          />
+          <Route path="*" element={<Navigate to="/vault" replace />} />
+        </Routes>
+      </Suspense>
     </slots.AppShell>
   );
 }

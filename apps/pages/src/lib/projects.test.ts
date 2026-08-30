@@ -1,3 +1,4 @@
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
 import {
@@ -14,9 +15,13 @@ import {
   scopedKey,
   setActiveProject,
 } from "./projects.js";
+import { TOMBS_REGISTRY_KEY, lockAllTombs, vfsFlush } from "./vfs.js";
 
-afterEach(() => {
+afterEach(async () => {
+  await vfsFlush();
+  lockAllTombs();
   kvDelete(PROJECTS_KEY);
+  kvDelete(TOMBS_REGISTRY_KEY);
   rehydrateProjects();
 });
 
@@ -80,18 +85,21 @@ describe("project registry", () => {
     );
   });
 
-  it("recovers from a corrupt registry and a vanished active project", () => {
+  it("recovers from a corrupt boot record and trusts a live pointer", () => {
     kvSet(PROJECTS_KEY, "not-json");
     rehydrateProjects();
     expect(activeProject().id).toBe(PERSONAL_PROJECT_ID);
 
-    kvSet(
-      PROJECTS_KEY,
-      JSON.stringify({ v: 1, projects: [], activeId: "prj_gone" }),
-    );
+    // The boot record is only a pointer now. A pointer naming a tomb with no
+    // material is kept — a just-created project looks exactly like that until
+    // its first header lands — and the tomb reads as an empty vault.
+    kvSet(PROJECTS_KEY, JSON.stringify({ v: 1, activeId: "prj_gone" }));
     rehydrateProjects();
-    expect(activeProject().id).toBe(PERSONAL_PROJECT_ID);
-    expect(listProjects()).toHaveLength(1);
+    expect(activeProject().id).toBe("prj_gone");
+    expect(listProjects().map((project) => project.id)).toEqual([
+      PERSONAL_PROJECT_ID,
+      "prj_gone",
+    ]);
   });
 
   it("lists every per-project key for hydration and deletion", async () => {
@@ -104,12 +112,20 @@ describe("project registry", () => {
 });
 
 describe("project registry sanitization", () => {
-  it("falls back to defaults for non-object and malformed entries", async () => {
-    const { subscribeProjects } = await import("./projects.js");
-
+  it("falls back to defaults for non-object boot records", () => {
     kvSet(PROJECTS_KEY, JSON.stringify("just a string"));
     rehydrateProjects();
     expect(listProjects().map((p) => p.id)).toEqual([PERSONAL_PROJECT_ID]);
+  });
+
+  it("sanitizes a legacy full record as it seals into the tomb", async () => {
+    // The full list lives sealed per tomb now; the repair rules run when the
+    // legacy plaintext record migrates on unlock.
+    const { mintVaultKey } = await import("./vault/crypto.js");
+    const { unlockTomb } = await import("./vfs.js");
+    const { migrateProjectsToVfs } = await import("./projects.js");
+    const { vaultKey } = await mintVaultKey();
+    unlockTomb(PERSONAL_PROJECT_ID, vaultKey);
 
     kvSet(
       PROJECTS_KEY,
@@ -126,7 +142,7 @@ describe("project registry sanitization", () => {
         ],
       }),
     );
-    rehydrateProjects();
+    await migrateProjectsToVfs(PERSONAL_PROJECT_ID);
     const state = projectsState();
     // The personal project always exists exactly once, and first.
     expect(state.projects.map((p) => p.id)).toEqual([
@@ -140,6 +156,12 @@ describe("project registry sanitization", () => {
       createdAt: new Date(0).toISOString(),
     });
     expect(state.activeId).toBe("prj_b");
+    // The plaintext key shrank to the boot pointer.
+    const boot = overlapCast<{ activeId?: string; projects?: unknown }>(
+      JSON.parse(kvGet(PROJECTS_KEY) ?? "{}"),
+    );
+    expect(boot.activeId).toBe("prj_b");
+    expect(boot.projects).toBeUndefined();
   });
 
   it("notifies subscribers on rehydration and unsubscribes cleanly", async () => {

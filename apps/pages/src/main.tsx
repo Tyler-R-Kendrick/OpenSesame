@@ -6,11 +6,17 @@ import { App } from "./App.js";
 import { kvHydrate } from "./lib/kv.js";
 import {
   PROJECTS_KEY,
+  activeProject,
   projectScopedKeys,
   rehydrateProjects,
 } from "./lib/projects.js";
 import { loadRuntimeConfig } from "./lib/runtime-config.js";
 import { vaultStore } from "./lib/vault/store.js";
+import {
+  migrateLegacyVaultStorage,
+  tombStorageKeys,
+} from "./lib/vault/tomb-migration.js";
+import { TOMBS_REGISTRY_KEY } from "./lib/vfs.js";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -40,19 +46,25 @@ if (framed()) {
 void (async () => {
   // OPFS is async and the store reads its header synchronously, so pull the
   // persisted keys into the KV cache and re-read before the first paint.
-  // The project registry hydrates first: which vault and consent keys exist
-  // depends on which project is active.
-  // Deployment endpoints load before settings are first read, so an unbaked
-  // static deploy still knows its Identity API without a rebuild.
+  // The boot record and tomb registry hydrate first: which tomb is active
+  // decides which vault header and consent keys exist. Deployment endpoints
+  // load before settings are first read, so an unbaked static deploy still
+  // knows its Identity API without a rebuild.
   await loadRuntimeConfig();
   await kvHydrate([
     PROJECTS_KEY,
+    TOMBS_REGISTRY_KEY,
     "settings.v1",
     "outbox.v1",
     "connections.firstRun.v1",
   ]);
   rehydrateProjects();
-  await kvHydrate(projectScopedKeys());
+  const tomb = activeProject().id;
+  await kvHydrate([...projectScopedKeys(), ...tombStorageKeys(tomb)]);
+  // Move any legacy flat vault keys into the tomb before the store reads it.
+  // Pre-unlock this is plaintext moves only (header params, sealed body
+  // bytes); sealed config migrates on unlock.
+  await migrateLegacyVaultStorage(tomb);
   vaultStore.rehydrate();
 
   createRoot(root).render(

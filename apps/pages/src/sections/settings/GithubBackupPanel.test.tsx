@@ -199,7 +199,9 @@ describe("GithubBackupPanel", () => {
     // The environment select adopts the target's branch.
     await waitFor(() =>
       expect(
-        overlapCast(screen.getByRole("combobox", { name: "" })).value,
+        overlapCast(
+          screen.getByRole("combobox", { name: "Environment → branch" }),
+        ).value,
       ).toBe("staging"),
     );
   });
@@ -319,7 +321,7 @@ describe("GithubBackupPanel", () => {
       "https://github.com/octocat/opensesame-passwords.git",
     );
     await userEvent.selectOptions(
-      screen.getByRole("combobox", { name: "" }),
+      screen.getByRole("combobox", { name: "Environment → branch" }),
       "development",
     );
     await userEvent.click(

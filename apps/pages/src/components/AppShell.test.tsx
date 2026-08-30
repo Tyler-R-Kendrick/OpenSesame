@@ -102,17 +102,13 @@ describe("AppShell", () => {
     expect(screen.getAllByText("OpenSesame").length).toBeGreaterThan(0);
     // Sections appear in both the rail and the mobile tab bar ("Vault" also
     // labels the filter group while inside the vault).
-    for (const label of [
-      "Connections",
-      "Access",
-      "Identity",
-      "Authority",
-      "Authentication",
-      "Sites",
-      "Settings",
-    ]) {
+    for (const label of ["Connections", "Access", "Identity", "Settings"]) {
       expect(screen.getAllByText(label).length).toBe(2);
     }
+    // The removed screens leave no nav entries behind.
+    expect(screen.queryByText("Authority")).toBeNull();
+    expect(screen.queryByText("Authentication")).toBeNull();
+    expect(screen.queryByText("Sites")).toBeNull();
     expect(screen.getAllByText("Vault").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
@@ -205,6 +201,15 @@ describe("AppShell", () => {
     expect(vault.lock).toHaveBeenCalledTimes(2);
   });
 
+  it("offers a skip-to-content link as the first stop", () => {
+    const { container } = renderShell("/vault");
+    const skip = screen.getByRole("link", { name: "Skip to content" });
+    expect(skip.getAttribute("href")).toBe("#main");
+    expect(skip.className).toContain("visually-hidden");
+    // First in DOM order, so it is the first stop of a keyboard pass.
+    expect(container.querySelector("a, button")).toBe(skip);
+  });
+
   it("handles vaults with no folders and no items", () => {
     vault.items = [];
     vault.folders = [];
@@ -212,5 +217,19 @@ describe("AppShell", () => {
     expect(filterLink(container, "/vault", "All items").textContent).toContain(
       "0",
     );
+  });
+
+  it("captures section shortcuts before the tree can stop propagation", () => {
+    renderShell(
+      "/vault",
+      <button type="button" onKeyDown={(event) => event.stopPropagation()}>
+        tree row
+      </button>,
+    );
+    const row = screen.getByRole("button", { name: "tree row" });
+    row.focus();
+    fireEvent.keyDown(row, { key: "g" });
+    fireEvent.keyDown(row, { key: "a" });
+    expect(screen.queryByText("All items")).toBeNull();
   });
 });

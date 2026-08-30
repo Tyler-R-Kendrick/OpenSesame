@@ -25,6 +25,7 @@ import {
   isIpHostname,
   localhostEquivalentHref,
   openTotpSecret,
+  pinPolicyProblems,
   preferredUnlockMethod,
   prfExtensionSupported,
   primaryUnlockCount,
@@ -41,6 +42,36 @@ const PIN = "48291037";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("pinPolicyProblems", () => {
+  it("returns nothing for a solid PIN and names every violation otherwise", () => {
+    expect(pinPolicyProblems(PIN)).toEqual([]);
+    expect(pinPolicyProblems("13579246")).toEqual([]);
+    // Short and sequential: both named, length first.
+    expect(pinPolicyProblems("1234")).toEqual([
+      "PIN must be 8–12 characters.",
+      "PIN cannot be a sequential run of digits.",
+    ]);
+    expect(pinPolicyProblems("4829 1037")).toEqual([
+      "PIN cannot contain spaces.",
+    ]);
+    expect(pinPolicyProblems("11111111")).toEqual([
+      "PIN cannot be a repeated character.",
+    ]);
+    expect(pinPolicyProblems("12345678")).toEqual([
+      "PIN cannot be a sequential run of digits.",
+    ]);
+    expect(pinPolicyProblems("98765432")).toEqual([
+      "PIN cannot be a sequential run of digits.",
+    ]);
+  });
+
+  it("lists length first so the store throws the same messages as before", () => {
+    expect(pinPolicyProblems("11").length).toBeGreaterThan(0);
+    expect(pinPolicyProblems("11")[0]).toBe("PIN must be 8–12 characters.");
+    expect(() => assertPinPolicy("11111111")).toThrow(/repeated character/);
+  });
 });
 
 describe("assertPinPolicy", () => {

@@ -9,7 +9,7 @@
  * # Threat model — read before touching this file
  *
  * Unlike `offline-backup.ts`, which emits ciphertext, **a CXF document is
- * plaintext**. Every password, TOTP seed, card number, and agent secret in the
+ * plaintext**. Every password, TOTP seed, card number, and secret value in the
  * vault is in it, in the clear, in a file the user then has sitting in their
  * downloads folder.
  *
@@ -368,7 +368,7 @@ function itemFor(item: VaultItem) {
       base.credentials.push({
         type: CXF_TYPES.apiKey,
         key: field(item.value, "concealed-string"),
-        keyType: "opensesame-agent-secret",
+        keyType: "opensesame-secret",
         extensions: [
           {
             name: CXF_EXTENSION,
@@ -391,6 +391,15 @@ function itemFor(item: VaultItem) {
           name: item.name,
           reason:
             "CXF has no credential type for an X.509 certificate and its private key, and splitting one across custom fields would produce something no manager could use.",
+        },
+      };
+    case "drop":
+      return {
+        cxf: null,
+        skipped: {
+          name: item.name,
+          reason:
+            "A drop is a one-time share in flight, not a stored secret — the payload never lives in the vault, so there is nothing durable to export.",
         },
       };
   }

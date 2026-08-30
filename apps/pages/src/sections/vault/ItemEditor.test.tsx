@@ -562,10 +562,9 @@ describe("ItemEditor", () => {
     renderNew("/vault/new/secret");
     // The controlled input re-joins on every keystroke, so paste-style change
     // is how a comma-separated list actually lands.
-    fireEvent.change(
-      screen.getByLabelText(/Agents permitted to request a grant/i),
-      { target: { value: "agt_one, agt_two,,  " } },
-    );
+    fireEvent.change(screen.getByLabelText(/Grantees \(agent ids\)/i), {
+      target: { value: "agt_one, agt_two,,  " },
+    });
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Token");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());

@@ -13,6 +13,7 @@ import {
   IconCheck,
   IconChevronLeft,
   IconCopy,
+  IconDrop,
   IconExternal,
   IconLogin,
   IconNote,
@@ -36,6 +37,7 @@ import {
 } from "../../lib/vault/model.js";
 import { estimateStrength, generate } from "../../lib/vault/password.js";
 import { totpSetupUri } from "../../lib/vault/totp.js";
+import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
 
 const KIND_ICON = {
   login: IconLogin,
@@ -44,6 +46,7 @@ const KIND_ICON = {
   secret: IconSecret,
   note: IconNote,
   certificate: IconCert,
+  drop: IconDrop,
 };
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
@@ -102,7 +105,7 @@ export function ItemDetail() {
     return (
       <div className="detail">
         <div className="empty">
-          <h3>That item is not in this vault</h3>
+          <h2>That item is not in this vault</h2>
           <p>
             It may have been purged, or the link points at another device's
             vault.
@@ -185,6 +188,9 @@ export function ItemDetail() {
         copied={copied}
         failed={failed}
         copy={copy}
+        shareInitiallyOpen={
+          new URLSearchParams(location.search).get("share") === "drop"
+        }
         onUpdateSecret={async (next) => {
           const updated = { ...item, updatedAt: new Date().toISOString() };
           if (updated.kind === "login") {
@@ -291,9 +297,11 @@ export function ItemDetail() {
           </>
         ) : (
           <>
-            <Link className="btn btn--primary" to={`/vault/${item.id}/edit`}>
-              Edit
-            </Link>
+            {item.kind !== "drop" ? (
+              <Link className="btn btn--primary" to={`/vault/${item.id}/edit`}>
+                Edit
+              </Link>
+            ) : null}
             <button
               type="button"
               className="btn btn--danger"
@@ -319,6 +327,8 @@ type FieldsProps = {
   copied: string | null;
   failed: string | null;
   copy: (key: string, value: string) => Promise<void>;
+  /** A `?share=drop` deep link (e.g. from a list row) opens the ceremony. */
+  shareInitiallyOpen: boolean;
   onUpdateSecret: (next: string) => Promise<void>;
 };
 
@@ -402,6 +412,7 @@ function UpdateSecretPanel({
           className="input"
           autoComplete="new-password"
           placeholder={`New ${label}`}
+          aria-label={`New ${label}`}
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />
@@ -444,6 +455,7 @@ function ItemFields({
   copied,
   failed,
   copy,
+  shareInitiallyOpen,
   onUpdateSecret,
 }: FieldsProps) {
   switch (item.kind) {
@@ -809,7 +821,7 @@ function ItemFields({
                 </span>
               </FieldRow>
             ) : null}
-            <FieldRow label="Agents permitted to request a grant">
+            <FieldRow label="Grantees">
               <span className="frow__value">
                 {item.grantees.length > 0 ? item.grantees.join(", ") : "None"}
               </span>
@@ -821,8 +833,8 @@ function ItemFields({
             {item.ceiling.length === 0 ? (
               <div className="frow">
                 <p className="frow__notes">
-                  No ceiling set. An agent cannot obtain any grant against this
-                  secret until you define what it may do.
+                  No ceiling set. Optional grant metadata — it only matters when
+                  granting this secret to an agent.
                 </p>
               </div>
             ) : (
@@ -855,6 +867,8 @@ function ItemFields({
             )}
           </div>
 
+          <ShareSecretDrop item={item} initialOpen={shareInitiallyOpen} />
+
           <div className="note">
             <span>
               You can reveal this value; an agent never can. An agent receives a
@@ -864,6 +878,9 @@ function ItemFields({
           </div>
         </>
       );
+
+    case "drop":
+      return <DropRecordFields item={item} />;
 
     case "note":
       return (

@@ -5,8 +5,16 @@
  * load — here instead of stacking banners above their own content.
  */
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { Link } from "react-router";
 import { beginSignIn, defaultUpstream } from "../lib/federation.js";
+import { useModalFocus } from "../lib/modal-focus.js";
 import {
   type Notice,
   dismissNotice,
@@ -14,29 +22,30 @@ import {
   subscribeNotices,
 } from "../lib/notices.js";
 import { loadQueue } from "../lib/queue.js";
+import { buildHealthReport } from "../lib/vault/health.js";
+import { useVault } from "../lib/vault/hooks.js";
 import { CeremonyLink } from "./CeremonyLauncher.js";
 import { CeremonyShell } from "./CeremonyShell.js";
-import { IconAlert, IconBell, IconInfo, IconX } from "./Icons.js";
+import { IconAlert, IconBell, IconInfo, IconShield, IconX } from "./Icons.js";
 
 export const notificationsBarDependencies = {
   beginSignIn,
   defaultUpstream,
+  useVault,
 };
 
 function NotificationsBarDefault() {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
+  const { items } = notificationsBarDependencies.useVault();
+  const health = useMemo(() => buildHealthReport(items), [items]);
   const queued = loadQueue().length;
   const [open, setOpen] = useState(false);
-  const count = notices.length + queued;
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    if (!open) return;
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  const healthPending = health.findings.length > 0;
+  const count = notices.length + queued + (healthPending ? 1 : 0);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useModalFocus(open, sheetRef, closeRef, close);
 
   const label =
     count === 0
@@ -65,9 +74,10 @@ function NotificationsBarDefault() {
             type="button"
             className="scrim"
             aria-label="Close"
-            onClick={() => setOpen(false)}
+            onClick={close}
           />
           <div
+            ref={sheetRef}
             className="sheet"
             // biome-ignore lint/a11y/useSemanticElements: native <dialog open> inerts the page and paints a blank top-layer surface
             role="dialog"
@@ -80,22 +90,41 @@ function NotificationsBarDefault() {
               </span>
               <div className="sheet__grow">
                 <h2>Notifications</h2>
-                <p>
-                  Claim ceremonies that still need you, and anything on this
-                  page that is not working right now.
-                </p>
+                <p>Claims, password health, and service status.</p>
               </div>
               <button
                 type="button"
                 className="icon-btn"
                 aria-label="Close"
-                onClick={() => setOpen(false)}
+                ref={closeRef}
+                onClick={close}
               >
                 <IconX size={18} />
               </button>
             </div>
             <div className="sheet__body">
               {count === 0 ? <p className="hint">Nothing waiting.</p> : null}
+              {healthPending ? (
+                <article className="notice-card notice-card--warn">
+                  <h3>
+                    <IconShield size={16} />
+                    Password health
+                  </h3>
+                  <p>
+                    {health.findings.length} of {health.scored} passwords need
+                    attention.
+                  </p>
+                  <div className="actions">
+                    <Link
+                      className="btn btn--sm btn--primary"
+                      to="/vault/health"
+                      onClick={close}
+                    >
+                      Review passwords
+                    </Link>
+                  </div>
+                </article>
+              ) : null}
               {/* The claim prompt already lived in the ceremony's own sheet
                   and had all the ceremony's parts — a what-is statement, a
                   fact, a primary, a dismissal — it just hand-rolled them in a
@@ -136,7 +165,7 @@ function NotificationsBarDefault() {
               {queued > 0 ? (
                 <p className="hint">
                   {queued} staged device or claim action
-                  {queued === 1 ? "" : "s"} wait on the Authority tab.
+                  {queued === 1 ? "" : "s"} wait on Identity.
                 </p>
               ) : null}
             </div>

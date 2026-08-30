@@ -6,7 +6,8 @@ export type ItemKind =
   | "card"
   | "secret"
   | "note"
-  | "certificate";
+  | "certificate"
+  | "drop";
 
 export type UriMatch = "domain" | "host" | "exact" | "never";
 
@@ -108,9 +109,15 @@ export type CapabilityGrant = {
 export type SecretItem = BaseItem & {
   kind: "secret";
   value: string;
-  /** Agents may only ever act within this ceiling; it never widens. */
+  /**
+   * Optional grant metadata: the outer bound for any grant of this secret to
+   * an agent. It only matters when granting the secret, and it never widens.
+   */
   ceiling: CapabilityGrant[];
-  /** Agent identifiers permitted to request a grant against this secret. */
+  /**
+   * Optional grant metadata: agent identifiers permitted to request a grant.
+   * It only matters when granting the secret to an agent.
+   */
   grantees: string[];
   /** ConnectionRef the Host plane uses to invoke with this secret. */
   connectionRef: string;
@@ -118,6 +125,32 @@ export type SecretItem = BaseItem & {
 
 export type NoteItem = BaseItem & {
   kind: "note";
+};
+
+/** Lifecycle of a drop record; terminal states are purged on the next read. */
+export type DropState = "pending" | "consumed" | "expired";
+
+/**
+ * The payload a drop carried, kept only when the sharer checked *Keep a copy*.
+ * Bytes are base64 so the record stays JSON-safe inside the vault body.
+ */
+export type DropKeptCopy =
+  | { kind: "text"; text: string }
+  | { kind: "file"; name: string; contentType: string; dataB64: string };
+
+/**
+ * A drop is a record of a one-time share in flight — never the payload itself
+ * (ADR 0062). The bearer token is needed to poll the claim; it lives only
+ * inside this sealed vault body.
+ */
+export type DropItem = BaseItem & {
+  kind: "drop";
+  state: DropState;
+  claimId: string;
+  bearerToken: string;
+  /** ISO time the claim lapses; a lapsed pending drop is terminal. */
+  expiresAt: string;
+  keptCopy?: DropKeptCopy;
 };
 
 export type CertificateItem = BaseItem & {
@@ -139,7 +172,8 @@ export type VaultItem =
   | CardItem
   | SecretItem
   | NoteItem
-  | CertificateItem;
+  | CertificateItem
+  | DropItem;
 
 export type Folder = {
   id: string;
@@ -163,18 +197,20 @@ export const KIND_LABEL = {
   login: "Login",
   passkey: "Passkey",
   card: "Card",
-  secret: "Agent secret",
+  secret: "Secret",
   note: "Secure note",
   certificate: "Certificate",
+  drop: "Drop",
 };
 
 export const KIND_PLURAL = {
   login: "Logins",
   passkey: "Passkeys",
   card: "Cards",
-  secret: "Agent secrets",
+  secret: "Secrets",
   note: "Secure notes",
   certificate: "Certificates",
+  drop: "Drops",
 };
 
 export function newId(): string {
@@ -231,6 +267,16 @@ export function isRetired(item: VaultItem): boolean {
   return "retiredAt" in item && Boolean(item.retiredAt);
 }
 
+/**
+ * A drop record is disposable once its poll reached a terminal state or its
+ * TTL lapsed — either way nothing can ever open the drop again.
+ */
+export function dropTerminal(item: DropItem, now = new Date()): boolean {
+  return (
+    item.state !== "pending" || Date.parse(item.expiresAt) <= now.getTime()
+  );
+}
+
 export function activeItems(items: VaultItem[]): VaultItem[] {
   return items.filter((item) => item.deletedAt === null && !isRetired(item));
 }
@@ -265,6 +311,7 @@ export function createItem(kind: "card", name?: string): CardItem;
 export function createItem(kind: "secret", name?: string): SecretItem;
 export function createItem(kind: "note", name?: string): NoteItem;
 export function createItem(kind: "certificate", name?: string): CertificateItem;
+export function createItem(kind: "drop", name?: string): DropItem;
 export function createItem(kind: ItemKind, name?: string): VaultItem;
 export function createItem(kind: ItemKind, name = ""): VaultItem {
   const b = base(kind, name);
@@ -326,6 +373,18 @@ export function createItem(kind: ItemKind, name = ""): VaultItem {
         serial: "",
         notAfter: "",
       };
+    case "drop":
+      // A stub for switch exhaustiveness: the +new Drop ceremony builds the
+      // real record from the claim session it created — claimId, bearerToken,
+      // and expiresAt are never blank in a saved drop.
+      return {
+        ...b,
+        kind: "drop",
+        state: "pending",
+        claimId: "",
+        bearerToken: "",
+        expiresAt: b.createdAt,
+      };
   }
 }
 
@@ -354,6 +413,12 @@ export function itemSubtitle(item: VaultItem): string {
       return item.notAfter
         ? `${item.commonName} · until ${item.notAfter.slice(0, 10)}`
         : item.commonName || "Dev certificate";
+    case "drop":
+      return item.state === "pending"
+        ? `Opens once · until ${item.expiresAt.slice(0, 10)}`
+        : item.state === "consumed"
+          ? "Opened — purges on next read"
+          : "Expired — purges on next read";
   }
 }
 
@@ -403,6 +468,7 @@ export function searchMatches(item: VaultItem, query: string): boolean {
   if (item.kind === "certificate") {
     haystack.push(item.commonName, item.dnsNames, item.serial);
   }
+  if (item.kind === "drop") haystack.push(item.state);
   for (const field of item.fields) {
     if (!field.hidden) haystack.push(field.name, field.value);
     else haystack.push(field.name);

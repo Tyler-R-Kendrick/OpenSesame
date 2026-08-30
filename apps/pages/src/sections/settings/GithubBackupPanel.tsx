@@ -743,22 +743,25 @@ export function GithubBackupPanel() {
 
               <li className="field">
                 <strong>5. Environment → branch</strong>
-                <select
-                  value={environment}
-                  onChange={(event) =>
-                    setEnvironment(overlapCast(event.target.value))
-                  }
-                >
-                  <option value="development">
-                    development → {branchForEnvironment("development")}
-                  </option>
-                  <option value="staging">
-                    staging → {branchForEnvironment("staging")}
-                  </option>
-                  <option value="production">
-                    production → {branchForEnvironment("production")}
-                  </option>
-                </select>
+                <label className="field">
+                  Environment → branch
+                  <select
+                    value={environment}
+                    onChange={(event) =>
+                      setEnvironment(overlapCast(event.target.value))
+                    }
+                  >
+                    <option value="development">
+                      development → {branchForEnvironment("development")}
+                    </option>
+                    <option value="staging">
+                      staging → {branchForEnvironment("staging")}
+                    </option>
+                    <option value="production">
+                      production → {branchForEnvironment("production")}
+                    </option>
+                  </select>
+                </label>
                 <span className="hint">
                   Each environment backs up to its own branch in the same
                   private repo. Production is the default recoverability branch.

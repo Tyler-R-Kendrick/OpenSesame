@@ -103,7 +103,7 @@ export function relative(iso: string | null): string | null {
 export function errorText<Thrown>(error: Thrown): string {
   if (error instanceof HostSessionError) {
     if (error.code === "setup_required") {
-      return `${error.message} Connect on Authority first so this page can mint a Host session, then try again.`;
+      return `${error.message} Connect on Identity first so this page can mint a Host session, then try again.`;
     }
     return error.message;
   }
