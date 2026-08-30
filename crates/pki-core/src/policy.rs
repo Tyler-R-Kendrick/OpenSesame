@@ -1142,6 +1142,92 @@ mod tests {
         assert!(evaluate(&with_dc(deny), &with_dc_subject).is_err());
     }
 
+    /// A `domainComponent` sequence must match the rule *entirely*, not merely
+    /// agree on a common prefix.
+    ///
+    /// `zip` stops at the shorter of the two sequences, so length equality is
+    /// what makes the comparison total. Without it, a subject that extends an
+    /// allowed sequence — `corp,example,com` under a rule permitting only
+    /// `corp,example` — would satisfy the zipped comparison and escape into a
+    /// subtree the policy never granted, which is the whole point of ordered
+    /// `dc` matching.
+    ///
+    /// The `shorter` case in `dc_sequence_rules_match_in_order` does not cover
+    /// this: its first components already disagree, so the prefix comparison
+    /// fails on its own. These assertions pin the length check itself, and a
+    /// mutation run flagged it as unprotected.
+    #[test]
+    fn adversarial_dc_prefix_agreement_is_not_a_match() {
+        let with_dc = |rule: DcRule| PolicyRules {
+            subject: SubjectRules {
+                dc: rule,
+                ..SubjectRules::default()
+            },
+            ..PolicyRules::default()
+        };
+        let subject_of = |dc: &[&str]| PolicyCandidate {
+            subject: SubjectDn {
+                cn: Some("api".into()),
+                dc: dc.iter().map(|part| (*part).to_string()).collect(),
+                ..SubjectDn::default()
+            },
+            ..candidate()
+        };
+
+        // The subject extends the allowed sequence: every zipped pair agrees,
+        // and only the length check rejects it.
+        let allow_two = DcRule {
+            mode: RuleMode::Allow,
+            components: vec!["corp".into(), "example".into()],
+        };
+        assert_eq!(
+            fields(
+                &evaluate(
+                    &with_dc(allow_two.clone()),
+                    &subject_of(&["corp", "example", "com"])
+                )
+                .unwrap_err()
+            ),
+            ["subject.dc"],
+            "a subject extending the allowed dc sequence must not be permitted"
+        );
+
+        // The exact sequence is still accepted, so the rule is not simply
+        // rejecting everything.
+        assert!(evaluate(&with_dc(allow_two), &subject_of(&["corp", "example"])).is_ok());
+
+        // And the reverse: the rule is longer than the subject, which likewise
+        // agrees on the zipped prefix.
+        let allow_three = DcRule {
+            mode: RuleMode::Allow,
+            components: vec!["corp".into(), "example".into(), "com".into()],
+        };
+        assert_eq!(
+            fields(
+                &evaluate(&with_dc(allow_three), &subject_of(&["corp", "example"])).unwrap_err()
+            ),
+            ["subject.dc"],
+            "a subject shorter than the allowed dc sequence must not be permitted"
+        );
+
+        // Wildcards must not paper over the length difference either.
+        let allow_wild = DcRule {
+            mode: RuleMode::Allow,
+            components: vec!["*".into(), "*".into()],
+        };
+        assert_eq!(
+            fields(
+                &evaluate(
+                    &with_dc(allow_wild),
+                    &subject_of(&["corp", "example", "com"])
+                )
+                .unwrap_err()
+            ),
+            ["subject.dc"],
+            "wildcards match components, not an arbitrary number of them"
+        );
+    }
+
     #[test]
     fn scalar_constraints_cover_every_mode() {
         let with_key = |constraint: Constraint<KeyAlgorithm>| PolicyRules {
