@@ -39,8 +39,8 @@
   --s-3: #0f7a51;
   --s-4: #0d7268;
 
-  --radius: 6px;
-  --radius-lg: 10px;
+  --radius: 2px;
+  --radius-lg: 2px;
   --radius-pill: 999px;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -187,9 +187,23 @@ body {
   margin: 0;
   background: var(--canvas);
   color: var(--ink);
-  font-size: 15px;
+  font-family: var(--mono);
+  font-size: 0.875rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Chrome is mono — the terminal voice. Prose paragraphs and hints read in
+   the sans stack at a readable measure. */
+p,
+.hint {
+  font-family: var(--font);
+  font-size: 0.9375rem;
+}
+
+p.hint,
+span.hint {
+  font-size: 0.8125rem;
 }
 
 h1,
@@ -378,8 +392,8 @@ kbd {
 }
 
 .icon-btn.is-on {
-  color: var(--accent);
-  background: var(--accent-wash);
+  color: var(--canvas);
+  background: var(--ink);
 }
 
 .field {
@@ -763,13 +777,31 @@ input[type="radio"] {
 }
 
 .railtree__row.is-active {
-  background: var(--accent-wash);
-  box-shadow: inset 0 0 0 1px var(--accent-line);
   opacity: 1;
 }
 
 .railtree__row.is-active .railtree__name {
   font-weight: 600;
+}
+
+/* Inverse video marks the one place you are — leaf rows, not the open
+   directory above them. A childless active section is its own leaf. */
+.railtree__row--child.is-active,
+.railtree__row.is-active:not(:has(+ .railtree__kids)) {
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.railtree__row--child.is-active .railtree__dim,
+.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__dim,
+.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__count,
+.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__caret {
+  color: color-mix(in srgb, var(--canvas) 62%, var(--ink));
+}
+
+.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__jump {
+  border-color: color-mix(in srgb, var(--canvas) 30%, var(--ink));
+  color: color-mix(in srgb, var(--canvas) 62%, var(--ink));
 }
 
 .railtree__kids {
@@ -804,10 +836,6 @@ input[type="radio"] {
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--rail-muted);
-}
-
-.railtree__row.is-active .railtree__count {
-  color: inherit;
 }
 
 .railtree__jump {
@@ -877,7 +905,7 @@ input[type="radio"] {
   width: 1.875rem;
   height: 1.875rem;
   flex: none;
-  border-radius: 8px;
+  border-radius: 4px;
   background: var(--accent);
   color: var(--accent-ink);
 }
@@ -885,7 +913,7 @@ input[type="radio"] {
 .mark--lg {
   width: 2.75rem;
   height: 2.75rem;
-  border-radius: var(--radius-lg);
+  border-radius: 4px;
 }
 
 /* ——— Main region ————————————————————————————————————————— */
@@ -997,7 +1025,7 @@ input[type="radio"] {
   gap: 0.45rem;
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -1047,7 +1075,7 @@ input[type="radio"] {
   gap: 3px;
   padding: 0.3rem 0.4rem 0.25rem;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 2px;
   background: transparent;
   color: var(--rail-fg);
   font: inherit;
@@ -1399,7 +1427,7 @@ input[type="radio"] {
     gap: 0.15rem;
     min-width: 0;
     padding: 0.4rem 0.15rem;
-    border-radius: 8px;
+    border-radius: 2px;
     color: var(--ink-2);
     text-decoration: none;
     font-size: 0.625rem;
@@ -1416,8 +1444,8 @@ input[type="radio"] {
   }
 
   .tabbar__link.is-active {
-    color: var(--accent);
-    background: var(--accent-wash);
+    color: var(--ink);
+    background: var(--surface-3);
   }
 }
 
@@ -2414,9 +2442,9 @@ input[type="radio"] {
 }
 
 .picker__opt.is-on {
-  border-color: var(--accent);
-  background: var(--accent-wash);
-  color: var(--accent);
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--canvas);
 }
 
 .qr-block {

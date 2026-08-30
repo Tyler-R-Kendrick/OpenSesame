@@ -69,9 +69,9 @@
   }
 
   .vault__chip.is-active {
-    background: var(--accent-wash);
-    border-color: var(--accent-line);
-    color: var(--accent);
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--canvas);
     font-weight: 600;
   }
 }
@@ -111,7 +111,26 @@
 
 .vtree__keys {
   display: flex;
+  align-items: center;
   gap: 0.25rem;
+}
+
+/* new/import as verbs in the path strip, not chrome buttons */
+.vtree__verb {
+  border: 0;
+  padding: 0 0.25rem;
+  margin-right: 0.35rem;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.vtree__verb:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .vtree__key {
@@ -119,7 +138,7 @@
   height: 1.15rem;
   padding: 0 0.25rem;
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 2px;
   background: var(--surface);
   color: var(--ink-3);
   font: inherit;
@@ -167,16 +186,28 @@
 }
 
 .vtree__row.is-cursor {
-  background: var(--accent-wash);
-  box-shadow: inset 0 0 0 1px var(--accent-line);
+  background: var(--ink);
+  color: var(--canvas);
 }
 
 .vtree__row.is-cursor .vtree__name {
   font-weight: 600;
 }
 
-.vtree__row.is-cursor .vtree__dim {
-  color: var(--ink-2);
+.vtree__row.is-cursor .vtree__dim,
+.vtree__row.is-cursor .vtree__count,
+.vtree__row.is-cursor .vtree__caret,
+.vtree__row.is-cursor .vtree__side {
+  color: color-mix(in srgb, var(--canvas) 62%, var(--ink));
+}
+
+.vtree__row.is-cursor .vtree__more {
+  color: color-mix(in srgb, var(--canvas) 75%, var(--ink));
+}
+
+.vtree__row.is-cursor .vtree__syn {
+  border-color: color-mix(in srgb, var(--canvas) 40%, var(--ink));
+  color: color-mix(in srgb, var(--canvas) 70%, var(--ink));
 }
 
 .vtree__caret {
@@ -218,14 +249,15 @@
 }
 
 .vtree__fav {
-  color: var(--warn);
+  color: var(--ink-2);
 }
 
 .vtree__syn {
-  padding: 0.1rem 0.3rem;
-  border-radius: 4px;
-  background: var(--warn-wash);
-  color: var(--warn);
+  padding: 0.05rem 0.25rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink-3);
   font-size: 0.5625rem;
   font-weight: 600;
   letter-spacing: 0.07em;
@@ -238,7 +270,7 @@
   width: 1.25rem;
   height: 1.25rem;
   border: 0;
-  border-radius: 4px;
+  border-radius: 2px;
   padding: 0;
   background: transparent;
   color: var(--ink-2);
@@ -292,12 +324,12 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.3rem 0.75rem;
-  border-top: 1px solid var(--accent-line);
-  background: var(--accent-wash);
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
 }
 
 .vtree__prompt {
-  color: var(--accent);
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -657,9 +689,9 @@
   display: grid;
   gap: 0.75rem;
   padding: 0.85rem;
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--accent-wash);
+  background: var(--surface-2);
 }
 
 .gen__out {
@@ -742,100 +774,6 @@
 }
 
 /* —— Welcome pane ——————————————————————————————————————————— */
-
-.wel__counts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-}
-
-.wel__count {
-  display: grid;
-  gap: 0.1rem;
-  padding: 0.85rem 0.95rem;
-  border-right: 1px solid var(--line);
-  text-decoration: none;
-  color: inherit;
-  transition: background 120ms var(--ease);
-}
-
-.wel__count:last-child {
-  border-right: none;
-}
-
-.wel__count:hover {
-  background: var(--surface-2);
-}
-
-.wel__countnum {
-  font-size: 1.4rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.15;
-}
-
-.wel__countlabel {
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-}
-
-.wel__health {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.85rem 0.95rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-  text-decoration: none;
-  color: var(--ink);
-  font-size: 0.9375rem;
-  transition: border-color 140ms var(--ease), background 140ms var(--ease);
-}
-
-.wel__health:hover {
-  background: var(--surface-2);
-}
-
-.wel__health.is-ok {
-  color: var(--ok);
-  border-color: color-mix(in srgb, var(--ok) 30%, var(--line));
-  background: var(--ok-wash);
-}
-
-.wel__health.is-warn {
-  color: var(--warn);
-  border-color: color-mix(in srgb, var(--warn) 32%, var(--line));
-  background: var(--warn-wash);
-}
-
-.wel__recent {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.6rem 0.95rem;
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
-  color: inherit;
-  font-size: 0.9375rem;
-}
-
-.wel__recent:last-child {
-  border-bottom: none;
-}
-
-.wel__recent:hover {
-  background: var(--surface-2);
-}
-
-.wel__recentmeta {
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
 
 /* —— Health report ————————————————————————————————————————— */
 
@@ -993,4 +931,28 @@
 
 .drop-card__link {
   overflow-wrap: anywhere;
+}
+
+/* —— The empty buffer ——————————————————————————————————————— */
+
+.buffer {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1.5rem 1.75rem;
+  font-family: var(--mono);
+}
+
+.buffer__line {
+  margin: 0;
+  max-width: 62ch;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.buffer__keys {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
 }

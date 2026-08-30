@@ -30,6 +30,7 @@ const KIND_EXT = {
 
 type VaultTreeActions = {
   open: (item: VaultItem) => void;
+  preview: (item: VaultItem) => void;
   copySecret: (item: VaultItem) => void;
   copyUsername: (item: VaultItem) => void;
   edit: (item: VaultItem) => void;
@@ -46,6 +47,7 @@ type VaultTreeProps = {
   title: string;
   total: number;
   actions: VaultTreeActions;
+  verbs?: ReactNode;
 };
 
 type DirRow = {
@@ -249,6 +251,7 @@ export function VaultTree({
   title,
   total,
   actions,
+  verbs,
 }: VaultTreeProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState<string | null>(null);
@@ -336,7 +339,11 @@ export function VaultTree({
       const at = list.findIndex((row) => row.key === cursorRef.current);
       const next =
         at < 0 ? 0 : Math.min(Math.max(at + delta, 0), list.length - 1);
-      setCursor(list[next]?.key ?? null);
+      const row = list[next];
+      setCursor(row?.key ?? null);
+      // ranger's reading: browsing IS previewing. Only explicit keyboard
+      // movement previews, so the initial cursor never yanks the pane.
+      if (row?.type === "item") actionsRef.current.preview(row.item);
     };
     const focusedItem = () => {
       const row = rowAt(cursorRef.current);
@@ -416,6 +423,7 @@ export function VaultTree({
           <span className="vtree__sep">:/</span>
         </span>
         <span className="vtree__keys">
+          {verbs}
           <button
             type="button"
             className="vtree__key"

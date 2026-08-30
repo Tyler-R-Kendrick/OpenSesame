@@ -31,7 +31,7 @@
 
 .set__nav-link[aria-current="page"] {
   color: var(--ink);
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ink);
   font-weight: 600;
 }
 
@@ -86,9 +86,9 @@
 }
 
 .set__theme[aria-pressed="true"] {
-  background: var(--accent);
+  background: var(--ink);
   border-color: transparent;
-  color: var(--accent-ink);
+  color: var(--canvas);
 }
 
 .set__pair {

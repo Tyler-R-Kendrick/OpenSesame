@@ -32,7 +32,7 @@
 
 .identity-tab.is-active,
 .identity-tab[aria-selected="true"] {
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ink);
   color: var(--ink);
   font-weight: 550;
 }

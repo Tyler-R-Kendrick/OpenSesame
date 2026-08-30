@@ -43,9 +43,6 @@ export function HealthPanel() {
 
       {report.scored === 0 ? (
         <div className="empty">
-          <span className="empty__mark" aria-hidden="true">
-            <IconShield size={22} />
-          </span>
           <h2>No passwords to review</h2>
           <p>
             Add a login with a password and it will be scored for strength,

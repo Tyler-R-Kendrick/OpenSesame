@@ -77,9 +77,9 @@ list-and-detail spine for the vault, and full-width panels for the three
 plane-backed sections.
 
 ## Memorable moment
-The empty detail pane is not a shrug. It answers what is in the vault, what
-changed recently, and what needs attention — so an unlocked vault is already
-telling you something before you click anything.
+Browsing is previewing: j/k walks the tree and the buffer shows each item as
+the cursor lands on it, ranger-style — the vault reads like a filesystem you
+are inside, not a list you query.
 
 ## Unresolved
 None outstanding.

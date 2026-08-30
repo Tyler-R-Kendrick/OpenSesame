@@ -21,29 +21,29 @@ colors:
   err: "#b32424"
 typography:
   display:
-    fontFamily: "system-ui stack (-apple-system, Segoe UI, Roboto, …)"
+    fontFamily: "system mono stack (ui-monospace, SF Mono, Menlo, …)"
     fontSize: "1.4rem"
     fontWeight: 600
     letterSpacing: "-0.021em"
   headline:
-    fontFamily: "system-ui stack"
+    fontFamily: "system mono stack"
     fontSize: "1.0625rem"
     fontWeight: 600
   body:
-    fontFamily: "system-ui stack"
-    fontSize: "15px"
+    fontFamily: "system mono stack for chrome; system-ui for prose"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
   label:
-    fontFamily: "system-ui stack"
+    fontFamily: "system mono stack"
     fontSize: "0.75rem"
     fontWeight: 600
   mono:
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
     fontSize: "0.8125rem"
 rounded:
-  md: "6px"
-  lg: "10px"
+  md: "2px"
+  lg: "2px"
   pill: "999px"
 spacing:
   sm: "0.4rem"
@@ -141,9 +141,11 @@ Never soften it.
 
 ## Typography
 
-System font stack for UI, system mono for anything a machine produced: codes,
-identifiers, connection references, capability actions, snippets. Mono is a
-signal that a value is literal, so never use it for prose.
+The chrome speaks mono — the terminal voice. Every control, heading, label,
+navigation entry, and data value sets in the system mono stack at 14px.
+Prose is the one exception: paragraphs and hints read in the system sans
+stack at a readable measure, because explanations are for reading, not
+scanning.
 
 ### Hierarchy
 - Page and detail titles ~1.4rem, weight 600, tight tracking
@@ -184,8 +186,10 @@ filter views, folders, and `health` — and the settings categories — hanging
 under it as entries with live counts. A path strip pins the tomb root at the
 top of the vault pane; the mobile tab bar keeps labeled icons.
 
-A visible cursor row owns focus — accent wash plus a hairline ring, always
-rendered. `j`/`k`/arrows move it, `l`/`→` opens, `h`/`←` collapses or climbs,
+A visible cursor row owns focus — inverse video, always rendered — and
+moving it with the keyboard previews that item in the buffer, ranger's own
+reading: browsing is previewing. The pane has no header; new and import are
+mono verbs in the path strip. `j`/`k`/arrows move it, `l`/`→` opens, `h`/`←` collapses or climbs,
 `gg`/`G` jump, and `Enter` activates. `/` opens a vim-style command line at
 the foot of the pane, backed by a real input so typed keys never leak into
 the keymap; matches highlight, non-matches hide, `Esc` closes it. Item verbs
@@ -206,9 +210,17 @@ flat with hairline separators.
 
 ## Shapes
 
-6px on controls, rows, chips, and badges, 10px on panels and cards. Pills are
-reserved for genuinely round mechanics — switch tracks and meter segments —
-never for buttons, chips, or containers.
+All-sharp, one documented scale: 2px on every control, chip, badge, and menu
+(just enough to keep focus rings clean). Pills survive only where the
+mechanic is genuinely round — switch tracks and meter segments. The brand
+mark tile sits at 4px; the OS app icon keeps its platform mask.
+
+## Selection
+
+Selection is inverse video, the terminal's own idiom: the tree cursor, the
+rail's current leaf, and pressed toggles render paper-on-ink. Exactly one
+row in a tree is inverse at a time — the open directory above a selected
+leaf shows only its open caret and weight. Teal never marks selection.
 
 ## Components
 
@@ -238,10 +250,11 @@ role comes from the element rather than an attribute.
 
 ### Empty states
 An empty state must say what would be here and why it is not — offline,
-unauthenticated, or genuinely empty — and offer the action that fills it. The
-vault's unselected detail pane goes further and reports what the vault holds
-and what changed recently. Password-health warnings live in the global
-notifications panel so they remain visible from every section.
+unauthenticated, or genuinely empty — and offer the action that fills it, as
+plain text with no icon tile. The vault's unselected buffer is two mono
+lines: what is sealed, and the keys — because moving the cursor previews
+items, there is nothing else for it to say. Password-health warnings live in
+the global notifications panel so they remain visible from every section.
 
 ## Do's and Don'ts
 

@@ -37,9 +37,9 @@
 
 .unlock__brand {
   display: grid;
-  justify-items: center;
+  justify-items: start;
   gap: 0.6rem;
-  text-align: center;
+  text-align: left;
 }
 
 .unlock__brand h1 {
@@ -161,8 +161,8 @@
 .unlock__foot {
   display: grid;
   gap: 0.5rem;
-  justify-items: center;
-  text-align: center;
+  justify-items: start;
+  text-align: left;
   padding-top: 0.15rem;
 }
 
@@ -234,7 +234,7 @@
 }
 
 .signin__session {
-  text-align: center;
+  text-align: left;
 }
 
 /* The anonymous road out, pinned to the card's top-right corner. */
@@ -377,7 +377,7 @@
 }
 
 .signin__provider-note {
-  text-align: center;
+  text-align: left;
   font-size: 0.75rem;
   color: var(--ink-3);
 }

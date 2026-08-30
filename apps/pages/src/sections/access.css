@@ -30,13 +30,13 @@
 }
 
 .access-tab.is-active {
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ink);
   color: var(--ink);
   font-weight: 550;
 }
 
 .access-tab[aria-selected="true"] {
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ink);
   color: var(--ink);
   font-weight: 550;
 }
@@ -648,7 +648,7 @@
 .access-subtab.is-on {
   color: var(--ink);
   font-weight: 600;
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ink);
 }
 
 .access-snippet-bar {

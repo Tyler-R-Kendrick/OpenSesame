@@ -174,9 +174,9 @@ describe("VaultSection", () => {
     expect(
       screen.getByRole("link", { name: /New item/i }).getAttribute("href"),
     ).toBe("/vault/new/login");
-    // The header and the empty state both open the import picker directly.
+    // The empty state opens the import picker directly.
     expect(screen.getAllByRole("button", { name: /^Import$/i })).toHaveLength(
-      2,
+      1,
     );
   });
 
@@ -187,8 +187,8 @@ describe("VaultSection", () => {
       header: null,
     };
     renderSection();
-    // Import sits next to New even when the vault has items.
-    expect(screen.getByRole("button", { name: /^Import$/i })).toBeTruthy();
+    // Import sits beside new in the path strip even when the vault has items.
+    expect(screen.getByRole("button", { name: "import" })).toBeTruthy();
     const file = new File(["KEY=value"], "app.env", { type: "text/plain" });
     fireEvent.change(screen.getByLabelText("Choose a file to import"), {
       target: { files: [file] },
@@ -292,7 +292,6 @@ describe("VaultSection", () => {
       header: null,
     };
     renderSection("/vault?f=favorites");
-    expect(screen.getByRole("heading", { name: "Favorites" })).toBeTruthy();
     const rows = screen.getAllByRole("treeitem");
     expect(rows).toHaveLength(1);
     expect(rows[0]?.querySelector(".vtree__name")?.textContent).toBe(
@@ -308,7 +307,6 @@ describe("VaultSection", () => {
       header: null,
     };
     renderSection("/vault?f=note");
-    expect(screen.getByRole("heading", { name: "Secure notes" })).toBeTruthy();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
     ).toEqual(["Scratch pad.note"]);
@@ -321,7 +319,7 @@ describe("VaultSection", () => {
       header: null,
     };
     renderSection("/vault?f=trash");
-    expect(screen.getByRole("heading", { name: "Trash" })).toBeTruthy();
+    expect(screen.getByText(/1\/1 · Trash/)).toBeTruthy();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
     ).toEqual(["Webmail.login"]);
@@ -340,7 +338,7 @@ describe("VaultSection", () => {
       header: null,
     };
     renderSection("/vault?folder=fld_1");
-    expect(screen.getByRole("heading", { name: "Folder" })).toBeTruthy();
+    expect(screen.getByText(/1\/2 · Folder/)).toBeTruthy();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
     ).toEqual(["Webmail.login"]);
@@ -369,7 +367,7 @@ describe("VaultSection", () => {
     expect(screen.getByTitle("Favorite")).toBeTruthy();
   });
 
-  it("routes New to the active item-kind ceremony", () => {
+  it("routes the new verb to the active item-kind ceremony", () => {
     for (const kind of [
       "login",
       "passkey",
@@ -379,12 +377,52 @@ describe("VaultSection", () => {
       "note",
       "certificate",
     ]) {
+      vault.current = { items: [makeLogin()], folders: [], header: null };
       const view = renderSection(`/vault?f=${kind}`);
-      expect(
-        screen.getByRole("link", { name: /^New$/ }).getAttribute("href"),
-      ).toBe(`/vault/new/${kind}`);
+      // Non-empty filters carry the path-strip verb; empty ones offer the
+      // same kind through the empty state's New item link.
+      const hrefs = screen
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href"));
+      expect(hrefs).toContain(`/vault/new/${kind}`);
       view.unmount();
     }
+  });
+
+  it("keyboard movement previews the item it lands on", () => {
+    vault.current = {
+      items: [makeLogin(), makeNote()],
+      folders: [],
+      header: null,
+    };
+    renderSection();
+    const handler = keymap();
+    // j lands on the first file: the buffer previews it without a click.
+    press(handler, "j");
+    expect(screen.getByText("detail pane")).toBeTruthy();
+  });
+
+  it("never yanks the pane while an editor owns it", () => {
+    vault.current = {
+      items: [makeLogin(), makeNote()],
+      folders: [],
+      header: null,
+    };
+    render(
+      <MemoryRouter initialEntries={["/vault/itm_1/edit"]}>
+        <Routes>
+          <Route path="/vault" element={<VaultSection />}>
+            <Route path=":itemId" element={<div>detail pane</div>} />
+            <Route path=":itemId/edit" element={<div>editor pane</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+    const handler = keymap();
+    press(handler, "j");
+    press(handler, "j");
+    expect(screen.getByText("editor pane")).toBeTruthy();
+    expect(screen.queryByText("detail pane")).toBeNull();
   });
 
   it("routes focused-item keys through the existing vault actions", () => {
@@ -512,7 +550,7 @@ describe("VaultWelcome", () => {
     ).toBe("/vault/new/login");
   });
 
-  it("summarises the vault contents and recent changes", () => {
+  it("states the seal and hands over the keys — no dashboard", () => {
     vault.current = {
       items: [
         makeLogin({
@@ -525,16 +563,12 @@ describe("VaultWelcome", () => {
       header: { kdf: { iterations: 600_000 } },
     };
     renderWelcome();
-    expect(screen.getByText("2 items, sealed")).toBeTruthy();
+    expect(screen.getByText(/2 items, sealed/)).toBeTruthy();
     expect(screen.getByText(/600,000 PBKDF2 iterations/)).toBeTruthy();
-    expect(screen.getByText("Logins")).toBeTruthy();
-    expect(screen.getByText("Secure notes")).toBeTruthy();
-    expect(screen.getByText("Recently changed")).toBeTruthy();
-    expect(screen.queryByText(/passwords need attention/)).toBeNull();
-    // New-item shortcuts for every kind.
-    expect(
-      screen.getByRole("link", { name: "Secret" }).getAttribute("href"),
-    ).toBe("/vault/new/secret");
+    expect(screen.getByText(/j\/k browse/)).toBeTruthy();
+    // The stat-counter dashboard is gone for good.
+    expect(screen.queryByText("What is in here")).toBeNull();
+    expect(screen.queryByText("Recently changed")).toBeNull();
   });
 
   it("does not render password-health warnings in the vault pane", () => {

@@ -8,19 +8,10 @@ import {
   useCopyFeedback,
 } from "../../components/FieldRow.js";
 import {
-  IconCard,
-  IconCert,
   IconCheck,
-  IconChevronLeft,
   IconCopy,
-  IconDrop,
   IconExternal,
-  IconLogin,
-  IconNote,
-  IconPasskey,
-  IconSecret,
   IconStar,
-  IconTrash,
 } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
@@ -38,16 +29,6 @@ import {
 import { estimateStrength, generate } from "../../lib/vault/password.js";
 import { totpSetupUri } from "../../lib/vault/totp.js";
 import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
-
-const KIND_ICON = {
-  login: IconLogin,
-  passkey: IconPasskey,
-  card: IconCard,
-  secret: IconSecret,
-  note: IconNote,
-  certificate: IconCert,
-  drop: IconDrop,
-};
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
 
@@ -126,21 +107,16 @@ export function ItemDetail() {
       return next;
     });
 
-  const Icon = KIND_ICON[item.kind];
   const folder = folders.find((candidate) => candidate.id === item.folderId);
   const inTrash = item.deletedAt !== null;
 
   return (
     <div className="detail">
       <Link className="btn btn--ghost btn--sm detail__back" to={listPath}>
-        <IconChevronLeft size={16} />
-        {listPath === "/vault" ? "All items" : "Back to list"}
+        {listPath === "/vault" ? "← All items" : "← Back to list"}
       </Link>
 
       <div className="detail__head">
-        <span className="detail__mark" aria-hidden="true">
-          <Icon size={22} />
-        </span>
         <div className="detail__heading">
           <h1>{item.name || "Untitled"}</h1>
           <div className="detail__meta">
@@ -290,7 +266,6 @@ export function ItemDetail() {
                 className="btn btn--danger"
                 onClick={() => setConfirmPurge(true)}
               >
-                <IconTrash size={16} />
                 Delete permanently
               </button>
             )}
@@ -310,7 +285,6 @@ export function ItemDetail() {
                 navigate(listPath);
               }}
             >
-              <IconTrash size={16} />
               Move to trash
             </button>
           </>

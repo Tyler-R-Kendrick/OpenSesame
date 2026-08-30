@@ -56,9 +56,6 @@ export function ConnectedPanel({
       <div className="panel__body panel__body--tight">
         {setupRequired ? (
           <div className="empty conn-gate">
-            <span className="empty__mark">
-              <IconLock />
-            </span>
             <h3>Choose an organization to manage connections</h3>
             <p>
               Connections are created once Identity and the Host agree on your
@@ -75,9 +72,6 @@ export function ConnectedPanel({
           </div>
         ) : automatic.length === 0 && managed.length === 0 ? (
           <div className="empty">
-            <span className="empty__mark">
-              <IconConnection />
-            </span>
             <h3>Nothing connected yet</h3>
             <p>
               Pick a service below. You approve it once, and every project or
