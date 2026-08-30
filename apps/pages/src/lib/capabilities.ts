@@ -2,13 +2,21 @@ import { isString } from "@opensesame/os-domain";
 /**
  * Platform capability → connector bindings.
  *
- * OpenSesame depends on a few cross-cutting capabilities (encryption key vault,
- * git history/persistence). Settings binds each capability to a Host catalog
- * connector. Defaults: WebCrypto on this device for encryption; GitHub for
- * encrypted secret history.
+ * OpenSesame's brokered capabilities are organized as families (ADR 0061):
+ * encryption key vault (local storage), git history/persistence (backup and
+ * file storage), cloud secret storage, password managers, identity, and
+ * certificates. Settings binds each capability to a Host catalog connector.
+ * Defaults: WebCrypto on this device for encryption; GitHub for encrypted
+ * secret history; the first listed connector everywhere else.
  */
 
-export type CapabilityId = "encryption" | "history";
+export type CapabilityId =
+  | "encryption"
+  | "history"
+  | "cloud_secrets"
+  | "password_managers"
+  | "identity"
+  | "certificates";
 
 export type CapabilityConnectorBinding = {
   providerId: string;
@@ -71,12 +79,56 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
       return undefined;
     },
   },
+  {
+    id: "cloud_secrets",
+    title: "Cloud secret storage",
+    summary:
+      "Where brokered credentials live upstream. The Host invokes these providers with host-injected credentials; agents only ever hold ConnectionRefs.",
+    connectorIds: [
+      "doppler",
+      "vault",
+      "openbao",
+      "aws-secrets-manager",
+      "gcp-secret-manager",
+      "azure-key-vault-secrets",
+      "bitwarden-secrets-manager",
+    ],
+    requiresAuth: () => true,
+  },
+  {
+    id: "password_managers",
+    title: "Password managers",
+    summary:
+      "Human-plane bridges to an existing password manager. Reveal stays human-gated on this device (ADR 0052); agents never get a reveal path.",
+    connectorIds: ["1password", "bitwarden", "vaultwarden", "proton-pass"],
+    requiresAuth: () => true,
+  },
+  {
+    id: "identity",
+    title: "Identity providers",
+    summary:
+      "Upstream IdPs brokered for sign-in. Providers are descriptors the Identity plane validates; token exchange stays platform-owned (ADR 0055).",
+    connectorIds: ["auth0", "workos", "clerk", "better-auth"],
+    requiresAuth: () => true,
+  },
+  {
+    id: "certificates",
+    title: "Certificates",
+    summary:
+      "Certificate authorities the Host can issue from. Trust class per issuer is platform-assigned and never falls back without consent (ADR 0052/0061).",
+    connectorIds: ["letsencrypt", "zerossl", "cloudflare-origin-ca"],
+    requiresAuth: (providerId) => providerId === "cloudflare-origin-ca",
+  },
 ] as const;
 
 export function defaultCapabilityConnectors(): CapabilityConnectorMap {
   return {
     encryption: { providerId: "webcrypto" },
     history: { providerId: "github" },
+    cloud_secrets: { providerId: "doppler" },
+    password_managers: { providerId: "1password" },
+    identity: { providerId: "auth0" },
+    certificates: { providerId: "letsencrypt" },
   };
 }
 
@@ -138,6 +190,18 @@ export function connectorLabel(providerId: string): string {
       return "GitHub";
     case "gitlab":
       return "GitLab";
+    case "letsencrypt":
+      return "Let's Encrypt";
+    case "zerossl":
+      return "ZeroSSL";
+    case "cloudflare-origin-ca":
+      return "Cloudflare Origin CA";
+    case "1password":
+      return "1Password";
+    case "vault":
+      return "HashiCorp Vault";
+    case "openbao":
+      return "OpenBao";
     default:
       return providerId;
   }

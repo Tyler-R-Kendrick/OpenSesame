@@ -986,7 +986,7 @@
     {
       "id": "cloudflare-origin-ca",
       "display_name": "Cloudflare Origin CA",
-      "category": "developer",
+      "category": "certificates",
       "docs_url": "https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/",
       "provenance_url": "https://developers.cloudflare.com/api/resources/origin_ca_certificates/",
       "auth": {
@@ -1005,7 +1005,7 @@
     {
       "id": "letsencrypt",
       "display_name": "Let's Encrypt",
-      "category": "developer",
+      "category": "certificates",
       "docs_url": "https://letsencrypt.org/docs/",
       "provenance_url": "https://letsencrypt.org/docs/client-options/",
       "auth": { "kind": "configuration" },
@@ -1028,7 +1028,7 @@
     {
       "id": "zerossl",
       "display_name": "ZeroSSL",
-      "category": "developer",
+      "category": "certificates",
       "docs_url": "https://zerossl.com/documentation/acme",
       "provenance_url": "https://zerossl.com/documentation/acme",
       "auth": { "kind": "configuration" },
@@ -2020,6 +2020,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-08-22.2",
+  "revision": "2026-08-30.1",
   "schema_version": 1
 }

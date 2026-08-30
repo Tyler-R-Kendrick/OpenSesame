@@ -12,6 +12,7 @@ pub enum ProviderCategory {
     LocalStorage,
     RemoteStorage,
     Lease,
+    Certificate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

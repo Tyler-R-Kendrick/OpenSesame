@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   authorizeCapabilityConnector,
   bindCapabilityConnector,
@@ -16,6 +17,7 @@ const BASE: PagesSettings = {
   tursoUrl: "",
   mfaAppUrl: "",
   capabilityConnectors: {
+    ...defaultCapabilityConnectors(),
     encryption: { providerId: "webcrypto" },
     history: { providerId: "github" },
   },

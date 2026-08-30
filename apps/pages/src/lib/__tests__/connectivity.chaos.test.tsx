@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConnectivityBar } from "../../components/ConnectivityBar.js";
+import { defaultCapabilityConnectors } from "../capabilities.js";
 import {
   DEGRADED_MS,
   HEALTHY_MS,
@@ -177,6 +178,7 @@ beforeEach(() => {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },

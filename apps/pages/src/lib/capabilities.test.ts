@@ -52,6 +52,33 @@ describe("capability connectors", () => {
   it("labels the device encryption key vault clearly", () => {
     expect(connectorLabel("webcrypto")).toMatch(/WebCrypto/i);
   });
+
+  it("covers the six capability families of ADR 0061", () => {
+    expect(CAPABILITIES.map((c) => c.id).sort()).toEqual([
+      "certificates",
+      "cloud_secrets",
+      "encryption",
+      "history",
+      "identity",
+      "password_managers",
+    ]);
+    const defaults = defaultCapabilityConnectors();
+    for (const def of CAPABILITIES) {
+      expect(def.connectorIds).toContain(defaults[def.id].providerId);
+      expect(defaults[def.id].providerId).toBe(def.connectorIds[0]);
+    }
+  });
+
+  it("lists the three certificate issuers with ACME issuers auth-free", () => {
+    const certs = capabilityDef("certificates");
+    expect(certs.connectorIds).toEqual([
+      "letsencrypt",
+      "zerossl",
+      "cloudflare-origin-ca",
+    ]);
+    expect(certs.requiresAuth("letsencrypt")).toBe(false);
+    expect(certs.requiresAuth("cloudflare-origin-ca")).toBe(true);
+  });
 });
 
 describe("capability definitions", () => {

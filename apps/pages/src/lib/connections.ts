@@ -44,6 +44,7 @@ export type ProviderCategory =
   | "payments"
   | "identity"
   | "testing"
+  | "certificates"
   | "custom";
 
 export type AuthKind =

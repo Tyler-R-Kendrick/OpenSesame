@@ -93,6 +93,8 @@ pub enum Category {
     Payments,
     Identity,
     Testing,
+    /// Certificate authorities and issuance surfaces (ADR 0061).
+    Certificates,
     /// Org-defined connectors (MCP servers, `OpenAPI` backends, internal APIs).
     Custom,
 }
@@ -113,6 +115,7 @@ impl Category {
             Self::Payments => "payments",
             Self::Identity => "identity",
             Self::Testing => "testing",
+            Self::Certificates => "certificates",
             Self::Custom => "custom",
         }
     }
@@ -668,7 +671,7 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-22.2");
+        assert_eq!(catalog.revision(), "2026-08-30.1");
         assert_eq!(catalog.providers().len(), 89);
         assert_eq!(
             catalog

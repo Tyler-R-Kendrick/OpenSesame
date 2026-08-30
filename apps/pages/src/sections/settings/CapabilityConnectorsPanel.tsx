@@ -17,6 +17,7 @@ import {
   type CapabilityConnectorMap,
   type CapabilityId,
   connectorLabel,
+  normalizeCapabilityConnectors,
 } from "../../lib/capabilities.js";
 import {
   type Connection,
@@ -154,8 +155,9 @@ export function CapabilityConnectorsPanel() {
             }
           : null,
   );
-  const [bindings, setBindings] = useState<CapabilityConnectorMap>(
-    () => loadSettings().capabilityConnectors,
+  const [bindings, setBindings] = useState<CapabilityConnectorMap>(() =>
+    // Stored maps predating a capability family gain its default here.
+    normalizeCapabilityConnectors(loadSettings().capabilityConnectors),
   );
   const [connections, setConnections] = useState<Connection[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
