@@ -112,7 +112,7 @@ describe("ImportPanel", () => {
   it("previews a .env file and imports it into one folder", async () => {
     render(<ImportPanel />);
     pickFile(makeFile("app.env", "API_KEY=sk-123\nOTHER_TOKEN=abc\n"));
-    // Detected as a .env file with two agent secrets.
+    // Detected as a .env file with two secrets.
     expect(await screen.findByText(/Recognised as/)).toBeTruthy();
     expect(screen.getByText("secrets")).toBeTruthy();
     // The env adapter gathers keys into an "Imported .env" folder.
@@ -395,12 +395,12 @@ describe("ImportPanel edge branches", () => {
     expect(screen.getByText("Showing the first 60 of 65.")).toBeTruthy();
   });
 
-  it("marks agent secrets and missing folders in the preview table", async () => {
+  it("marks secrets and missing folders in the preview table", async () => {
     render(<ImportPanel />);
     pickFile(makeFile("app.env", "API_KEY=sk-123\n"));
     expect(await screen.findByText(/Recognised as/)).toBeTruthy();
-    // .env rows are agent secrets; folder only exists after the merge runs.
-    expect(screen.getByText("agent secret")).toBeTruthy();
+    // .env rows are secrets; folder only exists after the merge runs.
+    expect(screen.getAllByText("secret").length).toBeGreaterThan(0);
   });
 
   it("collapses the single-folder input when folders are kept", async () => {

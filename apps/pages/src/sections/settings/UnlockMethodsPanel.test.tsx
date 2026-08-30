@@ -122,10 +122,10 @@ describe("UnlockMethodsPanel", () => {
   it("enrolls a matching PIN and clears the form", async () => {
     passwordOnlyHeader();
     render(<UnlockMethodsPanel />);
-    await userEvent.type(screen.getByLabelText("New PIN"), "12345678");
-    await userEvent.type(screen.getByLabelText("Confirm PIN"), "12345678");
+    await userEvent.type(screen.getByLabelText("New PIN"), "48291037");
+    await userEvent.type(screen.getByLabelText("Confirm PIN"), "48291037");
     await userEvent.click(screen.getByRole("button", { name: /Enroll PIN/i }));
-    expect(store.enrollPin).toHaveBeenCalledWith("12345678");
+    expect(store.enrollPin).toHaveBeenCalledWith("48291037");
     expect((await screen.findByRole("status")).textContent).toMatch(
       /PIN unlock enrolled/,
     );
@@ -157,14 +157,53 @@ describe("UnlockMethodsPanel", () => {
       screen.getByRole<HTMLButtonElement>("button", { name: /Enroll PIN/i })
         .disabled,
     ).toBe(true);
+    // The requirement is named live, not discovered at submit.
+    expect(
+      await screen.findByText("PIN must be 8–12 characters."),
+    ).toBeTruthy();
+  });
+
+  it("blocks repeated and sequential PINs live, with the rule named", async () => {
+    passwordOnlyHeader();
+    render(<UnlockMethodsPanel />);
+    const pinField = screen.getByLabelText("New PIN");
+    await userEvent.type(pinField, "11111111");
+    expect(
+      await screen.findByText("PIN cannot be a repeated character."),
+    ).toBeTruthy();
+    await userEvent.clear(pinField);
+    await userEvent.type(pinField, "12345678");
+    expect(
+      await screen.findByText("PIN cannot be a sequential run of digits."),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: /Enroll PIN/i })
+        .disabled,
+    ).toBe(true);
+    expect(store.enrollPin).not.toHaveBeenCalled();
+  });
+
+  it("changes an enrolled PIN from the same form", async () => {
+    vault.current = {
+      header: { wrap: {}, kdf: {}, unlocks: { pin: { kdf: {}, wrap: {} } } },
+    };
+    listAvailableUnlockMethods.mockReturnValue(["password", "pin"]);
+    render(<UnlockMethodsPanel />);
+    await userEvent.type(screen.getByLabelText("New PIN"), "48291037");
+    await userEvent.type(screen.getByLabelText("Confirm PIN"), "48291037");
+    await userEvent.click(screen.getByRole("button", { name: /Change PIN/i }));
+    expect(store.enrollPin).toHaveBeenCalledWith("48291037");
+    expect((await screen.findByRole("status")).textContent).toMatch(
+      /PIN updated/,
+    );
   });
 
   it("surfaces PIN enrollment failures", async () => {
     passwordOnlyHeader();
     store.enrollPin.mockRejectedValue(new Error("wrap failed"));
     render(<UnlockMethodsPanel />);
-    await userEvent.type(screen.getByLabelText("New PIN"), "12345678");
-    await userEvent.type(screen.getByLabelText("Confirm PIN"), "12345678");
+    await userEvent.type(screen.getByLabelText("New PIN"), "48291037");
+    await userEvent.type(screen.getByLabelText("Confirm PIN"), "48291037");
     await userEvent.click(screen.getByRole("button", { name: /Enroll PIN/i }));
     expect((await screen.findByRole("alert")).textContent).toMatch(
       /webauthn: wrap failed/,

@@ -2,6 +2,14 @@ import { isBoolean, isNumber, overlapCast } from "@opensesame/os-domain";
 /**
  * Vault session store. Holds the unlocked collection in memory, seals every
  * mutation straight back to OPFS, and drops the key on lock.
+ *
+ * Tomb framing (ADR 0063): every vault is a tomb in the encrypted VFS
+ * (`lib/vfs.ts`). The active project's vault lives at `tomb/<name>/body`
+ * (store-sealed, verbatim) with its plaintext params header at
+ * `tomb/<name>/header`; the personal vault is the `personal` tomb
+ * (ADR 0038). Vault prefs moved into the sealed tomb config — they hydrate
+ * on unlock and are unreadable while locked. Lockout counters stay
+ * plaintext at their scoped key by design (documented boundary).
  */
 
 import {
@@ -10,9 +18,23 @@ import {
   kvDurability,
   kvGet,
   kvSet,
-  kvSetDurable,
 } from "../kv.js";
-import { scopedKey } from "../projects.js";
+import { activeProject, scopedKey } from "../projects.js";
+import {
+  BODY_PATH,
+  HEADER_PATH,
+  VfsError,
+  deleteFile,
+  deletePlaintextFile,
+  lockTomb,
+  readFile,
+  readPlaintextFile,
+  readSealedFile,
+  unlockTomb,
+  writeFile,
+  writePlaintextFile,
+  writeSealedFile,
+} from "../vfs.js";
 import {
   type SealedBlob,
   VaultCorruptError,
@@ -41,6 +63,11 @@ import {
   mergeVaultBodies,
 } from "./model.js";
 import { estimateStrength } from "./password.js";
+import {
+  discardTombCaches,
+  hydrateAndMigrateTombOnUnlock,
+  wipeTombOnDestroy,
+} from "./tomb-migration.js";
 import { totpSetupUri } from "./totp.js";
 import {
   type VaultUnlocks,
@@ -62,27 +89,25 @@ import {
 installVaultHostBackupFlushHooks();
 
 /**
- * Base key names. The store reads and writes them through the active
- * project's scope (`scopedKey`), so each project keeps its own sealed vault.
+ * Lockout counters stay plaintext at their project-scoped KV key — the
+ * documented ADR 0063 boundary: they gate unlock attempts, so they must be
+ * readable and writable while the tomb is locked.
  */
-export const HEADER_KEY = "vault.header.v1";
-export const BODY_KEY = "vault.body.v1";
 export const ATTEMPTS_KEY = "vault.attempts.v1";
-export const PREFS_KEY = "vault.prefs.v1"; // gitleaks:allow -- storage key, not a credential
 
-type VaultKeys = {
-  header: string;
-  body: string;
+/** Sealed VFS path (within a tomb) holding the vault prefs JSON. */
+export const PREFS_CONFIG_PATH = "config/prefs";
+
+type VaultScope = {
+  /** The active project vault's tomb — the project id, `personal` for the base vault. */
+  tomb: string;
   attempts: string;
-  prefs: string;
 };
 
-function scopedVaultKeys(): VaultKeys {
+function scopedVaultScope(): VaultScope {
   return {
-    header: scopedKey(HEADER_KEY),
-    body: scopedKey(BODY_KEY),
+    tomb: activeProject().id,
     attempts: scopedKey(ATTEMPTS_KEY),
-    prefs: scopedKey(PREFS_KEY),
   };
 }
 
@@ -222,7 +247,7 @@ export class VaultStore {
   /** Serializes body writes so overlapping mutations cannot land out of order. */
   #writeChain: Promise<unknown> = Promise.resolve();
   #lockHandlers = new Set<() => void>();
-  #keys: VaultKeys = scopedVaultKeys();
+  #scope: VaultScope = scopedVaultScope();
   /**
    * Guest / this-tab vault: the key was never wrapped to disk. Locking or
    * reloading must not leave a wrap-less header that cannot be unlocked.
@@ -230,27 +255,20 @@ export class VaultStore {
   #ephemeral = false;
 
   constructor() {
-    this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
-    this.#prefs = normalizeVaultPrefs(
-      readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
-    );
-    this.#persistPrefsIfMigrated();
+    this.#header = this.#readHeader();
     this.#snapshot = this.#build();
   }
 
   /**
    * Re-read plaintext state once OPFS hydration has filled the KV cache.
-   * Hydration is also when the active project becomes known, so the key
-   * scope is recomputed here before anything is read.
+   * Hydration is also when the active project becomes known, so the tomb
+   * scope is recomputed here before anything is read. Prefs stay defaults
+   * until unlock — they live in the sealed tomb config now.
    */
   rehydrate(): void {
     if (this.#vaultKey || this.#pendingVaultKey) return;
-    this.#keys = scopedVaultKeys();
-    this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
-    this.#prefs = normalizeVaultPrefs(
-      readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
-    );
-    this.#persistPrefsIfMigrated();
+    this.#scope = scopedVaultScope();
+    this.#header = this.#readHeader();
     this.#emit();
   }
 
@@ -260,12 +278,8 @@ export class VaultStore {
    */
   loadActiveProjectScope(): void {
     this.lock();
-    this.#keys = scopedVaultKeys();
-    this.#header = readJson<VaultHeader | null>(this.#keys.header, null);
-    this.#prefs = normalizeVaultPrefs(
-      readJson<Partial<VaultPrefs>>(this.#keys.prefs, {}),
-    );
-    this.#persistPrefsIfMigrated();
+    this.#scope = scopedVaultScope();
+    this.#header = this.#readHeader();
     this.#emit();
   }
 
@@ -279,7 +293,8 @@ export class VaultStore {
         "Unlock the vault before carrying it into a new project.",
       );
     }
-    this.#keys = scopedVaultKeys();
+    this.#scope = scopedVaultScope();
+    unlockTomb(this.#scope.tomb, this.#vaultKey);
     const header: VaultHeader = {
       v: 1,
       createdAt: new Date().toISOString(),
@@ -291,23 +306,72 @@ export class VaultStore {
     this.#header = header;
     this.#body = emptyBody();
     this.#pendingVaultKey = null;
-    await kvSetDurable(this.#keys.header, JSON.stringify(header));
-    kvSet(this.#keys.prefs, JSON.stringify(this.#prefs));
+    await writePlaintextFile(
+      this.#scope.tomb,
+      HEADER_PATH,
+      JSON.stringify(header),
+    );
+    this.#persistPrefs();
     await this.#persist();
     this.touch();
     this.#armIdleTimer();
     this.#emit();
   }
 
-  #persistPrefsIfMigrated(): void {
-    const stored = readJson<Partial<VaultPrefs>>(this.#keys.prefs, {});
-    if ((stored.prefsRevision ?? 0) >= VAULT_PREFS_REVISION) return;
-    kvSet(this.#keys.prefs, JSON.stringify(this.#prefs));
+  #readHeader(): VaultHeader | null {
+    const raw = readPlaintextFile(this.#scope.tomb, HEADER_PATH);
+    if (!raw) return null;
+    try {
+      return overlapCast(JSON.parse(raw));
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Write-through the in-memory prefs to the sealed tomb config. Fire and
+   * forget like the legacy kvSet: memory is the session's source of truth.
+   */
+  #persistPrefs(): void {
+    if (!this.#vaultKey) return;
+    void writeFile(
+      this.#scope.tomb,
+      PREFS_CONFIG_PATH,
+      new TextEncoder().encode(JSON.stringify(this.#prefs)),
+    ).catch(() => {
+      /* memory holds the session's prefs; the next unlock re-reads */
+    });
+  }
+
+  /** Hydrate prefs from the sealed tomb config on unlock. */
+  async #loadPrefsFromVfs(): Promise<void> {
+    try {
+      const bytes = await readFile(this.#scope.tomb, PREFS_CONFIG_PATH);
+      const stored: Partial<VaultPrefs> = overlapCast(
+        JSON.parse(new TextDecoder().decode(bytes)),
+      );
+      const needsMigration = (stored.prefsRevision ?? 0) < VAULT_PREFS_REVISION;
+      this.#prefs = normalizeVaultPrefs(stored);
+      if (needsMigration) {
+        // Awaited — the one-time revision migration must be durable, not
+        // racing whatever the session does next.
+        await writeFile(
+          this.#scope.tomb,
+          PREFS_CONFIG_PATH,
+          new TextEncoder().encode(JSON.stringify(this.#prefs)),
+        ).catch(() => {
+          /* memory holds the session's prefs; the next unlock re-reads */
+        });
+      }
+    } catch (error) {
+      if (error instanceof VfsError && error.code === "locked") throw error;
+      // No prefs file (or an unreadable one): defaults stand.
+    }
   }
 
   #build(): VaultState {
     const attempts = readJson<{ fails: number; until: number }>(
-      this.#keys.attempts,
+      this.#scope.attempts,
       {
         fails: 0,
         until: 0,
@@ -408,6 +472,7 @@ export class VaultStore {
     this.#pendingVaultKey = null;
     this.#body = emptyBody();
     this.#ephemeral = true;
+    unlockTomb(this.#scope.tomb, vaultKey);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -442,22 +507,32 @@ export class VaultStore {
     this.#pendingVaultKey = null;
     this.#body = emptyBody();
     this.#ephemeral = false;
+    unlockTomb(this.#scope.tomb, vaultKey);
     try {
-      await kvSetDurable(this.#keys.header, JSON.stringify(header));
+      await writePlaintextFile(
+        this.#scope.tomb,
+        HEADER_PATH,
+        JSON.stringify(header),
+      );
       await this.#persist();
+      // Legacy config (prefs, registry, …) still belongs with this tomb —
+      // seal it in, then read this session's view of it.
+      await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
+      await this.#loadPrefsFromVfs();
     } catch (error) {
       // A vault whose header never reached disk cannot be unlocked again, so
       // leave nothing behind that would claim otherwise.
       this.#header = null;
       this.#vaultKey = null;
+      lockTomb(this.#scope.tomb);
       this.#zeroRaw();
       this.#body = emptyBody();
-      kvDelete(this.#keys.header);
-      kvDelete(this.#keys.body);
+      void deletePlaintextFile(this.#scope.tomb, HEADER_PATH);
+      void deleteFile(this.#scope.tomb, BODY_PATH);
       this.#emit();
       throw error;
     }
-    kvDelete(this.#keys.attempts);
+    kvDelete(this.#scope.attempts);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -465,7 +540,7 @@ export class VaultStore {
 
   #assertNotLockedOut(): void {
     const attempts = readJson<{ fails: number; until: number }>(
-      this.#keys.attempts,
+      this.#scope.attempts,
       {
         fails: 0,
         until: 0,
@@ -479,7 +554,7 @@ export class VaultStore {
 
   #recordFailedUnlock(): void {
     const attempts = readJson<{ fails: number; until: number }>(
-      this.#keys.attempts,
+      this.#scope.attempts,
       {
         fails: 0,
         until: 0,
@@ -494,12 +569,12 @@ export class VaultStore {
             MAX_LOCKOUT_MS,
           )
         : 0;
-    kvSet(this.#keys.attempts, JSON.stringify({ fails, until }));
+    kvSet(this.#scope.attempts, JSON.stringify({ fails, until }));
     this.#emit();
   }
 
   async #loadBody(vaultKey: CryptoKey): Promise<VaultBody> {
-    const sealed = readJson<SealedBlob | null>(this.#keys.body, null);
+    const sealed = readSealedFile(this.#scope.tomb, BODY_PATH);
     if (!sealed) return emptyBody();
     try {
       const body = await openJson<VaultBody>(vaultKey, sealed);
@@ -527,15 +602,21 @@ export class VaultStore {
   async #activateSession(vaultKey: CryptoKey): Promise<void> {
     this.#vaultKey = vaultKey;
     this.#pendingVaultKey = null;
+    unlockTomb(this.#scope.tomb, vaultKey);
     try {
+      // Phase C: seal any legacy plaintext config into this tomb and hydrate
+      // every module's view of it, then this session's prefs and body.
+      await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
+      await this.#loadPrefsFromVfs();
       this.#body = await this.#loadBody(vaultKey);
     } catch (error) {
       this.#vaultKey = null;
+      lockTomb(this.#scope.tomb);
       this.#zeroRaw();
       this.#body = emptyBody();
       throw error;
     }
-    kvDelete(this.#keys.attempts);
+    kvDelete(this.#scope.attempts);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -658,7 +739,11 @@ export class VaultStore {
     const previous = this.#header;
     this.#header = next;
     try {
-      await kvSetDurable(this.#keys.header, JSON.stringify(next));
+      await writePlaintextFile(
+        this.#scope.tomb,
+        HEADER_PATH,
+        JSON.stringify(next),
+      );
     } catch (error) {
       this.#header = previous;
       this.#emit();
@@ -788,6 +873,10 @@ export class VaultStore {
       this.#header = null;
       this.#ephemeral = false;
     }
+    // The tomb locks with the vault: sealed config (prefs, the IdP registry,
+    // the projects view, the org profile) is unreadable until the next unlock.
+    lockTomb(this.#scope.tomb);
+    discardTombCaches();
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
     for (const handler of this.#lockHandlers) handler();
@@ -825,13 +914,15 @@ export class VaultStore {
     const sealed = await sealJson(this.#vaultKey, { ...this.#body, rev });
     assertSealed(sealed);
     // Awaited, so a disk that refuses the write reaches `#mutate`'s rollback
-    // instead of leaving memory ahead of what survives a reload.
-    await kvSetDurable(this.#keys.body, JSON.stringify(sealed));
+    // instead of leaving memory ahead of what survives a reload. The body
+    // lands verbatim at the tomb path — content unchanged from what the
+    // legacy flat key held.
+    await writeSealedFile(this.#scope.tomb, BODY_PATH, sealed);
     this.#body.rev = rev;
     await this.#recordBodyRev(rev);
     // Recoverability (ADR 0039): sealed ciphertext must leave the device for
     // Host → outbox → GitHub. Local OPFS already succeeded; Host failure queues.
-    const headerJson = kvGet(this.#keys.header);
+    const headerJson = readPlaintextFile(this.#scope.tomb, HEADER_PATH);
     if (headerJson) {
       await pushSealedVaultToHost({
         headerJson,
@@ -896,7 +987,11 @@ export class VaultStore {
     const next: VaultHeader = { ...header, bodyRev: rev };
     this.#header = next;
     try {
-      await kvSetDurable(this.#keys.header, JSON.stringify(next));
+      await writePlaintextFile(
+        this.#scope.tomb,
+        HEADER_PATH,
+        JSON.stringify(next),
+      );
     } catch {
       // The body is safely stored; only the rollback witness is behind. Losing
       // it costs detection, not data, and the next write will catch it up.
@@ -1080,7 +1175,7 @@ export class VaultStore {
   /** Encrypted export — the sealed body plus its header, portable to another device. */
   exportSealed(): string {
     if (!this.#header) throw new Error("There is no vault to export.");
-    const body = kvGet(this.#keys.body);
+    const body = readSealedFile(this.#scope.tomb, BODY_PATH);
     if (!body) throw new Error("There is nothing stored to export yet.");
     return JSON.stringify(
       {
@@ -1088,7 +1183,7 @@ export class VaultStore {
         v: 1,
         exportedAt: new Date().toISOString(),
         header: this.#header,
-        body: overlapCast(JSON.parse(body)),
+        body,
       },
       null,
       2,
@@ -1154,10 +1249,13 @@ export class VaultStore {
       .catch(() => undefined)
       .then(async () => {
         // Awaited, so this resolves only once the files are actually gone.
+        // The sealed area goes with the key: unreadable ciphertext that
+        // would otherwise break a fresh vault in this tomb.
         await Promise.all([
-          kvDeleteDurable(this.#keys.header),
-          kvDeleteDurable(this.#keys.body),
-          kvDeleteDurable(this.#keys.attempts),
+          deletePlaintextFile(this.#scope.tomb, HEADER_PATH),
+          deleteFile(this.#scope.tomb, BODY_PATH),
+          kvDeleteDurable(this.#scope.attempts),
+          wipeTombOnDestroy(this.#scope.tomb),
         ]);
       });
     this.#writeChain = done;
@@ -1173,7 +1271,7 @@ export class VaultStore {
       ...next,
       prefsRevision: VAULT_PREFS_REVISION,
     });
-    kvSet(this.#keys.prefs, JSON.stringify(this.#prefs));
+    this.#persistPrefs();
     this.#armIdleTimer();
     this.#emit();
   }

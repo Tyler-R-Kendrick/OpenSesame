@@ -256,7 +256,7 @@ describe("fidoCxf.parse of a foreign document", () => {
     expect(item.username).toBe("Ada Lovelace");
   });
 
-  it("maps an SSH key and an API key onto agent secrets", () => {
+  it("maps an SSH key and an API key onto secrets", () => {
     const result = parse(
       document([
         {
@@ -300,6 +300,39 @@ describe("fidoCxf.parse of a foreign document", () => {
     expect(api.fields).toEqual([
       { name: "Username", value: "ada", hidden: false },
     ]);
+  });
+
+  it("accepts both the legacy and the current secret keyType", () => {
+    // Older exports wrote `opensesame-agent-secret`; the rename to
+    // `opensesame-secret` must not strand those files (ADR 0061).
+    const apiKey = (keyType: string) => ({
+      id: keyType,
+      title: keyType,
+      credentials: [
+        {
+          type: "api-key",
+          key: { fieldType: "concealed-string", value: "wk-1" },
+          keyType,
+          extensions: [
+            { name: "com.opensesame.vault", connectionRef: "conn:x:y" },
+          ],
+        },
+      ],
+    });
+    const result = parse(
+      document([
+        apiKey("opensesame-agent-secret"),
+        apiKey("opensesame-secret"),
+      ]),
+    );
+    expect(result.items).toHaveLength(2);
+    for (const item of result.items) {
+      if (item.kind !== "secret") throw new Error("expected secrets");
+      expect(item.value).toBe("wk-1");
+      expect(item.fields).toEqual([
+        { name: "Connection", value: "conn:x:y", hidden: false },
+      ]);
+    }
   });
 
   it("keeps a URL on a non-login item as a field rather than losing it", () => {

@@ -6,9 +6,14 @@ import {
   claimDelegation,
   denyRelayRequest,
   getTask,
-  listDelegationOffers,
+  listDelegations,
+  listMyOffers,
   listRelayRequests,
   listTasks,
+  mintOffer,
+  narrowDelegation,
+  revokeDelegation,
+  revokeOffer,
   terminateTask,
 } from "./access.js";
 
@@ -23,6 +28,7 @@ Object.assign(identitySeams, {
 type LastCall = { url: string; init: RequestInit };
 
 function jsonResponse(body: BoundaryValue, status = 200): Response {
+  if (status === 204) return new Response(null, { status });
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -36,7 +42,9 @@ function lastCall(): LastCall {
 }
 
 /** Await a call expected to fail, returning the thrown error as an Error. */
-async function failureOf(promise: Promise<BoundaryValue>): Promise<Error> {
+async function failureOf(
+  promise: Promise<BoundaryValue> | Promise<void>,
+): Promise<Error> {
   try {
     await promise;
   } catch (caught) {
@@ -180,7 +188,7 @@ describe("access client", () => {
     expect(String(lastCall().init.body)).toBe("{}");
   });
 
-  it("lists delegation offers with their items", async () => {
+  it("lists my delegation offers with their items", async () => {
     hostFetch.mockResolvedValue(
       jsonResponse({
         offers: [
@@ -207,7 +215,7 @@ describe("access client", () => {
         ],
       }),
     );
-    const offers = await listDelegationOffers();
+    const offers = await listMyOffers();
     expect(lastCall().url).toBe("/api/v1/delegations/offers");
     expect(offers).toHaveLength(1);
     expect(offers[0]).toMatchObject({
@@ -227,6 +235,211 @@ describe("access client", () => {
       required: true,
       dependencies: [],
     });
+  });
+
+  it("lists delegations with camel-case fields", async () => {
+    hostFetch.mockResolvedValue(
+      jsonResponse({
+        delegations: [
+          {
+            id: "dlg_1",
+            offer_id: "dlgo_1",
+            connection_id: "conn_1",
+            claimant_subject: "agt_bot",
+            grant_id: "grt_1",
+            execution_mode: "broker",
+            actions: ["repository.read"],
+            resources: ["repo:acme/*"],
+            expires_at: "2026-08-30T01:00:00Z",
+            revoked_at: "2026-08-29T12:00:00Z",
+          },
+        ],
+      }),
+    );
+    const delegations = await listDelegations();
+    expect(lastCall().url).toBe("/api/v1/delegations");
+    expect(delegations).toEqual([
+      {
+        id: "dlg_1",
+        offerId: "dlgo_1",
+        connectionId: "conn_1",
+        claimantSubject: "agt_bot",
+        grantId: "grt_1",
+        executionMode: "broker",
+        actions: ["repository.read"],
+        resources: ["repo:acme/*"],
+        expiresAt: "2026-08-30T01:00:00Z",
+        revokedAt: "2026-08-29T12:00:00Z",
+      },
+    ]);
+  });
+
+  it("revokes a delegation with a bare DELETE", async () => {
+    hostFetch.mockResolvedValue(jsonResponse(null, 204));
+    await revokeDelegation("dlg_1");
+    expect(lastCall().url).toBe("/api/v1/delegations/dlg_1");
+    expect(lastCall().init.method).toBe("DELETE");
+  });
+
+  it("narrows a delegation, sending only the fields given", async () => {
+    hostFetch.mockResolvedValue(
+      jsonResponse({
+        delegation: {
+          id: "dlg_1",
+          offer_id: "dlgo_1",
+          connection_id: "conn_1",
+          claimant_subject: "agt_bot",
+          grant_id: "grt_1",
+          execution_mode: "broker",
+          actions: ["repository.read"],
+          resources: ["*"],
+          expires_at: "2026-08-29T13:00:00Z",
+          revoked_at: null,
+        },
+      }),
+    );
+    const narrowed = await narrowDelegation("dlg_1", {
+      actions: ["repository.read"],
+      expiresInSeconds: 600,
+    });
+    expect(lastCall().url).toBe("/api/v1/delegations/dlg_1/narrow");
+    expect(String(lastCall().init.body)).toBe(
+      JSON.stringify({ actions: ["repository.read"], expires_in_seconds: 600 }),
+    );
+    expect(narrowed.actions).toEqual(["repository.read"]);
+  });
+
+  it("mints an offer and maps the one-time token and code", async () => {
+    hostFetch.mockResolvedValue(
+      jsonResponse(
+        {
+          offer: {
+            id: "dlgo_1",
+            state: "pending",
+            manifest_digest: "sha256:manifest",
+            expires_at: "2026-08-29T12:10:00Z",
+            items: [
+              {
+                id: "dlgi_1",
+                connection_id: "conn_1",
+                provider_id: "github",
+                display_name: "GitHub PAT",
+                actions: ["repository.read"],
+                resources: ["*"],
+                expires_in_seconds: 3600,
+                execution_mode: "relay",
+                required: true,
+                dependencies: [],
+              },
+            ],
+          },
+          claim_token: "osc_dlg_x.y",
+          user_code: "AAAA-BBBB",
+        },
+        201,
+      ),
+    );
+    const minted = await mintOffer({
+      items: [
+        {
+          connectionId: "conn_1",
+          actions: ["repository.read"],
+          resources: ["*"],
+          expiresInSeconds: 3600,
+          executionMode: "relay",
+        },
+      ],
+    });
+    expect(lastCall().url).toBe("/api/v1/delegations");
+    expect(lastCall().init.method).toBe("POST");
+    expect(String(lastCall().init.body)).toBe(
+      JSON.stringify({
+        items: [
+          {
+            connection_id: "conn_1",
+            actions: ["repository.read"],
+            resources: ["*"],
+            expires_in_seconds: 3600,
+            execution_mode: "relay",
+          },
+        ],
+      }),
+    );
+    expect(minted.claimToken).toBe("osc_dlg_x.y");
+    expect(minted.userCode).toBe("AAAA-BBBB");
+    expect(minted.offer.id).toBe("dlgo_1");
+    expect(minted.offer.items).toHaveLength(1);
+  });
+
+  it("omits unset offer item fields so server defaults apply", async () => {
+    hostFetch.mockResolvedValue(
+      jsonResponse(
+        {
+          offer: {
+            id: "dlgo_2",
+            state: "pending",
+            manifest_digest: "sha256:m2",
+            expires_at: "2026-08-29T12:10:00Z",
+            items: [],
+          },
+          claim_token: "osc_dlg_a.b",
+          user_code: "CCCC-DDDD",
+        },
+        201,
+      ),
+    );
+    await mintOffer({ items: [{ connectionId: "conn_1" }] });
+    expect(String(lastCall().init.body)).toBe(
+      JSON.stringify({ items: [{ connection_id: "conn_1" }] }),
+    );
+  });
+
+  it("revokes an offer with a bare DELETE", async () => {
+    hostFetch.mockResolvedValue(jsonResponse(null, 204));
+    await revokeOffer("dlgo_1");
+    expect(lastCall().url).toBe("/api/v1/delegations/offers/dlgo_1");
+    expect(lastCall().init.method).toBe("DELETE");
+  });
+
+  it("maps a 401 on the delegation surfaces to sign-in wording", async () => {
+    hostFetch.mockResolvedValue(jsonResponse({ error: "unauthorized" }, 401));
+    const listed = await failureOf(listDelegations());
+    expect(listed).toBeInstanceOf(AccessError);
+    expect(listed.message).toMatch(
+      /The Host refused this user session. Reconnect to Identity and try again./,
+    );
+
+    hostFetch.mockResolvedValue(jsonResponse({ error: "unauthorized" }, 401));
+    const minted = await failureOf(mintOffer({ items: [] }));
+    expect(minted.message).toMatch(/Reconnect to Identity and try again/);
+  });
+
+  it("maps a 404 on revoke to plain words", async () => {
+    hostFetch.mockResolvedValue(jsonResponse({ error: "not_found" }, 404));
+    const revoked = await failureOf(revokeDelegation("dlg_gone"));
+    expect(revoked).toBeInstanceOf(AccessError);
+    if (revoked instanceof AccessError) {
+      expect(revoked.status).toBe(404);
+    }
+    expect(revoked.message).toMatch(
+      /The Host does not know that id — it may already be gone./,
+    );
+
+    hostFetch.mockResolvedValue(jsonResponse({ error: "not_found" }, 404));
+    const offerRevoked = await failureOf(revokeOffer("dlgo_gone"));
+    expect(offerRevoked.message).toMatch(/may already be gone/);
+  });
+
+  it("maps network failures on the delegation surfaces to unreachable", async () => {
+    hostFetch.mockRejectedValue(new TypeError("fetch failed"));
+    const error = await failureOf(listMyOffers());
+    expect(error).toBeInstanceOf(AccessError);
+    if (error instanceof AccessError) {
+      expect(error.code).toBe("unreachable");
+    }
+    expect(error.message).toMatch(
+      /Host API unreachable at http:\/\/127\.0\.0\.1:8787/,
+    );
   });
 
   it("claims a delegation offer with token, code, and accepted items", async () => {

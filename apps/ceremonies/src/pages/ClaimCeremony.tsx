@@ -10,7 +10,9 @@ import {
   writeClaimStash,
 } from "../lib/claim-stash.js";
 import { readFragmentToken } from "../lib/deep-link.js";
+import { readDropFragment } from "../lib/drop.js";
 import { consoleOrigin, issuer } from "../lib/issuer.js";
+import { DropAcceptance } from "./DropAcceptance.js";
 
 interface Claim {
   id: string;
@@ -37,6 +39,7 @@ type Phase =
       reason: "identity" | "retry";
     }
   | { kind: "open"; token: string; claim: Claim }
+  | { kind: "drop"; token: string; fragmentKey: string }
   | { kind: "done" };
 
 /** States a claim can still be accepted from. */
@@ -197,6 +200,20 @@ export function ClaimCeremony() {
   }, []);
 
   useEffect(() => {
+    // A drop link carries the decryption key beside the bearer — that is the
+    // only client-side signal that this is a drop before the single
+    // presentation happens (the manifest kind is verified after it, inside
+    // the decrypt step). Fragment discipline first, either way.
+    const drop = readDropFragment(window.location.hash);
+    if (drop) {
+      history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+      setPhase({ kind: "drop", token: drop.token, fragmentKey: drop.key });
+      return;
+    }
     const fromLink = readFragmentToken(window.location.hash);
     if (fromLink) {
       history.replaceState(
@@ -282,6 +299,14 @@ export function ClaimCeremony() {
     } finally {
       setCompleting(false);
     }
+  }
+
+  if (phase.kind === "drop") {
+    // The drop branch is a different ceremony entirely — account-free, no
+    // claim chrome, reveal in this sitting only.
+    return (
+      <DropAcceptance token={phase.token} fragmentKey={phase.fragmentKey} />
+    );
   }
 
   return (

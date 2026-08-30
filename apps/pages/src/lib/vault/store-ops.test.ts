@@ -1,28 +1,46 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
+import {
+  BODY_PATH,
+  HEADER_PATH,
+  INDEX_PATH,
+  MIGRATION_MARKER_PATH,
+  PERSONAL_TOMB,
+  readFile,
+  tombFileKey,
+  vfsFlush,
+} from "../vfs.js";
 import { createVault } from "./crypto.js";
 import { type VaultItem, createItem } from "./model.js";
 import {
   ATTEMPTS_KEY,
-  BODY_KEY,
-  HEADER_KEY,
-  PREFS_KEY,
+  PREFS_CONFIG_PATH,
   VaultCorruptError,
   VaultStore,
   WrongPasswordError,
   assertMasterPasswordPolicy,
   normalizeVaultPrefs,
 } from "./store.js";
+import { LEGACY_PREFS_KEY } from "./tomb-migration.js";
 
 const PASSWORD = "correct horse battery staple";
 const NEXT_PASSWORD = "fourteen ungulate carriage nail";
+
+/** The personal tomb's vault files — where header/body live now (ADR 0063). */
+const HEADER_KEY = tombFileKey(PERSONAL_TOMB, HEADER_PATH);
+const BODY_KEY = tombFileKey(PERSONAL_TOMB, BODY_PATH);
 
 function clearVault(): void {
   kvDelete(ATTEMPTS_KEY);
   kvDelete(HEADER_KEY);
   kvDelete(BODY_KEY);
-  kvDelete(PREFS_KEY);
+  kvDelete(LEGACY_PREFS_KEY);
+  kvDelete(tombFileKey(PERSONAL_TOMB, PREFS_CONFIG_PATH));
+  // Each test re-runs the unlock-time migration from a clean slate.
+  kvDelete(tombFileKey(PERSONAL_TOMB, MIGRATION_MARKER_PATH));
+  // The index is sealed under each test's own vault key — wipe it too.
+  kvDelete(tombFileKey(PERSONAL_TOMB, INDEX_PATH));
 }
 
 async function unlockedStore(): Promise<VaultStore> {
@@ -31,7 +49,12 @@ async function unlockedStore(): Promise<VaultStore> {
   return store;
 }
 
-beforeEach(clearVault);
+beforeEach(async () => {
+  // Let any fire-and-forget sealed write from the last test land before
+  // clearing, so it cannot reappear mid-test under a retired vault key.
+  await vfsFlush();
+  clearVault();
+});
 
 describe("assertMasterPasswordPolicy", () => {
   it("rejects short passwords and easy guesses", () => {
@@ -369,11 +392,22 @@ describe("VaultStore session lifecycle", () => {
     expect(store.getSnapshot().status).toBe("unlocked");
   });
 
-  it("persists migrated prefs once for old installs", () => {
-    kvSet(PREFS_KEY, JSON.stringify({ autoLockMinutes: 15, theme: "dark" }));
+  it("persists migrated prefs once for old installs", async () => {
+    // Legacy plaintext prefs seal into the tomb config on unlock, then the
+    // legacy key is gone and the stored revision is current.
+    kvSet(
+      LEGACY_PREFS_KEY,
+      JSON.stringify({ autoLockMinutes: 15, theme: "dark" }),
+    );
     const store = new VaultStore();
+    await store.create(PASSWORD);
     expect(store.getSnapshot().prefs.autoLockMinutes).toBe(0);
-    const stored = overlapCast(JSON.parse(kvGet(PREFS_KEY) ?? "{}"));
+    expect(store.getSnapshot().prefs.theme).toBe("dark");
+    expect(kvGet(LEGACY_PREFS_KEY)).toBeNull();
+    const sealed = await readFile(PERSONAL_TOMB, PREFS_CONFIG_PATH);
+    const stored: Partial<{ prefsRevision: number }> = overlapCast(
+      JSON.parse(new TextDecoder().decode(sealed)),
+    );
     expect(stored.prefsRevision).toBeGreaterThanOrEqual(2);
   });
 });
@@ -526,12 +560,22 @@ describe("VaultStore.changeMasterPassword", () => {
 });
 
 describe("VaultStore prefs and idle auto-lock", () => {
-  it("persists prefs across instances", () => {
+  it("persists prefs across instances — readable again once unlocked", async () => {
     const store = new VaultStore();
+    await store.create(PASSWORD);
     store.setPrefs({ theme: "dark", lockOnHide: true });
-    const reopened = new VaultStore();
-    expect(reopened.getSnapshot().prefs.theme).toBe("dark");
-    expect(reopened.getSnapshot().prefs.lockOnHide).toBe(true);
+    // setPrefs writes through fire-and-forget (session memory is the source
+    // of truth); a reload boundary is where the write must have landed.
+    await vfsFlush();
+    store.lock();
+
+    // Prefs live in the sealed tomb config now: a locked store cannot read
+    // them, so defaults stand until unlock.
+    const locked = new VaultStore();
+    expect(locked.getSnapshot().prefs.theme).toBe("system");
+    await locked.unlock(PASSWORD);
+    expect(locked.getSnapshot().prefs.theme).toBe("dark");
+    expect(locked.getSnapshot().prefs.lockOnHide).toBe(true);
   });
 
   it("locks after the configured idle window", async () => {

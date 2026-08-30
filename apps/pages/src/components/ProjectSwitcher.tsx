@@ -11,6 +11,7 @@ import { useState, useSyncExternalStore } from "react";
 import { kvHydrate } from "../lib/kv.js";
 import {
   PERSONAL_PROJECT_ID,
+  activeProject,
   createProject,
   deleteProject,
   projectScopedKeys,
@@ -19,6 +20,10 @@ import {
   subscribeProjects,
 } from "../lib/projects.js";
 import { vaultStore } from "../lib/vault/store.js";
+import {
+  migrateLegacyVaultStorage,
+  tombStorageKeys,
+} from "../lib/vault/tomb-migration.js";
 import { IconCheck, IconFolder, IconPlus, IconTrash } from "./Icons.js";
 
 function ProjectSwitcherDefault() {
@@ -187,7 +192,9 @@ function ProjectSwitcherDefault() {
 }
 
 async function afterProjectChangeDefault(carryUnlock: boolean): Promise<void> {
-  await kvHydrate(projectScopedKeys());
+  const tomb = activeProject().id;
+  await kvHydrate([...projectScopedKeys(), ...tombStorageKeys(tomb)]);
+  await migrateLegacyVaultStorage(tomb);
   if (carryUnlock) {
     await vaultStore.forkUnlockedIntoActiveScope();
     return;

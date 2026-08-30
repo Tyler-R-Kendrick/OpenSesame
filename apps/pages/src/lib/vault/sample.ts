@@ -73,7 +73,7 @@ function buildSampleDefault(folderId: string): VaultItem[] {
     newGrant("http.get", "https://deploy.example.com/status"),
   ];
   secret.notes =
-    "The release agent may invoke these two calls through the Host plane. It cannot read this value.";
+    "Grant metadata: the ceiling bounds what any grant of this secret may do. The value never leaves the vault.";
   items.push(secret);
 
   const note = createItem("note", "Recovery kit location");

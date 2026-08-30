@@ -4,12 +4,15 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { clearNotices, pushNotice, setStatusNotice } from "../lib/notices.js";
+import { createItem } from "../lib/vault/model.js";
+import { vaultStore } from "../lib/vault/store.js";
 import {
   NotificationsBar,
   notificationsBarDependencies,
 } from "./NotificationsBar.js";
 
 const beginSignIn = vi.fn();
+const defaultUseVault = notificationsBarDependencies.useVault;
 Object.assign(notificationsBarDependencies, {
   beginSignIn,
 });
@@ -18,6 +21,7 @@ afterEach(() => {
   cleanup();
   clearNotices();
   beginSignIn.mockReset();
+  notificationsBarDependencies.useVault = defaultUseVault;
 });
 
 describe("NotificationsBar", () => {
@@ -51,6 +55,29 @@ describe("NotificationsBar", () => {
     expect(screen.getByText("WORD-WORD")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Sign in to claim" }));
     expect(beginSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps password-health findings in the global notifications panel", () => {
+    const login = createItem("login");
+    login.password = "letmein";
+    notificationsBarDependencies.useVault = () => ({
+      ...vaultStore.getSnapshot(),
+      items: [login],
+    });
+    render(
+      <MemoryRouter>
+        <NotificationsBar />
+      </MemoryRouter>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Notifications — 1 pending" }),
+    );
+    expect(screen.getByText("1 of 1 passwords need attention.")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Review passwords" })
+        .getAttribute("href"),
+    ).toBe("/vault/health");
   });
 
   it("shows a status notice with its retry, repair, and dismiss actions", () => {
@@ -109,5 +136,25 @@ describe("NotificationsBar", () => {
     expect(screen.getByRole("alert").textContent).toMatch(
       /Connections could not load/,
     );
+  });
+
+  it("moves focus into the sheet on open and back to the bell on close", () => {
+    render(
+      <MemoryRouter>
+        <NotificationsBar />
+      </MemoryRouter>,
+    );
+    const bell = screen.getByRole("button", { name: "Notifications — none" });
+    bell.focus();
+    fireEvent.click(bell);
+    const sheet = screen.getByRole("dialog", { name: "Notifications" });
+    expect(sheet.contains(document.activeElement)).toBe(true);
+    const close = screen.getAllByRole("button", { name: "Close" }).at(-1);
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(bell);
   });
 });

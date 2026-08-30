@@ -436,7 +436,6 @@ export function SignInPanel(props: Props) {
                   className="btn signin__social"
                   aria-label="More sign-in options"
                   title="More sign-in options"
-                  aria-haspopup="menu"
                   aria-expanded={menuOpen}
                   disabled={busy}
                   onClick={() => setMenuOpen((open) => !open)}
@@ -444,14 +443,13 @@ export function SignInPanel(props: Props) {
                   <IconDots size={20} />
                 </button>
                 {menuOpen ? (
-                  <div className="signin__menu" role="menu">
+                  <div className="signin__menu">
                     {overflowProviders.map((provider) => {
                       const brand = brandFor(provider.id);
                       return (
                         <button
                           key={provider.id}
                           type="button"
-                          role="menuitem"
                           className="signin__menu-item"
                           disabled={busy}
                           onClick={() => {
@@ -470,7 +468,6 @@ export function SignInPanel(props: Props) {
                     })}
                     <button
                       type="button"
-                      role="menuitem"
                       className="signin__menu-item"
                       disabled={busy}
                       onClick={() => {

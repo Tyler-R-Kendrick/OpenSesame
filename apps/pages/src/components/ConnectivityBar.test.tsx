@@ -208,6 +208,22 @@ describe("ConnectivityBar", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("moves focus into the sheet on open and back to the glyph on close", () => {
+    renderBar();
+    const glyph = screen.getByRole("button", {
+      name: "This machine — Not paired",
+    });
+    glyph.focus();
+    fireEvent.click(glyph);
+    const sheet = screen.getByRole("dialog", {
+      name: "This machine connection",
+    });
+    expect(sheet.contains(document.activeElement)).toBe(true);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(glyph);
+  });
+
   it("re-checks through the monitor rather than probing on its own", () => {
     renderBar();
     checkNow.mockClear();

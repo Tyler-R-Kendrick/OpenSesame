@@ -53,7 +53,7 @@ Object.assign(offlineBackupSeams, {
 
 import { OfflineBackupPanel } from "./OfflineBackupPanel.js";
 
-const sealedBody = { v: 1, ct: "deadbeef" };
+const sealedBody = { ivB64: "AAAA", ctB64: "deadbeef" };
 
 function unlockedVault() {
   vaultState.current = {

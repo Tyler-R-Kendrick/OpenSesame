@@ -1,7 +1,6 @@
-import { overlapCast } from "@opensesame/os-domain";
 import { useRef, useState } from "react";
 import { IconDownload, IconUpload } from "../../components/Icons.js";
-import { kvGet } from "../../lib/kv.js";
+import { activeProject } from "../../lib/projects.js";
 import { loadSettings } from "../../lib/settings.js";
 import type { SealedBlob } from "../../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
@@ -13,7 +12,7 @@ import {
   parseOfflineBackup,
   serializeOfflineBackup,
 } from "../../lib/vault/offline-backup.js";
-import { BODY_KEY } from "../../lib/vault/store.js";
+import { BODY_PATH, readSealedFile } from "../../lib/vfs.js";
 
 function Status({
   message,
@@ -30,9 +29,9 @@ function Status({
 }
 
 function readSealedBody(): SealedBlob {
-  const raw = kvGet(BODY_KEY);
-  if (!raw) throw new Error("There is nothing stored to export yet.");
-  return overlapCast(JSON.parse(raw));
+  const body = readSealedFile(activeProject().id, BODY_PATH);
+  if (!body) throw new Error("There is nothing stored to export yet.");
+  return body;
 }
 
 export function OfflineBackupPanel() {

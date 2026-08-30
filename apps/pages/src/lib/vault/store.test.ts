@@ -8,21 +8,33 @@ import {
   rehydrateProjects,
   setActiveProject,
 } from "../projects.js";
+import {
+  BODY_PATH,
+  HEADER_PATH,
+  INDEX_PATH,
+  MIGRATION_MARKER_PATH,
+  PERSONAL_TOMB,
+  tombFileKey,
+  vfsFlush,
+} from "../vfs.js";
 import { PBKDF2_ITERATIONS, createVault } from "./crypto.js";
 import { createItem } from "./model.js";
 import {
   ATTEMPTS_KEY,
-  BODY_KEY,
-  HEADER_KEY,
-  PREFS_KEY,
   VaultCorruptError,
   VaultStore,
   WrongPasswordError,
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./store.js";
+import { LEGACY_PREFS_KEY } from "./tomb-migration.js";
 
 const PASSWORD = "correct horse battery staple";
+
+/** The personal tomb's vault files — where header/body live now (ADR 0063). */
+const HEADER_KEY = tombFileKey(PERSONAL_TOMB, HEADER_PATH);
+const BODY_KEY = tombFileKey(PERSONAL_TOMB, BODY_PATH);
+const PREFS_KEY = LEGACY_PREFS_KEY;
 
 /** Lets a test make the durable write fail the way a full disk would. */
 const refuseWrites = vi.hoisted(() => ({ on: false }));
@@ -90,10 +102,13 @@ describe("VaultStore unlock lockout", () => {
 });
 
 describe("VaultStore rollback detection", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await vfsFlush();
     kvDelete(ATTEMPTS_KEY);
     kvDelete(HEADER_KEY);
     kvDelete(BODY_KEY);
+    kvDelete(tombFileKey(PERSONAL_TOMB, MIGRATION_MARKER_PATH));
+    kvDelete(tombFileKey(PERSONAL_TOMB, INDEX_PATH));
   });
 
   // A restored backup or a synced-over write puts back a body the vault has moved
@@ -168,10 +183,13 @@ describe("VaultStore rollback detection", () => {
 });
 
 describe("VaultStore multi-method unlock", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await vfsFlush();
     kvDelete(ATTEMPTS_KEY);
     kvDelete(HEADER_KEY);
     kvDelete(BODY_KEY);
+    kvDelete(tombFileKey(PERSONAL_TOMB, MIGRATION_MARKER_PATH));
+    kvDelete(tombFileKey(PERSONAL_TOMB, INDEX_PATH));
   });
 
   it("seals a new vault with a PIN and no master password", async () => {

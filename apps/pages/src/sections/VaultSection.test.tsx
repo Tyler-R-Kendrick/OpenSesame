@@ -1,15 +1,34 @@
 import type { JsonObject } from "@opensesame/os-domain";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import {
+  type FileTreeDirectoryHandle,
+  type FileTreeItemHandle,
+  FileTree as FileTreeModel,
+  type FileTreeOptions,
+} from "@pierre/trees";
+import type { FileTreeProps } from "@pierre/trees/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 /** @vitest-environment jsdom */
+import { useState } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Folder, LoginItem, NoteItem } from "../lib/vault/model.js";
+import { createKeymapHandler } from "../lib/keymap.js";
+import type {
+  DropItem,
+  Folder,
+  LoginItem,
+  NoteItem,
+} from "../lib/vault/model.js";
 
 type VaultHarness = {
   current: {
-    items: Array<LoginItem | NoteItem>;
+    items: Array<LoginItem | NoteItem | DropItem>;
     folders: Folder[];
     header: JsonObject | null;
   };
@@ -25,8 +44,64 @@ const vault: VaultHarness = {
 
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { takeImportFile } from "../lib/vault/import/handoff.js";
-const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, { useVault: () => vault.current });
+import { vaultTreeSeams } from "./vault/VaultTree.js";
+const copySecret = vi.fn();
+const store = {
+  purgeItem: vi.fn(),
+  trashItem: vi.fn(),
+  toggleFavorite: vi.fn(),
+};
+let treeOptions: FileTreeOptions | null = null;
+let treeModel: FileTreeModel | null = null;
+Object.assign(vaultHooksSeams, {
+  useVault: () => vault.current,
+  useVaultStore: () => store,
+  useCopySecret: () => copySecret,
+});
+Object.assign(vaultTreeSeams, {
+  activeTomb: () => "personal",
+  loadExpanded: async () => [],
+  saveExpanded: vi.fn(async () => undefined),
+  useFileTree: (options: FileTreeOptions) => {
+    const [model] = useState(() => new FileTreeModel(options));
+    treeOptions = options;
+    treeModel = model;
+    return { model };
+  },
+  FileTree: ({ model }: FileTreeProps) => (
+    <div data-testid="vault-tree">
+      {model.getVisibleRows(0, model.getVisibleCount()).map((row) => {
+        const item = { kind: row.kind, name: row.name, path: row.path };
+        const decoration = treeOptions?.renderRowDecoration?.({ item, row });
+        return (
+          <button
+            type="button"
+            key={row.path}
+            onClick={() => treeOptions?.onSelectionChange?.([row.path])}
+          >
+            {row.name}
+            {decoration?.title ? (
+              <span title={decoration.title}>
+                {"text" in decoration ? decoration.text : decoration.title}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  ),
+});
+
+function currentTree(): FileTreeModel {
+  if (!treeModel) throw new Error("Vault tree was not mounted.");
+  return treeModel;
+}
+
+function isDirectory(
+  item: FileTreeItemHandle | null,
+): item is FileTreeDirectoryHandle {
+  return item?.isDirectory() === true;
+}
 
 import { VaultSection, VaultWelcome } from "./VaultSection.js";
 
@@ -67,6 +142,26 @@ function makeNote(overrides: Partial<NoteItem> = {}): NoteItem {
   };
 }
 
+function makeDrop(overrides: Partial<DropItem> = {}): DropItem {
+  return {
+    id: "itm_drop",
+    kind: "drop",
+    name: "amber-falcon-breeze",
+    folderId: null,
+    favorite: false,
+    notes: "",
+    fields: [],
+    createdAt: "2026-08-01T00:00:00Z",
+    updatedAt: "2026-08-01T00:00:00Z",
+    deletedAt: null,
+    state: "pending",
+    claimId: "clm_1",
+    bearerToken: "osc_clm_clm_1.secret",
+    expiresAt: "2027-01-15T10:30:00.000Z",
+    ...overrides,
+  };
+}
+
 function renderWelcome() {
   return render(
     <MemoryRouter>
@@ -92,6 +187,7 @@ function renderSection(initial = "/vault") {
 describe("VaultSection", () => {
   beforeEach(() => {
     vault.current = { items: [], folders: [], header: null };
+    vaultTreeSeams.loadExpanded = async () => [];
   });
 
   afterEach(() => {
@@ -99,6 +195,8 @@ describe("VaultSection", () => {
     vi.clearAllMocks();
     // A file stashed by a test must not leak into the next one.
     takeImportFile();
+    treeOptions = null;
+    treeModel = null;
   });
 
   it("shows the empty state with new and import actions", () => {
@@ -141,51 +239,51 @@ describe("VaultSection", () => {
     renderSection();
     expect(screen.getByText("Webmail")).toBeTruthy();
     expect(screen.getByText("Scratch pad")).toBeTruthy();
-    expect(screen.getByText("2 items")).toBeTruthy();
+    expect(screen.getByText(/2\/2 · All items/)).toBeTruthy();
   });
 
-  it("filters by search and clears with Escape", async () => {
+  it("shows a timer with the expiry on hover for items with temporality", () => {
+    vault.current = {
+      items: [makeLogin(), makeDrop()],
+      folders: [],
+      header: null,
+    };
+    renderSection();
+    const timer = screen.getByTitle(/^Expires /);
+    expect(timer.textContent).toMatch(/^Expires /);
+    expect(timer.textContent).toContain("2027");
+    // Items without temporality get no timer.
+    expect(screen.getAllByTitle(/^Expires /)).toHaveLength(1);
+  });
+
+  it("uses the tree model for search", () => {
     vault.current = {
       items: [makeLogin(), makeNote()],
       folders: [],
       header: null,
     };
     renderSection();
-    const search = screen.getByLabelText("Search vault items");
-    await userEvent.type(search, "webmail");
-    expect(screen.getByText("Webmail")).toBeTruthy();
-    expect(screen.queryByText("Scratch pad")).toBeNull();
-    expect(screen.getByText(/matching “webmail”/)).toBeTruthy();
-    fireEvent.keyDown(search, { key: "Escape" });
-    expect(screen.getByText("Scratch pad")).toBeTruthy();
+    const model = currentTree();
+    model.openSearch();
+    model.setSearch("webmail");
+    expect(model.getSearchMatchingPaths()).toEqual(["Webmail"]);
+    model.closeSearch();
+    expect(model.isSearchOpen()).toBe(false);
   });
 
-  it("shows the no-match empty state for fruitless searches", async () => {
+  it("returns no tree matches for a fruitless search", () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection();
-    await userEvent.type(screen.getByLabelText("Search vault items"), "zzzzzz");
-    expect(screen.getByText("Nothing matches")).toBeTruthy();
-    expect(screen.getByText(/not concealed values/)).toBeTruthy();
+    const model = currentTree();
+    model.setSearch("zzzzzz");
+    expect(model.getSearchMatchingPaths()).toEqual([]);
   });
 
-  it("focuses search when / is pressed outside a field", () => {
+  it("configures built-in hide-non-matches search", () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection();
-    const search =
-      screen.getByLabelText<HTMLInputElement>("Search vault items");
-    fireEvent.keyDown(window, { key: "/" });
-    expect(document.activeElement).toBe(search);
-  });
-
-  it("ignores / pressed while typing in a field", async () => {
-    vault.current = { items: [makeLogin()], folders: [], header: null };
-    renderSection();
-    const search =
-      screen.getByLabelText<HTMLInputElement>("Search vault items");
-    search.focus();
-    fireEvent.keyDown(search, { key: "/" });
-    // Already-focused input keeps focus; the key is not hijacked again.
-    expect(document.activeElement).toBe(search);
+    expect(treeOptions?.search).toBe(true);
+    expect(treeOptions?.fileTreeSearchMode).toBe("hide-non-matches");
   });
 
   it("filters to favorites", () => {
@@ -198,7 +296,7 @@ describe("VaultSection", () => {
     expect(screen.getByRole("heading", { name: "Favorites" })).toBeTruthy();
     expect(screen.getByText("Webmail")).toBeTruthy();
     expect(screen.queryByText("Scratch pad")).toBeNull();
-    expect(screen.getByText("1 item")).toBeTruthy();
+    expect(screen.getByText(/1\/2 · Favorites/)).toBeTruthy();
   });
 
   it("filters by kind", () => {
@@ -243,8 +341,7 @@ describe("VaultSection", () => {
     expect(screen.queryByText("Scratch pad")).toBeNull();
   });
 
-  it("marks the open item as active and carries the filter into its link", () => {
-    vault.current = { items: [makeLogin()], folders: [], header: null };
+  it("focuses the open item in the tree", () => {
     vault.current = {
       items: [makeLogin({ favorite: true })],
       folders: [],
@@ -252,20 +349,76 @@ describe("VaultSection", () => {
     };
     renderSection("/vault/itm_1?f=favorites");
     expect(screen.getByText("detail pane")).toBeTruthy();
-    const row = screen.getByRole("link", { name: /Webmail/ });
-    expect(row.getAttribute("aria-current")).toBe("true");
-    expect(row.getAttribute("href")).toBe("/vault/itm_1?f=favorites");
+    expect(currentTree().getFocusedPath()).toBe("Webmail");
   });
 
   it("shows sample and favorite markers on rows", () => {
     vault.current = {
-      items: [makeLogin({ sample: true, favorite: true })],
+      items: [makeLogin({ sample: true }), makeNote({ favorite: true })],
       folders: [],
       header: null,
     };
     renderSection();
     expect(screen.getByText("SYNTHETIC")).toBeTruthy();
     expect(screen.getByTitle("Favorite")).toBeTruthy();
+  });
+
+  it("routes New to the active item-kind ceremony", () => {
+    for (const kind of [
+      "login",
+      "passkey",
+      "card",
+      "secret",
+      "drop",
+      "note",
+      "certificate",
+    ]) {
+      const view = renderSection(`/vault?f=${kind}`);
+      expect(
+        screen.getByRole("link", { name: /^New$/ }).getAttribute("href"),
+      ).toBe(`/vault/new/${kind}`);
+      view.unmount();
+    }
+  });
+
+  it("routes focused-item keys through the existing vault actions", () => {
+    const item = makeLogin();
+    vault.current = { items: [item], folders: [], header: null };
+    renderSection();
+    const handler = createKeymapHandler({
+      navigate: vi.fn(),
+      showHelp: vi.fn(),
+    });
+
+    handler(new KeyboardEvent("keydown", { key: "y", cancelable: true }));
+    handler(new KeyboardEvent("keydown", { key: ".", cancelable: true }));
+    handler(new KeyboardEvent("keydown", { key: "x", cancelable: true }));
+
+    expect(copySecret).toHaveBeenCalledWith(item.password);
+    expect(store.toggleFavorite).toHaveBeenCalledWith(item.id);
+    expect(store.trashItem).toHaveBeenCalledWith(item.id);
+  });
+
+  it("restores and persists folder expansion per tomb", async () => {
+    vault.current = {
+      items: [makeLogin({ folderId: "fld_1" })],
+      folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
+      header: null,
+    };
+    vaultTreeSeams.loadExpanded = async () => ["Work/"];
+    renderSection();
+
+    let folder = currentTree().getItem("Work/");
+    await waitFor(() => {
+      folder = currentTree().getItem("Work/");
+      expect(isDirectory(folder) && folder.isExpanded()).toBe(true);
+    });
+    if (!isDirectory(folder)) throw new Error("Work folder was not mounted.");
+    folder.toggle();
+
+    await waitFor(() => {
+      expect(vaultTreeSeams.saveExpanded).toHaveBeenCalledWith("personal", []);
+    });
   });
 
   it("renders kind and folder filter chips only for present kinds", () => {
@@ -322,24 +475,21 @@ describe("VaultWelcome", () => {
     expect(screen.getByText("Logins")).toBeTruthy();
     expect(screen.getByText("Secure notes")).toBeTruthy();
     expect(screen.getByText("Recently changed")).toBeTruthy();
-    // Health hint: one scored password that is strong, unique, and current.
-    expect(
-      screen.getByText(/All 1 passwords are strong, unique, and current/),
-    ).toBeTruthy();
+    expect(screen.queryByText(/passwords need attention/)).toBeNull();
     // New-item shortcuts for every kind.
     expect(
-      screen.getByRole("link", { name: /Agent secret/i }).getAttribute("href"),
+      screen.getByRole("link", { name: "Secret" }).getAttribute("href"),
     ).toBe("/vault/new/secret");
   });
 
-  it("warns when passwords need attention", () => {
+  it("does not render password-health warnings in the vault pane", () => {
     vault.current = {
       items: [makeLogin({ password: "letmein" })],
       folders: [],
       header: {},
     };
     renderWelcome();
-    expect(screen.getByText(/1 of 1 passwords need attention/)).toBeTruthy();
+    expect(screen.queryByText(/passwords need attention/)).toBeNull();
     expect(
       screen.getByText(/unlock again with an enrolled passkey/),
     ).toBeTruthy();

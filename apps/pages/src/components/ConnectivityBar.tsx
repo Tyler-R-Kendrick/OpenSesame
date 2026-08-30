@@ -13,6 +13,7 @@ import {
 import { beginSignIn, defaultUpstream } from "../lib/federation.js";
 import { claimGuestAuth } from "../lib/guest-auth.js";
 import { useConnect } from "../lib/identity.js";
+import { useModalFocus } from "../lib/modal-focus.js";
 import { failureSentence } from "../lib/probe-failure.js";
 import { ConnectGitHistory } from "./ConnectGitHistory.js";
 import { HostCeremony } from "./HostCeremony.js";
@@ -194,14 +195,9 @@ export function ConnectionCeremony({
   onSwitch: (next: ConnectorId) => void;
 }) {
   const connector = connectors.find((entry) => entry.id === id);
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useModalFocus(true, sheetRef, closeRef, onClose);
 
   if (!connector) return null;
 
@@ -214,6 +210,7 @@ export function ConnectionCeremony({
         onClick={onClose}
       />
       <div
+        ref={sheetRef}
         className="sheet"
         // biome-ignore lint/a11y/useSemanticElements: native <dialog open> inerts the page and paints a blank top-layer surface
         role="dialog"
@@ -232,6 +229,7 @@ export function ConnectionCeremony({
             type="button"
             className="icon-btn"
             aria-label="Close"
+            ref={closeRef}
             onClick={onClose}
           >
             <IconX size={18} />
