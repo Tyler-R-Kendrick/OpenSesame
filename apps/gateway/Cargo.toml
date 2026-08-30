@@ -18,6 +18,7 @@ opensesame-task-access = { path = "../../crates/task-access" }
 opensesame-proof = { path = "../../crates/proof" }
 opensesame-protocol-aauth = { path = "../../crates/protocol-aauth", features = ["experimental-aauth"] }
 opensesame-audit = { path = "../../crates/audit" }
+opensesame-pki-core = { path = "../../crates/pki-core" }
 base64 = { workspace = true }
 rand = { workspace = true }
 opensesame-storage = { path = "../../crates/storage" }
@@ -65,6 +66,7 @@ wasm-connectors = ["opensesame-connector-host/wasm-connectors"]
 
 [dev-dependencies]
 async-trait = { workspace = true }
+insta = { workspace = true, features = ["redactions", "json"] }
 proptest = { workspace = true }
 sqlx = { workspace = true }
 tower = { workspace = true }
