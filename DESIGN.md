@@ -39,7 +39,6 @@ typography:
     fontSize: "0.6875rem"
     fontWeight: 600
     letterSpacing: "0.06em"
-    textTransform: "uppercase"
   mono:
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
     fontSize: "0.8125rem"
@@ -60,16 +59,13 @@ components:
   button-secondary:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
-    borderColor: "{colors.line-strong}"
     rounded: "{rounded.md}"
     padding: "0.45rem 0.85rem"
   panel:
     backgroundColor: "{colors.surface}"
-    borderColor: "{colors.line}"
     rounded: "{rounded.lg}"
   item-row:
     backgroundColor: "transparent"
-    activeColor: "{colors.accent-wash}"
     rounded: "{rounded.md}"
     padding: "0.55rem 0.6rem"
 ---
@@ -158,7 +154,22 @@ that breakpoint — nothing in the rail may become unreachable.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
-## Elevation & depth
+### VFS interaction model
+
+The vault is a filesystem, not a webpage. Every vault is a tomb with a
+canonical path space — `personal:/Work/GitHub` — folders are directories,
+items are files, and the list renders as a compact file tree via
+`@pierre/trees`, never as a card wall.
+
+A visible cursor row owns focus. `j`/`k`/arrows move it, `l`/`→` opens,
+`h`/`←` collapses or climbs, `gg`/`G` jump, and `Enter` activates. `/` opens
+hide-non-matches search; `Esc` closes it. Item verbs are single keys: `y`
+copies the secret, `u` the username, `e` edits, `x` trashes, `n` creates, `.`
+toggles favorite, and `s` shares a secret once. `g v/c/a/i/s` jumps between
+sections and `?` shows the keymap. A mono status line always shows the focused
+path, item count, and active filter. Pointer access remains complete.
+
+## Elevation & Depth
 
 Three shadow steps, all cool-tinted. Panels take the smallest; the unlock card
 takes the largest. Rows are flat with hairline separators — depth marks
@@ -192,8 +203,9 @@ role comes from the element rather than an attribute.
 ### Empty states
 An empty state must say what would be here and why it is not — offline,
 unauthenticated, or genuinely empty — and offer the action that fills it. The
-vault's unselected detail pane goes further and reports what the vault holds,
-what changed recently, and what needs attention.
+vault's unselected detail pane goes further and reports what the vault holds
+and what changed recently. Password-health warnings live in the global
+notifications panel so they remain visible from every section.
 
 ## Do's and Don'ts
 

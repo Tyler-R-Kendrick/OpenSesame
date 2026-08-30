@@ -375,7 +375,9 @@ other secret material in issues, logs, or scan reports.
 ## 7. Skills
 
 Agent skills live under `skills/*/SKILL.md` (canonical). `.agents/skills/`
-holds symlinks to the same directories for tools that look there instead.
+holds symlinks to the same directories for tools that look there instead —
+except third-party installs (currently `impeccable`), which live there
+directly so their own updater can refresh them.
 
 | Skill | Path | Purpose |
 |-------|------|---------|
@@ -385,6 +387,7 @@ holds symlinks to the same directories for tools that look there instead.
 | `opensesame-mcps` | `skills/opensesame-mcps/SKILL.md` | Install, configure, initialize, and use OpenSesame MCP servers |
 | `install-anti-slop` | `skills/install-anti-slop/SKILL.md` | Install and configure the vendored Oxlint anti-slop plugin |
 | `security-review` | `skills/security-review/SKILL.md` | Run repository security gates and targeted Codex Security reviews |
+| `impeccable` | `.agents/skills/impeccable/SKILL.md` | Third-party frontend design skill ([pbakaus/impeccable](https://github.com/pbakaus/impeccable), Apache 2.0), installed via `npx impeccable install` — lives in `.agents/skills/` (not `skills/`) so `npx impeccable update` can refresh it; design detector hook in `.codex/hooks.json` + `.claude/settings.local.json` |
 
 ## 8. Verification expectations
 
