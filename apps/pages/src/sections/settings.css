@@ -2,13 +2,8 @@
 .set__nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
-  padding: 0.25rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-  width: fit-content;
+  gap: 1.1rem;
+  border-bottom: 1px solid var(--line);
   max-width: 100%;
 }
 
@@ -17,37 +12,36 @@
   display: inline-flex;
   align-items: center;
   border: 0;
-  border-radius: 7px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
   color: var(--ink-2);
   font: inherit;
   font-size: 0.875rem;
   font-weight: 550;
-  padding: 0.35rem 0.7rem;
+  padding: 0.3rem 0 0.55rem;
   text-decoration: none;
   cursor: pointer;
-  transition: background 140ms var(--ease), color 140ms var(--ease);
+  transition: border-color 140ms var(--ease), color 140ms var(--ease);
 }
 
 .set__nav-link:hover {
   color: var(--ink);
-  background: var(--surface-3);
 }
 
 .set__nav-link[aria-current="page"] {
-  color: var(--accent-ink);
-  background: var(--accent);
+  color: var(--ink);
+  border-bottom-color: var(--accent);
   font-weight: 600;
 }
 
 .set__nav-link--danger:hover {
   color: var(--err);
-  background: var(--err-wash);
 }
 
 .set__nav-link--danger[aria-current="page"] {
-  color: var(--err-ink);
-  background: var(--err);
+  color: var(--err);
+  border-bottom-color: var(--err);
 }
 
 /* A text input with its action beside it, aligned to the control row. */

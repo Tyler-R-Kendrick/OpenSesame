@@ -315,19 +315,12 @@ export function AppShell({ children }: { children?: ReactNode }) {
         <div className="rail__scroll">
           <NavTree />
         </div>
-
-        <div className="rail__foot">
-          <button type="button" className="rail__lock" onClick={store.lock}>
-            Lock this device
-          </button>
-        </div>
       </aside>
 
       <div className="main">
-        {/* Present at every width now: the connectivity bar is the reason the
-            top bar exists, and connection state has to be glanceable on a
-            desktop too. The rail keeps the wordmark, so this carries the mark
-            alone. */}
+        {/* Phone chrome only: on a desktop the rail carries identity and the
+            statusline carries plane truth, so the top bar exists where the
+            rail is gone. */}
         <header className="topbar">
           <span className="mark" aria-hidden="true">
             <IconVault size={17} />
@@ -362,6 +355,18 @@ export function AppShell({ children }: { children?: ReactNode }) {
           ))}
         </nav>
       </div>
+
+      {/* The workspace statusline: plane truth on the left, notifications and
+          the lock on the right — the one strip that is always telling the
+          truth about Host and Identity. */}
+      <footer className="statusline">
+        <ConnectivityBar />
+        <span className="statusline__spacer" />
+        <NotificationsBar />
+        <button type="button" className="rail__lock" onClick={store.lock}>
+          Lock
+        </button>
+      </footer>
       <KeymapSheet open={keymapOpen} close={closeKeymap} />
     </div>
   );

@@ -6,11 +6,11 @@
   --surface: #ffffff;
   --surface-2: #f5f5f5;
   --surface-3: #ededed;
-  --rail: #141414;
-  --rail-2: #1f1f1f;
-  --rail-fg: #ececec;
-  --rail-muted: #949494;
-  --rail-line: #2b2b2b;
+  --rail: #fafafa;
+  --rail-2: #efefef;
+  --rail-fg: #171717;
+  --rail-muted: #6f6f6f;
+  --rail-line: #e7e7e7;
   --rail-warn: #f0b95c;
 
   --ink: #171717;
@@ -70,10 +70,10 @@
     --surface: #171717;
     --surface-2: #1d1d1d;
     --surface-3: #242424;
-    --rail: #0a0a0a;
-    --rail-2: #171717;
-    --rail-fg: #ececec;
-    --rail-muted: #8f8f8f;
+    --rail: #0f0f0f;
+    --rail-2: #1d1d1d;
+    --rail-fg: #f0f0f0;
+    --rail-muted: #8c8c8c;
     --rail-line: #262626;
     --rail-warn: #f0b95c;
 
@@ -118,10 +118,10 @@
   --surface: #171717;
   --surface-2: #1d1d1d;
   --surface-3: #242424;
-  --rail: #0a0a0a;
-  --rail-2: #171717;
-  --rail-fg: #ececec;
-  --rail-muted: #8f8f8f;
+  --rail: #0f0f0f;
+  --rail-2: #1d1d1d;
+  --rail-fg: #f0f0f0;
+  --rail-muted: #8c8c8c;
   --rail-line: #262626;
   --rail-warn: #f0b95c;
 
@@ -300,13 +300,13 @@ kbd {
 }
 
 .btn--primary {
-  background: var(--accent);
+  background: var(--ink);
   border-color: transparent;
-  color: var(--accent-ink);
+  color: var(--canvas);
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
   border-color: transparent;
 }
 
@@ -633,8 +633,53 @@ input[type="radio"] {
 .app {
   display: grid;
   grid-template-columns: var(--rail-w) 1fr;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "rail main"
+    "status status";
   height: 100dvh;
   overflow: hidden;
+}
+
+.rail {
+  grid-area: rail;
+}
+
+.main {
+  grid-area: main;
+}
+
+/* The workspace statusline: one mono strip of plane truth. */
+.statusline {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.25rem 0.85rem;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.statusline__spacer {
+  margin-left: auto;
+}
+
+.statusline .rail__lock {
+  width: auto;
+  min-height: 1.5rem;
+  padding: 0 0.55rem;
+  font-size: 0.75rem;
+}
+
+/* The statusline is a strip, not a toolbar: its chips stay slim. */
+.statusline .cx__btn,
+.statusline .icon-btn {
+  min-width: 0;
+  min-height: 0;
+  padding: 0.15rem 0.3rem 0.1rem;
 }
 
 .rail {
@@ -718,8 +763,8 @@ input[type="radio"] {
 }
 
 .railtree__row.is-active {
-  background: color-mix(in srgb, var(--accent) 24%, var(--rail-2));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--accent-wash);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
   opacity: 1;
 }
 
@@ -786,13 +831,6 @@ input[type="radio"] {
   margin-left: 0.4rem;
 }
 
-.rail__foot {
-  border-top: 1px solid var(--rail-line);
-  padding: 0.7rem;
-  display: grid;
-  gap: 0.5rem;
-}
-
 .dot {
   width: 0.5rem;
   height: 0.5rem;
@@ -816,12 +854,12 @@ input[type="radio"] {
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  width: 100%;
   min-height: 2.125rem;
-  border: 1px solid var(--rail-line);
+  padding: 0 0.7rem;
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
-  background: var(--rail-2);
-  color: var(--rail-fg);
+  background: var(--surface);
+  color: var(--ink);
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -830,7 +868,7 @@ input[type="radio"] {
 }
 
 .rail__lock:hover {
-  background: color-mix(in srgb, var(--accent) 24%, var(--rail-2));
+  background: var(--surface-3);
 }
 
 .mark {
@@ -842,7 +880,6 @@ input[type="radio"] {
   border-radius: 8px;
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.22);
 }
 
 .mark--lg {
@@ -862,17 +899,29 @@ input[type="radio"] {
 }
 
 /* ——— Top bar ————————————————————————————————————————————
-   Present at every width. It carries the project switcher, the connectivity
-   bar and Lock; the rail carries the wordmark and navigation. */
+   Phone chrome: where the rail is gone it carries identity, the connectivity
+   bar and Lock. On a desktop the rail and the statusline carry all of it. */
 .topbar {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   padding: 0.5rem 0.85rem;
-  background: var(--rail);
-  color: var(--rail-fg);
-  border-bottom: 1px solid var(--rail-line);
+  background: var(--surface);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
   flex: none;
+}
+
+@media (min-width: 901px) {
+  .topbar {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .statusline {
+    display: none;
+  }
 }
 
 .topbar__title {
@@ -898,7 +947,8 @@ input[type="radio"] {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.8125rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
   color: var(--ink-3);
 }
 
@@ -1107,10 +1157,10 @@ input[type="radio"] {
 }
 
 .panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .panel__head {
@@ -1118,7 +1168,7 @@ input[type="radio"] {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.15rem;
+  padding: 0 0 0.7rem;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1133,13 +1183,13 @@ input[type="radio"] {
 }
 
 .panel__body {
-  padding: 1.15rem;
+  padding: 1rem 0 0;
   display: grid;
   gap: 0.9rem;
 }
 
 .panel__body--tight {
-  padding: 0.5rem;
+  padding: 0.5rem 0 0;
 }
 
 .actions {
@@ -2036,7 +2086,7 @@ input[type="radio"] {
   width: 100%;
   border: 0;
   padding: 0;
-  background: rgba(10, 18, 29, 0.42);
+  background: rgba(0, 0, 0, 0.44);
   cursor: pointer;
   animation: fade 180ms var(--ease);
 }

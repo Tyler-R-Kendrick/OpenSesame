@@ -116,8 +116,10 @@ describe("AppShell", () => {
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
     expect(screen.getAllByTestId("account-switcher").length).toBe(2);
-    // One bar, in the top bar; the rail no longer carries a status line.
-    expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
+    // One per chrome: the phone top bar and the desktop statusline both
+    // carry plane truth; CSS shows exactly one per breakpoint.
+    expect(screen.getAllByTestId("connectivity-bar").length).toBe(2);
+    expect(screen.getAllByTestId("notifications-bar").length).toBe(2);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
   });
 
@@ -216,8 +218,10 @@ describe("AppShell", () => {
 
   it("both lock buttons call the store lock", () => {
     renderShell("/vault");
-    fireEvent.click(screen.getByRole("button", { name: "Lock this device" }));
-    fireEvent.click(screen.getByRole("button", { name: "Lock" }));
+    // One in the phone top bar, one in the desktop statusline.
+    const locks = screen.getAllByRole("button", { name: "Lock" });
+    expect(locks).toHaveLength(2);
+    for (const lock of locks) fireEvent.click(lock);
     expect(vault.lock).toHaveBeenCalledTimes(2);
   });
 

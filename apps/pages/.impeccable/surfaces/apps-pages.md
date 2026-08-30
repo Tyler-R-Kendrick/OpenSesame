@@ -69,7 +69,10 @@ where it lands → import.
   work is worse than an honest absence.
 
 ## Direction
-Bitwarden and 1Password set the bar. Light canvas, navy rail, teal accent, a
+Bitwarden and 1Password set the bar, executed as a Scandinavian terminal:
+one paper surface (zero-spread neutrals, dark mode inverts the same system),
+a light mono filesystem rail, a statusline of plane truth, teal as the single
+accent for state and identity, ink-filled primary actions, and a
 list-and-detail spine for the vault, and full-width panels for the three
 plane-backed sections.
 

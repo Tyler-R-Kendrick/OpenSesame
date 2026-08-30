@@ -70,8 +70,8 @@ export default defineConfig({
         short_name: "OpenSesame",
         description:
           "End-to-end-encrypted vault for passwords, passkeys, and agent secrets",
-        theme_color: "#101a2b",
-        background_color: "#f2f5f9",
+        theme_color: "#fafafa",
+        background_color: "#fafafa",
         display: "standalone",
         start_url: "./",
         scope: "./",

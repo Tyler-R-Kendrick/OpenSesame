@@ -413,20 +413,18 @@
 }
 
 .detail__group {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .detail__grouphead {
-  padding: 0.7rem 0.95rem 0.55rem;
+  padding: 0 0 0.45rem;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--ink-2);
   border-bottom: 1px solid var(--line);
-  background: var(--surface-2);
 }
 
 .detail__update {

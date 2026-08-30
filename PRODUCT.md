@@ -31,7 +31,7 @@ An Infisical-class authority console that also keeps a human store on the device
 - Master password unwraps the device vault key. It is not stored. A reload asks for it again.
 - Agents get ConnectionRefs and grants, never plaintext. There is no `getSecret()` affordance anywhere in the UI.
 - Demonstration data is labeled SYNTHETIC and deletable, never seeded silently.
-- The rail tells the truth about Host and Identity. "Online" is not a Host status.
+- The statusline tells the truth about Host and Identity. "Online" is not a Host status.
 - Guests and anonymous use are first-class everywhere; sign-in is never required to be useful.
 - The UI is terse: table headers, actions, one-line empty states — no descriptive prose. Controls use iconography where idiom allows.
 - Every distinct user action is its own focused ceremony (grant, claim, approve, share, add IdP), never a fork inside one long form.

@@ -6,21 +6,19 @@
 .identity-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: 1.1rem;
   margin-bottom: 1.25rem;
-  padding: 0.25rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
 }
 
 .identity-tab {
   display: inline-flex;
   align-items: center;
   gap: 0.4375rem;
-  padding: 0.4375rem 0.875rem;
-  border: 1px solid transparent;
-  border-radius: calc(var(--radius) - 2px);
+  padding: 0.3rem 0 0.55rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
   color: var(--ink-2);
   font: inherit;
@@ -34,8 +32,7 @@
 
 .identity-tab.is-active,
 .identity-tab[aria-selected="true"] {
-  background: var(--surface);
-  border-color: var(--line);
+  border-bottom-color: var(--accent);
   color: var(--ink);
   font-weight: 550;
 }

@@ -6,8 +6,8 @@ colors:
   surface: "#ffffff"
   surface-2: "#f5f5f5"
   surface-3: "#ededed"
-  rail: "#141414"
-  rail-fg: "#ececec"
+  rail: "#fafafa"
+  rail-fg: "#171717"
   ink: "#171717"
   ink-2: "#5c5c5c"
   ink-3: "#6f6f6f"
@@ -51,8 +51,8 @@ spacing:
   lg: "1.5rem"
 components:
   button-primary:
-    backgroundColor: "{colors.accent}"
-    textColor: "{colors.accent-ink}"
+    backgroundColor: "{colors.ink}"
+    textColor: "{colors.canvas}"
     rounded: "{rounded.md}"
     padding: "0.45rem 0.85rem"
   button-secondary:
@@ -88,12 +88,16 @@ black-and-white foundation, teal as the single accent, and nothing decorative.
 
 **Key characteristics:**
 - Master-password gate, no PIN theater, no recovery path
-- Near-black rail, neutral off-white canvas, teal for exactly one thing: the
-  primary action
+- One paper surface: the whole workspace is a light, hairline-divided
+  terminal — mono filesystem rail, content buffer, statusline. Dark mode
+  inverts the same system onto near-black paper.
+- Teal is the single accent, and it means state and identity: the cursor,
+  the active row, focus, links, and the brand mark. Primary actions are ink.
 - Scandinavian restraint: zero-spread neutrals, sentence case everywhere,
-  hairline borders over shadows, 6/10px radii, quiet decoration-free chrome
-- List-and-detail spine for the vault; full-width panels for the plane-backed
-  sections
+  hairline rules and chapters instead of boxed cards, 6/10px radii, no
+  decorative gradients or shadows
+- List-and-detail spine for the vault; flowing chapter documents for the
+  plane-backed sections
 - System font stack — no webfont request, no flash, no third-party origin
 - Sample data always badged
 
@@ -102,13 +106,16 @@ black-and-white foundation, teal as the single accent, and nothing decorative.
 Neutrals carry the interface. Teal is scarce enough to mean something.
 
 ### Primary
-- **Accent** (#0d7268): primary buttons, active navigation, focus rings,
-  strongest step of the strength meter. In dark mode it lifts to #2fb3a3.
+- **Accent** (#0d7268): state and identity only — the tree cursor, active
+  navigation, focus rings, links, the brand mark, and the strongest step of
+  the strength meter. Primary buttons are ink, not accent. In dark mode the
+  accent lifts to #2fb3a3.
 
 ### Neutral
 All neutrals are zero-spread grays — no warm or cool casts anywhere in chrome.
-- **Rail** (#141414): the navigation plane, near-black in both themes.
-- **Canvas** (#fafafa): the ground everything sits on; panels sit on pure white.
+- **Rail** (#fafafa): the navigation plane shares the canvas — one paper
+  surface, separated from the buffer by a hairline, not a color change.
+- **Canvas** (#fafafa): the ground everything sits on.
 - **Surface** (#ffffff): panels and cards.
 - **Ink / Ink-2 / Ink-3** (#171717 / #5c5c5c / #6f6f6f): the ink ladder —
   primary, supporting, and metadata text, stepped like alpha-black on white
@@ -149,14 +156,17 @@ signal that a value is literal, so never use it for prose.
 
 ## Layout
 
-Desktop is a 15.5rem rail plus content. The vault adds a 21rem list column
-between rail and detail, giving the familiar three-pane shape; the other
-sections use a single 60rem column of panels.
+Desktop is a 15.5rem rail plus content over a full-width statusline — the
+terminal frame: tree on the left, buffer in the middle, one mono strip of
+plane truth (connectivity, notifications, lock) at the foot. The vault adds
+a 21rem list column between rail and detail, giving ranger's three panes;
+the other sections read as a single 60rem flowing document of chapters.
 
-Below 900px the rail is replaced by a sticky top bar and a five-item tab bar,
-and the vault collapses to one pane at a time with a back link. Because the
-rail carries the vault's filters, the list header grows a scrolling chip row at
-that breakpoint — nothing in the rail may become unreachable.
+Below 900px the rail and statusline give way to a slim top bar (identity,
+connectivity, lock) and a five-item tab bar, and the vault collapses to one
+pane at a time with a back link. Because the rail carries the vault's
+filters, the list header grows a scrolling chip row at that breakpoint —
+nothing in the rail may become unreachable.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
@@ -203,9 +213,9 @@ never for buttons, chips, or containers.
 ## Components
 
 ### Buttons
-Teal fill for the primary action, surface fill with a hairline for secondary,
-ghost for tertiary, and a red-tinted variant for anything destructive. One
-primary per view.
+Ink fill for the primary action (inverting to paper-on-ink in dark mode),
+surface fill with a hairline for secondary, ghost for tertiary, and a
+red-tinted variant for anything destructive. One primary per view.
 
 ### Field rows
 The vault's atom: a small sentence-case label, value, and right-aligned
@@ -216,6 +226,10 @@ revealing first.
 The rail renders as a mono filesystem tree (see "VFS interaction model"):
 directory rows with counts and g-jump key chips. Active state is a teal wash. The
 mobile tab bar mirrors the five sections and nothing else.
+
+### Tabs
+Flat underline tabs on a hairline: text with a 2px accent underline for the
+selected view — never boxed segmented controls.
 
 ### Callouts
 `note` with `--ok`, `--warn`, `--err` variants for a stated condition. Live
