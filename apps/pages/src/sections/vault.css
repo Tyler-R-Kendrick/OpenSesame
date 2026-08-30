@@ -59,7 +59,7 @@
     scroll-snap-align: start;
     padding: 0.25rem 0.7rem;
     border: 1px solid var(--line);
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius);
     background: var(--surface-2);
     color: var(--ink-2);
     font-size: 0.8125rem;
@@ -101,7 +101,7 @@
 
 .vtree__tomb {
   color: var(--accent);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .vtree__sep,
@@ -172,7 +172,7 @@
 }
 
 .vtree__row.is-cursor .vtree__name {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .vtree__row.is-cursor .vtree__dim {
@@ -198,7 +198,7 @@
 .vtree__name mark {
   background: transparent;
   color: var(--accent);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .vtree__count {
@@ -227,7 +227,7 @@
   background: var(--warn-wash);
   color: var(--warn);
   font-size: 0.5625rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.07em;
 }
 
@@ -298,7 +298,7 @@
 
 .vtree__prompt {
   color: var(--accent);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .vtree__cmd input {
@@ -422,10 +422,8 @@
 
 .detail__grouphead {
   padding: 0.7rem 0.95rem 0.55rem;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-2);
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
@@ -466,10 +464,8 @@
 }
 
 .frow__label {
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-2);
 }
 
@@ -774,7 +770,7 @@
 
 .wel__countnum {
   font-size: 1.4rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
@@ -865,7 +861,7 @@
 
 .health__statnum {
   font-size: 1.4rem;
-  font-weight: 650;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1.1;

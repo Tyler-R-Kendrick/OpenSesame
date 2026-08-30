@@ -2,28 +2,28 @@
    Password-manager canon at the Bitwarden/1Password craft bar, in OpenSesame navy + teal. */
 
 :root {
-  --canvas: #f2f5f9;
+  --canvas: #fafafa;
   --surface: #ffffff;
-  --surface-2: #f7f9fc;
-  --surface-3: #eef2f8;
-  --rail: #101a2b;
-  --rail-2: #17253a;
-  --rail-fg: #dbe6f4;
-  --rail-muted: #8ba0bb;
-  --rail-line: #24354e;
+  --surface-2: #f5f5f5;
+  --surface-3: #ededed;
+  --rail: #141414;
+  --rail-2: #1f1f1f;
+  --rail-fg: #ececec;
+  --rail-muted: #949494;
+  --rail-line: #2b2b2b;
   --rail-warn: #f0b95c;
 
-  --ink: #0e1826;
-  --ink-2: #566880;
-  --ink-3: #7e8fa6;
-  --line: #dce4ef;
-  --line-strong: #c4d1e2;
+  --ink: #171717;
+  --ink-2: #5c5c5c;
+  --ink-3: #6f6f6f;
+  --line: #e7e7e7;
+  --line-strong: #d4d4d4;
 
   --accent: #0d7268;
   --accent-hover: #0a5c54;
   --accent-ink: #ffffff;
-  --accent-wash: #e4f6f3;
-  --accent-line: #9fd8d0;
+  --accent-wash: #eaf2f0;
+  --accent-line: #bcd6d1;
 
   --ok: #0f7a51;
   --ok-wash: #e3f6ec;
@@ -39,16 +39,15 @@
   --s-3: #0f7a51;
   --s-4: #0d7268;
 
-  --radius: 10px;
-  --radius-lg: 14px;
+  --radius: 6px;
+  --radius-lg: 10px;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(14, 24, 38, 0.06), 0 1px 1px
-    rgba(14, 24, 38, 0.04);
-  --shadow: 0 6px 16px -4px rgba(14, 24, 38, 0.12), 0 2px 6px -2px
-    rgba(14, 24, 38, 0.08);
-  --shadow-lg: 0 24px 48px -12px rgba(14, 24, 38, 0.22), 0 8px 20px -8px
-    rgba(14, 24, 38, 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.08), 0 1px 4px -1px
+    rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.14), 0 4px 12px -6px
+    rgba(0, 0, 0, 0.08);
 
   --rail-w: 15.5rem;
   --list-w: 21rem;
@@ -67,27 +66,27 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --canvas: #0a121d;
-    --surface: #111d2c;
-    --surface-2: #162435;
-    --surface-3: #1c2c40;
-    --rail: #070f19;
-    --rail-2: #0f1c2b;
-    --rail-fg: #dbe6f4;
-    --rail-muted: #7d92ae;
-    --rail-line: #1b2b3f;
+    --canvas: #0f0f0f;
+    --surface: #171717;
+    --surface-2: #1d1d1d;
+    --surface-3: #242424;
+    --rail: #0a0a0a;
+    --rail-2: #171717;
+    --rail-fg: #ececec;
+    --rail-muted: #8f8f8f;
+    --rail-line: #262626;
     --rail-warn: #f0b95c;
 
-    --ink: #e7eefa;
-    --ink-2: #9db0c8;
-    --ink-3: #7488a2;
-    --line: #223349;
-    --line-strong: #2e4262;
+    --ink: #f0f0f0;
+    --ink-2: #a6a6a6;
+    --ink-3: #8c8c8c;
+    --line: #262626;
+    --line-strong: #3a3a3a;
 
     --accent: #2fb3a3;
     --accent-hover: #43c8b7;
     --accent-ink: #04231f;
-    --accent-wash: #0f2f2c;
+    --accent-wash: #102a26;
     --accent-line: #1d5c55;
 
     --ok: #35b57e;
@@ -115,27 +114,27 @@
 }
 
 :root[data-theme="dark"] {
-  --canvas: #0a121d;
-  --surface: #111d2c;
-  --surface-2: #162435;
-  --surface-3: #1c2c40;
-  --rail: #070f19;
-  --rail-2: #0f1c2b;
-  --rail-fg: #dbe6f4;
-  --rail-muted: #7d92ae;
-  --rail-line: #1b2b3f;
+  --canvas: #0f0f0f;
+  --surface: #171717;
+  --surface-2: #1d1d1d;
+  --surface-3: #242424;
+  --rail: #0a0a0a;
+  --rail-2: #171717;
+  --rail-fg: #ececec;
+  --rail-muted: #8f8f8f;
+  --rail-line: #262626;
   --rail-warn: #f0b95c;
 
-  --ink: #e7eefa;
-  --ink-2: #9db0c8;
-  --ink-3: #7488a2;
-  --line: #223349;
-  --line-strong: #2e4262;
+  --ink: #f0f0f0;
+  --ink-2: #a6a6a6;
+  --ink-3: #8c8c8c;
+  --line: #262626;
+  --line-strong: #3a3a3a;
 
   --accent: #2fb3a3;
   --accent-hover: #43c8b7;
   --accent-ink: #04231f;
-  --accent-wash: #0f2f2c;
+  --accent-wash: #102a26;
   --accent-line: #1d5c55;
 
   --ok: #35b57e;
@@ -200,7 +199,7 @@ h4 {
   margin: 0;
   letter-spacing: -0.021em;
   text-wrap: balance;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 h1 {
@@ -391,9 +390,7 @@ kbd {
 .field > label,
 .label {
   font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--ink-2);
 }
 
@@ -546,7 +543,7 @@ input[type="radio"] {
 .qr__shortcode {
   font-family: var(--mono);
   font-size: 1.125rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.08em;
 }
 
@@ -587,7 +584,7 @@ input[type="radio"] {
   gap: 0.3rem;
   padding: 0.15rem 0.5rem;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   background: var(--surface-2);
   font-size: 0.75rem;
   font-weight: 600;
@@ -659,7 +656,7 @@ input[type="radio"] {
 .rail__wordmark {
   margin: 0;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: -0.015em;
   line-height: 1.2;
 }
@@ -699,7 +696,7 @@ input[type="radio"] {
 
 .railtree__tomb {
   color: var(--accent);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .railtree__row {
@@ -727,7 +724,7 @@ input[type="radio"] {
 }
 
 .railtree__row.is-active .railtree__name {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .railtree__kids {
@@ -851,7 +848,7 @@ input[type="radio"] {
 .mark--lg {
   width: 2.75rem;
   height: 2.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 /* ——— Main region ————————————————————————————————————————— */
@@ -881,7 +878,7 @@ input[type="radio"] {
 .topbar__title {
   margin: 0;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .topbar__spacer {
@@ -1173,10 +1170,8 @@ input[type="radio"] {
 }
 
 .kv dt {
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-2);
   margin-bottom: 0.2rem;
 }
@@ -1203,10 +1198,8 @@ input[type="radio"] {
 }
 
 .table thead th {
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-2);
   background: var(--surface-2);
 }
@@ -1246,7 +1239,7 @@ input[type="radio"] {
   place-items: center;
   width: 3rem;
   height: 3rem;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   background: var(--surface-3);
   color: var(--ink-3);
 }
@@ -1463,10 +1456,8 @@ input[type="radio"] {
 .project-switcher__label {
   margin: 0 0 0.3rem;
   padding: 0 0.3rem;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-3);
 }
 
@@ -1498,7 +1489,7 @@ input[type="radio"] {
 }
 
 .project-switcher__item.is-active {
-  font-weight: 650;
+  font-weight: 600;
   color: var(--accent);
 }
 
@@ -1530,7 +1521,7 @@ input[type="radio"] {
 .project-switcher__delete.is-armed {
   padding: 0.3rem 0.45rem;
   color: var(--err);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .project-switcher__new {
@@ -1652,10 +1643,8 @@ input[type="radio"] {
 .account-switcher__label {
   margin: 0 0 0.3rem;
   padding: 0 0.3rem;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-3);
 }
 
@@ -1683,7 +1672,7 @@ input[type="radio"] {
 }
 
 .account-switcher__item.is-active {
-  font-weight: 650;
+  font-weight: 600;
   color: var(--accent);
 }
 
@@ -1700,7 +1689,7 @@ input[type="radio"] {
   padding-top: 0.45rem;
   border-top: 1px solid var(--line);
   color: var(--accent);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .account-switcher__new {
@@ -1735,7 +1724,7 @@ input[type="radio"] {
   color: var(--accent-ink);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1756,7 +1745,7 @@ input[type="radio"] {
 .account-switcher__tenant-name {
   margin: 0 0 0.35rem;
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .account-switcher__methods {
@@ -1799,9 +1788,7 @@ input[type="radio"] {
 
 .f__label {
   font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--ink-2);
 }
 
@@ -1891,7 +1878,7 @@ input[type="radio"] {
   white-space: nowrap;
   padding: 0.15rem 0.5rem;
   border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink-2);
   font-family: var(--mono);
@@ -2026,13 +2013,11 @@ input[type="radio"] {
 }
 
 .conn__req {
-  font-size: 0.625rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: var(--ink-3);
   border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   padding: 0.05rem 0.35rem;
 }
 
@@ -2217,9 +2202,7 @@ input[type="radio"] {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--accent);
 }
 
@@ -2278,8 +2261,6 @@ input[type="radio"] {
   margin: 0;
   color: var(--ink-3);
   font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .or::before,
@@ -2587,7 +2568,7 @@ input[type="radio"] {
 }
 
 .str__label {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .str__bits {

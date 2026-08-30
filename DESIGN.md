@@ -2,20 +2,20 @@
 name: OpenSesame
 description: End-to-end encrypted vault for humans, agents, websites, and developers
 colors:
-  canvas: "#f2f5f9"
+  canvas: "#fafafa"
   surface: "#ffffff"
-  surface-2: "#f7f9fc"
-  surface-3: "#eef2f8"
-  rail: "#101a2b"
-  rail-fg: "#dbe6f4"
-  ink: "#0e1826"
-  ink-2: "#566880"
-  ink-3: "#7e8fa6"
-  line: "#dce4ef"
-  line-strong: "#c4d1e2"
+  surface-2: "#f5f5f5"
+  surface-3: "#ededed"
+  rail: "#141414"
+  rail-fg: "#ececec"
+  ink: "#171717"
+  ink-2: "#5c5c5c"
+  ink-3: "#6f6f6f"
+  line: "#e7e7e7"
+  line-strong: "#d4d4d4"
   accent: "#0d7268"
   accent-ink: "#ffffff"
-  accent-wash: "#e4f6f3"
+  accent-wash: "#eaf2f0"
   ok: "#0f7a51"
   warn: "#a25a05"
   err: "#b32424"
@@ -23,12 +23,12 @@ typography:
   display:
     fontFamily: "system-ui stack (-apple-system, Segoe UI, Roboto, …)"
     fontSize: "1.4rem"
-    fontWeight: 650
+    fontWeight: 600
     letterSpacing: "-0.021em"
   headline:
     fontFamily: "system-ui stack"
     fontSize: "1.0625rem"
-    fontWeight: 650
+    fontWeight: 600
   body:
     fontFamily: "system-ui stack"
     fontSize: "15px"
@@ -36,15 +36,14 @@ typography:
     lineHeight: 1.5
   label:
     fontFamily: "system-ui stack"
-    fontSize: "0.6875rem"
+    fontSize: "0.75rem"
     fontWeight: 600
-    letterSpacing: "0.06em"
   mono:
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
     fontSize: "0.8125rem"
 rounded:
-  md: "10px"
-  lg: "14px"
+  md: "6px"
+  lg: "10px"
   pill: "999px"
 spacing:
   sm: "0.4rem"
@@ -84,12 +83,15 @@ product was built for them.
 
 The craft bar is Bitwarden and 1Password. Password-manager canon — unlock gate,
 list and detail, conceal by default, copy without revealing — is followed
-because users already know it, in OpenSesame navy and teal rather than
-competitor brand color.
+because users already know it, executed with Scandinavian restraint: a neutral
+black-and-white foundation, teal as the single accent, and nothing decorative.
 
 **Key characteristics:**
 - Master-password gate, no PIN theater, no recovery path
-- Navy rail, light canvas, teal for exactly one thing: the primary action
+- Near-black rail, neutral off-white canvas, teal for exactly one thing: the
+  primary action
+- Scandinavian restraint: zero-spread neutrals, sentence case everywhere,
+  hairline borders over shadows, 6/10px radii, quiet decoration-free chrome
 - List-and-detail spine for the vault; full-width panels for the plane-backed
   sections
 - System font stack — no webfont request, no flash, no third-party origin
@@ -104,11 +106,13 @@ Neutrals carry the interface. Teal is scarce enough to mean something.
   strongest step of the strength meter. In dark mode it lifts to #2fb3a3.
 
 ### Neutral
-- **Rail** (#101a2b): the navigation plane, dark in both themes.
-- **Canvas** (#f2f5f9): the ground everything sits on.
+All neutrals are zero-spread grays — no warm or cool casts anywhere in chrome.
+- **Rail** (#141414): the navigation plane, near-black in both themes.
+- **Canvas** (#fafafa): the ground everything sits on; panels sit on pure white.
 - **Surface** (#ffffff): panels and cards.
-- **Ink / Ink-2 / Ink-3** (#0e1826 / #566880 / #7e8fa6): primary, secondary,
-  and placeholder text.
+- **Ink / Ink-2 / Ink-3** (#171717 / #5c5c5c / #6f6f6f): the ink ladder —
+  primary, supporting, and metadata text, stepped like alpha-black on white
+  (roughly 100% / 64% / 56%). The lowest rung stays above 4.5:1 on white.
 
 ### Status
 **ok** #0f7a51, **warn** #a25a05, **err** #b32424, each with a wash for filled
@@ -135,10 +139,12 @@ identifiers, connection references, capability actions, snippets. Mono is a
 signal that a value is literal, so never use it for prose.
 
 ### Hierarchy
-- Page and detail titles ~1.4rem, weight 650, tight tracking
+- Page and detail titles ~1.4rem, weight 600, tight tracking
 - Panel headings ~1.0625rem
 - Body 15px / 1.5
-- Field labels 0.6875rem uppercase with 0.06em tracking
+- Field labels 0.75rem, weight 600, sentence case — never all-caps, never
+  tracked out; hierarchy comes from size, ink rung, and space, not from
+  shouting. Weights stop at 600.
 - Numbers that change in place use `font-variant-numeric: tabular-nums`
 
 ## Layout
@@ -183,14 +189,16 @@ toggle, a `⋯` menu on the cursor or hovered row carries the verbs, and the
 
 ## Elevation & Depth
 
-Three shadow steps, all cool-tinted. Panels take the smallest; the unlock card
-takes the largest. Rows are flat with hairline separators — depth marks
-containers, not list items.
+Hairline borders carry structure; shadows exist only where elevation
+communicates behavior (menus, popovers, the unlock card), and even there they
+are neutral and barely visible. Panels are bordered, not floated. Rows are
+flat with hairline separators.
 
 ## Shapes
 
-10px on controls and rows, 14px on panels and cards, pills for chips and
-filters.
+6px on controls, rows, chips, and badges, 10px on panels and cards. Pills are
+reserved for genuinely round mechanics — switch tracks and meter segments —
+never for buttons, chips, or containers.
 
 ## Components
 
@@ -200,11 +208,13 @@ ghost for tertiary, and a red-tinted variant for anything destructive. One
 primary per view.
 
 ### Field rows
-The vault's atom: uppercase label, value, and right-aligned actions. Secrets
-render as dots with a reveal toggle, and copy never requires revealing first.
+The vault's atom: a small sentence-case label, value, and right-aligned
+actions. Secrets render as dots with a reveal toggle, and copy never requires
+revealing first.
 
 ### Navigation
-Rail links carry an icon, a label, and a count. Active state is a teal wash. The
+The rail renders as a mono filesystem tree (see "VFS interaction model"):
+directory rows with counts and g-jump key chips. Active state is a teal wash. The
 mobile tab bar mirrors the five sections and nothing else.
 
 ### Callouts
