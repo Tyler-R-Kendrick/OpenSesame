@@ -730,5 +730,4 @@ describe("mcp-host read tool handlers", () => {
       expect(result.content[0]?.text).toContain('"target":null');
     });
   });
-
 });
