@@ -50,10 +50,7 @@ const CUSTOM_PRESET: &str = "custom";
 // —— shared response helpers (used by `certmgr_profile` too) ——————————
 
 /// Owner/admin gate. Runs before any `st.db` access, on every handler.
-pub(crate) fn require_configurator(
-    st: &AppState,
-    headers: &HeaderMap,
-) -> Result<Caller, Response> {
+pub(crate) fn require_configurator(st: &AppState, headers: &HeaderMap) -> Result<Caller, Response> {
     let who = resolve_caller(st, headers)?;
     if !who.can_configure_integrations() {
         return Err((
@@ -398,7 +395,9 @@ pub async fn create(
         Ok(value) => value,
         Err(response) => return response,
     };
-    let seed = body.preset.map_or_else(PolicyRules::default, policy::preset);
+    let seed = body
+        .preset
+        .map_or_else(PolicyRules::default, policy::preset);
     let rules = match resolve_rules(seed, body.rules) {
         Ok(rules) => rules,
         Err(response) => return response,
@@ -416,7 +415,10 @@ pub async fn create(
         description,
         preset: body
             .preset
-            .map_or(CUSTOM_PRESET, opensesame_pki_core::types::PolicyPreset::as_str)
+            .map_or(
+                CUSTOM_PRESET,
+                opensesame_pki_core::types::PolicyPreset::as_str,
+            )
             .to_string(),
         max_validity_seconds,
         rules_json,
@@ -469,7 +471,11 @@ pub async fn get(
         Ok(id) => id,
         Err(response) => return response,
     };
-    match st.db.get_certificate_policy(&organization, &policy_id).await {
+    match st
+        .db
+        .get_certificate_policy(&organization, &policy_id)
+        .await
+    {
         Ok(Some(row)) => match policy_view(&row) {
             Ok(view) => (StatusCode::OK, Json(view)).into_response(),
             Err(response) => response,
@@ -481,6 +487,10 @@ pub async fn get(
 
 /// `PATCH /api/v1/certmgr/policies/{id}` — partial update under a
 /// compare-and-swap on `version`.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one linear validate-then-write path; splitting it would hide the ordering that keeps the authz gate ahead of every read and the rules merge ahead of the write"
+)]
 pub async fn update(
     State(st): State<AppState>,
     headers: HeaderMap,
@@ -499,7 +509,11 @@ pub async fn update(
         Ok(body) => body,
         Err(response) => return response,
     };
-    let current = match st.db.get_certificate_policy(&organization, &policy_id).await {
+    let current = match st
+        .db
+        .get_certificate_policy(&organization, &policy_id)
+        .await
+    {
         Ok(Some(row)) => row,
         Ok(None) => return not_found("no such certificate policy"),
         Err(error) => return internal(error, "get certificate policy"),
@@ -576,7 +590,11 @@ pub async fn update(
     {
         tracing::error!(%error, "policy audit event append failed after update");
     }
-    match st.db.get_certificate_policy(&organization, &policy_id).await {
+    match st
+        .db
+        .get_certificate_policy(&organization, &policy_id)
+        .await
+    {
         Ok(Some(row)) => match policy_view(&row) {
             Ok(view) => (StatusCode::OK, Json(view)).into_response(),
             Err(response) => response,
@@ -602,7 +620,11 @@ pub async fn delete(
         Ok(id) => id,
         Err(response) => return response,
     };
-    match st.db.get_certificate_policy(&organization, &policy_id).await {
+    match st
+        .db
+        .get_certificate_policy(&organization, &policy_id)
+        .await
+    {
         Ok(Some(_)) => {}
         Ok(None) => return not_found("no such certificate policy"),
         Err(error) => return internal(error, "get certificate policy"),
@@ -647,7 +669,7 @@ pub async fn delete(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::app_state::{self, test_env, test_session_headers, AppState};
+    use crate::app_state::{self, test_session_headers, AppState};
     use axum::body::{to_bytes, Body};
     use axum::http::Request;
     use axum::routing::get;
@@ -719,7 +741,12 @@ pub(crate) mod tests {
     pub(crate) fn foreign_owner(state: &AppState) -> (HeaderMap, OrganizationId) {
         let organization = OrganizationId::new();
         (
-            test_session_headers(state, "prn_foreign_owner", organization, OrganizationRole::Owner),
+            test_session_headers(
+                state,
+                "prn_foreign_owner",
+                organization,
+                OrganizationRole::Owner,
+            ),
             organization,
         )
     }
@@ -752,14 +779,29 @@ pub(crate) mod tests {
                 .unwrap(),
             None => request.body(Body::empty()).unwrap(),
         };
-        let response = certmgr_router(state.clone()).oneshot(request).await.unwrap();
+        let response = certmgr_router(state.clone())
+            .oneshot(request)
+            .await
+            .unwrap();
         let status = response.status();
-        let bytes = to_bytes(response.into_body(), 4 * 1024 * 1024).await.unwrap();
-        (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+        let bytes = to_bytes(response.into_body(), 4 * 1024 * 1024)
+            .await
+            .unwrap();
+        (
+            status,
+            serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+        )
     }
 
     async fn create_policy(state: &AppState, headers: &HeaderMap, body: Value) -> Value {
-        let (status, value) = call(state, "POST", "/api/v1/certmgr/policies", headers, Some(body)).await;
+        let (status, value) = call(
+            state,
+            "POST",
+            "/api/v1/certmgr/policies",
+            headers,
+            Some(body),
+        )
+        .await;
         assert_eq!(status, StatusCode::CREATED, "{value}");
         value
     }
@@ -768,7 +810,6 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn given_each_shipped_preset_when_created_then_stored_rules_match_the_engine() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
         for preset in PolicyPreset::ALL {
@@ -782,7 +823,10 @@ pub(crate) mod tests {
             let (status, fetched) = call(
                 &state,
                 "GET",
-                &format!("/api/v1/certmgr/policies/{}", created["id"].as_str().unwrap()),
+                &format!(
+                    "/api/v1/certmgr/policies/{}",
+                    created["id"].as_str().unwrap()
+                ),
                 &headers,
                 None,
             )
@@ -800,7 +844,6 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn given_a_preset_when_rules_are_also_sent_then_the_explicit_fields_win() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
         let created = create_policy(
@@ -817,13 +860,15 @@ pub(crate) mod tests {
         // The overridden key survives...
         assert_eq!(rules.key_algorithms.allowed, vec![KeyAlgorithm::Ed25519]);
         // ...and every key the caller did not send still comes from the preset.
-        assert_eq!(rules.san.dns, policy::preset(PolicyPreset::TlsServer).san.dns);
+        assert_eq!(
+            rules.san.dns,
+            policy::preset(PolicyPreset::TlsServer).san.dns
+        );
         assert_eq!(created["preset"], json!("tls_server"));
     }
 
     #[tokio::test]
     async fn given_a_hand_written_document_when_read_back_then_it_round_trips_losslessly() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
         let rules = PolicyRules {
@@ -864,7 +909,10 @@ pub(crate) mod tests {
         let (_, fetched) = call(
             &state,
             "GET",
-            &format!("/api/v1/certmgr/policies/{}", created["id"].as_str().unwrap()),
+            &format!(
+                "/api/v1/certmgr/policies/{}",
+                created["id"].as_str().unwrap()
+            ),
             &headers,
             None,
         )
@@ -875,7 +923,6 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn given_a_policy_when_patched_then_only_the_named_fields_change() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
         let created = create_policy(
@@ -902,10 +949,14 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn given_a_list_when_read_then_only_this_organizations_policies_appear() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
-        create_policy(&state, &headers, json!({"name": "mine", "preset": "device"})).await;
+        create_policy(
+            &state,
+            &headers,
+            json!({"name": "mine", "preset": "device"}),
+        )
+        .await;
         let (foreign, _) = foreign_owner(&state);
         let (status, listed) =
             call(&state, "GET", "/api/v1/certmgr/policies", &foreign, None).await;
@@ -917,7 +968,6 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn adversarial_a_member_cannot_read_or_write_policies() {
-        let _guard = test_env::lock();
         let state = state().await;
         let member = member(&state);
         for (method, path, body) in [
@@ -942,11 +992,14 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn adversarial_a_policy_in_another_organization_is_not_found_not_forbidden() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
-        let created =
-            create_policy(&state, &headers, json!({"name": "tenant-a", "preset": "user"})).await;
+        let created = create_policy(
+            &state,
+            &headers,
+            json!({"name": "tenant-a", "preset": "user"}),
+        )
+        .await;
         let id = created["id"].as_str().unwrap().to_string();
         let (foreign, _) = foreign_owner(&state);
         for (method, body) in [
@@ -980,7 +1033,6 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn adversarial_unknown_body_fields_are_rejected() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
         let (status, body) = call(
@@ -1006,7 +1058,6 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn adversarial_an_unknown_preset_or_enum_value_is_a_client_error() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
         for body in [
@@ -1016,15 +1067,20 @@ pub(crate) mod tests {
             json!({"name": ""}),
             json!({"name": "x", "rules": ["not", "an", "object"]}),
         ] {
-            let (status, response) =
-                call(&state, "POST", "/api/v1/certmgr/policies", &headers, Some(body)).await;
+            let (status, response) = call(
+                &state,
+                "POST",
+                "/api/v1/certmgr/policies",
+                &headers,
+                Some(body),
+            )
+            .await;
             assert_eq!(status, StatusCode::BAD_REQUEST, "{response}");
         }
     }
 
     #[tokio::test]
     async fn adversarial_a_duplicate_policy_name_is_a_clean_conflict() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
         create_policy(&state, &headers, json!({"name": "twice", "preset": "user"})).await;
@@ -1041,12 +1097,14 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn adversarial_deleting_a_policy_a_profile_still_uses_is_refused() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
-        let policy =
-            create_policy(&state, &headers, json!({"name": "referenced", "preset": "tls_client"}))
-                .await;
+        let policy = create_policy(
+            &state,
+            &headers,
+            json!({"name": "referenced", "preset": "tls_client"}),
+        )
+        .await;
         let policy_id = policy["id"].as_str().unwrap().to_string();
         let (status, profile) = call(
             &state,
@@ -1105,7 +1163,6 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn chaos_oversized_deeply_nested_and_absurd_documents_degrade_cleanly() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
 
@@ -1134,7 +1191,7 @@ pub(crate) mod tests {
         assert!(status.is_client_error(), "{status}: {body}");
 
         // A list that fits the body limit but exceeds the per-rule cap.
-        let over_cap: Vec<String> = (0..MAX_RULE_VALUES + 1).map(|i| format!("d{i}")).collect();
+        let over_cap: Vec<String> = (0..=MAX_RULE_VALUES).map(|i| format!("d{i}")).collect();
         let (status, body) = call(
             &state,
             "POST",
@@ -1179,25 +1236,29 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn chaos_concurrent_patches_surface_one_winner_and_one_clean_conflict() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
-        let created =
-            create_policy(&state, &headers, json!({"name": "raced", "preset": "device"})).await;
+        let created = create_policy(
+            &state,
+            &headers,
+            json!({"name": "raced", "preset": "device"}),
+        )
+        .await;
         let id = created["id"].as_str().unwrap().to_string();
 
         // Both writers hold version 1; the compare-and-swap admits exactly one.
+        let path = format!("/api/v1/certmgr/policies/{id}");
         let first = call(
             &state,
             "PATCH",
-            &format!("/api/v1/certmgr/policies/{id}"),
+            &path,
             &headers,
             Some(json!({"version": 1, "description": "writer-a"})),
         );
         let second = call(
             &state,
             "PATCH",
-            &format!("/api/v1/certmgr/policies/{id}"),
+            &path,
             &headers,
             Some(json!({"version": 1, "description": "writer-b"})),
         );
@@ -1236,8 +1297,11 @@ pub(crate) mod tests {
     // —— snapshot (insta) ————————————————————————————————————————————
 
     #[tokio::test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the value of this test is the full inline snapshot of the preset-seeded rules document"
+    )]
     async fn snapshot_policy_create_get_and_list_wire_shapes_are_pinned() {
-        let _guard = test_env::lock();
         let state = state().await;
         let headers = owner(&state);
         let created = create_policy(
@@ -1360,6 +1424,7 @@ pub(crate) mod tests {
               }
             }
           },
+          "updated_at": "[timestamp]",
           "version": 1
         }
         "###);
@@ -1367,12 +1432,18 @@ pub(crate) mod tests {
         let (_, fetched) = call(
             &state,
             "GET",
-            &format!("/api/v1/certmgr/policies/{}", created["id"].as_str().unwrap()),
+            &format!(
+                "/api/v1/certmgr/policies/{}",
+                created["id"].as_str().unwrap()
+            ),
             &headers,
             None,
         )
         .await;
-        assert_eq!(fetched, created, "GET must project exactly what POST returned");
+        assert_eq!(
+            fetched, created,
+            "GET must project exactly what POST returned"
+        );
 
         let (_, listed) = call(&state, "GET", "/api/v1/certmgr/policies", &headers, None).await;
         insta::assert_json_snapshot!(listed, {
@@ -1401,11 +1472,16 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn snapshot_policy_error_bodies_are_pinned() {
-        let _guard = test_env::lock();
         let state = state().await;
         let member_headers = member(&state);
-        let (_, forbidden) =
-            call(&state, "GET", "/api/v1/certmgr/policies", &member_headers, None).await;
+        let (_, forbidden) = call(
+            &state,
+            "GET",
+            "/api/v1/certmgr/policies",
+            &member_headers,
+            None,
+        )
+        .await;
         insta::assert_json_snapshot!(forbidden, @r###"
         {
           "error": "forbidden",
@@ -1513,7 +1589,6 @@ pub(crate) mod tests {
     #[test]
     fn property_any_rules_document_survives_create_then_get_unchanged() {
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let _guard = test_env::lock();
         let (state, headers) = runtime.block_on(async {
             let state = state().await;
             let headers = owner(&state);
@@ -1553,7 +1628,6 @@ pub(crate) mod tests {
     #[test]
     fn property_no_request_body_whatsoever_produces_a_server_error() {
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        let _guard = test_env::lock();
         let (state, headers) = runtime.block_on(async {
             let state = state().await;
             let headers = owner(&state);

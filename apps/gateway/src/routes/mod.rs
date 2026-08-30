@@ -3,6 +3,7 @@ mod admin;
 mod agents;
 mod attachments;
 mod backup;
+pub(crate) mod certmgr_ca;
 mod certs;
 mod changelog;
 mod connections;

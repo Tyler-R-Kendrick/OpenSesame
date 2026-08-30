@@ -1,0 +1,8 @@
+---
+source: apps/gateway/src/routes/certmgr_ca.rs
+expression: mirrors
+---
+{
+  "error": "invalid_crl_mirror",
+  "hint": "each URL must be an ASCII http:// or https:// URL of at most 512 characters"
+}

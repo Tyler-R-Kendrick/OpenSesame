@@ -1,0 +1,8 @@
+---
+source: apps/gateway/src/routes/certmgr_ca.rs
+expression: missing
+---
+{
+  "error": "not_found",
+  "hint": "no certificate authority with that id in this organization"
+}

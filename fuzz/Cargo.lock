@@ -798,18 +798,6 @@ checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
 name = "cms"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b77c319abfd5219629c45c34c89ba945ed3c5e49fcde9d16b6c3885f118a730"
-dependencies = [
- "const-oid 0.9.6",
- "der 0.7.10",
- "spki 0.7.3",
- "x509-cert 0.2.5",
-]
-
-[[package]]
-name = "cms"
 version = "0.3.0-pre.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "758d5272932ff167e96ec9641a04d96ab1901cccc5ea9f47c15b4cbaa6f9ea53"
@@ -2897,6 +2885,7 @@ dependencies = [
  "opensesame-connector-host",
  "opensesame-domain",
  "opensesame-host-core",
+ "opensesame-pki-core",
  "opensesame-proof",
  "opensesame-protocol-aauth",
  "opensesame-provider-openbao",
@@ -2989,8 +2978,6 @@ name = "opensesame-pki-core"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "cms 0.2.3",
- "const-oid 0.9.6",
  "der 0.7.10",
  "ed25519-dalek",
  "hex",
@@ -3241,7 +3228,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02686a966a6d270eb3e87178c70323a30a62741e59b37e542ff029fb774afa47"
 dependencies = [
  "cbc 0.2.1",
- "cms 0.3.0-pre.1",
+ "cms",
  "der 0.8.1",
  "des",
  "hex",
@@ -3428,7 +3415,7 @@ version = "0.2.0-pre.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8059bd79345d1d1c125656025814704bab5cdd204b1cefd5fab59b0fdd7476d2"
 dependencies = [
- "cms 0.3.0-pre.1",
+ "cms",
  "const-oid 0.10.2",
  "der 0.8.1",
  "digest 0.11.3",
@@ -5655,8 +5642,6 @@ checksum = "1301e935010a701ae5f8655edc0ad17c44bad3ac5ce8c39185f75453b720ae94"
 dependencies = [
  "const-oid 0.9.6",
  "der 0.7.10",
- "sha1 0.10.7",
- "signature",
  "spki 0.7.3",
  "tls_codec",
 ]
