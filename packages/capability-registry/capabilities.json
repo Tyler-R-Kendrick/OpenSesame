@@ -390,9 +390,19 @@
     "surfaces": {
       "cli": null,
       "pwa": "route:/access",
-      "mcp_host": "agent_identity_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
+        "adr": "0065-agent-surface-parity.md"
+      }
     }
   },
   {

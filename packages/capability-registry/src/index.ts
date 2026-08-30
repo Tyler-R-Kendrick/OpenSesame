@@ -443,10 +443,14 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "route:/access",
-      mcp_host: "agent_identity_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_access_read",
     },
+    // The gateway only exposes POST /api/v1/agent-identities (claim start);
+    // there is no list/read route yet, so an MCP tool here could never
+    // succeed. Map it once the gateway grows the read endpoint.
+    excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
   },
 
   // ── Host plane: providers, connections, integrations ──────────────────
