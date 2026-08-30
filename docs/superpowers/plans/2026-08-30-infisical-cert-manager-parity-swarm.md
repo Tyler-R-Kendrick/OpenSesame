@@ -289,6 +289,36 @@ ALTER TABLE issued_certificates ADD COLUMN revoked_at TEXT;
 -- status gains values: existing rows keep theirs; new code writes one of
 -- 'active','renewed','revoked','expired','pending' (validated in Rust, not by CHECK, to
 -- avoid rewriting the applied 0013 constraint).
+-- BLOCKER FOUND IN IMPLEMENTATION, and its resolution — migration 0017.
+-- The applied 0013 schema declares `issued_certificates.authority_id` and
+-- `.request_id` as NOT NULL with composite foreign keys to
+-- `certificate_authorities` and `certificate_issuance_requests`. That encodes
+-- an assumption this feature breaks: that every row was minted by a local CA
+-- in response to an issuance request. Imported certificates (§5.7, PEM and
+-- PKCS#12) and discovered ones (§5.11) have neither. `source` already
+-- distinguishes 'issued' | 'imported' | 'discovered', so the constraint and
+-- the column now disagree.
+--
+-- Rejected: synthesising a per-org "external" CA and placeholder request rows.
+-- That puts fabricated authorities in `GET /api/v1/certmgr/cas` and makes the
+-- CA list lie about what can issue. Also rejected: a separate
+-- `imported_certificates` table, which turns every inventory list, filter and
+-- dashboard rollup into a UNION and splits the one collection operators think
+-- of as "the inventory".
+--
+-- Resolution: a NEW migration `0017_certificate_inventory_sources.sql` (the
+-- 0016 file is applied and stays untouched — migrations are append-only)
+-- performs the standard SQLite 12-step table rebuild of
+-- `issued_certificates`, making both columns nullable and adding a table-level
+-- CHECK that keeps them honest per source:
+--     CHECK ((source = 'issued'  AND authority_id IS NOT NULL
+--                                AND request_id   IS NOT NULL)
+--         OR (source IN ('imported','discovered')))
+-- so a locally issued row still cannot lose its provenance, while an imported
+-- or discovered one is not forced to invent it. The rebuild must recreate every
+-- index, trigger and foreign key from 0013 and 0016, and be covered by a test
+-- asserting pre-existing rows survive with their values intact.
+--
 -- CORRECTION (was: "SEALED(sealed_key) columns for managed-key custody are added
 -- here as well"). Do NOT add sealed private-key columns to issued_certificates.
 -- ADR 0052 guarantees that table holds public material only: a private key
