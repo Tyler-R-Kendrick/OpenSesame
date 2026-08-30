@@ -1,0 +1,104 @@
+---
+source: crates/pki-core/src/types.rs
+expression: rules
+---
+{
+  "subject": {
+    "cn": {
+      "mode": "require",
+      "values": [
+        "*.example.com"
+      ]
+    },
+    "o": {
+      "mode": "unset",
+      "values": []
+    },
+    "ou": {
+      "mode": "unset",
+      "values": []
+    },
+    "c": {
+      "mode": "unset",
+      "values": []
+    },
+    "st": {
+      "mode": "unset",
+      "values": []
+    },
+    "l": {
+      "mode": "unset",
+      "values": []
+    },
+    "dc": {
+      "mode": "allow",
+      "components": [
+        "*",
+        "example",
+        "com"
+      ]
+    }
+  },
+  "san": {
+    "dns": {
+      "mode": "allow",
+      "values": [
+        "*.example.com"
+      ]
+    },
+    "ip": {
+      "mode": "deny",
+      "values": [
+        "0.0.0.0/0"
+      ]
+    },
+    "email": {
+      "mode": "unset",
+      "values": []
+    },
+    "uri": {
+      "mode": "unset",
+      "values": []
+    },
+    "upn": {
+      "mode": "unset",
+      "values": []
+    }
+  },
+  "signature_algorithms": {
+    "mode": "allow",
+    "allowed": [
+      "sha256-ecdsa"
+    ],
+    "required": []
+  },
+  "key_algorithms": {
+    "mode": "allow",
+    "allowed": [
+      "ecdsa-p256"
+    ],
+    "required": []
+  },
+  "key_usages": {
+    "mode": "require",
+    "allowed": [
+      "digital_signature",
+      "key_encipherment"
+    ],
+    "required": [
+      "digital_signature"
+    ]
+  },
+  "ext_key_usages": {
+    "mode": "require",
+    "allowed": [
+      "server_auth"
+    ],
+    "required": [
+      "server_auth"
+    ]
+  },
+  "basic_constraints": {
+    "ca": "forbid"
+  }
+}

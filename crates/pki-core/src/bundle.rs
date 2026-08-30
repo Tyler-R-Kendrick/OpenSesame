@@ -92,8 +92,11 @@ pub fn normalize_chain(chain_pem: &str) -> Result<Vec<String>, PkiError> {
 /// Returns [`PkiError::InvalidPem`] or [`PkiError::InvalidDer`] for
 /// unparseable input and [`PkiError::KeyMismatch`] when the public keys differ.
 pub fn verify_key_match(certificate_pem: &str, key: &KeyPair) -> Result<(), PkiError> {
-    let blocks =
-        x509::parse_pem_blocks(certificate_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)?;
+    let blocks = x509::parse_pem_blocks(
+        certificate_pem,
+        x509::LABEL_CERTIFICATE,
+        x509::MAX_CHAIN_CERTS,
+    )?;
     let der = blocks.first().ok_or(PkiError::InvalidPem)?;
     let (_, certificate) = parse_x509_certificate(der).map_err(|_| PkiError::InvalidDer)?;
     if certificate.public_key().raw == key.public_key_der() {
@@ -112,8 +115,11 @@ pub fn verify_key_match(certificate_pem: &str, key: &KeyPair) -> Result<(), PkiE
 /// does not model, and [`PkiError::NamesMismatch`] when the sets differ or the
 /// certificate carries no SAN extension while names were expected.
 pub fn verify_sans(certificate_pem: &str, expected: &[SanEntry]) -> Result<(), PkiError> {
-    let blocks =
-        x509::parse_pem_blocks(certificate_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)?;
+    let blocks = x509::parse_pem_blocks(
+        certificate_pem,
+        x509::LABEL_CERTIFICATE,
+        x509::MAX_CHAIN_CERTS,
+    )?;
     let der = blocks.first().ok_or(PkiError::InvalidPem)?;
     let (_, certificate) = parse_x509_certificate(der).map_err(|_| PkiError::InvalidDer)?;
     let extension = certificate
@@ -144,8 +150,7 @@ pub fn verify_sans(certificate_pem: &str, expected: &[SanEntry]) -> Result<(), P
 /// # Errors
 /// Returns [`PkiError::InvalidPem`] when the document cannot be decoded.
 pub fn fingerprint_sha256(cert_pem: &str) -> Result<String, PkiError> {
-    let blocks =
-        x509::parse_pem_blocks(cert_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)?;
+    let blocks = x509::parse_pem_blocks(cert_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)?;
     let der = blocks.first().ok_or(PkiError::InvalidPem)?;
     Ok(x509::fingerprint_of_der(der))
 }
@@ -195,10 +200,7 @@ pub fn build_pkcs12(
             certificates,
         )),
     );
-    store
-        .writer(password)
-        .write()
-        .map_err(|_| PkiError::Pkcs12)
+    store.writer(password).write().map_err(|_| PkiError::Pkcs12)
 }
 
 /// Enumerates every entry in a PKCS#12 keystore.
@@ -491,9 +493,14 @@ mod tests {
     #[test]
     fn entry_debug_never_renders_private_material() {
         let (root, issued, key) = hierarchy();
-        let der =
-            build_pkcs12(&issued.certificate_pem, &root.certificate_pem, &key, "pw", "leaf")
-                .unwrap();
+        let der = build_pkcs12(
+            &issued.certificate_pem,
+            &root.certificate_pem,
+            &key,
+            "pw",
+            "leaf",
+        )
+        .unwrap();
         let entries = parse_pkcs12(&der, "pw").unwrap();
         let rendered = format!("{:?}", entries[0]);
         assert!(rendered.contains("<redacted>"));
@@ -507,7 +514,9 @@ mod tests {
                 .unwrap_err(),
             PkiError::InvalidPem
         );
-        assert!(pkcs8_pem_to_der("-----BEGIN PRIVATE KEY-----\n!!\n-----END PRIVATE KEY-----\n")
-            .is_err());
+        assert!(
+            pkcs8_pem_to_der("-----BEGIN PRIVATE KEY-----\n!!\n-----END PRIVATE KEY-----\n")
+                .is_err()
+        );
     }
 }

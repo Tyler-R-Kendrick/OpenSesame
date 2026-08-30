@@ -16,3 +16,8 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 tokio = { workspace = true }
+
+[dev-dependencies]
+insta = { workspace = true, features = ["redactions", "json"] }
+proptest = { workspace = true }
+futures = { workspace = true }

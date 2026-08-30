@@ -12,7 +12,7 @@ path = "src/lib.rs"
 
 [dependencies]
 rcgen = { version = "0.13.2", features = ["x509-parser", "pem"] }
-x509-parser = "0.16.0"
+x509-parser = { version = "0.16.0", features = ["verify"] }
 x509-cert = { version = "0.2.5", features = ["pem", "builder"] }
 cms = "0.2.3"
 der = { version = "0.7.10", features = ["oid", "derive", "alloc"] }
@@ -26,13 +26,15 @@ p384 = { version = "0.13.1", features = ["ecdsa", "pkcs8"] }
 ed25519-dalek = { workspace = true, features = ["pkcs8"] }
 signature = "2.2.0"
 sha2 = { workspace = true }
-time = { version = "0.3.41", default-features = false, features = ["std"] }
+time = { version = "0.3.41", default-features = false, features = ["std", "serde", "serde-well-known", "parsing", "formatting"] }
 zeroize = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 hex = { workspace = true }
+base64 = { workspace = true }
 rand = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
+insta = { workspace = true, features = ["redactions", "json"] }
 serde_json = { workspace = true }

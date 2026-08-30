@@ -82,10 +82,7 @@ impl SealedKeySigner {
     /// Returns [`PkiError::UnsupportedAlgorithm`] when `algorithm` cannot be
     /// produced by a key of this kind, or [`PkiError::KeyGeneration`] when the
     /// key's PKCS#8 encoding cannot be re-parsed.
-    pub fn with_algorithm(
-        key: &KeyPair,
-        algorithm: SignatureAlgorithm,
-    ) -> Result<Self, PkiError> {
+    pub fn with_algorithm(key: &KeyPair, algorithm: SignatureAlgorithm) -> Result<Self, PkiError> {
         if !key.algorithm().supports(algorithm) {
             return Err(PkiError::UnsupportedAlgorithm);
         }

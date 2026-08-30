@@ -170,7 +170,8 @@ pub(crate) fn authority_info_access(ocsp_urls: &[String]) -> Result<CustomExtens
         body.extend_from_slice(&x509::write_tlv(0x86, url.as_bytes()));
         descriptions.extend_from_slice(&x509::write_tlv(0x30, &body));
     }
-    let mut extension = CustomExtension::from_oid_content(&AIA_OID, x509::write_tlv(0x30, &descriptions));
+    let mut extension =
+        CustomExtension::from_oid_content(&AIA_OID, x509::write_tlv(0x30, &descriptions));
     extension.set_criticality(false);
     Ok(extension)
 }

@@ -98,25 +98,32 @@ const CA_KEY_USAGES: [KeyUsagePurpose; 3] = [
 ];
 
 /// Builds the shared certificate parameters for an authority.
-fn ca_params(params: &CaParams) -> Result<CertificateParams, PkiError> {
+///
+/// `for_csr` drops the fields a PKCS#10 request cannot carry — serial number,
+/// basic constraints and CRL distribution points. Those are the signing CA's
+/// decision anyway: [`sign_intermediate`] takes them from its own `params`,
+/// never from the request.
+fn ca_params(params: &CaParams, for_csr: bool) -> Result<CertificateParams, PkiError> {
     if params.not_before >= params.not_after {
         return Err(PkiError::InvalidValidity);
     }
     check_distribution_urls(&params.crl_distribution_points)?;
     let mut built = CertificateParams::default();
     apply_subject(&mut built, &params.subject)?;
-    built.is_ca = IsCa::Ca(params.path_len.map_or(
-        BasicConstraints::Unconstrained,
-        BasicConstraints::Constrained,
-    ));
     built.key_usages = CA_KEY_USAGES.to_vec();
     built.not_before = params.not_before;
     built.not_after = params.not_after;
     built.subject_alt_names = Vec::new();
-    if !params.crl_distribution_points.is_empty() {
-        built.crl_distribution_points = vec![CrlDistributionPoint {
-            uris: params.crl_distribution_points.clone(),
-        }];
+    if !for_csr {
+        built.is_ca = IsCa::Ca(params.path_len.map_or(
+            BasicConstraints::Unconstrained,
+            BasicConstraints::Constrained,
+        ));
+        if !params.crl_distribution_points.is_empty() {
+            built.crl_distribution_points = vec![CrlDistributionPoint {
+                uris: params.crl_distribution_points.clone(),
+            }];
+        }
     }
     Ok(built)
 }
@@ -138,7 +145,7 @@ fn random_serial() -> SerialNumber {
 /// [`PkiError::KeyGeneration`] when the key cannot be produced, and
 /// [`PkiError::CertificateBuild`] when the builder refuses the parameters.
 pub fn generate_root(params: &CaParams) -> Result<GeneratedCa, PkiError> {
-    let mut built = ca_params(params)?;
+    let mut built = ca_params(params, false)?;
     let serial = random_serial();
     let serial_hex = x509::serial_hex(&serial.to_bytes());
     built.serial_number = Some(serial);
@@ -163,7 +170,7 @@ pub fn generate_root(params: &CaParams) -> Result<GeneratedCa, PkiError> {
 /// [`PkiError::KeyGeneration`] when the key cannot be produced, and
 /// [`PkiError::CertificateBuild`] when the request cannot be serialized.
 pub fn generate_intermediate_csr(params: &CaParams) -> Result<(String, KeyPair), PkiError> {
-    let built = ca_params(params)?;
+    let built = ca_params(params, true)?;
     let key = keys::generate(params.key_algorithm)?;
     let csr_pem = built
         .serialize_request(key.rcgen())
@@ -203,7 +210,7 @@ pub fn sign_intermediate(
     let public_key = rcgen::SubjectPublicKeyInfo::from_der(&request.public_key_der)
         .map_err(|_| PkiError::CsrParse)?;
 
-    let mut built = ca_params(params)?;
+    let mut built = ca_params(params, false)?;
     built.serial_number = Some(random_serial());
     built.use_authority_key_identifier_extension = true;
 
@@ -254,8 +261,7 @@ fn check_path_len_budget(parent: Option<u8>, child: Option<u8>) -> Result<(), Pk
 pub fn validate_ca(cert_pem: &str, key: Option<&KeyPair>) -> Result<CaFacts, PkiError> {
     let blocks = x509::parse_pem_blocks(cert_pem, x509::LABEL_CERTIFICATE, 1)?;
     let der = blocks.first().ok_or(PkiError::InvalidPem)?;
-    let (rest, certificate) =
-        parse_x509_certificate(der).map_err(|_| PkiError::InvalidDer)?;
+    let (rest, certificate) = parse_x509_certificate(der).map_err(|_| PkiError::InvalidDer)?;
     if !rest.is_empty() {
         return Err(PkiError::InvalidDer);
     }
@@ -279,8 +285,8 @@ pub fn validate_ca(cert_pem: &str, key: Option<&KeyPair>) -> Result<CaFacts, Pki
         }
     }
 
-    let is_self_signed = certificate.subject() == certificate.issuer()
-        && certificate.verify_signature(None).is_ok();
+    let is_self_signed =
+        certificate.subject() == certificate.issuer() && certificate.verify_signature(None).is_ok();
     if certificate.subject() == certificate.issuer() && !is_self_signed {
         return Err(PkiError::ChainInvalid);
     }

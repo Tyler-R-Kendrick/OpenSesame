@@ -17,9 +17,9 @@ use x509_parser::extensions::GeneralName;
 use x509_parser::oid_registry::{
     OID_DOMAIN_COMPONENT, OID_KEY_TYPE_EC_PUBLIC_KEY, OID_PKCS1_RSAENCRYPTION,
     OID_PKCS1_SHA256WITHRSA, OID_PKCS1_SHA384WITHRSA, OID_PKCS1_SHA512WITHRSA,
-    OID_SIG_ECDSA_WITH_SHA256, OID_SIG_ECDSA_WITH_SHA384, OID_SIG_ED25519,
-    OID_X509_COMMON_NAME, OID_X509_COUNTRY_NAME, OID_X509_LOCALITY_NAME,
-    OID_X509_ORGANIZATIONAL_UNIT, OID_X509_ORGANIZATION_NAME, OID_X509_STATE_OR_PROVINCE_NAME,
+    OID_SIG_ECDSA_WITH_SHA256, OID_SIG_ECDSA_WITH_SHA384, OID_SIG_ED25519, OID_X509_COMMON_NAME,
+    OID_X509_COUNTRY_NAME, OID_X509_LOCALITY_NAME, OID_X509_ORGANIZATIONAL_UNIT,
+    OID_X509_ORGANIZATION_NAME, OID_X509_STATE_OR_PROVINCE_NAME,
 };
 use x509_parser::pem::parse_x509_pem;
 use x509_parser::prelude::{SubjectPublicKeyInfo, X509Name};
@@ -407,14 +407,10 @@ mod tests {
                 .map(|index| u8::try_from(index).unwrap_or_default())
                 .collect();
             let pem = pem_encode(LABEL_CERTIFICATE, &der);
-            if length == 0 {
-                assert!(parse_pem_blocks(&pem, LABEL_CERTIFICATE, 1).is_err());
-            } else {
-                assert_eq!(
-                    parse_pem_blocks(&pem, LABEL_CERTIFICATE, 1).unwrap(),
-                    vec![der]
-                );
-            }
+            assert_eq!(
+                parse_pem_blocks(&pem, LABEL_CERTIFICATE, 1).unwrap(),
+                vec![der]
+            );
         }
     }
 

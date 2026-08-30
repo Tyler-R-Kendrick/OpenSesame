@@ -11,7 +11,7 @@
 //! or emits private-key bytes; [`generate_csr`] borrows a [`KeyPair`] purely
 //! to sign the request.
 
-use rcgen::{CertificateParams, CertificateSigningRequestParams};
+use rcgen::CertificateParams;
 use x509_parser::certification_request::X509CertificationRequest;
 use x509_parser::extensions::ParsedExtension;
 use x509_parser::prelude::FromDer as _;
@@ -61,11 +61,9 @@ pub fn parse_csr(csr_pem: &str) -> Result<CsrFacts, PkiError> {
 
     let info = &request.certification_request_info;
     let key_algorithm = x509::key_algorithm_from_spki(&info.subject_pki)?;
-    let signature_algorithm = x509::signature_algorithm_from_oid(&request.signature_algorithm.algorithm)?;
-    let signature = request
-        .signature_value
-        .as_ref()
-        .to_vec();
+    let signature_algorithm =
+        x509::signature_algorithm_from_oid(&request.signature_algorithm.algorithm)?;
+    let signature = request.signature_value.as_ref().to_vec();
     signer::verify(
         signature_algorithm,
         info.subject_pki.raw,
@@ -137,16 +135,6 @@ pub fn generate_csr(
         .map_err(|_| PkiError::CertificateBuild)
 }
 
-/// Re-parses a PEM CSR into `rcgen` parameters, for the issuance path.
-///
-/// # Errors
-/// Returns [`PkiError::CsrParse`] when `rcgen` cannot interpret the request.
-pub(crate) fn rcgen_csr(csr_pem: &str) -> Result<CertificateSigningRequestParams, PkiError> {
-    // Re-validated by `parse_csr` on the caller's side; this is the builder's
-    // own view of the same bytes.
-    CertificateSigningRequestParams::from_pem(csr_pem).map_err(|_| PkiError::CsrParse)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,7 +148,7 @@ mod tests {
             c: Some("US".into()),
             st: Some("WA".into()),
             l: Some("Seattle".into()),
-            dc: vec!["example".into(), "com".into()],
+            dc: vec!["example".into()],
         }
     }
 

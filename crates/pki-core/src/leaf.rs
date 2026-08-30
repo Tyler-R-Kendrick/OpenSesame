@@ -25,7 +25,9 @@ use crate::params::{
     apply_subject, authority_info_access, check_distribution_urls, ext_key_usage_to_rcgen,
     key_usage_to_rcgen, san_to_rcgen,
 };
-use crate::types::{BasicConstraints, ExtendedKeyUsage, KeyAlgorithm, KeyUsage, SanEntry, SubjectDn};
+use crate::types::{
+    BasicConstraints, ExtendedKeyUsage, KeyAlgorithm, KeyUsage, SanEntry, SubjectDn,
+};
 use crate::x509;
 
 /// Everything an issuance decides about the certificate it is about to sign.
@@ -131,7 +133,10 @@ fn leaf_params(params: &LeafParams) -> Result<CertificateParams, PkiError> {
         .map(ext_key_usage_to_rcgen)
         .collect();
     built.is_ca = match params.basic_constraints {
-        Some(BasicConstraints { ca: true, max_path_len }) => IsCa::Ca(max_path_len.map_or(
+        Some(BasicConstraints {
+            ca: true,
+            max_path_len,
+        }) => IsCa::Ca(max_path_len.map_or(
             rcgen::BasicConstraints::Unconstrained,
             rcgen::BasicConstraints::Constrained,
         )),
@@ -309,9 +314,12 @@ mod tests {
         ] {
             let root = root(algorithm);
             let subject_key = keys::generate(algorithm).unwrap();
-            let request =
-                csr::generate_csr(&SubjectDn::common_name("leaf.example.com"), &[], &subject_key)
-                    .unwrap();
+            let request = csr::generate_csr(
+                &SubjectDn::common_name("leaf.example.com"),
+                &[],
+                &subject_key,
+            )
+            .unwrap();
             let leaf =
                 issue_leaf_from_csr(&root.certificate_pem, &root.key, &request, &params()).unwrap();
             let chain = format!("{}{}", leaf.certificate_pem, leaf.chain_pem);

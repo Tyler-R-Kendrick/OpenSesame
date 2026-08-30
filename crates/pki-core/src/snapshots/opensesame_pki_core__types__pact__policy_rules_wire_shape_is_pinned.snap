@@ -1,0 +1,81 @@
+---
+source: crates/pki-core/src/types.rs
+expression: "PolicyRules::default()"
+---
+{
+  "subject": {
+    "cn": {
+      "mode": "unset",
+      "values": []
+    },
+    "o": {
+      "mode": "unset",
+      "values": []
+    },
+    "ou": {
+      "mode": "unset",
+      "values": []
+    },
+    "c": {
+      "mode": "unset",
+      "values": []
+    },
+    "st": {
+      "mode": "unset",
+      "values": []
+    },
+    "l": {
+      "mode": "unset",
+      "values": []
+    },
+    "dc": {
+      "mode": "unset",
+      "components": []
+    }
+  },
+  "san": {
+    "dns": {
+      "mode": "unset",
+      "values": []
+    },
+    "ip": {
+      "mode": "unset",
+      "values": []
+    },
+    "email": {
+      "mode": "unset",
+      "values": []
+    },
+    "uri": {
+      "mode": "unset",
+      "values": []
+    },
+    "upn": {
+      "mode": "unset",
+      "values": []
+    }
+  },
+  "signature_algorithms": {
+    "mode": "unset",
+    "allowed": [],
+    "required": []
+  },
+  "key_algorithms": {
+    "mode": "unset",
+    "allowed": [],
+    "required": []
+  },
+  "key_usages": {
+    "mode": "unset",
+    "allowed": [],
+    "required": []
+  },
+  "ext_key_usages": {
+    "mode": "unset",
+    "allowed": [],
+    "required": []
+  },
+  "basic_constraints": {
+    "ca": "allow"
+  }
+}

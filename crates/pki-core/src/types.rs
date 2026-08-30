@@ -506,6 +506,7 @@ pub struct SanRules {
 /// A three-state constraint over a set or scalar of enum values.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(bound(serialize = "T: Serialize", deserialize = "T: Deserialize<'de>"))]
 pub struct Constraint<T> {
     /// How `allowed` and `required` are interpreted.
     #[serde(default)]
@@ -639,7 +640,10 @@ mod tests {
             assert_eq!(value.to_string(), value.as_str());
         }
         for value in SignatureAlgorithm::ALL {
-            assert_eq!(SignatureAlgorithm::from_str(value.as_str()).unwrap(), *value);
+            assert_eq!(
+                SignatureAlgorithm::from_str(value.as_str()).unwrap(),
+                *value
+            );
         }
         for value in KeyUsage::ALL {
             assert_eq!(KeyUsage::from_str(value.as_str()).unwrap(), *value);
@@ -751,7 +755,13 @@ mod pact {
                 .iter()
                 .map(|value| value.as_str())
                 .collect::<Vec<_>>(),
-            ["rsa-2048", "rsa-4096", "ecdsa-p256", "ecdsa-p384", "ed25519"]
+            [
+                "rsa-2048",
+                "rsa-4096",
+                "ecdsa-p256",
+                "ecdsa-p384",
+                "ed25519"
+            ]
         );
         assert_eq!(
             serde_json::to_string(&KeyAlgorithm::EcdsaP256).unwrap(),

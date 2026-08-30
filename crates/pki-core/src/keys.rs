@@ -12,6 +12,7 @@ use rcgen::{
     SignatureAlgorithm as RcgenSignatureAlgorithm, PKCS_ECDSA_P256_SHA256, PKCS_ECDSA_P384_SHA384,
     PKCS_ED25519, PKCS_RSA_SHA256,
 };
+
 use rsa::pkcs8::{EncodePrivateKey, LineEnding};
 use zeroize::Zeroizing;
 
@@ -62,11 +63,6 @@ impl KeyPair {
     pub(crate) const fn rcgen(&self) -> &rcgen::KeyPair {
         &self.inner
     }
-
-    /// The `rcgen` signature algorithm this key signs certificates with.
-    pub(crate) const fn rcgen_signature_algorithm(&self) -> &'static RcgenSignatureAlgorithm {
-        rcgen_algorithm(self.algorithm)
-    }
 }
 
 /// The `rcgen` signature algorithm used for a key of `algorithm`.
@@ -101,8 +97,7 @@ pub fn generate(algorithm: KeyAlgorithm) -> Result<KeyPair, PkiError> {
 /// Generates an RSA key of `bits` and hands it to `rcgen` as PKCS#8.
 fn generate_rsa(bits: usize) -> Result<rcgen::KeyPair, PkiError> {
     let mut rng = rand::thread_rng();
-    let private =
-        rsa::RsaPrivateKey::new(&mut rng, bits).map_err(|_| PkiError::KeyGeneration)?;
+    let private = rsa::RsaPrivateKey::new(&mut rng, bits).map_err(|_| PkiError::KeyGeneration)?;
     let pem = private
         .to_pkcs8_pem(LineEnding::LF)
         .map_err(|_| PkiError::KeyGeneration)?;
@@ -160,7 +155,10 @@ mod tests {
     fn debug_never_renders_private_material() {
         let key = generate(KeyAlgorithm::Ed25519).unwrap();
         let rendered = format!("{key:?}");
-        assert_eq!(rendered, "KeyPair { algorithm: Ed25519, private: \"<redacted>\" }");
+        assert_eq!(
+            rendered,
+            "KeyPair { algorithm: Ed25519, private: \"<redacted>\" }"
+        );
         let pem = key.private_key_pkcs8_pem();
         let body: String = pem
             .lines()
