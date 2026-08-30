@@ -140,7 +140,9 @@ describe("agent-surface parity rules", () => {
         expect(cli).toMatch(/^opensesame(-id)? [a-z]/);
       }
       if (pwa !== null) {
-        expect(pwa).toMatch(/^(lib\/[\w/.-]+\.ts:\w+|route:\/[\w-]*|pwa-app:[\w-]+)$/);
+        expect(pwa).toMatch(
+          /^(lib\/[\w/.-]+\.ts:\w+|route:\/[\w-]*|pwa-app:[\w-]+)$/,
+        );
       }
     }
   });
