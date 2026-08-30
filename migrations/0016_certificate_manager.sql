@@ -61,22 +61,15 @@ ALTER TABLE issued_certificates ADD COLUMN revoked_at TEXT;
 -- NOTE: the 0013 status column keeps its applied CHECK. New status values
 -- ('active','renewed','revoked','expired','pending') are validated in Rust so
 -- the applied constraint is never rewritten.
--- SEALED(sealed_key): managed-key custody for certificates whose key pair the
--- host generated. The all-or-nothing CHECK rides on the last added column
--- because SQLite cannot append a table-level constraint after the fact.
-ALTER TABLE issued_certificates ADD COLUMN sealed_key_key_id TEXT;
-ALTER TABLE issued_certificates ADD COLUMN sealed_key_ciphertext BLOB;
-ALTER TABLE issued_certificates ADD COLUMN sealed_key_nonce BLOB;
-ALTER TABLE issued_certificates ADD COLUMN sealed_key_aad_digest TEXT
-  CHECK (
-    (sealed_key_key_id IS NULL AND sealed_key_ciphertext IS NULL
-      AND sealed_key_nonce IS NULL AND sealed_key_aad_digest IS NULL)
-    OR
-    (sealed_key_key_id IS NOT NULL AND sealed_key_ciphertext IS NOT NULL
-      AND sealed_key_nonce IS NOT NULL AND sealed_key_aad_digest IS NOT NULL
-      AND length(sealed_key_key_id) > 0 AND length(sealed_key_ciphertext) > 0
-      AND length(sealed_key_nonce) > 0 AND length(sealed_key_aad_digest) > 0)
-  );
+-- NOTE: plan §4.1 asked for SEALED(sealed_key) columns directly on
+-- issued_certificates. That would break the standing 0013 invariant that an
+-- inventory row is public material only — asserted by
+-- `atomic_certificate_delivery_is_encrypted_expiring_and_single_use`, which
+-- reads PRAGMA table_info(issued_certificates) and rejects any ciphertext or
+-- nonce column. Managed-key custody therefore lives in the dedicated
+-- managed_certificate_keys table below, keyed one-to-one on the certificate.
+-- The storage API is unchanged: StoredManagedCertificate still carries an
+-- optional `sealed_key`, written and read through that table.
 
 CREATE INDEX IF NOT EXISTS idx_issued_certificates_fingerprint
   ON issued_certificates(organization_id, fingerprint_sha256);
@@ -89,6 +82,25 @@ CREATE INDEX IF NOT EXISTS idx_issued_certificates_application
 
 CREATE INDEX IF NOT EXISTS idx_issued_certificates_profile
   ON issued_certificates(organization_id, profile_id, status);
+
+CREATE TABLE IF NOT EXISTS managed_certificate_keys (
+  id TEXT PRIMARY KEY,
+  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  certificate_id TEXT NOT NULL,
+  sealed_key_key_id TEXT NOT NULL,
+  sealed_key_ciphertext BLOB NOT NULL,
+  sealed_key_nonce BLOB NOT NULL,
+  sealed_key_aad_digest TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(organization_id, id),
+  UNIQUE(organization_id, certificate_id),
+  FOREIGN KEY (organization_id, certificate_id)
+    REFERENCES issued_certificates(organization_id, id) ON DELETE CASCADE,
+  CHECK (length(sealed_key_key_id) > 0 AND length(sealed_key_ciphertext) > 0
+    AND length(sealed_key_nonce) > 0 AND length(sealed_key_aad_digest) > 0)
+);
 
 -- —— policies and profiles ————————————————————————————————————
 
