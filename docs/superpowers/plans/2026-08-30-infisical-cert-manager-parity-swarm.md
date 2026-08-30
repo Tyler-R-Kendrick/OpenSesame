@@ -53,6 +53,16 @@ surface lives under `/api/v1/certmgr/*`; enrollment-protocol endpoints live at `
    `opensesame_connection_broker::crypto`, each with its own scope constant (§4.5). Secret-bearing
    Rust types do not implement `Clone`/`Serialize`; `Debug` is redacted (follow
    `SealedCertificateMaterial` in `crates/storage/src/lib.rs:37`).
+
+   **Where private keys may live is itself an invariant.** `issued_certificates` holds public
+   material only — ADR 0052 gives a leaf key to its holder exactly once, through the sealed,
+   expiring, single-use delivery that is nulled after collection, and the pre-existing test
+   `atomic_certificate_delivery_is_encrypted_expiring_and_single_use` in `crates/storage` asserts
+   no column there matches `private`/`ciphertext`/`nonce`. Persistent managed-key custody, which
+   server-driven renewal and syncs require, lives **only** in `managed_certificate_keys` (§4.1).
+   No certificate read path may join it. Do not widen an existing table to hold key material and
+   do not modify that test: if a feature seems to need persistent key custody somewhere new, that
+   is a decision requiring its own ADR, not a schema change.
 2. **No key material to agent surfaces.** MCP/WebMCP responses pass through Zod projection
    schemas; `assertsNoSecretTools` (`apps/mcp-host/src/tools.ts`) and
    `assertsNoSecretNames` (`packages/capability-registry`) must keep passing. Export/reveal
@@ -279,7 +289,18 @@ ALTER TABLE issued_certificates ADD COLUMN revoked_at TEXT;
 -- status gains values: existing rows keep theirs; new code writes one of
 -- 'active','renewed','revoked','expired','pending' (validated in Rust, not by CHECK, to
 -- avoid rewriting the applied 0013 constraint).
--- SEALED(sealed_key) columns for managed-key custody are added here as well.
+-- CORRECTION (was: "SEALED(sealed_key) columns for managed-key custody are added
+-- here as well"). Do NOT add sealed private-key columns to issued_certificates.
+-- ADR 0052 guarantees that table holds public material only: a private key
+-- reaches its holder exactly once via the sealed, expiring, single-use delivery
+-- on certificate_issuance_requests.delivery_ciphertext, which is nulled once
+-- taken. crates/storage's pre-existing test
+-- `atomic_certificate_delivery_is_encrypted_expiring_and_single_use` asserts
+-- that no issued_certificates column matches private/ciphertext/nonce, and it
+-- must keep passing unmodified. Managed-key custody instead lives in its own
+-- `managed_certificate_keys` table (see the new-tables list below), so a
+-- certificate list or projection query can never select key material and the
+-- ADR 0052 invariant stays literally true and testable.
 CREATE INDEX idx_issued_certificates_fingerprint
   ON issued_certificates(organization_id, fingerprint_sha256);
 CREATE INDEX idx_issued_certificates_expiry
@@ -296,6 +317,7 @@ FK/index/CHECK scaffolding described above):
 | `pki_applications` | `slug` (UNIQUE per org), `display_name`, `description` |
 | `pki_application_members` | `application_id`, `subject` (principal/session subject or machine identity id), `role` CHECK ('admin','operator','auditor'); UNIQUE(org, application_id, subject) |
 | `enrollment_configs` | `application_id`, `profile_id`, `method` CHECK ('api','acme','est','scep'), `enabled` INT, `config_json` (§4.4 per-method), `auto_renew_enabled` INT, `renew_before_seconds`, SEALED(sealed_secret) for the method secret (EST passphrase, SCEP static challenge, ACME EAB HMAC); UNIQUE(org, application_id, profile_id, method) |
+| `managed_certificate_keys` | `certificate_id`, SEALED(sealed_key) under scope `managed_leaf_key`; UNIQUE(org, certificate_id); FK on the (org, id) pair of the certificate, ON DELETE CASCADE. **The only certificate-manager table permitted to hold private key material.** It exists solely to serve server-driven renewal and syncs (ADR 0069). No certificate read path — `list_certificates`, any detail view, any `*_view` projection — may join or select from it; only the renewal and sync paths read it, by explicit call. Keeping it separate is what preserves the ADR 0052 invariant on `issued_certificates` (see the CORRECTION note above) |
 | `certificate_revocations` | `certificate_id`, `ca_id`, `serial`, `reason_code` INT (RFC 5280 CRLReason), `revoked_at`, `crl_number` INTEGER; UNIQUE(org, ca_id, serial) |
 | `crl_state` | `ca_id`, `crl_number` INTEGER, `this_update`, `next_update`, SEALED(sealed_der) (the signed CRL DER), `mirror_urls_json`; UNIQUE(org, ca_id) |
 | `discovery_jobs` | `name`, `description`, `targets_json` (domains/IPs/CIDRs), `ports_json`, `auto_scan` INT, `scan_interval_days`, `gateway_ref` NULL, `allow_internal` INT DEFAULT 0, `last_scan_at`, `status` CHECK ('idle','scanning','failed') |
