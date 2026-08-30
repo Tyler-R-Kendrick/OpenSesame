@@ -398,8 +398,11 @@ impl WasmConnector {
         }
 
         let mut linker: Linker<GuestState> = Linker::new(&engine);
-        bindings::Connector::add_to_linker(&mut linker, |state: &mut GuestState| state)
-            .map_err(|e| HostError::Connector(format!("linker: {e}")))?;
+        bindings::Connector::add_to_linker::<GuestState, wasmtime::component::HasSelf<GuestState>>(
+            &mut linker,
+            |state| state,
+        )
+        .map_err(|e| HostError::Connector(format!("linker: {e}")))?;
 
         let ticker = EpochTicker::spawn(&engine);
         let mut connector = Self {

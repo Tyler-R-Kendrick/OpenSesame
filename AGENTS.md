@@ -202,7 +202,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
 | `wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
-| `docs/` | Architecture, ADRs, security, operators, validation, implementation docs; competitor references under `docs/competitors/` |
+| `docs/` | Architecture, ADRs, security, operators, validation, implementation docs; competitor references under `docs/competitors/`; ecosystem research under `docs/research/` |
 
 ## 5. Design rules that gate merges
 
@@ -216,7 +216,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0053).
+  0001–0061).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

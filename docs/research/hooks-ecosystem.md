@@ -33,7 +33,8 @@ as contracts and enforcement:
   vocabulary (`HostError::{DestinationDenied, PrivateAddress, DigestMismatch,
   UntrustedComponent, …}`) that reads like a hook host's error enum because it
   was designed as one. The `wasm_guest` module is a stub;
-  `wasmtime = "33.0.0"` is pinned in the workspace and unused.
+  a wasmtime workspace pin sat unused until this work activated it (on
+  the 36 LTS line; the original 33 pin carried RUSTSEC advisories).
 - `connectors/mock/connector.yaml` — a fully specified, unparsed declarative
   connector manifest: OCI component digest, WIT world, `signaturesRequired`,
   `outbound.hosts`, per-operation `risk`/`sideEffect`/`approvalRecommended`.

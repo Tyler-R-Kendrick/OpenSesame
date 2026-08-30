@@ -26,8 +26,10 @@ handles, imports exactly `host-http.authorized-request`, purpose-bound
 `host-crypto.sign`, and `host-oauth.acquire`, and structurally cannot
 express `secrets.get`. `crates/connector-host` has the `Connector` trait,
 `HostRuntime`, `HostPolicy` (digest pinning, egress allowlist, SSRF fence),
-and a stubbed `wasm_guest` module; `wasmtime = "33.0.0"` is pinned and
-unused; `connectors/mock/connector.yaml` specifies a manifest nobody
+and a stubbed `wasm_guest` module; a wasmtime workspace pin sat unused
+(activated by this ADR on the 36 LTS line — the 33 line it originally
+named carries RUSTSEC advisories including a critical sandbox escape,
+which `pnpm audit:cargo-audit` now guards); `connectors/mock/connector.yaml` specifies a manifest nobody
 parses; and `apps/gateway/src/routes/intents.rs` carries the literal
 comment "When per-provider components land, this becomes the lookup."
 

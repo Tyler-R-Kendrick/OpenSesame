@@ -26,8 +26,8 @@ import { join } from "node:path";
 import {
   type OAuth2ProviderDescriptor,
   type OidcProviderDescriptor,
-  type ProviderDescriptor,
   ProviderConfigError,
+  type ProviderDescriptor,
   assertProviderDescriptor,
 } from "./registry.js";
 
@@ -215,7 +215,8 @@ function descriptorFrom(
     };
     if (profileMap !== undefined) descriptor.profileMap = profileMap;
     const emailsEndpoint = optionalString(file, doc, "emailsEndpoint");
-    if (emailsEndpoint !== undefined) descriptor.emailsEndpoint = emailsEndpoint;
+    if (emailsEndpoint !== undefined)
+      descriptor.emailsEndpoint = emailsEndpoint;
     return descriptor;
   }
   return fail(file, "kind must be oidc or oauth2");
