@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GitHub Pages installable PWA — offline client shell for OpenSesame",
+  "description": "GitHub Pages installable PWA \u2014 offline client shell for OpenSesame",
   "scripts": {
     "dev": "bash ../../scripts/pages-dev.sh",
     "dev:web": "vite --port 5180 --strictPort --host localhost",
@@ -19,6 +19,7 @@
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",
+    "@opensesame/webmcp": "workspace:*",
     "@pierre/trees": "1.0.0-beta.6",
     "@tursodatabase/sync-wasm": "0.7.2",
     "hash-wasm": "4.12.0",
@@ -29,6 +30,7 @@
     "simple-icons": "15.16.1"
   },
   "devDependencies": {
+    "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@testing-library/react": "16.3.0",
     "@testing-library/user-event": "14.6.1",
