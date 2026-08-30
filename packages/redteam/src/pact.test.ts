@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  AGENT_SECRET_NAME_PATTERN,
+  assertsNoSecretNames,
+  mcpClientCatalog,
+  mcpHostCatalog,
+  webmcpCatalog,
+} from "@opensesame/capability-registry";
 import { overlapCast } from "@opensesame/os-domain";
 import {
   assertDurableSurvivesPartition,
@@ -57,6 +64,24 @@ describe("PACT — redteam harness", () => {
       );
     } finally {
       await mock.close();
+    }
+  });
+
+  it("property: the full registry catalog clears the secret-name denylist", () => {
+    for (const catalog of [
+      mcpHostCatalog(),
+      mcpClientCatalog(),
+      webmcpCatalog(),
+    ]) {
+      assert.ok(catalog.length > 0);
+      assertsNoSecretNames(catalog);
+      for (const name of catalog) {
+        assert.equal(
+          AGENT_SECRET_NAME_PATTERN.test(name),
+          false,
+          `secret-shaped tool name in registry catalog: ${name}`,
+        );
+      }
     }
   });
 
