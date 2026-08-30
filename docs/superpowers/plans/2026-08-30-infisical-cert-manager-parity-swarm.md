@@ -896,12 +896,73 @@ finishes with its done-command green.
 
 ## 6. Validation matrix
 
-Global gate (green before any PR merges):
+### 6.0 Test-type contract — every swarm delivers all seven
+
+This repository already standardizes seven test types, each with existing infrastructure and a
+naming convention. A swarm's work is **not done** until it has delivered every type that applies
+to its surface. Study the cited exemplar before writing; match its idiom rather than inventing one.
+
+| Type | Rust infrastructure / exemplar | TypeScript infrastructure / exemplar |
+|---|---|---|
+| **Atomic unit** | inline `#[cfg(test)] mod tests` per module — e.g. `apps/gateway/src/rotation_scheduler.rs` | co-located `*.test.ts(x)` |
+| **Snapshot / characterization** (the repo's [Verify](https://github.com/VerifyTests/Verify) equivalent) | **`insta` 1.43.2** (workspace dev-dep, `features = ["redactions", "json"]`) — `crates/kdbx-bridge/tests/snapshots/*.snap`, `crates/provider-bitwarden/tests/snapshots/*.snap`, `crates/human-vault` `envelope_wire_shape_is_pinned` | Vitest snapshots + `__snapshots__/` — `packages/audit/src/__tests__/redact.characterization.test.ts`, `apps/pages/src/lib/vault/import/formats/kdbx.characterization.test.ts`, `*.approval.test.ts` |
+| **Contract / pact** | `pact` test modules; route↔spec test `apps/gateway/src/routes/contract.rs` | `*pact.test.ts` — `packages/database/tests/pact.test.ts`, `packages/redteam/src/structural.pact.test.ts` |
+| **Chaos** | `crates/invoke-through/tests/chaos.rs` | `*.chaos.test.ts` — `apps/control-plane/src/__tests__/pact-chaos.test.ts`, `apps/pages/src/lib/guest-auth.chaos.test.ts` |
+| **Fuzz** | `fuzz/fuzz_targets/*.rs` + `fuzz/Cargo.toml` — model `certificate_request.rs`; `pnpm audit:fuzz` | Jazzer.js — `packages/fuzz`, `pnpm test:fuzz` |
+| **Behavior / BDD** | `tests/*behavior*.rs` with given/when/then test names | `*.behavior.test.ts` — `apps/pages/src/lib/guest-login.behavior.test.ts` |
+| **Property** | `proptest` (workspace dev-dep) | fast-check where already used |
+
+**What each type must cover for this feature.**
+
+- **Snapshot/characterization** pins wire shapes so drift becomes a visible diff. Mandatory
+  subjects: the applied SQL schema (query `sqlite_master` after migration, normalize to sorted
+  JSON — this documents the delivered schema and catches accidental drift); normalized JSON
+  projections of issued root/intermediate/leaf certificates (extensions, KU/EKU, basic
+  constraints, CDP/AIA); `PolicyViolation` message lists per preset; parsed `CrlFacts` /
+  `OcspRequestFacts`; every HTTP route's success and error response bodies; each external-CA and
+  sync-destination adapter's outbound request payload; the CloudEvents alert envelope. **Always
+  redact nondeterministic fields** (serials, timestamps, key bytes) with `insta` redactions, and
+  **never snapshot private key material.**
+- **Contract/pact** pins cross-layer agreements that break silently: enum serde strings against
+  the DDL `CHECK` value sets (§4.1/§4.4 — storage round-trips these as TEXT); the `seal_scopes`
+  constant set (§4.5 — a renamed scope breaks decryption of existing data); `MIGRATIONS` array
+  append-only ordering; route↔OpenAPI agreement via `routes/contract.rs`; capability-registry
+  parity.
+- **Chaos** proves graceful degradation, and for concurrent state it proves *security*
+  properties: racing `consume_scep_challenge` / `consume_acme_nonce` on one token (exactly one
+  winner); racing `increment_signature_count` at the cap (the cap must never be exceeded); racing
+  `transition_approval_request` from two approvers (one winner); truncated/oversized/deeply-nested
+  parser inputs; a destination that hangs, resets, or returns malformed data mid-sync; a rolled
+  back transaction leaving no partial rows.
+- **Behavior/BDD** describes operator-visible outcomes in given/when/then names — issuance under a
+  policy, refusal at a path-len boundary, revocation reflected in both CRL and OCSP, renewal
+  preserving metadata and re-running syncs, an approval advancing step-by-step, cross-org
+  invisibility.
+- **Fuzz** targets every parser reachable from untrusted input: CSR, PKCS#12, CRL, OCSP request,
+  SCEP CMS, ACME JWS, and the certificate-filter/SQL construction path (which must additionally
+  assert that no input ever appears inline in generated SQL).
+
+**Gate registration is part of the work.** New security-critical files must be added to the
+`test:mutation:rust` file list in the root `package.json` (currently covers
+`apps/gateway/src/cert_issuers/model.rs` among others) — at minimum the policy evaluator, the
+bundle/PKCS#12 codec, the approval/scope evaluator, and the revocation builders, since surviving
+mutants there are the ones that matter. The Rust coverage gate runs workspace-wide
+(`--fail-under-lines 69 --fail-under-functions 67`), so every swarm reports
+`cargo +1.88.0 llvm-cov -p <crate> --summary-only` for its own crate and must not drag the
+workspace below the floor; new security-critical code should land well above it. TS packages must
+keep the `ts-coverage-gate.mjs` floors (94/88/94/95, plus the 50% per-package lines floor) and
+must use `vitest run` as their `test` script or the gate warns.
+
+### 6.1 Global gate
+
+Green before any PR merges:
 
 ```
 pnpm verify                                   # lint + anti-slop + rust-lint + clippy + test:all + workspace cargo test + battle-test
 cargo +1.88.0 test --workspace --all-targets  # every Rust crate incl. the new ones
 pnpm test:coverage                            # TS floors 94/88/94/95 + 50% per-pkg; Rust 69/67
+pnpm test:mutation                            # Stryker (TS) + cargo-mutants (Rust), incl. newly registered files
+pnpm audit:fuzz                               # cargo-fuzz short pass over all targets
 pnpm audit:clippy && pnpm audit:semgrep && pnpm audit:cargo-audit && pnpm audit:gitleaks
 ```
 
