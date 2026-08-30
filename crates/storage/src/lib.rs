@@ -197,6 +197,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0014_custom_providers",
         include_str!("../../../migrations/0014_custom_providers.sql"),
     ),
+    (
+        "0015_backup_target_kinds",
+        include_str!("../../../migrations/0015_backup_target_kinds.sql"),
+    ),
 ];
 
 impl Db {
@@ -1764,8 +1768,8 @@ impl Db {
     pub async fn upsert_backup_target(&self, target: &BackupTarget) -> anyhow::Result<()> {
         let now = Utc::now().to_rfc3339();
         sqlx::query(
-            "INSERT INTO backup_targets (organization_id, integration_id, installation_id, owner, repo, branch, enabled, status, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+            "INSERT INTO backup_targets (organization_id, integration_id, installation_id, owner, repo, branch, enabled, status, kind, provider_id, connection_id, config, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(organization_id) DO UPDATE SET \
                integration_id = excluded.integration_id, \
                installation_id = excluded.installation_id, \
@@ -1774,6 +1778,10 @@ impl Db {
                branch = excluded.branch, \
                enabled = excluded.enabled, \
                status = excluded.status, \
+               kind = excluded.kind, \
+               provider_id = excluded.provider_id, \
+               connection_id = excluded.connection_id, \
+               config = excluded.config, \
                last_error = NULL, \
                updated_at = excluded.updated_at",
         )
@@ -1785,6 +1793,10 @@ impl Db {
         .bind(&target.branch)
         .bind(i64::from(target.enabled))
         .bind(&target.status)
+        .bind(&target.kind)
+        .bind(&target.provider_id)
+        .bind(&target.connection_id)
+        .bind(&target.config)
         .bind(&now)
         .bind(&now)
         .execute(&self.pool)
@@ -1802,7 +1814,7 @@ impl Db {
         organization_id: &str,
     ) -> anyhow::Result<Option<BackupTarget>> {
         let row = sqlx::query(
-            "SELECT organization_id, integration_id, installation_id, owner, repo, branch, enabled, status, last_commit_sha, last_synced_at, last_error \
+            "SELECT organization_id, integration_id, installation_id, owner, repo, branch, enabled, status, last_commit_sha, last_synced_at, last_error, kind, provider_id, connection_id, config \
              FROM backup_targets WHERE organization_id = ?",
         )
         .bind(organization_id)
@@ -1820,6 +1832,10 @@ impl Db {
             last_commit_sha: row.get("last_commit_sha"),
             last_synced_at: row.get("last_synced_at"),
             last_error: row.get("last_error"),
+            kind: row.get("kind"),
+            provider_id: row.get("provider_id"),
+            connection_id: row.get("connection_id"),
+            config: row.get("config"),
         }))
     }
 
@@ -2205,6 +2221,14 @@ pub struct BackupTarget {
     pub last_commit_sha: Option<String>,
     pub last_synced_at: Option<String>,
     pub last_error: Option<String>,
+    /// `github_app` (historical default) or `connector` (ADR 0061 §6).
+    pub kind: String,
+    /// Connector-kind routing: the provider and Host connection that carry
+    /// the ciphertext. Empty for `github_app` rows.
+    pub provider_id: Option<String>,
+    pub connection_id: Option<String>,
+    /// Non-secret shape only (validated at the route); JSON text.
+    pub config: Option<String>,
 }
 
 /// Where an organization's sealed attachment ciphertext is replicated
@@ -2340,18 +2364,6 @@ mod tests {
     async fn apply_migrations(pool: &SqlitePool, migrations: &[(&str, &str)]) {
         for (_, migration) in migrations {
             apply_migration(pool, migration).await;
-        }
-    }
-
-    async fn apply_migrations_except(
-        pool: &SqlitePool,
-        migrations: &[(&str, &str)],
-        excluded_version: &str,
-    ) {
-        for (version, migration) in migrations {
-            if *version != excluded_version {
-                apply_migration(pool, migration).await;
-            }
         }
     }
 
@@ -3299,6 +3311,10 @@ mod tests {
             last_commit_sha: None,
             last_synced_at: None,
             last_error: None,
+            kind: "github_app".into(),
+            provider_id: None,
+            connection_id: None,
+            config: None,
         };
         db.upsert_backup_target(&target).await.unwrap();
         let loaded = db
@@ -3401,7 +3417,16 @@ mod tests {
             .connect("sqlite::memory:")
             .await
             .unwrap();
-        apply_migrations_except(&pool, MIGRATIONS, "0008_backup_outbox").await;
+        // 0015 alters backup_targets, so it must trail 0008 here just as it
+        // does in the real ordered list.
+        let except_backup: Vec<(&str, &str)> = MIGRATIONS
+            .iter()
+            .copied()
+            .filter(|(version, _)| {
+                *version != "0008_backup_outbox" && *version != "0015_backup_target_kinds"
+            })
+            .collect();
+        apply_migrations(&pool, &except_backup).await;
         assert!(sqlx::query("SELECT 1 FROM backup_targets LIMIT 0")
             .execute(&pool)
             .await
@@ -3409,6 +3434,11 @@ mod tests {
         for statement in
             split_statements(include_str!("../../../migrations/0008_backup_outbox.sql"))
         {
+            sqlx::query(&statement).execute(&pool).await.unwrap();
+        }
+        for statement in split_statements(include_str!(
+            "../../../migrations/0015_backup_target_kinds.sql"
+        )) {
             sqlx::query(&statement).execute(&pool).await.unwrap();
         }
         sqlx::query("SELECT attempts FROM outbox_events LIMIT 0")

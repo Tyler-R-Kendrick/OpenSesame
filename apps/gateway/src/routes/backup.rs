@@ -28,6 +28,9 @@ fn require_configurator(
 
 fn target_view(target: &BackupTarget) -> serde_json::Value {
     json!({
+        "kind": target.kind,
+        "provider_id": target.provider_id,
+        "connection_id": target.connection_id,
         "integration_id": target.integration_id,
         "installation_id": target.installation_id,
         "owner": target.owner,
@@ -70,19 +73,55 @@ pub async fn get_target(State(st): State<AppState>, headers: axum::http::HeaderM
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PutTargetBody {
-    /// Preferred: GitHub connection that can list/create repos.
+    /// `github_app` (default) or `connector` (ADR 0061 §6).
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// GitHub kind: a GitHub connection that can list/create repos.
+    /// Connector kind: the Host connection that carries the uploads.
     #[serde(default)]
     pub connection_id: Option<String>,
     /// Required when `connection_id` is absent; otherwise derived from the connection.
     #[serde(default)]
     pub integration_id: Option<String>,
-    pub installation_id: String,
-    pub owner: String,
-    pub repo: String,
+    #[serde(default)]
+    pub installation_id: Option<String>,
+    #[serde(default)]
+    pub owner: Option<String>,
+    #[serde(default)]
+    pub repo: Option<String>,
     #[serde(default)]
     pub branch: Option<String>,
     #[serde(default)]
     pub enabled: Option<bool>,
+    /// Connector kind only: non-secret delivery shape (e.g. `base_url`).
+    /// Secret-shaped keys are refused — credentials live sealed under the
+    /// connection, never in target configuration.
+    #[serde(default)]
+    pub config: Option<serde_json::Value>,
+}
+
+/// The audit deny-pass, applied to configuration: any key that even looks
+/// like it carries credential material is refused wholesale.
+fn config_has_secret_shaped_key(value: &serde_json::Value) -> bool {
+    const DENY: [&str; 9] = [
+        "value",
+        "secret",
+        "password",
+        "token",
+        "authorization",
+        "bearer",
+        "cookie",
+        "refresh",
+        "key",
+    ];
+    match value {
+        serde_json::Value::Object(map) => map.iter().any(|(k, v)| {
+            let lower = k.to_ascii_lowercase();
+            DENY.iter().any(|d| lower.contains(d)) || config_has_secret_shaped_key(v)
+        }),
+        serde_json::Value::Array(items) => items.iter().any(config_has_secret_shaped_key),
+        _ => false,
+    }
 }
 
 fn valid_repo_segment(value: &str) -> bool {
@@ -103,20 +142,18 @@ fn valid_branch(value: &str) -> bool {
             .all(|c| c.is_ascii() && !c.is_control() && c != ' ' && c != '?')
 }
 
-fn validated_branch(body: &PutTargetBody) -> Result<String, Response> {
-    if !valid_repo_segment(&body.owner) || !valid_repo_segment(&body.repo) {
+fn validated_branch(body: &PutTargetBody) -> Result<(String, String, String, String), Response> {
+    let owner = body.owner.clone().unwrap_or_default();
+    let repo = body.repo.clone().unwrap_or_default();
+    let installation_id = body.installation_id.clone().unwrap_or_default();
+    if !valid_repo_segment(&owner) || !valid_repo_segment(&repo) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({"error":"invalid_request","hint":"owner and repo must be GitHub name segments"})),
         )
             .into_response());
     }
-    if body.installation_id.is_empty()
-        || !body
-            .installation_id
-            .chars()
-            .all(|char| char.is_ascii_digit())
-    {
+    if installation_id.is_empty() || !installation_id.chars().all(|char| char.is_ascii_digit()) {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({"error":"invalid_request","hint":"installation_id must be the numeric id from the GitHub App installation"})),
@@ -134,7 +171,7 @@ fn validated_branch(body: &PutTargetBody) -> Result<String, Response> {
         )
             .into_response());
     }
-    Ok(branch)
+    Ok((branch, owner, repo, installation_id))
 }
 
 async fn resolve_integration_id(
@@ -189,6 +226,110 @@ async fn resolve_integration_id(
         })
 }
 
+/// Configure a connector-kind target (ADR 0061 §6): snapshots deliver
+/// through the named Host connection's authorized egress. Configuration is
+/// refused unless the connection exists and the config is secret-free with
+/// an https base_url — the same checks the actor re-runs at delivery time.
+async fn put_connector_target(
+    st: &AppState,
+    organization: &opensesame_domain::OrganizationId,
+    body: PutTargetBody,
+) -> Response {
+    let Some(connection_id) = body
+        .connection_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+    else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(
+                json!({"error":"invalid_request","hint":"connector targets require connection_id"}),
+            ),
+        )
+            .into_response();
+    };
+    let view = match st
+        .connection_broker
+        .get_connection(organization, connection_id)
+        .await
+    {
+        Ok(view) => view,
+        Err(_) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error":"connection_not_found"})),
+            )
+                .into_response();
+        }
+    };
+    let Some(config) = body.config else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"connector targets require config.base_url"})),
+        )
+            .into_response();
+    };
+    if config_has_secret_shaped_key(&config) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "invalid_request",
+                "hint": "config keys must be digest-shaped: no value/secret/token/key-shaped names — credentials live sealed under the connection",
+            })),
+        )
+            .into_response();
+    }
+    let base_url_ok = config
+        .get("base_url")
+        .and_then(|v| v.as_str())
+        .is_some_and(|u| u.starts_with("https://") && !u["https://".len()..].is_empty());
+    if !base_url_ok {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"config.base_url must be an https URL inside the connection's egress"})),
+        )
+            .into_response();
+    }
+    let target = BackupTarget {
+        organization_id: organization.to_string(),
+        integration_id: String::new(),
+        installation_id: String::new(),
+        owner: String::new(),
+        repo: String::new(),
+        branch: String::new(),
+        enabled: body.enabled.unwrap_or(true),
+        status: "pending".into(),
+        last_commit_sha: None,
+        last_synced_at: None,
+        last_error: None,
+        kind: crate::backup_target::KIND_CONNECTOR.into(),
+        provider_id: Some(view.provider_id.clone()),
+        connection_id: Some(connection_id.to_owned()),
+        config: Some(config.to_string()),
+    };
+    if let Err(error) = st.db.upsert_backup_target(&target).await {
+        return internal(&error);
+    }
+    let outbox_id = match st
+        .db
+        .append_outbox(
+            "backup.resync",
+            &json!({"reason":"target_updated"}).to_string(),
+        )
+        .await
+    {
+        Ok(id) => id,
+        Err(error) => return internal(&error),
+    };
+    crate::backup_bus::publish_backup_wake(st, &outbox_id).await;
+    (
+        StatusCode::OK,
+        Json(json!({"target": target_view(&target)})),
+    )
+        .into_response()
+}
+
 pub async fn put_target(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -199,8 +340,19 @@ pub async fn put_target(
         Err(resp) => return resp,
     };
     let organization = who.organization(st.connection_organization);
-    let branch = match validated_branch(&body) {
-        Ok(branch) => branch,
+    let kind = body.kind.as_deref().unwrap_or("github_app");
+    if kind == crate::backup_target::KIND_CONNECTOR {
+        return put_connector_target(&st, &organization, body).await;
+    }
+    if kind != crate::backup_target::KIND_GITHUB_APP {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"kind must be github_app or connector"})),
+        )
+            .into_response();
+    }
+    let (branch, owner, repo, installation_id) = match validated_branch(&body) {
+        Ok(parts) => parts,
         Err(response) => return response,
     };
     let integration_id = match resolve_integration_id(&st, &organization, &body).await {
@@ -236,9 +388,9 @@ pub async fn put_target(
     let target = BackupTarget {
         organization_id: organization.to_string(),
         integration_id,
-        installation_id: body.installation_id,
-        owner: body.owner,
-        repo: body.repo,
+        installation_id,
+        owner,
+        repo,
         // ADR 0043: recoverability defaults to the production env branch.
         branch,
         enabled: body.enabled.unwrap_or(true),
@@ -246,6 +398,10 @@ pub async fn put_target(
         last_commit_sha: None,
         last_synced_at: None,
         last_error: None,
+        kind: crate::backup_target::KIND_GITHUB_APP.into(),
+        provider_id: None,
+        connection_id: None,
+        config: None,
     };
     if let Err(error) = st.db.upsert_backup_target(&target).await {
         return internal(&error);
