@@ -248,10 +248,46 @@ Parity suites that must stay green — _pending: fill from the run of
 `packages/cli/src/capability-parity.test.ts`,
 `packages/redteam/src/structural.pact.test.ts`.
 
+### Measured results — foundation crates
+
+Recorded from actual runs on 2026-08-30. Every figure below was produced by the
+named command; nothing here is written from expectation.
+
+| Crate | `cargo test` | Tests | Lines | Functions | Regions |
+|---|---|---|---|---|---|
+| `opensesame-pki-core` | exit 0 | 156 | **97.91 %** (4061, 85 missed) | **98.81 %** (337, 4 missed) | 95.68 % |
+| `opensesame-storage` | exit 0 | 87 | **91.75 %** (8388, 692 missed) | **88.60 %** (693, 79 missed) | 89.19 % |
+
+Both are far above the workspace floors the Rust coverage gate enforces
+(`--fail-under-lines 69 --fail-under-functions 67`), so they raise the workspace
+average rather than drawing on its headroom.
+
+Per-file coverage of the security-critical modules registered in the mutation
+gate — these are the files where a surviving mutant is a security defect rather
+than a style nit:
+
+| File | Lines | Functions |
+|---|---|---|
+| `crates/pki-core/src/policy.rs` (issuance decisions) | 98.02 % | 98.65 % |
+| `crates/pki-core/src/revocation.rs` (CRL/OCSP) | 96.76 % | 96.49 % |
+| `crates/pki-core/src/bundle.rs` (chain + PKCS#12 trust) | 97.77 % | 100.00 % |
+| `crates/pki-core/src/x509.rs` (untrusted-input parsing) | 95.60 % | 100.00 % |
+| `crates/storage/src/lib.rs` (single-use, caps, CAS) | 91.75 % | 88.60 % |
+
+Test types delivered per crate (plan §6.0):
+
+| Crate | unit | snapshot | pact | chaos | behavior | property | fuzz |
+|---|---|---|---|---|---|---|---|
+| `opensesame-pki-core` | ✓ | ✓ (6 `insta`) | ✓ | ✓ | ✓ | ✓ | targets registered |
+| `opensesame-storage` | 36 | 4 | 9 | 6 | 4 | 2 | 1 target |
+
+`cargo-llvm-cov` is not present in a default checkout of this environment and
+was installed to take these measurements (`cargo install cargo-llvm-cov
+--locked`); a reader reproducing them needs it too.
+
 Per-crate and per-package done-commands — _pending each_:
 
-`cargo +1.88.0 test -p opensesame-storage`,
-`cargo +1.88.0 test -p opensesame-pki-core`,
+`cargo +1.88.0 test -p opensesame-gateway`,
 `cargo +1.88.0 test -p opensesame-gateway`,
 `cargo +1.88.0 test -p opensesame-cli`,
 `cargo +1.88.0 build -p opensesame-hsm-client`,
