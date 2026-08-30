@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { afterEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   type RunningHttpTransport,
   connectStreamableHttp,
@@ -16,20 +17,27 @@ function makeServer(): McpServer {
   return server;
 }
 
-async function startOnFreePort(): Promise<{
+interface StartedTransport {
   running: RunningHttpTransport;
   base: string;
-}> {
+}
+
+const BoundAddress = z.object({ port: z.number().int().min(0).max(65_535) });
+
+async function startOnFreePort(): Promise<StartedTransport> {
   const running = await connectStreamableHttp(makeServer(), {
     host: "127.0.0.1",
     port: 0,
     token: TOKEN,
   });
-  const address = running.server.address();
-  if (address === null || typeof address === "string") {
+  // Parse the net-layer address into a port before branching: Server.address()
+  // is a union of AddressInfo, a pipe path, and null, and only the first is a
+  // valid outcome for a TCP listen.
+  const bound = BoundAddress.safeParse(running.server.address());
+  if (!bound.success) {
     throw new Error("expected an ephemeral tcp address");
   }
-  return { running, base: `http://127.0.0.1:${address.port}` };
+  return { running, base: `http://127.0.0.1:${bound.data.port}` };
 }
 
 function initializeBody(): string {
@@ -47,41 +55,40 @@ function initializeBody(): string {
 
 describe("resolveHttpConfig", () => {
   it("defaults to loopback and requires a strong token", () => {
-    const config = resolveHttpConfig({
-      OPENSESAME_MCP_HTTP_TOKEN: TOKEN,
-    } as NodeJS.ProcessEnv);
+    const env: NodeJS.ProcessEnv = { OPENSESAME_MCP_HTTP_TOKEN: TOKEN };
+    const config = resolveHttpConfig(env);
     expect(config.host).toBe("127.0.0.1");
     expect(config.port).toBe(18791);
   });
 
   it("refuses non-loopback binds fail-closed", () => {
-    expect(() =>
-      resolveHttpConfig({
-        OPENSESAME_MCP_HTTP_LISTEN: "0.0.0.0:18791",
-        OPENSESAME_MCP_HTTP_TOKEN: TOKEN,
-      } as NodeJS.ProcessEnv),
-    ).toThrow("mcp_http_loopback_required");
+    const env: NodeJS.ProcessEnv = {
+      OPENSESAME_MCP_HTTP_LISTEN: "0.0.0.0:18791",
+      OPENSESAME_MCP_HTTP_TOKEN: TOKEN,
+    };
+    expect(() => resolveHttpConfig(env)).toThrow("mcp_http_loopback_required");
   });
 
   it("refuses a missing or short token", () => {
-    expect(() => resolveHttpConfig({} as NodeJS.ProcessEnv)).toThrow(
+    const empty: NodeJS.ProcessEnv = {};
+    expect(() => resolveHttpConfig(empty)).toThrow("mcp_http_token_required");
+    const shortToken: NodeJS.ProcessEnv = {
+      OPENSESAME_MCP_HTTP_TOKEN: "short",
+    };
+    expect(() => resolveHttpConfig(shortToken)).toThrow(
       "mcp_http_token_required",
     );
-    expect(() =>
-      resolveHttpConfig({
-        OPENSESAME_MCP_HTTP_TOKEN: "short",
-      } as NodeJS.ProcessEnv),
-    ).toThrow("mcp_http_token_required");
   });
 
   it("refuses malformed listen strings", () => {
     for (const listen of ["nope", ":0", "127.0.0.1:notaport"]) {
-      expect(() =>
-        resolveHttpConfig({
-          OPENSESAME_MCP_HTTP_LISTEN: listen,
-          OPENSESAME_MCP_HTTP_TOKEN: TOKEN,
-        } as NodeJS.ProcessEnv),
-      ).toThrow(/mcp_http_(listen_invalid|loopback_required)/);
+      const env: NodeJS.ProcessEnv = {
+        OPENSESAME_MCP_HTTP_LISTEN: listen,
+        OPENSESAME_MCP_HTTP_TOKEN: TOKEN,
+      };
+      expect(() => resolveHttpConfig(env)).toThrow(
+        /mcp_http_(listen_invalid|loopback_required)/,
+      );
     }
   });
 });
