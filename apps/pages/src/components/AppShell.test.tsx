@@ -99,7 +99,7 @@ describe("AppShell", () => {
 
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");
-    expect(screen.getAllByText("OpenSesame").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("opensesame").length).toBeGreaterThan(0);
     // The rail reads sections as directories; the mobile tab bar keeps labels.
     for (const segment of ["connections", "access", "identity", "settings"]) {
       expect(screen.getAllByText(segment).length).toBe(1);
@@ -219,7 +219,7 @@ describe("AppShell", () => {
   it("both lock buttons call the store lock", () => {
     renderShell("/vault");
     // One in the phone top bar, one in the desktop statusline.
-    const locks = screen.getAllByRole("button", { name: "Lock" });
+    const locks = screen.getAllByRole("button", { name: "Lock vault" });
     expect(locks).toHaveLength(2);
     for (const lock of locks) fireEvent.click(lock);
     expect(vault.lock).toHaveBeenCalledTimes(2);

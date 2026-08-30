@@ -101,6 +101,16 @@ black-and-white foundation, teal as the single accent, and nothing decorative.
 - System font stack — no webfont request, no flash, no third-party origin
 - Sample data always badged
 
+## Mark
+
+The mark is **the door ajar**: the vault slab slid aside with a slit of
+light where it opened — Open Sesame's own story, drawn as two sharp
+rectangles. The slab is ink, the light is the accent teal; this is the one
+place teal means identity rather than state. In the chrome the mark is
+bare — no tile, no circle, no badge — beside the lowercase mono wordmark
+`opensesame`. Only the OS app icon puts it on a dark tile with the
+platform's mask. The old padlock-in-a-teal-tile is retired everywhere.
+
 ## Colors
 
 Neutrals carry the interface. Teal is scarce enough to mean something.
@@ -176,6 +186,8 @@ Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
 The workspace is a filesystem, not a webpage. Every vault is a tomb with a
 canonical path space — `personal:/Work/GitHub` — folders are directories,
+the session context is a shell prompt (`guest@personal:/` — each segment a
+button that opens its switcher; never a widget stack of dropdowns),
 items are files with kind pseudo-extensions (`GitHub.login`, `Deploy
 webhook.secret`), and the vault list renders as a compact first-party mono
 file tree (ADR 0066), never as a card wall. The navigation rail is the same
@@ -189,7 +201,7 @@ top of the vault pane; the mobile tab bar keeps labeled icons.
 A visible cursor row owns focus — inverse video, always rendered — and
 moving it with the keyboard previews that item in the buffer, ranger's own
 reading: browsing is previewing. The pane has no header; new and import are
-mono verbs in the path strip. `j`/`k`/arrows move it, `l`/`→` opens, `h`/`←` collapses or climbs,
+icon keys in the path strip. `j`/`k`/arrows move it, `l`/`→` opens, `h`/`←` collapses or climbs,
 `gg`/`G` jump, and `Enter` activates. `/` opens a vim-style command line at
 the foot of the pane, backed by a real input so typed keys never leak into
 the keymap; matches highlight, non-matches hide, `Esc` closes it. Item verbs
@@ -212,8 +224,9 @@ flat with hairline separators.
 
 All-sharp, one documented scale: 2px on every control, chip, badge, and menu
 (just enough to keep focus rings clean). Pills survive only where the
-mechanic is genuinely round — switch tracks and meter segments. The brand
-mark tile sits at 4px; the OS app icon keeps its platform mask.
+mechanic is genuinely round — switch tracks and meter segments. The mark is
+bare in the chrome; only the OS app icon keeps a tile and its platform
+mask.
 
 ## Selection
 
@@ -224,10 +237,27 @@ leaf shows only its open caret and weight. Teal never marks selection.
 
 ## Components
 
+### Actions are symbols
+An action that executes — edit, trash, copy, reveal, rotate, restore, new,
+import, save, cancel, lock — renders as an icon key: a square icon button
+whose `aria-label` and tooltip carry the sentence. Text survives on a
+button only where it is the object of a choice (a provider, a mode, a
+navigation target) or where a destructive ceremony must be spelled out.
+Never a text verb stretched across a grid row.
+
 ### Buttons
 Ink fill for the primary action (inverting to paper-on-ink in dark mode),
 surface fill with a hairline for secondary, ghost for tertiary, and a
-red-tinted variant for anything destructive. One primary per view.
+red-tinted variant for anything destructive. One primary per view, sized to
+its content — never block-width.
+
+### Forms are records
+A form is a record being filled in, not a wall of boxes: each field is a
+row — mono label column on the left, value on the right — and inputs are
+ruled underlines on the paper (focus thickens the rule to ink). The vault
+editor goes further: the item is a file, so its name is the document title,
+its kind the extension beside it, and save/cancel are keys in the title
+row. Repeatable groups grow with a `+` key beside their label.
 
 ### Field rows
 The vault's atom: a small sentence-case label, value, and right-aligned
@@ -235,8 +265,9 @@ actions. Secrets render as dots with a reveal toggle, and copy never requires
 revealing first.
 
 ### Navigation
-The rail renders as a mono filesystem tree (see "VFS interaction model"):
-directory rows with counts and g-jump key chips. Active state is a teal wash. The
+The rail renders as a mono filesystem tree (see "VFS interaction model")
+rooted at the prompt line `guest@personal:/`: directory rows with counts
+and g-jump key chips. Selection is inverse video (see "Selection"). The
 mobile tab bar mirrors the five sections and nothing else.
 
 ### Tabs

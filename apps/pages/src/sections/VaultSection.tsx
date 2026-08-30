@@ -8,6 +8,7 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { IconDownload, IconPlus } from "../components/Icons.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { stashImportFile } from "../lib/vault/import/handoff.js";
@@ -107,10 +108,12 @@ function ImportButton({ verb = false }: { verb?: boolean }) {
     <>
       <button
         type="button"
-        className={verb ? "vtree__verb" : "btn btn--sm"}
+        className={verb ? "icon-btn icon-btn--sm" : "btn btn--sm"}
+        aria-label={verb ? "Import items" : undefined}
+        title={verb ? "Import items" : undefined}
         onClick={() => fileRef.current?.click()}
       >
-        {verb ? "import" : "Import"}
+        {verb ? <IconDownload size={15} /> : "Import"}
       </button>
       <input
         ref={fileRef}
@@ -293,8 +296,13 @@ export function VaultSection() {
                 {/* Import sits beside new even with items present — arriving
                     from another manager should not require an empty vault or
                     a hunt through Settings to find it. */}
-                <Link className="vtree__verb" to={`/vault/new/${createKind}`}>
-                  new
+                <Link
+                  className="icon-btn icon-btn--sm"
+                  aria-label="New item"
+                  title="New item (n)"
+                  to={`/vault/new/${createKind}`}
+                >
+                  <IconPlus size={15} />
                 </Link>
                 <ImportButton verb />
               </>

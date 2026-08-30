@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
-import { IconChevronLeft, IconShield } from "../../components/Icons.js";
+import { IconChevronLeft, IconEdit } from "../../components/Icons.js";
 import {
   type HealthIssue,
   ISSUE_EXPLANATION,
@@ -22,15 +22,15 @@ export function HealthPanel() {
 
   return (
     <div className="detail">
-      <Link className="btn btn--ghost btn--sm detail__back" to="/vault">
-        <IconChevronLeft size={16} />
-        All items
-      </Link>
-
       <div className="detail__head">
-        <span className="detail__mark" aria-hidden="true">
-          <IconShield size={22} />
-        </span>
+        <Link
+          className="icon-btn detail__backbtn"
+          aria-label="Back to all items"
+          title="Back to all items"
+          to="/vault"
+        >
+          <IconChevronLeft size={17} />
+        </Link>
         <div className="detail__heading">
           <h1>Password health</h1>
           <p className="hint">
@@ -54,46 +54,22 @@ export function HealthPanel() {
         </div>
       ) : (
         <div className="health">
-          <div className="health__summary">
-            <div className="health__stat">
-              <p className="health__statnum">{report.scored}</p>
-              <p className="health__statlabel">Passwords reviewed</p>
-            </div>
-            <div className="health__stat">
-              <p
-                className="health__statnum"
-                style={{
-                  color:
-                    report.clean === report.scored ? "var(--ok)" : undefined,
-                }}
-              >
-                {report.clean}
-              </p>
-              <p className="health__statlabel">Clean</p>
-            </div>
-            <div className="health__stat">
-              <p
-                className="health__statnum"
-                style={{
-                  color: report.counts.weak > 0 ? "var(--err)" : undefined,
-                }}
-              >
-                {report.counts.weak}
-              </p>
-              <p className="health__statlabel">Weak</p>
-            </div>
-            <div className="health__stat">
-              <p
-                className="health__statnum"
-                style={{
-                  color: report.counts.reused > 0 ? "var(--err)" : undefined,
-                }}
-              >
-                {report.counts.reused}
-              </p>
-              <p className="health__statlabel">Reused</p>
-            </div>
-          </div>
+          {/* The verdict is one status line, not a metric wall. */}
+          <p className="health__line">
+            {report.scored} reviewed · {report.clean} clean
+            {report.counts.weak > 0 ? (
+              <span className="health__bad"> · {report.counts.weak} weak</span>
+            ) : null}
+            {report.counts.reused > 0 ? (
+              <span className="health__bad">
+                {" "}
+                · {report.counts.reused} reused
+              </span>
+            ) : null}
+            {report.counts.old > 0 ? (
+              <span> · {report.counts.old} old</span>
+            ) : null}
+          </p>
 
           {report.findings.length === 0 ? (
             <div className="note note--ok">
@@ -133,10 +109,12 @@ export function HealthPanel() {
                   </ul>
                   <div className="actions">
                     <Link
-                      className="btn btn--sm"
+                      className="icon-btn"
+                      aria-label={`Fix ${finding.item.name || "this item"}`}
+                      title="Fix — edit this item"
                       to={`/vault/${finding.item.id}/edit`}
                     >
-                      Fix this
+                      <IconEdit size={16} />
                     </Link>
                   </div>
                 </article>

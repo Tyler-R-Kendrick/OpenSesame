@@ -7,13 +7,14 @@ import {
   useState,
 } from "react";
 import {
+  IconArrowRight,
   IconEye,
   IconEyeOff,
   IconLock,
+  IconMark,
   IconPasskey,
   IconShield,
   IconUser,
-  IconVault,
 } from "../components/Icons.js";
 import {
   type FederatedProviderSummary,
@@ -307,15 +308,18 @@ export function UnlockScreen() {
         <PendingLinkBanner />
         <UnconfiguredIdentityNotice />
         <div className="unlock__brand">
-          <span className="mark mark--lg" aria-hidden="true">
-            <IconVault size={24} />
-          </span>
+          <p className="unlock__wordmark">
+            <IconMark size={16} />
+            opensesame
+          </p>
           <h1>
             {signInStage
-              ? "OpenSesame"
+              ? "Sign in"
               : firstRun
                 ? "Seal this device"
-                : "OpenSesame"}
+                : awaitingTotp
+                  ? "Confirm it is you"
+                  : "Unlock"}
           </h1>
           <p>{brandCopy}</p>
         </div>
@@ -647,18 +651,10 @@ export function UnlockScreen() {
               </output>
             ) : null}
 
-            <button
-              type="submit"
-              className="btn btn--primary btn--block"
-              disabled={disabled}
-              aria-busy={busy}
-            >
-              {activeMethod === "passkey" && !awaitingTotp ? (
-                <IconPasskey size={18} />
-              ) : (
-                <IconLock size={18} />
-              )}
-              {busy
+            {(() => {
+              // The submit is the terminal's enter key: an ink square whose
+              // glyph is the ceremony, with the sentence in its name.
+              const verb = busy
                 ? firstRun
                   ? activeMethod === "passkey"
                     ? "Waiting for passkey…"
@@ -680,8 +676,29 @@ export function UnlockScreen() {
                     ? "Confirm MFA"
                     : activeMethod === "passkey"
                       ? "Unlock with passkey"
-                      : "Unlock"}
-            </button>
+                      : "Unlock";
+              return (
+                <div className="unlock__go-row">
+                  <button
+                    type="submit"
+                    className="unlock__go"
+                    disabled={disabled}
+                    aria-busy={busy}
+                    aria-label={verb}
+                    title={verb}
+                  >
+                    {activeMethod === "passkey" && !awaitingTotp ? (
+                      <IconPasskey size={18} />
+                    ) : (
+                      <IconArrowRight size={18} />
+                    )}
+                  </button>
+                  <span className="unlock__go-verb" aria-hidden="true">
+                    {verb}
+                  </span>
+                </div>
+              );
+            })()}
 
             {firstRun &&
             activeMethod === "password" &&

@@ -24,7 +24,7 @@ import {
   migrateLegacyVaultStorage,
   tombStorageKeys,
 } from "../lib/vault/tomb-migration.js";
-import { IconCheck, IconFolder, IconPlus, IconTrash } from "./Icons.js";
+import { IconCheck, IconPlus, IconTrash } from "./Icons.js";
 
 function ProjectSwitcherDefault() {
   const state = useSyncExternalStore(subscribeProjects, projectsState);
@@ -86,18 +86,13 @@ function ProjectSwitcherDefault() {
     <div className="project-switcher">
       <button
         type="button"
-        className="project-switcher__button"
+        className="prompt__seg prompt__seg--tomb"
         aria-haspopup="listbox"
         aria-expanded={open}
+        title="Switch project"
         onClick={() => (open ? close() : setOpen(true))}
       >
-        <IconFolder size={15} />
-        <span className="project-switcher__name">
-          {active?.name ?? "Personal"}
-        </span>
-        <span className="project-switcher__caret" aria-hidden="true">
-          ▾
-        </span>
+        {active?.name ?? "Personal"}
       </button>
 
       {open ? (

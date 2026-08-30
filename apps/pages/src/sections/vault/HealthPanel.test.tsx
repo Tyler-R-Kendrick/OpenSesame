@@ -84,7 +84,7 @@ describe("HealthPanel", () => {
   it("reports a fully clean vault", () => {
     vault.current = { items: [makeLogin()] };
     renderPanel();
-    expect(screen.getByText("Passwords reviewed")).toBeTruthy();
+    expect(screen.getByText(/1 reviewed · 1 clean/)).toBeTruthy();
     expect(
       screen.getByText(/Every password here is strong, unique/),
     ).toBeTruthy();
@@ -123,7 +123,7 @@ describe("HealthPanel", () => {
     // Findings link through to the item editor.
     expect(
       screen
-        .getAllByRole("link", { name: /Fix this/i })[0]
+        .getAllByRole("link", { name: /^Fix / })[0]
         ?.getAttribute("href"),
     ).toMatch(/\/vault\/itm_[ab]\/edit/);
   });

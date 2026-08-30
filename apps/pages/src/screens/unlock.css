@@ -42,6 +42,17 @@
   text-align: left;
 }
 
+.unlock__wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
 .unlock__brand h1 {
   font-size: 1.4rem;
   line-height: 1.2;
@@ -60,36 +71,74 @@
 }
 
 .unlock__methods {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
-  gap: 0.35rem;
-  padding: 0.2rem;
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
+  display: flex;
+  gap: 1.1rem;
+  border-bottom: 1px solid var(--line);
 }
 
 .unlock__method {
   appearance: none;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 0.35rem;
-  padding: 0.45rem 0.5rem;
-  border: none;
-  border-radius: calc(var(--radius) - 2px);
+  padding: 0.35rem 0 0.5rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
   color: var(--ink-2);
   font: inherit;
+  font-family: var(--mono);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .unlock__method--active {
-  background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-sm, 0 1px 2px rgb(0 0 0 / 8%));
+  border-bottom-color: var(--ink);
+}
+
+/* The submit is the form's enter key: one ink square, its sentence beside
+   it in the margin voice. */
+.unlock__go-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.unlock__go {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
+  cursor: pointer;
+  transition: background 140ms var(--ease);
+}
+
+.unlock__go:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
+}
+
+.unlock__go:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.unlock__go[aria-busy="true"] {
+  cursor: progress;
+}
+
+.unlock__go-verb {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
 }
 
 .unlock__reveal {

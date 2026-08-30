@@ -188,7 +188,7 @@ describe("VaultSection", () => {
     };
     renderSection();
     // Import sits beside new in the path strip even when the vault has items.
-    expect(screen.getByRole("button", { name: "import" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Import items" })).toBeTruthy();
     const file = new File(["KEY=value"], "app.env", { type: "text/plain" });
     fireEvent.change(screen.getByLabelText("Choose a file to import"), {
       target: { files: [file] },

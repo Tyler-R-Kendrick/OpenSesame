@@ -115,22 +115,10 @@
   gap: 0.25rem;
 }
 
-/* new/import as verbs in the path strip, not chrome buttons */
-.vtree__verb {
-  border: 0;
-  padding: 0 0.25rem;
-  margin-right: 0.35rem;
-  background: transparent;
-  color: var(--ink-2);
-  font: inherit;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.vtree__verb:hover {
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+/* new/import in the path strip are compact icon keys */
+.icon-btn--sm {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .vtree__key {
@@ -389,25 +377,28 @@
   animation: rise 260ms var(--ease) both;
 }
 
-.detail .detail__back {
+.detail .detail__backbtn {
   display: none;
+}
+
+.icon-btn--danger {
+  color: var(--err);
+}
+
+.icon-btn--danger:hover:not(:disabled) {
+  background: var(--err-wash);
+  color: var(--err);
+}
+
+.icon-btn--danger.is-armed {
+  background: var(--err);
+  color: var(--err-ink);
 }
 
 .detail__head {
   display: flex;
   align-items: flex-start;
   gap: 0.85rem;
-}
-
-.detail__mark {
-  display: grid;
-  place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  flex: none;
-  border-radius: var(--radius);
-  background: var(--accent-wash);
-  color: var(--accent);
 }
 
 .detail__heading {
@@ -629,11 +620,92 @@
   font-weight: 600;
 }
 
+/* A lone button in the detail flow states an action, not a banner: it hugs
+   its own width instead of stretching the grid column. */
+.detail > .btn {
+  justify-self: start;
+}
+
 /* —— Editor ————————————————————————————————————————————————— */
 
 .editor {
   display: grid;
   gap: 1rem;
+}
+
+/* The editor edits a file: name as the title, kind as the extension,
+   save/cancel as keys in the title row. */
+.editor__titlerow {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.editor__name {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.4rem;
+  padding: 0.15rem 0.1rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.editor__name:focus-visible {
+  outline: none;
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
+}
+
+.editor__ext {
+  flex: none;
+  width: auto;
+  min-height: 0;
+  padding: 0.15rem 0.1rem;
+  border: 0;
+  font-family: var(--mono);
+  font-size: 1rem;
+  color: var(--ink-3);
+  background: transparent;
+}
+
+select.editor__ext {
+  cursor: pointer;
+  border-bottom: 1.5px dashed var(--line-strong);
+}
+
+select.editor__ext:hover {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.editor__save {
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.editor__save:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
+  color: var(--canvas);
+}
+
+.editor__save:disabled {
+  opacity: 0.4;
+}
+
+.editor__seal {
+  margin: -0.35rem 0 0;
+}
+
+.editor__grouplabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .editor__grid {
@@ -671,16 +743,6 @@
   grid-template-columns: 1fr 1.4fr auto;
   gap: 0.35rem;
   align-items: center;
-}
-
-.editor__bar {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-  padding: 0.85rem 0;
-  background: linear-gradient(to top, var(--canvas) 65%, transparent);
 }
 
 /* —— Generator ————————————————————————————————————————————— */
@@ -782,30 +844,18 @@
   gap: 1.1rem;
 }
 
-.health__summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.6rem;
-}
-
-.health__stat {
-  padding: 0.75rem 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.health__statnum {
-  font-size: 1.4rem;
-  font-weight: 600;
+.health__line {
+  font-family: var(--mono);
+  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  color: var(--ink-2);
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--line);
 }
 
-.health__statlabel {
-  font-size: 0.8125rem;
-  color: var(--ink-2);
+.health__bad {
+  color: var(--err);
+  font-weight: 600;
 }
 
 .health__finding {
@@ -867,10 +917,6 @@
   max-width: 64ch;
 }
 
-.health__summary .health__stat {
-  box-shadow: var(--shadow-sm);
-}
-
 @media (max-width: 560px) {
   .health__issues li {
     grid-template-columns: 1fr;
@@ -901,9 +947,8 @@
     padding: 1rem 1rem 6rem;
   }
 
-  .detail .detail__back {
-    display: inline-flex;
-    width: fit-content;
+  .detail .detail__backbtn {
+    display: inline-grid;
   }
 
   .editor__row,

@@ -18,7 +18,6 @@ import {
   settingsPath,
 } from "../lib/crumbs.js";
 import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
-import { activeProject } from "../lib/projects.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
@@ -28,6 +27,8 @@ import {
   IconAuthority,
   IconChevronRight,
   IconConnection,
+  IconLock,
+  IconMark,
   IconSettings,
   IconUser,
   IconVault,
@@ -205,11 +206,6 @@ function NavTree() {
 
   return (
     <nav className="railtree" aria-label="Sections">
-      <p className="railtree__root">
-        <span className="railtree__tomb">{activeProject().id}</span>
-        <span className="railtree__dim">:/</span>
-      </p>
-
       {dirRow(SECTIONS[0], inVault, counts.all)}
       {inVault ? (
         <div className="railtree__kids">
@@ -300,17 +296,22 @@ export function AppShell({ children }: { children?: ReactNode }) {
       </a>
       <aside className="rail">
         <div className="rail__brand">
-          <span className="mark" aria-hidden="true">
-            <IconVault size={17} />
-          </span>
-          <div>
-            <p className="rail__wordmark">OpenSesame</p>
-            <p className="rail__tagline">Authorization fabric</p>
-          </div>
+          <IconMark size={16} />
+          <p className="rail__wordmark">opensesame</p>
         </div>
 
-        <AccountSwitcher />
-        <ProjectSwitcher />
+        {/* The session context is a shell prompt, not a widget stack:
+            who@tomb:/ — each segment opens its switcher. */}
+        <p className="rail__prompt">
+          <AccountSwitcher />
+          <span className="prompt__dim" aria-hidden="true">
+            @
+          </span>
+          <ProjectSwitcher />
+          <span className="prompt__dim" aria-hidden="true">
+            :/
+          </span>
+        </p>
 
         <div className="rail__scroll">
           <NavTree />
@@ -322,17 +323,29 @@ export function AppShell({ children }: { children?: ReactNode }) {
             statusline carries plane truth, so the top bar exists where the
             rail is gone. */}
         <header className="topbar">
-          <span className="mark" aria-hidden="true">
-            <IconVault size={17} />
-          </span>
-          <AccountSwitcher />
-          <ProjectSwitcher />
+          <IconMark size={16} />
+          <p className="rail__prompt">
+            <AccountSwitcher />
+            <span className="prompt__dim" aria-hidden="true">
+              @
+            </span>
+            <ProjectSwitcher />
+            <span className="prompt__dim" aria-hidden="true">
+              :/
+            </span>
+          </p>
           <span className="topbar__spacer" />
           <NotificationsBar />
           <ConnectivityBar />
           <span className="topbar__rule" aria-hidden="true" />
-          <button type="button" className="rail__lock" onClick={store.lock}>
-            Lock
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={store.lock}
+            aria-label="Lock vault"
+            title="Lock vault"
+          >
+            <IconLock size={17} />
           </button>
         </header>
 
@@ -363,8 +376,14 @@ export function AppShell({ children }: { children?: ReactNode }) {
         <ConnectivityBar />
         <span className="statusline__spacer" />
         <NotificationsBar />
-        <button type="button" className="rail__lock" onClick={store.lock}>
-          Lock
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={store.lock}
+          aria-label="Lock vault"
+          title="Lock vault"
+        >
+          <IconLock size={15} />
         </button>
       </footer>
       <KeymapSheet open={keymapOpen} close={closeKeymap} />
