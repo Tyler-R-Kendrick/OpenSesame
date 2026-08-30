@@ -35,6 +35,7 @@ members = [
   "crates/audit",
   "crates/redaction",
   "crates/task-bus",
+  "crates/pki-core",
   "crates/uds-authn",
   "crates/tailscale-authn",
   "apps/gateway",

@@ -1,0 +1,38 @@
+[package]
+name = "opensesame-pki-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "opensesame_pki_core"
+path = "src/lib.rs"
+
+[dependencies]
+rcgen = { version = "0.13.2", features = ["x509-parser", "pem"] }
+x509-parser = "0.16.0"
+x509-cert = { version = "0.2.5", features = ["pem", "builder"] }
+cms = "0.2.3"
+der = { version = "0.7.10", features = ["oid", "derive", "alloc"] }
+spki = "0.7.3"
+pkcs8 = { version = "0.10.2", features = ["alloc", "pem"] }
+const-oid = { version = "0.9.6", features = ["db"] }
+p12-keystore = "0.3.1"
+rsa = { version = "0.9.10", features = ["sha2"] }
+p256 = { version = "0.13.2", features = ["ecdsa", "pkcs8"] }
+p384 = { version = "0.13.1", features = ["ecdsa", "pkcs8"] }
+ed25519-dalek = { workspace = true, features = ["pkcs8"] }
+signature = "2.2.0"
+sha2 = { workspace = true }
+time = { version = "0.3.41", default-features = false, features = ["std"] }
+zeroize = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde_json = { workspace = true }
