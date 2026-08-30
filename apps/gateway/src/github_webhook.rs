@@ -535,6 +535,10 @@ mod tests {
                 last_commit_sha: None,
                 last_synced_at: None,
                 last_error: None,
+                kind: "github_app".into(),
+                provider_id: None,
+                connection_id: None,
+                config: None,
             })
             .await
             .unwrap();

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const env = { loopbackPage: true };
 
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import type { MonitorSnapshot, TargetState } from "./connectivity-monitor.js";
 import {
   type ConnectorStatus,
@@ -57,6 +58,7 @@ function settings(over: Partial<PagesSettings> = {}): PagesSettings {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },
@@ -302,6 +304,7 @@ describe("capability connectors", () => {
     const status = classifyHistoryConnector(
       settings({
         capabilityConnectors: {
+          ...defaultCapabilityConnectors(),
           encryption: { providerId: "webcrypto" },
           history: { providerId: "github", connectionId: "conn_1" },
         },
@@ -315,6 +318,7 @@ describe("capability connectors", () => {
     const status = classifyHistoryConnector(
       settings({
         capabilityConnectors: {
+          ...defaultCapabilityConnectors(),
           encryption: { providerId: "webcrypto" },
           history: {
             providerId: "github",
@@ -333,6 +337,7 @@ describe("capability connectors", () => {
     const status = classifyHistoryConnector(
       settings({
         capabilityConnectors: {
+          ...defaultCapabilityConnectors(),
           encryption: { providerId: "webcrypto" },
           history: { providerId: "password-store" },
         },
@@ -352,6 +357,7 @@ describe("capability connectors", () => {
     const status = classifyKeysConnector(
       settings({
         capabilityConnectors: {
+          ...defaultCapabilityConnectors(),
           encryption: { providerId: "aws-kms" },
           history: { providerId: "github" },
         },

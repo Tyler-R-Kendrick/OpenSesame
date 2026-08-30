@@ -138,7 +138,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         Db::connect_sqlite(&args.database_url).await?
     };
 
-    let boot = bootstrap::maybe_demo_bootstrap(&db).await?;
+    let mut boot = bootstrap::maybe_demo_bootstrap(&db).await?;
     let receipt_verifier =
         config::resolve_receipt_verifier(&boot.broker.signer).map_err(anyhow::Error::msg)?;
     let openfga = OpenFgaClient::from_env().ok().flatten();
@@ -153,6 +153,13 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         db.pool().clone(),
         BrokerConfig::from_env()?,
     )?);
+    // Community Wasm connectors (ADR 0065 §5): loaded only when the operator
+    // configured a directory + pinned digests; any failure refuses boot.
+    crate::connector_egress::load_wasm_connectors(
+        &mut boot.broker.host,
+        &connection_broker,
+        connection_organization,
+    )?;
     let resolved = crate::taskbus_config::resolve(&db).await?;
     let task_bus = match crate::taskbus_config::build_bus(&resolved).await {
         Ok(bus) => bus,

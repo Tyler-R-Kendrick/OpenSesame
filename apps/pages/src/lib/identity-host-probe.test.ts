@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import { hostRoutedViaDaemon, probeHost, probeIdentity } from "./identity.js";
 import { saveSettings } from "./settings.js";
 
@@ -34,6 +35,7 @@ describe("host plane probe", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -68,6 +70,7 @@ describe("host plane probe", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -96,6 +99,7 @@ describe("identity plane probe", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -120,6 +124,7 @@ describe("identity plane probe", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },

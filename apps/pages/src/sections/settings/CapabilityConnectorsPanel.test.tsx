@@ -156,7 +156,9 @@ describe("CapabilityConnectorsPanel", () => {
     // WebCrypto needs no Host auth.
     expect(screen.getByText("Active on this device")).toBeTruthy();
     // GitHub needs authorization before history can sync.
-    expect(screen.getByText("Authorize this connector to sync")).toBeTruthy();
+    expect(
+      screen.getAllByText("Authorize this connector to sync").length,
+    ).toBeGreaterThan(0);
   });
 
   it("shows the connected account when GitHub is authorized", async () => {
@@ -233,7 +235,7 @@ describe("CapabilityConnectorsPanel", () => {
         <CapabilityConnectorsPanel />
       </MemoryRouter>,
     );
-    await screen.findByText("Authorize this connector to sync");
+    await screen.findAllByText("Authorize this connector to sync");
     await userEvent.click(
       screen.getByRole("button", { name: /Authorize GitHub \(OAuth\)/i }),
     );
@@ -671,7 +673,7 @@ describe("CapabilityConnectorsPanel edge branches", () => {
       </MemoryRouter>,
     );
     expect(
-      await screen.findByText("Authorize this connector to sync"),
+      (await screen.findAllByText("Authorize this connector to sync"))[0],
     ).toBeTruthy();
   });
 

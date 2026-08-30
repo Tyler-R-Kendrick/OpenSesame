@@ -6,7 +6,10 @@ metadata:
   publisher: https://github.com/Tyler-R-Kendrick/OpenSesame
 spec:
   component:
-    oci: ghcr.io/tyler-r-kendrick/opensesame/connectors/mock@sha256:mock-connector
+    # Placeholder digest (sha256 of the string "mock-connector"): the mock
+    # connector is registered in code, not loaded from this manifest. The file
+    # is the golden fixture for the manifest schema (crates/connector-host).
+    oci: ghcr.io/tyler-r-kendrick/opensesame/connectors/mock@sha256:c63245e881bb32310f4f09b58cf3a8d42d935a94bab0eed2243759b0a27a17d9
     witWorld: opensesame:connector/connector@1.0.0
     signaturesRequired: true
   authModes: [brokered_session]

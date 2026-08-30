@@ -3,7 +3,10 @@
 //! Host capabilities: authorized HTTP / sign / opaque token handles.
 //! There is no secrets.get path for guests.
 
+pub mod manifest;
 pub mod providers;
+#[cfg(feature = "wasm-connectors")]
+pub mod wasm;
 
 use opensesame_domain::{EgressBinding, InvokeLevel, LegacyProjection, PlaceholderPlacement};
 use serde::{Deserialize, Serialize};
@@ -273,6 +276,10 @@ pub struct InvokeRequest {
     pub authorized_operation: String,
     #[serde(default)]
     pub invoke_level: Option<u8>,
+    /// Opaque connection reference the invocation is bound to. Handed to the
+    /// host egress layer for credential resolution; never credential bytes.
+    #[serde(default)]
+    pub connection_ref: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -503,6 +510,10 @@ pub struct HostRuntime {
     pub policy: HostPolicy,
     connectors: HashMap<String, Arc<dyn Connector>>,
     connection_connectors: HashMap<String, String>,
+    /// Provider id → connection-policy id (the `connection_connectors` key)
+    /// that executes that provider's typed operations. Unbound providers
+    /// fall back to the mock policy id, preserving pre-registry behavior.
+    provider_connectors: HashMap<String, String>,
     /// `connection_ref` URI → what this host resolved for it.
     pub connections: std::collections::HashMap<String, HostConnection>,
 }
@@ -535,10 +546,16 @@ impl Default for HostRuntime {
             policy,
             connectors,
             connection_connectors,
+            provider_connectors: HashMap::new(),
             connections,
         }
     }
 }
+
+/// The connection-policy id every unbound provider resolves to — the mock
+/// connector mounted by `HostRuntime::default()`. Unknown operations on it
+/// fail closed with a typed connector error.
+pub const FALLBACK_CONNECTION_POLICY_ID: &str = "demo-conn";
 
 impl HostRuntime {
     /// # Errors
@@ -571,6 +588,41 @@ impl HostRuntime {
         self.connection_connectors
             .insert(connection_id.into(), connector_id.into());
         Ok(())
+    }
+
+    /// Route a provider's typed operations to a registered connection-policy
+    /// id. Refuses ids that nothing is bound to — a provider can never be
+    /// pointed at a connector that does not exist (ADR 0065 §5).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `connection_policy_id` has no bound connector.
+    pub fn bind_provider(
+        &mut self,
+        provider_id: impl Into<String>,
+        connection_policy_id: &str,
+    ) -> Result<(), HostError> {
+        if !self
+            .connection_connectors
+            .contains_key(connection_policy_id)
+        {
+            return Err(HostError::Connector(format!(
+                "connection policy {connection_policy_id} has no connector"
+            )));
+        }
+        self.provider_connectors
+            .insert(provider_id.into(), connection_policy_id.into());
+        Ok(())
+    }
+
+    /// The connection-policy id that executes `provider_id`'s typed
+    /// operations. Unbound providers keep the historical mock fallback,
+    /// byte-for-byte: unknown operations there fail closed.
+    #[must_use]
+    pub fn connector_for_provider(&self, provider_id: &str) -> &str {
+        self.provider_connectors
+            .get(provider_id)
+            .map_or(FALLBACK_CONNECTION_POLICY_ID, String::as_str)
     }
 
     #[must_use]
@@ -896,6 +948,7 @@ mod tests {
                     parameters_digest: digest,
                     authorized_operation: "pull_request.create".into(),
                     invoke_level: Some(1),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap();
@@ -918,6 +971,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&params),
                     authorized_operation: "repository.read".into(),
                     invoke_level: None,
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -938,6 +992,7 @@ mod tests {
                     parameters_digest: "sha256:nope".into(),
                     authorized_operation: "repository.read".into(),
                     invoke_level: None,
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -978,6 +1033,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&params),
                     authorized_operation: "repository.read".into(),
                     invoke_level: None,
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1016,6 +1072,7 @@ mod tests {
                         parameters_digest: opensesame_param_digest(&params),
                         authorized_operation: op.into(),
                         invoke_level: None,
+                        connection_ref: String::new(),
                     }
                 )
                 .is_err());
@@ -1037,6 +1094,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&params),
                     authorized_operation: "credential.resolve".into(),
                     invoke_level: Some(3),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1226,6 +1284,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&with_material),
                     authorized_operation: "http.authorized".into(),
                     invoke_level: Some(2),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1250,6 +1309,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&foreign),
                     authorized_operation: "http.authorized".into(),
                     invoke_level: Some(2),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1274,6 +1334,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&unknown),
                     authorized_operation: "http.authorized".into(),
                     invoke_level: Some(2),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1303,9 +1364,22 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&params),
                     authorized_operation: "http.authorized".into(),
                     invoke_level: Some(2),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
         assert!(matches!(err, HostError::PlacementDenied(_)), "{err:?}");
+    }
+
+    #[test]
+    fn provider_binding_routes_and_falls_back() {
+        let mut host = HostRuntime::default();
+        // Unbound: historical fallback, byte-for-byte.
+        assert_eq!(host.connector_for_provider("github"), "demo-conn");
+        // Binding to a policy id nothing serves is refused.
+        assert!(host.bind_provider("github", "nope").is_err());
+        // Binding to the mounted policy id routes the provider there.
+        host.bind_provider("github", "demo-conn").expect("bind");
+        assert_eq!(host.connector_for_provider("github"), "demo-conn");
     }
 }

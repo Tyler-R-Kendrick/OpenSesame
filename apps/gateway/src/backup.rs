@@ -101,6 +101,53 @@ pub async fn pass(
         return Ok(());
     }
 
+    // Connector-kind targets (ADR 0065 §6) deliver through the connection
+    // broker's authorized egress — no GitHub App leg, same saga semantics.
+    if target.kind == crate::backup_target::KIND_CONNECTOR {
+        let connector_target = match crate::backup_target::ConnectorSnapshotTarget::from_row(
+            state.connection_broker.clone(),
+            state.connection_organization,
+            &target,
+        ) {
+            Ok(connector_target) => connector_target,
+            Err(StepError::Suspend(reason)) => {
+                return compensate_suspend(state, &organization, &ids, &reason).await;
+            }
+            Err(StepError::Retry(reason)) => {
+                return compensate_retry(state, &ids, max_attempts, &reason).await;
+            }
+        };
+        let files = snapshot(state).await?;
+        let event_summary = summarize(&events);
+        return match connector_target
+            .commit_snapshot(&files, &event_summary)
+            .await
+        {
+            Ok(CommitOutcome::Committed(sha)) => {
+                state.db.mark_outbox_published(&ids).await?;
+                state
+                    .db
+                    .record_backup_outcome(&organization, "ok", Some(&sha), None)
+                    .await?;
+                Ok(())
+            }
+            Ok(CommitOutcome::NoChanges) => {
+                state.db.mark_outbox_published(&ids).await?;
+                state
+                    .db
+                    .record_backup_outcome(&organization, "ok", None, None)
+                    .await?;
+                Ok(())
+            }
+            Err(StepError::Suspend(reason)) => {
+                compensate_suspend(state, &organization, &ids, &reason).await
+            }
+            Err(StepError::Retry(reason)) => {
+                compensate_retry(state, &ids, max_attempts, &reason).await
+            }
+        };
+    }
+
     // Step 1: authenticate as the installed GitHub App.
     let token = match installation_token(state, &target, api_base, token_cache).await {
         Ok(token) => token,
@@ -196,7 +243,7 @@ async fn compensate_retry(
     Ok(())
 }
 
-enum StepError {
+pub enum StepError {
     /// Human intervention required (app uninstalled, key rotated, repo gone).
     Suspend(String),
     /// Worth retrying with backoff.
@@ -702,6 +749,10 @@ mod tests {
                 last_commit_sha: None,
                 last_synced_at: None,
                 last_error: None,
+                kind: "github_app".into(),
+                provider_id: None,
+                connection_id: None,
+                config: None,
             })
             .await
             .unwrap();

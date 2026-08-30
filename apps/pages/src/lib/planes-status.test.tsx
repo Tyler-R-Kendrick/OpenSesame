@@ -2,6 +2,7 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import { resetConnectivityMonitorForTests } from "./connectivity-monitor.js";
 import {
   clearHostSession,
@@ -44,6 +45,7 @@ beforeEach(() => {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },
@@ -116,6 +118,7 @@ describe("usePlaneStatus", () => {
         tursoUrl: "",
         mfaAppUrl: "",
         capabilityConnectors: {
+          ...defaultCapabilityConnectors(),
           encryption: { providerId: "webcrypto" },
           history: { providerId: "github" },
         },

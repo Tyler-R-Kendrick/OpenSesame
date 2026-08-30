@@ -23,6 +23,8 @@ cargo +1.88.0 test --lib \
   -p opensesame-env-spec
 echo "== wasm client-core =="
 ./scripts/wasm-client-core-smoke.sh
+echo "== wasm connector runtime (ADR 0065, feature-gated) =="
+cargo +1.88.0 test -p opensesame-connector-host --features wasm-connectors
 echo "== broker adversarial =="
 cargo +1.88.0 test -p opensesame-broker --test adversarial_broker
 echo "== api-client + MCP =="

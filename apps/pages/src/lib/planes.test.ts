@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   classifyHost,
   classifyIdentity,
@@ -114,6 +115,7 @@ describe("plane status labels and pairing guards", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },

@@ -94,6 +94,8 @@ ratatui = { version = "0.30.2", default-features = false, features = ["crossterm
 reqwest = { version = "0.12.20", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
+# Maintained serde_yaml fork (serde_yaml itself is RUSTSEC-2024-0320).
+serde_norway = "0.9.42"
 sha2 = "0.10.9"
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "chrono", "uuid", "migrate"] }
 thiserror = "2.0.12"
@@ -111,6 +113,11 @@ subtle = "2.6.1"
 tempfile = "3.20.0"
 proptest = "1.7.0"
 utoipa = { version = "5.3.1", features = ["chrono", "uuid"] }
-wasmtime = "33.0.0"
+wasmtime = { version = "36.0.7", default-features = false, features = [
+  "runtime",
+  "component-model",
+  "cranelift",
+  "wat",
+] }
 oauth2 = "5.0.0"
 openidconnect = "4.0.0"

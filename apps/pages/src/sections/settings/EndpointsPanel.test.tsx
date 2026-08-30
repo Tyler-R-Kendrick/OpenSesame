@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "../../lib/capabilities.js";
 import type { PagesSettings } from "../../lib/settings.js";
 import {
   EndpointsPanel,
@@ -21,6 +22,7 @@ const env: EndpointTestEnvironment = {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },
@@ -50,6 +52,7 @@ const BASE: PagesSettings = {
   tursoUrl: "",
   mfaAppUrl: "",
   capabilityConnectors: {
+    ...defaultCapabilityConnectors(),
     encryption: { providerId: "webcrypto" },
     history: { providerId: "github" },
   },

@@ -1,5 +1,6 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   HostSessionError,
   IdentityError,
@@ -79,6 +80,7 @@ beforeEach(() => {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },
@@ -420,6 +422,7 @@ describe("missing configuration", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },

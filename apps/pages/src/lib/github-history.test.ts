@@ -1,5 +1,6 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   DEFAULT_PASSWORD_REPO_NAME,
   createGithubPasswordRepo,
@@ -51,6 +52,7 @@ beforeEach(() => {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },

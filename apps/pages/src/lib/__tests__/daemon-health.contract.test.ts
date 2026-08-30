@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const env = { loopbackPage: true };
 
+import { defaultCapabilityConnectors } from "../capabilities.js";
 import { applyDaemonPairing, probeDaemon } from "../daemon.js";
 import { loadSettings, saveSettings, settingsSeams } from "../settings.js";
 
@@ -52,6 +53,7 @@ const LOCAL_SETTINGS = {
   tursoUrl: "",
   mfaAppUrl: "",
   capabilityConnectors: {
+    ...defaultCapabilityConnectors(),
     encryption: { providerId: "webcrypto" },
     history: { providerId: "github" },
   },

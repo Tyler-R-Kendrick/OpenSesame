@@ -4,6 +4,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   ConnectionsError,
   awaitConsent,
@@ -113,6 +114,7 @@ beforeEach(async () => {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import { applyDaemonPairing, probeDaemon } from "./daemon.js";
 import {
   hasRemoteHostPairing,
@@ -35,6 +36,7 @@ describe("daemon pairing", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -65,6 +67,7 @@ describe("daemon pairing", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -168,6 +171,7 @@ describe("daemon pairing fallbacks", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -198,6 +202,7 @@ describe("daemon pairing fallbacks", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -226,6 +231,7 @@ describe("daemon pairing fallbacks", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },

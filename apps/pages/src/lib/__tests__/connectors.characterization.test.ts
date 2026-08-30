@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const env = { loopbackPage: true };
 
+import { defaultCapabilityConnectors } from "../capabilities.js";
 import type { TargetState } from "../connectivity-monitor.js";
 import {
   classifyHistoryConnector,
@@ -89,6 +90,7 @@ function settings(over: Partial<PagesSettings> = {}): PagesSettings {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },
@@ -231,6 +233,7 @@ describe("connector copy characterization", () => {
           const status = classifyHistoryConnector(
             settings({
               capabilityConnectors: {
+                ...defaultCapabilityConnectors(),
                 encryption: { providerId: "webcrypto" },
                 history: { providerId, connectionId, remote },
               },
@@ -256,6 +259,7 @@ describe("connector copy characterization", () => {
         const status = classifyKeysConnector(
           settings({
             capabilityConnectors: {
+              ...defaultCapabilityConnectors(),
               encryption: { providerId, connectionId },
               history: { providerId: "github" },
             },

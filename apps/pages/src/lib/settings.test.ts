@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -18,6 +19,7 @@ describe("runtime endpoint defaults", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -52,6 +54,7 @@ describe("runtime endpoint defaults", () => {
     saveSettings({
       ...loadSettings(),
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: {
           providerId: "github",
@@ -81,6 +84,7 @@ describe("runtime endpoint defaults", () => {
           tursoUrl: "",
           mfaAppUrl: "",
           capabilityConnectors: {
+            ...defaultCapabilityConnectors(),
             encryption: { providerId: "webcrypto" },
             history: { providerId: "github" },
           },
@@ -97,6 +101,7 @@ describe("runtime endpoint defaults", () => {
           tursoUrl: "",
           mfaAppUrl: "",
           capabilityConnectors: {
+            ...defaultCapabilityConnectors(),
             encryption: { providerId: "webcrypto" },
             history: { providerId: "github" },
           },
@@ -113,6 +118,7 @@ describe("runtime endpoint defaults", () => {
           tursoUrl: "",
           mfaAppUrl: "",
           capabilityConnectors: {
+            ...defaultCapabilityConnectors(),
             encryption: { providerId: "webcrypto" },
             history: { providerId: "github" },
           },
@@ -128,6 +134,7 @@ describe("runtime endpoint defaults", () => {
         tursoUrl: "",
         mfaAppUrl: "",
         capabilityConnectors: {
+          ...defaultCapabilityConnectors(),
           encryption: { providerId: "webcrypto" },
           history: { providerId: "github" },
         },
@@ -141,6 +148,7 @@ describe("runtime endpoint defaults", () => {
         tursoUrl: "",
         mfaAppUrl: "",
         capabilityConnectors: {
+          ...defaultCapabilityConnectors(),
           encryption: { providerId: "webcrypto" },
           history: { providerId: "github" },
         },
@@ -180,6 +188,7 @@ describe("settings subscriptions and guards", () => {
       tursoUrl: "",
       mfaAppUrl: "",
       capabilityConnectors: {
+        ...defaultCapabilityConnectors(),
         encryption: { providerId: "webcrypto" },
         history: { providerId: "github" },
       },
@@ -207,6 +216,7 @@ describe("settings subscriptions and guards", () => {
           tursoUrl: "",
           mfaAppUrl: "",
           capabilityConnectors: {
+            ...defaultCapabilityConnectors(),
             encryption: { providerId: "webcrypto" },
             history: { providerId: "github" },
           },

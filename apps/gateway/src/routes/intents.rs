@@ -39,15 +39,6 @@ struct ResolvedInvocation {
     broker_connection: bool,
 }
 
-/// The connector component that executes operations for a provider. The WASM
-/// host registers components by policy id, and today exactly one is mounted
-/// (`demo-conn`); a provider whose operations that component does not carry
-/// fails closed at invoke with a typed connector error rather than pretending
-/// to execute. When per-provider components land, this becomes the lookup.
-fn component_for_provider(_provider_id: &str) -> &'static str {
-    "demo-conn"
-}
-
 #[derive(Deserialize)]
 pub struct InvokeBody {
     /// Preferred agent API: `ConnectionRef` URI (conn://...).
@@ -301,7 +292,11 @@ async fn delegated_invocation(
                 egress: row.egress,
                 max_invoke_level,
             },
-            connection_policy_id: component_for_provider(&row.provider_id).to_string(),
+            connection_policy_id: st
+                .broker
+                .host
+                .connector_for_provider(&row.provider_id)
+                .to_string(),
             grant,
             spend_budget: None,
             broker_connection: true,
@@ -335,7 +330,11 @@ async fn delegated_invocation(
             egress: row.egress.clone(),
             max_invoke_level: InvokeLevel::TypedOperation,
         },
-        connection_policy_id: component_for_provider(&row.provider_id).to_string(),
+        connection_policy_id: st
+            .broker
+            .host
+            .connector_for_provider(&row.provider_id)
+            .to_string(),
         spend_budget: Some(delegation.delegation_id.clone()),
         broker_connection: true,
     })

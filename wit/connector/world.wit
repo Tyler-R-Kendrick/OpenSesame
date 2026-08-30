@@ -19,7 +19,7 @@ interface types {
   record intent {
     id: string,
     operation: string,
-    resource: string,
+    %resource: string,
     audience: string,
     parameters: list<u8>,
     parameters-digest: string,
@@ -74,9 +74,10 @@ interface host-crypto {
 
 interface host-oauth {
   use types.{connection-handle, access-token-handle};
+  use host-http.{request, response};
 
   record token-request {
-    resource: option<string>,
+    %resource: option<string>,
     audience: option<string>,
     scopes: list<string>,
   }
@@ -90,18 +91,20 @@ interface host-oauth {
   authenticated-request: func(
     connection: borrow<connection-handle>,
     token: borrow<access-token-handle>,
-    request: host-http.request
-  ) -> result<host-http.response, string>;
+    request: request
+  ) -> result<response, string>;
 }
 
 world connector {
+  use types.{connection-handle, connector-info, intent, invoke-error};
+
   import host-http;
   import host-crypto;
   import host-oauth;
 
-  export describe: func() -> types.connector-info;
+  export describe: func() -> connector-info;
   export invoke: func(
-    connection: borrow<types.connection-handle>,
-    intent: types.intent
-  ) -> result<list<u8>, types.invoke-error>;
+    connection: borrow<connection-handle>,
+    intent: intent
+  ) -> result<list<u8>, invoke-error>;
 }

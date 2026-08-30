@@ -2,6 +2,7 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   clearHostSession,
   clearSession,
@@ -61,6 +62,7 @@ beforeEach(() => {
     tursoUrl: "",
     mfaAppUrl: "",
     capabilityConnectors: {
+      ...defaultCapabilityConnectors(),
       encryption: { providerId: "webcrypto" },
       history: { providerId: "github" },
     },
