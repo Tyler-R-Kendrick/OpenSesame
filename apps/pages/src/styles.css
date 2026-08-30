@@ -2,28 +2,28 @@
    Password-manager canon at the Bitwarden/1Password craft bar, in OpenSesame navy + teal. */
 
 :root {
-  --canvas: #f2f5f9;
+  --canvas: #fafafa;
   --surface: #ffffff;
-  --surface-2: #f7f9fc;
-  --surface-3: #eef2f8;
-  --rail: #101a2b;
-  --rail-2: #17253a;
-  --rail-fg: #dbe6f4;
-  --rail-muted: #8ba0bb;
-  --rail-line: #24354e;
+  --surface-2: #f5f5f5;
+  --surface-3: #ededed;
+  --rail: #fafafa;
+  --rail-2: #efefef;
+  --rail-fg: #171717;
+  --rail-muted: #6f6f6f;
+  --rail-line: #e7e7e7;
   --rail-warn: #f0b95c;
 
-  --ink: #0e1826;
-  --ink-2: #566880;
-  --ink-3: #7e8fa6;
-  --line: #dce4ef;
-  --line-strong: #c4d1e2;
+  --ink: #171717;
+  --ink-2: #5c5c5c;
+  --ink-3: #6f6f6f;
+  --line: #e7e7e7;
+  --line-strong: #d4d4d4;
 
   --accent: #0d7268;
   --accent-hover: #0a5c54;
   --accent-ink: #ffffff;
-  --accent-wash: #e4f6f3;
-  --accent-line: #9fd8d0;
+  --accent-wash: #eaf2f0;
+  --accent-line: #bcd6d1;
 
   --ok: #0f7a51;
   --ok-wash: #e3f6ec;
@@ -39,16 +39,15 @@
   --s-3: #0f7a51;
   --s-4: #0d7268;
 
-  --radius: 10px;
-  --radius-lg: 14px;
+  --radius: 2px;
+  --radius-lg: 2px;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgba(14, 24, 38, 0.06), 0 1px 1px
-    rgba(14, 24, 38, 0.04);
-  --shadow: 0 6px 16px -4px rgba(14, 24, 38, 0.12), 0 2px 6px -2px
-    rgba(14, 24, 38, 0.08);
-  --shadow-lg: 0 24px 48px -12px rgba(14, 24, 38, 0.22), 0 8px 20px -8px
-    rgba(14, 24, 38, 0.12);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.08), 0 1px 4px -1px
+    rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.14), 0 4px 12px -6px
+    rgba(0, 0, 0, 0.08);
 
   --rail-w: 15.5rem;
   --list-w: 21rem;
@@ -67,27 +66,27 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --canvas: #0a121d;
-    --surface: #111d2c;
-    --surface-2: #162435;
-    --surface-3: #1c2c40;
-    --rail: #070f19;
-    --rail-2: #0f1c2b;
-    --rail-fg: #dbe6f4;
-    --rail-muted: #7d92ae;
-    --rail-line: #1b2b3f;
+    --canvas: #0f0f0f;
+    --surface: #171717;
+    --surface-2: #1d1d1d;
+    --surface-3: #242424;
+    --rail: #0f0f0f;
+    --rail-2: #1d1d1d;
+    --rail-fg: #f0f0f0;
+    --rail-muted: #8c8c8c;
+    --rail-line: #262626;
     --rail-warn: #f0b95c;
 
-    --ink: #e7eefa;
-    --ink-2: #9db0c8;
-    --ink-3: #7488a2;
-    --line: #223349;
-    --line-strong: #2e4262;
+    --ink: #f0f0f0;
+    --ink-2: #a6a6a6;
+    --ink-3: #8c8c8c;
+    --line: #262626;
+    --line-strong: #3a3a3a;
 
     --accent: #2fb3a3;
     --accent-hover: #43c8b7;
     --accent-ink: #04231f;
-    --accent-wash: #0f2f2c;
+    --accent-wash: #102a26;
     --accent-line: #1d5c55;
 
     --ok: #35b57e;
@@ -115,27 +114,27 @@
 }
 
 :root[data-theme="dark"] {
-  --canvas: #0a121d;
-  --surface: #111d2c;
-  --surface-2: #162435;
-  --surface-3: #1c2c40;
-  --rail: #070f19;
-  --rail-2: #0f1c2b;
-  --rail-fg: #dbe6f4;
-  --rail-muted: #7d92ae;
-  --rail-line: #1b2b3f;
+  --canvas: #0f0f0f;
+  --surface: #171717;
+  --surface-2: #1d1d1d;
+  --surface-3: #242424;
+  --rail: #0f0f0f;
+  --rail-2: #1d1d1d;
+  --rail-fg: #f0f0f0;
+  --rail-muted: #8c8c8c;
+  --rail-line: #262626;
   --rail-warn: #f0b95c;
 
-  --ink: #e7eefa;
-  --ink-2: #9db0c8;
-  --ink-3: #7488a2;
-  --line: #223349;
-  --line-strong: #2e4262;
+  --ink: #f0f0f0;
+  --ink-2: #a6a6a6;
+  --ink-3: #8c8c8c;
+  --line: #262626;
+  --line-strong: #3a3a3a;
 
   --accent: #2fb3a3;
   --accent-hover: #43c8b7;
   --accent-ink: #04231f;
-  --accent-wash: #0f2f2c;
+  --accent-wash: #102a26;
   --accent-line: #1d5c55;
 
   --ok: #35b57e;
@@ -188,9 +187,23 @@ body {
   margin: 0;
   background: var(--canvas);
   color: var(--ink);
-  font-size: 15px;
+  font-family: var(--mono);
+  font-size: 0.875rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Chrome is mono — the terminal voice. Prose paragraphs and hints read in
+   the sans stack at a readable measure. */
+p,
+.hint {
+  font-family: var(--font);
+  font-size: 0.9375rem;
+}
+
+p.hint,
+span.hint {
+  font-size: 0.8125rem;
 }
 
 h1,
@@ -200,7 +213,7 @@ h4 {
   margin: 0;
   letter-spacing: -0.021em;
   text-wrap: balance;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 h1 {
@@ -301,13 +314,13 @@ kbd {
 }
 
 .btn--primary {
-  background: var(--accent);
+  background: var(--ink);
   border-color: transparent;
-  color: var(--accent-ink);
+  color: var(--canvas);
 }
 
 .btn--primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
   border-color: transparent;
 }
 
@@ -361,7 +374,7 @@ kbd {
   height: 2rem;
   flex: none;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink-2);
   cursor: pointer;
@@ -379,42 +392,87 @@ kbd {
 }
 
 .icon-btn.is-on {
-  color: var(--accent);
-  background: var(--accent-wash);
+  color: var(--canvas);
+  background: var(--ink);
 }
 
 .field {
   display: grid;
-  gap: 0.3rem;
+  grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
+  column-gap: 1.1rem;
+  row-gap: 0.3rem;
+  align-items: baseline;
+  padding: 0.45rem 0 0.55rem;
 }
 
-.field > label,
-.label {
+.field > label:not(.check),
+.field > .label {
+  padding-top: 0.3rem;
+  font-family: var(--mono);
   font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--ink-2);
 }
 
+/* Everything that is not the label sits in the value column, so hints and
+   errors line up under the value they belong to. A checkbox sentence is its
+   own label and owns the whole row. */
+.field > *:not(label):not(.label) {
+  grid-column: 2;
+}
+
+.field > .check {
+  grid-column: 1 / -1;
+}
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+/* Inputs are ruled lines on the paper, not boxes floating on it: the record
+   is the form. Focus thickens the rule to ink. */
 input,
 select,
 textarea {
   width: 100%;
-  min-height: 2.25rem;
-  padding: 0.45rem 0.65rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
+  min-height: 2rem;
+  padding: 0.25rem 0.1rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
+  border-radius: 0;
+}
+
+select {
+  cursor: pointer;
 }
 
 textarea {
   min-height: 6rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   resize: vertical;
   line-height: 1.55;
+}
+
+textarea:focus-visible {
+  border-color: var(--ink);
+  box-shadow: none;
 }
 
 input::placeholder,
@@ -425,8 +483,8 @@ textarea::placeholder {
 input:disabled,
 textarea:disabled,
 select:disabled {
-  background: var(--surface-2);
   color: var(--ink-2);
+  border-bottom-style: dotted;
 }
 
 input[type="checkbox"],
@@ -546,7 +604,7 @@ input[type="radio"] {
 .qr__shortcode {
   font-family: var(--mono);
   font-size: 1.125rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.08em;
 }
 
@@ -587,7 +645,7 @@ input[type="radio"] {
   gap: 0.3rem;
   padding: 0.15rem 0.5rem;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   background: var(--surface-2);
   font-size: 0.75rem;
   font-weight: 600;
@@ -636,8 +694,46 @@ input[type="radio"] {
 .app {
   display: grid;
   grid-template-columns: var(--rail-w) 1fr;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "rail main"
+    "status status";
   height: 100dvh;
   overflow: hidden;
+}
+
+.rail {
+  grid-area: rail;
+}
+
+.main {
+  grid-area: main;
+}
+
+/* The workspace statusline: one mono strip of plane truth. */
+.statusline {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.25rem 0.85rem;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.statusline__spacer {
+  margin-left: auto;
+}
+
+/* The statusline is a strip, not a toolbar: its chips stay slim. */
+.statusline .cx__btn,
+.statusline .icon-btn {
+  min-width: 0;
+  min-height: 0;
+  padding: 0.15rem 0.3rem 0.1rem;
 }
 
 .rail {
@@ -652,23 +748,62 @@ input[type="radio"] {
 .rail__brand {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  padding: 1rem 1rem 0.85rem;
+  gap: 0.45rem;
+  padding: 0.9rem 1rem 0.15rem;
 }
 
 .rail__wordmark {
   margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 650;
-  letter-spacing: -0.015em;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   line-height: 1.2;
 }
 
-.rail__tagline {
+/* The session context as a shell prompt: who@tomb:/ — the root of the tree
+   the rail renders. Each segment is a button that opens its switcher. */
+.rail__prompt {
+  display: flex;
+  align-items: baseline;
   margin: 0;
-  font-size: 0.6875rem;
+  padding: 0.15rem 1rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.prompt__dim {
   color: var(--rail-muted);
-  letter-spacing: 0.01em;
+}
+
+.prompt__seg {
+  appearance: none;
+  display: inline-block;
+  max-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--rail-fg);
+  font: inherit;
+  font-weight: 600;
+  text-transform: lowercase;
+  cursor: pointer;
+  text-decoration: underline dotted var(--rail-muted);
+  text-underline-offset: 3px;
+}
+
+.prompt__seg:hover,
+.prompt__seg[aria-expanded="true"] {
+  text-decoration-style: solid;
+  text-decoration-color: var(--ink);
+}
+
+.prompt__seg--tomb {
+  color: var(--accent);
 }
 
 .rail__scroll {
@@ -680,73 +815,115 @@ input[type="radio"] {
   scrollbar-color: var(--rail-line) transparent;
 }
 
-.rail__group {
-  margin-top: 0.9rem;
+/* —— The rail as a filesystem: sections are directories ————— */
+
+.railtree {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
 }
 
-.rail__group-label {
+.railtree__row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.4rem;
-  padding: 0 0.5rem 0.35rem;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--rail-muted);
-}
-
-.rail__link {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.5rem 0.55rem;
-  border-radius: 8px;
+  height: 1.75rem;
+  padding: 0 0.55rem;
   color: var(--rail-fg);
   text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 500;
+  white-space: nowrap;
   opacity: 0.85;
   transition: background 140ms var(--ease), opacity 140ms var(--ease);
 }
 
-.rail__link:hover {
+.railtree__row:hover {
   background: var(--rail-2);
   opacity: 1;
 }
 
-.rail__link.is-active {
-  background: color-mix(in srgb, var(--accent) 26%, var(--rail-2));
+.railtree__row.is-active {
   opacity: 1;
+}
+
+.railtree__row.is-active .railtree__name {
   font-weight: 600;
 }
 
-.rail__link svg {
+/* Inverse video marks the one place you are — leaf rows, not the open
+   directory above them. A childless active section is its own leaf. */
+.railtree__row--child.is-active,
+.railtree__row.is-active:not(:has(+ .railtree__kids)) {
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.railtree__row--child.is-active .railtree__dim,
+.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__dim,
+.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__count,
+.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__caret {
+  color: color-mix(in srgb, var(--canvas) 62%, var(--ink));
+}
+
+.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__jump {
+  border-color: color-mix(in srgb, var(--canvas) 30%, var(--ink));
+  color: color-mix(in srgb, var(--canvas) 62%, var(--ink));
+}
+
+.railtree__kids {
+  display: flex;
+  flex-direction: column;
+  margin-left: 0.875rem;
+  border-left: 1px solid var(--rail-line);
+}
+
+.railtree__caret {
   flex: none;
-  opacity: 0.85;
+  color: var(--rail-muted);
+  transition: transform 140ms var(--ease);
 }
 
-.rail__link.is-active svg {
-  opacity: 1;
+.railtree__caret.is-open {
+  transform: rotate(90deg);
 }
 
-.rail__count {
+.railtree__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.railtree__dim {
+  color: var(--rail-muted);
+}
+
+.railtree__count {
   margin-left: auto;
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   color: var(--rail-muted);
 }
 
-.rail__link.is-active .rail__count {
-  color: inherit;
+.railtree__jump {
+  flex: none;
+  margin-left: auto;
+  padding: 0.05rem 0.25rem;
+  border: 1px solid var(--rail-line);
+  border-radius: 4px;
+  color: var(--rail-muted);
+  font-family: inherit;
+  font-size: 0.625rem;
+  line-height: 1.2;
 }
 
-.rail__foot {
-  border-top: 1px solid var(--rail-line);
-  padding: 0.7rem;
-  display: grid;
-  gap: 0.5rem;
+.railtree__count + .railtree__jump,
+.railtree__name + .railtree__jump {
+  margin-left: auto;
+}
+
+.railtree__count ~ .railtree__jump {
+  margin-left: 0.4rem;
 }
 
 .dot {
@@ -767,46 +944,6 @@ input[type="radio"] {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent);
 }
 
-.rail__lock {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  width: 100%;
-  min-height: 2.125rem;
-  border: 1px solid var(--rail-line);
-  border-radius: var(--radius);
-  background: var(--rail-2);
-  color: var(--rail-fg);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 140ms var(--ease);
-}
-
-.rail__lock:hover {
-  background: color-mix(in srgb, var(--accent) 24%, var(--rail-2));
-}
-
-.mark {
-  display: grid;
-  place-items: center;
-  width: 1.875rem;
-  height: 1.875rem;
-  flex: none;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.22);
-}
-
-.mark--lg {
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 12px;
-}
-
 /* ——— Main region ————————————————————————————————————————— */
 
 .main {
@@ -818,23 +955,35 @@ input[type="radio"] {
 }
 
 /* ——— Top bar ————————————————————————————————————————————
-   Present at every width. It carries the project switcher, the connectivity
-   bar and Lock; the rail carries the wordmark and navigation. */
+   Phone chrome: where the rail is gone it carries identity, the connectivity
+   bar and Lock. On a desktop the rail and the statusline carry all of it. */
 .topbar {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   padding: 0.5rem 0.85rem;
-  background: var(--rail);
-  color: var(--rail-fg);
-  border-bottom: 1px solid var(--rail-line);
+  background: var(--surface);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
   flex: none;
+}
+
+@media (min-width: 901px) {
+  .topbar {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .statusline {
+    display: none;
+  }
 }
 
 .topbar__title {
   margin: 0;
   font-size: 0.9375rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .topbar__spacer {
@@ -854,7 +1003,8 @@ input[type="radio"] {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.8125rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
   color: var(--ink-3);
 }
 
@@ -893,17 +1043,12 @@ input[type="radio"] {
   margin: 0 0.2rem;
 }
 
-.topbar .rail__lock {
-  width: auto;
-  padding: 0 0.7rem;
-}
-
 .notice-card {
   display: grid;
   gap: 0.45rem;
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -953,7 +1098,7 @@ input[type="radio"] {
   gap: 3px;
   padding: 0.3rem 0.4rem 0.25rem;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 2px;
   background: transparent;
   color: var(--rail-fg);
   font: inherit;
@@ -1063,10 +1208,10 @@ input[type="radio"] {
 }
 
 .panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .panel__head {
@@ -1074,7 +1219,7 @@ input[type="radio"] {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.15rem;
+  padding: 0 0 0.7rem;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1089,13 +1234,13 @@ input[type="radio"] {
 }
 
 .panel__body {
-  padding: 1.15rem;
+  padding: 1rem 0 0;
   display: grid;
   gap: 0.9rem;
 }
 
 .panel__body--tight {
-  padding: 0.5rem;
+  padding: 0.5rem 0 0;
 }
 
 .actions {
@@ -1126,10 +1271,8 @@ input[type="radio"] {
 }
 
 .kv dt {
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-2);
   margin-bottom: 0.2rem;
 }
@@ -1156,10 +1299,8 @@ input[type="radio"] {
 }
 
 .table thead th {
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-2);
   background: var(--surface-2);
 }
@@ -1194,20 +1335,19 @@ input[type="radio"] {
   text-wrap: pretty;
 }
 
-.empty__mark {
-  display: grid;
-  place-items: center;
-  width: 3rem;
-  height: 3rem;
-  border-radius: 12px;
-  background: var(--surface-3);
-  color: var(--ink-3);
+@media (max-width: 900px) {
+  .field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .field > *:not(label):not(.label) {
+    grid-column: 1;
+  }
 }
 
 @media (pointer: coarse), (max-width: 900px) {
   .btn,
   .conn-doc-link,
-  .rail__lock,
   input:not([type="checkbox"]):not([type="radio"]),
   select,
   textarea {
@@ -1309,7 +1449,7 @@ input[type="radio"] {
     gap: 0.15rem;
     min-width: 0;
     padding: 0.4rem 0.15rem;
-    border-radius: 8px;
+    border-radius: 2px;
     color: var(--ink-2);
     text-decoration: none;
     font-size: 0.625rem;
@@ -1326,8 +1466,8 @@ input[type="radio"] {
   }
 
   .tabbar__link.is-active {
-    color: var(--accent);
-    background: var(--accent-wash);
+    color: var(--ink);
+    background: var(--surface-3);
   }
 }
 
@@ -1341,11 +1481,7 @@ input[type="radio"] {
 
 .project-switcher {
   position: relative;
-  padding: 0 0.6rem 0.25rem;
-}
-
-.topbar .project-switcher {
-  padding: 0;
+  display: inline-block;
 }
 
 .project-switcher__button {
@@ -1355,7 +1491,7 @@ input[type="radio"] {
   width: 100%;
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--rail-line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--rail-2);
   color: var(--rail-fg);
   font: inherit;
@@ -1395,16 +1531,17 @@ input[type="radio"] {
 .project-switcher__menu {
   position: absolute;
   z-index: 41;
-  top: calc(100% + 4px);
-  left: 0.6rem;
-  right: 0.6rem;
-  min-width: 13rem;
-  padding: 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  min-width: 14rem;
+  padding: 0.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-lg);
+  font-family: var(--mono);
 }
 
 .topbar .project-switcher__menu {
@@ -1416,10 +1553,8 @@ input[type="radio"] {
 .project-switcher__label {
   margin: 0 0 0.3rem;
   padding: 0 0.3rem;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-3);
 }
 
@@ -1437,7 +1572,7 @@ input[type="radio"] {
   gap: 0.4rem;
   padding: 0.4rem 0.45rem;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -1447,12 +1582,11 @@ input[type="radio"] {
 }
 
 .project-switcher__item:hover {
-  background: var(--accent-wash);
+  background: var(--surface-2);
 }
 
 .project-switcher__item.is-active {
-  font-weight: 650;
-  color: var(--accent);
+  font-weight: 600;
 }
 
 .project-switcher__item-name {
@@ -1468,7 +1602,7 @@ input[type="radio"] {
   align-items: center;
   padding: 0.3rem;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink-3);
   font: inherit;
@@ -1483,7 +1617,7 @@ input[type="radio"] {
 .project-switcher__delete.is-armed {
   padding: 0.3rem 0.45rem;
   color: var(--err);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .project-switcher__new {
@@ -1499,7 +1633,7 @@ input[type="radio"] {
   min-width: 0;
   padding: 0.35rem 0.45rem;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -1510,10 +1644,10 @@ input[type="radio"] {
   display: inline-flex;
   align-items: center;
   padding: 0.35rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--accent);
-  color: var(--accent-ink);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
   cursor: pointer;
 }
 
@@ -1533,11 +1667,7 @@ input[type="radio"] {
 
 .account-switcher {
   position: relative;
-  padding: 0 0.6rem 0.25rem;
-}
-
-.topbar .account-switcher {
-  padding: 0;
+  display: inline-block;
 }
 
 .account-switcher__button {
@@ -1547,7 +1677,7 @@ input[type="radio"] {
   width: 100%;
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--rail-line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--rail-2);
   color: var(--rail-fg);
   font: inherit;
@@ -1584,16 +1714,17 @@ input[type="radio"] {
 .account-switcher__menu {
   position: absolute;
   z-index: 41;
-  top: calc(100% + 4px);
-  left: 0.6rem;
-  right: 0.6rem;
-  min-width: 13rem;
-  padding: 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  top: calc(100% + 6px);
+  left: 0;
+  right: auto;
+  min-width: 14rem;
+  padding: 0.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-lg);
+  font-family: var(--mono);
 }
 
 .topbar .account-switcher__menu {
@@ -1605,10 +1736,8 @@ input[type="radio"] {
 .account-switcher__label {
   margin: 0 0 0.3rem;
   padding: 0 0.3rem;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--ink-3);
 }
 
@@ -1621,7 +1750,7 @@ input[type="radio"] {
   gap: 0.4rem;
   padding: 0.4rem 0.45rem;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -1632,12 +1761,11 @@ input[type="radio"] {
 
 .account-switcher__item:hover,
 .account-switcher__add:hover {
-  background: var(--accent-wash);
+  background: var(--surface-2);
 }
 
 .account-switcher__item.is-active {
-  font-weight: 650;
-  color: var(--accent);
+  font-weight: 600;
 }
 
 .account-switcher__item-name {
@@ -1652,8 +1780,7 @@ input[type="radio"] {
   margin-top: 0.35rem;
   padding-top: 0.45rem;
   border-top: 1px solid var(--line);
-  color: var(--accent);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .account-switcher__new {
@@ -1669,7 +1796,7 @@ input[type="radio"] {
   min-width: 0;
   padding: 0.35rem 0.45rem;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: var(--radius);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -1682,13 +1809,13 @@ input[type="radio"] {
   align-items: center;
   justify-content: center;
   padding: 0.35rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--accent);
-  color: var(--accent-ink);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1702,14 +1829,14 @@ input[type="radio"] {
   margin-top: 0.45rem;
   padding: 0.45rem;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface-2);
 }
 
 .account-switcher__tenant-name {
   margin: 0 0 0.35rem;
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .account-switcher__methods {
@@ -1752,28 +1879,24 @@ input[type="radio"] {
 
 .f__label {
   font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--ink-2);
 }
 
 .f__shell {
   display: flex;
   align-items: center;
-  min-height: 2.5rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  min-height: 2.25rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: transparent;
   overflow: hidden;
-  transition: border-color 140ms var(--ease), background 140ms var(--ease),
-    box-shadow 140ms var(--ease);
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
 }
 
 .f__shell:focus-within {
-  background: var(--surface);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
 }
 
 .f__lead {
@@ -1787,12 +1910,16 @@ input[type="radio"] {
 .f__input {
   flex: 1;
   min-width: 0;
-  min-height: 2.375rem;
+  min-height: 2.125rem;
   border: 0;
   border-radius: 0;
   background: transparent;
   color: var(--ink);
-  padding: 0.5rem 0.6rem 0.5rem 0.65rem;
+  padding: 0.35rem 0.45rem 0.35rem 0.1rem;
+}
+
+.f__input:focus-visible {
+  box-shadow: none;
 }
 
 .f__lead + .f__input {
@@ -1844,7 +1971,7 @@ input[type="radio"] {
   white-space: nowrap;
   padding: 0.15rem 0.5rem;
   border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   background: transparent;
   color: var(--ink-2);
   font-family: var(--mono);
@@ -1902,7 +2029,7 @@ input[type="radio"] {
   width: 2.25rem;
   height: 2.25rem;
   flex: none;
-  border-radius: 9px;
+  border-radius: var(--radius);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--ink-2);
@@ -1979,13 +2106,11 @@ input[type="radio"] {
 }
 
 .conn__req {
-  font-size: 0.625rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: var(--ink-3);
   border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius);
   padding: 0.05rem 0.35rem;
 }
 
@@ -2004,7 +2129,7 @@ input[type="radio"] {
   width: 100%;
   border: 0;
   padding: 0;
-  background: rgba(10, 18, 29, 0.42);
+  background: rgba(0, 0, 0, 0.44);
   cursor: pointer;
   animation: fade 180ms var(--ease);
 }
@@ -2063,7 +2188,7 @@ input[type="radio"] {
   width: 2.25rem;
   height: 2.25rem;
   flex: none;
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--accent-wash);
   border: 1px solid var(--accent-line);
   color: var(--accent);
@@ -2170,9 +2295,7 @@ input[type="radio"] {
   align-items: center;
   gap: 0.4rem;
   font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--accent);
 }
 
@@ -2231,8 +2354,6 @@ input[type="radio"] {
   margin: 0;
   color: var(--ink-3);
   font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .or::before,
@@ -2336,9 +2457,9 @@ input[type="radio"] {
 }
 
 .picker__opt.is-on {
-  border-color: var(--accent);
-  background: var(--accent-wash);
-  color: var(--accent);
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--canvas);
 }
 
 .qr-block {
@@ -2540,7 +2661,7 @@ input[type="radio"] {
 }
 
 .str__label {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .str__bits {

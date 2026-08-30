@@ -31,6 +31,20 @@ export function registerVaultKeymap(target: VaultKeymapTarget): () => void {
   };
 }
 
+let helpTarget: (() => void) | null = null;
+
+/** The shell owns the keymap sheet; registering hands `?` (and any pointer twin) a way to open it. */
+export function registerKeymapHelp(show: () => void): () => void {
+  helpTarget = show;
+  return () => {
+    if (helpTarget === show) helpTarget = null;
+  };
+}
+
+export function showKeymapHelp(): void {
+  helpTarget?.();
+}
+
 function typing(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLInputElement ||

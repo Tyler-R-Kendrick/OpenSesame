@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Link,
   Outlet,
@@ -7,25 +7,18 @@ import {
   useParams,
   useSearchParams,
 } from "react-router";
-import {
-  IconPlus,
-  IconSearch,
-  IconUpload,
-  IconVault,
-} from "../components/Icons.js";
-import { activeProject } from "../lib/projects.js";
+
+import { IconDownload, IconPlus } from "../components/Icons.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { stashImportFile } from "../lib/vault/import/handoff.js";
 import {
   type Folder,
   type ItemKind,
-  KIND_LABEL,
   KIND_PLURAL,
   type VaultItem,
   sortItems,
 } from "../lib/vault/model.js";
-import { itemPath, tombPath } from "../lib/vault/paths.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
 
@@ -108,18 +101,19 @@ const IMPORT_ACCEPT =
  * file is handed to the Settings import panel through `stashImportFile` so
  * clicking Import here is the only click before the file dialog opens.
  */
-function ImportButton() {
+function ImportButton({ verb = false }: { verb?: boolean }) {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   return (
     <>
       <button
         type="button"
-        className="btn btn--sm"
+        className={verb ? "icon-btn icon-btn--sm" : "btn btn--sm"}
+        aria-label={verb ? "Import items" : undefined}
+        title={verb ? "Import items" : undefined}
         onClick={() => fileRef.current?.click()}
       >
-        <IconUpload size={16} />
-        Import
+        {verb ? <IconDownload size={15} /> : "Import"}
       </button>
       <input
         ref={fileRef}
@@ -164,10 +158,6 @@ export function VaultSection() {
   const store = useVaultStore();
   const copySecret = useCopySecret();
   const navigate = useNavigate();
-  const [focused, setFocused] = useState<{
-    item: VaultItem | null;
-    path: string | null;
-  }>({ item: null, path: null });
 
   const filter = params.get("f") ?? "all";
   const folderId = params.get("folder");
@@ -215,14 +205,21 @@ export function VaultSection() {
     const used = new Set(visible.map((item) => item.folderId).filter(Boolean));
     return folders.filter((folder) => used.has(folder.id));
   }, [filter, folderId, folders, items, visible]);
-  const onFocus = useCallback(
-    (item: VaultItem | null, path: string | null) => setFocused({ item, path }),
-    [],
-  );
+  // Moving the cursor with the keyboard previews that item in the buffer,
+  // ranger-style — but never while an editor, the health report, or a new-item
+  // ceremony owns the pane.
+  const previewable =
+    location.pathname === "/vault" ||
+    (itemId !== undefined && !location.pathname.endsWith("/edit"));
   const actions = useMemo(
     () => ({
       open: (item: VaultItem) =>
         navigate(`/vault/${item.id}${location.search}`),
+      preview: (item: VaultItem) => {
+        if (previewable && item.id !== itemId) {
+          navigate(`/vault/${item.id}${location.search}`, { replace: true });
+        }
+      },
       copySecret: (item: VaultItem) => {
         const value = concealedValue(item);
         if (value) void copySecret(value);
@@ -239,11 +236,16 @@ export function VaultSection() {
       },
       create: () => navigate(`/vault/new/${createKind}`),
     }),
-    [copySecret, createKind, location.search, navigate, store],
+    [
+      copySecret,
+      createKind,
+      itemId,
+      location.search,
+      navigate,
+      previewable,
+      store,
+    ],
   );
-  const focusedPath = focused.item
-    ? itemPath(focused.item, folders)
-    : focused.path;
   const total = items.filter((item) =>
     filter === "trash" ? item.deletedAt !== null : item.deletedAt === null,
   ).length;
@@ -251,36 +253,15 @@ export function VaultSection() {
   return (
     <div className="vault" data-pane={detailOpen ? "detail" : "list"}>
       <div className="vault__list">
-        <div className="vault__listhead">
-          <div className="vault__titlerow">
-            <h1>{title}</h1>
-            <div className="actions">
-              {/* Import sits next to New even with items present — arriving
-                  from another manager should not require an empty vault or a
-                  hunt through Settings to find it. */}
-              <ImportButton />
-              <Link
-                className="btn btn--primary btn--sm"
-                to={`/vault/new/${createKind}`}
-              >
-                <IconPlus size={16} />
-                New
-              </Link>
-            </div>
-          </div>
-          <MobileFilters
-            items={items}
-            folders={folders}
-            filter={filter}
-            folderId={folderId}
-          />
-        </div>
+        <MobileFilters
+          items={items}
+          folders={folders}
+          filter={filter}
+          folderId={folderId}
+        />
 
         {visible.length === 0 ? (
           <div className="empty">
-            <span className="empty__mark" aria-hidden="true">
-              <IconSearch size={22} />
-            </span>
             <h2>Nothing here yet</h2>
             <p>
               {filter === "trash"
@@ -296,7 +277,6 @@ export function VaultSection() {
                   className="btn btn--primary btn--sm"
                   to={`/vault/new/${createKind}`}
                 >
-                  <IconPlus size={16} />
                   New item
                 </Link>
                 <ImportButton />
@@ -304,27 +284,30 @@ export function VaultSection() {
             ) : null}
           </div>
         ) : (
-          <>
-            <VaultTree
-              items={visible}
-              folders={treeFolders}
-              activeItemId={itemId}
-              actions={actions}
-              onFocus={onFocus}
-            />
-            <output
-              className="vault__status"
-              aria-live="polite"
-              aria-label={`${tombPath(activeProject().id, focusedPath)}, ${visible.length} of ${total} items, ${title}`}
-            >
-              <span className="vault__status-path">
-                {tombPath(activeProject().id, focusedPath)}
-              </span>
-              <span className="vault__status-meta">
-                {visible.length}/{total} · {title}
-              </span>
-            </output>
-          </>
+          <VaultTree
+            items={visible}
+            folders={treeFolders}
+            activeItemId={itemId}
+            actions={actions}
+            title={title}
+            total={total}
+            verbs={
+              <>
+                {/* Import sits beside new even with items present — arriving
+                    from another manager should not require an empty vault or
+                    a hunt through Settings to find it. */}
+                <Link
+                  className="icon-btn icon-btn--sm"
+                  aria-label="New item"
+                  title="New item (n)"
+                  to={`/vault/new/${createKind}`}
+                >
+                  <IconPlus size={15} />
+                </Link>
+                <ImportButton verb />
+              </>
+            }
+          />
         )}
       </div>
 
@@ -336,8 +319,9 @@ export function VaultSection() {
 }
 
 /**
- * The detail pane before anything is selected. Rather than a rack of buttons, it
- * answers the question the list cannot: what is in here, and what needs doing.
+ * The buffer before the cursor lands on a file. No dashboard: moving the
+ * cursor previews items, so this pane only states what is sealed and hands
+ * over the keys.
  */
 export function VaultWelcome() {
   const { items, header } = useVault();
@@ -347,9 +331,6 @@ export function VaultWelcome() {
     return (
       <div className="detail">
         <div className="empty">
-          <span className="empty__mark" aria-hidden="true">
-            <IconVault size={22} />
-          </span>
           <h2>Nothing sealed on this device</h2>
           <p>
             This store is for human items on this machine. Host connectors and
@@ -358,7 +339,6 @@ export function VaultWelcome() {
           </p>
           <div className="actions">
             <Link className="btn btn--primary btn--sm" to="/vault/new/login">
-              <IconPlus size={16} />
               Add your first login
             </Link>
             {/* An empty vault is exactly when someone is arriving from another
@@ -370,66 +350,21 @@ export function VaultWelcome() {
     );
   }
 
-  const counts = KIND_ORDER.map((kind) => ({
-    kind,
-    label: KIND_PLURAL[kind],
-    count: live.filter((item) => item.kind === kind).length,
-  })).filter((entry) => entry.count > 0);
-
-  const recent = [...live]
-    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
-    .slice(0, 4);
-
   return (
-    <div className="detail">
-      <div className="detail__heading">
-        <h1>{live.length} items, sealed</h1>
-        <p className="hint">
-          Decrypted in memory for this session only. Locking discards the key
-          {header?.kdf
-            ? `; it is re-derived with ${header.kdf.iterations.toLocaleString()} PBKDF2 iterations`
-            : header
-              ? "; unlock again with an enrolled passkey, PIN, or password"
-              : ""}
-          .
-        </p>
-      </div>
-
-      <section className="detail__group">
-        <h2 className="detail__grouphead">What is in here</h2>
-        <div className="wel__counts">
-          {counts.map(({ kind, label, count }) => (
-            <Link key={kind} className="wel__count" to={`/vault?f=${kind}`}>
-              <span className="wel__countnum">{count}</span>
-              <span className="wel__countlabel">{label}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="detail__group">
-        <h2 className="detail__grouphead">Recently changed</h2>
-        {recent.map((item) => (
-          <Link className="wel__recent" key={item.id} to={`/vault/${item.id}`}>
-            <span className="wel__recentname">{item.name || "Untitled"}</span>
-            <span className="wel__recentmeta">
-              {new Date(item.updatedAt).toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
-          </Link>
-        ))}
-      </section>
-
-      <div className="actions">
-        {KIND_ORDER.map((kind) => (
-          <Link key={kind} className="btn btn--sm" to={`/vault/new/${kind}`}>
-            <IconPlus size={15} />
-            {KIND_LABEL[kind]}
-          </Link>
-        ))}
-      </div>
+    <div className="buffer">
+      <p className="buffer__line">
+        {live.length} items, sealed — decrypted in memory for this session only.
+        Locking discards the key
+        {header?.kdf
+          ? `; it is re-derived with ${header.kdf.iterations.toLocaleString()} PBKDF2 iterations`
+          : header
+            ? "; unlock again with an enrolled passkey, PIN, or password"
+            : ""}
+        .
+      </p>
+      <p className="buffer__keys">
+        j/k browse · enter open · n new · / search · ? keys
+      </p>
     </div>
   );
 }

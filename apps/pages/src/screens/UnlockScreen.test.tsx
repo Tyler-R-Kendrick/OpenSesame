@@ -230,7 +230,9 @@ describe("UnlockScreen — first run", () => {
     ).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Passkey" })).toBeTruthy();
     expect(screen.queryByLabelText(/Master password/)).toBeNull();
-    expect(submitButton().textContent).toContain("Seal with passkey");
+    expect(submitButton().getAttribute("aria-label")).toContain(
+      "Seal with passkey",
+    );
     expect(submitButton().disabled).toBe(true);
     expect(v.store.createWithPasskey).not.toHaveBeenCalled();
     fireEvent.click(
@@ -249,7 +251,9 @@ describe("UnlockScreen — first run", () => {
     goLocalOnly();
     chooseSealMethod("PIN");
     expect(screen.queryByLabelText(/Master password/)).toBeNull();
-    expect(submitButton().textContent).toContain("Seal with PIN");
+    expect(submitButton().getAttribute("aria-label")).toContain(
+      "Seal with PIN",
+    );
     expect(submitButton().disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Device PIN"), {
       target: { value: "48291037" },
@@ -949,7 +953,7 @@ describe("UnlockScreen — password unlock", () => {
 
   it("shows the stored reminder and the same challenge menu as every vault", () => {
     render(<UnlockScreen />);
-    expect(screen.getByRole("heading", { name: "OpenSesame" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Unlock" })).toBeTruthy();
     // The challenge menu is uniform: which methods are enrolled is the user's
     // own knowledge, never something the screen enumerates.
     for (const name of ["Passkey", "PIN", "Password"]) {
@@ -1137,7 +1141,9 @@ describe("UnlockScreen — passkey unlock", () => {
     v.store.unlockWithPasskey.mockResolvedValue(undefined);
     render(<UnlockScreen />);
     expect(screen.getByText(/Use your platform authenticator/)).toBeTruthy();
-    expect(submitButton().textContent).toContain("Unlock with passkey");
+    expect(submitButton().getAttribute("aria-label")).toContain(
+      "Unlock with passkey",
+    );
     // Page load alone must not open a platform prompt.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(v.store.unlockWithPasskey).not.toHaveBeenCalled();
@@ -1231,7 +1237,7 @@ describe("UnlockScreen — passkey unlock", () => {
     // The ceremony was aborted, no error surfaced, and the password form works.
     await waitFor(() => expect(masterInput().disabled).toBe(false));
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(submitButton().textContent).toContain("Unlock");
+    expect(submitButton().getAttribute("aria-label")).toContain("Unlock");
     fireEvent.change(masterInput(), { target: { value: "hunter2" } });
     expect(submitButton().disabled).toBe(false);
   });

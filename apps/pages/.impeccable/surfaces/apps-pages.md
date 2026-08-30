@@ -69,14 +69,17 @@ where it lands → import.
   work is worse than an honest absence.
 
 ## Direction
-Bitwarden and 1Password set the bar. Light canvas, navy rail, teal accent, a
+Bitwarden and 1Password set the bar, executed as a Scandinavian terminal:
+one paper surface (zero-spread neutrals, dark mode inverts the same system),
+a light mono filesystem rail, a statusline of plane truth, teal as the single
+accent for state and identity, ink-filled primary actions, and a
 list-and-detail spine for the vault, and full-width panels for the three
 plane-backed sections.
 
 ## Memorable moment
-The empty detail pane is not a shrug. It answers what is in the vault, what
-changed recently, and what needs attention — so an unlocked vault is already
-telling you something before you click anything.
+Browsing is previewing: j/k walks the tree and the buffer shows each item as
+the cursor lands on it, ranger-style — the vault reads like a filesystem you
+are inside, not a list you query.
 
 ## Unresolved
 None outstanding.

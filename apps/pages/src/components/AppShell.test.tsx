@@ -99,42 +99,65 @@ describe("AppShell", () => {
 
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");
-    expect(screen.getAllByText("OpenSesame").length).toBeGreaterThan(0);
-    // Sections appear in both the rail and the mobile tab bar ("Vault" also
-    // labels the filter group while inside the vault).
+    expect(screen.getAllByText("opensesame").length).toBeGreaterThan(0);
+    // The rail reads sections as directories; the mobile tab bar keeps labels.
+    for (const segment of ["connections", "access", "identity", "settings"]) {
+      expect(screen.getAllByText(segment).length).toBe(1);
+    }
     for (const label of ["Connections", "Access", "Identity", "Settings"]) {
-      expect(screen.getAllByText(label).length).toBe(2);
+      expect(screen.getAllByText(label).length).toBe(1);
     }
     // The removed screens leave no nav entries behind.
     expect(screen.queryByText("Authority")).toBeNull();
     expect(screen.queryByText("Authentication")).toBeNull();
     expect(screen.queryByText("Sites")).toBeNull();
-    expect(screen.getAllByText("Vault").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("vault").length).toBe(1);
+    expect(screen.getAllByText("Vault").length).toBe(1);
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
     expect(screen.getAllByTestId("account-switcher").length).toBe(2);
-    // One bar, in the top bar; the rail no longer carries a status line.
-    expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
+    // One per chrome: the phone top bar and the desktop statusline both
+    // carry plane truth; CSS shows exactly one per breakpoint.
+    expect(screen.getAllByTestId("connectivity-bar").length).toBe(2);
+    expect(screen.getAllByTestId("notifications-bar").length).toBe(2);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
+  });
+
+  it("advertises the g-jump key on every section directory", () => {
+    const { container } = renderShell("/vault");
+    const jumps = [...container.querySelectorAll("kbd.railtree__jump")].map(
+      (kbd) => kbd.textContent,
+    );
+    expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gs"]);
+  });
+
+  it("hangs the settings categories under settings/ when inside", () => {
+    const { container } = renderShell("/settings/security");
+    const security = container.querySelector('a[href="/settings/security"]');
+    expect(security?.textContent).toBe("security");
+    expect(security?.className).toContain("is-active");
+    expect(
+      container.querySelector('a[href="/settings/data"]')?.textContent,
+    ).toBe("data");
   });
 
   it("counts live items, favourites, trash, and kinds in the vault filters", () => {
     const { container } = renderShell("/vault");
 
-    const all = filterLink(container, "/vault", "All items");
+    const all = filterLink(container, "/vault", "all");
     expect(all.textContent).toContain("2");
 
-    const favorites = filterLink(container, "/vault?f=favorites", "Favorites");
+    const favorites = filterLink(container, "/vault?f=favorites", "favorites");
     expect(favorites.textContent).toContain("1");
 
-    const logins = filterLink(container, "/vault?f=login", "Logins");
+    const logins = filterLink(container, "/vault?f=login", "logins");
     expect(logins.textContent).toContain("2");
 
     // The deleted card does not count towards the live kind count.
-    const cards = filterLink(container, "/vault?f=card", "Cards");
+    const cards = filterLink(container, "/vault?f=card", "cards");
     expect(cards.textContent).toContain("0");
 
-    const trash = filterLink(container, "/vault?f=trash", "Trash");
+    const trash = filterLink(container, "/vault?f=trash", "trash");
     expect(trash.textContent).toContain("1");
   });
 
@@ -148,56 +171,57 @@ describe("AppShell", () => {
   it("marks the active filter from the query string", () => {
     const { container } = renderShell("/vault?f=favorites");
     expect(
-      filterLink(container, "/vault?f=favorites", "Favorites").className,
+      filterLink(container, "/vault?f=favorites", "favorites").className,
     ).toContain("is-active");
-    expect(
-      filterLink(container, "/vault", "All items").className,
-    ).not.toContain("is-active");
-  });
-
-  it("marks the active folder and deactivates 'All items'", () => {
-    const { container } = renderShell("/vault?folder=f1");
-    expect(
-      filterLink(container, "/vault?folder=f1", "Work").className,
-    ).toContain("is-active");
-    expect(
-      filterLink(container, "/vault", "All items").className,
-    ).not.toContain("is-active");
-  });
-
-  it("marks 'All items' active only with no filter at all", () => {
-    const { container } = renderShell("/vault");
-    expect(filterLink(container, "/vault", "All items").className).toContain(
+    expect(filterLink(container, "/vault", "all").className).not.toContain(
       "is-active",
     );
   });
 
-  it("hides vault filters outside the vault section", () => {
+  it("marks the active folder and deactivates 'all'", () => {
+    const { container } = renderShell("/vault?folder=f1");
+    expect(
+      filterLink(container, "/vault?folder=f1", "Work").className,
+    ).toContain("is-active");
+    expect(filterLink(container, "/vault", "all").className).not.toContain(
+      "is-active",
+    );
+  });
+
+  it("marks 'all' active only with no filter at all", () => {
+    const { container } = renderShell("/vault");
+    expect(filterLink(container, "/vault", "all").className).toContain(
+      "is-active",
+    );
+  });
+
+  it("hides vault entries outside the vault section", () => {
     const { container } = renderShell("/access");
     expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();
     expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
-    expect(screen.queryByText("All items")).toBeNull();
-    // Section nav stays.
-    expect(screen.getAllByText("Settings").length).toBe(2);
+    expect(screen.queryByText("all")).toBeNull();
+    // The section directories stay.
+    expect(screen.getAllByText("settings").length).toBe(1);
   });
 
-  it("omits the folders group when there are none", () => {
+  it("omits folder entries when there are none", () => {
     vault.folders = [];
     const { container } = renderShell("/vault");
-    expect(screen.queryByText("Folders")).toBeNull();
     expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
   });
 
-  it("offers the password-health review link", () => {
+  it("offers the password-health review entry", () => {
     const { container } = renderShell("/vault");
     const health = container.querySelector('a[href="/vault/health"]');
-    expect(health?.textContent).toContain("Password health");
+    expect(health?.textContent).toContain("health");
   });
 
   it("both lock buttons call the store lock", () => {
     renderShell("/vault");
-    fireEvent.click(screen.getByRole("button", { name: "Lock this device" }));
-    fireEvent.click(screen.getByRole("button", { name: "Lock" }));
+    // One in the phone top bar, one in the desktop statusline.
+    const locks = screen.getAllByRole("button", { name: "Lock vault" });
+    expect(locks).toHaveLength(2);
+    for (const lock of locks) fireEvent.click(lock);
     expect(vault.lock).toHaveBeenCalledTimes(2);
   });
 
@@ -214,9 +238,7 @@ describe("AppShell", () => {
     vault.items = [];
     vault.folders = [];
     const { container } = renderShell("/vault");
-    expect(filterLink(container, "/vault", "All items").textContent).toContain(
-      "0",
-    );
+    expect(filterLink(container, "/vault", "all").textContent).toContain("0");
   });
 
   it("captures section shortcuts before the tree can stop propagation", () => {
@@ -230,6 +252,6 @@ describe("AppShell", () => {
     row.focus();
     fireEvent.keyDown(row, { key: "g" });
     fireEvent.keyDown(row, { key: "a" });
-    expect(screen.queryByText("All items")).toBeNull();
+    expect(screen.queryByText("all")).toBeNull();
   });
 });

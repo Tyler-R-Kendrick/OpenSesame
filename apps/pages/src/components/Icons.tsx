@@ -28,6 +28,34 @@ function Svg({
   );
 }
 
+/* —— Brand ———————————————————————————————————————————————————
+   The mark is the door ajar: the vault slab slid aside, a slit of light
+   where it opened. Ink slab, accent light — the one place the accent is
+   identity rather than state. */
+
+export function IconMark({ className, title, size = 20 }: IconProps) {
+  return (
+    <svg
+      className={className}
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+    >
+      {title ? <title>{title}</title> : null}
+      <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor" />
+      <rect
+        x="18.2"
+        y="3.5"
+        width="2.3"
+        height="17"
+        fill="var(--accent, #0d7268)"
+      />
+    </svg>
+  );
+}
+
 /* —— Sections ——————————————————————————————————————————————— */
 
 export function IconVault(props: IconProps) {
@@ -196,6 +224,23 @@ export function IconStar({
       {props.title ? <title>{props.title}</title> : null}
       <path d="M12 3.8l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" />
     </svg>
+  );
+}
+
+export function IconEdit(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.5 19.5l.9-3.6L16.6 4.7a1.9 1.9 0 0 1 2.7 2.7L8.1 18.6z" />
+      <path d="M14.8 6.5l2.7 2.7" />
+    </Svg>
+  );
+}
+
+export function IconArrowRight(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.5 12h15M13 5.5l6.5 6.5L13 18.5" />
+    </Svg>
   );
 }
 
