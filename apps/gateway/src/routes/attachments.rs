@@ -33,17 +33,42 @@ pub const MAX_CHUNK_BODY: usize = 2_621_440;
 /// Manifests are small — a digest list — but scale with chunk count.
 pub const MAX_MANIFEST_BODY: usize = 1_048_576;
 
-/// The only provider with an uploader implemented here. Others are refused at
-/// configuration time rather than failing later on the first replicate call.
 /// A sealed chunk is 1 MiB of plaintext plus a 48-byte frame. If either limit
 /// is ever edited below what the store actually writes, replication would
 /// reject the store's own output — so this fails the build, not a test run.
 const _: () = assert!(MAX_CHUNK_BODY > 1_048_576 + 48);
 const _: () = assert!(MAX_MANIFEST_BODY >= 1_048_576);
 
-const SUPPORTED_PROVIDER: &str = "dropbox";
+/// Providers that can receive attachments declare an `attachment_upload`
+/// shape in the catalog (ADR 0061 §6): pure data the gateway renders.
+/// Providers without one are refused at configuration time rather than
+/// failing later on the first replicate call.
+fn upload_shape(
+    provider_id: &str,
+) -> Option<&'static opensesame_connection_broker::catalog::AttachmentUploadShape> {
+    opensesame_connection_broker::catalog::find(provider_id)
+        .ok()
+        .flatten()
+        .and_then(|provider| provider.attachment_upload.as_ref())
+}
 
-const DROPBOX_UPLOAD_URL: &str = "https://content.dropboxapi.com/2/files/upload";
+/// Header placements JSON-encode the path, so any printable ASCII is safe;
+/// URL placements get no encoding, so they keep the strict store charset.
+fn path_is_printable(path: &str) -> bool {
+    !path.is_empty()
+        && path.len() <= 1024
+        && path
+            .chars()
+            .all(|c| c.is_ascii() && !c.is_ascii_control() && c != '\\')
+}
+
+fn path_is_url_safe(path: &str) -> bool {
+    !path.is_empty()
+        && path.len() <= 512
+        && path
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/'))
+}
 
 fn require_configurator(
     st: &AppState,
@@ -180,11 +205,11 @@ pub async fn put_target(
             )
         }
     };
-    if connection.provider_id != SUPPORTED_PROVIDER {
+    if upload_shape(&connection.provider_id).is_none() {
         return unprocessable(
             "provider_unsupported_for_attachments",
             &format!(
-                "attachment replication currently uploads to {SUPPORTED_PROVIDER} only; this connection is {}",
+                "provider {} declares no attachment_upload shape in the catalog",
                 connection.provider_id
             ),
         );
@@ -243,9 +268,43 @@ async fn active_target(st: &AppState, organization: &str) -> Result<AttachmentTa
     Ok(target)
 }
 
-/// Dropbox takes the destination as a JSON header rather than a path segment.
-fn dropbox_arg(path: &str) -> String {
-    json!({ "path": path, "mode": "overwrite", "mute": true }).to_string()
+/// Render (url, headers) for one upload from the provider's declared shape.
+fn render_upload(
+    shape: &opensesame_connection_broker::catalog::AttachmentUploadShape,
+    remote_path: &str,
+) -> Option<(String, Vec<(String, String)>)> {
+    use opensesame_connection_broker::catalog::PathPlacement;
+    let mut headers: Vec<(String, String)> = shape.extra_headers.clone();
+    let url = match &shape.path_placement {
+        PathPlacement::HeaderJson { header, template } => {
+            if !path_is_printable(remote_path) {
+                return None;
+            }
+            // JSON-encode the whole string (quotes included) so no path
+            // character can break out of the template's value position.
+            let encoded = serde_json::to_string(remote_path).ok()?;
+            headers.push((header.clone(), template.replace("\"{path}\"", &encoded)));
+            shape.url.clone()
+        }
+        PathPlacement::UrlPath { prefix } => {
+            if !path_is_url_safe(remote_path) {
+                return None;
+            }
+            format!(
+                "{}{}/{}",
+                shape.url.trim_end_matches('/'),
+                prefix.trim_end_matches('/'),
+                remote_path.trim_start_matches('/')
+            )
+        }
+        PathPlacement::Query { param } => {
+            if !path_is_url_safe(remote_path) {
+                return None;
+            }
+            format!("{}?{param}={remote_path}", shape.url)
+        }
+    };
+    Some((url, headers))
 }
 
 /// Push one sealed object to the provider, recording a failure against the
@@ -257,16 +316,22 @@ async fn upload(
     remote_path: String,
     body: Vec<u8>,
 ) -> Response {
-    let headers = vec![("Dropbox-API-Arg".to_string(), dropbox_arg(&remote_path))];
+    let Some(shape) = upload_shape(&target.provider_id) else {
+        return unprocessable(
+            "provider_unsupported_for_attachments",
+            "the configured provider no longer declares an attachment_upload shape",
+        );
+    };
+    let Some((url, headers)) = render_upload(shape, &remote_path) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"invalid_request","hint":"remote path is not renderable"})),
+        )
+            .into_response();
+    };
     match st
         .connection_broker
-        .authorized_bytes(
-            organization,
-            &target.connection_id,
-            DROPBOX_UPLOAD_URL,
-            &headers,
-            body,
-        )
+        .authorized_bytes(organization, &target.connection_id, &url, &headers, body)
         .await
     {
         Ok(()) => {
@@ -800,10 +865,36 @@ mod tests {
     }
 
     #[test]
-    fn dropbox_arg_overwrites_and_stays_quiet() {
-        let arg = dropbox_arg("/OpenSesame/attachments/objects/ab/abcd.oschunk");
-        assert!(arg.contains("\"mode\":\"overwrite\""), "{arg}");
-        assert!(arg.contains("\"mute\":true"), "{arg}");
-        assert!(arg.contains("/OpenSesame/attachments"), "{arg}");
+    fn rendered_dropbox_upload_matches_the_historical_request() {
+        let shape = upload_shape("dropbox").expect("dropbox declares a shape");
+        let path = "/OpenSesame/attachments/objects/ab/abcd.oschunk";
+        let (url, headers) = render_upload(shape, path).expect("renders");
+        assert_eq!(url, "https://content.dropboxapi.com/2/files/upload");
+        assert_eq!(headers.len(), 1);
+        assert_eq!(headers[0].0, "Dropbox-API-Arg");
+        // Same JSON the retired dropbox_arg() helper produced (key order is
+        // not significant to Dropbox; value equality is the invariant).
+        let rendered: serde_json::Value = serde_json::from_str(&headers[0].1).expect("json");
+        assert_eq!(
+            rendered,
+            serde_json::json!({ "path": path, "mode": "overwrite", "mute": true })
+        );
+    }
+
+    #[test]
+    fn header_paths_cannot_break_out_of_the_template() {
+        let shape = upload_shape("dropbox").expect("shape");
+        let (_, headers) =
+            render_upload(shape, "/evil\"},\"mode\":\"add").expect("still renders, encoded");
+        let value = &headers[0].1;
+        let parsed: serde_json::Value = serde_json::from_str(value).expect("stays valid JSON");
+        assert_eq!(parsed["mode"], "overwrite");
+        assert!(render_upload(shape, "\u{0}binary").is_none());
+    }
+
+    #[test]
+    fn providers_without_a_shape_are_refused() {
+        assert!(upload_shape("github").is_none());
+        assert!(upload_shape("no-such-provider").is_none());
     }
 }

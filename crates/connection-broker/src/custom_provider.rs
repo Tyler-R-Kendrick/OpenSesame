@@ -210,6 +210,7 @@ pub fn derive_provider(request: &CreateCustomProvider) -> Result<Provider> {
 
     let path = base.path().trim_end_matches('/');
     Ok(Provider {
+        attachment_upload: None,
         id,
         display_name,
         category: Category::Custom,

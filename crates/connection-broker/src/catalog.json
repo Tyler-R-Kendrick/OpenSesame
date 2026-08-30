@@ -416,6 +416,16 @@
         "scheme": "https"
       },
       "id": "dropbox",
+      "attachment_upload": {
+        "url": "https://content.dropboxapi.com/2/files/upload",
+        "path_placement": {
+          "header_json": {
+            "header": "Dropbox-API-Arg",
+            "template": "{\"path\":\"{path}\",\"mode\":\"overwrite\",\"mute\":true}"
+          }
+        },
+        "extra_headers": []
+      },
       "operations": ["file.list", "file.read", "file.write"],
       "provenance_url": "https://developers.dropbox.com/oauth-guide",
       "scopes": [
