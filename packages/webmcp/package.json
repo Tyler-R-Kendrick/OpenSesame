@@ -11,12 +11,14 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/capability-registry": "workspace:*"
+    "@opensesame/capability-registry": "workspace:*",
+    "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
+    "@opensesame/observability": "workspace:*",
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
     "vitest": "4.1.10"
