@@ -194,27 +194,46 @@ export const MAX_OUTSTANDING_CHALLENGES = 4096;
 
 export function createMemoryChallengeStore(): PasskeyChallengeStore {
   const map = new Map<string, ChallengeMeta>();
+  const byPrincipal = new Map<string | null, Set<string>>();
+  let nextExpiry = Number.POSITIVE_INFINITY;
+
+  const remove = (challenge: string): void => {
+    const row = map.get(challenge);
+    if (!row) return;
+    map.delete(challenge);
+    const own = byPrincipal.get(row.principalId);
+    own?.delete(challenge);
+    if (own?.size === 0) byPrincipal.delete(row.principalId);
+  };
+
   return {
     set(challenge, meta) {
       const now = Date.now();
-      for (const [key, row] of map) {
-        if (now > row.expiresAt) map.delete(key);
+      if (now > nextExpiry) {
+        nextExpiry = Number.POSITIVE_INFINITY;
+        for (const [key, row] of map) {
+          if (now > row.expiresAt) remove(key);
+          else nextExpiry = Math.min(nextExpiry, row.expiresAt);
+        }
       }
+      remove(challenge);
       if (map.size >= MAX_OUTSTANDING_CHALLENGES) {
         // Evict the issuer's own oldest challenge first. Dropping whatever is
         // oldest globally would let one principal, by asking for challenges in
         // bulk, knock another principal's ceremony out of the store mid-login.
-        const own = [...map].find(
-          ([, row]) => row.principalId === meta.principalId,
-        );
-        const victim = own?.[0] ?? map.keys().next().value;
-        if (victim !== undefined) map.delete(victim);
+        const own = byPrincipal.get(meta.principalId)?.values().next().value;
+        const victim = own ?? map.keys().next().value;
+        if (victim !== undefined) remove(victim);
       }
       map.set(challenge, meta);
+      const own = byPrincipal.get(meta.principalId) ?? new Set<string>();
+      own.add(challenge);
+      byPrincipal.set(meta.principalId, own);
+      nextExpiry = Math.min(nextExpiry, meta.expiresAt);
     },
     consume(challenge) {
       const row = map.get(challenge);
-      map.delete(challenge);
+      remove(challenge);
       if (!row) return undefined;
       if (Date.now() > row.expiresAt) return undefined;
       return row;
