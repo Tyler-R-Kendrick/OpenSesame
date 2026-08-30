@@ -8,6 +8,7 @@ import {
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import { z } from "zod";
 import {
   MCP_BEARER_PROFILE,
   assertBearerScheme,
@@ -91,13 +92,39 @@ export interface RunningHttpTransport {
   close(): Promise<void>;
 }
 
+/**
+ * Holds the transport between `listen` and the first request.
+ *
+ * The transport cannot be constructed until the server is bound, because the
+ * DNS-rebinding allowlist needs the real port, but the request handler is
+ * installed before that. A named owner contract keeps the slot's shape in one
+ * place rather than restating it at the binding.
+ */
+interface TransportSlot {
+  current?: StreamableHTTPServerTransport;
+}
+
+/**
+ * The bound TCP port, parsed at the `net` boundary.
+ *
+ * `Server.address()` is a union of `AddressInfo`, a pipe path, and `null`.
+ * Parsing it into a port here means the caller branches on a domain value — a
+ * port or nothing — instead of narrowing the representation at the use site.
+ */
+function parseBoundPort(address: ReturnType<Server["address"]>): number | null {
+  const parsed = BoundAddress.safeParse(address);
+  return parsed.success ? parsed.data.port : null;
+}
+
+const BoundAddress = z.object({ port: z.number().int().min(0).max(65_535) });
+
 export async function connectStreamableHttp(
   server: McpServer,
   config: HttpTransportConfig = resolveHttpConfig(),
 ): Promise<RunningHttpTransport> {
   // The transport is created after listen so the DNS-rebinding Host-header
   // allowlist carries the actual bound port (config.port may be 0 in tests).
-  const transportRef: { current?: StreamableHTTPServerTransport } = {};
+  const transportRef: TransportSlot = {};
 
   const httpServer = createServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0];
@@ -134,11 +161,7 @@ export async function connectStreamableHttp(
     httpServer.listen(config.port, config.host, resolve);
   });
 
-  const address = httpServer.address();
-  const boundPort =
-    address !== null && typeof address === "object"
-      ? address.port
-      : config.port;
+  const boundPort = parseBoundPort(httpServer.address()) ?? config.port;
   const connected = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
     enableDnsRebindingProtection: true,
@@ -149,9 +172,13 @@ export async function connectStreamableHttp(
       `[::1]:${boundPort}`,
     ],
   });
-  // exactOptionalPropertyTypes: the SDK's setter-based optional handlers on
-  // StreamableHTTPServerTransport don't structurally satisfy Transport.
-  await server.connect(connected as unknown as Transport);
+  // The SDK types `onclose` as `(() => void) | undefined`; under
+  // exactOptionalPropertyTypes that is not assignable to `Transport`'s
+  // `onclose?: () => void`, so the direct call does not compile. A single
+  // narrowing is enough — widening through `unknown` first would discard the
+  // rest of the type evidence for nothing.
+  // SAFETY: `connected` structurally implements every Transport member called.
+  await server.connect(connected as Transport);
   transportRef.current = connected;
 
   return {

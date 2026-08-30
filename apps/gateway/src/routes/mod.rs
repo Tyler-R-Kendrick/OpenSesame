@@ -3,6 +3,9 @@ mod admin;
 mod agents;
 mod attachments;
 mod backup;
+pub(crate) mod certmgr_ca;
+pub(crate) mod certmgr_policy;
+pub(crate) mod certmgr_profile;
 mod certs;
 mod changelog;
 mod connections;
@@ -84,6 +87,67 @@ pub fn router(state: AppState) -> Router {
         .route(
             "/api/v1/certs/deliveries/{request_id}/ack",
             post(certs::acknowledge_delivery),
+        )
+        // ADR 0066/0067: certificate-manager authorities — root and
+        // intermediate CAs, externally signed chains, renewal and CRL
+        // distribution settings (plan §5.6, 16 KiB; 512 KiB for chain import).
+        .route(
+            "/api/v1/certmgr/cas",
+            get(certmgr_ca::list_cas)
+                .post(certmgr_ca::create_ca)
+                .layer(DefaultBodyLimit::max(certmgr_ca::MAX_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/cas/{id}",
+            get(certmgr_ca::get_ca)
+                .patch(certmgr_ca::patch_ca)
+                .layer(DefaultBodyLimit::max(certmgr_ca::MAX_BODY)),
+        )
+        .route("/api/v1/certmgr/cas/{id}/csr", get(certmgr_ca::export_csr))
+        .route(
+            "/api/v1/certmgr/cas/{id}/import-chain",
+            post(certmgr_ca::import_chain)
+                .layer(DefaultBodyLimit::max(certmgr_ca::MAX_IMPORT_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/cas/{id}/renew",
+            post(certmgr_ca::renew_ca).layer(DefaultBodyLimit::max(certmgr_ca::MAX_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/cas/{id}/signing-config",
+            get(certmgr_ca::get_signing_config)
+                .patch(certmgr_ca::patch_signing_config)
+                .layer(DefaultBodyLimit::max(certmgr_ca::MAX_BODY)),
+        )
+        // ADR 0066: certificate-manager policies — the constraint documents an
+        // issuance request is evaluated against (plan §5.4, 16 KiB).
+        .route(
+            "/api/v1/certmgr/policies",
+            get(certmgr_policy::list)
+                .post(certmgr_policy::create)
+                .layer(DefaultBodyLimit::max(certmgr_policy::MAX_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/policies/{id}",
+            get(certmgr_policy::get)
+                .patch(certmgr_policy::update)
+                .delete(certmgr_policy::delete)
+                .layer(DefaultBodyLimit::max(certmgr_policy::MAX_BODY)),
+        )
+        // ADR 0066: certificate-manager profiles — a CA plus a policy plus the
+        // defaults an application issues with (plan §5.4, 16 KiB).
+        .route(
+            "/api/v1/certmgr/profiles",
+            get(certmgr_profile::list)
+                .post(certmgr_profile::create)
+                .layer(DefaultBodyLimit::max(certmgr_policy::MAX_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/profiles/{id}",
+            get(certmgr_profile::get)
+                .patch(certmgr_profile::update)
+                .delete(certmgr_profile::delete)
+                .layer(DefaultBodyLimit::max(certmgr_policy::MAX_BODY)),
         )
         .route("/api/v1/providers", get(connections::list_providers))
         .route(

@@ -107,6 +107,29 @@ const UNDOCUMENTED_ROUTES: &[(&str, &str)] = &[
     ("/experimental/aauth/v1/map/person", "POST"),
     ("/experimental/aauth/v1/map/agent", "POST"),
     ("/experimental/aauth/v1/mission/digest", "POST"),
+    // Certificate manager (ADR 0066/0067). Operator-plane administration of
+    // authorities, policies and profiles. Allowlisted while the surface is
+    // still being assembled; each path moves into api/openapi/openapi.yaml as
+    // its slice lands, and this block should shrink to nothing.
+    ("/api/v1/certmgr/cas", "GET"),
+    ("/api/v1/certmgr/cas", "POST"),
+    ("/api/v1/certmgr/cas/{id}", "GET"),
+    ("/api/v1/certmgr/cas/{id}", "PATCH"),
+    ("/api/v1/certmgr/cas/{id}/csr", "GET"),
+    ("/api/v1/certmgr/cas/{id}/import-chain", "POST"),
+    ("/api/v1/certmgr/cas/{id}/renew", "POST"),
+    ("/api/v1/certmgr/cas/{id}/signing-config", "GET"),
+    ("/api/v1/certmgr/cas/{id}/signing-config", "PATCH"),
+    ("/api/v1/certmgr/policies", "GET"),
+    ("/api/v1/certmgr/policies", "POST"),
+    ("/api/v1/certmgr/policies/{id}", "GET"),
+    ("/api/v1/certmgr/policies/{id}", "PATCH"),
+    ("/api/v1/certmgr/policies/{id}", "DELETE"),
+    ("/api/v1/certmgr/profiles", "GET"),
+    ("/api/v1/certmgr/profiles", "POST"),
+    ("/api/v1/certmgr/profiles/{id}", "GET"),
+    ("/api/v1/certmgr/profiles/{id}", "PATCH"),
+    ("/api/v1/certmgr/profiles/{id}", "DELETE"),
 ];
 
 type RouteMap = BTreeMap<String, BTreeSet<String>>;

@@ -72,3 +72,8 @@ mutants.out.old/
 .impeccable/live/deferred-svelte-component-accepts.json
 .impeccable/live/*.png
 # impeccable-ignore-end
+
+# insta pending-acceptance snapshots (review with `cargo insta review`,
+# never commit; the accepted .snap files are the reviewed artifact)
+*.snap.new
+*.pending-snap

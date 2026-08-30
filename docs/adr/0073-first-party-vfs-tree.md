@@ -1,4 +1,4 @@
-# ADR 0066 — The VFS tree is first-party, and the rail is part of it
+# ADR 0073 — The VFS tree is first-party, and the rail is part of it
 
 Status: Accepted
 Date: 2026-08-30

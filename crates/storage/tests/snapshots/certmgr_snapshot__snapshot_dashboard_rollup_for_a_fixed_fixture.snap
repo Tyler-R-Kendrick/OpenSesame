@@ -1,0 +1,26 @@
+---
+source: crates/storage/tests/certmgr_snapshot.rs
+expression: "json!({\n    \"total\": rollup.total, \"by_status\": rollup.by_status, \"by_key_algorithm\":\n    rollup.by_key_algorithm, \"by_issuing_ca\": rollup.by_issuing_ca,\n    \"by_enrollment_method\": rollup.by_enrollment_method,\n    \"expiring_within_7_days\": rollup.expiring_within_7_days,\n    \"expiring_within_30_days\": rollup.expiring_within_30_days,\n    \"expiring_within_90_days\": rollup.expiring_within_90_days,\n})"
+---
+{
+  "by_enrollment_method": {
+    "acme": 1,
+    "api": 1,
+    "est": 1
+  },
+  "by_issuing_ca": {
+    "ca:one": 3
+  },
+  "by_key_algorithm": {
+    "ecdsa-p256": 2,
+    "rsa-2048": 1
+  },
+  "by_status": {
+    "active": 2,
+    "revoked": 1
+  },
+  "expiring_within_30_days": 2,
+  "expiring_within_7_days": 1,
+  "expiring_within_90_days": 2,
+  "total": 3
+}

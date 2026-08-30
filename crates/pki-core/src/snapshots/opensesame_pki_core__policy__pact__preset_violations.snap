@@ -1,0 +1,94 @@
+---
+source: crates/pki-core/src/policy.rs
+expression: rendered
+---
+[
+  {
+    "preset": "tls_server",
+    "violations": [
+      {
+        "field": "ext_key_usages",
+        "reason": "required value \"server_auth\" is absent"
+      },
+      {
+        "field": "basic_constraints.ca",
+        "reason": "certificate authority certificates are forbidden"
+      }
+    ]
+  },
+  {
+    "preset": "tls_client",
+    "violations": [
+      {
+        "field": "ext_key_usages",
+        "reason": "value \"server_auth\" is not permitted"
+      },
+      {
+        "field": "ext_key_usages",
+        "reason": "required value \"client_auth\" is absent"
+      }
+    ]
+  },
+  {
+    "preset": "code_signing",
+    "violations": [
+      {
+        "field": "ext_key_usages",
+        "reason": "value \"server_auth\" is not permitted"
+      },
+      {
+        "field": "ext_key_usages",
+        "reason": "required value \"code_signing\" is absent"
+      }
+    ]
+  },
+  {
+    "preset": "device",
+    "violations": [
+      {
+        "field": "ext_key_usages",
+        "reason": "value \"code_signing\" is not permitted"
+      },
+      {
+        "field": "ext_key_usages",
+        "reason": "required value \"client_auth\" is absent"
+      }
+    ]
+  },
+  {
+    "preset": "user",
+    "violations": [
+      {
+        "field": "subject.cn",
+        "reason": "field is required but absent"
+      }
+    ]
+  },
+  {
+    "preset": "email_protection",
+    "violations": [
+      {
+        "field": "san.email",
+        "reason": "at least one value is required"
+      }
+    ]
+  },
+  {
+    "preset": "dual_purpose_server",
+    "violations": [
+      {
+        "field": "ext_key_usages",
+        "reason": "required value \"client_auth\" is absent"
+      }
+    ]
+  },
+  {
+    "preset": "intermediate_ca",
+    "violations": [
+      {
+        "field": "san.dns",
+        "reason": "no value is permitted for this field"
+      }
+    ]
+  }
+]

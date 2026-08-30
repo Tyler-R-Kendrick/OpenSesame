@@ -1,0 +1,27 @@
+---
+source: crates/pki-core/src/types.rs
+expression: defaults
+---
+{
+  "ttl_seconds": 86400,
+  "subject": {
+    "cn": "leaf.example.com",
+    "o": "OpenSesame",
+    "dc": [
+      "example",
+      "com"
+    ]
+  },
+  "key_algorithm": "ecdsa-p256",
+  "signature_algorithm": "sha256-ecdsa",
+  "key_usages": [
+    "digital_signature",
+    "key_encipherment"
+  ],
+  "ext_key_usages": [
+    "server_auth"
+  ],
+  "basic_constraints": {
+    "ca": false
+  }
+}

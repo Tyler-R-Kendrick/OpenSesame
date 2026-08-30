@@ -41,7 +41,9 @@ opensesame-connection-detect = { path = "../crates/connection-detect" }
 opensesame-tailscale-authn = { path = "../crates/tailscale-authn" }
 opensesame-kdbx-bridge = { path = "../crates/kdbx-bridge" }
 opensesame-sealed-store = { path = "../crates/sealed-store" }
+opensesame-storage = { path = "../crates/storage" }
 opensesame-gateway = { path = "../apps/gateway" }
+opensesame-pki-core = { path = "../crates/pki-core" }
 
 [workspace]
 members = ["."]
@@ -308,6 +310,41 @@ bench = false
 [[bin]]
 name = "certificate_request"
 path = "fuzz_targets/certificate_request.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "certmgr_filter_parse"
+path = "fuzz_targets/certmgr_filter_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pki_csr_parse"
+path = "fuzz_targets/pki_csr_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pki_pkcs12_parse"
+path = "fuzz_targets/pki_pkcs12_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pki_crl_parse"
+path = "fuzz_targets/pki_crl_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pki_ocsp_request_parse"
+path = "fuzz_targets/pki_ocsp_request_parse.rs"
 test = false
 doc = false
 bench = false

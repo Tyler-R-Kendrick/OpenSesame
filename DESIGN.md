@@ -190,7 +190,7 @@ the session context is a shell prompt (`guest@personal:/` — each segment a
 button that opens its switcher; never a widget stack of dropdowns),
 items are files with kind pseudo-extensions (`GitHub.login`, `Deploy
 webhook.secret`), and the vault list renders as a compact first-party mono
-file tree (ADR 0066), never as a card wall. The navigation rail is the same
+file tree (ADR 0073), never as a card wall. The navigation rail is the same
 tree one level up: sections are directories off the tomb root (`vault/`,
 `connections/`, `access/`, `identity/`, `settings/`), each advertising its
 `g`-jump key; the active section is the open directory, with the vault's

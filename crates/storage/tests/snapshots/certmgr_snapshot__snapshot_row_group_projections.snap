@@ -1,0 +1,38 @@
+---
+source: crates/storage/tests/certmgr_snapshot.rs
+expression: "json!({\n    \"policy\":\n    {\n        \"preset\": policy.preset, \"max_validity_seconds\":\n        policy.max_validity_seconds, \"rules_json\": policy.rules_json,\n        \"version\": policy.version,\n    }, \"profile\":\n    {\n        \"issuer_type\": profile.issuer_type, \"has_authority\":\n        profile.certificate_authority_id.is_some(), \"defaults_json\":\n        profile.defaults_json,\n    }, \"application\": { \"slug\": app.slug, \"display_name\": app.display_name },\n    \"certificate\":\n    {\n        \"status\": stored_certificate.status, \"source\":\n        stored_certificate.source, \"enrollment_method\":\n        stored_certificate.enrollment_method, \"key_algorithm\":\n        stored_certificate.key_algorithm, \"signature_algorithm\":\n        stored_certificate.signature_algorithm, \"metadata_json\":\n        stored_certificate.metadata_json, \"auto_renew_enabled\":\n        stored_certificate.auto_renew_enabled,\n    }, \"managed_key\":\n    { \"sealed_key_present\": !managed_key.sealed_key.key_id.is_empty() },\n    \"signer\":\n    {\n        \"key_source\": stored_signer.key_source, \"status\":\n        stored_signer.status, \"sealed_key_present\":\n        stored_signer.sealed_key.is_some(),\n    },\n})"
+---
+{
+  "application": {
+    "display_name": "Edge fleet",
+    "slug": "slug-app:one"
+  },
+  "certificate": {
+    "auto_renew_enabled": false,
+    "enrollment_method": "api",
+    "key_algorithm": "ecdsa-p256",
+    "metadata_json": "{}",
+    "signature_algorithm": "ecdsa-with-sha256",
+    "source": "issued",
+    "status": "active"
+  },
+  "managed_key": {
+    "sealed_key_present": true
+  },
+  "policy": {
+    "max_validity_seconds": 7776000,
+    "preset": "tls_server",
+    "rules_json": "{\"subject\":{},\"san\":{}}",
+    "version": 1
+  },
+  "profile": {
+    "defaults_json": "{\"ttl_seconds\":86400}",
+    "has_authority": true,
+    "issuer_type": "ca"
+  },
+  "signer": {
+    "key_source": "sealed",
+    "sealed_key_present": true,
+    "status": "active"
+  }
+}

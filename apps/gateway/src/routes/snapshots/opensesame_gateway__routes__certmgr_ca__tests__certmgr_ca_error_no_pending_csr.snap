@@ -1,0 +1,8 @@
+---
+source: apps/gateway/src/routes/certmgr_ca.rs
+expression: no_csr
+---
+{
+  "error": "no_pending_csr",
+  "hint": "this authority is not awaiting an external signature; create it with external_signing=true"
+}

@@ -1,0 +1,757 @@
+---
+source: crates/pki-core/src/policy.rs
+expression: rendered
+---
+[
+  {
+    "preset": "tls_server",
+    "rules": {
+      "basic_constraints": {
+        "ca": "forbid"
+      },
+      "ext_key_usages": {
+        "allowed": [
+          "server_auth"
+        ],
+        "mode": "require",
+        "required": [
+          "server_auth"
+        ]
+      },
+      "key_algorithms": {
+        "allowed": [
+          "rsa-2048",
+          "rsa-4096",
+          "ecdsa-p256",
+          "ecdsa-p384"
+        ],
+        "mode": "allow",
+        "required": []
+      },
+      "key_usages": {
+        "allowed": [
+          "digital_signature",
+          "key_encipherment",
+          "key_agreement"
+        ],
+        "mode": "require",
+        "required": [
+          "digital_signature"
+        ]
+      },
+      "san": {
+        "dns": {
+          "mode": "require",
+          "values": []
+        },
+        "email": {
+          "mode": "unset",
+          "values": []
+        },
+        "ip": {
+          "mode": "unset",
+          "values": []
+        },
+        "upn": {
+          "mode": "unset",
+          "values": []
+        },
+        "uri": {
+          "mode": "unset",
+          "values": []
+        }
+      },
+      "signature_algorithms": {
+        "allowed": [
+          "sha256-rsa",
+          "sha384-rsa",
+          "sha256-ecdsa",
+          "sha384-ecdsa"
+        ],
+        "mode": "allow",
+        "required": []
+      },
+      "subject": {
+        "c": {
+          "mode": "unset",
+          "values": []
+        },
+        "cn": {
+          "mode": "unset",
+          "values": []
+        },
+        "dc": {
+          "components": [],
+          "mode": "unset"
+        },
+        "l": {
+          "mode": "unset",
+          "values": []
+        },
+        "o": {
+          "mode": "unset",
+          "values": []
+        },
+        "ou": {
+          "mode": "unset",
+          "values": []
+        },
+        "st": {
+          "mode": "unset",
+          "values": []
+        }
+      }
+    }
+  },
+  {
+    "preset": "tls_client",
+    "rules": {
+      "basic_constraints": {
+        "ca": "forbid"
+      },
+      "ext_key_usages": {
+        "allowed": [
+          "client_auth"
+        ],
+        "mode": "require",
+        "required": [
+          "client_auth"
+        ]
+      },
+      "key_algorithms": {
+        "allowed": [
+          "rsa-2048",
+          "rsa-4096",
+          "ecdsa-p256",
+          "ecdsa-p384"
+        ],
+        "mode": "allow",
+        "required": []
+      },
+      "key_usages": {
+        "allowed": [
+          "digital_signature",
+          "key_agreement"
+        ],
+        "mode": "require",
+        "required": [
+          "digital_signature"
+        ]
+      },
+      "san": {
+        "dns": {
+          "mode": "unset",
+          "values": []
+        },
+        "email": {
+          "mode": "unset",
+          "values": []
+        },
+        "ip": {
+          "mode": "unset",
+          "values": []
+        },
+        "upn": {
+          "mode": "unset",
+          "values": []
+        },
+        "uri": {
+          "mode": "unset",
+          "values": []
+        }
+      },
+      "signature_algorithms": {
+        "allowed": [
+          "sha256-rsa",
+          "sha384-rsa",
+          "sha256-ecdsa",
+          "sha384-ecdsa"
+        ],
+        "mode": "allow",
+        "required": []
+      },
+      "subject": {
+        "c": {
+          "mode": "unset",
+          "values": []
+        },
+        "cn": {
+          "mode": "unset",
+          "values": []
+        },
+        "dc": {
+          "components": [],
+          "mode": "unset"
+        },
+        "l": {
+          "mode": "unset",
+          "values": []
+        },
+        "o": {
+          "mode": "unset",
+          "values": []
+        },
+        "ou": {
+          "mode": "unset",
+          "values": []
+        },
+        "st": {
+          "mode": "unset",
+          "values": []
+        }
+      }
+    }
+  },
+  {
+    "preset": "code_signing",
+    "rules": {
+      "basic_constraints": {
+        "ca": "forbid"
+      },
+      "ext_key_usages": {
+        "allowed": [
+          "code_signing",
+          "time_stamping"
+        ],
+        "mode": "require",
+        "required": [
+          "code_signing"
+        ]
+      },
+      "key_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "key_usages": {
+        "allowed": [
+          "digital_signature",
+          "non_repudiation"
+        ],
+        "mode": "require",
+        "required": [
+          "digital_signature"
+        ]
+      },
+      "san": {
+        "dns": {
+          "mode": "unset",
+          "values": []
+        },
+        "email": {
+          "mode": "unset",
+          "values": []
+        },
+        "ip": {
+          "mode": "unset",
+          "values": []
+        },
+        "upn": {
+          "mode": "unset",
+          "values": []
+        },
+        "uri": {
+          "mode": "unset",
+          "values": []
+        }
+      },
+      "signature_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "subject": {
+        "c": {
+          "mode": "unset",
+          "values": []
+        },
+        "cn": {
+          "mode": "require",
+          "values": []
+        },
+        "dc": {
+          "components": [],
+          "mode": "unset"
+        },
+        "l": {
+          "mode": "unset",
+          "values": []
+        },
+        "o": {
+          "mode": "unset",
+          "values": []
+        },
+        "ou": {
+          "mode": "unset",
+          "values": []
+        },
+        "st": {
+          "mode": "unset",
+          "values": []
+        }
+      }
+    }
+  },
+  {
+    "preset": "device",
+    "rules": {
+      "basic_constraints": {
+        "ca": "forbid"
+      },
+      "ext_key_usages": {
+        "allowed": [
+          "client_auth",
+          "server_auth"
+        ],
+        "mode": "require",
+        "required": [
+          "client_auth"
+        ]
+      },
+      "key_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "key_usages": {
+        "allowed": [
+          "digital_signature",
+          "key_encipherment",
+          "key_agreement"
+        ],
+        "mode": "require",
+        "required": [
+          "digital_signature"
+        ]
+      },
+      "san": {
+        "dns": {
+          "mode": "unset",
+          "values": []
+        },
+        "email": {
+          "mode": "unset",
+          "values": []
+        },
+        "ip": {
+          "mode": "unset",
+          "values": []
+        },
+        "upn": {
+          "mode": "unset",
+          "values": []
+        },
+        "uri": {
+          "mode": "unset",
+          "values": []
+        }
+      },
+      "signature_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "subject": {
+        "c": {
+          "mode": "unset",
+          "values": []
+        },
+        "cn": {
+          "mode": "unset",
+          "values": []
+        },
+        "dc": {
+          "components": [],
+          "mode": "unset"
+        },
+        "l": {
+          "mode": "unset",
+          "values": []
+        },
+        "o": {
+          "mode": "unset",
+          "values": []
+        },
+        "ou": {
+          "mode": "unset",
+          "values": []
+        },
+        "st": {
+          "mode": "unset",
+          "values": []
+        }
+      }
+    }
+  },
+  {
+    "preset": "user",
+    "rules": {
+      "basic_constraints": {
+        "ca": "forbid"
+      },
+      "ext_key_usages": {
+        "allowed": [
+          "client_auth",
+          "email_protection"
+        ],
+        "mode": "require",
+        "required": [
+          "client_auth"
+        ]
+      },
+      "key_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "key_usages": {
+        "allowed": [
+          "digital_signature",
+          "non_repudiation",
+          "key_encipherment"
+        ],
+        "mode": "require",
+        "required": [
+          "digital_signature"
+        ]
+      },
+      "san": {
+        "dns": {
+          "mode": "unset",
+          "values": []
+        },
+        "email": {
+          "mode": "unset",
+          "values": []
+        },
+        "ip": {
+          "mode": "unset",
+          "values": []
+        },
+        "upn": {
+          "mode": "unset",
+          "values": []
+        },
+        "uri": {
+          "mode": "unset",
+          "values": []
+        }
+      },
+      "signature_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "subject": {
+        "c": {
+          "mode": "unset",
+          "values": []
+        },
+        "cn": {
+          "mode": "require",
+          "values": []
+        },
+        "dc": {
+          "components": [],
+          "mode": "unset"
+        },
+        "l": {
+          "mode": "unset",
+          "values": []
+        },
+        "o": {
+          "mode": "unset",
+          "values": []
+        },
+        "ou": {
+          "mode": "unset",
+          "values": []
+        },
+        "st": {
+          "mode": "unset",
+          "values": []
+        }
+      }
+    }
+  },
+  {
+    "preset": "email_protection",
+    "rules": {
+      "basic_constraints": {
+        "ca": "forbid"
+      },
+      "ext_key_usages": {
+        "allowed": [
+          "email_protection"
+        ],
+        "mode": "require",
+        "required": [
+          "email_protection"
+        ]
+      },
+      "key_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "key_usages": {
+        "allowed": [
+          "digital_signature",
+          "non_repudiation",
+          "key_encipherment"
+        ],
+        "mode": "require",
+        "required": [
+          "digital_signature"
+        ]
+      },
+      "san": {
+        "dns": {
+          "mode": "unset",
+          "values": []
+        },
+        "email": {
+          "mode": "require",
+          "values": []
+        },
+        "ip": {
+          "mode": "unset",
+          "values": []
+        },
+        "upn": {
+          "mode": "unset",
+          "values": []
+        },
+        "uri": {
+          "mode": "unset",
+          "values": []
+        }
+      },
+      "signature_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "subject": {
+        "c": {
+          "mode": "unset",
+          "values": []
+        },
+        "cn": {
+          "mode": "unset",
+          "values": []
+        },
+        "dc": {
+          "components": [],
+          "mode": "unset"
+        },
+        "l": {
+          "mode": "unset",
+          "values": []
+        },
+        "o": {
+          "mode": "unset",
+          "values": []
+        },
+        "ou": {
+          "mode": "unset",
+          "values": []
+        },
+        "st": {
+          "mode": "unset",
+          "values": []
+        }
+      }
+    }
+  },
+  {
+    "preset": "dual_purpose_server",
+    "rules": {
+      "basic_constraints": {
+        "ca": "forbid"
+      },
+      "ext_key_usages": {
+        "allowed": [
+          "server_auth",
+          "client_auth"
+        ],
+        "mode": "require",
+        "required": [
+          "server_auth",
+          "client_auth"
+        ]
+      },
+      "key_algorithms": {
+        "allowed": [
+          "rsa-2048",
+          "rsa-4096",
+          "ecdsa-p256",
+          "ecdsa-p384"
+        ],
+        "mode": "allow",
+        "required": []
+      },
+      "key_usages": {
+        "allowed": [
+          "digital_signature",
+          "key_encipherment",
+          "key_agreement"
+        ],
+        "mode": "require",
+        "required": [
+          "digital_signature"
+        ]
+      },
+      "san": {
+        "dns": {
+          "mode": "require",
+          "values": []
+        },
+        "email": {
+          "mode": "unset",
+          "values": []
+        },
+        "ip": {
+          "mode": "unset",
+          "values": []
+        },
+        "upn": {
+          "mode": "unset",
+          "values": []
+        },
+        "uri": {
+          "mode": "unset",
+          "values": []
+        }
+      },
+      "signature_algorithms": {
+        "allowed": [
+          "sha256-rsa",
+          "sha384-rsa",
+          "sha256-ecdsa",
+          "sha384-ecdsa"
+        ],
+        "mode": "allow",
+        "required": []
+      },
+      "subject": {
+        "c": {
+          "mode": "unset",
+          "values": []
+        },
+        "cn": {
+          "mode": "unset",
+          "values": []
+        },
+        "dc": {
+          "components": [],
+          "mode": "unset"
+        },
+        "l": {
+          "mode": "unset",
+          "values": []
+        },
+        "o": {
+          "mode": "unset",
+          "values": []
+        },
+        "ou": {
+          "mode": "unset",
+          "values": []
+        },
+        "st": {
+          "mode": "unset",
+          "values": []
+        }
+      }
+    }
+  },
+  {
+    "preset": "intermediate_ca",
+    "rules": {
+      "basic_constraints": {
+        "ca": "require",
+        "max_path_len": 0
+      },
+      "ext_key_usages": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "key_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "key_usages": {
+        "allowed": [
+          "digital_signature",
+          "key_cert_sign",
+          "crl_sign"
+        ],
+        "mode": "require",
+        "required": [
+          "key_cert_sign",
+          "crl_sign"
+        ]
+      },
+      "san": {
+        "dns": {
+          "mode": "allow",
+          "values": []
+        },
+        "email": {
+          "mode": "allow",
+          "values": []
+        },
+        "ip": {
+          "mode": "allow",
+          "values": []
+        },
+        "upn": {
+          "mode": "allow",
+          "values": []
+        },
+        "uri": {
+          "mode": "allow",
+          "values": []
+        }
+      },
+      "signature_algorithms": {
+        "allowed": [],
+        "mode": "unset",
+        "required": []
+      },
+      "subject": {
+        "c": {
+          "mode": "unset",
+          "values": []
+        },
+        "cn": {
+          "mode": "require",
+          "values": []
+        },
+        "dc": {
+          "components": [],
+          "mode": "unset"
+        },
+        "l": {
+          "mode": "unset",
+          "values": []
+        },
+        "o": {
+          "mode": "unset",
+          "values": []
+        },
+        "ou": {
+          "mode": "unset",
+          "values": []
+        },
+        "st": {
+          "mode": "unset",
+          "values": []
+        }
+      }
+    }
+  }
+]

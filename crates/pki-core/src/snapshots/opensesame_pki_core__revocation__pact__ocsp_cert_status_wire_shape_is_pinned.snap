@@ -1,0 +1,14 @@
+---
+source: crates/pki-core/src/revocation.rs
+expression: "vec![OcspCertStatus::Good, OcspCertStatus::Unknown, OcspCertStatus::Revoked\n{ at: epoch(), reason: 1, },]"
+---
+[
+  "good",
+  "unknown",
+  {
+    "revoked": {
+      "at": "2027-01-15T08:00:00Z",
+      "reason": 1
+    }
+  }
+]

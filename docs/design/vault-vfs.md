@@ -1,7 +1,7 @@
 # Vault VFS — first-party tree + TUI keyboard navigation
 
 Design contract. Decision records: [ADR 0064](../adr/0064-vault-vfs-keyboard-first.md)
-(interaction contract), [ADR 0066](../adr/0066-first-party-vfs-tree.md)
+(interaction contract), [ADR 0073](../adr/0073-first-party-vfs-tree.md)
 (first-party rendering, rail-as-tree, folders open by default).
 Design language: `DESIGN.md` "VFS interaction model".
 

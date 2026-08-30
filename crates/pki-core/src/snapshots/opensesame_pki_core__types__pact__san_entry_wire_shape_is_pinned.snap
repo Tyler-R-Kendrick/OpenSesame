@@ -1,0 +1,21 @@
+---
+source: crates/pki-core/src/types.rs
+expression: "vec![SanEntry::Dns(\"a.example.com\".into()),\nSanEntry::Ip(\"10.1.2.3\".parse().unwrap()),\nSanEntry::Email(\"ops@example.com\".into()),\nSanEntry::Uri(\"https://example.com/x\".into()),\nSanEntry::Upn(\"ops@corp.example\".into()),]"
+---
+[
+  {
+    "dns": "a.example.com"
+  },
+  {
+    "ip": "10.1.2.3"
+  },
+  {
+    "email": "ops@example.com"
+  },
+  {
+    "uri": "https://example.com/x"
+  },
+  {
+    "upn": "ops@corp.example"
+  }
+]
