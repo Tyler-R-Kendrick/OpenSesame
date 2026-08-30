@@ -1,23 +1,3 @@
-export {
-  detectModelContext,
-  type ModelContextApi,
-  type ProvideContextInput,
-  type Unregister,
-  type WebMcpTextContent,
-  type WebMcpToolDescriptor,
-  type WebMcpToolResult,
-} from "./detect.js";
-export {
-  AgentPayloadRefused,
-  type FenceEnv,
-  fenceForAgent,
-  forAgent,
-  looksLikeCredential,
-  REDACTED,
-  scrubLocalSecrets,
-} from "./fence.js";
-export {
-  createWebMcpRegistrar,
-  type WebMcpRegistrar,
-  type WebMcpToolSpec,
-} from "./registrar.js";
+// Placeholder module: the WebMCP library lands in the webmcp PR of this
+// stack; this keeps the workspace package valid for the earlier PRs.
+export {};
