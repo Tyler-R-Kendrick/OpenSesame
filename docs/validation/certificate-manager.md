@@ -274,6 +274,40 @@ than a style nit:
 | `crates/pki-core/src/x509.rs` (untrusted-input parsing) | 95.60 % | 100.00 % |
 | `crates/storage/src/lib.rs` (single-use, caps, CAS) | 91.75 % | 88.60 % |
 
+### Mutation testing — measured, and what it caught
+
+`cargo mutants` on `crates/pki-core/src/policy.rs`, shard 1/12 (13 of 154
+mutants; the full file could not be run in this environment, see the limits
+below):
+
+| Run | Caught | Missed | Unviable |
+|---|---|---|---|
+| Before | 11 | **1** | 1 |
+| After the fix | **12** | 0 | 1 |
+
+The survivor was `policy.rs:365: replace && with || in check_dc`, in a file
+measuring 98.02 % line coverage — the gap line coverage cannot see. The `dc`
+sequence check is a length equality *and* a zipped per-component match; `zip`
+stops at the shorter sequence, so the length test is what makes the comparison
+total. Without it a subject that merely extends an allowed sequence
+(`dc=corp,example,com` under a policy permitting only `corp,example`) satisfies
+the zipped comparison and is issued — a certificate for an organizational
+subtree the policy never granted, which is precisely what ordered `dc` matching
+exists to prevent.
+
+The pre-existing case did not catch it because its first components already
+disagreed, so the prefix comparison failed on its own and both operators
+behaved identically. `adversarial_dc_prefix_agreement_is_not_a_match` pins the
+length check in both directions, confirms the exact sequence is still accepted,
+and confirms a wildcard matches one component rather than an arbitrary number.
+The mutation run was repeated after the fix to prove the test *kills* the
+mutant rather than merely passing beside it.
+
+**Environment limit:** a full-file run exhausted the session disk allowance
+(`No space left on device` after generating all 154 mutants), and
+`cargo-mutants` is not installed in a default checkout. The sharded run above is
+a real sample, not a full-file score; the remaining shards are unmeasured.
+
 Test types delivered per crate (plan §6.0):
 
 | Crate | unit | snapshot | pact | chaos | behavior | property | fuzz |
