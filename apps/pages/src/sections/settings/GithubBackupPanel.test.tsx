@@ -763,6 +763,12 @@ describe("GithubBackupPanel selectors", () => {
     render(<GithubBackupPanel />);
     await screen.findByLabelText(/^Repository$/i);
     const input = screen.getByLabelText(/Or create private password repo/i);
+    // The field is `disabled={anyBusy || !connectionActive}`, so finding it is
+    // not enough — a request still in flight leaves it non-editable and
+    // `userEvent.clear` throws. Wait for it to actually accept input.
+    await waitFor(() => {
+      expect(input.hasAttribute("disabled")).toBe(false);
+    });
     await userEvent.clear(input);
     await userEvent.type(input, "custom-store");
     await userEvent.click(
