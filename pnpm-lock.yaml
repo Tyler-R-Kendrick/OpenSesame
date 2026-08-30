@@ -768,6 +768,9 @@ importers:
         specifier: 19.1.0
         version: 19.1.0(react@19.1.0)
     devDependencies:
+      '@opensesame/capability-registry':
+        specifier: workspace:*
+        version: link:../../packages/capability-registry
       '@opensesame/testing':
         specifier: workspace:*
         version: link:../../packages/testing
@@ -1524,7 +1527,13 @@ importers:
       '@opensesame/capability-registry':
         specifier: workspace:*
         version: link:../capability-registry
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../os-domain
     devDependencies:
+      '@opensesame/observability':
+        specifier: workspace:*
+        version: link:../observability
       '@types/node':
         specifier: 22.15.29
         version: 22.15.29

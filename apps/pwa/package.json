@@ -19,6 +19,7 @@
     "react-dom": "19.1.0"
   },
   "devDependencies": {
+    "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "@types/react": "19.1.6",

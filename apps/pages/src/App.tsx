@@ -26,6 +26,7 @@ import {
 import { HealthPanel as DefaultHealthPanel } from "./sections/vault/HealthPanel.js";
 import { ItemDetail as DefaultItemDetail } from "./sections/vault/ItemDetail.js";
 import { ItemEditor as DefaultItemEditor } from "./sections/vault/ItemEditor.js";
+import { useWebMcp } from "./webmcp/lifecycle.js";
 
 // Route-level code splitting: the four big sections load on first visit.
 // Vault, unlock and the broker/federation returns stay eager — they are the
@@ -110,6 +111,7 @@ function VaultApp() {
   const { status } = slots.useVault();
   slots.useTheme();
   slots.useSessionGuards();
+  useWebMcp(status);
 
   // A reload drops the in-memory notice but not the upstream assertion in
   // sessionStorage. Once the vault is open, raise the prompt again so a link
