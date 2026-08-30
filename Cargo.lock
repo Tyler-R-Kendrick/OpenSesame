@@ -3815,6 +3815,7 @@ dependencies = [
  "opensesame-connector-host",
  "opensesame-domain",
  "opensesame-host-core",
+ "opensesame-lifecycle",
  "opensesame-pki-core",
  "opensesame-proof",
  "opensesame-protocol-aauth",

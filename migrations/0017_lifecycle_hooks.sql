@@ -1,11 +1,22 @@
 -- Expiry lifecycle hooks (ADR 0073).
 --
 -- Conventions mirror 0016_certificate_manager.sql: TEXT primary keys, RFC3339
--- TEXT timestamps, organization_id REFERENCES organizations(id), composite
--- UNIQUE(organization_id, id) so child rows can key on the tenant pair,
--- version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0) on mutable rows, and
--- an all-or-nothing CHECK group on every sealed-blob column set. Sealed
--- columns hold ciphertext only.
+-- TEXT timestamps, composite UNIQUE(organization_id, id) so child rows can key
+-- on the tenant pair, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0)
+-- on mutable rows, and an all-or-nothing CHECK group on every sealed-blob
+-- column set. Sealed columns hold ciphertext only.
+--
+-- One convention is deliberately NOT followed: organization_id carries no
+-- foreign key into organizations(id). The lifecycle scanner runs against
+-- whatever organization the gateway is configured with, and
+-- `connection_organization` falls back to the nil UUID when no demo bootstrap
+-- exists -- an id with no organizations row. rotation_policies
+-- (crates/connection-broker/src/store.rs), whose scheduling these tables
+-- absorbed, has no such key for the same reason. Adding one here would make
+-- the scanner refuse to record watermarks in exactly the deployments where
+-- rotation works today: a regression dressed up as referential integrity.
+-- Tenant deletion therefore has to sweep these tables explicitly rather than
+-- relying on ON DELETE CASCADE.
 --
 -- Three tables, three distinct jobs:
 --   lifecycle_hooks       — who subscribes, to what, and where it is delivered.
@@ -22,7 +33,7 @@
 -- —— subscriptions ————————————————————————————————————————————————
 CREATE TABLE IF NOT EXISTS lifecycle_hooks (
   id TEXT PRIMARY KEY,
-  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  organization_id TEXT NOT NULL,
   name TEXT NOT NULL,
   -- JSON array of frozen lifecycle event types, or the "lifecycle.*" wildcard.
   -- Validated in crates/storage against opensesame-lifecycle's frozen set: an
@@ -85,7 +96,7 @@ CREATE INDEX IF NOT EXISTS idx_lifecycle_hooks_org_enabled
 -- stored deadline against the current one is what resets the ladder. A
 -- responder therefore cannot forget to reset it.
 CREATE TABLE IF NOT EXISTS lifecycle_watermarks (
-  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  organization_id TEXT NOT NULL,
   subject_kind TEXT NOT NULL CHECK (subject_kind IN (
     'certificate', 'certificate_authority', 'connection_credential',
     'store_path', 'signer'
@@ -120,7 +131,7 @@ CREATE INDEX IF NOT EXISTS idx_lifecycle_watermarks_org
 -- —— outbound delivery ledger ————————————————————————————————————
 CREATE TABLE IF NOT EXISTS lifecycle_deliveries (
   id TEXT PRIMARY KEY,
-  organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  organization_id TEXT NOT NULL,
   hook_id TEXT NOT NULL,
   event_type TEXT NOT NULL,
   subject_kind TEXT NOT NULL,

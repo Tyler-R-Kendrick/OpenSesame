@@ -77,6 +77,17 @@ pub struct ExpirySubject {
     /// `false` still emits every event — subscribers are told, the platform
     /// just does not act. Alerting and acting are separate decisions.
     pub auto_respond: bool,
+    /// Whether this subject participates in the informational alert ladder
+    /// ([`crate::Track::Alert`]).
+    ///
+    /// `true` for things with a human-relevant lifetime: a certificate really
+    /// does warrant "expires in 30 days". `false` for a recurring *schedule*
+    /// such as a rotation policy, where it does not: a policy's deadline moves
+    /// on every rotation, which resets the ladder, so an hourly policy would
+    /// re-fire notice/warning/urgent every hour forever. Such a subject still
+    /// runs the renewal track — it is the whole point of it — it just does not
+    /// narrate.
+    pub alerting: bool,
     /// Operator-facing label (a certificate common name, a store path, a
     /// connection provider). Never a credential; truncated by the event
     /// builder before it reaches a payload.
@@ -118,6 +129,7 @@ mod tests {
             expires_at: "2026-09-30T00:00:00Z".parse().unwrap(),
             renew_before_seconds: renew,
             auto_respond: true,
+            alerting: true,
             label: Some("api.example.com".into()),
         }
     }

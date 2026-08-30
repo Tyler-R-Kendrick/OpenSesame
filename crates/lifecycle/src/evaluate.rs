@@ -103,6 +103,7 @@ pub fn evaluate(
     let renew_before = subject.renew_before();
     Track::ALL
         .into_iter()
+        .filter(|track| subject.alerting || *track != Track::Alert)
         .filter_map(|track| {
             let stage = newly_crossed(
                 track,
@@ -117,12 +118,18 @@ pub fn evaluate(
 
 /// Whether the platform's own responder should act on this event.
 ///
-/// Two conditions, both required: the rung is actionable, and the subject
-/// opted in. An alert-only subject still produces every event — subscribers
-/// are always told — the platform just does not act on its behalf.
+/// Three conditions, all required: the event is a ladder rung rather than a
+/// responder's own outcome, the rung is actionable, and the subject opted in.
+///
+/// The first condition is what stops a responder from feeding itself: an
+/// outcome event keeps the stage that produced it, so without the check a
+/// `lifecycle.renewal.succeeded` would look exactly as actionable as the
+/// `lifecycle.renewal.due` that caused it, and every rotation would rotate
+/// again. An alert-only subject still produces every event — subscribers are
+/// always told — the platform just does not act on its behalf.
 #[must_use]
 pub fn should_respond(event: &LifecycleEvent) -> bool {
-    event.stage.is_actionable() && event.subject.auto_respond
+    event.is_ladder_event() && event.stage.is_actionable() && event.subject.auto_respond
 }
 
 #[cfg(test)]
@@ -146,6 +153,7 @@ mod tests {
             expires_at: at(expires_at),
             renew_before_seconds: renew,
             auto_respond: auto,
+            alerting: true,
             label: None,
         }
     }
@@ -278,11 +286,74 @@ mod tests {
     }
 
     #[test]
+    fn a_responder_outcome_never_triggers_another_responder() {
+        // An outcome carries the stage that produced it, so without the
+        // ladder-event check a succeeded rotation would look as actionable as
+        // the renewal that caused it — and rotate forever.
+        let s = subject("2026-08-01T00:00:00Z", None, true);
+        let now = at("2026-08-30T00:00:00Z");
+        for succeeded in [true, false] {
+            let outcome = LifecycleEvent::for_outcome(
+                s.clone(),
+                ExpiryStage::Renewal,
+                now,
+                succeeded,
+                Some("done"),
+            );
+            assert!(!outcome.is_ladder_event());
+            assert!(!should_respond(&outcome), "succeeded={succeeded}");
+        }
+    }
+
+    #[test]
     fn only_actionable_rungs_trigger_a_responder() {
         let s = subject("2026-09-20T00:00:00Z", None, true);
         let events = evaluate(&s, Watermarks::default(), at("2026-08-30T00:00:00Z"));
         assert_eq!(events[0].stage, ExpiryStage::Notice);
         assert!(!should_respond(&events[0]));
+    }
+
+    #[test]
+    fn a_schedule_subject_runs_the_renewal_track_and_stays_quiet() {
+        // A rotation policy: its deadline moves on every rotation, which resets
+        // the ladder, so narrating the alert rungs would mean re-firing
+        // notice/warning/urgent on every single interval.
+        let mut s = subject("2026-08-30T00:00:10Z", Some(1), true);
+        s.alerting = false;
+        let events = evaluate(&s, Watermarks::default(), at("2026-08-30T00:00:20Z"));
+        let types: Vec<&str> = events.iter().map(|e| e.event_type.as_str()).collect();
+        assert_eq!(types, [EVENT_RENEWAL_DUE]);
+        assert!(should_respond(&events[0]));
+    }
+
+    #[test]
+    fn a_schedule_subject_is_silent_before_it_comes_due() {
+        let mut s = subject("2026-08-30T01:00:00Z", Some(1), true);
+        s.alerting = false;
+        // Well inside every alert threshold, but not yet due.
+        assert!(evaluate(&s, Watermarks::default(), at("2026-08-30T00:00:00Z")).is_empty());
+    }
+
+    #[test]
+    fn a_schedule_subject_re_fires_after_each_reschedule() {
+        let mut first = subject("2026-08-30T01:00:00Z", Some(1), true);
+        first.alerting = false;
+        let due = at("2026-08-30T01:00:00Z");
+        let events = evaluate(&first, Watermarks::default(), due);
+        assert_eq!(events.len(), 1);
+        let marks = Watermarks::from_rows([Watermark::after(&first, events[0].stage)]);
+        assert!(evaluate(&first, marks, due).is_empty(), "no double-fire");
+
+        // The responder rotated and the schedule advanced an hour: the stale
+        // watermark must not suppress the next run.
+        let mut next = first.clone();
+        next.expires_at = at("2026-08-30T02:00:00Z");
+        assert!(evaluate(&next, marks, due).is_empty());
+        assert_eq!(
+            evaluate(&next, marks, at("2026-08-30T02:00:00Z")).len(),
+            1,
+            "the next interval must come due again",
+        );
     }
 
     #[test]

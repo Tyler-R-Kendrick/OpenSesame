@@ -137,6 +137,16 @@ impl LifecycleEvent {
         event
     }
 
+    /// Whether this is a ladder rung rather than a responder's own outcome.
+    ///
+    /// An outcome keeps the stage that produced it — that is how a subscriber
+    /// knows which rung was acted on — so the event type is the only thing
+    /// that distinguishes the two.
+    #[must_use]
+    pub fn is_ladder_event(&self) -> bool {
+        self.event_type == event_type_for_stage(self.stage)
+    }
+
     /// The wire payload. Built field by field from metadata — never by
     /// serializing an arbitrary struct — so a field added upstream cannot
     /// reach a subscriber without a deliberate edit here.
@@ -192,6 +202,7 @@ mod tests {
             expires_at: "2026-09-06T00:00:00Z".parse().unwrap(),
             renew_before_seconds: Some(86_400),
             auto_respond: true,
+            alerting: true,
             label: Some("api.example.com".into()),
         }
     }
@@ -283,6 +294,16 @@ mod tests {
             MAX_DETAIL_CHARS,
         );
         assert_eq!(payload["event_type"], json!(EVENT_RENEWAL_FAILED));
+    }
+
+    #[test]
+    fn ladder_events_and_outcomes_are_distinguishable() {
+        let rung = LifecycleEvent::for_stage(subject(), ExpiryStage::Renewal, now());
+        assert!(rung.is_ladder_event());
+        let outcome =
+            LifecycleEvent::for_outcome(subject(), ExpiryStage::Renewal, now(), true, None);
+        assert!(!outcome.is_ladder_event());
+        assert_eq!(outcome.stage, rung.stage, "an outcome keeps its rung");
     }
 
     #[test]

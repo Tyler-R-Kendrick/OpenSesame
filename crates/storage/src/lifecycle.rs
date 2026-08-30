@@ -602,9 +602,12 @@ mod tests {
         NOW.parse().unwrap()
     }
 
-    /// A migrated database with `ORG` present. Every lifecycle table carries a
-    /// real `organizations` foreign key, and foreign keys are enforced on this
-    /// pool, so the tenant row has to exist first.
+    /// A migrated database with `ORG` present in `organizations`.
+    ///
+    /// The lifecycle tables carry no organizations foreign key — see the note
+    /// in `migrations/0017_lifecycle_hooks.sql` — so this is not required to
+    /// make the writes succeed. It is here so the tests exercise the shape a
+    /// real tenant has rather than an id belonging to nothing.
     async fn seeded_db() -> Db {
         let db = Db::connect_memory().await.unwrap();
         sqlx::query("INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)")
@@ -615,6 +618,12 @@ mod tests {
             .await
             .unwrap();
         db
+    }
+
+    /// A migrated database with no tenant row at all — the nil-organization
+    /// deployment the missing foreign key exists to keep working.
+    async fn unseeded_db() -> Db {
+        Db::connect_memory().await.unwrap()
     }
 
     fn webhook_hook(id: &str, name: &str) -> StoredLifecycleHook {
@@ -703,6 +712,24 @@ mod tests {
                 .await
                 .unwrap_or_else(|error| panic!("{table} is missing: {error}"));
         }
+    }
+
+    #[tokio::test]
+    async fn lifecycle_rows_persist_for_an_organization_with_no_tenant_row() {
+        // The gateway's `connection_organization` falls back to the nil UUID
+        // when no demo bootstrap exists. An organizations foreign key here
+        // would make the scanner refuse to record anything in exactly those
+        // deployments, silently stopping the rotations they run today.
+        let db = unseeded_db().await;
+        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+            .await
+            .expect("a hook must persist without a tenant row");
+        db.record_lifecycle_watermark(&watermark("renewal", "renewal", 1), now())
+            .await
+            .expect("a watermark must persist without a tenant row");
+        db.enqueue_lifecycle_delivery(&delivery("del:1", "hook:1"))
+            .await
+            .expect("a delivery must persist without a tenant row");
     }
 
     #[tokio::test]
