@@ -1,12 +1,25 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet } from "../kv.js";
+import {
+  BODY_PATH,
+  HEADER_PATH,
+  INDEX_PATH,
+  MIGRATION_MARKER_PATH,
+  PERSONAL_TOMB,
+  tombFileKey,
+  vfsFlush,
+} from "../vfs.js";
 import { WrongPasswordError, randomBytes } from "./crypto.js";
-import { ATTEMPTS_KEY, BODY_KEY, HEADER_KEY, VaultStore } from "./store.js";
+import { ATTEMPTS_KEY, VaultStore } from "./store.js";
 import type { PasskeyCeremony } from "./unlock-methods.js";
 import { unlockMethodsSeams } from "./unlock-methods.js";
 
 const PASSWORD = "correct horse battery staple";
+
+/** The personal tomb's vault files — where header/body live now (ADR 0063). */
+const HEADER_KEY = tombFileKey(PERSONAL_TOMB, HEADER_PATH);
+const BODY_KEY = tombFileKey(PERSONAL_TOMB, BODY_PATH);
 
 /**
  * The WebAuthn ceremony needs a real authenticator; everything around it —
@@ -59,10 +72,13 @@ Object.assign(unlockMethodsSeams, {
   },
 });
 
-beforeEach(() => {
+beforeEach(async () => {
+  await vfsFlush();
   kvDelete(ATTEMPTS_KEY);
   kvDelete(HEADER_KEY);
   kvDelete(BODY_KEY);
+  kvDelete(tombFileKey(PERSONAL_TOMB, MIGRATION_MARKER_PATH));
+  kvDelete(tombFileKey(PERSONAL_TOMB, INDEX_PATH));
   ceremony.prfOutput = null;
   ceremony.failCreate = null;
   ceremony.failGet = null;

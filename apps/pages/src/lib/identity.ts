@@ -92,7 +92,6 @@ type HostSession = {
   hostApi: string;
   identityAccessToken: string;
 };
-export type AuthorityHostSession = HostSession;
 let hostSession: HostSession | null = null;
 let pendingHostSession: Promise<HostSession> | null = null;
 let pendingIdentitySession: Promise<IdentitySession> | null = null;
@@ -592,8 +591,8 @@ async function identityJsonDefault<T>(
 async function connectProvisionalDefault(): Promise<IdentitySession> {
   const resumed = await resumeCookieSession();
   if (resumed) return resumed;
-  // A cookie left by an earlier tab is only flagged once the Authority panel has
-  // probed for it. Connecting from Agents or Sites never probes, so look here
+  // A cookie left by an earlier tab is only flagged once something has probed
+  // for it. Connecting from Agents or Sites never probes, so look here
   // too rather than mint a second session beside one nobody is watching.
   if (!session && !orphanCookie) await probeOrphanSession();
   // End an earlier session before starting another, so the old one does not live
@@ -791,7 +790,7 @@ async function probeIdentityDefault(): Promise<HealthState> {
 }
 
 /**
- * Host plane reachability for the rail / Authority cards.
+ * Host plane reachability for the connectivity bar.
  *
  * Prefer a direct Host API health check. When Settings point Host at the paired
  * daemon's `/host` proxy, a live daemon counts as Host reachable — connecting

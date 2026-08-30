@@ -230,22 +230,19 @@ export function ConnectionsSection() {
   return (
     <div className="section__inner">
       <header className="section__head conn-head">
-        <div>
+        <div className="conn-head__titlerow">
           <h1>Connections</h1>
-          <p>
-            Authorize a service once on the Host. Agents get a reference — never
-            the credential.
-          </p>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => void loadConnections()}
+            disabled={loading || !online}
+            title={loading ? "Loading…" : "Reload connections"}
+            aria-label="Reload connections"
+          >
+            <IconRefresh size={16} />
+          </button>
         </div>
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={() => void loadConnections()}
-          disabled={loading || !online}
-        >
-          <IconRefresh size={16} />
-          {loading ? "Loading…" : "Reload"}
-        </button>
       </header>
       <PagesCannotHostNote ceremony="Host authorization" />
       <IdentitySessionNote />

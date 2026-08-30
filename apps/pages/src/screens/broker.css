@@ -6,11 +6,11 @@
   padding: 2rem 1.25rem 3rem;
   background: radial-gradient(
       ellipse 80% 50% at 50% -10%,
-      #d8efe9 0%,
+      var(--accent-wash) 0%,
       transparent 55%
-    ), linear-gradient(180deg, #f2f5f9 0%, #e8eef6 100%);
-  color: #0e1826;
-  font-family: "Segoe UI", system-ui, sans-serif;
+    ), linear-gradient(180deg, var(--canvas) 0%, var(--surface-3) 100%);
+  color: var(--ink);
+  font-family: var(--font);
 }
 
 .broker__head {
@@ -24,7 +24,7 @@
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #0d7268;
+  color: var(--accent);
 }
 
 .broker__head h1 {
@@ -36,7 +36,7 @@
 
 .broker__lede {
   margin: 0;
-  color: #566880;
+  color: var(--ink-2);
   font-size: 0.9375rem;
   line-height: 1.45;
 }
@@ -48,15 +48,15 @@
 
 .broker__card {
   padding: 1.25rem 1.35rem;
-  border: 1px solid #dce4ef;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 6px 16px -4px rgba(14, 24, 38, 0.1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .broker__card--err {
-  border-color: #f0b4b4;
-  background: #fceaea;
+  border-color: color-mix(in srgb, var(--err) 35%, var(--line));
+  background: var(--err-wash);
 }
 
 .broker__card h2 {
@@ -66,7 +66,7 @@
 
 .broker__card p {
   margin: 0 0 0.75rem;
-  color: #566880;
+  color: var(--ink-2);
   font-size: 0.9375rem;
   line-height: 1.45;
 }
@@ -76,10 +76,10 @@
   margin-top: 0.15rem;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
-  background: #eef2f8;
+  background: var(--surface-3);
   font-family: ui-monospace, monospace;
   font-size: 0.8125rem;
-  color: #0e1826;
+  color: var(--ink);
   word-break: break-all;
 }
 
@@ -97,10 +97,10 @@
 .broker__btn {
   appearance: none;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill, 999px);
   padding: 0.55rem 1.1rem;
-  background: #0d7268;
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-ink);
   font: inherit;
   font-weight: 600;
   font-size: 0.875rem;
@@ -108,17 +108,17 @@
 }
 
 .broker__btn:hover {
-  background: #0a5c54;
+  background: var(--accent-hover);
 }
 
 .broker__btn--ghost {
   background: transparent;
-  color: #566880;
-  border: 1px solid #c4d1e2;
+  color: var(--ink-2);
+  border: 1px solid var(--line-strong);
 }
 
 .broker__btn--ghost:hover {
-  background: #f7f9fc;
+  background: var(--surface-2);
 }
 
 .broker__link {
@@ -126,7 +126,7 @@
   border: 0;
   background: none;
   padding: 0;
-  color: #0d7268;
+  color: var(--accent);
   font: inherit;
   font-size: 0.8125rem;
   text-decoration: underline;
@@ -135,5 +135,5 @@
 
 .broker__status {
   margin: 0;
-  color: #566880;
+  color: var(--ink-2);
 }

@@ -11,6 +11,7 @@
   --rail-fg: #dbe6f4;
   --rail-muted: #8ba0bb;
   --rail-line: #24354e;
+  --rail-warn: #f0b95c;
 
   --ink: #0e1826;
   --ink-2: #566880;
@@ -30,6 +31,7 @@
   --warn-wash: #fdf1de;
   --err: #b32424;
   --err-wash: #fceaea;
+  --err-ink: #ffffff;
 
   --s-0: #b32424;
   --s-1: #c2600b;
@@ -74,6 +76,7 @@
     --rail-fg: #dbe6f4;
     --rail-muted: #7d92ae;
     --rail-line: #1b2b3f;
+    --rail-warn: #f0b95c;
 
     --ink: #e7eefa;
     --ink-2: #9db0c8;
@@ -93,6 +96,7 @@
     --warn-wash: #33240c;
     --err: #ef6d6d;
     --err-wash: #351717;
+    --err-ink: #3d0a0a;
 
     --s-0: #ef6d6d;
     --s-1: #e08b3c;
@@ -120,6 +124,7 @@
   --rail-fg: #dbe6f4;
   --rail-muted: #7d92ae;
   --rail-line: #1b2b3f;
+  --rail-warn: #f0b95c;
 
   --ink: #e7eefa;
   --ink-2: #9db0c8;
@@ -139,6 +144,7 @@
   --warn-wash: #33240c;
   --err: #ef6d6d;
   --err-wash: #351717;
+  --err-ink: #3d0a0a;
 
   --s-0: #ef6d6d;
   --s-1: #e08b3c;
@@ -242,6 +248,23 @@ kbd {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* Skip-to-content: hidden until keyboard focus brings it into view. */
+.skip-link:focus {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  width: auto;
+  height: auto;
+  padding: 0.5rem 0.85rem;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ——— Controls ——————————————————————————————————————————— */
@@ -521,7 +544,7 @@ input[type="radio"] {
 }
 
 .qr__shortcode {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--mono);
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -774,7 +797,7 @@ input[type="radio"] {
   flex: none;
   border-radius: 8px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--accent-ink);
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.22);
 }
 
@@ -881,7 +904,7 @@ input[type="radio"] {
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--panel);
+  background: var(--surface);
 }
 
 .notice-card h3 {
@@ -959,7 +982,7 @@ input[type="radio"] {
 }
 
 .cx__btn--attn {
-  color: #f0b95c;
+  color: var(--rail-warn);
 }
 
 .cx__btn--attn .cx__pip {
@@ -1086,7 +1109,7 @@ input[type="radio"] {
   justify-content: flex-end;
 }
 
-/* Key/value readouts used across Agents, Sites, Authority. */
+/* Key/value readouts used across Access, Sites, Identity. */
 .kv {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
@@ -1160,6 +1183,7 @@ input[type="radio"] {
   color: var(--ink-2);
 }
 
+.empty h2,
 .empty h3 {
   color: var(--ink);
 }
@@ -1194,6 +1218,19 @@ input[type="radio"] {
     width: 2.75rem;
     height: 2.75rem;
   }
+
+  .access-tab,
+  .identity-tab,
+  .vault__chip,
+  .grant-choice,
+  .sites-effect,
+  .set__nav-link {
+    min-height: 2.75rem;
+  }
+
+  .toggle {
+    min-height: 1.5rem;
+  }
 }
 
 /* ——— Motion ——————————————————————————————————————————————— */
@@ -1213,12 +1250,10 @@ input[type="radio"] {
   from {
     opacity: 0;
     transform: translateY(10px) scale(0.985);
-    filter: blur(3px);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: none;
   }
 }
 
@@ -1229,6 +1264,11 @@ input[type="radio"] {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* pip-breathe is killed above, so an in-flight check needs a non-motion cue. */
+  .cx__btn.is-checking .cx__pip {
+    opacity: 0.5;
   }
 }
 
@@ -1260,7 +1300,7 @@ input[type="radio"] {
     padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom));
     background: var(--surface);
     border-top: 1px solid var(--line);
-    box-shadow: 0 -4px 16px -8px rgba(14, 24, 38, 0.25);
+    box-shadow: var(--shadow);
   }
 
   .tabbar__link {
@@ -1364,7 +1404,7 @@ input[type="radio"] {
   border-radius: 10px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 12px 32px rgb(6 16 32 / 0.22);
+  box-shadow: var(--shadow-lg);
 }
 
 .topbar .project-switcher__menu {
@@ -1553,7 +1593,7 @@ input[type="radio"] {
   border-radius: 10px;
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 12px 32px rgb(6 16 32 / 0.22);
+  box-shadow: var(--shadow-lg);
 }
 
 .topbar .account-switcher__menu {
@@ -2536,6 +2576,33 @@ input[type="radio"] {
 .opt-row__sub {
   font-size: 0.8125rem;
   color: var(--ink-2);
+}
+
+.keymap {
+  width: min(30rem, 100%);
+}
+
+.keymap__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.keymap__table th,
+.keymap__table td {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.keymap__table th {
+  width: 45%;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.keymap__table kbd {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
 }
 
 @media (pointer: coarse), (max-width: 900px) {

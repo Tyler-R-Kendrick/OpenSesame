@@ -35,7 +35,7 @@ describe("planMerge item shapes", () => {
     expect(item.totp).toBe("JBSWY3DPEHPK3PXP");
   });
 
-  it("lands an agent secret with an empty ceiling for the operator to fill", () => {
+  it("lands a secret with an empty ceiling for the operator to fill", () => {
     const secret = draftSecret("Deploy webhook");
     secret.value = "whsec_123";
     const note = draftNote("Recovery");

@@ -1,6 +1,6 @@
 /**
  * dotenv / .env file import — the primary path for sealing Host and agent
- * material into the vault as agent secrets.
+ * material into the vault as secrets.
  *
  * Supports the common dotenv subset: `KEY=value`, optional `export`, single-
  * and double-quoted values, `#` comments, and blank lines. Multiline values
@@ -151,7 +151,7 @@ export const envFile: TextImportAdapter = {
   id: "env-file",
   label: ".env file",
   shortName: ".env",
-  hint: "A dotenv file (`KEY=value` lines). Each key becomes an agent secret.",
+  hint: "A dotenv file (`KEY=value` lines). Each key becomes a secret.",
   accepts: "text",
   detect(input: DetectInput): boolean {
     if (input.json !== null) return false;
@@ -194,7 +194,7 @@ export const envFile: TextImportAdapter = {
       warnings:
         items.length > 0
           ? [
-              "Keys are stored as agent secrets. Review ceilings and grantees before any agent can use them.",
+              "Keys are stored as secrets. Set ceilings and grantees only if you will grant one to an agent.",
             ]
           : [],
     };

@@ -78,6 +78,74 @@
   gap: 0.75rem;
 }
 
+/* --- provider presets ----------------------------------------------------- */
+
+.identity-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.625rem;
+}
+
+.identity-preset {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.identity-preset:hover {
+  border-color: var(--ink-3);
+}
+
+.identity-preset:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.identity-preset__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-weight: 650;
+  font-size: 1rem;
+}
+
+.identity-preset__head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.identity-preset__head h3 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.identity-ceremony__subhead {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.identity-claim {
+  display: grid;
+  gap: 0.75rem;
+}
+
 .identity-byoidc .label {
   display: inline-flex;
   align-items: center;
@@ -126,6 +194,20 @@
   background: var(--surface);
   color: var(--ink-2);
   flex: none;
+}
+
+.identity-row__monogram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-weight: 650;
+  font-size: 0.8125rem;
 }
 
 .identity-row__id {

@@ -1,6 +1,13 @@
 /**
  * Same-origin KV with OPFS primary + in-memory fallback.
  * Never uses localStorage/sessionStorage (XSS-exfiltrable; banned by ast-grep).
+ *
+ * This is the flat transport layer. The encrypted VFS (`lib/vfs.ts`,
+ * ADR 0063) builds the tomb namespace on top: every vault is a tomb
+ * (`tomb/<name>/…`, the personal vault is the `personal` tomb, ADR 0038),
+ * sealed content under the tomb's vault key, with only the documented
+ * plaintext boundary (boot endpoints, vault header params, lockout
+ * counters, tomb names) stored unsealed.
  */
 
 const memory = new Map<string, string>();

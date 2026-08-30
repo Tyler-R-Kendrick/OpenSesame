@@ -7,8 +7,12 @@
 
 import { isString } from "@opensesame/os-domain";
 import { IdentityError, identityBase, identityJson } from "./identity.js";
+import { VfsError, readFile, writeFile } from "./vfs.js";
 
-const ACTIVE_KEY = "opensesame:org-profile";
+/** Legacy sessionStorage key — migrated into the tomb on unlock, then deleted. */
+const LEGACY_ACTIVE_KEY = "opensesame:org-profile";
+/** Sealed VFS path (within a tomb) holding the active org profile id. */
+export const ORG_PROFILE_CONFIG_PATH = "config/org-profile";
 export const GUEST_PROFILE_ID = "guest";
 export const ORG_SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -60,19 +64,77 @@ export function subscribeOrgProfile(listener: () => void): () => void {
   };
 }
 
+/**
+ * The active org profile, cached in memory for the unlocked session and
+ * persisted sealed at `tomb/<name>/config/org-profile` (ADR 0063 — it left
+ * sessionStorage with the encrypted VFS). While the vault is locked the
+ * profile reads as the guest: every consumer is already post-unlock.
+ */
+let activeTomb: string | null = null;
+let cachedProfileId: string | null = null;
+let profileHydrated = false;
+
 function readActiveProfileId(): string {
-  try {
-    const raw = sessionStorage.getItem(ACTIVE_KEY);
-    return raw && raw.length > 0 ? raw : GUEST_PROFILE_ID;
-  } catch {
-    return GUEST_PROFILE_ID;
-  }
+  return profileHydrated && cachedProfileId
+    ? cachedProfileId
+    : GUEST_PROFILE_ID;
 }
 
 function writeActiveProfileId(id: string): void {
-  // Profile selection is not vault material; it only has to survive this tab.
-  // ast-grep-ignore: ts-localstorage-set
-  sessionStorage.setItem(ACTIVE_KEY, id);
+  cachedProfileId = id;
+  profileHydrated = true;
+  const tomb = activeTomb;
+  if (tomb) {
+    void writeFile(
+      tomb,
+      ORG_PROFILE_CONFIG_PATH,
+      new TextEncoder().encode(id),
+    ).catch(() => {
+      /* the selection re-hydrates on the next unlock */
+    });
+  }
+}
+
+/**
+ * Fill the in-memory selection from the tomb's sealed config, after the
+ * unlock-time migration has moved any legacy sessionStorage copy.
+ */
+export async function hydrateOrgProfileFromVfs(tomb: string): Promise<void> {
+  activeTomb = tomb;
+  try {
+    const bytes = await readFile(tomb, ORG_PROFILE_CONFIG_PATH);
+    const id = new TextDecoder().decode(bytes).trim();
+    cachedProfileId = id.length > 0 ? id : null;
+  } catch (error) {
+    if (error instanceof VfsError && error.code === "locked") throw error;
+    cachedProfileId = null;
+  }
+  profileHydrated = true;
+}
+
+/** Lock: forget the decrypted selection and which tomb it belonged to. */
+export function discardOrgProfile(): void {
+  activeTomb = null;
+  cachedProfileId = null;
+  profileHydrated = false;
+}
+
+/** Legacy sessionStorage copy, for the unlock-time migration only. */
+export function readLegacyOrgProfile(): string | null {
+  try {
+    const raw = sessionStorage.getItem(LEGACY_ACTIVE_KEY);
+    return raw && raw.length > 0 ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearLegacyOrgProfile(): void {
+  try {
+    sessionStorage.removeItem(LEGACY_ACTIVE_KEY);
+  } catch {
+    /* storage unavailable — nothing to clear */
+  }
 }
 
 export function activeOrgProfileId(): string {

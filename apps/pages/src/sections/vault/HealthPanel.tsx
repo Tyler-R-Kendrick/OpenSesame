@@ -46,7 +46,7 @@ export function HealthPanel() {
           <span className="empty__mark" aria-hidden="true">
             <IconShield size={22} />
           </span>
-          <h3>No passwords to review</h3>
+          <h2>No passwords to review</h2>
           <p>
             Add a login with a password and it will be scored for strength,
             reuse, and age.

@@ -21,11 +21,8 @@ const testSlots: Partial<AppSlots> = {
   UnlockScreen: () => <p>unlock screen stub</p>,
   AccessSection: () => <p>access section</p>,
   IdentitySection: () => <p>identity section</p>,
-  AuthenticationSection: () => <p>authentication section</p>,
-  AuthoritySection: () => <p>authority section</p>,
   ConnectionsSection: () => <p>connections section</p>,
   SettingsSection: () => <p>settings section</p>,
-  SitesSection: () => <p>sites section</p>,
   VaultSection: () => (
     <div>
       vault section
@@ -105,9 +102,6 @@ describe("App", () => {
       ["/identity", "identity section"],
       ["/connections", "connections section"],
       ["/connections/github/conn_1", "connections section"],
-      ["/sites", "sites section"],
-      ["/authority", "authority section"],
-      ["/authentication", "authentication section"],
       ["/settings", "settings section"],
       ["/settings/connectivity", "settings section"],
     ];
@@ -125,9 +119,24 @@ describe("App", () => {
     expect(screen.getByText("access section")).toBeTruthy();
   });
 
+  it("redirects /sites to the Access section", () => {
+    env.vaultStatus = "unlocked";
+    renderApp("/sites");
+    expect(screen.getByText("access section")).toBeTruthy();
+  });
+
   it("redirects unknown routes to the vault", () => {
     env.vaultStatus = "unlocked";
     renderApp("/definitely-not-a-route");
     expect(screen.getByText("vault welcome")).toBeTruthy();
+  });
+
+  it("redirects the removed Authority and Authentication routes to the vault", () => {
+    env.vaultStatus = "unlocked";
+    for (const route of ["/authority", "/authentication"]) {
+      const { unmount } = renderApp(route);
+      expect(screen.getByText("vault welcome")).toBeTruthy();
+      unmount();
+    }
   });
 });

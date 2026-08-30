@@ -5,6 +5,7 @@ import {
   activeItems,
   browsableUrl,
   createItem,
+  dropTerminal,
   emptyBody,
   hostOf,
   initialOf,
@@ -306,12 +307,77 @@ describe("kind labels", () => {
       "passkey",
       "card",
       "secret",
+      "drop",
       "note",
       "certificate",
     ] as const) {
       expect(KIND_LABEL[kind]).toBeTruthy();
       expect(KIND_PLURAL[kind]).toBeTruthy();
     }
-    expect(KIND_PLURAL.secret).toBe("Agent secrets");
+    expect(KIND_PLURAL.secret).toBe("Secrets");
+    expect(KIND_LABEL.drop).toBe("Drop");
+    expect(KIND_PLURAL.drop).toBe("Drops");
+  });
+});
+
+describe("drop kind", () => {
+  it("creates a record-only stub the drop ceremony fills in", () => {
+    const drop = createItem("drop", "Deploy token");
+    expect(drop.kind).toBe("drop");
+    if (drop.kind !== "drop") return;
+    expect(drop.state).toBe("pending");
+    expect(drop.claimId).toBe("");
+    expect(drop.bearerToken).toBe("");
+    expect(drop.keptCopy).toBeUndefined();
+    expect(drop.deletedAt).toBeNull();
+  });
+
+  it("is terminal once consumed, expired, or past its TTL", () => {
+    const drop = createItem("drop", "Deploy token");
+    if (drop.kind !== "drop") throw new Error("expected drop");
+    const live = {
+      ...drop,
+      expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    };
+    expect(dropTerminal(live)).toBe(false);
+    expect(dropTerminal({ ...live, state: "consumed" })).toBe(true);
+    expect(dropTerminal({ ...live, state: "expired" })).toBe(true);
+    expect(
+      dropTerminal({
+        ...live,
+        expiresAt: new Date(Date.now() - 1000).toISOString(),
+      }),
+    ).toBe(true);
+  });
+
+  it("subtitles by state without ever naming a payload", () => {
+    const drop = createItem("drop", "Deploy token");
+    if (drop.kind !== "drop") throw new Error("expected drop");
+    const live = {
+      ...drop,
+      expiresAt: "2026-08-30T10:00:00.000Z",
+    };
+    expect(itemSubtitle(live)).toContain("Opens once");
+    expect(itemSubtitle({ ...live, state: "consumed" })).toContain("Opened");
+    expect(itemSubtitle({ ...live, state: "expired" })).toContain("Expired");
+  });
+
+  it("merges by revision like any other item", () => {
+    const drop = createItem("drop", "Deploy token");
+    const left = { ...emptyBody(), items: [drop] };
+    const right = {
+      ...emptyBody(),
+      items: [
+        {
+          ...drop,
+          state: "consumed" as const,
+          updatedAt: "2999-01-01T00:00:00.000Z",
+        },
+      ],
+    };
+    const merged = mergeVaultBodies(left, right);
+    const winner = merged.items.find((item) => item.id === drop.id);
+    if (winner?.kind !== "drop") throw new Error("expected the drop to merge");
+    expect(winner.state).toBe("consumed");
   });
 });

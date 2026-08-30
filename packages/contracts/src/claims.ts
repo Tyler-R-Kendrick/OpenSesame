@@ -43,6 +43,13 @@ export type CreateClaimResponse = z.infer<typeof CreateClaimResponseSchema>;
 
 export const PresentClaimRequestSchema = z.object({
   token: z.string().min(16),
+  /**
+   * Optional second factor (ADR 0062). When supplied it is verified against
+   * the claim's peppered digest *before* the single-use presentation is
+   * spent, so a wrong code cannot burn the claim. Omitting it keeps the
+   * original token-only presentation.
+   */
+  userCode: z.string().min(4).max(64).optional(),
 });
 export type PresentClaimRequest = z.infer<typeof PresentClaimRequestSchema>;
 
@@ -106,3 +113,14 @@ export const ClaimSessionResponseSchema = z.object({
   items: z.array(ClaimItemResponseSchema),
 });
 export type ClaimSessionResponse = z.infer<typeof ClaimSessionResponseSchema>;
+
+/**
+ * Presentation is the single-use transition, so the present response — and
+ * only the present response — carries the stored manifest (ADR 0062): the
+ * ciphertext a drop recipient decrypts is served exactly once, inside the one
+ * presentation window. GET/poll/complete keep projecting only the digest.
+ */
+export const PresentClaimResponseSchema = ClaimSessionResponseSchema.extend({
+  targetManifest: z.record(z.unknown()),
+});
+export type PresentClaimResponse = z.infer<typeof PresentClaimResponseSchema>;

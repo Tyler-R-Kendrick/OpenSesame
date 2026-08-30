@@ -27,6 +27,7 @@ import {
   newId,
   newUri,
 } from "../../lib/vault/model.js";
+import { NewDropCeremony } from "./DropCeremony.js";
 
 const KINDS: ItemKind[] = [
   "login",
@@ -35,6 +36,7 @@ const KINDS: ItemKind[] = [
   "secret",
   "note",
   "certificate",
+  "drop",
 ];
 const MATCHES: UriMatch[] = ["domain", "host", "exact", "never"];
 
@@ -93,10 +95,30 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
     return (
       <div className="detail">
         <div className="empty">
-          <h3>Nothing to edit</h3>
+          <h2>Nothing to edit</h2>
           <p>That item is no longer in this vault.</p>
           <Link className="btn btn--sm" to="/vault">
             Back to the vault
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // A drop is a one-time share in flight, not an editable item: +new gets its
+  // own ceremony, and an existing record has nothing an editor could change.
+  if (draft.kind === "drop") {
+    if (mode === "new") return <NewDropCeremony />;
+    return (
+      <div className="detail">
+        <div className="empty">
+          <h2>Drops cannot be edited</h2>
+          <p>
+            A drop is sealed when it is created. Its record shows the state and
+            disappears once the drop is opened or lapses.
+          </p>
+          <Link className="btn btn--sm" to={`/vault/${draft.id}`}>
+            Back to the drop
           </Link>
         </div>
       </div>
@@ -561,14 +583,12 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 }
               />
               <p className="hint">
-                What the Host plane invokes with. Agents pass the reference;
-                they never see the value.
+                The ConnectionRef a grant of this secret targets. The value
+                never leaves the vault.
               </p>
             </div>
             <div className="field">
-              <label htmlFor="grantees">
-                Agents permitted to request a grant
-              </label>
+              <label htmlFor="grantees">Grantees (agent ids)</label>
               <input
                 id="grantees"
                 spellCheck={false}
@@ -583,6 +603,9 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                   })
                 }
               />
+              <p className="hint">
+                Optional — only matters when granting this secret to an agent.
+              </p>
             </div>
             <div className="field">
               <span className="label">Capability ceiling</span>

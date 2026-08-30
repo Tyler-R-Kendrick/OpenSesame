@@ -18,7 +18,9 @@ import {
  * - owner-fenced OAuth client CRUD (`/v1/oauth/clients`) — the "service
  *   accounts that aren't people" surface;
  * - organization membership management (`/v1/organizations/:id/members`,
- *   owner-only) and organization creation.
+ *   owner-only) and organization creation;
+ * - device approval (`/v1/device/approve`) — the control plane holds the
+ *   operator token and proxies to the Host.
  *
  * Nothing here ever receives a credential. Rotating an OAuth client mints a
  * new client id server-side and revokes the old one — the client id is all
@@ -90,6 +92,12 @@ export type CreateOrganizationInput = {
   slug: string;
   displayName: string;
   ssoIssuer?: string;
+};
+
+/** The control plane's proxy answer wraps the Host's status; ok is all we show. */
+export type DeviceApproval = {
+  ok: boolean;
+  status: number;
 };
 
 export class DirectoryError extends Error {
@@ -361,6 +369,67 @@ function createOrganizationDefault(
   );
 }
 
+/**
+ * The approve-a-device ceremony's known failure set, in plain words. The
+ * control plane proxies to the Host with its operator token, so failures come
+ * from either plane — the error code says which
+ * (apps/control-plane/src/routes/device.ts).
+ */
+function approveDeviceWords(error: DirectoryError): string {
+  if (error.code === "operator_token_unconfigured") {
+    return "Device approval is not enabled on this Identity service — the operator sets OPENSESAME_OPERATOR_TOKEN.";
+  }
+  if (error.code === "host_api_unreachable") {
+    return "The Host is unreachable, so the approval could not be delivered. Start the Host and try again.";
+  }
+  if (error.code === "host_approval_failed" && error.status === 404) {
+    return "No device is waiting on that code — check the code the device shows and try again.";
+  }
+  if (error.code === "host_approval_failed") {
+    return "The Host could not approve that code — ask the device for a fresh one and try again.";
+  }
+  if (error.code === "invalid_request") {
+    return "Enter the user code exactly as the device shows it.";
+  }
+  if (error.code === "organization_id_required") {
+    return "You belong to several organizations — the operator approves devices for those.";
+  }
+  if (error.code === "organization_access_denied") {
+    return "You do not have access to the organization that device is joining.";
+  }
+  return error.message;
+}
+
+/**
+ * `POST /v1/device/approve` — browsers never hold the operator token; the
+ * control plane injects it and forwards `{user_code, principal, …}` to the
+ * Host. Only the user code leaves this client.
+ */
+async function approveDeviceDefault(userCode: string): Promise<DeviceApproval> {
+  try {
+    return await call(
+      "/v1/device/approve",
+      { method: "POST", body: JSON.stringify({ user_code: userCode }) },
+      (body) => {
+        const raw = obj(body);
+        return {
+          ok: raw.ok === true,
+          status: isNumber(raw.status) ? raw.status : 200,
+        };
+      },
+    );
+  } catch (error) {
+    if (error instanceof DirectoryError) {
+      throw new DirectoryError(
+        error.status,
+        error.code,
+        approveDeviceWords(error),
+      );
+    }
+    throw error;
+  }
+}
+
 export const directorySeams = {
   getMe: getMeDefault,
   listLinkedIdentities: listLinkedIdentitiesDefault,
@@ -373,6 +442,7 @@ export const directorySeams = {
   addOrgMember: addOrgMemberDefault,
   removeOrgMember: removeOrgMemberDefault,
   createOrganization: createOrganizationDefault,
+  approveDevice: approveDeviceDefault,
 };
 
 export function getMe(): Promise<DirectoryPrincipal> {
@@ -415,4 +485,7 @@ export function createOrganization(
   ...args: Parameters<typeof createOrganizationDefault>
 ): ReturnType<typeof createOrganizationDefault> {
   return directorySeams.createOrganization(...args);
+}
+export function approveDevice(userCode: string): Promise<DeviceApproval> {
+  return directorySeams.approveDevice(userCode);
 }

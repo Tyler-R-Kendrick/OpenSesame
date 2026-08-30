@@ -1,6 +1,18 @@
 import { overlapCast } from "@opensesame/os-domain";
-import { type ReactNode, useMemo } from "react";
-import { NavLink, useLocation, useSearchParams } from "react-router";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import {
+  NavLink,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router";
+import { createKeymapHandler } from "../lib/keymap.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
@@ -11,6 +23,7 @@ import {
   IconCard,
   IconCert,
   IconConnection,
+  IconDrop,
   IconFolder,
   IconLogin,
   IconNote,
@@ -18,12 +31,12 @@ import {
   IconSecret,
   IconSettings,
   IconShield,
-  IconSite,
   IconStar,
   IconTrash,
   IconUser,
   IconVault,
 } from "./Icons.js";
+import { KeymapSheet } from "./KeymapSheet.js";
 import { NotificationsBar } from "./NotificationsBar.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 
@@ -32,9 +45,6 @@ const SECTIONS = [
   { to: "/connections", label: "Connections", Icon: IconConnection },
   { to: "/access", label: "Access", Icon: IconAuthority },
   { to: "/identity", label: "Identity", Icon: IconUser },
-  { to: "/authority", label: "Authority", Icon: IconAuthority },
-  { to: "/authentication", label: "Authentication", Icon: IconPasskey },
-  { to: "/sites", label: "Sites", Icon: IconSite },
   { to: "/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 
@@ -46,7 +56,8 @@ const KIND_FILTERS: Array<{
   { id: "login", label: "Logins", Icon: IconLogin },
   { id: "passkey", label: "Passkeys", Icon: IconPasskey },
   { id: "card", label: "Cards", Icon: IconCard },
-  { id: "secret", label: "Agent secrets", Icon: IconSecret },
+  { id: "secret", label: "Secrets", Icon: IconSecret },
+  { id: "drop", label: "Drops", Icon: IconDrop },
   { id: "note", label: "Secure notes", Icon: IconNote },
   { id: "certificate", label: "Certificates", Icon: IconCert },
 ];
@@ -169,11 +180,27 @@ function VaultFilters() {
 
 export function AppShell({ children }: { children?: ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const store = useVaultStore();
   const inVault = location.pathname.startsWith("/vault");
+  const [keymapOpen, setKeymapOpen] = useState(false);
+  const showKeymap = useCallback(() => setKeymapOpen(true), []);
+  const closeKeymap = useCallback(() => setKeymapOpen(false), []);
+  const keymap = useMemo(
+    () => createKeymapHandler({ navigate, showHelp: showKeymap }),
+    [navigate, showKeymap],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", keymap, true);
+    return () => window.removeEventListener("keydown", keymap, true);
+  }, [keymap]);
 
   return (
     <div className="app">
+      <a href="#main" className="skip-link visually-hidden">
+        Skip to content
+      </a>
       <aside className="rail">
         <div className="rail__brand">
           <span className="mark" aria-hidden="true">
@@ -252,6 +279,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
           ))}
         </nav>
       </div>
+      <KeymapSheet open={keymapOpen} close={closeKeymap} />
     </div>
   );
 }

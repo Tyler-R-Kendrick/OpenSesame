@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Link,
   Outlet,
@@ -8,21 +8,14 @@ import {
   useSearchParams,
 } from "react-router";
 import {
-  IconCard,
-  IconChevronRight,
-  IconLogin,
-  IconNote,
-  IconPasskey,
   IconPlus,
   IconSearch,
-  IconSecret,
-  IconShield,
-  IconStar,
   IconUpload,
   IconVault,
 } from "../components/Icons.js";
-import { buildHealthReport } from "../lib/vault/health.js";
-import { useVault } from "../lib/vault/hooks.js";
+import { activeProject } from "../lib/projects.js";
+import { sweepDrops } from "../lib/vault/drop.js";
+import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { stashImportFile } from "../lib/vault/import/handoff.js";
 import {
   type Folder,
@@ -30,11 +23,10 @@ import {
   KIND_LABEL,
   KIND_PLURAL,
   type VaultItem,
-  initialOf,
-  itemSubtitle,
-  searchMatches,
   sortItems,
 } from "../lib/vault/model.js";
+import { itemPath, tombPath } from "../lib/vault/paths.js";
+import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
 
 const KIND_ORDER: ItemKind[] = [
@@ -42,18 +34,10 @@ const KIND_ORDER: ItemKind[] = [
   "passkey",
   "card",
   "secret",
+  "drop",
   "note",
   "certificate",
 ];
-
-const KIND_ICON = {
-  login: IconLogin,
-  passkey: IconPasskey,
-  card: IconCard,
-  secret: IconSecret,
-  note: IconNote,
-  certificate: IconShield,
-};
 
 const FILTER_TITLE = new Map([
   ["all", "All items"],
@@ -62,7 +46,8 @@ const FILTER_TITLE = new Map([
   ["login", "Logins"],
   ["passkey", "Passkeys"],
   ["card", "Cards"],
-  ["secret", "Agent secrets"],
+  ["secret", "Secrets"],
+  ["drop", "Drops"],
   ["note", "Secure notes"],
 ]);
 
@@ -153,75 +138,47 @@ function ImportButton() {
   );
 }
 
-function ItemRow({
-  item,
-  active,
-  search,
-}: {
-  item: VaultItem;
-  active: boolean;
-  /** Carried into the detail route so the filter survives a round trip. */
-  search: string;
-}) {
-  const Icon = KIND_ICON[item.kind];
-  return (
-    <li>
-      <Link
-        to={`/vault/${item.id}${search}`}
-        className={`vault__row${active ? " is-active" : ""}`}
-        aria-current={active ? "true" : undefined}
-      >
-        <span className="vault__avatar" aria-hidden="true">
-          {item.kind === "login" || item.kind === "note" ? (
-            initialOf(item)
-          ) : (
-            <Icon size={17} />
-          )}
-        </span>
-        <span className="vault__text">
-          <span className="vault__name">{item.name || "Untitled"}</span>
-          <span className="vault__sub">{itemSubtitle(item)}</span>
-        </span>
-        <span className="vault__rowmeta">
-          {item.sample ? (
-            <span className="chip chip--sample">SYNTHETIC</span>
-          ) : null}
-          {item.favorite ? (
-            <IconStar size={15} filled className="is-fav" title="Favorite" />
-          ) : null}
-        </span>
-      </Link>
-    </li>
-  );
+function isItemKind(value: string): value is ItemKind {
+  return KIND_ORDER.some((kind) => kind === value);
+}
+
+function concealedValue(item: VaultItem): string | null {
+  if (item.kind === "login") return item.password;
+  if (item.kind === "secret") return item.value;
+  if (item.kind === "card") return item.number;
+  if (item.kind === "certificate") return item.privateKeyPem;
+  return null;
+}
+
+function username(item: VaultItem): string | null {
+  return item.kind === "login" || item.kind === "passkey"
+    ? item.username
+    : null;
 }
 
 export function VaultSection() {
   const [params] = useSearchParams();
   const location = useLocation();
   const { itemId } = useParams();
-  const { items, folders } = useVault();
-  const [query, setQuery] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
+  const { items, folders, status } = useVault();
+  const store = useVaultStore();
+  const copySecret = useCopySecret();
+  const navigate = useNavigate();
+  const [focused, setFocused] = useState<{
+    item: VaultItem | null;
+    path: string | null;
+  }>({ item: null, path: null });
 
   const filter = params.get("f") ?? "all";
   const folderId = params.get("folder");
 
+  // Drop disposal (ADR 0062): every vault read sweeps the drop records, so a
+  // drop that was opened or lapsed while away purges itself here.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the unlock transition is the trigger — items/store are read at that moment, not watched
   useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      const target = event.target;
-      const typing =
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement ||
-        (target instanceof HTMLElement && target.isContentEditable);
-      if (typing) return;
-      if (event.key === "/") {
-        event.preventDefault();
-        searchRef.current?.focus();
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    if (status !== "unlocked") return;
+    void sweepDrops(items, (id) => store.purgeItem(id));
+  }, [status]);
 
   const visible = useMemo(() => {
     const inTrash = filter === "trash";
@@ -239,13 +196,57 @@ export function VaultSection() {
         ) {
           return false;
         }
-        return searchMatches(item, query);
+        return true;
       }),
     );
-  }, [items, filter, folderId, query]);
+  }, [items, filter, folderId]);
 
   const detailOpen = location.pathname !== "/vault";
   const title = folderId ? "Folder" : (FILTER_TITLE.get(filter) ?? "All items");
+  const createKind = isItemKind(filter) ? filter : "login";
+  const treeFolders = useMemo(() => {
+    if (folderId) return [];
+    if (
+      filter === "all" &&
+      visible.length === items.filter((item) => item.deletedAt === null).length
+    ) {
+      return folders;
+    }
+    const used = new Set(visible.map((item) => item.folderId).filter(Boolean));
+    return folders.filter((folder) => used.has(folder.id));
+  }, [filter, folderId, folders, items, visible]);
+  const onFocus = useCallback(
+    (item: VaultItem | null, path: string | null) => setFocused({ item, path }),
+    [],
+  );
+  const actions = useMemo(
+    () => ({
+      open: (item: VaultItem) =>
+        navigate(`/vault/${item.id}${location.search}`),
+      copySecret: (item: VaultItem) => {
+        const value = concealedValue(item);
+        if (value) void copySecret(value);
+      },
+      copyUsername: (item: VaultItem) => {
+        const value = username(item);
+        if (value) void copySecret(value);
+      },
+      edit: (item: VaultItem) => navigate(`/vault/${item.id}/edit`),
+      trash: (item: VaultItem) => void store.trashItem(item.id),
+      favorite: (item: VaultItem) => void store.toggleFavorite(item.id),
+      share: (item: VaultItem) => {
+        if (item.kind === "secret") navigate(`/vault/${item.id}?share=drop`);
+      },
+      create: () => navigate(`/vault/new/${createKind}`),
+    }),
+    [copySecret, createKind, location.search, navigate, store],
+  );
+  const focusedPath = focused.item
+    ? itemPath(focused.item, folders)
+    : focused.path;
+  const total = items.filter((item) =>
+    filter === "trash" ? item.deletedAt !== null : item.deletedAt === null,
+  ).length;
 
   return (
     <div className="vault" data-pane={detailOpen ? "detail" : "list"}>
@@ -258,26 +259,14 @@ export function VaultSection() {
                   from another manager should not require an empty vault or a
                   hunt through Settings to find it. */}
               <ImportButton />
-              <Link className="btn btn--primary btn--sm" to="/vault/new/login">
+              <Link
+                className="btn btn--primary btn--sm"
+                to={`/vault/new/${createKind}`}
+              >
                 <IconPlus size={16} />
                 New
               </Link>
             </div>
-          </div>
-          <div className="vault__search">
-            <IconSearch size={17} />
-            <input
-              ref={searchRef}
-              type="search"
-              value={query}
-              placeholder="Search this vault"
-              aria-label="Search vault items"
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setQuery("");
-              }}
-            />
-            {query ? null : <kbd>/</kbd>}
           </div>
           <MobileFilters
             items={items}
@@ -285,10 +274,6 @@ export function VaultSection() {
             filter={filter}
             folderId={folderId}
           />
-          <output className="vault__count">
-            {visible.length} {visible.length === 1 ? "item" : "items"}
-            {query ? ` matching “${query}”` : ""}
-          </output>
         </div>
 
         {visible.length === 0 ? (
@@ -296,22 +281,20 @@ export function VaultSection() {
             <span className="empty__mark" aria-hidden="true">
               <IconSearch size={22} />
             </span>
-            <h3>{query ? "Nothing matches" : "Nothing here yet"}</h3>
+            <h2>Nothing here yet</h2>
             <p>
-              {query
-                ? "Search covers names, usernames, URLs, and visible custom fields — not concealed values."
-                : filter === "trash"
-                  ? "Deleted items wait here until you purge them."
-                  : "Human items on this device: logins, passkeys, notes, certificates, and agent secrets. Import a .env or password export, or authorize a Host connector instead."}
+              {filter === "trash"
+                ? "Deleted items wait here until you purge them."
+                : "Human items on this device: logins, passkeys, notes, certificates, and secrets. Import a .env or password export, or authorize a Host connector instead."}
             </p>
-            {!query && filter !== "trash" ? (
+            {filter !== "trash" ? (
               // On narrow screens the detail pane is not rendered, so this is
               // the only empty state a new arrival sees. It has to offer the
               // import, not just mention it.
               <div className="actions">
                 <Link
                   className="btn btn--primary btn--sm"
-                  to="/vault/new/login"
+                  to={`/vault/new/${createKind}`}
                 >
                   <IconPlus size={16} />
                   New item
@@ -321,16 +304,27 @@ export function VaultSection() {
             ) : null}
           </div>
         ) : (
-          <ul className="vault__rows">
-            {visible.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                active={item.id === itemId}
-                search={location.search}
-              />
-            ))}
-          </ul>
+          <>
+            <VaultTree
+              items={visible}
+              folders={treeFolders}
+              activeItemId={itemId}
+              actions={actions}
+              onFocus={onFocus}
+            />
+            <output
+              className="vault__status"
+              aria-live="polite"
+              aria-label={`${tombPath(activeProject().id, focusedPath)}, ${visible.length} of ${total} items, ${title}`}
+            >
+              <span className="vault__status-path">
+                {tombPath(activeProject().id, focusedPath)}
+              </span>
+              <span className="vault__status-meta">
+                {visible.length}/{total} · {title}
+              </span>
+            </output>
+          </>
         )}
       </div>
 
@@ -348,7 +342,6 @@ export function VaultSection() {
 export function VaultWelcome() {
   const { items, header } = useVault();
   const live = items.filter((item) => item.deletedAt === null);
-  const report = useMemo(() => buildHealthReport(items), [items]);
 
   if (live.length === 0) {
     return (
@@ -357,7 +350,7 @@ export function VaultWelcome() {
           <span className="empty__mark" aria-hidden="true">
             <IconVault size={22} />
           </span>
-          <h3>Nothing sealed on this device</h3>
+          <h2>Nothing sealed on this device</h2>
           <p>
             This store is for human items on this machine. Host connectors and
             agent grants live on the Host — they never appear here as secrets.
@@ -413,21 +406,6 @@ export function VaultWelcome() {
           ))}
         </div>
       </section>
-
-      {report.scored > 0 ? (
-        <Link
-          className={`wel__health${report.findings.length > 0 ? " is-warn" : " is-ok"}`}
-          to="/vault/health"
-        >
-          <IconShield size={20} />
-          <span>
-            {report.findings.length === 0
-              ? `All ${report.scored} passwords are strong, unique, and current.`
-              : `${report.findings.length} of ${report.scored} passwords need attention.`}
-          </span>
-          <IconChevronRight size={17} />
-        </Link>
-      ) : null}
 
       <section className="detail__group">
         <h2 className="detail__grouphead">Recently changed</h2>

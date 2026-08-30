@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DirectoryError,
   addOrgMember,
+  approveDevice,
   createOAuthClient,
   createOrganization,
   getMe,
@@ -376,5 +377,82 @@ describe("directory client", () => {
     expect(error.message).toMatch(
       /Identity API unreachable at http:\/\/127\.0\.0\.1:8788/,
     );
+  });
+
+  it("approves a device by POSTing only the user code", async () => {
+    identityFetch.mockResolvedValue(
+      jsonResponse({ ok: true, status: 200, body: { approved: true } }),
+    );
+    const approval = await approveDevice("ABCD-EFGH");
+    expect(lastCall().url).toBe("/v1/device/approve");
+    expect(lastCall().init.method).toBe("POST");
+    expect(String(lastCall().init.body)).toBe(
+      JSON.stringify({ user_code: "ABCD-EFGH" }),
+    );
+    expect(approval).toEqual({ ok: true, status: 200 });
+  });
+
+  it("maps an unconfigured operator token to an operator note", async () => {
+    identityFetch.mockResolvedValue(
+      jsonResponse(
+        {
+          error: "operator_token_unconfigured",
+          hint: "Set OPENSESAME_OPERATOR_TOKEN on the Identity API",
+        },
+        503,
+      ),
+    );
+    const error = await failureOf(approveDevice("ABCD-EFGH"));
+    expect(error).toBeInstanceOf(DirectoryError);
+    if (error instanceof DirectoryError) {
+      expect(error.status).toBe(503);
+      expect(error.code).toBe("operator_token_unconfigured");
+    }
+    expect(error.message).toMatch(/operator sets OPENSESAME_OPERATOR_TOKEN/);
+  });
+
+  it("maps a 404 from the Host to unknown-code wording", async () => {
+    identityFetch.mockResolvedValue(
+      jsonResponse({ error: "host_approval_failed" }, 404),
+    );
+    const error = await failureOf(approveDevice("NOPE-XXXX"));
+    if (error instanceof DirectoryError) {
+      expect(error.code).toBe("host_approval_failed");
+    }
+    expect(error.message).toMatch(/No device is waiting on that code/);
+  });
+
+  it("maps a 502 from the Host to approval-failed wording", async () => {
+    identityFetch.mockResolvedValue(
+      jsonResponse({ error: "host_approval_failed" }, 502),
+    );
+    const error = await failureOf(approveDevice("ABCD-EFGH"));
+    expect(error.message).toMatch(/could not approve that code/);
+  });
+
+  it("maps an unreachable Host to unreachable wording", async () => {
+    identityFetch.mockResolvedValue(
+      jsonResponse({ error: "host_api_unreachable" }, 502),
+    );
+    const error = await failureOf(approveDevice("ABCD-EFGH"));
+    if (error instanceof DirectoryError) {
+      expect(error.status).toBe(502);
+      expect(error.code).toBe("host_api_unreachable");
+    }
+    expect(error.message).toMatch(/Host is unreachable/);
+  });
+
+  it("maps a missing user code to invalid-request wording", async () => {
+    identityFetch.mockResolvedValue(
+      jsonResponse(
+        { error: "invalid_request", hint: "user_code required" },
+        400,
+      ),
+    );
+    const error = await failureOf(approveDevice(""));
+    if (error instanceof DirectoryError) {
+      expect(error.status).toBe(400);
+    }
+    expect(error.message).toMatch(/exactly as the device shows it/);
   });
 });

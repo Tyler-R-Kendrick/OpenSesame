@@ -315,7 +315,7 @@ export function ImportPanel() {
         <div>
           <h2>Import</h2>
           <p>
-            Prefer a <code>.env</code> file — each key becomes an agent secret.
+            Prefer a <code>.env</code> file — each key becomes a secret.
             Password-manager exports still work. The file is read in this tab
             and never uploaded; review before anything is written.
           </p>
@@ -793,7 +793,7 @@ function ItemTable({
                 {item.kind === "login"
                   ? item.username || "—"
                   : item.kind === "secret"
-                    ? "agent secret"
+                    ? "secret"
                     : "—"}
               </td>
               <td>

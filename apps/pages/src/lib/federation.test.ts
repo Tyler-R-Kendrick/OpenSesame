@@ -219,14 +219,14 @@ describe("beginSignIn", () => {
     const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "mock");
     if (!upstream) throw new Error("mock upstream missing");
 
-    await beginSignIn(upstream, { scope: "openid email", returnTo: "/sites" });
+    await beginSignIn(upstream, { scope: "openid email", returnTo: "/access" });
 
     const pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? "null");
     expect(pending).toMatchObject({
       upstreamId: "mock",
       issuer: "http://127.0.0.1:9090",
       scope: "openid email",
-      returnTo: "/sites",
+      returnTo: "/access",
       tokenEndpoint: "http://127.0.0.1:9090/token",
       jwksUri: "http://127.0.0.1:9090/jwks",
     });

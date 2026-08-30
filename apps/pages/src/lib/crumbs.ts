@@ -47,6 +47,7 @@ const VAULT_FILTER_LABEL = new Map([
   ["passkey", KIND_PLURAL.passkey],
   ["card", KIND_PLURAL.card],
   ["secret", KIND_PLURAL.secret],
+  ["drop", KIND_PLURAL.drop],
   ["note", KIND_PLURAL.note],
   ["certificate", "Certificates"],
 ]);
@@ -116,9 +117,6 @@ export function crumbsFor(
   }
   if (parts[0] === "access") return current("Access");
   if (parts[0] === "identity") return current("Identity");
-  if (parts[0] === "sites") return current("Sites");
-  if (parts[0] === "authority") return current("Authority");
-  if (parts[0] === "authentication") return current("Authentication");
   return [];
 }
 

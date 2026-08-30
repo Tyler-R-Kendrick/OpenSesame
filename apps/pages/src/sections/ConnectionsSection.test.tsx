@@ -744,19 +744,11 @@ describe("ConnectionsSection connector page", () => {
     const optional = screen.getByText("Optional settings").closest("details");
     expect(optional?.open).toBe(false);
     expect(
-      (
-        screen.getByLabelText(
-          /API key header \(automatic\)/,
-        ) as HTMLInputElement
-      ).value,
-    ).toBe("x-api-key");
+      screen.getByLabelText(/API key header \(automatic\)/),
+    ).toMatchObject({ value: "x-api-key" });
     expect(
-      (
-        screen.getByLabelText(
-          /Configuration ID \(automatic\)/,
-        ) as HTMLInputElement
-      ).value,
-    ).toBe("default");
+      screen.getByLabelText(/Configuration ID \(automatic\)/),
+    ).toMatchObject({ value: "default" });
     await userEvent.click(
       screen.getByRole("button", { name: /Save configuration/i }),
     );

@@ -5,6 +5,7 @@ import {
   GUEST_PROFILE_ID,
   ORG_SLUG_RE,
   activeOrgProfileId,
+  discardOrgProfile,
   joinOrgTenant,
   listOrgMemberships,
   lookupOrgTenant,
@@ -19,6 +20,9 @@ const originalIdentityBase = identitySeams.identityBase;
 
 describe("orgs", () => {
   beforeEach(() => {
+    // The profile selection lives in memory for the session now (sealed in
+    // the tomb between sessions) — reset it like a fresh lock would.
+    discardOrgProfile();
     sessionStorage.clear();
     identitySeams.identityBase = () => "http://127.0.0.1:18788";
     identitySeams.identityJson = originalIdentityJson;

@@ -159,7 +159,7 @@ exports[`the CXF document this vault writes > serializes an unlocked vault to ex
                 "fieldType": "concealed-string",
                 "value": "fixture-deploy-token"
               },
-              "keyType": "opensesame-agent-secret",
+              "keyType": "opensesame-secret",
               "extensions": [
                 {
                   "name": "com.opensesame.vault",

@@ -68,8 +68,10 @@ export function CatalogPanel({
         <Link className="btn btn--sm" to="/connections/new">
           Custom connector
         </Link>
+      </div>
+      <div className="conn-catalog__search">
         <label className="conn-search">
-          <span className="sr-only">Search connectors</span>
+          <span className="visually-hidden">Search connectors</span>
           <IconSearch size={16} />
           <input
             type="search"

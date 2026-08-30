@@ -86,28 +86,37 @@ function preferredUnlockMethodDefault(
   return null;
 }
 
-export function assertPinPolicy(pin: string): void {
+/** Every format problem a PIN has, in plain words, empty when it passes. */
+export function pinPolicyProblems(pin: string): string[] {
   const normalized = pin.normalize("NFKC");
+  const problems: string[] = [];
   if (
     normalized.length < MIN_PIN_LENGTH ||
     normalized.length > MAX_PIN_LENGTH
   ) {
-    throw new Error(
+    problems.push(
       `PIN must be ${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters.`,
     );
   }
   if (/\s/.test(normalized)) {
-    throw new Error("PIN cannot contain spaces.");
+    problems.push("PIN cannot contain spaces.");
   }
   if (/^(.)\1+$/u.test(normalized)) {
-    throw new Error("PIN cannot be a repeated character.");
+    problems.push("PIN cannot be a repeated character.");
   }
   if (
-    "01234567890123456789".includes(normalized) ||
-    "98765432109876543210".includes(normalized)
+    normalized.length > 1 &&
+    ("01234567890123456789".includes(normalized) ||
+      "98765432109876543210".includes(normalized))
   ) {
-    throw new Error("PIN cannot be a sequential run of digits.");
+    problems.push("PIN cannot be a sequential run of digits.");
   }
+  return problems;
+}
+
+export function assertPinPolicy(pin: string): void {
+  const [first] = pinPolicyProblems(pin);
+  if (first) throw new Error(first);
 }
 
 async function encryptWithKey(

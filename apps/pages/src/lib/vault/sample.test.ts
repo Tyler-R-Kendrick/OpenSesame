@@ -15,7 +15,7 @@ describe("buildSample", () => {
     }
   });
 
-  it("keeps agent secrets on a leash: ceiling grants, never the value in notes", () => {
+  it("keeps secrets on a leash: ceiling grants, never the value in notes", () => {
     const secret = buildSample("f").find((item) => item.kind === "secret");
     if (secret?.kind !== "secret") throw new Error("expected a secret sample");
     expect(secret.connectionRef).toBe("conn_deploy_webhook");
