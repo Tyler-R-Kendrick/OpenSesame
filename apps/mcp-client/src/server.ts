@@ -178,7 +178,208 @@ export function buildServer({
     },
   );
 
+  server.tool(
+    "host_discover",
+    "Discover Host API protected-resource metadata (issuers, DPoP posture)",
+    {},
+    async () => {
+      try {
+        const client = createApiClient({
+          baseUrl: hostUrl,
+          accessToken: requireAccessToken(),
+        });
+        const data = await client.discover();
+        return { content: modelText(data) };
+      } catch (e) {
+        return modelError(
+          "host_discover_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "integration_read",
+    "Read configured integrations (all, or one by id)",
+    { id: z.string().optional() },
+    async ({ id }) => {
+      try {
+        const client = createApiClient({
+          baseUrl: hostUrl,
+          accessToken: requireAccessToken(),
+        });
+        const data = id
+          ? await client.getIntegration(id)
+          : await client.listIntegrations();
+        return { content: modelText(data) };
+      } catch (e) {
+        return modelError(
+          "integration_read_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "sync_target_read",
+    "Read replication sync targets (all, or one by id); never returns secrets",
+    { id: z.string().optional() },
+    async ({ id }) => {
+      try {
+        const client = createApiClient({
+          baseUrl: hostUrl,
+          accessToken: requireAccessToken(),
+        });
+        const data = id
+          ? await client.getSyncTarget(id)
+          : await client.listSyncTargets();
+        return { content: modelText(data) };
+      } catch (e) {
+        return modelError(
+          "sync_target_read_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "config_metadata_read",
+    "Browse secret-config metadata — ids, key names, versions, timestamps; never values",
+    {
+      projectId: z.string().optional(),
+      configId: z.string().optional(),
+    },
+    async ({ projectId, configId }) => {
+      try {
+        const client = createApiClient({
+          baseUrl: hostUrl,
+          accessToken: requireAccessToken(),
+        });
+        if (configId) {
+          const data = await client.listConfigKeys(configId);
+          return {
+            content: modelText({ keys: data.keys.map(configKeyMetadata) }),
+          };
+        }
+        if (projectId) {
+          const data = await client.listSecretConfigs(projectId);
+          return {
+            content: modelText({
+              configs: data.configs.map(secretConfigMetadata),
+            }),
+          };
+        }
+        throw new Error("projectId or configId is required");
+      } catch (e) {
+        return modelError(
+          "config_metadata_read_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "sync_push",
+    "Push E2EE sync blobs (opaque ciphertext) to the Host API",
+    {
+      blobs: z
+        .array(
+          z.object({
+            id: z.string().min(1).max(128),
+            epoch: z.number().int().nonnegative(),
+            ciphertextB64: z.string().min(1),
+          }),
+        )
+        .min(1)
+        .max(64),
+    },
+    async ({ blobs }) => {
+      try {
+        const client = createApiClient({
+          baseUrl: hostUrl,
+          accessToken: requireAccessToken(),
+        });
+        const data = await client.syncPush(blobs);
+        return { content: modelText(data) };
+      } catch (e) {
+        return modelError(
+          "sync_push_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "sync_pull",
+    "Pull E2EE sync blobs (opaque ciphertext) from the Host API",
+    {
+      since: z.number().int().nonnegative().optional(),
+      device: z.string().min(1).max(128).optional(),
+    },
+    async ({ since, device }) => {
+      try {
+        const client = createApiClient({
+          baseUrl: hostUrl,
+          accessToken: requireAccessToken(),
+        });
+        const data = await client.syncPull({
+          epoch: since ?? 0,
+          deviceId: device ?? "mcp-client",
+        });
+        return { content: modelText(data) };
+      } catch (e) {
+        return modelError(
+          "sync_pull_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
   return server;
+}
+
+/**
+ * Response minimization (docs/security/audit-2026-08-22-mcp-response-minimization.md):
+ * config metadata is re-projected through explicit allowlists so an upstream
+ * that grows a field can never relay it — identifiers, versions and
+ * timestamps only, never values and never free-form text.
+ */
+function secretConfigMetadata(view: {
+  id: string;
+  project_id: string;
+  slug: string;
+  environment: string;
+  parent_config_id?: string | null | undefined;
+  created_at: string;
+  updated_at: string;
+}) {
+  return {
+    id: view.id,
+    project_id: view.project_id,
+    slug: view.slug,
+    environment: view.environment,
+    parent_config_id: view.parent_config_id ?? null,
+    created_at: view.created_at,
+    updated_at: view.updated_at,
+  };
+}
+
+function configKeyMetadata(key: {
+  key_name: string;
+  version: number;
+  updated_at: string;
+}) {
+  return {
+    key_name: key.key_name,
+    version: key.version,
+    updated_at: key.updated_at,
+  };
 }
 
 export async function main(): Promise<void> {

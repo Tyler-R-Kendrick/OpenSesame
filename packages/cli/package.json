@@ -28,6 +28,7 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "tsx": "4.19.4",

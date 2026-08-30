@@ -1,0 +1,1307 @@
+/**
+ * Agent-surface capability registry (ADR 0065).
+ *
+ * One literal list maps every product capability to the surfaces that carry
+ * it: the CLIs, the PWA, both MCP servers, and WebMCP. Parity sweeps in each
+ * surface package compare their implemented catalog against the views derived
+ * here, so a capability cannot ship on one surface without either shipping on
+ * the agent surfaces or carrying an explicit, ADR-cited exclusion.
+ *
+ * Surface string conventions:
+ * - cli:    the command line as typed ("opensesame task terminate",
+ *           "opensesame-id claim poll"); apps/cli and packages/cli parity
+ *           tests assert the tokens exist in the clap/arg-parser sources.
+ * - pwa:    "lib/<file>.ts:<export>" for an apps/pages seam the pages sweep
+ *           import-checks, "route:/section" for a pages route, or
+ *           "pwa-app:<surface>" for the thin apps/pwa shell.
+ * - mcp_host / mcp_client: the MCP tool name on that server.
+ * - webmcp: the navigator.modelContext tool name (pages unless the pwa
+ *           surface is "pwa-app:*").
+ */
+
+export type Surface = "cli" | "pwa" | "mcp_host" | "mcp_client" | "webmcp";
+export type AgentSurface = "mcp_host" | "mcp_client" | "webmcp";
+
+export interface CapabilityExclusion {
+  /** Why this capability is deliberately withheld from the surface. */
+  readonly reason: string;
+  /** ADR file name under docs/adr/ that records the decision. */
+  readonly adr: string;
+}
+
+export interface Capability {
+  readonly id: string;
+  readonly title: string;
+  readonly plane: "host" | "identity" | "client_local";
+  readonly kind: "read" | "act" | "admin" | "ceremony";
+  readonly surfaces: {
+    readonly cli: string | null;
+    readonly pwa: string | null;
+    readonly mcp_host: string | null;
+    readonly mcp_client: string | null;
+    readonly webmcp: string | null;
+  };
+  /**
+   * null on a surface means "not applicable"; an entry here means
+   * "deliberately withheld" and must cite a real ADR. The registry self-test
+   * requires every host/identity capability to be mapped or excluded on MCP,
+   * and every capability with a pwa surface to be mapped or excluded on
+   * WebMCP.
+   */
+  readonly excluded?: Partial<Record<AgentSurface, CapabilityExclusion>>;
+}
+
+const ADR_AUTHORITY_HANDLE = "0005-authority-handle-connectionref.md";
+const ADR_MCP_BEARER = "0023-mcp-bearer-vs-dpop.md";
+const ADR_PM_BRIDGING = "0052-password-manager-ecosystem-bridging.md";
+const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
+
+const NEVER_AGENT_SECRET: CapabilityExclusion = {
+  reason:
+    "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+  adr: ADR_AUTHORITY_HANDLE,
+};
+
+const AUTH_CEREMONY: CapabilityExclusion = {
+  reason:
+    "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+  adr: ADR_MCP_BEARER,
+};
+
+const HUMAN_CEREMONY: CapabilityExclusion = {
+  reason:
+    "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",
+  adr: ADR_AGENT_SURFACE_PARITY,
+};
+
+const OPS_PLANE: CapabilityExclusion = {
+  reason: "operator/device lifecycle surface, not an agent capability",
+  adr: ADR_AGENT_SURFACE_PARITY,
+};
+
+const PM_PLANE: CapabilityExclusion = {
+  reason:
+    "password-manager ecosystem surface is human/device/ops plane only, never agent-facing",
+  adr: ADR_PM_BRIDGING,
+};
+
+const DEFERRED: CapabilityExclusion = {
+  reason:
+    "not yet exposed to agents; revisit deliberately rather than by accretion",
+  adr: ADR_AGENT_SURFACE_PARITY,
+};
+
+export const CAPABILITIES: readonly Capability[] = [
+  // ── Host plane: health, discovery, session ────────────────────────────
+  {
+    id: "host.health",
+    title: "Host API and daemon health/readiness",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame status",
+      pwa: "pwa-app:health",
+      mcp_host: "host_ready",
+      mcp_client: "host_health",
+      webmcp: "opensesame_pwa_health",
+    },
+  },
+  {
+    id: "host.health.pages",
+    title: "Connectivity posture inside the authority vault",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: "host_ready",
+      mcp_client: "host_health",
+      webmcp: "opensesame_health",
+    },
+  },
+  {
+    id: "host.discovery",
+    title: "Protected-resource metadata discovery",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame doctor",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: "host_discover",
+      webmcp: null,
+    },
+  },
+  {
+    id: "host.whoami",
+    title: "Resolve the authenticated principal",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame whoami",
+      pwa: "route:/identity",
+      mcp_host: null,
+      mcp_client: "whoami",
+      webmcp: "opensesame_status",
+    },
+  },
+  {
+    id: "host.login",
+    title: "Host device/loopback login",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame login",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
+  },
+  {
+    id: "daemon.status",
+    title: "Local host agent status",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame daemon status",
+      pwa: "pwa-app:daemon-probe",
+      mcp_host: "daemon_status",
+      mcp_client: null,
+      webmcp: "opensesame_pwa_health",
+    },
+  },
+  {
+    id: "daemon.lifecycle",
+    title: "Install/start/stop the local host agent",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame daemon install",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
+  },
+
+  // ── Host plane: intents, tasks, receipts ──────────────────────────────
+  {
+    id: "intents.invoke",
+    title: "Capability invoke through a ConnectionRef",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame invoke",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: "invoke_l1",
+      webmcp: null,
+    },
+  },
+  {
+    id: "tasks.start",
+    title: "Start a task-scoped authority run",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame task start",
+      pwa: null,
+      mcp_host: "task_start",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "tasks.list",
+    title: "List task runs",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame task list",
+      pwa: "lib/access.ts:listTasks",
+      mcp_host: "task_list",
+      mcp_client: null,
+      webmcp: "opensesame_access_read",
+    },
+  },
+  {
+    id: "tasks.inspect",
+    title: "Inspect a task run and its capability ceiling",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame task inspect",
+      pwa: "lib/access.ts:getTask",
+      mcp_host: "task_status",
+      mcp_client: null,
+      webmcp: "opensesame_access_read",
+    },
+  },
+  {
+    id: "tasks.terminate",
+    title: "Terminate a task run",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame task terminate",
+      pwa: "lib/access.ts:terminateTask",
+      mcp_host: "task_terminate",
+      mcp_client: null,
+      webmcp: "opensesame_task_terminate",
+    },
+  },
+  {
+    id: "tasks.intent.freeze",
+    title: "Freeze a task-bound intent",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame intent create",
+      pwa: null,
+      mcp_host: "task_invoke",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "tasks.intent.spend",
+    title: "Spend a frozen intent through the operator broker",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame intent invoke",
+      pwa: null,
+      mcp_host: "operator_invoke_l1",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "receipts.read",
+    title: "Read invocation receipts",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/access",
+      mcp_host: "receipt_read",
+      mcp_client: null,
+      webmcp: "opensesame_access_read",
+    },
+  },
+  {
+    id: "receipts.verify",
+    title: "Verify a receipt signature",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame receipt verify",
+      pwa: null,
+      mcp_host: "receipt_verify",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+
+  // ── Host plane: delegations, offers, relay ────────────────────────────
+  {
+    id: "delegations.list",
+    title: "List delegations",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:listDelegations",
+      mcp_host: "delegation_read",
+      mcp_client: null,
+      webmcp: "opensesame_access_read",
+    },
+  },
+  {
+    id: "delegations.offers.list",
+    title: "List delegation offers",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:listMyOffers",
+      mcp_host: "delegation_offer_read",
+      mcp_client: null,
+      webmcp: "opensesame_access_read",
+    },
+  },
+  {
+    id: "delegations.narrow",
+    title: "Narrow a delegation (restriction only)",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:narrowDelegation",
+      mcp_host: "delegation_narrow",
+      mcp_client: null,
+      webmcp: "opensesame_delegation_narrow",
+    },
+  },
+  {
+    id: "delegations.revoke",
+    title: "Revoke a delegation",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:revokeDelegation",
+      mcp_host: "delegation_revoke",
+      mcp_client: null,
+      webmcp: "opensesame_delegation_revoke",
+    },
+  },
+  {
+    id: "delegations.offers.revoke",
+    title: "Revoke a delegation offer",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:revokeOffer",
+      mcp_host: "delegation_revoke",
+      mcp_client: null,
+      webmcp: "opensesame_delegation_revoke",
+    },
+  },
+  {
+    id: "delegations.offers.mint",
+    title: "Mint a delegation offer (grant ceremony)",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:mintOffer",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: HUMAN_CEREMONY,
+      mcp_client: HUMAN_CEREMONY,
+      webmcp: HUMAN_CEREMONY,
+    },
+  },
+  {
+    id: "delegations.claim",
+    title: "Claim a delegation offer",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:claimDelegation",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_open_delegation_claim",
+    },
+    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY },
+  },
+  {
+    id: "relay.inbox",
+    title: "Read pending relay approval requests",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:listRelayRequests",
+      mcp_host: "relay_request_read",
+      mcp_client: null,
+      webmcp: "opensesame_access_read",
+    },
+  },
+  {
+    id: "relay.decide",
+    title: "Approve or deny a relay request",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/access.ts:approveRelayRequest",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_open_relay_approval",
+    },
+    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY },
+  },
+  {
+    id: "agent_identities.read",
+    title: "Read registered agent identities",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/access",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_access_read",
+    },
+    // The gateway only exposes POST /api/v1/agent-identities (claim start);
+    // there is no list/read route yet, so an MCP tool here could never
+    // succeed. Map it once the gateway grows the read endpoint.
+    excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
+  },
+
+  // ── Host plane: providers, connections, integrations ──────────────────
+  {
+    id: "providers.list",
+    title: "Browse the provider catalog",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame provider list",
+      pwa: "lib/connections.ts:listProviders",
+      mcp_host: "provider_read",
+      mcp_client: null,
+      webmcp: "opensesame_connections_read",
+    },
+  },
+  {
+    id: "providers.test",
+    title: "Probe provider readiness",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame provider test",
+      pwa: null,
+      mcp_host: "provider_test",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "connections.list",
+    title: "List connections",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame connect ls",
+      pwa: "lib/connections.ts:listConnections",
+      mcp_host: "connection_read",
+      mcp_client: "list_connections",
+      webmcp: "opensesame_connections_read",
+    },
+  },
+  {
+    id: "connections.inspect",
+    title: "Inspect a connection and its activity",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame connect inspect",
+      pwa: "lib/connections.ts:getConnection",
+      mcp_host: "connection_read",
+      mcp_client: null,
+      webmcp: "opensesame_connections_read",
+    },
+  },
+  {
+    id: "connections.create",
+    title: "Create a connection (consent + credential ceremony)",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame connect create",
+      pwa: "lib/connections.ts:createConnection",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_open_connect_ceremony",
+    },
+    excluded: {
+      mcp_host: NEVER_AGENT_SECRET,
+      mcp_client: NEVER_AGENT_SECRET,
+    },
+  },
+  {
+    id: "connections.credential.set",
+    title: "Enter or replace a connection credential",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/connections.ts:setConnectionCredential",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: NEVER_AGENT_SECRET,
+      mcp_client: NEVER_AGENT_SECRET,
+      webmcp: NEVER_AGENT_SECRET,
+    },
+  },
+  {
+    id: "connections.update",
+    title: "Update connection coordinates or delegation ceiling",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame connect update",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: {
+        reason:
+          "coordinate updates can re-aim where a credential is presented; humans own re-aiming",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+      mcp_client: {
+        reason:
+          "coordinate updates can re-aim where a credential is presented; humans own re-aiming",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+    },
+  },
+  {
+    id: "connections.bindings",
+    title: "Attach/detach a connection binding (authority grant)",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame connect attach",
+      pwa: "lib/connections.ts:bindConnection",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_open_connect_ceremony",
+    },
+    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY },
+  },
+  {
+    id: "connections.rotate",
+    title: "Enqueue a connection credential rotation",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame connect rotate",
+      pwa: null,
+      mcp_host: "connection_rotate",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "connections.remove",
+    title: "Revoke a connection",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame connect rm",
+      pwa: "lib/connections.ts:revokeConnection",
+      mcp_host: "connection_remove",
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      webmcp: {
+        reason:
+          "destructive revocation confirmed by the human in the connections UI",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+    },
+  },
+  {
+    id: "connections.discover",
+    title: "Import host-detected connectors",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame connect discover",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY },
+  },
+  {
+    id: "connections.portability",
+    title: "Export/import non-secret connection configuration",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame export",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
+  },
+  {
+    id: "integrations.read",
+    title: "Read configured integrations",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/connections.ts:listIntegrations",
+      mcp_host: null,
+      mcp_client: "integration_read",
+      webmcp: "opensesame_connections_read",
+    },
+  },
+
+  // ── Host plane: certs, configs, sync, rotation, backup ────────────────
+  {
+    id: "certs.list",
+    title: "List issued certificates",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame cert ls",
+      pwa: null,
+      mcp_host: "cert_read",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "certs.issue",
+    title: "Issue a certificate",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame cert issue",
+      pwa: "lib/certs.ts:issueCertificate",
+      mcp_host: "cert_issue",
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      webmcp: {
+        reason:
+          "issuance delivers private key material to the device; the human runs it from the vault UI",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+    },
+  },
+  {
+    id: "certs.ca",
+    title: "Fetch/establish the certificate authority",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame cert ca",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
+  },
+  {
+    id: "configs.browse",
+    title: "Browse secret-config keys and metadata (never values)",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame config keys",
+      pwa: "route:/settings",
+      mcp_host: "config_read",
+      mcp_client: "config_metadata_read",
+      webmcp: "opensesame_settings_read",
+    },
+  },
+  {
+    id: "configs.audit",
+    title: "Secret-config history and environment diff (metadata only)",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame config history",
+      pwa: null,
+      mcp_host: "config_read",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "configs.set",
+    title: "Write a secret-config value (write-only intake)",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame config set",
+      pwa: "route:/settings",
+      mcp_host: "config_set",
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      webmcp: {
+        reason: "secret value entry stays in the human settings UI",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+    },
+  },
+  {
+    id: "configs.rollback",
+    title: "Roll a secret-config key back to a prior version",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame config rollback",
+      pwa: null,
+      mcp_host: "config_rollback",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "configs.values.read",
+    title: "Read secret-config values",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: NEVER_AGENT_SECRET,
+      mcp_client: NEVER_AGENT_SECRET,
+      webmcp: NEVER_AGENT_SECRET,
+    },
+  },
+  {
+    id: "sync.push",
+    title: "Push encrypted sync blobs",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame sync push",
+      pwa: null,
+      mcp_host: "sync_push",
+      mcp_client: "sync_push",
+      webmcp: null,
+    },
+  },
+  {
+    id: "sync.pull",
+    title: "Pull encrypted sync blobs",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame sync pull",
+      pwa: null,
+      mcp_host: "sync_pull",
+      mcp_client: "sync_pull",
+      webmcp: null,
+    },
+  },
+  {
+    id: "sync_targets.read",
+    title: "Read replication sync targets",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: "sync_target_read",
+      mcp_client: "sync_target_read",
+      webmcp: "opensesame_settings_read",
+    },
+  },
+  {
+    id: "sync_targets.trigger",
+    title: "Trigger a sync-target replication run",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: DEFERRED,
+      mcp_client: DEFERRED,
+      webmcp: DEFERRED,
+    },
+  },
+  {
+    id: "rotations.read",
+    title: "Read rotation queue and policies",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: "rotation_read",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "rotations.trigger",
+    title: "Enqueue a rotation run",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame connection rotate",
+      pwa: null,
+      mcp_host: "rotation_trigger",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "changelog.read",
+    title: "Read the project changelog feed",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: "changelog_read",
+      mcp_client: null,
+      webmcp: "opensesame_settings_read",
+    },
+  },
+  {
+    id: "backup.status",
+    title: "Read server-side backup posture",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: "backup_status",
+      mcp_client: null,
+      webmcp: "opensesame_settings_read",
+    },
+  },
+  {
+    id: "backup.target.set",
+    title: "Configure the server-side backup target",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: OPS_PLANE,
+      mcp_client: OPS_PLANE,
+      webmcp: OPS_PLANE,
+    },
+  },
+
+  // ── Host plane: human-only secret surfaces (explicit exclusions) ──────
+  {
+    id: "secrets.materialize",
+    title: "Reveal secrets, acquire leases, run crypto plans",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame secret get",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: NEVER_AGENT_SECRET,
+      mcp_client: NEVER_AGENT_SECRET,
+      webmcp: NEVER_AGENT_SECRET,
+    },
+  },
+  {
+    id: "sealed_store.pass",
+    title: "Sealed password-store verbs (pass parity)",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame pass show",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: PM_PLANE,
+      mcp_client: PM_PLANE,
+      webmcp: PM_PLANE,
+    },
+  },
+  {
+    id: "sealed_store.attach.replicate",
+    title: "Replicate sealed attachments to the Host target",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame pass attach sync",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: PM_PLANE, mcp_client: PM_PLANE },
+  },
+
+  // ── Identity plane ─────────────────────────────────────────────────────
+  {
+    id: "identity.claims.poll",
+    title: "Poll a claim session",
+    plane: "identity",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame-id claim poll",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: "present_claim",
+      webmcp: null,
+    },
+  },
+  {
+    id: "identity.login",
+    title: "Identity sign-in (device, loopback, anonymous)",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame-id login",
+      pwa: "pwa-app:sign-in",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_open_sign_in",
+    },
+    excluded: { mcp_host: AUTH_CEREMONY, mcp_client: AUTH_CEREMONY },
+  },
+  {
+    id: "identity.whoami",
+    title: "Resolve the identity-plane principal",
+    plane: "identity",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame-id whoami",
+      pwa: "route:/identity",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_identity_read",
+    },
+    excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
+  },
+  {
+    id: "identity.agent.register",
+    title: "Register a provisional agent identity",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame-id agent init",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: {
+        reason:
+          "agent bootstrap is an operator ceremony; an agent must not mint sibling agents",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+      mcp_client: {
+        reason:
+          "agent bootstrap is an operator ceremony; an agent must not mint sibling agents",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+    },
+  },
+  {
+    id: "identity.project.temporary",
+    title: "Create a temporary project",
+    plane: "identity",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame-id project create",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
+  },
+  {
+    id: "identity.admin",
+    title: "People, providers, devices, orgs, OAuth clients, audit",
+    plane: "identity",
+    kind: "admin",
+    surfaces: {
+      cli: null,
+      pwa: "route:/identity",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_identity_read",
+    },
+    excluded: {
+      mcp_host: {
+        reason:
+          "identity administration is a human/ops surface; WebMCP exposes reads only",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+      mcp_client: {
+        reason:
+          "identity administration is a human/ops surface; WebMCP exposes reads only",
+        adr: ADR_AGENT_SURFACE_PARITY,
+      },
+    },
+  },
+  {
+    id: "identity.device.approve",
+    title: "Approve a device sign-in",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/identity",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
+  },
+
+  // ── Client-local plane: the authority vault (apps/pages) ──────────────
+  {
+    id: "vault.items.search",
+    title: "Search vault items (names, folders, kinds, flags)",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vault/store.ts:vaultStore",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_vault_search",
+    },
+  },
+  {
+    id: "vault.items.read_meta",
+    title: "Read vault item metadata (never secret fields)",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vault/store.ts:vaultStore",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_vault_item_read",
+    },
+  },
+  {
+    id: "vault.items.write_meta",
+    title: "Create/edit vault item non-secret metadata",
+    plane: "client_local",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vault/store.ts:vaultStore",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_vault_item_write",
+    },
+  },
+  {
+    id: "vault.items.reveal",
+    title: "Reveal a vault item secret",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/vault",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_open_reveal",
+    },
+  },
+  {
+    id: "vault.totp.code",
+    title: "Read a current TOTP code (never the seed)",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/vault",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_totp_code",
+    },
+  },
+  {
+    id: "vault.totp.seed",
+    title: "Read a TOTP seed",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: NEVER_AGENT_SECRET,
+      mcp_client: NEVER_AGENT_SECRET,
+      webmcp: NEVER_AGENT_SECRET,
+    },
+  },
+  {
+    id: "vault.export",
+    title: "Export/backup the vault (plaintext-capable)",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: NEVER_AGENT_SECRET },
+  },
+
+  // ── Client-local plane: app shell surfaces ─────────────────────────────
+  {
+    id: "app.status",
+    title: "App/session status summary",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_status",
+    },
+  },
+  {
+    id: "app.navigate",
+    title: "Navigate between app sections",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_navigate",
+    },
+  },
+  {
+    id: "pwa.status",
+    title: "Thin PWA session status",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "pwa-app:status",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_pwa_status",
+    },
+  },
+] as const;
+
+/**
+ * Union of the per-app secret-name denylists
+ * (apps/mcp-host assertsNoSecretTools + apps/mcp-client
+ * assertsNoMaterializeTool), applied to every agent catalog including WebMCP.
+ */
+export const AGENT_SECRET_NAME_PATTERN =
+  /secret|materialize|get_secret|pass_show|sealed_store_show|password_store_read|^show$/i;
+
+export function assertsNoSecretNames(names: readonly string[]): void {
+  if (names.some((n) => AGENT_SECRET_NAME_PATTERN.test(n))) {
+    throw new Error("secret_tools_forbidden");
+  }
+}
+
+function surfaceNames(surface: AgentSurface): readonly string[] {
+  const names = new Set<string>();
+  for (const capability of CAPABILITIES) {
+    const name = capability.surfaces[surface];
+    if (name) {
+      names.add(name);
+    }
+  }
+  return [...names].sort();
+}
+
+/** Every MCP host-server tool name the registry demands. */
+export function mcpHostCatalog(): readonly string[] {
+  return surfaceNames("mcp_host");
+}
+
+/** Every MCP client-server tool name the registry demands. */
+export function mcpClientCatalog(): readonly string[] {
+  return surfaceNames("mcp_client");
+}
+
+/** Every WebMCP tool name the registry demands, across both PWAs. */
+export function webmcpCatalog(): readonly string[] {
+  return surfaceNames("webmcp");
+}
+
+function isPwaAppSurface(capability: Capability): boolean {
+  return capability.surfaces.pwa?.startsWith("pwa-app:") ?? false;
+}
+
+/** WebMCP tool names owned by apps/pages (the authority vault). */
+export function webmcpPagesCatalog(): readonly string[] {
+  const names = new Set<string>();
+  for (const capability of CAPABILITIES) {
+    const name = capability.surfaces.webmcp;
+    if (name && !isPwaAppSurface(capability)) {
+      names.add(name);
+    }
+  }
+  return [...names].sort();
+}
+
+/** WebMCP tool names owned by apps/pwa (the thin shell). */
+export function webmcpPwaCatalog(): readonly string[] {
+  const names = new Set<string>();
+  for (const capability of CAPABILITIES) {
+    const name = capability.surfaces.webmcp;
+    if (name && isPwaAppSurface(capability)) {
+      names.add(name);
+    }
+  }
+  return [...names].sort();
+}
+
+/** Capabilities deliberately withheld from a surface, for docs and audits. */
+export function exclusionsFor(
+  surface: AgentSurface,
+): readonly { id: string; reason: string; adr: string }[] {
+  return CAPABILITIES.filter((c) => c.excluded?.[surface]).map((c) => {
+    const exclusion = c.excluded?.[surface];
+    if (!exclusion) {
+      throw new Error(`exclusion_missing:${c.id}`);
+    }
+    return { id: c.id, reason: exclusion.reason, adr: exclusion.adr };
+  });
+}

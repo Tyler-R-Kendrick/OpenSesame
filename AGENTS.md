@@ -198,6 +198,8 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/testing` | Shared test utilities (incl. `test:security`) |
 | `packages/identity-atproto` / `identity-nostr` | Alternate-identity linking |
 | `packages/observability` | Structured logging + deep redaction |
+| `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
+| `packages/webmcp` | WebMCP (`navigator.modelContext`) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
 | `packages/config` | Shared tsconfig |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
@@ -220,6 +222,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
+- Every new user-facing capability (gateway route, CLI verb, PWA action) must
+  get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
+  surfaces or excludes it with an ADR citation — parity tests in mcp-host,
+  mcp-client, pages, and both CLIs enforce this
+  ([ADR 0065](docs/adr/0065-agent-surface-parity.md)).
 - No `sudo` (`.cursor/rules/no-sudo.mdc`).
 - Configuration follows the `.env.schema` env-spec pattern (`@type`,
   `@required`, `@sensitive`, `@public` annotations). Never commit live

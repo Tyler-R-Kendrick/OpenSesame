@@ -55,6 +55,15 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { backupApi } from "./backup.js";
+import { certsApi } from "./certs.js";
+import { changelogApi } from "./changelog.js";
+import { delegationsApi } from "./delegations.js";
+import type { HostRequestContext } from "./http.js";
+import { receiptsApi } from "./receipts.js";
+import { relayApi } from "./relay.js";
+import { rotationsApi } from "./rotations.js";
+import { tasksApi } from "./tasks.js";
 
 export interface ApiClientOptions {
   /** Host API base URL, e.g. http://127.0.0.1:8787 */
@@ -375,7 +384,7 @@ export function createApiClient(options: ApiClientOptions) {
     return `/api/v1/configs/${encodeURIComponent(id)}${suffix}`;
   }
 
-  return {
+  const core = {
     baseUrl: base,
 
     async health(): Promise<HostHealth> {
@@ -828,6 +837,41 @@ export function createApiClient(options: ApiClientOptions) {
       }
     },
   };
+
+  async function requestJson(
+    op: string,
+    path: string,
+    init: RequestInit = {},
+  ): Promise<BoundaryValue> {
+    const res = await request(path, init);
+    if (!res.ok) throw await requestFailure(op, res);
+    return res.json();
+  }
+
+  const requestContext: HostRequestContext = { request, requestJson };
+
+  return {
+    ...core,
+    ...tasksApi(requestContext),
+    ...receiptsApi(requestContext),
+    ...delegationsApi(requestContext),
+    ...relayApi(requestContext),
+    ...certsApi(requestContext),
+    ...rotationsApi(requestContext),
+    ...changelogApi(requestContext),
+    ...backupApi(requestContext),
+  };
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
+
+export type { HostRequestContext } from "./http.js";
+export type {
+  CreateTaskIntentRequest,
+  StartTaskRequest,
+  TaskCapability,
+} from "./tasks.js";
+export type { NarrowDelegationRequest } from "./delegations.js";
+export type { IssueCertRequest } from "./certs.js";
+export type { CreateRotationRequest } from "./rotations.js";
+export type { ProjectChangelogQuery } from "./changelog.js";

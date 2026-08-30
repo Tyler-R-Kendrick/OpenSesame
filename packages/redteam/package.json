@@ -15,6 +15,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
+    "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "promptfoo": "0.122.0",
