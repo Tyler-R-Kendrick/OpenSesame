@@ -4,6 +4,7 @@ mod certs;
 mod configs;
 mod connect;
 mod github;
+mod lifecycle;
 mod providers_native;
 mod store;
 
@@ -198,11 +199,56 @@ enum Commands {
         #[command(subcommand)]
         cmd: IntentCmd,
     },
+    /// Expiry lifecycle: what is due, who is subscribed, and what was delivered.
+    Lifecycle {
+        #[command(subcommand)]
+        cmd: LifecycleCmd,
+    },
     /// Issue TLS certificates with an automatically selected Host-owned issuer.
     Cert {
         #[command(subcommand)]
         cmd: CertCmd,
     },
+}
+
+#[derive(Subcommand, Debug)]
+enum LifecycleCmd {
+    /// Every tracked deadline and how close it is (metadata only).
+    Expiring,
+    /// List registered lifecycle hook subscriptions.
+    Hooks,
+    /// Register or remove a subscription.
+    Hook {
+        #[command(subcommand)]
+        cmd: LifecycleHookCmd,
+    },
+    /// Recent outbound deliveries and whether they landed.
+    Deliveries {
+        #[arg(long, default_value = "50")]
+        limit: usize,
+    },
+    /// Run one expiry scan now instead of waiting for the tick.
+    Scan,
+}
+
+#[derive(Subcommand, Debug)]
+enum LifecycleHookCmd {
+    /// Register a subscription. Prints the signing secret once.
+    Add {
+        #[arg(long)]
+        name: String,
+        /// Absolute https endpoint receiving Standard Webhooks deliveries.
+        #[arg(long)]
+        url: String,
+        /// Event types to receive. Repeatable; defaults to every lifecycle event.
+        #[arg(long = "event")]
+        events: Vec<String>,
+        /// Narrow to particular subject kinds. Repeatable; defaults to all.
+        #[arg(long = "subject-kind")]
+        subject_kinds: Vec<String>,
+    },
+    /// Remove a subscription and its queued deliveries.
+    Rm { id: String },
 }
 
 #[derive(Subcommand, Debug)]
@@ -1221,6 +1267,37 @@ async fn main() -> anyhow::Result<()> {
         Commands::Daemon { url, cmd } => daemon_cmd(&url, cmd).await?,
         Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
         Commands::Intent { cmd } => intent_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Lifecycle { cmd } => match cmd {
+            LifecycleCmd::Expiring => lifecycle::cmd_expiring(&cli.server, &cli.output).await?,
+            LifecycleCmd::Hooks => lifecycle::cmd_hooks(&cli.server, &cli.output).await?,
+            LifecycleCmd::Hook { cmd } => match cmd {
+                LifecycleHookCmd::Add {
+                    name,
+                    url,
+                    events,
+                    subject_kinds,
+                } => {
+                    lifecycle::cmd_hook_add(
+                        &cli.server,
+                        &cli.output,
+                        lifecycle::HookOptions {
+                            name,
+                            url,
+                            events,
+                            subject_kinds,
+                        },
+                    )
+                    .await?;
+                }
+                LifecycleHookCmd::Rm { id } => {
+                    lifecycle::cmd_hook_rm(&cli.server, &cli.output, &id).await?;
+                }
+            },
+            LifecycleCmd::Deliveries { limit } => {
+                lifecycle::cmd_deliveries(&cli.server, &cli.output, limit).await?;
+            }
+            LifecycleCmd::Scan => lifecycle::cmd_scan(&cli.server, &cli.output).await?,
+        },
         Commands::Cert { cmd } => match cmd {
             CertCmd::Ca { out } => certs::cmd_ca(&cli.server, &cli.output, out).await?,
             CertCmd::Issue {
