@@ -24,6 +24,8 @@
       "**/.tools/**",
       "**/tools/oxlint/anti-slop/**",
       "**/skills/install-anti-slop/**",
+      ".agents/skills/impeccable/**",
+      ".claude/skills/impeccable/**",
       "**/sbom/**",
       "apps/pages/public/auth.js",
       "fixtures/kdbx/roundtrip.expected.json",
