@@ -1,3 +1,26 @@
+# ## Dependency notes
+#
+# Pins settled after resolving against the workspace lockfile under rustc 1.88:
+#
+# * `rcgen` has no `crl` cargo feature — CRL support is unconditional in 0.13,
+#   so the brief's `features = ["crl"]` is dropped rather than invented.
+# * `x509-parser` gains `verify`, which `rcgen` also turns on; asking for it
+#   explicitly means this crate's CRL and chain signature checks do not depend
+#   on another crate's feature selection.
+# * The RustCrypto stack is pinned to the `der` 0.7 generation
+#   (`x509-cert` 0.2.5, `spki` 0.7, `pkcs8` 0.10, `p256` 0.13, `p384` 0.13,
+#   `rsa` 0.9). The 0.8 generation (`x509-cert` 0.3, `p384` 0.14) does not yet
+#   have matching signature crates, so mixing it in would duplicate the whole
+#   tree.
+# * PKCS#12 uses `p12-keystore` 0.3.1. `p12` 0.6 is `yasna`-based and
+#   single-entry; RustCrypto `pkcs12` 0.2 is a pre-release with no high-level
+#   keystore API. `p12-keystore` was the only crate that both builds here and
+#   enumerates multiple entries with friendly names, which the brief requires.
+#   It carries its own `der` 0.8 generation internally; the API surface this
+#   crate uses is plain DER bytes, so the duplication is contained.
+# * `cms` and `const-oid` were in the brief's list but proved unnecessary:
+#   nothing here builds CMS, and `der` re-exports `ObjectIdentifier`.
+
 [package]
 name = "opensesame-pki-core"
 version.workspace = true
@@ -13,12 +36,10 @@ path = "src/lib.rs"
 [dependencies]
 rcgen = { version = "0.13.2", features = ["x509-parser", "pem"] }
 x509-parser = { version = "0.16.0", features = ["verify"] }
-x509-cert = { version = "0.2.5", features = ["pem", "builder"] }
-cms = "0.2.3"
+x509-cert = "0.2.5"
 der = { version = "0.7.10", features = ["oid", "derive", "alloc"] }
 spki = "0.7.3"
 pkcs8 = { version = "0.10.2", features = ["alloc", "pem"] }
-const-oid = { version = "0.9.6", features = ["db"] }
 p12-keystore = "0.3.1"
 rsa = { version = "0.9.10", features = ["sha2"] }
 p256 = { version = "0.13.2", features = ["ecdsa", "pkcs8"] }
