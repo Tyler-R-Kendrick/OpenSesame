@@ -130,7 +130,12 @@ pub enum AuthenticatorError {
 ///
 /// Returns a stable policy error for malformed, unassociated, or unsafe links.
 #[cfg_attr(feature = "ffi", uniffi::export)]
-#[cfg_attr(feature = "ffi", allow(clippy::needless_pass_by_value))]
+// The owned `String` parameters are required by the `uniffi::export` above:
+// UniFFI's generated bindings pass owned values across the FFI boundary. The
+// signature is the same with or without the `ffi` feature, so the allow must
+// be unconditional too — gating it on `feature = "ffi"` left the lint firing
+// in every default-feature build, which is what `pnpm audit:clippy` runs.
+#[allow(clippy::needless_pass_by_value)]
 pub fn validate_platform_invocation(
     authenticator_origin: String,
     raw: String,
