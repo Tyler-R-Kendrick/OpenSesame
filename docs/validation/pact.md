@@ -44,6 +44,7 @@ Do not add a suite that only documents the happy path.
 | Daemon | hop-header strip | path-id allowlist; proxy rejects `..` | upstream partition → 502 `upstream_unreachable` | opaque `/health` |
 | Pages vault / queue / auth.js | non-extractable VK; PIN ≥8 | postMessage origin pin; iss then aud | claim tokens never hit OPFS | TaskBus GET schema rejects secrets |
 | MCP host | no secret tool names (`src/pact.test.ts`) | `toolError` → `forAgent`; Host audience pin | Host fetch throw → `host_unavailable` | credential-shaped payloads refused |
+| Agent-surface parity (ADR 0065) | every host/identity capability MCP-mapped or ADR-excluded; PWA surfaces WebMCP-mapped or -excluded (`packages/capability-registry/src/registry.test.ts`) | secret-shaped tool names refused across every catalog incl. WebMCP | registry↔CLI drift fails `apps/cli/tests/capability_parity.rs` and `packages/cli/src/capability-parity.test.ts` | implemented tool lists sort-equal registry catalogs (`registry-parity.test.ts` in mcp-host, mcp-client, pages); `capabilities.json` mirror sync-tested |
 | Client CLI | session file 0600 via temp+rename | `emit` redacts before print | partitioned refresh leaves the file | `token_type` kept; tokens redacted |
 | Browser extension | loopback `hostApiBase` only | remote rewrite refused | health error does not persist an unnormalized host | popup saves only after `normalizeLoopbackBaseUrl` |
 | Contracts package | claim types round-trip | Zod rejects http NATS URLs + extra secrets | extra TaskBus credential fields rejected | `pact-contract.test.ts` |
