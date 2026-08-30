@@ -151,6 +151,14 @@ export type BinaryImportAdapter = ImportAdapterBase & {
   parse(input: ParseInput): Promise<ParseResult>;
 };
 
+/**
+ * The supported community surface for password-manager imports
+ * (ADR 0061 §6): a pure `detect` + `parse` pair registered in
+ * `import/index.ts`. Plaintext never leaves the browser vault — an adapter
+ * receives bytes the user chose and returns entries the vault seals locally,
+ * which is the one place PM plaintext belongs (ADR 0052's plane split).
+ * Thirteen shipped adapters are the templates.
+ */
 export type ImportAdapter = TextImportAdapter | BinaryImportAdapter;
 
 /**

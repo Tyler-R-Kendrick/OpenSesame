@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { ControlPlaneConfig } from "../config.js";
+import { loadManifestProviders } from "./manifest-providers.js";
 
 /**
  * The federated provider registry (ADR 0055).
@@ -538,6 +539,28 @@ export function loadProviderRegistry(
       );
     }
     seenIds.add(id);
+    seenIssuers.add(issuer);
+    providers.push(descriptor);
+  }
+
+  // Manifest descriptors (ADR 0061 §6) join the same static set under the
+  // same one-issuer-one-provider rule, so `resolveTrustedIssuer`'s
+  // static → BYO → org order needs no change to see them. Shadowing an
+  // env-configured id or issuer refuses the boot: manifests extend the
+  // registry, never replace platform configuration.
+  for (const descriptor of loadManifestProviders(env)) {
+    if (seenIds.has(descriptor.id)) {
+      throw new ProviderConfigError(
+        `provider manifest reuses id \`${descriptor.id}\`, which is already configured`,
+      );
+    }
+    const issuer = normalizeIssuer(descriptor.issuer);
+    if (seenIssuers.has(issuer)) {
+      throw new ProviderConfigError(
+        `provider manifest reuses issuer \`${issuer}\`, which is already configured`,
+      );
+    }
+    seenIds.add(descriptor.id);
     seenIssuers.add(issuer);
     providers.push(descriptor);
   }
