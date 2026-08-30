@@ -64,4 +64,26 @@ describe("PACT — mcp-host", () => {
       ]),
     );
   });
+
+  it("adversarial: read tools project every response through agentJson", () => {
+    const readSrc = readFileSync(join(here, "tools-read.ts"), "utf8");
+    assertSourceOrder(readSrc, [
+      "registerReadTools",
+      'server.tool(\n    "receipt_read"',
+      "agentJson(body, res.ok, receiptResponseSchema)",
+    ]);
+    // config_read's projection has no branch that can carry a value.
+    expect(readSrc).not.toMatch(/value:|values:|secret:|ciphertext/);
+  });
+
+  it("adversarial: cert_issue is the only projection-first tool and never relays PEM fields", () => {
+    const actSrc = readFileSync(join(here, "tools-act.ts"), "utf8");
+    assertSourceOrder(actSrc, [
+      "certIssueResponseSchema",
+      'server.tool(\n    "cert_issue"',
+      "agentJsonProjected(body, res.ok, certIssueResponseSchema)",
+    ]);
+    expect(actSrc.match(/agentJsonProjected\(/g)).toHaveLength(1);
+    expect(actSrc).not.toMatch(/private_key|ca_certificate/);
+  });
 });

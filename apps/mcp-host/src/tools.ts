@@ -11,6 +11,8 @@ import {
   setTaskContext,
   updateTaskFromResponse,
 } from "./task-context.js";
+import { registerActTools } from "./tools-act.js";
+import { registerReadTools } from "./tools-read.js";
 
 export const hostTools = [
   "task_start",
@@ -20,6 +22,31 @@ export const hostTools = [
   "daemon_status",
   "host_ready",
   "operator_invoke_l1",
+  "task_list",
+  "receipt_read",
+  "receipt_verify",
+  "delegation_read",
+  "delegation_offer_read",
+  "relay_request_read",
+  "provider_read",
+  "connection_read",
+  "cert_read",
+  "config_read",
+  "sync_target_read",
+  "rotation_read",
+  "changelog_read",
+  "backup_status",
+  "delegation_narrow",
+  "delegation_revoke",
+  "connection_rotate",
+  "connection_remove",
+  "provider_test",
+  "cert_issue",
+  "config_set",
+  "config_rollback",
+  "sync_push",
+  "sync_pull",
+  "rotation_trigger",
 ] as const;
 
 export function assertsNoSecretTools(names: readonly string[]): void {
@@ -39,7 +66,7 @@ const capabilitySchema = z.object({
   resource: z.string(),
 });
 
-const safeTokenSchema = z
+export const safeTokenSchema = z
   .string()
   .regex(/^[A-Za-z0-9:._/-]{1,512}$/, "invalid opaque identifier");
 
@@ -88,7 +115,7 @@ const daemonStatusResponseSchema = z.object({
   auth: z.literal("operator_token_required_for_mutations").optional(),
 });
 
-const errorResponseSchema = z.object({ error: safeTokenSchema });
+export const errorResponseSchema = z.object({ error: safeTokenSchema });
 
 export function registerHostTools(server: McpServer): void {
   assertsNoSecretTools(hostTools);
@@ -380,13 +407,20 @@ export function registerHostTools(server: McpServer): void {
       }
     },
   );
+
+  registerReadTools(server);
+  registerActTools(server);
 }
 
-function textContent(text: string) {
+export function textContent(text: string) {
   return [{ type: "text" as const, text }];
 }
 
-function agentJson(body: BoundaryValue, ok: boolean, successSchema: z.ZodType) {
+export function agentJson(
+  body: BoundaryValue,
+  ok: boolean,
+  successSchema: z.ZodType,
+) {
   // Refuse a compromised response containing credential-shaped material even
   // when that field is not part of the agent-visible allowlist.
   forAgent(JSON.stringify(body));
@@ -398,7 +432,7 @@ function agentJson(body: BoundaryValue, ok: boolean, successSchema: z.ZodType) {
   );
 }
 
-function toolError(label: string, e: Error | string) {
+export function toolError(label: string, e: Error | string) {
   const message = e instanceof Error ? e.message : String(e);
   try {
     return {
@@ -411,4 +445,26 @@ function toolError(label: string, e: Error | string) {
       isError: true,
     };
   }
+}
+
+/**
+ * Projection-first variant of agentJson, for the one route whose successful
+ * body legitimately carries key material by design: cert issuance returns the
+ * certificate and private key for out-of-band device delivery. Fencing the
+ * raw body first (agentJson) would refuse every successful issuance, so this
+ * projects through the allowlist first — which never includes the PEM fields
+ * — and the credential fence then runs on the projection, so nothing
+ * credential-shaped can survive into agent context either way.
+ */
+export function agentJsonProjected(
+  body: BoundaryValue,
+  ok: boolean,
+  successSchema: z.ZodType,
+) {
+  const parsed = (ok ? successSchema : errorResponseSchema).safeParse(body);
+  return forAgent(
+    JSON.stringify(
+      parsed.success ? parsed.data : { error: "upstream_response_invalid" },
+    ),
+  );
 }
