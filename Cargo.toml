@@ -113,6 +113,11 @@ subtle = "2.6.1"
 tempfile = "3.20.0"
 proptest = "1.7.0"
 utoipa = { version = "5.3.1", features = ["chrono", "uuid"] }
-wasmtime = "33.0.0"
+wasmtime = { version = "33.0.0", default-features = false, features = [
+  "runtime",
+  "component-model",
+  "cranelift",
+  "wat",
+] }
 oauth2 = "5.0.0"
 openidconnect = "4.0.0"

@@ -5,6 +5,8 @@
 
 pub mod manifest;
 pub mod providers;
+#[cfg(feature = "wasm-connectors")]
+pub mod wasm;
 
 use opensesame_domain::{EgressBinding, InvokeLevel, LegacyProjection, PlaceholderPlacement};
 use serde::{Deserialize, Serialize};
@@ -274,6 +276,10 @@ pub struct InvokeRequest {
     pub authorized_operation: String,
     #[serde(default)]
     pub invoke_level: Option<u8>,
+    /// Opaque connection reference the invocation is bound to. Handed to the
+    /// host egress layer for credential resolution; never credential bytes.
+    #[serde(default)]
+    pub connection_ref: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -897,6 +903,7 @@ mod tests {
                     parameters_digest: digest,
                     authorized_operation: "pull_request.create".into(),
                     invoke_level: Some(1),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap();
@@ -919,6 +926,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&params),
                     authorized_operation: "repository.read".into(),
                     invoke_level: None,
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -939,6 +947,7 @@ mod tests {
                     parameters_digest: "sha256:nope".into(),
                     authorized_operation: "repository.read".into(),
                     invoke_level: None,
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -979,6 +988,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&params),
                     authorized_operation: "repository.read".into(),
                     invoke_level: None,
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1017,6 +1027,7 @@ mod tests {
                         parameters_digest: opensesame_param_digest(&params),
                         authorized_operation: op.into(),
                         invoke_level: None,
+                        connection_ref: String::new(),
                     }
                 )
                 .is_err());
@@ -1038,6 +1049,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&params),
                     authorized_operation: "credential.resolve".into(),
                     invoke_level: Some(3),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1227,6 +1239,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&with_material),
                     authorized_operation: "http.authorized".into(),
                     invoke_level: Some(2),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1251,6 +1264,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&foreign),
                     authorized_operation: "http.authorized".into(),
                     invoke_level: Some(2),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1275,6 +1289,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&unknown),
                     authorized_operation: "http.authorized".into(),
                     invoke_level: Some(2),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();
@@ -1304,6 +1319,7 @@ mod tests {
                     parameters_digest: opensesame_param_digest(&params),
                     authorized_operation: "http.authorized".into(),
                     invoke_level: Some(2),
+                    connection_ref: String::new(),
                 },
             )
             .unwrap_err();

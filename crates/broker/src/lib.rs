@@ -85,6 +85,7 @@ impl Broker {
             parameters_digest: input.intent.normalized_parameters_hash.clone(),
             authorized_operation: input.intent.operation.clone(),
             invoke_level: Some(1),
+            connection_ref: input.connection_policy_id.clone(),
         };
         let connection_policy_id = input.connection_policy_id.clone();
         self.invoke_with(input, || async {

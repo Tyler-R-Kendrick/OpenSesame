@@ -258,6 +258,7 @@ impl Broker {
                 parameters_digest: params_digest,
                 authorized_operation: intent.operation.clone(),
                 invoke_level: Some(1),
+                connection_ref: input.connection_policy_id.clone(),
             },
         );
 

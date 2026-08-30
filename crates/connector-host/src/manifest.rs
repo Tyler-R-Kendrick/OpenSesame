@@ -155,6 +155,11 @@ pub struct RotationCaps {
 impl ConnectorManifest {
     /// Parse and validate a YAML manifest. JSON is a subset of YAML, so JSON
     /// manifests parse through the same entry point.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed [`ManifestError`] for oversized input, syntax errors,
+    /// and every validation rule this module enforces.
     pub fn from_yaml(text: &str) -> Result<Self, ManifestError> {
         if text.len() > MAX_MANIFEST_BYTES {
             return Err(ManifestError::TooLarge);
@@ -214,12 +219,14 @@ impl ConnectorManifest {
                 return Err(ManifestError::OperationId(op.id.clone()));
             }
         }
-        if let Some(families) = &self.spec.families {
-            for family in families {
-                if !MANIFEST_FAMILIES.contains(&family.as_str()) {
-                    return Err(ManifestError::Family(family.clone()));
-                }
-            }
+        if let Some(bad) = self
+            .spec
+            .families
+            .iter()
+            .flatten()
+            .find(|family| !MANIFEST_FAMILIES.contains(&family.as_str()))
+        {
+            return Err(ManifestError::Family(bad.clone()));
         }
         Ok(())
     }
@@ -381,6 +388,10 @@ mod tests {
             golden_with("authModes: [brokered_session]", "authModes: []"),
             Err(ManifestError::NoAuthModes)
         ));
+    }
+
+    #[test]
+    fn outbound_hosts_must_be_exact_and_public() {
         // Wildcards, schemes, localhost, and IP literals are not exact
         // public hosts.
         for bad in [
@@ -400,10 +411,7 @@ mod tests {
                 "{bad} must be refused"
             );
         }
-        assert!(matches!(
-            golden_with("hosts: []", "hosts: [\"api.example.com\"]"),
-            Ok(_)
-        ));
+        assert!(golden_with("hosts: []", "hosts: [\"api.example.com\"]").is_ok());
     }
 
     #[test]

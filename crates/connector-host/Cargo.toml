@@ -16,6 +16,12 @@ tracing = { workspace = true }
 url = { workspace = true }
 sha2 = { workspace = true }
 base64 = { workspace = true }
+wasmtime = { workspace = true, optional = true }
+
+[features]
+# ADR 0061 §3: the component runtime is default-off; only the gateway may
+# enable it. The daemon dependency gate bans wasmtime from daemon trees.
+wasm-connectors = ["dep:wasmtime"]
 
 [dev-dependencies]
 tempfile = "3.20.0"
