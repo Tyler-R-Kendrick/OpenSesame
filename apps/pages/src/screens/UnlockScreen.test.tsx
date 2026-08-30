@@ -230,7 +230,9 @@ describe("UnlockScreen — first run", () => {
     ).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Passkey" })).toBeTruthy();
     expect(screen.queryByLabelText(/Master password/)).toBeNull();
-    expect(submitButton().getAttribute("aria-label")).toContain("Seal with passkey");
+    expect(submitButton().getAttribute("aria-label")).toContain(
+      "Seal with passkey",
+    );
     expect(submitButton().disabled).toBe(true);
     expect(v.store.createWithPasskey).not.toHaveBeenCalled();
     fireEvent.click(
@@ -249,7 +251,9 @@ describe("UnlockScreen — first run", () => {
     goLocalOnly();
     chooseSealMethod("PIN");
     expect(screen.queryByLabelText(/Master password/)).toBeNull();
-    expect(submitButton().getAttribute("aria-label")).toContain("Seal with PIN");
+    expect(submitButton().getAttribute("aria-label")).toContain(
+      "Seal with PIN",
+    );
     expect(submitButton().disabled).toBe(true);
     fireEvent.change(screen.getByLabelText("Device PIN"), {
       target: { value: "48291037" },
@@ -1137,7 +1141,9 @@ describe("UnlockScreen — passkey unlock", () => {
     v.store.unlockWithPasskey.mockResolvedValue(undefined);
     render(<UnlockScreen />);
     expect(screen.getByText(/Use your platform authenticator/)).toBeTruthy();
-    expect(submitButton().getAttribute("aria-label")).toContain("Unlock with passkey");
+    expect(submitButton().getAttribute("aria-label")).toContain(
+      "Unlock with passkey",
+    );
     // Page load alone must not open a platform prompt.
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(v.store.unlockWithPasskey).not.toHaveBeenCalled();

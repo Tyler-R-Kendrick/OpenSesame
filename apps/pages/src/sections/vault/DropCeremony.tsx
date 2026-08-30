@@ -375,7 +375,12 @@ export function NewDropCeremony() {
           >
             <IconCheck size={17} />
           </button>
-          <Link className="icon-btn" aria-label="Cancel" title="Cancel" to="/vault">
+          <Link
+            className="icon-btn"
+            aria-label="Cancel"
+            title="Cancel"
+            to="/vault"
+          >
             <IconX size={17} />
           </Link>
         </div>
@@ -447,7 +452,6 @@ export function NewDropCeremony() {
             <span>{error}</span>
           </p>
         ) : null}
-
       </form>
     </div>
   );

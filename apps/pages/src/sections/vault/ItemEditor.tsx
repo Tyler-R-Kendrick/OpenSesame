@@ -324,7 +324,12 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
           >
             <IconCheck size={17} />
           </button>
-          <Link className="icon-btn" aria-label="Cancel" title="Cancel" to={closeTo}>
+          <Link
+            className="icon-btn"
+            aria-label="Cancel"
+            title="Cancel"
+            to={closeTo}
+          >
             <IconX size={17} />
           </Link>
         </div>
@@ -882,7 +887,6 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             <span>{error}</span>
           </p>
         ) : null}
-
       </form>
     </div>
   );

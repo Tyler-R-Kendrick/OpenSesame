@@ -122,9 +122,7 @@ describe("HealthPanel", () => {
     ).toBeGreaterThan(0);
     // Findings link through to the item editor.
     expect(
-      screen
-        .getAllByRole("link", { name: /^Fix / })[0]
-        ?.getAttribute("href"),
+      screen.getAllByRole("link", { name: /^Fix / })[0]?.getAttribute("href"),
     ).toMatch(/\/vault\/itm_[ab]\/edit/);
   });
 
