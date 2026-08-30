@@ -1710,17 +1710,25 @@
       "id": "doppler",
       "display_name": "Doppler",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/doppler.html",
-      "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "docs_url": "https://docs.doppler.com/reference/api",
+      "provenance_url": "https://docs.doppler.com/reference/auth-token-formats",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
       "connection_configuration_fields": [
-        { "name": "token", "secret": true, "required": true },
+        { "name": "api_key", "secret": true, "required": true },
         { "name": "project", "secret": false, "required": false },
         { "name": "config", "secret": false, "required": false }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
-      "operations": ["secret.configure"]
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.doppler.com"],
+        "path_prefixes": ["/v3/projects", "/v3/configs/config/secrets/names"]
+      },
+      "operations": ["project.list", "secret.list_names", "secret.configure"]
     },
     {
       "id": "foks",
@@ -2030,6 +2038,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-08-30.1",
+  "revision": "2026-08-30.2",
   "schema_version": 1
 }

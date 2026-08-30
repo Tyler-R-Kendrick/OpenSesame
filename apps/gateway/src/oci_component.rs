@@ -38,7 +38,10 @@ pub fn parse_oci_ref(reference: &str) -> anyhow::Result<OciRef> {
         .strip_prefix("sha256:")
         .context("OCI digest must be sha256:<hex>")?;
     anyhow::ensure!(
-        hex.len() == 64 && hex.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
+        hex.len() == 64
+            && hex
+                .chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()),
         "OCI digest must be 64 lowercase hex characters"
     );
     let (registry, repository) = name
@@ -49,15 +52,13 @@ pub fn parse_oci_ref(reference: &str) -> anyhow::Result<OciRef> {
         "OCI registry must be a hostname"
     );
     anyhow::ensure!(
-        !opensesame_connector_host::is_blocked_host(
-            registry.split(':').next().unwrap_or(registry)
-        ),
+        !opensesame_connector_host::is_blocked_host(registry.split(':').next().unwrap_or(registry)),
         "OCI registry {registry} is a blocked host"
     );
     anyhow::ensure!(
-        repository
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '/' | '-' | '_' | '.')),
+        repository.chars().all(|c| c.is_ascii_lowercase()
+            || c.is_ascii_digit()
+            || matches!(c, '/' | '-' | '_' | '.')),
         "OCI repository has invalid characters"
     );
     Ok(OciRef {
@@ -69,10 +70,7 @@ pub fn parse_oci_ref(reference: &str) -> anyhow::Result<OciRef> {
 
 /// Fetch the component blob named by `reference` and verify its sha256
 /// locally. Every failure is an error the boot refuses on.
-pub async fn fetch_component(
-    http: &reqwest::Client,
-    reference: &str,
-) -> anyhow::Result<Vec<u8>> {
+pub async fn fetch_component(http: &reqwest::Client, reference: &str) -> anyhow::Result<Vec<u8>> {
     let parsed = parse_oci_ref(reference)?;
     let base = format!("https://{}", parsed.registry);
     fetch_blob_from_base(http, &base, &parsed.repository, &parsed.digest).await
@@ -123,7 +121,10 @@ pub async fn fetch_blob_from_base(
         bytes.len() <= MAX_COMPONENT_BYTES,
         "component blob exceeds {MAX_COMPONENT_BYTES} bytes"
     );
-    let actual = format!("sha256:{:x}", <sha2::Sha256 as sha2::Digest>::digest(&bytes));
+    let actual = format!(
+        "sha256:{:x}",
+        <sha2::Sha256 as sha2::Digest>::digest(&bytes)
+    );
     anyhow::ensure!(
         actual == digest,
         "registry blob digest {actual} does not match pinned {digest} — refusing"
@@ -204,7 +205,7 @@ mod tests {
         assert!(parsed.digest.starts_with("sha256:"));
 
         for bad in [
-            "ghcr.io/acme/echo:latest",                            // tag, not digest
+            "ghcr.io/acme/echo:latest",                              // tag, not digest
             &format!("ghcr.io/acme/echo@sha256:{}", "a".repeat(63)), // short digest
             &format!("localhost/acme/echo@sha256:{}", "a".repeat(64)), // blocked host
             &format!("127.0.0.1/acme/echo@sha256:{}", "a".repeat(64)),
@@ -288,7 +289,10 @@ mod tests {
             .await
             .expect("full token flow fetch");
         assert_eq!(bytes, b"component-bytes");
-        assert!(challenged.load(Ordering::SeqCst), "the 401 leg must have run");
+        assert!(
+            challenged.load(Ordering::SeqCst),
+            "the 401 leg must have run"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
