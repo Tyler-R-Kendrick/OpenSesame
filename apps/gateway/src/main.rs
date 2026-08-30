@@ -10,6 +10,7 @@ mod bootstrap;
 pub use opensesame_gateway::cert_issuers;
 mod config;
 mod connector_egress;
+mod oci_component;
 mod dev_pki;
 mod github_webhook;
 mod identity_mapping;

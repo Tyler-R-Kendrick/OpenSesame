@@ -2,8 +2,10 @@
 //! gateway's [`HostEgress`] bridge.
 //!
 //! Operator contract, fail-closed at every step:
-//! - `OPENSESAME_CONNECTOR_DIR` names a directory of `<id>/connector.yaml` +
-//!   `<id>/component.wasm` pairs. Unset means no community connectors.
+//! - `OPENSESAME_CONNECTOR_DIR` names a directory of `<id>/connector.yaml`
+//!   entries, each with a sibling `component.wasm` OR a digest-addressed
+//!   pull from `spec.component.oci` (a local file wins). Unset means no
+//!   community connectors.
 //! - `OPENSESAME_CONNECTOR_TRUSTED_DIGESTS` is a comma-separated list of
 //!   `sha256:<hex>` digests. Setting the directory without pinning digests
 //!   refuses boot: consent is a pinned digest, never a directory listing.
@@ -140,7 +142,7 @@ mod enabled {
     ///
     /// Returns an error on any unreadable entry, invalid manifest, unpinned
     /// or mismatched digest, or component that fails to load.
-    pub fn load_wasm_connectors(
+    pub async fn load_wasm_connectors(
         host: &mut HostRuntime,
         broker: &Arc<ConnectionBroker>,
         organization: OrganizationId,
@@ -182,9 +184,22 @@ mod enabled {
                 .with_context(|| format!("read {}", manifest_path.display()))?;
             let manifest = ConnectorManifest::from_yaml(&manifest_text)
                 .with_context(|| format!("parse {}", manifest_path.display()))?;
+            // A local component file wins (operator override); otherwise the
+            // component is pulled from the manifest's digest-addressed OCI
+            // reference — the digest check in WasmConnector::load re-verifies
+            // whatever arrives either way.
             let component_path = path.join("component.wasm");
-            let component_bytes = std::fs::read(&component_path)
-                .with_context(|| format!("read {}", component_path.display()))?;
+            let component_bytes = if component_path.exists() {
+                std::fs::read(&component_path)
+                    .with_context(|| format!("read {}", component_path.display()))?
+            } else {
+                crate::oci_component::fetch_component(
+                    broker.http_client(),
+                    &manifest.spec.component.oci,
+                )
+                .await
+                .with_context(|| format!("pull component for {}", path.display()))?
+            };
             let connector = WasmConnector::load(
                 manifest,
                 &component_bytes,
@@ -216,7 +231,8 @@ mod enabled {
 ///
 /// Returns an error when `OPENSESAME_CONNECTOR_DIR` is set.
 #[cfg(not(feature = "wasm-connectors"))]
-pub fn load_wasm_connectors(
+#[allow(clippy::unused_async)] // Signature parity with the feature-on loader.
+pub async fn load_wasm_connectors(
     _host: &mut opensesame_connector_host::HostRuntime,
     _broker: &std::sync::Arc<opensesame_connection_broker::ConnectionBroker>,
     _organization: opensesame_domain::OrganizationId,
