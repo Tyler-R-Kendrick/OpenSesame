@@ -273,6 +273,28 @@ describe("VaultSection", () => {
     ).toEqual(["Scratch pad.note", "Webmail.login"]);
   });
 
+  it("matches a folder by name and keeps its whole directory", () => {
+    vault.current = {
+      items: [
+        makeLogin({ folderId: "f1" }),
+        makeNote({ id: "itm_2", folderId: "f1" }),
+      ],
+      folders: [{ id: "f1", name: "Work", createdAt: "2026-08-01T00:00:00Z" }],
+      header: null,
+    };
+    renderSection();
+    const handler = keymap();
+    press(handler, "/");
+    fireEvent.change(screen.getByLabelText("Search items"), {
+      target: { value: "work" },
+    });
+    // No item is named "work", but the directory is: it survives with all
+    // of its children rather than vanishing from the tree.
+    expect(
+      screen.getAllByRole("treeitem").map((row) => row.textContent),
+    ).toEqual(["Work/2", "Scratch pad.note", "Webmail.login"]);
+  });
+
   it("returns no rows for a fruitless search", () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection();

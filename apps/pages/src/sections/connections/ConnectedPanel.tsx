@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import {
-  IconConnection,
-  IconLock,
-  IconSettings,
-} from "../../components/Icons.js";
+import { IconSettings } from "../../components/Icons.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { createConnection, revokeConnection } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";

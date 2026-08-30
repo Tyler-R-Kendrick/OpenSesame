@@ -27,6 +27,7 @@ import {
   newId,
   newUri,
 } from "../../lib/vault/model.js";
+import { KIND_EXT } from "../../lib/vault/paths.js";
 import { NewDropCeremony } from "./DropCeremony.js";
 
 const KINDS: ItemKind[] = [
@@ -39,17 +40,6 @@ const KINDS: ItemKind[] = [
   "drop",
 ];
 const MATCHES: UriMatch[] = ["domain", "host", "exact", "never"];
-
-/** The kind reads as the file's extension — the editor edits a file. */
-const KIND_EXT = {
-  login: ".login",
-  passkey: ".passkey",
-  card: ".card",
-  secret: ".secret",
-  drop: ".drop",
-  note: ".note",
-  certificate: ".cert",
-} satisfies Record<ItemKind, string>;
 
 /** Group heading with its one action beside it: a label and a + key. */
 function GroupAdd({

@@ -8,25 +8,14 @@ import {
 } from "../../components/Icons.js";
 import { registerVaultKeymap, showKeymapHelp } from "../../lib/keymap.js";
 import { activeProject } from "../../lib/projects.js";
-import type { Folder, ItemKind, VaultItem } from "../../lib/vault/model.js";
-import { pathSegment, tombPath } from "../../lib/vault/paths.js";
+import type { Folder, VaultItem } from "../../lib/vault/model.js";
+import { KIND_EXT, pathSegment, tombPath } from "../../lib/vault/paths.js";
 import { readFile, writeFile } from "../../lib/vfs.js";
 import { formatExpiry } from "./DropCeremony.js";
 
 const COLLAPSED_PATH = "config/tree-collapsed";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-
-/** Items are files; the kind is the extension. */
-const KIND_EXT = {
-  login: ".login",
-  passkey: ".passkey",
-  card: ".card",
-  secret: ".secret",
-  drop: ".drop",
-  note: ".note",
-  certificate: ".cert",
-} satisfies Record<ItemKind, string>;
 
 type VaultTreeActions = {
   open: (item: VaultItem) => void;
@@ -132,12 +121,22 @@ function buildRows(
     child: prefix !== "",
     item,
   });
+  // Two folders may share a display name; their paths must not, or their
+  // collapse state (persisted by path) and the status line would couple.
+  const seenNames = new Map<string, number>();
   for (const folder of folders) {
-    const children = (grouped.get(folder.id) ?? []).filter(
-      (item) => !query || itemMatches(item, query),
-    );
-    if (query && children.length === 0) continue;
-    const name = pathSegment(folder.name);
+    const base = pathSegment(folder.name);
+    const nth = (seenNames.get(base) ?? 0) + 1;
+    seenNames.set(base, nth);
+    const name = nth > 1 ? `${base} (${nth})` : base;
+    // A query that names the folder keeps the whole directory; otherwise the
+    // folder survives only through its matching children.
+    const dirHit = query !== "" && name.toLowerCase().includes(query);
+    const bucket = grouped.get(folder.id) ?? [];
+    const children = dirHit
+      ? bucket
+      : bucket.filter((item) => !query || itemMatches(item, query));
+    if (query && children.length === 0 && !dirHit) continue;
     const path = `${name}/`;
     // A search opens every directory it matched into; outside a search the
     // reader's own collapse choices hold.
@@ -205,7 +204,14 @@ function RowMenu({
   useEffect(() => {
     const away = (event: PointerEvent) => {
       const target = event.target instanceof Node ? event.target : null;
-      if (!(target && menuRef.current?.contains(target))) close();
+      if (target && menuRef.current?.contains(target)) return;
+      // The ⋯ toggles manage the menu themselves: closing on their
+      // pointerdown would race the click, which would reopen the menu it
+      // meant to close.
+      if (target instanceof Element && target.closest("[data-vtree-more]")) {
+        return;
+      }
+      close();
     };
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
@@ -270,6 +276,14 @@ export function VaultTree({
   const setAndSaveCollapsedRef = useRef<(next: ReadonlySet<string>) => void>(
     () => undefined,
   );
+  // One collapse-toggle implementation, shared by the once-registered keymap
+  // and pointer clicks. It reads only through stable refs.
+  const toggleDirRef = useRef((row: DirRow) => {
+    const next = new Set(collapsedRef.current);
+    if (next.has(row.path)) next.delete(row.path);
+    else next.add(row.path);
+    setAndSaveCollapsedRef.current(next);
+  });
 
   const tomb = vaultTreeSeams.activeTomb();
   const needle = (query ?? "").trim().toLowerCase();
@@ -353,12 +367,7 @@ export function VaultTree({
       const item = focusedItem();
       if (item) action(item);
     };
-    const toggleDir = (row: DirRow) => {
-      const next = new Set(collapsedRef.current);
-      if (next.has(row.path)) next.delete(row.path);
-      else next.add(row.path);
-      setAndSaveCollapsedRef.current(next);
-    };
+    const toggleDir = (row: DirRow) => toggleDirRef.current(row);
     return registerVaultKeymap({
       next: () => move(1),
       previous: () => move(-1),
@@ -486,6 +495,7 @@ export function VaultTree({
                 <button
                   type="button"
                   className="vtree__more"
+                  data-vtree-more=""
                   aria-label={`Actions for ${row.name}`}
                   aria-haspopup="menu"
                   aria-expanded={menuFor === row.key}
@@ -516,12 +526,7 @@ export function VaultTree({
               onClick={() => {
                 setCursor(row.key);
                 if (row.type === "item") actions.open(row.item);
-                else {
-                  const next = new Set(collapsed);
-                  if (next.has(row.path)) next.delete(row.path);
-                  else next.add(row.path);
-                  setAndSaveCollapsed(next);
-                }
+                else toggleDirRef.current(row);
               }}
             >
               {content}
