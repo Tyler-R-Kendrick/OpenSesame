@@ -199,6 +199,17 @@ impl Role {
     }
 }
 
+/// Where an approval request's current step stands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ApprovalStepOutcome {
+    /// The step has not gathered its required approvals yet.
+    Pending,
+    /// The step gathered enough approvals; the request may advance.
+    StepSatisfied,
+    /// An approver rejected, so the request cannot proceed.
+    Rejected,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredCertificatePolicy {
     pub id: String,
@@ -968,6 +979,15 @@ const MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/0016_certificate_manager.sql"),
     ),
 ];
+
+/// Embedded migration versions in the order they are applied.
+///
+/// Exposed so contract tests can pin the append-only ordering without reaching
+/// into the embedded SQL itself.
+#[must_use]
+pub fn migration_versions() -> Vec<&'static str> {
+    MIGRATIONS.iter().map(|(version, _)| *version).collect()
+}
 
 impl Db {
     /// Connect to `SQLite` and apply all pending embedded migrations.
@@ -4681,6 +4701,57 @@ impl Db {
         Ok(rows.iter().map(stored_approval_decision).collect())
     }
 
+    /// Evaluate the request's current step against the decisions recorded for
+    /// it. A single rejection is terminal; otherwise the step is satisfied once
+    /// distinct approvers reach the step's `required_count`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the request or its current step is absent from the
+    /// organization, or when a query fails.
+    pub async fn approval_step_outcome(
+        &self,
+        organization_id: &str,
+        request_id: &str,
+    ) -> anyhow::Result<ApprovalStepOutcome> {
+        let request = self
+            .get_approval_request(organization_id, request_id)
+            .await?
+            .context("approval request is not in this organization")?;
+        let required = sqlx::query_scalar::<_, i64>(
+            "SELECT required_count FROM approval_steps WHERE organization_id = ? AND policy_id = ? AND seq = ?",
+        )
+        .bind(organization_id)
+        .bind(&request.policy_id)
+        .bind(request.current_step)
+        .fetch_optional(&self.pool)
+        .await?
+        .context("approval policy has no step at the request's position")?;
+        let rejected = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM approval_decisions WHERE organization_id = ? AND request_id = ? AND step_seq = ? AND decision = 'reject'",
+        )
+        .bind(organization_id)
+        .bind(request_id)
+        .bind(request.current_step)
+        .fetch_one(&self.pool)
+        .await?;
+        if rejected > 0 {
+            return Ok(ApprovalStepOutcome::Rejected);
+        }
+        let approvals = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(DISTINCT approver) FROM approval_decisions WHERE organization_id = ? AND request_id = ? AND step_seq = ? AND decision = 'approve'",
+        )
+        .bind(organization_id)
+        .bind(request_id)
+        .bind(request.current_step)
+        .fetch_one(&self.pool)
+        .await?;
+        if approvals >= required {
+            return Ok(ApprovalStepOutcome::StepSatisfied);
+        }
+        Ok(ApprovalStepOutcome::Pending)
+    }
+
     // —— code signing ——————————————————————————————————————————————
 
     /// # Errors
@@ -6514,8 +6585,25 @@ pub struct CertificateQuery {
 /// Largest page [`CertificateFilter::to_query`] will ever ask the database for.
 pub const CERTIFICATE_LIST_MAX_LIMIT: i64 = 1_000;
 
-/// Escape a caller substring for a `LIKE` pattern so wildcards are literal.
+/// Maximum length of a substring filter. `SQLite` refuses `LIKE` patterns past
+/// its complexity limit, and no legitimate CN, SAN or metadata field approaches
+/// this, so a longer pattern is clamped rather than allowed to fail the query.
+/// A filter is a convenience input: it must never turn a list request into an
+/// error, and it must never let a cheap caller request a maximally expensive
+/// pattern match.
+pub const MAX_FILTER_PATTERN_LEN: usize = 256;
+
+/// Clamp a caller-supplied pattern at a character boundary. Taking characters
+/// rather than bytes means multi-byte input can never split a code point.
+fn clamp_pattern(value: &str) -> String {
+    value.chars().take(MAX_FILTER_PATTERN_LEN).collect()
+}
+
+/// Escape a caller substring for a `LIKE` pattern so `%` and `_` match
+/// literally instead of turning the predicate into a full scan. Paired with an
+/// explicit `ESCAPE '\'` clause in the statement.
 fn like_pattern(value: &str) -> String {
+    let value = clamp_pattern(value);
     let mut escaped = String::with_capacity(value.len() + 2);
     escaped.push('%');
     for character in value.chars() {
@@ -6566,20 +6654,20 @@ impl CertificateFilter {
                 sql.push_str(
                     " AND EXISTS (SELECT 1 FROM json_each(issued_certificates.metadata_json) WHERE json_each.key = ? AND json_each.value = ?)",
                 );
-                text_binds.push(key.clone());
-                text_binds.push(value.clone());
+                text_binds.push(clamp_pattern(key));
+                text_binds.push(clamp_pattern(value));
             }
             (Some(key), None) => {
                 sql.push_str(
                     " AND EXISTS (SELECT 1 FROM json_each(issued_certificates.metadata_json) WHERE json_each.key = ?)",
                 );
-                text_binds.push(key.clone());
+                text_binds.push(clamp_pattern(key));
             }
             (None, Some(value)) => {
                 sql.push_str(
                     " AND EXISTS (SELECT 1 FROM json_each(issued_certificates.metadata_json) WHERE json_each.value = ?)",
                 );
-                text_binds.push(value.clone());
+                text_binds.push(clamp_pattern(value));
             }
             (None, None) => {}
         }
@@ -6678,8 +6766,9 @@ fn validate_metadata_document(document: &str) -> anyhow::Result<()> {
 const CERTIFICATE_METADATA_MAX_BYTES: usize = 16 * 1024;
 /// Largest number of metadata keys on one certificate.
 const CERTIFICATE_METADATA_MAX_KEYS: usize = 64;
-/// Largest metadata key or scalar value, in bytes.
-const CERTIFICATE_METADATA_MAX_FIELD_BYTES: usize = 1024;
+/// Largest metadata key or scalar value, in bytes. Held at the filter clamp so
+/// a stored value can never be longer than the pattern that searches for it.
+const CERTIFICATE_METADATA_MAX_FIELD_BYTES: usize = MAX_FILTER_PATTERN_LEN;
 
 /// Statuses the Certificate Manager writes. The applied 0013 `CHECK` is never
 /// rewritten, so the widened value set is enforced here instead.
@@ -10331,6 +10420,97 @@ mod tests {
         assert!(Role::Admin > Role::Operator && Role::Operator > Role::Auditor);
         assert_eq!(Role::Admin.as_application_str(), "admin");
         assert_eq!(Role::Admin.as_signer_str(), "administrator");
+    }
+
+    #[test]
+    fn certmgr_filter_clamps_and_escapes_caller_patterns() {
+        let long = "\u{00e9}".repeat(MAX_FILTER_PATTERN_LEN * 2);
+        let query = CertificateFilter {
+            common_name_contains: Some(long.clone()),
+            san_contains: Some(long.clone()),
+            metadata_key: Some(long.clone()),
+            metadata_value: Some(long),
+            ..CertificateFilter::default()
+        }
+        .to_query();
+        // Clamped at a character boundary, so multi-byte input cannot split a
+        // code point; each pattern is still exactly one bound parameter.
+        assert_eq!(query.text_binds.len(), 4);
+        for (index, bound) in query.text_binds.iter().enumerate() {
+            let expected = if index < 2 {
+                // The two LIKE patterns carry the leading and trailing wildcard.
+                MAX_FILTER_PATTERN_LEN + 2
+            } else {
+                MAX_FILTER_PATTERN_LEN
+            };
+            assert_eq!(bound.chars().count(), expected);
+        }
+
+        // LIKE metacharacters are escaped, so `%` and `_` match literally.
+        let escaped = CertificateFilter {
+            common_name_contains: Some("100%_x".into()),
+            ..CertificateFilter::default()
+        }
+        .to_query();
+        assert_eq!(escaped.text_binds, vec![r"%100\%\_x%".to_string()]);
+        assert_eq!(escaped.sql.matches("ESCAPE '\\'").count(), 1);
+        assert_eq!(escaped.sql.matches('?').count(), 2);
+    }
+
+    #[tokio::test]
+    async fn certmgr_escaped_wildcards_match_literally_not_everything() {
+        let db = Db::connect_memory().await.unwrap();
+        let (authority, ..) = seed_certmgr_org(&db, "org:one", "one").await;
+        seed_certificate(&db, "org:one", &authority, "alpha").await;
+        // Without an ESCAPE clause this pattern would match every row.
+        let matched = db
+            .list_certificates(
+                "org:one",
+                &CertificateFilter {
+                    common_name_contains: Some("%".into()),
+                    ..CertificateFilter::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert!(matched.is_empty());
+
+        // A 100k-character subject is stored verbatim; only the pattern clamps.
+        let long_cn = "x".repeat(100_000);
+        db.insert_certificate_issuance_request(&certificate_request(
+            "org:one",
+            &authority,
+            "request:long",
+            "idem:long",
+        ))
+        .await
+        .unwrap();
+        let mut long =
+            certmgr_managed_certificate("org:one", &authority, "request:long", "cert:long");
+        long.common_name.clone_from(&long_cn);
+        db.insert_managed_certificate(&long).await.unwrap();
+        assert_eq!(
+            db.get_certificate("org:one", "cert:long")
+                .await
+                .unwrap()
+                .unwrap()
+                .common_name
+                .len(),
+            100_000
+        );
+        assert_eq!(
+            db.list_certificates(
+                "org:one",
+                &CertificateFilter {
+                    common_name_contains: Some(long_cn),
+                    ..CertificateFilter::default()
+                },
+            )
+            .await
+            .unwrap()
+            .len(),
+            1
+        );
     }
 
     #[test]

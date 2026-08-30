@@ -236,14 +236,14 @@ mod tests {
     #[test]
     fn generation_refuses_more_names_than_the_engine_will_issue() {
         let key = keys::generate(KeyAlgorithm::Ed25519).unwrap();
-        let too_many: Vec<SanEntry> = (0..x509::MAX_DNS_NAMES + 1)
+        let too_many: Vec<SanEntry> = (0..=x509::MAX_DNS_NAMES)
             .map(|index| SanEntry::Dns(format!("host{index}.example.com")))
             .collect();
         assert_eq!(
             generate_csr(&SubjectDn::common_name("x"), &too_many, &key).unwrap_err(),
             PkiError::TooLarge
         );
-        let too_many_ips: Vec<SanEntry> = (0..x509::MAX_IP_SANS + 1)
+        let too_many_ips: Vec<SanEntry> = (0..=x509::MAX_IP_SANS)
             .map(|index| {
                 SanEntry::Ip(std::net::IpAddr::from([
                     10,

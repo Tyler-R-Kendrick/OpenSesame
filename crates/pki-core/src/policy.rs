@@ -196,7 +196,7 @@ fn collect(
         &mut out,
     );
     check_basic_constraints(
-        &rules.basic_constraints,
+        rules.basic_constraints,
         req.basic_constraints,
         require_presence,
         &mut out,
@@ -296,6 +296,25 @@ fn check_single(
     }
 }
 
+/// The violation a whitelist rule produces for one value, if any.
+///
+/// An empty pattern list means the field permits nothing, which is the
+/// deliberate `allow`-with-no-values semantics documented on [`RuleMode`].
+fn whitelist_violation(
+    field: &str,
+    rule: &FieldRule,
+    value: &str,
+    numeric: bool,
+) -> Option<PolicyViolation> {
+    if rule.values.is_empty() {
+        Some(PolicyViolation::new(field, NO_VALUE_PERMITTED))
+    } else if matches_any(&rule.values, value, numeric) {
+        None
+    } else {
+        Some(PolicyViolation::new(field, not_permitted(value)))
+    }
+}
+
 /// Applies one [`FieldRule`] to a multi-valued field such as a SAN class.
 fn check_multi(
     field: &str,
@@ -307,35 +326,28 @@ fn check_multi(
 ) {
     match rule.mode {
         RuleMode::Unset => {}
-        RuleMode::Allow => {
-            for value in values {
-                if rule.values.is_empty() {
-                    out.push(PolicyViolation::new(field, NO_VALUE_PERMITTED));
-                } else if !matches_any(&rule.values, value, numeric) {
-                    out.push(PolicyViolation::new(field, not_permitted(value)));
-                }
+        RuleMode::Allow => out.extend(
+            values
+                .iter()
+                .filter_map(|value| whitelist_violation(field, rule, value, numeric)),
+        ),
+        RuleMode::Require if values.is_empty() => {
+            if require_presence {
+                out.push(PolicyViolation::new(field, AT_LEAST_ONE_REQUIRED));
             }
         }
-        RuleMode::Require => {
-            if values.is_empty() {
-                if require_presence {
-                    out.push(PolicyViolation::new(field, AT_LEAST_ONE_REQUIRED));
-                }
-            } else if !rule.values.is_empty() {
-                for value in values {
-                    if !matches_any(&rule.values, value, numeric) {
-                        out.push(PolicyViolation::new(field, not_permitted(value)));
-                    }
-                }
-            }
-        }
-        RuleMode::Deny => {
-            for value in values {
-                if matches_any(&rule.values, value, numeric) {
-                    out.push(PolicyViolation::new(field, denied(value)));
-                }
-            }
-        }
+        RuleMode::Require => out.extend(
+            values
+                .iter()
+                .filter(|_| !rule.values.is_empty())
+                .filter_map(|value| whitelist_violation(field, rule, value, numeric)),
+        ),
+        RuleMode::Deny => out.extend(
+            values
+                .iter()
+                .filter(|value| matches_any(&rule.values, value, numeric))
+                .map(|value| PolicyViolation::new(field, denied(value))),
+        ),
     }
 }
 
@@ -459,14 +471,18 @@ fn check_set<T>(
                 }
             }
             if constraint.mode == ConstraintMode::Require && require_presence {
-                for wanted in &constraint.required {
-                    if !values.contains(wanted) {
-                        out.push(PolicyViolation::new(
-                            field,
-                            format!("required value \"{wanted}\" is absent"),
-                        ));
-                    }
-                }
+                out.extend(
+                    constraint
+                        .required
+                        .iter()
+                        .filter(|wanted| !values.contains(wanted))
+                        .map(|wanted| {
+                            PolicyViolation::new(
+                                field,
+                                format!("required value \"{wanted}\" is absent"),
+                            )
+                        }),
+                );
             }
         }
     }
@@ -474,7 +490,7 @@ fn check_set<T>(
 
 /// Applies the `basicConstraints` rule.
 fn check_basic_constraints(
-    rule: &BasicConstraintRule,
+    rule: BasicConstraintRule,
     candidate: Option<BasicConstraints>,
     require_presence: bool,
     out: &mut Vec<PolicyViolation>,
@@ -636,162 +652,238 @@ fn cidr_contains(network: IpAddr, prefix: u8, address: IpAddr) -> bool {
 
 /// Builds the rules for one of the shipped presets.
 pub fn preset(preset: PolicyPreset) -> PolicyRules {
-    /// Key and signature algorithms broadly interoperable for TLS.
-    fn tls_algorithms(rules: &mut PolicyRules) {
-        rules.key_algorithms = Constraint::allow([
+    match preset {
+        PolicyPreset::TlsServer => tls_server_preset(),
+        PolicyPreset::TlsClient => tls_client_preset(),
+        PolicyPreset::CodeSigning => code_signing_preset(),
+        PolicyPreset::Device => device_preset(),
+        PolicyPreset::User => user_preset(),
+        PolicyPreset::EmailProtection => email_protection_preset(),
+        PolicyPreset::DualPurposeServer => dual_purpose_server_preset(),
+        PolicyPreset::IntermediateCa => intermediate_ca_preset(),
+    }
+}
+
+/// Rules permitting only the key and signature algorithms that are broadly
+/// interoperable for TLS. Ed25519 is excluded: no mainstream browser accepts
+/// it in a server certificate today.
+fn tls_algorithm_rules() -> PolicyRules {
+    PolicyRules {
+        key_algorithms: Constraint::allow([
             KeyAlgorithm::Rsa2048,
             KeyAlgorithm::Rsa4096,
             KeyAlgorithm::EcdsaP256,
             KeyAlgorithm::EcdsaP384,
-        ]);
-        rules.signature_algorithms = Constraint::allow([
+        ]),
+        signature_algorithms: Constraint::allow([
             SignatureAlgorithm::Sha256Rsa,
             SignatureAlgorithm::Sha384Rsa,
             SignatureAlgorithm::Sha256Ecdsa,
             SignatureAlgorithm::Sha384Ecdsa,
-        ]);
+        ]),
+        ..PolicyRules::default()
     }
+}
 
-    let mut rules = PolicyRules::default();
-    match preset {
-        PolicyPreset::TlsServer => {
-            tls_algorithms(&mut rules);
-            rules.san.dns = FieldRule::require(Vec::<String>::new());
-            rules.key_usages = Constraint::require(
-                [
-                    KeyUsage::DigitalSignature,
-                    KeyUsage::KeyEncipherment,
-                    KeyUsage::KeyAgreement,
-                ],
-                [KeyUsage::DigitalSignature],
-            );
-            rules.ext_key_usages = Constraint::require(
-                [ExtendedKeyUsage::ServerAuth],
-                [ExtendedKeyUsage::ServerAuth],
-            );
-            rules.basic_constraints.ca = CaRule::Forbid;
-        }
-        PolicyPreset::TlsClient => {
-            tls_algorithms(&mut rules);
-            rules.key_usages = Constraint::require(
-                [KeyUsage::DigitalSignature, KeyUsage::KeyAgreement],
-                [KeyUsage::DigitalSignature],
-            );
-            rules.ext_key_usages = Constraint::require(
-                [ExtendedKeyUsage::ClientAuth],
-                [ExtendedKeyUsage::ClientAuth],
-            );
-            rules.basic_constraints.ca = CaRule::Forbid;
-        }
-        PolicyPreset::CodeSigning => {
-            rules.subject.cn = FieldRule::require(Vec::<String>::new());
-            rules.key_usages = Constraint::require(
-                [KeyUsage::DigitalSignature, KeyUsage::NonRepudiation],
-                [KeyUsage::DigitalSignature],
-            );
-            rules.ext_key_usages = Constraint::require(
-                [
-                    ExtendedKeyUsage::CodeSigning,
-                    ExtendedKeyUsage::TimeStamping,
-                ],
-                [ExtendedKeyUsage::CodeSigning],
-            );
-            rules.basic_constraints.ca = CaRule::Forbid;
-        }
-        PolicyPreset::Device => {
-            rules.key_usages = Constraint::require(
-                [
-                    KeyUsage::DigitalSignature,
-                    KeyUsage::KeyEncipherment,
-                    KeyUsage::KeyAgreement,
-                ],
-                [KeyUsage::DigitalSignature],
-            );
-            rules.ext_key_usages = Constraint::require(
-                [ExtendedKeyUsage::ClientAuth, ExtendedKeyUsage::ServerAuth],
-                [ExtendedKeyUsage::ClientAuth],
-            );
-            rules.basic_constraints.ca = CaRule::Forbid;
-        }
-        PolicyPreset::User => {
-            rules.subject.cn = FieldRule::require(Vec::<String>::new());
-            rules.key_usages = Constraint::require(
-                [
-                    KeyUsage::DigitalSignature,
-                    KeyUsage::NonRepudiation,
-                    KeyUsage::KeyEncipherment,
-                ],
-                [KeyUsage::DigitalSignature],
-            );
-            rules.ext_key_usages = Constraint::require(
-                [
-                    ExtendedKeyUsage::ClientAuth,
-                    ExtendedKeyUsage::EmailProtection,
-                ],
-                [ExtendedKeyUsage::ClientAuth],
-            );
-            rules.basic_constraints.ca = CaRule::Forbid;
-        }
-        PolicyPreset::EmailProtection => {
-            rules.san.email = FieldRule::require(Vec::<String>::new());
-            rules.key_usages = Constraint::require(
-                [
-                    KeyUsage::DigitalSignature,
-                    KeyUsage::NonRepudiation,
-                    KeyUsage::KeyEncipherment,
-                ],
-                [KeyUsage::DigitalSignature],
-            );
-            rules.ext_key_usages = Constraint::require(
-                [ExtendedKeyUsage::EmailProtection],
-                [ExtendedKeyUsage::EmailProtection],
-            );
-            rules.basic_constraints.ca = CaRule::Forbid;
-        }
-        PolicyPreset::DualPurposeServer => {
-            tls_algorithms(&mut rules);
-            rules.san.dns = FieldRule::require(Vec::<String>::new());
-            rules.key_usages = Constraint::require(
-                [
-                    KeyUsage::DigitalSignature,
-                    KeyUsage::KeyEncipherment,
-                    KeyUsage::KeyAgreement,
-                ],
-                [KeyUsage::DigitalSignature],
-            );
-            rules.ext_key_usages = Constraint::require(
-                [ExtendedKeyUsage::ServerAuth, ExtendedKeyUsage::ClientAuth],
-                [ExtendedKeyUsage::ServerAuth, ExtendedKeyUsage::ClientAuth],
-            );
-            rules.basic_constraints.ca = CaRule::Forbid;
-        }
-        PolicyPreset::IntermediateCa => {
-            rules.subject.cn = FieldRule::require(Vec::<String>::new());
-            // An authority certifies names, it does not carry them: every SAN
-            // class is switched off with the `allow`-with-no-values form.
-            let none = FieldRule::allow(Vec::<String>::new());
-            rules.san = SanRules {
-                dns: none.clone(),
-                ip: none.clone(),
-                email: none.clone(),
-                uri: none.clone(),
-                upn: none,
-            };
-            rules.key_usages = Constraint::require(
-                [
-                    KeyUsage::DigitalSignature,
-                    KeyUsage::KeyCertSign,
-                    KeyUsage::CrlSign,
-                ],
-                [KeyUsage::KeyCertSign, KeyUsage::CrlSign],
-            );
-            rules.basic_constraints = BasicConstraintRule {
-                ca: CaRule::Require,
-                max_path_len: Some(0),
-            };
-        }
-    }
+/// A rule demanding the field be present, with no whitelist.
+fn present() -> FieldRule {
+    FieldRule::require(Vec::<String>::new())
+}
+
+/// TLS server certificates: at least one DNS name, `serverAuth`, never a CA.
+fn tls_server_preset() -> PolicyRules {
+    let mut rules = tls_algorithm_rules();
+    rules.san.dns = present();
+    rules.key_usages = Constraint::require(
+        [
+            KeyUsage::DigitalSignature,
+            KeyUsage::KeyEncipherment,
+            KeyUsage::KeyAgreement,
+        ],
+        [KeyUsage::DigitalSignature],
+    );
+    rules.ext_key_usages = Constraint::require(
+        [ExtendedKeyUsage::ServerAuth],
+        [ExtendedKeyUsage::ServerAuth],
+    );
+    rules.basic_constraints.ca = CaRule::Forbid;
     rules
+}
+
+/// TLS client certificates: `clientAuth`, never a CA.
+fn tls_client_preset() -> PolicyRules {
+    let mut rules = tls_algorithm_rules();
+    rules.key_usages = Constraint::require(
+        [KeyUsage::DigitalSignature, KeyUsage::KeyAgreement],
+        [KeyUsage::DigitalSignature],
+    );
+    rules.ext_key_usages = Constraint::require(
+        [ExtendedKeyUsage::ClientAuth],
+        [ExtendedKeyUsage::ClientAuth],
+    );
+    rules.basic_constraints.ca = CaRule::Forbid;
+    rules
+}
+
+/// Code-signing certificates: a named subject, `codeSigning`, never a CA.
+fn code_signing_preset() -> PolicyRules {
+    PolicyRules {
+        subject: SubjectRules {
+            cn: present(),
+            ..SubjectRules::default()
+        },
+        key_usages: Constraint::require(
+            [KeyUsage::DigitalSignature, KeyUsage::NonRepudiation],
+            [KeyUsage::DigitalSignature],
+        ),
+        ext_key_usages: Constraint::require(
+            [
+                ExtendedKeyUsage::CodeSigning,
+                ExtendedKeyUsage::TimeStamping,
+            ],
+            [ExtendedKeyUsage::CodeSigning],
+        ),
+        basic_constraints: BasicConstraintRule {
+            ca: CaRule::Forbid,
+            max_path_len: None,
+        },
+        ..PolicyRules::default()
+    }
+}
+
+/// Device identity certificates: `clientAuth`, optionally `serverAuth` for
+/// mutually authenticated device-to-device TLS, never a CA.
+fn device_preset() -> PolicyRules {
+    PolicyRules {
+        key_usages: Constraint::require(
+            [
+                KeyUsage::DigitalSignature,
+                KeyUsage::KeyEncipherment,
+                KeyUsage::KeyAgreement,
+            ],
+            [KeyUsage::DigitalSignature],
+        ),
+        ext_key_usages: Constraint::require(
+            [ExtendedKeyUsage::ClientAuth, ExtendedKeyUsage::ServerAuth],
+            [ExtendedKeyUsage::ClientAuth],
+        ),
+        basic_constraints: BasicConstraintRule {
+            ca: CaRule::Forbid,
+            max_path_len: None,
+        },
+        ..PolicyRules::default()
+    }
+}
+
+/// Human user certificates: a named subject, `clientAuth`, never a CA.
+fn user_preset() -> PolicyRules {
+    PolicyRules {
+        subject: SubjectRules {
+            cn: present(),
+            ..SubjectRules::default()
+        },
+        key_usages: Constraint::require(
+            [
+                KeyUsage::DigitalSignature,
+                KeyUsage::NonRepudiation,
+                KeyUsage::KeyEncipherment,
+            ],
+            [KeyUsage::DigitalSignature],
+        ),
+        ext_key_usages: Constraint::require(
+            [
+                ExtendedKeyUsage::ClientAuth,
+                ExtendedKeyUsage::EmailProtection,
+            ],
+            [ExtendedKeyUsage::ClientAuth],
+        ),
+        basic_constraints: BasicConstraintRule {
+            ca: CaRule::Forbid,
+            max_path_len: None,
+        },
+        ..PolicyRules::default()
+    }
+}
+
+/// S/MIME certificates: at least one e-mail SAN, `emailProtection`, never a CA.
+fn email_protection_preset() -> PolicyRules {
+    PolicyRules {
+        san: SanRules {
+            email: present(),
+            ..SanRules::default()
+        },
+        key_usages: Constraint::require(
+            [
+                KeyUsage::DigitalSignature,
+                KeyUsage::NonRepudiation,
+                KeyUsage::KeyEncipherment,
+            ],
+            [KeyUsage::DigitalSignature],
+        ),
+        ext_key_usages: Constraint::require(
+            [ExtendedKeyUsage::EmailProtection],
+            [ExtendedKeyUsage::EmailProtection],
+        ),
+        basic_constraints: BasicConstraintRule {
+            ca: CaRule::Forbid,
+            max_path_len: None,
+        },
+        ..PolicyRules::default()
+    }
+}
+
+/// Certificates usable as both TLS server and TLS client.
+fn dual_purpose_server_preset() -> PolicyRules {
+    let mut rules = tls_algorithm_rules();
+    rules.san.dns = present();
+    rules.key_usages = Constraint::require(
+        [
+            KeyUsage::DigitalSignature,
+            KeyUsage::KeyEncipherment,
+            KeyUsage::KeyAgreement,
+        ],
+        [KeyUsage::DigitalSignature],
+    );
+    rules.ext_key_usages = Constraint::require(
+        [ExtendedKeyUsage::ServerAuth, ExtendedKeyUsage::ClientAuth],
+        [ExtendedKeyUsage::ServerAuth, ExtendedKeyUsage::ClientAuth],
+    );
+    rules.basic_constraints.ca = CaRule::Forbid;
+    rules
+}
+
+/// Subordinate authorities: a named subject, `keyCertSign` and `cRLSign`, a CA
+/// with no further chaining, and no subject alternative names at all — an
+/// authority certifies names, it does not carry them. Every SAN class is
+/// switched off with the `allow`-with-no-values form.
+fn intermediate_ca_preset() -> PolicyRules {
+    let none = FieldRule::allow(Vec::<String>::new());
+    PolicyRules {
+        subject: SubjectRules {
+            cn: present(),
+            ..SubjectRules::default()
+        },
+        san: SanRules {
+            dns: none.clone(),
+            ip: none.clone(),
+            email: none.clone(),
+            uri: none.clone(),
+            upn: none,
+        },
+        key_usages: Constraint::require(
+            [
+                KeyUsage::DigitalSignature,
+                KeyUsage::KeyCertSign,
+                KeyUsage::CrlSign,
+            ],
+            [KeyUsage::KeyCertSign, KeyUsage::CrlSign],
+        ),
+        basic_constraints: BasicConstraintRule {
+            ca: CaRule::Require,
+            max_path_len: Some(0),
+        },
+        ..PolicyRules::default()
+    }
 }
 
 /// Convenience wrapper turning an evaluation failure into a [`PkiError`].
@@ -837,10 +929,12 @@ mod tests {
 
     #[test]
     fn single_valued_fields_cover_the_whole_three_state_matrix() {
-        let with_cn = |rule: FieldRule| {
-            let mut rules = PolicyRules::default();
-            rules.subject.cn = rule;
-            rules
+        let with_cn = |rule: FieldRule| PolicyRules {
+            subject: SubjectRules {
+                cn: rule,
+                ..SubjectRules::default()
+            },
+            ..PolicyRules::default()
         };
         let absent = PolicyCandidate {
             subject: SubjectDn::default(),
@@ -900,10 +994,12 @@ mod tests {
 
     #[test]
     fn multi_valued_san_rules_cover_the_whole_three_state_matrix() {
-        let with_dns = |rule: FieldRule| {
-            let mut rules = PolicyRules::default();
-            rules.san.dns = rule;
-            rules
+        let with_dns = |rule: FieldRule| PolicyRules {
+            san: SanRules {
+                dns: rule,
+                ..SanRules::default()
+            },
+            ..PolicyRules::default()
         };
         let no_sans = PolicyCandidate {
             sans: Vec::new(),
@@ -984,10 +1080,12 @@ mod tests {
 
     #[test]
     fn domain_components_match_positionally_with_wildcards() {
-        let with_dc = |rule: DcRule| {
-            let mut rules = PolicyRules::default();
-            rules.subject.dc = rule;
-            rules
+        let with_dc = |rule: DcRule| PolicyRules {
+            subject: SubjectRules {
+                dc: rule,
+                ..SubjectRules::default()
+            },
+            ..PolicyRules::default()
         };
         let subject = SubjectDn {
             cn: Some("api".into()),
@@ -1046,10 +1144,9 @@ mod tests {
 
     #[test]
     fn scalar_constraints_cover_every_mode() {
-        let with_key = |constraint: Constraint<KeyAlgorithm>| {
-            let mut rules = PolicyRules::default();
-            rules.key_algorithms = constraint;
-            rules
+        let with_key = |constraint: Constraint<KeyAlgorithm>| PolicyRules {
+            key_algorithms: constraint,
+            ..PolicyRules::default()
         };
         let unknown = PolicyCandidate {
             key_algorithm: None,
@@ -1097,10 +1194,9 @@ mod tests {
 
     #[test]
     fn set_constraints_cover_every_mode() {
-        let with_eku = |constraint: Constraint<ExtendedKeyUsage>| {
-            let mut rules = PolicyRules::default();
-            rules.ext_key_usages = constraint;
-            rules
+        let with_eku = |constraint: Constraint<ExtendedKeyUsage>| PolicyRules {
+            ext_key_usages: constraint,
+            ..PolicyRules::default()
         };
         assert!(evaluate(&with_eku(Constraint::default()), &candidate()).is_ok());
         assert_eq!(
@@ -1135,18 +1231,25 @@ mod tests {
             }),
             ..candidate()
         };
-        let mut forbid = PolicyRules::default();
-        forbid.basic_constraints.ca = CaRule::Forbid;
+        let forbid = PolicyRules {
+            basic_constraints: BasicConstraintRule {
+                ca: CaRule::Forbid,
+                max_path_len: None,
+            },
+            ..PolicyRules::default()
+        };
         assert!(evaluate(&forbid, &candidate()).is_ok());
         assert_eq!(
             fields(&evaluate(&forbid, &ca_candidate).unwrap_err()),
             ["basic_constraints.ca"]
         );
 
-        let mut require = PolicyRules::default();
-        require.basic_constraints = BasicConstraintRule {
-            ca: CaRule::Require,
-            max_path_len: Some(1),
+        let require = PolicyRules {
+            basic_constraints: BasicConstraintRule {
+                ca: CaRule::Require,
+                max_path_len: Some(1),
+            },
+            ..PolicyRules::default()
         };
         assert_eq!(
             fields(&evaluate(&require, &candidate()).unwrap_err()),
@@ -1167,8 +1270,13 @@ mod tests {
             evaluate(&require, &unconstrained).unwrap_err()[0].reason,
             "an unconstrained path length is not permitted"
         );
-        let mut allow = PolicyRules::default();
-        allow.basic_constraints.ca = CaRule::Allow;
+        let allow = PolicyRules {
+            basic_constraints: BasicConstraintRule {
+                ca: CaRule::Allow,
+                max_path_len: None,
+            },
+            ..PolicyRules::default()
+        };
         assert!(evaluate(&allow, &ca_candidate).is_ok());
     }
 
@@ -1189,9 +1297,9 @@ mod tests {
         }
     }
 
-    /// A conforming and a violating candidate for each preset.
-    pub(crate) fn preset_fixtures(name: PolicyPreset) -> (PolicyCandidate, PolicyCandidate) {
-        let base = PolicyCandidate {
+    /// The baseline candidate every preset fixture is derived from.
+    fn preset_base() -> PolicyCandidate {
+        PolicyCandidate {
             subject: SubjectDn::common_name("subject.example.com"),
             sans: vec![SanEntry::Dns("subject.example.com".into())],
             key_algorithm: Some(KeyAlgorithm::EcdsaP256),
@@ -1203,106 +1311,75 @@ mod tests {
                 max_path_len: None,
             }),
             ttl_seconds: Some(3600),
-        };
+        }
+    }
+
+    /// The baseline with a specific extended-key-usage set.
+    fn with_ekus(usages: &[ExtendedKeyUsage]) -> PolicyCandidate {
+        PolicyCandidate {
+            ext_key_usages: usages.to_vec(),
+            ..preset_base()
+        }
+    }
+
+    /// A conforming and a violating candidate for each preset.
+    pub(crate) fn preset_fixtures(name: PolicyPreset) -> (PolicyCandidate, PolicyCandidate) {
         let ca_bad = PolicyCandidate {
             basic_constraints: Some(BasicConstraints {
                 ca: true,
                 max_path_len: None,
             }),
-            ..base.clone()
+            ..preset_base()
         };
         match name {
-            PolicyPreset::TlsServer => (
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::ServerAuth],
-                    ..base
-                },
-                ca_bad,
-            ),
+            PolicyPreset::TlsServer => (with_ekus(&[ExtendedKeyUsage::ServerAuth]), ca_bad),
             PolicyPreset::TlsClient => (
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::ClientAuth],
-                    ..base.clone()
-                },
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::ServerAuth],
-                    ..base
-                },
+                with_ekus(&[ExtendedKeyUsage::ClientAuth]),
+                with_ekus(&[ExtendedKeyUsage::ServerAuth]),
             ),
             PolicyPreset::CodeSigning => (
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::CodeSigning],
-                    ..base.clone()
-                },
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::ServerAuth],
-                    ..base
-                },
+                with_ekus(&[ExtendedKeyUsage::CodeSigning]),
+                with_ekus(&[ExtendedKeyUsage::ServerAuth]),
             ),
             PolicyPreset::Device => (
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::ClientAuth],
-                    ..base.clone()
-                },
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::CodeSigning],
-                    ..base
-                },
+                with_ekus(&[ExtendedKeyUsage::ClientAuth]),
+                with_ekus(&[ExtendedKeyUsage::CodeSigning]),
             ),
             PolicyPreset::User => (
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::ClientAuth],
-                    ..base.clone()
-                },
+                with_ekus(&[ExtendedKeyUsage::ClientAuth]),
                 PolicyCandidate {
                     subject: SubjectDn::default(),
-                    ext_key_usages: vec![ExtendedKeyUsage::ClientAuth],
-                    ..base
+                    ..with_ekus(&[ExtendedKeyUsage::ClientAuth])
                 },
             ),
             PolicyPreset::EmailProtection => (
                 PolicyCandidate {
                     sans: vec![SanEntry::Email("ops@example.com".into())],
-                    ext_key_usages: vec![ExtendedKeyUsage::EmailProtection],
-                    ..base.clone()
+                    ..with_ekus(&[ExtendedKeyUsage::EmailProtection])
                 },
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::EmailProtection],
-                    ..base
-                },
+                with_ekus(&[ExtendedKeyUsage::EmailProtection]),
             ),
             PolicyPreset::DualPurposeServer => (
-                PolicyCandidate {
-                    ext_key_usages: vec![
-                        ExtendedKeyUsage::ServerAuth,
-                        ExtendedKeyUsage::ClientAuth,
-                    ],
-                    ..base.clone()
-                },
-                PolicyCandidate {
-                    ext_key_usages: vec![ExtendedKeyUsage::ServerAuth],
-                    ..base
-                },
+                with_ekus(&[ExtendedKeyUsage::ServerAuth, ExtendedKeyUsage::ClientAuth]),
+                with_ekus(&[ExtendedKeyUsage::ServerAuth]),
             ),
-            PolicyPreset::IntermediateCa => (
-                PolicyCandidate {
-                    sans: Vec::new(),
+            PolicyPreset::IntermediateCa => {
+                let authority = PolicyCandidate {
                     key_usages: vec![KeyUsage::KeyCertSign, KeyUsage::CrlSign],
                     basic_constraints: Some(BasicConstraints {
                         ca: true,
                         max_path_len: Some(0),
                     }),
-                    ..base.clone()
-                },
-                PolicyCandidate {
-                    key_usages: vec![KeyUsage::KeyCertSign, KeyUsage::CrlSign],
-                    basic_constraints: Some(BasicConstraints {
-                        ca: true,
-                        max_path_len: Some(0),
-                    }),
-                    ..base
-                },
-            ),
+                    ..preset_base()
+                };
+                (
+                    PolicyCandidate {
+                        sans: Vec::new(),
+                        ..authority.clone()
+                    },
+                    authority,
+                )
+            }
         }
     }
 
@@ -1370,6 +1447,7 @@ mod tests {
     fn violations_are_reported_in_a_stable_order() {
         let mut rules = preset(PolicyPreset::TlsServer);
         rules.subject.cn = FieldRule::require(["*.internal.test"]);
+
         let broken = PolicyCandidate {
             sans: Vec::new(),
             key_algorithm: Some(KeyAlgorithm::Ed25519),

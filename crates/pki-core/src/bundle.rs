@@ -41,6 +41,10 @@ pub struct Pkcs12Entry {
     pub private_key_pkcs8_pem: Option<Zeroizing<String>>,
 }
 
+// The omitted field carries private key material. Printing it would defeat the
+// crate's secrecy invariant (see the crate docs) and leak keys into logs and
+// panic output, so the redaction is deliberate.
+#[allow(clippy::missing_fields_in_debug)]
 impl std::fmt::Debug for Pkcs12Entry {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter

@@ -278,7 +278,7 @@ mod tests {
             check_distribution_urls(&["http://é.example.com".into()]).unwrap_err(),
             PkiError::InvalidName
         );
-        let many: Vec<String> = (0..MAX_DISTRIBUTION_URLS + 1)
+        let many: Vec<String> = (0..=MAX_DISTRIBUTION_URLS)
             .map(|index| format!("http://crl{index}.example.com"))
             .collect();
         assert_eq!(

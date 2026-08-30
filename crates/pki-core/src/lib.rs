@@ -1,4 +1,4 @@
-//! Provider-agnostic X.509 engine for the OpenSesame certificate manager
+//! Provider-agnostic X.509 engine for the `OpenSesame` certificate manager
 //! (ADR 0066 domain model, ADR 0067 revocation).
 //!
 //! A pure library: no HTTP surface, no database, no `axum`. Everything the

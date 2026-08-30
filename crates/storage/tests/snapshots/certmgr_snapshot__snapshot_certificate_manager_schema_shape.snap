@@ -1,0 +1,669 @@
+---
+source: crates/storage/tests/certmgr_snapshot.rs
+expression: "json!({\n    \"migration\": \"0016_certificate_manager\", \"tables\": new_tables, \"indexes\":\n    new_indexes, \"extended_certificate_authorities\":\n    columns(&db, \"certificate_authorities\").await,\n    \"extended_issued_certificates\": columns(&db, \"issued_certificates\").await,\n})"
+---
+{
+  "extended_certificate_authorities": [
+    {
+      "default": null,
+      "name": "id",
+      "not_null": false,
+      "primary_key": true,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "organization_id",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "issuer_kind",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "issuer_connection_id",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "display_name",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "public_metadata_json",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "sealed_key_id",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "sealed_ciphertext",
+      "not_null": true,
+      "primary_key": false,
+      "type": "BLOB"
+    },
+    {
+      "default": null,
+      "name": "sealed_nonce",
+      "not_null": true,
+      "primary_key": false,
+      "type": "BLOB"
+    },
+    {
+      "default": null,
+      "name": "sealed_aad_digest",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "0",
+      "name": "is_default",
+      "not_null": true,
+      "primary_key": false,
+      "type": "INTEGER"
+    },
+    {
+      "default": null,
+      "name": "status",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "1",
+      "name": "version",
+      "not_null": true,
+      "primary_key": false,
+      "type": "INTEGER"
+    },
+    {
+      "default": null,
+      "name": "created_at",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "updated_at",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "'root'",
+      "name": "kind",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "parent_id",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "'ecdsa-p256'",
+      "name": "key_algorithm",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "subject_json",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "path_len",
+      "not_null": false,
+      "primary_key": false,
+      "type": "INTEGER"
+    },
+    {
+      "default": "'sealed'",
+      "name": "key_source",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "hsm_connector_id",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "hsm_key_label",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "1",
+      "name": "crl_enabled",
+      "not_null": true,
+      "primary_key": false,
+      "type": "INTEGER"
+    },
+    {
+      "default": null,
+      "name": "crl_mirrors_json",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "pending_csr_pem",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    }
+  ],
+  "extended_issued_certificates": [
+    {
+      "default": null,
+      "name": "id",
+      "not_null": false,
+      "primary_key": true,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "organization_id",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "authority_id",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "request_id",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "certificate_digest",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "serial_number",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "common_name",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "san_json",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "not_before",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "expires_at",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "status",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "1",
+      "name": "version",
+      "not_null": true,
+      "primary_key": false,
+      "type": "INTEGER"
+    },
+    {
+      "default": null,
+      "name": "created_at",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "updated_at",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "application_id",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "profile_id",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "'issued'",
+      "name": "source",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "enrollment_method",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "'{}'",
+      "name": "metadata_json",
+      "not_null": true,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "key_algorithm",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "signature_algorithm",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "fingerprint_sha256",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "chain_pem",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "renewed_from_id",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": null,
+      "name": "renewed_by_id",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    },
+    {
+      "default": "0",
+      "name": "auto_renew_enabled",
+      "not_null": true,
+      "primary_key": false,
+      "type": "INTEGER"
+    },
+    {
+      "default": null,
+      "name": "renew_before_seconds",
+      "not_null": false,
+      "primary_key": false,
+      "type": "INTEGER"
+    },
+    {
+      "default": null,
+      "name": "revocation_reason",
+      "not_null": false,
+      "primary_key": false,
+      "type": "INTEGER"
+    },
+    {
+      "default": null,
+      "name": "revoked_at",
+      "not_null": false,
+      "primary_key": false,
+      "type": "TEXT"
+    }
+  ],
+  "indexes": [
+    {
+      "ddl": "CREATE INDEX idx_acme_challenges_authz ON acme_challenges(organization_id, authz_id, status)",
+      "index": "idx_acme_challenges_authz",
+      "table": "acme_challenges"
+    },
+    {
+      "ddl": "CREATE INDEX idx_acme_nonces_issued ON acme_nonces(organization_id, issued_at)",
+      "index": "idx_acme_nonces_issued",
+      "table": "acme_nonces"
+    },
+    {
+      "ddl": "CREATE INDEX idx_acme_orders_account ON acme_orders(organization_id, account_id, status, expires_at)",
+      "index": "idx_acme_orders_account",
+      "table": "acme_orders"
+    },
+    {
+      "ddl": "CREATE INDEX idx_alert_deliveries_alert ON alert_deliveries(organization_id, alert_id, created_at)",
+      "index": "idx_alert_deliveries_alert",
+      "table": "alert_deliveries"
+    },
+    {
+      "ddl": "CREATE INDEX idx_approval_policies_scope ON approval_policies(organization_id, scope, application_id, signer_id)",
+      "index": "idx_approval_policies_scope",
+      "table": "approval_policies"
+    },
+    {
+      "ddl": "CREATE INDEX idx_approval_requests_policy ON approval_requests(organization_id, policy_id, created_at)",
+      "index": "idx_approval_requests_policy",
+      "table": "approval_requests"
+    },
+    {
+      "ddl": "CREATE INDEX idx_approval_requests_status ON approval_requests(organization_id, status, expires_at)",
+      "index": "idx_approval_requests_status",
+      "table": "approval_requests"
+    },
+    {
+      "ddl": "CREATE INDEX idx_cert_alerts_application ON cert_alerts(organization_id, application_id, type)",
+      "index": "idx_cert_alerts_application",
+      "table": "cert_alerts"
+    },
+    {
+      "ddl": "CREATE INDEX idx_cert_syncs_certificate ON cert_syncs(organization_id, certificate_id, enabled)",
+      "index": "idx_cert_syncs_certificate",
+      "table": "cert_syncs"
+    },
+    {
+      "ddl": "CREATE INDEX idx_certificate_policies_org_preset ON certificate_policies(organization_id, preset, name)",
+      "index": "idx_certificate_policies_org_preset",
+      "table": "certificate_policies"
+    },
+    {
+      "ddl": "CREATE INDEX idx_certificate_profiles_org_policy ON certificate_profiles(organization_id, policy_id, name)",
+      "index": "idx_certificate_profiles_org_policy",
+      "table": "certificate_profiles"
+    },
+    {
+      "ddl": "CREATE INDEX idx_certificate_revocations_ca ON certificate_revocations(organization_id, ca_id, revoked_at)",
+      "index": "idx_certificate_revocations_ca",
+      "table": "certificate_revocations"
+    },
+    {
+      "ddl": "CREATE INDEX idx_discovery_installations_fingerprint ON discovery_installations(organization_id, fingerprint_sha256)",
+      "index": "idx_discovery_installations_fingerprint",
+      "table": "discovery_installations"
+    },
+    {
+      "ddl": "CREATE INDEX idx_discovery_installations_job ON discovery_installations(organization_id, job_id, last_seen_at)",
+      "index": "idx_discovery_installations_job",
+      "table": "discovery_installations"
+    },
+    {
+      "ddl": "CREATE INDEX idx_discovery_jobs_org_status ON discovery_jobs(organization_id, status, last_scan_at)",
+      "index": "idx_discovery_jobs_org_status",
+      "table": "discovery_jobs"
+    },
+    {
+      "ddl": "CREATE INDEX idx_enrollment_configs_profile_method ON enrollment_configs(organization_id, profile_id, method, enabled)",
+      "index": "idx_enrollment_configs_profile_method",
+      "table": "enrollment_configs"
+    },
+    {
+      "ddl": "CREATE INDEX idx_external_ca_configs_org_kind ON external_ca_configs(organization_id, kind, trust_class)",
+      "index": "idx_external_ca_configs_org_kind",
+      "table": "external_ca_configs"
+    },
+    {
+      "ddl": "CREATE INDEX idx_issued_certificates_application ON issued_certificates(organization_id, application_id, status)",
+      "index": "idx_issued_certificates_application",
+      "table": "issued_certificates"
+    },
+    {
+      "ddl": "CREATE INDEX idx_issued_certificates_expiry ON issued_certificates(organization_id, status, expires_at)",
+      "index": "idx_issued_certificates_expiry",
+      "table": "issued_certificates"
+    },
+    {
+      "ddl": "CREATE INDEX idx_issued_certificates_fingerprint ON issued_certificates(organization_id, fingerprint_sha256)",
+      "index": "idx_issued_certificates_fingerprint",
+      "table": "issued_certificates"
+    },
+    {
+      "ddl": "CREATE INDEX idx_issued_certificates_org_expiry ON issued_certificates(organization_id, status, expires_at)",
+      "index": "idx_issued_certificates_org_expiry",
+      "table": "issued_certificates"
+    },
+    {
+      "ddl": "CREATE INDEX idx_issued_certificates_profile ON issued_certificates(organization_id, profile_id, status)",
+      "index": "idx_issued_certificates_profile",
+      "table": "issued_certificates"
+    },
+    {
+      "ddl": "CREATE INDEX idx_pki_application_members_subject ON pki_application_members(organization_id, subject, role)",
+      "index": "idx_pki_application_members_subject",
+      "table": "pki_application_members"
+    },
+    {
+      "ddl": "CREATE INDEX idx_scep_challenges_config ON scep_challenges(organization_id, config_id, expires_at)",
+      "index": "idx_scep_challenges_config",
+      "table": "scep_challenges"
+    },
+    {
+      "ddl": "CREATE INDEX idx_signer_members_subject ON signer_members(organization_id, subject, role)",
+      "index": "idx_signer_members_subject",
+      "table": "signer_members"
+    },
+    {
+      "ddl": "CREATE INDEX idx_signers_org_status ON signers(organization_id, status, name)",
+      "index": "idx_signers_org_status",
+      "table": "signers"
+    },
+    {
+      "ddl": "CREATE INDEX idx_signing_access_records_signer ON signing_access_records(organization_id, signer_id, status, window_expires_at)",
+      "index": "idx_signing_access_records_signer",
+      "table": "signing_access_records"
+    },
+    {
+      "ddl": "CREATE INDEX idx_signing_events_signer ON signing_events(organization_id, signer_id, occurred_at)",
+      "index": "idx_signing_events_signer",
+      "table": "signing_events"
+    },
+    {
+      "ddl": "CREATE INDEX idx_sync_runs_sync ON sync_runs(organization_id, sync_id, ran_at)",
+      "index": "idx_sync_runs_sync",
+      "table": "sync_runs"
+    }
+  ],
+  "migration": "0016_certificate_manager",
+  "tables": [
+    {
+      "ddl": "CREATE TABLE acme_challenges ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, order_id TEXT NOT NULL, authz_id TEXT NOT NULL, type TEXT NOT NULL CHECK (type IN ('http-01', 'dns-01')), token TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'valid', 'invalid')), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, order_id, authz_id, type), FOREIGN KEY (organization_id, order_id) REFERENCES acme_orders(organization_id, id) ON DELETE CASCADE, CHECK (length(token) > 0) )",
+      "table": "acme_challenges"
+    },
+    {
+      "ddl": "CREATE TABLE acme_nonces ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, nonce TEXT NOT NULL, issued_at TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, nonce), CHECK (length(nonce) > 0) )",
+      "table": "acme_nonces"
+    },
+    {
+      "ddl": "CREATE TABLE acme_orders ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, account_id TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('pending', 'ready', 'processing', 'valid', 'invalid')), identifiers_json TEXT NOT NULL, expires_at TEXT NOT NULL, finalize_csr_pem TEXT, certificate_id TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), FOREIGN KEY (organization_id, account_id) REFERENCES acme_server_accounts(organization_id, id) ON DELETE CASCADE, FOREIGN KEY (organization_id, certificate_id) REFERENCES issued_certificates(organization_id, id) )",
+      "table": "acme_orders"
+    },
+    {
+      "ddl": "CREATE TABLE acme_server_accounts ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, profile_id TEXT NOT NULL, jwk_thumbprint TEXT NOT NULL, eab_kid TEXT, status TEXT NOT NULL DEFAULT 'valid' CHECK (status IN ('valid', 'deactivated')), contacts_json TEXT NOT NULL DEFAULT '[]', version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, profile_id, jwk_thumbprint), FOREIGN KEY (organization_id, profile_id) REFERENCES certificate_profiles(organization_id, id) ON DELETE CASCADE, CHECK (length(jwk_thumbprint) > 0) )",
+      "table": "acme_server_accounts"
+    },
+    {
+      "ddl": "CREATE TABLE alert_deliveries ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, alert_id TEXT NOT NULL, channel TEXT NOT NULL, outcome TEXT NOT NULL CHECK (outcome IN ('succeeded', 'failed', 'pending')), attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0), last_attempt_at TEXT, payload_digest TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), FOREIGN KEY (organization_id, alert_id) REFERENCES cert_alerts(organization_id, id) ON DELETE CASCADE )",
+      "table": "alert_deliveries"
+    },
+    {
+      "ddl": "CREATE TABLE approval_decisions ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, request_id TEXT NOT NULL, step_seq INTEGER NOT NULL CHECK (step_seq >= 0), approver TEXT NOT NULL, decision TEXT NOT NULL CHECK (decision IN ('approve', 'reject')), comment TEXT, decided_at TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, request_id, step_seq, approver), FOREIGN KEY (organization_id, request_id) REFERENCES approval_requests(organization_id, id) ON DELETE CASCADE, CHECK (length(approver) > 0) )",
+      "table": "approval_decisions"
+    },
+    {
+      "ddl": "CREATE TABLE approval_policies ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, scope TEXT NOT NULL CHECK (scope IN ('issuance', 'signing')), application_id TEXT, signer_id TEXT, name TEXT NOT NULL, max_request_ttl_seconds INTEGER CHECK (max_request_ttl_seconds IS NULL OR max_request_ttl_seconds > 0), machine_bypass INTEGER NOT NULL DEFAULT 0 CHECK (machine_bypass IN (0, 1)), covers_json TEXT NOT NULL DEFAULT '[]', version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, name), FOREIGN KEY (organization_id, application_id) REFERENCES pki_applications(organization_id, id) ON DELETE CASCADE, FOREIGN KEY (organization_id, signer_id) REFERENCES signers(organization_id, id) ON DELETE CASCADE, CHECK (length(name) > 0), CHECK ( (scope = 'issuance' AND signer_id IS NULL) OR (scope = 'signing' AND application_id IS NULL) ) )",
+      "table": "approval_policies"
+    },
+    {
+      "ddl": "CREATE TABLE approval_requests ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, policy_id TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('issuance', 'signing')), requester TEXT NOT NULL, status TEXT NOT NULL CHECK (status IN ('open', 'approved', 'rejected', 'cancelled', 'expired')), current_step INTEGER NOT NULL DEFAULT 0 CHECK (current_step >= 0), expires_at TEXT NOT NULL, payload_digest TEXT NOT NULL, scope_json TEXT NOT NULL, result_id TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), FOREIGN KEY (organization_id, policy_id) REFERENCES approval_policies(organization_id, id) ON DELETE CASCADE, CHECK (length(requester) > 0 AND length(payload_digest) > 0) )",
+      "table": "approval_requests"
+    },
+    {
+      "ddl": "CREATE TABLE approval_steps ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, policy_id TEXT NOT NULL, seq INTEGER NOT NULL CHECK (seq >= 0), name TEXT NOT NULL, approvers_json TEXT NOT NULL, required_count INTEGER NOT NULL CHECK (required_count > 0), notify INTEGER NOT NULL DEFAULT 1 CHECK (notify IN (0, 1)), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, policy_id, seq), FOREIGN KEY (organization_id, policy_id) REFERENCES approval_policies(organization_id, id) ON DELETE CASCADE )",
+      "table": "approval_steps"
+    },
+    {
+      "ddl": "CREATE TABLE cert_alerts ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, application_id TEXT NOT NULL, type TEXT NOT NULL CHECK (type IN ('expiration', 'issuance', 'renewal', 'revocation')), before_window_seconds INTEGER CHECK (before_window_seconds IS NULL OR before_window_seconds > 0), daily_reminder INTEGER NOT NULL DEFAULT 0 CHECK (daily_reminder IN (0, 1)), channels_json TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), FOREIGN KEY (organization_id, application_id) REFERENCES pki_applications(organization_id, id) ON DELETE CASCADE )",
+      "table": "cert_alerts"
+    },
+    {
+      "ddl": "CREATE TABLE cert_syncs ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, certificate_id TEXT NOT NULL, destination_kind TEXT NOT NULL, connection_id TEXT NOT NULL, name_schema TEXT NOT NULL, remove_on_expiry INTEGER NOT NULL DEFAULT 0 CHECK (remove_on_expiry IN (0, 1)), include_root INTEGER NOT NULL DEFAULT 0 CHECK (include_root IN (0, 1)), options_json TEXT NOT NULL DEFAULT '{}', enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)), last_run_at TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, certificate_id, destination_kind, connection_id), FOREIGN KEY (organization_id, certificate_id) REFERENCES issued_certificates(organization_id, id) ON DELETE CASCADE, CHECK (length(destination_kind) > 0 AND length(connection_id) > 0) )",
+      "table": "cert_syncs"
+    },
+    {
+      "ddl": "CREATE TABLE certificate_policies ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT, preset TEXT NOT NULL CHECK (preset IN ('tls_server', 'tls_client', 'code_signing', 'device', 'user', 'email_protection', 'dual_purpose_server', 'intermediate_ca', 'custom')), max_validity_seconds INTEGER CHECK (max_validity_seconds IS NULL OR max_validity_seconds > 0), rules_json TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, name), CHECK (length(name) > 0) )",
+      "table": "certificate_policies"
+    },
+    {
+      "ddl": "CREATE TABLE certificate_profiles ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, name TEXT NOT NULL, issuer_type TEXT NOT NULL CHECK (issuer_type IN ('ca', 'self_signed')), certificate_authority_id TEXT, policy_id TEXT NOT NULL, defaults_json TEXT NOT NULL, external_template TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, name), FOREIGN KEY (organization_id, policy_id) REFERENCES certificate_policies(organization_id, id), FOREIGN KEY (organization_id, certificate_authority_id) REFERENCES certificate_authorities(organization_id, id), CHECK (length(name) > 0), CHECK (issuer_type = 'self_signed' OR certificate_authority_id IS NOT NULL) )",
+      "table": "certificate_profiles"
+    },
+    {
+      "ddl": "CREATE TABLE certificate_revocations ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, certificate_id TEXT NOT NULL, ca_id TEXT NOT NULL, serial TEXT NOT NULL, reason_code INTEGER NOT NULL CHECK (reason_code BETWEEN 0 AND 10 AND reason_code <> 7), revoked_at TEXT NOT NULL, crl_number INTEGER CHECK (crl_number IS NULL OR crl_number >= 0), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, ca_id, serial), FOREIGN KEY (organization_id, ca_id) REFERENCES certificate_authorities(organization_id, id), FOREIGN KEY (organization_id, certificate_id) REFERENCES issued_certificates(organization_id, id) ON DELETE CASCADE )",
+      "table": "certificate_revocations"
+    },
+    {
+      "ddl": "CREATE TABLE crl_state ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, ca_id TEXT NOT NULL, crl_number INTEGER NOT NULL CHECK (crl_number >= 0), this_update TEXT NOT NULL, next_update TEXT NOT NULL, sealed_der_key_id TEXT, sealed_der_ciphertext BLOB, sealed_der_nonce BLOB, sealed_der_aad_digest TEXT, mirror_urls_json TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, ca_id), FOREIGN KEY (organization_id, ca_id) REFERENCES certificate_authorities(organization_id, id) ON DELETE CASCADE, CHECK ( (sealed_der_key_id IS NULL AND sealed_der_ciphertext IS NULL AND sealed_der_nonce IS NULL AND sealed_der_aad_digest IS NULL) OR (sealed_der_key_id IS NOT NULL AND sealed_der_ciphertext IS NOT NULL AND sealed_der_nonce IS NOT NULL AND sealed_der_aad_digest IS NOT NULL AND length(sealed_der_key_id) > 0 AND length(sealed_der_ciphertext) > 0 AND length(sealed_der_nonce) > 0 AND length(sealed_der_aad_digest) > 0) ) )",
+      "table": "crl_state"
+    },
+    {
+      "ddl": "CREATE TABLE discovery_installations ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, job_id TEXT NOT NULL, host TEXT NOT NULL, port INTEGER NOT NULL CHECK (port BETWEEN 1 AND 65535), fingerprint_sha256 TEXT NOT NULL, cn TEXT, issuer TEXT, not_after TEXT, first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, change_log_json TEXT NOT NULL DEFAULT '[]', matched_certificate_id TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, job_id, host, port), FOREIGN KEY (organization_id, job_id) REFERENCES discovery_jobs(organization_id, id) ON DELETE CASCADE, CHECK (length(host) > 0 AND length(fingerprint_sha256) > 0) )",
+      "table": "discovery_installations"
+    },
+    {
+      "ddl": "CREATE TABLE discovery_jobs ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT, targets_json TEXT NOT NULL, ports_json TEXT NOT NULL, auto_scan INTEGER NOT NULL DEFAULT 0 CHECK (auto_scan IN (0, 1)), scan_interval_days INTEGER CHECK (scan_interval_days IS NULL OR scan_interval_days > 0), gateway_ref TEXT, allow_internal INTEGER NOT NULL DEFAULT 0 CHECK (allow_internal IN (0, 1)), last_scan_at TEXT, status TEXT NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'scanning', 'failed')), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, name), CHECK (length(name) > 0) )",
+      "table": "discovery_jobs"
+    },
+    {
+      "ddl": "CREATE TABLE enrollment_configs ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, application_id TEXT NOT NULL, profile_id TEXT NOT NULL, method TEXT NOT NULL CHECK (method IN ('api', 'acme', 'est', 'scep')), enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)), config_json TEXT NOT NULL, auto_renew_enabled INTEGER NOT NULL DEFAULT 0 CHECK (auto_renew_enabled IN (0, 1)), renew_before_seconds INTEGER CHECK (renew_before_seconds IS NULL OR renew_before_seconds > 0), sealed_secret_key_id TEXT, sealed_secret_ciphertext BLOB, sealed_secret_nonce BLOB, sealed_secret_aad_digest TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, application_id, profile_id, method), FOREIGN KEY (organization_id, application_id) REFERENCES pki_applications(organization_id, id) ON DELETE CASCADE, FOREIGN KEY (organization_id, profile_id) REFERENCES certificate_profiles(organization_id, id), CHECK ( (sealed_secret_key_id IS NULL AND sealed_secret_ciphertext IS NULL AND sealed_secret_nonce IS NULL AND sealed_secret_aad_digest IS NULL) OR (sealed_secret_key_id IS NOT NULL AND sealed_secret_ciphertext IS NOT NULL AND sealed_secret_nonce IS NOT NULL AND sealed_secret_aad_digest IS NOT NULL AND length(sealed_secret_key_id) > 0 AND length(sealed_secret_ciphertext) > 0 AND length(sealed_secret_nonce) > 0 AND length(sealed_secret_aad_digest) > 0) ) )",
+      "table": "enrollment_configs"
+    },
+    {
+      "ddl": "CREATE TABLE est_configs ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, profile_id TEXT NOT NULL, sealed_passphrase_key_id TEXT, sealed_passphrase_ciphertext BLOB, sealed_passphrase_nonce BLOB, sealed_passphrase_aad_digest TEXT, bootstrap_chain_pem TEXT, require_bootstrap INTEGER NOT NULL DEFAULT 1 CHECK (require_bootstrap IN (0, 1)), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, profile_id), FOREIGN KEY (organization_id, profile_id) REFERENCES certificate_profiles(organization_id, id) ON DELETE CASCADE, CHECK ( (sealed_passphrase_key_id IS NULL AND sealed_passphrase_ciphertext IS NULL AND sealed_passphrase_nonce IS NULL AND sealed_passphrase_aad_digest IS NULL) OR (sealed_passphrase_key_id IS NOT NULL AND sealed_passphrase_ciphertext IS NOT NULL AND sealed_passphrase_nonce IS NOT NULL AND sealed_passphrase_aad_digest IS NOT NULL AND length(sealed_passphrase_key_id) > 0 AND length(sealed_passphrase_ciphertext) > 0 AND length(sealed_passphrase_nonce) > 0 AND length(sealed_passphrase_aad_digest) > 0) ) )",
+      "table": "est_configs"
+    },
+    {
+      "ddl": "CREATE TABLE external_ca_configs ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK (kind IN ('aws_pca', 'digicert_acme', 'digicert_direct', 'sectigo', 'godaddy', 'azure_adcs', 'venafi_cloud', 'private_acme')), connection_id TEXT NOT NULL, config_json TEXT NOT NULL, trust_class TEXT NOT NULL CHECK (trust_class IN ('public_web', 'private_local', 'origin_only', 'test_only')), auto_renew INTEGER NOT NULL DEFAULT 0 CHECK (auto_renew IN (0, 1)), renew_before_seconds INTEGER CHECK (renew_before_seconds IS NULL OR renew_before_seconds > 0), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, kind, connection_id) )",
+      "table": "external_ca_configs"
+    },
+    {
+      "ddl": "CREATE TABLE hsm_connectors ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, label TEXT NOT NULL, sealed_pin_key_id TEXT, sealed_pin_ciphertext BLOB, sealed_pin_nonce BLOB, sealed_pin_aad_digest TEXT, module_hint TEXT NOT NULL, key_label_prefix TEXT, gateway_ref TEXT, status TEXT NOT NULL DEFAULT 'unverified' CHECK (status IN ('unverified', 'verified', 'failed')), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, label), CHECK (length(label) > 0), CHECK ( (sealed_pin_key_id IS NULL AND sealed_pin_ciphertext IS NULL AND sealed_pin_nonce IS NULL AND sealed_pin_aad_digest IS NULL) OR (sealed_pin_key_id IS NOT NULL AND sealed_pin_ciphertext IS NOT NULL AND sealed_pin_nonce IS NOT NULL AND sealed_pin_aad_digest IS NOT NULL AND length(sealed_pin_key_id) > 0 AND length(sealed_pin_ciphertext) > 0 AND length(sealed_pin_nonce) > 0 AND length(sealed_pin_aad_digest) > 0) ) )",
+      "table": "hsm_connectors"
+    },
+    {
+      "ddl": "CREATE TABLE managed_certificate_keys ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, certificate_id TEXT NOT NULL, sealed_key_key_id TEXT NOT NULL, sealed_key_ciphertext BLOB NOT NULL, sealed_key_nonce BLOB NOT NULL, sealed_key_aad_digest TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, certificate_id), FOREIGN KEY (organization_id, certificate_id) REFERENCES issued_certificates(organization_id, id) ON DELETE CASCADE, CHECK (length(sealed_key_key_id) > 0 AND length(sealed_key_ciphertext) > 0 AND length(sealed_key_nonce) > 0 AND length(sealed_key_aad_digest) > 0) )",
+      "table": "managed_certificate_keys"
+    },
+    {
+      "ddl": "CREATE TABLE pki_application_members ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, application_id TEXT NOT NULL, subject TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('admin', 'operator', 'auditor')), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, application_id, subject), FOREIGN KEY (organization_id, application_id) REFERENCES pki_applications(organization_id, id) ON DELETE CASCADE, CHECK (length(subject) > 0) )",
+      "table": "pki_application_members"
+    },
+    {
+      "ddl": "CREATE TABLE pki_applications ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, slug TEXT NOT NULL, display_name TEXT NOT NULL, description TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, slug), CHECK (length(slug) > 0 AND length(display_name) > 0) )",
+      "table": "pki_applications"
+    },
+    {
+      "ddl": "CREATE TABLE scep_challenges ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, config_id TEXT NOT NULL, challenge_hash TEXT NOT NULL, expires_at TEXT NOT NULL, consumed_at TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, config_id, challenge_hash), FOREIGN KEY (organization_id, config_id) REFERENCES scep_configs(organization_id, id) ON DELETE CASCADE, CHECK (length(challenge_hash) > 0) )",
+      "table": "scep_challenges"
+    },
+    {
+      "ddl": "CREATE TABLE scep_configs ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, profile_id TEXT NOT NULL, challenge_mode TEXT NOT NULL CHECK (challenge_mode IN ('static', 'dynamic')), sealed_static_secret_key_id TEXT, sealed_static_secret_ciphertext BLOB, sealed_static_secret_nonce BLOB, sealed_static_secret_aad_digest TEXT, ra_signs_with_ca INTEGER NOT NULL DEFAULT 1 CHECK (ra_signs_with_ca IN (0, 1)), include_ca_cert INTEGER NOT NULL DEFAULT 1 CHECK (include_ca_cert IN (0, 1)), allow_cert_renewal INTEGER NOT NULL DEFAULT 0 CHECK (allow_cert_renewal IN (0, 1)), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, profile_id), FOREIGN KEY (organization_id, profile_id) REFERENCES certificate_profiles(organization_id, id) ON DELETE CASCADE, CHECK ( (sealed_static_secret_key_id IS NULL AND sealed_static_secret_ciphertext IS NULL AND sealed_static_secret_nonce IS NULL AND sealed_static_secret_aad_digest IS NULL) OR (sealed_static_secret_key_id IS NOT NULL AND sealed_static_secret_ciphertext IS NOT NULL AND sealed_static_secret_nonce IS NOT NULL AND sealed_static_secret_aad_digest IS NOT NULL AND length(sealed_static_secret_key_id) > 0 AND length(sealed_static_secret_ciphertext) > 0 AND length(sealed_static_secret_nonce) > 0 AND length(sealed_static_secret_aad_digest) > 0) ) )",
+      "table": "scep_configs"
+    },
+    {
+      "ddl": "CREATE TABLE signer_members ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, signer_id TEXT NOT NULL, subject TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('administrator', 'operator', 'auditor')), version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, signer_id, subject), FOREIGN KEY (organization_id, signer_id) REFERENCES signers(organization_id, id) ON DELETE CASCADE, CHECK (length(subject) > 0) )",
+      "table": "signer_members"
+    },
+    {
+      "ddl": "CREATE TABLE signers ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, name TEXT NOT NULL, certificate_id TEXT, key_source TEXT NOT NULL CHECK (key_source IN ('sealed', 'hsm')), hsm_connector_id TEXT, hsm_key_label TEXT, status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'failed', 'disabled', 'expired')), auto_renew INTEGER NOT NULL DEFAULT 0 CHECK (auto_renew IN (0, 1)), renew_before_seconds INTEGER CHECK (renew_before_seconds IS NULL OR renew_before_seconds > 0), sealed_key_key_id TEXT, sealed_key_ciphertext BLOB, sealed_key_nonce BLOB, sealed_key_aad_digest TEXT, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), UNIQUE(organization_id, name), FOREIGN KEY (organization_id, certificate_id) REFERENCES issued_certificates(organization_id, id), FOREIGN KEY (organization_id, hsm_connector_id) REFERENCES hsm_connectors(organization_id, id), CHECK (length(name) > 0), CHECK (key_source = 'sealed' OR hsm_connector_id IS NOT NULL), CHECK ( (sealed_key_key_id IS NULL AND sealed_key_ciphertext IS NULL AND sealed_key_nonce IS NULL AND sealed_key_aad_digest IS NULL) OR (sealed_key_key_id IS NOT NULL AND sealed_key_ciphertext IS NOT NULL AND sealed_key_nonce IS NOT NULL AND sealed_key_aad_digest IS NOT NULL AND length(sealed_key_key_id) > 0 AND length(sealed_key_ciphertext) > 0 AND length(sealed_key_nonce) > 0 AND length(sealed_key_aad_digest) > 0) ) )",
+      "table": "signers"
+    },
+    {
+      "ddl": "CREATE TABLE signing_access_records ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, signer_id TEXT NOT NULL, approval_request_id TEXT, status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'expired', 'revoked', 'rejected')), signatures_allowed INTEGER CHECK (signatures_allowed IS NULL OR signatures_allowed > 0), signatures_used INTEGER NOT NULL DEFAULT 0 CHECK (signatures_used >= 0), window_expires_at TEXT, scope_json TEXT NOT NULL DEFAULT '{}', version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), FOREIGN KEY (organization_id, signer_id) REFERENCES signers(organization_id, id) ON DELETE CASCADE, FOREIGN KEY (organization_id, approval_request_id) REFERENCES approval_requests(organization_id, id), CHECK (signatures_allowed IS NULL OR signatures_used <= signatures_allowed) )",
+      "table": "signing_access_records"
+    },
+    {
+      "ddl": "CREATE TABLE signing_events ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, signer_id TEXT NOT NULL, access_record_id TEXT, outcome TEXT NOT NULL CHECK (outcome IN ('succeeded', 'failed', 'denied')), command TEXT, application_name TEXT, application_sha256 TEXT, hostname TEXT, os_username TEXT, ip TEXT, data_hash TEXT, occurred_at TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), FOREIGN KEY (organization_id, signer_id) REFERENCES signers(organization_id, id) ON DELETE CASCADE, FOREIGN KEY (organization_id, access_record_id) REFERENCES signing_access_records(organization_id, id) )",
+      "table": "signing_events"
+    },
+    {
+      "ddl": "CREATE TABLE sync_runs ( id TEXT PRIMARY KEY, organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE, sync_id TEXT NOT NULL, outcome TEXT NOT NULL CHECK (outcome IN ('succeeded', 'failed')), detail TEXT, ran_at TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1 CHECK (version > 0), created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(organization_id, id), FOREIGN KEY (organization_id, sync_id) REFERENCES cert_syncs(organization_id, id) ON DELETE CASCADE )",
+      "table": "sync_runs"
+    }
+  ]
+}
