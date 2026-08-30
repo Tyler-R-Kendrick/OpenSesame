@@ -72,6 +72,7 @@ pub(crate) fn parse_pem_blocks(
     if input.len() > MAX_PEM_BYTES {
         return Err(PkiError::TooLarge);
     }
+    check_armour(input, expected_label)?;
     let mut remaining = input.as_bytes();
     let mut blocks: Vec<Vec<u8>> = Vec::new();
     while !remaining.iter().all(u8::is_ascii_whitespace) {
@@ -90,6 +91,49 @@ pub(crate) fn parse_pem_blocks(
         return Err(PkiError::InvalidPem);
     }
     Ok(blocks)
+}
+
+/// Checks a PEM document's armour before any base64 is decoded.
+///
+/// Every `BEGIN` line must be closed by an `END` line carrying the *same*
+/// label, and that label must be the kind the caller asked for. A document
+/// whose own labels disagree — `BEGIN CERTIFICATE` closed by
+/// `END X509 CRL` — is malformed, and accepting it would mean the label
+/// carries no information about what the body is. PEM is how certificates
+/// enter this system from outside (chain import, PKCS#12 round trips, EST
+/// bootstrap bundles, operator paste), so nothing downstream may be left
+/// guessing.
+///
+/// # Errors
+/// Returns [`PkiError::InvalidPem`] for an unbalanced, mismatched or
+/// unexpected label, or for a document containing no complete block.
+fn check_armour(input: &str, expected_label: &str) -> Result<(), PkiError> {
+    let mut open: Option<&str> = None;
+    let mut complete = 0usize;
+    for line in input.lines() {
+        let line = line.trim();
+        if let Some(label) = line
+            .strip_prefix("-----BEGIN ")
+            .and_then(|rest| rest.strip_suffix("-----"))
+        {
+            if open.is_some() || label != expected_label {
+                return Err(PkiError::InvalidPem);
+            }
+            open = Some(label);
+        } else if let Some(label) = line
+            .strip_prefix("-----END ")
+            .and_then(|rest| rest.strip_suffix("-----"))
+        {
+            match open.take() {
+                Some(opened) if opened == label => complete += 1,
+                _ => return Err(PkiError::InvalidPem),
+            }
+        }
+    }
+    if open.is_some() || complete == 0 {
+        return Err(PkiError::InvalidPem);
+    }
+    Ok(())
 }
 
 /// Re-encodes DER as a PEM document with `label`, 64 characters per line.
@@ -436,6 +480,37 @@ mod tests {
         );
         assert_eq!(
             parse_pem_blocks("   \n\t ", LABEL_CERTIFICATE, 1).unwrap_err(),
+            PkiError::InvalidPem
+        );
+    }
+
+    #[test]
+    fn adversarial_armour_whose_labels_disagree_is_refused() {
+        let der = vec![0x30u8, 0x03, 0x02, 0x01, 0x01];
+        let good = pem_encode(LABEL_CERTIFICATE, &der);
+        assert!(parse_pem_blocks(&good, LABEL_CERTIFICATE, 1).is_ok());
+
+        let mismatched = good.replace("-----END CERTIFICATE-----", "-----END X509 CRL-----");
+        assert_eq!(
+            parse_pem_blocks(&mismatched, LABEL_CERTIFICATE, 1).unwrap_err(),
+            PkiError::InvalidPem
+        );
+
+        let unterminated = good.replace("-----END CERTIFICATE-----\n", "");
+        assert_eq!(
+            parse_pem_blocks(&unterminated, LABEL_CERTIFICATE, 1).unwrap_err(),
+            PkiError::InvalidPem
+        );
+
+        let orphan_end = "-----END CERTIFICATE-----\n";
+        assert_eq!(
+            parse_pem_blocks(orphan_end, LABEL_CERTIFICATE, 1).unwrap_err(),
+            PkiError::InvalidPem
+        );
+
+        let nested = format!("-----BEGIN CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\n{good}");
+        assert_eq!(
+            parse_pem_blocks(&nested, LABEL_CERTIFICATE, 2).unwrap_err(),
             PkiError::InvalidPem
         );
     }

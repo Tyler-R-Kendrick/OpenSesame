@@ -151,11 +151,23 @@ pub fn verify_sans(certificate_pem: &str, expected: &[SanEntry]) -> Result<(), P
 /// Lowercase hex SHA-256 fingerprint of the first certificate in a PEM
 /// document.
 ///
+/// The document is parsed as X.509 *before* it is hashed. The fingerprint is
+/// an identity — discovery matches scanned installations to inventory rows by
+/// it, and `issued_certificates.fingerprint_sha256` is indexed on it — so a
+/// value must never be minted for bytes that are not a certificate. Hashing
+/// unvalidated armour would hand two unrelated malformed documents stable
+/// "certificate" identities.
+///
 /// # Errors
-/// Returns [`PkiError::InvalidPem`] when the document cannot be decoded.
+/// Returns [`PkiError::InvalidPem`] when the armour is malformed and
+/// [`PkiError::InvalidDer`] when the body is not a parseable certificate.
 pub fn fingerprint_sha256(cert_pem: &str) -> Result<String, PkiError> {
     let blocks = x509::parse_pem_blocks(cert_pem, x509::LABEL_CERTIFICATE, x509::MAX_CHAIN_CERTS)?;
     let der = blocks.first().ok_or(PkiError::InvalidPem)?;
+    let (rest, _) = parse_x509_certificate(der).map_err(|_| PkiError::InvalidDer)?;
+    if !rest.is_empty() {
+        return Err(PkiError::InvalidDer);
+    }
     Ok(x509::fingerprint_of_der(der))
 }
 
@@ -313,6 +325,28 @@ mod tests {
         )
         .unwrap();
         (root, issued, key)
+    }
+
+    #[test]
+    fn adversarial_a_fingerprint_is_never_minted_for_a_non_certificate() {
+        for body in [
+            "AAAA",
+            "!!!!",
+            "////////////////",
+            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A",
+        ] {
+            let document =
+                format!("-----BEGIN CERTIFICATE-----\n{body}\n-----END CERTIFICATE-----\n");
+            assert!(
+                fingerprint_sha256(&document).is_err(),
+                "minted a certificate identity for {body:?}"
+            );
+        }
+        let (_, issued, _) = hierarchy();
+        assert_eq!(
+            fingerprint_sha256(&issued.certificate_pem).unwrap(),
+            issued.fingerprint_sha256
+        );
     }
 
     #[test]
