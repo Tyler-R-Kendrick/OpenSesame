@@ -86,20 +86,33 @@ pub fn issuers_by_priority() -> Vec<&'static ExternalIssuerDescriptor> {
 /// connection's egress binding and credential injection apply per call —
 /// a shape can name any URL it likes and still only ever reach hosts the
 /// connection's catalog row allows.
+/// Whether a provider wants the TXT record's `{name}` as the full challenge
+/// FQDN (Cloudflare) or relative to the matched zone (DigitalOcean appends
+/// the domain itself). The two real axes a second provider surfaced.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecordNameStyle {
+    Fqdn,
+    RelativeToZone,
+}
+
 pub struct DnsProviderShape {
     pub provider_id: &'static str,
     /// GET; `{zone}` substituted with each candidate apex while walking up.
     pub zone_lookup_url: &'static str,
-    /// JSON pointer to the zone id in the lookup response.
+    /// JSON pointer to the zone id in the lookup response. For providers whose
+    /// zone id *is* the domain name (DigitalOcean), point at that name.
     pub zone_id_pointer: &'static str,
     /// POST; `{zone_id}` substituted.
     pub create_url: &'static str,
     /// JSON body template containing `"{name}"` and `"{value}"` in value
     /// position.
     pub create_body: &'static str,
-    /// JSON pointer to the created record id.
+    /// How `{name}` is rendered relative to the zone.
+    pub name_style: RecordNameStyle,
+    /// JSON pointer to the created record id (string or number).
     pub record_id_pointer: &'static str,
-    /// Optional JSON pointer that must be boolean `true` on success.
+    /// Optional JSON pointer that must be boolean `true` on success. `None`
+    /// leans on the HTTP status the broker already enforces (2xx only).
     pub success_pointer: Option<&'static str>,
     /// DELETE; `{zone_id}` and `{record_id}` substituted.
     pub delete_url: &'static str,
@@ -108,17 +121,35 @@ pub struct DnsProviderShape {
 /// Cloudflare expressed as data — kept template-identical to the wired
 /// `CloudflareDns01` implementation (asserted by test below), so promoting
 /// the shape to the live path is a proven no-op when that lands.
-pub static DNS_PROVIDER_SHAPES: &[DnsProviderShape] = &[DnsProviderShape {
-    provider_id: "cloudflare",
-    zone_lookup_url:
-        "https://api.cloudflare.com/client/v4/zones?name={zone}&status=active&per_page=1",
-    zone_id_pointer: "/result/0/id",
-    create_url: "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",
-    create_body: r#"{"type":"TXT","name":"{name}","content":"{value}","ttl":60}"#,
-    record_id_pointer: "/result/id",
-    success_pointer: Some("/success"),
-    delete_url: "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record_id}",
-}];
+pub static DNS_PROVIDER_SHAPES: &[DnsProviderShape] = &[
+    DnsProviderShape {
+        provider_id: "cloudflare",
+        zone_lookup_url:
+            "https://api.cloudflare.com/client/v4/zones?name={zone}&status=active&per_page=1",
+        zone_id_pointer: "/result/0/id",
+        create_url: "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records",
+        create_body: r#"{"type":"TXT","name":"{name}","content":"{value}","ttl":60}"#,
+        name_style: RecordNameStyle::Fqdn,
+        record_id_pointer: "/result/id",
+        success_pointer: Some("/success"),
+        delete_url: "https://api.cloudflare.com/client/v4/zones/{zone_id}/dns_records/{record_id}",
+    },
+    DnsProviderShape {
+        provider_id: "digitalocean",
+        // DO has no search-by-name; a candidate domain that exists returns 200
+        // and echoes its own name, which is also the id used downstream.
+        zone_lookup_url: "https://api.digitalocean.com/v2/domains/{zone}",
+        zone_id_pointer: "/domain/name",
+        create_url: "https://api.digitalocean.com/v2/domains/{zone_id}/records",
+        create_body: r#"{"type":"TXT","name":"{name}","data":"{value}","ttl":30}"#,
+        // DO appends the domain, so the record name is relative to the zone.
+        name_style: RecordNameStyle::RelativeToZone,
+        // DO record ids are numbers.
+        record_id_pointer: "/domain_record/id",
+        success_pointer: None,
+        delete_url: "https://api.digitalocean.com/v2/domains/{zone_id}/records/{record_id}",
+    },
+];
 
 #[must_use]
 pub fn dns_shape_for_provider(provider_id: &str) -> Option<&'static DnsProviderShape> {
@@ -149,11 +180,42 @@ fn zone_candidates(record_name: &str) -> Option<Vec<String>> {
     Some(candidates)
 }
 
-fn render_create_body(shape: &DnsProviderShape, record: &Dns01Record) -> Option<Value> {
+/// Extract a record/zone id that may be a JSON string or number, keeping the
+/// URL-safety fence so a substituted id can never rewrite a URL.
+fn extract_id(value: &Value, pointer: &str) -> Option<String> {
+    let node = value.pointer(pointer)?;
+    let id = match node {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        _ => return None,
+    };
+    id_is_url_safe(&id).then_some(id)
+}
+
+/// The TXT record name a provider wants: the full challenge FQDN, or that
+/// FQDN with the matched zone suffix stripped (a leaf relative to the zone).
+fn record_name_for(style: RecordNameStyle, fqdn: &str, zone_name: &str) -> Option<String> {
+    match style {
+        RecordNameStyle::Fqdn => Some(fqdn.to_owned()),
+        RecordNameStyle::RelativeToZone => {
+            if fqdn == zone_name {
+                return Some("@".to_owned());
+            }
+            fqdn.strip_suffix(&format!(".{zone_name}"))
+                .map(str::to_owned)
+        }
+    }
+}
+
+fn render_create_body(
+    shape: &DnsProviderShape,
+    record_name: &str,
+    record_value: &str,
+) -> Option<Value> {
     // JSON-encode both substitutions so no character can escape value
     // position; the template carries "{name}"/"{value}" quoted.
-    let name = serde_json::to_string(record.name()).ok()?;
-    let value = serde_json::to_string(record.value()).ok()?;
+    let name = serde_json::to_string(record_name).ok()?;
+    let value = serde_json::to_string(record_value).ok()?;
     let rendered = shape
         .create_body
         .replace("\"{name}\"", &name)
@@ -188,24 +250,28 @@ impl BrokeredDns01 {
         }
     }
 
-    async fn zone_id(&self, record_name: &str) -> Result<String, Dns01Failure> {
+    /// Walk `_acme-challenge.a.b.example.com` up its apexes until a zone
+    /// lookup resolves, returning the matched zone *name* (for relative
+    /// record-name rendering) and the provider's zone *id*.
+    async fn zone(&self, record_name: &str) -> Result<(String, String), Dns01Failure> {
         let candidates = zone_candidates(record_name).ok_or(Dns01Failure::Rejected)?;
         for candidate in candidates {
             if !id_is_url_safe(&candidate.replace('.', "")) {
                 return Err(Dns01Failure::Rejected);
             }
             let url = self.shape.zone_lookup_url.replace("{zone}", &candidate);
-            let response = self
+            let response = match self
                 .broker
                 .authorized_json(&self.organization, &self.connection_id, "GET", &url, None)
                 .await
-                .map_err(|_| Dns01Failure::Unavailable)?;
-            if let Some(id) = response
-                .pointer(self.shape.zone_id_pointer)
-                .and_then(Value::as_str)
-                .filter(|id| id_is_url_safe(id))
             {
-                return Ok(id.to_owned());
+                Ok(response) => response,
+                // A candidate that is not a zone answers 4xx; keep walking up
+                // rather than failing the whole provisioning.
+                Err(_) => continue,
+            };
+            if let Some(id) = extract_id(&response, self.shape.zone_id_pointer) {
+                return Ok((candidate, id));
             }
         }
         Err(Dns01Failure::Rejected)
@@ -224,9 +290,12 @@ impl Dns01Provisioner for BrokeredDns01 {
     type Lease = BrokeredDnsLease;
 
     async fn present(&self, record: &Dns01Record) -> Result<Dns01Lease<Self::Lease>, Dns01Failure> {
-        let zone_id = self.zone_id(record.name()).await?;
+        let (zone_name, zone_id) = self.zone(record.name()).await?;
+        let record_name = record_name_for(self.shape.name_style, record.name(), &zone_name)
+            .ok_or(Dns01Failure::Rejected)?;
         let url = self.shape.create_url.replace("{zone_id}", &zone_id);
-        let body = render_create_body(self.shape, record).ok_or(Dns01Failure::Rejected)?;
+        let body = render_create_body(self.shape, &record_name, record.value())
+            .ok_or(Dns01Failure::Rejected)?;
         let response = self
             .broker
             .authorized_json(
@@ -241,12 +310,8 @@ impl Dns01Provisioner for BrokeredDns01 {
         if !self.success_ok(&response) {
             return Err(Dns01Failure::Rejected);
         }
-        let record_id = response
-            .pointer(self.shape.record_id_pointer)
-            .and_then(Value::as_str)
-            .filter(|id| id_is_url_safe(id))
-            .ok_or(Dns01Failure::Rejected)?
-            .to_owned();
+        let record_id =
+            extract_id(&response, self.shape.record_id_pointer).ok_or(Dns01Failure::Rejected)?;
         Ok(Dns01Lease(BrokeredDnsLease { zone_id, record_id }))
     }
 
@@ -341,6 +406,73 @@ mod tests {
                 "ttl": 60,
             })
         );
+    }
+
+    #[test]
+    fn digitalocean_shape_renders_relative_names_and_numeric_ids() {
+        let shape = dns_shape_for_provider("digitalocean").expect("digitalocean shape");
+        assert_eq!(shape.name_style, RecordNameStyle::RelativeToZone);
+
+        // Record name relative to the matched zone (DO appends the domain).
+        assert_eq!(
+            record_name_for(
+                RecordNameStyle::RelativeToZone,
+                "_acme-challenge.a.b.example.com",
+                "example.com",
+            ),
+            Some("_acme-challenge.a.b".to_owned())
+        );
+        assert_eq!(
+            record_name_for(
+                RecordNameStyle::RelativeToZone,
+                "example.com",
+                "example.com"
+            ),
+            Some("@".to_owned())
+        );
+        // A record whose FQDN is not under the zone is refused, not mangled.
+        assert_eq!(
+            record_name_for(RecordNameStyle::RelativeToZone, "a.evil.com", "example.com"),
+            None
+        );
+        // Fqdn style is unchanged.
+        assert_eq!(
+            record_name_for(
+                RecordNameStyle::Fqdn,
+                "_acme-challenge.example.com",
+                "example.com"
+            ),
+            Some("_acme-challenge.example.com".to_owned())
+        );
+
+        // Numeric DO record ids extract and stay URL-safe.
+        let created = serde_json::json!({ "domain_record": { "id": 3352896 } });
+        assert_eq!(
+            extract_id(&created, shape.record_id_pointer),
+            Some("3352896".to_owned())
+        );
+        // The zone id for DO is the domain name string.
+        let zone = serde_json::json!({ "domain": { "name": "example.com" } });
+        assert_eq!(
+            extract_id(&zone, shape.zone_id_pointer),
+            Some("example.com".to_owned())
+        );
+
+        // The rendered create body is valid JSON with the relative name.
+        let body = render_create_body(shape, "_acme-challenge.a.b", "tok").expect("json");
+        assert_eq!(
+            body,
+            serde_json::json!({"type":"TXT","name":"_acme-challenge.a.b","data":"tok","ttl":30})
+        );
+    }
+
+    #[test]
+    fn extract_id_rejects_non_scalar_and_unsafe_values() {
+        let v = serde_json::json!({ "a": { "id": "ok-1" }, "b": { "id": ["x"] }, "c": { "id": "../x" } });
+        assert_eq!(extract_id(&v, "/a/id"), Some("ok-1".to_owned()));
+        assert_eq!(extract_id(&v, "/b/id"), None);
+        assert_eq!(extract_id(&v, "/c/id"), None);
+        assert_eq!(extract_id(&v, "/missing"), None);
     }
 
     #[test]
