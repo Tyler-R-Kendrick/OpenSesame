@@ -1,0 +1,15 @@
+[package]
+name = "opensesame-rotation-web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Web-login rotation executor: step IR, tool boundary, and the ordering that must not be rearranged"
+
+[dependencies]
+opensesame-session-observe = { path = "../session-observe" }
+async-trait = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }
