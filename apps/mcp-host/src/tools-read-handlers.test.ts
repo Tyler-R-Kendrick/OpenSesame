@@ -848,7 +848,10 @@ describe("mcp-host read tool handlers", () => {
 
     it("surfaces an upstream refusal as a tool error", async () => {
       setFetchForTests(async () =>
-        jsonResponse({ error: "forbidden", hint: "owner or admin role required" }, 403),
+        jsonResponse(
+          { error: "forbidden", hint: "owner or admin role required" },
+          403,
+        ),
       );
       const handlers = makeRegistrar();
 

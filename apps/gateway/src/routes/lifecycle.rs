@@ -157,10 +157,7 @@ fn subject_view(subject: &ExpirySubject, now: chrono::DateTime<Utc>) -> Value {
 }
 
 /// `GET /api/v1/lifecycle/expiring` — every tracked deadline and its ladder.
-pub async fn list_expiring(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-) -> Response {
+pub async fn list_expiring(State(st): State<AppState>, headers: axum::http::HeaderMap) -> Response {
     let who = match authorize_read(&st, &headers) {
         Ok(who) => who,
         Err(response) => return response,
@@ -194,7 +191,11 @@ pub async fn list_hooks(State(st): State<AppState>, headers: axum::http::HeaderM
         Ok(id) => id,
         Err(response) => return response,
     };
-    match st.db.list_lifecycle_hooks(&organization_id.to_string()).await {
+    match st
+        .db
+        .list_lifecycle_hooks(&organization_id.to_string())
+        .await
+    {
         Ok(hooks) => Json(json!({
             "hooks": hooks.iter().map(hook_view).collect::<Vec<_>>(),
             "secrets_returned": false,
@@ -346,7 +347,9 @@ pub async fn put_hook(
         last_delivered_at: existing.as_ref().and_then(|h| h.last_delivered_at.clone()),
         last_error: existing.as_ref().and_then(|h| h.last_error.clone()),
         version: existing.as_ref().map_or(1, |h| h.version),
-        created_at: existing.as_ref().map_or_else(|| now.clone(), |h| h.created_at.clone()),
+        created_at: existing
+            .as_ref()
+            .map_or_else(|| now.clone(), |h| h.created_at.clone()),
         updated_at: now,
     };
     if let Err(error) = st.db.upsert_lifecycle_hook(&hook).await {
@@ -515,7 +518,11 @@ mod tests {
             }
             None => Body::empty(),
         };
-        let response = app.clone().oneshot(builder.body(body).unwrap()).await.unwrap();
+        let response = app
+            .clone()
+            .oneshot(builder.body(body).unwrap())
+            .await
+            .unwrap();
         let status = response.status();
         let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
@@ -543,8 +550,14 @@ mod tests {
         let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
 
-        let (status, created) =
-            send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(registration())).await;
+        let (status, created) = send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(registration()),
+        )
+        .await;
         assert_eq!(status, StatusCode::OK, "{created}");
         let secret = created["signing_secret"]
             .as_str()
@@ -554,8 +567,7 @@ mod tests {
         let id = created["id"].as_str().unwrap().to_string();
 
         // …and never again, on any route that renders a hook.
-        let (status, listed) =
-            send(&app, &admin, "GET", "/api/v1/lifecycle/hooks", None).await;
+        let (status, listed) = send(&app, &admin, "GET", "/api/v1/lifecycle/hooks", None).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(listed["hooks"].as_array().unwrap().len(), 1);
         assert!(listed["hooks"][0]["signing_secret"].is_null());
@@ -569,7 +581,8 @@ mod tests {
         let mut edit = registration();
         edit["id"] = json!(id);
         edit["name"] = json!("renamed");
-        let (status, edited) = send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(edit)).await;
+        let (status, edited) =
+            send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(edit)).await;
         assert_eq!(status, StatusCode::OK, "{edited}");
         assert!(
             edited["signing_secret"].is_null(),
@@ -585,8 +598,14 @@ mod tests {
         let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
 
-        let (_, created) =
-            send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(registration())).await;
+        let (_, created) = send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(registration()),
+        )
+        .await;
         let secret = created["signing_secret"].as_str().unwrap().to_string();
         let id = created["id"].as_str().unwrap();
 
@@ -642,8 +661,14 @@ mod tests {
 
         let mut unknown_event = registration();
         unknown_event["event_types"] = json!(["lifecycle.expiry.imminent"]);
-        let (status, _) =
-            send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(unknown_event)).await;
+        let (status, _) = send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(unknown_event),
+        )
+        .await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
 
         let mut empty = registration();
@@ -657,8 +682,14 @@ mod tests {
 
         let mut unknown_kind = registration();
         unknown_kind["subject_kinds"] = json!(["password"]);
-        let (status, _) =
-            send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(unknown_kind)).await;
+        let (status, _) = send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(unknown_kind),
+        )
+        .await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
     }
 
@@ -694,13 +725,23 @@ mod tests {
         let org = st.connection_organization;
         let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
-        let (_, created) =
-            send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(registration())).await;
+        let (_, created) = send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(registration()),
+        )
+        .await;
         let id = created["id"].as_str().unwrap().to_string();
 
         let other_org = opensesame_domain::OrganizationId::from_uuid(uuid::Uuid::new_v4());
-        let stranger =
-            test_session_headers(&st, "principal:stranger", other_org, OrganizationRole::Admin);
+        let stranger = test_session_headers(
+            &st,
+            "principal:stranger",
+            other_org,
+            OrganizationRole::Admin,
+        );
         let (status, listed) = send(&app, &stranger, "GET", "/api/v1/lifecycle/hooks", None).await;
         assert_eq!(status, StatusCode::OK);
         assert!(listed["hooks"].as_array().unwrap().is_empty());
@@ -722,8 +763,14 @@ mod tests {
         let org = st.connection_organization;
         let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
-        let (_, created) =
-            send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(registration())).await;
+        let (_, created) = send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(registration()),
+        )
+        .await;
         let id = created["id"].as_str().unwrap().to_string();
 
         let (status, _) = send(
@@ -839,12 +886,25 @@ mod tests {
         let mut matching = registration();
         matching["name"] = json!("store-watcher");
         matching["subject_kinds"] = json!(["store_path"]);
-        send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(matching)).await;
+        send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(matching),
+        )
+        .await;
         let mut unrelated = registration();
         unrelated["name"] = json!("cert-watcher");
         unrelated["subject_kinds"] = json!(["certificate"]);
-        let (_, unrelated_hook) =
-            send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(unrelated)).await;
+        let (_, unrelated_hook) = send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(unrelated),
+        )
+        .await;
         let unrelated_id = unrelated_hook["id"].as_str().unwrap().to_string();
 
         let (status, scanned) = send(&app, &admin, "POST", "/api/v1/lifecycle/scan", None).await;
@@ -855,7 +915,9 @@ mod tests {
         let deliveries = ledger["deliveries"].as_array().unwrap();
         assert!(!deliveries.is_empty(), "the matching hook was queued");
         assert!(
-            deliveries.iter().all(|row| row["hook_id"] != json!(unrelated_id)),
+            deliveries
+                .iter()
+                .all(|row| row["hook_id"] != json!(unrelated_id)),
             "a subject-kind filter must exclude the unrelated subscriber: {ledger}",
         );
         assert!(
@@ -884,7 +946,14 @@ mod tests {
         let org = st.connection_organization;
         let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
-        send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(registration())).await;
+        send(
+            &app,
+            &admin,
+            "PUT",
+            "/api/v1/lifecycle/hooks",
+            Some(registration()),
+        )
+        .await;
         send(&app, &admin, "POST", "/api/v1/lifecycle/scan", None).await;
 
         for uri in [
@@ -895,21 +964,26 @@ mod tests {
             let (status, body) = send(&app, &admin, "GET", uri, None).await;
             assert_eq!(status, StatusCode::OK);
             assert_eq!(body["secrets_returned"], json!(false), "{uri}");
-            let rendered = body.to_string();
-            for forbidden in [
-                "\"password\"",
-                "\"api_key\"",
-                "\"access_token\"",
-                "\"refresh_token\"",
-                "\"private_key\"",
-                "\"signing_secret\"",
-                "whsec_",
-            ] {
-                assert!(
-                    !rendered.contains(forbidden),
-                    "{uri} rendered {forbidden}: {rendered}",
-                );
-            }
+            assert_secret_shaped_keys_absent(uri, &body.to_string());
+        }
+    }
+
+    /// The shapes the audit redactor's `DENY_KEY` pass strips, plus the one
+    /// literal a lifecycle response could plausibly leak.
+    fn assert_secret_shaped_keys_absent(uri: &str, rendered: &str) {
+        for forbidden in [
+            "\"password\"",
+            "\"api_key\"",
+            "\"access_token\"",
+            "\"refresh_token\"",
+            "\"private_key\"",
+            "\"signing_secret\"",
+            "whsec_",
+        ] {
+            assert!(
+                !rendered.contains(forbidden),
+                "{uri} rendered {forbidden}: {rendered}",
+            );
         }
     }
 }

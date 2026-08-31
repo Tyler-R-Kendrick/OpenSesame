@@ -274,7 +274,8 @@ async fn send(
 /// Returns the reason when the URL is not absolute HTTPS or names a
 /// loopback, private, link-local, or metadata address.
 pub fn assert_deliverable(endpoint: &str) -> Result<(), String> {
-    let url = url_host(endpoint).ok_or_else(|| "endpoint is not an absolute https URL".to_string())?;
+    let url =
+        url_host(endpoint).ok_or_else(|| "endpoint is not an absolute https URL".to_string())?;
     if is_blocked_host(&url) {
         return Err("endpoint resolves to a private or metadata address".into());
     }
@@ -390,14 +391,24 @@ mod tests {
         // implementations cannot drift: a receiver verifying with any
         // off-the-shelf library must accept what we send.
         let secret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
-        let signature = sign(secret, "msg_p5jXN8AQM9LWM0D4loKWxJek", 1_614_265_330, r#"{"a":1}"#)
-            .expect("signature");
+        let signature = sign(
+            secret,
+            "msg_p5jXN8AQM9LWM0D4loKWxJek",
+            1_614_265_330,
+            r#"{"a":1}"#,
+        )
+        .expect("signature");
         assert_eq!(signature.timestamp, "1614265330");
         assert!(signature.value.starts_with("v1,"), "{}", signature.value);
 
         // Deterministic: the same inputs always produce the same signature.
-        let again = sign(secret, "msg_p5jXN8AQM9LWM0D4loKWxJek", 1_614_265_330, r#"{"a":1}"#)
-            .expect("signature");
+        let again = sign(
+            secret,
+            "msg_p5jXN8AQM9LWM0D4loKWxJek",
+            1_614_265_330,
+            r#"{"a":1}"#,
+        )
+        .expect("signature");
         assert_eq!(signature, again);
     }
 
@@ -407,10 +418,15 @@ mod tests {
         let base = sign(&secret, "id-1", 1_000, "payload").unwrap().value;
         assert_ne!(base, sign(&secret, "id-2", 1_000, "payload").unwrap().value);
         assert_ne!(base, sign(&secret, "id-1", 1_001, "payload").unwrap().value);
-        assert_ne!(base, sign(&secret, "id-1", 1_000, "payload!").unwrap().value);
         assert_ne!(
             base,
-            sign(&generate_secret(), "id-1", 1_000, "payload").unwrap().value,
+            sign(&secret, "id-1", 1_000, "payload!").unwrap().value
+        );
+        assert_ne!(
+            base,
+            sign(&generate_secret(), "id-1", 1_000, "payload")
+                .unwrap()
+                .value,
         );
     }
 
@@ -461,7 +477,10 @@ mod tests {
             // Credentials in the URL would be a secret living in a column.
             "https://user:pass@hooks.example/expiry",
         ] {
-            assert!(assert_deliverable(refused).is_err(), "{refused} must be refused");
+            assert!(
+                assert_deliverable(refused).is_err(),
+                "{refused} must be refused"
+            );
         }
     }
 

@@ -159,7 +159,10 @@ mod tests {
     #[test]
     fn renew_before_falls_back_and_clamps() {
         assert_eq!(subject(None).renew_before(), DEFAULT_RENEW_BEFORE_SECONDS);
-        assert_eq!(subject(Some(0)).renew_before(), DEFAULT_RENEW_BEFORE_SECONDS);
+        assert_eq!(
+            subject(Some(0)).renew_before(),
+            DEFAULT_RENEW_BEFORE_SECONDS
+        );
         assert_eq!(
             subject(Some(-5)).renew_before(),
             DEFAULT_RENEW_BEFORE_SECONDS

@@ -24,12 +24,15 @@ const DEFAULT_TICK_SECONDS: u64 = 60;
 /// silently ignoring an operator's existing setting would change their rotation
 /// cadence during an upgrade.
 fn tick_seconds() -> u64 {
-    ["OPENSESAME_LIFECYCLE_TICK_SECONDS", "OPENSESAME_ROTATION_TICK_SECONDS"]
-        .into_iter()
-        .find_map(|name| std::env::var(name).ok())
-        .and_then(|raw| raw.parse::<u64>().ok())
-        .filter(|seconds| *seconds >= 1)
-        .unwrap_or(DEFAULT_TICK_SECONDS)
+    [
+        "OPENSESAME_LIFECYCLE_TICK_SECONDS",
+        "OPENSESAME_ROTATION_TICK_SECONDS",
+    ]
+    .into_iter()
+    .find_map(|name| std::env::var(name).ok())
+    .and_then(|raw| raw.parse::<u64>().ok())
+    .filter(|seconds| *seconds >= 1)
+    .unwrap_or(DEFAULT_TICK_SECONDS)
 }
 
 /// Process-lifetime scanner loop, spawned from `main` beside the backup actor.
@@ -208,9 +211,15 @@ mod tests {
     fn a_watermark_for_a_superseded_deadline_does_not_suppress() {
         // Recorded against last year's deadline: the subject was renewed, and
         // the ladder has to start over.
-        let marks = watermarks_for(&subject(), &[row("alert", "expired", "2025-09-30T00:00:00+00:00")]);
+        let marks = watermarks_for(
+            &subject(),
+            &[row("alert", "expired", "2025-09-30T00:00:00+00:00")],
+        );
         let events = evaluate(&subject(), marks, "2026-09-29T00:00:00Z".parse().unwrap());
-        assert!(!events.is_empty(), "a stale watermark must not silence a subject");
+        assert!(
+            !events.is_empty(),
+            "a stale watermark must not silence a subject"
+        );
     }
 
     // —— the dogfood ————————————————————————————————————————————————

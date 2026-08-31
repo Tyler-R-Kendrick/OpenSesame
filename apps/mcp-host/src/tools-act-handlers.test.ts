@@ -533,7 +533,7 @@ describe("mcp-host act tool handlers", () => {
 
   describe("lifecycle_scan", () => {
     it("runs a pass and reports how many events it published", async () => {
-      const calls: Array<{ url: string; method?: string }> = [];
+      const calls: Array<{ url: string; method: string | undefined }> = [];
       setFetchForTests(async (input, init) => {
         calls.push({ url: String(input), method: init?.method });
         return jsonResponse({ published: 3, secrets_returned: false });
@@ -550,7 +550,10 @@ describe("mcp-host act tool handlers", () => {
 
     it("reports a refusal rather than a silent success", async () => {
       setFetchForTests(async () =>
-        jsonResponse({ error: "forbidden", hint: "owner or admin role required" }, 403),
+        jsonResponse(
+          { error: "forbidden", hint: "owner or admin role required" },
+          403,
+        ),
       );
       const handlers = makeRegistrar();
 

@@ -254,7 +254,14 @@ mod tests {
         // The regression this split exists for: the alert rungs must not move
         // or vanish because a subject configured a particular renewal lead.
         let baseline = ladder(Track::Alert, DEFAULT_RENEW_BEFORE_SECONDS);
-        for renew in [1, 60, URGENT_SECONDS, WARNING_SECONDS, NOTICE_SECONDS, 400 * 86_400] {
+        for renew in [
+            1,
+            60,
+            URGENT_SECONDS,
+            WARNING_SECONDS,
+            NOTICE_SECONDS,
+            400 * 86_400,
+        ] {
             assert_eq!(ladder(Track::Alert, renew), baseline, "renew={renew}");
         }
     }
@@ -278,7 +285,14 @@ mod tests {
 
     #[test]
     fn every_rung_fires_exactly_once_at_any_renewal_lead() {
-        for renew in [1, 3_600, URGENT_SECONDS, WARNING_SECONDS, NOTICE_SECONDS, 45 * 86_400] {
+        for renew in [
+            1,
+            3_600,
+            URGENT_SECONDS,
+            WARNING_SECONDS,
+            NOTICE_SECONDS,
+            45 * 86_400,
+        ] {
             let mut fired: Vec<ExpiryStage> = Track::ALL
                 .into_iter()
                 .flat_map(|track| walk(renew, track))
@@ -299,12 +313,22 @@ mod tests {
     fn a_skipped_pass_fires_only_the_most_urgent_crossed_alert() {
         // Discovered for the first time already expired: one alert, not four.
         assert_eq!(
-            newly_crossed(Track::Alert, -10, DEFAULT_RENEW_BEFORE_SECONDS, WATERMARK_UNFIRED),
+            newly_crossed(
+                Track::Alert,
+                -10,
+                DEFAULT_RENEW_BEFORE_SECONDS,
+                WATERMARK_UNFIRED
+            ),
             Some(ExpiryStage::Expired),
         );
         // …and the renewal window is still reported, on its own track.
         assert_eq!(
-            newly_crossed(Track::Renewal, -10, DEFAULT_RENEW_BEFORE_SECONDS, WATERMARK_UNFIRED),
+            newly_crossed(
+                Track::Renewal,
+                -10,
+                DEFAULT_RENEW_BEFORE_SECONDS,
+                WATERMARK_UNFIRED
+            ),
             Some(ExpiryStage::Renewal),
         );
     }
@@ -324,7 +348,12 @@ mod tests {
     fn a_far_future_subject_fires_nothing() {
         for track in Track::ALL {
             assert_eq!(
-                newly_crossed(track, 400 * 86_400, DEFAULT_RENEW_BEFORE_SECONDS, WATERMARK_UNFIRED),
+                newly_crossed(
+                    track,
+                    400 * 86_400,
+                    DEFAULT_RENEW_BEFORE_SECONDS,
+                    WATERMARK_UNFIRED
+                ),
                 None,
             );
         }

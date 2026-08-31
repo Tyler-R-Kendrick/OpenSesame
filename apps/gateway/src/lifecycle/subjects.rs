@@ -97,7 +97,9 @@ async fn certificates(
     now: DateTime<Utc>,
 ) -> anyhow::Result<Vec<ExpirySubject>> {
     let horizon = (now + chrono::Duration::days(CERTIFICATE_HORIZON_DAYS)).to_rfc3339();
-    let rows = db.list_certificates_expiring_before(organization, &horizon).await?;
+    let rows = db
+        .list_certificates_expiring_before(organization, &horizon)
+        .await?;
     Ok(rows.into_iter().filter_map(certificate_subject).collect())
 }
 
@@ -157,7 +159,9 @@ async fn signers(
         return Ok(Vec::new());
     }
     let horizon = (now + chrono::Duration::days(CERTIFICATE_HORIZON_DAYS)).to_rfc3339();
-    let certificates = db.list_certificates_expiring_before(organization, &horizon).await?;
+    let certificates = db
+        .list_certificates_expiring_before(organization, &horizon)
+        .await?;
     Ok(signers
         .into_iter()
         .filter(|signer| signer.status == "active")
@@ -262,10 +266,9 @@ pub fn policy_subject(policy: RotationPolicy) -> Option<ExpirySubject> {
         None => NEVER_ROTATED,
     };
     let (kind, subject_id) = match &policy.target {
-        RotationTarget::Connection { connection_id } => (
-            SubjectKind::ConnectionCredential,
-            connection_id.clone(),
-        ),
+        RotationTarget::Connection { connection_id } => {
+            (SubjectKind::ConnectionCredential, connection_id.clone())
+        }
         RotationTarget::StorePath { path } => (SubjectKind::StorePath, path.clone()),
     };
     Some(ExpirySubject {
@@ -397,7 +400,8 @@ mod tests {
     #[test]
     fn a_policy_renewal_lead_does_not_rotate_early() {
         // A 7-day default lead would rotate a 7-day policy the instant it ran.
-        let subject = policy_subject(policy(7 * 86_400, Some("2026-08-30T00:00:00+00:00"))).unwrap();
+        let subject =
+            policy_subject(policy(7 * 86_400, Some("2026-08-30T00:00:00+00:00"))).unwrap();
         assert_eq!(subject.renew_before(), SCHEDULE_RENEW_BEFORE_SECONDS);
         let events = opensesame_lifecycle::evaluate(
             &subject,
@@ -421,7 +425,10 @@ mod tests {
     #[test]
     fn a_certificate_with_an_unparseable_deadline_is_skipped() {
         let subject = certificate_subject(certificate("cert:1", "not a timestamp", true));
-        assert!(subject.is_none(), "a garbled deadline is skipped, not guessed");
+        assert!(
+            subject.is_none(),
+            "a garbled deadline is skipped, not guessed"
+        );
     }
 
     #[test]

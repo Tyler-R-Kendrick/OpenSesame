@@ -409,7 +409,10 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/lifecycle/hooks/{id}",
             delete(lifecycle::delete_hook),
         )
-        .route("/api/v1/lifecycle/deliveries", get(lifecycle::list_deliveries))
+        .route(
+            "/api/v1/lifecycle/deliveries",
+            get(lifecycle::list_deliveries),
+        )
         .route("/api/v1/lifecycle/scan", post(lifecycle::scan))
         // WP-9: durable rotation policies (owner/admin configuration surface).
         .route(

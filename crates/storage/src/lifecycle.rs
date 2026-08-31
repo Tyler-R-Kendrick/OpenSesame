@@ -479,8 +479,7 @@ impl Db {
         .context("claim lifecycle deliveries")?;
 
         let lease_until = (now + chrono::Duration::seconds(lease_seconds.max(1))).to_rfc3339();
-        let claimed: Vec<StoredLifecycleDelivery> =
-            rows.iter().map(delivery_from_row).collect();
+        let claimed: Vec<StoredLifecycleDelivery> = rows.iter().map(delivery_from_row).collect();
         for delivery in &claimed {
             sqlx::query("UPDATE lifecycle_deliveries SET available_at = ? WHERE id = ?")
                 .bind(&lease_until)
@@ -489,7 +488,10 @@ impl Db {
                 .await
                 .context("lease lifecycle delivery")?;
         }
-        transaction.commit().await.context("commit delivery claim")?;
+        transaction
+            .commit()
+            .await
+            .context("commit delivery claim")?;
         Ok(claimed)
     }
 
@@ -767,7 +769,11 @@ mod tests {
             .await
             .unwrap()
             .is_none());
-        assert!(db.list_lifecycle_hooks("org:other").await.unwrap().is_empty());
+        assert!(db
+            .list_lifecycle_hooks("org:other")
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]
@@ -803,7 +809,11 @@ mod tests {
         db.upsert_lifecycle_hook(&internal_hook("hook:rot", "rotation"))
             .await
             .unwrap();
-        let stored = db.get_lifecycle_hook(ORG, "hook:rot").await.unwrap().unwrap();
+        let stored = db
+            .get_lifecycle_hook(ORG, "hook:rot")
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(stored.responder.as_deref(), Some("rotation"));
         assert_eq!(stored.endpoint_url, None);
         assert_eq!(stored.subject_kinds, None, "None means every subject kind");
@@ -826,7 +836,11 @@ mod tests {
             .await
             .unwrap();
         assert!(db.delete_lifecycle_hook(ORG, "hook:1").await.unwrap());
-        assert!(db.list_lifecycle_deliveries(ORG, 10).await.unwrap().is_empty());
+        assert!(db
+            .list_lifecycle_deliveries(ORG, 10)
+            .await
+            .unwrap()
+            .is_empty());
         assert!(!db.delete_lifecycle_hook(ORG, "hook:1").await.unwrap());
     }
 
@@ -908,7 +922,10 @@ mod tests {
         let first = db.claim_lifecycle_deliveries(10, 60, now()).await.unwrap();
         assert_eq!(first.len(), 1);
         let second = db.claim_lifecycle_deliveries(10, 60, now()).await.unwrap();
-        assert!(second.is_empty(), "a leased delivery must not be re-claimed");
+        assert!(
+            second.is_empty(),
+            "a leased delivery must not be re-claimed"
+        );
 
         // …and the lease expires, so a crashed worker cannot wedge the queue.
         let later = now() + chrono::Duration::seconds(120);

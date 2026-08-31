@@ -165,6 +165,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/daemon` | Local host agent, `:18790` (`opensesame-daemon`) |
 | `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes `pass` sealed-store verbs |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
+| `crates/lifecycle` | Expiry ladder, subjects, and frozen hook event names — pure, value-blind (ADR 0073) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
@@ -218,10 +219,15 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0072).
+  0001–0073).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
+- Anything with a deadline (certificate, CA, signer, brokered credential,
+  rotation policy) is detected by the lifecycle scanner and published on the
+  `lifecycle.*` hook feed — never by a subsystem's own private due-check.
+  `OpenSesame`'s own rotation subscribes to that feed, so a break in it breaks
+  our rotations too ([ADR 0073](docs/adr/0073-expiry-lifecycle-hooks.md)).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,

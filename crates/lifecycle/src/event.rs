@@ -263,7 +263,12 @@ mod tests {
         assert_eq!(object["secrets_returned"], json!(false));
         for key in object.keys() {
             for forbidden in [
-                "secret", "password", "token", "api_key", "private_key", "credential",
+                "secret",
+                "password",
+                "token",
+                "api_key",
+                "private_key",
+                "credential",
             ] {
                 assert!(
                     !key.contains(forbidden) || key == "secrets_returned",

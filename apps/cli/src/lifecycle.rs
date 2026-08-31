@@ -96,7 +96,13 @@ pub async fn cmd_expiring(server: &str, output: &str) -> Result<()> {
 
 /// `opensesame lifecycle hooks` — registered subscriptions.
 pub async fn cmd_hooks(server: &str, output: &str) -> Result<()> {
-    let body = connect::api(server, reqwest::Method::GET, "/api/v1/lifecycle/hooks", None).await?;
+    let body = connect::api(
+        server,
+        reqwest::Method::GET,
+        "/api/v1/lifecycle/hooks",
+        None,
+    )
+    .await?;
     if output == "json" {
         return print_json(&body);
     }

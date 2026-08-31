@@ -114,11 +114,9 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
                 // The failure is already persisted on the job and in the
                 // changelog; the outcome event makes it visible to subscribers
                 // too, so a broken rotation is never only in our own logs.
-                Err(error) => Outcome::failed(format!(
-                    "rotation {} failed: {}",
-                    job.id,
-                    error.hint()
-                )),
+                Err(error) => {
+                    Outcome::failed(format!("rotation {} failed: {}", job.id, error.hint()))
+                }
                 Ok(done) => Outcome::ok(format!("rotation {} reached {}", done.id, done.state)),
             }
         }
@@ -174,7 +172,7 @@ async fn enabled_policy_for(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opensesame_lifecycle::{ExpirySubject, ExpiryStage};
+    use opensesame_lifecycle::{ExpiryStage, ExpirySubject};
 
     fn event(kind: SubjectKind) -> LifecycleEvent {
         LifecycleEvent::for_stage(

@@ -6,7 +6,8 @@
 //! renewal whether or not our own rotation then succeeds. A responder that
 //! panicked or hung must not be able to swallow the notification.
 
-use chrono::{DateTime, Utc};
+use chrono::DateTime;
+use chrono::Utc;
 use opensesame_lifecycle::{
     filter_matches, should_respond, LifecycleEvent, Watermark, MAX_DETAIL_CHARS,
 };
@@ -178,16 +179,10 @@ async fn record_watermark(state: &AppState, event: &LifecycleEvent, now: DateTim
     }
 }
 
-/// Current wall clock, isolated so tests can pin it.
-#[must_use]
-pub fn now() -> DateTime<Utc> {
-    Utc::now()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opensesame_lifecycle::{ExpirySubject, ExpiryStage, SubjectKind, EVENT_RENEWAL_DUE};
+    use opensesame_lifecycle::{ExpiryStage, ExpirySubject, SubjectKind, EVENT_RENEWAL_DUE};
 
     fn hook(event_types: &[&str], kinds: Option<&[&str]>) -> StoredLifecycleHook {
         StoredLifecycleHook {
@@ -229,7 +224,10 @@ mod tests {
     #[test]
     fn an_exact_event_filter_matches_only_that_event() {
         let subscription = hook(&[EVENT_RENEWAL_DUE], None);
-        assert!(hook_matches(&subscription, &event(SubjectKind::Certificate)));
+        assert!(hook_matches(
+            &subscription,
+            &event(SubjectKind::Certificate)
+        ));
 
         let other = LifecycleEvent::for_stage(
             event(SubjectKind::Certificate).subject,
@@ -255,7 +253,10 @@ mod tests {
     #[test]
     fn a_subject_kind_filter_narrows_further() {
         let subscription = hook(&["lifecycle.*"], Some(&["certificate"]));
-        assert!(hook_matches(&subscription, &event(SubjectKind::Certificate)));
+        assert!(hook_matches(
+            &subscription,
+            &event(SubjectKind::Certificate)
+        ));
         assert!(!hook_matches(&subscription, &event(SubjectKind::StorePath)));
 
         let unfiltered = hook(&["lifecycle.*"], None);
@@ -266,7 +267,10 @@ mod tests {
     fn a_disabled_hook_matches_nothing() {
         let mut subscription = hook(&["lifecycle.*"], None);
         subscription.enabled = false;
-        assert!(!hook_matches(&subscription, &event(SubjectKind::Certificate)));
+        assert!(!hook_matches(
+            &subscription,
+            &event(SubjectKind::Certificate)
+        ));
     }
 
     #[test]
