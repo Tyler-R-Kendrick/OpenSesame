@@ -58,6 +58,10 @@ import { IndexedClaimStore } from "./repos/claim-store.js";
 // this file — one import, one context field below. Email delivery for the
 // magic-link method (D16) lives in services/mailer.ts.
 import { createMailer } from "./services/mailer.js";
+import {
+  type NotificationCallbackAdapters,
+  createNotificationCallbackAdapters,
+} from "./services/notification-callbacks.js";
 import { createAppStores } from "./state.js";
 
 export interface CreateControlPlaneOptions {
@@ -98,6 +102,12 @@ export interface CreateControlPlaneOptions {
   samlStores?: SamlStores;
   /** Durable Passwordless/WebAuthn application, user, credential, and token stores. */
   authenticationStores?: AuthenticationServiceStores;
+  /**
+   * Test seam: inject provider-callback adapters. Defaults to whatever this
+   * deployment holds signing material for, which in a stack with no secrets
+   * configured is nothing at all.
+   */
+  notificationCallbackAdapters?: NotificationCallbackAdapters;
 }
 
 /**
@@ -358,6 +368,9 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     authentication,
     authenticationStores,
     mailer: createMailer(processEnv, config),
+    notificationCallbackAdapters:
+      options.notificationCallbackAdapters ??
+      createNotificationCallbackAdapters(config.notifications),
     // The same pool everything else on this context uses, so a magic link
     // written by one request is readable by the next — and by another replica.
     ...(betterAuthDatabase ? { betterAuthDatabase } : undefined),

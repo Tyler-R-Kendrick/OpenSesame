@@ -24,6 +24,11 @@ import { createFederatedSessionRoutes } from "./routes/federated-session.js";
 import { healthRoutes } from "./routes/health.js";
 import { createInteractionRoutes } from "./routes/interactions.js";
 import { mfaRoutes } from "./routes/mfa.js";
+import { notificationCallbackRoutes } from "./routes/notification-callbacks.js";
+import {
+  notificationChannelRoutes,
+  notificationPreferenceRoutes,
+} from "./routes/notification-channels.js";
 import { oauthClientRoutes } from "./routes/oauth-clients.js";
 import { createOrgDomainRoutes } from "./routes/org-domains.js";
 import { createOrgLdapRoutes } from "./routes/org-ldap.js";
@@ -83,6 +88,17 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/claims", claimRoutes);
   app.route("/v1/authorization-requests", authorizationRequestRoutes);
   app.route("/v1/webhooks", webhookRoutes);
+  // Where a person is interrupted, and what it takes to say yes (ADR 0081).
+  // Bindings and preferences are the caller's own; the effective route is
+  // computed rather than stored, so a settings screen can be honest about
+  // channels this deployment cannot actually reach.
+  app.route("/v1/notification-channels", notificationChannelRoutes);
+  app.route("/v1/notification-preferences", notificationPreferenceRoutes);
+  // Provider callbacks: unauthenticated by design — a provider cannot hold
+  // our bearer — and therefore defended by provenance over the raw body, the
+  // binding lookup, the durable replay ledger and the approval evaluator, in
+  // that order. See routes/notification-callbacks.ts.
+  app.route("/v1/notification-callbacks", notificationCallbackRoutes);
   app.route("/v1/agents", agentRoutes);
   app.route("/v1/mfa", mfaRoutes);
   app.route("/v1/authentication", authenticationServiceRoutes);

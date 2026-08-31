@@ -264,6 +264,9 @@ importers:
       '@opensesame/device-auth':
         specifier: workspace:*
         version: link:../../packages/device-auth
+      '@opensesame/notification-adapters':
+        specifier: workspace:*
+        version: link:../../packages/notification-adapters
       '@opensesame/oauth-provider':
         specifier: workspace:*
         version: link:../../packages/oauth-provider

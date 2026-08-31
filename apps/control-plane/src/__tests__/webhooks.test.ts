@@ -117,7 +117,12 @@ describe("webhook endpoint registration", () => {
       body: JSON.stringify({
         approverRef,
         bindingMessage: "Read acme/catalog issues",
-        authorizationDetails: [{ type: "connection_delegation" }],
+        // Read-only actions, so the risk classifier lands on the lax end of
+        // the ladder (ADR 0081) and this stays a test about the outbox rather
+        // than about the approval ceremony.
+        authorizationDetails: [
+          { type: "connection_delegation", actions: ["repository.read"] },
+        ],
       }),
     });
     expect(asked.status).toBe(201);

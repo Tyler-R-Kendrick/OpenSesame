@@ -123,6 +123,15 @@ export interface AppStores {
   mfaAnon: Map<string, number[]>;
   /** authentication-service public ceremony fingerprint → request timestamps */
   authenticationAnon: Map<string, number[]>;
+  /**
+   * Provider-callback fingerprint → request timestamps.
+   *
+   * A courtesy fence on an unauthenticated route, exactly like `mfaAnon`:
+   * what actually defends `/v1/notification-callbacks` is provenance over the
+   * raw bytes, the binding lookup and the durable replay ledger. Nothing is
+   * refused on security grounds because of this map.
+   */
+  notificationCallbacks: Map<string, number[]>;
 }
 
 export function createAppStores(options?: {
@@ -170,6 +179,7 @@ export function createAppStores(options?: {
     provisionalMints: new Map(),
     mfaAnon: new Map(),
     authenticationAnon: new Map(),
+    notificationCallbacks: new Map(),
   };
 }
 

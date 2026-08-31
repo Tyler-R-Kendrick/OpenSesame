@@ -7,6 +7,7 @@ import {
   MAX_OUTSTANDING_CHALLENGES,
   createMemoryChallengeStore,
   createSimpleWebAuthnVerifyFn,
+  issueTransactionChallenge,
   issueAuthenticationChallenge,
   issueRegistrationChallenge,
   verifyRegistrationAttestation,
@@ -252,6 +253,56 @@ describe("createSimpleWebAuthnVerifyFn", () => {
     });
     const verify = createSimpleWebAuthnVerifyFn(rp, store);
     expect(await verify(assertionFor(challenge), credential)).toBe(false);
+  });
+
+  it("adversarial: an approval ceremony's assertion is not a second factor", async () => {
+    // The two ceremonies are indistinguishable on the wire — both prove this
+    // person, this authenticator, just now — so only the challenge's purpose
+    // separates them. Without this, a page could mint an approval ceremony,
+    // have somebody touch their key for something that looked harmless, and
+    // redeem the assertion at /v1/mfa/passkey/assert as a login.
+    const store = createMemoryChallengeStore();
+    const { challenge } = await issueTransactionChallenge(store, rp, {
+      principalId: "prn_x",
+      transactionDigest: "v1:some-approval",
+    });
+    const verify = createSimpleWebAuthnVerifyFn(rp, store);
+    // The sign-in path does not name a purpose, so it gets the narrow one.
+    expect(await verify(assertionFor(challenge), credential)).toBe(false);
+    expect(mockVerifyAuthentication).not.toHaveBeenCalled();
+  });
+
+  it("adversarial: a sign-in challenge cannot be spent on an approval", async () => {
+    const store = createMemoryChallengeStore();
+    const { challenge } = await issueAuthenticationChallenge(store, rp, {
+      principalId: "prn_x",
+    });
+    const verify = createSimpleWebAuthnVerifyFn(rp, store);
+    expect(
+      await verify(
+        { ...assertionFor(challenge), expectedPurpose: "transaction" },
+        credential,
+      ),
+    ).toBe(false);
+    expect(mockVerifyAuthentication).not.toHaveBeenCalled();
+  });
+
+  it("contract: an approval ceremony verifies when that is what was asked for", async () => {
+    const store = createMemoryChallengeStore();
+    const { challenge } = await issueTransactionChallenge(store, rp, {
+      principalId: "prn_x",
+      transactionDigest: "v1:some-approval",
+    });
+    mockVerifyAuthentication.mockResolvedValue(
+      overlapCast({ verified: true, authenticationInfo: { newCounter: 3 } }),
+    );
+    const verify = createSimpleWebAuthnVerifyFn(rp, store);
+    await expect(
+      verify(
+        { ...assertionFor(challenge), expectedPurpose: "transaction" },
+        credential,
+      ),
+    ).resolves.toEqual({ ok: true, newCounter: 3 });
   });
 
   it("returns false when the challenge is bound to another principal", async () => {

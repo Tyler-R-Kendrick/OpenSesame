@@ -412,4 +412,21 @@ describe("slack delivery", () => {
       }),
     ).resolves.toEqual({ status: "permanent", error: "destination_mismatch" });
   });
+
+  it("contract: a signing secret alone is enough to verify, without a bot token", () => {
+    // Inbound verification and outbound delivery are different capabilities.
+    // A deployment that accepts Slack approvals but notifies elsewhere holds
+    // only the signing secret, and rejecting its genuine callbacks as
+    // "unconfigured" would look exactly like a forged signature.
+    const adapter = createSlackAdapter({
+      botToken: "",
+      signingSecret: SIGNING_SECRET,
+      now: () => FIXED_NOW,
+    });
+    expect(adapter.isConfigured()).toBe(false);
+    const result = adapter.verifyCallback?.(
+      callback(JSON.stringify({ team: { id: "T1" }, user: { id: "U1" } })),
+    );
+    expect(result?.ok).toBe(true);
+  });
 });

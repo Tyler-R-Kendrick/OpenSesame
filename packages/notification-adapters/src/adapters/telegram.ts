@@ -89,8 +89,17 @@ export function createTelegramAdapter(config: TelegramConfig): ChannelAdapter {
   const fetchImpl: FetchLike = config.fetchImpl ?? fetch;
   const base = config.apiBaseUrl ?? DEFAULT_API_BASE;
 
+  /** Configured *to deliver*: sending needs the bot token. */
   const isConfigured = (): boolean =>
     config.botToken.length > 0 && config.callbackSecretToken.length > 0;
+
+  /**
+   * Configured *to verify*, which needs only the secret token registered with
+   * `setWebhook`. Same reasoning as Slack: a deployment that accepts Telegram
+   * approvals but notifies elsewhere would otherwise reject every genuine
+   * update as unconfigured, indistinguishably from a forgery.
+   */
+  const canVerify = (): boolean => config.callbackSecretToken.length > 0;
 
   const capabilities = (): ChannelCapabilities =>
     channelCapabilities("telegram");
@@ -184,7 +193,7 @@ export function createTelegramAdapter(config: TelegramConfig): ChannelAdapter {
   };
 
   const verifyCallback = (raw: CallbackRequest): CallbackVerification => {
-    if (!isConfigured()) return refuse("unconfigured");
+    if (!canVerify()) return refuse("unconfigured");
     if (raw.rawBody.length > MAX_CALLBACK_BODY_BYTES) {
       return refuse("body_too_large");
     }

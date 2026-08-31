@@ -127,8 +127,25 @@ export function createSlackAdapter(config: SlackConfig): ChannelAdapter {
   const tolerance =
     config.timestampToleranceSeconds ?? SLACK_TIMESTAMP_TOLERANCE_SECONDS;
 
+  /**
+   * Configured *to deliver*. Sending needs a bot token; checking an inbound
+   * signature does not.
+   */
   const isConfigured = (): boolean =>
     config.botToken.length > 0 && config.signingSecret.length > 0;
+
+  /**
+   * Configured *to verify*, which is a different question and deliberately a
+   * weaker requirement.
+   *
+   * A deployment that lets people approve from Slack but sends its
+   * notifications some other way holds a signing secret and no bot token.
+   * Gating verification on the delivery credential would make that deployment
+   * silently reject every genuine callback as "unconfigured" — a refusal that
+   * looks exactly like a forged signature in the logs, which is the worst
+   * possible way to be wrong.
+   */
+  const canVerify = (): boolean => config.signingSecret.length > 0;
 
   const capabilities = (): ChannelCapabilities => channelCapabilities("slack");
 
@@ -217,7 +234,7 @@ export function createSlackAdapter(config: SlackConfig): ChannelAdapter {
   };
 
   const verifyCallback = (raw: CallbackRequest): CallbackVerification => {
-    if (!isConfigured()) return refuse("unconfigured");
+    if (!canVerify()) return refuse("unconfigured");
     if (raw.rawBody.length > MAX_CALLBACK_BODY_BYTES) {
       return refuse("body_too_large");
     }
