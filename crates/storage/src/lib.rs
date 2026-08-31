@@ -986,6 +986,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0018_rotation_leases",
         include_str!("../../../migrations/0018_rotation_leases.sql"),
     ),
+    (
+        "0019_shared_sessions",
+        include_str!("../../../migrations/0019_shared_sessions.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.

@@ -34,11 +34,15 @@ mod tests {
             "vault_item is the grain a row-level grant names"
         );
         assert!(
-            text.contains("define reader: [user, team#member, workload, agent] or reader from collection"),
+            text.contains(
+                "define reader: [user, team#member, workload, agent] or reader from collection"
+            ),
             "an item's reader must inherit the collection's"
         );
         assert!(
-            text.contains("define writer: [user, team#member, workload, agent] or writer from collection"),
+            text.contains(
+                "define writer: [user, team#member, workload, agent] or writer from collection"
+            ),
             "an item's writer must inherit the collection's"
         );
     }
