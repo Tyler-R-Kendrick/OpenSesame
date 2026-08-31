@@ -1,0 +1,15 @@
+-- A rotation policy records who it rotates for (ADR 0078 §8).
+--
+-- Only the credential's owner may observe a run, so a run has to know whose it
+-- is. `owner_subject` matches the column `connections` already carries
+-- (0003_connection_owner.sql) rather than inventing a second name for the same
+-- idea.
+--
+-- Nullable, and that is not laxity: a connection-credential policy rotates
+-- something the organization already owns and predates this column, so
+-- backfilling it with a guess would be inventing an owner. What is refused is
+-- narrower and enforced above this layer — a `web_login` policy without an
+-- owner, because a run nobody owns is a run nobody may watch, and discovering
+-- that at notification time means a person never hears their password change
+-- got stuck.
+ALTER TABLE rotation_policies ADD COLUMN owner_subject TEXT;

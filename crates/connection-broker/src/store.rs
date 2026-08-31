@@ -2063,9 +2063,14 @@ pub async fn list_changelog_rows(
 pub struct RotationPolicyRow {
     pub id: String,
     pub organization_id: String,
-    /// `connection` or `store_path` (CHECK-enforced).
+    /// `connection`, `store_path`, or `web_login` (CHECK-enforced).
     pub target_kind: String,
     pub target_id: String,
+    /// The principal this policy rotates for, in the `owner_subject` shape
+    /// `connections` already uses. `None` for operator-created policies that
+    /// belong to nobody — which a `web_login` policy may not be, because a run
+    /// nobody owns is a run nobody may observe (ADR 0078 §8).
+    pub owner_subject: Option<String>,
     pub interval_seconds: i64,
     pub last_rotated_at: Option<String>,
     pub enabled: bool,
@@ -2107,6 +2112,10 @@ const ROTATION_POLICY_LEASE_COLUMNS: &[&str] = &[
     "next_attempt_at TEXT",
     "needs_attention INTEGER NOT NULL DEFAULT 0",
     "last_error TEXT",
+    // Migration 0020 (ADR 0078): who the run belongs to, and therefore who may
+    // watch it. Nullable, because policies predating web logins belong to
+    // nobody in particular and rotate a connection the org already owns.
+    "owner_subject TEXT",
 ];
 
 /// Rebuilds `rotation_policies` when its `target_kind` CHECK predates
@@ -2146,6 +2155,7 @@ async fn widen_rotation_target_kinds(pool: &SqlitePool) -> Result<()> {
             next_attempt_at TEXT NULL,
             needs_attention INTEGER NOT NULL DEFAULT 0,
             last_error TEXT NULL,
+            owner_subject TEXT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
          )",
@@ -2212,6 +2222,7 @@ pub async fn ensure_rotation_schema(pool: &SqlitePool) -> Result<()> {
             next_attempt_at TEXT NULL,
             needs_attention INTEGER NOT NULL DEFAULT 0,
             last_error TEXT NULL,
+            owner_subject TEXT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
          )",
@@ -2269,6 +2280,7 @@ fn rotation_policy_from_row(row: &sqlx::sqlite::SqliteRow) -> RotationPolicyRow 
         organization_id: row.get("organization_id"),
         target_kind: row.get("target_kind"),
         target_id: row.get("target_id"),
+        owner_subject: row.get("owner_subject"),
         interval_seconds: row.get("interval_seconds"),
         last_rotated_at: row.get("last_rotated_at"),
         enabled: row.get::<i64, _>("enabled") != 0,
@@ -2297,8 +2309,8 @@ fn rotation_job_from_row(row: &sqlx::sqlite::SqliteRow) -> RotationJobRow {
 }
 
 const ROTATION_POLICY_COLUMNS: &str = "id, organization_id, target_kind, target_id, \
-     interval_seconds, last_rotated_at, enabled, lease_until, attempts, next_attempt_at, \
-     needs_attention, last_error, created_at, updated_at";
+     owner_subject, interval_seconds, last_rotated_at, enabled, lease_until, attempts, \
+     next_attempt_at, needs_attention, last_error, created_at, updated_at";
 
 const ROTATION_JOB_COLUMNS: &str = "id, policy_id, organization_id, target_kind, target_id, \
      state, detail, created_at, updated_at";
@@ -2313,10 +2325,11 @@ pub async fn upsert_rotation_policy(pool: &SqlitePool, row: &RotationPolicyRow) 
     ensure_rotation_schema(pool).await?;
     sqlx::query(
         "INSERT INTO rotation_policies (id, organization_id, target_kind, target_id, \
-         interval_seconds, last_rotated_at, enabled, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) \
+         owner_subject, interval_seconds, last_rotated_at, enabled, created_at, updated_at) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
          ON CONFLICT (id) DO UPDATE SET target_kind = excluded.target_kind, \
-         target_id = excluded.target_id, interval_seconds = excluded.interval_seconds, \
+         target_id = excluded.target_id, owner_subject = excluded.owner_subject, \
+         interval_seconds = excluded.interval_seconds, \
          enabled = excluded.enabled, updated_at = excluded.updated_at, \
          attempts = 0, needs_attention = 0, last_error = NULL, next_attempt_at = NULL",
     )
@@ -2324,6 +2337,7 @@ pub async fn upsert_rotation_policy(pool: &SqlitePool, row: &RotationPolicyRow) 
     .bind(&row.organization_id)
     .bind(&row.target_kind)
     .bind(&row.target_id)
+    .bind(&row.owner_subject)
     .bind(row.interval_seconds)
     .bind(&row.last_rotated_at)
     .bind(i64::from(row.enabled))

@@ -401,6 +401,7 @@ mod tests {
             target: RotationTarget::Connection {
                 connection_id: "conn:1".into(),
             },
+            owner_subject: None,
             interval_seconds,
             last_rotated_at: last_rotated_at.map(str::to_string),
             enabled: true,

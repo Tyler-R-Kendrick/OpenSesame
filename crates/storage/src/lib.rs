@@ -998,6 +998,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0021_web_login_observation",
         include_str!("../../../migrations/0021_web_login_observation.sql"),
     ),
+    (
+        "0022_rotation_policy_owner",
+        include_str!("../../../migrations/0022_rotation_policy_owner.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.

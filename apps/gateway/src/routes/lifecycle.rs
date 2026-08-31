@@ -26,6 +26,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
+use opensesame_agent_events::AGENT_EVENT_TYPES;
 use opensesame_breach_intel::{BreachSubjectKind, BREACH_EVENT_TYPES};
 use opensesame_connection_broker::crypto::seal_scoped;
 use opensesame_lifecycle::{
@@ -178,7 +179,7 @@ pub async fn list_expiring(State(st): State<AppState>, headers: axum::http::Head
             .iter()
             .map(|subject| subject_view(subject, now))
             .collect::<Vec<_>>(),
-        "event_types": LIFECYCLE_EVENT_TYPES,
+        "event_types": subscribable_event_types(),
         "subject_kinds": SubjectKind::ALL.map(SubjectKind::as_str),
         "stages": ExpiryStage::ALL.map(ExpiryStage::as_str),
         "secrets_returned": false,
@@ -221,6 +222,7 @@ fn known_event_types() -> Vec<&'static str> {
         .iter()
         .copied()
         .chain(BREACH_EVENT_TYPES.iter().copied())
+        .chain(AGENT_EVENT_TYPES.iter().copied())
         .collect()
 }
 
@@ -287,6 +289,28 @@ fn requested_floor(body: &HookBody) -> Result<Severity, Response> {
 /// keeps the existing secret: rotating it is a delete and re-register, so a
 /// caller cannot silently invalidate every receiver's verification by editing
 /// a name.
+/// Every event type a subscription may name, across both families.
+///
+/// One hook table serves the expiry feed and the agent feed, so discovery has
+/// to answer for both — a caller that reads this list and then registers from
+/// it must not be told half the vocabulary.
+fn subscribable_event_types() -> Vec<&'static str> {
+    known_event_types()
+}
+
+/// Whether every entry in a filter is a name one of the two families
+/// recognises.
+///
+/// Entry by entry rather than family by family, so one hook can watch a
+/// certificate expiring and an agent getting stuck without registering twice.
+/// An empty filter is still refused: a subscription that names no events is a
+/// misconfiguration, and reading it as "everything" is the wrong direction to
+/// fail.
+#[cfg(test)]
+fn filter_is_valid(filter: &[String]) -> bool {
+    opensesame_security_events::filter::is_valid(filter, &known_event_types())
+}
+
 /// Validate a subscription request before anything is written.
 ///
 /// Split out of [`put_hook`] so the handler reads as the sequence it is —
@@ -299,7 +323,7 @@ fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
     }
     if !filter::is_valid(&body.event_types, &known_event_types()) {
         return Err(bad_request(
-            "event_types must be a non-empty list of known event types or a family wildcard (\"lifecycle.*\", \"breach.*\", \"*\")",
+            "event_types must be a non-empty list of known event types or a family wildcard (\"lifecycle.*\", \"breach.*\", \"agent.*\", \"*\")",
         ));
     }
     if let Some(kinds) = &body.subject_kinds {
@@ -960,6 +984,7 @@ mod tests {
                     target: opensesame_connection_broker::RotationTarget::StorePath {
                         path: "Dev/api-token".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 3_600,
                     enabled: true,
                 },
@@ -972,8 +997,10 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "{view}");
         assert_eq!(
             view["event_types"].as_array().unwrap().len(),
-            LIFECYCLE_EVENT_TYPES.len(),
-            "the frozen vocabulary is part of the contract",
+            LIFECYCLE_EVENT_TYPES.len() + BREACH_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
+            "the frozen vocabulary is part of the contract, and it spans every family — \
+             a caller that reads this list and registers from it must not be told \
+             part of the vocabulary",
         );
         assert_eq!(view["secrets_returned"], json!(false));
 
@@ -1012,6 +1039,7 @@ mod tests {
                     target: opensesame_connection_broker::RotationTarget::StorePath {
                         path: "Dev/api-token".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 3_600,
                     enabled: true,
                 },
@@ -1489,5 +1517,56 @@ mod custody_e2e {
         )
         .await;
         assert_ne!(status, StatusCode::OK, "{refused}");
+    }
+}
+
+#[cfg(test)]
+mod hook_filter_tests {
+    use super::{filter_is_valid, subscribable_event_types};
+    use opensesame_agent_events::{AGENT_EVENT_TYPES, EVENT_RUN_BLOCKED};
+    use opensesame_lifecycle::{EVENT_RENEWAL_DUE, LIFECYCLE_EVENT_TYPES};
+
+    fn filter(entries: &[&str]) -> Vec<String> {
+        entries.iter().map(|entry| (*entry).to_string()).collect()
+    }
+
+    #[test]
+    fn one_subscription_may_span_both_families() {
+        assert!(filter_is_valid(&filter(&[
+            EVENT_RENEWAL_DUE,
+            EVENT_RUN_BLOCKED
+        ])));
+        assert!(filter_is_valid(&filter(&["lifecycle.*", "agent.*"])));
+    }
+
+    #[test]
+    fn an_unknown_name_is_refused_even_beside_valid_ones() {
+        assert!(!filter_is_valid(&filter(&[
+            EVENT_RENEWAL_DUE,
+            "agent.run.exploded"
+        ])));
+        assert!(!filter_is_valid(&filter(&["everything"])));
+    }
+
+    #[test]
+    fn an_empty_filter_is_refused_rather_than_read_as_everything() {
+        assert!(!filter_is_valid(&[]));
+    }
+
+    #[test]
+    fn discovery_answers_for_both_families() {
+        let advertised = subscribable_event_types();
+        for name in LIFECYCLE_EVENT_TYPES.iter().chain(AGENT_EVENT_TYPES.iter()) {
+            assert!(advertised.contains(name), "{name} is not discoverable");
+        }
+        // Everything advertised must also be registrable: a caller that reads
+        // this list and registers from it can never be told a name it was just
+        // given is unknown.
+        for name in &advertised {
+            assert!(
+                filter_is_valid(&[(*name).to_string()]),
+                "{name} is advertised but not registrable"
+            );
+        }
     }
 }

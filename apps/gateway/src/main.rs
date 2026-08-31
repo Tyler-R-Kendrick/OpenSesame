@@ -2,6 +2,7 @@
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 #![cfg_attr(test, allow(clippy::await_holding_lock))] // Tests serialize process-global env mutations.
 
+mod agent_hooks;
 mod app_state;
 mod backup;
 mod backup_bus;
