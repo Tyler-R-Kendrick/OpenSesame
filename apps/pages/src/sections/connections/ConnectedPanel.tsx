@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import {
-  IconConnection,
-  IconLock,
-  IconSettings,
-} from "../../components/Icons.js";
+import { IconSettings } from "../../components/Icons.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { createConnection, revokeConnection } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
@@ -56,9 +52,6 @@ export function ConnectedPanel({
       <div className="panel__body panel__body--tight">
         {setupRequired ? (
           <div className="empty conn-gate">
-            <span className="empty__mark">
-              <IconLock />
-            </span>
             <h3>Choose an organization to manage connections</h3>
             <p>
               Connections are created once Identity and the Host agree on your
@@ -75,9 +68,6 @@ export function ConnectedPanel({
           </div>
         ) : automatic.length === 0 && managed.length === 0 ? (
           <div className="empty">
-            <span className="empty__mark">
-              <IconConnection />
-            </span>
             <h3>Nothing connected yet</h3>
             <p>
               Pick a service below. You approve it once, and every project or

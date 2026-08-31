@@ -29,12 +29,12 @@ import {
   subscribeOrgProfile,
 } from "../lib/orgs.js";
 import { brokeredOrgUpstream } from "../lib/providers.js";
-import { IconCheck, IconPlus, IconUser } from "./Icons.js";
+import { IconCheck, IconPlus } from "./Icons.js";
 
 function guestLabel(hasSession: boolean, assurance?: string): string {
-  if (!hasSession) return "Guest";
-  if (assurance === "provisional" || !assurance) return "Guest";
-  return "Account";
+  if (!hasSession) return "guest";
+  if (assurance === "provisional" || !assurance) return "guest";
+  return "account";
 }
 
 function AccountSwitcherDefault() {
@@ -139,16 +139,13 @@ function AccountSwitcherDefault() {
     <div className="account-switcher">
       <button
         type="button"
-        className="account-switcher__button"
+        className="prompt__seg"
         aria-haspopup="listbox"
         aria-expanded={open}
+        title="Switch account"
         onClick={() => (open ? close() : setOpen(true))}
       >
-        <IconUser size={15} />
-        <span className="account-switcher__name">{label}</span>
-        <span className="account-switcher__caret" aria-hidden="true">
-          ▾
-        </span>
+        {label}
       </button>
 
       {open ? (

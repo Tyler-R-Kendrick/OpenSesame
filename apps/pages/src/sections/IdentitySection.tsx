@@ -1541,9 +1541,6 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
 
         {identities && identities.length === 0 ? (
           <div className="empty">
-            <span className="empty__mark">
-              <IconUser />
-            </span>
             <h3>No linked identities</h3>
             <p>
               Sign in through a provider and the identity it vouches for is
@@ -1971,9 +1968,6 @@ function ProvidersPanel({
       <div className="panel__body">
         {providers.length === 0 ? (
           <div className="empty">
-            <span className="empty__mark">
-              <IconSite />
-            </span>
             <h3>No identity provider registered.</h3>
             <button
               type="button"
@@ -2320,9 +2314,6 @@ function ServiceAccountsPanel({
 
           {clients && clients.length === 0 ? (
             <div className="empty">
-              <span className="empty__mark">
-                <IconAgent />
-              </span>
               <h3>No service identities.</h3>
             </div>
           ) : null}
@@ -2616,9 +2607,6 @@ function OrganizationPanel({
 
           {orgs && orgs.length === 0 ? (
             <div className="empty">
-              <span className="empty__mark">
-                <IconShield />
-              </span>
               <h3>No organizations yet</h3>
               <p>
                 Create one below, or join one by signing in with an account its

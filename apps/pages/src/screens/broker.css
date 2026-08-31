@@ -4,11 +4,7 @@
   min-height: 100vh;
   margin: 0;
   padding: 2rem 1.25rem 3rem;
-  background: radial-gradient(
-      ellipse 80% 50% at 50% -10%,
-      var(--accent-wash) 0%,
-      transparent 55%
-    ), linear-gradient(180deg, var(--canvas) 0%, var(--surface-3) 100%);
+  background: var(--canvas);
   color: var(--ink);
   font-family: var(--font);
 }
@@ -21,9 +17,7 @@
 .broker__brand {
   margin: 0 0 0.5rem;
   font-size: 0.8125rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 600;
   color: var(--accent);
 }
 
@@ -31,7 +25,7 @@
   margin: 0 0 0.5rem;
   font-size: 1.5rem;
   line-height: 1.25;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .broker__lede {
@@ -97,7 +91,7 @@
 .broker__btn {
   appearance: none;
   border: 0;
-  border-radius: var(--radius-pill, 999px);
+  border-radius: var(--radius, 6px);
   padding: 0.55rem 1.1rem;
   background: var(--accent);
   color: var(--accent-ink);

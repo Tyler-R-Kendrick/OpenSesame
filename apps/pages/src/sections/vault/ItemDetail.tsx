@@ -8,19 +8,17 @@ import {
   useCopyFeedback,
 } from "../../components/FieldRow.js";
 import {
-  IconCard,
-  IconCert,
   IconCheck,
   IconChevronLeft,
   IconCopy,
-  IconDrop,
+  IconEdit,
   IconExternal,
-  IconLogin,
-  IconNote,
-  IconPasskey,
-  IconSecret,
+  IconEye,
+  IconEyeOff,
+  IconRefresh,
   IconStar,
   IconTrash,
+  IconX,
 } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
@@ -38,16 +36,6 @@ import {
 import { estimateStrength, generate } from "../../lib/vault/password.js";
 import { totpSetupUri } from "../../lib/vault/totp.js";
 import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
-
-const KIND_ICON = {
-  login: IconLogin,
-  passkey: IconPasskey,
-  card: IconCard,
-  secret: IconSecret,
-  note: IconNote,
-  certificate: IconCert,
-  drop: IconDrop,
-};
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
 
@@ -126,21 +114,22 @@ export function ItemDetail() {
       return next;
     });
 
-  const Icon = KIND_ICON[item.kind];
   const folder = folders.find((candidate) => candidate.id === item.folderId);
   const inTrash = item.deletedAt !== null;
 
   return (
     <div className="detail">
-      <Link className="btn btn--ghost btn--sm detail__back" to={listPath}>
-        <IconChevronLeft size={16} />
-        {listPath === "/vault" ? "All items" : "Back to list"}
-      </Link>
-
       <div className="detail__head">
-        <span className="detail__mark" aria-hidden="true">
-          <Icon size={22} />
-        </span>
+        <Link
+          className="icon-btn detail__backbtn"
+          aria-label={
+            listPath === "/vault" ? "Back to all items" : "Back to list"
+          }
+          title={listPath === "/vault" ? "Back to all items" : "Back to list"}
+          to={listPath}
+        >
+          <IconChevronLeft size={17} />
+        </Link>
         <div className="detail__heading">
           <h1>{item.name || "Untitled"}</h1>
           <div className="detail__meta">
@@ -157,19 +146,96 @@ export function ItemDetail() {
             {inTrash ? <span className="chip chip--warn">In trash</span> : null}
           </div>
         </div>
+        {/* The item's verbs are keys in one toolbar — symbols, named for
+            the screen reader and the hover. */}
         <div className="detail__tools">
-          <button
-            type="button"
-            className={`icon-btn${item.favorite ? " is-on" : ""}`}
-            onClick={() => void store.toggleFavorite(item.id)}
-            aria-pressed={item.favorite}
-            aria-label={
-              item.favorite ? "Remove from favorites" : "Add to favorites"
-            }
-            title={item.favorite ? "Remove from favorites" : "Add to favorites"}
-          >
-            <IconStar size={17} filled={item.favorite} />
-          </button>
+          {inTrash ? (
+            <>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => void store.restoreItem(item.id)}
+                aria-label="Restore"
+                title="Restore"
+              >
+                <IconRefresh size={17} />
+              </button>
+              <button
+                type="button"
+                className={`icon-btn icon-btn--danger${confirmPurge ? " is-armed" : ""}`}
+                onClick={() => {
+                  if (!confirmPurge) {
+                    setConfirmPurge(true);
+                    return;
+                  }
+                  void store.purgeItem(item.id);
+                  navigate("/vault?f=trash");
+                }}
+                aria-label={
+                  confirmPurge
+                    ? "Really delete permanently? This cannot be undone"
+                    : "Delete permanently"
+                }
+                title={
+                  confirmPurge
+                    ? "Really delete permanently? This cannot be undone"
+                    : "Delete permanently"
+                }
+              >
+                <IconTrash size={17} />
+              </button>
+              {confirmPurge ? (
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setConfirmPurge(false)}
+                  aria-label="Keep this item"
+                  title="Keep this item"
+                >
+                  <IconX size={17} />
+                </button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={`icon-btn${item.favorite ? " is-on" : ""}`}
+                onClick={() => void store.toggleFavorite(item.id)}
+                aria-pressed={item.favorite}
+                aria-label={
+                  item.favorite ? "Remove from favorites" : "Add to favorites"
+                }
+                title={
+                  item.favorite ? "Remove from favorites" : "Add to favorites"
+                }
+              >
+                <IconStar size={17} filled={item.favorite} />
+              </button>
+              {item.kind !== "drop" ? (
+                <Link
+                  className="icon-btn"
+                  aria-label="Edit"
+                  title="Edit (e)"
+                  to={`/vault/${item.id}/edit`}
+                >
+                  <IconEdit size={17} />
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                className="icon-btn icon-btn--danger"
+                onClick={() => {
+                  void store.trashItem(item.id);
+                  navigate(listPath);
+                }}
+                aria-label="Move to trash"
+                title="Move to trash (x)"
+              >
+                <IconTrash size={17} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -253,69 +319,12 @@ export function ItemDetail() {
         </section>
       ) : null}
 
-      <div className="actions">
-        {inTrash ? (
-          <>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => void store.restoreItem(item.id)}
-            >
-              Restore
-            </button>
-            {confirmPurge ? (
-              <>
-                <button
-                  type="button"
-                  className="btn btn--danger"
-                  onClick={() => {
-                    void store.purgeItem(item.id);
-                    navigate("/vault?f=trash");
-                  }}
-                >
-                  Purge permanently
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost"
-                  onClick={() => setConfirmPurge(false)}
-                >
-                  Cancel
-                </button>
-                <span className="hint">This cannot be undone.</span>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="btn btn--danger"
-                onClick={() => setConfirmPurge(true)}
-              >
-                <IconTrash size={16} />
-                Delete permanently
-              </button>
-            )}
-          </>
-        ) : (
-          <>
-            {item.kind !== "drop" ? (
-              <Link className="btn btn--primary" to={`/vault/${item.id}/edit`}>
-                Edit
-              </Link>
-            ) : null}
-            <button
-              type="button"
-              className="btn btn--danger"
-              onClick={() => {
-                void store.trashItem(item.id);
-                navigate(listPath);
-              }}
-            >
-              <IconTrash size={16} />
-              Move to trash
-            </button>
-          </>
-        )}
-      </div>
+      {confirmPurge ? (
+        <p className="hint" role="alert">
+          Purging deletes the encrypted record permanently. Press the trash key
+          again to confirm — this cannot be undone.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -376,10 +385,12 @@ function UpdateSecretPanel({
     return (
       <button
         type="button"
-        className="btn btn--sm"
+        className="icon-btn"
         onClick={() => setOpen(true)}
+        aria-label={`Update ${label}`}
+        title={`Update ${label}`}
       >
-        Update {label}
+        <IconRefresh size={17} />
       </button>
     );
   }
@@ -427,21 +438,26 @@ function UpdateSecretPanel({
       <div className="actions">
         <button
           type="button"
-          className="btn btn--primary btn--sm"
+          className="icon-btn is-on"
           disabled={busy}
+          aria-busy={busy}
           onClick={() => void apply()}
+          aria-label={busy ? "Saving…" : "Save new value"}
+          title={busy ? "Saving…" : "Save new value"}
         >
-          {busy ? "Saving…" : "Save new value"}
+          <IconCheck size={17} />
         </button>
         <button
           type="button"
-          className="btn btn--ghost btn--sm"
+          className="icon-btn"
           onClick={() => {
             setOpen(false);
             setError(null);
           }}
+          aria-label="Cancel"
+          title="Cancel"
         >
-          Cancel
+          <IconX size={17} />
         </button>
       </div>
     </div>
@@ -548,10 +564,24 @@ function ItemFields({
                   actions={
                     <button
                       type="button"
-                      className="btn btn--ghost btn--sm"
+                      className={`icon-btn${revealed.has("totp-qr") ? " is-on" : ""}`}
                       onClick={() => toggle("totp-qr")}
+                      aria-label={
+                        revealed.has("totp-qr")
+                          ? "Hide setup QR"
+                          : "Show setup QR"
+                      }
+                      title={
+                        revealed.has("totp-qr")
+                          ? "Hide setup QR"
+                          : "Show setup QR"
+                      }
                     >
-                      {revealed.has("totp-qr") ? "Hide" : "Show"}
+                      {revealed.has("totp-qr") ? (
+                        <IconEyeOff size={17} />
+                      ) : (
+                        <IconEye size={17} />
+                      )}
                     </button>
                   }
                 >

@@ -1,49 +1,25 @@
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
-import type {
-  ContextMenuItem,
-  FileTreeDirectoryHandle,
-  FileTreeItemHandle,
-  FileTreeOptions,
-  FileTreeRowDecoration,
-} from "@pierre/trees";
-import { FileTree, useFileTree } from "@pierre/trees/react";
-import { useEffect, useMemo, useRef } from "react";
-import { registerVaultKeymap } from "../../lib/keymap.js";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  IconChevronRight,
+  IconClock,
+  IconDots,
+  IconStar,
+} from "../../components/Icons.js";
+import { registerVaultKeymap, showKeymapHelp } from "../../lib/keymap.js";
 import { activeProject } from "../../lib/projects.js";
-import type { Folder, ItemKind, VaultItem } from "../../lib/vault/model.js";
-import { itemPath, pathSegment } from "../../lib/vault/paths.js";
+import type { Folder, VaultItem } from "../../lib/vault/model.js";
+import { KIND_EXT, pathSegment, tombPath } from "../../lib/vault/paths.js";
 import { readFile, writeFile } from "../../lib/vfs.js";
 import { formatExpiry } from "./DropCeremony.js";
 
-const EXPANSION_PATH = "config/tree-expansion";
+const COLLAPSED_PATH = "config/tree-collapsed";
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-const DECORATION_SPRITE = `<svg data-icon-sprite aria-hidden="true" width="0" height="0">
-  <symbol id="vault-tree-clock" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.5V8l2.5 1.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/></symbol>
-  <symbol id="vault-tree-star" viewBox="0 0 16 16"><path d="m8 1.8 1.85 3.75 4.14.6-3 2.92.71 4.12L8 11.25l-3.7 1.94.71-4.12-3-2.92 4.14-.6z" fill="currentColor"/></symbol>
-</svg>`;
-
-const KIND_TREE_ICON = new Map<ItemKind, string>([
-  ["login", "file-tree-icon-lock"],
-  ["passkey", "file-tree-icon-lock"],
-  ["card", "file-tree-builtin-database"],
-  ["secret", "file-tree-icon-lock"],
-  ["drop", "file-tree-builtin-zip"],
-  ["note", "file-tree-builtin-text"],
-  ["certificate", "file-tree-icon-lock"],
-]);
-
-type TreeInput = {
-  paths: string[];
-  directoryPaths: string[];
-  byPath: Map<string, VaultItem>;
-  pathById: Map<string, string>;
-  iconsByName: Record<string, string>;
-};
-
 type VaultTreeActions = {
   open: (item: VaultItem) => void;
+  preview: (item: VaultItem) => void;
   copySecret: (item: VaultItem) => void;
   copyUsername: (item: VaultItem) => void;
   edit: (item: VaultItem) => void;
@@ -57,325 +33,537 @@ type VaultTreeProps = {
   items: VaultItem[];
   folders: Folder[];
   activeItemId?: string;
+  title: string;
+  total: number;
   actions: VaultTreeActions;
-  onFocus: (item: VaultItem | null, path: string | null) => void;
+  verbs?: ReactNode;
 };
 
-function uniquePath(
-  base: string,
-  directory: boolean,
-  used: Set<string>,
-): string {
-  let path = directory ? `${base}/` : base;
-  let suffix = 2;
-  while (used.has(path.replace(/\/$/, ""))) {
-    path = directory ? `${base} (${suffix})/` : `${base} (${suffix})`;
-    suffix += 1;
-  }
-  used.add(path.replace(/\/$/, ""));
-  return path;
-}
+type DirRow = {
+  type: "dir";
+  key: string;
+  path: string;
+  name: string;
+  count: number;
+  expanded: boolean;
+};
 
-function isDirectory(
-  item: FileTreeItemHandle | null,
-): item is FileTreeDirectoryHandle {
-  return item?.isDirectory() === true;
-}
+type ItemRow = {
+  type: "item";
+  key: string;
+  path: string;
+  name: string;
+  ext: string;
+  child: boolean;
+  item: VaultItem;
+};
 
-function buildTreeInput(items: VaultItem[], folders: Folder[]): TreeInput {
-  const paths: string[] = [];
-  const directoryPaths: string[] = [];
-  const byPath = new Map<string, VaultItem>();
-  const pathById = new Map<string, string>();
-  const iconsByName: Record<string, string> = {};
-  const folderPaths = new Map<string, string>();
-  const used = new Set<string>();
+type TreeRow = DirRow | ItemRow;
 
-  for (const folder of folders) {
-    const path = uniquePath(pathSegment(folder.name), true, used);
-    folderPaths.set(folder.id, path);
-    directoryPaths.push(path);
-    paths.push(path);
-  }
-
-  for (const item of items) {
-    const folderPath = item.folderId
-      ? folderPaths.get(item.folderId)
-      : undefined;
-    const base = itemPath(item, []).replace(/\/$/, "");
-    const path = uniquePath(`${folderPath ?? ""}${base}`, false, used);
-    paths.push(path);
-    byPath.set(path, item);
-    pathById.set(item.id, path);
-    const name = path.split("/").at(-1);
-    const icon = KIND_TREE_ICON.get(item.kind);
-    if (name && icon) iconsByName[name] = icon;
-  }
-
-  return { paths, directoryPaths, byPath, pathById, iconsByName };
-}
-
-async function loadExpandedDefault(tomb: string): Promise<string[]> {
+async function loadCollapsedDefault(tomb: string): Promise<string[]> {
   try {
     const parsed: BoundaryValue = JSON.parse(
-      decoder.decode(await readFile(tomb, EXPANSION_PATH)),
+      decoder.decode(await readFile(tomb, COLLAPSED_PATH)),
     );
     if (!Array.isArray(parsed)) return [];
-    const expanded: string[] = [];
-    for (const path of parsed) if (isString(path)) expanded.push(path);
-    return expanded;
+    const collapsed: string[] = [];
+    for (const path of parsed) if (isString(path)) collapsed.push(path);
+    return collapsed;
   } catch {
     return [];
   }
 }
 
-async function saveExpandedDefault(
+async function saveCollapsedDefault(
   tomb: string,
   paths: string[],
 ): Promise<void> {
-  await writeFile(tomb, EXPANSION_PATH, encoder.encode(JSON.stringify(paths)));
+  await writeFile(tomb, COLLAPSED_PATH, encoder.encode(JSON.stringify(paths)));
 }
 
 export const vaultTreeSeams = {
-  useFileTree,
-  FileTree,
   activeTomb: () => activeProject().id,
-  loadExpanded: loadExpandedDefault,
-  saveExpanded: saveExpandedDefault,
+  loadCollapsed: loadCollapsedDefault,
+  saveCollapsed: saveCollapsedDefault,
 };
 
-function decoration(item: VaultItem | undefined): FileTreeRowDecoration | null {
-  if (!item) return null;
-  if (item.sample) return { text: "SYNTHETIC", title: "Sample data" };
-  if (item.kind === "drop") {
-    return {
-      icon: "vault-tree-clock",
-      title: `Expires ${formatExpiry(item.expiresAt)}`,
-    };
+function itemMatches(item: VaultItem, query: string): boolean {
+  return `${pathSegment(item.name)}${KIND_EXT[item.kind]}`
+    .toLowerCase()
+    .includes(query);
+}
+
+function buildRows(
+  items: VaultItem[],
+  folders: Folder[],
+  collapsed: ReadonlySet<string>,
+  query: string,
+): TreeRow[] {
+  const rows: TreeRow[] = [];
+  const grouped = new Map<string, VaultItem[]>();
+  const rootItems: VaultItem[] = [];
+  const folderIds = new Set(folders.map((folder) => folder.id));
+  for (const item of items) {
+    if (item.folderId && folderIds.has(item.folderId)) {
+      const bucket = grouped.get(item.folderId);
+      if (bucket) bucket.push(item);
+      else grouped.set(item.folderId, [item]);
+    } else {
+      rootItems.push(item);
+    }
   }
-  return item.favorite ? { icon: "vault-tree-star", title: "Favorite" } : null;
+  const itemRow = (item: VaultItem, prefix: string): ItemRow => ({
+    type: "item",
+    key: item.id,
+    path: `${prefix}${pathSegment(item.name)}${KIND_EXT[item.kind]}`,
+    name: pathSegment(item.name),
+    ext: KIND_EXT[item.kind],
+    child: prefix !== "",
+    item,
+  });
+  // Two folders may share a display name; their paths must not, or their
+  // collapse state (persisted by path) and the status line would couple.
+  const seenNames = new Map<string, number>();
+  for (const folder of folders) {
+    const base = pathSegment(folder.name);
+    const nth = (seenNames.get(base) ?? 0) + 1;
+    seenNames.set(base, nth);
+    const name = nth > 1 ? `${base} (${nth})` : base;
+    // A query that names the folder keeps the whole directory; otherwise the
+    // folder survives only through its matching children.
+    const dirHit = query !== "" && name.toLowerCase().includes(query);
+    const bucket = grouped.get(folder.id) ?? [];
+    const children = dirHit
+      ? bucket
+      : bucket.filter((item) => !query || itemMatches(item, query));
+    if (query && children.length === 0 && !dirHit) continue;
+    const path = `${name}/`;
+    // A search opens every directory it matched into; outside a search the
+    // reader's own collapse choices hold.
+    const expanded = query !== "" || !collapsed.has(path);
+    rows.push({
+      type: "dir",
+      key: `dir_${folder.id}`,
+      path,
+      name,
+      count: children.length,
+      expanded,
+    });
+    if (expanded) for (const item of children) rows.push(itemRow(item, path));
+  }
+  for (const item of rootItems) {
+    if (query && !itemMatches(item, query)) continue;
+    rows.push(itemRow(item, ""));
+  }
+  return rows;
+}
+
+function Highlight({ text, query }: { text: string; query: string }) {
+  const at = query ? text.toLowerCase().indexOf(query) : -1;
+  if (at < 0) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark>{text.slice(at, at + query.length)}</mark>
+      {text.slice(at + query.length)}
+    </>
+  );
+}
+
+function rowId(key: string): string {
+  return `vtree-row-${key}`;
+}
+
+function Decorations({ item }: { item: VaultItem }) {
+  return (
+    <span className="vtree__side">
+      {item.kind === "drop" ? (
+        <IconClock
+          size={13}
+          title={`Expires ${formatExpiry(item.expiresAt)}`}
+        />
+      ) : null}
+      {item.favorite ? (
+        <IconStar size={13} filled title="Favorite" className="vtree__fav" />
+      ) : null}
+      {item.sample ? <span className="vtree__syn">SYNTHETIC</span> : null}
+    </span>
+  );
+}
+
+function RowMenu({
+  item,
+  actions,
+  close,
+}: {
+  item: VaultItem;
+  actions: VaultTreeActions;
+  close: () => void;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const away = (event: PointerEvent) => {
+      const target = event.target instanceof Node ? event.target : null;
+      if (target && menuRef.current?.contains(target)) return;
+      // The ⋯ toggles manage the menu themselves: closing on their
+      // pointerdown would race the click, which would reopen the menu it
+      // meant to close.
+      if (target instanceof Element && target.closest("[data-vtree-more]")) {
+        return;
+      }
+      close();
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [close]);
+  const entry = (label: string, action: (item: VaultItem) => void) => (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={(event) => {
+        event.stopPropagation();
+        close();
+        action(item);
+      }}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div
+      ref={menuRef}
+      className="vtree__menu"
+      role="menu"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          close();
+        }
+      }}
+    >
+      {entry("Open", actions.open)}
+      {entry(item.favorite ? "Unfavorite" : "Favorite", actions.favorite)}
+      {item.kind === "secret" ? entry("Share once", actions.share) : null}
+      {entry("Edit", actions.edit)}
+      {entry("Trash", actions.trash)}
+    </div>
+  );
 }
 
 export function VaultTree({
   items,
   folders,
   activeItemId,
+  title,
+  total,
   actions,
-  onFocus,
+  verbs,
 }: VaultTreeProps) {
-  const input = useMemo(() => buildTreeInput(items, folders), [folders, items]);
-  const inputRef = useRef(input);
-  inputRef.current = input;
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [query, setQuery] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const rowsRef = useRef<TreeRow[]>([]);
+  const cursorRef = useRef<string | null>(null);
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
-  const activeItemIdRef = useRef(activeItemId);
-  activeItemIdRef.current = activeItemId;
-  const options: FileTreeOptions = {
-    paths: input.paths,
-    density: "compact",
-    fileTreeSearchMode: "hide-non-matches",
-    initialExpansion: "closed",
-    search: true,
-    icons: {
-      set: "complete",
-      colored: false,
-      spriteSheet: DECORATION_SPRITE,
-      byFileName: input.iconsByName,
-    },
-    composition: {
-      contextMenu: {
-        enabled: true,
-        triggerMode: "button",
-        buttonVisibility: "when-needed",
-      },
-    },
-    onSelectionChange: (paths) => {
-      const item =
-        paths.length === 1
-          ? inputRef.current.byPath.get(paths[0] ?? "")
-          : undefined;
-      if (item) actionsRef.current.open(item);
-    },
-    renderRowDecoration: ({ item }) =>
-      decoration(inputRef.current.byPath.get(item.path)),
-  };
-  const { model } = vaultTreeSeams.useFileTree(options);
+  const treeRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const persistReadyRef = useRef(false);
+  // The keymap effect registers once; these refs hand it the live values.
+  const collapsedRef = useRef(collapsed);
+  collapsedRef.current = collapsed;
+  const setAndSaveCollapsedRef = useRef<(next: ReadonlySet<string>) => void>(
+    () => undefined,
+  );
+  // One collapse-toggle implementation, shared by the once-registered keymap
+  // and pointer clicks. It reads only through stable refs.
+  const toggleDirRef = useRef((row: DirRow) => {
+    const next = new Set(collapsedRef.current);
+    if (next.has(row.path)) next.delete(row.path);
+    else next.add(row.path);
+    setAndSaveCollapsedRef.current(next);
+  });
+
   const tomb = vaultTreeSeams.activeTomb();
-  const persistedRef = useRef("");
-  const persistenceReadyRef = useRef(false);
+  const needle = (query ?? "").trim().toLowerCase();
+  const rows = useMemo(
+    () => buildRows(items, folders, collapsed, needle),
+    [items, folders, collapsed, needle],
+  );
+  rowsRef.current = rows;
+  cursorRef.current = cursor;
+
+  const cursorRow = rows.find((row) => row.key === cursor) ?? null;
+  const matchCount = rows.filter((row) => row.type === "item").length;
 
   useEffect(() => {
-    const expanded = input.directoryPaths.filter((path) => {
-      const handle = model.getItem(path);
-      return isDirectory(handle) && handle.isExpanded();
-    });
-    model.resetPaths(input.paths, { initialExpandedPaths: expanded });
-    const activePath = activeItemId
-      ? input.pathById.get(activeItemId)
-      : undefined;
-    if (activePath) model.focusPath(activePath);
-    else model.focusFirstItem();
-  }, [activeItemId, input, model]);
-
-  useEffect(() => {
+    persistReadyRef.current = false;
     let live = true;
-    persistenceReadyRef.current = false;
-    void vaultTreeSeams.loadExpanded(tomb).then((saved) => {
+    void vaultTreeSeams.loadCollapsed(tomb).then((saved) => {
       if (!live) return;
-      const valid = saved.filter((path) =>
-        inputRef.current.directoryPaths.includes(path),
-      );
-      persistedRef.current = JSON.stringify(valid);
-      model.resetPaths(inputRef.current.paths, { initialExpandedPaths: valid });
-      const activePath = activeItemIdRef.current
-        ? inputRef.current.pathById.get(activeItemIdRef.current)
-        : undefined;
-      if (activePath) model.focusPath(activePath);
-      else model.focusFirstItem();
-      persistenceReadyRef.current = true;
+      setCollapsed(new Set(saved));
+      persistReadyRef.current = true;
     });
     return () => {
       live = false;
     };
-  }, [model, tomb]);
+  }, [tomb]);
 
-  useEffect(
-    () =>
-      model.subscribe(() => {
-        const path = model.getFocusedPath();
-        onFocus(
-          path ? (inputRef.current.byPath.get(path) ?? null) : null,
-          path,
-        );
-        if (!persistenceReadyRef.current) return;
-        const expanded = inputRef.current.directoryPaths.filter((candidate) => {
-          const handle = model.getItem(candidate);
-          return isDirectory(handle) && handle.isExpanded();
-        });
-        const serialized = JSON.stringify(expanded);
-        if (serialized === persistedRef.current) return;
-        persistedRef.current = serialized;
-        void vaultTreeSeams.saveExpanded(tomb, expanded).catch(() => undefined);
-      }),
-    [model, onFocus, tomb],
-  );
+  const setAndSaveCollapsed = (next: ReadonlySet<string>) => {
+    setCollapsed(next);
+    if (persistReadyRef.current) {
+      void vaultTreeSeams.saveCollapsed(tomb, [...next]).catch(() => undefined);
+    }
+  };
+  setAndSaveCollapsedRef.current = setAndSaveCollapsed;
+
+  // The open item owns the cursor; without one the cursor holds its row, and
+  // falls back to the first row when its row left the tree.
+  useEffect(() => {
+    if (activeItemId && rows.some((row) => row.key === activeItemId)) {
+      setCursor(activeItemId);
+      return;
+    }
+    setCursor((current) =>
+      current !== null && rows.some((row) => row.key === current)
+        ? current
+        : (rows[0]?.key ?? null),
+    );
+  }, [activeItemId, rows]);
 
   useEffect(() => {
-    const focusedItem = () => {
-      const path = model.getFocusedPath();
-      return path ? inputRef.current.byPath.get(path) : undefined;
+    if (!cursor) return;
+    // The optional call absorbs jsdom, which renders rows without scrolling.
+    document
+      .getElementById(rowId(cursor))
+      ?.scrollIntoView?.({ block: "nearest" });
+  }, [cursor]);
+
+  useEffect(() => {
+    if (query !== null) searchRef.current?.focus();
+  }, [query]);
+
+  useEffect(() => {
+    const rowAt = (key: string | null) =>
+      rowsRef.current.find((row) => row.key === key) ?? null;
+    const move = (delta: number) => {
+      const list = rowsRef.current;
+      if (list.length === 0) return;
+      const at = list.findIndex((row) => row.key === cursorRef.current);
+      const next =
+        at < 0 ? 0 : Math.min(Math.max(at + delta, 0), list.length - 1);
+      const row = list[next];
+      setCursor(row?.key ?? null);
+      // ranger's reading: browsing IS previewing. Only explicit keyboard
+      // movement previews, so the initial cursor never yanks the pane.
+      if (row?.type === "item") actionsRef.current.preview(row.item);
     };
+    const focusedItem = () => {
+      const row = rowAt(cursorRef.current);
+      return row?.type === "item" ? row.item : null;
+    };
+    const withItem = (action: (item: VaultItem) => void) => () => {
+      const item = focusedItem();
+      if (item) action(item);
+    };
+    const toggleDir = (row: DirRow) => toggleDirRef.current(row);
     return registerVaultKeymap({
-      next: () => model.focusNextItem(),
-      previous: () => model.focusPreviousItem(),
-      first: () => model.focusFirstItem(),
-      last: () => model.focusLastItem(),
+      next: () => move(1),
+      previous: () => move(-1),
+      first: () => move(Number.NEGATIVE_INFINITY),
+      last: () => move(Number.POSITIVE_INFINITY),
       enter: () => {
-        const item = model.getFocusedItem();
-        if (isDirectory(item)) item.expand();
-        else {
-          const focused = focusedItem();
-          if (focused) actions.open(focused);
-        }
+        const row = rowAt(cursorRef.current);
+        if (!row) return;
+        if (row.type === "item") actionsRef.current.open(row.item);
+        else if (row.expanded) move(1);
+        else toggleDir(row);
       },
       parent: () => {
-        const item = model.getFocusedItem();
-        if (isDirectory(item) && item.isExpanded()) item.collapse();
-        else model.focusParentItem();
-      },
-      activate: () => {
-        const item = model.getFocusedItem();
-        if (isDirectory(item)) item.toggle();
-        else {
-          const focused = focusedItem();
-          if (focused) actions.open(focused);
+        const row = rowAt(cursorRef.current);
+        if (!row) return;
+        if (row.type === "dir") {
+          if (row.expanded) toggleDir(row);
+          return;
+        }
+        if (!row.child) return;
+        const list = rowsRef.current;
+        for (let at = list.findIndex((r) => r.key === row.key); at >= 0; at--) {
+          const candidate = list[at];
+          if (candidate?.type === "dir") {
+            setCursor(candidate.key);
+            return;
+          }
         }
       },
-      search: () => model.openSearch(),
-      closeSearch: () => model.closeSearch(),
-      copySecret: () => {
-        const item = focusedItem();
-        if (item) actions.copySecret(item);
+      activate: () => {
+        const row = rowAt(cursorRef.current);
+        if (!row) return;
+        if (row.type === "item") actionsRef.current.open(row.item);
+        else toggleDir(row);
       },
-      copyUsername: () => {
-        const item = focusedItem();
-        if (item) actions.copyUsername(item);
+      search: () => setQuery((current) => current ?? ""),
+      closeSearch: () => {
+        setQuery(null);
+        treeRef.current?.focus();
       },
-      edit: () => {
-        const item = focusedItem();
-        if (item) actions.edit(item);
-      },
-      trash: () => {
-        const item = focusedItem();
-        if (item) actions.trash(item);
-      },
-      create: actions.create,
-      favorite: () => {
-        const item = focusedItem();
-        if (item) actions.favorite(item);
-      },
-      share: () => {
-        const item = focusedItem();
-        if (item) actions.share(item);
-      },
+      copySecret: withItem((item) => actionsRef.current.copySecret(item)),
+      copyUsername: withItem((item) => actionsRef.current.copyUsername(item)),
+      edit: withItem((item) => actionsRef.current.edit(item)),
+      trash: withItem((item) => actionsRef.current.trash(item)),
+      create: () => actionsRef.current.create(),
+      favorite: withItem((item) => actionsRef.current.favorite(item)),
+      share: withItem((item) => actionsRef.current.share(item)),
     });
-  }, [actions, model]);
+  }, []);
 
-  const Tree = vaultTreeSeams.FileTree;
+  const statusPath = tombPath(tomb, cursorRow?.path ?? null);
+  const statusMeta =
+    query !== null && needle !== ""
+      ? `${matchCount}/${total} · /${needle}`
+      : `${items.length}/${total} · ${title}`;
+
   return (
-    <Tree
-      className="vault-tree"
-      model={model}
-      aria-label="Vault items"
-      renderContextMenu={(entry: ContextMenuItem, context) => {
-        const item = input.byPath.get(entry.path);
-        if (!item) return null;
-        const run = (action: () => void) => {
-          context.close({ restoreFocus: false });
-          action();
-        };
-        return (
-          <div className="vault-tree-menu" role="menu">
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => run(() => actions.open(item))}
+    <div className="vtree">
+      <div className="vtree__pathbar">
+        <span className="vtree__root">
+          <span className="vtree__tomb">{tomb}</span>
+          <span className="vtree__sep">:/</span>
+        </span>
+        <span className="vtree__keys">
+          {verbs}
+          <button
+            type="button"
+            className="vtree__key"
+            title="Search (/)"
+            onClick={() => setQuery((current) => current ?? "")}
+          >
+            /
+          </button>
+          <button
+            type="button"
+            className="vtree__key"
+            title="Keyboard shortcuts (?)"
+            onClick={showKeymapHelp}
+          >
+            ?
+          </button>
+        </span>
+      </div>
+
+      <div
+        ref={treeRef}
+        className="vtree__rows"
+        role="tree"
+        aria-label="Vault items"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
+        tabIndex={0}
+        aria-activedescendant={cursor ? rowId(cursor) : undefined}
+      >
+        {rows.map((row) => {
+          const isCursor = row.key === cursor;
+          const shared = {
+            id: rowId(row.key),
+            className: `vtree__row${row.type === "item" && row.child ? " vtree__row--child" : ""}${isCursor ? " is-cursor" : ""}`,
+            "aria-level": row.type === "item" && row.child ? 2 : 1,
+            "aria-selected": isCursor,
+          };
+          let content: ReactNode;
+          if (row.type === "dir") {
+            content = (
+              <>
+                <IconChevronRight
+                  size={12}
+                  className={`vtree__caret${row.expanded ? " is-open" : ""}`}
+                />
+                <span className="vtree__name">
+                  <Highlight text={row.name} query={needle} />
+                  <span className="vtree__dim">/</span>
+                </span>
+                <span className="vtree__count">{row.count}</span>
+              </>
+            );
+          } else {
+            content = (
+              <>
+                <span className="vtree__name">
+                  <Highlight text={row.name} query={needle} />
+                  <span className="vtree__dim">{row.ext}</span>
+                </span>
+                <Decorations item={row.item} />
+                <button
+                  type="button"
+                  className="vtree__more"
+                  data-vtree-more=""
+                  aria-label={`Actions for ${row.name}`}
+                  aria-haspopup="menu"
+                  aria-expanded={menuFor === row.key}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setCursor(row.key);
+                    setMenuFor(menuFor === row.key ? null : row.key);
+                  }}
+                >
+                  <IconDots size={14} />
+                </button>
+                {menuFor === row.key ? (
+                  <RowMenu
+                    item={row.item}
+                    actions={actions}
+                    close={() => setMenuFor(null)}
+                  />
+                ) : null}
+              </>
+            );
+          }
+          return (
+            <div
+              key={row.key}
+              role="treeitem"
+              {...shared}
+              {...(row.type === "dir" ? { "aria-expanded": row.expanded } : {})}
+              onClick={() => {
+                setCursor(row.key);
+                if (row.type === "item") actions.open(row.item);
+                else toggleDirRef.current(row);
+              }}
             >
-              Open
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => run(() => actions.favorite(item))}
-            >
-              {item.favorite ? "Unfavorite" : "Favorite"}
-            </button>
-            {item.kind === "secret" ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => run(() => actions.share(item))}
-              >
-                Share once
-              </button>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => run(() => actions.edit(item))}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => run(() => actions.trash(item))}
-            >
-              Trash
-            </button>
-          </div>
-        );
-      }}
-    />
+              {content}
+            </div>
+          );
+        })}
+      </div>
+
+      {query !== null ? (
+        <div className="vtree__cmd">
+          <span className="vtree__prompt" aria-hidden="true">
+            /
+          </span>
+          <input
+            ref={searchRef}
+            value={query}
+            aria-label="Search items"
+            spellCheck={false}
+            autoComplete="off"
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.stopPropagation();
+                setQuery(null);
+                treeRef.current?.focus();
+              } else if (event.key === "Enter") {
+                treeRef.current?.focus();
+              }
+            }}
+          />
+        </div>
+      ) : null}
+
+      <output className="vault__status" aria-live="polite">
+        <span className="vault__status-path">{statusPath}</span>
+        <span className="vault__status-meta">{statusMeta}</span>
+      </output>
+    </div>
   );
 }

@@ -218,9 +218,13 @@ describe("ItemDetail", () => {
     expect(
       screen.getByText(/Hidden — shows the otpauth enrollment QR/),
     ).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: /^Show$/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show setup QR/i }),
+    );
     expect(screen.getByText(/Scan with an authenticator app/)).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: /^Hide$/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Hide setup QR/i }),
+    );
     expect(
       screen.getByText(/Hidden — shows the otpauth enrollment QR/),
     ).toBeTruthy();
@@ -342,17 +346,19 @@ describe("ItemDetail", () => {
     expect(store.restoreItem).toHaveBeenCalledWith("itm_login");
 
     await userEvent.click(
-      screen.getByRole("button", { name: /Delete permanently/i }),
+      screen.getByRole("button", { name: /^Delete permanently$/i }),
     );
-    expect(screen.getByText(/This cannot be undone/)).toBeTruthy();
-    // Cancel first, then purge for real.
-    await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
+    expect(screen.getByText(/cannot be undone/)).toBeTruthy();
+    // Disarm first, then purge for real: the armed trash key asks again.
+    await userEvent.click(
+      screen.getByRole("button", { name: /Keep this item/i }),
+    );
     expect(store.purgeItem).not.toHaveBeenCalled();
     await userEvent.click(
-      screen.getByRole("button", { name: /Delete permanently/i }),
+      screen.getByRole("button", { name: /^Delete permanently$/i }),
     );
     await userEvent.click(
-      screen.getByRole("button", { name: /Purge permanently/i }),
+      screen.getByRole("button", { name: /Really delete permanently/i }),
     );
     expect(store.purgeItem).toHaveBeenCalledWith("itm_login");
   });

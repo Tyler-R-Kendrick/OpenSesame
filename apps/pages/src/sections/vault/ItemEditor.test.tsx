@@ -180,7 +180,9 @@ describe("ItemEditor", () => {
 
   it("creates a new login and navigates to its detail", async () => {
     renderNew();
-    expect(screen.getByRole("heading", { name: /New login/i })).toBeTruthy();
+    expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
+      "login",
+    );
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Webmail");
     await userEvent.type(
       screen.getByLabelText(/^Username$/i),
@@ -245,8 +247,10 @@ describe("ItemEditor", () => {
       labels: Array.from(container.querySelectorAll("label"), (label) =>
         label.textContent?.trim(),
       ),
-      actions: Array.from(container.querySelectorAll("button"), (button) =>
-        button.textContent?.trim(),
+      actions: Array.from(
+        container.querySelectorAll("button"),
+        (button) =>
+          button.getAttribute("aria-label") ?? button.textContent?.trim(),
       ),
       guidance: Array.from(container.querySelectorAll("p.hint"), (hint) =>
         hint.textContent?.trim(),
@@ -254,16 +258,14 @@ describe("ItemEditor", () => {
     }).toMatchInlineSnapshot(`
       {
         "actions": [
-          "Add field",
           "Create certificate",
+          "Add field",
         ],
         "guidance": [
           "The Host issues the certificate; the returned material is sealed in this device vault.",
           "OpenSesame generates an ECDSA P-256 private key and issues a short-lived TLS certificate from your configured issuer, or its private CA by default. You never need to paste certificate material.",
         ],
         "labels": [
-          "Type",
-          "Name",
           "Common name",
           "DNS names",
           "IP addresses",
@@ -380,7 +382,9 @@ describe("ItemEditor", () => {
 
   it("falls back to a login when the kind param is unknown", () => {
     renderNew("/vault/new/widget");
-    expect(screen.getByRole("heading", { name: /New login/i })).toBeTruthy();
+    expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
+      "login",
+    );
   });
 
   it("switches item kind and keeps the name", async () => {
@@ -389,7 +393,9 @@ describe("ItemEditor", () => {
     await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
     expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();
     expect(inputByLabel(/^Name$/i).value).toBe("My card");
-    expect(screen.getByRole("heading", { name: /New card/i })).toBeTruthy();
+    expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
+      "card",
+    );
   });
 
   it("strips non-digits from card numbers", async () => {
@@ -495,7 +501,8 @@ describe("ItemEditor", () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(screen.getByRole("heading", { name: /Edit item/i })).toBeTruthy();
+    // Edit mode fixes the kind: the extension is stated, not selectable.
+    expect(screen.queryByLabelText(/^Type$/i)).toBeNull();
     const password = screen.getByLabelText(/^Password$/i);
     await userEvent.clear(password);
     await userEvent.type(password, "brand-new-password");

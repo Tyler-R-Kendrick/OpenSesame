@@ -97,9 +97,9 @@ async function completeFirstRunUnlock(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Seal this device" }).click();
 
   await page.locator(".vault").waitFor({ state: "visible" });
-  await page
-    .getByRole("heading", { name: "All items" })
-    .waitFor({ state: "visible" });
+  // The pane has no heading any more; a fresh vault lands on the empty
+  // state (apps/pages/src/sections/VaultSection.tsx).
+  await page.getByText("Nothing here yet").waitFor({ state: "visible" });
 
   await settleFonts(page);
 }

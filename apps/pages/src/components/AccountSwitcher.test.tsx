@@ -46,7 +46,7 @@ function renderSwitcher() {
 }
 
 function openMenu() {
-  const toggle = document.querySelector(".account-switcher__button");
+  const toggle = document.querySelector(".account-switcher .prompt__seg");
   if (!toggle) throw new Error("account switcher toggle not rendered");
   fireEvent.click(toggle);
 }
@@ -72,7 +72,7 @@ describe("AccountSwitcher", () => {
     openMenu();
     expect(screen.getByText("Accounts")).toBeTruthy();
     const guestItem = screen
-      .getAllByRole("button", { name: "Guest" })
+      .getAllByRole("button", { name: "guest" })
       .find((el) => el.className.includes("account-switcher__item"));
     expect(guestItem).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add organization" }));
