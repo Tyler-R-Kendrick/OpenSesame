@@ -1,11 +1,13 @@
 import { Link, Route, Routes } from "react-router";
 import { issuer } from "./lib/issuer.js";
+import { ApprovalReview } from "./pages/ApprovalReview.js";
 import { AuthenticatorInvocation } from "./pages/AuthenticatorInvocation.js";
 import { ClaimCeremony } from "./pages/ClaimCeremony.js";
 import { DelegateClaim } from "./pages/DelegateClaim.js";
 import { DeviceApprove } from "./pages/DeviceApprove.js";
 import { GuestSession } from "./pages/GuestSession.js";
 import { Inbox } from "./pages/Inbox.js";
+import { NotificationSettings } from "./pages/NotificationSettings.js";
 
 /**
  * Hosted ceremony pages (ADR 0045): each route is a complete, shareable
@@ -43,6 +45,10 @@ function Home() {
           <Link to="/inbox">Requests for you</Link> — approve or deny access
           somebody is asking for
         </li>
+        <li>
+          <Link to="/notifications">Where you hear about requests</Link> —
+          channels, destinations, and the route a prompt really takes
+        </li>
       </ul>
       <p className="fine">
         Agents: every page fronts a JSON API — see{" "}
@@ -67,6 +73,8 @@ export function App() {
         <Route path="/device" element={<DeviceApprove />} />
         <Route path="/delegate" element={<DelegateClaim />} />
         <Route path="/inbox" element={<Inbox />} />
+        <Route path="/approve/:ref" element={<ApprovalReview />} />
+        <Route path="/notifications" element={<NotificationSettings />} />
         <Route path="/invoke/:kind" element={<AuthenticatorInvocation />} />
       </Routes>
     </div>

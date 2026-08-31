@@ -308,6 +308,90 @@ a.button:hover {
   gap: 0.5rem;
 }
 
+/* A section heading inside a panel. The review and notification screens are
+   the only ceremonies long enough to need one; everything else is a single
+   decision and stops at `h1`. */
+.sub {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* The standing note on the notification screen: not a status, not an error,
+   and not dismissible. It is the sentence the whole screen rests on, so it is
+   marked as durable rather than transient. */
+.note {
+  display: block;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  margin: 1rem 0 0;
+}
+
+/* An explicit confirmation, or a single durable toggle. The checkbox has to
+   escape the full-width `input` rule above; a 100%-wide checkbox is not a
+   checkbox. */
+.confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 1rem 0 0;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.confirm input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: 0;
+  margin: 0.15rem 0 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+/* A list row that puts its label and its controls on one line. */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.row .actions {
+  margin-top: 0;
+  flex-wrap: nowrap;
+}
+
+.row button {
+  min-height: 2.25rem;
+  padding: 0 0.6rem;
+  font-size: 0.8125rem;
+}
+
+select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
