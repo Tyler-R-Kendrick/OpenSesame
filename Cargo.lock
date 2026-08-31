@@ -4161,6 +4161,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-rotation-web"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "opensesame-session-observe",
+ "serde",
+ "thiserror 2.0.19",
+ "tokio",
+]
+
+[[package]]
 name = "opensesame-sealed-store"
 version = "0.1.0"
 dependencies = [

@@ -29,6 +29,7 @@ members = [
   "crates/env-spec",
   "crates/relay",
   "crates/rotation",
+  "crates/rotation-web",
   "crates/session-observe",
   "crates/agent-events",
   "crates/a2h",

@@ -170,6 +170,8 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
 | `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0078) |
 | `crates/agent-events` | Frozen `agent.*` hook event names and value-blind payloads — a blocked run is a fact on the shared hook feed, not a private call to a notifier (ADR 0078) |
+| `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0078) |
+| `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
