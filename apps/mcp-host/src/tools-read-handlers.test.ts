@@ -730,4 +730,135 @@ describe("mcp-host read tool handlers", () => {
       expect(result.content[0]?.text).toContain('"target":null');
     });
   });
+
+  describe("lifecycle tools", () => {
+    it("reads the expiry inventory and projects away unknown fields", async () => {
+      const urls: string[] = [];
+      setFetchForTests(async (input) => {
+        urls.push(String(input));
+        return jsonResponse({
+          subjects: [
+            {
+              subject_kind: "certificate",
+              subject_id: "cert-1",
+              organization_id: "org-1",
+              label: "api.example.com",
+              expires_at: "2026-09-30T00:00:00Z",
+              remaining_seconds: 2592000,
+              renew_before_seconds: 604800,
+              auto_respond: true,
+              responder: null,
+              alerting: true,
+              ladder: [
+                {
+                  stage: "renewal",
+                  track: "renewal",
+                  event_type: "lifecycle.renewal.due",
+                  fires_at: "2026-09-23T00:00:00Z",
+                  crossed: false,
+                },
+              ],
+              // Not in the allowlist: must not reach agent context.
+              internal_debug_note: "scanner pass 42",
+            },
+          ],
+          event_types: ["lifecycle.renewal.due"],
+          secrets_returned: false,
+        });
+      });
+      const handlers = makeRegistrar();
+
+      const result = await callTool(handlers, "lifecycle_expiring_read", {});
+
+      expect(result.isError).toBe(false);
+      expect(urls[0]).toBe("http://127.0.0.1:8787/api/v1/lifecycle/expiring");
+      expect(result.content[0]?.text).toContain("cert-1");
+      expect(result.content[0]?.text).toContain("lifecycle.renewal.due");
+      expect(result.content[0]?.text).not.toContain("internal_debug_note");
+    });
+
+    it("reads subscriptions without ever surfacing a signing secret", async () => {
+      setFetchForTests(async () =>
+        jsonResponse({
+          hooks: [
+            {
+              id: "lch-1",
+              name: "expiry-watcher",
+              organization_id: "org-1",
+              event_types: ["lifecycle.renewal.due"],
+              delivery: "webhook",
+              endpoint_url: "https://hooks.example.com/opensesame",
+              subject_kinds: ["certificate"],
+              enabled: true,
+              last_delivered_at: null,
+              last_error: null,
+              // A compromised or future Host must not be able to hand an
+              // agent the signing key by adding the field back.
+              signing_secret: "whsec_should_never_reach_an_agent",
+            },
+          ],
+          secrets_returned: false,
+        }),
+      );
+      const handlers = makeRegistrar();
+
+      const result = await callTool(handlers, "lifecycle_hooks_read", {});
+
+      const rendered = result.content[0]?.text ?? "";
+      expect(rendered).toContain("expiry-watcher");
+      expect(rendered).not.toContain("whsec_");
+      expect(rendered).not.toContain("signing_secret");
+    });
+
+    it("reads the delivery ledger with a bounded limit", async () => {
+      const urls: string[] = [];
+      setFetchForTests(async (input) => {
+        urls.push(String(input));
+        return jsonResponse({
+          deliveries: [
+            {
+              id: "lcd-1",
+              hook_id: "lch-1",
+              event_type: "lifecycle.renewal.due",
+              subject_kind: "store_path",
+              subject_id: "Dev/api-token",
+              state: "dead_lettered",
+              attempts: 6,
+              available_at: null,
+              last_error: "endpoint returned 500 Internal Server Error",
+              delivered_at: null,
+              created_at: "2026-08-30T00:00:00Z",
+            },
+          ],
+          secrets_returned: false,
+        });
+      });
+      const handlers = makeRegistrar();
+
+      const result = await callTool(handlers, "lifecycle_deliveries_read", {
+        limit: 10,
+      });
+
+      expect(result.isError).toBe(false);
+      expect(urls[0]).toBe(
+        "http://127.0.0.1:8787/api/v1/lifecycle/deliveries?limit=10",
+      );
+      expect(result.content[0]?.text).toContain("dead_lettered");
+    });
+
+    it("surfaces an upstream refusal as a tool error", async () => {
+      setFetchForTests(async () =>
+        jsonResponse(
+          { error: "forbidden", hint: "owner or admin role required" },
+          403,
+        ),
+      );
+      const handlers = makeRegistrar();
+
+      const result = await callTool(handlers, "lifecycle_hooks_read", {});
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0]?.text).toContain("forbidden");
+    });
+  });
 });

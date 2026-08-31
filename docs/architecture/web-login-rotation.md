@@ -1,7 +1,7 @@
 # Web-login rotation
 
 How a password at a consumer website gets rotated without the user doing it.
-Decision record: [ADR 0073](../adr/0073-autonomous-web-login-rotation.md).
+Decision record: [ADR 0076](../adr/0076-autonomous-web-login-rotation.md).
 Teaching and replay: [rotation teaching and replay](rotation-teaching-and-replay.md).
 Recipe format: [rotation recipe schema](rotation-recipe-schema.md).
 
@@ -15,7 +15,7 @@ built and tested:
 | Verify-before-revoke state machine (Kani + Shuttle + fuzz) | `crates/rotation/src/lib.rs` |
 | Durable policies, jobs, orchestration | `crates/connection-broker/src/rotation.rs` |
 | HTTP surface | `apps/gateway/src/routes/rotation.rs` |
-| 60s scheduler | `apps/gateway/src/rotation_scheduler.rs` |
+| Expiry detection and dispatch | `apps/gateway/src/lifecycle/` (ADR 0074) |
 | Sealed-store value update | `crates/sealed-store/src/update.rs` |
 | Agent surface | `rotations.read`, `rotations.trigger`, `connections.rotate` |
 
@@ -92,7 +92,7 @@ exit status so raw output cannot leak through it.
 
 An earlier design routed sandbox traffic through a TLS-terminating proxy that
 swapped a placeholder for the real secret on the way out, so plaintext never
-entered the browser at all. It is rejected — ADR 0073 §6 has the full argument.
+entered the browser at all. It is rejected — ADR 0076 §6 has the full argument.
 The short version, because it is the first idea everyone has:
 
 - It is the "generic string replacer" ADR 0005 forbids. The untrusted page
@@ -243,23 +243,36 @@ Both were pre-existing defects that web-login rotation would have made
 dangerous. Both are fixed; they are recorded here because the reasoning is the
 same reasoning the tiers above rely on.
 
-**The scheduler now claims and leases.** `rotation_scheduler.rs` previously
+**Rotation now claims a lease before acting.** The old `rotation_scheduler.rs`
 listed enabled policies and executed each due one with no lease, so two gateway
-processes both executed the same policy — for a password change, a lockout. It
-now claims through `store::claim_due_rotation_policies`, mirroring the
-claim/lease sagas in `backup.rs` and `sync_actor.rs`, with exponential backoff
-and an attempt cap.
+processes both executed the same policy — for a password change, a lockout.
 
-Due-ness moved into the SQL predicate, because a claim that selects and then
-filters in Rust is not atomic. `policy_due_at` remains the pure statement of the
-same rule, and a test pins the two against each other over a case table — two
-statements of one rule drift, and a drift here either rotates a credential early
-or never rotates it at all.
+ADR 0074 then replaced that scheduler with the lifecycle scanner, and moved the
+defect rather than fixing it: `lifecycle::dispatch::publish` records a watermark
+and then responds unconditionally, so two processes scanning concurrently both
+evaluate the same subject as due and both respond.
+
+The split is now clean. **The scanner decides *when* a policy is due; the
+rotation responder decides *who* acts.** The responder claims through
+`ConnectionBroker::claim_rotation_policy` before rotating and stands down if it
+loses, so one credential is rotated once.
+
+The claim deliberately does **not** re-check the interval. `subjects.rs` owns
+that math now, and a second statement of the schedule would be a second
+authority to drift from — the exact bug class this work exists to prevent. What
+the claim owns is what the scanner has no view of: an unexpired lease held by
+another process, a backoff that has not elapsed, and a parked policy.
 
 A policy that exhausts its attempts **parks**: it stops retrying, stays
 `enabled`, and raises `needs_attention`. It is deliberately not auto-disabled. A
 rotation policy that silently switches itself off is the ADR 0052 §11 failure
 mode — the operator believes credentials are rotating and they are not.
+
+One residual, recorded rather than fixed here: the same unconditional-respond
+path applies to every other lifecycle subject, so certificate renewal can still
+double-fire across processes. That is a defect in ADR 0074's dispatcher, not in
+rotation, and widening this change into it would have been a change nobody
+reviewed.
 
 **T2 verification is now real.** `execute_connection_rotation` used to record
 `verify_skipped: provider catalog exposes no no-op verification invoke` and walk

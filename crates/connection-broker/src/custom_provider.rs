@@ -213,7 +213,7 @@ pub fn derive_provider(request: &CreateCustomProvider) -> Result<Provider> {
         attachment_upload: None,
         // A user-defined provider never declares a verification endpoint. The
         // rotation egress allowlist is a compile-time table keyed by provider
-        // id (ADR 0073), so a custom id could not be permitted through it
+        // id (ADR 0076), so a custom id could not be permitted through it
         // anyway — leaving this `None` keeps that a stated intent rather than
         // an accident of the allowlist.
         verify: None,

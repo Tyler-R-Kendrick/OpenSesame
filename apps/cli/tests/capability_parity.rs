@@ -16,6 +16,7 @@ const CLI_SOURCES: &[&str] = &[
     include_str!("../src/store.rs"),
     include_str!("../src/attach.rs"),
     include_str!("../src/bridge.rs"),
+    include_str!("../src/lifecycle.rs"),
 ];
 
 /// True when `token` appears in `haystack` (lowercased) delimited by

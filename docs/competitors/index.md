@@ -25,7 +25,7 @@ and connector decisions stay honest about parity and deliberate gaps.
 | Tailscale — Identity | **Craft bar (Identity screen)** — design parity target ([ADR 0060](../adr/0060-identity-screen-idp-brokering.md)) | IdP-bound tailnet: mandatory IdP signup ceremony, users/roles/states, service identities, groups, SCIM | [`tailscale-identity.md`](tailscale-identity.md) |
 | Vaultwarden | Study / client-bridge prior art ([ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md)) | Self-hosted Bitwarden-compatible server; AGPL-3.0, clean-room study only | — (see [REUSE.md](../../REUSE.md), [bitwarden.md](bitwarden.md)) |
 | Varlock | Peer / compatibility | `.env.schema` + credential proxy | — (see [REUSE.md](../../REUSE.md)) |
-| Apple Passwords | Prior art ([ADR 0073](../adr/0073-autonomous-web-login-rotation.md)) / craft bar (deterministic tiers) | `/.well-known/change-password` + curated quirks corpus; deep-links the human, never rotates autonomously | [`apple-passwords.md`](apple-passwords.md) |
+| Apple Passwords | Prior art ([ADR 0076](../adr/0076-autonomous-web-login-rotation.md)) / craft bar (deterministic tiers) | `/.well-known/change-password` + curated quirks corpus; deep-links the human, never rotates autonomously | [`apple-passwords.md`](apple-passwords.md) |
 
 **Direct** means operators choosing a git-native CLI secret store will evaluate
 OpenSesame’s sealed-store verbs against that product on the same machine.

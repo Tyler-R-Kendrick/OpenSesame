@@ -1176,6 +1176,136 @@ paths:
         "409": { $ref: "#/components/responses/ContractError" }
         "410": { $ref: "#/components/responses/ContractError" }
         "422": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/expiring:
+    get:
+      summary: Every tracked deadline and where it sits on the expiry ladder
+      description: >-
+        Metadata only. Answers "what would I be notified about, and when?"
+        before a hook is registered. Each subject carries both ladders: the
+        informational alert track (notice/warning/urgent/expired, fixed
+        thresholds) and the actionable renewal track (the subject's own
+        renew_before_seconds). No credential material appears on this path.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Tracked subjects, plus the frozen vocabulary a hook filters on
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleInventory" }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/hooks:
+    get:
+      summary: List registered lifecycle subscriptions
+      description: Signing secrets are never returned; they are shown once at registration.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Subscriptions, without their signing secrets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hooks, secrets_returned]
+                properties:
+                  hooks:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleHook" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    put:
+      summary: Register or edit a lifecycle subscription
+      description: >-
+        Owner/admin or operator only. A new registration mints a `whsec_`
+        Standard Webhooks signing secret and returns it once, in
+        `signing_secret`; it is sealed at rest and no route reads it back, so
+        a lost secret is replaced by re-registering. Editing keeps the
+        existing secret, so a rename cannot silently invalidate every
+        receiver's verification. Endpoints must be absolute https and are
+        refused if they resolve to a loopback, private, link-local, or
+        metadata address.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LifecycleHookRequest" }
+      responses:
+        "200":
+          description: The stored subscription; `signing_secret` present only on first registration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleHook" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "503": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/hooks/{id}:
+    delete:
+      summary: Remove a lifecycle subscription and its queued deliveries
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: boolean }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/deliveries:
+    get:
+      summary: The outbound delivery ledger
+      description: >-
+        Delivery state per subscription, so a failing endpoint is visible
+        without reading gateway logs. Errors are truncated operator hints,
+        never response bodies.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Recent deliveries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deliveries, secrets_returned]
+                properties:
+                  deliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleDelivery" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /lifecycle/scan:
+    post:
+      summary: Run one expiry scan now
+      description: >-
+        The same pass the gateway's tick runs, so a tool can drive the feed
+        rather than waiting for it. Idempotent: ladder watermarks mean a
+        second scan with nothing newly crossed publishes nothing.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: How many events the pass published
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [published, secrets_returned]
+                properties:
+                  published: { type: integer }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
 components:
   securitySchemes:
     HostBearer:
@@ -1229,6 +1359,164 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ContractError" }
   schemas:
+    LifecycleEventType:
+      type: string
+      description: Frozen lifecycle event names. Additive only; never renamed.
+      enum:
+        - lifecycle.expiry.notice
+        - lifecycle.expiry.warning
+        - lifecycle.expiry.urgent
+        - lifecycle.renewal.due
+        - lifecycle.expiry.expired
+        - lifecycle.renewal.succeeded
+        - lifecycle.renewal.failed
+    LifecycleSubjectKind:
+      type: string
+      description: >-
+        The closed set of things whose expiry the platform tracks. Closed on
+        purpose: each kind implies a platform-owned responder with real
+        authority, so a subscription selects kinds but never adds one.
+      enum: [certificate, certificate_authority, connection_credential, store_path, signer]
+    LifecycleStage:
+      type: string
+      description: >-
+        A rung of the expiry ladder. notice/warning/urgent/expired advance the
+        alert watermark; renewal advances its own, so a per-subject renewal
+        lead can never alias and suppress a fixed alert rung.
+      enum: [notice, warning, urgent, expired, renewal]
+    LifecycleRung:
+      type: object
+      required: [stage, track, event_type, fires_at, crossed]
+      properties:
+        stage: { $ref: "#/components/schemas/LifecycleStage" }
+        track: { type: string, enum: [alert, renewal] }
+        event_type: { $ref: "#/components/schemas/LifecycleEventType" }
+        fires_at:
+          type: [string, "null"]
+          description: >-
+            When this rung is reached. Null when the deadline sits too close to
+            the start of the representable range to date the rung — a
+            never-run rotation schedule, which is due now regardless.
+        crossed: { type: boolean, description: Whether the deadline is already past it }
+    LifecycleSubject:
+      type: object
+      required: [subject_kind, subject_id, organization_id, expires_at, remaining_seconds, renew_before_seconds, auto_respond, alerting, ladder, secrets_returned]
+      properties:
+        subject_kind: { $ref: "#/components/schemas/LifecycleSubjectKind" }
+        subject_id: { type: string }
+        organization_id: { type: string }
+        label:
+          type: [string, "null"]
+          description: Operator-facing name — a common name, a store path, a provider. Never a credential.
+        expires_at: { type: string }
+        remaining_seconds: { type: integer, description: Negative once expired }
+        renew_before_seconds: { type: integer }
+        auto_respond:
+          type: boolean
+          description: Whether a platform responder may act. False still emits every event.
+        responder:
+          type: [string, "null"]
+          description: The platform responder for this kind, or null when renewal is the subscriber's to perform.
+        alerting:
+          type: boolean
+          description: >-
+            False for recurring schedules such as rotation policies, whose
+            deadline moves on every run; they use the renewal track only.
+        ladder:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleRung" }
+        secrets_returned: { type: boolean, const: false }
+    LifecycleInventory:
+      type: object
+      required: [subjects, event_types, subject_kinds, stages, secrets_returned]
+      properties:
+        subjects:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleSubject" }
+        event_types:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleEventType" }
+        subject_kinds:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleSubjectKind" }
+        stages:
+          type: array
+          items: { $ref: "#/components/schemas/LifecycleStage" }
+        secrets_returned: { type: boolean, const: false }
+    LifecycleHookRequest:
+      type: object
+      required: [name, event_types, endpoint_url]
+      properties:
+        id:
+          type: string
+          description: Omit to register; supply to edit in place.
+        name: { type: string, minLength: 1, maxLength: 120 }
+        event_types:
+          type: array
+          minItems: 1
+          description: Event names, or the single wildcard `lifecycle.*`. An empty list is refused rather than read as "everything".
+          items: { type: string }
+        endpoint_url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: Absolute https endpoint. Private, loopback, link-local and metadata addresses are refused, as are embedded credentials.
+        subject_kinds:
+          type: [array, "null"]
+          description: Optional narrowing. Null or absent means every kind.
+          items: { $ref: "#/components/schemas/LifecycleSubjectKind" }
+        enabled: { type: boolean, default: true }
+    LifecycleHook:
+      type: object
+      required: [id, name, organization_id, event_types, delivery, enabled, version, secrets_returned]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        organization_id: { type: string }
+        event_types:
+          type: array
+          items: { type: string }
+        delivery:
+          type: string
+          enum: [webhook, internal]
+          description: >-
+            `webhook` is the community surface — an observer, delivered
+            asynchronously, unable to influence any decision. `internal` names
+            a platform responder that runs in process and cannot be registered
+            over this API.
+        endpoint_url: { type: [string, "null"] }
+        responder: { type: [string, "null"] }
+        subject_kinds: { type: [array, "null"], items: { type: string } }
+        enabled: { type: boolean }
+        last_delivered_at: { type: [string, "null"] }
+        last_error: { type: [string, "null"] }
+        version: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+        signing_secret:
+          type: string
+          description: >-
+            The `whsec_` Standard Webhooks secret. Present only in the response
+            to a first registration; sealed at rest and never returned again.
+        signing_secret_hint: { type: string }
+        secrets_returned: { type: boolean, const: false }
+    LifecycleDelivery:
+      type: object
+      required: [id, hook_id, event_type, subject_kind, subject_id, state, attempts, created_at]
+      properties:
+        id:
+          type: string
+          description: Sent as the `webhook-id` header; doubles as the receiver's idempotency key.
+        hook_id: { type: string }
+        event_type: { $ref: "#/components/schemas/LifecycleEventType" }
+        subject_kind: { $ref: "#/components/schemas/LifecycleSubjectKind" }
+        subject_id: { type: string }
+        state: { type: string, enum: [pending, delivered, dead_lettered] }
+        attempts: { type: integer }
+        available_at: { type: [string, "null"], description: Backoff gate; claimable once past }
+        last_error: { type: [string, "null"], description: Truncated operator hint, never a response body }
+        delivered_at: { type: [string, "null"] }
+        created_at: { type: string }
     DelegationOffer:
       type: object
       required: [id, state, manifest_digest, expires_at, items]

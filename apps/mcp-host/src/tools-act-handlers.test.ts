@@ -530,4 +530,37 @@ describe("mcp-host act tool handlers", () => {
       expect(neither.isError).toBe(true);
     });
   });
+
+  describe("lifecycle_scan", () => {
+    it("runs a pass and reports how many events it published", async () => {
+      const calls: Array<{ url: string; method: string | undefined }> = [];
+      setFetchForTests(async (input, init) => {
+        calls.push({ url: String(input), method: init?.method });
+        return jsonResponse({ published: 3, secrets_returned: false });
+      });
+      const handlers = makeRegistrar();
+
+      const result = await callTool(handlers, "lifecycle_scan", {});
+
+      expect(result.isError).toBe(false);
+      expect(calls[0]?.url).toBe("http://127.0.0.1:8787/api/v1/lifecycle/scan");
+      expect(calls[0]?.method).toBe("POST");
+      expect(result.content[0]?.text).toContain('"published":3');
+    });
+
+    it("reports a refusal rather than a silent success", async () => {
+      setFetchForTests(async () =>
+        jsonResponse(
+          { error: "forbidden", hint: "owner or admin role required" },
+          403,
+        ),
+      );
+      const handlers = makeRegistrar();
+
+      const result = await callTool(handlers, "lifecycle_scan", {});
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0]?.text).toContain("forbidden");
+    });
+  });
 });

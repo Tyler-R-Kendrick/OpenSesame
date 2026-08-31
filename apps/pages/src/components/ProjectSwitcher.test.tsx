@@ -54,7 +54,7 @@ Object.assign(projectSwitcherSeams, {
 });
 
 function openMenu() {
-  const toggle = document.querySelector(".project-switcher__button");
+  const toggle = document.querySelector(".project-switcher .prompt__seg");
   if (!toggle) throw new Error("switcher toggle not rendered");
   fireEvent.click(toggle);
 }

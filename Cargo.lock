@@ -3817,6 +3817,7 @@ dependencies = [
  "opensesame-connector-host",
  "opensesame-domain",
  "opensesame-host-core",
+ "opensesame-lifecycle",
  "opensesame-pki-core",
  "opensesame-proof",
  "opensesame-protocol-aauth",
@@ -3931,6 +3932,16 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.19",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-lifecycle"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
 ]
 
 [[package]]

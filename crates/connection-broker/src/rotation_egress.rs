@@ -1,4 +1,4 @@
-//! Egress allowlist for broker-side rotation verification (ADR 0073).
+//! Egress allowlist for broker-side rotation verification (ADR 0076).
 //!
 //! **This is deliberately a second table, not an addition to the daemon's.**
 //! `opensesame_invoke_through::EGRESS_RULES` is a static that `apps/daemon`

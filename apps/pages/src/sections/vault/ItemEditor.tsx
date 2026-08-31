@@ -2,6 +2,7 @@ import { overlapCast } from "@opensesame/os-domain";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
+  IconCheck,
   IconChevronLeft,
   IconEye,
   IconEyeOff,
@@ -19,7 +20,6 @@ import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   type CustomField,
   type ItemKind,
-  KIND_LABEL,
   type UriMatch,
   type VaultItem,
   createItem,
@@ -27,6 +27,7 @@ import {
   newId,
   newUri,
 } from "../../lib/vault/model.js";
+import { KIND_EXT } from "../../lib/vault/paths.js";
 import { NewDropCeremony } from "./DropCeremony.js";
 
 const KINDS: ItemKind[] = [
@@ -39,6 +40,32 @@ const KINDS: ItemKind[] = [
   "drop",
 ];
 const MATCHES: UriMatch[] = ["domain", "host", "exact", "never"];
+
+/** Group heading with its one action beside it: a label and a + key. */
+function GroupAdd({
+  label,
+  action,
+  onAdd,
+}: {
+  label: string;
+  action: string;
+  onAdd: () => void;
+}) {
+  return (
+    <span className="label editor__grouplabel">
+      {label}
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label={action}
+        title={action}
+        onClick={onAdd}
+      >
+        <IconPlus size={15} />
+      </button>
+    </span>
+  );
+}
 
 function isKind(value: string | undefined): value is ItemKind {
   return value !== undefined && KINDS.some((kind) => kind === value);
@@ -215,35 +242,44 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
     );
   }
 
+  const closeTo = mode === "edit" ? `/vault/${draft.id}` : "/vault";
+  const saveVerb = saving
+    ? draft.kind === "certificate" && !draft.certificatePem
+      ? "Issuing…"
+      : "Sealing…"
+    : draft.kind === "certificate" && !draft.certificatePem
+      ? mode === "new"
+        ? "Create certificate"
+        : "Issue now"
+      : "Save item";
+
   return (
     <div className="detail">
-      <Link
-        className="btn btn--ghost btn--sm detail__back"
-        to={mode === "edit" ? `/vault/${draft.id}` : "/vault"}
-      >
-        <IconChevronLeft size={16} />
-        Back
-      </Link>
-
-      <div className="detail__heading">
-        <h1>
-          {mode === "new"
-            ? `New ${KIND_LABEL[draft.kind].toLowerCase()}`
-            : "Edit item"}
-        </h1>
-        <p className="hint">
-          {draft.kind === "certificate"
-            ? "The Host issues the certificate; the returned material is sealed in this device vault."
-            : "Saving re-seals the whole vault under your master key. Nothing leaves this device."}
-        </p>
-      </div>
-
       <form className="editor" onSubmit={(event) => void onSubmit(event)}>
-        {mode === "new" ? (
-          <div className="field">
-            <label htmlFor="kind">Type</label>
+        {/* The editor edits a file: its name is the title, its kind the
+            extension, and save/cancel are keys in the title row. */}
+        <div className="editor__titlerow">
+          <Link
+            className="icon-btn editor__backbtn"
+            aria-label="Back"
+            title="Back"
+            to={closeTo}
+          >
+            <IconChevronLeft size={17} />
+          </Link>
+          <input
+            className="editor__name"
+            aria-label="Name"
+            placeholder="Untitled"
+            value={draft.name}
+            // biome-ignore lint/a11y/noAutofocus: reached only by an explicit "new item" or "edit" action, where the name is the first thing to type
+            autoFocus
+            onChange={(event) => patch({ name: event.target.value })}
+          />
+          {mode === "new" ? (
             <select
-              id="kind"
+              className="editor__ext"
+              aria-label="Type"
               value={draft.kind}
               onChange={(event) => {
                 const next = createItem(
@@ -259,23 +295,39 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             >
               {KINDS.map((kind) => (
                 <option key={kind} value={kind}>
-                  {KIND_LABEL[kind]}
+                  {KIND_EXT[kind]}
                 </option>
               ))}
             </select>
-          </div>
-        ) : null}
-
-        <div className="field">
-          <label htmlFor="name">Name</label>
-          <input
-            id="name"
-            value={draft.name}
-            // biome-ignore lint/a11y/noAutofocus: reached only by an explicit "new item" or "edit" action, where the name is the first thing to type
-            autoFocus
-            onChange={(event) => patch({ name: event.target.value })}
-          />
+          ) : (
+            <span className="editor__ext" aria-hidden="true">
+              {KIND_EXT[draft.kind]}
+            </span>
+          )}
+          <button
+            type="submit"
+            className="icon-btn editor__save"
+            disabled={saving}
+            aria-busy={saving}
+            aria-label={saveVerb}
+            title={saveVerb}
+          >
+            <IconCheck size={17} />
+          </button>
+          <Link
+            className="icon-btn"
+            aria-label="Cancel"
+            title="Cancel"
+            to={closeTo}
+          >
+            <IconX size={17} />
+          </Link>
         </div>
+        <p className="hint editor__seal">
+          {draft.kind === "certificate"
+            ? "The Host issues the certificate; the returned material is sealed in this device vault."
+            : "Saving re-seals the whole vault under your master key. Nothing leaves this device."}
+        </p>
 
         {draft.kind === "login" ? (
           <div className="editor__grid">
@@ -348,7 +400,11 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             </div>
 
             <div className="field">
-              <span className="label">Websites</span>
+              <GroupAdd
+                label="Websites"
+                action="Add address"
+                onAdd={() => patch({ uris: [...draft.uris, newUri()] })}
+              />
               {draft.uris.map((uri, index) => (
                 <div className="editor__uri" key={uri.id}>
                   <input
@@ -403,14 +459,6 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                   </button>
                 </div>
               ))}
-              <button
-                type="button"
-                className="btn btn--sm"
-                onClick={() => patch({ uris: [...draft.uris, newUri()] })}
-              >
-                <IconPlus size={15} />
-                Add address
-              </button>
             </div>
           </div>
         ) : null}
@@ -608,7 +656,11 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
               </p>
             </div>
             <div className="field">
-              <span className="label">Capability ceiling</span>
+              <GroupAdd
+                label="Capability ceiling"
+                action="Add capability"
+                onAdd={() => patch({ ceiling: [...draft.ceiling, newGrant()] })}
+              />
               <p className="hint">
                 The outer bound of what any grant against this secret may do. A
                 task can hold less than this; it can never hold more.
@@ -659,16 +711,6 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                   </button>
                 </div>
               ))}
-              <button
-                type="button"
-                className="btn btn--sm"
-                onClick={() =>
-                  patch({ ceiling: [...draft.ceiling, newGrant()] })
-                }
-              >
-                <IconPlus size={15} />
-                Add capability
-              </button>
             </div>
           </div>
         ) : null}
@@ -735,7 +777,18 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
         </div>
 
         <div className="field">
-          <span className="label">Custom fields</span>
+          <GroupAdd
+            label="Custom fields"
+            action="Add field"
+            onAdd={() =>
+              patch({
+                fields: [
+                  ...draft.fields,
+                  { id: newId(), name: "", value: "", hidden: false },
+                ],
+              })
+            }
+          />
           {draft.fields.map((field) => (
             <div className="editor__uri" key={field.id}>
               <input
@@ -787,21 +840,6 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
               </div>
             </div>
           ))}
-          <button
-            type="button"
-            className="btn btn--sm"
-            onClick={() =>
-              patch({
-                fields: [
-                  ...draft.fields,
-                  { id: newId(), name: "", value: "", hidden: false },
-                ],
-              })
-            }
-          >
-            <IconPlus size={15} />
-            Add field
-          </button>
         </div>
 
         <div className="editor__row">
@@ -823,7 +861,6 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             </select>
           </div>
           <div className="field">
-            <span className="label">Favorite</span>
             <label className="check">
               <input
                 type="checkbox"
@@ -840,31 +877,6 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             <span>{error}</span>
           </p>
         ) : null}
-
-        <div className="editor__bar">
-          <Link
-            className="btn"
-            to={mode === "edit" ? `/vault/${draft.id}` : "/vault"}
-          >
-            Cancel
-          </Link>
-          <button
-            type="submit"
-            className="btn btn--primary"
-            disabled={saving}
-            aria-busy={saving}
-          >
-            {saving
-              ? draft.kind === "certificate" && !draft.certificatePem
-                ? "Issuing…"
-                : "Sealing…"
-              : draft.kind === "certificate" && !draft.certificatePem
-                ? mode === "new"
-                  ? "Create certificate"
-                  : "Issue now"
-                : "Save item"}
-          </button>
-        </div>
       </form>
     </div>
   );

@@ -308,7 +308,7 @@ pub struct Provider {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment_upload: Option<AttachmentUploadShape>,
     /// Present when the provider exposes a side-effect-free authenticated
-    /// endpoint that proves a credential works (ADR 0073). Absent means
+    /// endpoint that proves a credential works (ADR 0076). Absent means
     /// rotation records an honest `verify_skipped`, never a guessed endpoint:
     /// an invented path turns a verification into a false negative, which is
     /// worse than admitting we cannot check.

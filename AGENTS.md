@@ -165,6 +165,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/daemon` | Local host agent, `:18790` (`opensesame-daemon`) |
 | `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes `pass` sealed-store verbs |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
+| `crates/lifecycle` | Expiry ladder, subjects, and frozen hook event names — pure, value-blind (ADR 0074) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
@@ -218,10 +219,21 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0073).
+  0001–0076).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
+- Anything with a deadline (certificate, CA, signer, brokered credential,
+  rotation policy) is detected by the lifecycle scanner and published on the
+  `lifecycle.*` hook feed — never by a subsystem's own private due-check.
+  `OpenSesame`'s own rotation subscribes to that feed, so a break in it breaks
+  our rotations too ([ADR 0074](docs/adr/0074-expiry-lifecycle-hooks.md)).
+- A certificate is renewed unattended only when the host holds its key
+  (`managed_certificate_keys`); one whose key went to its requester reports
+  `not_in_custody` rather than minting a key with no recipient. Custody is opt-in
+  (`managed: true`), never agent-reachable, and its renewal lead is clamped to
+  half the lifetime so renewal terminates
+  ([ADR 0075](docs/adr/0075-host-certificate-key-custody.md)).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,
@@ -395,6 +407,11 @@ directly so their own updater can refresh them.
 | `install-anti-slop` | `skills/install-anti-slop/SKILL.md` | Install and configure the vendored Oxlint anti-slop plugin |
 | `security-review` | `skills/security-review/SKILL.md` | Run repository security gates and targeted Codex Security reviews |
 | `impeccable` | `.agents/skills/impeccable/SKILL.md` | Third-party frontend design skill ([pbakaus/impeccable](https://github.com/pbakaus/impeccable), Apache 2.0), installed via `npx impeccable install` — lives in `.agents/skills/` (not `skills/`) so `npx impeccable update` can refresh it; design detector hook in `.codex/hooks.json` + `.claude/settings.local.json` |
+| `scandinavian-design` | `.claude/skills/scandinavian-design/SKILL.md` | Third-party ([ericzakariasson/scandinavian-design](https://github.com/ericzakariasson/scandinavian-design)), installed via `npx skills add ericzakariasson/scandinavian-design` — the visual-restraint contract behind the Scandinavian retoken; its `scripts/*.js` verifiers are patched to launch the container's pinned Chromium (`/opt/pw-browsers/chromium`) instead of a system Chrome |
+| `minimalist-ui` | `.claude/skills/minimalist-ui/SKILL.md` | Third-party ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT), installed via `npx skills add Leonxlnx/taste-skill -s minimalist-ui` |
+| `design-taste-frontend` | `.claude/skills/design-taste-frontend/SKILL.md` | Third-party anti-slop frontend skill ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT; docs at [tasteskill.dev](https://www.tasteskill.dev/changelog)) |
+| `redesign-existing-projects` | `.claude/skills/redesign-existing-projects/SKILL.md` | Third-party audit-first redesign skill ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT) |
+| `design-system` | `.claude/skills/design-system/SKILL.md` | TypeUI `minimal` registry spec ([typeui.sh](https://www.typeui.sh/design-skills)), pulled via `npx typeui.sh pull minimal -f skill -p claude-code`; also mirrored at `.agents/skills/design-system/` |
 
 ## 8. Verification expectations
 

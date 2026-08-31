@@ -24,6 +24,82 @@ export function registerReadTools(server: McpServer): void {
   const timeSchema = z.string().regex(TIMESTAMP_PATTERN);
   const scopeSchema = z.string().regex(SCOPE_PATTERN);
 
+  /**
+   * Expiry lifecycle (ADR 0074). Metadata only by construction upstream, and
+   * narrowed again here: the Host's hook views never carry a signing secret,
+   * and this allowlist would drop one if a future field tried to.
+   */
+  const lifecycleSubjectSchema = z.object({
+    subject_kind: safeTokenSchema,
+    subject_id: scopeSchema,
+    organization_id: safeTokenSchema.optional(),
+    label: z.string().max(128).nullable().optional(),
+    expires_at: timeSchema.optional(),
+    remaining_seconds: z.number().int().optional(),
+    renew_before_seconds: z.number().int().optional(),
+    auto_respond: z.boolean().optional(),
+    responder: safeTokenSchema.nullable().optional(),
+    alerting: z.boolean().optional(),
+    ladder: z
+      .array(
+        z.object({
+          stage: safeTokenSchema,
+          track: safeTokenSchema,
+          event_type: scopeSchema,
+          fires_at: timeSchema.nullable().optional(),
+          crossed: z.boolean().optional(),
+        }),
+      )
+      .max(16)
+      .optional(),
+  });
+
+  const lifecycleExpiringResponseSchema = z.object({
+    subjects: z.array(lifecycleSubjectSchema).max(512),
+    event_types: z.array(scopeSchema).max(32).optional(),
+    subject_kinds: z.array(safeTokenSchema).max(32).optional(),
+    stages: z.array(safeTokenSchema).max(32).optional(),
+  });
+
+  const lifecycleHooksResponseSchema = z.object({
+    hooks: z
+      .array(
+        z.object({
+          id: safeTokenSchema,
+          name: z.string().max(120),
+          organization_id: safeTokenSchema.optional(),
+          event_types: z.array(scopeSchema).max(32).optional(),
+          delivery: safeTokenSchema.optional(),
+          endpoint_url: z.string().max(2048).nullable().optional(),
+          subject_kinds: z.array(safeTokenSchema).max(32).nullable().optional(),
+          enabled: z.boolean().optional(),
+          last_delivered_at: timeSchema.nullable().optional(),
+          last_error: z.string().max(160).nullable().optional(),
+        }),
+      )
+      .max(256),
+  });
+
+  const lifecycleDeliveriesResponseSchema = z.object({
+    deliveries: z
+      .array(
+        z.object({
+          id: safeTokenSchema,
+          hook_id: safeTokenSchema,
+          event_type: scopeSchema,
+          subject_kind: safeTokenSchema,
+          subject_id: scopeSchema,
+          state: safeTokenSchema,
+          attempts: z.number().int().nonnegative().optional(),
+          available_at: timeSchema.nullable().optional(),
+          last_error: z.string().max(160).nullable().optional(),
+          delivered_at: timeSchema.nullable().optional(),
+          created_at: timeSchema.optional(),
+        }),
+      )
+      .max(256),
+  });
+
   const taskListResponseSchema = z.object({
     tasks: z
       .array(
@@ -707,6 +783,78 @@ export function registerReadTools(server: McpServer): void {
       } catch (e) {
         return toolError(
           "backup_status_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "lifecycle_expiring_read",
+    "Read every tracked expiry deadline and where it sits on the alert and renewal ladders (metadata only)",
+    {},
+    async () => {
+      try {
+        const res = await hostFetch("/api/v1/lifecycle/expiring");
+        const body = await res.json();
+        return {
+          content: textContent(
+            agentJson(body, res.ok, lifecycleExpiringResponseSchema),
+          ),
+          isError: !res.ok,
+        };
+      } catch (e) {
+        return toolError(
+          "lifecycle_expiring_read_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "lifecycle_hooks_read",
+    "Read registered expiry lifecycle subscriptions (never their signing secrets)",
+    {},
+    async () => {
+      try {
+        const res = await hostFetch("/api/v1/lifecycle/hooks");
+        const body = await res.json();
+        return {
+          content: textContent(
+            agentJson(body, res.ok, lifecycleHooksResponseSchema),
+          ),
+          isError: !res.ok,
+        };
+      } catch (e) {
+        return toolError(
+          "lifecycle_hooks_read_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "lifecycle_deliveries_read",
+    "Read the outbound lifecycle delivery ledger — which hook received what, and whether it landed",
+    { limit: z.number().int().min(1).max(500).optional() },
+    async ({ limit }) => {
+      try {
+        const query = new URLSearchParams({ limit: String(limit ?? 50) });
+        const res = await hostFetch(
+          `/api/v1/lifecycle/deliveries?${query.toString()}`,
+        );
+        const body = await res.json();
+        return {
+          content: textContent(
+            agentJson(body, res.ok, lifecycleDeliveriesResponseSchema),
+          ),
+          isError: !res.ok,
+        };
+      } catch (e) {
+        return toolError(
+          "lifecycle_deliveries_read_failed",
           e instanceof Error ? e : String(e),
         );
       }

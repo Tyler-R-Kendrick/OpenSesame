@@ -4,7 +4,7 @@ A recipe is a signed, structural description of how to change a password at one
 relying party. It is what a teaching session produces and what the deterministic
 tier (T3) replays.
 
-Decision record: [ADR 0073](../adr/0073-autonomous-web-login-rotation.md).
+Decision record: [ADR 0076](../adr/0076-autonomous-web-login-rotation.md).
 Where recipes come from: [teaching and replay](rotation-teaching-and-replay.md).
 
 ## What a recipe is and is not
@@ -64,7 +64,7 @@ fails at next login.
 ## Step IR
 
 Steps are the transport-neutral instruction set shared by the deterministic
-executor and the agent runner (ADR 0073 §8), so a recipe replays identically
+executor and the agent runner (ADR 0076 §8), so a recipe replays identically
 across runner implementations.
 
 | Step | Fields | Notes |

@@ -29,6 +29,7 @@ members = [
   "crates/env-spec",
   "crates/relay",
   "crates/rotation",
+  "crates/lifecycle",
   "crates/provider-openbao",
   "crates/provider-openfga",
   "crates/provider-static-mesh",

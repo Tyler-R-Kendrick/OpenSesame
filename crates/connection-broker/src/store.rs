@@ -2098,7 +2098,7 @@ pub struct RotationJobRow {
     pub updated_at: DateTime<Utc>,
 }
 
-/// Lease/backoff columns added by migration 0017 (ADR 0073), as
+/// Lease/backoff columns added by migration 0017 (ADR 0076), as
 /// `ALTER TABLE ... ADD COLUMN` fragments. Compile-time constants only — no
 /// caller data ever reaches this SQL.
 const ROTATION_POLICY_LEASE_COLUMNS: &[&str] = &[
@@ -2160,7 +2160,7 @@ pub async fn ensure_rotation_schema(pool: &SqlitePool) -> Result<()> {
     )
     .execute(pool)
     .await?;
-    // A pool whose table predates migration 0017 (ADR 0073) is upgraded in
+    // A pool whose table predates migration 0017 (ADR 0076) is upgraded in
     // place. `CREATE TABLE IF NOT EXISTS` above cannot add columns to a table
     // that already exists, and this function is reachable on pools that never
     // ran the embedded migrations (bare test pools), so both paths converge
@@ -2353,64 +2353,47 @@ pub async fn set_policy_last_rotated(
     Ok(())
 }
 
-/// Atomically claims the rotation policies that are due, stamping a lease on
-/// each (ADR 0073).
+/// Atomically leases one rotation policy so exactly one process acts on it
+/// (ADR 0076).
 ///
-/// Due-ness lives in the SQL predicate, not in the caller, because a claim that
-/// selects and then filters in Rust is not atomic — two schedulers would both
-/// see the same policy as due. `rotation::policy_due_at` remains the pure
-/// statement of the same rule and is pinned against this predicate by test.
-///
-/// A claim is granted only when the previous lease has expired, so a scheduler
-/// that crashed mid-rotation releases its policy by the clock. A policy parked
-/// by `needs_attention` is never claimed: it stays enabled and visible, and an
-/// operator re-saving it clears the flag.
+/// Returns `true` when this caller took the lease. Due-ness is **not** checked
+/// here: since ADR 0074 the lifecycle scanner owns the schedule, and a second
+/// statement of the interval rule would be a second authority to drift from.
+/// What this does own is the concurrency and failure state the scanner has no
+/// view of — an unexpired lease held by another process, a backoff that has not
+/// elapsed, or a policy parked for operator attention.
 ///
 /// # Errors
 ///
 /// Returns a database error when the claim transaction fails.
-pub async fn claim_due_rotation_policies(
+pub async fn claim_rotation_policy(
     pool: &SqlitePool,
-    limit: i64,
+    id: &str,
     lease_seconds: i64,
-) -> Result<Vec<RotationPolicyRow>> {
+) -> Result<bool> {
     ensure_rotation_schema(pool).await?;
     let now = Utc::now();
     let now_text = now.to_rfc3339();
     let lease_until = (now + chrono::Duration::seconds(lease_seconds)).to_rfc3339();
-    let mut tx = pool.begin().await?;
-    // ROTATION_POLICY_COLUMNS is a compile-time constant; every value is bound.
-    // ast-grep-ignore: sql-format-injection
-    let rows = sqlx::query(&format!(
-        "SELECT {ROTATION_POLICY_COLUMNS} FROM rotation_policies \
-         WHERE enabled = 1 \
+    // One conditional UPDATE is the whole claim: SQLite serializes writers, so
+    // the loser's UPDATE matches zero rows rather than overwriting the lease.
+    let claimed = sqlx::query(
+        "UPDATE rotation_policies SET lease_until = ?, updated_at = ? \
+         WHERE id = ? \
+           AND enabled = 1 \
            AND needs_attention = 0 \
-           AND (lease_until IS NULL OR lease_until <= ?1) \
-           AND ( \
-                 (next_attempt_at IS NOT NULL AND next_attempt_at <= ?1) \
-                 OR (next_attempt_at IS NULL AND ( \
-                       last_rotated_at IS NULL \
-                       OR (julianday(?1) - julianday(last_rotated_at)) * 86400.0 \
-                          >= interval_seconds \
-                    )) \
-               ) \
-         ORDER BY created_at ASC, id ASC LIMIT ?2"
-    ))
+           AND (lease_until IS NULL OR lease_until <= ?) \
+           AND (next_attempt_at IS NULL OR next_attempt_at <= ?)",
+    )
+    .bind(&lease_until)
     .bind(&now_text)
-    .bind(limit)
-    .fetch_all(&mut *tx)
-    .await?;
-    let claimed: Vec<RotationPolicyRow> = rows.iter().map(rotation_policy_from_row).collect();
-    for policy in &claimed {
-        sqlx::query("UPDATE rotation_policies SET lease_until = ?, updated_at = ? WHERE id = ?")
-            .bind(&lease_until)
-            .bind(&now_text)
-            .bind(&policy.id)
-            .execute(&mut *tx)
-            .await?;
-    }
-    tx.commit().await?;
-    Ok(claimed)
+    .bind(id)
+    .bind(&now_text)
+    .bind(&now_text)
+    .execute(pool)
+    .await?
+    .rows_affected();
+    Ok(claimed == 1)
 }
 
 /// Releases a claimed policy after a successful rotation: the lease drops, the

@@ -979,8 +979,12 @@ const MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/0016_certificate_manager.sql"),
     ),
     (
-        "0017_rotation_leases",
-        include_str!("../../../migrations/0017_rotation_leases.sql"),
+        "0017_lifecycle_hooks",
+        include_str!("../../../migrations/0017_lifecycle_hooks.sql"),
+    ),
+    (
+        "0018_rotation_leases",
+        include_str!("../../../migrations/0018_rotation_leases.sql"),
     ),
 ];
 
@@ -6802,6 +6806,17 @@ macro_rules! optional_sealed_material {
         })
     }};
 }
+
+// Declared here rather than at the top of the file because
+// `optional_sealed_material!` is a textually scoped `macro_rules!` macro: a
+// module declared above its definition cannot see it.
+mod managed_certs;
+
+mod lifecycle;
+pub use lifecycle::{
+    StoredLifecycleDelivery, StoredLifecycleHook, StoredLifecycleWatermark, DELIVERY_BATCH_LIMIT,
+    LIFECYCLE_HOOK_SECRET_SCOPE,
+};
 
 fn stored_certificate_policy(row: &SqliteRow) -> StoredCertificatePolicy {
     StoredCertificatePolicy {

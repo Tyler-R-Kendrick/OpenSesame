@@ -12,7 +12,12 @@ import {
   useNavigate,
   useSearchParams,
 } from "react-router";
-import { createKeymapHandler } from "../lib/keymap.js";
+import {
+  SETTINGS_CATEGORIES,
+  settingsCategoryFromLocation,
+  settingsPath,
+} from "../lib/crumbs.js";
+import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
@@ -20,19 +25,11 @@ import { ConnectivityBar } from "./ConnectivityBar.js";
 import { Crumbs } from "./Crumbs.js";
 import {
   IconAuthority,
-  IconCard,
-  IconCert,
+  IconChevronRight,
   IconConnection,
-  IconDrop,
-  IconFolder,
-  IconLogin,
-  IconNote,
-  IconPasskey,
-  IconSecret,
+  IconLock,
+  IconMark,
   IconSettings,
-  IconShield,
-  IconStar,
-  IconTrash,
   IconUser,
   IconVault,
 } from "./Icons.js";
@@ -41,32 +38,105 @@ import { NotificationsBar } from "./NotificationsBar.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 
 const SECTIONS = [
-  { to: "/vault", label: "Vault", Icon: IconVault },
-  { to: "/connections", label: "Connections", Icon: IconConnection },
-  { to: "/access", label: "Access", Icon: IconAuthority },
-  { to: "/identity", label: "Identity", Icon: IconUser },
-  { to: "/settings", label: "Settings", Icon: IconSettings },
+  {
+    to: "/vault",
+    label: "Vault",
+    segment: "vault",
+    jump: "v",
+    Icon: IconVault,
+  },
+  {
+    to: "/connections",
+    label: "Connections",
+    segment: "connections",
+    jump: "c",
+    Icon: IconConnection,
+  },
+  {
+    to: "/access",
+    label: "Access",
+    segment: "access",
+    jump: "a",
+    Icon: IconAuthority,
+  },
+  {
+    to: "/identity",
+    label: "Identity",
+    segment: "identity",
+    jump: "i",
+    Icon: IconUser,
+  },
+  {
+    to: "/settings",
+    label: "Settings",
+    segment: "settings",
+    jump: "s",
+    Icon: IconSettings,
+  },
 ] as const;
 
-const KIND_FILTERS: Array<{
-  id: ItemKind;
-  label: string;
-  Icon: typeof IconLogin;
-}> = [
-  { id: "login", label: "Logins", Icon: IconLogin },
-  { id: "passkey", label: "Passkeys", Icon: IconPasskey },
-  { id: "card", label: "Cards", Icon: IconCard },
-  { id: "secret", label: "Secrets", Icon: IconSecret },
-  { id: "drop", label: "Drops", Icon: IconDrop },
-  { id: "note", label: "Secure notes", Icon: IconNote },
-  { id: "certificate", label: "Certificates", Icon: IconCert },
+/** Vault filter views, read as path segments under vault/. */
+const KIND_SEGMENTS: Array<{ id: ItemKind; segment: string }> = [
+  { id: "login", segment: "logins" },
+  { id: "passkey", segment: "passkeys" },
+  { id: "card", segment: "cards" },
+  { id: "secret", segment: "secrets" },
+  { id: "drop", segment: "drops" },
+  { id: "note", segment: "notes" },
+  { id: "certificate", segment: "certs" },
 ];
 
-function VaultFilters() {
+function TreeRow({
+  to,
+  isActive,
+  child,
+  children,
+  label,
+  end,
+}: {
+  to: string;
+  isActive?: boolean;
+  child?: boolean;
+  children: ReactNode;
+  label?: string;
+  end?: boolean;
+}) {
+  const fixed = isActive !== undefined;
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      aria-label={label}
+      className={
+        fixed
+          ? `railtree__row${child ? " railtree__row--child" : ""}${isActive ? " is-active" : ""}`
+          : ({ isActive: routeActive }) =>
+              `railtree__row${child ? " railtree__row--child" : ""}${routeActive ? " is-active" : ""}`
+      }
+    >
+      {/* react-router NavLink children typing vs React 19 ReactNode */}
+      {overlapCast(children)}
+    </NavLink>
+  );
+}
+
+/**
+ * The rail is the filesystem: sections are directories off the tomb root, the
+ * active section is the open one, and its views hang under it as entries. The
+ * `g`-jump key for each section is advertised on its row.
+ */
+function NavTree() {
+  const location = useLocation();
   const [params] = useSearchParams();
   const { items, folders } = useVault();
-  const active = params.get("f") ?? "all";
+  const inVault = location.pathname.startsWith("/vault");
+  const inSettings = location.pathname.startsWith("/settings");
+  const activeFilter = params.get("f") ?? "all";
   const activeFolder = params.get("folder");
+  const settingsCategory = settingsCategoryFromLocation(
+    location.pathname,
+    location.hash,
+  );
 
   const counts = useMemo(() => {
     const live = items.filter((item) => item.deletedAt === null);
@@ -87,102 +157,123 @@ function VaultFilters() {
     };
   }, [items]);
 
-  const link = (query: string, isActive: boolean, children: ReactNode) => (
-    <NavLink
+  const dirRow = (
+    section: (typeof SECTIONS)[number],
+    open: boolean,
+    count?: number,
+  ) => (
+    <TreeRow key={section.to} to={section.to} label={section.label}>
+      <IconChevronRight
+        size={12}
+        className={`railtree__caret${open ? " is-open" : ""}`}
+      />
+      <span className="railtree__name">
+        {section.segment}
+        <span className="railtree__dim">/</span>
+      </span>
+      {count !== undefined ? (
+        <span className="railtree__count">{count}</span>
+      ) : null}
+      <kbd className="railtree__jump" title={`Press g then ${section.jump}`}>
+        g{section.jump}
+      </kbd>
+    </TreeRow>
+  );
+
+  const entry = (
+    query: string,
+    isActive: boolean,
+    segment: string,
+    count?: number,
+    dir = false,
+  ) => (
+    <TreeRow
       key={query || "all"}
       to={`/vault${query}`}
-      className={`rail__link${isActive ? " is-active" : ""}`}
+      isActive={isActive}
+      child
       end
     >
-      {/* react-router NavLink children typing vs React 19 ReactNode */}
-      {overlapCast(children)}
-    </NavLink>
+      <span className="railtree__name">
+        {segment}
+        {dir ? <span className="railtree__dim">/</span> : null}
+      </span>
+      {count !== undefined ? (
+        <span className="railtree__count">{count}</span>
+      ) : null}
+    </TreeRow>
   );
 
   return (
-    <>
-      <div className="rail__group">
-        <p className="rail__group-label">Vault</p>
-        {link(
-          "",
-          active === "all" && !activeFolder,
-          <>
-            <IconVault size={18} />
-            <span>All items</span>
-            <span className="rail__count">{counts.all}</span>
-          </>,
-        )}
-        {link(
-          "?f=favorites",
-          active === "favorites",
-          <>
-            <IconStar size={18} />
-            <span>Favorites</span>
-            <span className="rail__count">{counts.favorites}</span>
-          </>,
-        )}
-        {KIND_FILTERS.map(({ id, label, Icon }) =>
-          link(
-            `?f=${id}`,
-            active === id,
-            <>
-              <Icon size={18} />
-              <span>{label}</span>
-              <span className="rail__count">{counts.byKind.get(id) ?? 0}</span>
-            </>,
-          ),
-        )}
-        {link(
-          "?f=trash",
-          active === "trash",
-          <>
-            <IconTrash size={18} />
-            <span>Trash</span>
-            <span className="rail__count">{counts.trash}</span>
-          </>,
-        )}
-      </div>
-
-      {folders.length > 0 ? (
-        <div className="rail__group">
-          <p className="rail__group-label">Folders</p>
-          {folders.map((folder) =>
-            link(
-              `?folder=${encodeURIComponent(folder.id)}`,
-              activeFolder === folder.id,
-              <>
-                <IconFolder size={18} />
-                <span>{folder.name}</span>
-                <span className="rail__count">
-                  {counts.byFolder.get(folder.id) ?? 0}
-                </span>
-              </>,
+    <nav className="railtree" aria-label="Sections">
+      {dirRow(SECTIONS[0], inVault, counts.all)}
+      {inVault ? (
+        <div className="railtree__kids">
+          {entry(
+            "",
+            activeFilter === "all" && !activeFolder,
+            "all",
+            counts.all,
+          )}
+          {entry(
+            "?f=favorites",
+            activeFilter === "favorites",
+            "favorites",
+            counts.favorites,
+          )}
+          {KIND_SEGMENTS.map(({ id, segment }) =>
+            entry(
+              `?f=${id}`,
+              activeFilter === id,
+              segment,
+              counts.byKind.get(id) ?? 0,
             ),
           )}
+          {entry("?f=trash", activeFilter === "trash", "trash", counts.trash)}
+          {folders.map((folder) =>
+            entry(
+              `?folder=${encodeURIComponent(folder.id)}`,
+              activeFolder === folder.id,
+              folder.name,
+              counts.byFolder.get(folder.id) ?? 0,
+              true,
+            ),
+          )}
+          <TreeRow
+            to="/vault/health"
+            isActive={location.pathname === "/vault/health"}
+            child
+          >
+            <span className="railtree__name">health</span>
+          </TreeRow>
         </div>
       ) : null}
 
-      <div className="rail__group">
-        <p className="rail__group-label">Review</p>
-        <NavLink
-          to="/vault/health"
-          className={({ isActive }) =>
-            `rail__link${isActive ? " is-active" : ""}`
-          }
-        >
-          <IconShield size={18} />
-          <span>Password health</span>
-        </NavLink>
-      </div>
-    </>
+      {dirRow(SECTIONS[1], location.pathname.startsWith("/connections"))}
+      {dirRow(SECTIONS[2], location.pathname.startsWith("/access"))}
+      {dirRow(SECTIONS[3], location.pathname.startsWith("/identity"))}
+      {dirRow(SECTIONS[4], inSettings)}
+      {inSettings ? (
+        <div className="railtree__kids">
+          {SETTINGS_CATEGORIES.map((category) => (
+            <TreeRow
+              key={category}
+              to={settingsPath(category)}
+              isActive={settingsCategory === category}
+              child
+            >
+              <span className="railtree__name">{category}</span>
+            </TreeRow>
+          ))}
+        </div>
+      ) : null}
+    </nav>
   );
 }
 
 export function AppShell({ children }: { children?: ReactNode }) {
-  const location = useLocation();
   const navigate = useNavigate();
   const store = useVaultStore();
-  const inVault = location.pathname.startsWith("/vault");
   const [keymapOpen, setKeymapOpen] = useState(false);
   const showKeymap = useCallback(() => setKeymapOpen(true), []);
   const closeKeymap = useCallback(() => setKeymapOpen(false), []);
@@ -196,6 +287,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener("keydown", keymap, true);
   }, [keymap]);
 
+  useEffect(() => registerKeymapHelp(showKeymap), [showKeymap]);
+
   return (
     <div className="app">
       <a href="#main" className="skip-link visually-hidden">
@@ -203,60 +296,56 @@ export function AppShell({ children }: { children?: ReactNode }) {
       </a>
       <aside className="rail">
         <div className="rail__brand">
-          <span className="mark" aria-hidden="true">
-            <IconVault size={17} />
-          </span>
-          <div>
-            <p className="rail__wordmark">OpenSesame</p>
-            <p className="rail__tagline">Authorization fabric</p>
-          </div>
+          <IconMark size={16} />
+          <p className="rail__wordmark">opensesame</p>
         </div>
 
-        <AccountSwitcher />
-        <ProjectSwitcher />
+        {/* The session context is a shell prompt, not a widget stack:
+            who@tomb:/ — each segment opens its switcher. */}
+        <p className="rail__prompt">
+          <AccountSwitcher />
+          <span className="prompt__dim" aria-hidden="true">
+            @
+          </span>
+          <ProjectSwitcher />
+          <span className="prompt__dim" aria-hidden="true">
+            :/
+          </span>
+        </p>
 
         <div className="rail__scroll">
-          <nav aria-label="Sections">
-            {SECTIONS.map(({ to, label, Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  `rail__link${isActive ? " is-active" : ""}`
-                }
-              >
-                <Icon size={18} />
-                <span>{label}</span>
-              </NavLink>
-            ))}
-          </nav>
-          {inVault ? <VaultFilters /> : null}
-        </div>
-
-        <div className="rail__foot">
-          <button type="button" className="rail__lock" onClick={store.lock}>
-            Lock this device
-          </button>
+          <NavTree />
         </div>
       </aside>
 
       <div className="main">
-        {/* Present at every width now: the connectivity bar is the reason the
-            top bar exists, and connection state has to be glanceable on a
-            desktop too. The rail keeps the wordmark, so this carries the mark
-            alone. */}
+        {/* Phone chrome only: on a desktop the rail carries identity and the
+            statusline carries plane truth, so the top bar exists where the
+            rail is gone. */}
         <header className="topbar">
-          <span className="mark" aria-hidden="true">
-            <IconVault size={17} />
-          </span>
-          <AccountSwitcher />
-          <ProjectSwitcher />
+          <IconMark size={16} />
+          <p className="rail__prompt">
+            <AccountSwitcher />
+            <span className="prompt__dim" aria-hidden="true">
+              @
+            </span>
+            <ProjectSwitcher />
+            <span className="prompt__dim" aria-hidden="true">
+              :/
+            </span>
+          </p>
           <span className="topbar__spacer" />
           <NotificationsBar />
           <ConnectivityBar />
           <span className="topbar__rule" aria-hidden="true" />
-          <button type="button" className="rail__lock" onClick={store.lock}>
-            Lock
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={store.lock}
+            aria-label="Lock vault"
+            title="Lock vault"
+          >
+            <IconLock size={17} />
           </button>
         </header>
 
@@ -279,6 +368,24 @@ export function AppShell({ children }: { children?: ReactNode }) {
           ))}
         </nav>
       </div>
+
+      {/* The workspace statusline: plane truth on the left, notifications and
+          the lock on the right — the one strip that is always telling the
+          truth about Host and Identity. */}
+      <footer className="statusline">
+        <ConnectivityBar />
+        <span className="statusline__spacer" />
+        <NotificationsBar />
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={store.lock}
+          aria-label="Lock vault"
+          title="Lock vault"
+        >
+          <IconLock size={15} />
+        </button>
+      </footer>
       <KeymapSheet open={keymapOpen} close={closeKeymap} />
     </div>
   );

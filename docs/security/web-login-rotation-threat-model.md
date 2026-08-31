@@ -3,7 +3,7 @@
 Extends `docs/security/threat-model.md` for autonomous password rotation at
 consumer websites through remote agent browsers.
 
-Decision record: [ADR 0073](../adr/0073-autonomous-web-login-rotation.md).
+Decision record: [ADR 0076](../adr/0076-autonomous-web-login-rotation.md).
 Design: [web-login rotation](../architecture/web-login-rotation.md).
 
 ## What is new
@@ -61,9 +61,9 @@ Numbered to continue the base model's list.
 | Recipe poisoned via corpus contribution | Signing required; canary round trip required; corpus promotion is a reviewed ceremony | corpus review checklist |
 | Recipe drift silently rotates into the wrong form | Bundle-hash binding, `expires_at`, verification is always a fresh login | drift tests |
 | Recording exfiltrated from the gateway | Sealed at rest, TTL-bound, excluded from every agent surface, human ceremony to fetch | registry parity test |
-| Agent surface gains a recording or value read | `rotations.recording_read` excluded on all agent surfaces citing ADR 0073 §5 | `packages/capability-registry` self-test |
+| Agent surface gains a recording or value read | `rotations.recording_read` excluded on all agent surfaces citing ADR 0076 §5 | `packages/capability-registry` self-test |
 | Browser driver pulled into the daemon's tree | New crate is not a daemon dependency | `scripts/daemon-deps-gate.sh` |
-| Anti-bot challenge treated as an obstacle to defeat | No solving, no evasion, no fingerprint impersonation, no residential egress; challenge routes to a teaching session | ADR 0073 constraint 4 |
+| Anti-bot challenge treated as an obstacle to defeat | No solving, no evasion, no fingerprint impersonation, no residential egress; challenge routes to a teaching session | ADR 0076 constraint 4 |
 
 ## S1. The session residual — unmitigated, and recorded as such
 
@@ -86,7 +86,7 @@ by substituting secrets into browser egress at a proxy, was rejected rather
 than merely deprioritised: it bought protection for the password while the
 session — the more valuable asset — remained exposed, and it did so at the cost
 of becoming the generic string replacer ADR 0005 forbids. The full argument is
-ADR 0073 §6; the precedent is
+ADR 0076 §6; the precedent is
 [audit-2026-08-08-placeholder-substitution](audit-2026-08-08-placeholder-substitution.md).
 
 Controls are operational rather than cryptographic:
@@ -121,7 +121,7 @@ retained until verification. Treat that state machine as security-critical code.
 ## S3. Recordings as a new sensitive class
 
 A recording containing zero passwords still contains an authenticated view of
-someone's account. The controls are in ADR 0073 §5: sealed at rest, TTL-bound
+someone's account. The controls are in ADR 0076 §5: sealed at rest, TTL-bound
 to the observation window by default, excluded from every agent surface, never
 returned by a job listing, deleted with the job.
 

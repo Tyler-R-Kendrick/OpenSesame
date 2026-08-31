@@ -55,6 +55,8 @@ const ADR_AUTHORITY_HANDLE = "0005-authority-handle-connectionref.md";
 const ADR_MCP_BEARER = "0023-mcp-bearer-vs-dpop.md";
 const ADR_PM_BRIDGING = "0052-password-manager-ecosystem-bridging.md";
 const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
+const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
+const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -83,6 +85,18 @@ const PM_PLANE: CapabilityExclusion = {
   reason:
     "password-manager ecosystem surface is human/device/ops plane only, never agent-facing",
   adr: ADR_PM_BRIDGING,
+};
+
+const HOOK_SECRET_ISSUANCE: CapabilityExclusion = {
+  reason:
+    "registering a lifecycle hook mints and returns a whsec_ signing secret once; an agent surface must never be the thing that receives it",
+  adr: ADR_LIFECYCLE_HOOKS,
+};
+
+const CUSTODY_KEY_MATERIAL: CapabilityExclusion = {
+  reason:
+    "returns or places a certificate private key; agent-facing APIs carry references, never material",
+  adr: ADR_KEY_CUSTODY,
 };
 
 const DEFERRED: CapabilityExclusion = {
@@ -858,6 +872,135 @@ export const CAPABILITIES: readonly Capability[] = [
       cli: "opensesame connection rotate",
       pwa: null,
       mcp_host: "rotation_trigger",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "certificates.custody.issue",
+    title: "Issue a certificate under host key custody",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame cert issue",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: CUSTODY_KEY_MATERIAL,
+      webmcp: CUSTODY_KEY_MATERIAL,
+    },
+  },
+  {
+    id: "certificates.custody.reveal",
+    title: "Collect a host-custody private key",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame cert key",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: CUSTODY_KEY_MATERIAL,
+      webmcp: CUSTODY_KEY_MATERIAL,
+    },
+  },
+  // ── Host plane: expiry lifecycle hooks (ADR 0074) ─────────────────────
+  {
+    id: "lifecycle.expiring.read",
+    title: "Read tracked expiry deadlines and their ladders",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame lifecycle expiring",
+      pwa: null,
+      mcp_host: "lifecycle_expiring_read",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "lifecycle.hooks.read",
+    title: "Read registered expiry hook subscriptions",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame lifecycle hooks",
+      pwa: null,
+      mcp_host: "lifecycle_hooks_read",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "lifecycle.hooks.register",
+    title: "Register an expiry hook subscription",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame lifecycle hook add",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: HOOK_SECRET_ISSUANCE,
+      webmcp: HOOK_SECRET_ISSUANCE,
+    },
+  },
+  {
+    id: "lifecycle.hooks.remove",
+    title: "Remove an expiry hook subscription",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame lifecycle hook rm",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: {
+        reason:
+          "silently deleting a subscription blinds whoever depended on it; removal stays a deliberate human action alongside registration",
+        adr: ADR_LIFECYCLE_HOOKS,
+      },
+      webmcp: {
+        reason:
+          "silently deleting a subscription blinds whoever depended on it; removal stays a deliberate human action alongside registration",
+        adr: ADR_LIFECYCLE_HOOKS,
+      },
+    },
+  },
+  {
+    id: "lifecycle.deliveries.read",
+    title: "Read the outbound lifecycle delivery ledger",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame lifecycle deliveries",
+      pwa: null,
+      mcp_host: "lifecycle_deliveries_read",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "lifecycle.scan.trigger",
+    title: "Run one expiry scan now",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame lifecycle scan",
+      pwa: null,
+      mcp_host: "lifecycle_scan",
       mcp_client: null,
       webmcp: null,
     },

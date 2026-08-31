@@ -432,24 +432,18 @@ impl ConnectionBroker {
         store::set_policy_last_rotated(&self.pool, id, &at.to_rfc3339()).await
     }
 
-    /// Atomically claims up to `limit` due policies, leasing each for
-    /// `lease_seconds` (ADR 0073). Two schedulers racing the same policy
-    /// produce one claim and one loser, which is what keeps a credential from
-    /// being rotated twice concurrently.
+    /// Leases one rotation policy. `true` means this caller may act on it.
+    ///
+    /// The lifecycle scanner (ADR 0074) decides *when* a policy is due; this
+    /// decides *who* acts, and refuses a policy that is leased elsewhere,
+    /// backing off, or parked. Without it two gateway processes both rotate the
+    /// same credential, which for a password change is a lockout.
     ///
     /// # Errors
     ///
     /// Returns an error when the claim transaction fails.
-    pub async fn claim_due_rotation_policies(
-        &self,
-        limit: i64,
-        lease_seconds: i64,
-    ) -> Result<Vec<RotationPolicy>> {
-        let rows = store::claim_due_rotation_policies(&self.pool, limit, lease_seconds).await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(RotationPolicy::from_row)
-            .collect())
+    pub async fn claim_rotation_policy(&self, id: &str, lease_seconds: i64) -> Result<bool> {
+        store::claim_rotation_policy(&self.pool, id, lease_seconds).await
     }
 
     /// Releases a claimed policy after a successful rotation.
@@ -729,7 +723,7 @@ async fn complete_successful_rotation(
         advance(context.broker, context.job_id, state, to, None).await?;
     }
 
-    // Verify before activating (ADR 0073). `PreviousRevoked` is unreachable
+    // Verify before activating (ADR 0076). `PreviousRevoked` is unreachable
     // without passing `CandidateVerified`, so this edge is what makes the
     // machine's verify-before-revoke guarantee mean something. A provider with
     // no verification endpoint still records the honest skip.
@@ -1048,63 +1042,64 @@ mod tests {
         }
     }
 
-    /// The claim predicate lives in SQL so a claim is atomic; `policy_due_at`
-    /// states the same rule in Rust. Two statements of one rule drift, and a
-    /// drift here either rotates a credential early or never rotates it at all,
-    /// so they are pinned against each other over a case table.
+    /// A minimal enabled policy row, ready to be claimed.
+    async fn seed_policy(pool: &sqlx::SqlitePool, id: &str, interval_seconds: i64) {
+        let now = Utc::now();
+        let row = store::RotationPolicyRow {
+            id: id.to_string(),
+            organization_id: "org_claim".into(),
+            target_kind: "store_path".into(),
+            target_id: "Dev/claim".into(),
+            interval_seconds,
+            last_rotated_at: None,
+            enabled: true,
+            lease_until: None,
+            attempts: 0,
+            next_attempt_at: None,
+            needs_attention: false,
+            last_error: None,
+            created_at: now,
+            updated_at: now,
+        };
+        store::upsert_rotation_policy(pool, &row)
+            .await
+            .expect("seed");
+    }
+
+    /// Two processes racing one policy: exactly one may act. This is the
+    /// lockout defect — concurrently rotating one credential twice.
     #[tokio::test]
-    async fn claim_predicate_agrees_with_policy_due_at() {
-        // (interval_seconds, seconds since last rotation, enabled)
-        let cases: &[(u64, Option<i64>, bool)] = &[
-            (60, None, true),      // never rotated -> due
-            (60, Some(0), true),   // just rotated -> not due
-            (60, Some(59), true),  // one second short -> not due
-            (60, Some(60), true),  // exactly at the interval -> due
-            (60, Some(600), true), // long overdue -> due
-            (60, None, false),     // disabled -> never due
-            (3600, Some(60), true),
-            (1, Some(5), true),
-        ];
+    async fn only_one_caller_can_claim_a_policy() {
+        let (db, broker) = unrefreshable_broker().await;
+        seed_policy(db.pool(), "rotpol_race", 60).await;
 
-        for (index, (interval, since, enabled)) in cases.iter().enumerate() {
-            let (db, broker) = unrefreshable_broker().await;
-            let now = Utc::now();
-            let last_rotated_at =
-                since.map(|secs| (now - chrono::Duration::seconds(secs)).to_rfc3339());
+        let (first, second) = tokio::join!(
+            broker.claim_rotation_policy("rotpol_race", 600),
+            broker.claim_rotation_policy("rotpol_race", 600)
+        );
+        let won = usize::from(first.unwrap()) + usize::from(second.unwrap());
+        assert_eq!(won, 1, "exactly one caller may hold the lease");
+    }
 
-            let row = store::RotationPolicyRow {
-                id: format!("rotpol_case_{index}"),
-                organization_id: "org_case".into(),
-                target_kind: "store_path".into(),
-                target_id: "Dev/case".into(),
-                interval_seconds: i64::try_from(*interval).unwrap(),
-                last_rotated_at: last_rotated_at.clone(),
-                enabled: *enabled,
-                lease_until: None,
-                attempts: 0,
-                next_attempt_at: None,
-                needs_attention: false,
-                last_error: None,
-                created_at: now,
-                updated_at: now,
-            };
-            store::upsert_rotation_policy(db.pool(), &row)
+    /// An expired lease is reclaimable, so a process that crashed mid-rotation
+    /// releases its policy by the clock rather than by a liveness check.
+    #[tokio::test]
+    async fn an_expired_lease_is_reclaimable() {
+        let (db, broker) = unrefreshable_broker().await;
+        seed_policy(db.pool(), "rotpol_expired", 60).await;
+
+        assert!(broker
+            .claim_rotation_policy("rotpol_expired", 0)
+            .await
+            .unwrap());
+        // A zero-second lease is already expired when the next claim evaluates.
+        assert!(
+            broker
+                .claim_rotation_policy("rotpol_expired", 600)
                 .await
-                .expect("seed policy");
-
-            let policy = RotationPolicy::from_row(row).expect("policy");
-            let in_rust = policy_due_at(&policy, policy.last_rotated(), Utc::now());
-            let in_sql = !broker
-                .claim_due_rotation_policies(16, 60)
-                .await
-                .expect("claim")
-                .is_empty();
-
-            assert_eq!(
-                in_sql, in_rust,
-                "case {index}: interval={interval}s since={since:?} enabled={enabled}"
-            );
-        }
+                .unwrap(),
+            "an expired lease does not strand the policy"
+        );
     }
 
     /// A parked policy stops being claimed but stays enabled, so an operator
@@ -1133,14 +1128,10 @@ mod tests {
             .await
             .expect("seed");
 
-        assert_eq!(
-            broker
-                .claim_due_rotation_policies(16, 60)
-                .await
-                .unwrap()
-                .len(),
-            1
-        );
+        assert!(broker
+            .claim_rotation_policy("rotpol_parked", 0)
+            .await
+            .unwrap());
 
         // Park it: no next attempt, needs attention.
         broker
@@ -1149,11 +1140,10 @@ mod tests {
             .expect("park");
 
         assert!(
-            broker
-                .claim_due_rotation_policies(16, 60)
+            !broker
+                .claim_rotation_policy("rotpol_parked", 600)
                 .await
-                .unwrap()
-                .is_empty(),
+                .unwrap(),
             "a parked policy is not claimed"
         );
         let parked = store::get_rotation_policy(db.pool(), "rotpol_parked")
@@ -1191,11 +1181,15 @@ mod tests {
         store::upsert_rotation_policy(db.pool(), &row)
             .await
             .expect("seed");
-        let claimed = broker.claim_due_rotation_policies(16, 60).await.unwrap();
-        assert_eq!(claimed.len(), 1);
+        assert!(broker.claim_rotation_policy("rotpol_ok", 0).await.unwrap());
+        let claimed = store::get_rotation_policy(db.pool(), "rotpol_ok")
+            .await
+            .unwrap()
+            .and_then(RotationPolicy::from_row)
+            .expect("policy");
 
         broker
-            .release_rotation_policy_success(&claimed[0], now)
+            .release_rotation_policy_success(&claimed, now)
             .await
             .expect("release");
 
@@ -1209,16 +1203,15 @@ mod tests {
         assert!(after.next_attempt_at.is_some(), "next attempt is scheduled");
         assert!(!after.needs_attention);
         assert!(
-            broker
-                .claim_due_rotation_policies(16, 60)
+            !broker
+                .claim_rotation_policy("rotpol_ok", 600)
                 .await
-                .unwrap()
-                .is_empty(),
-            "not due again until the interval elapses"
+                .unwrap(),
+            "the freshly scheduled next attempt holds the policy off"
         );
     }
 
-    /// A database whose `rotation_policies` predates ADR 0073 must upgrade in
+    /// A database whose `rotation_policies` predates ADR 0076 must upgrade in
     /// place and keep working. The table is created lazily rather than by an
     /// early migration, so both the migration and `ensure_rotation_schema` have
     /// to converge on the same shape.
@@ -1276,11 +1269,12 @@ mod tests {
         assert_eq!(upgraded.target_id, "Dev/legacy", "existing data is intact");
 
         // And the legacy row is claimable through the new path.
-        let claimed = store::claim_due_rotation_policies(pool, 16, 60)
-            .await
-            .expect("claim");
-        assert_eq!(claimed.len(), 1);
-        assert_eq!(claimed[0].id, "rotpol_legacy");
+        assert!(
+            store::claim_rotation_policy(pool, "rotpol_legacy", 600)
+                .await
+                .expect("claim"),
+            "an upgraded legacy policy can be leased"
+        );
     }
 
     #[test]

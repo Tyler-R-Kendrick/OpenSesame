@@ -1,4 +1,4 @@
--- Rotation policies gain a lease, backoff, and an attempt cap (ADR 0073).
+-- Rotation policies gain a lease, backoff, and an attempt cap (ADR 0076).
 --
 -- The scheduler previously listed every enabled policy and executed each due
 -- one with no claim, so two gateway processes both executed the same policy.

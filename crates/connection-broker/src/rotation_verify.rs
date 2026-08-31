@@ -1,4 +1,4 @@
-//! Verification of a rotated credential (ADR 0073).
+//! Verification of a rotated credential (ADR 0076).
 //!
 //! `CandidateVerified` is the load-bearing edge of the `opensesame-rotation`
 //! machine: `PreviousRevoked` is unreachable without passing through it, and

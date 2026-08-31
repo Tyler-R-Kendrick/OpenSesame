@@ -3,7 +3,7 @@
 What happens when the agent cannot finish a password change, and how that
 failure turns into a deterministic recipe instead of a dead end.
 
-Decision record: [ADR 0073 §4](../adr/0073-autonomous-web-login-rotation.md).
+Decision record: [ADR 0076 §4](../adr/0076-autonomous-web-login-rotation.md).
 Overall flow: [web-login rotation](web-login-rotation.md).
 Output format: [rotation recipe schema](rotation-recipe-schema.md).
 
@@ -24,7 +24,7 @@ notifies, it parks, it hands the user a replay of exactly where it went wrong,
 and it asks them to show it the way through once. What the user demonstrates
 becomes a signed recipe, and the next run on that domain is deterministic.
 
-The ladder in ADR 0073 §2 makes this the economic engine of the whole design:
+The ladder in ADR 0076 §2 makes this the economic engine of the whole design:
 the expensive non-deterministic tier (T4) exists to bootstrap the cheap
 deterministic one (T3). A site that needs an agent once needs a recipe replay
 afterwards.
@@ -63,7 +63,7 @@ future runs on this domain resolve to T3 (deterministic)
 | Multi-page flow | change is behind two settings pages and a re-auth | the navigation path |
 | Confirmation ambiguity | submitted, no clear success signal | what success actually looks like on this site |
 
-**CAPTCHA is not on this list.** ADR 0073 constraint 4 forbids solving one or
+**CAPTCHA is not on this list.** ADR 0076 constraint 4 forbids solving one or
 evading detection. A CAPTCHA parks the job and notifies; the user may complete
 it themselves in the attached session, and what gets recorded is the surrounding
 flow, never an attempt to defeat the challenge.
@@ -104,7 +104,7 @@ whole point of the teaching session is that what the user shows is what the
 agent will do.
 
 The trade is that the sandbox's session and network position are what the user
-is operating through during the demonstration. ADR 0073 §7's residual risk
+is operating through during the demonstration. ADR 0076 §7's residual risk
 applies to teaching sessions exactly as it applies to runs, and the same
 mitigations hold: attested sandboxes, post-run account-security diff,
 sign-out-everywhere at the end.
@@ -156,12 +156,12 @@ Treat it accordingly.
 
 - sealed at rest, under the same envelope discipline as vault items
 - TTL-bound; default retention is the observation window, not forever
-- excluded from every agent surface (ADR 0073 §10)
+- excluded from every agent surface (ADR 0076 §10)
 - never returned by a job-listing API; fetched only through an explicit human
   ceremony
 - deleted with the job, and on user request
 
-This is a genuine increase in blast radius and is recorded as such in ADR 0073's
+This is a genuine increase in blast radius and is recorded as such in ADR 0076's
 consequences. The feature did not exist before; now the gateway stores
 authenticated views of people's accounts.
 

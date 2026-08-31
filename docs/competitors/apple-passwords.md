@@ -1,7 +1,7 @@
 # Apple Passwords — prior art for password change on websites
 
 > Competitive reference for OpenSesame's **web-login rotation** work
-> ([ADR 0073](../adr/0073-autonomous-web-login-rotation.md)). Never brand
+> ([ADR 0076](../adr/0076-autonomous-web-login-rotation.md)). Never brand
 > marks; never imply OpenSesame ships Apple's flow, and never imply Apple
 > ships ours.
 
@@ -42,7 +42,7 @@ The human performs every password change. Apple navigates, and generates a
 compliant replacement, and offers to save it. It does not fill the old password,
 submit the form, or verify the result.
 
-| Dimension | Apple Passwords | OpenSesame (ADR 0073) |
+| Dimension | Apple Passwords | OpenSesame (ADR 0076) |
 |-----------|-----------------|-----------------------|
 | Finds the change page | `/.well-known/change-password` + curated corpus | same convention, same derivation |
 | Generates a compliant password | yes, from composition quirks | yes, from recipe `composition` |
@@ -65,7 +65,7 @@ fails at next login. Apple's quirks corpus is the proof that this data is
 necessary and that it has to be curated rather than inferred.
 
 **Passkey-first.** Apple ranks passkey upgrade above password hygiene, and so
-does ADR 0073: on a passkey-capable relying party, enrol-and-retire removes the
+does ADR 0076: on a passkey-capable relying party, enrol-and-retire removes the
 credential instead of refreshing it, and no plaintext exists during the ceremony.
 
 **Deep-linking as the honest floor.** When nothing else works, sending the human
@@ -83,7 +83,7 @@ Two consequences worth stating in one place:
 - Product copy must not imply Apple parity for the autonomous tiers. The
   phrasings to grep for are "like Apple" and "automatic password change". T3
   and T5 match Safari's behaviour; T4 does not.
-- Apple's design avoids the entire class of risk in ADR 0073 §7 by never
+- Apple's design avoids the entire class of risk in ADR 0076 §7 by never
   logging in on the user's behalf. That is a real advantage of the simpler
   design, and the reason T4 is gated, attested-only, and off by default while
   the Apple-shaped tiers are on.
@@ -96,12 +96,12 @@ Dashlane historically shipped a bulk "Password Changer" that automated changes
 on a curated site list; its retirement is the most useful available evidence
 about this category — per-site scripted automation is expensive to maintain and
 degrades silently as sites change, which is precisely the objection ADR 0052 §11
-raised and the reason ADR 0073 answers it with teaching sessions and drift
+raised and the reason ADR 0076 answers it with teaching sessions and drift
 detection rather than with a hand-maintained script list.
 
 **Google Password Manager** offers an in-Chrome "change password" affordance
 using the same well-known path, with the human completing the flow.
 
 The pattern across all of them: the industry converged on *navigate and
-generate*, and stopped short of *fill and submit*. That is the line ADR 0073
+generate*, and stopped short of *fill and submit*. That is the line ADR 0076
 crosses deliberately, under constraints, with the failure made loud.

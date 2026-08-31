@@ -1,4 +1,16 @@
-import type { Folder, VaultItem } from "./model.js";
+import type { Folder, ItemKind, VaultItem } from "./model.js";
+
+/** Items are files; the kind is the extension. One vocabulary for the tree,
+    the editor's type selector, and search. */
+export const KIND_EXT = {
+  login: ".login",
+  passkey: ".passkey",
+  card: ".card",
+  secret: ".secret",
+  drop: ".drop",
+  note: ".note",
+  certificate: ".cert",
+} satisfies Record<ItemKind, string>;
 
 export function pathSegment(name: string): string {
   return (name.trim() || "Untitled").replaceAll("/", "／");

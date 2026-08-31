@@ -13,9 +13,10 @@ mod connector_egress;
 mod dev_pki;
 mod github_webhook;
 mod identity_mapping;
+mod lifecycle;
+mod managed_certs;
 mod middleware;
 mod oci_component;
-mod rotation_scheduler;
 mod routes;
 mod sync_actor;
 mod task_engine;
@@ -43,10 +44,15 @@ async fn main() -> anyhow::Result<()> {
     // fans out `sync_all_for_config`; config-value mutations wake it via
     // `sync_notify`, the tick covers everything else.
     tokio::spawn(sync_actor::run(state.clone()));
-    // ROTATION_SCHEDULER: durable rotation policies tick (WP-9) — lists
-    // enabled policies, executes due jobs through the broker's
-    // verify-before-revoke state machine, then advances last_rotated_at.
-    tokio::spawn(rotation_scheduler::run(state.clone()));
+    // LIFECYCLE_SCANNER: the single expiry detector (ADR 0074). Gathers every
+    // deadline — certificates, authorities, signers, credentials, rotation
+    // policies — and publishes what each one owes. Rotation is a *subscriber*
+    // to that feed rather than a second due-check of its own, so our own
+    // rotations exercise the same hook a third-party tool receives.
+    tokio::spawn(lifecycle::scanner::run(state.clone()));
+    // LIFECYCLE_DELIVERY: drains the outbound hook ledger with the ADR 0039
+    // saga — claim under lease, exponential backoff, visible dead letters.
+    tokio::spawn(lifecycle::delivery::run(state.clone()));
     let hsts = args.resource.starts_with("https://");
     let app = opensesame_host_core::http_security::apply_http_security(
         routes::router(state),
@@ -122,7 +128,7 @@ mod pact_coverage {
         );
     }
 
-    /// ADR 0073: the egress fence must bite before the sealed credential is
+    /// ADR 0076: the egress fence must bite before the sealed credential is
     /// opened, so a denied verification never causes the credential to be
     /// decrypted at all. `Invoker` splits preflight from execute precisely so
     /// this order is expressible; this pins that the broker keeps it.
@@ -138,7 +144,7 @@ mod pact_coverage {
         );
     }
 
-    /// ADR 0073: rotation verifies before it activates, which is what makes the
+    /// ADR 0076: rotation verifies before it activates, which is what makes the
     /// machine's Kani-proven verify-before-revoke ordering mean something.
     #[test]
     fn rotation_verifies_before_activating_the_candidate() {
