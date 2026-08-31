@@ -100,7 +100,24 @@ and does so carrying provenance — never authority.
    deliberate: inventing evidence for an old decision would be worse than
    recording that none was captured.
 
-6. **`v1` request digests remain verifiable.** Requests created before the
+6. **Fallback plans are held in process memory.** When a preferred channel
+   fails permanently, the router falls through to the next step in the plan it
+   computed — and that plan lives in a bounded in-process map. A restart, or a
+   delivery claimed by a replica that did not compute the plan, loses it. The
+   failure is closed rather than open: with no plan the row dead-letters, the
+   request stays in the durable inbox, and no channel outside the original plan
+   is ever selected. It costs a fallback, never an authorization. Making it
+   durable would mean a routing column on the delivery row; re-deriving the
+   plan at delivery time is explicitly the wrong repair, because that is how a
+   channel policy excluded gets picked.
+
+7. **Self-asserted bindings exist in development.** With no provider
+   round-trip available offline, a dev deployment may complete a binding from
+   the identity the browser proposed. It is refused in production
+   (`assertSecureConfig` throws), and a channel listed for direct settlement
+   with no verifiable callback secret is refused there too.
+
+8. **`v1` request digests remain verifiable.** Requests created before the
    canonicalization fix keep their insertion-order-dependent digest. They still
    settle correctly, because settlement compares against the digest stored with
    the row. Executors cannot independently re-derive a v1 digest — which is the
