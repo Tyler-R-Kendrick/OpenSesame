@@ -1,0 +1,96 @@
+<div class="os" data-theme="{{theme}}" style="width: 900px; height: 820px; padding: 30px 34px; display: grid; gap: 18px; align-content: start; overflow: hidden">
+
+  <div style="display: grid; gap: 8px; max-width: 70ch">
+    <h1>Three more steps, without becoming a stepper again</h1>
+    <p style="color: var(--ink-2); font-size: 14px">Setup was cut down to one screen and one question, and the progress rail was drawn, built, and then removed as furniture. Adding optional steps risks putting it straight back. It does not have to: these are not steps <em>of</em> setup, they are things to do <em>after</em> it, and that difference is the whole design.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; align-items: start">
+
+    <div style="display: grid; gap: 10px">
+      <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; text-transform: uppercase">Rejected — steps 2, 3 and 4</p>
+      <div style="border: 1px solid var(--line-strong); border-radius: 2px; background: var(--canvas); padding: 18px 16px; display: grid; gap: 14px">
+
+        <div class="setup__rail" style="grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px">
+          <div class="setup__seg is-done"><span class="setup__seg-bar"></span><span class="setup__seg-label">Sign-in</span></div>
+          <div class="setup__seg is-now"><span class="setup__seg-bar"></span><span class="setup__seg-label">Model</span></div>
+          <div class="setup__seg"><span class="setup__seg-bar"></span><span class="setup__seg-label">People</span></div>
+          <div class="setup__seg"><span class="setup__seg-bar"></span><span class="setup__seg-label">Devices</span></div>
+        </div>
+
+        <div style="display: grid; gap: 6px">
+          <h2>Who runs the model?</h2>
+          <p style="color: var(--ink-2); font-size: 14px">Step 2 of 4</p>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; padding-top: 4px">
+          <button type="button" class="btn btn--primary" style="flex: 1">Continue</button>
+          <button type="button" class="setup__skip">Skip</button>
+        </div>
+      </div>
+
+      <ul class="gate__list" style="padding-left: 2px">
+        <li>Optional work that counts down looks owed. Two of four undone reads as two of four <em>failed</em>.</li>
+        <li>A Skip link is an apology for a screen that should not have interrupted.</li>
+        <li>It fixes an order on three things that have none.</li>
+        <li>The rail over a real single question was already removed once for exactly this.</li>
+      </ul>
+    </div>
+
+    <div style="display: grid; gap: 10px">
+      <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; text-transform: uppercase">Chosen — a board after the question</p>
+      <div style="border: 1px solid var(--accent-line); border-radius: 2px; background: var(--canvas); padding: 18px 16px; display: grid; gap: 14px">
+
+        <div style="display: grid; gap: 6px">
+          <h2>Set up, and signed in</h2>
+          <p style="color: var(--ink-2); font-size: 14px">That was the only question.</p>
+        </div>
+
+        <div class="next">
+          <div class="next__card" style="cursor: default">
+            <span class="next__mark">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M9 9h6v6H9z"></path></svg>
+            </span>
+            <span class="next__body">
+              <span class="next__name">A model to drive password resets</span>
+              <span class="next__state">Not set up — resets stay manual</span>
+            </span>
+          </div>
+          <div class="next__card" style="cursor: default">
+            <span class="next__mark">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"></path><circle cx="9.5" cy="7.5" r="3.5"></circle></svg>
+            </span>
+            <span class="next__body">
+              <span class="next__name">Invite people</span>
+              <span class="next__state">Not set up — nobody else is here</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="go-row" style="padding-top: 4px">
+          <button type="button" class="go" aria-label="Go to the vault" title="Go to the vault">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>
+          </button>
+          <span class="go-verb" aria-hidden="true">Go to the vault</span>
+        </div>
+      </div>
+
+      <ul class="gate__list" style="padding-left: 2px">
+        <li>No counter, so nothing reads as owed. "Not set up" is a fact, not a chore.</li>
+        <li>No Skip, because doing nothing and going to the vault is already the path.</li>
+        <li>Any order, or none. The board is the same screen the operator can come back to.</li>
+        <li>The commit stays the one <code>.go</code> square where every screen's commit lives.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="hint" style="max-width: 78ch">The state line under each card is doing real work: it names what is lost by not setting it up ("resets stay manual", "this browser only"), which is more use than a count and is the only honest argument for doing it.</p>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":900,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>
