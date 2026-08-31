@@ -3587,6 +3587,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-ceremony"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "opensesame-claims"
 version = "0.1.0"
 dependencies = [
