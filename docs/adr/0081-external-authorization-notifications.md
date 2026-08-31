@@ -150,6 +150,17 @@ anything a callback asserted about itself, so a policy requiring phishing
 resistance rejects the same byte-identical, perfectly valid Slack callback that
 a low-risk policy accepts, and tells the person to come to the app.
 
+### 6a. Freshness names its own mechanism
+
+`callbackFresh` as a bare boolean was a field with nothing behind it on a
+channel like Telegram, whose Bot API stamps a button press with no time at
+all. A callback now declares *how* freshness was established — a signed
+provider timestamp, or a one-time server-minted reference the replay ledger
+retires — and `evaluateDirectSettlement` refuses when it is neither, or when a
+caller claims a provider timestamp on a channel whose provider does not send
+one. Omitting the field is also a refusal: a route that forgets it is a route
+that did not check.
+
 ### 7. Comparison is a server secret, and the notification must not carry it
 
 `bindingMessage` is requester-supplied text; a requester who chooses what the

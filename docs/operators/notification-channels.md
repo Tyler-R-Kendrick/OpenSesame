@@ -34,6 +34,28 @@ vendor's product page says is possible.
 | SMS | yes, when a bridge is configured | yes | verified phone binding | **unsupported** | no |
 | Generic webhook | yes | no | endpoint, not a person | **unsupported** | no |
 
+Note that requiring a transaction-bound activation rules out external
+settlement entirely, and every default policy above `low` requires one. So in
+practice Slack and Telegram can only ever settle requests an operator has
+classified `low` risk *and* explicitly opted that channel into. The
+`interactive` ceiling is a ceiling, not a default.
+
+### Freshness
+
+A callback that can be replayed later is a decision that can be made twice.
+Two mechanisms establish freshness, and a channel has exactly one of them:
+
+- **A signed provider timestamp** — Slack and WeChat put a time inside the
+  string they sign, so a captured request stops verifying once the window
+  closes.
+- **A one-time server-minted reference** — Telegram stamps a button press with
+  nothing, so its callback carries an opaque token we minted and the replay
+  ledger retires on first use.
+
+A callback that establishes neither is refused. So is one claiming a provider
+timestamp on a channel whose provider does not send one — that describes a
+check that did not happen.
+
 "Direct approve: policy opt-in" means the adapter *can* carry a decision and
 still will not unless an operator names that channel in
 `directApprovalChannels` **and** the request's assurance requirement is one the
