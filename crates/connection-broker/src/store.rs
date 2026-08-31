@@ -2109,6 +2109,64 @@ const ROTATION_POLICY_LEASE_COLUMNS: &[&str] = &[
     "last_error TEXT",
 ];
 
+/// Rebuilds `rotation_policies` when its `target_kind` CHECK predates
+/// `web_login` (ADR 0076).
+///
+/// `SQLite` cannot alter a CHECK in place, so widening one means rebuilding the
+/// table. Migration 0019 does this for pools that ran the embedded migrations;
+/// this covers the ones that did not — bare test pools reach
+/// `ensure_rotation_schema` directly — and both converge on the same shape.
+///
+/// The guard reads the live DDL rather than tracking a version, because that is
+/// the one source that cannot disagree with what the table actually accepts.
+async fn widen_rotation_target_kinds(pool: &SqlitePool) -> Result<()> {
+    let ddl: Option<String> =
+        sqlx::query_scalar("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
+            .bind("rotation_policies")
+            .fetch_optional(pool)
+            .await?;
+    let Some(ddl) = ddl else {
+        return Ok(());
+    };
+    if ddl.contains("web_login") {
+        return Ok(());
+    }
+    let mut tx = pool.begin().await?;
+    sqlx::query(
+        "CREATE TABLE rotation_policies_widened (
+            id TEXT PRIMARY KEY,
+            organization_id TEXT NOT NULL,
+            target_kind TEXT NOT NULL CHECK (target_kind IN ('connection','store_path','web_login')),
+            target_id TEXT NOT NULL,
+            interval_seconds INTEGER NOT NULL,
+            last_rotated_at TEXT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            lease_until TEXT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            next_attempt_at TEXT NULL,
+            needs_attention INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+         )",
+    )
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "INSERT OR IGNORE INTO rotation_policies_widened          (id, organization_id, target_kind, target_id, interval_seconds, last_rotated_at,           enabled, lease_until, attempts, next_attempt_at, needs_attention, last_error,           created_at, updated_at)          SELECT id, organization_id, target_kind, target_id, interval_seconds, last_rotated_at,           enabled, lease_until, attempts, next_attempt_at, needs_attention, last_error,           created_at, updated_at FROM rotation_policies",
+    )
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query("DROP TABLE rotation_policies")
+        .execute(&mut *tx)
+        .await?;
+    sqlx::query("ALTER TABLE rotation_policies_widened RENAME TO rotation_policies")
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
 /// Adds one lease column, treating an existing column as success.
 ///
 /// `SQLite` has no `ADD COLUMN IF NOT EXISTS`, and the duplicate-column error is
@@ -2144,7 +2202,7 @@ pub async fn ensure_rotation_schema(pool: &SqlitePool) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS rotation_policies (
             id TEXT PRIMARY KEY,
             organization_id TEXT NOT NULL,
-            target_kind TEXT NOT NULL CHECK (target_kind IN ('connection','store_path')),
+            target_kind TEXT NOT NULL CHECK (target_kind IN ('connection','store_path','web_login')),
             target_id TEXT NOT NULL,
             interval_seconds INTEGER NOT NULL,
             last_rotated_at TEXT NULL,
@@ -2168,6 +2226,7 @@ pub async fn ensure_rotation_schema(pool: &SqlitePool) -> Result<()> {
     for column in ROTATION_POLICY_LEASE_COLUMNS {
         add_rotation_policy_column(pool, column).await?;
     }
+    widen_rotation_target_kinds(pool).await?;
     sqlx::query(
         "CREATE INDEX IF NOT EXISTS idx_rotation_policies_org \
          ON rotation_policies(organization_id)",

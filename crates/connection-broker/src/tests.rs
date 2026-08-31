@@ -3833,6 +3833,46 @@ async fn rotation_fixture() -> RotationFixture {
 }
 
 #[tokio::test]
+async fn a_web_login_policy_round_trips_and_parks_without_a_runner() {
+    let fixture = rotation_fixture().await;
+    let bus = opensesame_task_bus::InMemoryTaskBus::default();
+    let target = RotationTarget::WebLogin {
+        origin: "https://example.com".into(),
+    };
+    assert_eq!(target.kind(), "web_login");
+    assert_eq!(
+        RotationTarget::from_parts("web_login", "https://example.com"),
+        Some(target.clone())
+    );
+
+    // The widened target_kind CHECK admits the row, so a policy for a consumer
+    // web login is schedulable rather than rejected at the storage layer.
+    let job = request_rotation(
+        &fixture.broker,
+        &bus,
+        target,
+        None,
+        &fixture.organization.to_string(),
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(job.state, "scheduled");
+
+    // With no sandbox runner configured, ADR 0076 T5 applies: park loudly, and
+    // never report a password change that did not happen.
+    let parked = execute_rotation(&fixture.broker, &bus, &fixture.organization, &job.id)
+        .await
+        .unwrap();
+    assert_eq!(parked.state, "reconciliation_required", "{parked:?}");
+    assert!(parked
+        .detail
+        .as_deref()
+        .unwrap_or_default()
+        .contains("sandbox runner"));
+}
+
+#[tokio::test]
 async fn rotation_happy_path_completes_the_machine_and_wakes_dependents() {
     let fixture = rotation_fixture().await;
     let bus = opensesame_task_bus::InMemoryTaskBus::default();
