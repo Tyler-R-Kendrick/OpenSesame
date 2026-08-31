@@ -12,5 +12,7 @@ export * from "./machines/provisional-resource.js";
 export * from "./machines/presentation.js";
 export { fixtures } from "./__tests__/fixtures.js";
 export * from "./trust.js";
+export * from "./notifications.js";
+export * from "./approval-ceremony.js";
 export * from "./presentation.js";
 export * from "./authentication-service.js";

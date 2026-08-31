@@ -2,6 +2,14 @@ import type { ClaimEngine } from "@opensesame/claims";
 import type { OidcStore, Repositories } from "@opensesame/database";
 import type { Logger } from "@opensesame/observability";
 import type { Clock, Project, ProvisionalSession } from "@opensesame/os-domain";
+import {
+  type ChannelAdapterRegistry,
+  type NotificationDispatchDeps,
+  type NotificationRepos,
+  type RoutePlanStore,
+  deliverNotifications,
+  routeNotification,
+} from "./notifications.js";
 import { MemoryTaskBus, type TaskBus, outboxToBusEvent } from "./taskBus.js";
 import { deliverWebhooks, fanOutWebhooks } from "./webhooks.js";
 
@@ -68,6 +76,19 @@ export interface CleanupDeps {
    * Publish-then-markPublished keeps the outbox authoritative (ADR 0010).
    */
   taskBus?: TaskBus;
+  /**
+   * Channel adapters this deployment has configured (ADR 0084). Absent means
+   * none: every external step is excluded as `adapter_unavailable` and the
+   * plan collapses to the durable inbox, which is exactly what an operator
+   * who configured nothing should get.
+   */
+  notificationAdapters?: ChannelAdapterRegistry;
+  /**
+   * Where a route plan is remembered between fan-out and delivery, so a
+   * fallback can only ever pick a step that plan already contained. Defaults
+   * to the router's own bounded store; injected by tests for determinism.
+   */
+  notificationPlans?: RoutePlanStore;
 }
 
 export interface CleanupResult {
@@ -81,6 +102,15 @@ export interface CleanupResult {
   webhooksDead: number;
   /** Expired issuer rows removed, or undefined when there is no such store. */
   prunedOidcRows?: number;
+  /**
+   * Notification-router counts, or undefined when the repositories that back
+   * it are absent. Undefined means the router did not run — reporting zeros
+   * would read as "nobody needed telling", which is a different thing from
+   * "nothing was even looked at".
+   */
+  notificationsEnqueued?: number;
+  notificationsDelivered?: number;
+  notificationsDead?: number;
   /**
    * Whether this tick had the in-process state needed to expire anything. False
    * means the counts above are zero because nothing was inspected, not because
@@ -111,6 +141,42 @@ async function withOutboxDrainLock<T>(fn: () => Promise<T>): Promise<T> {
   } finally {
     release();
   }
+}
+
+/**
+ * The notification router's dependencies, or undefined when this deployment's
+ * repositories do not carry the notification tables.
+ *
+ * Calling a repository that is not there would throw on every tick; counting
+ * zero deliveries instead would claim the router is routing while it rings
+ * nobody. So the router runs only when its storage is actually present, the
+ * legacy webhook fan-out keeps working either way, and `CleanupResult` says
+ * which of the two happened.
+ */
+function notificationDispatch(
+  deps: CleanupDeps,
+): NotificationDispatchDeps | undefined {
+  const available: Partial<NotificationRepos> = deps.repos;
+  const { channelBindings, notificationPreferences, notificationDeliveries } =
+    available;
+  if (!channelBindings || !notificationPreferences || !notificationDeliveries) {
+    return undefined;
+  }
+  return {
+    repos: {
+      channelBindings,
+      notificationPreferences,
+      notificationDeliveries,
+      webhookEndpoints: deps.repos.webhookEndpoints,
+      webhookDeliveries: deps.repos.webhookDeliveries,
+    },
+    clock: deps.clock,
+    ...(deps.notificationAdapters
+      ? { adapters: deps.notificationAdapters }
+      : undefined),
+    ...(deps.notificationPlans ? { plans: deps.notificationPlans } : undefined),
+    ...(deps.log ? { log: deps.log } : undefined),
+  };
 }
 
 /**
@@ -210,23 +276,33 @@ export async function runCleanupTick(
   const pending = await withOutboxDrainLock(() =>
     deps.repos.outbox.claimUnpublished(100, now),
   );
+  const notifications = notificationDispatch(deps);
   let webhooksEnqueued = 0;
+  let notificationsEnqueued = 0;
   for (const event of pending) {
     try {
       await taskBus.publish(outboxToBusEvent(event));
-      // Fan inbox events out to registered webhook endpoints before the
-      // event is marked published: a crash between the two re-runs the
-      // fan-out next tick, and duplicate deliveries are the receiver's
-      // idempotency problem (webhook-id exists for exactly that) — a lost
-      // doorbell is the failure mode that matters.
-      webhooksEnqueued += await fanOutWebhooks(
-        {
-          repos: deps.repos,
-          clock: deps.clock,
-          ...(deps.log ? { log: deps.log } : undefined),
-        },
-        event,
-      );
+      // Route the event before it is marked published: a crash between the
+      // two re-runs the fan-out next tick, which the delivery table's
+      // idempotency key absorbs (and which a webhook receiver absorbs via
+      // webhook-id) — a lost doorbell is the failure mode that matters.
+      //
+      // The router owns the registered-endpoint fan-out too, so the webhook
+      // bytes and signatures stay on their one existing code path.
+      if (notifications) {
+        const routed = await routeNotification(notifications, event);
+        webhooksEnqueued += routed.webhooksEnqueued;
+        notificationsEnqueued += routed.enqueued;
+      } else {
+        webhooksEnqueued += await fanOutWebhooks(
+          {
+            repos: deps.repos,
+            clock: deps.clock,
+            ...(deps.log ? { log: deps.log } : undefined),
+          },
+          event,
+        );
+      }
       await deps.repos.outbox.markPublished(event.id, now);
       outboxPublished += 1;
     } catch (err) {
@@ -253,6 +329,19 @@ export async function runCleanupTick(
     ...(deps.log ? { log: deps.log } : undefined),
   });
 
+  // Delivery is deliberately outside the drain loop, as the webhook stage
+  // already is: a provider that is slow must not hold the outbox open.
+  const notificationDelivery = notifications
+    ? await deliverNotifications(notifications)
+    : undefined;
+  const notificationCounts = notificationDelivery
+    ? {
+        notificationsEnqueued,
+        notificationsDelivered: notificationDelivery.delivered,
+        notificationsDead: notificationDelivery.dead,
+      }
+    : undefined;
+
   deps.log?.info(
     {
       expiredClaims,
@@ -265,6 +354,7 @@ export async function runCleanupTick(
       webhooksDead: webhookDelivery.dead,
       expiryEnforced,
       ...(prunedOidcRows === undefined ? undefined : { prunedOidcRows }),
+      ...notificationCounts,
     },
     "cleanup tick",
   );
@@ -280,6 +370,7 @@ export async function runCleanupTick(
     webhooksDead: webhookDelivery.dead,
     expiryEnforced,
     ...(prunedOidcRows === undefined ? undefined : { prunedOidcRows }),
+    ...notificationCounts,
   };
 }
 

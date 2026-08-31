@@ -76,6 +76,33 @@ export const AuthorizationRequestResponseSchema = z.object({
   delegationId: z.string().optional(),
   decidedAt: z.string().datetime().optional(),
   decidedByKind: ApprovalDecidedByKindSchema.optional(),
+  /**
+   * The opaque handle for whoever is asking (ADR 0084).
+   *
+   * Not a principal id: this value is shown in an inbox and crosses bus
+   * subjects that are not private. It is here so a review screen can answer
+   * "who is asking?" with something stable, rather than with a name a
+   * requester chose for themselves.
+   */
+  requesterRef: z.string().optional(),
+  /**
+   * What it will take to settle this one, summarized for a list.
+   *
+   * Present so an inbox can route a request that needs a ceremony to the
+   * review screen instead of offering an inline Approve that the server would
+   * then refuse. It is a projection of the effective policy, not the gate —
+   * settlement re-resolves the policy and re-checks everything regardless of
+   * what a client did with these fields.
+   */
+  approval: z
+    .object({
+      riskClass: z.enum(["low", "moderate", "high", "critical"]),
+      requireTransactionBoundActivation: z.boolean(),
+      requireComparison: z.boolean(),
+      /** Reason codes, not a scalar level. */
+      required: z.array(z.string()),
+    })
+    .optional(),
 });
 
 export const DecideAuthorizationRequestSchema = z.object({

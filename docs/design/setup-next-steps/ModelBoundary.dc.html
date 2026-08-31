@@ -1594,9 +1594,43 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem;
 }
+
+/* A small comparison table. Used where a claim is a ranking rather than a
+   sentence — the boundary board's "how far the page travels, by plane" — so
+   the ordering itself carries the argument and the reader can check it. */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tbl th,
+.tbl td {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.tbl th {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.tbl tbody tr:first-child td {
+  color: var(--ink);
+}
+
+.tbl tbody tr:last-child td {
+  border-bottom: none;
+}
   </style>
 </helmet>
-<div class="os" data-theme="{{theme}}" style="width: 900px; height: 800px; padding: 30px 34px; display: grid; gap: 20px; align-content: start; overflow: hidden">
+<div class="os" data-theme="{{theme}}" style="width: 900px; height: 960px; padding: 30px 34px; display: grid; gap: 20px; align-content: start; overflow: hidden">
 
   <div style="display: grid; gap: 8px; max-width: 68ch">
     <h1>What the model provider becomes a party to</h1>
@@ -1647,16 +1681,32 @@
     </div>
   </div>
 
+  <div style="display: grid; gap: 10px">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; text-transform: uppercase">How far the redacted page travels, by plane</p>
+    <table class="tbl">
+      <thead>
+        <tr><th>Plane</th><th>Leaves the page</th><th>Leaves the machine</th><th>Second process holds it</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>This browser</strong> — in-page, the device's own model</td><td>no</td><td>no</td><td>no</td></tr>
+        <tr><td>Local — Ollama, LM Studio over loopback</td><td>yes</td><td>no</td><td>yes</td></tr>
+        <tr><td>Hosted — somebody's API</td><td>yes</td><td>yes</td><td>yes</td></tr>
+      </tbody>
+    </table>
+    <p class="hint">The browser plane is the narrowest row, loopback included — which is why declining to name a provider resolves to it rather than to nothing. ADR 0083.</p>
+  </div>
+
   <div class="note">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v4h1"></path></svg>
     <div>
       <p><strong>The residual risk the setup step should not pretend away.</strong></p>
-      <p style="margin-top: 0.35rem">A redacted page is still <em>your</em> page: which site, which account name, that you are changing a password today. A hosted provider learns that much, and the local option exists so an operator who will not accept it has somewhere to go. That is why the step leads with the machine you are on rather than the biggest model.</p>
+      <p style="margin-top: 0.35rem">A redacted page is still <em>your</em> page: which site, which account name, that you are changing a password today. A hosted provider learns that much, and the browser and local options exist so an operator who will not accept it has somewhere to go. That is why the step leads with the device you are holding rather than the biggest model.</p>
+      <p style="margin-top: 0.35rem">And the left column does not shrink because the model ran in-page. The frames go into the sealed observation log either way, so redaction stays at capture on every plane — where the model ran changes <em>who watches</em>, never <em>what there is to watch</em>.</p>
     </div>
   </div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":900,"height":800}}'>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":900,"height":960}}'>
 class Component extends DCLogic {
   renderVals() {
     return { theme: this.props.theme || "light" };

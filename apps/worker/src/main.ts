@@ -5,6 +5,10 @@ import {
 } from "@opensesame/database";
 import { createLogger } from "@opensesame/observability";
 import { startCleanupLoop } from "./cleanup.js";
+import {
+  type ChannelAdapterRegistry,
+  EMPTY_ADAPTER_REGISTRY,
+} from "./notifications.js";
 import { createTaskBusFromEnv } from "./taskBus.js";
 
 export type WorkerRuntime = {
@@ -14,6 +18,14 @@ export type WorkerRuntime = {
   createPostgresOidcStore: typeof createPostgresOidcStore;
   startCleanupLoop: typeof startCleanupLoop;
   createTaskBusFromEnv: typeof createTaskBusFromEnv;
+  /**
+   * Channel adapters for this deployment (ADR 0084). Optional, and empty by
+   * default: a worker with no configured adapters routes everything to the
+   * durable inbox, which is honest. When
+   * `@opensesame/notification-adapters` lands, this becomes
+   * `createAdapterRegistry(configFromEnv())` and nothing else here changes.
+   */
+  createNotificationAdapters?: () => ChannelAdapterRegistry;
   exit: (code: number) => void;
 };
 
@@ -54,6 +66,8 @@ export async function runWorker(
   const { db } = runtime.createDrizzle(databaseUrl);
   const oidcStore = runtime.createPostgresOidcStore(db);
   const taskBus = await runtime.createTaskBusFromEnv();
+  const notificationAdapters =
+    runtime.createNotificationAdapters?.() ?? EMPTY_ADAPTER_REGISTRY;
   const intervalMs = Number(
     process.env.OPENSESAME_WORKER_INTERVAL_MS ?? "5000",
   );
@@ -72,6 +86,10 @@ export async function runWorker(
       taskBus:
         process.env.OPENSESAME_TASKBUS ??
         (process.env.NATS_URL ? "nats" : "memory"),
+      // Named, not counted: "0 channels" and "slack, sms" are the difference
+      // between a person who will never hear about a request and one who
+      // will, and an operator should be able to read that off one line.
+      notificationChannels: [...notificationAdapters.availableChannels()],
     },
     "standalone cleanup worker: outbox→TaskBus and issuer row pruning — claim, session and project expiry run in-process in the control plane",
   );
@@ -79,6 +97,7 @@ export async function runWorker(
     repos,
     oidcStore,
     taskBus,
+    notificationAdapters,
     clock: () => new Date(),
     log,
     intervalMs,

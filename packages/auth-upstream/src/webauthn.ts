@@ -162,18 +162,47 @@ export async function verifyPasskeyAuthentication(
   }
 }
 
-export type ChallengePurpose = "authentication" | "registration";
+/**
+ * Why a challenge was issued.
+ *
+ * `transaction` is not "authentication with a label": it names a ceremony
+ * that was minted against one specific approval transaction and may only be
+ * spent on that transaction. What makes that true is `transactionDigest`
+ * below plus the durable activation row the control plane keeps — this store
+ * is process-local and is a courtesy, not the fence.
+ */
+export type ChallengePurpose =
+  | "authentication"
+  | "registration"
+  | "transaction";
 
 export interface ChallengeMeta {
   /** Bound principal when issued under an authenticated session; null if unbound. */
   principalId: string | null;
   expiresAt: number;
   purpose: ChallengePurpose;
+  /**
+   * The approval transaction this challenge was minted for (`transaction`
+   * purpose only). The verifier compares it against the transaction the
+   * caller claims to be settling, so an assertion obtained for one request,
+   * one decision or one policy cannot be presented against another.
+   */
+  transactionDigest?: string;
 }
 
 export interface PasskeyChallengeStore {
   set(challenge: string, meta: ChallengeMeta): void;
   consume(challenge: string): ChallengeMeta | undefined;
+  /**
+   * Read a challenge's metadata without spending it.
+   *
+   * The transaction-bound ceremony needs to check what a challenge was minted
+   * *for* before handing the assertion to the verifier that consumes it.
+   * Consuming it here instead would leave the verifier with nothing to check
+   * the assertion against, and re-inserting it afterwards would open a window
+   * where two callers hold the same one-time value.
+   */
+  peek(challenge: string): ChallengeMeta | undefined;
 }
 
 export interface AuthenticationChallengeResult {
@@ -238,6 +267,15 @@ export function createMemoryChallengeStore(): PasskeyChallengeStore {
       if (Date.now() > row.expiresAt) return undefined;
       return row;
     },
+    peek(challenge) {
+      const row = map.get(challenge);
+      if (!row) return undefined;
+      // Expiry is applied on read rather than only on eviction: a lapsed
+      // challenge must look absent to a reader too, or a peek would answer
+      // "valid" for something `consume` would refuse a line later.
+      if (Date.now() > row.expiresAt) return undefined;
+      return row;
+    },
   };
 }
 
@@ -271,6 +309,50 @@ export async function issueAuthenticationChallenge(
     principalId: opts?.principalId ?? null,
     expiresAt: Date.now() + 5 * 60_000,
     purpose: "authentication",
+  });
+  return { challenge: options.challenge, options };
+}
+
+/**
+ * Issue a challenge that may only be spent on one approval transaction.
+ *
+ * The digest is carried on the challenge rather than recomputed later,
+ * because "which transaction is this ceremony for?" has to be decided when
+ * the ceremony *starts*. A challenge that learned its meaning at verification
+ * time would be a challenge an attacker could re-aim: the person would touch
+ * their authenticator for the request they were reading, and the server would
+ * supply whichever transaction it was asked about afterwards.
+ *
+ * `userVerification: "required"` is inherited from the options generator: an
+ * approval that only proved possession of a device is one factor wearing two
+ * factors' name.
+ */
+export async function issueTransactionChallenge(
+  store: PasskeyChallengeStore,
+  rp: WebAuthnRpConfig,
+  opts: {
+    principalId: string;
+    transactionDigest: string;
+    allowCredentials?: { id: string }[];
+    ttlMs?: number;
+  },
+): Promise<AuthenticationChallengeResult> {
+  const genArgs: GenerateAuthenticationOptionsOpts = {
+    rpID: rp.rpID,
+    userVerification: "required",
+  };
+  if (opts.allowCredentials && opts.allowCredentials.length > 0) {
+    genArgs.allowCredentials = opts.allowCredentials.map((c) => ({
+      id: c.id,
+      transports: AUTHENTICATOR_TRANSPORTS,
+    }));
+  }
+  const options = await generateAuthenticationOptions(genArgs);
+  store.set(options.challenge, {
+    principalId: opts.principalId,
+    expiresAt: Date.now() + (opts.ttlMs ?? 5 * 60_000),
+    purpose: "transaction",
+    transactionDigest: opts.transactionDigest,
   });
   return { challenge: options.challenge, options };
 }
@@ -362,7 +444,23 @@ export function createSimpleWebAuthnVerifyFn(
     const challenge = clientData.challenge;
     if (!challenge || !isString(challenge)) return false;
     const issued = store.consume(challenge);
-    if (!issued || issued.purpose !== "authentication") return false;
+    // The purpose the caller expected, and nothing else.
+    //
+    // Both purposes prove the same momentary fact — this person, this
+    // authenticator, just now — so the signature cannot tell them apart and
+    // only the challenge's purpose can. Accepting either way round would let
+    // a page mint an approval ceremony, have somebody touch their key for
+    // something that looked harmless, and redeem the assertion as a login;
+    // the mirror substitution, spending a plain sign-in challenge on an
+    // approval, is refused here *and* by the activation row, which stores the
+    // digest of the one challenge it was minted with.
+    //
+    // Defaulting to `authentication` keeps the narrow answer the safe one for
+    // any caller who did not think about it.
+    const expectedPurpose = assertion.expectedPurpose ?? "authentication";
+    if (!issued || issued.purpose !== expectedPurpose) {
+      return false;
+    }
     if (issued.principalId && issued.principalId !== credential.principalId) {
       return false;
     }

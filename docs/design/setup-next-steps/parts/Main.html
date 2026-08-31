@@ -20,7 +20,7 @@
         </span>
         <span class="next__body">
           <span class="next__name">A model to drive password resets</span>
-          <span class="next__why">Lets OpenSesame work a website's own reset form for you, instead of deep-linking you to it. Pick who runs the model.</span>
+          <span class="next__why">Lets OpenSesame work a website's own reset form for you, instead of deep-linking you to it. Pick who runs the model — or leave it, and this device runs it.</span>
           <span class="next__state">{{ modelsState }}</span>
         </span>
         <span class="next__chev">
@@ -87,7 +87,7 @@ class Component extends DCLogic {
       modelsState: this.label(
         this.state.models,
         "Ollama, on this machine",
-        "Not set up — resets stay manual",
+        "Not set up — this browser's own model is doing it",
       ),
       inviteState: this.label(
         this.state.invite,

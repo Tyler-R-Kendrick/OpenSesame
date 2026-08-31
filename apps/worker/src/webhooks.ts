@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import type { Repositories } from "@opensesame/database";
+import type {
+  WebhookDeliveryRepository,
+  WebhookEndpointRepository,
+} from "@opensesame/database";
 import type { Logger } from "@opensesame/observability";
 import { type OutboxEvent, readString } from "@opensesame/os-domain";
 import { signWebhook } from "@opensesame/webhooks";
@@ -34,8 +37,28 @@ export const MAX_DELIVERY_ATTEMPTS = 8;
 const FIRST_RETRY_MS = 30_000;
 const DELIVERY_TIMEOUT_MS = 10_000;
 
+/**
+ * The two repositories this dispatcher touches, and no more.
+ *
+ * Named narrowly rather than as the whole `Repositories` bundle so the
+ * generalized notification router can hand it the same slice it holds, and
+ * so nothing here can reach the authorization request itself: a webhook
+ * dispatcher that could settle a request would be a doorbell wired to the
+ * lock.
+ */
+export interface WebhookDispatchRepos {
+  webhookEndpoints: Pick<
+    WebhookEndpointRepository,
+    "listForPrincipal" | "getById"
+  >;
+  webhookDeliveries: Pick<
+    WebhookDeliveryRepository,
+    "enqueue" | "claimDue" | "markDelivered" | "recordFailure"
+  >;
+}
+
 export interface WebhookDispatchDeps {
-  repos: Repositories;
+  repos: WebhookDispatchRepos;
   clock: () => Date;
   /** Injected for tests; the worker passes global fetch. */
   fetchImpl?: typeof fetch;

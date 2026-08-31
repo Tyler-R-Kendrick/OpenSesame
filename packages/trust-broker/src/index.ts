@@ -121,3 +121,5 @@ export function projectLegacy(
     return "verified";
   return "self_asserted";
 }
+
+export * from "./approval.js";

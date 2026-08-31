@@ -10,6 +10,32 @@ export {
 } from "./cleanup.js";
 
 export {
+  routeNotification,
+  deliverNotifications,
+  retractNotifications,
+  notificationClassForEvent,
+  policyFromOutboxPayload,
+  createRoutePlanStore,
+  registryFromAdapters,
+  EMPTY_ADAPTER_REGISTRY,
+  NOTIFICATION_EVENT_CLASSES,
+  type ChannelAdapter,
+  type ChannelAdapterRegistry,
+  type ChannelDeliverInput,
+  type ChannelDeliveryOutcome,
+  type ChannelRenderInput,
+  type ChannelUpdateInput,
+  type NotificationDeliveryResult,
+  type NotificationDispatchDeps,
+  type NotificationRepos,
+  type NotificationSkipReason,
+  type RetractionResult,
+  type RoutePlanRecord,
+  type RoutePlanStore,
+  type RouteResult,
+} from "./notifications.js";
+
+export {
   consumeRotationEvents,
   InMemoryTaskBus as InMemoryRotationBus,
   EVENT_ROTATION_REQUESTED,
