@@ -1,4 +1,4 @@
-//! Watching a sandboxed run, and taking the page (ADR 0078).
+//! Watching a sandboxed run, and taking the page (ADR 0081).
 //!
 //! Three surfaces, and the split between them is the design:
 //!
@@ -44,7 +44,7 @@ use crate::middleware::auth::{
 ///
 /// The log is a database table, not a broadcast channel, so a tail is a poll.
 /// 500ms is chosen against what the stream actually carries: frames are
-/// admitted at a rate the mask solver bounds (ADR 0078 §3), and the action lane
+/// admitted at a rate the mask solver bounds (ADR 0081 §3), and the action lane
 /// moves at the speed of a browser step. A tighter loop would spend queries to
 /// deliver the same events.
 const TAIL_POLL: Duration = Duration::from_millis(500);
@@ -56,7 +56,7 @@ const TAIL_MAX_TICKS: u32 = 600;
 
 /// Longest a control lease is held without being renewed.
 ///
-/// When it expires the run parks — it never returns to the agent (ADR 0078 §7).
+/// When it expires the run parks — it never returns to the agent (ADR 0081 §7).
 pub const LEASE_SECONDS: i64 = 900;
 
 fn refusal(refusal: AttachRefusal) -> Response {
@@ -84,7 +84,7 @@ const fn refusal_code(refusal: AttachRefusal) -> &'static str {
 
 /// How this caller stands to the run.
 ///
-/// An operator is `Operator` even when it could read the row: ADR 0078 §8's
+/// An operator is `Operator` even when it could read the row: ADR 0081 §8's
 /// point is that reading somebody's session is not an operations capability.
 fn relation(who: &Caller, run: &StoredObservationRun) -> ViewerRelation {
     match who {
@@ -239,7 +239,7 @@ const fn default_after() -> i64 {
 
 /// `GET /api/v1/agent/runs/{id}/observe` — the sealed log, tailed.
 ///
-/// Live and replay are the same read at different cursors (ADR 0078 §1): a
+/// Live and replay are the same read at different cursors (ADR 0081 §1): a
 /// viewer passes its last position and gets the tail, the overlay passes an
 /// earlier one and gets a seek. There is no second pipeline, so there is no
 /// code that could be live-only and therefore no redaction that could apply on
@@ -578,7 +578,7 @@ pub async fn take_control(
         return unreadable_run();
     };
     // A suspended run is claimed by a person, never resumed into. Re-attaching
-    // is its own edge for exactly that reason (ADR 0078 §7).
+    // is its own edge for exactly that reason (ADR 0081 §7).
     if lease.state() == ControlState::Suspended {
         if let Err(error) = lease.reattach() {
             return lease_error(&error);
@@ -836,7 +836,7 @@ mod tests {
             send(&f.app, &f.alice, "POST", "/api/v1/agent/runs/run:1/release").await;
         assert_eq!(status, StatusCode::OK, "{view}");
         // Not agent_driving: the runner re-asserts the run's preconditions
-        // against the page before it drives again (ADR 0078 §6).
+        // against the page before it drives again (ADR 0081 §6).
         assert_eq!(view["control_state"], json!("resume_requested"));
         assert_eq!(view["driver"], json!("agent"));
     }

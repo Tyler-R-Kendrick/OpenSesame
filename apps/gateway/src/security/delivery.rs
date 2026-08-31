@@ -316,7 +316,7 @@ fn classify(status: reqwest::StatusCode) -> Result<(), Failure> {
     }
 }
 
-/// Hand one agent event to an A2H gateway as an intent (ADR 0078, A2H v1.0).
+/// Hand one agent event to an A2H gateway as an intent (ADR 0081, A2H v1.0).
 ///
 /// Three things make this different from the Standard Webhooks path above, and
 /// each is load-bearing:

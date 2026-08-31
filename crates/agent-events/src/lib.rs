@@ -1,4 +1,4 @@
-//! Frozen `agent.*` hook event names and their value-blind payloads (ADR 0078).
+//! Frozen `agent.*` hook event names and their value-blind payloads (ADR 0081).
 //!
 //! When an agent driving somebody's account gets stuck, somebody has to hear
 //! about it. This crate is the vocabulary for that, and it is deliberately a
@@ -154,7 +154,7 @@ pub struct AgentRun {
     pub job_id: String,
     pub organization_id: String,
     /// The principal whose credential is being rotated, and the only one
-    /// entitled to observe (ADR 0078 §8).
+    /// entitled to observe (ADR 0081 §8).
     pub owner_principal_id: String,
     /// The relying party's origin.
     pub origin: String,
