@@ -1,0 +1,56 @@
+{
+  "$comment": [
+    "Ceremony coverage per provider (ADR 0082 §7). Checked in rather than",
+    "fetched: asking a server which ceremony recipe to use for provider-x tells",
+    "that server which provider this user is onboarding, which is precisely the",
+    "kind of question the sealed store exists so nobody has to answer",
+    "(ADR 0052 §12 — a lookup is a disclosure).",
+    "",
+    "Three independent facts per provider, never a precomputed tier. The tier is",
+    "a decision, and recomputing it from the facts is what keeps a stale entry",
+    "from pinning a provider to a tier its capabilities no longer match.",
+    "",
+    "`native_registration` means the provider publishes an endpoint that creates",
+    "the app or client for us. It covers the registration phase and nothing",
+    "else: it cannot make somebody signed in, it cannot install on an org the",
+    "user has not named, and it cannot prove the result works.",
+    "",
+    "Every id here must name a provider in",
+    "crates/connection-broker/src/catalog.json — enforced by a test, so a",
+    "ceremony entry cannot outlive the provider it is for.",
+    "",
+    "Absence is meaningful: a provider with no entry resolves to C3 and gets the",
+    "copy-paste instructions it has today. That is the honest default, and never",
+    "a dead end."
+  ],
+  "ceremonies": [
+    {
+      "provider_id": "github",
+      "native_registration": true,
+      "native_registration_note": "GitHub App Manifest flow, already implemented in apps/gateway/src/routes/github_app.rs",
+      "recipe": false,
+      "agentic_allowed": false,
+      "declares": ["app_id", "private_key", "webhook_secret", "installation_id"],
+      "verifies_by": "minting an installation token",
+      "note": "ADR 0039's backup path: register the App, install it on the org, set the backup target. Registration is C0; the sign-in, org-choice and install steps have no recipe yet, so they resolve to C3 and hand the user the instructions."
+    },
+    {
+      "provider_id": "gitlab",
+      "native_registration": false,
+      "recipe": false,
+      "agentic_allowed": false,
+      "declares": ["client_id", "client_secret"],
+      "verifies_by": "calling GET /api/v4/user",
+      "note": "Application registration is a dashboard form with no documented endpoint. No recipe yet."
+    },
+    {
+      "provider_id": "cloudflare",
+      "native_registration": false,
+      "recipe": false,
+      "agentic_allowed": false,
+      "declares": ["client_secret"],
+      "verifies_by": "calling GET /client/v4/user/tokens/verify",
+      "note": "API tokens are minted in the dashboard. No recipe yet."
+    }
+  ]
+}
