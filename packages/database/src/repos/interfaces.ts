@@ -13,6 +13,9 @@ import {
   type ComparisonChallenge,
   type ExternalChannelBinding,
   type ExternalIdentity,
+  type Interaction,
+  type InteractionKind,
+  type InteractionStatus,
   type NotificationChannelKind,
   type NotificationDelivery,
   type NotificationPreferences,
@@ -239,6 +242,73 @@ export interface AuthorizationRequestRepository {
     >,
     uow?: UnitOfWork,
   ): Promise<AuthorizationRequest>;
+}
+
+/**
+ * The canonical cross-device interaction (ADR 0083).
+ *
+ * One store for every surface. A QR, a Google Wallet pass, a phone
+ * notification and a CLI poll all address the same row, so there is exactly
+ * one place where "which question is this, and is it still open?" is answered.
+ *
+ * The repository stores; it does not decide. Legality of a transition belongs
+ * to `machines/interaction.ts` and is not restated here — a second copy of the
+ * transition table is a second thing to get out of step with the first. What
+ * storage owns is the part the machine cannot enforce from inside a single
+ * process: that exactly one of two racing callers wins.
+ */
+export interface InteractionRepository {
+  create(interaction: Interaction, uow?: UnitOfWork): Promise<Interaction>;
+  getById(id: string): Promise<Interaction | null>;
+  /**
+   * The live interaction for a ceremony, if one exists.
+   *
+   * Live only, and that is the contract: once an interaction is terminal this
+   * answers null, so a caller resuming a ceremony re-issues rather than
+   * reviving a settled envelope. A photographed QR whose interaction was
+   * consumed must never be findable again by the thing it fronted.
+   */
+  getBySubject(
+    subjectKind: InteractionKind,
+    subjectId: string,
+  ): Promise<Interaction | null>;
+  /** The approver's inbox. Never lists another principal's interactions. */
+  listForApprover(
+    principalId: string,
+    filter?: { status?: InteractionStatus; limit?: number },
+  ): Promise<Interaction[]>;
+  /**
+   * Optimistic concurrency, as for authorization requests: two executors
+   * racing to spend one approval must not both believe they spent it. The
+   * version check on the update — not the machine's `consume` — is what
+   * actually serializes them, so this is the only place replay is stopped.
+   *
+   * The patch names exactly the fields a decision may move. It is deliberately
+   * narrower than "any column": `kind`, `subject`, `expiresAt`,
+   * `requestDigest`, `bindingMessage`, and `authorizationDetails` are what was
+   * consented to, and a repository that accepted edits to them would let a
+   * settled interaction describe something other than the thing that was
+   * approved — the exact substitution the bound digest exists to refuse.
+   * `expiresAt` is in that list for its own reason: a movable deadline is an
+   * approval window that can be held open after the fact.
+   */
+  updateWithVersion(
+    id: string,
+    expectedVersion: number,
+    patch: Partial<
+      Pick<
+        Interaction,
+        | "status"
+        | "approverPrincipalId"
+        | "approvalProof"
+        | "presentedAt"
+        | "decidedAt"
+        | "consumedAt"
+        | "revokedAt"
+      >
+    >,
+    uow?: UnitOfWork,
+  ): Promise<Interaction>;
 }
 
 /**
@@ -704,6 +774,7 @@ export interface CallbackReplayRepository {
 export interface Repositories {
   principals: PrincipalRepository;
   authorizationRequests: AuthorizationRequestRepository;
+  interactions: InteractionRepository;
   externalIdentities: ExternalIdentityRepository;
   byoUpstreams: ByoUpstreamRepository;
   betterAuthSubjects: BetterAuthSubjectRepository;

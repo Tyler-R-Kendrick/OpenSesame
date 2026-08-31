@@ -17,7 +17,7 @@
  *
  * The heading is `InstallOffer`'s own, deliberately: it is withheld with the
  * body on a browser that cannot install, so no host of the offer can leave a
- * heading standing over nothing by forgetting a guard of its own (ADR 0085).
+ * heading standing over nothing by forgetting a guard of its own (ADR 0086).
  */
 
 import { InstallOffer } from "../../components/InstallOffer.js";

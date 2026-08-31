@@ -97,7 +97,7 @@ describe("the install offer, against the real store", () => {
 
   it("does not strand a heading while the dialog is open", () => {
     // The same failure, seen from the host: `KeepIt` and the Settings panel
-    // render a title above this card (ADR 0085 §2).
+    // render a title above this card (ADR 0086 §2).
     render(<InstallOffer heading="Keep it on this device" />);
     let settle: (outcome: "accepted" | "dismissed") => void = () => {};
     act(() => {

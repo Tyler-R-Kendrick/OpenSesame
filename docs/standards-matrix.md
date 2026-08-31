@@ -41,6 +41,11 @@
 | A2A Agent Card | Ecosystem | Namespaced metadata | gateway |
 | AT Protocol OAuth / DID | Ecosystem | Connector + identity adapter | connectors/atproto |
 | Nostr NIP-46/47/98 | Ecosystem | Signer connector | connectors/nostr-signer |
+| OpenID4VP 1.0 (verifier) | Final (2025-07-09) | `direct_post` + DC API, DCQL, `dc+sd-jwt`; mdoc and encrypted response modes refused by name (ADR 0086) | `packages/openid4vp` |
+| OpenID4VCI 1.0 (issuer) | Final (2025-09-16) | Pre-authorized code + JWT proof only; no batch, deferred, status list or key attestation (ADR 0086) | `packages/openid4vci` |
+| RFC 9901 SD-JWT | Final | Disclosure digests and key binding, used by both roles above | `packages/openid4vp`, `packages/openid4vci` |
+| SD-JWT VC (`dc+sd-jwt`) | Draft/experimental | draft-ietf-oauth-sd-jwt-vc; isolated behind the issuer's format profile, revision pinned in `SUPPORT_MATRIX` | `packages/openid4vci` |
+| Google Wallet Generic Pass | Vendor | Presentation adapter only; a pass carries an opaque interaction reference and never a credential (ADR 0086) | `packages/wallet` |
 | OAuth 2.1 / ID-JAG / Txn Tokens / WIMSE / WIT-SVID | Draft/experimental | Adapter only; no schema lock-in | evidence envelopes |
 
 Draft claim names are never first-class DB columns; store `IdentityEvidence` digests.

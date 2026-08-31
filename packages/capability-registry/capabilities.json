@@ -1527,6 +1527,87 @@
     }
   },
   {
+    "id": "identity.interaction.create",
+    "title": "Ask someone to authorize an operation",
+    "plane": "identity",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "the requester already learns the outcome on the channel it created the interaction on; a second agent-facing read would be a way to watch somebody else's inbox",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "mcp_client": {
+        "reason": "the requester already learns the outcome on the channel it created the interaction on; a second agent-facing read would be a way to watch somebody else's inbox",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "webmcp": {
+        "reason": "the requester already learns the outcome on the channel it created the interaction on; a second agent-facing read would be a way to watch somebody else's inbox",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      }
+    }
+  },
+  {
+    "id": "identity.interaction.approve",
+    "title": "Approve a cross-device interaction",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "mcp_client": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "webmcp": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      }
+    }
+  },
+  {
+    "id": "identity.interaction.deny",
+    "title": "Deny a cross-device interaction",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "mcp_client": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "webmcp": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      }
+    }
+  },
+  {
     "id": "identity.login",
     "title": "Identity sign-in (device, loopback, anonymous)",
     "plane": "identity",
