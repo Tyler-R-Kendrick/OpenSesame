@@ -1,0 +1,11 @@
+[package]
+name = "opensesame-ceremony"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Connector registration ceremonies: the tier ladder, typed capture slots, and the refusals"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
