@@ -25,7 +25,7 @@ import {
  * something the person did not read.
  *
  * A row that needs more than a decision — a transaction-bound passkey touch, a
- * comparison code — is deliberately *not* decidable from here (ADR 0081).
+ * comparison code — is deliberately *not* decidable from here (ADR 0084).
  * There is no honest way to run those ceremonies inside a list, so the row
  * links to the review page instead and says what will be asked for. An inline
  * "Approve" that quietly did less than the policy demands would be the worst

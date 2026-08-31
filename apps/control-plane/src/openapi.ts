@@ -1317,7 +1317,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       },
       "/v1/authorization-requests/{id}/requirement": {
         get: {
-          summary: "What this request will take to settle (ADR 0081)",
+          summary: "What this request will take to settle (ADR 0084)",
           description:
             "Reason codes and policy digest, so an approval screen can say why an authenticator is being asked for. Approver only; anyone else gets 404.",
           security: [{ bearerAuth: [] }, { provisionalCookie: [] }],

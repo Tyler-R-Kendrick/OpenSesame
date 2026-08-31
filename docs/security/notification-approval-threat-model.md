@@ -1,6 +1,6 @@
 # Threat model — external authorization notifications and approval ceremonies
 
-Companion to [ADR 0081](../adr/0081-external-authorization-notifications.md).
+Companion to [ADR 0081](../adr/0084-external-authorization-notifications.md).
 Scope: the path from an authorization request being created, through whatever
 channel tells a person about it, to a decision being settled and recorded.
 

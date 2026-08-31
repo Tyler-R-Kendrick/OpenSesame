@@ -37,7 +37,7 @@ import { resolveApprovalPolicy } from "./approval-policy.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 /**
- * Where a person is interrupted (ADR 0081).
+ * Where a person is interrupted (ADR 0084).
  *
  * Two things are kept apart here, and the separation is the whole point:
  *

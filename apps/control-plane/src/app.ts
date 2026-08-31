@@ -88,7 +88,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/claims", claimRoutes);
   app.route("/v1/authorization-requests", authorizationRequestRoutes);
   app.route("/v1/webhooks", webhookRoutes);
-  // Where a person is interrupted, and what it takes to say yes (ADR 0081).
+  // Where a person is interrupted, and what it takes to say yes (ADR 0084).
   // Bindings and preferences are the caller's own; the effective route is
   // computed rather than stored, so a settings screen can be honest about
   // channels this deployment cannot actually reach.

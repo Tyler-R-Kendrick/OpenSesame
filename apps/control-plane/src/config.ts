@@ -92,7 +92,7 @@ export interface ControlPlaneConfig {
   providers: ProviderDescriptor[];
   /**
    * Where prompts may be delivered, and which of those destinations an
-   * operator has allowed to settle a decision by themselves (ADR 0081).
+   * operator has allowed to settle a decision by themselves (ADR 0084).
    *
    * `directApprovalChannels` and `directDenialChannels` are empty unless a
    * human wrote a channel down. A deployment that has not thought about Slack

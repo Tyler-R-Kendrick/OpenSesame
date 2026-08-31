@@ -118,7 +118,7 @@ describe("webhook endpoint registration", () => {
         approverRef,
         bindingMessage: "Read acme/catalog issues",
         // Read-only actions, so the risk classifier lands on the lax end of
-        // the ladder (ADR 0081) and this stays a test about the outbox rather
+        // the ladder (ADR 0084) and this stays a test about the outbox rather
         // than about the approval ceremony.
         authorizationDetails: [
           { type: "connection_delegation", actions: ["repository.read"] },

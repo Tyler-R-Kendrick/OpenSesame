@@ -13,6 +13,10 @@ Supersedes in part:
 [ADR 0052 — password-manager ecosystem bridging](0052-password-manager-ecosystem-bridging.md)
 §11 and §14, **only** their refusal of programmatic third-party password change,
 and only under the constraints of §3 below.
+Extended by: ADR 0081
+([live session observation](0081-live-session-observation.md)) — §4's replay
+overlay and interactive attach, made live and given a transport, an entitlement
+rule and a control-handoff protocol.
 References: [placeholder-substitution audit](../security/audit-2026-08-08-placeholder-substitution.md),
 RFC 8615 (well-known URIs), W3C Change Password URL
 

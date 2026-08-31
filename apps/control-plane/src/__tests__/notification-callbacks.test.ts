@@ -12,7 +12,7 @@ import type {
 } from "../services/notification-callbacks.js";
 
 /**
- * Provider callbacks (ADR 0081).
+ * Provider callbacks (ADR 0084).
  *
  * The route is unauthenticated, so every test here is one link of the chain
  * that stands in for authentication: provenance over the raw bytes, the

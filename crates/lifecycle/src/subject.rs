@@ -31,9 +31,12 @@ pub enum SubjectKind {
     StorePath,
     /// A code-signing signer's key/certificate pair (`signers`).
     Signer,
+    /// A password at a relying party, under a web-login rotation policy
+    /// (ADR 0076). The subject id is the origin, never an account.
+    WebLogin,
     /// One participant's reach into a shared session (ADR 0079).
     ///
-    /// Unlike every kind above it, this one is **never renewable**: see
+    /// Unlike every other kind, this one is **never renewable**: see
     /// [`SubjectKind::renewable`]. A certificate that renews itself overnight
     /// is the platform doing its job; a person's access to somebody else's
     /// vault renewing itself overnight is the platform giving away what it
@@ -42,12 +45,13 @@ pub enum SubjectKind {
 }
 
 impl SubjectKind {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Certificate,
         Self::CertificateAuthority,
         Self::ConnectionCredential,
         Self::StorePath,
         Self::Signer,
+        Self::WebLogin,
         Self::SessionGrant,
     ];
 
@@ -70,7 +74,8 @@ impl SubjectKind {
             | Self::CertificateAuthority
             | Self::ConnectionCredential
             | Self::StorePath
-            | Self::Signer => true,
+            | Self::Signer
+            | Self::WebLogin => true,
             Self::SessionGrant => false,
         }
     }
@@ -84,6 +89,7 @@ impl SubjectKind {
             Self::ConnectionCredential => "connection_credential",
             Self::StorePath => "store_path",
             Self::Signer => "signer",
+            Self::WebLogin => "web_login",
             Self::SessionGrant => "session_grant",
         }
     }
@@ -178,6 +184,7 @@ mod tests {
                 "connection_credential",
                 "store_path",
                 "signer",
+                "web_login",
                 "session_grant",
             ],
         );

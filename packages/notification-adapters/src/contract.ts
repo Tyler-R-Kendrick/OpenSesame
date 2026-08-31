@@ -1,5 +1,5 @@
 /**
- * The channel adapter contract (ADR 0081).
+ * The channel adapter contract (ADR 0084).
  *
  * One interface, seven providers, and the interface is deliberately smaller
  * than any of them. An adapter may render a message, hand it to a provider,

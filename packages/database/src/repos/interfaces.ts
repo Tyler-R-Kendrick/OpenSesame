@@ -455,7 +455,7 @@ export interface WebhookDeliveryRepository {
 }
 
 /* ------------------------------------------------------------------ *
- * External notification channels and approval ceremonies (ADR 0081)
+ * External notification channels and approval ceremonies (ADR 0084)
  * ------------------------------------------------------------------ */
 
 /**
@@ -651,7 +651,7 @@ export interface ApprovalReceiptRepository {
  * NOTE FOR THE COORDINATOR: this type lives here rather than in
  * `packages/os-domain/src/approval-ceremony.ts` only because this agent's
  * scope is `packages/database`. It is a pure domain shape and belongs beside
- * the other ADR 0081 types; move it when convenient — the only import to
+ * the other ADR 0084 types; move it when convenient — the only import to
  * repoint is `ChannelBindingChallenge`-style, i.e. this file's own re-export.
  */
 export interface PushSubscription {

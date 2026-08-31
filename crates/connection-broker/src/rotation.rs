@@ -39,15 +39,33 @@ const STATE_SCHEDULED: &str = "scheduled";
 /// Detail recorded for deferred sealed-store rotations.
 const STORE_PATH_DEFERRAL_DETAIL: &str = "store_path rotation requires the sealed-store CLI";
 
+/// Parked when a web-login policy is due but no sandbox runner is configured.
+/// ADR 0076 T5: a target with no way through notifies and parks. It never
+/// improvises, and it never reports success it did not have.
+const WEB_LOGIN_NO_RUNNER_DETAIL: &str = "web_login rotation requires a configured sandbox runner";
+
 /// Longest error hint persisted on a job — a hint, never token material.
 const MAX_DETAIL_CHARS: usize = 160;
 
-/// What to rotate — connection credentials or a sealed-store path (metadata only).
+/// What to rotate — connection credentials, a sealed-store path, or a password
+/// at a relying party (metadata only; never a value).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum RotationTarget {
-    Connection { connection_id: String },
-    StorePath { path: String },
+    Connection {
+        connection_id: String,
+    },
+    StorePath {
+        path: String,
+    },
+    /// A web login at a third party (ADR 0076). The target id is the relying
+    /// party's origin, which is the unit a recipe, a per-domain opt-in and a
+    /// rate limit are all scoped to. It is never a username and never a path:
+    /// an origin is the most that can be said about a web login without saying
+    /// something about the account.
+    WebLogin {
+        origin: String,
+    },
 }
 
 impl RotationTarget {
@@ -56,6 +74,7 @@ impl RotationTarget {
         match self {
             Self::Connection { .. } => "connection",
             Self::StorePath { .. } => "store_path",
+            Self::WebLogin { .. } => "web_login",
         }
     }
 
@@ -64,6 +83,7 @@ impl RotationTarget {
         match self {
             Self::Connection { connection_id } => connection_id,
             Self::StorePath { path } => path,
+            Self::WebLogin { origin } => origin,
         }
     }
 
@@ -76,6 +96,9 @@ impl RotationTarget {
             "store_path" => Some(Self::StorePath {
                 path: target_id.to_string(),
             }),
+            "web_login" => Some(Self::WebLogin {
+                origin: target_id.to_string(),
+            }),
             _ => None,
         }
     }
@@ -87,6 +110,8 @@ pub struct RotationPolicy {
     pub id: String,
     pub organization_id: String,
     pub target: RotationTarget,
+    /// The principal this rotates for, when the policy names one.
+    pub owner_subject: Option<String>,
     pub interval_seconds: u64,
     pub last_rotated_at: Option<String>,
     pub enabled: bool,
@@ -128,6 +153,7 @@ impl RotationPolicy {
             target: RotationTarget::from_parts(&row.target_kind, &row.target_id)?,
             id: row.id,
             organization_id: row.organization_id,
+            owner_subject: row.owner_subject,
             interval_seconds: u64::try_from(row.interval_seconds.max(1)).ok()?,
             last_rotated_at: row.last_rotated_at,
             enabled: row.enabled,
@@ -146,6 +172,9 @@ impl RotationPolicy {
 pub struct UpsertRotationPolicy {
     pub id: Option<String>,
     pub target: RotationTarget,
+    /// Who this rotates for. Required for a `web_login` target and optional for
+    /// the rest — see [`ConnectionBroker::upsert_rotation_policy`].
+    pub owner_subject: Option<String>,
     pub interval_seconds: u64,
     pub enabled: bool,
 }
@@ -362,6 +391,20 @@ impl ConnectionBroker {
                 "rotation interval must be at least one second".into(),
             ));
         }
+        // A web-login run is observed, and only its owner may observe it
+        // (ADR 0081 §8). A policy with no owner would produce runs nobody is
+        // entitled to watch and nobody can be notified about — so it is refused
+        // here, at the one moment a person is present to answer, rather than
+        // discovered when a run gets stuck at four in the morning.
+        let names_an_owner = upsert
+            .owner_subject
+            .as_deref()
+            .is_some_and(|owner| !owner.trim().is_empty());
+        if matches!(upsert.target, RotationTarget::WebLogin { .. }) && !names_an_owner {
+            return Err(BrokerError::Invalid(
+                "a web_login rotation policy must name the principal it rotates for".into(),
+            ));
+        }
         let now = Utc::now();
         let (id, created_at, last_rotated_at) = match upsert.id {
             Some(id) => {
@@ -380,6 +423,7 @@ impl ConnectionBroker {
             organization_id: organization_id.to_string(),
             target_kind: upsert.target.kind().to_string(),
             target_id: upsert.target.target_id().to_string(),
+            owner_subject: upsert.owner_subject,
             interval_seconds: i64::try_from(upsert.interval_seconds).unwrap_or(i64::MAX),
             last_rotated_at,
             enabled: upsert.enabled,
@@ -583,6 +627,16 @@ pub async fn execute_rotation(
         RotationTarget::StorePath { .. } => {
             defer_store_path_rotation(broker, bus, organization_id, job).await
         }
+        RotationTarget::WebLogin { .. } => {
+            defer_rotation(
+                broker,
+                bus,
+                organization_id,
+                job,
+                WEB_LOGIN_NO_RUNNER_DETAIL,
+            )
+            .await
+        }
     }
 }
 
@@ -613,11 +667,33 @@ async fn defer_store_path_rotation(
     organization_id: &OrganizationId,
     job: RotationJob,
 ) -> Result<RotationJob> {
+    defer_rotation(
+        broker,
+        bus,
+        organization_id,
+        job,
+        STORE_PATH_DEFERRAL_DETAIL,
+    )
+    .await
+}
+
+/// Park a job with a value-blind reason and tell everyone who is listening.
+///
+/// The publish is not optional decoration: a rotation that is not happening has
+/// to stay visible, which is the same rule that makes `needs_attention` a
+/// column rather than a log line.
+async fn defer_rotation(
+    broker: &ConnectionBroker,
+    bus: &dyn TaskBus,
+    organization_id: &OrganizationId,
+    job: RotationJob,
+    detail: &str,
+) -> Result<RotationJob> {
     store::update_rotation_job_state(
         &broker.pool,
         &job.id,
         state_name(RotationState::ReconciliationRequired),
-        Some(STORE_PATH_DEFERRAL_DETAIL),
+        Some(detail),
     )
     .await?;
     let job = broker
@@ -827,6 +903,12 @@ pub async fn execute_connection_rotation(
                     .into(),
             ));
         }
+        RotationTarget::WebLogin { .. } => {
+            return Err(BrokerError::Invalid(
+                "web-login rotation is executed by the sandbox runner, not the connection path"
+                    .into(),
+            ));
+        }
     };
     let org = organization_id.to_string();
 
@@ -1030,6 +1112,7 @@ mod tests {
             id: "rotpol_test".into(),
             organization_id: "org_test".into(),
             target: policy_target(),
+            owner_subject: None,
             interval_seconds,
             last_rotated_at: None,
             enabled,
@@ -1050,6 +1133,7 @@ mod tests {
             organization_id: "org_claim".into(),
             target_kind: "store_path".into(),
             target_id: "Dev/claim".into(),
+            owner_subject: None,
             interval_seconds,
             last_rotated_at: None,
             enabled: true,
@@ -1113,6 +1197,7 @@ mod tests {
             organization_id: "org_parked".into(),
             target_kind: "store_path".into(),
             target_id: "Dev/parked".into(),
+            owner_subject: None,
             interval_seconds: 60,
             last_rotated_at: None,
             enabled: true,
@@ -1167,6 +1252,7 @@ mod tests {
             organization_id: "org_ok".into(),
             target_kind: "store_path".into(),
             target_id: "Dev/ok".into(),
+            owner_subject: None,
             interval_seconds: 3600,
             last_rotated_at: None,
             enabled: true,
@@ -1532,6 +1618,7 @@ mod tests {
                 UpsertRotationPolicy {
                     id: None,
                     target: policy_target(),
+                    owner_subject: None,
                     interval_seconds: 3600,
                     enabled: true,
                 },
@@ -1581,6 +1668,7 @@ mod tests {
                 UpsertRotationPolicy {
                     id: None,
                     target: policy_target(),
+                    owner_subject: None,
                     interval_seconds: 60,
                     enabled: true,
                 },
@@ -1600,6 +1688,7 @@ mod tests {
                 UpsertRotationPolicy {
                     id: Some(policy.id.clone()),
                     target: policy_target(),
+                    owner_subject: None,
                     interval_seconds: 120,
                     enabled: false,
                 },
@@ -1618,6 +1707,7 @@ mod tests {
                 UpsertRotationPolicy {
                     id: Some(policy.id.clone()),
                     target: policy_target(),
+                    owner_subject: None,
                     interval_seconds: 60,
                     enabled: true,
                 },

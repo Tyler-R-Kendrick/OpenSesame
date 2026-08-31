@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 
 /**
- * The approval ceremony (ADR 0081).
+ * The approval ceremony (ADR 0084).
  *
  * Every test here is a replay an attacker would otherwise get for free: an
  * activation spent on the wrong request, spent twice, spent for the other

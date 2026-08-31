@@ -39,7 +39,7 @@ import {
 } from "./webhooks.js";
 
 /**
- * Notification routing for the authorization-request inbox (ADR 0081).
+ * Notification routing for the authorization-request inbox (ADR 0084).
  *
  * This is `webhooks.ts` generalized, not replaced: the same two stages, the
  * same durable outbox as the source of truth, the same backoff ladder — but

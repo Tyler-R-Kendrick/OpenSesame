@@ -7,7 +7,7 @@ import {
 
 /**
  * Web Push enrolment, and the two pure functions the service worker uses to
- * render what arrives (ADR 0081).
+ * render what arrives (ADR 0084).
  *
  * A push notification is the least private surface this product has. It lands
  * on a lock screen in a coffee shop, on a watch face, in a screenshot, in

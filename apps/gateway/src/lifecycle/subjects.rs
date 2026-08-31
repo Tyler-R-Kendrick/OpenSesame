@@ -372,6 +372,7 @@ pub fn policy_subject(policy: RotationPolicy) -> Option<ExpirySubject> {
             (SubjectKind::ConnectionCredential, connection_id.clone())
         }
         RotationTarget::StorePath { path } => (SubjectKind::StorePath, path.clone()),
+        RotationTarget::WebLogin { origin } => (SubjectKind::WebLogin, origin.clone()),
     };
     Some(ExpirySubject {
         kind,
@@ -400,6 +401,7 @@ mod tests {
             target: RotationTarget::Connection {
                 connection_id: "conn:1".into(),
             },
+            owner_subject: None,
             interval_seconds,
             last_rotated_at: last_rotated_at.map(str::to_string),
             enabled: true,

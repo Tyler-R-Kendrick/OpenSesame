@@ -23,7 +23,7 @@ import {
 import type { AppContext } from "../context.js";
 
 /**
- * The pieces both settlement paths share (ADR 0081).
+ * The pieces both settlement paths share (ADR 0084).
  *
  * There are two ways a decision reaches this service — an authenticated
  * in-app ceremony and an authenticated provider callback — and exactly one

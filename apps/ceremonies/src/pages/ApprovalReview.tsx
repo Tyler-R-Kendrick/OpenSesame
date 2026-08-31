@@ -27,7 +27,7 @@ import {
 } from "../lib/approvals.js";
 
 /**
- * The approval review ceremony (ADR 0081).
+ * The approval review ceremony (ADR 0084).
  *
  * This is where an opaque rendezvous reference lands. A notification told
  * somebody that something was waiting and, deliberately, nothing else — so

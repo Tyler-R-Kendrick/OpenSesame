@@ -9,7 +9,7 @@ import { createOpenSesame } from "@opensesame/sdk-browser";
 import { issuer } from "./issuer.js";
 
 /**
- * The approval review ceremony's data layer (ADR 0081).
+ * The approval review ceremony's data layer (ADR 0084).
  *
  * An external notification can only ever say "something is waiting". It hands
  * over an opaque rendezvous reference and nothing else — no principal, no

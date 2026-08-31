@@ -1285,6 +1285,105 @@
     }
   },
   {
+    "id": "agent.runs.read",
+    "title": "Read sandboxed agent runs and their control state",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame rotate runs",
+      "pwa": null,
+      "mcp_host": "agent_runs_read",
+      "mcp_client": null,
+      "webmcp": null
+    }
+  },
+  {
+    "id": "agent.runs.observe",
+    "title": "Read a run's sealed observation log",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame rotate watch",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "the observation log is an authenticated view of somebody's account, sealed to their viewer key; extending ADR 0076 §5's recording exclusion to the live tail of the same log",
+        "adr": "0081-live-session-observation.md"
+      },
+      "webmcp": {
+        "reason": "the observation log is an authenticated view of somebody's account, sealed to their viewer key; extending ADR 0076 §5's recording exclusion to the live tail of the same log",
+        "adr": "0081-live-session-observation.md"
+      }
+    }
+  },
+  {
+    "id": "agent.runs.control",
+    "title": "Ask a run's agent to park, then take the page",
+    "plane": "host",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame rotate attach",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "driving a live authenticated session at a third party is a human ceremony; the lease is granted to a person holding the viewer key, never to a tool call",
+        "adr": "0081-live-session-observation.md"
+      },
+      "webmcp": {
+        "reason": "driving a live authenticated session at a third party is a human ceremony; the lease is granted to a person holding the viewer key, never to a tool call",
+        "adr": "0081-live-session-observation.md"
+      }
+    }
+  },
+  {
+    "id": "model_plane.read",
+    "title": "Read which plane runs the password-reset model",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/settings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_settings_read"
+    }
+  },
+  {
+    "id": "model_plane.choose",
+    "title": "Choose who runs the password-reset model",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/settings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
+        "adr": "0083-browser-plane-inference-fallback.md"
+      },
+      "mcp_client": {
+        "reason": "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
+        "adr": "0083-browser-plane-inference-fallback.md"
+      },
+      "webmcp": {
+        "reason": "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
+        "adr": "0083-browser-plane-inference-fallback.md"
+      }
+    }
+  },
+  {
     "id": "changelog.read",
     "title": "Read the project changelog feed",
     "plane": "host",
@@ -1584,11 +1683,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       }
     }
   },
@@ -1607,11 +1706,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       }
     }
   },
@@ -1630,11 +1729,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
         "reason": "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       }
     }
   },
@@ -1653,11 +1752,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       }
     }
   },
@@ -1676,11 +1775,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       }
     }
   },
@@ -1699,11 +1798,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       }
     }
   },
@@ -1722,11 +1821,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "a receipt names the approver, the channel and the binding that settled a request; agent visibility into who approved what is deferred until a scoped projection exists",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
         "reason": "a receipt names the approver, the channel and the binding that settled a request; agent visibility into who approved what is deferred until a scoped projection exists",
-        "adr": "0081-external-authorization-notifications.md"
+        "adr": "0084-external-authorization-notifications.md"
       }
     }
   },

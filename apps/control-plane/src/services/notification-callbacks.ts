@@ -13,7 +13,7 @@ import {
 } from "@opensesame/os-domain";
 
 /**
- * Provider callback provenance (ADR 0081).
+ * Provider callback provenance (ADR 0084).
  *
  * An adapter answers exactly two questions, and nothing else:
  *

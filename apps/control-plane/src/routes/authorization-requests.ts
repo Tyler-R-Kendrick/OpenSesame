@@ -63,7 +63,7 @@ import { resolveApprovalPolicy } from "./approval-policy.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 /**
- * The authorization-request inbox (ADR 0046, ADR 0081).
+ * The authorization-request inbox (ADR 0046, ADR 0084).
  *
  * A request waits here for a human — or, later, an envelope-bounded agent — to
  * allow or refuse it. Four properties do the security work:

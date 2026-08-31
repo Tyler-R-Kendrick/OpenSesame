@@ -5,7 +5,7 @@ import type { ControlPlaneConfig } from "../config.js";
 import { createControlPlane } from "../create-app.js";
 
 /**
- * Channels, bindings and preferences (ADR 0081).
+ * Channels, bindings and preferences (ADR 0084).
  *
  * The properties under test are the ones a settings screen can quietly break:
  * a provider subject that leaks into a list, a destination added without a

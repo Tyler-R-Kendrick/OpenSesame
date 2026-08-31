@@ -20,7 +20,12 @@ opensesame-protocol-aauth = { path = "../../crates/protocol-aauth", features = [
 opensesame-audit = { path = "../../crates/audit" }
 opensesame-pki-core = { path = "../../crates/pki-core" }
 base64 = { workspace = true }
+futures = { workspace = true }
 rand = { workspace = true }
+opensesame-a2h = { path = "../../crates/a2h" }
+opensesame-agent-events = { path = "../../crates/agent-events" }
+opensesame-session-observe = { path = "../../crates/session-observe" }
+url = { workspace = true }
 opensesame-lifecycle = { path = "../../crates/lifecycle" }
 opensesame-security-events = { path = "../../crates/security-events" }
 opensesame-breach-intel = { path = "../../crates/breach-intel" }
@@ -38,7 +43,6 @@ sqlx = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
 axum = { workspace = true }
-futures = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -74,4 +78,3 @@ insta = { workspace = true, features = ["redactions", "json"] }
 proptest = { workspace = true }
 sqlx = { workspace = true }
 tower = { workspace = true }
-url = { workspace = true }

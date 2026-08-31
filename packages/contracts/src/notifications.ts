@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Wire contracts for notification channels and approval ceremonies (ADR 0081).
+ * Wire contracts for notification channels and approval ceremonies (ADR 0084).
  *
  * Two rules shape every schema here:
  *

@@ -20,7 +20,7 @@ import {
 import { resolveApprovalPolicy } from "./approval-policy.js";
 
 /**
- * Provider callbacks (ADR 0081).
+ * Provider callbacks (ADR 0084).
  *
  * This route is unauthenticated, and it has to be: Slack cannot hold our
  * bearer token, and a provider that could would be a provider whose

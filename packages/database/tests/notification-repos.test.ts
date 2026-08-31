@@ -15,7 +15,7 @@ import {
 } from "./factories.js";
 
 /**
- * The memory half of the ADR 0081 parity suite. Every assertion here has a
+ * The memory half of the ADR 0084 parity suite. Every assertion here has a
  * mirror in `postgres-repos.test.ts`: a rule the two stores disagree about is
  * a rule neither of them really has, and the disagreements that matter are all
  * the ones a second replica would exploit.

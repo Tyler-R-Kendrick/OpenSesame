@@ -1,5 +1,5 @@
 /**
- * One evaluator for "may this approval stand?" (ADR 0081).
+ * One evaluator for "may this approval stand?" (ADR 0084).
  *
  * The authorization inbox, the provider callbacks and the in-app ceremony all
  * come through here. That is the design: a second place that decides whether

@@ -3,7 +3,7 @@ import { type ChannelKind, identityCall } from "./approvals.js";
 
 /**
  * Notification channels, bindings and preferences — the honest settings layer
- * (ADR 0081).
+ * (ADR 0084).
  *
  * The screen this feeds has one job beyond listing things: it has to be
  * truthful about what will actually happen. Two habits carry that:

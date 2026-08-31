@@ -77,7 +77,7 @@ export interface CleanupDeps {
    */
   taskBus?: TaskBus;
   /**
-   * Channel adapters this deployment has configured (ADR 0081). Absent means
+   * Channel adapters this deployment has configured (ADR 0084). Absent means
    * none: every external step is excluded as `adapter_unavailable` and the
    * plan collapses to the durable inbox, which is exactly what an operator
    * who configured nothing should get.

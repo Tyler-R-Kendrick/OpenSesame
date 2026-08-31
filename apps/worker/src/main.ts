@@ -19,7 +19,7 @@ export type WorkerRuntime = {
   startCleanupLoop: typeof startCleanupLoop;
   createTaskBusFromEnv: typeof createTaskBusFromEnv;
   /**
-   * Channel adapters for this deployment (ADR 0081). Optional, and empty by
+   * Channel adapters for this deployment (ADR 0084). Optional, and empty by
    * default: a worker with no configured adapters routes everything to the
    * durable inbox, which is honest. When
    * `@opensesame/notification-adapters` lands, this becomes

@@ -27,7 +27,7 @@ import {
 } from "../lib/notification-settings.js";
 
 /**
- * Where you hear about things — and what that does not buy anyone (ADR 0081).
+ * Where you hear about things — and what that does not buy anyone (ADR 0084).
  *
  * This page is a preference screen with one unusual obligation: it has to keep
  * saying, in the plainest words available, that a preference is only a

@@ -58,7 +58,7 @@ const EXPECTED_TABLES = [
   "webhook_endpoints",
   "webhook_deliveries",
   "oidc_payloads",
-  // External notification channels and approval ceremonies (ADR 0081).
+  // External notification channels and approval ceremonies (ADR 0084).
   "channel_bindings",
   "channel_binding_challenges",
   "notification_preferences",

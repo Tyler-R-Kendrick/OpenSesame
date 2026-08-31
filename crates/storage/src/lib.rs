@@ -994,6 +994,22 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0020_security_events",
         include_str!("../../../migrations/0020_security_events.sql"),
     ),
+    (
+        "0021_web_login_observation",
+        include_str!("../../../migrations/0021_web_login_observation.sql"),
+    ),
+    (
+        "0022_rotation_policy_owner",
+        include_str!("../../../migrations/0022_rotation_policy_owner.sql"),
+    ),
+    (
+        "0023_a2h_delivery_and_web_login_watermarks",
+        include_str!("../../../migrations/0023_a2h_delivery_and_web_login_watermarks.sql"),
+    ),
+    (
+        "0024_session_grant_watermarks",
+        include_str!("../../../migrations/0024_session_grant_watermarks.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.
@@ -6827,6 +6843,12 @@ mod security;
 pub use security::{
     StoredBreachFinding, StoredLifecycleWatermark, StoredSecurityDelivery, StoredSecurityHook,
     BREACH_FINDING_CLEARED, BREACH_FINDING_OPEN, DELIVERY_BATCH_LIMIT, SECURITY_HOOK_SECRET_SCOPE,
+};
+
+mod observation;
+pub use observation::{
+    ObservationAppend, ObservationControlUpdate, StoredObservationEvent, StoredObservationRun,
+    MAX_BLOCKED_REASON_CHARS, OBSERVATION_READ_LIMIT,
 };
 
 fn stored_certificate_policy(row: &SqliteRow) -> StoredCertificatePolicy {

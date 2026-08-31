@@ -12,7 +12,7 @@ import {
 } from "@opensesame/os-domain";
 
 /**
- * The effective policy for one authorization request (ADR 0081).
+ * The effective policy for one authorization request (ADR 0084).
  *
  * Pure, and deliberately so. The policy is resolved twice — once when an
  * activation is minted, once when a decision is settled — and the digest of

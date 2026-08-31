@@ -646,7 +646,7 @@ describe("createPostgresRepositories", () => {
 });
 
 /* ------------------------------------------------------------------ *
- * External notification channels and approval ceremonies (ADR 0081)
+ * External notification channels and approval ceremonies (ADR 0084)
  *
  * The Postgres half of the parity suite. Every assertion below mirrors one in
  * `notification-repos.test.ts`: a rule the two stores disagree about is a rule

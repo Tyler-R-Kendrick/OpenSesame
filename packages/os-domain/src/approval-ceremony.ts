@@ -1,5 +1,5 @@
 /**
- * The approval transaction (ADR 0081).
+ * The approval transaction (ADR 0084).
  *
  * An approval is not a boolean arriving at a route. It is a claim that *this
  * person*, having *seen this exact request*, and having *proved themselves

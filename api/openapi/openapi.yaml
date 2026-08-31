@@ -1791,6 +1791,276 @@ paths:
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
         "502": { $ref: "#/components/responses/ContractError" }
+  /a2h/callback:
+    post:
+      summary: Receive a human's A2H reply
+      description: >-
+        Callback for an A2H gateway (ADR 0081). Unauthenticated by design: the
+        gateway holds no session, and the request's HMAC over
+        `{timestamp}.{body}` under the subscription's `whsec_` secret is its
+        authentication. Every failed check answers 401 identically, so the shape
+        of a refusal cannot tell an unsigned caller whether an interaction
+        exists.
+
+
+        A verified reply may only *narrow* what is happening: acknowledge, or
+        cancel the run. It can never grant the control lease or resume autonomy
+        — taking the page needs the viewer key the log is sealed to, and
+        resuming needs the run's preconditions re-asserted against the page.
+        Neither is reachable from a phone, at any assurance level.
+      security: []
+      parameters:
+        - name: X-A2H-Signature
+          in: header
+          required: true
+          description: "`t=<unix>,v1=<base64 HMAC-SHA256>`"
+          schema: { type: string }
+        - name: X-A2H-Delivery-ID
+          in: header
+          required: false
+          description: >-
+            The gateway's per-attempt id, logged for correlation. Not the
+            idempotency key: that is the interaction, which is stable across
+            retries.
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, interaction_id, responds_to]
+              properties:
+                type: { type: string, const: RESPONSE }
+                interaction_id: { type: string }
+                responds_to: { type: string }
+                decision: { type: string, enum: [APPROVE, DECLINE] }
+                decided_at: { type: string, format: date-time }
+                evidence:
+                  type: object
+                  properties:
+                    factor: { type: string }
+                    proof: { type: object }
+                signature: { type: string }
+      responses:
+        "200":
+          description: The reply was applied, acknowledged, or already applied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string }
+        "401":
+          description: >-
+            The request did not verify. Returned identically for a bad
+            signature, a stale timestamp, and an unknown interaction.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: { type: string, const: invalid_request }
+  /agent/runs:
+    get:
+      summary: List the caller's own sandboxed runs
+      description: >-
+        Metadata only (ADR 0076 §5): a run row never carries a frame, a
+        rationale, or page content. Filtered by entitlement rather than by
+        tenant — an organization is not a person, and a run belongs to whoever's
+        credential it rotates (ADR 0081 §8).
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Runs, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runs, secrets_returned]
+                properties:
+                  runs: { type: array, items: { $ref: "#/components/schemas/AgentRun" } }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}:
+    get:
+      summary: Read one run's state
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404":
+          description: >-
+            No such run, or not the caller's. Deliberately the same answer:
+            whether a run exists is itself account information.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+  /agent/runs/{id}/observe:
+    get:
+      summary: Tail the sealed observation log
+      description: >-
+        Server-sent events. Live and replay are the same read at different
+        cursors (ADR 0081 §1) — pass the last sequence you hold for a tail, or
+        omit `after` for the whole log, which is what the replay overlay does.
+
+
+        Every entry is relayed as the ciphertext it was sealed as. The gateway
+        cannot read what it forwards; the owner's viewer key is what opens it,
+        so a client with a locked vault sees the stream and can make nothing of
+        it.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: after
+          in: query
+          required: false
+          description: Last sequence already held. Omit to read from the start.
+          schema: { type: integer, default: -1 }
+      responses:
+        "200":
+          description: An SSE stream of sealed log entries
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/log:
+    get:
+      summary: Read one page of the sealed observation log
+      description: >-
+        The same read as `observe`, without holding a connection open — for the
+        replay overlay, which seeks and pages rather than follows, and for
+        anything scripted, where a stream that stays open until it times out is
+        a hang rather than a result.
+
+
+        Entries are relayed as the ciphertext they were sealed as. `sealed` says
+        so rather than leaving a caller to discover it.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: after
+          in: query
+          required: false
+          schema: { type: integer, default: -1 }
+      responses:
+        "200":
+          description: A page of sealed entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, entries, next_after, sealed, secrets_returned]
+                properties:
+                  run_id: { type: string }
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required: [seq, lane, sealed_payload, recorded_at]
+                      properties:
+                        seq: { type: integer }
+                        lane: { type: string, enum: [action, thought, frame] }
+                        of_step: { type: integer, nullable: true }
+                        layout_epoch: { type: integer, nullable: true }
+                        sealed_payload: { type: string, description: Base64 ciphertext. }
+                        recorded_at: { type: string }
+                  next_after: { type: integer }
+                  run_next_seq: { type: integer }
+                  sealed: { type: boolean, const: true }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/handoff:
+    post:
+      summary: Ask the agent for the page
+      description: >-
+        Accepted at a quiescent point and **queued** inside the critical section
+        between the candidate assertion and the submit, where the answer says so
+        rather than dropping the request (ADR 0081 §6). A request that vanishes
+        teaches people to press the button again; that span is the one place a
+        second actor would void the check standing between a rotation and a
+        lockout.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "202":
+          description: The request was accepted or queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [accepted, queued] }
+                  hint: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: The transition is not available from the run's current state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+  /agent/runs/{id}/control:
+    post:
+      summary: Take the page
+      description: >-
+        Only from a parked run: there is no path that takes the page out from
+        under the agent mid-step, which is what lets the receipt say who did
+        what. Requires a fresh step-up, because decrypting frames and issuing
+        input events are different capabilities (ADR 0081 §8).
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The lease is held by the caller
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: >-
+            Another viewer holds the lease, the run is not parked, or the
+            version moved while the caller was deciding.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
+  /agent/runs/{id}/release:
+    post:
+      summary: Hand the page back
+      description: >-
+        Autonomy does not resume here. The run lands in `resume_requested`, and
+        the runner re-asserts the run's preconditions against the page before
+        driving again — what the assertion established was true of a page the
+        agent controlled, and a person has been in it since (ADR 0081 §6).
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The lease is released
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRun" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: The caller does not hold the lease
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
 components:
   securitySchemes:
     HostBearer:
@@ -2826,3 +3096,38 @@ components:
           type: string
           description: RFC 8693 actor — the caller that requested the mint.
         issued_at: { type: string, format: date-time }
+
+    AgentRun:
+      type: object
+      description: >-
+        A sandboxed run, as metadata. Carries no frame, no rationale and no page
+        content — `observation_included` says so explicitly rather than leaving
+        a reader to infer it.
+      required: [id, origin, control_state, secrets_returned, observation_included]
+      properties:
+        id: { type: string }
+        job_id: { type: string }
+        origin: { type: string, description: The relying party. An origin, never an account. }
+        tier: { type: string, enum: [t3, t4] }
+        control_state:
+          type: string
+          enum: [agent_driving, handoff_requested, awaiting_human, human_driving, resume_requested, suspended]
+        quiescence: { type: string, enum: [quiescent, critical] }
+        handoff_queued: { type: boolean }
+        driver: { type: string, enum: [agent, human] }
+        lease_expires_at: { type: string, nullable: true }
+        blocked_reason: { type: string, nullable: true }
+        next_seq: { type: integer }
+        expires_at: { type: string }
+        closed_at: { type: string, nullable: true }
+        version: { type: integer }
+        created_at: { type: string }
+        updated_at: { type: string }
+        secrets_returned: { type: boolean, const: false }
+        observation_included: { type: boolean, const: false }
+    AgentRunError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        hint: { type: string }

@@ -1,6 +1,6 @@
 # Validation evidence — external authorization notifications and approval ceremonies
 
-Local validation for [ADR 0081](../adr/0081-external-authorization-notifications.md).
+Local validation for [ADR 0081](../adr/0084-external-authorization-notifications.md).
 Every command below was run in this repository. No GitHub Actions runner was
 used, and no workflow was triggered.
 

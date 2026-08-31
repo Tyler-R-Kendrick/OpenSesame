@@ -1568,7 +1568,7 @@ export const authorizationRequests = pgTable(
 );
 
 /* ------------------------------------------------------------------ *
- * External notification channels and approval ceremonies (ADR 0081)
+ * External notification channels and approval ceremonies (ADR 0084)
  * ------------------------------------------------------------------ */
 
 /**

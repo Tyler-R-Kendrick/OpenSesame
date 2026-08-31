@@ -75,7 +75,7 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "subject",
   "providerId",
   "materialization",
-  // External notification channels and approval ceremonies (ADR 0081). Every
+  // External notification channels and approval ceremonies (ADR 0084). Every
   // one of these is an id, a digest, a closed enum member, or a reason code —
   // the vocabulary a reviewer needs to answer "why was this allowed, and could
   // a compromised chat workspace have caused it?" years later.

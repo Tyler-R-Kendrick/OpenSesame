@@ -77,7 +77,7 @@ export const AuthorizationRequestResponseSchema = z.object({
   decidedAt: z.string().datetime().optional(),
   decidedByKind: ApprovalDecidedByKindSchema.optional(),
   /**
-   * The opaque handle for whoever is asking (ADR 0081).
+   * The opaque handle for whoever is asking (ADR 0084).
    *
    * Not a principal id: this value is shown in an inbox and crosses bus
    * subjects that are not private. It is here so a review screen can answer

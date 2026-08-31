@@ -169,7 +169,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/lifecycle` | Expiry ladder, subjects, and frozen hook event names — pure, value-blind (ADR 0074) |
 | `crates/security-events` | Shared security-event envelope, severity ladder, and Alertmanager v2 / `PagerDuty` v2 / RFC 5424 renderers — pure, no I/O (ADR 0080) |
 | `crates/breach-intel` | Value-blind breach detection: Pwned Passwords k-anonymity, public breach-catalogue matching, frozen `breach.*` events (ADR 0080) |
+| `crates/agent-events` | Frozen `agent.*` vocabulary for sandboxed runs, and the `SecurityNotice` conversion that puts them on ADR 0080's feed — pure, value-blind (ADR 0081) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
+| `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
+| `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
+| `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
@@ -202,7 +206,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/testing` | Shared test utilities (incl. `test:security`) |
 | `packages/identity-atproto` / `identity-nostr` | Alternate-identity linking |
 | `packages/observability` | Structured logging + deep redaction |
-| `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0081) |
+| `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0084) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
 | `packages/webmcp` | WebMCP (`navigator.modelContext`) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
 | `packages/config` | Shared tsconfig |
@@ -223,7 +227,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0081).
+  0001–0084).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -257,11 +261,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   no channel but the in-app ceremony may claim phishing resistance. Direct
   external settlement is default-deny and needs an explicit per-channel policy
   opt-in *and* the assurance gate; a provider-signed callback proves provenance,
-  never authorization ([ADR 0081](docs/adr/0081-external-authorization-notifications.md)).
+  never authorization ([ADR 0084](docs/adr/0084-external-authorization-notifications.md)).
 - A sensitive approval is bound to its transaction: the WebAuthn activation
   commits to the request digest, the decision verb, and the effective policy
   digest, and is spent by a durable compare-and-set. An activation minted for
-  one request, one verb, or one policy can never settle another (ADR 0081).
+  one request, one verb, or one policy can never settle another (ADR 0084).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,
@@ -280,7 +284,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 ## 6. Security posture
 
 - `docs/security/notification-approval-threat-model.md` — trust boundaries and
-  residual risks for external notification and approval (ADR 0081);
+  residual risks for external notification and approval (ADR 0084);
   `docs/operators/notification-channels.md` — the channel capability matrix and
   per-provider setup.
 - `docs/security/security-boundaries.md`, `docs/security/threat-model.md`,
