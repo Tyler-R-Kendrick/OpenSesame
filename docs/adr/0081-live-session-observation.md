@@ -1,4 +1,4 @@
-# ADR 0078 — Live session observation: watching the agent work, and taking the page back
+# ADR 0081 — Live session observation: watching the agent work, and taking the page back
 
 Status: Proposed
 Date: 2026-08-31

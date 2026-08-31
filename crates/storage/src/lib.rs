@@ -987,12 +987,12 @@ const MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/0018_rotation_leases.sql"),
     ),
     (
-        "0019_web_login_observation",
-        include_str!("../../../migrations/0019_web_login_observation.sql"),
+        "0021_web_login_observation",
+        include_str!("../../../migrations/0021_web_login_observation.sql"),
     ),
     (
-        "0020_rotation_policy_owner",
-        include_str!("../../../migrations/0020_rotation_policy_owner.sql"),
+        "0022_rotation_policy_owner",
+        include_str!("../../../migrations/0022_rotation_policy_owner.sql"),
     ),
 ];
 

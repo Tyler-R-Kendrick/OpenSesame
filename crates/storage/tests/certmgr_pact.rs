@@ -265,9 +265,9 @@ fn pact_migrations_are_append_only_and_end_with_0020() {
             "0016_certificate_manager",
             "0017_lifecycle_hooks",
             "0018_rotation_leases",
-            "0019_web_login_observation",
-            "0020_rotation_policy_owner",
+            "0021_web_login_observation",
+            "0022_rotation_policy_owner",
         ]
     );
-    assert_eq!(versions.last().copied(), Some("0020_rotation_policy_owner"));
+    assert_eq!(versions.last().copied(), Some("0022_rotation_policy_owner"));
 }
