@@ -11,14 +11,23 @@
 //! wired up, because the path nobody else uses is the path that rots. Our own
 //! notification is a subscriber, so a break in the feed breaks us first.
 //!
+//! `agent.*` is the **third** family on ADR 0080's one security-event feed,
+//! beside `lifecycle.*` and `breach.*`. It gets there the way that ADR says a
+//! new detector must: by implementing a conversion into [`SecurityNotice`] and
+//! nothing else. There is no `agent_hooks` module, no second subscription
+//! table, and no private fan-out — the subscription model, the delivery
+//! ledger, the built-in notifier, the built-in alerter, Alertmanager,
+//! `PagerDuty` and RFC 5424 syslog all come for free, and none of them learns
+//! that agent runs exist.
+//!
 //! Two structural properties are worth naming:
 //!
 //! - **A request for a human carries its deadline, or it does not exist.**
-//!   [`AgentEvent::waiting`] requires a `responds_by`; [`AgentEvent::notice`]
-//!   refuses one. A blocked run is holding a live authenticated session open
-//!   while it waits, so "respond by" is not decoration — it is the difference
-//!   between asking someone to act and asking them to act on something that
-//!   already timed out.
+//!   [`AgentEvent::waiting`] requires a `responds_by`;
+//!   [`AgentEvent::reporting`] refuses one. A blocked run is holding a live
+//!   authenticated session open while it waits, so "respond by" is not
+//!   decoration — it is the difference between asking someone to act and
+//!   asking them to act on something that already timed out.
 //! - **The payload is built key by key.** Nothing is serialized from a caller's
 //!   map, and no key matches the audit redactor's deny pattern (ADR 0046 §14:
 //!   `token`, `value`, `secret`, `user_code`, `device_code` are dropped
@@ -26,6 +35,7 @@
 //!   the one field a reviewer needs).
 
 use chrono::{DateTime, Utc};
+use opensesame_security_events::{NoticeState, SecurityNotice, Severity};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use thiserror::Error;
@@ -62,7 +72,22 @@ pub const AGENT_EVENT_TYPES: &[&str] = &[
 ];
 
 /// Subscription wildcard: every agent event.
+///
+/// Matched by `opensesame_security_events::filter`, which reads `<family>.*`
+/// for any family. This crate deliberately ships no filter of its own: a
+/// second implementation is how one of them ends up disagreeing about what
+/// `*` means (ADR 0080 §1).
 pub const EVENT_WILDCARD: &str = "agent.*";
+
+/// The subject kind an agent run reports under.
+///
+/// The same kind the expiry ladder uses for a web-login rotation policy, and
+/// the same subject id — the relying party's origin. That is deliberate: an
+/// operator who narrows a subscription to `web_login` gets the deadline and
+/// the run that acts on it, rather than two unrelated-looking feeds about one
+/// thing. The alert identity still separates them, because
+/// `SecurityNotice::alert_key` is scoped by family.
+pub const AGENT_SUBJECT_KIND: &str = "web_login";
 
 /// Longest value-blind hint carried into a payload.
 pub const MAX_DETAIL_CHARS: usize = 160;
@@ -109,6 +134,57 @@ impl AgentPhase {
         matches!(self, Self::Blocked | Self::AwaitingHuman)
     }
 
+    /// How loud this phase is on the security feed.
+    ///
+    /// Calibrated against ADR 0080 §2's rule that the platform's own responder
+    /// doing its job is not a page: a run starting, a person arriving, and a
+    /// run finishing are all `Info`. The two rungs that stall a rotation
+    /// somebody is relying on are `Error`, and the two where the run is parked
+    /// with a person nominally in the loop are `Warning`.
+    ///
+    /// `Blocked` is deliberately as loud as `Failed`. A blocked run is not
+    /// waiting politely — it is holding a live authenticated session open at a
+    /// third party until its deadline passes, so "nobody answered" costs more
+    /// than an ordinary failure does.
+    #[must_use]
+    pub const fn severity(self) -> Severity {
+        match self {
+            Self::Started | Self::ControlGranted | Self::Resumed | Self::Completed => {
+                Severity::Info
+            }
+            Self::AwaitingHuman | Self::ControlReleased => Severity::Warning,
+            Self::Blocked | Self::Failed => Severity::Error,
+        }
+    }
+
+    /// Whether this phase settles the run's condition or raises one.
+    ///
+    /// The alert key is per-subject and per-family, so these compose into one
+    /// incident per origin that opens when the run needs something and closes
+    /// when it stops needing it:
+    ///
+    /// ```text
+    /// started(firing) → blocked(firing) → control.granted(RESOLVED)
+    ///                                   → control.released(firing)
+    ///                                   → resumed(RESOLVED)
+    /// ```
+    ///
+    /// `ControlGranted` resolves because a page exists to fetch a human, and a
+    /// human arriving is what it was fetching. `Failed` does **not** resolve:
+    /// the credential did not rotate, and that stays true until a later run
+    /// completes.
+    #[must_use]
+    pub const fn notice_state(self) -> NoticeState {
+        match self {
+            Self::ControlGranted | Self::Resumed | Self::Completed => NoticeState::Resolved,
+            Self::Started
+            | Self::Blocked
+            | Self::AwaitingHuman
+            | Self::ControlReleased
+            | Self::Failed => NoticeState::Firing,
+        }
+    }
+
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
@@ -127,23 +203,6 @@ impl AgentPhase {
 #[must_use]
 pub fn is_agent_event_type(event_type: &str) -> bool {
     AGENT_EVENT_TYPES.contains(&event_type)
-}
-
-/// Whether a subscription filter selects `event_type`.
-#[must_use]
-pub fn filter_matches(filter: &[String], event_type: &str) -> bool {
-    filter
-        .iter()
-        .any(|entry| entry == EVENT_WILDCARD || entry == event_type)
-}
-
-/// Whether every entry in a filter is a name this family recognises.
-#[must_use]
-pub fn filter_is_valid(filter: &[String]) -> bool {
-    !filter.is_empty()
-        && filter
-            .iter()
-            .all(|entry| entry == EVENT_WILDCARD || is_agent_event_type(entry))
 }
 
 /// The run an event is about. Metadata only — an origin, never an account, and
@@ -216,12 +275,16 @@ impl AgentEvent {
 
     /// A phase that reports rather than asks.
     ///
+    /// Named for what it does rather than what it produces: [`Self::notice`]
+    /// is the conversion onto ADR 0080's feed, and every detector family
+    /// spells that one the same way.
+    ///
     /// # Errors
     ///
     /// [`AgentEventError::MissingDeadline`] when the phase does wait on a
     /// person — an escalation with no deadline is how a notification becomes
     /// something nobody can act on in time.
-    pub fn notice(
+    pub fn reporting(
         run: AgentRun,
         phase: AgentPhase,
         occurred_at: DateTime<Utc>,
@@ -350,6 +413,64 @@ impl AgentEvent {
         body.insert("observation_included".into(), json!(false));
         Value::Object(body)
     }
+
+    /// One line a human reads first.
+    ///
+    /// Built from the origin and the phase, never from what the run saw. The
+    /// hint is appended only where it is the actionable part — knowing that a
+    /// run completed is enough, knowing *why* one stopped is the whole point.
+    #[must_use]
+    pub fn summary(&self) -> String {
+        let origin = &self.run.origin;
+        let head = match self.phase {
+            AgentPhase::Started => format!("a password rotation started at {origin}"),
+            AgentPhase::Blocked => {
+                format!("a password rotation at {origin} is stuck and needs you")
+            }
+            AgentPhase::AwaitingHuman => {
+                format!("a password rotation at {origin} is waiting for someone to take the page")
+            }
+            AgentPhase::ControlGranted => format!("someone took the page at {origin}"),
+            AgentPhase::ControlReleased => {
+                format!("the page at {origin} was handed back and the run is parked")
+            }
+            AgentPhase::Resumed => format!("the password rotation at {origin} resumed"),
+            AgentPhase::Completed => format!("the password at {origin} was rotated"),
+            AgentPhase::Failed => format!("the password rotation at {origin} did not finish"),
+        };
+        match (&self.detail, self.phase.severity()) {
+            (Some(detail), Severity::Warning | Severity::Error | Severity::Critical) => {
+                format!("{head}: {detail}")
+            }
+            _ => head,
+        }
+    }
+
+    /// The normalized envelope the notifier, the alerter, and every sink read.
+    ///
+    /// This method is the crate's entire integration with ADR 0080's feed.
+    /// Everything downstream — subscription matching, the delivery ledger,
+    /// Alertmanager, `PagerDuty`, syslog — already exists and learns nothing
+    /// about agent runs.
+    #[must_use]
+    pub fn notice(&self) -> SecurityNotice {
+        SecurityNotice {
+            event_type: self.event_type.clone(),
+            severity: self.phase.severity(),
+            state: self.phase.notice_state(),
+            organization_id: self.run.organization_id.clone(),
+            subject_kind: AGENT_SUBJECT_KIND.to_string(),
+            // The relying party, which is what a subscriber deduplicates and
+            // rate-limits on, and what the expiry ladder already keys a
+            // web-login policy by. Never an account.
+            subject_id: self.run.origin.clone(),
+            label: None,
+            occurred_at: self.occurred_at,
+            summary: self.summary(),
+            detail: self.detail.clone(),
+            payload: self.payload(),
+        }
+    }
 }
 
 fn truncate(raw: &str, max_chars: usize) -> String {
@@ -419,11 +540,11 @@ mod tests {
         // session open while it waits, so there is no such thing as asking a
         // person to act on it with no clock.
         assert_eq!(
-            AgentEvent::notice(run(), AgentPhase::Blocked, now(), None),
+            AgentEvent::reporting(run(), AgentPhase::Blocked, now(), None),
             Err(AgentEventError::MissingDeadline)
         );
         assert_eq!(
-            AgentEvent::notice(run(), AgentPhase::AwaitingHuman, now(), None),
+            AgentEvent::reporting(run(), AgentPhase::AwaitingHuman, now(), None),
             Err(AgentEventError::MissingDeadline)
         );
     }
@@ -445,18 +566,113 @@ mod tests {
             event.seconds_to_respond(now() + chrono::Duration::seconds(900)),
             Some(0)
         );
-        let notice = AgentEvent::notice(run(), AgentPhase::Completed, now(), None).unwrap();
+        let notice = AgentEvent::reporting(run(), AgentPhase::Completed, now(), None).unwrap();
         assert_eq!(notice.seconds_to_respond(now()), None);
     }
 
     #[test]
-    fn a_filter_that_names_nothing_matches_nothing() {
-        assert!(!filter_is_valid(&[]));
-        assert!(!filter_matches(&[], EVENT_RUN_BLOCKED));
-        assert!(filter_is_valid(&[EVENT_WILDCARD.into()]));
-        assert!(filter_matches(&[EVENT_WILDCARD.into()], EVENT_RUN_BLOCKED));
-        assert!(!filter_is_valid(&["agent.run.exploded".into()]));
-        assert!(!filter_is_valid(&["lifecycle.renewal.due".into()]));
+    fn the_shared_filter_reads_this_family_without_being_taught_it() {
+        // No filter of our own: `agent.*` works because the feed's filter
+        // understands `<family>.*`, which is what keeps a third family from
+        // needing a third copy of this logic (ADR 0080 §1).
+        use opensesame_security_events::filter;
+
+        let known: Vec<&str> = AGENT_EVENT_TYPES.to_vec();
+        assert!(filter::matches(&[EVENT_WILDCARD.into()], EVENT_RUN_BLOCKED));
+        assert!(filter::matches(&["*".into()], EVENT_RUN_BLOCKED));
+        assert!(!filter::matches(&["lifecycle.*".into()], EVENT_RUN_BLOCKED));
+        assert!(filter::is_valid(&[EVENT_WILDCARD.into()], &known));
+        assert!(!filter::is_valid(&["agent.run.exploded".into()], &known));
+        assert!(!filter::is_valid(&[], &known));
+    }
+
+    #[test]
+    fn every_phase_maps_onto_the_feed_and_the_loud_ones_are_the_stuck_ones() {
+        use AgentPhase::{
+            AwaitingHuman, Blocked, Completed, ControlGranted, ControlReleased, Failed, Resumed,
+            Started,
+        };
+        assert_eq!(Started.severity(), Severity::Info);
+        assert_eq!(ControlGranted.severity(), Severity::Info);
+        assert_eq!(Resumed.severity(), Severity::Info);
+        assert_eq!(Completed.severity(), Severity::Info);
+        assert_eq!(AwaitingHuman.severity(), Severity::Warning);
+        assert_eq!(ControlReleased.severity(), Severity::Warning);
+        // The two that leave somebody's rotation not done.
+        assert_eq!(Blocked.severity(), Severity::Error);
+        assert_eq!(Failed.severity(), Severity::Error);
+    }
+
+    #[test]
+    fn a_blocked_run_opens_an_incident_that_a_person_arriving_closes() {
+        // The property that makes this feed usable on call: every phase shares
+        // one alert key per origin, so the resolve actually closes what the
+        // fire opened rather than accumulating pages nobody can clear.
+        let deadline = now() + chrono::Duration::seconds(300);
+        let blocked =
+            AgentEvent::waiting(run(), AgentPhase::Blocked, now(), deadline, None).unwrap();
+        let granted =
+            AgentEvent::reporting(run(), AgentPhase::ControlGranted, now(), None).unwrap();
+
+        assert_eq!(blocked.notice().state, NoticeState::Firing);
+        assert_eq!(granted.notice().state, NoticeState::Resolved);
+        assert_eq!(blocked.notice().alert_key(), granted.notice().alert_key());
+
+        // A run that failed did not rotate anything, so it is not settled.
+        let failed = AgentEvent::reporting(run(), AgentPhase::Failed, now(), None).unwrap();
+        assert_eq!(failed.notice().state, NoticeState::Firing);
+    }
+
+    #[test]
+    fn an_agent_alert_never_resolves_an_expiry_one_about_the_same_origin() {
+        // Same subject, same organization, deliberately different incident:
+        // the run finishing says nothing about when the password next expires.
+        let completed = AgentEvent::reporting(run(), AgentPhase::Completed, now(), None)
+            .unwrap()
+            .notice();
+        assert_eq!(completed.subject_kind, AGENT_SUBJECT_KIND);
+        assert_eq!(completed.subject_id, "https://example.com");
+        assert_eq!(completed.family(), "agent");
+        assert!(completed.alert_key().starts_with("agent:"));
+    }
+
+    #[test]
+    fn the_notice_carries_the_reason_where_the_reason_is_the_actionable_part() {
+        let deadline = now() + chrono::Duration::seconds(300);
+        let blocked = AgentEvent::waiting(
+            run(),
+            AgentPhase::Blocked,
+            now(),
+            deadline,
+            Some("step-up challenge on the settings page"),
+        )
+        .unwrap()
+        .notice();
+        assert_eq!(
+            blocked.summary,
+            "a password rotation at https://example.com is stuck and needs you: \
+             step-up challenge on the settings page"
+        );
+
+        // A completed run's detail is bookkeeping, not something to read at
+        // 04:00, so the one line stays the one line.
+        let done = AgentEvent::reporting(run(), AgentPhase::Completed, now(), Some("2 steps"))
+            .unwrap()
+            .notice();
+        assert_eq!(
+            done.summary,
+            "the password at https://example.com was rotated"
+        );
+    }
+
+    #[test]
+    fn the_feeds_own_fence_finds_nothing_to_strip_from_an_agent_payload() {
+        // `safe_payload` is ADR 0080's second fence behind each family's
+        // structural test. It must be a no-op here — if it ever starts
+        // removing a key, this family has grown one it should not have.
+        let event = AgentEvent::reporting(run(), AgentPhase::Completed, now(), None).unwrap();
+        let notice = event.notice();
+        assert_eq!(notice.safe_payload(), event.payload());
     }
 
     #[test]
@@ -504,7 +720,7 @@ mod tests {
 
     #[test]
     fn a_notice_omits_the_deadline_rather_than_nulling_it() {
-        let event = AgentEvent::notice(run(), AgentPhase::Completed, now(), None).unwrap();
+        let event = AgentEvent::reporting(run(), AgentPhase::Completed, now(), None).unwrap();
         let payload = event.payload();
         let object = payload.as_object().unwrap();
         assert!(!object.contains_key("responds_by"));
@@ -518,9 +734,9 @@ mod tests {
             AgentEvent::waiting(run(), AgentPhase::Blocked, now(), deadline, Some("stuck"))
                 .unwrap(),
             AgentEvent::waiting(run(), AgentPhase::AwaitingHuman, now(), deadline, None).unwrap(),
-            AgentEvent::notice(run(), AgentPhase::Completed, now(), Some("done")).unwrap(),
-            AgentEvent::notice(run(), AgentPhase::Failed, now(), None).unwrap(),
-            AgentEvent::notice(run(), AgentPhase::Started, now(), None).unwrap(),
+            AgentEvent::reporting(run(), AgentPhase::Completed, now(), Some("done")).unwrap(),
+            AgentEvent::reporting(run(), AgentPhase::Failed, now(), None).unwrap(),
+            AgentEvent::reporting(run(), AgentPhase::Started, now(), None).unwrap(),
         ] {
             let rebuilt = AgentEvent::from_payload(&original.payload());
             assert_eq!(rebuilt.as_ref(), Some(&original), "{original:?}");
@@ -554,7 +770,7 @@ mod tests {
         deadlineless.as_object_mut().unwrap().remove("responds_by");
         assert!(AgentEvent::from_payload(&deadlineless).is_none());
 
-        let mut notice = AgentEvent::notice(run(), AgentPhase::Completed, now(), None)
+        let mut notice = AgentEvent::reporting(run(), AgentPhase::Completed, now(), None)
             .unwrap()
             .payload();
         notice
@@ -567,7 +783,7 @@ mod tests {
     #[test]
     fn a_hint_is_truncated_rather_than_carried_whole() {
         let long = "x".repeat(MAX_DETAIL_CHARS + 200);
-        let event = AgentEvent::notice(run(), AgentPhase::Failed, now(), Some(&long)).unwrap();
+        let event = AgentEvent::reporting(run(), AgentPhase::Failed, now(), Some(&long)).unwrap();
         assert_eq!(
             event.detail.as_deref().unwrap().chars().count(),
             MAX_DETAIL_CHARS
