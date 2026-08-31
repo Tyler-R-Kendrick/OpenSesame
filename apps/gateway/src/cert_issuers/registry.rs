@@ -87,7 +87,7 @@ pub fn issuers_by_priority() -> Vec<&'static ExternalIssuerDescriptor> {
 /// a shape can name any URL it likes and still only ever reach hosts the
 /// connection's catalog row allows.
 /// Whether a provider wants the TXT record's `{name}` as the full challenge
-/// FQDN (Cloudflare) or relative to the matched zone (DigitalOcean appends
+/// FQDN (Cloudflare) or relative to the matched zone (`DigitalOcean` appends
 /// the domain itself). The two real axes a second provider surfaced.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RecordNameStyle {
@@ -100,7 +100,7 @@ pub struct DnsProviderShape {
     /// GET; `{zone}` substituted with each candidate apex while walking up.
     pub zone_lookup_url: &'static str,
     /// JSON pointer to the zone id in the lookup response. For providers whose
-    /// zone id *is* the domain name (DigitalOcean), point at that name.
+    /// zone id *is* the domain name (`DigitalOcean`), point at that name.
     pub zone_id_pointer: &'static str,
     /// POST; `{zone_id}` substituted.
     pub create_url: &'static str,
@@ -260,15 +260,14 @@ impl BrokeredDns01 {
                 return Err(Dns01Failure::Rejected);
             }
             let url = self.shape.zone_lookup_url.replace("{zone}", &candidate);
-            let response = match self
+            // A candidate that is not a zone answers 4xx; keep walking up
+            // rather than failing the whole provisioning.
+            let Ok(response) = self
                 .broker
                 .authorized_json(&self.organization, &self.connection_id, "GET", &url, None)
                 .await
-            {
-                Ok(response) => response,
-                // A candidate that is not a zone answers 4xx; keep walking up
-                // rather than failing the whole provisioning.
-                Err(_) => continue,
+            else {
+                continue;
             };
             if let Some(id) = extract_id(&response, self.shape.zone_id_pointer) {
                 return Ok((candidate, id));
@@ -446,7 +445,7 @@ mod tests {
         );
 
         // Numeric DO record ids extract and stay URL-safe.
-        let created = serde_json::json!({ "domain_record": { "id": 3352896 } });
+        let created = serde_json::json!({ "domain_record": { "id": 3_352_896 } });
         assert_eq!(
             extract_id(&created, shape.record_id_pointer),
             Some("3352896".to_owned())
