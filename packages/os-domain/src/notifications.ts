@@ -21,7 +21,6 @@
  */
 
 import type { JsonObject } from "./json.js";
-import type { PrincipalId } from "./types.js";
 import type {
   AssuranceRequirement,
   AuthenticationFacts,
@@ -29,6 +28,7 @@ import type {
   KeyProtection,
   UserVerification,
 } from "./trust.js";
+import type { PrincipalId } from "./types.js";
 
 /**
  * A delivery mechanism. Not an authenticator — the distinction is the point.
@@ -171,9 +171,12 @@ export interface ChannelCapabilities {
  * out-of-band authenticators as exactly this — useful, rate-limited, and not
  * phishing-resistant — and a preference for Telegram cannot change physics.
  */
-export const CHANNEL_CAPABILITIES: {
+/** The catalogue's shape: every channel kind, exactly once. */
+export type ChannelCapabilityCatalogue = {
   readonly [kind in NotificationChannelKind]: ChannelCapabilities;
-} = {
+};
+
+export const CHANNEL_CAPABILITIES: ChannelCapabilityCatalogue = {
   /**
    * The durable inbox. The only surface where an OpenSesame ceremony can
    * run, so it is the only one whose ceiling is `interactive` *and* whose
@@ -669,7 +672,9 @@ export function defaultApprovalPolicy(
  * structural: the rest of the system reads the normalized value and does not
  * have to remember to re-check.
  */
-export function normalizeApprovalPolicy(policy: ApprovalPolicy): ApprovalPolicy {
+export function normalizeApprovalPolicy(
+  policy: ApprovalPolicy,
+): ApprovalPolicy {
   const allowed = policy.allowedChannels.filter((kind) =>
     NOTIFICATION_CHANNEL_KINDS.includes(kind),
   );

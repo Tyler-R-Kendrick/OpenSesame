@@ -14,12 +14,15 @@ import type { JsonObject } from "../json.js";
 const NOW = new Date("2026-08-31T12:00:00Z");
 
 function baseDigestInput() {
+  // An annotation rather than an assertion: the literal already satisfies
+  // JsonObject, and there is nothing here for a cast to paper over.
+  const authorizationDetails: JsonObject[] = [
+    { type: "connection_delegation", actions: ["read"], locations: ["a"] },
+  ];
   return {
     principalId: "prn_approver",
     requesterRef: "req_abc",
-    authorizationDetails: [
-      { type: "connection_delegation", actions: ["read"], locations: ["a"] },
-    ] as JsonObject[],
+    authorizationDetails,
     bindingMessage: "Deploy to production",
   };
 }
@@ -31,15 +34,11 @@ describe("authorization request digest", () => {
     // check ADR 0046 promises could never actually run.
     const a = authorizationRequestDigest({
       ...baseDigestInput(),
-      authorizationDetails: [
-        { type: "x", actions: ["read"], identifier: "i" },
-      ],
+      authorizationDetails: [{ type: "x", actions: ["read"], identifier: "i" }],
     });
     const b = authorizationRequestDigest({
       ...baseDigestInput(),
-      authorizationDetails: [
-        { identifier: "i", actions: ["read"], type: "x" },
-      ],
+      authorizationDetails: [{ identifier: "i", actions: ["read"], type: "x" }],
     });
     expect(a).toBe(b);
   });
@@ -84,7 +83,7 @@ describe("authorization request digest", () => {
       { ...baseDigestInput(), delegationId: "dlg_1" },
       {
         ...baseDigestInput(),
-        authorizationDetails: [{ type: "other" }] as JsonObject[],
+        authorizationDetails: [{ type: "other" }] satisfies JsonObject[],
       },
     ];
     for (const mutation of mutations) {
@@ -93,7 +92,9 @@ describe("authorization request digest", () => {
   });
 
   it("contract: the digest names its version", () => {
-    expect(authorizationRequestDigest(baseDigestInput())).toMatch(/^v2:[0-9a-f]{64}$/);
+    expect(authorizationRequestDigest(baseDigestInput())).toMatch(
+      /^v2:[0-9a-f]{64}$/,
+    );
   });
 });
 
@@ -193,11 +194,14 @@ describe("activation", () => {
   });
 
   it("property: every single mismatch refuses, one at a time", () => {
-    const cases: { name: string; activation: ApprovalActivation }[] = [
+    const cases = [
       { name: "request", activation: activation({ authReqId: "areq_2" }) },
       { name: "principal", activation: activation({ principalId: "prn_x" }) },
       { name: "decision", activation: activation({ decision: "denied" }) },
-      { name: "transaction", activation: activation({ transactionDigest: "v1:other" }) },
+      {
+        name: "transaction",
+        activation: activation({ transactionDigest: "v1:other" }),
+      },
       { name: "policy", activation: activation({ policyDigest: "v1:other" }) },
       { name: "unactivated", activation: activation({ state: "pending" }) },
       { name: "consumed", activation: activation({ state: "consumed" }) },
@@ -205,7 +209,7 @@ describe("activation", () => {
         name: "expired",
         activation: activation({ expiresAt: new Date(NOW.getTime() - 1) }),
       },
-    ];
+    ] satisfies { name: string; activation: ApprovalActivation }[];
     for (const c of cases) {
       const result = evaluateActivation({ ...check, activation: c.activation });
       expect(result.permitted, c.name).toBe(false);

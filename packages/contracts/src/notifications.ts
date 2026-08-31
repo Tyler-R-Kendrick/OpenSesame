@@ -242,12 +242,7 @@ export const ApprovalReceiptResponseSchema = z.object({
   authReqId: z.string(),
   decision: ApprovalDecisionSchema,
   decidedByKind: z.enum(["human", "agent"]),
-  path: z.enum([
-    "in_app",
-    "external_rendezvous",
-    "external_direct",
-    "agent",
-  ]),
+  path: z.enum(["in_app", "external_rendezvous", "external_direct", "agent"]),
   channelKind: NotificationChannelKindSchema,
   requestDigest: z.string(),
   transactionDigest: z.string(),

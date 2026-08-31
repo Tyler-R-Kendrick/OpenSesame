@@ -7,9 +7,9 @@ import {
   MAX_OUTSTANDING_CHALLENGES,
   createMemoryChallengeStore,
   createSimpleWebAuthnVerifyFn,
-  issueTransactionChallenge,
   issueAuthenticationChallenge,
   issueRegistrationChallenge,
+  issueTransactionChallenge,
   verifyRegistrationAttestation,
 } from "../webauthn.js";
 

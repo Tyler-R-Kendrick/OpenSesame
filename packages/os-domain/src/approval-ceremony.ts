@@ -214,9 +214,14 @@ export interface ActivationCheckInput {
  * refusals rather than returning early keeps the reasons legible in an audit
  * record; `permitted` is true only when there are none.
  */
+export interface ActivationDecision {
+  permitted: boolean;
+  refusals: ActivationRefusal[];
+}
+
 export function evaluateActivation(
   input: ActivationCheckInput,
-): { permitted: boolean; refusals: ActivationRefusal[] } {
+): ActivationDecision {
   const refusals: ActivationRefusal[] = [];
   const a = input.activation;
   if (!a) return { permitted: false, refusals: ["activation_not_found"] };
@@ -295,11 +300,20 @@ export type ComparisonRefusal =
   | "comparison_mismatch"
   | "comparison_already_satisfied";
 
-export function evaluateComparison(input: {
+export interface ComparisonCheckInput {
   challenge?: ComparisonChallenge;
   presentedDigest: string;
   now: Date;
-}): { satisfied: boolean; refusal?: ComparisonRefusal } {
+}
+
+export interface ComparisonDecision {
+  satisfied: boolean;
+  refusal?: ComparisonRefusal;
+}
+
+export function evaluateComparison(
+  input: ComparisonCheckInput,
+): ComparisonDecision {
   const c = input.challenge;
   if (!c) return { satisfied: false, refusal: "comparison_not_found" };
   if (c.satisfiedAt) {

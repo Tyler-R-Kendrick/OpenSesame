@@ -20,10 +20,10 @@
  */
 
 import {
-  type ApprovalActivation,
-  type ApprovalPolicy,
-  type ApprovalPath,
   type ActivationRefusal,
+  type ApprovalActivation,
+  type ApprovalPath,
+  type ApprovalPolicy,
   type AssuranceVector,
   type CallbackFreshnessSource,
   type DirectSettlementRefusal,

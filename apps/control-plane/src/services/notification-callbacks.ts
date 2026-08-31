@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import {
-  type CallbackVerification as PackageVerification,
   type ChannelAdapter,
+  type CallbackVerification as PackageVerification,
   createSlackAdapter,
   createTelegramAdapter,
 } from "@opensesame/notification-adapters";
@@ -219,8 +219,22 @@ const CALLBACK_HEADER_NAMES = [
   "content-type",
 ] as const;
 
-function collectHeaders(header: CallbackHeaders): Record<string, string> {
-  const out: Record<string, string> = {};
+/**
+ * The header names every shipped verifier reads, closed rather than open.
+ *
+ * A dictionary keyed by arbitrary strings would let an unrelated header ride
+ * into a provider's verifier; naming the set keeps what crosses that boundary
+ * to what a verifier actually asked for.
+ */
+export interface CallbackHeaderBag {
+  "x-slack-signature"?: string;
+  "x-slack-request-timestamp"?: string;
+  "x-telegram-bot-api-secret-token"?: string;
+  "content-type"?: string;
+}
+
+function collectHeaders(header: CallbackHeaders): CallbackHeaderBag {
+  const out: CallbackHeaderBag = {};
   for (const name of CALLBACK_HEADER_NAMES) {
     const value = header(name);
     if (value !== undefined) out[name] = value;

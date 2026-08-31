@@ -78,7 +78,10 @@ describe("channel capabilities", () => {
   it("property: a capability set never claims more than its interaction ceiling", () => {
     for (const kind of EVERY_KIND) {
       const caps = channelCapabilities(kind);
-      if (interactionRank(caps.maximumInteractionMode) < interactionRank("interactive")) {
+      if (
+        interactionRank(caps.maximumInteractionMode) <
+        interactionRank("interactive")
+      ) {
         // Below `interactive` the channel must not advertise the pieces that
         // only an interactive channel can honour.
         expect(caps.canRenderDecisionActions, `${kind}`).toBe(false);
@@ -104,7 +107,12 @@ describe("channel capabilities", () => {
 
   it("contract: narrowing only ever moves down the interaction ladder", () => {
     for (const a of ["none", "notify", "rendezvous", "interactive"] as const) {
-      for (const b of ["none", "notify", "rendezvous", "interactive"] as const) {
+      for (const b of [
+        "none",
+        "notify",
+        "rendezvous",
+        "interactive",
+      ] as const) {
         const result = narrowInteractionMode(a, b);
         expect(interactionRank(result)).toBeLessThanOrEqual(interactionRank(a));
         expect(interactionRank(result)).toBeLessThanOrEqual(interactionRank(b));
@@ -115,10 +123,14 @@ describe("channel capabilities", () => {
   it("adversarial: the catalogue is frozen against a channel quietly gaining power", () => {
     // A regression fence. If somebody flips one of these, the diff has to say
     // so out loud rather than sliding through as "adapter improvements".
-    expect(CHANNEL_CAPABILITIES.sms.canReceiveAuthenticatedCallback).toBe(false);
+    expect(CHANNEL_CAPABILITIES.sms.canReceiveAuthenticatedCallback).toBe(
+      false,
+    );
     expect(CHANNEL_CAPABILITIES.teams.canRenderDecisionActions).toBe(false);
     expect(CHANNEL_CAPABILITIES.wechat.canRenderDecisionActions).toBe(false);
-    expect(CHANNEL_CAPABILITIES.native_push.canRenderDecisionActions).toBe(false);
+    expect(CHANNEL_CAPABILITIES.native_push.canRenderDecisionActions).toBe(
+      false,
+    );
     expect(CHANNEL_CAPABILITIES.webhook.bindsExternalIdentity).toBe(false);
     expect(CHANNEL_CAPABILITIES.webhook.maximumInteractionMode).toBe("notify");
     // Web Push replaces an undelivered message, which is not the same as
@@ -151,7 +163,9 @@ describe("policy normalization", () => {
         caps.bindsExternalIdentity &&
         caps.supportsTransactionBinding &&
         caps.maximumInteractionMode === "interactive";
-      expect(policy.directApprovalChannels.includes(kind), kind).toBe(settleable);
+      expect(policy.directApprovalChannels.includes(kind), kind).toBe(
+        settleable,
+      );
       expect(policy.directDenialChannels.includes(kind), kind).toBe(settleable);
     }
   });
@@ -194,9 +208,7 @@ describe("routing", () => {
       const plan = planNotificationRoute({
         policy: { ...defaultApprovalPolicy("low"), allowedChannels: [allowed] },
         preference: preference([...EVERY_KIND], true),
-        bindings: EVERY_KIND.map((kind, i) =>
-          binding({ id: `cb_${i}`, kind }),
-        ),
+        bindings: EVERY_KIND.map((kind, i) => binding({ id: `cb_${i}`, kind })),
         availableChannels: EVERY_KIND,
         now: NOW,
       });
@@ -314,7 +326,10 @@ describe("routing", () => {
 
   it("contract: preference order is the fallback ladder", () => {
     const plan = planNotificationRoute({
-      policy: { ...defaultApprovalPolicy("low"), allowedChannels: [...EVERY_KIND] },
+      policy: {
+        ...defaultApprovalPolicy("low"),
+        allowedChannels: [...EVERY_KIND],
+      },
       preference: preference(["telegram", "slack"]),
       bindings: [
         binding({ id: "cb_tg", kind: "telegram", providerId: "telegram" }),
@@ -401,13 +416,22 @@ describe("direct settlement", () => {
   it("property: removing any single verified fact refuses the settlement", () => {
     // Fail-closed, stated as a property rather than one case at a time: no
     // single check is decorative.
-    const weakenings: { name: string; input: typeof goodCallback }[] = [
-      { name: "authenticity", input: { ...goodCallback, callbackAuthenticated: false } },
+    const weakenings = [
+      {
+        name: "authenticity",
+        input: { ...goodCallback, callbackAuthenticated: false },
+      },
       { name: "freshness", input: { ...goodCallback, callbackFresh: false } },
       { name: "replay", input: { ...goodCallback, callbackUnseen: false } },
       { name: "pending", input: { ...goodCallback, requestPending: false } },
-      { name: "digest", input: { ...goodCallback, requestDigestMatches: false } },
-      { name: "binding", input: { ...goodCallback, binding: binding({ state: "revoked" }) } },
+      {
+        name: "digest",
+        input: { ...goodCallback, requestDigestMatches: false },
+      },
+      {
+        name: "binding",
+        input: { ...goodCallback, binding: binding({ state: "revoked" }) },
+      },
       {
         name: "identity",
         input: {
@@ -419,7 +443,7 @@ describe("direct settlement", () => {
           },
         },
       },
-    ];
+    ] satisfies { name: string; input: typeof goodCallback }[];
     for (const { name, input } of weakenings) {
       expect(evaluateDirectSettlement(input).permitted, name).toBe(false);
     }
