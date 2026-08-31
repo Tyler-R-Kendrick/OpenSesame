@@ -31,15 +31,19 @@ pub enum SubjectKind {
     StorePath,
     /// A code-signing signer's key/certificate pair (`signers`).
     Signer,
+    /// A password at a relying party, under a web-login rotation policy
+    /// (ADR 0076). The subject id is the origin, never an account.
+    WebLogin,
 }
 
 impl SubjectKind {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Certificate,
         Self::CertificateAuthority,
         Self::ConnectionCredential,
         Self::StorePath,
         Self::Signer,
+        Self::WebLogin,
     ];
 
     /// Frozen wire name.
@@ -51,6 +55,7 @@ impl SubjectKind {
             Self::ConnectionCredential => "connection_credential",
             Self::StorePath => "store_path",
             Self::Signer => "signer",
+            Self::WebLogin => "web_login",
         }
     }
 
@@ -144,6 +149,7 @@ mod tests {
                 "connection_credential",
                 "store_path",
                 "signer",
+                "web_login",
             ],
         );
     }

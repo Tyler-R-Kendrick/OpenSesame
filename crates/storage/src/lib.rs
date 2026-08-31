@@ -986,6 +986,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0018_rotation_leases",
         include_str!("../../../migrations/0018_rotation_leases.sql"),
     ),
+    (
+        "0019_web_login_observation",
+        include_str!("../../../migrations/0019_web_login_observation.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.
@@ -6816,6 +6820,12 @@ mod lifecycle;
 pub use lifecycle::{
     StoredLifecycleDelivery, StoredLifecycleHook, StoredLifecycleWatermark, DELIVERY_BATCH_LIMIT,
     LIFECYCLE_HOOK_SECRET_SCOPE,
+};
+
+mod observation;
+pub use observation::{
+    ObservationAppend, ObservationControlUpdate, StoredObservationEvent, StoredObservationRun,
+    MAX_BLOCKED_REASON_CHARS, OBSERVATION_READ_LIMIT,
 };
 
 fn stored_certificate_policy(row: &SqliteRow) -> StoredCertificatePolicy {

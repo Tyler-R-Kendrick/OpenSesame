@@ -293,6 +293,7 @@ pub fn policy_subject(policy: RotationPolicy) -> Option<ExpirySubject> {
             (SubjectKind::ConnectionCredential, connection_id.clone())
         }
         RotationTarget::StorePath { path } => (SubjectKind::StorePath, path.clone()),
+        RotationTarget::WebLogin { origin } => (SubjectKind::WebLogin, origin.clone()),
     };
     Some(ExpirySubject {
         kind,

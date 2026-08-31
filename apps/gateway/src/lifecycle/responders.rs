@@ -60,7 +60,9 @@ impl Outcome {
 #[must_use]
 pub fn responder_for(kind: SubjectKind) -> Option<&'static str> {
     match kind {
-        SubjectKind::ConnectionCredential | SubjectKind::StorePath => Some(ROTATION_RESPONDER),
+        SubjectKind::ConnectionCredential | SubjectKind::StorePath | SubjectKind::WebLogin => {
+            Some(ROTATION_RESPONDER)
+        }
         // Only certificates the host holds the key for can actually be
         // reissued unattended; `renew_managed` refuses the rest with
         // `NotInCustody`, which becomes the outcome a subscriber reads.
@@ -240,6 +242,9 @@ fn rotation_target(event: &LifecycleEvent) -> Option<RotationTarget> {
     match event.subject.kind {
         SubjectKind::ConnectionCredential => Some(RotationTarget::Connection {
             connection_id: event.subject.subject_id.clone(),
+        }),
+        SubjectKind::WebLogin => Some(RotationTarget::WebLogin {
+            origin: event.subject.subject_id.clone(),
         }),
         SubjectKind::StorePath => Some(RotationTarget::StorePath {
             path: event.subject.subject_id.clone(),
