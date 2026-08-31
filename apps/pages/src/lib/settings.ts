@@ -143,6 +143,12 @@ export type RuntimeEndpointConfig = {
   identityApi?: string;
   daemonApi?: string;
   mfaAppUrl?: string;
+  /**
+   * Optional remote support endpoint (ADR 0087). A destination, never a
+   * credential: the browser sends no authorization header to it, so an
+   * operator who needs one puts a same-origin proxy in front.
+   */
+  supportAgentUrl?: string;
 };
 
 let deployedConfig: RuntimeEndpointConfig = {};
@@ -153,6 +159,9 @@ export function applyRuntimeConfig(config: RuntimeEndpointConfig): void {
   if (config.identityApi?.trim()) next.identityApi = config.identityApi.trim();
   if (config.daemonApi?.trim()) next.daemonApi = config.daemonApi.trim();
   if (config.mfaAppUrl?.trim()) next.mfaAppUrl = config.mfaAppUrl.trim();
+  if (config.supportAgentUrl?.trim()) {
+    next.supportAgentUrl = config.supportAgentUrl.trim();
+  }
   deployedConfig = next;
   emitSettings();
 }

@@ -13,6 +13,7 @@ import {
   unfinishedConnections,
 } from "../../lib/identity-graph.js";
 import { ensureHostSession } from "../../lib/identity.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import {
   type Flash,
@@ -36,6 +37,7 @@ export function NeedsAttention({
   onChanged: () => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
+  const panelRef = useGuideTarget<HTMLElement>("connections.attention");
   const open = unfinishedConnections(connections);
   if (open.length === 0) return null;
 
@@ -76,6 +78,7 @@ export function NeedsAttention({
 
   return (
     <section
+      ref={panelRef}
       className="panel panel--attention"
       aria-labelledby="conn-inbox-title"
     >

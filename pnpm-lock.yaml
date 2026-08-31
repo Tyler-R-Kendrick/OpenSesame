@@ -664,15 +664,27 @@ importers:
 
   apps/pages:
     dependencies:
+      '@ag-ui/client':
+        specifier: 0.0.59
+        version: 0.0.59
       '@opensesame/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@opensesame/capability-registry':
+        specifier: workspace:*
+        version: link:../../packages/capability-registry
       '@opensesame/client-core':
         specifier: workspace:*
         version: link:../../packages/client-core
       '@opensesame/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@opensesame/guide-lang':
+        specifier: workspace:*
+        version: link:../../packages/guide-lang
+      '@opensesame/guide-runtime':
+        specifier: workspace:*
+        version: link:../../packages/guide-runtime
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../../packages/os-domain
@@ -682,6 +694,9 @@ importers:
       '@opensesame/sdk-browser':
         specifier: workspace:*
         version: link:../../packages/sdk-browser
+      '@opensesame/support-agent':
+        specifier: workspace:*
+        version: link:../../packages/support-agent
       '@opensesame/vault-item-types':
         specifier: workspace:*
         version: link:../../packages/vault-item-types
@@ -691,6 +706,9 @@ importers:
       '@tursodatabase/sync-wasm':
         specifier: 0.7.2
         version: 0.7.2
+      driver.js:
+        specifier: 1.8.0
+        version: 1.8.0
       hash-wasm:
         specifier: 4.12.0
         version: 4.12.0
@@ -710,9 +728,6 @@ importers:
         specifier: 15.16.1
         version: 15.16.1
     devDependencies:
-      '@opensesame/capability-registry':
-        specifier: workspace:*
-        version: link:../../packages/capability-registry
       '@opensesame/testing':
         specifier: workspace:*
         version: link:../../packages/testing
@@ -1174,6 +1189,44 @@ importers:
         specifier: 4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.10)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.20.3))
 
+  packages/guide-lang:
+    dependencies:
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../os-domain
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      fast-check:
+        specifier: 4.9.0
+        version: 4.9.0
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.10)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11))
+
+  packages/guide-runtime:
+    dependencies:
+      '@opensesame/guide-lang':
+        specifier: workspace:*
+        version: link:../guide-lang
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      fast-check:
+        specifier: 4.9.0
+        version: 4.9.0
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.10)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11))
+
   packages/identity-atproto:
     dependencies:
       '@opensesame/os-domain':
@@ -1500,6 +1553,28 @@ importers:
         specifier: 4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.10)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11))
 
+  packages/support-agent:
+    dependencies:
+      '@opensesame/guide-lang':
+        specifier: workspace:*
+        version: link:../guide-lang
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../os-domain
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      fast-check:
+        specifier: 4.9.0
+        version: 4.9.0
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.10)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.11))
+
   packages/telemetry:
     dependencies:
       '@opensesame/observability':
@@ -1673,6 +1748,18 @@ packages:
 
   '@1natsu/wait-element@4.2.0':
     resolution: {integrity: sha512-Om0Q+WE9mNrpY4AwMTvkFiYHv8VM7TML3PvOqXy+w6kAjLjKhGYHYX+305+a6J8RVpds9s7IF2Z5aOPYwULFNw==}
+
+  '@ag-ui/client@0.0.59':
+    resolution: {integrity: sha512-d7++r8sBAq6z9G/D/WKrMznQ1Mdvew14pCqOVATReFIvl06mCi1BPqTwmos3zCDGAIiSgcvxc/8m472rYQgFFQ==}
+
+  '@ag-ui/core@0.0.59':
+    resolution: {integrity: sha512-hDgy4ipTqXieT8YG8Mr917Y+FD/f11VK1GefZ5CwTDCuNqS/oTwjJ5l/DZkicThgS8hQW/Y7wPylPBMBJ8BkUg==}
+
+  '@ag-ui/encoder@0.0.59':
+    resolution: {integrity: sha512-wQCzBsStyZMm8nzhTdTx1G0B1C8yv5rbzZLnz1ka/l5LcJEsK3KTounU8CR9l+7QtcpOUUDJKd0xAbyI6gNcSw==}
+
+  '@ag-ui/proto@0.0.59':
+    resolution: {integrity: sha512-X+uvDaegLEHw5kJu8tv2eSqHH8ouat+JCfFokGV1uuMquY8qCEQSlGsM7xzexwX9fujuxgHOWumg5kJDqa0+RA==}
 
   '@ai-sdk/gateway@3.0.159':
     resolution: {integrity: sha512-BJ1SMVpD2Qie/OVmQho1b1wb8rcGYC38p2D20MyP0+zUGBlXJOMfq1zP97+tl1oyT1u/A84R+oaYrUT18dIdWg==}
@@ -2807,6 +2894,9 @@ packages:
 
   '@borewit/text-codec@0.2.2':
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
+
+  '@bufbuild/protobuf@2.14.1':
+    resolution: {integrity: sha512-agRJn3+EJDUe8AvxTx/LnHA/GErvLE62pSaSk7+MwFOtOv8eWBu/qCq2qoZjBjVZ3C2aiFJCveuSs17KMkYGOw==}
 
   '@cacheable/utils@2.5.0':
     resolution: {integrity: sha512-buipgOVDkkPXNR5+xBpDw7Zk2n1EvU7qBJCNUcL7rhQ//kfpOXPAvQ511Os0vpLYJ1pZnvudNytkQt2hst3wqA==}
@@ -4164,6 +4254,10 @@ packages:
   '@posthog/types@1.402.2':
     resolution: {integrity: sha512-ZZTiS4dLwF4/D0YTzS3gGSLFnhuNOY5yu4d9VGS9trGe5GW6FjIXo20p18K5BPW2RZSYSld8sdnSAY3AUXleUQ==}
 
+  '@protobuf-ts/protoc@2.11.1':
+    resolution: {integrity: sha512-mUZJaV0daGO6HUX90o/atzQ6A7bbN2RSuHtdwo8SSF2Qoe3zHwa4IHyCN1evftTeHfLmdz+45qo47sL+5P8nyg==}
+    hasBin: true
+
   '@redis/bloom@5.12.1':
     resolution: {integrity: sha512-PUUfv+ms7jgPSBVoo/DN4AkPHj4D5TZSd6SbJX7egzBplkYUcKmHRE8RKia7UtZ8bSQbLguLvxVO+asKtQfZWA==}
     engines: {node: '>= 18.19.0'}
@@ -4738,6 +4832,9 @@ packages:
 
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
+
+  '@types/uuid@10.0.0':
+    resolution: {integrity: sha512-7gqG38EyHgyP1S+7+xomFtL+ZNHcKv6DwNaCZmJmo1vgMugyF3TCnXVg4t1uk89mLNwnLtnY3TpOpCOyp1/xHQ==}
 
   '@types/webextension-polyfill@0.12.5':
     resolution: {integrity: sha512-uKSAv6LgcVdINmxXMKBuVIcg/2m5JZugoZO8x20g7j2bXJkPIl/lVGQcDlbV+aXAiTyXT2RA5U5mI4IGCDMQeg==}
@@ -5399,6 +5496,9 @@ packages:
     resolution: {integrity: sha512-gk/Z852D2Wtb//0I+kRFNKKE9dIIVirjoqPoA1wJU+XePVXZfGeBpk45+A1rKO4Q43prqWBNY/MiIeRLbPWUaA==}
     engines: {node: '>=4.0.0'}
 
+  compare-versions@6.1.1:
+    resolution: {integrity: sha512-4hm4VPpIecmlg59CHXnRDnqGplJFrbLG4aFEl5vl6cK1u76ws3LLvX7ikFnTDl5vo39sjWD6AaDPYodJp/NNHg==}
+
   complex.js@2.4.3:
     resolution: {integrity: sha512-UrQVSUur14tNX6tiP4y8T4w4FeJAX3bi2cIv0pu/DTLFNxoq7z2Yh83Vfzztj6Px3X/lubqQ9IrPp7Bpn6p4MQ==}
 
@@ -5729,6 +5829,9 @@ packages:
   dotenv@17.4.2:
     resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
     engines: {node: '>=12'}
+
+  driver.js@1.8.0:
+    resolution: {integrity: sha512-+8/IO7h1v14IzWh2GP60N7T3PFZweXwdn5e5POuxRSBoCYUojsBxzqawPeXh3YZIibRy7EehYNEyxe7slwwtdg==}
 
   drizzle-kit@0.31.10:
     resolution: {integrity: sha512-7OZcmQUrdGI+DUNNsKBn1aW8qSoKuTH7d0mYgSP8bAzdFzKoovxEFnoGQp2dVs82EOJeYycqRtciopszwUf8bw==}
@@ -6077,6 +6180,9 @@ packages:
   fast-glob@3.3.3:
     resolution: {integrity: sha512-7MptL8U0cqcFdzIzwOTHoilX9x5BrNqye7Z/LuC7kCMRio1EMSyqRK3BEAUD7sXRq4iT4AzTVuZdhgQ2TCvYLg==}
     engines: {node: '>=8.6.0'}
+
+  fast-json-patch@3.1.1:
+    resolution: {integrity: sha512-vf6IHUX2SBcA+5/+4883dsIjpBTqmfBjmYiWK1savxQmFk4JfBMLa7ynTYOs1Rolp/T1betJxHiGD3g1Mn8lUQ==}
 
   fast-json-stable-stringify@2.1.0:
     resolution: {integrity: sha512-lhd/wF+Lk98HZoTCtlVraHtfh5XYijIjalXck7saUtuanSDyLMxnHhSXEDJqHxD7msR8D0uCmqlkwjCV8xvwHw==}
@@ -6971,6 +7077,7 @@ packages:
 
   libsql@0.5.29:
     resolution: {integrity: sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==}
+    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -8071,6 +8178,9 @@ packages:
   run-parallel@1.2.0:
     resolution: {integrity: sha512-5l4VyZR86LZ/lDxZTR6jqL8AFE2S0IFLMP26AbjsLVADxHdhB/c0GUsH+y39UfCi3dzz8OlQuPmnaJOMoDHQBA==}
 
+  rxjs@7.8.1:
+    resolution: {integrity: sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==}
+
   rxjs@7.8.2:
     resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
 
@@ -8724,6 +8834,9 @@ packages:
     resolution: {integrity: sha512-5uKD0nqiYVzlmCRs01Fhs2BdkEgBS3SAVP6ndrBsuK42iC2+JHyxM05Rm9G8+5mkmRtzMZGY8Ct5+mliZxU/Ww==}
     engines: {node: '>=18.12.0'}
 
+  untruncate-json@0.0.1:
+    resolution: {integrity: sha512-4W9enDK4X1y1s2S/Rz7ysw6kDuMS3VmRjMFg7GZrNO+98OSe+x5Lh7PKYoVjy3lW/1wmhs6HW0lusnQRHgMarA==}
+
   unzipper-esm@0.13.3:
     resolution: {integrity: sha512-LUO6VZ6fCzkDbdMev0/fOhoIeVGKaOkTIOoYxVLE0SQjfvmAHK+oywl7lfhloSZIsdGJ25mJ18Mtd9CyTASjrA==}
     engines: {node: '>=8.0.0'}
@@ -9180,6 +9293,34 @@ snapshots:
     dependencies:
       defu: 6.1.7
       many-keys-map: 3.0.3
+
+  '@ag-ui/client@0.0.59':
+    dependencies:
+      '@ag-ui/core': 0.0.59
+      '@ag-ui/encoder': 0.0.59
+      '@ag-ui/proto': 0.0.59
+      '@types/uuid': 10.0.0
+      compare-versions: 6.1.1
+      fast-json-patch: 3.1.1
+      rxjs: 7.8.1
+      untruncate-json: 0.0.1
+      uuid: 14.0.1
+      zod: 3.25.67
+
+  '@ag-ui/core@0.0.59':
+    dependencies:
+      zod: 3.25.67
+
+  '@ag-ui/encoder@0.0.59':
+    dependencies:
+      '@ag-ui/core': 0.0.59
+      '@ag-ui/proto': 0.0.59
+
+  '@ag-ui/proto@0.0.59':
+    dependencies:
+      '@ag-ui/core': 0.0.59
+      '@bufbuild/protobuf': 2.14.1
+      '@protobuf-ts/protoc': 2.11.1
 
   '@ai-sdk/gateway@3.0.159(zod@4.4.3)':
     dependencies:
@@ -10765,6 +10906,8 @@ snapshots:
   '@borewit/text-codec@0.2.2':
     optional: true
 
+  '@bufbuild/protobuf@2.14.1': {}
+
   '@cacheable/utils@2.5.0':
     dependencies:
       hashery: 1.5.1
@@ -12020,6 +12163,8 @@ snapshots:
 
   '@posthog/types@1.402.2': {}
 
+  '@protobuf-ts/protoc@2.11.1': {}
+
   '@redis/bloom@5.12.1(@redis/client@5.12.1(@opentelemetry/api@1.9.1))':
     dependencies:
       '@redis/client': 5.12.1(@opentelemetry/api@1.9.1)
@@ -12579,6 +12724,8 @@ snapshots:
   '@types/triple-beam@1.3.5': {}
 
   '@types/trusted-types@2.0.7': {}
+
+  '@types/uuid@10.0.0': {}
 
   '@types/webextension-polyfill@0.12.5': {}
 
@@ -13269,6 +13416,8 @@ snapshots:
 
   common-tags@1.8.2: {}
 
+  compare-versions@6.1.1: {}
+
   complex.js@2.4.3: {}
 
   compressible@2.0.18:
@@ -13553,6 +13702,8 @@ snapshots:
   dotenv@16.6.1: {}
 
   dotenv@17.4.2: {}
+
+  driver.js@1.8.0: {}
 
   drizzle-kit@0.31.10:
     dependencies:
@@ -13954,6 +14105,8 @@ snapshots:
       glob-parent: 5.1.2
       merge2: 1.4.1
       micromatch: 4.0.8
+
+  fast-json-patch@3.1.1: {}
 
   fast-json-stable-stringify@2.1.0: {}
 
@@ -14466,7 +14619,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.18.0)
+      retry-axios: 2.6.0(axios@1.18.0(debug@4.3.4))
       tough-cookie: 4.1.3
     transitivePeerDependencies:
       - supports-color
@@ -16259,7 +16412,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.18.0):
+  retry-axios@2.6.0(axios@1.18.0(debug@4.3.4)):
     dependencies:
       axios: 1.18.0(debug@4.3.4)
     optional: true
@@ -16331,6 +16484,10 @@ snapshots:
   run-parallel@1.2.0:
     dependencies:
       queue-microtask: 1.2.3
+
+  rxjs@7.8.1:
+    dependencies:
+      tslib: 2.8.1
 
   rxjs@7.8.2:
     dependencies:
@@ -17074,6 +17231,8 @@ snapshots:
       acorn: 8.18.0
       picomatch: 4.0.5
       webpack-virtual-modules: 0.6.2
+
+  untruncate-json@0.0.1: {}
 
   unzipper-esm@0.13.3:
     dependencies:

@@ -30,6 +30,8 @@ import {
 import { shouldAutoConnect } from "../lib/settings.js";
 import { useOnline } from "../lib/use-online.js";
 import { useStatusNotice } from "../lib/use-status-notice.js";
+import { noteGuideConnectionsPresent } from "../tutorial/registry/predicates.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
 import { CustomConnectorPage } from "./connections/CustomConnectorPage.js";
@@ -63,6 +65,16 @@ export function ConnectionsSection() {
 
   const catalogRun = useRef(0);
   const connectionRun = useRef(0);
+  const reloadRef = useGuideTarget<HTMLButtonElement>("connections.reload");
+
+  // A coarse count, never a name: `connections.any` is the only thing a guide
+  // may learn about what is connected here.
+  useEffect(() => {
+    noteGuideConnectionsPresent(
+      (connections ?? []).some((item) => item.status !== "revoked"),
+    );
+    return () => noteGuideConnectionsPresent(false);
+  }, [connections]);
 
   const loadCatalog = useCallback(async () => {
     const id = ++catalogRun.current;
@@ -233,6 +245,7 @@ export function ConnectionsSection() {
         <div className="conn-head__titlerow">
           <h1>Connections</h1>
           <button
+            ref={reloadRef}
             type="button"
             className="icon-btn"
             onClick={() => void loadConnections()}

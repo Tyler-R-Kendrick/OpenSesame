@@ -13,15 +13,21 @@
     "test": "vitest run --maxWorkers=4"
   },
   "dependencies": {
+    "@ag-ui/client": "0.0.59",
     "@opensesame/api-client": "workspace:*",
+    "@opensesame/capability-registry": "workspace:*",
     "@opensesame/client-core": "workspace:*",
     "@opensesame/contracts": "workspace:*",
+    "@opensesame/guide-lang": "workspace:*",
+    "@opensesame/guide-runtime": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",
+    "@opensesame/support-agent": "workspace:*",
     "@opensesame/vault-item-types": "workspace:*",
     "@opensesame/webmcp": "workspace:*",
     "@tursodatabase/sync-wasm": "0.7.2",
+    "driver.js": "1.8.0",
     "hash-wasm": "4.12.0",
     "kdbxweb": "2.1.1",
     "react": "19.2.8",
@@ -30,7 +36,6 @@
     "simple-icons": "15.16.1"
   },
   "devDependencies": {
-    "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@testing-library/react": "16.3.0",
     "@testing-library/user-event": "14.6.1",

@@ -1,0 +1,183 @@
+/* Driver.js, wearing the vault's clothes.
+
+   Every rule is anchored on a Driver class or on `.os-guide`, the marker this
+   adapter puts on each popover it renders. Nothing here selects a bare
+   element or an app control: a tutorial overlay that restyled the app's own
+   buttons would be a design bug that only shows up mid-tour. Colours come
+   from the tokens in `styles.css`, so light, dark and the explicit
+   `data-theme` override all follow the vault without a second palette. */
+
+.os-guide.driver-popover {
+  padding: 0.85rem 0.95rem;
+  max-width: 22rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font);
+  color: var(--ink);
+}
+
+.os-guide .driver-popover-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.os-guide .driver-popover-description {
+  margin: 0;
+  padding-right: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  /* Model prose arrives as one text node; keep authored newlines and never
+     let a long unbroken token push the popover off screen. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.os-guide .driver-popover-arrow {
+  border-width: 6px;
+}
+
+.os-guide .driver-popover-arrow-side-top {
+  border-top-color: var(--surface);
+}
+
+.os-guide .driver-popover-arrow-side-bottom {
+  border-bottom-color: var(--surface);
+}
+
+.os-guide .driver-popover-arrow-side-left {
+  border-left-color: var(--surface);
+}
+
+.os-guide .driver-popover-arrow-side-right {
+  border-right-color: var(--surface);
+}
+
+.os-guide .driver-popover-close-btn {
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.os-guide .driver-popover-close-btn:hover,
+.os-guide .driver-popover-close-btn:focus-visible {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.os-guide .driver-popover-footer {
+  margin-top: 0.6rem;
+}
+
+.os-guide .driver-popover-progress-text {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.os-guide .driver-popover-footer-btn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-shadow: none;
+}
+
+/* The spotlight is a scrim, not a door: Driver keeps the highlighted control
+   live, a click on the scrim dismisses the guide, and so does Escape. */
+.driver-active-element {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ——— Hints ————————————————————————————————————————————————— */
+
+.driver-hint.os-guide-beacon .driver-hint-dot {
+  background: var(--accent);
+}
+
+.driver-hint.os-guide-beacon .driver-hint-pulse {
+  background: var(--accent);
+  opacity: 0.35;
+}
+
+/* Third class deliberately: Driver's own `.driver-hint-popover.driver-popover`
+   rule has the same weight, and stylesheet order across two dynamic imports is
+   not something to bet a theme on. */
+.os-guide.driver-hint-popover.driver-popover {
+  max-width: 18rem;
+  box-shadow: var(--shadow);
+  filter: none;
+}
+
+/* ——— Annotations ——————————————————————————————————————————— */
+
+.os-guide-annotation {
+  position: absolute;
+  /* Above Driver's scrim (10000), below its popovers and hint beacons, so a
+     callout left by an earlier step stays readable during a later one. */
+  z-index: 100000;
+  max-width: 18rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font);
+  /* Persistent and non-modal: the callout never intercepts a pointer, so the
+     page underneath stays entirely usable while it is on screen. */
+  pointer-events: none;
+}
+
+/* The thick edge faces the control the callout is about, so a page carrying
+   several annotations still reads as several pointers, not several boxes. */
+.os-guide-annotation--top {
+  border-bottom: 2px solid var(--accent);
+}
+
+.os-guide-annotation--bottom {
+  border-top: 2px solid var(--accent);
+}
+
+.os-guide-annotation--left {
+  border-right: 2px solid var(--accent);
+}
+
+.os-guide-annotation--right {
+  border-left: 2px solid var(--accent);
+}
+
+.os-guide-annotation__text {
+  display: block;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-guide.driver-popover,
+  .os-guide-annotation {
+    transition: none;
+  }
+
+  .driver-hint.os-guide-beacon .driver-hint-pulse {
+    animation: none;
+  }
+}

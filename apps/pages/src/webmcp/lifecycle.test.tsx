@@ -4,6 +4,7 @@ import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  bindWebMcpSupport,
   registerBootTools,
   registerSessionTools,
   useWebMcp,
@@ -77,11 +78,11 @@ describe("registerBootTools / registerSessionTools", () => {
     restore();
   });
 
-  it("registers the fifteen session tools and unregisters them", () => {
+  it("registers the seventeen session tools and unregisters them", () => {
     const { tools, restore } = stubModelContext();
     const unregister = registerSessionTools();
     expect(tools.map((t) => t.name)).toEqual(SESSION_NAMES);
-    expect(tools).toHaveLength(15);
+    expect(tools).toHaveLength(17);
     unregister();
     expect(tools).toHaveLength(0);
     restore();
@@ -94,6 +95,49 @@ describe("registerBootTools / registerSessionTools", () => {
     const result = await navTool?.execute({ section: "nowhere" });
     expect(result?.isError).toBe(true);
     expect(result?.content[0]?.text).toContain("unknown_section");
+    unregister();
+    restore();
+  });
+});
+
+describe("bindWebMcpSupport", () => {
+  it("routes the guidance tools at the mounted panel and lets go of it", async () => {
+    const { tools, restore } = stubModelContext();
+    const opened: (string | null)[] = [];
+    const started: string[] = [];
+    const unregister = registerSessionTools();
+    const unbind = bindWebMcpSupport({
+      openSupport: (topic) => {
+        opened.push(topic);
+      },
+      startGuide: (goal) => {
+        started.push(goal);
+      },
+    });
+
+    const help = tools.find((t) => t.name === "opensesame_help");
+    const guide = tools.find((t) => t.name === "opensesame_guide_start");
+    await help?.execute({ topic: "help.lock" });
+    await guide?.execute({ goal: "vault.lock" });
+    expect(opened).toEqual(["help.lock"]);
+    expect(started).toEqual(["vault.lock"]);
+
+    unbind();
+    const after = await help?.execute({});
+    expect(after?.isError).toBeUndefined();
+    expect(opened).toEqual(["help.lock"]);
+
+    unregister();
+    restore();
+  });
+
+  it("leaves the tools callable and refusing with no panel bound", async () => {
+    const { tools, restore } = stubModelContext();
+    const unregister = registerSessionTools();
+    const guide = tools.find((t) => t.name === "opensesame_guide_start");
+    const refused = await guide?.execute({ goal: 'focus "#x" "y"' });
+    expect(refused?.isError).toBe(true);
+    expect(refused?.content[0]?.text).toContain("unknown_guide_goal");
     unregister();
     restore();
   });

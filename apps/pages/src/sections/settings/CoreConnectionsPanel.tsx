@@ -9,6 +9,7 @@ import {
   needsAttention,
   useConnectors,
 } from "../../lib/connectors.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 export const coreConnectionsDependencies = {
   useConnectors,
@@ -34,13 +35,14 @@ const ACTION = {
 export function CoreConnectionsPanel() {
   const connectors = coreConnectionsDependencies.useConnectors();
   const [open, setOpen] = useState<ConnectorId | null>(null);
+  const panelRef = useGuideTarget<HTMLElement>("settings.core-connections");
   const attention = needsAttention(connectors);
   // Offline is one cause, not four broken connectors. Counting it as "3 need
   // setup" would send someone to fix endpoints that are perfectly fine.
   const offline = isOfflineSet(connectors);
 
   return (
-    <section className="panel" id="core-connections">
+    <section className="panel" id="core-connections" ref={panelRef}>
       <div className="panel__head">
         <div>
           <h2>Core connections</h2>
