@@ -31,16 +31,49 @@ pub enum SubjectKind {
     StorePath,
     /// A code-signing signer's key/certificate pair (`signers`).
     Signer,
+    /// One participant's reach into a shared session (ADR 0079).
+    ///
+    /// Unlike every kind above it, this one is **never renewable**: see
+    /// [`SubjectKind::renewable`]. A certificate that renews itself overnight
+    /// is the platform doing its job; a person's access to somebody else's
+    /// vault renewing itself overnight is the platform giving away what it
+    /// was trusted to hold.
+    SessionGrant,
 }
 
 impl SubjectKind {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Certificate,
         Self::CertificateAuthority,
         Self::ConnectionCredential,
         Self::StorePath,
         Self::Signer,
+        Self::SessionGrant,
     ];
+
+    /// Whether the platform's own responder may ever extend this kind.
+    ///
+    /// The kind decides, not the subject's `auto_respond` flag, and
+    /// [`crate::should_respond`] consults both. A caller that builds a
+    /// session-grant subject with `auto_respond: true` — by mistake, or
+    /// because a row was copied from a certificate — still gets no automatic
+    /// renewal, because extending one human's reach into another's vault is
+    /// a decision only a human makes (ADR 0079).
+    ///
+    /// Expiry events still fire for a non-renewable kind. Telling somebody
+    /// their access lapses in an hour is exactly what the ladder is for;
+    /// acting on it without them is the part that is refused.
+    #[must_use]
+    pub const fn renewable(self) -> bool {
+        match self {
+            Self::Certificate
+            | Self::CertificateAuthority
+            | Self::ConnectionCredential
+            | Self::StorePath
+            | Self::Signer => true,
+            Self::SessionGrant => false,
+        }
+    }
 
     /// Frozen wire name.
     #[must_use]
@@ -51,6 +84,7 @@ impl SubjectKind {
             Self::ConnectionCredential => "connection_credential",
             Self::StorePath => "store_path",
             Self::Signer => "signer",
+            Self::SessionGrant => "session_grant",
         }
     }
 
@@ -144,8 +178,20 @@ mod tests {
                 "connection_credential",
                 "store_path",
                 "signer",
+                "session_grant",
             ],
         );
+    }
+
+    #[test]
+    fn a_session_grant_is_the_one_kind_that_never_renews_itself() {
+        for kind in SubjectKind::ALL {
+            assert_eq!(
+                kind.renewable(),
+                kind != SubjectKind::SessionGrant,
+                "{kind:?} renewability"
+            );
+        }
     }
 
     #[test]
