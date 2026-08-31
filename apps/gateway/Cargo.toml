@@ -20,6 +20,7 @@ opensesame-protocol-aauth = { path = "../../crates/protocol-aauth", features = [
 opensesame-audit = { path = "../../crates/audit" }
 opensesame-pki-core = { path = "../../crates/pki-core" }
 base64 = { workspace = true }
+futures = { workspace = true }
 rand = { workspace = true }
 opensesame-a2h = { path = "../../crates/a2h" }
 opensesame-agent-events = { path = "../../crates/agent-events" }
