@@ -1,0 +1,67 @@
+<div class="os" data-theme="{{theme}}" style="width: 900px; height: 800px; padding: 30px 34px; display: grid; gap: 20px; align-content: start; overflow: hidden">
+
+  <div style="display: grid; gap: 8px; max-width: 68ch">
+    <h1>What the model provider becomes a party to</h1>
+    <p style="color: var(--ink-2); font-size: 14px">Configuring a model is not a preference like a theme. Whoever runs it watches a browser work a password-reset form. This is the line the setup step is asking the operator to agree to, so the step states it in one sentence and this is the long form behind it — ADR 0076 §1.</p>
+  </div>
+
+  <div class="cross">
+    <div class="gate gate--allow">
+      <p class="gate__head">Crosses to the model</p>
+      <ul class="gate__list">
+        <li>the page, with every <code>input[type=password]</code> value stripped</li>
+        <li>a screenshot with credential boxes masked</li>
+        <li>the site's own change-password URL</li>
+        <li>which step of the ladder this is</li>
+        <li>an outcome: filled, submitted, refused</li>
+      </ul>
+    </div>
+    <div class="gate gate--deny">
+      <p class="gate__head">Never crosses, at any step</p>
+      <ul class="gate__list">
+        <li>the old password, or the new one</li>
+        <li>the candidate the generator made</li>
+        <li>anything else in the vault</li>
+        <li>a key, a wrapper, or a session bearer</li>
+        <li>the account's other credentials</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 10px">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; text-transform: uppercase">Why the right column holds</p>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+
+      <div class="finding">
+        <p class="finding__head">The tool does not exist</p>
+        <p class="hint" style="margin-top: 6px">The model calls <code>fill_credential(ref, selector)</code> — it names <em>which</em> credential and <em>where</em>, and a deterministic controller types the value. There is no <code>read_field_value</code> and no <code>get_secret</code>, in the same sense that the connector world has no <code>secrets.get</code>. Nothing has to deny a call that cannot be made.</p>
+      </div>
+
+      <div class="finding">
+        <p class="finding__head">Redaction is at capture</p>
+        <p class="hint" style="margin-top: 6px">Password values are stripped before the DOM is serialized; credential boxes are masked in the capture pipeline before an image exists. Redaction applied when a transcript is <em>displayed</em> is not redaction — the unredacted form was already written down somewhere.</p>
+      </div>
+
+      <div class="finding">
+        <p class="finding__head">The generator returns a handle</p>
+        <p class="hint" style="margin-top: 6px"><code>generate_candidate(policy)</code> hands back a reference, not a password. So the new credential is never a string the model has held, even for the moment between making it and typing it.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01M11 12h1v4h1"></path></svg>
+    <div>
+      <p><strong>The residual risk the setup step should not pretend away.</strong></p>
+      <p style="margin-top: 0.35rem">A redacted page is still <em>your</em> page: which site, which account name, that you are changing a password today. A hosted provider learns that much, and the local option exists so an operator who will not accept it has somewhere to go. That is why the step leads with the machine you are on rather than the biggest model.</p>
+    </div>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":900,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

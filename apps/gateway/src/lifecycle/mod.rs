@@ -21,7 +21,6 @@
 //! payloads are assembled key by key, and both the domain crate and the route
 //! layer carry structural tests that keep it that way.
 
-pub mod delivery;
 pub mod dispatch;
 pub mod responders;
 pub mod scanner;

@@ -12,6 +12,7 @@
 use chrono::{DateTime, Utc};
 use opensesame_connection_broker::{RotationPolicy, RotationTarget};
 use opensesame_domain::OrganizationId;
+use opensesame_domain::SessionGrant;
 use opensesame_lifecycle::{ExpirySubject, SubjectKind};
 use opensesame_storage::{Db, StoredCertificateAuthority, StoredManagedCertificate, StoredSigner};
 
@@ -31,6 +32,27 @@ pub const CERTIFICATE_HORIZON_DAYS: i64 = 400;
 /// the near side of the interval boundary so the first tick at or after the
 /// due time fires it, preserving `policy_due_at`'s original semantics exactly.
 pub const SCHEDULE_RENEW_BEFORE_SECONDS: i64 = 1;
+
+/// How many unrevoked session grants one pass pulls per organization.
+///
+/// There is no horizon to pair this with, and deliberately so: a grant's
+/// lifetime is capped at `MAX_GRANT_LIFETIME` (seven days, ADR 0079), so every
+/// live grant is already inside any horizon worth naming. The bound that
+/// matters is the count, and it is a cap on the *scan*, not on the grants —
+/// grants beyond it keep their deadline, they are simply announced on a later
+/// pass, ordered soonest-first so the ones about to lapse are never the ones
+/// dropped.
+pub const SESSION_GRANT_SCAN_LIMIT: i64 = 512;
+
+/// Renewal lead for a session grant.
+///
+/// One second, for the same reason a rotation schedule uses one: the renewal
+/// rung must exist so the ladder is well-formed, but nothing may ever act on
+/// it. [`opensesame_lifecycle::SubjectKind::renewable`] refuses this kind
+/// outright, so the rung fires and no responder answers. The lead is therefore
+/// as small as it can be rather than a window somebody might mistake for an
+/// opportunity to extend.
+pub const SESSION_GRANT_RENEW_BEFORE_SECONDS: i64 = 1;
 
 fn parse_time(raw: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(raw)
@@ -75,6 +97,11 @@ pub async fn collect(
         &mut subjects,
         connections(state, organization_id).await,
         "connections",
+    );
+    absorb(
+        &mut subjects,
+        session_grants(&state.db, &organization).await,
+        "session grants",
     );
     absorb(
         &mut subjects,
@@ -244,6 +271,58 @@ async fn connections(
             })
         })
         .collect())
+}
+
+/// One participant's reach into a shared session (ADR 0079).
+///
+/// This is the collector that makes a grant's TTL real on the public feed
+/// rather than in a private timer somewhere. It is also the one collector
+/// whose subject **must never be acted on**: `SubjectKind::SessionGrant` is
+/// not renewable, so the ladder narrates a grant's last hours and the
+/// responder table has nothing to answer it with.
+///
+/// Revoked grants are already excluded by the query. A revoked grant has no
+/// deadline left worth announcing — it ended when it was revoked, and
+/// re-announcing it as "expiring" would tell subscribers a participant still
+/// has reach they lost.
+async fn session_grants(db: &Db, organization: &str) -> anyhow::Result<Vec<ExpirySubject>> {
+    let grants = db
+        .session_grants_expiring(organization, SESSION_GRANT_SCAN_LIMIT)
+        .await?;
+    Ok(grants
+        .into_iter()
+        .map(|grant| session_grant_subject(&grant, organization))
+        .collect())
+}
+
+/// A grant's deadline, carrying its identity and nothing else.
+///
+/// **`label` is `None`, and that is the security decision in this function.**
+/// Every other subject kind labels itself with something an operator would
+/// recognise — a common name, a store path, a provider. A session grant's
+/// equivalent would be the vault or the row it reaches, and ADR 0079 §2 puts
+/// item labels on the list of things that must never cross a session surface:
+/// a hook payload reading "expiring: AWS root credentials" tells every
+/// subscriber what a participant was holding, including subscribers granted a
+/// different row entirely. The grant id is enough to look it up with authority
+/// the feed does not carry.
+///
+/// `auto_respond` is `false` as well as the kind being non-renewable. Belt and
+/// braces on purpose: the kind is what actually refuses, and this is what a
+/// reader of a stored subject sees.
+fn session_grant_subject(grant: &SessionGrant, organization: &str) -> ExpirySubject {
+    ExpirySubject {
+        kind: SubjectKind::SessionGrant,
+        subject_id: grant.id.to_string(),
+        organization_id: organization.to_string(),
+        expires_at: grant.expires_at,
+        renew_before_seconds: Some(SESSION_GRANT_RENEW_BEFORE_SECONDS),
+        auto_respond: false,
+        // Somebody whose access lapses in an hour is exactly who the alert
+        // ladder exists for. Refusing to *act* is not refusing to *tell*.
+        alerting: true,
+        label: None,
+    }
 }
 
 /// Rotation policies, as schedules rather than deadlines.
@@ -543,6 +622,83 @@ mod tests {
         assert_eq!(merged.len(), 1, "one subject per target: {merged:?}");
         assert!(!merged[0].alerting, "the policy's schedule wins");
         assert_eq!(merged[0].label.as_deref(), Some("pol:1"));
+    }
+
+    fn grant(expires_at: &str) -> SessionGrant {
+        let granted_at: DateTime<Utc> = "2026-08-30T00:00:00Z".parse().unwrap();
+        SessionGrant::new(opensesame_domain::NewSessionGrant {
+            id: opensesame_domain::SessionGrantId::new(),
+            session_id: opensesame_domain::SessionId::new(),
+            subject_principal_id: opensesame_domain::PrincipalId::new(),
+            granted_by_principal_id: opensesame_domain::PrincipalId::new(),
+            scope: opensesame_domain::GrantScope::Collection {
+                vault_id: opensesame_domain::VaultId::new(),
+            },
+            role: opensesame_domain::SessionRole::Read,
+            granted_at,
+            expires_at: expires_at.parse().unwrap(),
+        })
+        .expect("a grant inside the bounds")
+    }
+
+    #[test]
+    fn a_session_grant_subject_carries_no_label() {
+        // The one that matters. Every other kind labels itself with something
+        // an operator recognises; a grant's equivalent would name the vault or
+        // the row, which ADR 0079 forbids on a session surface. A future
+        // change that "improves" this by adding a label leaks it to every
+        // subscriber, including one granted a different row.
+        let subject = session_grant_subject(&grant("2026-09-02T00:00:00Z"), "org:1");
+        assert_eq!(subject.label, None);
+    }
+
+    #[test]
+    fn a_session_grant_subject_names_the_grant_and_nothing_underneath_it() {
+        let live = grant("2026-09-02T00:00:00Z");
+        let subject = session_grant_subject(&live, "org:1");
+        assert_eq!(subject.subject_id, live.id.to_string());
+        assert_eq!(subject.organization_id, "org:1");
+        assert_eq!(subject.expires_at, live.expires_at);
+
+        // Nothing serialized from the subject may name the vault: the scope is
+        // the operator's business, not the feed's.
+        let vault = match &live.scope {
+            opensesame_domain::GrantScope::Collection { vault_id }
+            | opensesame_domain::GrantScope::Rows { vault_id, .. } => vault_id.to_string(),
+        };
+        let json = serde_json::to_string(&subject).unwrap();
+        assert!(
+            !json.contains(&vault),
+            "a grant's lifecycle subject named the vault it reaches"
+        );
+    }
+
+    #[test]
+    fn a_session_grant_alerts_but_can_never_be_acted_on() {
+        let subject = session_grant_subject(&grant("2026-09-02T00:00:00Z"), "org:1");
+        // Told, always.
+        assert!(subject.alerting, "a lapsing grant must still narrate");
+        // Acted on, never — by the kind, which is what actually refuses, and
+        // by the flag, which is what a reader of the stored row sees.
+        assert!(!subject.kind.renewable());
+        assert!(!subject.auto_respond);
+        for stage in opensesame_lifecycle::ExpiryStage::ALL {
+            let event =
+                opensesame_lifecycle::LifecycleEvent::for_stage(subject.clone(), stage, Utc::now());
+            assert!(
+                !opensesame_lifecycle::should_respond(&event),
+                "the platform offered to act on a session grant at {stage:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_grant_subject_does_not_collide_with_a_certificate_of_the_same_id() {
+        let live = grant("2026-09-02T00:00:00Z");
+        let mut twin = session_grant_subject(&live, "org:1");
+        twin.kind = SubjectKind::Certificate;
+        let merged = dedupe(vec![session_grant_subject(&live, "org:1"), twin]);
+        assert_eq!(merged.len(), 2);
     }
 
     #[test]

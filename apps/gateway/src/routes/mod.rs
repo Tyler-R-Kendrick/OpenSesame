@@ -25,7 +25,9 @@ mod receipts;
 mod relay;
 mod rotation;
 mod secret_configs;
+mod security;
 mod session;
+mod shared_sessions;
 mod sync;
 mod sync_blobs;
 mod sync_targets;
@@ -301,6 +303,35 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/delegations/{id}", delete(delegations::revoke))
         .route("/api/v1/delegations/{id}/narrow", post(delegations::narrow))
+        .route(
+            "/api/v1/shared-sessions",
+            get(shared_sessions::discover).post(shared_sessions::open),
+        )
+        .route("/api/v1/shared-sessions/{id}", get(shared_sessions::detail))
+        .route(
+            "/api/v1/shared-sessions/{id}/activity",
+            post(shared_sessions::announce_activity),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/events",
+            get(shared_sessions::events),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/grants",
+            post(shared_sessions::grant),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/grants/{grant_id}",
+            delete(shared_sessions::revoke),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/join-requests",
+            get(shared_sessions::list_join_requests).post(shared_sessions::ask_to_join),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/join-requests/{request_id}/decide",
+            post(shared_sessions::decide_join_request),
+        )
         // ADR 0046: relayed execution — dual-RPC tier. The holder's runtime
         // heartbeats, drains, decides, and reports; the delegate submits and
         // polls. Admission rules run at submit and at result.
@@ -417,6 +448,27 @@ pub fn router(state: AppState) -> Router {
             get(lifecycle::list_deliveries),
         )
         .route("/api/v1/lifecycle/scan", post(lifecycle::scan))
+        // ADR 0080: the same subscription surface, under the name that now
+        // describes what it carries. The `/lifecycle/hooks` paths above stay
+        // as they are — they are a published contract with registered
+        // subscribers behind them, and breaking one to tidy a URL would be a
+        // poor trade.
+        .route(
+            "/api/v1/security/hooks",
+            get(lifecycle::list_hooks).put(lifecycle::put_hook),
+        )
+        .route(
+            "/api/v1/security/hooks/{id}",
+            delete(lifecycle::delete_hook),
+        )
+        .route(
+            "/api/v1/security/deliveries",
+            get(lifecycle::list_deliveries),
+        )
+        // ADR 0080: breach exposure.
+        .route("/api/v1/security/findings", get(security::list_findings))
+        .route("/api/v1/security/breach-scan", post(security::scan))
+        .route("/api/v1/security/breach-check", post(security::check))
         // WP-9: durable rotation policies (owner/admin configuration surface).
         .route(
             "/api/v1/rotation/policies",

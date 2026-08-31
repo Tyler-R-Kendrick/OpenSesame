@@ -265,8 +265,10 @@ fn pact_migrations_are_append_only_and_end_with_0019() {
             "0016_certificate_manager",
             "0017_lifecycle_hooks",
             "0018_rotation_leases",
-            "0019_web_login_observation",
+            "0019_shared_sessions",
+            "0020_security_events",
+            "0021_web_login_observation",
         ]
     );
-    assert_eq!(versions.last().copied(), Some("0019_web_login_observation"));
+    assert_eq!(versions.last().copied(), Some("0021_web_login_observation"));
 }

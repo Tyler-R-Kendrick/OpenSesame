@@ -167,8 +167,10 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes `pass` sealed-store verbs |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
 | `crates/lifecycle` | Expiry ladder, subjects, and frozen hook event names — pure, value-blind (ADR 0074) |
+| `crates/security-events` | Shared security-event envelope, severity ladder, and Alertmanager v2 / `PagerDuty` v2 / RFC 5424 renderers — pure, no I/O (ADR 0080) |
+| `crates/breach-intel` | Value-blind breach detection: Pwned Passwords k-anonymity, public breach-catalogue matching, frozen `breach.*` events (ADR 0080) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
-| `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0078) |
+| `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
@@ -221,7 +223,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0078).
+  0001–0081).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -230,6 +232,17 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   `lifecycle.*` hook feed — never by a subsystem's own private due-check.
   `OpenSesame`'s own rotation subscribes to that feed, so a break in it breaks
   our rotations too ([ADR 0074](docs/adr/0074-expiry-lifecycle-hooks.md)).
+- Every security fact — an expiry, a breached password, a provider disclosure —
+  becomes a `SecurityNotice` and publishes through `security::dispatch`. A
+  detector never gets its own notification path: it converts into the shared
+  envelope and inherits the subscriptions, the delivery ledger, the built-in
+  notifier and alerter, and every industry-standard sink
+  ([ADR 0080](docs/adr/0080-security-event-hooks.md)).
+- Breach checks disclose nothing about a tenant: passwords go through the Pwned
+  Passwords range API's k-anonymity (five hex characters of a SHA-1 leave the
+  host), and provider checks fetch the public catalogue whole and match
+  locally. The breached-account API is deliberately unused — it would mean
+  disclosing addresses held on somebody else's behalf (ADR 0080 §5).
 - A certificate is renewed unattended only when the host holds its key
   (`managed_certificate_keys`); one whose key went to its requester reports
   `not_in_custody` rather than minting a key with no recipient. Custody is opt-in

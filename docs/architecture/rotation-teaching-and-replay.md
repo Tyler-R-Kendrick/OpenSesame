@@ -76,7 +76,7 @@ as a scrubbable timeline where each agent action sits beside the page state it
 acted on.
 
 Replay and the live view are the same reader over the same log: replay seeks,
-live tails (ADR 0078 §1). There is no separate low-latency capture path, because
+live tails (ADR 0081 §1). There is no separate low-latency capture path, because
 a second path is where a redaction step gets skipped.
 
 What it shows per step:
@@ -101,7 +101,7 @@ what was done on their behalf.
 The user attaches interactively to the **same sandbox instance** — view and
 control — rather than demonstrating in their own browser. Who may attach, how
 control changes hands, and why a lease that expires parks the run instead of
-returning it to the agent are [ADR 0078](../adr/0078-live-session-observation.md)'s
+returning it to the agent are [ADR 0081](../adr/0081-live-session-observation.md)'s
 subject; a demonstration is one use of a channel that is open for the whole run.
 
 This is a requirement, not a convenience. The agent will replay in that

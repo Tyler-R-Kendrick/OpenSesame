@@ -14,7 +14,6 @@ Object.assign(kvSeams, {
 
 import {
   SETUP_KEY,
-  SETUP_STEPS,
   brokeredSignInReady,
   completeSetup,
   loadSetup,
@@ -34,33 +33,38 @@ beforeEach(() => {
 
 describe("the setup record", () => {
   it("round-trips what the operator answered", async () => {
-    await completeSetup({
-      identity: "byo",
-      provider: "workos",
-      host: true,
-      machine: false,
-    });
+    await completeSetup({ ways: ["builtin", "google", "okta"], service: true });
 
     const record = loadSetup();
     expect(record).not.toBeNull();
-    expect(record?.identity).toBe("byo");
-    expect(record?.provider).toBe("workos");
-    expect(record?.host).toBe(true);
-    expect(record?.machine).toBe(false);
+    expect(record?.ways).toEqual(["builtin", "google", "okta"]);
+    expect(record?.service).toBe(true);
     expect(Number.isNaN(Date.parse(record?.completedAt ?? ""))).toBe(false);
   });
 
   it("stores no endpoint of its own", async () => {
-    await completeSetup({
-      identity: "brokered",
-      provider: "",
-      host: true,
-      machine: true,
-    });
+    await completeSetup({ ways: ["builtin"], service: true });
 
-    // Addresses belong to settings.v1. A second copy here would be a second
-    // source of truth for what this app talks to.
+    // Addresses belong to settings.v1 — the issuer, the client id, every
+    // endpoint. A second copy here would be a second source of truth for what
+    // this app talks to.
     expect(store.get(SETUP_KEY)).not.toMatch(/http/);
+  });
+
+  it("records every way in, not just one", async () => {
+    // A deployment is rarely one provider: Google for most people, an org's
+    // own IdP for staff. The readout used to say `Identity service — not set`
+    // for a deployment signing people in against Okta, because "identity
+    // service" meant "an OpenSesame control plane" (ADR 0078).
+    await completeSetup({ ways: ["google", "okta", "oidc"], service: false });
+    expect(loadSetup()?.ways).toEqual(["google", "okta", "oidc"]);
+  });
+
+  it("records a deployment with no accounts as a decision", async () => {
+    await completeSetup({ ways: [], service: false });
+    const record = loadSetup();
+    expect(record?.ways).toEqual([]);
+    expect(record?.service).toBe(false);
   });
 
   it("reads a corrupt or truncated record as no record", () => {
@@ -70,17 +74,48 @@ describe("the setup record", () => {
     }
   });
 
-  it("reads an unknown or absent choice as the zero-config road", () => {
+  it("reads a record that says nothing as a record all the same", () => {
     store.set(
       SETUP_KEY,
       JSON.stringify({ completedAt: "2026-08-31T00:00:00Z" }),
     );
     const record = loadSetup();
-    // "brokered" is the answer that needs nothing configured, so it is the
-    // safe reading of a record that does not say.
-    expect(record?.identity).toBe("brokered");
-    expect(record?.provider).toBe("");
-    expect(record?.host).toBe(false);
+    // Somebody has been here; the ceremony must not run again at them.
+    expect(record).not.toBeNull();
+    expect(record?.ways).toEqual([]);
+    expect(record?.service).toBe(false);
+  });
+
+  it("reads a record from an earlier ceremony without its dead fields", () => {
+    // Records written before ADR 0078 carry `identity`, `provider`, `host` and
+    // `machine`. None of those is asked any more; the old record still
+    // identifies an operator who has been here, which is all it was ever read
+    // for.
+    store.set(
+      SETUP_KEY,
+      JSON.stringify({
+        completedAt: "2026-08-31T00:00:00Z",
+        identity: "byo",
+        provider: "workos",
+        host: true,
+        machine: true,
+      }),
+    );
+    const record = loadSetup();
+    expect(record).not.toBeNull();
+    expect(record).not.toHaveProperty("identity");
+    expect(record).not.toHaveProperty("host");
+  });
+
+  it("drops list entries that are not provider ids", () => {
+    store.set(
+      SETUP_KEY,
+      JSON.stringify({
+        completedAt: "2026-08-31T00:00:00Z",
+        ways: ["google", "", 7, null, "okta"],
+      }),
+    );
+    expect(loadSetup()?.ways).toEqual(["google", "okta"]);
   });
 });
 
@@ -92,12 +127,7 @@ describe("setupRequired", () => {
   });
 
   it("is false once the ceremony has been answered", async () => {
-    await completeSetup({
-      identity: "none",
-      provider: "",
-      host: false,
-      machine: false,
-    });
+    await completeSetup({ ways: [], service: false });
     expect(setupRequired(fresh)).toBe(false);
   });
 
@@ -161,14 +191,5 @@ describe("brokeredSignInReady", () => {
   it("is false only if a build shipped without one", () => {
     setupSeams.defaultUpstreamIssuer = () => "";
     expect(brokeredSignInReady()).toBe(false);
-  });
-});
-
-describe("SETUP_STEPS", () => {
-  it("asks sign-in first and nothing else that is required", () => {
-    // It was four steps, three of which asked for self-hosted addresses most
-    // deployments do not have. Sign-in is the only question with a wrong
-    // answer, so it leads and everything else folds behind it.
-    expect(SETUP_STEPS).toEqual(["signin", "more"]);
   });
 });

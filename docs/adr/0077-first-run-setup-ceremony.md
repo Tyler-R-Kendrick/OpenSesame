@@ -1,6 +1,7 @@
 # ADR 0077 — First-run setup: the anonymous visitor is the operator
 
-Status: Accepted
+Status: Accepted — §2, §3 and §6's stepper superseded by
+ADR 0078 ([an external IdP is the identity service](0078-external-idp-is-the-identity-service.md))
 Date: 2026-08-31
 Supplements: ADR 0017 ([host/client product topology](0017-host-client-product-topology.md)),
 ADR 0033 ([federated identity admission](0033-federated-identity-admission.md)),

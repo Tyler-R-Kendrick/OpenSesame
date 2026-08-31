@@ -1,0 +1,142 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px">
+  <div class="setup__bar">
+    <span class="setup__wordmark">
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
+        <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
+      </svg>
+      opensesame
+    </span>
+  </div>
+
+  <div class="setup__body">
+    <div class="setup__head">
+      <h1>Who is in this session</h1>
+      <p>Everyone here, what each one can reach, and how long it lasts. Presence is not permission — a person in the room with no grant sees nothing.</p>
+    </div>
+
+    <div style="display: grid; gap: 1.1rem">
+      <div style="display: grid; gap: 0.55rem">
+        <p class="band">Waiting to be let in <span class="band__count">2</span></p>
+        <div class="who">
+          <div class="who__item">
+            <span class="who__face">JR</span>
+            <span class="who__body">
+              <span class="who__name">Jordan Reyes</span>
+              <span class="who__scope">jordan@acme.com · asked 4 min ago</span>
+              <span class="who__scope">"covering the incident tonight"</span>
+            </span>
+            <span style="display: flex; gap: 0.3rem; flex: none">
+              <button type="button" class="icon-btn" aria-label="Refuse Jordan Reyes">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+              </button>
+              <button type="button" class="btn btn--sm">Let in…</button>
+            </span>
+          </div>
+          <div class="who__item">
+            <span class="who__face">?</span>
+            <span class="who__body">
+              <span class="who__name">Unknown account</span>
+              <span class="who__scope">signed in with Okta · no prior grant here</span>
+            </span>
+            <span style="display: flex; gap: 0.3rem; flex: none">
+              <button type="button" class="icon-btn" aria-label="Refuse this request">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+              </button>
+              <button type="button" class="btn btn--sm">Let in…</button>
+            </span>
+          </div>
+        </div>
+        <p class="hint">A request is not a connection. Until you let someone in they get no channel, no participant list, and no way to reach anyone else here.</p>
+      </div>
+
+      <div style="display: grid; gap: 0.55rem">
+        <p class="band">Participants <span class="band__count">4</span></p>
+        <div class="who">
+          <div class="who__item">
+            <span class="who__face">TK</span>
+            <span class="who__body">
+              <span class="who__name">You</span>
+              <span class="who__scope">the whole vault · owner</span>
+              <span class="who__tags">
+                <span class="chip chip--accent">operator</span>
+              </span>
+            </span>
+          </div>
+
+          <div class="who__item">
+            <span class="who__face">MK</span>
+            <span class="who__body">
+              <span class="who__name">Mara Kelling</span>
+              <span class="who__scope">2 rows · prod deploy key, Grafana admin</span>
+              <span class="who__tags">
+                <span class="chip">read</span>
+                <span class="ttl">7h 12m left</span>
+              </span>
+            </span>
+            <button type="button" class="icon-btn" aria-label="Withdraw Mara Kelling's grant">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+            </button>
+          </div>
+
+          <div class="who__item">
+            <span class="who__face">DV</span>
+            <span class="who__body">
+              <span class="who__name">On-call, Platform</span>
+              <span class="who__scope">the whole vault · 4 people</span>
+              <span class="who__tags">
+                <span class="chip">read and write</span>
+                <span class="ttl ttl--soon">18m left</span>
+              </span>
+            </span>
+            <button type="button" class="icon-btn" aria-label="Withdraw the on-call team's grant">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+            </button>
+          </div>
+
+          <div class="who__item">
+            <span class="who__face">SB</span>
+            <span class="who__body">
+              <span class="who__name">Sam Brooke</span>
+              <span class="who__scope">1 row · *.acme.com certificate</span>
+              <span class="who__tags">
+                <span class="chip">read</span>
+                <span class="ttl ttl--none">no expiry</span>
+              </span>
+            </span>
+            <button type="button" class="icon-btn" aria-label="Withdraw Sam Brooke's grant">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- The honest half of revocation, on the screen where people revoke. -->
+      <div class="note">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 16.2v-4.7M12 8h.01"></path></svg>
+        <span>Withdrawing a grant stops new reads at once. It does not un-read what was already opened: to make future versions unreadable, the item is re-keyed on its next change — a whole vault re-keys every item, which takes a while.</span>
+      </div>
+
+      <p class="hint">Grants expire on their own. Each one is on the same lifecycle feed as certificates and rotations, so the warnings — a week, a day, an hour, expired — arrive on your webhooks without this page being open.</p>
+    </div>
+  </div>
+
+  <div class="setup__foot">
+    <div class="go-row">
+      <button type="button" class="go" aria-label="Share with someone else" title="Share with someone else">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5.5v13M5.5 12h13"></path>
+        </svg>
+      </button>
+      <span class="go-verb" aria-hidden="true">Share with someone else</span>
+    </div>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>
