@@ -405,4 +405,187 @@ mod tests {
         let other = serde_json::to_string(&rows(vault_id, &[b, a])).expect("serializes");
         assert_eq!(one, other);
     }
+    // ——— Share links: two clocks, and the shorter one has to be the link's ———
+
+    fn invite(
+        now: chrono::DateTime<Utc>,
+        link: Duration,
+        access: Duration,
+    ) -> Result<SessionInvite, DomainError> {
+        SessionInvite::new(NewSessionInvite {
+            id: SessionInviteId::new(),
+            session_id: SessionId::new(),
+            invited_by_principal_id: PrincipalId::new(),
+            scope: GrantScope::Collection {
+                vault_id: VaultId::new(),
+            },
+            role: SessionRole::Read,
+            created_at: now,
+            link_expires_at: now + link,
+            grant_expires_at: now + access,
+        })
+    }
+
+    #[test]
+    fn a_link_that_would_outlive_its_access_is_refused_not_shortened() {
+        let now = Utc::now();
+        // Seven days of link over two hours of access: most of the link's life
+        // would be spent standing for something already gone.
+        let refused = invite(now, Duration::days(7), Duration::hours(2));
+        assert!(matches!(
+            refused,
+            Err(DomainError::SessionInviteOutlivesGrant(_))
+        ));
+        // Nothing was quietly clamped into existence instead.
+        assert!(refused.is_err());
+    }
+
+    #[test]
+    fn the_link_must_close_with_time_left_to_use_what_it_opens() {
+        let now = Utc::now();
+        let access = Duration::hours(8);
+        // Exactly coincident is refused: accepting on the last second would
+        // mint a grant that has already lapsed.
+        assert!(invite(now, access, access).is_err());
+        // A hair inside the margin is still refused.
+        assert!(invite(now, access - Duration::seconds(30), access).is_err());
+        // At the margin it stands.
+        assert!(invite(now, access - MIN_GRANT_LIFETIME, access).is_ok());
+    }
+
+    #[test]
+    fn latest_link_expiry_is_the_boundary_a_picker_greys_out_against() {
+        let now = Utc::now();
+        let access_ends = now + Duration::hours(8);
+        let latest = SessionInvite::latest_link_expiry(access_ends);
+        assert_eq!(latest, access_ends - MIN_GRANT_LIFETIME);
+        // Everything at or under it composes; anything past it does not. This
+        // is what makes the dead invite unrepresentable in the UI rather than
+        // refused after the operator has already chosen it.
+        assert!(invite(now, latest - now, Duration::hours(8)).is_ok());
+        assert!(invite(now, latest - now + Duration::seconds(1), Duration::hours(8)).is_err());
+    }
+
+    #[test]
+    fn an_invite_cannot_promise_access_the_grant_rules_would_refuse() {
+        let now = Utc::now();
+        // Over the seven-day ceiling: caught when the invite is made, not when
+        // somebody accepts it and discovers the offer was never real.
+        assert!(matches!(
+            invite(now, Duration::hours(1), Duration::days(30)),
+            Err(DomainError::SessionGrantLifetime(_))
+        ));
+        // And under the floor.
+        assert!(matches!(
+            invite(now, Duration::seconds(5), Duration::seconds(10)),
+            Err(DomainError::SessionGrantLifetime(_))
+        ));
+    }
+
+    #[test]
+    fn a_link_below_the_floor_is_refused() {
+        let now = Utc::now();
+        assert!(matches!(
+            invite(now, Duration::seconds(30), Duration::hours(8)),
+            Err(DomainError::SessionInviteLifetime(_))
+        ));
+    }
+
+    #[test]
+    fn an_invite_to_no_rows_is_refused_like_any_other_empty_scope() {
+        let now = Utc::now();
+        let refused = SessionInvite::new(NewSessionInvite {
+            id: SessionInviteId::new(),
+            session_id: SessionId::new(),
+            invited_by_principal_id: PrincipalId::new(),
+            scope: rows(VaultId::new(), &[]),
+            role: SessionRole::Read,
+            created_at: now,
+            link_expires_at: now + Duration::hours(1),
+            grant_expires_at: now + Duration::hours(8),
+        });
+        assert!(matches!(refused, Err(DomainError::SessionGrantScopeEmpty)));
+    }
+
+    #[test]
+    fn accepting_spends_the_link_and_a_second_presentation_gets_nothing() {
+        let now = Utc::now();
+        let offer = invite(now, Duration::hours(1), Duration::hours(8)).expect("a valid invite");
+        let taker = PrincipalId::new();
+
+        let (spent, grant) = offer
+            .clone()
+            .accept(SessionGrantId::new(), taker, now)
+            .expect("the first taker gets it");
+        assert_eq!(grant.subject_principal_id, taker);
+        assert_eq!(grant.expires_at, offer.grant_expires_at);
+        assert_eq!(spent.accepted_at, Some(now));
+
+        // Somebody else presenting the same link afterwards gets nothing —
+        // single use, whatever the clock says.
+        assert!(matches!(
+            spent.accept(SessionGrantId::new(), PrincipalId::new(), now),
+            Err(DomainError::SessionInviteClosed(_))
+        ));
+    }
+
+    #[test]
+    fn the_grant_runs_from_acceptance_to_the_deadline_the_operator_named() {
+        // "Until Friday", not "eight hours from whenever you get round to it".
+        let now = Utc::now();
+        let offer = invite(now, Duration::hours(1), Duration::hours(8)).expect("a valid invite");
+        let later = now + Duration::minutes(50);
+        let (_, grant) = offer
+            .clone()
+            .accept(SessionGrantId::new(), PrincipalId::new(), later)
+            .expect("still open at 50 minutes");
+        assert_eq!(grant.granted_at, later);
+        assert_eq!(grant.expires_at, offer.grant_expires_at);
+        // And it is worth having: the margin guaranteed at construction is
+        // what makes this true at every instant the link was still open.
+        assert!(grant.assert_active(later).is_ok());
+    }
+
+    #[test]
+    fn a_lapsed_link_mints_nothing_even_though_the_access_has_time_left() {
+        let now = Utc::now();
+        let offer = invite(now, Duration::hours(1), Duration::hours(8)).expect("a valid invite");
+        let after = now + Duration::hours(2);
+        assert!(matches!(
+            offer.assert_open(after),
+            Err(DomainError::SessionInviteClosed(_))
+        ));
+        assert!(matches!(
+            offer.accept(SessionGrantId::new(), PrincipalId::new(), after),
+            Err(DomainError::SessionInviteClosed(_))
+        ));
+    }
+
+    #[test]
+    fn a_withdrawn_link_is_closed_before_it_lapses() {
+        let now = Utc::now();
+        let offer = invite(now, Duration::hours(1), Duration::hours(8)).expect("a valid invite");
+        let withdrawn = SessionInvite {
+            revoked_at: Some(now),
+            ..offer
+        };
+        assert!(matches!(
+            withdrawn.accept(SessionGrantId::new(), PrincipalId::new(), now),
+            Err(DomainError::SessionInviteClosed(_))
+        ));
+    }
+
+    #[test]
+    fn the_default_link_lifetime_is_a_day_and_fits_inside_the_grant_ceiling() {
+        // The default has to be composable against the *shortest* access an
+        // operator is likely to pair it with, or the fallback itself would be
+        // the thing that fails.
+        assert_eq!(DEFAULT_INVITE_LIFETIME, Duration::hours(24));
+        assert!(DEFAULT_INVITE_LIFETIME < MAX_GRANT_LIFETIME);
+        let now = Utc::now();
+        assert!(invite(now, DEFAULT_INVITE_LIFETIME, Duration::days(7)).is_ok());
+        // Paired with an access shorter than itself, it is refused rather than
+        // silently applied — the caller picks a shorter link.
+        assert!(invite(now, DEFAULT_INVITE_LIFETIME, Duration::hours(2)).is_err());
+    }
 }

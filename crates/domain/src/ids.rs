@@ -97,6 +97,7 @@ opaque_id!(SessionId, "session");
 opaque_id!(SessionGrantId, "sgrant");
 opaque_id!(JoinRequestId, "joinreq");
 opaque_id!(VaultItemId, "item");
+opaque_id!(SessionInviteId, "sinvite");
 
 /// Stable profile IDs derived from slug strings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
