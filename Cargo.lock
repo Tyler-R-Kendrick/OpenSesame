@@ -4181,6 +4181,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-session-observe"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "opensesame-storage"
 version = "0.1.0"
 dependencies = [

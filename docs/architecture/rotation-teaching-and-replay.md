@@ -6,6 +6,7 @@ failure turns into a deterministic recipe instead of a dead end.
 Decision record: [ADR 0076 §4](../adr/0076-autonomous-web-login-rotation.md).
 Overall flow: [web-login rotation](web-login-rotation.md).
 Output format: [rotation recipe schema](rotation-recipe-schema.md).
+While it runs: [live session observation](live-session-observation.md).
 
 ## Why this exists
 
@@ -74,6 +75,10 @@ Every run is recorded, not only failing ones. The overlay renders the recording
 as a scrubbable timeline where each agent action sits beside the page state it
 acted on.
 
+Replay and the live view are the same reader over the same log: replay seeks,
+live tails (ADR 0081 §1). There is no separate low-latency capture path, because
+a second path is where a redaction step gets skipped.
+
 What it shows per step:
 
 - the action the agent took, and the tool it called
@@ -94,7 +99,10 @@ what was done on their behalf.
 ## Demonstration happens in the sandbox
 
 The user attaches interactively to the **same sandbox instance** — view and
-control — rather than demonstrating in their own browser.
+control — rather than demonstrating in their own browser. Who may attach, how
+control changes hands, and why a lease that expires parks the run instead of
+returning it to the agent are [ADR 0081](../adr/0081-live-session-observation.md)'s
+subject; a demonstration is one use of a channel that is open for the whole run.
 
 This is a requirement, not a convenience. The agent will replay in that
 environment. A demonstration recorded against a different browser, a different

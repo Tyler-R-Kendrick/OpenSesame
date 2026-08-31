@@ -1,0 +1,13 @@
+[package]
+name = "opensesame-session-observe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Value-blind live session observation and control handoff"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(kani)'] }
