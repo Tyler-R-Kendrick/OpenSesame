@@ -316,7 +316,7 @@ fn classify(status: reqwest::StatusCode) -> Result<(), Failure> {
     }
 }
 
-/// Hand one agent event to an A2H gateway as an intent (ADR 0078, A2H v1.0).
+/// Hand one agent event to an A2H gateway as an intent (ADR 0081, A2H v1.0).
 ///
 /// Three things make this different from the Standard Webhooks path above, and
 /// each is load-bearing:
@@ -346,17 +346,28 @@ async fn send_a2h(
         .ok_or_else(|| Failure::Permanent("a2h hook has no gateway URL".into()))?;
     assert_deliverable(endpoint).map_err(Failure::Permanent)?;
 
-    let payload: serde_json::Value = serde_json::from_str(&delivery.payload_json)
-        .map_err(|error| Failure::Permanent(format!("payload is not JSON: {error}")))?;
-    let Some(event) = opensesame_agent_events::AgentEvent::from_payload(&payload) else {
-        // Only agent.* events map to intents; a lifecycle event queued against
-        // an a2h hook has nowhere to go and repeating it cannot change that.
+    // The ledger stores the shared envelope (ADR 0080 §1), so the agent
+    // family's own payload is one field in. Reading the row as a bare agent
+    // payload is how every a2h delivery dead-letters with "carries no agent
+    // event" while looking like a subscriber problem.
+    let queued = sinks::decode(&delivery.payload_json);
+    let sinks::Queued::Notice(notice) = &queued else {
+        // The a2h sink did not exist before migration 0020, so a legacy row
+        // bound for one is a genuine inconsistency, not an upgrade artifact.
         return Err(Failure::Permanent(
-            "a2h delivery carries no agent event".into(),
+            "a delivery queued before migration 0020 cannot be sent as an a2h intent".into(),
         ));
     };
-    let Some(_) = opensesame_a2h::intent_for(event.phase) else {
-        return Ok(());
+    let Some(event) = opensesame_agent_events::AgentEvent::from_payload(&notice.payload) else {
+        // Only an agent run names the person to reach; a lifecycle or breach
+        // notice queued against an a2h hook has nobody to address, and
+        // repeating it cannot change that. Registration refuses the same shape
+        // up front, so reaching here means a hook was narrowed after rows were
+        // queued.
+        return Err(Failure::Permanent(format!(
+            "an a2h delivery needs somebody to reach, and \"{}\" names no run owner",
+            notice.event_type,
+        )));
     };
 
     let secret = open_secret(state, hook)?
@@ -384,8 +395,7 @@ async fn send_a2h(
         &delivery.id,
         // The ledger row's id, so an at-least-once retry is one message.
         &delivery.id,
-    )
-    .ok_or_else(|| Failure::Permanent("event does not map to an intent".into()))?;
+    );
     let body = serde_json::to_string(&message)
         .map_err(|error| Failure::Permanent(format!("intent could not be encoded: {error}")))?;
 

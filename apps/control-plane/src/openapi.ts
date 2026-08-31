@@ -1315,6 +1315,225 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           },
         },
       },
+      "/v1/authorization-requests/{id}/requirement": {
+        get: {
+          summary: "What this request will take to settle (ADR 0084)",
+          description:
+            "Reason codes and policy digest, so an approval screen can say why an authenticator is being asked for. Approver only; anyone else gets 404.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Approval requirement" },
+            "404": { description: "Not the caller's request" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/authorization-requests/{id}/activation": {
+        post: {
+          summary: "Mint a WebAuthn ceremony bound to one approval transaction",
+          description:
+            "The challenge is bound to a digest over the request, the decision and the effective policy, so it cannot be spent on another request, the other decision, or under a policy that has since been tightened.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "201": { description: "Activation and request options" },
+            "409": { description: "The request changed since it was shown" },
+            "422": { description: "The request is no longer pending" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/authorization-requests/{id}/activation/complete": {
+        post: {
+          summary: "Verify the assertion and activate the ceremony",
+          description:
+            "Verification only: the activation is spent by the settlement that follows, as a compare-and-set on the stored row.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Activated" },
+            // The assertion, the challenge binding and an absent session all
+            // answer 401: which one it was is not the caller's to learn.
+            "401": { description: "Assertion or challenge binding refused" },
+            "404": { description: "No such activation for this caller" },
+            "410": { description: "Activation expired" },
+          },
+        },
+      },
+      "/v1/authorization-requests/{id}/comparison": {
+        get: {
+          summary: "Issue the comparison value to the requesting surface",
+          description:
+            "Server-generated, returned exactly once, stored only as a digest, and never sent to the approver or to any notification body.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "The six-digit value" },
+            "409": { description: "Already issued, or the request is settled" },
+            "404": { description: "Not the caller's request" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/authorization-requests/{id}/report": {
+        post: {
+          summary: "Report a prompt the approver does not recognize",
+          description:
+            "Refuses the request and raises a security event. Grants nothing, and deliberately publishes no notification: a report must not become an amplifier.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Refused" },
+            "409": { description: "Digest mismatch" },
+            "404": { description: "Not the caller's request" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/authorization-requests/{id}/receipt": {
+        get: {
+          summary: "The approval receipt: required vs achieved assurance",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Receipt" },
+            "404": { description: "No receipt the caller may read" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-channels": {
+        get: {
+          summary: "Channel capabilities, and whether an adapter is configured",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Capability catalogue" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-channels/bindings": {
+        get: {
+          summary: "The caller's destinations, without provider subject ids",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Bindings" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+        post: {
+          summary: "Begin a binding ceremony (nonce returned once)",
+          description:
+            "Security-sensitive: adding a destination changes where approval prompts appear, so it requires a recent authentication and is audited.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "201": { description: "Challenge and one-time nonce" },
+            "403": { description: "Step-up required" },
+            "409": { description: "Destination already bound" },
+            "422": { description: "Channel needs no binding, or no adapter" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-channels/bindings/complete": {
+        post: {
+          summary: "Complete a binding ceremony",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "201": { description: "Binding active" },
+            "401": { description: "Nonce mismatch, or no session" },
+            "403": { description: "Provider verification required" },
+            "429": { description: "Attempt budget spent" },
+          },
+        },
+      },
+      "/v1/notification-channels/bindings/{id}": {
+        delete: {
+          summary: "Revoke a destination",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Revoked" },
+            "403": { description: "Step-up required" },
+            "404": { description: "Not the caller's binding" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-channels/push/key": {
+        get: {
+          summary: "The VAPID application server public key",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Public key" },
+            "404": { description: "Web Push is not configured here" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-channels/push/subscriptions": {
+        post: {
+          summary: "Register a Web Push subscription",
+          description:
+            "The endpoint is a capability URL: it is stored, and never returned, logged, or written to audit metadata.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "201": { description: "Subscription id and device label" },
+            "400": { description: "Invalid subscription" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-channels/push/subscriptions/{id}": {
+        delete: {
+          summary: "Remove a Web Push subscription",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "204": { description: "Removed" },
+            "404": { description: "Not the caller's subscription" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-preferences": {
+        get: {
+          summary: "Where the caller prefers to be interrupted",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Preferences by notification class" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+        put: {
+          summary: "Record a preference",
+          description:
+            "Stores the wish only. The intersection with policy, live bindings and configured adapters happens at routing time, so nothing here can widen what an operator allows.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Stored" },
+            "400": { description: "Invalid preference" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-preferences/effective": {
+        get: {
+          summary:
+            "The route a prompt would actually take, and what was dropped",
+          description:
+            "Includes the exclusion reason for every channel that did not survive the intersection, so a settings screen can be honest about unconfigured adapters and missing bindings.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          responses: {
+            "200": { description: "Effective route plan" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/notification-callbacks/{provider}": {
+        post: {
+          summary: "A provider callback (unauthenticated by design)",
+          description:
+            "A provider cannot hold a bearer token, so this route is defended by a chain instead: provenance over the raw request bytes, a stable three-part provider identity resolved to a live binding, a durable replay ledger whose insert is the claim, and the same approval evaluator the in-app ceremony uses. Every outcome returns the same acknowledgement, so the route never reveals whether a request exists.",
+          responses: {
+            "200": { description: "Acknowledged; reveals nothing further" },
+            "429": { description: "Rate limited" },
+          },
+        },
+      },
     },
     components: {
       schemas: {

@@ -6,6 +6,7 @@ import {
   createSimpleWebAuthnVerifyFn,
   issueAuthenticationChallenge,
   issueRegistrationChallenge,
+  issueTransactionChallenge,
   verifyRegistrationAttestation,
 } from "../webauthn.js";
 
@@ -160,5 +161,68 @@ describe("webauthn challenge store", () => {
       signature: new Uint8Array([1]),
     };
     await expect(verify(assertion, credential)).resolves.toBe(false);
+  });
+});
+
+describe("transaction-bound challenges", () => {
+  const rp = { rpID: "localhost", origin: "http://localhost:8788" };
+
+  it("binds a challenge to one approval transaction", async () => {
+    const store = createMemoryChallengeStore();
+    const { challenge, options } = await issueTransactionChallenge(store, rp, {
+      principalId: "prn_alice",
+      transactionDigest: "v1:abc",
+    });
+    expect(options.challenge).toBe(challenge);
+    // Required, not preferred: an approval that only proved possession of a
+    // device is one factor wearing two factors' name.
+    expect(options.userVerification).toBe("required");
+
+    const peeked = store.peek(challenge);
+    expect(peeked?.purpose).toBe("transaction");
+    expect(peeked?.transactionDigest).toBe("v1:abc");
+    expect(peeked?.principalId).toBe("prn_alice");
+    // Peeking must not spend it: the caller checks what the challenge was
+    // minted for, and the verifier that consumes it runs afterwards.
+    expect(store.consume(challenge)?.transactionDigest).toBe("v1:abc");
+    expect(store.consume(challenge)).toBeUndefined();
+  });
+
+  it("hides an expired challenge from a reader as well as from a consumer", () => {
+    const store = createMemoryChallengeStore();
+    store.set("lapsed", {
+      principalId: "prn_alice",
+      purpose: "transaction",
+      transactionDigest: "v1:abc",
+      expiresAt: Date.now() - 1,
+    });
+    // A peek that answered "valid" for something `consume` would refuse would
+    // be a check that passes and a ceremony that then fails.
+    expect(store.peek("lapsed")).toBeUndefined();
+  });
+
+  it("keeps a registration challenge unusable as an assertion", async () => {
+    // The purposes are not interchangeable in the direction that matters: an
+    // enrolment ceremony must never stand in for proving presence.
+    const store = createMemoryChallengeStore();
+    const { challenge } = await issueRegistrationChallenge(store, rp, {
+      principalId: "prn_alice",
+    });
+    const verify = createSimpleWebAuthnVerifyFn(rp, store);
+    const assertion: PasskeyAssertion = {
+      credentialId: "cred_1",
+      clientDataJSON: new TextEncoder().encode(
+        JSON.stringify({ type: "webauthn.get", challenge }),
+      ),
+      authenticatorData: new Uint8Array([1]),
+      signature: new Uint8Array([1]),
+    };
+    const credential: PasskeyCredential = {
+      credentialId: "cred_1",
+      publicKey: new Uint8Array([1]),
+      counter: 0,
+      principalId: "prn_alice",
+    };
+    expect(await verify(assertion, credential)).toBe(false);
   });
 });

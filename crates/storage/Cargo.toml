@@ -18,6 +18,10 @@ uuid = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]
+# Dev-only, and deliberately one-directional: `opensesame-lifecycle` is a pure
+# vocabulary crate that does no I/O and does not depend on this one, so the
+# watermark schema can be tested against the enum it is supposed to accept.
+opensesame-lifecycle = { path = "../lifecycle" }
 insta = { workspace = true, features = ["redactions", "json"] }
 proptest = { workspace = true }
 futures = { workspace = true }

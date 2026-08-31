@@ -1,4 +1,4 @@
-//! The callback an A2H gateway posts a human's reply to (ADR 0078, A2H v1.0).
+//! The callback an A2H gateway posts a human's reply to (ADR 0081, A2H v1.0).
 //!
 //! Nothing here trusts the caller. The gateway sits between a run and the person
 //! who owns it, so a forged reply is a way to cancel somebody's rotation, and
@@ -120,14 +120,23 @@ pub async fn callback(State(st): State<AppState>, headers: HeaderMap, body: Stri
 
 /// Which intent this delivery carried, so the reply is judged against what was
 /// actually asked.
+///
+/// The ledger stores the shared envelope (ADR 0080 §1), so the agent family's
+/// own payload is one field in.
+///
+/// `Inform` is the fallback rather than an error because it is the *narrow*
+/// reading: `authority_for(Inform, _)` settles nothing, so a payload this
+/// cannot parse can never be read as consent to cancel somebody's run. A reply
+/// that does nothing is recoverable; a cancel nobody asked for is not.
 fn delivery_intent(
     delivery: &opensesame_storage::StoredSecurityDelivery,
 ) -> opensesame_a2h::IntentType {
-    serde_json::from_str::<serde_json::Value>(&delivery.payload_json)
+    serde_json::from_str::<opensesame_security_events::SecurityNotice>(&delivery.payload_json)
         .ok()
-        .and_then(|payload| opensesame_agent_events::AgentEvent::from_payload(&payload))
-        .and_then(|event| opensesame_a2h::intent_for(event.phase))
-        .unwrap_or(opensesame_a2h::IntentType::Inform)
+        .and_then(|notice| opensesame_agent_events::AgentEvent::from_payload(&notice.payload))
+        .map_or(opensesame_a2h::IntentType::Inform, |event| {
+            opensesame_a2h::intent_for(event.phase)
+        })
 }
 
 fn header(headers: &HeaderMap, name: &str) -> Option<String> {

@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
+  type ApprovalActivation,
+  type ApprovalReceipt,
   type AuditEvent,
   type AuthorizationRequest,
   type BetterAuthSubject,
@@ -7,8 +9,12 @@ import {
   type ByoUpstream,
   type ClaimItem,
   type ClaimSession,
+  type ComparisonChallenge,
+  type ExternalChannelBinding,
   type ExternalIdentity,
   type JsonObject,
+  type NotificationDelivery,
+  type NotificationPreferences,
   type Organization,
   type OrganizationMembership,
   type OutboxEvent,
@@ -36,17 +42,26 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
 import * as schema from "../schema/index.js";
 import {
+  type ApprovalActivationRepository,
+  type ApprovalReceiptRepository,
   type AuditEventRepository,
   type AuthorizationRequestRepository,
   type BetterAuthSubjectRepository,
   type ByoUpstreamRepository,
+  type CallbackReplayRepository,
+  type ChannelBindingChallenge,
+  type ChannelBindingChallengeRepository,
+  type ChannelBindingRepository,
   type ClaimItemRepository,
   type ClaimSessionRepository,
+  type ComparisonChallengeRepository,
   ConflictError,
   type EnsurePersonalProjectResult,
   type ExternalIdentityRepository,
   type NewOutboxEvent,
   NotFoundError,
+  type NotificationDeliveryRepository,
+  type NotificationPreferenceRepository,
   OUTBOX_CLAIM_HOLD_MS,
   type OrganizationMembershipStore,
   type OrganizationStore,
@@ -56,6 +71,8 @@ import {
   type ProjectMembershipStore,
   type ProjectStore,
   type ProjectStores,
+  type PushSubscription,
+  type PushSubscriptionRepository,
   type Repositories,
   type TransactionFn,
   type UnitOfWork,
@@ -277,6 +294,180 @@ function mapWebhookDelivery(
     ...(row.deadAt ? { deadAt: row.deadAt } : undefined),
     ...(row.lastError ? { lastError: row.lastError } : undefined),
     createdAt: row.createdAt,
+  };
+}
+
+function mapChannelBinding(
+  row: typeof schema.channelBindings.$inferSelect,
+): ExternalChannelBinding {
+  return {
+    id: row.id,
+    principalId: row.principalId,
+    kind: overlapCast(row.kind),
+    providerId: row.providerId,
+    providerTenantId: row.providerTenantId,
+    providerSubjectId: row.providerSubjectId,
+    ...(row.displayLabel ? { displayLabel: row.displayLabel } : undefined),
+    state: overlapCast(row.state),
+    verification: overlapCast(row.verification),
+    createdAt: row.createdAt,
+    ...(row.verifiedAt ? { verifiedAt: row.verifiedAt } : undefined),
+    ...(row.revokedAt ? { revokedAt: row.revokedAt } : undefined),
+    ...(row.expiresAt ? { expiresAt: row.expiresAt } : undefined),
+    metadata: overlapCast(row.metadata ?? {}),
+    version: row.version,
+  };
+}
+
+function mapBindingChallenge(
+  row: typeof schema.channelBindingChallenges.$inferSelect,
+): ChannelBindingChallenge {
+  return {
+    id: row.id,
+    principalId: row.principalId,
+    kind: overlapCast(row.kind),
+    providerId: row.providerId,
+    nonceDigest: row.nonceDigest,
+    ...(row.expectedTenantId != null
+      ? { expectedTenantId: row.expectedTenantId }
+      : undefined),
+    ...(row.expectedSubjectId != null
+      ? { expectedSubjectId: row.expectedSubjectId }
+      : undefined),
+    attempts: row.attempts,
+    maxAttempts: row.maxAttempts,
+    createdAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    ...(row.completedAt ? { completedAt: row.completedAt } : undefined),
+    version: row.version,
+  };
+}
+
+function mapNotificationPreferences(
+  row: typeof schema.notificationPreferences.$inferSelect,
+): NotificationPreferences {
+  return {
+    principalId: row.principalId,
+    byClass: overlapCast(row.byClass ?? {}),
+    updatedAt: row.updatedAt,
+    version: row.version,
+  };
+}
+
+function mapNotificationDelivery(
+  row: typeof schema.notificationDeliveries.$inferSelect,
+): NotificationDelivery {
+  return {
+    id: row.id,
+    principalId: row.principalId,
+    kind: overlapCast(row.kind),
+    ...(row.bindingId ? { bindingId: row.bindingId } : undefined),
+    ...(row.endpointId ? { endpointId: row.endpointId } : undefined),
+    notificationClass: row.notificationClass,
+    eventType: row.eventType,
+    outboxEventId: row.outboxEventId,
+    ...(row.authReqId ? { authReqId: row.authReqId } : undefined),
+    payload: overlapCast(row.payload ?? {}),
+    confidentiality: overlapCast(row.confidentiality),
+    state: overlapCast(row.state),
+    attempts: row.attempts,
+    nextAttemptAt: row.nextAttemptAt,
+    ...(row.lastError ? { lastError: row.lastError } : undefined),
+    createdAt: row.createdAt,
+    ...(row.deliveredAt ? { deliveredAt: row.deliveredAt } : undefined),
+    ...(row.providerMessageRef
+      ? { providerMessageRef: row.providerMessageRef }
+      : undefined),
+  };
+}
+
+function mapApprovalActivation(
+  row: typeof schema.approvalActivations.$inferSelect,
+): ApprovalActivation {
+  return {
+    id: row.id,
+    authReqId: row.authReqId,
+    principalId: row.principalId,
+    transactionDigest: row.transactionDigest,
+    decision: overlapCast(row.decision),
+    policyDigest: row.policyDigest,
+    channelKind: overlapCast(row.channelKind),
+    challengeDigest: row.challengeDigest,
+    state: overlapCast(row.state),
+    createdAt: row.createdAt,
+    ...(row.activatedAt ? { activatedAt: row.activatedAt } : undefined),
+    ...(row.consumedAt ? { consumedAt: row.consumedAt } : undefined),
+    expiresAt: row.expiresAt,
+    ...(row.trustSessionId
+      ? { trustSessionId: row.trustSessionId }
+      : undefined),
+    ...(row.method ? { method: row.method } : undefined),
+    version: row.version,
+  };
+}
+
+function mapComparisonChallenge(
+  row: typeof schema.comparisonChallenges.$inferSelect,
+): ComparisonChallenge {
+  return {
+    id: row.id,
+    authReqId: row.authReqId,
+    valueDigest: row.valueDigest,
+    attempts: row.attempts,
+    maxAttempts: row.maxAttempts,
+    createdAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    ...(row.satisfiedAt ? { satisfiedAt: row.satisfiedAt } : undefined),
+    version: row.version,
+  };
+}
+
+function mapApprovalReceipt(
+  row: typeof schema.approvalReceipts.$inferSelect,
+): ApprovalReceipt {
+  return {
+    id: row.id,
+    authReqId: row.authReqId,
+    principalId: row.principalId,
+    decision: overlapCast(row.decision),
+    decidedByKind: overlapCast(row.decidedByKind),
+    path: overlapCast(row.path),
+    channelKind: overlapCast(row.channelKind),
+    ...(row.bindingId ? { bindingId: row.bindingId } : undefined),
+    requestDigest: row.requestDigest,
+    transactionDigest: row.transactionDigest,
+    policyDigest: row.policyDigest,
+    requiredAssurance: row.requiredAssurance ?? [],
+    achievedAssurance: row.achievedAssurance ?? [],
+    evidenceIds: row.evidenceIds ?? [],
+    ...(row.trustSessionId
+      ? { trustSessionId: row.trustSessionId }
+      : undefined),
+    ...(row.activationId ? { activationId: row.activationId } : undefined),
+    comparisonRequired: row.comparisonRequired,
+    comparisonSatisfied: row.comparisonSatisfied,
+    ...(row.callbackDigest
+      ? { callbackDigest: row.callbackDigest }
+      : undefined),
+    decidedAt: row.decidedAt,
+    receiptVersion: row.receiptVersion,
+  };
+}
+
+function mapPushSubscription(
+  row: typeof schema.pushSubscriptions.$inferSelect,
+): PushSubscription {
+  return {
+    id: row.id,
+    principalId: row.principalId,
+    endpoint: row.endpoint,
+    p256dhKey: row.p256dhKey,
+    authSecret: row.authSecret,
+    endpointDigest: row.endpointDigest,
+    ...(row.deviceLabel ? { deviceLabel: row.deviceLabel } : undefined),
+    createdAt: row.createdAt,
+    ...(row.lastUsedAt ? { lastUsedAt: row.lastUsedAt } : undefined),
+    ...(row.disabledAt ? { disabledAt: row.disabledAt } : undefined),
   };
 }
 
@@ -1228,6 +1419,753 @@ export class PostgresRepositories implements Repositories {
           throw new NotFoundError(`outbox event not found: ${id}`);
         }
       }
+    },
+  };
+
+  readonly channelBindings: ChannelBindingRepository = {
+    create: async (binding, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.channelBindings)
+          .values({
+            id: binding.id,
+            principalId: binding.principalId,
+            kind: binding.kind,
+            providerId: binding.providerId,
+            providerTenantId: binding.providerTenantId,
+            providerSubjectId: binding.providerSubjectId,
+            displayLabel: binding.displayLabel ?? null,
+            state: binding.state,
+            verification: binding.verification,
+            createdAt: binding.createdAt,
+            verifiedAt: binding.verifiedAt ?? null,
+            revokedAt: binding.revokedAt ?? null,
+            expiresAt: binding.expiresAt ?? null,
+            metadata: binding.metadata,
+            version: binding.version,
+          })
+          .returning();
+        if (!row) throw new Error("insert channel binding returned no row");
+        return mapChannelBinding(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
+          throw new ConflictError(
+            "channel binding collision for kind+provider+tenant+subject",
+          );
+        }
+        throw err;
+      }
+    },
+
+    getById: async (id) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.channelBindings)
+        .where(eq(schema.channelBindings.id, id))
+        .limit(1);
+      return row ? mapChannelBinding(row) : null;
+    },
+
+    listForPrincipal: async (principalId) => {
+      const rows = await this.db
+        .select()
+        .from(schema.channelBindings)
+        .where(eq(schema.channelBindings.principalId, principalId))
+        .orderBy(asc(schema.channelBindings.createdAt));
+      return rows.map(mapChannelBinding);
+    },
+
+    findByProviderIdentity: async (
+      kind,
+      providerId,
+      providerTenantId,
+      providerSubjectId,
+    ) => {
+      // Every component of the key, and never an empty subject. Subject ids
+      // are unique within a provider tenant and not across them, so a lookup
+      // on fewer columns lets whoever controls their own workspace mint an
+      // identity that resolves to somebody else's binding. The empty-subject
+      // guard is belt and braces over
+      // `channel_bindings_provider_subject_id_check`, so a caller who sends
+      // nothing at all cannot match even if that constraint were ever dropped.
+      if (providerSubjectId === "") return null;
+      const [row] = await this.db
+        .select()
+        .from(schema.channelBindings)
+        .where(
+          and(
+            eq(schema.channelBindings.kind, kind),
+            eq(schema.channelBindings.providerId, providerId),
+            eq(schema.channelBindings.providerTenantId, providerTenantId),
+            eq(schema.channelBindings.providerSubjectId, providerSubjectId),
+          ),
+        )
+        .limit(1);
+      return row ? mapChannelBinding(row) : null;
+    },
+
+    updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      const [row] = await dbOf(uow, this.db)
+        .update(schema.channelBindings)
+        .set({
+          ...(patch.state !== undefined ? { state: patch.state } : undefined),
+          ...(patch.verifiedAt !== undefined
+            ? { verifiedAt: patch.verifiedAt }
+            : undefined),
+          ...(patch.revokedAt !== undefined
+            ? { revokedAt: patch.revokedAt }
+            : undefined),
+          ...(patch.expiresAt !== undefined
+            ? { expiresAt: patch.expiresAt }
+            : undefined),
+          ...(patch.displayLabel !== undefined
+            ? { displayLabel: patch.displayLabel }
+            : undefined),
+          version: sql`${schema.channelBindings.version} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.channelBindings.id, id),
+            eq(schema.channelBindings.version, expectedVersion),
+          ),
+        )
+        .returning();
+      if (!row) {
+        const [existing] = await dbOf(uow, this.db)
+          .select()
+          .from(schema.channelBindings)
+          .where(eq(schema.channelBindings.id, id))
+          .limit(1);
+        if (!existing) {
+          throw new NotFoundError(`channel binding not found: ${id}`);
+        }
+        throw new ConflictError(
+          `channel binding version conflict: expected ${expectedVersion}, got ${existing.version}`,
+        );
+      }
+      return mapChannelBinding(row);
+    },
+  };
+
+  readonly channelBindingChallenges: ChannelBindingChallengeRepository = {
+    create: async (challenge, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.channelBindingChallenges)
+          .values({
+            id: challenge.id,
+            principalId: challenge.principalId,
+            kind: challenge.kind,
+            providerId: challenge.providerId,
+            nonceDigest: challenge.nonceDigest,
+            expectedTenantId: challenge.expectedTenantId ?? null,
+            expectedSubjectId: challenge.expectedSubjectId ?? null,
+            attempts: challenge.attempts,
+            maxAttempts: challenge.maxAttempts,
+            createdAt: challenge.createdAt,
+            expiresAt: challenge.expiresAt,
+            completedAt: challenge.completedAt ?? null,
+            version: challenge.version,
+          })
+          .returning();
+        if (!row) {
+          throw new Error("insert channel binding challenge returned no row");
+        }
+        return mapBindingChallenge(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
+          throw new ConflictError(
+            `channel binding challenge already exists: ${challenge.id}`,
+          );
+        }
+        throw err;
+      }
+    },
+
+    getById: async (id) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.channelBindingChallenges)
+        .where(eq(schema.channelBindingChallenges.id, id))
+        .limit(1);
+      return row ? mapBindingChallenge(row) : null;
+    },
+
+    consumeAttempt: async (id, now) => {
+      // One statement: the budget is read and spent by the same predicate, so
+      // a second replica cannot observe it mid-flight and hand out a guess the
+      // ledger never counted.
+      const [row] = await this.db
+        .update(schema.channelBindingChallenges)
+        .set({
+          attempts: sql`${schema.channelBindingChallenges.attempts} + 1`,
+          version: sql`${schema.channelBindingChallenges.version} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.channelBindingChallenges.id, id),
+            isNull(schema.channelBindingChallenges.completedAt),
+            sql`${schema.channelBindingChallenges.expiresAt} > ${now}`,
+            sql`${schema.channelBindingChallenges.attempts} < ${schema.channelBindingChallenges.maxAttempts}`,
+          ),
+        )
+        .returning();
+      return row ? mapBindingChallenge(row) : null;
+    },
+
+    complete: async (id, at) => {
+      // Compare-and-set on `completed_at is null`: exactly one caller wins,
+      // and the losers are told rather than silently applied.
+      const [row] = await this.db
+        .update(schema.channelBindingChallenges)
+        .set({
+          completedAt: at,
+          version: sql`${schema.channelBindingChallenges.version} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.channelBindingChallenges.id, id),
+            isNull(schema.channelBindingChallenges.completedAt),
+          ),
+        )
+        .returning();
+      return row ? mapBindingChallenge(row) : null;
+    },
+  };
+
+  readonly notificationPreferences: NotificationPreferenceRepository = {
+    get: async (principalId) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.notificationPreferences)
+        .where(eq(schema.notificationPreferences.principalId, principalId))
+        .limit(1);
+      return row ? mapNotificationPreferences(row) : null;
+    },
+
+    upsert: async (preferences, uow) => {
+      const [row] = await dbOf(uow, this.db)
+        .insert(schema.notificationPreferences)
+        .values({
+          principalId: preferences.principalId,
+          byClass: overlapCast(preferences.byClass),
+          updatedAt: preferences.updatedAt,
+          version: preferences.version,
+        })
+        .onConflictDoUpdate({
+          target: schema.notificationPreferences.principalId,
+          set: {
+            byClass: overlapCast(preferences.byClass),
+            updatedAt: preferences.updatedAt,
+            version: preferences.version,
+          },
+        })
+        .returning();
+      if (!row) {
+        throw new Error("upsert notification preferences returned no row");
+      }
+      return mapNotificationPreferences(row);
+    },
+  };
+
+  readonly notificationDeliveries: NotificationDeliveryRepository = {
+    enqueue: async (delivery, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.notificationDeliveries)
+          .values({
+            id: delivery.id,
+            principalId: delivery.principalId,
+            kind: delivery.kind,
+            bindingId: delivery.bindingId ?? null,
+            endpointId: delivery.endpointId ?? null,
+            notificationClass: delivery.notificationClass,
+            eventType: delivery.eventType,
+            outboxEventId: delivery.outboxEventId,
+            authReqId: delivery.authReqId ?? null,
+            payload: delivery.payload,
+            confidentiality: delivery.confidentiality,
+            state: delivery.state,
+            attempts: delivery.attempts,
+            nextAttemptAt: delivery.nextAttemptAt,
+            lastError: delivery.lastError ?? null,
+            createdAt: delivery.createdAt,
+            deliveredAt: delivery.deliveredAt ?? null,
+            providerMessageRef: delivery.providerMessageRef ?? null,
+          })
+          .returning();
+        if (!row)
+          throw new Error("insert notification delivery returned no row");
+        return mapNotificationDelivery(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
+          // The unique index did its job: the outbox is at-least-once, and the
+          // router reads this as "already fanned out" rather than ringing the
+          // same doorbell a second time.
+          throw new ConflictError(
+            `notification delivery already fanned out: ${delivery.outboxEventId}/${delivery.kind}`,
+          );
+        }
+        throw err;
+      }
+    },
+
+    claimDue: async (limit, now) => {
+      // Same discipline as the outbox drain: SKIP LOCKED so two dispatchers
+      // racing split the due set instead of double-delivering it, and the
+      // attempt is counted on claim so a crash mid-send still burned a try.
+      return this.db.transaction(async (tx) => {
+        const candidates = await tx
+          .select()
+          .from(schema.notificationDeliveries)
+          .where(
+            and(
+              or(
+                eq(schema.notificationDeliveries.state, "pending"),
+                eq(schema.notificationDeliveries.state, "failed"),
+              ),
+              sql`${schema.notificationDeliveries.nextAttemptAt} <= ${now}`,
+            ),
+          )
+          .orderBy(asc(schema.notificationDeliveries.nextAttemptAt))
+          .limit(limit)
+          .for("update", { skipLocked: true });
+        const claimed: NotificationDelivery[] = [];
+        for (const row of candidates) {
+          const [updated] = await tx
+            .update(schema.notificationDeliveries)
+            .set({ attempts: row.attempts + 1 })
+            .where(eq(schema.notificationDeliveries.id, row.id))
+            .returning();
+          if (updated) claimed.push(mapNotificationDelivery(updated));
+        }
+        return claimed;
+      });
+    },
+
+    markDelivered: async (id, at, providerMessageRef) => {
+      await this.db
+        .update(schema.notificationDeliveries)
+        .set({
+          state: "delivered",
+          deliveredAt: at,
+          ...(providerMessageRef !== undefined
+            ? { providerMessageRef }
+            : undefined),
+        })
+        .where(eq(schema.notificationDeliveries.id, id));
+    },
+
+    recordFailure: async (id, error, nextAttemptAt, dead) => {
+      await this.db
+        .update(schema.notificationDeliveries)
+        .set({
+          // A classified reason code, never a provider response body — those
+          // routinely echo the notification back.
+          lastError: error,
+          nextAttemptAt,
+          state: dead ? "dead" : "failed",
+        })
+        .where(eq(schema.notificationDeliveries.id, id));
+    },
+
+    existsForEvent: async (outboxEventId, kind, destinationId) => {
+      const [row] = await this.db
+        .select({ id: schema.notificationDeliveries.id })
+        .from(schema.notificationDeliveries)
+        .where(
+          and(
+            eq(schema.notificationDeliveries.outboxEventId, outboxEventId),
+            eq(schema.notificationDeliveries.kind, kind),
+            eq(schema.notificationDeliveries.destinationId, destinationId),
+          ),
+        )
+        .limit(1);
+      return row !== undefined;
+    },
+
+    listForRequest: async (authReqId) => {
+      const rows = await this.db
+        .select()
+        .from(schema.notificationDeliveries)
+        .where(eq(schema.notificationDeliveries.authReqId, authReqId))
+        .orderBy(asc(schema.notificationDeliveries.createdAt));
+      return rows.map(mapNotificationDelivery);
+    },
+  };
+
+  readonly approvalActivations: ApprovalActivationRepository = {
+    create: async (activation, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.approvalActivations)
+          .values({
+            id: activation.id,
+            authReqId: activation.authReqId,
+            principalId: activation.principalId,
+            transactionDigest: activation.transactionDigest,
+            decision: activation.decision,
+            policyDigest: activation.policyDigest,
+            channelKind: activation.channelKind,
+            challengeDigest: activation.challengeDigest,
+            state: activation.state,
+            createdAt: activation.createdAt,
+            activatedAt: activation.activatedAt ?? null,
+            consumedAt: activation.consumedAt ?? null,
+            expiresAt: activation.expiresAt,
+            trustSessionId: activation.trustSessionId ?? null,
+            method: activation.method ?? null,
+            version: activation.version,
+          })
+          .returning();
+        if (!row) throw new Error("insert approval activation returned no row");
+        return mapApprovalActivation(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
+          throw new ConflictError(
+            `approval activation conflict: ${activation.id}`,
+          );
+        }
+        throw err;
+      }
+    },
+
+    getById: async (id) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.approvalActivations)
+        .where(eq(schema.approvalActivations.id, id))
+        .limit(1);
+      return row ? mapApprovalActivation(row) : null;
+    },
+
+    findByChallengeDigest: async (digest) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.approvalActivations)
+        .where(eq(schema.approvalActivations.challengeDigest, digest))
+        .limit(1);
+      return row ? mapApprovalActivation(row) : null;
+    },
+
+    updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      const [row] = await dbOf(uow, this.db)
+        .update(schema.approvalActivations)
+        .set({
+          ...(patch.state !== undefined ? { state: patch.state } : undefined),
+          ...(patch.activatedAt !== undefined
+            ? { activatedAt: patch.activatedAt }
+            : undefined),
+          ...(patch.consumedAt !== undefined
+            ? { consumedAt: patch.consumedAt }
+            : undefined),
+          ...(patch.trustSessionId !== undefined
+            ? { trustSessionId: patch.trustSessionId }
+            : undefined),
+          ...(patch.method !== undefined
+            ? { method: patch.method }
+            : undefined),
+          version: sql`${schema.approvalActivations.version} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.approvalActivations.id, id),
+            eq(schema.approvalActivations.version, expectedVersion),
+          ),
+        )
+        .returning();
+      if (!row) {
+        const [existing] = await dbOf(uow, this.db)
+          .select()
+          .from(schema.approvalActivations)
+          .where(eq(schema.approvalActivations.id, id))
+          .limit(1);
+        if (!existing) {
+          throw new NotFoundError(`approval activation not found: ${id}`);
+        }
+        throw new ConflictError(
+          `approval activation version conflict: expected ${expectedVersion}, got ${existing.version}`,
+        );
+      }
+      return mapApprovalActivation(row);
+    },
+
+    consume: async (id, at) => {
+      // Compare-and-set, not read-then-write: `state = 'activated'` is part of
+      // the UPDATE, so of two settlements racing on one activation exactly one
+      // gets a row back and the loser is told.
+      const [row] = await this.db
+        .update(schema.approvalActivations)
+        .set({
+          state: "consumed",
+          consumedAt: at,
+          version: sql`${schema.approvalActivations.version} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.approvalActivations.id, id),
+            eq(schema.approvalActivations.state, "activated"),
+          ),
+        )
+        .returning();
+      return row ? mapApprovalActivation(row) : null;
+    },
+  };
+
+  readonly comparisonChallenges: ComparisonChallengeRepository = {
+    create: async (challenge, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.comparisonChallenges)
+          .values({
+            id: challenge.id,
+            authReqId: challenge.authReqId,
+            valueDigest: challenge.valueDigest,
+            attempts: challenge.attempts,
+            maxAttempts: challenge.maxAttempts,
+            createdAt: challenge.createdAt,
+            expiresAt: challenge.expiresAt,
+            satisfiedAt: challenge.satisfiedAt ?? null,
+            version: challenge.version,
+          })
+          .returning();
+        if (!row)
+          throw new Error("insert comparison challenge returned no row");
+        return mapComparisonChallenge(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
+          // `comparison_challenges_auth_req_id_uidx`. Re-issuing a code must
+          // refuse rather than replace: a budget a second POST refills is not
+          // a budget, and the value being guessed is six digits.
+          throw new ConflictError(
+            `comparison challenge already issued for request: ${challenge.authReqId}`,
+          );
+        }
+        throw err;
+      }
+    },
+
+    getForRequest: async (authReqId) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.comparisonChallenges)
+        .where(eq(schema.comparisonChallenges.authReqId, authReqId))
+        .limit(1);
+      return row ? mapComparisonChallenge(row) : null;
+    },
+
+    consumeAttempt: async (authReqId, now) => {
+      // The increment and the budget check are the same statement. Reading
+      // `attempts` and writing it back would let two guesses in flight both
+      // see the same remaining budget.
+      const [row] = await this.db
+        .update(schema.comparisonChallenges)
+        .set({
+          attempts: sql`${schema.comparisonChallenges.attempts} + 1`,
+          version: sql`${schema.comparisonChallenges.version} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.comparisonChallenges.authReqId, authReqId),
+            isNull(schema.comparisonChallenges.satisfiedAt),
+            sql`${schema.comparisonChallenges.expiresAt} > ${now}`,
+            sql`${schema.comparisonChallenges.attempts} < ${schema.comparisonChallenges.maxAttempts}`,
+          ),
+        )
+        .returning();
+      return row ? mapComparisonChallenge(row) : null;
+    },
+
+    markSatisfied: async (authReqId, at) => {
+      const [row] = await this.db
+        .update(schema.comparisonChallenges)
+        .set({
+          satisfiedAt: at,
+          version: sql`${schema.comparisonChallenges.version} + 1`,
+        })
+        .where(
+          and(
+            eq(schema.comparisonChallenges.authReqId, authReqId),
+            isNull(schema.comparisonChallenges.satisfiedAt),
+          ),
+        )
+        .returning();
+      return row ? mapComparisonChallenge(row) : null;
+    },
+  };
+
+  readonly approvalReceipts: ApprovalReceiptRepository = {
+    create: async (receipt, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.approvalReceipts)
+          .values({
+            id: receipt.id,
+            authReqId: receipt.authReqId,
+            principalId: receipt.principalId,
+            decision: receipt.decision,
+            decidedByKind: receipt.decidedByKind,
+            path: receipt.path,
+            channelKind: receipt.channelKind,
+            bindingId: receipt.bindingId ?? null,
+            requestDigest: receipt.requestDigest,
+            transactionDigest: receipt.transactionDigest,
+            policyDigest: receipt.policyDigest,
+            requiredAssurance: receipt.requiredAssurance,
+            achievedAssurance: receipt.achievedAssurance,
+            evidenceIds: receipt.evidenceIds,
+            trustSessionId: receipt.trustSessionId ?? null,
+            activationId: receipt.activationId ?? null,
+            comparisonRequired: receipt.comparisonRequired,
+            comparisonSatisfied: receipt.comparisonSatisfied,
+            callbackDigest: receipt.callbackDigest ?? null,
+            decidedAt: receipt.decidedAt,
+            receiptVersion: receipt.receiptVersion,
+          })
+          .returning();
+        if (!row) throw new Error("insert approval receipt returned no row");
+        return mapApprovalReceipt(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        if (isUniqueViolation(boundaryError)) {
+          throw new ConflictError(
+            `approval receipt already recorded for request: ${receipt.authReqId}`,
+          );
+        }
+        throw err;
+      }
+    },
+
+    getForRequest: async (authReqId) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.approvalReceipts)
+        .where(eq(schema.approvalReceipts.authReqId, authReqId))
+        .limit(1);
+      return row ? mapApprovalReceipt(row) : null;
+    },
+  };
+
+  readonly pushSubscriptions: PushSubscriptionRepository = {
+    create: async (sub, uow) => {
+      // Upsert onto `endpoint_digest`, not a plain insert. A browser that
+      // re-subscribes presents the same endpoint, and the same endpoint is the
+      // same destination: the stored keys are replaced in place — the row
+      // keeps its id and `created_at`, and a disabled row is revived — so the
+      // table can never hold two rows that push the same person.
+      const [row] = await dbOf(uow, this.db)
+        .insert(schema.pushSubscriptions)
+        .values({
+          id: sub.id,
+          principalId: sub.principalId,
+          endpoint: sub.endpoint,
+          p256dhKey: sub.p256dhKey,
+          authSecret: sub.authSecret,
+          endpointDigest: sub.endpointDigest,
+          deviceLabel: sub.deviceLabel ?? null,
+          createdAt: sub.createdAt,
+          lastUsedAt: sub.lastUsedAt ?? null,
+          disabledAt: sub.disabledAt ?? null,
+        })
+        .onConflictDoUpdate({
+          target: schema.pushSubscriptions.endpointDigest,
+          set: {
+            principalId: sub.principalId,
+            endpoint: sub.endpoint,
+            p256dhKey: sub.p256dhKey,
+            authSecret: sub.authSecret,
+            deviceLabel: sub.deviceLabel ?? null,
+            lastUsedAt: sub.lastUsedAt ?? null,
+            disabledAt: sub.disabledAt ?? null,
+          },
+        })
+        .returning();
+      if (!row) throw new Error("upsert push subscription returned no row");
+      return mapPushSubscription(row);
+    },
+
+    listForPrincipal: async (principalId) => {
+      const rows = await this.db
+        .select()
+        .from(schema.pushSubscriptions)
+        .where(
+          and(
+            eq(schema.pushSubscriptions.principalId, principalId),
+            // A disabled subscription is not a destination.
+            isNull(schema.pushSubscriptions.disabledAt),
+          ),
+        )
+        .orderBy(asc(schema.pushSubscriptions.createdAt));
+      return rows.map(mapPushSubscription);
+    },
+
+    getById: async (id) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.pushSubscriptions)
+        .where(eq(schema.pushSubscriptions.id, id))
+        .limit(1);
+      return row ? mapPushSubscription(row) : null;
+    },
+
+    findByEndpointDigest: async (digest) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.pushSubscriptions)
+        .where(eq(schema.pushSubscriptions.endpointDigest, digest))
+        .limit(1);
+      return row ? mapPushSubscription(row) : null;
+    },
+
+    disable: async (id, at) => {
+      // Compare-and-set on `disabled_at is null`: only the caller that really
+      // retired the subscription is told it did.
+      const rows = await this.db
+        .update(schema.pushSubscriptions)
+        .set({ disabledAt: at })
+        .where(
+          and(
+            eq(schema.pushSubscriptions.id, id),
+            isNull(schema.pushSubscriptions.disabledAt),
+          ),
+        )
+        .returning({ id: schema.pushSubscriptions.id });
+      return rows.length === 1;
+    },
+  };
+
+  readonly callbackReplays: CallbackReplayRepository = {
+    claim: async (record) => {
+      // The INSERT *is* the claim. `on conflict do nothing ... returning`
+      // answers "have I seen this?" in the same round trip that records it, so
+      // two replicas handed the same replayed callback cannot both be first.
+      // A SELECT then an INSERT is the race the attacker is playing for.
+      const rows = await this.db
+        .insert(schema.callbackReplays)
+        .values({
+          id: record.id,
+          providerId: record.providerId,
+          callbackDigest: record.callbackDigest,
+          seenAt: record.seenAt,
+          expiresAt: record.expiresAt,
+          authReqId: record.authReqId ?? null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: schema.callbackReplays.id });
+      return rows.length === 1;
+    },
+
+    purgeExpired: async (now) => {
+      const rows = await this.db
+        .delete(schema.callbackReplays)
+        .where(sql`${schema.callbackReplays.expiresAt} <= ${now}`)
+        .returning({ id: schema.callbackReplays.id });
+      return rows.length;
     },
   };
 

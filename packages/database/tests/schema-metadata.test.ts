@@ -58,6 +58,16 @@ const EXPECTED_TABLES = [
   "webhook_endpoints",
   "webhook_deliveries",
   "oidc_payloads",
+  // External notification channels and approval ceremonies (ADR 0084).
+  "channel_bindings",
+  "channel_binding_challenges",
+  "notification_preferences",
+  "notification_deliveries",
+  "approval_activations",
+  "comparison_challenges",
+  "approval_receipts",
+  "callback_replays",
+  "push_subscriptions",
 ] as const;
 
 type PgTable = Parameters<typeof getTableConfig>[0];

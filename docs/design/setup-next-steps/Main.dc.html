@@ -1594,6 +1594,40 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem;
 }
+
+/* A small comparison table. Used where a claim is a ranking rather than a
+   sentence — the boundary board's "how far the page travels, by plane" — so
+   the ordering itself carries the argument and the reader can check it. */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tbl th,
+.tbl td {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.tbl th {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.tbl tbody tr:first-child td {
+  color: var(--ink);
+}
+
+.tbl tbody tr:last-child td {
+  border-bottom: none;
+}
   </style>
 </helmet>
 <div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px">
@@ -1618,7 +1652,7 @@
         </span>
         <span class="next__body">
           <span class="next__name">A model to drive password resets</span>
-          <span class="next__why">Lets OpenSesame work a website's own reset form for you, instead of deep-linking you to it. Pick who runs the model.</span>
+          <span class="next__why">Lets OpenSesame work a website's own reset form for you, instead of deep-linking you to it. Pick who runs the model — or leave it, and this device runs it.</span>
           <span class="next__state">{{ modelsState }}</span>
         </span>
         <span class="next__chev">
@@ -1685,7 +1719,7 @@ class Component extends DCLogic {
       modelsState: this.label(
         this.state.models,
         "Ollama, on this machine",
-        "Not set up — resets stay manual",
+        "Not set up — this browser's own model is doing it",
       ),
       inviteState: this.label(
         this.state.invite,

@@ -3468,6 +3468,7 @@ name = "opensesame-agent-events"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "opensesame-security-events",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -4187,6 +4188,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-rotation-web"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "opensesame-session-observe",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokio",
+]
+
+[[package]]
 name = "opensesame-sealed-store"
 version = "0.1.0"
 dependencies = [
@@ -4238,6 +4251,7 @@ dependencies = [
  "futures",
  "insta",
  "opensesame-domain",
+ "opensesame-lifecycle",
  "proptest",
  "serde",
  "serde_json",

@@ -17,6 +17,7 @@ import {
   revokeOffer,
   terminateTask,
 } from "../lib/access.js";
+import { browserInference } from "../lib/browser-inference.js";
 import {
   connectionEvents,
   getConnection,
@@ -35,6 +36,11 @@ import {
   hostBase,
   identityBase,
 } from "../lib/identity.js";
+import {
+  autonomousResetAvailable,
+  loadModelProvider,
+  resolveModelPlane,
+} from "../lib/model-provider.js";
 import { loadSettings } from "../lib/settings.js";
 import { buildHealthReport } from "../lib/vault/health.js";
 import {
@@ -693,17 +699,25 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       "sync_targets.read",
       "changelog.read",
       "backup.status",
+      "model_plane.read",
     ],
     scope: "session",
     description:
-      "Read-only settings summary: configured endpoint URLs, the active project and capability-connector bindings. Values that could carry credentials are omitted.",
+      "Read-only settings summary: configured endpoint URLs, the active project, capability-connector bindings, and which plane runs the password-reset model. Values that could carry credentials are omitted, and the plane is reported but never chosen here (ADR 0083).",
     inputSchema: {
       type: "object",
       properties: {},
       additionalProperties: false,
     },
-    execute: () => {
+    execute: async () => {
       const settings = loadSettings();
+      // Reported so an agent does not offer a ceremony that cannot run. Which
+      // plane, and whether it is on — never the endpoint, which would tell a
+      // caller where to aim a redirect it is not allowed to make (ADR 0083).
+      const plane = resolveModelPlane(
+        loadModelProvider(),
+        await browserInference(),
+      );
       return {
         hostApi: settings.hostApi,
         identityApi: settings.identityApi,
@@ -711,6 +725,11 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
         mfaAppUrl: settings.mfaAppUrl,
         activeProjectId: settings.activeProjectId ?? null,
         capabilityConnectors: settings.capabilityConnectors,
+        modelPlane: {
+          kind: plane.kind,
+          because: plane.because,
+          autonomousResetAvailable: autonomousResetAvailable(plane),
+        },
       };
     },
   },

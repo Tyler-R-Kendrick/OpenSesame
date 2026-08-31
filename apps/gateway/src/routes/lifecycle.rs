@@ -179,7 +179,7 @@ pub async fn list_expiring(State(st): State<AppState>, headers: axum::http::Head
             .iter()
             .map(|subject| subject_view(subject, now))
             .collect::<Vec<_>>(),
-        "event_types": subscribable_event_types(),
+        "event_types": known_event_types(),
         "subject_kinds": SubjectKind::ALL.map(SubjectKind::as_str),
         "stages": ExpiryStage::ALL.map(ExpiryStage::as_str),
         "secrets_returned": false,
@@ -277,40 +277,33 @@ fn requested_delivery(body: &HookBody) -> Result<Delivery, Response> {
     }
 }
 
+/// The severity floor a registration gets when it names none.
+///
+/// `Info` for every sink that talks to a system, because taking everything and
+/// filtering downstream is what a webhook subscriber or an Alertmanager
+/// routing tree is for. `Error` for A2H, because that one wakes a *person*:
+/// registering it should not sign somebody up for a text every time an agent
+/// takes a page, and the two phases at `Error` are exactly the ones that leave
+/// a rotation not done.
+///
+/// An operator who wants the quiet ones says `severity_min: "info"` and gets
+/// them. This is a default, not a second policy — which is the point, because
+/// `opensesame_a2h::intent_for` deliberately has no opinion about it.
+const fn default_floor_for(kind: Delivery) -> Severity {
+    match kind {
+        Delivery::A2h => Severity::Error,
+        _ => Severity::Info,
+    }
+}
+
 /// The severity floor a request selects.
 #[allow(clippy::result_large_err)]
-fn requested_floor(body: &HookBody) -> Result<Severity, Response> {
-    let raw = body.severity_min.as_deref().unwrap_or("info");
+fn requested_floor(body: &HookBody, kind: Delivery) -> Result<Severity, Response> {
+    let Some(raw) = body.severity_min.as_deref() else {
+        return Ok(default_floor_for(kind));
+    };
     Severity::parse(raw)
         .ok_or_else(|| bad_request("severity_min must be info, warning, error, or critical"))
-}
-
-/// `PUT /api/v1/lifecycle/hooks` — register or edit a subscription.
-///
-/// A new registration mints a `whsec_` secret and returns it **once**. An edit
-/// keeps the existing secret: rotating it is a delete and re-register, so a
-/// caller cannot silently invalidate every receiver's verification by editing
-/// a name.
-/// Every event type a subscription may name, across both families.
-///
-/// One hook table serves the expiry feed and the agent feed, so discovery has
-/// to answer for both — a caller that reads this list and then registers from
-/// it must not be told half the vocabulary.
-fn subscribable_event_types() -> Vec<&'static str> {
-    known_event_types()
-}
-
-/// Whether every entry in a filter is a name one of the two families
-/// recognises.
-///
-/// Entry by entry rather than family by family, so one hook can watch a
-/// certificate expiring and an agent getting stuck without registering twice.
-/// An empty filter is still refused: a subscription that names no events is a
-/// misconfiguration, and reading it as "everything" is the wrong direction to
-/// fail.
-#[cfg(test)]
-fn filter_is_valid(filter: &[String]) -> bool {
-    opensesame_security_events::filter::is_valid(filter, &known_event_types())
 }
 
 /// Validate a subscription request before anything is written.
@@ -364,13 +357,16 @@ fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
     // silently receiving nothing.
     let kind = requested_delivery(body)?;
     if kind == Delivery::A2h
-        && !body
-            .event_types
+        // Asked through the shared filter rather than by comparing strings, so
+        // the bare `*` wildcard — which does select every agent event — is not
+        // refused for not spelling itself "agent.*".
+        && !AGENT_EVENT_TYPES
             .iter()
-            .any(|entry| entry == "agent.*" || opensesame_agent_events::is_agent_event_type(entry))
+            .any(|event| filter::matches(&body.event_types, event))
     {
         return Err(bad_request(
-            "an a2h subscription must name at least one agent event type",
+            "an a2h subscription must name at least one agent event type or \"agent.*\": \
+             only an agent run names the person to reach",
         ));
     }
     Ok(())
@@ -440,6 +436,12 @@ fn mint_hook_secret(
     ))
 }
 
+/// `PUT /api/v1/lifecycle/hooks` — register or edit a subscription.
+///
+/// A new registration mints a `whsec_` secret and returns it **once**. An edit
+/// keeps the existing secret: rotating it is a delete and re-register, so a
+/// caller cannot silently invalidate every receiver's verification by editing
+/// a name.
 pub async fn put_hook(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -461,7 +463,7 @@ pub async fn put_hook(
         Ok(kind) => kind,
         Err(response) => return response,
     };
-    let floor = match requested_floor(&body) {
+    let floor = match requested_floor(&body, kind) {
         Ok(floor) => floor,
         Err(response) => return response,
     };
@@ -1022,9 +1024,7 @@ mod tests {
         assert_eq!(
             view["event_types"].as_array().unwrap().len(),
             LIFECYCLE_EVENT_TYPES.len() + BREACH_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
-            "the frozen vocabulary is part of the contract, and it spans every family — \
-             a caller that reads this list and registers from it must not be told \
-             part of the vocabulary",
+            "the frozen vocabulary is part of the contract, and it spans every family",
         );
         assert_eq!(view["secrets_returned"], json!(false));
 
@@ -1546,60 +1546,67 @@ mod custody_e2e {
 
 #[cfg(test)]
 mod hook_filter_tests {
-    use super::{filter_is_valid, subscribable_event_types};
+    use super::known_event_types;
     use opensesame_agent_events::{AGENT_EVENT_TYPES, EVENT_RUN_BLOCKED};
+    use opensesame_breach_intel::BREACH_EVENT_TYPES;
     use opensesame_lifecycle::{EVENT_RENEWAL_DUE, LIFECYCLE_EVENT_TYPES};
+    use opensesame_security_events::filter;
 
-    fn filter(entries: &[&str]) -> Vec<String> {
-        entries.iter().map(|entry| (*entry).to_string()).collect()
+    fn entries(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| (*name).to_string()).collect()
+    }
+
+    fn valid(names: &[&str]) -> bool {
+        filter::is_valid(&entries(names), &known_event_types())
     }
 
     #[test]
-    fn one_subscription_may_span_both_families() {
-        assert!(filter_is_valid(&filter(&[
-            EVENT_RENEWAL_DUE,
-            EVENT_RUN_BLOCKED
-        ])));
-        assert!(filter_is_valid(&filter(&["lifecycle.*", "agent.*"])));
+    fn one_subscription_may_span_every_family() {
+        assert!(valid(&[EVENT_RENEWAL_DUE, EVENT_RUN_BLOCKED]));
+        assert!(valid(&["lifecycle.*", "breach.*", "agent.*"]));
+        assert!(valid(&["*"]));
     }
 
     #[test]
     fn an_unknown_name_is_refused_even_beside_valid_ones() {
-        assert!(!filter_is_valid(&filter(&[
-            EVENT_RENEWAL_DUE,
-            "agent.run.exploded"
-        ])));
-        assert!(!filter_is_valid(&filter(&["everything"])));
+        assert!(!valid(&[EVENT_RENEWAL_DUE, "agent.run.exploded"]));
+        assert!(!valid(&["everything"]));
+        assert!(!valid(&["rumour.*"]));
     }
 
     #[test]
     fn an_empty_filter_is_refused_rather_than_read_as_everything() {
-        assert!(!filter_is_valid(&[]));
+        assert!(!valid(&[]));
     }
 
     #[test]
-    fn discovery_answers_for_both_families() {
-        let advertised = subscribable_event_types();
-        for name in LIFECYCLE_EVENT_TYPES.iter().chain(AGENT_EVENT_TYPES.iter()) {
+    fn discovery_and_registration_answer_for_the_same_families() {
+        // One union, used by both surfaces. Two lists is how a caller reads
+        // the advertised vocabulary, registers from it, and is told a name it
+        // was just given is unknown — or, worse, never learns a family exists.
+        let advertised = known_event_types();
+        for name in LIFECYCLE_EVENT_TYPES
+            .iter()
+            .chain(BREACH_EVENT_TYPES.iter())
+            .chain(AGENT_EVENT_TYPES.iter())
+        {
             assert!(advertised.contains(name), "{name} is not discoverable");
+            assert!(valid(&[name]), "{name} is advertised but not registrable");
         }
-        // Everything advertised must also be registrable: a caller that reads
-        // this list and registers from it can never be told a name it was just
-        // given is unknown.
-        for name in &advertised {
-            assert!(
-                filter_is_valid(&[(*name).to_string()]),
-                "{name} is advertised but not registrable"
-            );
-        }
+        assert_eq!(
+            advertised.len(),
+            LIFECYCLE_EVENT_TYPES.len() + BREACH_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
+            "the union carries every family and nothing else",
+        );
     }
 }
 
 #[cfg(test)]
 mod a2h_hook_tests {
-    use super::{validate_hook_body, HookBody};
+    use super::{default_floor_for, requested_floor, validate_hook_body, HookBody};
     use opensesame_agent_events::EVENT_RUN_BLOCKED;
     use opensesame_lifecycle::EVENT_RENEWAL_DUE;
+    use opensesame_security_events::{Delivery, Severity};
 
     fn body(delivery: &str, event_types: &[&str]) -> HookBody {
         HookBody {
@@ -1631,13 +1638,54 @@ mod a2h_hook_tests {
     }
 
     #[test]
-    fn an_a2h_hook_naming_only_lifecycle_events_is_refused() {
-        // The lifecycle family has no intent mapping, so every row would settle
-        // unsent — a configured-looking subscription that can never fire.
+    fn an_a2h_hook_naming_no_agent_event_is_refused() {
+        // Only an agent run names the person to reach, so a lifecycle- or
+        // breach-only a2h subscription would dead-letter every row it queued.
         assert!(validate_hook_body(&body("a2h", &[EVENT_RENEWAL_DUE])).is_err());
         assert!(validate_hook_body(&body("a2h", &["lifecycle.*"])).is_err());
-        // Naming both families is fine: the lifecycle half simply settles
-        // unsent while the agent half escalates.
+        assert!(validate_hook_body(&body("a2h", &["breach.*"])).is_err());
+        // Naming both families is fine: the agent half escalates and the rest
+        // fails at send time with a stated reason, not silently.
         assert!(validate_hook_body(&body("a2h", &[EVENT_RENEWAL_DUE, EVENT_RUN_BLOCKED])).is_ok());
+    }
+
+    #[test]
+    fn the_bare_wildcard_qualifies_because_it_selects_agent_events() {
+        // Asked through the shared filter rather than by string comparison: a
+        // subscriber that reads the advertised vocabulary and registers `*`
+        // must not be told the name it was just given is not an agent event.
+        assert!(validate_hook_body(&body("a2h", &["*"])).is_ok());
+    }
+
+    #[test]
+    fn registering_a_phone_does_not_sign_somebody_up_for_every_state_change() {
+        // The quiet phases are `Info`; an a2h hook floors at `Error` unless an
+        // operator lowers it deliberately. This is the *only* place that
+        // decides — `opensesame_a2h::intent_for` is total and has no opinion,
+        // so the two cannot disagree about which events reach a phone.
+        assert_eq!(default_floor_for(Delivery::A2h), Severity::Error);
+        assert_eq!(
+            requested_floor(&body("a2h", &["agent.*"]), Delivery::A2h).ok(),
+            Some(Severity::Error),
+        );
+        for system_sink in [
+            Delivery::Webhook,
+            Delivery::Alertmanager,
+            Delivery::PagerDuty,
+        ] {
+            assert_eq!(
+                default_floor_for(system_sink),
+                Severity::Info,
+                "{system_sink:?} filters downstream; taking everything is the point",
+            );
+        }
+
+        let mut chatty = body("a2h", &["agent.*"]);
+        chatty.severity_min = Some("info".into());
+        assert_eq!(
+            requested_floor(&chatty, Delivery::A2h).ok(),
+            Some(Severity::Info),
+            "an operator who asks for everything gets everything",
+        );
     }
 }

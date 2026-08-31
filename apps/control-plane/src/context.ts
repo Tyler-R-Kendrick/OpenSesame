@@ -16,6 +16,7 @@ import type { ProvisionalPolicy } from "@opensesame/policy";
 import type { ControlPlaneConfig } from "./config.js";
 import type { IndexedClaimStore } from "./repos/claim-store.js";
 import type { Mailer } from "./services/mailer.js";
+import type { NotificationCallbackAdapters } from "./services/notification-callbacks.js";
 import type { AppStores } from "./state.js";
 
 export type ControlPlaneRepositories = Omit<Repositories, "auditEvents"> & {
@@ -51,6 +52,15 @@ export interface AppContext {
    * `jsonTransport` under `allowDevDefaults`.
    */
   mailer: Mailer;
+  /**
+   * Provider-callback adapters, keyed by the path segment they answer on.
+   *
+   * A seam, so the route can be exercised against a recorded provider payload
+   * without a signing secret, and so an adapter this deployment has no secret
+   * for is simply absent — an unconfigured provider must be indistinguishable
+   * from an unknown one.
+   */
+  notificationCallbackAdapters: NotificationCallbackAdapters;
   /**
    * Deployment/system principal that owns auto-admitted origin clients until
    * an F5 claim transfers ownership (ADR 0050 R-A).

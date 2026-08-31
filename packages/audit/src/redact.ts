@@ -75,6 +75,40 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "subject",
   "providerId",
   "materialization",
+  // External notification channels and approval ceremonies (ADR 0084). Every
+  // one of these is an id, a digest, a closed enum member, or a reason code —
+  // the vocabulary a reviewer needs to answer "why was this allowed, and could
+  // a compromised chat workspace have caused it?" years later.
+  //
+  // Two names are deliberately absent. The comparison value would be dropped
+  // by DENY_KEY anyway (it contains "value"), and that is the belt to this
+  // brace rather than the reason: a plaintext comparison code has no business
+  // in an audit row, so no call site builds a key for it. Likewise the
+  // provider subject id never appears — it is the authority-bearing half of a
+  // binding, and an audit trail that prints it hands a forger the value a
+  // fake callback would need to claim. Its digest goes here instead.
+  "channelKind",
+  "bindingId",
+  "transactionDigest",
+  "policyDigest",
+  "activationId",
+  "approvalPath",
+  "riskClass",
+  // Reason-code arrays from the assurance evaluator, so the bar that was
+  // demanded and the bar that was met are both legible without re-deriving
+  // them from a policy that has since changed.
+  "requiredAssurance",
+  "achievedAssurance",
+  "refusals",
+  "comparisonRequired",
+  "comparisonSatisfied",
+  "callbackDigest",
+  "providerTenantDigest",
+  "providerSubjectDigest",
+  "notificationClass",
+  "deliveryId",
+  "detailsDigest",
+  "receiptVersion",
 ]);
 
 /**

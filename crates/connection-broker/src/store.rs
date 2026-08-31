@@ -2069,7 +2069,7 @@ pub struct RotationPolicyRow {
     /// The principal this policy rotates for, in the `owner_subject` shape
     /// `connections` already uses. `None` for operator-created policies that
     /// belong to nobody — which a `web_login` policy may not be, because a run
-    /// nobody owns is a run nobody may observe (ADR 0078 §8).
+    /// nobody owns is a run nobody may observe (ADR 0081 §8).
     pub owner_subject: Option<String>,
     pub interval_seconds: i64,
     pub last_rotated_at: Option<String>,
@@ -2112,7 +2112,7 @@ const ROTATION_POLICY_LEASE_COLUMNS: &[&str] = &[
     "next_attempt_at TEXT",
     "needs_attention INTEGER NOT NULL DEFAULT 0",
     "last_error TEXT",
-    // Migration 0020 (ADR 0078): who the run belongs to, and therefore who may
+    // Migration 0022 (ADR 0081): who the run belongs to, and therefore who may
     // watch it. Nullable, because policies predating web logins belong to
     // nobody in particular and rotate a connection the org already owns.
     "owner_subject TEXT",

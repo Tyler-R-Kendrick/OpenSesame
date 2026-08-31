@@ -29,7 +29,7 @@
       "x": 490,
       "y": 0,
       "w": 390,
-      "h": 900,
+      "h": 1080,
       "page": "page-1",
       "title": "A model to drive resets"
     },
@@ -65,7 +65,7 @@
       "x": 0,
       "y": 0,
       "w": 900,
-      "h": 800,
+      "h": 960,
       "page": "page-3",
       "title": "What the model provider sees"
     },
@@ -86,7 +86,7 @@
       "y": -230,
       "w": 460,
       "page": "page-1",
-      "text": "Start here \u2014 this artboard is live.\n\nTap a card to see it as configured, tap again to see it unset. What changes is the state line, and that is the point: it names what is lost by not setting the thing up rather than counting how much is left to do.\n\nThe three sheets to the right are where each card leads. Each one commits with the same ink square at the bottom of the phone."
+      "text": "Start here — this artboard is live.\n\nTap a card to see it as configured, tap again to see it unset. What changes is the state line, and that is the point: it names what is lost by not setting the thing up rather than counting how much is left to do.\n\nThe three sheets to the right are where each card leads. Each one commits with the same ink square at the bottom of the phone."
     },
     {
       "id": "why-note",
@@ -102,7 +102,7 @@
       "y": -230,
       "w": 460,
       "page": "page-3",
-      "text": "The two arguments the ceremony is compressing.\n\nLeft: choosing a model provider is choosing who watches a password-reset flow, so the step has to say what crosses and what structurally cannot (ADR 0076 \u00a71). Right: a share link and the access it carries are two different clocks, and the picker refuses the combination where the link outlives the thing it opens."
+      "text": "The two arguments the ceremony is compressing.\n\nLeft: choosing a model provider is choosing who watches a password-reset flow, so the step has to say what crosses and what structurally cannot (ADR 0076 §1). Right: a share link and the access it carries are two different clocks, and the picker refuses the combination where the link outlives the thing it opens."
     }
   ],
   "launch": {
