@@ -65,6 +65,7 @@ const ADR_MODEL_PLANE = "0083-browser-plane-inference-fallback.md";
 const ADR_NOTIFICATION_CEREMONIES =
   "0084-external-authorization-notifications.md";
 const ADR_PWA_INSTALL = "0085-pwa-install-offer.md";
+const ADR_INTERACTION_LAYER = "0086-wallet-native-interaction-layer.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -76,6 +77,18 @@ const AUTH_CEREMONY: CapabilityExclusion = {
   reason:
     "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
   adr: ADR_MCP_BEARER,
+};
+
+const INTERACTION_APPROVAL: CapabilityExclusion = {
+  reason:
+    "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+  adr: ADR_INTERACTION_LAYER,
+};
+
+const INTERACTION_REQUESTER_CHANNEL: CapabilityExclusion = {
+  reason:
+    "the requester already learns the outcome on the channel it created the interaction on; a second agent-facing read would be a way to watch somebody else's inbox",
+  adr: ADR_INTERACTION_LAYER,
 };
 
 const HUMAN_CEREMONY: CapabilityExclusion = {
@@ -1471,6 +1484,68 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: null,
       mcp_client: "present_claim",
       webmcp: null,
+    },
+  },
+  // ── Identity plane: cross-device interactions (ADR 0086) ───────────────
+  //
+  // None of these map onto an agent surface, and that is the design rather
+  // than a backlog. The layer exists to put a question in front of a person
+  // and take an answer bound to a cryptographic proof; a tool that could
+  // answer one would remove the only step that makes the answer mean
+  // anything. They are listed here so the parity sweep sees a decision
+  // instead of an omission.
+  {
+    id: "identity.interaction.create",
+    title: "Ask someone to authorize an operation",
+    plane: "identity",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: INTERACTION_REQUESTER_CHANNEL,
+      mcp_client: INTERACTION_REQUESTER_CHANNEL,
+      webmcp: INTERACTION_REQUESTER_CHANNEL,
+    },
+  },
+  {
+    id: "identity.interaction.approve",
+    title: "Approve a cross-device interaction",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: INTERACTION_APPROVAL,
+      mcp_client: INTERACTION_APPROVAL,
+      webmcp: INTERACTION_APPROVAL,
+    },
+  },
+  {
+    id: "identity.interaction.deny",
+    title: "Deny a cross-device interaction",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: INTERACTION_APPROVAL,
+      mcp_client: INTERACTION_APPROVAL,
+      webmcp: INTERACTION_APPROVAL,
     },
   },
   {

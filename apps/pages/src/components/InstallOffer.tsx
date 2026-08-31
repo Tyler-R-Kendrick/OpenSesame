@@ -81,7 +81,7 @@ export function InstallOffer({ heading }: { heading?: string } = {}) {
   // Withheld, not explained away. A card that exists only to say the browser
   // cannot do this is the amber notice ADR 0077 deleted, in a friendlier hat.
   // The heading goes with it, so a host cannot leave one standing over
-  // nothing by forgetting a guard of its own (ADR 0085 §2).
+  // nothing by forgetting a guard of its own (ADR 0086 §2).
   if (!visible) return null;
 
   const body = (

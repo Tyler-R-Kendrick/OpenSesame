@@ -95,7 +95,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
 
           {/* Not a second question — an offer with no wrong answer, below the
               one that matters and withheld entirely where the browser will not
-              install. ADR 0085. */}
+              install. ADR 0086. */}
           <KeepIt />
         </main>
 

@@ -426,7 +426,7 @@ describe("an OpenSesame identity service", () => {
 
 describe("keeping it on this device", () => {
   it("leaves no trace at all where the browser will not install", () => {
-    // ADR 0085 — the same rule that withholds Unlock while there is no sealed
+    // ADR 0086 — the same rule that withholds Unlock while there is no sealed
     // vault. Not a heading over an empty space explaining what cannot be done.
     render(<SetupScreen onDone={vi.fn()} />);
     expect(screen.queryByText("Keep it on this device")).toBeNull();

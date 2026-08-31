@@ -223,6 +223,16 @@ const EXPECTED_ALLOWLIST = [
   "deliveryId",
   "detailsDigest",
   "receiptVersion",
+  "interactionId",
+  "interactionKind",
+  "subjectKind",
+  "subjectId",
+  "mechanism",
+  "credentialRef",
+  "assurance",
+  "walletProvider",
+  "passId",
+  "presentationId",
 ] as const;
 
 describe("allowlist and deny layers", () => {

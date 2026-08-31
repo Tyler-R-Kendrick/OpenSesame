@@ -180,3 +180,139 @@ Test anchors: `crates/breach-intel` (k-anonymity and value-blindness
 properties), `apps/gateway/src/routes/security.rs` (metadata-only findings,
 refusals that do not echo the candidate), `apps/gateway/src/security/sinks.rs`
 (no sink renders a secret-shaped key).
+
+## Cross-device interaction layer (ADR 0086)
+
+The interaction layer's whole security claim is one sentence: **a reference
+authorizes nothing.** Everything below is either a consequence of that or an
+attack on it.
+
+The reference (`i_<id>.<mac>`) travels somewhere no other OpenSesame artifact
+goes — onto a screen, into a camera, into a Google Wallet pass, past whoever is
+standing behind the user. So it is modelled as public from the moment it is
+minted, and the question is never "how do we keep it secret" but "what is it
+worth to hold one".
+
+### QR is transport, never authentication
+
+A QR code is a picture of a string. It can be photographed, screenshotted,
+re-rendered, substituted on a poster, and sent to someone else. The layer is
+built so that all of those are true and none of them matter:
+
+| Attack | Why it fails |
+|--------|--------------|
+| Screenshot replayed later | The reference resolves to a terminal status. `consumed`, `expired` and `revoked` never reopen (`machines/interaction.ts`), so a photograph of a spent interaction is a photograph of a receipt. |
+| Screenshot replayed *before* consumption | Resolving yields `InteractionSummary` — kind, status, expiry. Approving needs an authenticated approver *and* a proof bound to the digest. The finder has neither. |
+| QR scanned twice, or by two apps | `present()` is idempotent and is a display fact with no authorization meaning. Two scans are one event. |
+| Malicious QR substituted on a poster | The victim is handed an interaction the attacker created. It can only settle *that* interaction, whose approver is the attacker — so the victim is asked to approve something they did not initiate, and the binding message is derived from the operation rather than written by the requester (`deriveBindingMessage`). Substitution becomes a phishing problem, addressed by what the screen says, not an authorization bypass. |
+| QR carrying a bearer | Cannot be produced. `assertNoForbiddenParams` runs inside the link builder and inside QR encoding, over `FORBIDDEN_URL_PARAMS`. |
+| Rotating Wallet barcode treated as an assurance upgrade | It is not one, and is reported as `rotatingBarcode: false` for generic passes rather than claimed. Rotation improves presentation freshness; assurance comes from the proof. |
+
+### Enumeration and oracles
+
+An interaction id is 18 random bytes. The reference additionally carries an
+HMAC, so a fabricated reference is refused before any lookup. Malformed,
+forged, and never-existed produce one response at one cost. The resolve
+endpoint is therefore not a probe for which interactions are real, and not an
+amplifier for database load.
+
+The approver is addressed by the ADR 0046 `inbox_…` handle, not by a principal
+id, so learning who someone is remains insufficient to put text in front of
+them.
+
+### Link leakage
+
+The reference sits in the URL *path*, never the query or fragment. That is a
+trade made deliberately: a path is visible in server logs and `Referer`
+headers, which a fragment would not be — but a fragment is invisible to the
+server, and this reference must reach the server to be resolved. Since the
+reference is worth nothing on its own (§ above), the leak-resistant placement
+buys nothing and costs the ability to use it. Bearers keep using the fragment
+(`readFragmentToken`, ADR 0045); references do not need to.
+
+### What an approval currently proves, and what it does not
+
+The digest binds *what* was approved. It does not, today, prove *how strongly*
+the approver authenticated.
+
+`/v1/interactions/{ref}/approve` verifies an authenticated session and records
+`session_reauth` plus the approver's own assurance level. It does not verify a
+WebAuthn assertion or a verifiable presentation. `/v1/mfa/*` does verify both
+kinds of step-up for real, but nothing binds a verification there to a
+particular interaction here.
+
+An earlier implementation accepted the entire `ApprovalProof` — mechanism,
+assurance, credential handle — from the request body and stored it as though
+checked, so any authenticated caller could write `phishing_resistant` into an
+audit trail having touched no key. Every field is now server-derived, and the
+client's declaration is discarded. The residual risk is stated rather than
+implied: **an interaction is approvable by anyone holding the approver's
+session token**, and a stolen bearer is therefore a stolen approval, bounded
+only by the digest (which constrains *what* is approved, not *who* approved).
+
+Closing that means scoping a step-up result to one interaction's digest. Until
+it lands, no part of this system should be read as claiming phishing-resistant
+approval.
+
+### Digest-bound approval
+
+The mutation families that must invalidate an approval — amount, currency,
+payee, action, resource, scope, TTL, an added second transaction, a reordered
+detail list — each have a test asserting the digest moves
+(`packages/os-domain/src/__tests__/transaction-binding.test.ts`). Fields are
+length-prefixed, so text cannot be moved across a field boundary to forge a
+collision.
+
+TOCTOU between display and execution is closed on the storage side: the
+repository patch type for an interaction admits `status` and decision fields
+only. `requestDigest`, `authorizationDetails`, `bindingMessage` and `expiresAt`
+are not patchable, so a settled interaction cannot come to describe something
+other than what was approved.
+
+### Concurrency
+
+One approved interaction yields exactly one consumption. `consume()` states the
+rule; the `updateWithVersion` compare-and-set is what enforces it against two
+racing executors. An application-level status check alone would double-execute,
+which for a `payment_initiation` means paying twice.
+
+### Vendor compromise and outage
+
+Google Wallet is a presentation adapter. Nothing in the approval path calls
+Google, so:
+
+- a Google outage cannot weaken authorization or lock a user out of OpenSesame;
+- a compromised Google response cannot bypass server-side policy, because a
+  pass carries a reference and a reference authorizes nothing;
+- removing a pass removes a convenience, not an identity. Pass revocation and
+  identity revocation are separate operations, in that order of blast radius.
+
+Pass payloads are checked by `assertPassPayloadSafe` on every issue in
+production — not only in tests — against tokens, claim tokens, JOSE, PEM
+headers, PANs and forbidden parameter names anywhere in the serialized object.
+
+### Presented details are attacker-authored
+
+A payee name, a resource path and a requester label are strings someone else
+chose. They are rendered as text, never HTML, and are stripped of control
+characters and bidirectional overrides (U+202A–U+202E, U+2066–U+2069) before
+display: a right-to-left override in a payee name reorders what the user reads
+without changing what they approve, which is a signature-spoofing vector
+against exactly the screen this layer exists to make trustworthy. They are also
+truncated, and they never enter audit metadata — the audit row keeps
+`bindingMessageDigest`, so a reviewer can prove which words were shown without
+the store holding the words.
+
+### Payment scope
+
+The transaction model carries an amount, a currency and a payee display name.
+Card data is refused mechanically by field name and by Luhn-checking string
+values, so a PAN under an innocuous key is refused too, and the refusal names
+the path rather than echoing the value. OpenSesame does not store PAN/CVV,
+provision DPANs, or integrate a card network TSP; PCI DSS scope is avoided by
+construction rather than by policy.
+
+Test anchors: `packages/os-domain/src/__tests__/` (state machine, references,
+transaction binding), `packages/ceremony-kit` (link construction and forbidden
+parameters), `packages/wallet` (pass payload safety), `packages/openid4vp`
+(presentation verification and replay).

@@ -39,7 +39,7 @@ afterEach(() => {
 
 describe("the install offer", () => {
   it("renders nothing at all where the browser cannot install", () => {
-    // Withheld, not explained away — ADR 0077's rule, ADR 0085 §2. A card
+    // Withheld, not explained away — ADR 0077's rule, ADR 0086 §2. A card
     // whose only content is "your browser will not do this" is a report.
     withState("unavailable");
     const { container } = render(<InstallOffer />);
@@ -169,7 +169,7 @@ describe("the install offer", () => {
   });
 
   it("withholds the heading with the body, so no host can strand one", () => {
-    // ADR 0085 §2. A host that forgot its own guard would otherwise render a
+    // ADR 0086 §2. A host that forgot its own guard would otherwise render a
     // heading over nothing.
     withState("unavailable");
     const { container } = render(

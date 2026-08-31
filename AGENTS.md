@@ -201,12 +201,16 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/cli` | Client CLI, binary `opensesame-id` |
 | `packages/auth-upstream` / `oauth-provider` / `claims` / `device-auth` | Identity-plane building blocks |
 | `packages/policy` / `audit` / `contracts` | Authorization policy, audit trail, shared contracts |
+| `packages/ceremony-kit` | UI-independent ceremony logic — canonical interaction URLs, the interaction client, display-safe summaries (ADR 0086) |
+| `packages/wallet` | Vendor-neutral `WalletPassProvider` + Google Wallet Generic Pass adapter; optional, never on the approval path (ADR 0086) |
+| `packages/openid4vp` | OpenID4VP **verifier** — request construction and presentation verification, digest-bound (ADR 0086) |
+| `packages/openid4vci` | OpenID4VCI **issuer** for the minimal OpenSesame credential (ADR 0086) |
 | `packages/sdk-browser` / `sdk-server` / `sdk-cli` | Client SDKs |
 | `packages/agent-protocols` | Agent-facing protocol adapters |
 | `packages/testing` | Shared test utilities (incl. `test:security`) |
 | `packages/identity-atproto` / `identity-nostr` | Alternate-identity linking |
 | `packages/observability` | Structured logging + deep redaction |
-| `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0085) |
+| `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0086) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
 | `packages/webmcp` | WebMCP (`navigator.modelContext`) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
 | `packages/config` | Shared tsconfig |
@@ -227,7 +231,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0084).
+  0001–0086).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -261,16 +265,27 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   no channel but the in-app ceremony may claim phishing resistance. Direct
   external settlement is default-deny and needs an explicit per-channel policy
   opt-in *and* the assurance gate; a provider-signed callback proves provenance,
-  never authorization ([ADR 0085](docs/adr/0084-external-authorization-notifications.md)).
+  never authorization ([ADR 0086](docs/adr/0084-external-authorization-notifications.md)).
 - A sensitive approval is bound to its transaction: the WebAuthn activation
   commits to the request digest, the decision verb, and the effective policy
   digest, and is spent by a durable compare-and-set. An activation minted for
-  one request, one verb, or one policy can never settle another (ADR 0085).
+  one request, one verb, or one policy can never settle another (ADR 0086).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,
   mcp-client, pages, and both CLIs enforce this
   ([ADR 0065](docs/adr/0065-agent-surface-parity.md)).
+- A cross-device handoff is an `Interaction` and nothing else. Every surface —
+  QR, Google Wallet, the PWA, a CLI link, a future wallet provider — is a
+  presentation adapter over the one envelope, and every proof mechanism is an
+  adapter over `ApprovalProof`. Do not add a second authority model beside it:
+  a reference authorizes nothing, and an approval counts only when
+  `proof.boundDigest` equals the interaction's `requestDigest`
+  ([ADR 0086](docs/adr/0086-wallet-native-interaction-layer.md)).
+- Payment *authorization* is in scope; payment *credentials* never are.
+  `assertNoPaymentCredentials` refuses card data by field name and by
+  Luhn-checking values, and OpenSesame issues no cards, provisions no DPANs and
+  stores no PAN/CVV (ADR 0086 §6).
 - A screen's terminal commit is the shared `.go` ink square with its verb
   beside it; `.btn--primary` with a text label is for actions *inside* a card.
   Both patterns are named in [`docs/design/controls.md`](docs/design/controls.md)
@@ -284,7 +299,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 ## 6. Security posture
 
 - `docs/security/notification-approval-threat-model.md` — trust boundaries and
-  residual risks for external notification and approval (ADR 0085);
+  residual risks for external notification and approval (ADR 0086);
   `docs/operators/notification-channels.md` — the channel capability matrix and
   per-provider setup.
 - `docs/security/security-boundaries.md`, `docs/security/threat-model.md`,

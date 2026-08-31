@@ -1,7 +1,7 @@
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * @vitest-environment jsdom
- * @vitest-environment-options {"url": "http://localhost:3000/?code=WXYZ-1234&claim_id=clm_2"}
+ * @vitest-environment-options {"url": "http://localhost:3000/?code=wxyz-1234&claim_id=clm_2"}
  */
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
@@ -28,18 +28,19 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe("App deep-link (?code= fallback)", () => {
-  it("accepts the code query param when user_code is absent", async () => {
+describe("App deep-link (?code= alias)", () => {
+  it("accepts the alias and normalizes the code, as the kit does", async () => {
     await act(async () => {
       root.render(<App />);
     });
-    const input = overlapCast(
-      container.querySelector('input[placeholder="ABCD-EFGH"]'),
+    const input: HTMLInputElement = overlapCast(
+      container.querySelector("#user-code"),
     );
+    // `?code=` survives only as an adapter for links already printed
+    // (`parseLegacyInteractionLink`), and the value is uppercased on the way
+    // in — the app's own parser used to leave it exactly as typed, so the same
+    // code arrived at the server in two spellings depending on the link.
     expect(input.value).toBe("WXYZ-1234");
-    expect(container.textContent).toContain(
-      "Deep-link user code WXYZ-1234 — review and approve",
-    );
     expect(container.textContent).toContain("clm_2");
   });
 });

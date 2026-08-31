@@ -6,7 +6,7 @@
  * same deployment on a second device, finds it here rather than hunting for
  * the icon their browser hides in the address bar.
  *
- * Same component and the same rule as the ceremony step (ADR 0085): present
+ * Same component and the same rule as the ceremony step (ADR 0086): present
  * when there is an install to make or one to report, absent when there is
  * neither. `InstallOffer` renders nothing in the `unavailable` case, and the
  * panel goes with it — the heading is not worth a row that explains what this

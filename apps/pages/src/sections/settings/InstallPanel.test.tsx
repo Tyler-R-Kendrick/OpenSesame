@@ -50,7 +50,7 @@ describe("Settings → General → Install", () => {
   });
 
   it("is absent where the browser can neither install nor report one", () => {
-    // The same withholding rule as the ceremony step (ADR 0085 §5): no
+    // The same withholding rule as the ceremony step (ADR 0086 §5): no
     // heading, no row, nothing that explains what this browser will not do.
     withState("unavailable");
     const { container } = render(<InstallPanel />);

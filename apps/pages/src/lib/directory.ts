@@ -404,6 +404,16 @@ function approveDeviceWords(error: DirectoryError): string {
  * `POST /v1/device/approve` — browsers never hold the operator token; the
  * control plane injects it and forwards `{user_code, principal, …}` to the
  * Host. Only the user code leaves this client.
+ *
+ * Deliberately not `@opensesame/ceremony-kit`'s `approveDevice`. That one keys
+ * its wording on the HTTP status and discards the response body, which is
+ * exactly the information this path needs: the control plane is a *proxy*, so
+ * one status covers unrelated causes — `host_api_unreachable` (the Host is
+ * down) and `host_approval_failed` (the Host said no) both arrive as 502,
+ * `invalid_request` and `organization_id_required` both as 400 — and the
+ * `{ok, status}` returned here is read out of that same discarded body.
+ * Adopting the kit would collapse six actionable messages into three generic
+ * ones and answer an organization refusal with "sign in first".
  */
 async function approveDeviceDefault(userCode: string): Promise<DeviceApproval> {
   try {
