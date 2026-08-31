@@ -189,6 +189,42 @@ impl ControlLease {
         }
     }
 
+    /// Rebuild a lease from a persisted projection.
+    ///
+    /// Returns `None` for a combination the machine could not have produced.
+    /// That matters more than it looks: a caller reads a row, rebuilds the
+    /// lease, and asks it whether a transition is allowed — so a row claiming
+    /// an impossible shape would let a write reach a state the machine forbids.
+    /// Two shapes are refused:
+    ///
+    /// - a critical section outside [`ControlState::AgentDriving`], because
+    ///   only a driving agent can open one; and
+    /// - a queued handoff outside a critical section, because queueing is what
+    ///   happens *instead of* accepting while the section is open.
+    ///
+    /// A run whose row fails this is corrupt, not merely stale, and refusing to
+    /// resume into it is the only safe reading.
+    #[must_use]
+    pub const fn restore(
+        state: ControlState,
+        quiescence: Quiescence,
+        queued_handoff: bool,
+    ) -> Option<Self> {
+        if matches!(quiescence, Quiescence::Critical)
+            && !matches!(state, ControlState::AgentDriving)
+        {
+            return None;
+        }
+        if queued_handoff && !matches!(quiescence, Quiescence::Critical) {
+            return None;
+        }
+        Some(Self {
+            state,
+            quiescence,
+            queued_handoff,
+        })
+    }
+
     #[must_use]
     pub const fn state(self) -> ControlState {
         self.state
@@ -467,6 +503,44 @@ mod tests {
         queued.withdraw_handoff().unwrap();
         assert_eq!(queued.leave_critical(), Ok(CriticalExit::Quiescent));
         assert_eq!(queued.state(), ControlState::AgentDriving);
+    }
+
+    #[test]
+    fn a_persisted_lease_round_trips() {
+        let mut lease = ControlLease::new();
+        lease.enter_critical().unwrap();
+        lease.request_handoff().unwrap();
+        let restored =
+            ControlLease::restore(lease.state(), lease.quiescence(), lease.handoff_queued())
+                .expect("a shape the machine produced is a shape it accepts");
+        assert_eq!(restored, lease);
+    }
+
+    #[test]
+    fn a_row_the_machine_could_not_have_written_is_refused() {
+        // Only a driving agent opens a critical section, so a critical section
+        // anywhere else is a corrupt row rather than a stale one.
+        for state in [
+            ControlState::AwaitingHuman,
+            ControlState::HumanDriving,
+            ControlState::ResumeRequested,
+            ControlState::Suspended,
+            ControlState::HandoffRequested,
+        ] {
+            assert!(
+                ControlLease::restore(state, Quiescence::Critical, false).is_none(),
+                "{state:?} cannot be critical"
+            );
+        }
+        // Queueing is what happens *instead of* accepting while the section is
+        // open; outside one there is nothing to queue behind.
+        assert!(
+            ControlLease::restore(ControlState::AgentDriving, Quiescence::Quiescent, true)
+                .is_none()
+        );
+        assert!(
+            ControlLease::restore(ControlState::AgentDriving, Quiescence::Critical, true).is_some()
+        );
     }
 
     #[test]
