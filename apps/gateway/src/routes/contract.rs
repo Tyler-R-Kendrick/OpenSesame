@@ -48,6 +48,9 @@ const UNDOCUMENTED_ROUTES: &[(&str, &str)] = &[
     ("/api/v1/certs/ca", "GET"),
     ("/api/v1/certs/issue", "POST"),
     ("/api/v1/certs/deliveries/{request_id}/ack", "POST"),
+    // ADR 0075 host-custody key reveal — human/operator only, deliberately not
+    // part of the published contract and never on an agent surface.
+    ("/api/v1/certs/{id}/key", "GET"),
     // GitHub App manifest registration flow, its callback, and the provider webhook.
     ("/api/v1/providers/github/app", "POST"),
     ("/api/v1/oauth/github-app/callback", "GET"),

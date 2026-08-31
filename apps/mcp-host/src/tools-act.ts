@@ -555,4 +555,35 @@ export function registerActTools(server: McpServer): void {
       }
     },
   );
+
+  server.tool(
+    "lifecycle_scan",
+    "Run one expiry lifecycle scan now instead of waiting for the Host tick; idempotent (published counts only newly crossed rungs)",
+    {},
+    async () => {
+      try {
+        const res = await hostFetch("/api/v1/lifecycle/scan", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const body = await res.json();
+        return {
+          content: textContent(
+            agentJson(
+              body,
+              res.ok,
+              z.object({ published: z.number().int().nonnegative() }),
+            ),
+          ),
+          isError: !res.ok,
+        };
+      } catch (e) {
+        return toolError(
+          "lifecycle_scan_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
 }

@@ -12,7 +12,7 @@ use rcgen::{
     KeyPair, KeyUsagePurpose, SanType, SerialNumber, PKCS_ECDSA_P256_SHA256,
 };
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
+use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 use x509_parser::{pem::parse_x509_pem, prelude::parse_x509_certificate};
 
 pub const DEV_CA_CN: &str = "OpenSesame Dev CA";
@@ -180,20 +180,42 @@ pub fn issue_leaf(ca: &DevCa, request: &IssueRequest) -> Result<IssuedCert, Stri
         serial,
         common_name: cn.to_string(),
         dns_names: dns,
-        not_before: not_before.to_string(),
-        not_after: not_after.to_string(),
+        not_before: rfc3339(not_before)?,
+        not_after: rfc3339(not_after)?,
     })
 }
 
-pub fn to_record(issued: &IssuedCert) -> IssuedRecord {
-    IssuedRecord {
+/// Certificate validity as RFC 3339.
+///
+/// `OffsetDateTime`'s `Display` is *not* RFC 3339 — it renders
+/// `2026-08-31 0:00:00.0 +00:00:00`, with a space instead of `T` and a
+/// seconds-bearing offset. Storing that shape had two consequences that only
+/// surface far from here: `SQLite`'s `julianday()` returns NULL for it, so
+/// `list_certificates_expiring_before` silently matched nothing, and the
+/// lifecycle scanner's RFC 3339 parse dropped the subject. Between them, an
+/// expiring certificate produced no signal at all.
+///
+/// # Errors
+///
+/// Returns an error when the instant falls outside the years RFC 3339 can
+/// spell, which no clock reading reaches.
+fn rfc3339(at: OffsetDateTime) -> Result<String, String> {
+    at.format(&Rfc3339)
+        .map_err(|error| format!("timestamp is not representable as RFC 3339: {error}"))
+}
+
+/// # Errors
+///
+/// Returns an error when the current instant cannot be spelled as RFC 3339.
+pub fn to_record(issued: &IssuedCert) -> Result<IssuedRecord, String> {
+    Ok(IssuedRecord {
         serial: issued.serial.clone(),
         common_name: issued.common_name.clone(),
         dns_names: issued.dns_names.clone(),
         not_before: issued.not_before.clone(),
         not_after: issued.not_after.clone(),
-        issued_at: OffsetDateTime::now_utc().to_string(),
-    }
+        issued_at: rfc3339(OffsetDateTime::now_utc())?,
+    })
 }
 
 #[cfg(test)]

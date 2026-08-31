@@ -201,3 +201,40 @@ fn write_pem(path: &Path, pem: &str, mode: u32) -> Result<()> {
     fs::set_permissions(path, fs::Permissions::from_mode(mode))?;
     Ok(())
 }
+
+/// `opensesame cert key` — collect a host-custody private key (ADR 0075).
+///
+/// The one certificate command that prints key material, and it requires
+/// `--reveal` for the same reason `pass show` does: a private key should never
+/// reach a terminal because someone tab-completed their way into it.
+pub async fn cmd_key(
+    server: &str,
+    output: &str,
+    id: &str,
+    reveal: bool,
+    out: Option<PathBuf>,
+) -> Result<()> {
+    if !reveal && out.is_none() {
+        bail!("refusing to print a private key; pass --reveal or --out <path>");
+    }
+    let path = format!("/api/v1/certs/{id}/key");
+    let body = connect::api(server, reqwest::Method::GET, &path, None).await?;
+    let pem = body
+        .get("private_key")
+        .and_then(Value::as_str)
+        .context("Host did not return a managed private key")?;
+    if let Some(path) = out {
+        write_pem(&path, pem, 0o600)?;
+        eprintln!("wrote {}", path.display());
+        return Ok(());
+    }
+    if output == "json" {
+        println!("{}", serde_json::to_string_pretty(&body)?);
+    } else {
+        print!("{pem}");
+        if !pem.ends_with('\n') {
+            println!();
+        }
+    }
+    Ok(())
+}
