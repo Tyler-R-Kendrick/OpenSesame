@@ -104,6 +104,49 @@ fn stored_session(row: &SqliteRow) -> anyhow::Result<StoredSession> {
     })
 }
 
+/// Rebuild a request from its row.
+///
+/// The decision is reassembled from two columns — `decision` and `grant_id` —
+/// which the table's own CHECK keeps consistent: a grant id exists exactly
+/// when the decision is `admitted`. A row that somehow arrived without one is
+/// refused here rather than read as a bare admission, because an admission
+/// that names no grant is an admission nobody can point at.
+fn stored_join_request(row: &SqliteRow) -> anyhow::Result<JoinRequest> {
+    let id: String = row.get("id");
+    let session_id: String = row.get("session_id");
+    let requester: String = row.get("requester_principal_id");
+    let requested_at: String = row.get("requested_at");
+    let decision: String = row.get("decision");
+    let grant_id: Option<String> = row.get("grant_id");
+    let decided_at: Option<String> = row.get("decided_at");
+    let decided_by: Option<String> = row.get("decided_by_principal_id");
+
+    let decision = match decision.as_str() {
+        "pending" => JoinDecision::Pending,
+        "admitted" => {
+            let minted = grant_id.context("an admitted request with no grant")?;
+            JoinDecision::Admitted {
+                grant_id: SessionGrantId::parse(&minted).context("admitted grant id")?,
+            }
+        }
+        "refused" => JoinDecision::Refused,
+        other => bail!("unknown join decision '{other}'"),
+    };
+
+    Ok(JoinRequest {
+        id: JoinRequestId::parse(&id).context("join request id")?,
+        session_id: SessionId::parse(&session_id).context("session id")?,
+        requester_principal_id: PrincipalId::parse(&requester).context("requester principal")?,
+        note: row.get("note"),
+        requested_at: parse_time(&requested_at, "requested_at")?,
+        decision,
+        decided_at: parse_optional_time(decided_at, "decided_at")?,
+        decided_by_principal_id: decided_by
+            .map(|raw| PrincipalId::parse(&raw).context("deciding principal"))
+            .transpose()?,
+    })
+}
+
 impl Db {
     /// Open a session. The operator is whoever creates it.
     ///
@@ -466,6 +509,141 @@ impl Db {
                 .context("insert minted grant row")?;
         }
         Ok(())
+    }
+
+    /// Open, public sessions in one organization — the discovery record.
+    ///
+    /// Selected, not filtered afterwards: `visibility = 'public'` is in the
+    /// predicate, so a private session cannot reach a caller through this path
+    /// even if the layer above forgot to check. Closed sessions are excluded
+    /// too — a session nobody is running is not something to ask to join.
+    ///
+    /// The rows carry the whole [`StoredSession`]; what a *caller* is shown is
+    /// the route's decision, and ADR 0079 §7 makes it a name and an id.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query or the reconstruction fails.
+    pub async fn public_sessions(
+        &self,
+        organization_id: &str,
+    ) -> anyhow::Result<Vec<StoredSession>> {
+        let rows = sqlx::query(
+            "SELECT * FROM sessions \
+             WHERE organization_id = ?1 AND visibility = 'public' AND closed_at IS NULL \
+             ORDER BY created_at DESC",
+        )
+        .bind(organization_id)
+        .fetch_all(&self.pool)
+        .await
+        .context("select public sessions")?;
+        rows.iter().map(stored_session).collect()
+    }
+
+    /// Every live grant on one session — the roster, from the grant side.
+    ///
+    /// Revoked and expired grants are excluded in SQL and every survivor is
+    /// re-checked with `assert_active`, the same belt-and-braces the
+    /// per-subject read uses. A roster is a list of who can reach something
+    /// right now; a lapsed grant on it would misreport that.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query or the reconstruction fails.
+    pub async fn active_session_grants(
+        &self,
+        session_id: SessionId,
+        now: DateTime<Utc>,
+    ) -> anyhow::Result<Vec<SessionGrant>> {
+        let rows = sqlx::query(
+            "SELECT * FROM session_grants \
+             WHERE session_id = ?1 AND revoked_at IS NULL AND expires_at > ?2 \
+             ORDER BY granted_at",
+        )
+        .bind(session_id.to_string())
+        .bind(now.to_rfc3339())
+        .fetch_all(&self.pool)
+        .await
+        .context("select session roster")?;
+
+        let mut grants = Vec::with_capacity(rows.len());
+        for row in &rows {
+            let grant = self.stored_grant(row).await?;
+            if grant.assert_active(now).is_ok() {
+                grants.push(grant);
+            }
+        }
+        Ok(grants)
+    }
+
+    /// One grant by id, whatever its state.
+    ///
+    /// Unfiltered on purpose: this is what a revoke path reads to find out
+    /// which session a grant belongs to before deciding whether the caller may
+    /// revoke it. Answering "does this grant exist" is not answering "may you
+    /// use it" — that stays [`opensesame_domain::SessionGrant::permits`]'s
+    /// question, asked separately.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query or the reconstruction fails.
+    pub async fn session_grant(
+        &self,
+        organization_id: &str,
+        id: SessionGrantId,
+    ) -> anyhow::Result<Option<SessionGrant>> {
+        let row =
+            sqlx::query("SELECT * FROM session_grants WHERE organization_id = ?1 AND id = ?2")
+                .bind(organization_id)
+                .bind(id.to_string())
+                .fetch_optional(&self.pool)
+                .await
+                .context("select session grant")?;
+        match row {
+            Some(row) => Ok(Some(self.stored_grant(&row).await?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Requests on one session that nobody has decided yet.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query or the reconstruction fails.
+    pub async fn pending_join_requests(
+        &self,
+        session_id: SessionId,
+    ) -> anyhow::Result<Vec<JoinRequest>> {
+        let rows = sqlx::query(
+            "SELECT * FROM session_join_requests \
+             WHERE session_id = ?1 AND decision = 'pending' ORDER BY requested_at",
+        )
+        .bind(session_id.to_string())
+        .fetch_all(&self.pool)
+        .await
+        .context("select pending join requests")?;
+        rows.iter().map(stored_join_request).collect()
+    }
+
+    /// One join request by id, whatever its decision.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query or the reconstruction fails.
+    pub async fn join_request(
+        &self,
+        organization_id: &str,
+        id: JoinRequestId,
+    ) -> anyhow::Result<Option<JoinRequest>> {
+        let row = sqlx::query(
+            "SELECT * FROM session_join_requests WHERE organization_id = ?1 AND id = ?2",
+        )
+        .bind(organization_id)
+        .bind(id.to_string())
+        .fetch_optional(&self.pool)
+        .await
+        .context("select join request")?;
+        row.as_ref().map(stored_join_request).transpose()
     }
 
     /// Live grants approaching their deadline, for the lifecycle scanner.
