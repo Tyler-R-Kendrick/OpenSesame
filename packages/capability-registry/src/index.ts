@@ -64,6 +64,7 @@ const ADR_LIVE_OBSERVATION = "0081-live-session-observation.md";
 const ADR_MODEL_PLANE = "0083-browser-plane-inference-fallback.md";
 const ADR_NOTIFICATION_CEREMONIES =
   "0084-external-authorization-notifications.md";
+const ADR_PWA_INSTALL = "0085-pwa-install-offer.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -152,6 +153,12 @@ const MODEL_PLANE_REDIRECT: CapabilityExclusion = {
   reason:
     "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
   adr: ADR_MODEL_PLANE,
+};
+
+const DEVICE_GESTURE: CapabilityExclusion = {
+  reason:
+    "installing is a browser-mediated act on the human's own device: the install dialog only opens inside a transient user activation, and there is no gesture an agent can supply or consent it can give on the device owner's behalf",
+  adr: ADR_PWA_INSTALL,
 };
 
 const FIRST_RUN_CEREMONY: CapabilityExclusion = {
@@ -1843,6 +1850,20 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_client: null,
       webmcp: "opensesame_pwa_status",
     },
+  },
+  {
+    id: "app.install",
+    title: "Install the PWA on this device",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/install.ts:installWorthShowing",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: DEVICE_GESTURE },
   },
   {
     id: "setup.first_run",

@@ -206,7 +206,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/testing` | Shared test utilities (incl. `test:security`) |
 | `packages/identity-atproto` / `identity-nostr` | Alternate-identity linking |
 | `packages/observability` | Structured logging + deep redaction |
-| `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0084) |
+| `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0085) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
 | `packages/webmcp` | WebMCP (`navigator.modelContext`) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
 | `packages/config` | Shared tsconfig |
@@ -261,11 +261,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   no channel but the in-app ceremony may claim phishing resistance. Direct
   external settlement is default-deny and needs an explicit per-channel policy
   opt-in *and* the assurance gate; a provider-signed callback proves provenance,
-  never authorization ([ADR 0084](docs/adr/0084-external-authorization-notifications.md)).
+  never authorization ([ADR 0085](docs/adr/0084-external-authorization-notifications.md)).
 - A sensitive approval is bound to its transaction: the WebAuthn activation
   commits to the request digest, the decision verb, and the effective policy
   digest, and is spent by a durable compare-and-set. An activation minted for
-  one request, one verb, or one policy can never settle another (ADR 0084).
+  one request, one verb, or one policy can never settle another (ADR 0085).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,
@@ -284,7 +284,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 ## 6. Security posture
 
 - `docs/security/notification-approval-threat-model.md` — trust boundaries and
-  residual risks for external notification and approval (ADR 0084);
+  residual risks for external notification and approval (ADR 0085);
   `docs/operators/notification-channels.md` — the channel capability matrix and
   per-provider setup.
 - `docs/security/security-boundaries.md`, `docs/security/threat-model.md`,

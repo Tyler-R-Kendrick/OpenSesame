@@ -53,6 +53,7 @@ import { CoreConnectionsPanel } from "./settings/CoreConnectionsPanel.js";
 import { EndpointsPanel, TursoSyncPanel } from "./settings/EndpointsPanel.js";
 import { GithubBackupPanel as DefaultGithubBackupPanel } from "./settings/GithubBackupPanel.js";
 import { ImportPanel as DefaultImportPanel } from "./settings/ImportPanel.js";
+import { InstallPanel as DefaultInstallPanel } from "./settings/InstallPanel.js";
 import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/ModelProviderPanel.js";
 import { OfflineBackupPanel as DefaultOfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
 import { SecretConfigsPanel as DefaultSecretConfigsPanel } from "./settings/SecretConfigsPanel.js";
@@ -128,6 +129,7 @@ type CategoryId = SettingsCategory;
 
 export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
+  InstallPanel: ComponentType;
   ActiveProjectPanel: ComponentType;
   CapabilityConnectorsPanel: ComponentType;
   ModelProviderPanel: ComponentType;
@@ -142,6 +144,7 @@ export type SettingsPanels = {
 
 const defaultPanels: SettingsPanels = {
   UnlockMethodsPanel: DefaultUnlockMethodsPanel,
+  InstallPanel: DefaultInstallPanel,
   ActiveProjectPanel: DefaultActiveProjectPanel,
   CapabilityConnectorsPanel: DefaultCapabilityConnectorsPanel,
   ModelProviderPanel: DefaultModelProviderPanel,
@@ -391,6 +394,8 @@ export function SettingsSection({
 
       {category !== "general" ? null : (
         <>
+          <resolvedPanels.InstallPanel />
+
           <section className="panel">
             <div className="panel__head">
               <div>

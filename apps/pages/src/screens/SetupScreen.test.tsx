@@ -50,8 +50,20 @@ Object.assign(federationSeams, {
   }),
 });
 
+import type { InstallOutcome, InstallState } from "../lib/install.js";
+import { installViewSeams } from "../lib/use-install.js";
 import { SetupScreen, setupScreenDependencies } from "./SetupScreen.js";
 import { waysInDependencies } from "./setup/WaysIn.js";
+
+/**
+ * What the browser is offering, for the ceremony's benefit. jsdom offers
+ * nothing, which is also the honest default: most of these tests are about the
+ * screen that browser gets.
+ */
+function offering(state: InstallState): void {
+  installViewSeams.state = state;
+}
+const installNow = vi.fn<() => Promise<InstallOutcome>>(async () => "accepted");
 
 /** The one network call the ceremony makes: the provider's discovery doc. */
 const discover = vi.fn<(issuer: string) => Promise<OidcDiscovery>>();
@@ -88,9 +100,17 @@ beforeEach(() => {
     completeSetup,
     loadSettings: () => currentSettings(),
   });
+  installViewSeams.state = "unavailable";
+  installNow.mockClear();
+  installViewSeams.install = installNow;
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  installViewSeams.state = null;
+  installViewSeams.persisted = null;
+  installViewSeams.install = null;
+});
 
 function fieldNamed(label: string | RegExp): HTMLInputElement {
   const element = screen.getByLabelText(label);
@@ -401,5 +421,87 @@ describe("an OpenSesame identity service", () => {
       clientId: "abc",
     });
     expect(written.identityApi).toBe("");
+  });
+});
+
+describe("keeping it on this device", () => {
+  it("leaves no trace at all where the browser will not install", () => {
+    // ADR 0085 — the same rule that withholds Unlock while there is no sealed
+    // vault. Not a heading over an empty space explaining what cannot be done.
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(screen.queryByText("Keep it on this device")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Install OpenSesame" }),
+    ).toBeNull();
+  });
+
+  it("is a section under the one question, never a second one", () => {
+    // The ceremony stays one screen with one heading (ADR 0078): no stepper,
+    // no counter, and the install offer does not become a step.
+    offering("prompt");
+    render(<SetupScreen onDone={vi.fn()} />);
+
+    expect(heading()).toBe("How do people sign in?");
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByText("Keep it on this device")).toBeDefined();
+  });
+
+  it("sits below the allowlist, not above the question", () => {
+    offering("prompt");
+    render(<SetupScreen onDone={vi.fn()} />);
+    const body = document.querySelector(".setup__body");
+    const text = body?.textContent ?? "";
+    expect(text.indexOf("How do people sign in?")).toBeLessThan(
+      text.indexOf("Keep it on this device"),
+    );
+  });
+
+  it("offers the install inside the card, never as the screen's commit", () => {
+    // `docs/design/controls.md`: the foot bar commits the ceremony; the card
+    // acts on its own content. The commit still reads "Finish setup".
+    offering("prompt");
+    render(<SetupScreen onDone={vi.fn()} />);
+
+    const action = screen.getByRole("button", { name: "Install OpenSesame" });
+    expect(action.closest(".setup__foot")).toBeNull();
+    expect(action.closest(".found")).not.toBeNull();
+    expect(commit().getAttribute("aria-label")).toBe("Finish setup");
+  });
+
+  it("never gates finishing setup", async () => {
+    // Installing has no wrong answer, so it cannot hold the commit.
+    offering("prompt");
+    const onDone = vi.fn();
+    render(<SetupScreen onDone={onDone} />);
+
+    fireEvent.click(commit());
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(installNow).not.toHaveBeenCalled();
+    // And it leaves no mark on the record: the ceremony answers one question.
+    expect(completeSetup).toHaveBeenCalledWith({
+      ways: ["builtin"],
+      service: false,
+    });
+  });
+
+  it("gives iOS the manual road rather than a button that cannot work", () => {
+    offering("manual");
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(screen.getByText("Keep it on this device")).toBeDefined();
+    expect(
+      screen.queryByRole("button", { name: "Install OpenSesame" }),
+    ).toBeNull();
+    expect(
+      screen.getByText("Add to Home Screen", { selector: "strong" }),
+    ).toBeDefined();
+  });
+
+  it("keeps reporting the install once it has happened", () => {
+    offering("installed");
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(screen.getByText("Installed")).toBeDefined();
+    expect(
+      screen.queryByRole("button", { name: "Install OpenSesame" }),
+    ).toBeNull();
   });
 });

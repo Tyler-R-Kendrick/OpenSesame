@@ -1,0 +1,57 @@
+<div class="os" data-theme="{{theme}}" style="width: 760px; height: 520px">
+  <div class="section">
+    <div class="section__inner">
+      <div class="section__head">
+        <h1>Settings</h1>
+        <p>General</p>
+      </div>
+
+      <!-- Setup runs once; this is where the offer lives for good. Same
+           component, same states, same rule: it is here when there is an
+           install to make or one to report, and absent when there is neither.
+           A panel that says "your browser cannot do this" is the amber notice
+           the ceremony was built to delete. -->
+      <div class="panel">
+        <div class="panel__head">
+          <div>
+            <h2>Install</h2>
+            <p>OpenSesame runs from a web address, so there is no store listing and nothing to download. Installing puts it on this device as its own app.</p>
+          </div>
+        </div>
+        <div class="panel__body">
+          <div class="found">
+            <p class="found__top">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 4v10.5M7.5 10.5L12 15l4.5-4.5"></path>
+                <path d="M4.5 17.5v1.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8v-1.2"></path>
+              </svg>
+              This browser can install it
+            </p>
+            <p class="found__name">OpenSesame</p>
+            <dl>
+              <dt>From</dt>
+              <dd>tyler-r-kendrick.github.io</dd>
+              <dt>Opens</dt>
+              <dd>its own window, offline</dd>
+              <dt>Needs</dt>
+              <dd>no store, no account</dd>
+            </dl>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary">Install OpenSesame</button>
+            </div>
+          </div>
+
+          <p class="keep__why">A browser can clear a tab's storage when the device runs short of room, and this vault lives in that storage. An installed app keeps it — and opens offline, in its own window, with no address bar to lose.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":760,"height":520}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>
