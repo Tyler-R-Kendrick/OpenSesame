@@ -227,30 +227,59 @@ const fn default_true() -> bool {
 
 /// `PUT /api/v1/lifecycle/hooks` — register or edit a subscription.
 ///
-/// A freshly minted hook secret: the sealed blob to store, and the
-/// `(hook_id, plaintext)` to reveal exactly once. Both are `None` for a hook
-/// that keeps an existing secret.
-type MintedHookSecret = (Option<SealedCertificateMaterial>, Option<(String, String)>);
-
-/// Mint and seal a new hook's signing secret, returning the sealed blob and the
-/// one-time reveal.
+/// A new registration mints a `whsec_` secret and returns it **once**. An edit
+/// keeps the existing secret: rotating it is a delete and re-register, so a
+/// caller cannot silently invalidate every receiver's verification by editing
+/// a name.
+/// Validate a subscription request before anything is written.
 ///
-/// Split out of `put_hook` so the registration path stays readable; the reveal
-/// still happens exactly once, at the single call site above.
-#[expect(
-    clippy::result_large_err,
-    reason = "the error path is an axum Response, which is the handler's own return type"
-)]
+/// Split out of [`put_hook`] so the handler reads as the sequence it is —
+/// validate, load, seal, write — rather than as one long funnel.
+#[allow(clippy::result_large_err)]
+fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
+    let name = body.name.trim();
+    if name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
+        return Err(bad_request("name must be 1..=120 characters"));
+    }
+    if !filter_is_valid(&body.event_types) {
+        return Err(bad_request(
+            "event_types must be a non-empty list of lifecycle event types or \"lifecycle.*\"",
+        ));
+    }
+    if let Some(kinds) = &body.subject_kinds {
+        if kinds.is_empty() {
+            return Err(bad_request("subject_kinds must be omitted or non-empty"));
+        }
+        if let Some(unknown) = kinds.iter().find(|kind| SubjectKind::parse(kind).is_none()) {
+            return Err(bad_request(&format!("unknown subject kind \"{unknown}\"")));
+        }
+    }
+    let endpoint = body.endpoint_url.trim();
+    if endpoint.chars().count() > MAX_ENDPOINT_CHARS {
+        return Err(bad_request("endpoint_url is too long"));
+    }
+    if let Err(hint) = delivery::assert_deliverable(endpoint) {
+        return Err(bad_request(&hint));
+    }
+    Ok(())
+}
+
+/// The sealed secret and the one-time reveal for a newly registered hook.
+type MintedSecret = (Option<SealedCertificateMaterial>, Option<(String, String)>);
+
+/// Mint a `whsec_` signing secret and seal it under the hook's own identity.
+///
+/// Returns the material to store alongside the plaintext to show exactly once;
+/// no route ever reads the secret back out of the column.
+#[allow(clippy::result_large_err)]
 fn mint_hook_secret(
     st: &AppState,
-    body: &HookBody,
     organization: &str,
-) -> Result<MintedHookSecret, Response> {
+    requested_id: Option<&str>,
+) -> Result<MintedSecret, Response> {
     let secret = delivery::generate_secret();
-    let id_for_seal = body
-        .id
-        .clone()
-        .unwrap_or_else(|| format!("lch_{}", uuid::Uuid::now_v7()));
+    let id_for_seal =
+        requested_id.map_or_else(|| format!("lch_{}", uuid::Uuid::now_v7()), str::to_string);
     let Some(key) = st.connection_broker.config().key().copied() else {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
@@ -280,10 +309,6 @@ fn mint_hook_secret(
     ))
 }
 
-/// A new registration mints a `whsec_` secret and returns it **once**. An edit
-/// keeps the existing secret: rotating it is a delete and re-register, so a
-/// caller cannot silently invalidate every receiver's verification by editing
-/// a name.
 pub async fn put_hook(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -298,31 +323,11 @@ pub async fn put_hook(
         Err(response) => return response,
     };
     let organization = organization_id.to_string();
-
+    if let Err(response) = validate_hook_body(&body) {
+        return response;
+    }
     let name = body.name.trim();
-    if name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
-        return bad_request("name must be 1..=120 characters");
-    }
-    if !filter_is_valid(&body.event_types) {
-        return bad_request(
-            "event_types must be a non-empty list of lifecycle event types or \"lifecycle.*\"",
-        );
-    }
-    if let Some(kinds) = &body.subject_kinds {
-        if kinds.is_empty() {
-            return bad_request("subject_kinds must be omitted or non-empty");
-        }
-        if let Some(unknown) = kinds.iter().find(|kind| SubjectKind::parse(kind).is_none()) {
-            return bad_request(&format!("unknown subject kind \"{unknown}\""));
-        }
-    }
     let endpoint = body.endpoint_url.trim();
-    if endpoint.chars().count() > MAX_ENDPOINT_CHARS {
-        return bad_request("endpoint_url is too long");
-    }
-    if let Err(hint) = delivery::assert_deliverable(endpoint) {
-        return bad_request(&hint);
-    }
 
     let existing = match &body.id {
         Some(id) => match st.db.get_lifecycle_hook(&organization, id).await {
@@ -343,7 +348,7 @@ pub async fn put_hook(
     let (sealed_secret, revealed) = if let Some(hook) = &existing {
         (hook.sealed_secret.clone(), None)
     } else {
-        match mint_hook_secret(&st, &body, &organization) {
+        match mint_hook_secret(&st, &organization, body.id.as_deref()) {
             Ok(minted) => minted,
             Err(response) => return response,
         }
@@ -1237,7 +1242,7 @@ mod custody_e2e {
     ///
     /// The scanner has no view of concurrency: it evaluates watermarks and then
     /// responds. Both processes read an unrecorded rung, so both would renew.
-    /// The watermark write is the claim, and only the winner acts (ADR 0073).
+    /// The watermark write is the claim, and only the winner acts (ADR 0076).
     #[tokio::test]
     async fn concurrent_scans_reissue_a_certificate_once() {
         let st = custody_state().await;

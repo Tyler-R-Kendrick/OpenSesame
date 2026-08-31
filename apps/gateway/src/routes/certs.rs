@@ -1582,7 +1582,7 @@ async fn issue_managed_certificate(
     };
     match managed_certs::issue_managed(
         st,
-        managed_certs::ManagedIssue {
+        &managed_certs::ManagedRequest {
             organization,
             authority_id: &authority_id,
             ca: &ca,

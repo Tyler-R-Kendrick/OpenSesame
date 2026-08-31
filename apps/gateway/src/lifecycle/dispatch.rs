@@ -33,20 +33,15 @@ pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc
     // Publishing stays at-least-once on purpose: a crash between emit and
     // record re-notifies rather than drops, which is the safe direction for an
     // expiry notice, and subscribers are built for duplicates. *Acting* is the
-    // opposite — renewing a certificate or rotating a credential twice is a
+    // opposite — reissuing a certificate or rotating a credential twice is a
     // real fault, and two gateway processes scanning concurrently both see an
     // unrecorded rung. So the claim gates the responder and nothing else
-    // (ADR 0073).
+    // (ADR 0076).
     let claimed = record_watermark(state, event, now).await;
 
     if !claimed || !should_respond(event) {
         return;
     }
-    respond_and_report(state, event, now).await;
-}
-
-/// Run the platform responder for a claimed rung and publish what it did.
-async fn respond_and_report(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
     let outcome = responders::respond(state, event).await;
     let detail: String = outcome.detail.chars().take(MAX_DETAIL_CHARS).collect();
     log_outcome(event, outcome.succeeded, &detail);
@@ -124,41 +119,11 @@ pub fn hook_matches(hook: &StoredLifecycleHook, event: &LifecycleEvent) -> bool 
     }
 }
 
-async fn enqueue_for_subscribers(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
-    let Ok(hooks) = state
-        .db
-        .list_lifecycle_hooks(&event.subject.organization_id)
-        .await
-        .inspect_err(|error| {
-            tracing::warn!(%error, "lifecycle fan-out could not read subscriptions");
-        })
-    else {
-        return;
-    };
-    let Ok(payload) = serde_json::to_string(&event.payload()).inspect_err(|error| {
-        tracing::warn!(%error, "lifecycle payload could not be encoded");
-    }) else {
-        return;
-    };
-    for hook in hooks {
-        // Internal hook rows are documentation of a platform responder, not a
-        // delivery target: the responder runs in-process, so queueing an
-        // outbound delivery for it would be a row nobody ever drains.
-        if hook.delivery != "webhook" || !hook_matches(&hook, event) {
-            continue;
-        }
-        let delivery = pending_delivery(&hook, event, &payload, now);
-        if let Err(error) = state.db.enqueue_lifecycle_delivery(&delivery).await {
-            tracing::warn!(%error, hook_id = %hook.id, "lifecycle delivery could not be queued");
-        }
-    }
-}
-
-/// One queued delivery row for a matched subscriber.
+/// One queued delivery of `event` to `hook`.
 fn pending_delivery(
     hook: &StoredLifecycleHook,
     event: &LifecycleEvent,
-    payload: &str,
+    payload_json: String,
     now: DateTime<Utc>,
 ) -> StoredLifecycleDelivery {
     StoredLifecycleDelivery {
@@ -168,7 +133,7 @@ fn pending_delivery(
         event_type: event.event_type.clone(),
         subject_kind: event.subject.kind.as_str().to_string(),
         subject_id: event.subject.subject_id.clone(),
-        payload_json: payload.to_string(),
+        payload_json,
         state: "pending".into(),
         attempts: 0,
         available_at: None,
@@ -179,14 +144,59 @@ fn pending_delivery(
     }
 }
 
+/// Whether this subscription should receive an outbound delivery.
+///
+/// Internal hook rows are documentation of a platform responder, not a
+/// delivery target: the responder runs in-process, so queueing an outbound
+/// delivery for it would be a row nobody ever drains.
+fn wants_delivery(hook: &StoredLifecycleHook, event: &LifecycleEvent) -> bool {
+    hook.delivery == "webhook" && hook_matches(hook, event)
+}
+
+/// The subscriptions and the encoded payload one fan-out needs.
+///
+/// `None` when either could not be obtained, which is logged here so the
+/// caller stays a loop rather than a funnel of early returns.
+async fn fanout_inputs(
+    state: &AppState,
+    event: &LifecycleEvent,
+) -> Option<(Vec<StoredLifecycleHook>, String)> {
+    let hooks = state
+        .db
+        .list_lifecycle_hooks(&event.subject.organization_id)
+        .await
+        .inspect_err(|error| {
+            tracing::warn!(%error, "lifecycle fan-out could not read subscriptions");
+        })
+        .ok()?;
+    let payload = serde_json::to_string(&event.payload())
+        .inspect_err(|error| {
+            tracing::warn!(%error, "lifecycle payload could not be encoded");
+        })
+        .ok()?;
+    Some((hooks, payload))
+}
+
+async fn enqueue_for_subscribers(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
+    let Some((hooks, payload)) = fanout_inputs(state, event).await else {
+        return;
+    };
+    for hook in hooks.iter().filter(|hook| wants_delivery(hook, event)) {
+        let delivery = pending_delivery(hook, event, payload.clone(), now);
+        if let Err(error) = state.db.enqueue_lifecycle_delivery(&delivery).await {
+            tracing::warn!(%error, hook_id = %hook.id, "lifecycle delivery could not be queued");
+        }
+    }
+}
+
 /// Advance the fired rung's watermark.
 ///
 /// Recorded *after* the event has been queued, never before: a crash in
 /// between re-emits on the next pass, which is at-least-once. For an expiry
 /// notice that is the safe direction — a duplicate warning is noise, a dropped
 /// one is an outage.
-/// Claim this rung. `true` means this process advanced the watermark and
-/// may act on the subject.
+/// Claim this rung. `true` means this process advanced the watermark and may
+/// act on the subject.
 async fn record_watermark(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) -> bool {
     let mark = Watermark::after(&event.subject, event.stage);
     let row = StoredLifecycleWatermark {
@@ -203,8 +213,7 @@ async fn record_watermark(state: &AppState, event: &LifecycleEvent, now: DateTim
         Err(error) => {
             // Fail closed. Without a recorded claim we cannot show that nobody
             // else is already acting, and standing down costs a delayed
-            // rotation where acting anyway risks doing it twice. The rung
-            // re-fires on the next scan.
+            // rotation where acting anyway risks doing it twice.
             tracing::warn!(
                 %error,
                 subject_id = %event.subject.subject_id,

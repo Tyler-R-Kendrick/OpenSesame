@@ -53,31 +53,30 @@ pub async fn collect(
     let organization = organization_id.to_string();
     let mut subjects: Vec<ExpirySubject> = Vec::new();
 
-    // One source failing must not blind the sweep to the rest, so each is
-    // gathered independently and a read error is logged and skipped. Order is
-    // load-bearing: `dedupe` keeps the last writer, and rotation policies are
-    // last on purpose.
-    extend_from(
+    // Collection order is load-bearing: rotation policies come last so
+    // `dedupe`'s last-writer-wins lets a policy outrank a credential's own
+    // advertised expiry.
+    absorb(
         &mut subjects,
         certificates(&state.db, &organization, now).await,
         "certificates",
     );
-    extend_from(
+    absorb(
         &mut subjects,
         authorities(&state.db, &organization).await,
         "authorities",
     );
-    extend_from(
+    absorb(
         &mut subjects,
         signers(&state.db, &organization, now).await,
         "signers",
     );
-    extend_from(
+    absorb(
         &mut subjects,
         connections(state, organization_id).await,
         "connections",
     );
-    extend_from(
+    absorb(
         &mut subjects,
         rotation_policies(state, &organization).await,
         "rotation policies",
@@ -86,11 +85,14 @@ pub async fn collect(
     dedupe(subjects)
 }
 
-/// Append one source's subjects, or log why that source contributed nothing.
-fn extend_from(
+/// Add one source's subjects, or log why it contributed none.
+///
+/// A source that fails is skipped rather than fatal: one unreadable table must
+/// not stop a certificate elsewhere from being renewed.
+fn absorb(
     subjects: &mut Vec<ExpirySubject>,
     found: anyhow::Result<Vec<ExpirySubject>>,
-    source: &str,
+    source: &'static str,
 ) {
     match found {
         Ok(found) => subjects.extend(found),
