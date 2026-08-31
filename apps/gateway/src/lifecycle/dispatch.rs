@@ -1,32 +1,30 @@
-//! Fan-out: one lifecycle event to the bus, to every matching subscriber, and
-//! — when the platform owns a responder for it — to that responder.
+//! Expiry's entry onto the security-event feed.
 //!
-//! The ordering is deliberate. Subscribers are enqueued **before** the
+//! Everything about *who receives this and how* now lives in
+//! [`crate::security::dispatch`], shared with every other detector. What is
+//! left here is the part that is genuinely about deadlines: claiming the rung
+//! so it fires exactly once, and running the platform's own renewal responder.
+//!
+//! The ordering is deliberate. Subscribers are notified **before** the
 //! responder runs, so a tool watching `lifecycle.renewal.due` learns about the
 //! renewal whether or not our own rotation then succeeds. A responder that
 //! panicked or hung must not be able to swallow the notification.
 
 use chrono::DateTime;
 use chrono::Utc;
-use opensesame_lifecycle::{
-    filter_matches, should_respond, LifecycleEvent, Watermark, MAX_DETAIL_CHARS,
-};
-use opensesame_storage::{StoredLifecycleDelivery, StoredLifecycleHook, StoredLifecycleWatermark};
-use opensesame_task_bus::BusEvent;
+use opensesame_lifecycle::{should_respond, LifecycleEvent, Watermark, MAX_DETAIL_CHARS};
+use opensesame_storage::StoredLifecycleWatermark;
 
 use crate::app_state::AppState;
 use crate::lifecycle::responders;
-
-const BUS_SOURCE: &str = "opensesame://gateway/lifecycle";
+use crate::security;
 
 /// Publish one ladder event and settle everything it implies.
 ///
-/// Returns the outcome event a responder produced, if one ran, so a caller can
-/// report it. Every step is best-effort and logged rather than fatal: a
-/// scanner pass must keep going when one subscriber's row is unwritable.
+/// Every step is best-effort and logged rather than fatal: a scanner pass must
+/// keep going when one subscriber's row is unwritable.
 pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
-    publish_to_bus(state, event).await;
-    enqueue_for_subscribers(state, event, now).await;
+    security::dispatch::publish(state, &event.notice(), now).await;
 
     // The watermark write is the claim, and only the winner may act.
     //
@@ -49,6 +47,9 @@ pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc
     // The outcome is itself a subscribable event: a tool that wants to take
     // over when our rotation fails needs to hear that it failed. It is never
     // fed back to a responder — `should_respond` refuses outcome events.
+    //
+    // A success also *resolves* on the shared feed, so the page an approaching
+    // deadline opened is closed by the renewal that fixed it.
     let outcome_event = LifecycleEvent::for_outcome(
         event.subject.clone(),
         event.stage,
@@ -56,8 +57,7 @@ pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc
         outcome.succeeded,
         Some(&detail),
     );
-    publish_to_bus(state, &outcome_event).await;
-    enqueue_for_subscribers(state, &outcome_event, now).await;
+    security::dispatch::publish(state, &outcome_event.notice(), now).await;
 }
 
 fn log_outcome(event: &LifecycleEvent, succeeded: bool, detail: &str) {
@@ -80,123 +80,13 @@ fn log_outcome(event: &LifecycleEvent, succeeded: bool, detail: &str) {
     }
 }
 
-/// Publish on the `TaskBus`. The bus accelerates and observes; the delivery
-/// ledger is the source of truth, so a bus outage never loses a hook.
-async fn publish_to_bus(state: &AppState, event: &LifecycleEvent) {
-    let bus_event = BusEvent::cloud_event(
-        uuid::Uuid::now_v7().to_string(),
-        BUS_SOURCE,
-        event.event_type.clone(),
-        event.occurred_at.to_rfc3339(),
-        event.payload(),
-    );
-    let bus = state.task_bus.read().await;
-    if let Err(error) = bus.publish(bus_event).await {
-        tracing::warn!(
-            %error,
-            event_type = %event.event_type,
-            "lifecycle TaskBus publish failed; the delivery ledger still carries it",
-        );
-    }
-}
-
-/// Whether a stored subscription selects this event.
+/// Claim this rung. `true` means this process advanced the watermark and may
+/// act on the subject.
 ///
-/// Both filters must pass, and an empty event filter matches nothing: a hook
-/// that names no events is a misconfiguration, and defaulting it to
-/// "everything" is the wrong direction to fail.
-#[must_use]
-pub fn hook_matches(hook: &StoredLifecycleHook, event: &LifecycleEvent) -> bool {
-    if !hook.enabled {
-        return false;
-    }
-    if !filter_matches(&hook.event_types, &event.event_type) {
-        return false;
-    }
-    match &hook.subject_kinds {
-        None => true,
-        Some(kinds) => kinds.iter().any(|kind| kind == event.subject.kind.as_str()),
-    }
-}
-
-/// One queued delivery of `event` to `hook`.
-fn pending_delivery(
-    hook: &StoredLifecycleHook,
-    event: &LifecycleEvent,
-    payload_json: String,
-    now: DateTime<Utc>,
-) -> StoredLifecycleDelivery {
-    StoredLifecycleDelivery {
-        id: format!("lcd_{}", uuid::Uuid::now_v7()),
-        organization_id: hook.organization_id.clone(),
-        hook_id: hook.id.clone(),
-        event_type: event.event_type.clone(),
-        subject_kind: event.subject.kind.as_str().to_string(),
-        subject_id: event.subject.subject_id.clone(),
-        payload_json,
-        state: "pending".into(),
-        attempts: 0,
-        available_at: None,
-        last_error: None,
-        delivered_at: None,
-        created_at: now.to_rfc3339(),
-        updated_at: now.to_rfc3339(),
-    }
-}
-
-/// Whether this subscription should receive an outbound delivery.
-///
-/// Internal hook rows are documentation of a platform responder, not a
-/// delivery target: the responder runs in-process, so queueing an outbound
-/// delivery for it would be a row nobody ever drains.
-fn wants_delivery(hook: &StoredLifecycleHook, event: &LifecycleEvent) -> bool {
-    hook.delivery == "webhook" && hook_matches(hook, event)
-}
-
-/// The subscriptions and the encoded payload one fan-out needs.
-///
-/// `None` when either could not be obtained, which is logged here so the
-/// caller stays a loop rather than a funnel of early returns.
-async fn fanout_inputs(
-    state: &AppState,
-    event: &LifecycleEvent,
-) -> Option<(Vec<StoredLifecycleHook>, String)> {
-    let hooks = state
-        .db
-        .list_lifecycle_hooks(&event.subject.organization_id)
-        .await
-        .inspect_err(|error| {
-            tracing::warn!(%error, "lifecycle fan-out could not read subscriptions");
-        })
-        .ok()?;
-    let payload = serde_json::to_string(&event.payload())
-        .inspect_err(|error| {
-            tracing::warn!(%error, "lifecycle payload could not be encoded");
-        })
-        .ok()?;
-    Some((hooks, payload))
-}
-
-async fn enqueue_for_subscribers(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
-    let Some((hooks, payload)) = fanout_inputs(state, event).await else {
-        return;
-    };
-    for hook in hooks.iter().filter(|hook| wants_delivery(hook, event)) {
-        let delivery = pending_delivery(hook, event, payload.clone(), now);
-        if let Err(error) = state.db.enqueue_lifecycle_delivery(&delivery).await {
-            tracing::warn!(%error, hook_id = %hook.id, "lifecycle delivery could not be queued");
-        }
-    }
-}
-
-/// Advance the fired rung's watermark.
-///
-/// Recorded *after* the event has been queued, never before: a crash in
+/// Recorded *after* the event has been published, never before: a crash in
 /// between re-emits on the next pass, which is at-least-once. For an expiry
 /// notice that is the safe direction — a duplicate warning is noise, a dropped
 /// one is an outage.
-/// Claim this rung. `true` means this process advanced the watermark and may
-/// act on the subject.
 async fn record_watermark(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) -> bool {
     let mark = Watermark::after(&event.subject, event.stage);
     let row = StoredLifecycleWatermark {
@@ -227,29 +117,14 @@ async fn record_watermark(state: &AppState, event: &LifecycleEvent, now: DateTim
 #[cfg(test)]
 mod tests {
     use super::*;
-    use opensesame_lifecycle::{ExpiryStage, ExpirySubject, SubjectKind, EVENT_RENEWAL_DUE};
+    use opensesame_lifecycle::{ExpiryStage, ExpirySubject, SubjectKind};
+    use opensesame_security_events::{NoticeState, Severity};
 
-    fn hook(event_types: &[&str], kinds: Option<&[&str]>) -> StoredLifecycleHook {
-        StoredLifecycleHook {
-            id: "hook:1".into(),
-            organization_id: "org:1".into(),
-            name: "expiry".into(),
-            event_types: event_types.iter().map(|s| (*s).to_string()).collect(),
-            delivery: "webhook".into(),
-            endpoint_url: Some("https://hooks.example/expiry".into()),
-            responder: None,
-            subject_kinds: kinds.map(|k| k.iter().map(|s| (*s).to_string()).collect()),
-            enabled: true,
-            sealed_secret: None,
-            last_delivered_at: None,
-            last_error: None,
-            version: 1,
-            created_at: "2026-08-30T00:00:00+00:00".into(),
-            updated_at: "2026-08-30T00:00:00+00:00".into(),
-        }
+    fn now() -> DateTime<Utc> {
+        "2026-09-05T00:00:00Z".parse().unwrap()
     }
 
-    fn event(kind: SubjectKind) -> LifecycleEvent {
+    fn event(kind: SubjectKind, stage: ExpiryStage) -> LifecycleEvent {
         LifecycleEvent::for_stage(
             ExpirySubject {
                 kind,
@@ -261,69 +136,57 @@ mod tests {
                 alerting: true,
                 label: None,
             },
-            ExpiryStage::Renewal,
-            "2026-09-05T00:00:00Z".parse().unwrap(),
+            stage,
+            now(),
         )
     }
 
     #[test]
-    fn an_exact_event_filter_matches_only_that_event() {
-        let subscription = hook(&[EVENT_RENEWAL_DUE], None);
-        assert!(hook_matches(
-            &subscription,
-            &event(SubjectKind::Certificate)
-        ));
+    fn a_rung_reaches_the_shared_feed_as_a_notice() {
+        let notice = event(SubjectKind::Certificate, ExpiryStage::Urgent).notice();
+        assert_eq!(notice.event_type, "lifecycle.expiry.urgent");
+        assert_eq!(notice.organization_id, "org:1");
+        assert_eq!(notice.subject_kind, "certificate");
+        assert_eq!(notice.severity, Severity::Error);
+        assert_eq!(notice.state, NoticeState::Firing);
+    }
 
-        let other = LifecycleEvent::for_stage(
-            event(SubjectKind::Certificate).subject,
-            ExpiryStage::Notice,
-            "2026-09-05T00:00:00Z".parse().unwrap(),
+    #[test]
+    fn a_successful_outcome_resolves_the_alert_its_rung_opened() {
+        let rung = event(SubjectKind::Certificate, ExpiryStage::Renewal);
+        let renewed = LifecycleEvent::for_outcome(
+            rung.subject.clone(),
+            rung.stage,
+            now(),
+            true,
+            Some("reissued"),
         );
-        assert!(!hook_matches(&subscription, &other));
+        assert_eq!(renewed.notice().state, NoticeState::Resolved);
+        assert_eq!(rung.notice().alert_key(), renewed.notice().alert_key());
     }
 
     #[test]
-    fn a_wildcard_filter_matches_every_lifecycle_event() {
-        let subscription = hook(&["lifecycle.*"], None);
-        for stage in ExpiryStage::ALL {
-            let any = LifecycleEvent::for_stage(
-                event(SubjectKind::Certificate).subject,
-                stage,
-                "2026-09-05T00:00:00Z".parse().unwrap(),
-            );
-            assert!(hook_matches(&subscription, &any), "{stage:?}");
-        }
-    }
-
-    #[test]
-    fn a_subject_kind_filter_narrows_further() {
-        let subscription = hook(&["lifecycle.*"], Some(&["certificate"]));
-        assert!(hook_matches(
-            &subscription,
-            &event(SubjectKind::Certificate)
-        ));
-        assert!(!hook_matches(&subscription, &event(SubjectKind::StorePath)));
-
-        let unfiltered = hook(&["lifecycle.*"], None);
-        assert!(hook_matches(&unfiltered, &event(SubjectKind::StorePath)));
-    }
-
-    #[test]
-    fn a_disabled_hook_matches_nothing() {
-        let mut subscription = hook(&["lifecycle.*"], None);
-        subscription.enabled = false;
-        assert!(!hook_matches(
-            &subscription,
-            &event(SubjectKind::Certificate)
-        ));
-    }
-
-    #[test]
-    fn a_hook_naming_no_events_matches_nothing() {
-        let subscription = hook(&[], None);
+    fn a_failed_outcome_is_never_fed_back_to_a_responder() {
+        let failed = LifecycleEvent::for_outcome(
+            event(SubjectKind::StorePath, ExpiryStage::Renewal).subject,
+            ExpiryStage::Renewal,
+            now(),
+            false,
+            None,
+        );
         assert!(
-            !hook_matches(&subscription, &event(SubjectKind::Certificate)),
-            "an empty filter must not be read as 'everything'",
+            !should_respond(&failed),
+            "an outcome must not look as actionable as the rung that caused it",
         );
+        assert_eq!(failed.notice().severity, Severity::Error);
+    }
+
+    #[test]
+    fn a_watermark_row_mirrors_the_rung_that_produced_it() {
+        let rung = event(SubjectKind::Certificate, ExpiryStage::Renewal);
+        let mark = Watermark::after(&rung.subject, rung.stage);
+        assert_eq!(mark.stage.as_str(), "renewal");
+        assert_eq!(mark.track.as_str(), "renewal");
+        assert_eq!(mark.expires_at, rung.subject.expires_at);
     }
 }

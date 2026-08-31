@@ -16,7 +16,9 @@ import {
   displayName,
   hasAuthResponse,
   isBrokeredIssuer,
+  isOperatorIdpIssuer,
   loadSession,
+  operatorUpstream,
   originClientId,
   redirectUri,
   saveSession,
@@ -29,6 +31,9 @@ import {
   brokeredUpstream,
   workEmailDomain,
 } from "./providers.js";
+import { settingsSeams } from "./settings.js";
+
+const originalSettingsSeams = { ...settingsSeams };
 
 const PKCE_KEY = "opensesame:federation:pkce";
 const SESSION_KEY = "opensesame:federation:session";
@@ -842,5 +847,202 @@ describe("brokered federation", () => {
     await expect(adoptBrokeredSession("at_x")).rejects.toMatchObject({
       code: "no_identity_api",
     });
+  });
+});
+
+describe("an operator's own identity provider", () => {
+  /**
+   * The road that makes an external IdP the identity service (ADR 0078).
+   *
+   * Everything here is about one question: does the app run the code flow
+   * against the operator's provider with the operator's client, and does
+   * naming a provider widen trust by exactly one issuer and no further?
+   */
+  const OKTA = {
+    providerId: "okta",
+    issuer: "https://acme.okta.com",
+    clientId: "0oa1b2c3d4EXAMPLE",
+    label: "Okta",
+  };
+  const GOOGLE = {
+    providerId: "google",
+    issuer: "https://accounts.google.com",
+    clientId: "google-client.apps",
+    label: "Google",
+  };
+
+  function withIdps(providers: (typeof OKTA)[]): void {
+    const base = originalSettingsSeams.loadSettings();
+    settingsSeams.loadSettings = () => ({
+      ...base,
+      signIn: { builtin: true, providers },
+    });
+  }
+
+  afterEach(() => {
+    settingsSeams.loadSettings = originalSettingsSeams.loadSettings;
+  });
+
+  function stubDiscovery() {
+    return vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            issuer: OKTA.issuer,
+            authorization_endpoint: `${OKTA.issuer}/authorize`,
+            token_endpoint: `${OKTA.issuer}/token`,
+            jwks_uri: `${OKTA.issuer}/keys`,
+          }),
+        ),
+      ),
+    );
+  }
+
+  it("is trusted by nobody until an operator names one", () => {
+    withIdps([]);
+    expect(isOperatorIdpIssuer(OKTA.issuer)).toBe(false);
+  });
+
+  it("becomes an upstream carrying the operator's own client id", () => {
+    expect(operatorUpstream(OKTA)).toMatchObject({
+      issuer: OKTA.issuer,
+      clientId: OKTA.clientId,
+      accountKind: "Okta",
+    });
+  });
+
+  it("trusts every issuer the operator listed, and only those", () => {
+    withIdps([GOOGLE, OKTA]);
+    expect(isOperatorIdpIssuer("https://acme.okta.com/")).toBe(true);
+    expect(isOperatorIdpIssuer(GOOGLE.issuer)).toBe(true);
+    expect(isOperatorIdpIssuer("https://evil.example")).toBe(false);
+  });
+
+  it("presents the operator's client, not this origin's profile", async () => {
+    withIdps([OKTA]);
+    stubDiscovery();
+
+    await beginSignIn(operatorUpstream(OKTA));
+
+    const pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? "null");
+    // `origin:<origin>` is a profile only our own brokers mint on sight; a
+    // real Okta org would reject it as an unknown client.
+    expect(pending.clientId).toBe(OKTA.clientId);
+    expect(pending.clientId).not.toBe(originClientId());
+    // The app base is the URI the operator registers at their provider.
+    expect(pending.redirectUri).toBe(redirectUri());
+    // A provider we do not control needs a subject and a name to be worth
+    // signing in with; the origin-profile brokers have only ever needed
+    // `openid`.
+    expect(pending.scope).toBe("openid profile email");
+  });
+
+  it("spends the operator's client id at the token endpoint", async () => {
+    withIdps([OKTA]);
+    seedPending({
+      upstreamId: "operator:okta",
+      issuer: OKTA.issuer,
+      tokenEndpoint: `${OKTA.issuer}/token`,
+      jwksUri: `${OKTA.issuer}/keys`,
+      redirectUri: redirectUri(),
+      clientId: OKTA.clientId,
+    });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    // Typed parameters, so the assertion below can read the request body the
+    // exchange actually sent rather than an inferred empty tuple.
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      Promise.resolve(
+        Response.json({
+          id_token: jwt({
+            iss: OKTA.issuer,
+            aud: OKTA.clientId,
+            sub: "okta-user-1",
+            exp: Math.floor(Date.now() / 1000) + 600,
+          }),
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await completeSignIn();
+    expect(result?.identity.issuer).toBe(OKTA.issuer);
+    // A real provider mints `sub`, not our brokers' `pairwise_sub`.
+    expect(result?.identity.pairwiseSub).toBe("okta-user-1");
+    const body = String(fetchMock.mock.calls[0]?.[1]?.body);
+    expect(body).toContain(`client_id=${encodeURIComponent(OKTA.clientId)}`);
+    expect(body).not.toContain("origin%3A");
+    // Nothing is carried out for adoption: an access token is only ever spent
+    // at the Identity API that minted it, and there is none in this road.
+    expect(result?.accessToken).toBeUndefined();
+  });
+
+  it("refuses a token minted for anyone but the operator's client", async () => {
+    withIdps([OKTA]);
+    seedPending({
+      issuer: OKTA.issuer,
+      tokenEndpoint: `${OKTA.issuer}/token`,
+      clientId: OKTA.clientId,
+    });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            id_token: jwt({
+              iss: OKTA.issuer,
+              aud: originClientId(),
+              sub: "okta-user-1",
+              exp: Math.floor(Date.now() / 1000) + 600,
+            }),
+          }),
+        ),
+      ),
+    );
+    await expect(completeSignIn()).rejects.toMatchObject({
+      code: "audience_mismatch",
+    });
+  });
+
+  it("widens trust by exactly the issuers the operator stored", async () => {
+    withIdps([OKTA, GOOGLE]);
+    seedPending({
+      issuer: "https://other.okta.com",
+      tokenEndpoint: "https://other.okta.com/token",
+      clientId: OKTA.clientId,
+    });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            id_token: jwt({
+              iss: "https://other.okta.com",
+              aud: OKTA.clientId,
+              sub: "someone",
+              exp: Math.floor(Date.now() / 1000) + 600,
+            }),
+          }),
+        ),
+      ),
+    );
+    // Naming Okta does not admit every Okta, nor anything else a response
+    // happens to claim: the stored issuer, and nothing besides.
+    await expect(completeSignIn()).rejects.toMatchObject({
+      code: "untrusted_issuer",
+    });
+  });
+
+  it("drops a stored session once the operator points somewhere else", () => {
+    withIdps([OKTA]);
+    saveSession(identity({ issuer: OKTA.issuer, upstreamId: "operator:okta" }));
+    expect(loadSession()?.issuer).toBe(OKTA.issuer);
+
+    withIdps([{ ...OKTA, issuer: "https://new.okta.com" }]);
+    // Trust can be withdrawn between sessions, and an identity from an issuer
+    // this app has since been pointed away from must not keep working.
+    expect(loadSession()).toBeNull();
   });
 });

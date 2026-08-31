@@ -40,64 +40,6 @@
   color: var(--ink-2);
 }
 
-.setup__count {
-  margin-left: auto;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-
-/* The progress rail: four segments, the passed ones filled in ink. A row of
-   dots would be decoration; a segment says how much is left, and each one is
-   a jump for the operator who came back to change one answer. */
-.setup__rail {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 3px;
-  flex: none;
-  padding: 0 1.15rem 0.85rem;
-}
-
-.setup__seg {
-  appearance: none;
-  display: grid;
-  gap: 0.3rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  color: var(--ink-3);
-}
-
-.setup__seg-bar {
-  height: 3px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-3);
-  transition: background 200ms var(--ease);
-}
-
-.setup__seg.is-done .setup__seg-bar,
-.setup__seg.is-now .setup__seg-bar {
-  background: var(--ink);
-}
-
-.setup__seg.is-now {
-  color: var(--ink);
-}
-
-.setup__seg-label {
-  font-family: var(--mono);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .setup__body {
   flex: 1;
   min-height: 0;
@@ -130,9 +72,9 @@
   gap: 0.85rem;
 }
 
-/* The thumb bar. Every step's commitment sits here, at the bottom of the
-   phone, in the same place — the one thing the screen this replaces never
-   had. It is the whole of the mobile-navigation fix. */
+/* The thumb bar. The screen's one commitment sits here, at the bottom of the
+   phone — the thing the screen this replaces never had. It is the whole of
+   the mobile-navigation fix. */
 .setup__foot {
   flex: none;
   display: flex;
@@ -152,27 +94,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.setup__skip {
-  appearance: none;
-  border: 0;
-  background: none;
-  padding: 0.35rem 0;
-  font: inherit;
-  font-family: var(--font);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--accent);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  white-space: nowrap;
-}
-
-.setup__skip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Provider presets — a two-up grid of real choices, not a select. On a phone
@@ -230,7 +151,7 @@
   color: var(--accent);
 }
 
-/* The Review step's write-out: what setup is about to save, in the order it
+/* The write-out: what setup is about to save, in the order it
    was asked. Unset rows read as deliberate, not as gaps. */
 .wrote-list {
   display: grid;
@@ -284,7 +205,6 @@
   }
 
   .setup__bar,
-  .setup__rail,
   .setup__body,
   .setup__foot {
     padding-left: 0;
@@ -318,8 +238,8 @@
    `.setup` so the connection ceremonies sharing these classes are untouched. */
 @media (pointer: coarse) {
   .setup .btn,
-  .setup .alt__btn,
-  .setup .road__opt {
+  .setup .preset__opt,
+  .setup .ways__item {
     min-height: 2.75rem;
   }
 
@@ -329,116 +249,77 @@
   }
 }
 
-/* The one question that matters, as three roads rather than a URL field. The
-   first is selected on arrival because it already works: a deployment nobody
-   has configured can still sign people in through the compiled broker. */
-.road {
+/* The ways in: the allowlist being built, at the top of the screen where the
+   answer belongs. Each row is a thing that will be a button on the sign-in
+   screen, so it wears the same mark it will wear there — and carries the one
+   control that can take it away again. */
+.ways {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ways__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ways__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.ways__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   gap: 0.4rem;
 }
 
-/* The group's name is the step's own heading; the legend is for the
-   accessibility tree, where a fieldset without one is an unnamed group. */
-.road__legend {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* The card is the control. The input stays in the tree for its semantics and
-   keyboard behaviour, and takes the focus ring with it. */
-.road__input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  margin: 0;
-  pointer-events: none;
-}
-
-.road__opt:focus-within {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.road__opt {
-  position: relative;
+.ways__item {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  width: 100%;
-  min-height: 3.5rem;
-  padding: 0.65rem 0.8rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 140ms var(--ease), background 140ms var(--ease);
 }
 
-.road__opt:hover {
-  border-color: var(--line-strong);
-  background: var(--surface-2);
-}
-
-.road__opt.is-on {
-  border-color: var(--accent);
-  background: var(--accent-wash);
-}
-
-.road__mark {
+.ways__mark {
   display: grid;
   place-items: center;
   flex: none;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
-.road__opt.is-on .road__mark,
-.road__on {
-  color: var(--accent);
-}
-
-.road__body {
-  display: grid;
-  gap: 0.1rem;
+.ways__body {
   flex: 1;
   min-width: 0;
-}
-
-.road__name {
-  font-family: var(--mono);
-  font-size: 0.875rem;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.road__kind {
-  font-family: var(--font);
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
-.road__opt.is-on .road__kind {
-  color: var(--accent);
-}
-
-.road__on {
   display: grid;
-  place-items: center;
-  flex: none;
+  gap: 0.1rem;
 }
 
-/* What an unopened row already holds, so the screen can be read without
-   opening three disclosures to find out nothing is set. */
-.alt__state {
-  flex: none;
+.ways__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ways__kind {
   font-family: var(--mono);
   font-size: 0.6875rem;
   color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

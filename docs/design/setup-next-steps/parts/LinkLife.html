@@ -1,0 +1,78 @@
+<div class="os" data-theme="{{theme}}" style="width: 900px; height: 880px; padding: 30px 34px; display: grid; gap: 20px; align-content: start; overflow: hidden">
+
+  <div style="display: grid; gap: 8px; max-width: 68ch">
+    <h1>Two clocks, and only one of them can be the longer</h1>
+    <p style="color: var(--ink-2); font-size: 14px">A share link has a lifetime. So does the access it hands over. They are different things and people confuse them constantly, so the ceremony shows both, and the picker refuses the combination that does not make sense.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px">
+
+    <div class="finding">
+      <p class="finding__head">The link — how long the offer stands</p>
+      <p class="hint" style="margin-top: 8px">Default <strong>24 hours</strong>. Long enough to reach somebody in another timezone without a second attempt; short enough that a link forwarded into a group chat is dead by the next morning. Configurable per invite, and the default itself is a Settings value so an organization that wants an hour can have one.</p>
+      <div class="life" style="margin-top: 12px">
+        <div class="life__row">
+          <button type="button" class="life__opt">15 min</button>
+          <button type="button" class="life__opt">1 hour</button>
+          <button type="button" class="life__opt is-on">24 hours</button>
+          <button type="button" class="life__opt">7 days</button>
+        </div>
+      </div>
+      <p class="hint" style="margin-top: 8px">Single use as well as timed: presenting it spends it. The clock is for the link that was never opened.</p>
+    </div>
+
+    <div class="finding">
+      <p class="finding__head">The access — how long they can read</p>
+      <p class="hint" style="margin-top: 8px">Ceiling <strong>7 days</strong>, and no way to ask for more: there is no "never expires" to pick, because the field that would hold it does not exist. Something longer than a handover is not a handover — that is a person who should be a member, which is a more visible thing to be.</p>
+      <div class="life" style="margin-top: 12px">
+        <div class="life__row">
+          <button type="button" class="life__opt">1 hour</button>
+          <button type="button" class="life__opt is-on">8 hours</button>
+          <button type="button" class="life__opt">7 days</button>
+          <button type="button" class="life__opt" disabled="disabled">forever</button>
+        </div>
+      </div>
+      <p class="hint" style="margin-top: 8px">Asking for longer than the ceiling is refused, never quietly shortened: an operator who was told "seven days" and got seven days believes something true.</p>
+    </div>
+  </div>
+
+  <div class="note note--warn">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>
+    <div>
+      <p><strong>The rule the picker enforces: a link never outlives what it carries.</strong></p>
+      <p style="margin-top: 0.35rem">Set access to one hour and the 24-hour and 7-day link options grey out. Not a validation error after the fact — the option is simply not there, so the invite that would arrive dead cannot be composed. This is the same shape as the grant itself, where a standing grant is unrepresentable rather than discouraged.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 10px">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; text-transform: uppercase">What expiry does, and does not, undo</p>
+    <div class="cross">
+      <div class="gate gate--allow">
+        <p class="gate__head">When the clock runs out</p>
+        <ul class="gate__list">
+          <li>no further reads are authorized</li>
+          <li>the roster drops them without a write</li>
+          <li>the channel stops delivering to them</li>
+          <li>the lapse is announced ahead of time, so nobody is surprised</li>
+        </ul>
+      </div>
+      <div class="gate gate--deny">
+        <p class="gate__head">What it cannot reach back and undo</p>
+        <ul class="gate__list">
+          <li>a version they already decrypted and kept</li>
+          <li>a screenshot they took</li>
+          <li>anything copied out while access was live</li>
+        </ul>
+      </div>
+    </div>
+    <p class="hint">Which is why every share is timed by default rather than standing, and why the withdrawal screen says re-key rather than implying a switch was flipped.</p>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":900,"height":880}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

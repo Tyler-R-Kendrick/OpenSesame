@@ -226,3 +226,125 @@ describe("settings subscriptions and guards", () => {
     ).toBe(false);
   });
 });
+
+describe("the ways into this deployment", () => {
+  /**
+   * An issuer and a public client id are what the browser needs to run a
+   * sign-in itself (ADR 0078). They are configuration, not credentials — but a
+   * half-written one would become a trusted issuer with nothing behind it, so
+   * the store only ever holds whole records.
+   */
+  it("keeps every provider the operator added, in order", async () => {
+    const { loadSettings, saveSettings } = await import("./settings.js");
+    saveSettings({
+      ...loadSettings(),
+      signIn: {
+        builtin: false,
+        providers: [
+          {
+            providerId: "google",
+            issuer: "https://accounts.google.com",
+            clientId: " google-client.apps ",
+            label: "Google",
+          },
+          {
+            providerId: "okta",
+            issuer: "https://acme.okta.com/",
+            clientId: "0oa1b2c3d4EXAMPLE",
+            label: "Okta",
+          },
+        ],
+      },
+    });
+    const stored = loadSettings().signIn;
+    expect(stored?.builtin).toBe(false);
+    expect(stored?.providers).toEqual([
+      {
+        providerId: "google",
+        issuer: "https://accounts.google.com",
+        clientId: "google-client.apps",
+        label: "Google",
+      },
+      {
+        providerId: "okta",
+        issuer: "https://acme.okta.com",
+        clientId: "0oa1b2c3d4EXAMPLE",
+        label: "Okta",
+      },
+    ]);
+  });
+
+  it("offers the compiled-in broker where nobody has answered setup", async () => {
+    const { loadSettings, signInMethods } = await import("./settings.js");
+    // A deployment nobody has configured already signs people in, and this is
+    // where that is true: no stored list reads as the shipped default.
+    expect(signInMethods(loadSettings())).toEqual({
+      builtin: true,
+      providers: [],
+    });
+  });
+
+  it("admits one entry per issuer", async () => {
+    const { loadSettings, saveSettings } = await import("./settings.js");
+    const entry = {
+      providerId: "okta",
+      issuer: "https://acme.okta.com",
+      clientId: "one",
+      label: "Okta",
+    };
+    saveSettings({
+      ...loadSettings(),
+      signIn: {
+        builtin: true,
+        providers: [entry, { ...entry, clientId: "two" }],
+      },
+    });
+    // Two buttons for one issuer, and an ambiguous "remove". The first wins.
+    expect(loadSettings().signIn?.providers).toEqual([entry]);
+  });
+
+  it("falls back to the issuer's host when nothing named it", async () => {
+    const { normalizeOperatorIdp } = await import("./settings.js");
+    expect(normalizeOperatorIdp("", "https://idp.acme.com", "abc")?.label).toBe(
+      "idp.acme.com",
+    );
+  });
+
+  it("refuses a record that could not sign anybody in", async () => {
+    const { normalizeOperatorIdp } = await import("./settings.js");
+    // No client id: nothing to present at the authorize endpoint.
+    expect(
+      normalizeOperatorIdp("okta", "https://idp.acme.com", "  "),
+    ).toBeNull();
+    // No issuer: nowhere to present it.
+    expect(normalizeOperatorIdp("okta", "", "abc")).toBeNull();
+    // Not a URL at all.
+    expect(normalizeOperatorIdp("okta", "idp.acme.com", "abc")).toBeNull();
+    // Plain http off loopback would carry an authorization code in the clear.
+    expect(
+      normalizeOperatorIdp("okta", "http://idp.acme.com", "abc"),
+    ).toBeNull();
+    expect(
+      normalizeOperatorIdp("mock", "http://127.0.0.1:9090", "abc"),
+    ).not.toBeNull();
+  });
+
+  it("drops a stored provider that has been tampered into uselessness", async () => {
+    const { loadSettings, saveSettings } = await import("./settings.js");
+    saveSettings({
+      ...loadSettings(),
+      signIn: {
+        builtin: true,
+        providers: [
+          {
+            providerId: "okta",
+            issuer: "https://acme.okta.com",
+            clientId: "",
+            label: "Okta",
+          },
+        ],
+      },
+    });
+    expect(loadSettings().signIn?.providers).toEqual([]);
+  });
+});

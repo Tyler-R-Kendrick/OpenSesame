@@ -1,96 +1,66 @@
 /**
- * The first-run setup ceremony.
+ * The first-run setup ceremony — one screen, one question.
  *
- * What this replaces: a block of amber above the unlock form, reporting that
- * the deployment had no identity service and offering a text field for an
- * address the reader had never been given — above sign-in options that could
- * not work and an Unlock tab for a vault that did not exist.
+ * What this replaces, in order:
  *
- * And then, briefly, something not much better: four steps that led with an
- * OpenSesame identity service URL, a Host URL and a daemon on the operator's
- * own machine. That had the dependency backwards. `TRUSTED_UPSTREAMS` compiles
- * a browser-capable upstream into every build, so **sign-in already works on a
- * deployment nobody has configured** — and the ceremony was making everyone
- * walk past three self-hosted fields to reach it.
+ *  1. A block of amber above the unlock form, reporting that the deployment
+ *     had no identity service and offering a text field for an address the
+ *     reader had never been given — above sign-in options that could not work
+ *     and an Unlock tab for a vault that did not exist.
+ *  2. Four steps that led with an OpenSesame identity service URL, a Host URL
+ *     and a daemon on the operator's own machine.
+ *  3. Two steps, which only moved that same self-hosted plumbing behind a
+ *     road and a fold. Bringing WorkOS or Okta still meant standing up an
+ *     OpenSesame control plane first, and the readout still said
+ *     `Identity service — not set` for a deployment that signed people in.
  *
- * So it is two steps. The first asks the only question with a wrong answer —
- * how do people sign in — with the zero-config road selected by default and
- * the identity service asked for only on the road that needs one. The second
- * is optional, closed, and holds the infrastructure an operator who has it
- * needs somewhere to name.
+ * There is exactly one thing this app cannot work out for itself: who signs
+ * people in. Everything that used to share the ceremony with that question —
+ * a Host API, pairing this machine, a mobile MFA URL — is either optional
+ * infrastructure or a preference, and all of it already lives in Settings →
+ * Endpoints. None of it belongs in front of a first-time visitor. See ADR
+ * 0078 §4 for what the Host is actually for, and why nothing here waits on it.
  *
- * The commitment lives at the bottom of the phone, in the same place on both
- * steps, as the shared `.go` control: an ink square carrying the glyph of what
- * it does, its sentence beside it. Never a wide text button — see
- * `docs/design/controls.md`.
+ * So: no stepper, no counter, no skip, no back. A question, its roads, and
+ * the terminal commit at the bottom of the phone as the shared `.go` control —
+ * an ink square carrying the glyph of what it does, its sentence beside it.
+ * Never a wide text button; see `docs/design/controls.md`.
  *
  * Designed in `docs/design/first-run-setup/`.
  */
 
 import { useState } from "react";
-import {
-  IconArrowRight,
-  IconCheck,
-  IconChevronLeft,
-  IconMark,
-} from "../components/Icons.js";
-import { loadSettings } from "../lib/settings.js";
-import {
-  SETUP_STEPS,
-  type SetupIdentityChoice,
-  type SetupStep,
-  completeSetup,
-} from "../lib/setup.js";
-import { MoreStep } from "./setup/MoreStep.js";
-import { SignInStep } from "./setup/SignInStep.js";
+import { IconCheck, IconMark } from "../components/Icons.js";
+import { loadSettings, signInMethods } from "../lib/settings.js";
+import { completeSetup } from "../lib/setup.js";
+import { WaysIn } from "./setup/WaysIn.js";
 import "./setup.css";
 
-const STEP_LABEL = {
-  signin: "Sign-in",
-  more: "Everything else",
-} satisfies Record<SetupStep, string>;
-
-const STEP_TITLE = {
-  signin: "How do people sign in?",
-  more: "Anything else?",
-} satisfies Record<SetupStep, string>;
-
-const STEP_LEAD = {
-  signin:
-    "You are the first person here, so you are the operator. This is the one question that matters — and it already has a working answer.",
-  more: "All optional, and all of it changeable later. Open a row only if you run that thing yourself.",
-} satisfies Record<SetupStep, string>;
-
 export const setupScreenDependencies = {
-  loadSettings,
   completeSetup,
+  loadSettings,
 };
 
 export function SetupScreen({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState<SetupStep>("signin");
-  // The zero-config road is the default, because it is the one that already
-  // works. Nobody has to choose it to get a usable app.
-  const [choice, setChoice] = useState<SetupIdentityChoice>("brokered");
-  const [provider, setProvider] = useState("");
   const [finishing, setFinishing] = useState(false);
 
-  const index = SETUP_STEPS.indexOf(step);
-  const last = index === SETUP_STEPS.length - 1;
-  const verb = finishing ? "Saving…" : last ? "Finish setup" : "Continue";
+  const verb = finishing ? "Saving…" : "Finish setup";
 
-  function advance() {
-    if (!last) {
-      setStep(SETUP_STEPS[index + 1] ?? "more");
-      return;
-    }
+  function finish() {
+    // The answer already lives in `settings.v1` — the ways-in list writes
+    // there as it is edited, because the sign-in screen reads that same list.
+    // The record only says which roads were taken, so a later screen can tell
+    // "nobody set this up" from "the operator deliberately runs it this way".
     const settings = setupScreenDependencies.loadSettings();
+    const methods = signInMethods(settings);
     setFinishing(true);
     void setupScreenDependencies
       .completeSetup({
-        identity: choice,
-        provider,
-        host: Boolean(settings.hostApi.trim()),
-        machine: Boolean(settings.daemonApi.trim()),
+        ways: [
+          ...(methods.builtin ? ["builtin"] : []),
+          ...methods.providers.map((idp) => idp.providerId || "oidc"),
+        ],
+        service: Boolean(settings.identityApi.trim()),
       })
       .catch(() => {
         // The record is a convenience, not a gate: a browser that cannot
@@ -108,62 +78,24 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
             <IconMark size={16} />
             opensesame
           </p>
-          <span className="setup__count">
-            {index + 1} / {SETUP_STEPS.length}
-          </span>
         </div>
-
-        <nav className="setup__rail" aria-label="Setup steps">
-          {SETUP_STEPS.map((id, position) => (
-            <button
-              key={id}
-              type="button"
-              className={
-                position < index
-                  ? "setup__seg is-done"
-                  : position === index
-                    ? "setup__seg is-now"
-                    : "setup__seg"
-              }
-              aria-current={position === index ? "step" : undefined}
-              onClick={() => setStep(id)}
-            >
-              <span className="setup__seg-bar" aria-hidden="true" />
-              <span className="setup__seg-label">{STEP_LABEL[id]}</span>
-            </button>
-          ))}
-        </nav>
 
         <main className="setup__body" id="main">
           <div className="setup__head">
-            <h1>{STEP_TITLE[step]}</h1>
-            <p>{STEP_LEAD[step]}</p>
+            <h1>How do people sign in?</h1>
+            <p>
+              You are the first person here, so you are the operator. This is
+              the only question — and it already has a working answer. Add as
+              many ways in as you like; the sign-in screen offers exactly these.
+            </p>
           </div>
 
-          {step === "signin" ? (
-            <SignInStep
-              choice={choice}
-              onChoiceChange={setChoice}
-              provider={provider}
-              onProviderChange={setProvider}
-            />
-          ) : (
-            <MoreStep choice={choice} provider={provider} />
-          )}
+          <WaysIn />
         </main>
 
         {/* The terminal commit: an ink square with the glyph of what it does,
             its sentence beside it. `docs/design/controls.md`. */}
         <div className="setup__foot">
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Previous step"
-            disabled={index === 0}
-            onClick={() => setStep(SETUP_STEPS[index - 1] ?? "signin")}
-          >
-            <IconChevronLeft size={20} />
-          </button>
           <div className="go-row">
             <button
               type="button"
@@ -172,23 +104,14 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
               aria-busy={finishing}
               aria-label={verb}
               title={verb}
-              onClick={advance}
+              onClick={finish}
             >
-              {last ? <IconCheck size={18} /> : <IconArrowRight size={18} />}
+              <IconCheck size={18} />
             </button>
             <span className="go-verb" aria-hidden="true">
               {verb}
             </span>
           </div>
-          {last ? null : (
-            <button
-              type="button"
-              className="setup__skip"
-              onClick={() => setStep("more")}
-            >
-              Skip
-            </button>
-          )}
         </div>
       </div>
     </div>

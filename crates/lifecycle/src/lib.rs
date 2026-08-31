@@ -24,6 +24,7 @@
 
 mod evaluate;
 mod event;
+mod notice;
 mod stage;
 mod subject;
 
@@ -34,6 +35,7 @@ pub use event::{
     EVENT_RENEWAL_DUE, EVENT_RENEWAL_FAILED, EVENT_RENEWAL_SUCCEEDED, EVENT_WILDCARD,
     LIFECYCLE_EVENT_TYPES, MAX_DETAIL_CHARS, MAX_LABEL_CHARS,
 };
+pub use notice::{humanize_seconds, severity_for_stage};
 pub use stage::{
     ladder, newly_crossed, ExpiryStage, Track, DEFAULT_RENEW_BEFORE_SECONDS, NOTICE_SECONDS,
     URGENT_SECONDS, WARNING_SECONDS, WATERMARK_UNFIRED,

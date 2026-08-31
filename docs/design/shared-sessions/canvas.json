@@ -1,0 +1,40 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Ceremonies" },
+    { "id": "page-2", "name": "Transport review" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Share this session", "is_interactive": true },
+    { "file": "Participants.dc.html", "x": 510, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Who is in this session" },
+    { "file": "Invite.dc.html", "x": 1020, "y": 0, "w": 840, "h": 900, "page": "page-1", "title": "Invite, and accepting it" },
+    { "file": "JoinRequest.dc.html", "x": 0, "y": 1060, "w": 840, "h": 900, "page": "page-1", "title": "Asking to join, and being let in" },
+    { "file": "Exposure.dc.html", "x": 0, "y": 0, "w": 1120, "h": 900, "page": "page-2", "title": "What may cross the transport" }
+  ],
+  "annotations": [
+    {
+      "id": "share-note",
+      "x": 0,
+      "y": -200,
+      "w": 470,
+      "page": "page-1",
+      "text": "Start here — this artboard is live.\n\nPick a person, switch between the whole vault and chosen rows, tick rows, set a role and a TTL. The summary at the bottom is the grant that would be written. Turn the \"noHost\" tweak on to see what sharing says on a deployment with no Host — the dependency this feature reintroduces."
+    },
+    {
+      "id": "roster-note",
+      "x": 510,
+      "y": -200,
+      "w": 470,
+      "page": "page-1",
+      "text": "Presence is not permission.\n\nA person in the room with no grant sees nothing. Pending requests sit above the roster and hold no channel at all. The note near the bottom is the half of revocation that usually goes unsaid: withdrawing stops new reads immediately, but only re-keying makes future versions unreadable."
+    },
+    {
+      "id": "review-note",
+      "x": 0,
+      "y": -200,
+      "w": 560,
+      "page": "page-2",
+      "text": "The critical review, drawn.\n\nThree findings worth arguing with before anything is built: sharing cannot be serverless, a peer mesh would hand strangers the operator's IP address, and revocation is re-keying rather than a switch. The two lists are the contract the transport has to hold — including the one most likely to be got wrong, that item names are as sensitive as their values."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}
