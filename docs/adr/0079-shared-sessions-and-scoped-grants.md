@@ -162,6 +162,17 @@ adds **`SubjectKind::SessionGrant`** and gets the whole ladder — notice,
 warning, urgent, expired — for free, with the same watermarks and the same
 `evaluate` that certificates use.
 
+**A session grant is the one subject kind that never renews itself.**
+Renewability moves onto `SubjectKind` rather than resting on a subject's
+`auto_respond` flag, and `should_respond` consults the kind first. A
+certificate renewing itself overnight is the platform doing its job; one
+human's reach into another's vault renewing itself overnight is the platform
+giving away what it was trusted to hold. Putting the rule on the kind means a
+subject built with the wrong flag — by mistake, or by copying a row from a
+certificate — still cannot cause it. Refusing to *act* is not refusing to
+*tell*: every rung still fires, because somebody whose access lapses in an hour
+is exactly who the ladder exists for.
+
 This is also a security win rather than merely tidy. `crates/lifecycle` is
 value-blind *by construction*: `ExpirySubject` has no field able to carry a
 value, and `LifecycleEvent::payload` builds its JSON key by key rather than
