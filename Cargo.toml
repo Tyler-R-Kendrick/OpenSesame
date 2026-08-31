@@ -21,6 +21,7 @@ members = [
   "crates/claims",
   "crates/human-vault",
   "crates/sealed-store",
+  "crates/vault-item-types",
   "crates/connection-broker",
   "crates/connection-detect",
   "crates/invoke-through",

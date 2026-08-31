@@ -1,4 +1,5 @@
 import { overlapCast } from "@opensesame/os-domain";
+import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
@@ -19,19 +20,29 @@ import { compileSecretToHost } from "../../lib/connections.js";
 import { isTouchPointer } from "../../lib/gestures.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
+  definitionFor,
+  itemTypeId,
+  itemTypeRegistry,
+  newValues,
+  typeExtension,
+} from "../../lib/vault/item-types.js";
+import {
   type CustomField,
-  type ItemKind,
+  type LegacyItemKind,
   type UriMatch,
   type VaultItem,
   createItem,
+  createTypedItem,
   newGrant,
   newId,
   newUri,
 } from "../../lib/vault/model.js";
-import { KIND_EXT } from "../../lib/vault/paths.js";
 import { NewDropCeremony } from "./DropCeremony.js";
+import { TypedFieldInputs } from "./TypedFields.js";
 
-const KINDS: ItemKind[] = [
+/** The kinds with a bespoke ceremony; every other type is drawn from its
+    definition by `TypedFieldInputs` (ADR 0087 §6). */
+const LEGACY_KINDS: LegacyItemKind[] = [
   "login",
   "passkey",
   "card",
@@ -41,6 +52,18 @@ const KINDS: ItemKind[] = [
   "drop",
 ];
 const MATCHES: UriMatch[] = ["domain", "host", "exact", "never"];
+
+/**
+ * Build a draft of any registered type. A legacy kind keeps its own shape;
+ * everything else is a `TypedItem` whose values come from its definition.
+ */
+function draftOfType(typeId: string, name: string): VaultItem {
+  const legacy = LEGACY_KINDS.find((kind) => kind === typeId);
+  if (legacy !== undefined) return createItem(legacy, name);
+  const definition = itemTypeRegistry().get(typeId);
+  if (definition === undefined) return createItem("login", name);
+  return createTypedItem(definition, newValues(definition), name);
+}
 
 /** Group heading with its one action beside it: a label and a + key. */
 function GroupAdd({
@@ -68,8 +91,8 @@ function GroupAdd({
   );
 }
 
-function isKind(value: string | undefined): value is ItemKind {
-  return value !== undefined && KINDS.some((kind) => kind === value);
+function isRegisteredType(value: string | undefined): value is string {
+  return value !== undefined && itemTypeRegistry().has(value);
 }
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
@@ -82,7 +105,10 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   const existing = items.find((candidate) => candidate.id === itemId);
   const initial = useMemo<VaultItem | null>(() => {
     if (mode === "edit") return existing ?? null;
-    const draft = createItem(isKind(kindParam) ? kindParam : "login");
+    const draft = draftOfType(
+      isRegisteredType(kindParam) ? kindParam : "login",
+      "",
+    );
     const name = search.get("name")?.trim();
     const uri = search.get("uri")?.trim();
     const ref = search.get("ref")?.trim();
@@ -158,12 +184,34 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
       current ? overlapCast({ ...current, ...changes }) : current,
     );
 
+  const draftTypeId = itemTypeId(draft);
+  const typedDefinition =
+    draft.kind === "typed" ? definitionFor(draft) : undefined;
+
+  const patchValue = (fieldId: string, value: FieldValue) =>
+    setDraft((current) =>
+      current === null || current.kind !== "typed"
+        ? current
+        : { ...current, values: { ...current.values, [fieldId]: value } },
+    );
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!draft) return;
     if (!draft.name.trim() && draft.kind !== "certificate") {
       setError("Give this item a name so you can find it again.");
       return;
+    }
+    // The editor marks a required field with a star. Saying so and then
+    // saving anyway is worse than not marking it at all.
+    if (draft.kind === "typed" && typedDefinition !== undefined) {
+      const missing = missingRequired(typedDefinition, draft.values);
+      if (missing.length > 0) {
+        setError(
+          `Fill in ${missing.map((field) => field.label).join(", ")} before saving.`,
+        );
+        return;
+      }
     }
     setSaving(true);
     setError(null);
@@ -281,12 +329,9 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             <select
               className="editor__ext"
               aria-label="Type"
-              value={draft.kind}
+              value={draftTypeId}
               onChange={(event) => {
-                const next = createItem(
-                  overlapCast(event.target.value),
-                  draft.name,
-                );
+                const next = draftOfType(event.target.value, draft.name);
                 setDraft({
                   ...next,
                   folderId: draft.folderId,
@@ -294,15 +339,22 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 });
               }}
             >
-              {KINDS.map((kind) => (
-                <option key={kind} value={kind}>
-                  {KIND_EXT[kind]}
-                </option>
-              ))}
+              {/* Every type in the registry, built-in and installed alike —
+                  there is no separate list of "ours" (ADR 0087 §1). */}
+              {itemTypeRegistry()
+                .list()
+                .map(({ definition }) => (
+                  <option
+                    key={definition.metadata.id}
+                    value={definition.metadata.id}
+                  >
+                    {definition.spec.extension}
+                  </option>
+                ))}
             </select>
           ) : (
             <span className="editor__ext" aria-hidden="true">
-              {KIND_EXT[draft.kind]}
+              {typeExtension(draftTypeId)}
             </span>
           )}
           <button
@@ -765,6 +817,22 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {typedDefinition !== undefined && draft.kind === "typed" ? (
+          <TypedFieldInputs
+            definition={typedDefinition}
+            values={draft.values}
+            onChange={patchValue}
+          />
+        ) : null}
+
+        {draft.kind === "typed" && typedDefinition === undefined ? (
+          <p className="hint">
+            The definition for this type is not installed on this device. Its
+            stored values are untouched; install the type from Settings to edit
+            them.
+          </p>
         ) : null}
 
         <div className="field">

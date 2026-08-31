@@ -1,0 +1,68 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "identity-document",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Identity document",
+    "plural": "Identity documents",
+    "extension": ".id",
+    "summary": "A national ID, resident card, tax identification or social security number.",
+    "categories": ["identity", "documents"],
+    "sections": [
+      {
+        "id": "document",
+        "title": "Document",
+        "fields": [
+          {
+            "id": "documentKind",
+            "type": "string",
+            "label": "Document",
+            "required": true
+          },
+          { "id": "documentNumber", "type": "concealed", "label": "Number" },
+          {
+            "id": "issuingCountry",
+            "type": "country",
+            "label": "Issuing country"
+          },
+          {
+            "id": "issuingAuthority",
+            "type": "string",
+            "label": "Issuing authority"
+          },
+          { "id": "issuedAt", "type": "date", "label": "Issued" },
+          { "id": "expiresAt", "type": "date", "label": "Expires" }
+        ]
+      },
+      {
+        "id": "holder",
+        "title": "Holder",
+        "fields": [
+          { "id": "fullName", "type": "person-name", "label": "Name" },
+          { "id": "dateOfBirth", "type": "date", "label": "Date of birth" },
+          { "id": "address", "type": "address", "label": "Address" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "documentNumber",
+      "trailer": [
+        { "key": "document", "field": "documentKind" },
+        { "key": "issuing_country", "field": "issuingCountry" },
+        { "key": "authority", "field": "issuingAuthority" },
+        { "key": "issued_at", "field": "issuedAt" },
+        { "key": "expires_at", "field": "expiresAt" },
+        { "key": "name", "field": "fullName" },
+        { "key": "date_of_birth", "field": "dateOfBirth" },
+        { "key": "address", "field": "address" }
+      ]
+    },
+    "cxf": { "credential": "identity-document" },
+    "subtitle": ["documentKind", "issuingCountry"],
+    "search": ["documentKind", "issuingCountry", "issuingAuthority"]
+  }
+}

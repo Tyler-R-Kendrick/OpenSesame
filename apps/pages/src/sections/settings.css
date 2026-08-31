@@ -253,3 +253,28 @@
     flex-direction: column;
   }
 }
+
+/* Item types (ADR 0078). One row per registered type — built in and
+   installed alike, because there is only one kind of definition. */
+.itype-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.itype-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.itype-row .hint {
+  margin: 0.15rem 0 0;
+}

@@ -26,8 +26,12 @@ import { connectionEvents, listConnections } from "../../lib/connections.js";
 import { usePlaneStatus } from "../../lib/planes.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
+  definitionFor,
+  itemTypeId,
+  typeLabel,
+} from "../../lib/vault/item-types.js";
+import {
   type ItemKind,
-  KIND_LABEL,
   type VaultItem,
   browsableUrl,
   hostOf,
@@ -36,6 +40,7 @@ import {
 import { estimateStrength, generate } from "../../lib/vault/password.js";
 import { totpSetupUri } from "../../lib/vault/totp.js";
 import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
+import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
 
@@ -133,7 +138,7 @@ export function ItemDetail() {
         <div className="detail__heading">
           <h1>{item.name || "Untitled"}</h1>
           <div className="detail__meta">
-            <span>{KIND_LABEL[item.kind]}</span>
+            <span>{typeLabel(itemTypeId(item))}</span>
             {folder ? (
               <Link to={`/vault?folder=${encodeURIComponent(folder.id)}`}>
                 {folder.name}
@@ -921,6 +926,31 @@ function ItemFields({
           </div>
         </section>
       );
+
+    case "typed": {
+      const definition = definitionFor(item);
+      if (definition === undefined) {
+        return (
+          <UnknownTypeRows
+            typeId={item.typeId}
+            values={item.values}
+            revealed={revealed}
+            toggle={toggle}
+          />
+        );
+      }
+      return (
+        <TypedFieldRows
+          definition={definition}
+          values={item.values}
+          revealed={revealed}
+          toggle={toggle}
+          copied={copied}
+          failed={failed}
+          copy={copy}
+        />
+      );
+    }
 
     case "certificate":
       return (

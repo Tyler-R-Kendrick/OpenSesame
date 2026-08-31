@@ -138,6 +138,14 @@ const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
   adr: ADR_SECURITY_EVENTS,
 };
 
+const ADR_ITEM_TYPE_PLUGINS = "0087-vault-item-type-plugins.md";
+
+const ITEM_TYPE_HUMAN_CEREMONY: CapabilityExclusion = {
+  reason:
+    "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+  adr: ADR_ITEM_TYPE_PLUGINS,
+};
+
 const CUSTODY_KEY_MATERIAL: CapabilityExclusion = {
   reason:
     "returns or places a certificate private key; agent-facing APIs carry references, never material",
@@ -1869,6 +1877,38 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: NEVER_AGENT_SECRET,
       mcp_client: NEVER_AGENT_SECRET,
       webmcp: NEVER_AGENT_SECRET,
+    },
+  },
+  {
+    id: "vault.item_types.list",
+    title: "List the item types registered on this device",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vault/item-types.ts:itemTypeRegistry",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: ITEM_TYPE_HUMAN_CEREMONY },
+  },
+  {
+    id: "vault.item_types.install",
+    title: "Install or remove a vault item type definition",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: ITEM_TYPE_HUMAN_CEREMONY,
+      mcp_client: ITEM_TYPE_HUMAN_CEREMONY,
+      webmcp: ITEM_TYPE_HUMAN_CEREMONY,
     },
   },
   {

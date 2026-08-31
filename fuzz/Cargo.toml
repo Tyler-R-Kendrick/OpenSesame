@@ -41,6 +41,7 @@ opensesame-connection-detect = { path = "../crates/connection-detect" }
 opensesame-tailscale-authn = { path = "../crates/tailscale-authn" }
 opensesame-kdbx-bridge = { path = "../crates/kdbx-bridge" }
 opensesame-sealed-store = { path = "../crates/sealed-store" }
+opensesame-vault-item-types = { path = "../crates/vault-item-types" }
 opensesame-storage = { path = "../crates/storage" }
 opensesame-gateway = { path = "../apps/gateway" }
 opensesame-pki-core = { path = "../crates/pki-core" }
@@ -163,6 +164,13 @@ bench = false
 [[bin]]
 name = "connector_yaml"
 path = "fuzz_targets/connector_yaml.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vault_item_type"
+path = "fuzz_targets/vault_item_type.rs"
 test = false
 doc = false
 bench = false

@@ -1,12 +1,15 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { isString, overlapCast } from "@opensesame/os-domain";
+import type { FieldValues } from "@opensesame/vault-item-types";
 /**
  * Map between sealed-store paths (`Folder/name`) and vault items.
  * Used when bridging the Pages OPFS vault with a git-native store.
  */
 
+import { definitionFor } from "./item-types.js";
 import {
   type Folder,
   type SecretItem,
+  type TypedItem,
   type VaultItem,
   createItem,
   newId,
@@ -25,6 +28,18 @@ export type OsMeta = {
   uris?: string[];
   notes?: string;
   connectionRef?: string;
+  /**
+   * A plugin-defined item's type id and its declared values (ADR 0087).
+   *
+   * This seam has always carried its own JSON metadata rather than the
+   * pass-style trailer — `username`, `uris` and `connectionRef` above are the
+   * same idea. A typed item's values ride here for the same reason: nothing a
+   * definition declared may be dropped on the way through the store, because a
+   * device that reads the entry back would otherwise reconstruct an empty item
+   * and the whole-vault merge would carry that emptiness everywhere.
+   */
+  typeId?: string;
+  values?: FieldValues;
 };
 
 /** First otpauth:// line in a pass-otp style trailer, if any. */
@@ -100,6 +115,18 @@ export function entryToVaultItem(
   const kind =
     meta.kind === "secret" ? "secret" : meta.kind === "note" ? "note" : "login";
 
+  // A plugin-defined item comes back whole, whether or not this device has
+  // the definition: an unknown type is a presentation gap, never data loss.
+  if (meta.kind === "typed" && isString(meta.typeId)) {
+    const item: TypedItem = overlapCast(createItem("note", name));
+    item.kind = "typed";
+    item.typeId = meta.typeId;
+    item.values = meta.values ?? {};
+    item.folderId = folderId;
+    item.notes = meta.notes ?? "";
+    return item;
+  }
+
   if (kind === "secret") {
     const item: SecretItem = overlapCast(createItem("secret", name));
     item.folderId = folderId;
@@ -142,7 +169,19 @@ function vaultItemToEntryDefault(
 
   let secret = "";
   let otpauth: string | null = null;
-  if (item.kind === "login") {
+  if (item.kind === "typed") {
+    // Line one is whatever the definition nominated as its secret, so the
+    // entry still reads sensibly; every other value rides in `values`.
+    meta.typeId = item.typeId;
+    meta.values = item.values;
+    const definition = definitionFor(item);
+    const secretField = definition?.spec.native.secret;
+    const nominated =
+      secretField === undefined || secretField === null
+        ? undefined
+        : item.values[secretField];
+    secret = isString(nominated) ? nominated : "";
+  } else if (item.kind === "login") {
     secret = item.password;
     meta.username = item.username || undefined;
     if (item.totp) {
