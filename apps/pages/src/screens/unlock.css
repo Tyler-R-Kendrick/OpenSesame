@@ -562,21 +562,55 @@
   height: 1.75rem;
 }
 
-/* "No identity service" notice with its inline connect field. */
-.unlock__unconfigured-body {
-  display: grid;
-  gap: 0.5rem;
-  min-width: 0;
+/* "No identity service yet" — one sentence and the road into setup, where a
+   block of amber with a URL field used to sit above every sign-in button. */
+.unlock__unset {
+  align-items: center;
+  gap: 0.65rem;
 }
 
-.unlock__unconfigured-form {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.unlock__unconfigured-form input {
+.unlock__unset span {
   flex: 1;
   min-width: 0;
+}
+
+.unlock__unset .btn {
+  flex: none;
+}
+
+/* Which deployment this app is pointed at, and the way back into setup. */
+/* Scoped through the foot so it outranks `.unlock__foot p`, which caps prose
+   at 34ch: this row is an address and a link, not prose, and needs the card's
+   full width or the origin ellipsises while there is room beside it. */
+.unlock__foot .unlock__deployment {
+  display: flex;
+  max-width: none;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  color: var(--ink-3);
+}
+
+.unlock__deployment svg {
+  flex: none;
+}
+
+.unlock__deployment-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+.unlock__deployment .unlock__switch {
+  flex: none;
+  font-size: 0.75rem;
 }
 
 @media (max-width: 480px) {

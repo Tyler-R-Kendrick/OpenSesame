@@ -77,3 +77,7 @@ mutants.out.old/
 # never commit; the accepted .snap files are the reviewed artifact)
 *.snap.new
 *.pending-snap
+
+# Seeded Claude Design canvases — ~2.3 MB of editor code each, regenerated
+# from the .dc.html artboards beside them (docs/design/*/README.md).
+docs/design/**/opensesame-*.html

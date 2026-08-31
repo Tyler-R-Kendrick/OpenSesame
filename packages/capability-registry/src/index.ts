@@ -57,6 +57,7 @@ const ADR_PM_BRIDGING = "0052-password-manager-ecosystem-bridging.md";
 const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
 const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
 const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
+const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -103,6 +104,12 @@ const DEFERRED: CapabilityExclusion = {
   reason:
     "not yet exposed to agents; revisit deliberately rather than by accretion",
   adr: ADR_AGENT_SURFACE_PARITY,
+};
+
+const FIRST_RUN_CEREMONY: CapabilityExclusion = {
+  reason:
+    "the anonymous first visitor is the deployment's operator; letting an agent answer who this app trusts for identity would let it choose the issuer that authenticates every later human",
+  adr: ADR_FIRST_RUN_SETUP,
 };
 
 export const CAPABILITIES: readonly Capability[] = [
@@ -1365,6 +1372,20 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_client: null,
       webmcp: "opensesame_pwa_status",
     },
+  },
+  {
+    id: "setup.first_run",
+    title: "First-run deployment setup ceremony",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/setup.ts:setupRequired",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: FIRST_RUN_CEREMONY },
   },
 ] as const;
 

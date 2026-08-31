@@ -1454,5 +1454,24 @@
       "mcp_client": null,
       "webmcp": "opensesame_pwa_status"
     }
+  },
+  {
+    "id": "setup.first_run",
+    "title": "First-run deployment setup ceremony",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/setup.ts:setupRequired",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the anonymous first visitor is the deployment's operator; letting an agent answer who this app trusts for identity would let it choose the issuer that authenticates every later human",
+        "adr": "0077-first-run-setup-ceremony.md"
+      }
+    }
   }
 ]

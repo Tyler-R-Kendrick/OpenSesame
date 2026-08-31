@@ -1,0 +1,96 @@
+<div class="os" data-theme="{{theme}}" style="width: 1120px; height: 760px; display: grid; place-items: center; padding: 40px">
+  <div style="width: 100%; max-width: 34rem; display: grid; gap: 18px">
+
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span class="setup__wordmark">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
+          <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
+        </svg>
+        opensesame
+      </span>
+      <span class="setup__count" style="margin-left: auto">2 / 4</span>
+    </div>
+
+    <div class="setup__rail" style="padding: 0">
+      <span class="setup__seg is-done"><span class="setup__seg-bar"></span><span class="setup__seg-label">Identity</span></span>
+      <span class="setup__seg is-now"><span class="setup__seg-bar"></span><span class="setup__seg-label">Host</span></span>
+      <span class="setup__seg"><span class="setup__seg-bar"></span><span class="setup__seg-label">Machine</span></span>
+      <span class="setup__seg"><span class="setup__seg-bar"></span><span class="setup__seg-label">Review</span></span>
+    </div>
+
+    <div style="display: grid; gap: 8px">
+      <h1>Is there a Host?</h1>
+      <p style="color: var(--ink-2); font-size: 15px; max-width: 52ch">The authority plane. It authorizes every ConnectionRef and signs every receipt. A vault without one still holds your own items.</p>
+    </div>
+
+    <div class="f">
+      <div class="f__labelrow">
+        <span class="f__label">Host API</span>
+        <span class="chip">Optional</span>
+      </div>
+      <div class="f__shell">
+        <span class="f__lead" aria-hidden="true">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l7.5 3.2v5.1c0 4.7-3.1 8.1-7.5 9.4-4.4-1.3-7.5-4.7-7.5-9.4V6.2z"></path>
+            <path d="M9.2 12.1l2 2 3.6-3.9"></path>
+          </svg>
+        </span>
+        <input class="f__input" type="url" placeholder="https://host.example.com" />
+      </div>
+      <div class="f__fills">
+        <span class="f__fills-label">Fill with</span>
+        <button type="button" class="fill">http://127.0.0.1:18787</button>
+      </div>
+    </div>
+
+    <div class="note">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        <path d="M12 16.2v-4.7M12 8h.01"></path>
+      </svg>
+      <span>Leave this empty and the vault still works. Without a Host there are no ConnectionRefs, no receipts, and no agent-facing authority — human items only.</span>
+    </div>
+
+    <p class="or"><span>or</span></p>
+
+    <div class="alt">
+      <div class="alt__item">
+        <span class="alt__btn">
+          <span class="alt__mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
+              <path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path>
+            </svg>
+          </span>
+          <span class="alt__grow">Let a paired daemon front it</span>
+          <span class="alt__chev" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path>
+            </svg>
+          </span>
+        </span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 8px; padding-top: 6px">
+      <button type="button" class="icon-btn" aria-label="Back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.5 5.5L8 12l6.5 6.5"></path>
+        </svg>
+      </button>
+      <button type="button" class="btn btn--primary" style="min-width: 10rem">Continue</button>
+      <button type="button" class="setup__skip">No Host</button>
+    </div>
+
+    <p class="hint" style="border-top: 1px solid var(--line); padding-top: 12px">Above 640px the ceremony is the same column, centred — the phone layout is the layout. Only the thumb bar unpins: on a wide viewport the action sits with the content it commits, because there is no thumb to reach with.</p>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1120,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

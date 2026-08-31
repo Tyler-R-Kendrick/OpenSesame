@@ -1,0 +1,102 @@
+<div class="os" data-theme="{{theme}}" style="width: 840px; height: 900px; display: grid; grid-template-columns: 390px 390px; gap: 60px; justify-content: center; align-content: start; padding: 28px 0; overflow: hidden">
+
+  <div style="display: grid; gap: 12px; align-content: start">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--err); letter-spacing: 0.02em; text-transform: uppercase">Today</p>
+    <div style="width: 390px; height: 780px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--canvas); overflow: hidden; padding: 30px 22px; display: grid; gap: 16px; align-content: start">
+
+      <div class="note note--warn" style="display: grid; gap: 8px">
+        <p style="font-size: 15px; line-height: 1.5"><strong>Not connected to an identity service.</strong> Sign-in options are unavailable on this deployment. You can still create a local-only vault, or connect one below.</p>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <input class="f__input" style="border-bottom: 1px solid var(--line-strong); min-height: 40px" type="url" placeholder="https://id.example.com" />
+          <button type="button" class="btn" style="min-height: 40px">Connect</button>
+        </div>
+        <p class="hint">Ask whoever runs your OpenSesame deployment for this address. It's saved on this device only.</p>
+      </div>
+
+      <div style="display: grid; gap: 10px; justify-items: start">
+        <span class="setup__wordmark">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
+            <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
+          </svg>
+          opensesame
+        </span>
+        <h1>Unlock</h1>
+        <p style="color: var(--ink-2); font-size: 14px; max-width: 34ch">Unlock with the challenge you enrolled — passkey, PIN, or password. The vault key is not stored; a reload asks again.</p>
+      </div>
+
+      <div style="display: flex; gap: 18px; border-bottom: 1px solid var(--line)">
+        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 0 8px; border-bottom: 2px solid var(--ink); margin-bottom: -1px; font-family: var(--mono); font-size: 13px; font-weight: 600">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
+          Unlock
+        </span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 0 8px; color: var(--ink-2); font-family: var(--mono); font-size: 13px; font-weight: 600">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.2 19.2c1.1-3.2 3.5-4.8 6.8-4.8s5.7 1.6 6.8 4.8"></path></svg>
+          Sign in
+        </span>
+      </div>
+
+      <p class="hint">The screen opens on a wall of amber the reader cannot act on without an address nobody gave them — and the Sign in tab beside it leads nowhere, because the service it needs is the thing that is missing.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 12px; align-content: start">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; text-transform: uppercase">After setup</p>
+    <div style="width: 390px; height: 780px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--canvas); overflow: hidden; display: flex; flex-direction: column">
+
+      <div style="padding: 30px 22px 0; display: grid; gap: 16px; align-content: start; flex: 1; min-height: 0">
+        <div style="display: grid; gap: 10px; justify-items: start">
+          <span class="setup__wordmark">
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
+              <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
+            </svg>
+            opensesame
+          </span>
+          <h1>Sign in</h1>
+          <p style="color: var(--ink-2); font-size: 14px; max-width: 34ch">Sign in to sync your vault across your devices — or keep everything on this one.</p>
+        </div>
+
+        <div style="display: flex; justify-content: center; gap: 8px">
+          <span class="btn" style="width: 44px; height: 44px; min-height: 44px; padding: 0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg></span>
+          <span class="btn" style="width: 44px; height: 44px; min-height: 44px; padding: 0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.2 19.2c1.1-3.2 3.5-4.8 6.8-4.8s5.7 1.6 6.8 4.8"></path></svg></span>
+          <span class="btn" style="width: 44px; height: 44px; min-height: 44px; padding: 0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17"></path><path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17z"></path></svg></span>
+          <span class="btn" style="width: 44px; height: 44px; min-height: 44px; padding: 0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="12" r="0.6" fill="currentColor"></circle><circle cx="12" cy="12" r="0.6" fill="currentColor"></circle><circle cx="18.5" cy="12" r="0.6" fill="currentColor"></circle></svg></span>
+        </div>
+
+        <button type="button" class="btn btn--block">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.2 19.2c1.1-3.2 3.5-4.8 6.8-4.8s5.7 1.6 6.8 4.8"></path></svg>
+          Continue as guest
+        </button>
+
+        <p class="or"><span>or</span></p>
+
+        <div class="f">
+          <div class="f__labelrow"><span class="f__label">Email or organization</span></div>
+          <div class="f__shell">
+            <input class="f__input" type="email" placeholder="you@acme.com" />
+          </div>
+        </div>
+
+        <div class="note" style="align-items: center">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
+          <span>No vault on this device yet, so there is nothing to unlock. The Unlock tab appears once one is sealed.</span>
+        </div>
+      </div>
+
+      <div style="flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 22px 18px; border-top: 1px solid var(--line); background: var(--surface)">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3); flex: none"><path d="M12 3l7.5 3.2v5.1c0 4.7-3.1 8.1-7.5 9.4-4.4-1.3-7.5-4.7-7.5-9.4V6.2z"></path><path d="M9.2 12.1l2 2 3.6-3.9"></path></svg>
+        <span style="flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">id.acme.com · host paired</span>
+        <button type="button" class="setup__skip">Deployment setup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":840,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

@@ -1,3 +1,4 @@
+import { briefOrigin } from "@opensesame/os-domain";
 import {
   type FormEvent,
   useCallback,
@@ -8,6 +9,7 @@ import {
 } from "react";
 import {
   IconArrowRight,
+  IconAuthority,
   IconEye,
   IconEyeOff,
   IconLock,
@@ -16,10 +18,12 @@ import {
   IconShield,
   IconUser,
 } from "../components/Icons.js";
+import { currentSession, identityBase } from "../lib/identity.js";
 import {
   type FederatedProviderSummary,
   listFederatedProviders,
 } from "../lib/providers.js";
+import { setupRequired, unlockViable } from "../lib/setup.js";
 import { WrongPasswordError } from "../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
@@ -30,9 +34,9 @@ import {
   describeWebauthnError,
   pinPolicyProblems,
 } from "../lib/vault/unlock-methods.js";
+import { SetupScreen } from "./SetupScreen.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
-import { UnconfiguredIdentityNotice } from "./unlock/UnconfiguredIdentityNotice.js";
 import "./unlock.css";
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
@@ -87,7 +91,40 @@ function useCountdown(until: number | null): number {
   return remaining;
 }
 
+export const unlockScreenDependencies = {
+  setupRequired,
+  currentSession,
+  identityBase,
+};
+
+/**
+ * Setup comes before every other pre-vault screen.
+ *
+ * A deployment nobody has configured cannot offer a working sign-in or a vault
+ * to unlock, so the first visitor is asked the operator's four questions
+ * instead of being shown two broken affordances and a warning. Once the
+ * ceremony is answered — or it never applied, because a vault or a session is
+ * already here — this is the unlock form and nothing else.
+ *
+ * The split exists so the early return happens above the form's hooks rather
+ * than among them.
+ */
 export function UnlockScreen() {
+  const { status } = useVault();
+  const [setupOpen, setSetupOpen] = useState(() =>
+    unlockScreenDependencies.setupRequired({
+      vaultStatus: status,
+      hasSession: unlockScreenDependencies.currentSession() !== null,
+    }),
+  );
+
+  if (setupOpen) {
+    return <SetupScreen onDone={() => setSetupOpen(false)} />;
+  }
+  return <UnlockForm onOpenSetup={() => setSetupOpen(true)} />;
+}
+
+function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
   const {
     status,
     header,
@@ -110,8 +147,17 @@ export function UnlockScreen() {
   // (a different user, or attaching an account). Only one is on screen at a
   // time. Mid-MFA there is no choice to offer: the code field is the screen.
   const [screenTab, setScreenTab] = useState<"unlock" | "signin">("unlock");
-  const returningTabs = !firstRun && !awaitingTotp;
+  // The Unlock tab is offered only where unlocking is an action this device
+  // can actually perform — a sealed vault to open. It is withheld rather than
+  // disabled: a greyed tab still asserts the action exists and merely is not
+  // available right now, which is a different claim, and an untrue one when
+  // nothing has ever been sealed here.
+  const returningTabs = unlockViable(status) && !awaitingTotp;
   const signInTabActive = returningTabs && screenTab === "signin";
+  // Sign-in of any kind needs an Identity API. Where there is none, the road
+  // out is setup, not a row of buttons that redirect into nothing.
+  const identityUnconfigured =
+    unlockScreenDependencies.identityBase().trim() === "";
 
   const methods = useMemo<UnlockMethodId[]>(() => {
     // A returning vault gets the same menu as every other vault: which
@@ -306,7 +352,6 @@ export function UnlockScreen() {
     <div className="unlock">
       <div className="unlock__card">
         <PendingLinkBanner />
-        <UnconfiguredIdentityNotice />
         <div className="unlock__brand">
           <p className="unlock__wordmark">
             <IconMark size={16} />
@@ -366,6 +411,22 @@ export function UnlockScreen() {
             >
               <IconUser size={16} />
               Sign in
+            </button>
+          </div>
+        ) : null}
+
+        {/* Sign-in needs an Identity API, and this deployment has none. The
+            old screen reported that in a block of amber above every sign-in
+            button, all of which still redirected into nothing. One sentence
+            and the road that fixes it. */}
+        {identityUnconfigured && (signInStage || signInTabActive) ? (
+          <div className="note unlock__unset">
+            <span>
+              No identity service is configured for this deployment yet, so
+              sign-in has nowhere to go.
+            </span>
+            <button type="button" className="btn btn--sm" onClick={onOpenSetup}>
+              Set it up
             </button>
           </div>
         ) : null}
@@ -772,6 +833,25 @@ export function UnlockScreen() {
               </button>
             )
           ) : null}
+
+          {/* Where this app is pointed, and the way back into setup. Quiet,
+              because on a working deployment it is a fact rather than a
+              problem — the operator who needs it is looking for it. */}
+          <p className="unlock__deployment">
+            <IconAuthority size={14} />
+            <span className="unlock__deployment-name">
+              {identityUnconfigured
+                ? "No identity service"
+                : briefOrigin(unlockScreenDependencies.identityBase())}
+            </span>
+            <button
+              type="button"
+              className="unlock__switch"
+              onClick={onOpenSetup}
+            >
+              Deployment setup
+            </button>
+          </p>
         </div>
       </div>
     </div>

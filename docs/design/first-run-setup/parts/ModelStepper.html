@@ -1,0 +1,46 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 680px; padding: 22px 20px; display: grid; gap: 14px; align-content: start; --sk: #b8b8b8">
+  <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3)">Option A · One question per screen</p>
+
+  <div style="border: 1.5px solid var(--sk); border-radius: 2px; padding: 16px 14px; display: grid; gap: 12px; background: var(--surface)">
+    <div style="display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px">
+      <span style="height: 3px; background: var(--ink)"></span>
+      <span style="height: 3px; background: var(--ink)"></span>
+      <span style="height: 3px; background: var(--sk)"></span>
+      <span style="height: 3px; background: var(--sk)"></span>
+    </div>
+    <div style="height: 13px; width: 62%; background: var(--sk)"></div>
+    <div style="display: grid; gap: 5px">
+      <div style="height: 7px; width: 100%; background: #dedede"></div>
+      <div style="height: 7px; width: 84%; background: #dedede"></div>
+    </div>
+    <div style="height: 1px; background: var(--sk); margin-top: 6px"></div>
+    <div style="height: 30px; border-bottom: 1.5px solid var(--sk)"></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px">
+      <div style="height: 42px; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 42px; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 42px; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 42px; border: 1.5px solid var(--sk)"></div>
+    </div>
+    <div style="flex: 1"></div>
+    <div style="display: flex; gap: 8px; align-items: center; border-top: 1.5px solid var(--sk); padding-top: 12px; margin-top: 10px">
+      <div style="width: 40px; height: 40px; border: 1.5px solid var(--sk)"></div>
+      <div style="flex: 1; height: 40px; background: var(--ink)"></div>
+      <div style="height: 9px; width: 46px; background: var(--sk)"></div>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 6px">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600">Why</p>
+    <p class="hint">One decision on screen at a time, and the commitment always in the same place at the bottom — reachable by thumb, and the same target on every step. A first-time operator never has to work out which of six controls is theirs.</p>
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; margin-top: 4px">Costs</p>
+    <p class="hint">Four screens to walk even when three are skips. Someone who only came to change the Identity API pays for the whole tour unless the rail lets them jump straight to a step.</p>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":680}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>
