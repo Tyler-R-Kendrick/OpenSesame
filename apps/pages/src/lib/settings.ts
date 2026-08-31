@@ -14,6 +14,56 @@ import {
 import { kvGet, kvSet, kvSetDurable } from "./kv.js";
 import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
+/**
+ * An identity provider the operator configured, which this deployment runs
+ * itself — the whole OIDC code flow, in the browser, with PKCE (ADR 0078).
+ *
+ * This is the answer to "who signs people in here?" for a deployment that
+ * brings its own IdP. It is NOT an address for an OpenSesame identity service:
+ * a Google project, an Okta org, an Auth0 tenant, an Entra directory or a
+ * Better Auth deployment IS the identity service once it is named here, and
+ * the app needs nothing else to sign somebody in against it.
+ *
+ * `clientId` is a public client id — the redirect URI and PKCE are what bind
+ * the flow, and there is no secret to hold. Both fields are configuration, not
+ * credentials.
+ */
+export type OperatorIdp = {
+  /**
+   * The preset this came through ("google", "microsoft", "okta", …). It is
+   * what brands the button on the sign-in screen; an id with no brand gets the
+   * house treatment rather than a wrong logo.
+   */
+  providerId: string;
+  /** The OIDC issuer, as published in its discovery document. */
+  issuer: string;
+  /** The public client id the operator registered for this origin. */
+  clientId: string;
+  /** What the sign-in button calls it. */
+  label: string;
+};
+
+/**
+ * Every way into this deployment, as first-run setup left it.
+ *
+ * This is an allowlist, not a hint. The sign-in screen renders exactly what is
+ * here and nothing else: a provider nobody configured is not a road, and
+ * offering it would be the dead end the whole first-run rework exists to
+ * remove. An OpenSesame identity service is the third way in and lives in
+ * `identityApi` — where it is set, its own catalog, magic links, guest
+ * sessions and org SSO come with it.
+ */
+export type SignInMethods = {
+  /**
+   * Keep the browser-capable upstream compiled into this build as a way in.
+   * True until an operator says otherwise, so a deployment nobody has set up
+   * can still sign somebody in.
+   */
+  builtin: boolean;
+  /** Providers the operator configured, in the order they were added. */
+  providers: OperatorIdp[];
+};
+
 export type PagesSettings = {
   hostApi: string;
   identityApi: string;
@@ -24,6 +74,12 @@ export type PagesSettings = {
   /** Capability → Host connector bindings (encryption, git history, …). */
   capabilityConnectors: CapabilityConnectorMap;
   /**
+   * Every way into this deployment. Absent means nobody has answered first-run
+   * setup, which reads as the shipped default: the compiled-in broker and
+   * nothing else. Optional so every existing settings literal stays valid.
+   */
+  signIn?: SignInMethods;
+  /**
    * Active Host project id for secrets/env scope (outside the encrypted vault).
    * Empty until personal/ensure or the operator picks a project.
    */
@@ -31,6 +87,8 @@ export type PagesSettings = {
 };
 
 const PERSIST_KEY = "settings.v1";
+
+const TRAILING_SLASHES = /\/+$/;
 
 type PersistedSettings = {
   hostApi: string;
@@ -40,6 +98,7 @@ type PersistedSettings = {
   mfaAppUrl: string;
   capabilityConnectors: CapabilityConnectorMap;
   activeProjectId: string;
+  signIn: SignInMethods;
 };
 
 /** Local Host for `pages-dev.sh` — avoids the common :8787 collision. */
@@ -142,6 +201,7 @@ function localDefaults(): PersistedSettings {
     mfaAppUrl: runtimeMfaAppUrlValue() || shippedMfaAppUrl,
     capabilityConnectors: defaultCapabilityConnectors(),
     activeProjectId: "",
+    signIn: defaultSignInMethods(),
   };
 }
 
@@ -157,6 +217,7 @@ function remoteDefaults(): PersistedSettings {
     mfaAppUrl: runtimeMfaAppUrlValue() || "",
     capabilityConnectors: defaultCapabilityConnectors(),
     activeProjectId: "",
+    signIn: defaultSignInMethods(),
   };
 }
 
@@ -195,6 +256,101 @@ function readCapabilityConnectors(
     };
   }
   return connectors;
+}
+
+/** What a deployment nobody has set up offers: the compiled-in broker. */
+export function defaultSignInMethods(): SignInMethods {
+  return { builtin: true, providers: [] };
+}
+
+/**
+ * A provider is admitted only whole: an absolute https issuer (or loopback
+ * http, for a local IdP) and a non-empty client id. A half-written record
+ * would otherwise become a trusted issuer with nothing behind it — see
+ * `isOperatorIdpIssuer` in `federation.ts`, which reads this.
+ */
+export function normalizeOperatorIdp(
+  providerId: string,
+  issuer: string,
+  clientId: string,
+  label?: string,
+): OperatorIdp | null {
+  const trimmedIssuer = issuer.trim().replace(TRAILING_SLASHES, "");
+  const trimmedClientId = clientId.trim();
+  if (!trimmedIssuer || !trimmedClientId) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmedIssuer);
+  } catch {
+    return null;
+  }
+  // https, or loopback http for a local IdP. Anything else would send an
+  // authorization code over the wire in the clear.
+  if (parsed.protocol !== "https:" && !isLoopbackUrl(trimmedIssuer)) {
+    return null;
+  }
+  return {
+    providerId: providerId.trim(),
+    issuer: trimmedIssuer,
+    clientId: trimmedClientId,
+    label: label?.trim() || parsed.hostname,
+  };
+}
+
+function readOperatorIdp(value: JsonValue | undefined): OperatorIdp | null {
+  if (!isJsonObject(value)) return null;
+  const { providerId, issuer, clientId, label } = value;
+  if (!isString(issuer) || !isString(clientId)) return null;
+  return normalizeOperatorIdp(
+    isString(providerId) ? providerId : "",
+    issuer,
+    clientId,
+    isString(label) ? label : undefined,
+  );
+}
+
+/**
+ * The ways in, read back whole.
+ *
+ * A provider is admitted only if it could actually run a flow, and only once
+ * per issuer: two entries for one issuer would put the same button on the
+ * sign-in screen twice and make "remove" ambiguous.
+ */
+function readSignInMethods(value: JsonValue | undefined): SignInMethods {
+  if (!isJsonObject(value)) return defaultSignInMethods();
+  const providers: OperatorIdp[] = [];
+  const seen = new Set<string>();
+  const listed = value.providers;
+  if (Array.isArray(listed)) {
+    for (const entry of listed) {
+      const idp = readOperatorIdp(entry);
+      if (!idp || seen.has(idp.issuer)) continue;
+      seen.add(idp.issuer);
+      providers.push(idp);
+    }
+  }
+  return { builtin: value.builtin !== false, providers };
+}
+
+/** Every way into this deployment, defaults filled in. */
+export function signInMethods(
+  settings: PagesSettings = loadSettings(),
+): SignInMethods {
+  return settings.signIn ?? defaultSignInMethods();
+}
+
+/**
+ * True when nothing here could sign anybody in.
+ *
+ * Not the same as "no identity service": the compiled-in broker and every
+ * provider the operator brought run in the browser and need no service at all
+ * (ADR 0078). The unlock screen used to equate the two and offer setup above a
+ * working Google button.
+ */
+export function noWayIn(settings: PagesSettings = loadSettings()): boolean {
+  const methods = signInMethods(settings);
+  if (methods.builtin || methods.providers.length > 0) return false;
+  return settings.identityApi.trim().length === 0;
 }
 
 function loadPersisted(): PersistedSettings {
@@ -236,6 +392,7 @@ function loadPersisted(): PersistedSettings {
       activeProjectId: isString(parsed.activeProjectId)
         ? parsed.activeProjectId.trim()
         : defaults.activeProjectId,
+      signIn: readSignInMethods(parsed.signIn),
     };
   } catch {
     return { ...defaults };
@@ -270,6 +427,10 @@ function persistRecord(next: PagesSettings): PersistedSettings {
       next.capabilityConnectors ?? defaults.capabilityConnectors,
     ),
     activeProjectId: next.activeProjectId?.trim() ?? "",
+    signIn: readSignInMethods({
+      builtin: next.signIn?.builtin !== false,
+      providers: (next.signIn?.providers ?? []).map((idp) => ({ ...idp })),
+    }),
   };
 }
 
