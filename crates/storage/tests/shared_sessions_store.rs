@@ -493,3 +493,245 @@ async fn the_expiry_sweep_skips_what_was_already_withdrawn() {
     assert!(ids.contains(&live.id));
     assert!(!ids.contains(&withdrawn.id));
 }
+
+#[tokio::test]
+async fn a_roster_lists_every_live_grant_and_drops_the_revoked_one() {
+    let db = db().await;
+    let operator = PrincipalId::new();
+    let opened = session(&db, operator).await;
+    let vault_id = VaultId::new();
+
+    let kept = grant(
+        opened.id,
+        PrincipalId::new(),
+        operator,
+        GrantScope::Collection { vault_id },
+        SessionRole::Read,
+        Duration::hours(2),
+    );
+    let withdrawn = grant(
+        opened.id,
+        PrincipalId::new(),
+        operator,
+        GrantScope::Collection { vault_id },
+        SessionRole::Read,
+        Duration::hours(2),
+    );
+    for one in [&kept, &withdrawn] {
+        db.insert_session_grant(ORG, one)
+            .await
+            .expect("grant lands");
+    }
+    assert_eq!(
+        db.active_session_grants(opened.id, Utc::now())
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+
+    db.revoke_session_grant(withdrawn.id, Utc::now())
+        .await
+        .expect("revoke");
+    let live = db
+        .active_session_grants(opened.id, Utc::now())
+        .await
+        .unwrap();
+    assert_eq!(live.len(), 1);
+    assert_eq!(live[0].id, kept.id);
+}
+
+#[tokio::test]
+async fn a_roster_drops_a_lapsed_grant_without_touching_its_row() {
+    let db = db().await;
+    let operator = PrincipalId::new();
+    let opened = session(&db, operator).await;
+    let brief = grant(
+        opened.id,
+        PrincipalId::new(),
+        operator,
+        GrantScope::Collection {
+            vault_id: VaultId::new(),
+        },
+        SessionRole::Read,
+        Duration::minutes(1),
+    );
+    db.insert_session_grant(ORG, &brief)
+        .await
+        .expect("grant lands");
+
+    let after = brief.expires_at + Duration::seconds(1);
+    assert!(db
+        .active_session_grants(opened.id, after)
+        .await
+        .unwrap()
+        .is_empty());
+    // The row is still there and still un-revoked. Expiry is a clock reading,
+    // not a write, so nothing rewrote history to make the grant go away.
+    let row = db
+        .session_grant(ORG, brief.id)
+        .await
+        .unwrap()
+        .expect("the row survives its deadline");
+    assert_eq!(row.revoked_at, None);
+    assert!(row.assert_active(after).is_err());
+}
+
+#[tokio::test]
+async fn a_grant_is_not_readable_from_another_organization() {
+    let db = db().await;
+    let operator = PrincipalId::new();
+    let opened = session(&db, operator).await;
+    let live = grant(
+        opened.id,
+        PrincipalId::new(),
+        operator,
+        GrantScope::Collection {
+            vault_id: VaultId::new(),
+        },
+        SessionRole::Read,
+        Duration::hours(1),
+    );
+    db.insert_session_grant(ORG, &live)
+        .await
+        .expect("grant lands");
+
+    assert!(db.session_grant(ORG, live.id).await.unwrap().is_some());
+    assert!(
+        db.session_grant("org:two", live.id)
+            .await
+            .unwrap()
+            .is_none(),
+        "a grant answered a neighbouring organization"
+    );
+}
+
+#[tokio::test]
+async fn only_undecided_requests_are_pending() {
+    let db = db().await;
+    let operator = PrincipalId::new();
+    let opened = session(&db, operator).await;
+
+    let waiting = JoinRequest::new(
+        JoinRequestId::new(),
+        opened.id,
+        PrincipalId::new(),
+        Some("on call for the incident".into()),
+        Utc::now(),
+    )
+    .expect("a valid request");
+    let turned_away = JoinRequest::new(
+        JoinRequestId::new(),
+        opened.id,
+        PrincipalId::new(),
+        None,
+        Utc::now(),
+    )
+    .expect("a valid request");
+    for one in [&waiting, &turned_away] {
+        db.insert_join_request(ORG, one)
+            .await
+            .expect("request lands");
+    }
+    assert_eq!(db.pending_join_requests(opened.id).await.unwrap().len(), 2);
+
+    db.decide_join_request(
+        ORG,
+        turned_away.id,
+        JoinDecision::Refused,
+        operator,
+        Utc::now(),
+        None,
+    )
+    .await
+    .expect("refusal lands");
+
+    let pending = db.pending_join_requests(opened.id).await.unwrap();
+    assert_eq!(pending.len(), 1);
+    assert_eq!(pending[0].id, waiting.id);
+    assert_eq!(pending[0].note.as_deref(), Some("on call for the incident"));
+}
+
+#[tokio::test]
+async fn an_admitted_request_reads_back_naming_the_grant_it_minted() {
+    let db = db().await;
+    let operator = PrincipalId::new();
+    let opened = session(&db, operator).await;
+    let stranger = PrincipalId::new();
+
+    let asked = JoinRequest::new(JoinRequestId::new(), opened.id, stranger, None, Utc::now())
+        .expect("a valid request");
+    db.insert_join_request(ORG, &asked)
+        .await
+        .expect("request lands");
+
+    let minted = grant(
+        opened.id,
+        stranger,
+        operator,
+        GrantScope::Collection {
+            vault_id: VaultId::new(),
+        },
+        SessionRole::Read,
+        Duration::hours(4),
+    );
+    db.decide_join_request(
+        ORG,
+        asked.id,
+        JoinDecision::Admitted {
+            grant_id: minted.id,
+        },
+        operator,
+        Utc::now(),
+        Some(&minted),
+    )
+    .await
+    .expect("admission lands");
+
+    let read = db
+        .join_request(ORG, asked.id)
+        .await
+        .unwrap()
+        .expect("the request survives its decision");
+    assert_eq!(
+        read.decision,
+        JoinDecision::Admitted {
+            grant_id: minted.id
+        }
+    );
+    assert_eq!(read.decided_by_principal_id, Some(operator));
+    assert!(read.decided_at.is_some());
+    // And the grant it names is really there, holding what it says it holds.
+    let live = db
+        .active_grants_for(opened.id, stranger, Utc::now())
+        .await
+        .unwrap();
+    assert_eq!(live.len(), 1);
+    assert_eq!(live[0].id, minted.id);
+}
+
+#[tokio::test]
+async fn a_join_request_is_not_readable_from_another_organization() {
+    let db = db().await;
+    let opened = session(&db, PrincipalId::new()).await;
+    let asked = JoinRequest::new(
+        JoinRequestId::new(),
+        opened.id,
+        PrincipalId::new(),
+        None,
+        Utc::now(),
+    )
+    .expect("a valid request");
+    db.insert_join_request(ORG, &asked)
+        .await
+        .expect("request lands");
+
+    assert!(db.join_request(ORG, asked.id).await.unwrap().is_some());
+    assert!(
+        db.join_request("org:two", asked.id)
+            .await
+            .unwrap()
+            .is_none(),
+        "a join request answered a neighbouring organization"
+    );
+}
