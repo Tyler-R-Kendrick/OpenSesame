@@ -18,6 +18,7 @@ mod managed_certs;
 mod middleware;
 mod oci_component;
 mod routes;
+mod session_channel;
 mod shared_session_fence;
 mod sync_actor;
 mod task_engine;

@@ -22,7 +22,7 @@
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    response::{IntoResponse, Response},
+    response::{sse, IntoResponse, Response, Sse},
     Json,
 };
 use chrono::{DateTime, Utc};
@@ -36,6 +36,7 @@ use serde_json::{json, Value};
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{parse_principal, resolve_caller, Caller};
+use crate::session_channel::{Delivery, Recipient, SessionChannel, SessionEvent};
 use crate::shared_session_fence::Reach;
 
 /// The one refusal shape this module uses for "no".
@@ -437,11 +438,23 @@ pub async fn grant(
         .insert_session_grant(&session.organization_id, &minted)
         .await
     {
-        Ok(()) => (
-            StatusCode::CREATED,
-            Json(json!({"grant": operator_entry(&minted)})),
-        )
-            .into_response(),
+        Ok(()) => {
+            announce(
+                &st,
+                session.id,
+                SessionEvent::GrantAdded {
+                    grant_id: minted.id,
+                    subject_principal_id: minted.subject_principal_id,
+                    role: minted.role,
+                    expires_at: minted.expires_at,
+                },
+            );
+            (
+                StatusCode::CREATED,
+                Json(json!({"grant": operator_entry(&minted)})),
+            )
+                .into_response()
+        }
         Err(error) => unavailable(&error),
     }
 }
@@ -474,21 +487,31 @@ pub async fn revoke(
     };
     // Read it first so a grant on somebody *else's* session cannot be revoked
     // by naming it under a session this caller does run.
-    match st
+    let withdrawn_from = match st
         .db
         .session_grant(&session.organization_id, grant_id)
         .await
     {
-        Ok(Some(found)) if found.session_id == session.id => {}
+        Ok(Some(found)) if found.session_id == session.id => found.subject_principal_id,
         Ok(_) => return not_found(),
         Err(error) => return unavailable(&error),
-    }
+    };
     match st.db.revoke_session_grant(grant_id, Utc::now()).await {
-        Ok(_) => Json(json!({
+        Ok(_) => {
+            announce(
+                &st,
+                session.id,
+                SessionEvent::GrantWithdrawn {
+                    grant_id,
+                    subject_principal_id: withdrawn_from,
+                },
+            );
+            Json(json!({
             "revoked": true,
             "note": "New authorizations stop now. Re-key the vault or the row to make future versions unreadable to a former participant who kept ciphertext.",
-        }))
-        .into_response(),
+            }))
+            .into_response()
+        }
         Err(error) => unavailable(&error),
     }
 }
@@ -540,11 +563,20 @@ pub async fn ask_to_join(
     {
         // The requester learns their request is pending and nothing else: no
         // roster, no channel, no peer (ADR 0079 §7).
-        Ok(()) => (
-            StatusCode::ACCEPTED,
-            Json(json!({"id": request.id.to_string(), "decision": "pending"})),
-        )
-            .into_response(),
+        Ok(()) => {
+            announce(
+                &st,
+                session.id,
+                SessionEvent::JoinRequested {
+                    request_id: request.id,
+                },
+            );
+            (
+                StatusCode::ACCEPTED,
+                Json(json!({"id": request.id.to_string(), "decision": "pending"})),
+            )
+                .into_response()
+        }
         Err(error) => {
             // The partial unique index refuses a second pending ask from the
             // same principal. Asking twice is the same ask, so report the
@@ -680,14 +712,256 @@ pub async fn decide_join_request(
         )
         .await
     {
-        Ok(()) => Json(json!({
-            "id": request_id.to_string(),
-            "decision": if minted.is_some() { "admitted" } else { "refused" },
-            "grant": minted.as_ref().map(operator_entry),
-        }))
-        .into_response(),
+        Ok(()) => {
+            if let Some(grant) = minted.as_ref() {
+                announce(
+                    &st,
+                    session.id,
+                    SessionEvent::GrantAdded {
+                        grant_id: grant.id,
+                        subject_principal_id: grant.subject_principal_id,
+                        role: grant.role,
+                        expires_at: grant.expires_at,
+                    },
+                );
+            }
+            Json(json!({
+                "id": request_id.to_string(),
+                "decision": if minted.is_some() { "admitted" } else { "refused" },
+                "grant": minted.as_ref().map(operator_entry),
+            }))
+            .into_response()
+        }
         Err(error) => unavailable(&error),
     }
+}
+
+/// Announce something on the session's channel, if anybody is listening.
+///
+/// Best-effort by design. The store is the record and the channel is a
+/// courtesy: a route that failed to publish has still done what it was asked,
+/// and a route that refused to act because nobody was listening would be
+/// worse. Publishing never widens anybody's reach — every event still passes
+/// [`Delivery::for_recipient`] against live grants before it reaches a reader.
+fn announce(st: &AppState, session_id: SessionId, event: SessionEvent) {
+    let channels = st.session_channels.lock().unwrap();
+    if let Some(channel) = channels.get(&session_id) {
+        channel.publish(event);
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ActivityRequest {
+    /// `opened` or `changed`.
+    kind: String,
+    vault_id: String,
+    item_id: String,
+}
+
+/// `POST /api/v1/shared-sessions/{id}/activity` — tell the room what you are on.
+///
+/// The one thing a participant *sends*, and it is a request like any other:
+/// the announcer's own reach is checked before anything is broadcast, so a
+/// participant cannot manufacture activity for an item they were never
+/// granted. The refusal is the same `404` the rest of the module uses, because
+/// distinguishing "no such item" from "not yours" would turn this into an
+/// oracle for what the vault holds.
+///
+/// It carries ids and nothing else. What the item is called is rendered by
+/// each client from what that client can already decrypt.
+pub async fn announce_activity(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+    Json(body): Json<ActivityRequest>,
+) -> Response {
+    let (principal, session, reach) = match standing(&st, &headers, &id).await {
+        Ok(found) => found,
+        Err(resp) => return resp,
+    };
+    if !reach.may_see_session() {
+        return not_found();
+    }
+    let (Ok(vault_id), Ok(item_id)) = (
+        VaultId::parse(&body.vault_id),
+        VaultItemId::parse(&body.item_id),
+    ) else {
+        return bad_request("activity_target", "not a vault and item id");
+    };
+    let wanted = match body.kind.as_str() {
+        "opened" => SessionRole::Read,
+        "changed" => SessionRole::Write,
+        _ => return bad_request("activity_kind", "opened or changed"),
+    };
+
+    let now = Utc::now();
+    let grants = match st.db.active_grants_for(session.id, principal, now).await {
+        Ok(grants) => grants,
+        Err(error) => return unavailable(&error),
+    };
+    if crate::shared_session_fence::authorizing_grant(
+        &grants, principal, vault_id, item_id, wanted, now,
+    )
+    .is_none()
+    {
+        return not_found();
+    }
+
+    let event = if wanted == SessionRole::Write {
+        SessionEvent::ItemChanged {
+            vault_id,
+            item_id,
+            by_principal_id: principal,
+        }
+    } else {
+        SessionEvent::ItemOpened {
+            vault_id,
+            item_id,
+            by_principal_id: principal,
+        }
+    };
+    announce(&st, session.id, event);
+    StatusCode::ACCEPTED.into_response()
+}
+
+/// Publishes a departure when a reader's stream ends, however it ends.
+///
+/// A `Drop` guard rather than a tidy-up at the end of the loop: a browser tab
+/// closing, a network drop and a cancelled request all unwind rather than
+/// returning, and presence that only updated on a graceful exit would show
+/// people in the room who left hours ago.
+struct Presence {
+    state: AppState,
+    session_id: SessionId,
+    principal_id: PrincipalId,
+}
+
+impl Drop for Presence {
+    fn drop(&mut self) {
+        announce(
+            &self.state,
+            self.session_id,
+            SessionEvent::ParticipantLeft {
+                principal_id: self.principal_id,
+            },
+        );
+    }
+}
+
+/// `GET /api/v1/shared-sessions/{id}/events` — the session's live channel.
+///
+/// Server-sent events, one direction only. That is the security decision in
+/// this handler rather than an implementation convenience: ADR 0079 §6 says an
+/// inbound message is a request like any other and never evidence its sender
+/// is allowed, and the cheapest way to hold that rule is to have no inbound
+/// frame path at all. Everything a participant *does* goes through the
+/// authenticated routes above, where the fence already runs.
+///
+/// Standing is re-read from the store on every event rather than captured at
+/// subscribe time. A subscription is not a permission: a participant whose
+/// grant is withdrawn or lapses mid-stream stops receiving on the next event,
+/// not at their next reconnect.
+pub async fn events(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> Response {
+    let (principal, session, reach) = match standing(&st, &headers, &id).await {
+        Ok(found) => found,
+        Err(resp) => return resp,
+    };
+    if !reach.may_see_session() {
+        return not_found();
+    }
+    let is_operator = reach.is_operator();
+
+    let receiver = {
+        let mut channels = st.session_channels.lock().unwrap();
+        // Sessions with no reader are dropped when their last one leaves, so
+        // the map holds live channels rather than a row per session ever
+        // opened.
+        channels.retain(|_, channel| !channel.is_idle());
+        channels
+            .entry(session.id)
+            .or_insert_with(SessionChannel::new)
+            .subscribe()
+    };
+
+    let session_id = session.id;
+    announce(
+        &st,
+        session_id,
+        SessionEvent::ParticipantJoined {
+            principal_id: principal,
+            role: if is_operator {
+                SessionRole::Write
+            } else {
+                SessionRole::Read
+            },
+        },
+    );
+    let presence = Presence {
+        state: st.clone(),
+        session_id,
+        principal_id: principal,
+    };
+
+    // `unfold` rather than a generator macro: the loop's state is exactly the
+    // receiver, and the per-event standing read is an ordinary await inside it.
+    let stream = futures::stream::unfold(
+        (receiver, st.clone(), presence),
+        move |(mut receiver, st, presence)| async move {
+            loop {
+                let event = match receiver.recv().await {
+                    Ok(event) => event,
+                    // A reader that fell behind is told how far and keeps its
+                    // place. It never grows the buffer for anybody else.
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(missed)) => {
+                        let notice = sse::Event::default()
+                            .event("lagged")
+                            .data(missed.to_string());
+                        return Some((
+                            Ok::<_, std::convert::Infallible>(notice),
+                            (receiver, st, presence),
+                        ));
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => return None,
+                };
+
+                let now = Utc::now();
+                // Read afresh: a subscription is not a permission, and a grant
+                // withdrawn mid-stream must stop delivery on the next event
+                // rather than at the next reconnect. A read that fails yields
+                // no grants, which denies — the same rule the fence uses.
+                let grants = st
+                    .db
+                    .active_grants_for(session_id, principal, now)
+                    .await
+                    .unwrap_or_default();
+                let recipient = Recipient {
+                    principal_id: principal,
+                    is_operator,
+                    grants,
+                };
+                if !Delivery::for_recipient(&event, &recipient, now) {
+                    continue;
+                }
+                match serde_json::to_string(&event) {
+                    Ok(payload) => {
+                        let frame = sse::Event::default().data(payload);
+                        return Some((Ok(frame), (receiver, st, presence)));
+                    }
+                    Err(error) => {
+                        tracing::warn!(%error, "session event would not serialize");
+                    }
+                }
+            }
+        },
+    );
+
+    Sse::new(stream)
+        .keep_alive(sse::KeepAlive::default())
+        .into_response()
 }
 
 #[cfg(test)]

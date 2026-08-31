@@ -755,3 +755,428 @@ async fn an_operator_token_cannot_act_as_a_session_operator() {
     // between people. Refused with its own reason rather than a 404.
     assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }
+
+/// Read one SSE frame's data payload, or `None` if the stream went quiet.
+async fn next_event(
+    body: &mut axum::body::BodyDataStream,
+    within: std::time::Duration,
+) -> Option<Value> {
+    use futures::StreamExt;
+    let mut buffered = String::new();
+    loop {
+        let chunk = tokio::time::timeout(within, body.next())
+            .await
+            .ok()??
+            .ok()?;
+        buffered.push_str(&String::from_utf8_lossy(&chunk));
+        let found = buffered
+            .lines()
+            .filter_map(|line| line.strip_prefix("data: "))
+            .find_map(|payload| serde_json::from_str::<Value>(payload).ok());
+        if found.is_some() {
+            return found;
+        }
+    }
+}
+
+/// The next frame of a given type, skipping presence chatter.
+async fn next_event_of(
+    body: &mut axum::body::BodyDataStream,
+    kind: &str,
+    within: std::time::Duration,
+) -> Option<Value> {
+    let deadline = std::time::Instant::now() + within;
+    while std::time::Instant::now() < deadline {
+        let event = next_event(body, deadline - std::time::Instant::now()).await?;
+        if event["type"] == json!(kind) {
+            return Some(event);
+        }
+    }
+    None
+}
+
+async fn open_stream(router: &Router, path: &str, actor: &Actor) -> axum::body::BodyDataStream {
+    let request = Request::builder()
+        .method("GET")
+        .uri(path)
+        .header("authorization", &actor.bearer)
+        .body(Body::empty())
+        .unwrap();
+    let response = router.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    response.into_body().into_data_stream()
+}
+
+#[tokio::test]
+async fn the_channel_is_closed_to_anybody_without_standing() {
+    let st = state().await;
+    let router = super::super::router(st.clone());
+    let org = OrganizationId::new();
+    let operator = actor(&st, org);
+    let stranger = actor(&st, org);
+    let id = open_session(&router, &operator, "public").await;
+
+    let request = Request::builder()
+        .method("GET")
+        .uri(format!("/api/v1/shared-sessions/{id}/events"))
+        .header("authorization", &stranger.bearer)
+        .body(Body::empty())
+        .unwrap();
+    let response = router.clone().oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    // Asking to join does not open it either: admission precedes connection.
+    call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/join-requests"),
+        &stranger,
+        json!({}),
+    )
+    .await;
+    let request = Request::builder()
+        .method("GET")
+        .uri(format!("/api/v1/shared-sessions/{id}/events"))
+        .header("authorization", &stranger.bearer)
+        .body(Body::empty())
+        .unwrap();
+    let response = router.oneshot(request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_grant_event_reaches_the_operator_naming_no_scope() {
+    let st = state().await;
+    let router = super::super::router(st.clone());
+    let org = OrganizationId::new();
+    let operator = actor(&st, org);
+    let alice = actor(&st, org);
+    let id = open_session(&router, &operator, "private").await;
+    let vault_id = VaultId::new();
+
+    let mut stream = open_stream(
+        &router,
+        &format!("/api/v1/shared-sessions/{id}/events"),
+        &operator,
+    )
+    .await;
+
+    let (status, _) = call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/grants"),
+        &operator,
+        collection_grant(alice.principal, vault_id),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    let event = next_event_of(
+        &mut stream,
+        "grant_added",
+        std::time::Duration::from_secs(5),
+    )
+    .await
+    .expect("the operator hears about a grant");
+    assert_eq!(
+        event["subject_principal_id"],
+        json!(alice.principal.to_string())
+    );
+    // The channel carries no scope, and has no field it could go in.
+    let rendered = event.to_string();
+    assert!(
+        !rendered.contains(&vault_id.to_string()),
+        "a grant event named the vault: {rendered}"
+    );
+    assert!(!rendered.contains("scope"), "{rendered}");
+}
+
+#[tokio::test]
+async fn a_join_request_reaches_the_operator_without_the_note_or_the_asker() {
+    let st = state().await;
+    let router = super::super::router(st.clone());
+    let org = OrganizationId::new();
+    let operator = actor(&st, org);
+    let stranger = actor(&st, org);
+    let id = open_session(&router, &operator, "public").await;
+
+    let mut stream = open_stream(
+        &router,
+        &format!("/api/v1/shared-sessions/{id}/events"),
+        &operator,
+    )
+    .await;
+
+    call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/join-requests"),
+        &stranger,
+        json!({"note": "let me in, I am on call"}),
+    )
+    .await;
+
+    let event = next_event_of(
+        &mut stream,
+        "join_requested",
+        std::time::Duration::from_secs(5),
+    )
+    .await
+    .expect("the operator hears about the ask");
+    let rendered = event.to_string();
+    // Untrusted text a stranger typed never crosses the channel at all — a
+    // cheaper rule to hold than "escape it everywhere". Nor does who asked;
+    // the operator fetches both over HTTP, where the framing comes with them.
+    assert!(!rendered.contains("on call"), "{rendered}");
+    assert!(
+        !rendered.contains(&stranger.principal.to_string()),
+        "{rendered}"
+    );
+}
+
+#[tokio::test]
+async fn a_participant_hears_a_grant_but_not_a_join_request() {
+    let st = state().await;
+    let router = super::super::router(st.clone());
+    let org = OrganizationId::new();
+    let operator = actor(&st, org);
+    let alice = actor(&st, org);
+    let stranger = actor(&st, org);
+    let id = open_session(&router, &operator, "public").await;
+    let vault_id = VaultId::new();
+    call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/grants"),
+        &operator,
+        collection_grant(alice.principal, vault_id),
+    )
+    .await;
+
+    let mut stream = open_stream(
+        &router,
+        &format!("/api/v1/shared-sessions/{id}/events"),
+        &alice,
+    )
+    .await;
+
+    // A join request goes to the operator alone; the participant hears nothing
+    // from it, and then hears the next grant. If the ordering were not
+    // enforced the first frame would be the join request.
+    call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/join-requests"),
+        &stranger,
+        json!({}),
+    )
+    .await;
+    call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/grants"),
+        &operator,
+        collection_grant(PrincipalId::new(), vault_id),
+    )
+    .await;
+
+    // The participant hears the grant. A `join_requested` frame reaching them
+    // would be the leak, so the assertion is on what arrives first among the
+    // two, not merely that the grant arrives at all.
+    loop {
+        let event = next_event(&mut stream, std::time::Duration::from_secs(5))
+            .await
+            .expect("the participant hears the grant");
+        assert_ne!(
+            event["type"],
+            json!("join_requested"),
+            "a participant was told a stranger had asked to join"
+        );
+        if event["type"] == json!("grant_added") {
+            break;
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_revoked_participant_stops_hearing_mid_stream() {
+    let st = state().await;
+    let router = super::super::router(st.clone());
+    let org = OrganizationId::new();
+    let operator = actor(&st, org);
+    let alice = actor(&st, org);
+    let id = open_session(&router, &operator, "private").await;
+    let vault_id = VaultId::new();
+    let (_, body) = call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/grants"),
+        &operator,
+        collection_grant(alice.principal, vault_id),
+    )
+    .await;
+    let grant_id = body["grant"]["grant_id"].as_str().unwrap().to_string();
+
+    let mut stream = open_stream(
+        &router,
+        &format!("/api/v1/shared-sessions/{id}/events"),
+        &alice,
+    )
+    .await;
+
+    // Withdraw Alice's grant, then publish something she would otherwise hear.
+    call(
+        &router,
+        "DELETE",
+        &format!("/api/v1/shared-sessions/{id}/grants/{grant_id}"),
+        &operator,
+        json!({}),
+    )
+    .await;
+    call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/grants"),
+        &operator,
+        collection_grant(PrincipalId::new(), vault_id),
+    )
+    .await;
+
+    // Her subscription is still open — a subscription is not a permission, and
+    // standing is re-read per event, so she receives nothing further.
+    assert!(
+        next_event(&mut stream, std::time::Duration::from_millis(750))
+            .await
+            .is_none(),
+        "a revoked participant was still on the channel"
+    );
+}
+
+#[tokio::test]
+async fn activity_cannot_be_announced_for_an_item_the_announcer_cannot_reach() {
+    let st = state().await;
+    let router = super::super::router(st.clone());
+    let org = OrganizationId::new();
+    let operator = actor(&st, org);
+    let alice = actor(&st, org);
+    let id = open_session(&router, &operator, "private").await;
+    let vault_id = VaultId::new();
+    let mine = VaultItemId::new();
+    let theirs = VaultItemId::new();
+
+    call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/grants"),
+        &operator,
+        json!({
+            "subject_principal_id": alice.principal.to_string(),
+            "scope": {
+                "kind": "rows",
+                "vault_id": vault_id.to_string(),
+                "items": [mine.to_string()],
+            },
+            "role": "read",
+            "expires_at": (Utc::now() + Duration::hours(1)).to_rfc3339(),
+        }),
+    )
+    .await;
+    let path = format!("/api/v1/shared-sessions/{id}/activity");
+
+    let (status, _) = call(
+        &router,
+        "POST",
+        &path,
+        &alice,
+        json!({"kind": "opened", "vault_id": vault_id.to_string(), "item_id": mine.to_string()}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::ACCEPTED);
+
+    // An item she was never granted: refused, and with the same 404 as an
+    // unknown session, so the route is not an oracle for what the vault holds.
+    let (status, body) = call(
+        &router,
+        "POST",
+        &path,
+        &alice,
+        json!({"kind": "opened", "vault_id": vault_id.to_string(), "item_id": theirs.to_string()}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"], json!("session_not_found"));
+
+    // And a read grant does not let her announce a write.
+    let (status, _) = call(
+        &router,
+        "POST",
+        &path,
+        &alice,
+        json!({"kind": "changed", "vault_id": vault_id.to_string(), "item_id": mine.to_string()}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn item_activity_reaches_only_the_participants_who_can_reach_that_item() {
+    let st = state().await;
+    let router = super::super::router(st.clone());
+    let org = OrganizationId::new();
+    let operator = actor(&st, org);
+    let alice = actor(&st, org);
+    let bob = actor(&st, org);
+    let id = open_session(&router, &operator, "private").await;
+    let vault_id = VaultId::new();
+    let alices_row = VaultItemId::new();
+    let bobs_row = VaultItemId::new();
+
+    for (who, row) in [(&alice, alices_row), (&bob, bobs_row)] {
+        call(
+            &router,
+            "POST",
+            &format!("/api/v1/shared-sessions/{id}/grants"),
+            &operator,
+            json!({
+                "subject_principal_id": who.principal.to_string(),
+                "scope": {
+                    "kind": "rows",
+                    "vault_id": vault_id.to_string(),
+                    "items": [row.to_string()],
+                },
+                "role": "read",
+                "expires_at": (Utc::now() + Duration::hours(1)).to_rfc3339(),
+            }),
+        )
+        .await;
+    }
+
+    let mut bobs_stream = open_stream(
+        &router,
+        &format!("/api/v1/shared-sessions/{id}/events"),
+        &bob,
+    )
+    .await;
+
+    // Alice opens her row. Bob holds a different one and must not learn that
+    // it exists, let alone that somebody is in it.
+    call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/activity"),
+        &alice,
+        json!({
+            "kind": "opened",
+            "vault_id": vault_id.to_string(),
+            "item_id": alices_row.to_string(),
+        }),
+    )
+    .await;
+
+    let heard = next_event(&mut bobs_stream, std::time::Duration::from_millis(750)).await;
+    let rendered = heard.map(|event| event.to_string()).unwrap_or_default();
+    assert!(
+        !rendered.contains(&alices_row.to_string()),
+        "a row-scoped participant was told about an item they cannot reach: {rendered}"
+    );
+}

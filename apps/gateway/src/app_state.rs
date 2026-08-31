@@ -1,5 +1,6 @@
 use crate::bootstrap;
 use crate::config::{self, Args};
+use crate::session_channel::SessionChannel;
 use crate::task_engine::{new_task_engine, SharedTaskEngine};
 use opensesame_broker::Broker;
 use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
@@ -63,6 +64,13 @@ pub struct AppState {
     pub db: Db,
     pub broker: Arc<Broker>,
     pub sessions: Arc<Mutex<HashMap<String, Value>>>,
+    /// Live shared-session channels, one broadcast per session (ADR 0079).
+    ///
+    /// Bounded on both axes: [`SESSION_CHANNEL_CAPACITY`] events buffered per
+    /// session, and a session with no live subscriber is dropped rather than
+    /// kept as a leak with a name on it. A slow reader lags and is told so; it
+    /// never grows the buffer for everybody else.
+    pub session_channels: Arc<Mutex<HashMap<opensesame_domain::SessionId, SessionChannel>>>,
     pub device_codes: Arc<Mutex<HashMap<String, DevicePending>>>,
     /// Pending GitHub App Manifest handshakes (state → org + `return_to`).
     pub github_app_pending: Arc<Mutex<HashMap<String, GithubAppPending>>>,
@@ -179,6 +187,7 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         db,
         broker: Arc::new(boot.broker),
         sessions: Arc::new(Mutex::new(HashMap::new())),
+        session_channels: Arc::new(Mutex::new(HashMap::new())),
         device_codes: Arc::new(Mutex::new(HashMap::new())),
         github_app_pending: Arc::new(Mutex::new(HashMap::new())),
         session_lifecycle: Arc::new(Mutex::new(())),

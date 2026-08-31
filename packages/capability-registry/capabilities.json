@@ -301,6 +301,52 @@
     }
   },
   {
+    "id": "shared_sessions.activity",
+    "title": "Announce activity on an item in a shared session",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
+        "adr": "0079-shared-sessions-and-scoped-grants.md"
+      },
+      "mcp_client": {
+        "reason": "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
+        "adr": "0079-shared-sessions-and-scoped-grants.md"
+      }
+    }
+  },
+  {
+    "id": "shared_sessions.events",
+    "title": "Subscribe to a shared session's live channel",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
+        "adr": "0079-shared-sessions-and-scoped-grants.md"
+      },
+      "mcp_client": {
+        "reason": "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
+        "adr": "0079-shared-sessions-and-scoped-grants.md"
+      }
+    }
+  },
+  {
     "id": "shared_sessions.grant",
     "title": "Grant a participant scoped reach into a vault",
     "plane": "host",
