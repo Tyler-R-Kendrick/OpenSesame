@@ -1236,6 +1236,55 @@
     }
   },
   {
+    "id": "security.findings.read",
+    "title": "Read breach findings for this organization",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame security findings",
+      "pwa": null,
+      "mcp_host": "security_findings_read",
+      "mcp_client": null,
+      "webmcp": null
+    }
+  },
+  {
+    "id": "security.breach_scan.trigger",
+    "title": "Run one breach scan now",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame security scan",
+      "pwa": null,
+      "mcp_host": "security_breach_scan",
+      "mcp_client": null,
+      "webmcp": null
+    }
+  },
+  {
+    "id": "security.breach_check.run",
+    "title": "Check a candidate secret against the breached-password corpus",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame security check",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "the only route that accepts a secret value; an agent surface must never be the thing that carries one, even to have it vetted",
+        "adr": "0080-security-event-hooks.md"
+      },
+      "webmcp": {
+        "reason": "the only route that accepts a secret value; an agent surface must never be the thing that carries one, even to have it vetted",
+        "adr": "0080-security-event-hooks.md"
+      }
+    }
+  },
+  {
     "id": "changelog.read",
     "title": "Read the project changelog feed",
     "plane": "host",

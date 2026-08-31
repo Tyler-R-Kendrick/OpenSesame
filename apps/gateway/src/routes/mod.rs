@@ -25,6 +25,7 @@ mod receipts;
 mod relay;
 mod rotation;
 mod secret_configs;
+mod security;
 mod session;
 mod shared_sessions;
 mod sync;
@@ -447,6 +448,27 @@ pub fn router(state: AppState) -> Router {
             get(lifecycle::list_deliveries),
         )
         .route("/api/v1/lifecycle/scan", post(lifecycle::scan))
+        // ADR 0080: the same subscription surface, under the name that now
+        // describes what it carries. The `/lifecycle/hooks` paths above stay
+        // as they are — they are a published contract with registered
+        // subscribers behind them, and breaking one to tidy a URL would be a
+        // poor trade.
+        .route(
+            "/api/v1/security/hooks",
+            get(lifecycle::list_hooks).put(lifecycle::put_hook),
+        )
+        .route(
+            "/api/v1/security/hooks/{id}",
+            delete(lifecycle::delete_hook),
+        )
+        .route(
+            "/api/v1/security/deliveries",
+            get(lifecycle::list_deliveries),
+        )
+        // ADR 0080: breach exposure.
+        .route("/api/v1/security/findings", get(security::list_findings))
+        .route("/api/v1/security/breach-scan", post(security::scan))
+        .route("/api/v1/security/breach-check", post(security::check))
         // WP-9: durable rotation policies (owner/admin configuration surface).
         .route(
             "/api/v1/rotation/policies",

@@ -266,7 +266,8 @@ fn pact_migrations_are_append_only_and_end_with_0019() {
             "0017_lifecycle_hooks",
             "0018_rotation_leases",
             "0019_shared_sessions",
+            "0020_security_events",
         ]
     );
-    assert_eq!(versions.last().copied(), Some("0019_shared_sessions"));
+    assert_eq!(versions.last().copied(), Some("0020_security_events"));
 }

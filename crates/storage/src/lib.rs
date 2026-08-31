@@ -990,6 +990,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0019_shared_sessions",
         include_str!("../../../migrations/0019_shared_sessions.sql"),
     ),
+    (
+        "0020_security_events",
+        include_str!("../../../migrations/0020_security_events.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.
@@ -6819,10 +6823,10 @@ mod managed_certs;
 mod shared_sessions;
 pub use shared_sessions::StoredSession;
 
-mod lifecycle;
-pub use lifecycle::{
-    StoredLifecycleDelivery, StoredLifecycleHook, StoredLifecycleWatermark, DELIVERY_BATCH_LIMIT,
-    LIFECYCLE_HOOK_SECRET_SCOPE,
+mod security;
+pub use security::{
+    StoredBreachFinding, StoredLifecycleWatermark, StoredSecurityDelivery, StoredSecurityHook,
+    BREACH_FINDING_CLEARED, BREACH_FINDING_OPEN, DELIVERY_BATCH_LIMIT, SECURITY_HOOK_SECRET_SCOPE,
 };
 
 fn stored_certificate_policy(row: &SqliteRow) -> StoredCertificatePolicy {

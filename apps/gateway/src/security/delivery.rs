@@ -1,13 +1,20 @@
-//! Outbound delivery of lifecycle events to registered webhook subscribers.
+//! Outbound delivery of security events to registered subscribers.
 //!
-//! The wire convention is Standard Webhooks, byte for byte the same one
-//! `@opensesame/webhooks` implements (ADR 0046 decision 12): `webhook-id`,
-//! `webhook-timestamp`, and `webhook-signature: v1,<base64>` over
-//! `id.timestamp.payload` under an HMAC-SHA256 key carried in a `whsec_`
-//! secret. A subscriber verifies with any off-the-shelf Standard Webhooks
-//! library rather than something `OpenSesame`-specific, and `webhook-id`
-//! doubles as their idempotency key — which matters, because the ledger is
-//! at-least-once by design.
+//! One worker, one ledger, three wire formats. Which one a delivery uses is a
+//! property of the hook row, not of the event, so an operator routes expiry and
+//! breach findings to the same `PagerDuty` service by registering one hook.
+//! [`crate::security::sinks`] renders the body; this module owns the saga.
+//!
+//! - **Standard Webhooks** — byte for byte the convention
+//!   `@opensesame/webhooks` implements (ADR 0046 decision 12): `webhook-id`,
+//!   `webhook-timestamp`, and `webhook-signature: v1,<base64>` over
+//!   `id.timestamp.body` under an HMAC-SHA256 key carried in a `whsec_`
+//!   secret. A subscriber verifies with any off-the-shelf library rather than
+//!   something `OpenSesame`-specific, and `webhook-id` doubles as their
+//!   idempotency key — which matters, because the ledger is at-least-once.
+//! - **Alertmanager v2** and **`PagerDuty` Events API v2** — the sinks an
+//!   operator's on-call rotation already reads. Both deduplicate on the
+//!   notice's alert key, so at-least-once delivery costs nothing.
 //!
 //! The saga is ADR 0039's: the ledger is the source of truth, work is claimed
 //! under a lease, failures back off exponentially, and a delivery that will
@@ -18,13 +25,13 @@ use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use opensesame_connection_broker::crypto::{open_scoped, SealedBlob};
 use opensesame_connector_host::is_blocked_host;
-use opensesame_storage::{
-    StoredLifecycleDelivery, StoredLifecycleHook, LIFECYCLE_HOOK_SECRET_SCOPE,
-};
+use opensesame_security_events::Delivery;
+use opensesame_storage::{StoredSecurityDelivery, StoredSecurityHook, SECURITY_HOOK_SECRET_SCOPE};
 use sha2::Sha256;
 use std::time::Duration;
 
 use crate::app_state::AppState;
+use crate::security::sinks;
 
 /// Standard Webhooks secret prefix, matching `@opensesame/webhooks`.
 pub const SECRET_PREFIX: &str = "whsec_";
@@ -152,7 +159,7 @@ pub async fn run(state: AppState) {
 pub async fn pass(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<usize> {
     let claimed = state
         .db
-        .claim_lifecycle_deliveries(
+        .claim_security_deliveries(
             opensesame_storage::DELIVERY_BATCH_LIMIT,
             CLAIM_LEASE_SECONDS,
             now,
@@ -169,10 +176,10 @@ pub async fn pass(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<usize>
 
 /// Attempt one delivery and record what happened. Returns whether the row
 /// reached a terminal state.
-async fn settle(state: &AppState, delivery: &StoredLifecycleDelivery, now: DateTime<Utc>) -> bool {
+async fn settle(state: &AppState, delivery: &StoredSecurityDelivery, now: DateTime<Utc>) -> bool {
     let hook = match state
         .db
-        .get_lifecycle_hook(&delivery.organization_id, &delivery.hook_id)
+        .get_security_hook(&delivery.organization_id, &delivery.hook_id)
         .await
     {
         Ok(Some(hook)) => hook,
@@ -190,7 +197,7 @@ async fn settle(state: &AppState, delivery: &StoredLifecycleDelivery, now: DateT
 
     match send(state, &hook, delivery).await {
         Ok(()) => {
-            if let Err(error) = state.db.mark_lifecycle_delivered(&delivery.id, now).await {
+            if let Err(error) = state.db.mark_security_delivered(&delivery.id, now).await {
                 tracing::warn!(%error, delivery_id = %delivery.id, "delivered but not recorded");
                 return false;
             }
@@ -214,9 +221,11 @@ async fn settle(state: &AppState, delivery: &StoredLifecycleDelivery, now: DateT
 
 async fn send(
     state: &AppState,
-    hook: &StoredLifecycleHook,
-    delivery: &StoredLifecycleDelivery,
+    hook: &StoredSecurityHook,
+    delivery: &StoredSecurityDelivery,
 ) -> Result<(), Failure> {
+    let kind = Delivery::parse(&hook.delivery)
+        .ok_or_else(|| Failure::Permanent(format!("unknown delivery kind '{}'", hook.delivery)))?;
     let endpoint = hook
         .endpoint_url
         .as_deref()
@@ -227,9 +236,11 @@ async fn send(
     assert_deliverable(endpoint).map_err(Failure::Permanent)?;
 
     let secret = open_secret(state, hook)?;
-    let timestamp = Utc::now().timestamp();
-    let signature = sign(&secret, &delivery.id, timestamp, &delivery.payload_json)
-        .map_err(|error| Failure::Permanent(error.to_string()))?;
+    // Not necessarily an envelope: rows queued before migration 0020 hold a
+    // detector's flat payload, and they are delivered as they were written.
+    let queued = sinks::decode(&delivery.payload_json);
+    let rendered =
+        sinks::render_queued(kind, &queued, secret.as_deref()).map_err(Failure::Permanent)?;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
@@ -239,24 +250,59 @@ async fn send(
         .build()
         .map_err(|error| Failure::Retryable(format!("http client: {error}")))?;
 
-    let response = client
+    let mut request = client
         .post(endpoint)
-        .header("content-type", "application/json")
-        .header("webhook-id", &signature.id)
-        .header("webhook-timestamp", &signature.timestamp)
-        .header("webhook-signature", &signature.value)
-        .body(delivery.payload_json.clone())
+        .header("content-type", "application/json");
+    for (name, value) in signature_headers(kind, secret.as_deref(), delivery, &rendered.body)? {
+        request = request.header(name, value);
+    }
+    for (name, value) in rendered.headers {
+        request = request.header(name, value);
+    }
+
+    let response = request
+        .body(rendered.body)
         .send()
         .await
         .map_err(|error| Failure::Retryable(format!("request failed: {error}")))?;
 
-    let status = response.status();
+    classify(response.status())
+}
+
+/// Standard Webhooks headers, for the one sink that uses them.
+///
+/// Alertmanager and `PagerDuty` authenticate their own way — network policy and
+/// a routing key respectively — and would reject or ignore these. Signing is
+/// over the *rendered* body rather than the queued row, because the body is
+/// what a subscriber receives and therefore what they verify.
+fn signature_headers(
+    kind: Delivery,
+    secret: Option<&str>,
+    delivery: &StoredSecurityDelivery,
+    body: &str,
+) -> Result<Vec<(&'static str, String)>, Failure> {
+    if kind != Delivery::Webhook {
+        return Ok(Vec::new());
+    }
+    let secret = secret.ok_or_else(|| Failure::Permanent("hook has no signing secret".into()))?;
+    let signature = sign(secret, &delivery.id, Utc::now().timestamp(), body)
+        .map_err(|error| Failure::Permanent(error.to_string()))?;
+    Ok(vec![
+        ("webhook-id", signature.id),
+        ("webhook-timestamp", signature.timestamp),
+        ("webhook-signature", signature.value),
+    ])
+}
+
+/// Whether a response status is success, worth retrying, or final.
+///
+/// 4xx is the endpoint telling us the request itself is wrong; repeating it
+/// unchanged cannot help. 408 and 429 are the two that can.
+fn classify(status: reqwest::StatusCode) -> Result<(), Failure> {
     if status.is_success() {
         return Ok(());
     }
     let detail = format!("endpoint returned {status}");
-    // 4xx is the endpoint telling us the request itself is wrong; repeating it
-    // unchanged cannot help. 408 and 429 are the two that can.
     if status.is_client_error()
         && status != reqwest::StatusCode::REQUEST_TIMEOUT
         && status != reqwest::StatusCode::TOO_MANY_REQUESTS
@@ -302,11 +348,16 @@ fn url_host(endpoint: &str) -> Option<String> {
     (!host.is_empty()).then_some(host)
 }
 
-fn open_secret(state: &AppState, hook: &StoredLifecycleHook) -> Result<String, Failure> {
-    let material = hook
-        .sealed_secret
-        .as_ref()
-        .ok_or_else(|| Failure::Permanent("hook has no signing secret".into()))?;
+/// The hook's sealed material, opened for this send.
+///
+/// `Ok(None)` when the row carries none, which is legitimate: Alertmanager's
+/// ingest API is unauthenticated by design. A sink that genuinely needs the
+/// material refuses in `sinks::render`, where the requirement is stated once
+/// per sink rather than guessed here.
+fn open_secret(state: &AppState, hook: &StoredSecurityHook) -> Result<Option<String>, Failure> {
+    let Some(material) = hook.sealed_secret.as_ref() else {
+        return Ok(None);
+    };
     let key = state
         .connection_broker
         .config()
@@ -315,7 +366,7 @@ fn open_secret(state: &AppState, hook: &StoredLifecycleHook) -> Result<String, F
         .ok_or_else(|| Failure::Retryable("gateway has no sealing key configured".into()))?;
     let plaintext = open_scoped(
         &key,
-        LIFECYCLE_HOOK_SECRET_SCOPE,
+        SECURITY_HOOK_SECRET_SCOPE,
         &hook.id,
         &hook.organization_id,
         &SealedBlob {
@@ -324,20 +375,21 @@ fn open_secret(state: &AppState, hook: &StoredLifecycleHook) -> Result<String, F
             aad_digest: material.aad_digest.clone(),
         },
     )
-    .map_err(|error| Failure::Permanent(format!("signing secret will not open: {error}")))?;
+    .map_err(|error| Failure::Permanent(format!("hook secret will not open: {error}")))?;
     String::from_utf8(plaintext)
-        .map_err(|_| Failure::Permanent("signing secret is not valid UTF-8".into()))
+        .map(Some)
+        .map_err(|_| Failure::Permanent("hook secret is not valid UTF-8".into()))
 }
 
 async fn record_attempt(
     state: &AppState,
-    hook: &StoredLifecycleHook,
+    hook: &StoredSecurityHook,
     now: DateTime<Utc>,
     error: Option<&str>,
 ) {
     if let Err(recorded) = state
         .db
-        .record_lifecycle_hook_attempt(&hook.organization_id, &hook.id, now, error)
+        .record_security_hook_attempt(&hook.organization_id, &hook.id, now, error)
         .await
     {
         tracing::warn!(%recorded, hook_id = %hook.id, "hook attempt could not be recorded");
@@ -346,14 +398,14 @@ async fn record_attempt(
 
 async fn park(
     state: &AppState,
-    delivery: &StoredLifecycleDelivery,
+    delivery: &StoredSecurityDelivery,
     detail: &str,
     now: DateTime<Utc>,
 ) {
     let next = retry_at(now, delivery.attempts);
     if let Err(error) = state
         .db
-        .park_lifecycle_delivery(&delivery.id, next, detail, now)
+        .park_security_delivery(&delivery.id, next, detail, now)
         .await
     {
         tracing::warn!(%error, delivery_id = %delivery.id, "delivery could not be parked");
@@ -362,7 +414,7 @@ async fn park(
 
 async fn dead_letter(
     state: &AppState,
-    delivery: &StoredLifecycleDelivery,
+    delivery: &StoredSecurityDelivery,
     detail: &str,
     now: DateTime<Utc>,
 ) {
@@ -374,7 +426,7 @@ async fn dead_letter(
     );
     if let Err(error) = state
         .db
-        .dead_letter_lifecycle_delivery(&delivery.id, detail, now)
+        .dead_letter_security_delivery(&delivery.id, detail, now)
         .await
     {
         tracing::warn!(%error, delivery_id = %delivery.id, "delivery could not be dead-lettered");

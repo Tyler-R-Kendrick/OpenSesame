@@ -1,6 +1,6 @@
 //! The shared-session schema's constraints, exercised (ADR 0079).
 //!
-//! Migration 0019 encodes three properties the domain types already hold, so
+//! Migration 0020 encodes three properties the domain types already hold, so
 //! that a caller reaching the database by another path — a repair script, a
 //! future repository, a hand-written statement — cannot contradict them. A
 //! CHECK nobody has watched refuse is a CHECK nobody knows works, so each one
