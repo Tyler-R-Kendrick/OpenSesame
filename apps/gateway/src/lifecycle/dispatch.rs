@@ -27,9 +27,19 @@ const BUS_SOURCE: &str = "opensesame://gateway/lifecycle";
 pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
     publish_to_bus(state, event).await;
     enqueue_for_subscribers(state, event, now).await;
-    record_watermark(state, event, now).await;
 
-    if !should_respond(event) {
+    // The watermark write is the claim, and only the winner may act.
+    //
+    // Publishing stays at-least-once on purpose: a crash between emit and
+    // record re-notifies rather than drops, which is the safe direction for an
+    // expiry notice, and subscribers are built for duplicates. *Acting* is the
+    // opposite — reissuing a certificate or rotating a credential twice is a
+    // real fault, and two gateway processes scanning concurrently both see an
+    // unrecorded rung. So the claim gates the responder and nothing else
+    // (ADR 0076).
+    let claimed = record_watermark(state, event, now).await;
+
+    if !claimed || !should_respond(event) {
         return;
     }
     let outcome = responders::respond(state, event).await;
@@ -185,7 +195,9 @@ async fn enqueue_for_subscribers(state: &AppState, event: &LifecycleEvent, now: 
 /// between re-emits on the next pass, which is at-least-once. For an expiry
 /// notice that is the safe direction — a duplicate warning is noise, a dropped
 /// one is an outage.
-async fn record_watermark(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
+/// Claim this rung. `true` means this process advanced the watermark and may
+/// act on the subject.
+async fn record_watermark(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) -> bool {
     let mark = Watermark::after(&event.subject, event.stage);
     let row = StoredLifecycleWatermark {
         organization_id: event.subject.organization_id.clone(),
@@ -196,12 +208,19 @@ async fn record_watermark(state: &AppState, event: &LifecycleEvent, now: DateTim
         threshold_seconds: mark.threshold_seconds,
         expires_at: mark.expires_at.to_rfc3339(),
     };
-    if let Err(error) = state.db.record_lifecycle_watermark(&row, now).await {
-        tracing::warn!(
-            %error,
-            subject_id = %event.subject.subject_id,
-            "lifecycle watermark could not be recorded; the rung will re-fire",
-        );
+    match state.db.record_lifecycle_watermark(&row, now).await {
+        Ok(claimed) => claimed,
+        Err(error) => {
+            // Fail closed. Without a recorded claim we cannot show that nobody
+            // else is already acting, and standing down costs a delayed
+            // rotation where acting anyway risks doing it twice.
+            tracing::warn!(
+                %error,
+                subject_id = %event.subject.subject_id,
+                "lifecycle watermark could not be recorded; standing down, the rung will re-fire",
+            );
+            false
+        }
     }
 }
 

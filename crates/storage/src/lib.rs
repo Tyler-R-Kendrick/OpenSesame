@@ -982,6 +982,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0017_lifecycle_hooks",
         include_str!("../../../migrations/0017_lifecycle_hooks.sql"),
     ),
+    (
+        "0018_rotation_leases",
+        include_str!("../../../migrations/0018_rotation_leases.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.

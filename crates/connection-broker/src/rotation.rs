@@ -22,6 +22,7 @@ use uuid::Uuid;
 use crate::changelog_hook::RecordSecretChangelog;
 use crate::error::{BrokerError, Result};
 use crate::model::ConnectionView;
+use crate::rotation_verify::{VerifyOutcome, VERIFY_SKIPPED_DETAIL};
 use crate::store;
 use crate::ConnectionBroker;
 
@@ -34,11 +35,6 @@ const BUS_SOURCE: &str = "opensesame://connection-broker/rotation";
 
 /// Job state persisted before the machine starts executing.
 const STATE_SCHEDULED: &str = "scheduled";
-
-/// Detail recorded when a provider exposes no no-op verification invoke:
-/// verification is honestly skipped, never fabricated.
-const VERIFY_SKIPPED_DETAIL: &str =
-    "verify_skipped: provider catalog exposes no no-op verification invoke";
 
 /// Detail recorded for deferred sealed-store rotations.
 const STORE_PATH_DEFERRAL_DETAIL: &str = "store_path rotation requires the sealed-store CLI";
@@ -94,6 +90,15 @@ pub struct RotationPolicy {
     pub interval_seconds: u64,
     pub last_rotated_at: Option<String>,
     pub enabled: bool,
+    /// Consecutive failed attempts; 0 after any success.
+    pub attempts: i64,
+    /// Earliest time the scheduler may claim this policy again.
+    pub next_attempt_at: Option<String>,
+    /// Attempts exhausted. The policy stays enabled and stops retrying, so a
+    /// rotation that is not happening stays visible instead of disappearing.
+    pub needs_attention: bool,
+    /// Truncated, value-blind hint from the last failure. Never a response body.
+    pub last_error: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -126,6 +131,10 @@ impl RotationPolicy {
             interval_seconds: u64::try_from(row.interval_seconds.max(1)).ok()?,
             last_rotated_at: row.last_rotated_at,
             enabled: row.enabled,
+            attempts: row.attempts,
+            next_attempt_at: row.next_attempt_at,
+            needs_attention: row.needs_attention,
+            last_error: row.last_error,
             created_at: row.created_at.to_rfc3339(),
             updated_at: row.updated_at.to_rfc3339(),
         })
@@ -374,6 +383,13 @@ impl ConnectionBroker {
             interval_seconds: i64::try_from(upsert.interval_seconds).unwrap_or(i64::MAX),
             last_rotated_at,
             enabled: upsert.enabled,
+            // Saving a policy is a deliberate operator act, so it starts from a
+            // clean slate; the ON CONFLICT clause clears any park in place.
+            lease_until: None,
+            attempts: 0,
+            next_attempt_at: None,
+            needs_attention: false,
+            last_error: None,
             created_at,
             updated_at: now,
         };
@@ -414,6 +430,57 @@ impl ConnectionBroker {
     /// Returns an error when the durable policy timestamp cannot be updated.
     pub async fn set_policy_last_rotated(&self, id: &str, at: DateTime<Utc>) -> Result<()> {
         store::set_policy_last_rotated(&self.pool, id, &at.to_rfc3339()).await
+    }
+
+    /// Leases one rotation policy. `true` means this caller may act on it.
+    ///
+    /// The lifecycle scanner (ADR 0074) decides *when* a policy is due; this
+    /// decides *who* acts, and refuses a policy that is leased elsewhere,
+    /// backing off, or parked. Without it two gateway processes both rotate the
+    /// same credential, which for a password change is a lockout.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the claim transaction fails.
+    pub async fn claim_rotation_policy(&self, id: &str, lease_seconds: i64) -> Result<bool> {
+        store::claim_rotation_policy(&self.pool, id, lease_seconds).await
+    }
+
+    /// Releases a claimed policy after a successful rotation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the release update fails.
+    pub async fn release_rotation_policy_success(
+        &self,
+        policy: &RotationPolicy,
+        rotated_at: DateTime<Utc>,
+    ) -> Result<()> {
+        let interval = i64::try_from(policy.interval_seconds).unwrap_or(i64::MAX);
+        store::release_rotation_policy_success(&self.pool, &policy.id, rotated_at, interval).await
+    }
+
+    /// Releases a claimed policy after a failure. `next_attempt_at: None` parks
+    /// the policy: it stops retrying, stays enabled, and raises
+    /// `needs_attention`. The reason is truncated here so no caller can widen
+    /// what a durable row carries.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the release update fails.
+    pub async fn release_rotation_policy_failure(
+        &self,
+        policy_id: &str,
+        next_attempt_at: Option<DateTime<Utc>>,
+        reason: &str,
+    ) -> Result<()> {
+        store::release_rotation_policy_failure(
+            &self.pool,
+            policy_id,
+            next_attempt_at,
+            &truncate_detail(reason),
+        )
+        .await
     }
 
     /// # Errors
@@ -573,22 +640,103 @@ struct SuccessfulRotation<'a> {
     project_id: Option<&'a str>,
 }
 
+/// Walks `CandidateInstalled -> CandidateVerified`, or parks the job when the
+/// provider rejects the freshly installed credential.
+///
+/// A rejection cannot be rolled back: `refresh` already activated the new
+/// token at the provider, so the honest state is `ReconciliationRequired` — we
+/// do not know which credential is live, and the previous value stays retained
+/// for a human. The machine permits `CandidateInstalled ->
+/// ReconciliationRequired` for exactly this case.
+async fn verify_candidate(
+    context: &SuccessfulRotation<'_>,
+    state: &mut RotationState,
+) -> Result<()> {
+    let outcome = match OrganizationId::parse(context.organization_id) {
+        Ok(organization) => context
+            .broker
+            .verify_rotated_credential(&organization, context.connection_id)
+            .await
+            .unwrap_or_else(|error| {
+                VerifyOutcome::Failed(format!("verify failed: {}", error.hint()))
+            }),
+        // A non-canonical organization id cannot be verified against, but it is
+        // not evidence the credential is bad.
+        Err(_) => VerifyOutcome::Skipped(VERIFY_SKIPPED_DETAIL),
+    };
+
+    match outcome {
+        VerifyOutcome::Verified => {
+            advance(
+                context.broker,
+                context.job_id,
+                state,
+                RotationState::CandidateVerified,
+                None,
+            )
+            .await
+        }
+        VerifyOutcome::Skipped(detail) => {
+            advance(
+                context.broker,
+                context.job_id,
+                state,
+                RotationState::CandidateVerified,
+                Some(detail),
+            )
+            .await
+        }
+        VerifyOutcome::Failed(hint) => {
+            let detail = truncate_detail(&hint);
+            advance(
+                context.broker,
+                context.job_id,
+                state,
+                RotationState::ReconciliationRequired,
+                Some(&detail),
+            )
+            .await?;
+            finish(
+                context.broker,
+                context.bus,
+                context.organization_id,
+                context.job_id,
+                EVENT_ROTATION_FAILED,
+                context.project_id,
+                None,
+            )
+            .await?;
+            Err(BrokerError::Invalid(detail))
+        }
+    }
+}
+
 async fn complete_successful_rotation(
     context: SuccessfulRotation<'_>,
     state: &mut RotationState,
     view: &ConnectionView,
 ) -> Result<RotationJob> {
-    for (to, detail) in [
-        (RotationState::CandidateGenerated, None),
-        (RotationState::CandidateInstalled, None),
-        (
-            RotationState::CandidateVerified,
-            Some(VERIFY_SKIPPED_DETAIL),
-        ),
-        (RotationState::CandidateActivated, None),
+    for to in [
+        RotationState::CandidateGenerated,
+        RotationState::CandidateInstalled,
     ] {
-        advance(context.broker, context.job_id, state, to, detail).await?;
+        advance(context.broker, context.job_id, state, to, None).await?;
     }
+
+    // Verify before activating (ADR 0076). `PreviousRevoked` is unreachable
+    // without passing `CandidateVerified`, so this edge is what makes the
+    // machine's verify-before-revoke guarantee mean something. A provider with
+    // no verification endpoint still records the honest skip.
+    verify_candidate(&context, state).await?;
+
+    advance(
+        context.broker,
+        context.job_id,
+        state,
+        RotationState::CandidateActivated,
+        None,
+    )
+    .await?;
     match store::append_config_sync_dirty_for_connection(
         &context.broker.pool,
         context.organization_id,
@@ -885,9 +1033,248 @@ mod tests {
             interval_seconds,
             last_rotated_at: None,
             enabled,
+            attempts: 0,
+            next_attempt_at: None,
+            needs_attention: false,
+            last_error: None,
             created_at: Utc::now().to_rfc3339(),
             updated_at: Utc::now().to_rfc3339(),
         }
+    }
+
+    /// A minimal enabled policy row, ready to be claimed.
+    async fn seed_policy(pool: &sqlx::SqlitePool, id: &str, interval_seconds: i64) {
+        let now = Utc::now();
+        let row = store::RotationPolicyRow {
+            id: id.to_string(),
+            organization_id: "org_claim".into(),
+            target_kind: "store_path".into(),
+            target_id: "Dev/claim".into(),
+            interval_seconds,
+            last_rotated_at: None,
+            enabled: true,
+            lease_until: None,
+            attempts: 0,
+            next_attempt_at: None,
+            needs_attention: false,
+            last_error: None,
+            created_at: now,
+            updated_at: now,
+        };
+        store::upsert_rotation_policy(pool, &row)
+            .await
+            .expect("seed");
+    }
+
+    /// Two processes racing one policy: exactly one may act. This is the
+    /// lockout defect — concurrently rotating one credential twice.
+    #[tokio::test]
+    async fn only_one_caller_can_claim_a_policy() {
+        let (db, broker) = unrefreshable_broker().await;
+        seed_policy(db.pool(), "rotpol_race", 60).await;
+
+        let (first, second) = tokio::join!(
+            broker.claim_rotation_policy("rotpol_race", 600),
+            broker.claim_rotation_policy("rotpol_race", 600)
+        );
+        let won = usize::from(first.unwrap()) + usize::from(second.unwrap());
+        assert_eq!(won, 1, "exactly one caller may hold the lease");
+    }
+
+    /// An expired lease is reclaimable, so a process that crashed mid-rotation
+    /// releases its policy by the clock rather than by a liveness check.
+    #[tokio::test]
+    async fn an_expired_lease_is_reclaimable() {
+        let (db, broker) = unrefreshable_broker().await;
+        seed_policy(db.pool(), "rotpol_expired", 60).await;
+
+        assert!(broker
+            .claim_rotation_policy("rotpol_expired", 0)
+            .await
+            .unwrap());
+        // A zero-second lease is already expired when the next claim evaluates.
+        assert!(
+            broker
+                .claim_rotation_policy("rotpol_expired", 600)
+                .await
+                .unwrap(),
+            "an expired lease does not strand the policy"
+        );
+    }
+
+    /// A parked policy stops being claimed but stays enabled, so an operator
+    /// still sees it. Auto-disabling would hide a rotation that is not running.
+    #[tokio::test]
+    async fn parked_policies_are_not_claimed_but_stay_enabled() {
+        let (db, broker) = unrefreshable_broker().await;
+        let now = Utc::now();
+        let row = store::RotationPolicyRow {
+            id: "rotpol_parked".into(),
+            organization_id: "org_parked".into(),
+            target_kind: "store_path".into(),
+            target_id: "Dev/parked".into(),
+            interval_seconds: 60,
+            last_rotated_at: None,
+            enabled: true,
+            lease_until: None,
+            attempts: 0,
+            next_attempt_at: None,
+            needs_attention: false,
+            last_error: None,
+            created_at: now,
+            updated_at: now,
+        };
+        store::upsert_rotation_policy(db.pool(), &row)
+            .await
+            .expect("seed");
+
+        assert!(broker
+            .claim_rotation_policy("rotpol_parked", 0)
+            .await
+            .unwrap());
+
+        // Park it: no next attempt, needs attention.
+        broker
+            .release_rotation_policy_failure("rotpol_parked", None, "provider unreachable")
+            .await
+            .expect("park");
+
+        assert!(
+            !broker
+                .claim_rotation_policy("rotpol_parked", 600)
+                .await
+                .unwrap(),
+            "a parked policy is not claimed"
+        );
+        let parked = store::get_rotation_policy(db.pool(), "rotpol_parked")
+            .await
+            .unwrap()
+            .expect("row");
+        assert!(parked.enabled, "parked is not disabled");
+        assert!(parked.needs_attention);
+        assert_eq!(parked.attempts, 1);
+        assert_eq!(parked.last_error.as_deref(), Some("provider unreachable"));
+    }
+
+    /// Success releases the lease and schedules the next attempt one interval
+    /// out, clearing any accumulated failure state.
+    #[tokio::test]
+    async fn success_release_clears_failure_state() {
+        let (db, broker) = unrefreshable_broker().await;
+        let now = Utc::now();
+        let row = store::RotationPolicyRow {
+            id: "rotpol_ok".into(),
+            organization_id: "org_ok".into(),
+            target_kind: "store_path".into(),
+            target_id: "Dev/ok".into(),
+            interval_seconds: 3600,
+            last_rotated_at: None,
+            enabled: true,
+            lease_until: None,
+            attempts: 2,
+            next_attempt_at: None,
+            needs_attention: false,
+            last_error: Some("earlier failure".into()),
+            created_at: now,
+            updated_at: now,
+        };
+        store::upsert_rotation_policy(db.pool(), &row)
+            .await
+            .expect("seed");
+        assert!(broker.claim_rotation_policy("rotpol_ok", 0).await.unwrap());
+        let claimed = store::get_rotation_policy(db.pool(), "rotpol_ok")
+            .await
+            .unwrap()
+            .and_then(RotationPolicy::from_row)
+            .expect("policy");
+
+        broker
+            .release_rotation_policy_success(&claimed, now)
+            .await
+            .expect("release");
+
+        let after = store::get_rotation_policy(db.pool(), "rotpol_ok")
+            .await
+            .unwrap()
+            .expect("row");
+        assert_eq!(after.attempts, 0);
+        assert!(after.last_error.is_none());
+        assert!(after.lease_until.is_none());
+        assert!(after.next_attempt_at.is_some(), "next attempt is scheduled");
+        assert!(!after.needs_attention);
+        assert!(
+            !broker
+                .claim_rotation_policy("rotpol_ok", 600)
+                .await
+                .unwrap(),
+            "the freshly scheduled next attempt holds the policy off"
+        );
+    }
+
+    /// A database whose `rotation_policies` predates ADR 0076 must upgrade in
+    /// place and keep working. The table is created lazily rather than by an
+    /// early migration, so both the migration and `ensure_rotation_schema` have
+    /// to converge on the same shape.
+    #[tokio::test]
+    async fn a_pre_lease_rotation_table_upgrades_in_place() {
+        let db = Db::connect_memory().await.expect("db");
+        let pool = db.pool();
+
+        // Recreate the pre-0073 shape, then seed a row through it.
+        sqlx::query("DROP TABLE IF EXISTS rotation_policies")
+            .execute(pool)
+            .await
+            .expect("drop");
+        sqlx::query(
+            "CREATE TABLE rotation_policies (
+                id TEXT PRIMARY KEY,
+                organization_id TEXT NOT NULL,
+                target_kind TEXT NOT NULL CHECK (target_kind IN ('connection','store_path')),
+                target_id TEXT NOT NULL,
+                interval_seconds INTEGER NOT NULL,
+                last_rotated_at TEXT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+             )",
+        )
+        .execute(pool)
+        .await
+        .expect("legacy table");
+        let now = Utc::now().to_rfc3339();
+        sqlx::query(
+            "INSERT INTO rotation_policies (id, organization_id, target_kind, target_id, \
+             interval_seconds, last_rotated_at, enabled, created_at, updated_at) \
+             VALUES ('rotpol_legacy', 'org_legacy', 'store_path', 'Dev/legacy', 60, NULL, 1, ?, ?)",
+        )
+        .bind(&now)
+        .bind(&now)
+        .execute(pool)
+        .await
+        .expect("legacy row");
+
+        // The upgrade is idempotent and additive.
+        store::ensure_rotation_schema(pool).await.expect("upgrade");
+        store::ensure_rotation_schema(pool)
+            .await
+            .expect("upgrade is idempotent");
+
+        let upgraded = store::get_rotation_policy(pool, "rotpol_legacy")
+            .await
+            .expect("read")
+            .expect("row survived");
+        assert_eq!(upgraded.attempts, 0);
+        assert!(upgraded.lease_until.is_none());
+        assert!(!upgraded.needs_attention);
+        assert_eq!(upgraded.target_id, "Dev/legacy", "existing data is intact");
+
+        // And the legacy row is claimable through the new path.
+        assert!(
+            store::claim_rotation_policy(pool, "rotpol_legacy", 600)
+                .await
+                .expect("claim"),
+            "an upgraded legacy policy can be leased"
+        );
     }
 
     #[test]

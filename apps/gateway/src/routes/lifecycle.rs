@@ -1237,6 +1237,48 @@ mod custody_e2e {
         assert_eq!(after_first, 2, "one predecessor, one successor");
     }
 
+    /// Two gateway processes scanning at the same moment must reissue one
+    /// certificate, not two.
+    ///
+    /// The scanner has no view of concurrency: it evaluates watermarks and then
+    /// responds. Both processes read an unrecorded rung, so both would renew.
+    /// The watermark write is the claim, and only the winner acts (ADR 0076).
+    #[tokio::test]
+    async fn concurrent_scans_reissue_a_certificate_once() {
+        let st = custody_state().await;
+        let org = st.connection_organization;
+        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let app = crate::routes::router(st.clone());
+        issue_and_age_certificate(&st, &app, &admin).await;
+
+        let before = st
+            .db
+            .list_certificates(&org.to_string(), &CertificateFilter::default())
+            .await
+            .unwrap()
+            .len();
+
+        let now = chrono::Utc::now();
+        let (first, second) = tokio::join!(
+            crate::lifecycle::scanner::scan_organization(&st, &org, now),
+            crate::lifecycle::scanner::scan_organization(&st, &org, now)
+        );
+        first.unwrap();
+        second.unwrap();
+
+        let after = st
+            .db
+            .list_certificates(&org.to_string(), &CertificateFilter::default())
+            .await
+            .unwrap()
+            .len();
+        assert_eq!(
+            after,
+            before + 1,
+            "the claim admits one reissue even when both scans fire the rung",
+        );
+    }
+
     #[tokio::test]
     async fn a_delivered_certificate_is_never_renewed_unattended() {
         // The default issuance path hands the key to its requester, so the

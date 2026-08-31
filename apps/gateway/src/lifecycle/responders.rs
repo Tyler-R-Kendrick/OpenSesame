@@ -88,12 +88,37 @@ pub async fn respond(state: &AppState, event: &LifecycleEvent) -> Outcome {
     }
 }
 
+/// Lease held while one process rotates a policy. Longer than a config sync
+/// because a rotation talks to a provider; a crashed process releases by the
+/// clock rather than by a liveness check.
+const ROTATION_LEASE_SECONDS: i64 = 120;
+/// First backoff delay after a failed rotation; doubles per attempt.
+const ROTATION_BACKOFF_BASE_SECONDS: i64 = 60;
+const ROTATION_BACKOFF_CAP_SECONDS: i64 = 3600;
+/// Consecutive failures before a policy parks for operator attention.
+const ROTATION_MAX_ATTEMPTS: i64 = 8;
+
+/// Backoff for the `attempt`-th consecutive failure (1-based), capped.
+fn rotation_backoff_seconds(attempt: i64) -> i64 {
+    let shift = u32::try_from(attempt.saturating_sub(1).clamp(0, 32)).unwrap_or(0);
+    ROTATION_BACKOFF_BASE_SECONDS
+        .saturating_mul(1i64 << shift.min(31))
+        .min(ROTATION_BACKOFF_CAP_SECONDS)
+}
+
 /// Rotate the event's target through the broker's verify-before-revoke machine.
 ///
-/// This is the body the old `rotation_scheduler::execute_due_policy` used to
-/// run off its own due-check. The behaviour it preserves exactly:
-/// `last_rotated_at` advances after **every** attempt, success or failure, so a
-/// broken target retries on its policy interval rather than on every tick.
+/// The scanner decides *when* a policy is due; this decides *who* acts. A
+/// policy-backed rotation is claimed under a lease first, so two gateway
+/// processes handling the same scan cannot both rotate one credential — for a
+/// password change that is a lockout, not merely waste (ADR 0076).
+///
+/// Failure no longer just advances `last_rotated_at`. It backs off
+/// exponentially and, after `ROTATION_MAX_ATTEMPTS`, **parks** the policy:
+/// retrying stops, `enabled` stays true, and `needs_attention` is raised. A
+/// rotation policy that silently disabled itself would be the ADR 0052 §11
+/// failure mode — the operator believes credentials are rotating when they are
+/// not.
 async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
     let Some(target) = rotation_target(event) else {
         return Outcome::failed("subject kind is not a rotation target");
@@ -104,6 +129,27 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
 
     let broker = state.connection_broker.as_ref();
     let policy = enabled_policy_for(state, event, &target).await;
+
+    // Claim before acting. A policy-less run is operator-triggered and has no
+    // lease to take; a policy-backed one must win its lease or stand down.
+    if let Some(policy) = policy.as_ref() {
+        match broker
+            .claim_rotation_policy(&policy.id, ROTATION_LEASE_SECONDS)
+            .await
+        {
+            Ok(true) => {}
+            Ok(false) => {
+                return Outcome::ok(format!(
+                    "rotation for policy {} skipped: leased, backing off, or parked",
+                    policy.id
+                ));
+            }
+            Err(error) => {
+                return Outcome::failed(format!("rotation claim failed: {}", error.hint()));
+            }
+        }
+    }
+
     let bus = state.task_bus.read().await;
     let requested = request_rotation(
         broker,
@@ -132,18 +178,42 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
     drop(bus);
 
     if let Some(policy) = policy {
-        // Attempted counts as rotated for scheduling: retry on the policy's
-        // interval, not on every tick. Advancing also moves the subject's
-        // deadline, which is what resets the ladder for the next interval.
-        if let Err(error) = broker.set_policy_last_rotated(&policy.id, Utc::now()).await {
-            tracing::warn!(
-                policy_id = %policy.id,
-                error = %error.hint(),
-                "failed to advance last_rotated_at",
-            );
-        }
+        release_policy(broker, &policy, &outcome).await;
     }
     outcome
+}
+
+/// Releases the lease taken above.
+///
+/// Success advances `last_rotated_at` and schedules the next attempt one
+/// interval out, which is what moves the subject's deadline and resets the
+/// ladder. Failure backs off, and parks once the attempts are exhausted.
+async fn release_policy(
+    broker: &opensesame_connection_broker::ConnectionBroker,
+    policy: &RotationPolicy,
+    outcome: &Outcome,
+) {
+    let now = Utc::now();
+    let released = if outcome.succeeded {
+        broker.release_rotation_policy_success(policy, now).await
+    } else {
+        let attempt = policy.attempts.saturating_add(1);
+        let next_attempt_at = if attempt >= ROTATION_MAX_ATTEMPTS {
+            None
+        } else {
+            Some(now + chrono::Duration::seconds(rotation_backoff_seconds(attempt)))
+        };
+        broker
+            .release_rotation_policy_failure(&policy.id, next_attempt_at, &outcome.detail)
+            .await
+    };
+    if let Err(error) = released {
+        tracing::warn!(
+            policy_id = %policy.id,
+            error = %error.hint(),
+            "failed to release the rotation policy lease",
+        );
+    }
 }
 
 /// Reissue a certificate the host holds the key for.
