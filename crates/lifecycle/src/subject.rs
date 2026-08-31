@@ -34,17 +34,51 @@ pub enum SubjectKind {
     /// A password at a relying party, under a web-login rotation policy
     /// (ADR 0076). The subject id is the origin, never an account.
     WebLogin,
+    /// One participant's reach into a shared session (ADR 0079).
+    ///
+    /// Unlike every other kind, this one is **never renewable**: see
+    /// [`SubjectKind::renewable`]. A certificate that renews itself overnight
+    /// is the platform doing its job; a person's access to somebody else's
+    /// vault renewing itself overnight is the platform giving away what it
+    /// was trusted to hold.
+    SessionGrant,
 }
 
 impl SubjectKind {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::Certificate,
         Self::CertificateAuthority,
         Self::ConnectionCredential,
         Self::StorePath,
         Self::Signer,
         Self::WebLogin,
+        Self::SessionGrant,
     ];
+
+    /// Whether the platform's own responder may ever extend this kind.
+    ///
+    /// The kind decides, not the subject's `auto_respond` flag, and
+    /// [`crate::should_respond`] consults both. A caller that builds a
+    /// session-grant subject with `auto_respond: true` — by mistake, or
+    /// because a row was copied from a certificate — still gets no automatic
+    /// renewal, because extending one human's reach into another's vault is
+    /// a decision only a human makes (ADR 0079).
+    ///
+    /// Expiry events still fire for a non-renewable kind. Telling somebody
+    /// their access lapses in an hour is exactly what the ladder is for;
+    /// acting on it without them is the part that is refused.
+    #[must_use]
+    pub const fn renewable(self) -> bool {
+        match self {
+            Self::Certificate
+            | Self::CertificateAuthority
+            | Self::ConnectionCredential
+            | Self::StorePath
+            | Self::Signer
+            | Self::WebLogin => true,
+            Self::SessionGrant => false,
+        }
+    }
 
     /// Frozen wire name.
     #[must_use]
@@ -56,6 +90,7 @@ impl SubjectKind {
             Self::StorePath => "store_path",
             Self::Signer => "signer",
             Self::WebLogin => "web_login",
+            Self::SessionGrant => "session_grant",
         }
     }
 
@@ -150,8 +185,20 @@ mod tests {
                 "store_path",
                 "signer",
                 "web_login",
+                "session_grant",
             ],
         );
+    }
+
+    #[test]
+    fn a_session_grant_is_the_one_kind_that_never_renews_itself() {
+        for kind in SubjectKind::ALL {
+            assert_eq!(
+                kind.renewable(),
+                kind != SubjectKind::SessionGrant,
+                "{kind:?} renewability"
+            );
+        }
     }
 
     #[test]

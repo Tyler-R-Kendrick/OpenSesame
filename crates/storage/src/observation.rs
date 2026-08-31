@@ -1,4 +1,4 @@
-//! Persistence for the sealed observation log (ADR 0078).
+//! Persistence for the sealed observation log (ADR 0081).
 //!
 //! One log per sandboxed run. The live viewer tails it, the replay overlay
 //! seeks in it, and neither has a second pipeline — which is what keeps the

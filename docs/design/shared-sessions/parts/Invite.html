@@ -1,0 +1,93 @@
+<div class="os" data-theme="{{theme}}" style="width: 840px; height: 900px; display: grid; grid-template-columns: 390px 390px; gap: 60px; justify-content: center; align-content: start; padding: 28px 0; overflow: hidden">
+
+  <div style="display: grid; gap: 12px; align-content: start">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.02em; text-transform: uppercase">The operator invites</p>
+    <div style="width: 390px; height: 800px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--canvas); overflow: hidden; padding: 26px 22px; display: grid; gap: 18px; align-content: start">
+
+      <div style="display: grid; gap: 8px">
+        <h1>Invite Mara</h1>
+        <p style="color: var(--ink-2); font-size: 14px; max-width: 36ch">The link alone is not enough. Read the code to her out loud, or send it by a different channel than the link.</p>
+      </div>
+
+      <div class="f">
+        <div class="f__labelrow">
+          <span class="f__label">Link</span>
+          <span class="chip">single use</span>
+        </div>
+        <div class="f__shell">
+          <input class="f__input" type="url" readonly value="https://id.acme.com/c/osc_clm_7Q2K…" />
+          <button type="button" class="icon-btn" aria-label="Copy the invite link">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M15 5.5H6a2 2 0 0 0-2 2V15"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div style="display: grid; gap: 6px">
+        <span class="f__label">Code</span>
+        <p class="code">FKM<span style="opacity: 0.35">·</span>2RD</p>
+        <p class="hint">Say this to her. A link that arrives without it opens nothing.</p>
+      </div>
+
+      <p class="or"><span>this invite carries</span></p>
+
+      <dl class="wrote">
+        <div class="wrote__row"><dt class="wrote__key">Session</dt><dd class="wrote__val">Incident 4471</dd></div>
+        <div class="wrote__row"><dt class="wrote__key">Reach</dt><dd class="wrote__val">2 rows</dd></div>
+        <div class="wrote__row"><dt class="wrote__key">Can</dt><dd class="wrote__val">read</dd></div>
+        <div class="wrote__row"><dt class="wrote__key">Expires</dt><dd class="wrote__val">in 8 hours</dd></div>
+        <div class="wrote__row"><dt class="wrote__key">Invite lapses</dt><dd class="wrote__val">in 15 minutes</dd></div>
+      </dl>
+
+      <p class="hint">The offer is what expires here, not the grant: if she does not accept within fifteen minutes the link dies and nothing was ever wrapped for her.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 12px; align-content: start">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; text-transform: uppercase">Mara accepts</p>
+    <div style="width: 390px; height: 800px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--canvas); overflow: hidden; padding: 26px 22px; display: grid; gap: 18px; align-content: start">
+
+      <div style="display: grid; gap: 8px">
+        <h1>Tyler is sharing two rows with you</h1>
+        <p style="color: var(--ink-2); font-size: 14px; max-width: 36ch">Type the code he gave you. Accepting wraps a key for your account alone — nobody else can use this link afterwards.</p>
+      </div>
+
+      <div class="f">
+        <div class="f__labelrow"><span class="f__label">Code</span></div>
+        <div class="f__shell">
+          <input class="f__input" type="text" value="FKM 2RD" style="letter-spacing: 0.18em" />
+        </div>
+        <p class="hint">Six characters, from whoever sent you here.</p>
+      </div>
+
+      <div class="found">
+        <div class="found__top">
+          <span class="found__name">Incident 4471</span>
+          <span class="chip chip--ok">ready</span>
+        </div>
+        <dl>
+          <dt>You would get</dt><dd>prod deploy key, Grafana admin</dd>
+          <dt>You could</dt><dd>read them</dd>
+          <dt>Until</dt><dd>17:40 today, then it lapses on its own</dd>
+          <dt>Shared by</dt><dd>Tyler Kendrick · verified by id.acme.com</dd>
+        </dl>
+      </div>
+
+      <p class="hint">Nothing else in Tyler's vault is visible to you, now or later — not its other items, not their names, not who else is here.</p>
+
+      <div class="go-row">
+        <button type="button" class="go" aria-label="Accept" title="Accept">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>
+        </button>
+        <span class="go-verb" aria-hidden="true">Accept</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":840,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

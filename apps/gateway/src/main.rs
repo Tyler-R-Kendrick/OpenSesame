@@ -2,12 +2,12 @@
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 #![cfg_attr(test, allow(clippy::await_holding_lock))] // Tests serialize process-global env mutations.
 
-mod agent_hooks;
 mod app_state;
 mod backup;
 mod backup_bus;
 mod backup_target;
 mod bootstrap;
+mod breach;
 pub use opensesame_gateway::cert_issuers;
 mod config;
 mod connector_egress;
@@ -19,6 +19,9 @@ mod managed_certs;
 mod middleware;
 mod oci_component;
 mod routes;
+mod security;
+mod session_channel;
+mod shared_session_fence;
 mod sync_actor;
 mod task_engine;
 mod taskbus_config;
@@ -53,7 +56,8 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(lifecycle::scanner::run(state.clone()));
     // LIFECYCLE_DELIVERY: drains the outbound hook ledger with the ADR 0039
     // saga — claim under lease, exponential backoff, visible dead letters.
-    tokio::spawn(lifecycle::delivery::run(state.clone()));
+    tokio::spawn(security::delivery::run(state.clone()));
+    tokio::spawn(breach::scanner::run(state.clone()));
     let hsts = args.resource.starts_with("https://");
     let app = opensesame_host_core::http_security::apply_http_security(
         routes::router(state),

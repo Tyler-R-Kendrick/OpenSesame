@@ -58,6 +58,21 @@ type vault_collection
     define reader: [user, team#member, workload, agent] or owner
     define writer: [user, team#member, workload, agent] or owner
 
+# One item within a collection: the grain a row-level session grant names
+# (ADR 0079). Until now vault_collection was the finest thing the model could
+# express, so "these three rows and nothing else" had nowhere to live.
+#
+# Both relations inherit from the collection, which is what makes a row grant
+# purely additive: a direct reader here is somebody granted this one row, and
+# `reader from collection` keeps anyone who could already read the whole
+# collection reading it. There is no shape in which an item tuple grants more
+# than the collection does — a row grant can only ever add.
+type vault_item
+  relations
+    define collection: [vault_collection]
+    define reader: [user, team#member, workload, agent] or reader from collection
+    define writer: [user, team#member, workload, agent] or writer from collection
+
 type certificate_role
   relations
     define project: [project]

@@ -55,23 +55,26 @@ pub fn is_lifecycle_event_type(event_type: &str) -> bool {
 
 /// Whether a subscription filter selects `event_type`.
 ///
-/// A filter is a list of exact event types and/or [`EVENT_WILDCARD`]. An empty
-/// filter matches nothing: a hook that names no events is a misconfiguration,
-/// and defaulting it to "everything" would be the wrong direction to fail.
+/// Delegates to the shared implementation in `opensesame-security-events`.
+/// There is exactly one filter semantics across every event family: when
+/// breach findings joined the feed, `breach.*` had to behave the same way
+/// [`EVENT_WILDCARD`] always had, and a second copy of this logic is how the
+/// two would drift.
 #[must_use]
 pub fn filter_matches(filter: &[String], event_type: &str) -> bool {
-    filter
-        .iter()
-        .any(|entry| entry == EVENT_WILDCARD || entry == event_type)
+    opensesame_security_events::filter::matches(filter, event_type)
 }
 
-/// Whether every entry in a subscription filter is a name we recognise.
+/// Whether every entry in a subscription filter is a lifecycle name we
+/// recognise.
+///
+/// Scoped to this family's frozen set on purpose. A caller registering a hook
+/// against the whole platform validates against the union of every family's
+/// names — see the gateway's hook routes — but a lifecycle-only caller asking
+/// "is this a lifecycle filter?" should not be told yes for `breach.*`.
 #[must_use]
 pub fn filter_is_valid(filter: &[String]) -> bool {
-    !filter.is_empty()
-        && filter
-            .iter()
-            .all(|entry| entry == EVENT_WILDCARD || is_lifecycle_event_type(entry))
+    opensesame_security_events::filter::is_valid(filter, LIFECYCLE_EVENT_TYPES)
 }
 
 fn truncate(raw: &str, max_chars: usize) -> String {

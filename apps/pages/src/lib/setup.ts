@@ -9,12 +9,20 @@
  * road — and it sat above sign-in options that could not work and an Unlock tab
  * for a vault that did not exist.
  *
- * So the first visitor is treated as the operator, and asked. This module holds
- * the small thing that ceremony leaves behind: whether it has been answered,
- * and what was answered. It stores no addresses of its own — those belong to
- * `lib/settings.ts` and are written there — only the fact of the decision, so
- * the app can tell "nobody has set this up" apart from "the operator
- * deliberately runs this without a Host".
+ * So the first visitor is treated as the operator, and asked — once, about the
+ * only thing the app cannot work out for itself: who signs people in. This
+ * module holds the small thing that ceremony leaves behind: whether it has
+ * been answered, and which road was taken. It stores no addresses of its own —
+ * the issuer, the client id and every endpoint belong to `lib/settings.ts` and
+ * are written there — only the fact of the decision, so the app can tell
+ * "nobody has set this up" apart from "the operator deliberately runs this
+ * with no accounts at all".
+ *
+ * What it deliberately does not record is infrastructure. A Host API and a
+ * paired machine were once two of four setup questions; neither is a question
+ * a first-time visitor has, and neither gates anything the vault does on its
+ * own (ADR 0078 §4). They live in Settings → Endpoints, where an operator who
+ * runs them goes looking anyway.
  *
  * The record is plaintext beside the vault, never inside it: the ceremony runs
  * before any vault exists, so there is nothing to seal it with.
@@ -27,45 +35,32 @@ import {
 } from "@opensesame/os-domain";
 import { defaultUpstream } from "./federation.js";
 import { kvGet, kvSetDurable } from "./kv.js";
-import { loadSettings } from "./settings.js";
 
 export const SETUP_KEY = "setup.v1";
 
-/**
- * How people sign in to this deployment — the first and often only question.
- *
- *  - `brokered`  what this build already brokers, out of the box. No identity
- *                service, no address to type, nothing to run. This is the
- *                default, and on the public web it is a working sign-in the
- *                moment the page loads.
- *  - `byo`       an identity provider the operator brings — WorkOS, Okta,
- *                Auth0, Better Auth, any other OIDC issuer. A browser cannot
- *                speak those legs itself, so this road (and only this road)
- *                needs an OpenSesame identity service to run them.
- *  - `none`      no accounts at all: a local vault, sealed on this device.
- */
-export type SetupIdentityChoice = "brokered" | "byo" | "none";
-
 export type SetupRecord = {
-  /** When the ceremony was answered — ISO 8601, for the Review readout. */
+  /** When the ceremony was answered — ISO 8601. */
   completedAt: string;
-  identity: SetupIdentityChoice;
   /**
-   * The provider preset registered during setup ("workos", "okta", "auth0",
-   * "better-auth", "oidc"), or "" when the deployment kept what it brokers.
-   * Never a secret: registration happens server-side through the identity
-   * service.
+   * Which ways in were kept: `"builtin"` for the compiled-in broker, then one
+   * preset id per provider the operator added ("google", "microsoft", "okta",
+   * "oidc", …). Empty means a deployment with no accounts at all — a local
+   * vault, which is a decision rather than a gap.
+   *
+   * The issuers and client ids themselves live in `settings.signIn`, which is
+   * what actually signs people in and what the sign-in screen renders from.
+   * This is only so a later screen can name the roads that were taken.
    */
-  provider: string;
-  /** True when a Host API was pointed at. */
-  host: boolean;
-  /** True when a daemon on this machine (or tailnet) was paired. */
-  machine: boolean;
+  ways: string[];
+  /** True when an OpenSesame identity service was named. */
+  service: boolean;
 };
 
-function readChoice(value: BoundaryValue | undefined): SetupIdentityChoice {
-  if (value === "byo" || value === "none") return value;
-  return "brokered";
+function readWays(value: BoundaryValue | undefined): string[] {
+  if (!Array.isArray(value)) return [];
+  const ways: string[] = [];
+  for (const entry of value) if (isString(entry) && entry) ways.push(entry);
+  return ways;
 }
 
 function loadSetupDefault(): SetupRecord | null {
@@ -77,10 +72,8 @@ function loadSetupDefault(): SetupRecord | null {
     if (!isString(parsed.completedAt) || !parsed.completedAt) return null;
     return {
       completedAt: parsed.completedAt,
-      identity: readChoice(parsed.identity),
-      provider: isString(parsed.provider) ? parsed.provider : "",
-      host: parsed.host === true,
-      machine: parsed.machine === true,
+      ways: readWays(parsed.ways),
+      service: parsed.service === true,
     };
   } catch {
     // A corrupt record is the same as no record: the ceremony runs again,
@@ -104,8 +97,8 @@ async function completeSetupDefault(
     completedAt: new Date().toISOString(),
     ...outcome,
   };
-  // Durable: losing this write means asking the operator the same four
-  // questions again on the next reload, which reads as the app forgetting them.
+  // Durable: losing this write means asking the operator the same question
+  // again on the next reload, which reads as the app forgetting them.
   // Where OPFS is absent altogether `kvSetDurable` resolves anyway, and the
   // unlock screen already says that nothing survives the tab in that browser.
   await kvSetDurable(SETUP_KEY, JSON.stringify(record));
@@ -114,7 +107,6 @@ async function completeSetupDefault(
 export const setupSeams = {
   loadSetup: loadSetupDefault,
   completeSetup: completeSetupDefault,
-  loadSettings,
   defaultUpstreamIssuer: () => defaultUpstream().issuer,
 };
 
@@ -160,22 +152,6 @@ export function unlockViable(
 ): boolean {
   return vaultStatus !== "empty";
 }
-
-/**
- * Two steps, in the order they matter.
- *
- * It was four, and three of them asked for addresses that most deployments do
- * not have and do not need — an OpenSesame identity service, a Host, a daemon
- * on the operator's own machine. Leading with self-hosted infrastructure made
- * the common case (someone who just wants to sign in and use the thing) walk
- * past three fields they had no answer for.
- *
- * So: sign-in first, because it is the only question with a wrong answer, and
- * everything else folded into one optional screen behind it.
- */
-export const SETUP_STEPS = ["signin", "more"] as const;
-
-export type SetupStep = (typeof SETUP_STEPS)[number];
 
 /**
  * Whether this deployment can already sign somebody in with nothing typed.

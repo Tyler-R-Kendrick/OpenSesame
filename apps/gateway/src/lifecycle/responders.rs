@@ -68,11 +68,19 @@ pub fn responder_for(kind: SubjectKind) -> Option<&'static str> {
         // reissued unattended; `renew_managed` refuses the rest with
         // `NotInCustody`, which becomes the outcome a subscriber reads.
         SubjectKind::Certificate => Some(CERTIFICATE_RESPONDER),
+        // Three kinds with no unattended path, for two different reasons.
+        //
         // A certificate authority is never re-keyed unattended: it changes
         // trust for everything it signed (ADR 0052-cert). Signer rotation has
-        // no unattended path yet. Neither is silently skipped — the dispatcher
-        // reports the gap as an outcome event.
-        SubjectKind::CertificateAuthority | SubjectKind::Signer => None,
+        // no unattended path *yet*. A session grant has none and never will —
+        // extending one human's reach into another's vault is a decision only
+        // a human makes (ADR 0079), which is why `SubjectKind::renewable`
+        // refuses it in `should_respond` before the dispatcher is even
+        // reached; this is the second fence.
+        //
+        // None of the three is silently skipped: the dispatcher reports the
+        // gap as an outcome event.
+        SubjectKind::CertificateAuthority | SubjectKind::Signer | SubjectKind::SessionGrant => None,
     }
 }
 
@@ -227,7 +235,7 @@ async fn publish_agent_phase(
     outcome: &Outcome,
 ) {
     // Without an owner there is nobody entitled to observe the run and nobody
-    // to notify (ADR 0078 §8). `upsert_rotation_policy` refuses a web-login
+    // to notify (ADR 0081 §8). `upsert_rotation_policy` refuses a web-login
     // policy with no owner, so reaching here means a policy predating that rule
     // or an operator-triggered run — either way, saying nothing to nobody beats
     // addressing a notification at the whole organization.
@@ -256,7 +264,7 @@ async fn publish_agent_phase(
         .into(),
     };
     let built = if outcome.succeeded {
-        AgentEvent::notice(run, AgentPhase::Completed, now, Some(&outcome.detail))
+        AgentEvent::reporting(run, AgentPhase::Completed, now, Some(&outcome.detail))
     } else {
         AgentEvent::waiting(
             run,
@@ -267,7 +275,12 @@ async fn publish_agent_phase(
         )
     };
     match built {
-        Ok(agent_event) => crate::agent_hooks::publish(state, &agent_event, now).await,
+        // ADR 0080's one feed, entered the only way a family may enter it:
+        // as a `SecurityNotice`. Everything a subscriber, the notifier, the
+        // alerter and every sink do with this is already written.
+        Ok(agent_event) => {
+            crate::security::dispatch::publish(state, &agent_event.notice(), now).await;
+        }
         Err(error) => tracing::warn!(%error, "agent event could not be built"),
     }
 }
@@ -407,8 +420,36 @@ mod tests {
 
     #[test]
     fn kinds_without_an_unattended_path_report_no_responder() {
-        for kind in [SubjectKind::CertificateAuthority, SubjectKind::Signer] {
+        for kind in [
+            SubjectKind::CertificateAuthority,
+            SubjectKind::Signer,
+            // A session grant is the strongest case of this: not "no
+            // unattended path yet" but never one, because extending one
+            // human's reach into another's vault is a human decision
+            // (ADR 0079). `should_respond` refuses the kind before the
+            // dispatcher is reached; this is the second fence.
+            SubjectKind::SessionGrant,
+        ] {
             assert_eq!(responder_for(kind), None, "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn every_kind_is_accounted_for_by_the_responder_lookup() {
+        // The closed set exists so adding a kind is an explicit choice about
+        // what acts on it. This walks the whole set rather than a list that
+        // could silently fall behind it.
+        for kind in SubjectKind::ALL {
+            let has_responder = responder_for(kind).is_some();
+            assert_eq!(
+                has_responder,
+                kind.renewable()
+                    && !matches!(
+                        kind,
+                        SubjectKind::CertificateAuthority | SubjectKind::Signer
+                    ),
+                "{kind:?} responder presence"
+            );
         }
     }
 

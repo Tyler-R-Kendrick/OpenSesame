@@ -787,82 +787,75 @@
    Three roads, not a URL field. The first is selected on arrival because it
    already works: a deployment nobody has configured can still sign people in
    through the compiled broker. */
-.road {
+.ways {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ways__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ways__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.ways__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   gap: 0.4rem;
 }
 
-.road__opt {
-  appearance: none;
+.ways__item {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  width: 100%;
-  min-height: 3.5rem;
-  padding: 0.65rem 0.8rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
-.road__opt.is-on {
-  border-color: var(--accent);
-  background: var(--accent-wash);
-}
-
-.road__mark {
+.ways__mark {
   display: grid;
   place-items: center;
   flex: none;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
-.road__opt.is-on .road__mark,
-.road__on {
-  color: var(--accent);
-}
-
-.road__body {
-  display: grid;
-  gap: 0.1rem;
+.ways__body {
   flex: 1;
   min-width: 0;
-}
-
-.road__name {
-  font-family: var(--mono);
-  font-size: 0.875rem;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.road__kind {
-  font-family: var(--font);
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
-.road__opt.is-on .road__kind {
-  color: var(--accent);
-}
-
-.road__on {
   display: grid;
-  place-items: center;
-  flex: none;
+  gap: 0.1rem;
 }
 
-/* What an unopened row already holds, so the screen reads without opening
-   three disclosures to learn nothing is set. */
-.alt__state {
-  flex: none;
+.ways__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ways__kind {
   font-family: var(--mono);
   font-size: 0.6875rem;
   color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
   </style>
 </helmet>
@@ -875,170 +868,141 @@
       </svg>
       opensesame
     </span>
-    <span class="setup__count">{{count}}</span>
-  </div>
-
-  <div class="setup__rail">
-    <sc-for list="{{segs}}" as="seg" hint-placeholder-count="2">
-      <button type="button" class="{{seg.cls}}" onClick="{{seg.go}}">
-        <span class="setup__seg-bar"></span>
-        <span class="setup__seg-label">{{seg.label}}</span>
-      </button>
-    </sc-for>
   </div>
 
   <div class="setup__body">
     <div class="setup__head">
-      <h1>{{title}}</h1>
-      <p>{{lead}}</p>
+      <h1>How do people sign in?</h1>
+      <p>You are the first person here, so you are the operator. This is the only question — and it already has a working answer. Add as many ways in as you like; the sign-in screen offers exactly these.</p>
     </div>
 
-    <sc-if value="{{isSignIn}}" hint-placeholder-val="{{true}}">
-      <div style="display: grid; gap: 0.85rem">
-        <div class="road">
-          <sc-for list="{{roads}}" as="r" hint-placeholder-count="3">
-            <button type="button" class="{{r.cls}}" aria-pressed="{{r.on}}" onClick="{{r.pick}}">
-              <span class="road__mark" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="8.5" cy="12" r="4"></circle>
-                  <path d="M12.5 12H21M18 12v3M15 12v2.2"></path>
-                </svg>
-              </span>
-              <span class="road__body">
-                <span class="road__name">{{r.name}}</span>
-                <span class="road__kind">{{r.kind}}</span>
-              </span>
-              <sc-if value="{{r.on}}" hint-placeholder-val="{{true}}">
-                <span class="road__on" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M5 12.5l4.5 4.5L19 7"></path>
+    <div style="display: grid; gap: 1.1rem">
+      <!-- The allowlist being built. Every row here is a button that will
+           exist on the sign-in screen; nothing else will. -->
+      <div class="ways">
+        <p class="ways__head">Ways in <span class="ways__count">{{count}}</span></p>
+        <sc-if value="{{empty}}" hint-placeholder-val="{{false}}">
+          <p class="hint">None — this deployment would open a local vault only, sealed on this device with a passkey, PIN, or password. No sync between devices, and no recovery. That is a real answer; add a way in below to change it.</p>
+        </sc-if>
+        <sc-if value="{{any}}" hint-placeholder-val="{{true}}">
+          <ul class="ways__list">
+            <sc-for list="{{ways}}" as="w" hint-placeholder-count="2">
+              <li class="ways__item">
+                <span class="ways__mark" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="8.5" cy="12" r="4"></circle>
+                    <path d="M12.5 12H21M18 12v3M15 12v2.2"></path>
                   </svg>
                 </span>
-              </sc-if>
+                <span class="ways__body">
+                  <span class="ways__name">{{w.name}}</span>
+                  <span class="ways__kind">{{w.kind}}</span>
+                </span>
+                <button type="button" class="icon-btn" aria-label="{{w.removeLabel}}" onClick="{{w.remove}}">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path>
+                  </svg>
+                </button>
+              </li>
+            </sc-for>
+          </ul>
+        </sc-if>
+      </div>
+
+      <div style="display: grid; gap: 0.85rem">
+        <p class="ways__head">Add a provider</p>
+        <p class="hint">This browser runs the whole sign-in itself — authorization code with PKCE, against the provider's own discovery document. Register this app there as a single-page or public client, then name it here.</p>
+
+        <div class="preset">
+          <sc-for list="{{presets}}" as="p" hint-placeholder-count="7">
+            <button type="button" class="{{p.cls}}" onClick="{{p.pick}}">
+              <span class="preset__name">{{p.name}}</span>
+              <span class="preset__kind">{{p.kind}}</span>
             </button>
           </sc-for>
         </div>
 
-        <sc-if value="{{isBrokered}}" hint-placeholder-val="{{true}}">
-          <p class="hint">This build already brokers a sign-in that runs entirely in the browser, so there is nothing to run and no address to type. People sign in the moment they open the app.</p>
-        </sc-if>
-
-        <sc-if value="{{isNone}}" hint-placeholder-val="{{false}}">
-          <p class="hint">Everything stays on this device, sealed with a passkey, PIN, or password. No sync between devices, and no recovery.</p>
-        </sc-if>
-
-        <sc-if value="{{isByo}}" hint-placeholder-val="{{false}}">
+        <sc-if value="{{hasPreset}}" hint-placeholder-val="{{false}}">
           <div style="display: grid; gap: 0.85rem">
-            <p class="hint">A browser cannot speak these providers' legs directly, so they run server-side. Point at an OpenSesame identity service — one you run, or one someone runs for you — and register the provider through it.</p>
-
             <div class="f">
-              <div class="f__labelrow">
-                <span class="f__label">Identity service</span>
-                <span class="chip">Needed for this road</span>
-              </div>
+              <div class="f__labelrow"><span class="f__label">Redirect URI to register</span></div>
               <div class="f__shell">
                 <span class="f__lead" aria-hidden="true">
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="8" r="3.2"></circle>
-                    <path d="M5.2 19.2c1.1-3.2 3.5-4.8 6.8-4.8s5.7 1.6 6.8 4.8"></path>
+                    <circle cx="12" cy="12" r="8.5"></circle>
+                    <path d="M3.5 12h17M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5S14.2 18.1 12 20.5c-2.2-2.4-3.3-5.3-3.3-8.5S9.8 5.9 12 3.5z"></path>
                   </svg>
                 </span>
-                <input class="f__input" type="url" placeholder="https://id.example.com" value="{{identity}}" onChange="{{setIdentity}}" />
-              </div>
-              <p class="hint">Saved on this device only, and never sent anywhere else.</p>
-            </div>
-
-            <div class="preset">
-              <sc-for list="{{presets}}" as="p" hint-placeholder-count="5">
-                <button type="button" class="{{p.cls}}" disabled="{{p.off}}" onClick="{{p.pick}}">
-                  <span class="preset__name">{{p.name}}</span>
-                  <span class="preset__kind">{{p.kind}}</span>
+                <input class="f__input" type="url" readonly value="{{callback}}" />
+                <button type="button" class="icon-btn" aria-label="Copy the redirect URI">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                    <path d="M15 5.5H6a2 2 0 0 0-2 2V15"></path>
+                  </svg>
                 </button>
-              </sc-for>
+              </div>
+              <p class="hint">Paste this into the provider's allowed redirect URIs, exactly as shown.</p>
             </div>
 
-            <sc-if value="{{noIdentityYet}}" hint-placeholder-val="{{true}}">
-              <p class="hint">Set the identity service first — the provider is registered through it, so there is nowhere to send one yet.</p>
+            <sc-if value="{{hasIssuerField}}" hint-placeholder-val="{{true}}">
+              <div class="f">
+                <div class="f__labelrow"><span class="f__label">{{issuerLabel}}</span></div>
+                <div class="f__shell">
+                  <input class="f__input" type="text" placeholder="{{issuerPlaceholder}}" value="{{issuer}}" onChange="{{setIssuer}}" />
+                </div>
+                <p class="hint">{{issuerHint}}</p>
+              </div>
             </sc-if>
+
+            <div class="f">
+              <div class="f__labelrow"><span class="f__label">Client ID</span></div>
+              <div class="f__shell">
+                <input class="f__input" type="text" placeholder="0oa1b2c3d4EXAMPLE" value="{{clientId}}" onChange="{{setClientId}}" />
+              </div>
+              <p class="hint">{{clientHint}}</p>
+            </div>
+
+            <div class="actions">
+              <button type="button" class="btn btn--primary" disabled="{{cannotAdd}}" onClick="{{add}}">{{addVerb}}</button>
+            </div>
           </div>
         </sc-if>
       </div>
-    </sc-if>
 
-    <sc-if value="{{isMore}}" hint-placeholder-val="{{false}}">
+      <!-- A peer, never a prerequisite. What it brings is the legs a browser
+           cannot run alone. -->
       <div style="display: grid; gap: 0.85rem">
-        <div class="alt">
-          <sc-for list="{{extras}}" as="x" hint-placeholder-count="3">
-            <div class="alt__item">
-              <button type="button" class="alt__btn" onClick="{{x.toggle}}">
-                <span class="alt__mark" aria-hidden="true">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
-                    <path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path>
-                  </svg>
-                </span>
-                <span class="alt__grow">{{x.label}}</span>
-                <span class="alt__state">{{x.state}}</span>
-                <span class="{{x.chev}}" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path>
-                  </svg>
-                </span>
-              </button>
-              <sc-if value="{{x.open}}" hint-placeholder-val="{{false}}">
-                <div class="alt__body">
-                  <p class="hint">{{x.hint}}</p>
-                  <div class="f">
-                    <div class="f__shell">
-                      <input class="f__input" type="url" placeholder="{{x.placeholder}}" />
-                    </div>
-                  </div>
-                </div>
-              </sc-if>
-            </div>
-          </sc-for>
+        <p class="ways__head">Or an OpenSesame identity service</p>
+        <p class="hint">One you run, or one someone runs for you. It brings the roads a browser cannot walk on its own: organisation SSO and SAML, LDAP, email magic links, guest sessions, and whatever providers it brokers itself.</p>
+        <div class="f">
+          <div class="f__labelrow"><span class="f__label">Identity service</span></div>
+          <div class="f__shell">
+            <span class="f__lead" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3.2l7 3v5.4c0 4.2-2.8 7.4-7 9.2-4.2-1.8-7-5-7-9.2V6.2z"></path>
+              </svg>
+            </span>
+            <input class="f__input" type="url" placeholder="https://id.example.com" value="{{service}}" onChange="{{setService}}" />
+          </div>
+          <p class="hint">Optional. Saved on this device only, and never sent anywhere else.</p>
         </div>
-
-        <dl class="wrote">
-          <sc-for list="{{rows}}" as="row" hint-placeholder-count="5">
-            <div class="wrote__row">
-              <dt class="wrote__key">{{row.key}}</dt>
-              <dd class="{{row.cls}}">{{row.value}}</dd>
-            </div>
-          </sc-for>
-        </dl>
-
-        <p class="hint">All of this is saved on this device only — they are addresses, not credentials, and nothing has been sent anywhere.</p>
       </div>
-    </sc-if>
+
+      <p class="hint">Saved on this device only — an issuer and a public client id are configuration, not credentials, and nothing has been sent anywhere. The sign-in screen offers exactly what is listed above.</p>
+    </div>
   </div>
 
   <!-- The terminal commit: an ink square carrying the glyph of what it does,
        its sentence beside it in the margin voice. docs/design/controls.md. -->
   <div class="setup__foot">
-    <button type="button" class="icon-btn" aria-label="Previous step" disabled="{{atStart}}" onClick="{{back}}">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14.5 5.5L8 12l6.5 6.5"></path>
-      </svg>
-    </button>
     <div class="go-row">
-      <button type="button" class="go" aria-label="{{verb}}" title="{{verb}}" onClick="{{next}}">
-        <sc-if value="{{atLast}}" hint-placeholder-val="{{false}}">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M5 12.5l4.5 4.5L19 7"></path>
-          </svg>
-        </sc-if>
-        <sc-if value="{{notLast}}" hint-placeholder-val="{{true}}">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4.5 12h14M13 6.5l5.5 5.5-5.5 5.5"></path>
-          </svg>
-        </sc-if>
+      <button type="button" class="go" aria-label="Finish setup" title="Finish setup">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7"></path>
+        </svg>
       </button>
-      <span class="go-verb" aria-hidden="true">{{verb}}</span>
+      <span class="go-verb" aria-hidden="true">Finish setup</span>
     </div>
-    <sc-if value="{{notLast}}" hint-placeholder-val="{{true}}">
-      <button type="button" class="setup__skip" onClick="{{next}}">Skip</button>
-    </sc-if>
   </div>
 </div>
 </x-dc>
@@ -1047,11 +1011,12 @@ class Component extends DCLogic {
   constructor(props) {
     super(props);
     this.state = {
-      step: 0,
-      road: "brokered",
-      identity: "",
+      builtin: true,
+      added: [],
+      service: "",
       preset: null,
-      open: null,
+      issuer: "",
+      clientId: "",
     };
   }
 
@@ -1061,91 +1026,86 @@ class Component extends DCLogic {
 
   renderVals() {
     const s = this.state;
-    const steps = [
-      { key: "signin", label: "Sign-in" },
-      { key: "more", label: "Everything else" },
-    ];
-    const roads = [
-      { id: "brokered", name: "Google (via shoo.dev)", kind: "ready — nothing to set up" },
-      { id: "byo", name: "Your own provider", kind: "WorkOS, Okta, Auth0, OIDC" },
-      { id: "none", name: "No accounts", kind: "local vault only" },
-    ];
     const presets = [
-      { id: "workos", name: "WorkOS", kind: "AuthKit" },
-      { id: "okta", name: "Okta", kind: "enterprise SSO" },
-      { id: "auth0", name: "Auth0", kind: "enterprise SSO" },
-      { id: "better-auth", name: "Better Auth", kind: "self-hosted" },
-      { id: "oidc", name: "Other OIDC", kind: "any issuer" },
+      { id: "google", name: "Google", kind: "Google accounts", field: null, client: "The Web application OAuth client ID from Google Cloud Console.", issuer: "accounts.google.com" },
+      { id: "entra", name: "Microsoft Entra ID", kind: "Microsoft 365", field: { label: "Directory (tenant) ID", placeholder: "contoso.onmicrosoft.com", hint: "The tenant ID or domain from the Entra admin centre." }, client: "The Application (client) ID of an app registration with a Single-page application redirect." },
+      { id: "workos", name: "WorkOS", kind: "AuthKit", field: null, client: "Your WorkOS Client ID, from the dashboard's API keys.", issuer: "api.workos.com" },
+      { id: "okta", name: "Okta", kind: "enterprise SSO", field: { label: "Okta domain", placeholder: "dev-123456.okta.com", hint: "Your Okta org domain — https:// is optional." }, client: "The Client ID of an Okta app of type SPA." },
+      { id: "auth0", name: "Auth0", kind: "enterprise SSO", field: { label: "Tenant domain", placeholder: "acme.auth0.com", hint: "Your Auth0 tenant or custom domain." }, client: "The Client ID of an Auth0 Single Page Application." },
+      { id: "better-auth", name: "Better Auth", kind: "self-hosted", field: { label: "Deployment URL", placeholder: "https://auth.acme.com", hint: "The base URL of the deployment." }, client: "The OIDC client id from your Better Auth provider config." },
+      { id: "oidc", name: "Other OIDC", kind: "any issuer", field: { label: "Issuer URL", placeholder: "https://idp.acme.com", hint: "Whatever the provider publishes /.well-known/openid-configuration under." }, client: "The client id of a public client with PKCE enabled." },
     ];
-    const extras = [
-      { id: "host", label: "Host", hint: "The authority plane — it authorizes every ConnectionRef and signs every receipt. Without one the vault still holds your own items.", placeholder: "https://host.example.com" },
-      { id: "machine", label: "This machine", hint: "Only if you run OpenSesame on your own machine. A static deployment cannot call 127.0.0.1, so a daemon on your tailnet stands in for it.", placeholder: "https://your-machine.tailnet.ts.net" },
-      { id: "mfa", label: "Mobile MFA app", hint: "When this browser cannot finish a passkey, the passkey note shows a QR that opens this URL on your phone.", placeholder: "https://mfa.example.com" },
-    ];
-    const headings = [
-      { title: "How do people sign in?", lead: "You are the first person here, so you are the operator. This is the one question that matters — and it already has a working answer." },
-      { title: "Anything else?", lead: "All optional, and all of it changeable later. Open a row only if you run that thing yourself." },
-    ];
-    const chosen = roads.find((r) => r.id === s.road);
+    const preset = presets.find((p) => p.id === s.preset) || null;
+    const needsIssuer = Boolean(preset && preset.field);
+    const ready = Boolean(preset) && Boolean(s.clientId) && (!needsIssuer || Boolean(s.issuer));
+
+    const ways = [];
+    if (s.builtin) {
+      ways.push({
+        name: "Google (via shoo.dev)",
+        kind: "built in — nothing to set up",
+        removeLabel: "Remove Google (via shoo.dev)",
+        remove: () => this.set({ builtin: false }),
+      });
+    }
+    for (const entry of s.added) {
+      ways.push({
+        name: entry.name,
+        kind: entry.host,
+        removeLabel: "Remove " + entry.name,
+        remove: () => this.set({ added: s.added.filter((x) => x !== entry) }),
+      });
+    }
+    if (s.service) {
+      ways.push({
+        name: "An OpenSesame identity service",
+        kind: s.service.replace(/^https?:\/\//, ""),
+        removeLabel: "Remove the identity service",
+        remove: () => this.set({ service: "" }),
+      });
+    }
 
     return {
       theme: this.props.theme || "light",
-      count: (s.step + 1) + " / 2",
-      title: headings[s.step].title,
-      lead: headings[s.step].lead,
-      verb: s.step === 1 ? "Finish setup" : "Continue",
-      atStart: s.step === 0,
-      atLast: s.step === 1,
-      notLast: s.step === 0,
-      segs: steps.map((seg, i) => ({
-        label: seg.label,
-        cls: "setup__seg" + (i < s.step ? " is-done" : i === s.step ? " is-now" : ""),
-        go: () => this.set({ step: i }),
-      })),
-      isSignIn: s.step === 0,
-      isMore: s.step === 1,
+      ways,
+      count: String(ways.length),
+      any: ways.length > 0,
+      empty: ways.length === 0,
 
-      roads: roads.map((r) => ({
-        name: r.name,
-        kind: r.kind,
-        on: s.road === r.id,
-        cls: "road__opt" + (s.road === r.id ? " is-on" : ""),
-        pick: () => this.set({ road: r.id }),
-      })),
-      isBrokered: s.road === "brokered",
-      isByo: s.road === "byo",
-      isNone: s.road === "none",
-
-      identity: s.identity,
-      setIdentity: (e) => this.set({ identity: e.target.value }),
-      noIdentityYet: !s.identity,
       presets: presets.map((p) => ({
         name: p.name,
         kind: p.kind,
-        off: !s.identity,
         cls: "preset__opt" + (s.preset === p.id ? " is-on" : ""),
-        pick: () => this.set({ preset: p.id }),
+        pick: () => this.set({ preset: p.id, issuer: "", clientId: "" }),
       })),
+      hasPreset: Boolean(preset),
+      hasIssuerField: needsIssuer,
+      issuerLabel: needsIssuer ? preset.field.label : "",
+      issuerPlaceholder: needsIssuer ? preset.field.placeholder : "",
+      issuerHint: needsIssuer ? preset.field.hint : "",
+      issuer: s.issuer,
+      setIssuer: (e) => this.set({ issuer: e.target.value }),
+      clientId: s.clientId,
+      setClientId: (e) => this.set({ clientId: e.target.value }),
+      clientHint: preset ? preset.client : "",
+      callback: "https://tyler-r-kendrick.github.io/OpenSesame/",
+      addVerb: preset ? "Add " + preset.name : "Add provider",
+      cannotAdd: !ready,
+      add: () => {
+        if (!preset) return;
+        const host = needsIssuer
+          ? s.issuer.replace(/^https?:\/\//, "")
+          : preset.issuer;
+        this.set({
+          added: [...s.added, { name: preset.name, host }],
+          preset: null,
+          issuer: "",
+          clientId: "",
+        });
+      },
 
-      extras: extras.map((x) => ({
-        label: x.label,
-        hint: x.hint,
-        placeholder: x.placeholder,
-        state: "none",
-        open: s.open === x.id,
-        chev: "alt__chev" + (s.open === x.id ? " is-open" : ""),
-        toggle: () => this.set({ open: s.open === x.id ? null : x.id }),
-      })),
-      rows: [
-        { key: "Sign-in", value: chosen ? chosen.name : "brokered", cls: "wrote__val" },
-        { key: "Identity service", value: s.identity || "not set", cls: s.identity ? "wrote__val" : "wrote__val wrote__val--off" },
-        { key: "Host API", value: "not set", cls: "wrote__val wrote__val--off" },
-        { key: "This machine", value: "not paired", cls: "wrote__val wrote__val--off" },
-        { key: "Mobile MFA app", value: "not set", cls: "wrote__val wrote__val--off" },
-      ],
-
-      back: () => this.set({ step: Math.max(0, s.step - 1) }),
-      next: () => this.set({ step: Math.min(1, s.step + 1) }),
+      service: s.service,
+      setService: (e) => this.set({ service: e.target.value }),
     };
   }
 }

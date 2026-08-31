@@ -6,6 +6,7 @@ mod connect;
 mod github;
 mod lifecycle;
 mod providers_native;
+mod security;
 mod store;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -208,6 +209,33 @@ enum Commands {
     Cert {
         #[command(subcommand)]
         cmd: CertCmd,
+    },
+    /// Breach exposure: what has turned up publicly, and vetting a new secret.
+    Security {
+        #[command(subcommand)]
+        cmd: SecurityCmd,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum SecurityCmd {
+    /// Breach findings for this organization (metadata only).
+    Findings {
+        #[arg(long, default_value = "100")]
+        limit: usize,
+    },
+    /// Run one breach scan now instead of waiting for the tick.
+    Scan,
+    /// Check a candidate secret against the breach corpus before storing it.
+    ///
+    /// The secret is read from a no-echo prompt or standard input, never from
+    /// an argument: an argument lands in shell history and in `ps`.
+    Check {
+        /// What the secret belongs to — a store path or a connection id.
+        subject_id: String,
+        /// `store_path` (default) or `connection_credential`.
+        #[arg(long, default_value = "store_path")]
+        subject_kind: String,
     },
 }
 
@@ -1307,6 +1335,18 @@ async fn main() -> anyhow::Result<()> {
                 lifecycle::cmd_deliveries(&cli.server, &cli.output, limit).await?;
             }
             LifecycleCmd::Scan => lifecycle::cmd_scan(&cli.server, &cli.output).await?,
+        },
+        Commands::Security { cmd } => match cmd {
+            SecurityCmd::Findings { limit } => {
+                security::cmd_findings(&cli.server, &cli.output, limit).await?;
+            }
+            SecurityCmd::Scan => security::cmd_scan(&cli.server, &cli.output).await?,
+            SecurityCmd::Check {
+                subject_id,
+                subject_kind,
+            } => {
+                security::cmd_check(&cli.server, &cli.output, &subject_id, &subject_kind).await?;
+            }
         },
         Commands::Cert { cmd } => match cmd {
             CertCmd::Ca { out } => certs::cmd_ca(&cli.server, &cli.output, out).await?,

@@ -30,8 +30,10 @@ members = [
   "crates/relay",
   "crates/rotation",
   "crates/session-observe",
-  "crates/agent-events",
   "crates/lifecycle",
+  "crates/security-events",
+  "crates/agent-events",
+  "crates/breach-intel",
   "crates/provider-openbao",
   "crates/provider-openfga",
   "crates/provider-static-mesh",
@@ -100,6 +102,7 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 # Maintained serde_yaml fork (serde_yaml itself is RUSTSEC-2024-0320).
 serde_norway = "0.9.42"
+sha1 = "0.10.7"
 sha2 = "0.10.9"
 sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "sqlite", "postgres", "chrono", "uuid", "migrate"] }
 thiserror = "2.0.12"

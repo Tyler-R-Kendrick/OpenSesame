@@ -42,6 +42,20 @@ pub enum DomainError {
     DelegationChainInvalid(String),
     #[error("proof key revoked")]
     ProofKeyRevoked,
+    #[error("session grant lifetime invalid: {0}")]
+    SessionGrantLifetime(String),
+    #[error("session grant would widen an existing one: {0}")]
+    SessionGrantWiden(String),
+    #[error("session grant scope empty")]
+    SessionGrantScopeEmpty,
+    #[error("session join note too long: {0} characters")]
+    SessionJoinNoteTooLong(usize),
+    #[error("share link lifetime invalid: {0}")]
+    SessionInviteLifetime(String),
+    #[error("share link would outlive the access it carries: {0}")]
+    SessionInviteOutlivesGrant(String),
+    #[error("share link is not open: {0}")]
+    SessionInviteClosed(String),
     #[error("proof binding mismatch: {0}")]
     ProofBindingMismatch(String),
     #[error("unknown protocol profile: {0}")]

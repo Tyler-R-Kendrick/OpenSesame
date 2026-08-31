@@ -6,6 +6,7 @@ license.workspace = true
 description = "Frozen agent.* hook event names and their value-blind payloads"
 
 [dependencies]
+opensesame-security-events = { path = "../security-events" }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

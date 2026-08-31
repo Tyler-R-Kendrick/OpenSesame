@@ -26,21 +26,23 @@ use axum::{
     Json,
 };
 use chrono::Utc;
-use opensesame_agent_events::{AGENT_EVENT_TYPES, EVENT_WILDCARD as AGENT_WILDCARD};
+use opensesame_agent_events::AGENT_EVENT_TYPES;
+use opensesame_breach_intel::{BreachSubjectKind, BREACH_EVENT_TYPES};
 use opensesame_connection_broker::crypto::seal_scoped;
 use opensesame_lifecycle::{
-    ExpiryStage, ExpirySubject, SubjectKind, Track, EVENT_WILDCARD as LIFECYCLE_WILDCARD,
-    LIFECYCLE_EVENT_TYPES, MAX_DETAIL_CHARS,
+    ExpiryStage, ExpirySubject, SubjectKind, Track, LIFECYCLE_EVENT_TYPES, MAX_DETAIL_CHARS,
 };
+use opensesame_security_events::{filter, Delivery, Severity};
 use opensesame_storage::{
-    SealedCertificateMaterial, StoredLifecycleHook, LIFECYCLE_HOOK_SECRET_SCOPE,
+    SealedCertificateMaterial, StoredSecurityHook, SECURITY_HOOK_SECRET_SCOPE,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::lifecycle::{delivery, responders, scanner};
+use crate::lifecycle::{responders, scanner};
 use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
+use crate::security::delivery;
 
 /// Sealing key id recorded on a hook's sealed secret column group.
 const KEY_ID: &str = "connection-seal-v1";
@@ -48,6 +50,8 @@ const KEY_ID: &str = "connection-seal-v1";
 const MAX_NAME_CHARS: usize = 120;
 /// Longest endpoint URL accepted.
 const MAX_ENDPOINT_CHARS: usize = 2_048;
+/// Longest caller-supplied sink secret accepted — a routing key or a bearer.
+const MAX_SECRET_CHARS: usize = 1_024;
 /// Deliveries returned by the ledger route without an explicit limit.
 const DEFAULT_DELIVERY_LIMIT: usize = 50;
 
@@ -95,7 +99,7 @@ fn internal(error: &anyhow::Error, context: &'static str) -> Response {
 
 /// Public view of a subscription. The sealed signing secret is not a field:
 /// it is write-once at registration and never rendered again.
-fn hook_view(hook: &StoredLifecycleHook) -> Value {
+fn hook_view(hook: &StoredSecurityHook) -> Value {
     json!({
         "id": hook.id,
         "name": hook.name,
@@ -105,6 +109,7 @@ fn hook_view(hook: &StoredLifecycleHook) -> Value {
         "endpoint_url": hook.endpoint_url,
         "responder": hook.responder,
         "subject_kinds": hook.subject_kinds,
+        "severity_min": hook.severity_min,
         "enabled": hook.enabled,
         "last_delivered_at": hook.last_delivered_at,
         "last_error": hook.last_error,
@@ -174,7 +179,7 @@ pub async fn list_expiring(State(st): State<AppState>, headers: axum::http::Head
             .iter()
             .map(|subject| subject_view(subject, now))
             .collect::<Vec<_>>(),
-        "event_types": subscribable_event_types(),
+        "event_types": known_event_types(),
         "subject_kinds": SubjectKind::ALL.map(SubjectKind::as_str),
         "stages": ExpiryStage::ALL.map(ExpiryStage::as_str),
         "secrets_returned": false,
@@ -194,7 +199,7 @@ pub async fn list_hooks(State(st): State<AppState>, headers: axum::http::HeaderM
     };
     match st
         .db
-        .list_lifecycle_hooks(&organization_id.to_string())
+        .list_security_hooks(&organization_id.to_string())
         .await
     {
         Ok(hooks) => Json(json!({
@@ -206,18 +211,50 @@ pub async fn list_hooks(State(st): State<AppState>, headers: axum::http::HeaderM
     }
 }
 
+/// Every event name a subscription may filter on, across every family.
+///
+/// The union is assembled here rather than in either detector: a family owns
+/// its own frozen names, and the *registration* surface is the only place that
+/// needs to know about all of them at once.
+#[must_use]
+fn known_event_types() -> Vec<&'static str> {
+    LIFECYCLE_EVENT_TYPES
+        .iter()
+        .copied()
+        .chain(BREACH_EVENT_TYPES.iter().copied())
+        .chain(AGENT_EVENT_TYPES.iter().copied())
+        .collect()
+}
+
+/// Whether a subject-kind filter names something some family actually reports.
+#[must_use]
+fn is_known_subject_kind(kind: &str) -> bool {
+    SubjectKind::parse(kind).is_some() || BreachSubjectKind::parse(kind).is_some()
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HookBody {
     /// Stable id. Omit to create; supply to edit in place.
     pub id: Option<String>,
     pub name: String,
-    /// Frozen lifecycle event types, or the `lifecycle.*` wildcard.
+    /// Frozen event types from any family, or a family wildcard
+    /// (`lifecycle.*`, `breach.*`, `*`).
     pub event_types: Vec<String>,
-    /// Absolute `https://` endpoint receiving Standard Webhooks deliveries.
+    /// Absolute `https://` endpoint the sink is delivered to.
     pub endpoint_url: String,
+    /// `webhook` (default), `alertmanager`, or `pagerduty`. `internal` is
+    /// refused: a platform subscriber runs in process and is seeded by the
+    /// gateway, never registered over the API.
+    pub delivery: Option<String>,
     /// Optional narrowing to particular subject kinds.
     pub subject_kinds: Option<Vec<String>>,
+    /// Severity floor: `info` (default), `warning`, `error`, or `critical`.
+    pub severity_min: Option<String>,
+    /// Sink material supplied by the caller rather than minted — a `PagerDuty`
+    /// routing key, or a bearer token for an authenticating Alertmanager
+    /// proxy. Sealed on write and never returned.
+    pub secret: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
 }
@@ -226,41 +263,24 @@ const fn default_true() -> bool {
     true
 }
 
-/// `PUT /api/v1/lifecycle/hooks` — register or edit a subscription.
-///
-/// A new registration mints a `whsec_` secret and returns it **once**. An edit
-/// keeps the existing secret: rotating it is a delete and re-register, so a
-/// caller cannot silently invalidate every receiver's verification by editing
-/// a name.
-/// Every event type a subscription may name, across both families.
-///
-/// One hook table serves the expiry feed and the agent feed, so discovery has
-/// to answer for both — a caller that reads this list and then registers from
-/// it must not be told half the vocabulary.
-fn subscribable_event_types() -> Vec<&'static str> {
-    LIFECYCLE_EVENT_TYPES
-        .iter()
-        .chain(AGENT_EVENT_TYPES.iter())
-        .copied()
-        .collect()
+/// The sink a request selects, refusing the one that cannot be registered.
+#[allow(clippy::result_large_err)]
+fn requested_delivery(body: &HookBody) -> Result<Delivery, Response> {
+    let raw = body.delivery.as_deref().unwrap_or("webhook");
+    match Delivery::parse(raw) {
+        Some(Delivery::Internal) | None => Err(bad_request(
+            "delivery must be one of webhook, alertmanager, pagerduty",
+        )),
+        Some(kind) => Ok(kind),
+    }
 }
 
-/// Whether every entry in a filter is a name one of the two families
-/// recognises.
-///
-/// Entry by entry rather than family by family, so one hook can watch a
-/// certificate expiring and an agent getting stuck without registering twice.
-/// An empty filter is still refused: a subscription that names no events is a
-/// misconfiguration, and reading it as "everything" is the wrong direction to
-/// fail.
-fn filter_is_valid(filter: &[String]) -> bool {
-    !filter.is_empty()
-        && filter.iter().all(|entry| {
-            entry == LIFECYCLE_WILDCARD
-                || opensesame_lifecycle::is_lifecycle_event_type(entry)
-                || entry == AGENT_WILDCARD
-                || opensesame_agent_events::is_agent_event_type(entry)
-        })
+/// The severity floor a request selects.
+#[allow(clippy::result_large_err)]
+fn requested_floor(body: &HookBody) -> Result<Severity, Response> {
+    let raw = body.severity_min.as_deref().unwrap_or("info");
+    Severity::parse(raw)
+        .ok_or_else(|| bad_request("severity_min must be info, warning, error, or critical"))
 }
 
 /// Validate a subscription request before anything is written.
@@ -273,23 +293,30 @@ fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
     if name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
         return Err(bad_request("name must be 1..=120 characters"));
     }
-    if !filter_is_valid(&body.event_types) {
+    if !filter::is_valid(&body.event_types, &known_event_types()) {
         return Err(bad_request(
-            "event_types must be a non-empty list of lifecycle or agent event types, \
-             or the \"lifecycle.*\" / \"agent.*\" wildcards",
+            "event_types must be a non-empty list of known event types or a family wildcard (\"lifecycle.*\", \"breach.*\", \"agent.*\", \"*\")",
         ));
     }
     if let Some(kinds) = &body.subject_kinds {
         if kinds.is_empty() {
             return Err(bad_request("subject_kinds must be omitted or non-empty"));
         }
-        if let Some(unknown) = kinds.iter().find(|kind| SubjectKind::parse(kind).is_none()) {
+        if let Some(unknown) = kinds.iter().find(|kind| !is_known_subject_kind(kind)) {
             return Err(bad_request(&format!("unknown subject kind \"{unknown}\"")));
         }
     }
     let endpoint = body.endpoint_url.trim();
     if endpoint.chars().count() > MAX_ENDPOINT_CHARS {
         return Err(bad_request("endpoint_url is too long"));
+    }
+    // Bounded like every other field on this body. A routing key is tens of
+    // characters; anything near this cap is a mistake, and sealing an
+    // unbounded one wastes a column on it forever.
+    if let Some(secret) = &body.secret {
+        if secret.trim().chars().count() > MAX_SECRET_CHARS {
+            return Err(bad_request("secret is too long"));
+        }
     }
     if let Err(hint) = delivery::assert_deliverable(endpoint) {
         return Err(bad_request(&hint));
@@ -300,32 +327,51 @@ fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
 /// The sealed secret and the one-time reveal for a newly registered hook.
 type MintedSecret = (Option<SealedCertificateMaterial>, Option<(String, String)>);
 
-/// Mint a `whsec_` signing secret and seal it under the hook's own identity.
+/// Seal a hook's material under the hook's own identity.
 ///
-/// Returns the material to store alongside the plaintext to show exactly once;
-/// no route ever reads the secret back out of the column.
+/// Two shapes, one path. A `webhook` mints a `whsec_` signing secret we
+/// generate; an alerting sink seals whatever the caller supplied — a
+/// `PagerDuty` routing key, or a bearer for an Alertmanager behind a proxy.
+/// Either way the plaintext is returned to be shown exactly once, and no route
+/// ever reads it back out of the column.
+///
+/// A sink that requires material and was given none is refused here rather
+/// than at delivery time: a hook that can never deliver is a subscription an
+/// operator believes they have.
 #[allow(clippy::result_large_err)]
 fn mint_hook_secret(
     st: &AppState,
     organization: &str,
     requested_id: Option<&str>,
+    kind: Delivery,
+    supplied: Option<&str>,
 ) -> Result<MintedSecret, Response> {
-    let secret = delivery::generate_secret();
+    let secret = match supplied.map(str::trim).filter(|value| !value.is_empty()) {
+        Some(value) => value.to_string(),
+        None if kind.requires_secret() && kind != Delivery::Webhook => {
+            return Err(bad_request(&format!(
+                "delivery \"{}\" requires `secret` (its routing key)",
+                kind.as_str(),
+            )));
+        }
+        None if !kind.requires_secret() => return Ok((None, None)),
+        None => delivery::generate_secret(),
+    };
     let id_for_seal =
-        requested_id.map_or_else(|| format!("lch_{}", uuid::Uuid::now_v7()), str::to_string);
+        requested_id.map_or_else(|| format!("sech_{}", uuid::Uuid::now_v7()), str::to_string);
     let Some(key) = st.connection_broker.config().key().copied() else {
         return Err((
             StatusCode::SERVICE_UNAVAILABLE,
             Json(json!({
                 "error": "sealing_unavailable",
-                "hint": "a sealing key is required to register a webhook hook",
+                "hint": "a sealing key is required to register a hook that carries secret material",
             })),
         )
             .into_response());
     };
     let blob = seal_scoped(
         &key,
-        LIFECYCLE_HOOK_SECRET_SCOPE,
+        SECURITY_HOOK_SECRET_SCOPE,
         &id_for_seal,
         organization,
         secret.as_bytes(),
@@ -342,6 +388,12 @@ fn mint_hook_secret(
     ))
 }
 
+/// `PUT /api/v1/lifecycle/hooks` — register or edit a subscription.
+///
+/// A new registration mints a `whsec_` secret and returns it **once**. An edit
+/// keeps the existing secret: rotating it is a delete and re-register, so a
+/// caller cannot silently invalidate every receiver's verification by editing
+/// a name.
 pub async fn put_hook(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -359,11 +411,19 @@ pub async fn put_hook(
     if let Err(response) = validate_hook_body(&body) {
         return response;
     }
+    let kind = match requested_delivery(&body) {
+        Ok(kind) => kind,
+        Err(response) => return response,
+    };
+    let floor = match requested_floor(&body) {
+        Ok(floor) => floor,
+        Err(response) => return response,
+    };
     let name = body.name.trim();
     let endpoint = body.endpoint_url.trim();
 
     let existing = match &body.id {
-        Some(id) => match st.db.get_lifecycle_hook(&organization, id).await {
+        Some(id) => match st.db.get_security_hook(&organization, id).await {
             Ok(found) => found,
             Err(error) => return internal(&error, "read lifecycle hook"),
         },
@@ -376,12 +436,31 @@ pub async fn put_hook(
         )
             .into_response();
     }
+    // An internal row cannot be *created* over this API, so it must not be
+    // overwritable through it either. Without this, a PUT carrying a built-in
+    // subscriber's id would rewrite it into a webhook — and because seeding
+    // only ever inserts, the row's continued existence would stop it being
+    // restored. Turning a built-in off is `enabled: false`, not a rewrite.
+    if existing
+        .as_ref()
+        .is_some_and(|hook| hook.delivery == Delivery::Internal.as_str())
+    {
+        return bad_request(
+            "this subscription is a platform responder; disable it with enabled=false rather than rewriting it",
+        );
+    }
 
-    // An existing hook keeps its secret; a new one mints and reveals one once.
+    // An existing hook keeps its secret; a new one seals and reveals one once.
     let (sealed_secret, revealed) = if let Some(hook) = &existing {
         (hook.sealed_secret.clone(), None)
     } else {
-        match mint_hook_secret(&st, &organization, body.id.as_deref()) {
+        match mint_hook_secret(
+            &st,
+            &organization,
+            body.id.as_deref(),
+            kind,
+            body.secret.as_deref(),
+        ) {
             Ok(minted) => minted,
             Err(response) => return response,
         }
@@ -391,15 +470,16 @@ pub async fn put_hook(
     let id = revealed
         .as_ref()
         .map_or_else(|| body.id.clone().unwrap_or_default(), |(id, _)| id.clone());
-    let hook = StoredLifecycleHook {
+    let hook = StoredSecurityHook {
         id: id.clone(),
         organization_id: organization.clone(),
         name: name.to_string(),
         event_types: body.event_types.clone(),
-        delivery: "webhook".into(),
+        delivery: kind.as_str().to_string(),
         endpoint_url: Some(endpoint.to_string()),
         responder: None,
         subject_kinds: body.subject_kinds.clone(),
+        severity_min: floor.as_str().to_string(),
         enabled: body.enabled,
         sealed_secret,
         last_delivered_at: existing.as_ref().and_then(|h| h.last_delivered_at.clone()),
@@ -410,7 +490,7 @@ pub async fn put_hook(
             .map_or_else(|| now.clone(), |h| h.created_at.clone()),
         updated_at: now,
     };
-    if let Err(error) = st.db.upsert_lifecycle_hook(&hook).await {
+    if let Err(error) = st.db.upsert_security_hook(&hook).await {
         return internal(&error, "write lifecycle hook");
     }
 
@@ -421,7 +501,10 @@ pub async fn put_hook(
         object.insert("signing_secret".into(), json!(secret));
         object.insert(
             "signing_secret_hint".into(),
-            json!("shown once; verify with any Standard Webhooks library"),
+            json!(match kind {
+                Delivery::Webhook => "shown once; verify with any Standard Webhooks library",
+                _ => "shown once; sealed at rest and never returned again",
+            }),
         );
     }
     (StatusCode::OK, Json(view)).into_response()
@@ -444,7 +527,7 @@ pub async fn delete_hook(
     };
     match st
         .db
-        .delete_lifecycle_hook(&organization_id.to_string(), &id)
+        .delete_security_hook(&organization_id.to_string(), &id)
         .await
     {
         Ok(true) => (StatusCode::OK, Json(json!({"deleted": true}))).into_response(),
@@ -480,7 +563,7 @@ pub async fn list_deliveries(
     let limit = query.limit.unwrap_or(DEFAULT_DELIVERY_LIMIT);
     match st
         .db
-        .list_lifecycle_deliveries(&organization_id.to_string(), limit)
+        .list_security_deliveries(&organization_id.to_string(), limit)
         .await
     {
         Ok(deliveries) => Json(json!({
@@ -669,7 +752,7 @@ mod tests {
 
         let stored = st
             .db
-            .get_lifecycle_hook(&org.to_string(), id)
+            .get_security_hook(&org.to_string(), id)
             .await
             .unwrap()
             .unwrap();
@@ -892,8 +975,8 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "{view}");
         assert_eq!(
             view["event_types"].as_array().unwrap().len(),
-            LIFECYCLE_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
-            "the frozen vocabulary is part of the contract, and it spans both families",
+            LIFECYCLE_EVENT_TYPES.len() + BREACH_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
+            "the frozen vocabulary is part of the contract, and it spans every family",
         );
         assert_eq!(view["secrets_returned"], json!(false));
 
@@ -1415,51 +1498,57 @@ mod custody_e2e {
 
 #[cfg(test)]
 mod hook_filter_tests {
-    use super::{filter_is_valid, subscribable_event_types};
+    use super::known_event_types;
     use opensesame_agent_events::{AGENT_EVENT_TYPES, EVENT_RUN_BLOCKED};
+    use opensesame_breach_intel::BREACH_EVENT_TYPES;
     use opensesame_lifecycle::{EVENT_RENEWAL_DUE, LIFECYCLE_EVENT_TYPES};
+    use opensesame_security_events::filter;
 
-    fn filter(entries: &[&str]) -> Vec<String> {
-        entries.iter().map(|entry| (*entry).to_string()).collect()
+    fn entries(names: &[&str]) -> Vec<String> {
+        names.iter().map(|name| (*name).to_string()).collect()
+    }
+
+    fn valid(names: &[&str]) -> bool {
+        filter::is_valid(&entries(names), &known_event_types())
     }
 
     #[test]
-    fn one_subscription_may_span_both_families() {
-        assert!(filter_is_valid(&filter(&[
-            EVENT_RENEWAL_DUE,
-            EVENT_RUN_BLOCKED
-        ])));
-        assert!(filter_is_valid(&filter(&["lifecycle.*", "agent.*"])));
+    fn one_subscription_may_span_every_family() {
+        assert!(valid(&[EVENT_RENEWAL_DUE, EVENT_RUN_BLOCKED]));
+        assert!(valid(&["lifecycle.*", "breach.*", "agent.*"]));
+        assert!(valid(&["*"]));
     }
 
     #[test]
     fn an_unknown_name_is_refused_even_beside_valid_ones() {
-        assert!(!filter_is_valid(&filter(&[
-            EVENT_RENEWAL_DUE,
-            "agent.run.exploded"
-        ])));
-        assert!(!filter_is_valid(&filter(&["everything"])));
+        assert!(!valid(&[EVENT_RENEWAL_DUE, "agent.run.exploded"]));
+        assert!(!valid(&["everything"]));
+        assert!(!valid(&["rumour.*"]));
     }
 
     #[test]
     fn an_empty_filter_is_refused_rather_than_read_as_everything() {
-        assert!(!filter_is_valid(&[]));
+        assert!(!valid(&[]));
     }
 
     #[test]
-    fn discovery_answers_for_both_families() {
-        let advertised = subscribable_event_types();
-        for name in LIFECYCLE_EVENT_TYPES.iter().chain(AGENT_EVENT_TYPES.iter()) {
+    fn discovery_and_registration_answer_for_the_same_families() {
+        // One union, used by both surfaces. Two lists is how a caller reads
+        // the advertised vocabulary, registers from it, and is told a name it
+        // was just given is unknown — or, worse, never learns a family exists.
+        let advertised = known_event_types();
+        for name in LIFECYCLE_EVENT_TYPES
+            .iter()
+            .chain(BREACH_EVENT_TYPES.iter())
+            .chain(AGENT_EVENT_TYPES.iter())
+        {
             assert!(advertised.contains(name), "{name} is not discoverable");
+            assert!(valid(&[name]), "{name} is advertised but not registrable");
         }
-        // Everything advertised must also be registrable: a caller that reads
-        // this list and registers from it can never be told a name it was just
-        // given is unknown.
-        for name in &advertised {
-            assert!(
-                filter_is_valid(&[(*name).to_string()]),
-                "{name} is advertised but not registrable"
-            );
-        }
+        assert_eq!(
+            advertised.len(),
+            LIFECYCLE_EVENT_TYPES.len() + BREACH_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
+            "the union carries every family and nothing else",
+        );
     }
 }
