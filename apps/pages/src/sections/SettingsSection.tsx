@@ -53,6 +53,7 @@ import { CoreConnectionsPanel } from "./settings/CoreConnectionsPanel.js";
 import { EndpointsPanel, TursoSyncPanel } from "./settings/EndpointsPanel.js";
 import { GithubBackupPanel as DefaultGithubBackupPanel } from "./settings/GithubBackupPanel.js";
 import { ImportPanel as DefaultImportPanel } from "./settings/ImportPanel.js";
+import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/ModelProviderPanel.js";
 import { OfflineBackupPanel as DefaultOfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
 import { SecretConfigsPanel as DefaultSecretConfigsPanel } from "./settings/SecretConfigsPanel.js";
 import { SyncTargetsPanel as DefaultSyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
@@ -129,6 +130,7 @@ export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
   ActiveProjectPanel: ComponentType;
   CapabilityConnectorsPanel: ComponentType;
+  ModelProviderPanel: ComponentType;
   SecretConfigsPanel: ComponentType;
   SyncTargetsPanel: ComponentType;
   TaskBusPanel: ComponentType;
@@ -142,6 +144,7 @@ const defaultPanels: SettingsPanels = {
   UnlockMethodsPanel: DefaultUnlockMethodsPanel,
   ActiveProjectPanel: DefaultActiveProjectPanel,
   CapabilityConnectorsPanel: DefaultCapabilityConnectorsPanel,
+  ModelProviderPanel: DefaultModelProviderPanel,
   SecretConfigsPanel: DefaultSecretConfigsPanel,
   SyncTargetsPanel: DefaultSyncTargetsPanel,
   TaskBusPanel: DefaultTaskBusPanel,
@@ -713,6 +716,10 @@ export function SettingsSection({
 
       {category !== "connectivity" ? null : (
         <resolvedPanels.CapabilityConnectorsPanel />
+      )}
+
+      {category !== "connectivity" ? null : (
+        <resolvedPanels.ModelProviderPanel />
       )}
 
       {category !== "connectivity" ? null : (

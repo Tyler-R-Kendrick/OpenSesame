@@ -61,6 +61,7 @@ const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
 const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
 const ADR_SECURITY_EVENTS = "0080-security-event-hooks.md";
 const ADR_LIVE_OBSERVATION = "0081-live-session-observation.md";
+const ADR_MODEL_PLANE = "0083-browser-plane-inference-fallback.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -125,6 +126,12 @@ const SESSION_SURFACE_DEFERRED: CapabilityExclusion = {
   reason:
     "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
   adr: ADR_SHARED_SESSIONS,
+};
+
+const MODEL_PLANE_REDIRECT: CapabilityExclusion = {
+  reason:
+    "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
+  adr: ADR_MODEL_PLANE,
 };
 
 const FIRST_RUN_CEREMONY: CapabilityExclusion = {
@@ -1295,6 +1302,37 @@ export const CAPABILITIES: readonly Capability[] = [
           "driving a live authenticated session at a third party is a human ceremony; the lease is granted to a person holding the viewer key, never to a tool call",
         adr: ADR_LIVE_OBSERVATION,
       },
+    },
+  },
+  {
+    id: "model_plane.read",
+    title: "Read which plane runs the password-reset model",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_settings_read",
+    },
+  },
+  {
+    id: "model_plane.choose",
+    title: "Choose who runs the password-reset model",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: MODEL_PLANE_REDIRECT,
+      mcp_client: MODEL_PLANE_REDIRECT,
+      webmcp: MODEL_PLANE_REDIRECT,
     },
   },
   {
