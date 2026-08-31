@@ -787,86 +787,79 @@
    Three roads, not a URL field. The first is selected on arrival because it
    already works: a deployment nobody has configured can still sign people in
    through the compiled broker. */
-.road {
+.ways {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ways__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ways__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.ways__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   gap: 0.4rem;
 }
 
-.road__opt {
-  appearance: none;
+.ways__item {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  width: 100%;
-  min-height: 3.5rem;
-  padding: 0.65rem 0.8rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
-.road__opt.is-on {
-  border-color: var(--accent);
-  background: var(--accent-wash);
-}
-
-.road__mark {
+.ways__mark {
   display: grid;
   place-items: center;
   flex: none;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
-.road__opt.is-on .road__mark,
-.road__on {
-  color: var(--accent);
-}
-
-.road__body {
-  display: grid;
-  gap: 0.1rem;
+.ways__body {
   flex: 1;
   min-width: 0;
-}
-
-.road__name {
-  font-family: var(--mono);
-  font-size: 0.875rem;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.road__kind {
-  font-family: var(--font);
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
-.road__opt.is-on .road__kind {
-  color: var(--accent);
-}
-
-.road__on {
   display: grid;
-  place-items: center;
-  flex: none;
+  gap: 0.1rem;
 }
 
-/* What an unopened row already holds, so the screen reads without opening
-   three disclosures to learn nothing is set. */
-.alt__state {
-  flex: none;
+.ways__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ways__kind {
   font-family: var(--mono);
   font-size: 0.6875rem;
   color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
   </style>
 </helmet>
-<div class="os" data-theme="{{theme}}" style="width: 1120px; height: 760px; display: grid; place-items: center; padding: 40px">
+<div class="os" data-theme="{{theme}}" style="width: 1120px; height: 860px; display: grid; place-items: center; padding: 40px">
   <div style="width: 100%; max-width: 34rem; display: grid; gap: 18px">
 
     <div style="display: flex; align-items: center; gap: 8px">
@@ -877,85 +870,116 @@
         </svg>
         opensesame
       </span>
-      <span class="setup__count" style="margin-left: auto">2 / 4</span>
-    </div>
-
-    <div class="setup__rail" style="padding: 0">
-      <span class="setup__seg is-done"><span class="setup__seg-bar"></span><span class="setup__seg-label">Identity</span></span>
-      <span class="setup__seg is-now"><span class="setup__seg-bar"></span><span class="setup__seg-label">Host</span></span>
-      <span class="setup__seg"><span class="setup__seg-bar"></span><span class="setup__seg-label">Machine</span></span>
-      <span class="setup__seg"><span class="setup__seg-bar"></span><span class="setup__seg-label">Review</span></span>
     </div>
 
     <div style="display: grid; gap: 8px">
-      <h1>Is there a Host?</h1>
-      <p style="color: var(--ink-2); font-size: 15px; max-width: 52ch">The authority plane. It authorizes every ConnectionRef and signs every receipt. A vault without one still holds your own items.</p>
+      <h1>How do people sign in?</h1>
+      <p style="color: var(--ink-2); font-size: 15px; max-width: 52ch">You are the first person here, so you are the operator. This is the only question — and it already has a working answer.</p>
+    </div>
+
+    <!-- The allowlist, wide: every row is a button that will exist on the
+         sign-in screen, and nothing else will be. -->
+    <div class="ways">
+      <p class="ways__head">Ways in <span class="ways__count">3</span></p>
+      <ul class="ways__list">
+        <li class="ways__item">
+          <span class="ways__mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg>
+          </span>
+          <span class="ways__body">
+            <span class="ways__name">Google (via shoo.dev)</span>
+            <span class="ways__kind">built in — nothing to set up</span>
+          </span>
+          <button type="button" class="icon-btn" aria-label="Remove Google (via shoo.dev)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+          </button>
+        </li>
+        <li class="ways__item">
+          <span class="ways__mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+          </span>
+          <span class="ways__body">
+            <span class="ways__name">Google</span>
+            <span class="ways__kind">accounts.google.com</span>
+          </span>
+          <button type="button" class="icon-btn" aria-label="Remove Google">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+          </button>
+        </li>
+        <li class="ways__item">
+          <span class="ways__mark" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.2 2.4 3.3 5.3 3.3 8.5S14.2 18.1 12 20.5c-2.2-2.4-3.3-5.3-3.3-8.5S9.8 5.9 12 3.5z"></path></svg>
+          </span>
+          <span class="ways__body">
+            <span class="ways__name">Okta</span>
+            <span class="ways__kind">acme.okta.com</span>
+          </span>
+          <button type="button" class="icon-btn" aria-label="Remove Okta">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+          </button>
+        </li>
+      </ul>
+    </div>
+
+    <p class="ways__head">Add a provider</p>
+    <p class="hint">This browser runs the whole sign-in itself — authorization code with PKCE, against your provider's own discovery document. Register this app there as a single-page or public client, then name it here.</p>
+
+    <div class="preset">
+      <span class="preset__opt"><span class="preset__name">Google</span><span class="preset__kind">Google accounts</span></span>
+      <span class="preset__opt"><span class="preset__name">Microsoft Entra ID</span><span class="preset__kind">Microsoft 365</span></span>
+      <span class="preset__opt"><span class="preset__name">WorkOS</span><span class="preset__kind">AuthKit</span></span>
+      <span class="preset__opt is-on"><span class="preset__name">Okta</span><span class="preset__kind">enterprise SSO</span></span>
+      <span class="preset__opt"><span class="preset__name">Auth0</span><span class="preset__kind">enterprise SSO</span></span>
+      <span class="preset__opt"><span class="preset__name">Better Auth</span><span class="preset__kind">self-hosted</span></span>
+      <span class="preset__opt"><span class="preset__name">Other OIDC</span><span class="preset__kind">any issuer</span></span>
     </div>
 
     <div class="f">
       <div class="f__labelrow">
-        <span class="f__label">Host API</span>
-        <span class="chip">Optional</span>
+        <span class="f__label">Redirect URI to register</span>
       </div>
       <div class="f__shell">
-        <span class="f__lead" aria-hidden="true">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3l7.5 3.2v5.1c0 4.7-3.1 8.1-7.5 9.4-4.4-1.3-7.5-4.7-7.5-9.4V6.2z"></path>
-            <path d="M9.2 12.1l2 2 3.6-3.9"></path>
-          </svg>
-        </span>
-        <input class="f__input" type="url" placeholder="https://host.example.com" />
+        <input class="f__input" type="url" readonly value="https://tyler-r-kendrick.github.io/OpenSesame/" />
+        <button type="button" class="icon-btn" aria-label="Copy the redirect URI">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M15 5.5H6a2 2 0 0 0-2 2V15"></path></svg>
+        </button>
       </div>
-      <div class="f__fills">
-        <span class="f__fills-label">Fill with</span>
-        <button type="button" class="fill">http://127.0.0.1:18787</button>
-      </div>
+      <p class="hint">Paste this into the provider's allowed redirect URIs, exactly as shown.</p>
     </div>
 
-    <div class="note">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="8.5"></circle>
-        <path d="M12 16.2v-4.7M12 8h.01"></path>
-      </svg>
-      <span>Leave this empty and the vault still works. Without a Host there are no ConnectionRefs, no receipts, and no agent-facing authority — human items only.</span>
-    </div>
-
-    <p class="or"><span>or</span></p>
-
-    <div class="alt">
-      <div class="alt__item">
-        <span class="alt__btn">
-          <span class="alt__mark" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
-              <path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path>
-            </svg>
-          </span>
-          <span class="alt__grow">Let a paired daemon front it</span>
-          <span class="alt__chev" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path>
-            </svg>
-          </span>
-        </span>
+    <div class="f">
+      <div class="f__labelrow"><span class="f__label">Okta domain</span></div>
+      <div class="f__shell">
+        <input class="f__input" type="text" value="acme.okta.com" />
       </div>
     </div>
 
-    <div style="display: flex; align-items: center; gap: 8px; padding-top: 6px">
-      <button type="button" class="icon-btn" aria-label="Back">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14.5 5.5L8 12l6.5 6.5"></path>
-        </svg>
+    <div class="f">
+      <div class="f__labelrow"><span class="f__label">Client ID</span></div>
+      <div class="f__shell">
+        <input class="f__input" type="text" value="0oa1b2c3d4EXAMPLE" />
+      </div>
+      <p class="hint">The Client ID of an Okta app of type SPA.</p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn--primary">Add Okta</button>
+    </div>
+
+    <!-- Unpinned, but still the ink square: the pattern does not change with
+         the viewport, only its position does. -->
+    <div class="go-row" style="padding-top: 6px">
+      <button type="button" class="go" aria-label="Finish setup" title="Finish setup">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>
       </button>
-      <button type="button" class="btn btn--primary" style="min-width: 10rem">Continue</button>
-      <button type="button" class="setup__skip">No Host</button>
+      <span class="go-verb" aria-hidden="true">Finish setup</span>
     </div>
 
-    <p class="hint" style="border-top: 1px solid var(--line); padding-top: 12px">Above 640px the ceremony is the same column, centred — the phone layout is the layout. Only the thumb bar unpins: on a wide viewport the action sits with the content it commits, because there is no thumb to reach with.</p>
+    <p class="hint" style="border-top: 1px solid var(--line); padding-top: 12px">Above 640px the ceremony is the same column, centred — the phone layout is the layout. Only the thumb bar unpins: on a wide viewport the action sits with the content it commits, because there is no thumb to reach with. `Add Okta` stays a text button because it acts <em>inside</em> the card; the square is what ends the screen.</p>
   </div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1120,"height":760}}'>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1120,"height":860}}'>
 class Component extends DCLogic {
   renderVals() {
     return { theme: this.props.theme || "light" };

@@ -1,14 +1,61 @@
 {
   "pages": [
-    { "id": "page-1", "name": "Ceremony" },
-    { "id": "page-2", "name": "Navigation model" }
+    {
+      "id": "page-1",
+      "name": "Ceremony"
+    },
+    {
+      "id": "page-2",
+      "name": "Navigation model"
+    }
   ],
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Setup, on a phone", "is_interactive": true },
-    { "file": "WayIn.dc.html", "x": 510, "y": 0, "w": 840, "h": 900, "page": "page-1", "title": "The way in: today vs after" },
-    { "file": "Wide.dc.html", "x": 0, "y": 1060, "w": 1120, "h": 760, "page": "page-1", "title": "Above 640px" },
-    { "file": "ModelStepper.dc.html", "x": 0, "y": 0, "w": 390, "h": 680, "page": "page-2", "title": "Option A — chosen" },
-    { "file": "ModelChecklist.dc.html", "x": 510, "y": 0, "w": 390, "h": 680, "page": "page-2", "title": "Option B" }
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "page": "page-1",
+      "title": "Setup, on a phone",
+      "is_interactive": true
+    },
+    {
+      "file": "WayIn.dc.html",
+      "x": 510,
+      "y": 0,
+      "w": 840,
+      "h": 900,
+      "page": "page-1",
+      "title": "The way in: today vs after"
+    },
+    {
+      "file": "Wide.dc.html",
+      "x": 0,
+      "y": 1060,
+      "w": 1120,
+      "h": 900,
+      "page": "page-1",
+      "title": "Above 640px"
+    },
+    {
+      "file": "ModelStepper.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 680,
+      "page": "page-2",
+      "title": "Model A \u2014 built, then outgrown"
+    },
+    {
+      "file": "ModelChecklist.dc.html",
+      "x": 510,
+      "y": 0,
+      "w": 390,
+      "h": 680,
+      "page": "page-2",
+      "title": "Model B"
+    }
   ],
   "annotations": [
     {
@@ -17,7 +64,7 @@
       "y": -190,
       "w": 470,
       "page": "page-1",
-      "text": "Start here — this artboard is live.\n\nWalk the four steps: type an Identity API (or tap the fill chip), pick a provider preset, then Continue. On step 3 press \"Find my daemon\" to watch discovery settle. The rail at the top jumps straight to any step."
+      "text": "Start here \u2014 this artboard is live.\n\nSetup's answer is a list, and the list is an allowlist: the sign-in screen offers exactly what is on it. The compiled-in broker is already a way in. Pick a preset, fill an issuer and a client id, and Add \u2014 a provider you configure IS the identity service (ADR 0078), with nothing of ours behind it. Bin any row to take it away; empty the list to see what a deployment with no accounts says."
     },
     {
       "id": "wayin-note",
@@ -25,7 +72,7 @@
       "y": -190,
       "w": 470,
       "page": "page-1",
-      "text": "The complaint, and the answer.\n\nLeft is what ships today: an amber wall the reader cannot act on, above an Unlock tab. Right is after setup — the notice is gone, Unlock is withheld while there is no sealed vault to open, and the deployment it is pointed at reads along the foot."
+      "text": "The complaint, and the answer.\n\nLeft is what shipped: an amber wall the reader cannot act on, above an Unlock tab. Right is after setup \u2014 the notice is gone, Unlock is withheld while there is no sealed vault to open, and the provider the deployment signs people in with reads along the foot."
     },
     {
       "id": "model-note",
@@ -33,8 +80,11 @@
       "y": -190,
       "w": 470,
       "page": "page-2",
-      "text": "The one open decision: how setup is navigated on a phone.\n\nA is built. B is drawn because it is the app's existing ceremony vocabulary and deserved a fair hearing — its cost is that the finishing action moves whenever a row opens, which is exactly the mobile complaint."
+      "text": "How setup is navigated on a phone.\n\nA was built while setup asked four questions, and outgrown when it asked one: a progress rail over a single step is furniture. B is drawn because it is the app's existing ceremony vocabulary and deserved a fair hearing \u2014 its cost is that the finishing action moves whenever a row opens, which is exactly the mobile complaint."
     }
   ],
-  "launch": { "view": "canvas", "page": "page-1" }
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
 }
