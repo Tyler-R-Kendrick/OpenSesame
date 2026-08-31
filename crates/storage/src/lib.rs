@@ -6816,6 +6816,9 @@ macro_rules! optional_sealed_material {
 // module declared above its definition cannot see it.
 mod managed_certs;
 
+mod shared_sessions;
+pub use shared_sessions::StoredSession;
+
 mod lifecycle;
 pub use lifecycle::{
     StoredLifecycleDelivery, StoredLifecycleHook, StoredLifecycleWatermark, DELIVERY_BATCH_LIMIT,
