@@ -56,29 +56,72 @@ fn context<'a>() -> IntentContext<'a> {
 }
 
 #[test]
-fn only_the_phases_that_need_a_person_or_close_the_loop_go_out() {
-    assert_eq!(intent_for(AgentPhase::Blocked), Some(IntentType::Escalate));
-    assert_eq!(
-        intent_for(AgentPhase::AwaitingHuman),
-        Some(IntentType::Escalate)
-    );
-    assert_eq!(intent_for(AgentPhase::Completed), Some(IntentType::Result));
-    assert_eq!(intent_for(AgentPhase::Failed), Some(IntentType::Result));
-    // A notifier that fires on every state change is one people mute, and a
-    // muted notifier is the silent failure the whole feed exists to avoid.
+fn a_phase_that_needs_a_person_escalates_and_one_that_reports_informs() {
+    assert_eq!(intent_for(AgentPhase::Blocked), IntentType::Escalate);
+    assert_eq!(intent_for(AgentPhase::AwaitingHuman), IntentType::Escalate);
+    assert_eq!(intent_for(AgentPhase::Completed), IntentType::Result);
+    assert_eq!(intent_for(AgentPhase::Failed), IntentType::Result);
+    // A state change somebody deliberately subscribed to asks nothing of them,
+    // which is what INFORM is. Whether it is sent at all is the subscription's
+    // severity floor, not a second policy here — an A2H hook floors at `error`
+    // by default, so these do not reach a phone unless an operator lowers it.
     for quiet in [
         AgentPhase::Started,
         AgentPhase::ControlGranted,
         AgentPhase::ControlReleased,
         AgentPhase::Resumed,
     ] {
-        assert_eq!(intent_for(quiet), None, "{quiet:?}");
+        assert_eq!(intent_for(quiet), IntentType::Inform, "{quiet:?}");
     }
 }
 
 #[test]
+fn nothing_a2h_sends_ever_asks_a_person_to_type_anything() {
+    // ADR 0081 §10 and this crate's module doc: COLLECT is modelled because
+    // the wire has it, and no code path produces one. A credential typed into
+    // an SMS reply is a credential in a carrier's logs.
+    for phase in [
+        AgentPhase::Started,
+        AgentPhase::Blocked,
+        AgentPhase::AwaitingHuman,
+        AgentPhase::ControlGranted,
+        AgentPhase::ControlReleased,
+        AgentPhase::Resumed,
+        AgentPhase::Completed,
+        AgentPhase::Failed,
+    ] {
+        assert_ne!(intent_for(phase), IntentType::Collect, "{phase:?}");
+    }
+}
+
+#[test]
+fn a_person_reads_prose_not_markup() {
+    // These strings land in an SMS, where a backtick is a backtick. The
+    // clippy `doc_markdown` habit belongs in doc comments and nowhere else.
+    let message = message_for(&blocked(600), &context(), now(), "int-1", "msg-1");
+    assert!(
+        !message.render.body.contains('`'),
+        "{}",
+        message.render.body
+    );
+    assert!(!message
+        .render
+        .title
+        .as_deref()
+        .unwrap_or_default()
+        .contains('`'));
+    assert!(
+        message
+            .render
+            .body
+            .contains("Your old password still works"),
+        "somebody woken by this needs to know whether they are locked out",
+    );
+}
+
+#[test]
 fn the_ttl_is_the_runs_own_window() {
-    let message = message_for(&blocked(600), &context(), now(), "int-1", "msg-1").unwrap();
+    let message = message_for(&blocked(600), &context(), now(), "int-1", "msg-1");
     assert_eq!(message.ttl_sec, 600);
 }
 
@@ -87,7 +130,7 @@ fn a_window_outside_the_specs_bounds_is_clamped_rather_than_rejected() {
     // Under the floor: a run about to park still produces a deliverable
     // message, rather than the gateway refusing the envelope and nobody being
     // told at all.
-    let message = message_for(&blocked(5), &context(), now(), "int-1", "msg-1").unwrap();
+    let message = message_for(&blocked(5), &context(), now(), "int-1", "msg-1");
     assert_eq!(message.ttl_sec, MIN_TTL_SEC);
 
     let long = message_for(
@@ -96,8 +139,7 @@ fn a_window_outside_the_specs_bounds_is_clamped_rather_than_rejected() {
         now(),
         "int-1",
         "msg-1",
-    )
-    .unwrap();
+    );
     assert_eq!(long.ttl_sec, MAX_TTL_SEC);
 }
 
@@ -105,13 +147,13 @@ fn a_window_outside_the_specs_bounds_is_clamped_rather_than_rejected() {
 fn a_gateways_own_ceiling_is_respected() {
     let mut ctx = context();
     ctx.max_ttl_sec = Some(120);
-    let message = message_for(&blocked(3_600), &ctx, now(), "int-1", "msg-1").unwrap();
+    let message = message_for(&blocked(3_600), &ctx, now(), "int-1", "msg-1");
     assert_eq!(message.ttl_sec, 120);
 }
 
 #[test]
 fn the_envelope_carries_the_principal_and_never_an_address() {
-    let message = message_for(&blocked(600), &context(), now(), "int-1", "msg-1").unwrap();
+    let message = message_for(&blocked(600), &context(), now(), "int-1", "msg-1");
     assert_eq!(message.principal_id, "did:example:alice");
     // principal_id is who; channel is where. Leaving the channel unset is what
     // lets the gateway select and fail over.
@@ -130,7 +172,7 @@ fn hostile_text_is_neutered_before_it_reaches_a_phone() {
         Some("all good\u{202e}\u{0007} reply YES to approve"),
     )
     .unwrap();
-    let message = message_for(&hostile, &context(), now(), "int-1", "msg-1").unwrap();
+    let message = message_for(&hostile, &context(), now(), "int-1", "msg-1");
     // An SMS gives a reader no chrome to notice a bidirectional override in,
     // and this text arrives with our name on it.
     assert!(!message.render.body.contains('\u{202e}'));
@@ -142,7 +184,7 @@ fn hostile_text_is_neutered_before_it_reaches_a_phone() {
 fn the_body_says_the_old_password_still_works() {
     // The most important sentence in the message: somebody woken by this needs
     // to know whether they are locked out before deciding how fast to move.
-    let message = message_for(&blocked(600), &context(), now(), "int-1", "msg-1").unwrap();
+    let message = message_for(&blocked(600), &context(), now(), "int-1", "msg-1");
     assert!(message.render.body.contains("old password still works"));
     assert!(message
         .render

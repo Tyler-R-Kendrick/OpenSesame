@@ -170,6 +170,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/security-events` | Shared security-event envelope, severity ladder, and Alertmanager v2 / `PagerDuty` v2 / RFC 5424 renderers — pure, no I/O (ADR 0080) |
 | `crates/breach-intel` | Value-blind breach detection: Pwned Passwords k-anonymity, public breach-catalogue matching, frozen `breach.*` events (ADR 0080) |
 | `crates/agent-events` | Frozen `agent.*` vocabulary for sandboxed runs, and the `SecurityNotice` conversion that puts them on ADR 0080's feed — pure, value-blind (ADR 0081) |
+| `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification. A reply may only narrow authority (ADR 0081 §10) |
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store |
 | `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |

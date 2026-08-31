@@ -239,8 +239,11 @@ async fn send(
     // Not necessarily an envelope: rows queued before migration 0020 hold a
     // detector's flat payload, and they are delivered as they were written.
     let queued = sinks::decode(&delivery.payload_json);
-    let rendered =
-        sinks::render_queued(kind, &queued, secret.as_deref()).map_err(Failure::Permanent)?;
+    let rendered = if kind == Delivery::A2h {
+        render_a2h(state, &queued, secret.as_deref(), delivery)?
+    } else {
+        sinks::render_queued(kind, &queued, secret.as_deref()).map_err(Failure::Permanent)?
+    };
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
@@ -251,7 +254,11 @@ async fn send(
         .map_err(|error| Failure::Retryable(format!("http client: {error}")))?;
 
     let mut request = client
-        .post(endpoint)
+        .post(format!(
+            "{}{}",
+            endpoint.trim_end_matches('/'),
+            rendered.path
+        ))
         .header("content-type", "application/json");
     for (name, value) in signature_headers(kind, secret.as_deref(), delivery, &rendered.body)? {
         request = request.header(name, value);
@@ -266,7 +273,100 @@ async fn send(
         .await
         .map_err(|error| Failure::Retryable(format!("request failed: {error}")))?;
 
+    if kind == Delivery::A2h {
+        return classify_a2h(response).await;
+    }
     classify(response.status())
+}
+
+/// Render one queued row as an A2H intent, with the deployment context the
+/// protocol needs and a notice does not carry.
+fn render_a2h(
+    state: &AppState,
+    queued: &sinks::Queued,
+    secret: Option<&str>,
+    delivery: &StoredSecurityDelivery,
+) -> Result<sinks::Rendered, Failure> {
+    let sinks::Queued::Notice(notice) = queued else {
+        // The A2H sink did not exist before migration 0020, so a legacy row
+        // bound for one is a genuine inconsistency rather than an upgrade
+        // artifact.
+        return Err(Failure::Permanent(
+            "a delivery queued before migration 0020 cannot be rendered as an a2h intent".into(),
+        ));
+    };
+    let public_url = state.connection_broker.config().public_url().to_string();
+    let agent_id = crate::config::a2h_agent_id(&public_url);
+    let attach_url = run_attach_url(&public_url, &notice.subject_id);
+    sinks::render_a2h(
+        notice,
+        secret,
+        &sinks::A2hContext {
+            agent_id: &agent_id,
+            callback_url: &format!("{public_url}/api/v1/a2h/callback"),
+            attach_url: &attach_url,
+            delivery_id: &delivery.id,
+        },
+    )
+    .map_err(Failure::Permanent)
+}
+
+/// Where a person is sent to watch or take over the run this is about.
+fn run_attach_url(public_url: &str, subject_id: &str) -> String {
+    format!(
+        "{}/runs?origin={}",
+        crate::config::a2h_attach_base(public_url),
+        urlencoding_query(subject_id),
+    )
+}
+
+/// Percent-encode a value for a query string.
+///
+/// The subject id is an origin — `https://example.com` — whose `:` and `/`
+/// would otherwise be read as structure by whatever opens the link.
+fn urlencoding_query(value: &str) -> String {
+    value
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                (byte as char).to_string()
+            }
+            other => format!("%{other:02X}"),
+        })
+        .collect()
+}
+
+/// Classify an A2H gateway's answer.
+///
+/// Different from [`classify`] in one way that matters: a 4xx here is not
+/// automatically permanent. A2H's `ERR.QUIET_HOURS` and `ERR.RATE_LIMITED`
+/// arrive as client errors and mean *nobody has been told yet* — recording
+/// that as delivered is how a blocked run's response window expires with the
+/// person it was waiting for never hearing about it. So the body's error code
+/// decides, and only the codes that retrying cannot fix are permanent.
+async fn classify_a2h(response: reqwest::Response) -> Result<(), Failure> {
+    let status = response.status();
+    if status.is_success() {
+        return Ok(());
+    }
+    let code = response
+        .json::<serde_json::Value>()
+        .await
+        .ok()
+        .and_then(|body| {
+            serde_json::from_value::<opensesame_a2h::ErrorCode>(body["error"].clone()).ok()
+        });
+    match code.map(opensesame_a2h::DeliveryOutcome::for_error) {
+        Some(opensesame_a2h::DeliveryOutcome::Permanent) => {
+            Err(Failure::Permanent(format!("a2h refused: {status}")))
+        }
+        // Suppressed and Retryable both stay in the ledger: nobody has been
+        // told yet, and giving up here is the silent failure.
+        Some(_) => Err(Failure::Retryable(format!("a2h deferred: {status}"))),
+        // No recognizable code. Fall back to the shape of the status, which is
+        // the same reading every other sink gets.
+        None => classify(status),
+    }
 }
 
 /// Standard Webhooks headers, for the one sink that uses them.
@@ -354,6 +454,23 @@ fn url_host(endpoint: &str) -> Option<String> {
 /// ingest API is unauthenticated by design. A sink that genuinely needs the
 /// material refuses in `sinks::render`, where the requirement is stated once
 /// per sink rather than guessed here.
+/// The hook's sealed secret, for callers outside this module.
+///
+/// The A2H callback route needs the same secret this module sends, because A2H
+/// uses one shared secret in both directions: we put it in `callback.secret`
+/// and the gateway signs its reply with it.
+///
+/// # Errors
+///
+/// Returns the reason the secret could not be opened, never the ciphertext.
+pub fn open_hook_secret(state: &AppState, hook: &StoredSecurityHook) -> anyhow::Result<String> {
+    match open_secret(state, hook) {
+        Ok(Some(secret)) => Ok(secret),
+        Ok(None) => Err(anyhow::anyhow!("hook carries no sealed secret")),
+        Err(failure) => Err(anyhow::anyhow!(failure.detail().to_string())),
+    }
+}
+
 fn open_secret(state: &AppState, hook: &StoredSecurityHook) -> Result<Option<String>, Failure> {
     let Some(material) = hook.sealed_secret.as_ref() else {
         return Ok(None);

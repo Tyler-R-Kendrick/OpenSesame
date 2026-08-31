@@ -3847,6 +3847,7 @@ dependencies = [
  "http-body-util",
  "insta",
  "instant-acme",
+ "opensesame-a2h",
  "opensesame-agent-events",
  "opensesame-audit",
  "opensesame-authn",

@@ -1,3 +1,4 @@
+mod a2h;
 mod aauth;
 mod admin;
 mod agents;
@@ -469,6 +470,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/security/findings", get(security::list_findings))
         .route("/api/v1/security/breach-scan", post(security::scan))
         .route("/api/v1/security/breach-check", post(security::check))
+        // Unauthenticated by design: the A2H signature is the authentication,
+        // which is what lets a third-party gateway reach it with no session.
+        .route("/api/v1/a2h/callback", post(a2h::callback))
         // WP-9: durable rotation policies (owner/admin configuration surface).
         .route(
             "/api/v1/rotation/policies",

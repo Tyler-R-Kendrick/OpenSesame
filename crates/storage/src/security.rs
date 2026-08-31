@@ -4,8 +4,9 @@
 //!
 //! - [`StoredSecurityHook`] — who subscribes, to which events, at what
 //!   severity, and where it is delivered. Sealed material — a Standard
-//!   Webhooks signing secret or a `PagerDuty` routing key — lives in a sealed
-//!   column group and never renders through `Debug`.
+//!   Webhooks signing secret, a `PagerDuty` routing key, or an A2H callback
+//!   secret — lives in a sealed column group and never renders through
+//!   `Debug`.
 //! - [`StoredLifecycleWatermark`] — how far up each expiry ladder a subject has
 //!   been reported, so a rung fires exactly once.
 //! - [`StoredBreachFinding`] — what the breach scanner has already reported,
@@ -52,7 +53,7 @@ pub struct StoredSecurityHook {
     /// Frozen event types from any family, or a family wildcard
     /// (`lifecycle.*`, `breach.*`).
     pub event_types: Vec<String>,
-    /// `webhook`, `internal`, `alertmanager`, or `pagerduty`.
+    /// `webhook`, `internal`, `alertmanager`, `pagerduty`, or `a2h`.
     pub delivery: String,
     /// Absolute `https://` endpoint for every outbound delivery; `None` for an
     /// internal responder.
@@ -519,6 +520,30 @@ impl Db {
     }
 
     // —— delivery ledger ——————————————————————————————————————————
+
+    /// One delivery row, by id alone.
+    ///
+    /// Deliberately untenanted, because the one caller is the A2H callback,
+    /// which a third-party gateway reaches with no session: the request's
+    /// signature is its authentication, and the tenant is *derived* from the
+    /// row rather than asserted by the caller. Nothing about the lookup is
+    /// observable — every failed check on that route answers identically, so a
+    /// caller cannot use it to learn whether an id exists.
+    ///
+    /// # Errors
+    ///
+    /// Propagates database failures.
+    pub async fn get_security_delivery(
+        &self,
+        delivery_id: &str,
+    ) -> anyhow::Result<Option<StoredSecurityDelivery>> {
+        let row = sqlx::query("SELECT * FROM security_deliveries WHERE id = ?")
+            .bind(delivery_id)
+            .fetch_optional(&self.pool)
+            .await
+            .context("get security delivery")?;
+        Ok(row.as_ref().map(delivery_from_row))
+    }
 
     /// Queue one delivery.
     ///

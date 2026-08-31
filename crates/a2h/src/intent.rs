@@ -81,25 +81,33 @@ pub fn authority_for(
     }
 }
 
-/// Which phases actually reach a person, and as what.
+/// What a phase reaches a person *as*.
 ///
-/// Deliberately not every phase. A notifier that fires on each state change is
-/// one people mute, and a muted notifier is exactly the silent failure
-/// ADR 0052 §11 is about — the user believes they would be told, and they would
-/// not be. So control transitions and run starts are modelled and default off;
-/// what goes out is the two phases that need a person and the two that close
-/// the loop.
+/// Total, and deliberately so. An earlier draft returned `None` for the phases
+/// that should not wake anybody — a notifier firing on every state change is
+/// one people mute, and a muted notifier is the silent failure ADR 0052 §11 is
+/// about. But "which events are loud enough to send" is already a property of
+/// the subscription: ADR 0080 §2 gives every hook a `severity_min`, and the
+/// agent family maps its quiet phases to `Info` and its stuck ones to `Error`.
+///
+/// Hard-coding a second answer here would mean two policies that can disagree,
+/// and the one a reader finds first would be wrong half the time. So this
+/// answers only "as what", the subscription answers "whether", and an A2H hook
+/// defaults its floor to `error` so registering one still does not sign a
+/// person up for a text every time an agent takes a page.
 #[must_use]
-pub fn intent_for(phase: AgentPhase) -> Option<IntentType> {
+pub const fn intent_for(phase: AgentPhase) -> IntentType {
     match phase {
         // "The agent cannot continue; a human must take over" is what ESCALATE
         // is for.
-        AgentPhase::Blocked | AgentPhase::AwaitingHuman => Some(IntentType::Escalate),
-        AgentPhase::Completed | AgentPhase::Failed => Some(IntentType::Result),
+        AgentPhase::Blocked | AgentPhase::AwaitingHuman => IntentType::Escalate,
+        AgentPhase::Completed | AgentPhase::Failed => IntentType::Result,
+        // A state change somebody deliberately subscribed to. It asks nothing,
+        // which is exactly INFORM.
         AgentPhase::Started
         | AgentPhase::ControlGranted
         | AgentPhase::ControlReleased
-        | AgentPhase::Resumed => None,
+        | AgentPhase::Resumed => IntentType::Inform,
     }
 }
 
@@ -136,8 +144,7 @@ pub struct IntentContext<'a> {
     pub max_ttl_sec: Option<i64>,
 }
 
-/// Build the A2H message for an agent event, or `None` when this phase does not
-/// reach a person.
+/// Build the A2H message for an agent event.
 ///
 /// The TTL is the run's own remaining window, never an independently chosen
 /// number: a notification that outlives the thing it is about asks somebody to
@@ -150,10 +157,10 @@ pub fn message_for(
     now: DateTime<Utc>,
     interaction_id: &str,
     message_id: &str,
-) -> Option<A2hMessage> {
-    let intent_type = intent_for(event.phase)?;
+) -> A2hMessage {
+    let intent_type = intent_for(event.phase);
     let ttl_sec = ttl_for(event, context.max_ttl_sec, now);
-    Some(A2hMessage {
+    A2hMessage {
         a2h_version: A2H_VERSION.to_string(),
         interaction_id: interaction_id.to_string(),
         intent_type,
@@ -168,11 +175,11 @@ pub fn message_for(
         created_at: now.to_rfc3339(),
         explanation_bundle: Some(serde_json::json!({
             "why": format!(
-                "`OpenSesame` is rotating a saved password at {}.",
+                "OpenSesame is rotating a saved password at {}.",
                 event.run.origin
             ),
         })),
-    })
+    }
 }
 
 /// The interaction's lifetime, from the run's deadline.
@@ -202,28 +209,38 @@ fn render_for(event: &AgentEvent, attach_url: Option<&str>) -> RenderContent {
         AgentPhase::Blocked | AgentPhase::AwaitingHuman => "Password change needs you",
         AgentPhase::Completed => "Password changed",
         AgentPhase::Failed => "Password change failed",
-        _ => "`OpenSesame`",
+        AgentPhase::Started => "Password change started",
+        AgentPhase::ControlGranted => "You have the page",
+        AgentPhase::ControlReleased => "Password change is paused",
+        AgentPhase::Resumed => "Password change resumed",
     };
+    let site = origin.as_untrusted_str();
     let mut body = match event.phase {
         AgentPhase::Blocked | AgentPhase::AwaitingHuman => format!(
-            "`OpenSesame` stopped part-way through changing your password at {}. \
-             Your old password still works. Open `OpenSesame` to see what happened \
-             and finish it.",
-            origin.as_untrusted_str()
+            "OpenSesame stopped part-way through changing your password at {site}. \
+             Your old password still works. Open OpenSesame to see what happened \
+             and finish it."
         ),
-        AgentPhase::Completed => format!(
-            "`OpenSesame` finished changing your password at {}. The new one is saved.",
-            origin.as_untrusted_str()
-        ),
+        AgentPhase::Completed => {
+            format!("OpenSesame finished changing your password at {site}. The new one is saved.")
+        }
         AgentPhase::Failed => format!(
-            "`OpenSesame` could not change your password at {}. Your old password \
-             still works and nothing was changed.",
-            origin.as_untrusted_str()
+            "OpenSesame could not change your password at {site}. Your old password \
+             still works and nothing was changed."
         ),
-        _ => format!(
-            "`OpenSesame` has an update about {}.",
-            origin.as_untrusted_str()
+        AgentPhase::Started => {
+            format!("OpenSesame has started changing your password at {site}.")
+        }
+        AgentPhase::ControlGranted => {
+            format!("You are now driving the password change at {site}. OpenSesame is waiting.")
+        }
+        AgentPhase::ControlReleased => format!(
+            "The password change at {site} is paused and waiting to resume. \
+             Your old password still works."
         ),
+        AgentPhase::Resumed => {
+            format!("OpenSesame has resumed changing your password at {site}.")
+        }
     };
     if let Some(detail) = &event.detail {
         let hint = UntrustedText::capture(detail);

@@ -18,6 +18,9 @@ half is [ADR 0081](../adr/0081-live-session-observation.md).
 | `breach.*` | a stored password in a public corpus; a provider that announced an incident; a corpus that could not be consulted | `store_path`, `connection_credential`, `source` |
 | `agent.*` | a sandboxed run rotating a web login: started, blocked, waiting for you, control taken and handed back, resumed, completed, failed | `web_login` |
 
+`agent.*` is the only family that names a *person* — the run's owner — which is
+what makes it the only one an A2H subscription can carry.
+
 Subscribe by exact name, by family wildcard (`agent.*`), or by `*` for
 everything the platform detects, now and later. `GET /api/v1/lifecycle/expiring`
 advertises the full vocabulary; anything it lists is registrable.
@@ -100,6 +103,50 @@ curl -sS -X PUT http://127.0.0.1:8787/api/v1/security/hooks \
 `secret` is the Events API v2 routing key. It is sealed at rest and returned
 exactly once, in the registration response — losing it means re-registering,
 not recovering it.
+
+### A person's phone, over A2H
+
+The one sink whose audience is a human rather than an on-call system. `OpenSesame`
+is an A2H v1.0 *client*: it hands an intent to whichever gateway you configure —
+Twilio's, or a self-hosted one — and that gateway owns channel selection,
+failover, quiet hours and evidence collection. `endpoint_url` is the gateway's
+base URL; intents go to `/v1/intent` under it.
+
+```bash
+curl -sX PUT "$HOST/api/v1/lifecycle/hooks" -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' -d '{
+    "name": "on-call phone",
+    "delivery": "a2h",
+    "endpoint_url": "https://a2h.example",
+    "event_types": ["agent.*"],
+    "secret": "whsec_..."
+  }'
+```
+
+Three things differ from the other sinks:
+
+- **It must name at least one `agent.*` event.** Only an agent run carries the
+  principal to reach; a lifecycle or breach notice names a certificate or a
+  store path, not a person. A subscription that could never render an intent is
+  refused at registration rather than dead-lettering rows at 04:00.
+- **Its severity floor defaults to `error`,** not `info`. Registering a phone
+  should not sign somebody up for a text every time an agent takes a page. Pass
+  `"severity_min": "info"` if you do want the quiet phases.
+- **The secret runs both ways.** Every other sink is fire-and-forget; an A2H
+  gateway posts the person's reply back to `/api/v1/a2h/callback`, and the
+  `whsec_` secret verifying `X-A2H-Signature` is the only thing separating that
+  from a stranger claiming somebody answered.
+
+A reply may only *narrow* what is happening: acknowledge, or cancel the run. It
+can never grant the control lease or resume autonomy, at any assurance level —
+taking the page needs the viewer key the observation log is sealed to, and
+resuming needs the run's preconditions re-asserted against the live page. A
+phone has neither.
+
+`ERR.QUIET_HOURS` and `ERR.RATE_LIMITED` are **not** delivery. A gateway that
+suppressed a message has told nobody, so the row stays in the ledger and is
+retried rather than being recorded as sent — otherwise a blocked run's response
+window expires with the person it was waiting for never hearing about it.
 
 ### Your own service
 

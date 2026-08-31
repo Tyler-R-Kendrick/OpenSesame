@@ -7,9 +7,28 @@
 //! module is the thin layer that picks a renderer, decides the headers, and
 //! keeps the webhook body backward compatible.
 
+use chrono::Utc;
+use opensesame_agent_events::AgentEvent;
 use opensesame_security_events::render::{alertmanager, pagerduty};
 use opensesame_security_events::{Delivery, SecurityNotice};
 use serde_json::{json, Map, Value};
+
+/// Everything an A2H intent needs that a notice does not carry.
+///
+/// Passed through rather than read from the environment here so rendering
+/// stays pure and testable: the delivery worker knows the deployment's public
+/// URL and the row's id, and this module knows the protocol.
+pub struct A2hContext<'a> {
+    pub agent_id: &'a str,
+    pub callback_url: &'a str,
+    pub attach_url: &'a str,
+    /// The ledger row's id, used as both the A2H `interaction_id` and its
+    /// `message_id`. The ledger is at-least-once by design and the spec makes
+    /// `message_id` the idempotency key, so a retry of the same row is
+    /// deduplicated at the gateway rather than sending a second SMS to
+    /// somebody who already got one.
+    pub delivery_id: &'a str,
+}
 
 /// One rendered request, minus the endpoint the hook row already carries.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -17,6 +36,11 @@ pub struct Rendered {
     pub body: String,
     /// Headers beyond `content-type: application/json`.
     pub headers: Vec<(String, String)>,
+    /// Appended to the hook's endpoint. Empty for every sink whose stored URL
+    /// is the full destination; `/v1/intent` for A2H, whose row holds a gateway
+    /// *base* URL because the same gateway also serves `/.well-known/a2h` and
+    /// `/v1/status/{id}`.
+    pub path: &'static str,
 }
 
 /// The body delivered to a Standard Webhooks subscriber.
@@ -90,6 +114,7 @@ pub fn render_queued(
         Queued::Legacy(body) if delivery == Delivery::Webhook => Ok(Rendered {
             body: body.clone(),
             headers: Vec::new(),
+            path: "",
         }),
         Queued::Legacy(_) => Err(format!(
             "a delivery queued before migration 0020 cannot be rendered for the \"{}\" sink, \
@@ -124,7 +149,66 @@ pub fn render(
         Delivery::Internal => {
             Err("an internal responder runs in process and is never delivered".to_string())
         }
+        // Handled by `render_a2h`, which needs deployment context a notice does
+        // not carry. Reaching here means a caller took the wrong branch.
+        Delivery::A2h => Err("an a2h delivery is rendered with its own context".to_string()),
     }
+}
+
+/// Render a notice as an A2H intent.
+///
+/// Separate from [`render`] because A2H is the one sink whose audience is a
+/// *person*, which costs it two things a notice alone cannot supply: somebody
+/// to reach, and somewhere to send them.
+///
+/// Only the `agent.*` family carries an owner principal, so only it can be
+/// rendered. That is a refusal rather than a silent skip: a lifecycle or breach
+/// notice queued against an A2H hook has nobody to address, and settling the
+/// row quietly would leave an operator with a subscription that looks live and
+/// never sends. Registration refuses the same shape up front, so reaching this
+/// means a hook was narrowed after rows were already queued.
+///
+/// # Errors
+///
+/// Returns the reason when the notice names nobody to reach or cannot be
+/// encoded. Both are permanent: retrying changes neither.
+pub fn render_a2h(
+    notice: &SecurityNotice,
+    secret: Option<&str>,
+    context: &A2hContext<'_>,
+) -> Result<Rendered, String> {
+    let secret = secret
+        .ok_or_else(|| "a2h hook has no callback secret; re-register it with one".to_string())?;
+    let event = AgentEvent::from_payload(&notice.payload).ok_or_else(|| {
+        format!(
+            "an a2h delivery needs somebody to reach, and \"{}\" names no run owner",
+            notice.event_type,
+        )
+    })?;
+    let intent = opensesame_a2h::message_for(
+        &event,
+        &opensesame_a2h::IntentContext {
+            agent_id: context.agent_id,
+            // Left unset on purpose: choosing the channel is the gateway's job,
+            // and it is the reason to speak this protocol rather than five APIs.
+            channel: None,
+            callback: Some(opensesame_a2h::CallbackConfig {
+                url: context.callback_url.to_string(),
+                secret: secret.to_string(),
+            }),
+            attach_url: Some(context.attach_url),
+            max_ttl_sec: None,
+        },
+        Utc::now(),
+        context.delivery_id,
+        context.delivery_id,
+    );
+    encode_at(
+        &serde_json::to_value(&intent)
+            .map_err(|error| format!("a2h intent could not be encoded: {error}"))?,
+        Vec::new(),
+        "/v1/intent",
+    )
 }
 
 /// An optional bearer header for an Alertmanager behind an authenticating
@@ -140,8 +224,20 @@ fn bearer(secret: Option<&str>) -> Vec<(String, String)> {
 }
 
 fn encode(body: &Value, headers: Vec<(String, String)>) -> Result<Rendered, String> {
+    encode_at(body, headers, "")
+}
+
+fn encode_at(
+    body: &Value,
+    headers: Vec<(String, String)>,
+    path: &'static str,
+) -> Result<Rendered, String> {
     serde_json::to_string(body)
-        .map(|body| Rendered { body, headers })
+        .map(|body| Rendered {
+            body,
+            headers,
+            path,
+        })
         .map_err(|error| format!("sink body could not be encoded: {error}"))
 }
 
@@ -325,5 +421,87 @@ mod tests {
             assert!(!rendered.body.is_empty(), "{delivery:?}");
             assert!(!rendered.body.contains("hunter2"), "{delivery:?}");
         }
+    }
+    fn a2h_context() -> A2hContext<'static> {
+        A2hContext {
+            agent_id: "did:web:host.example",
+            callback_url: "https://host.example/api/v1/a2h/callback",
+            attach_url: "https://pages.example/runs?origin=https%3A%2F%2Fexample.com",
+            delivery_id: "secd_1",
+        }
+    }
+
+    fn blocked_run_notice() -> SecurityNotice {
+        use opensesame_agent_events::{AgentEvent, AgentPhase, AgentRun};
+        let now: chrono::DateTime<chrono::Utc> = "2026-08-30T00:00:00Z".parse().unwrap();
+        AgentEvent::waiting(
+            AgentRun {
+                run_id: "run:1".into(),
+                job_id: "job:1".into(),
+                organization_id: "org-1".into(),
+                owner_principal_id: "principal:alice".into(),
+                origin: "https://example.com".into(),
+                tier: "t4".into(),
+                control_state: "suspended".into(),
+            },
+            AgentPhase::Blocked,
+            now,
+            now + chrono::Duration::seconds(3_600),
+            Some("step-up challenge"),
+        )
+        .unwrap()
+        .notice()
+    }
+
+    #[test]
+    fn an_a2h_intent_posts_to_the_gateways_intent_path() {
+        // The row holds a gateway *base* URL, because the same gateway serves
+        // /.well-known/a2h and /v1/status/{id} too.
+        let rendered = render_a2h(&blocked_run_notice(), Some("whsec_x"), &a2h_context()).unwrap();
+        assert_eq!(rendered.path, "/v1/intent");
+        for other in [
+            Delivery::Webhook,
+            Delivery::Alertmanager,
+            Delivery::PagerDuty,
+        ] {
+            assert_eq!(render(other, &notice(), Some("key")).unwrap().path, "");
+        }
+    }
+
+    #[test]
+    fn the_ledger_row_id_is_the_idempotency_key() {
+        // The ledger is at-least-once by design and A2H makes message_id the
+        // idempotency key, so a retry of one row is one text, not two.
+        let rendered = render_a2h(&blocked_run_notice(), Some("whsec_x"), &a2h_context()).unwrap();
+        let body: Value = serde_json::from_str(&rendered.body).unwrap();
+        assert_eq!(body["message_id"], json!("secd_1"));
+        assert_eq!(body["interaction_id"], json!("secd_1"));
+        assert_eq!(body["principal_id"], json!("principal:alice"));
+        // The wire spells it `type`, per A2H v1.0.
+        assert_eq!(body["type"], json!("ESCALATE"));
+    }
+
+    #[test]
+    fn a_notice_that_names_nobody_is_refused_with_a_reason() {
+        // A lifecycle or breach notice has no run owner, so there is nobody to
+        // text. Settling the row quietly would leave an operator with a
+        // subscription that looks live and never sends.
+        let refusal = render_a2h(&notice(), Some("whsec_x"), &a2h_context()).unwrap_err();
+        assert!(refusal.contains("names no run owner"), "{refusal}");
+    }
+
+    #[test]
+    fn an_a2h_hook_without_its_callback_secret_is_refused() {
+        // The secret runs in both directions: we send it, and the gateway signs
+        // the person's reply with it. Without one we could not tell a real
+        // reply from a forged cancel.
+        let refusal = render_a2h(&blocked_run_notice(), None, &a2h_context()).unwrap_err();
+        assert!(refusal.contains("callback secret"), "{refusal}");
+    }
+
+    #[test]
+    fn the_generic_renderer_refuses_a2h_rather_than_guessing() {
+        let refusal = render(Delivery::A2h, &blocked_run_notice(), Some("whsec_x")).unwrap_err();
+        assert!(refusal.contains("own context"), "{refusal}");
     }
 }

@@ -44,6 +44,50 @@ pub fn is_production_env() -> bool {
         || env::var("NODE_ENV").ok().as_deref() == Some("production")
 }
 
+/// Our A2H `agent_id` — the software identity a person sees attached to an
+/// escalation on their phone.
+///
+/// Defaults to `did:web:<host of the public URL>`, the form the A2H spec's own
+/// examples use, so a deployment that configures nothing still sends a stable
+/// identifier rather than an empty string. Read from the environment the same
+/// way [`dev_bootstrap_enabled`] is, and for the same reason: it is needed
+/// where threading a new field through `AppState` would buy nothing.
+#[must_use]
+pub fn a2h_agent_id(public_url: &str) -> String {
+    if let Ok(configured) = env::var("OPENSESAME_A2H_AGENT_ID") {
+        let trimmed = configured.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+    let host = public_url
+        .split("://")
+        .nth(1)
+        .unwrap_or(public_url)
+        .split(['/', ':'])
+        .next()
+        .filter(|host| !host.is_empty())
+        .unwrap_or("opensesame.local");
+    format!("did:web:{host}")
+}
+
+/// Where an escalation's deep link points — the surface a person opens to watch
+/// or take over a run.
+///
+/// Defaults to the gateway's own public URL. A deployment that serves the PWA
+/// somewhere else sets this, because a link to an API host is a link nobody can
+/// act on.
+#[must_use]
+pub fn a2h_attach_base(public_url: &str) -> String {
+    env::var("OPENSESAME_A2H_ATTACH_BASE")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| public_url.to_string())
+        .trim_end_matches('/')
+        .to_string()
+}
+
 pub fn dev_bootstrap_enabled() -> bool {
     env::var("OPENSESAME_DEV_BOOTSTRAP")
         .ok()
