@@ -239,12 +239,14 @@ pub struct HookBody {
     pub id: Option<String>,
     pub name: String,
     /// Frozen event types from any family, or a family wildcard
-    /// (`lifecycle.*`, `breach.*`, `*`).
+    /// (`lifecycle.*`, `breach.*`, `agent.*`, `*`).
     pub event_types: Vec<String>,
-    /// Absolute `https://` endpoint the sink is delivered to.
+    /// Absolute `https://` endpoint the sink is delivered to. For `webhook` it
+    /// receives Standard Webhooks deliveries; for `a2h` it is the A2H
+    /// gateway's base URL.
     pub endpoint_url: String,
-    /// `webhook` (default), `alertmanager`, or `pagerduty`. `internal` is
-    /// refused: a platform subscriber runs in process and is seeded by the
+    /// `webhook` (default), `alertmanager`, `pagerduty`, or `a2h`. `internal`
+    /// is refused: a platform subscriber runs in process and is seeded by the
     /// gateway, never registered over the API.
     pub delivery: Option<String>,
     /// Optional narrowing to particular subject kinds.
@@ -269,16 +271,37 @@ fn requested_delivery(body: &HookBody) -> Result<Delivery, Response> {
     let raw = body.delivery.as_deref().unwrap_or("webhook");
     match Delivery::parse(raw) {
         Some(Delivery::Internal) | None => Err(bad_request(
-            "delivery must be one of webhook, alertmanager, pagerduty",
+            "delivery must be one of webhook, alertmanager, pagerduty, a2h",
         )),
         Some(kind) => Ok(kind),
     }
 }
 
+/// The severity floor a registration gets when it names none.
+///
+/// `Info` for every sink that talks to a system, because taking everything and
+/// filtering downstream is what a webhook subscriber or an Alertmanager
+/// routing tree is for. `Error` for A2H, because that one wakes a *person*:
+/// registering it should not sign somebody up for a text every time an agent
+/// takes a page, and the two phases at `Error` are exactly the ones that leave
+/// a rotation not done.
+///
+/// An operator who wants the quiet ones says `severity_min: "info"` and gets
+/// them. This is a default, not a second policy — which is the point, because
+/// `opensesame_a2h::intent_for` deliberately has no opinion about it.
+const fn default_floor_for(kind: Delivery) -> Severity {
+    match kind {
+        Delivery::A2h => Severity::Error,
+        _ => Severity::Info,
+    }
+}
+
 /// The severity floor a request selects.
 #[allow(clippy::result_large_err)]
-fn requested_floor(body: &HookBody) -> Result<Severity, Response> {
-    let raw = body.severity_min.as_deref().unwrap_or("info");
+fn requested_floor(body: &HookBody, kind: Delivery) -> Result<Severity, Response> {
+    let Some(raw) = body.severity_min.as_deref() else {
+        return Ok(default_floor_for(kind));
+    };
     Severity::parse(raw)
         .ok_or_else(|| bad_request("severity_min must be info, warning, error, or critical"))
 }
@@ -306,6 +329,10 @@ fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
             return Err(bad_request(&format!("unknown subject kind \"{unknown}\"")));
         }
     }
+    // `internal` is a platform responder called in process. Accepting it here
+    // would let a caller register a row claiming to be one, which the delivery
+    // worker would then skip forever — a subscription that looks live and
+    // silently receives nothing.
     let endpoint = body.endpoint_url.trim();
     if endpoint.chars().count() > MAX_ENDPOINT_CHARS {
         return Err(bad_request("endpoint_url is too long"));
@@ -320,6 +347,27 @@ fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
     }
     if let Err(hint) = delivery::assert_deliverable(endpoint) {
         return Err(bad_request(&hint));
+    }
+    // An A2H hook that names no agent event would deliver nothing: the
+    // lifecycle family has no intent mapping, so every row would settle
+    // unsent. Refusing here beats a subscription that looks configured.
+    // Parses the sink and refuses `internal` in one place: a caller that could
+    // register a row claiming to be a platform responder would get a
+    // subscription the delivery worker skips forever — live-looking and
+    // silently receiving nothing.
+    let kind = requested_delivery(body)?;
+    if kind == Delivery::A2h
+        // Asked through the shared filter rather than by comparing strings, so
+        // the bare `*` wildcard — which does select every agent event — is not
+        // refused for not spelling itself "agent.*".
+        && !AGENT_EVENT_TYPES
+            .iter()
+            .any(|event| filter::matches(&body.event_types, event))
+    {
+        return Err(bad_request(
+            "an a2h subscription must name at least one agent event type or \"agent.*\": \
+             only an agent run names the person to reach",
+        ));
     }
     Ok(())
 }
@@ -415,7 +463,7 @@ pub async fn put_hook(
         Ok(kind) => kind,
         Err(response) => return response,
     };
-    let floor = match requested_floor(&body) {
+    let floor = match requested_floor(&body, kind) {
         Ok(floor) => floor,
         Err(response) => return response,
     };
@@ -1549,6 +1597,95 @@ mod hook_filter_tests {
             advertised.len(),
             LIFECYCLE_EVENT_TYPES.len() + BREACH_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
             "the union carries every family and nothing else",
+        );
+    }
+}
+
+#[cfg(test)]
+mod a2h_hook_tests {
+    use super::{default_floor_for, requested_floor, validate_hook_body, HookBody};
+    use opensesame_agent_events::EVENT_RUN_BLOCKED;
+    use opensesame_lifecycle::EVENT_RENEWAL_DUE;
+    use opensesame_security_events::{Delivery, Severity};
+
+    fn body(delivery: &str, event_types: &[&str]) -> HookBody {
+        HookBody {
+            id: None,
+            name: "notifier".into(),
+            event_types: event_types.iter().map(|e| (*e).to_string()).collect(),
+            endpoint_url: "https://a2h.example".into(),
+            delivery: Some(delivery.to_string()),
+            secret: None,
+            severity_min: None,
+            subject_kinds: None,
+            enabled: true,
+        }
+    }
+
+    #[test]
+    fn a2h_is_registrable_beside_webhook() {
+        assert!(validate_hook_body(&body("webhook", &[EVENT_RENEWAL_DUE])).is_ok());
+        assert!(validate_hook_body(&body("a2h", &[EVENT_RUN_BLOCKED])).is_ok());
+        assert!(validate_hook_body(&body("a2h", &["agent.*"])).is_ok());
+    }
+
+    #[test]
+    fn internal_is_not_registrable_from_outside() {
+        // A row claiming to be a platform responder is one the delivery worker
+        // skips forever: a subscription that looks live and receives nothing.
+        assert!(validate_hook_body(&body("internal", &["agent.*"])).is_err());
+        assert!(validate_hook_body(&body("carrier-pigeon", &["agent.*"])).is_err());
+    }
+
+    #[test]
+    fn an_a2h_hook_naming_no_agent_event_is_refused() {
+        // Only an agent run names the person to reach, so a lifecycle- or
+        // breach-only a2h subscription would dead-letter every row it queued.
+        assert!(validate_hook_body(&body("a2h", &[EVENT_RENEWAL_DUE])).is_err());
+        assert!(validate_hook_body(&body("a2h", &["lifecycle.*"])).is_err());
+        assert!(validate_hook_body(&body("a2h", &["breach.*"])).is_err());
+        // Naming both families is fine: the agent half escalates and the rest
+        // fails at send time with a stated reason, not silently.
+        assert!(validate_hook_body(&body("a2h", &[EVENT_RENEWAL_DUE, EVENT_RUN_BLOCKED])).is_ok());
+    }
+
+    #[test]
+    fn the_bare_wildcard_qualifies_because_it_selects_agent_events() {
+        // Asked through the shared filter rather than by string comparison: a
+        // subscriber that reads the advertised vocabulary and registers `*`
+        // must not be told the name it was just given is not an agent event.
+        assert!(validate_hook_body(&body("a2h", &["*"])).is_ok());
+    }
+
+    #[test]
+    fn registering_a_phone_does_not_sign_somebody_up_for_every_state_change() {
+        // The quiet phases are `Info`; an a2h hook floors at `Error` unless an
+        // operator lowers it deliberately. This is the *only* place that
+        // decides — `opensesame_a2h::intent_for` is total and has no opinion,
+        // so the two cannot disagree about which events reach a phone.
+        assert_eq!(default_floor_for(Delivery::A2h), Severity::Error);
+        assert_eq!(
+            requested_floor(&body("a2h", &["agent.*"]), Delivery::A2h).ok(),
+            Some(Severity::Error),
+        );
+        for system_sink in [
+            Delivery::Webhook,
+            Delivery::Alertmanager,
+            Delivery::PagerDuty,
+        ] {
+            assert_eq!(
+                default_floor_for(system_sink),
+                Severity::Info,
+                "{system_sink:?} filters downstream; taking everything is the point",
+            );
+        }
+
+        let mut chatty = body("a2h", &["agent.*"]);
+        chatty.severity_min = Some("info".into());
+        assert_eq!(
+            requested_floor(&chatty, Delivery::A2h).ok(),
+            Some(Severity::Info),
+            "an operator who asks for everything gets everything",
         );
     }
 }

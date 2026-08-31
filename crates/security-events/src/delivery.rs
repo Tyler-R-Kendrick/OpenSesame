@@ -27,14 +27,19 @@ pub enum Delivery {
     Alertmanager,
     /// A `PagerDuty` Events API v2 `enqueue`.
     PagerDuty,
+    /// An A2H gateway, which reaches a person when an agent run blocks
+    /// (ADR 0082). Its endpoint is the gateway's base URL and its secret is
+    /// the HMAC key the callback is verified with.
+    A2h,
 }
 
 impl Delivery {
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 5] = [
         Self::Webhook,
         Self::Internal,
         Self::Alertmanager,
         Self::PagerDuty,
+        Self::A2h,
     ];
 
     /// Frozen wire name, stored verbatim in `security_hooks.delivery`.
@@ -45,6 +50,7 @@ impl Delivery {
             Self::Internal => "internal",
             Self::Alertmanager => "alertmanager",
             Self::PagerDuty => "pagerduty",
+            Self::A2h => "a2h",
         }
     }
 
@@ -81,7 +87,7 @@ impl Delivery {
     /// design, and operators put it behind network policy or a proxy instead.
     #[must_use]
     pub const fn requires_secret(self) -> bool {
-        matches!(self, Self::Webhook | Self::PagerDuty)
+        matches!(self, Self::Webhook | Self::PagerDuty | Self::A2h)
     }
 
     /// Whether the row may carry sealed secret material at all.
@@ -109,7 +115,10 @@ mod tests {
     #[test]
     fn wire_names_are_frozen() {
         let names: Vec<&str> = Delivery::ALL.iter().map(|kind| kind.as_str()).collect();
-        assert_eq!(names, ["webhook", "internal", "alertmanager", "pagerduty"]);
+        assert_eq!(
+            names,
+            ["webhook", "internal", "alertmanager", "pagerduty", "a2h"]
+        );
     }
 
     #[test]

@@ -121,6 +121,10 @@ pub fn render(
             })?;
             encode(&pagerduty::render(notice, routing_key), Vec::new())
         }
+        Delivery::A2h => Err(
+            "an a2h hook is sent as an intent by `delivery::send_a2h`, never rendered here"
+                .to_string(),
+        ),
         Delivery::Internal => {
             Err("an internal responder runs in process and is never delivered".to_string())
         }

@@ -226,6 +226,9 @@ async fn send(
 ) -> Result<(), Failure> {
     let kind = Delivery::parse(&hook.delivery)
         .ok_or_else(|| Failure::Permanent(format!("unknown delivery kind '{}'", hook.delivery)))?;
+    if kind == Delivery::A2h {
+        return send_a2h(state, hook, delivery).await;
+    }
     let endpoint = hook
         .endpoint_url
         .as_deref()
@@ -313,6 +316,135 @@ fn classify(status: reqwest::StatusCode) -> Result<(), Failure> {
     }
 }
 
+/// Hand one agent event to an A2H gateway as an intent (ADR 0078, A2H v1.0).
+///
+/// Three things make this different from the Standard Webhooks path above, and
+/// each is load-bearing:
+///
+/// **The delivery id is the A2H `message_id`.** The ledger is at-least-once by
+/// design, and the spec makes `message_id` the idempotency key — so a retry of
+/// the same row is deduplicated at the gateway instead of sending a second SMS
+/// to somebody who already got one.
+///
+/// **Suppression is not delivery.** A gateway that answers `ERR.QUIET_HOURS`
+/// has not told anyone. Recording that as delivered is how a blocked run's
+/// response window expires with the person it was waiting for never told, so it
+/// is treated as retryable and the row stays in the ledger.
+///
+/// **Not every event goes out.** `intent_for` returns `None` for the phases
+/// that would page somebody about a state change; those rows settle without a
+/// request, because a notifier people mute is one that will not reach them when
+/// it matters.
+async fn send_a2h(
+    state: &AppState,
+    hook: &StoredSecurityHook,
+    delivery: &StoredSecurityDelivery,
+) -> Result<(), Failure> {
+    let endpoint = hook
+        .endpoint_url
+        .as_deref()
+        .ok_or_else(|| Failure::Permanent("a2h hook has no gateway URL".into()))?;
+    assert_deliverable(endpoint).map_err(Failure::Permanent)?;
+
+    // The ledger stores the shared envelope (ADR 0080 §1), so the agent
+    // family's own payload is one field in. Reading the row as a bare agent
+    // payload is how every a2h delivery dead-letters with "carries no agent
+    // event" while looking like a subscriber problem.
+    let queued = sinks::decode(&delivery.payload_json);
+    let sinks::Queued::Notice(notice) = &queued else {
+        // The a2h sink did not exist before migration 0020, so a legacy row
+        // bound for one is a genuine inconsistency, not an upgrade artifact.
+        return Err(Failure::Permanent(
+            "a delivery queued before migration 0020 cannot be sent as an a2h intent".into(),
+        ));
+    };
+    let Some(event) = opensesame_agent_events::AgentEvent::from_payload(&notice.payload) else {
+        // Only an agent run names the person to reach; a lifecycle or breach
+        // notice queued against an a2h hook has nobody to address, and
+        // repeating it cannot change that. Registration refuses the same shape
+        // up front, so reaching here means a hook was narrowed after rows were
+        // queued.
+        return Err(Failure::Permanent(format!(
+            "an a2h delivery needs somebody to reach, and \"{}\" names no run owner",
+            notice.event_type,
+        )));
+    };
+
+    let secret = open_secret(state, hook)?
+        .ok_or_else(|| Failure::Permanent("a2h hook has no signing secret".into()))?;
+    let public_url = state.connection_broker.config().public_url().to_string();
+    let agent_id = crate::config::a2h_agent_id(&public_url);
+    let attach_url = run_attach_url(&public_url, &event.run.run_id);
+    let context = opensesame_a2h::IntentContext {
+        agent_id: &agent_id,
+        // Left unset on purpose: choosing the channel is the gateway's job, and
+        // it is the reason to speak this protocol rather than five APIs.
+        channel: None,
+        callback: Some(opensesame_a2h::CallbackConfig {
+            url: format!("{public_url}/api/v1/a2h/callback"),
+            secret,
+        }),
+        attach_url: Some(&attach_url),
+        max_ttl_sec: None,
+    };
+    let now = Utc::now();
+    let message = opensesame_a2h::message_for(
+        &event,
+        &context,
+        now,
+        &delivery.id,
+        // The ledger row's id, so an at-least-once retry is one message.
+        &delivery.id,
+    );
+    let body = serde_json::to_string(&message)
+        .map_err(|error| Failure::Permanent(format!("intent could not be encoded: {error}")))?;
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECONDS))
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|error| Failure::Retryable(format!("http client: {error}")))?;
+    let response = client
+        .post(format!("{}/v1/intent", endpoint.trim_end_matches('/')))
+        .header("content-type", "application/json")
+        .body(body)
+        .send()
+        .await
+        .map_err(|error| Failure::Retryable(format!("a2h request failed: {error}")))?;
+
+    let status = response.status();
+    if status.is_success() {
+        return Ok(());
+    }
+    let code = response
+        .json::<serde_json::Value>()
+        .await
+        .ok()
+        .and_then(|body| {
+            serde_json::from_value::<opensesame_a2h::ErrorCode>(body["error"].clone()).ok()
+        });
+    match code.map(opensesame_a2h::DeliveryOutcome::for_error) {
+        Some(opensesame_a2h::DeliveryOutcome::Permanent) => {
+            Err(Failure::Permanent(format!("a2h refused: {status}")))
+        }
+        // Suppressed and Retryable both stay in the ledger: nobody has been
+        // told yet, and giving up here is the silent failure.
+        Some(_) => Err(Failure::Retryable(format!("a2h deferred: {status}"))),
+        None if status.is_server_error() => {
+            Err(Failure::Retryable(format!("a2h gateway returned {status}")))
+        }
+        None => Err(Failure::Permanent(format!("a2h gateway returned {status}"))),
+    }
+}
+
+/// Where a person is sent to watch or take over a run.
+fn run_attach_url(public_url: &str, run_id: &str) -> String {
+    format!(
+        "{}/runs/{run_id}",
+        crate::config::a2h_attach_base(public_url)
+    )
+}
+
 /// Whether an endpoint is a legal delivery destination.
 ///
 /// # Errors
@@ -346,6 +478,25 @@ fn url_host(endpoint: &str) -> Option<String> {
         None => authority.split(':').next()?.to_string(),
     };
     (!host.is_empty()).then_some(host)
+}
+
+/// The hook's signing secret, for callers outside this module.
+///
+/// The A2H callback route needs the same secret this module signs with, because
+/// A2H uses one shared secret in both directions: we send it in
+/// `callback.secret` and the gateway signs its reply with it. A row carrying
+/// none cannot verify a reply, so absence is an error *here* even though it is
+/// legitimate for the sinks that do not authenticate.
+///
+/// # Errors
+///
+/// Returns the reason the secret could not be opened, without the ciphertext.
+pub fn open_hook_secret(state: &AppState, hook: &StoredSecurityHook) -> anyhow::Result<String> {
+    match open_secret(state, hook) {
+        Ok(Some(secret)) => Ok(secret),
+        Ok(None) => Err(anyhow::anyhow!("hook has no signing secret")),
+        Err(failure) => Err(anyhow::anyhow!(failure.detail().to_string())),
+    }
 }
 
 /// The hook's sealed material, opened for this send.
