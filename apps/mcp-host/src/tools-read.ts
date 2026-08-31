@@ -61,6 +61,36 @@ export function registerReadTools(server: McpServer): void {
     stages: z.array(safeTokenSchema).max(32).optional(),
   });
 
+  // A run is metadata: which relying party, which rung of the ladder, where the
+  // control lease is. Deliberately no lane bodies — the observation log is
+  // sealed to the owner's viewer key and excluded from every agent surface
+  // (ADR 0078 §8), so there is no field here that could carry one.
+  const agentRunSchema = z.object({
+    id: safeTokenSchema,
+    job_id: safeTokenSchema.optional(),
+    origin: z.string().max(2048),
+    tier: safeTokenSchema.optional(),
+    control_state: safeTokenSchema,
+    quiescence: safeTokenSchema.optional(),
+    handoff_queued: z.boolean().optional(),
+    driver: safeTokenSchema.optional(),
+    lease_expires_at: z.string().max(64).nullable().optional(),
+    blocked_reason: z.string().max(256).nullable().optional(),
+    next_seq: z.number().int().optional(),
+    expires_at: z.string().max(64).optional(),
+    closed_at: z.string().max(64).nullable().optional(),
+    version: z.number().int().optional(),
+    created_at: z.string().max(64).optional(),
+    updated_at: z.string().max(64).optional(),
+    secrets_returned: z.literal(false).optional(),
+    observation_included: z.literal(false).optional(),
+  });
+
+  const agentRunsResponseSchema = z.object({
+    runs: z.array(agentRunSchema).max(256),
+    secrets_returned: z.literal(false).optional(),
+  });
+
   const lifecycleHooksResponseSchema = z.object({
     hooks: z
       .array(
@@ -806,6 +836,29 @@ export function registerReadTools(server: McpServer): void {
       } catch (e) {
         return toolError(
           "lifecycle_expiring_read_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "agent_runs_read",
+    "Read sandboxed agent runs and where each one is — relying party, tier, control state, and whether it is blocked waiting for a person. Metadata only: the observation log itself is sealed to its owner and is not available on any agent surface",
+    {},
+    async () => {
+      try {
+        const res = await hostFetch("/api/v1/agent/runs");
+        const body = await res.json();
+        return {
+          content: textContent(
+            agentJson(body, res.ok, agentRunsResponseSchema),
+          ),
+          isError: !res.ok,
+        };
+      } catch (e) {
+        return toolError(
+          "agent_runs_read_failed",
           e instanceof Error ? e : String(e),
         );
       }

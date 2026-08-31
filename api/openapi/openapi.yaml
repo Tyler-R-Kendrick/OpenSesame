@@ -1376,6 +1376,53 @@ paths:
               schema: { type: string }
         "401": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/log:
+    get:
+      summary: Read one page of the sealed observation log
+      description: >-
+        The same read as `observe`, without holding a connection open — for the
+        replay overlay, which seeks and pages rather than follows, and for
+        anything scripted, where a stream that stays open until it times out is
+        a hang rather than a result.
+
+
+        Entries are relayed as the ciphertext they were sealed as. `sealed` says
+        so rather than leaving a caller to discover it.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: after
+          in: query
+          required: false
+          schema: { type: integer, default: -1 }
+      responses:
+        "200":
+          description: A page of sealed entries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, entries, next_after, sealed, secrets_returned]
+                properties:
+                  run_id: { type: string }
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required: [seq, lane, sealed_payload, recorded_at]
+                      properties:
+                        seq: { type: integer }
+                        lane: { type: string, enum: [action, thought, frame] }
+                        of_step: { type: integer, nullable: true }
+                        layout_epoch: { type: integer, nullable: true }
+                        sealed_payload: { type: string, description: Base64 ciphertext. }
+                        recorded_at: { type: string }
+                  next_after: { type: integer }
+                  run_next_seq: { type: integer }
+                  sealed: { type: boolean, const: true }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
   /agent/runs/{id}/handoff:
     post:
       summary: Ask the agent for the page

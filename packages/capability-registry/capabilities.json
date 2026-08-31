@@ -1021,6 +1021,65 @@
     }
   },
   {
+    "id": "agent.runs.read",
+    "title": "Read sandboxed agent runs and their control state",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame rotate runs",
+      "pwa": null,
+      "mcp_host": "agent_runs_read",
+      "mcp_client": null,
+      "webmcp": null
+    }
+  },
+  {
+    "id": "agent.runs.observe",
+    "title": "Read a run's sealed observation log",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame rotate watch",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "the observation log is an authenticated view of somebody's account, sealed to their viewer key; extending ADR 0076 §5's recording exclusion to the live tail of the same log",
+        "adr": "0078-live-session-observation.md"
+      },
+      "webmcp": {
+        "reason": "the observation log is an authenticated view of somebody's account, sealed to their viewer key; extending ADR 0076 §5's recording exclusion to the live tail of the same log",
+        "adr": "0078-live-session-observation.md"
+      }
+    }
+  },
+  {
+    "id": "agent.runs.control",
+    "title": "Ask a run's agent to park, then take the page",
+    "plane": "host",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame rotate attach",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "driving a live authenticated session at a third party is a human ceremony; the lease is granted to a person holding the viewer key, never to a tool call",
+        "adr": "0078-live-session-observation.md"
+      },
+      "webmcp": {
+        "reason": "driving a live authenticated session at a third party is a human ceremony; the lease is granted to a person holding the viewer key, never to a tool call",
+        "adr": "0078-live-session-observation.md"
+      }
+    }
+  },
+  {
     "id": "changelog.read",
     "title": "Read the project changelog feed",
     "plane": "host",

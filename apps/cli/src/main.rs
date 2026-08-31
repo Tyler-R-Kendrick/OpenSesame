@@ -1,3 +1,4 @@
+mod agent_runs;
 mod attach;
 mod bridge;
 mod certs;
@@ -204,10 +205,37 @@ enum Commands {
         #[command(subcommand)]
         cmd: LifecycleCmd,
     },
+    /// Sandboxed rotation runs: what is running, what it did, and taking over.
+    Rotate {
+        #[command(subcommand)]
+        cmd: RotateCmd,
+    },
     /// Issue TLS certificates with an automatically selected Host-owned issuer.
     Cert {
         #[command(subcommand)]
         cmd: CertCmd,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum RotateCmd {
+    /// Sandboxed runs and where each one is (metadata only).
+    Runs,
+    /// Read a run's observation log. Sealed: sizes and lanes, never content.
+    Watch {
+        /// The run id, from `opensesame rotate runs`.
+        run: String,
+        /// Start after this sequence number. Defaults to the whole log.
+        #[arg(long, default_value = "-1")]
+        after: i64,
+        /// Keep polling for new entries.
+        #[arg(long)]
+        follow: bool,
+    },
+    /// Ask the agent to park so a person can take the page.
+    Attach {
+        /// The run id, from `opensesame rotate runs`.
+        run: String,
     },
 }
 
@@ -1277,6 +1305,15 @@ async fn main() -> anyhow::Result<()> {
         Commands::Daemon { url, cmd } => daemon_cmd(&url, cmd).await?,
         Commands::Task { cmd } => task_cmd(&cli.server, &cli.output, cmd).await?,
         Commands::Intent { cmd } => intent_cmd(&cli.server, &cli.output, cmd).await?,
+        Commands::Rotate { cmd } => match cmd {
+            RotateCmd::Runs => agent_runs::cmd_runs(&cli.server, &cli.output).await?,
+            RotateCmd::Watch { run, after, follow } => {
+                agent_runs::cmd_watch(&cli.server, &cli.output, &run, after, follow).await?;
+            }
+            RotateCmd::Attach { run } => {
+                agent_runs::cmd_attach(&cli.server, &cli.output, &run).await?;
+            }
+        },
         Commands::Lifecycle { cmd } => match cmd {
             LifecycleCmd::Expiring => lifecycle::cmd_expiring(&cli.server, &cli.output).await?,
             LifecycleCmd::Hooks => lifecycle::cmd_hooks(&cli.server, &cli.output).await?,
