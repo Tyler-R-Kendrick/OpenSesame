@@ -273,6 +273,66 @@ struct Tail {
     pending: std::collections::VecDeque<Event>,
 }
 
+/// `GET /api/v1/agent/runs/{id}/log` — one page of the sealed log.
+///
+/// The same read as `observe`, without holding a connection open. Two callers
+/// want this rather than a stream: the replay overlay, which seeks and pages
+/// rather than follows, and anything scripted, for which an SSE stream that
+/// stays open until it times out is a hang rather than a result.
+///
+/// Entries are relayed as the ciphertext they were sealed as, exactly as the
+/// stream relays them. `sealed: true` says so rather than leaving a caller to
+/// discover it.
+pub async fn read_log(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(run_id): Path<String>,
+    Query(query): Query<ObserveQuery>,
+) -> Response {
+    let (_, organization_id, run) = match load(&st, &headers, &run_id, Attachment::View).await {
+        Ok(loaded) => loaded,
+        Err(response) => return response,
+    };
+    let entries = match st
+        .db
+        .read_observation_events(&organization_id, &run.id, query.after, OBSERVE_BATCH)
+        .await
+    {
+        Ok(entries) => entries,
+        Err(error) => {
+            tracing::error!(%error, run_id = %run.id, "observation log could not be read");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "internal"})),
+            )
+                .into_response();
+        }
+    };
+    let next = entries.last().map_or(query.after, |entry| entry.seq);
+    let rendered: Vec<_> = entries
+        .iter()
+        .map(|entry| {
+            json!({
+                "seq": entry.seq,
+                "lane": entry.lane,
+                "of_step": entry.of_step,
+                "layout_epoch": entry.layout_epoch,
+                "sealed_payload": base64_std(&entry.payload),
+                "recorded_at": entry.recorded_at,
+            })
+        })
+        .collect();
+    Json(json!({
+        "run_id": run.id,
+        "entries": rendered,
+        "next_after": next,
+        "run_next_seq": run.next_seq,
+        "sealed": true,
+        "secrets_returned": false,
+    }))
+    .into_response()
+}
+
 fn tail(
     st: AppState,
     organization_id: String,
