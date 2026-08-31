@@ -477,6 +477,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/agent/runs", get(agent_runs::list_runs))
         .route("/api/v1/agent/runs/{id}", get(agent_runs::get_run))
         .route("/api/v1/agent/runs/{id}/observe", get(agent_runs::observe))
+        .route("/api/v1/agent/runs/{id}/log", get(agent_runs::read_log))
         .route(
             "/api/v1/agent/runs/{id}/handoff",
             post(agent_runs::request_handoff),
