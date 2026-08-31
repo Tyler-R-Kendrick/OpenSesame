@@ -56,6 +56,13 @@ import {
   pushSealedVaultToHost,
 } from "./host-backup.js";
 import {
+  type InstallResult,
+  installItemType,
+  installedDefinitions,
+  syncInstalledTypes,
+  uninstallItemType,
+} from "./item-types.js";
+import {
   type Folder,
   type VaultBody,
   type VaultItem,
@@ -586,10 +593,17 @@ export class VaultStore {
             "the vault here was not opened, so nothing has been lost yet",
         );
       }
+      // The registry is rebuilt from what the body carries, so a definition
+      // installed on another device is live here the moment it syncs — no
+      // build, no reload (ADR 0087 §7).
+      syncInstalledTypes(body.itemTypes);
       return {
         v: 1,
         items: body.items ?? [],
         folders: body.folders ?? [],
+        ...(body.itemTypes !== undefined
+          ? { itemTypes: body.itemTypes }
+          : undefined),
         rev,
       };
     } catch (error) {
@@ -973,7 +987,12 @@ export class VaultStore {
       body.items = merged.items;
       body.folders = merged.folders;
       body.rev = merged.rev;
+      if (merged.itemTypes !== undefined) body.itemTypes = merged.itemTypes;
     });
+    // A type installed on another device arrives with this merge; rebuilding
+    // the registry here is what makes it live without a re-unlock, which is
+    // the whole of ADR 0087 §7's sync story.
+    syncInstalledTypes(this.#body.itemTypes);
   }
 
   /**
@@ -1012,6 +1031,9 @@ export class VaultStore {
         v: this.#body.v,
         items: this.#body.items,
         folders: this.#body.folders,
+        ...(this.#body.itemTypes !== undefined
+          ? { itemTypes: this.#body.itemTypes }
+          : undefined),
         ...(this.#body.rev !== undefined ? { rev: this.#body.rev } : undefined),
       };
       change(this.#body);
@@ -1027,6 +1049,51 @@ export class VaultStore {
     });
     this.#writeChain = run.catch(() => undefined);
     return run;
+  }
+
+  // —— item types (ADR 0087) ————————————————————————————————
+
+  /**
+   * Install an item type definition into this vault.
+   *
+   * The definition is validated first, so nothing invalid reaches the sealed
+   * body; on success it is written there and syncs to the user's other
+   * devices with everything else. No build, no reload.
+   */
+  async installItemTypeDefinition(text: string): Promise<InstallResult> {
+    const result = installItemType(text);
+    if (!result.ok) return result;
+    try {
+      await this.#mutate((body) => {
+        body.itemTypes = installedDefinitions();
+      });
+    } catch (error) {
+      // `#mutate` rolls the body back on a failed seal, but the registry is
+      // module state it cannot reach. Put it back by hand, or this device
+      // would offer a type the vault does not carry until the next unlock.
+      syncInstalledTypes(this.#body.itemTypes);
+      throw error;
+    }
+    return result;
+  }
+
+  /**
+   * Remove an installed definition. Items of that type keep every value they
+   * hold and render through the unknown-type fallback — coercing or dropping
+   * them would destroy them on every other device, because the whole-vault
+   * merge is last-writer-wins per item.
+   */
+  async uninstallItemTypeDefinition(id: string): Promise<boolean> {
+    if (!uninstallItemType(id)) return false;
+    try {
+      await this.#mutate((body) => {
+        body.itemTypes = installedDefinitions();
+      });
+    } catch (error) {
+      syncInstalledTypes(this.#body.itemTypes);
+      throw error;
+    }
+    return true;
   }
 
   // —— items ————————————————————————————————————————————————
@@ -1228,10 +1295,15 @@ export class VaultStore {
     const mergedFolders = (incoming.folders ?? []).filter(
       (folder) => !folderIds.has(folder.id),
     );
+    // The export carried the definitions its items were written against.
+    // Leaving them behind would import a pile of items nothing here can read.
+    const incomingTypes = incoming.itemTypes ?? {};
     await this.#mutate((body) => {
       body.items = [...body.items, ...merged];
       body.folders = [...body.folders, ...mergedFolders];
+      body.itemTypes = { ...incomingTypes, ...body.itemTypes };
     });
+    syncInstalledTypes(this.#body.itemTypes);
     return merged.length;
   }
 

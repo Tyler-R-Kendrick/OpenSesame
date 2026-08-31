@@ -1,0 +1,68 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "health-insurance",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Health insurance",
+    "plural": "Health insurance",
+    "extension": ".health",
+    "summary": "A member id, the plan it belongs to, and who to call about it.",
+    "categories": ["identity", "documents"],
+    "sections": [
+      {
+        "id": "policy",
+        "title": "Policy",
+        "fields": [
+          {
+            "id": "insurer",
+            "type": "string",
+            "label": "Insurer",
+            "required": true
+          },
+          { "id": "planName", "type": "string", "label": "Plan" },
+          { "id": "memberId", "type": "concealed", "label": "Member id" },
+          { "id": "groupNumber", "type": "concealed", "label": "Group number" },
+          { "id": "memberName", "type": "person-name", "label": "Member" },
+          { "id": "effectiveFrom", "type": "date", "label": "Effective from" },
+          { "id": "expiresAt", "type": "date", "label": "Expires" }
+        ]
+      },
+      {
+        "id": "contact",
+        "title": "Contact",
+        "fields": [
+          {
+            "id": "memberServices",
+            "type": "phone",
+            "label": "Member services"
+          },
+          { "id": "portal", "type": "url", "label": "Member portal" },
+          { "id": "rxBin", "type": "string", "label": "Rx BIN" },
+          { "id": "rxGroup", "type": "string", "label": "Rx group" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "memberId",
+      "trailer": [
+        { "key": "insurer", "field": "insurer" },
+        { "key": "plan", "field": "planName" },
+        { "key": "group_number", "field": "groupNumber" },
+        { "key": "member", "field": "memberName" },
+        { "key": "effective_from", "field": "effectiveFrom" },
+        { "key": "expires_at", "field": "expiresAt" },
+        { "key": "phone", "field": "memberServices" },
+        { "key": "url", "field": "portal" },
+        { "key": "rx_bin", "field": "rxBin" },
+        { "key": "rx_group", "field": "rxGroup" }
+      ]
+    },
+    "cxf": { "credential": "identity-document" },
+    "subtitle": ["insurer", "planName"],
+    "search": ["insurer", "planName"]
+  }
+}

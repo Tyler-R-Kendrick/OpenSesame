@@ -46,6 +46,7 @@ import { buildHealthReport } from "../lib/vault/health.js";
 import {
   type DropState,
   type ItemKind,
+  type LegacyItemKind,
   type PasskeyCustody,
   type UriMatch,
   type VaultItem,
@@ -86,7 +87,7 @@ export type PagesWebMcpTool = WebMcpToolSpec & {
   scope: "boot" | "session";
 };
 
-const ITEM_KINDS: readonly ItemKind[] = [
+const ITEM_KINDS: readonly LegacyItemKind[] = [
   "login",
   "passkey",
   "card",
@@ -96,7 +97,12 @@ const ITEM_KINDS: readonly ItemKind[] = [
   "drop",
 ];
 
-function isItemKind(value: string): value is ItemKind {
+/**
+ * WebMCP writes only the kinds that predate the item-type registry. Creating a
+ * plugin-defined item means choosing a type, and choosing a type is a human
+ * decision about the shape a person is then asked to fill in (ADR 0087).
+ */
+function isItemKind(value: string): value is LegacyItemKind {
   return ITEM_KINDS.some((kind) => kind === value);
 }
 
@@ -154,6 +160,7 @@ export type VaultItemMeta = {
   notAfter?: string;
   state?: DropState;
   expiresAt?: string;
+  typeId?: string;
 };
 
 /**
@@ -200,6 +207,11 @@ export function projectVaultItemMeta(item: VaultItem): VaultItemMeta {
       return { ...base, state: item.state, expiresAt: item.expiresAt };
     case "note":
       return base;
+    // A plugin-defined item names its type and nothing else. The allowlist is
+    // the point: a definition author must not be able to widen what leaves the
+    // vault into agent context by declaring a field (ADR 0087 §5).
+    case "typed":
+      return { ...base, typeId: item.typeId };
   }
 }
 
@@ -703,7 +715,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     ],
     scope: "session",
     description:
-      "Read-only settings summary: configured endpoint URLs, the active project, capability-connector bindings, and which plane runs the password-reset model. Values that could carry credentials are omitted, and the plane is reported but never chosen here (ADR 0083).",
+      "Read-only settings summary: configured endpoint URLs, the active project, capability-connector bindings, and which plane runs the password-reset model. Values that could carry credentials are omitted, and the plane is reported but never chosen here (ADR 0087).",
     inputSchema: {
       type: "object",
       properties: {},
@@ -713,7 +725,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       const settings = loadSettings();
       // Reported so an agent does not offer a ceremony that cannot run. Which
       // plane, and whether it is on — never the endpoint, which would tell a
-      // caller where to aim a redirect it is not allowed to make (ADR 0083).
+      // caller where to aim a redirect it is not allowed to make (ADR 0087).
       const plane = resolveModelPlane(
         loadModelProvider(),
         await browserInference(),

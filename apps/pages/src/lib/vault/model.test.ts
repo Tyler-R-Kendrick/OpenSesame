@@ -380,4 +380,37 @@ describe("drop kind", () => {
     if (winner?.kind !== "drop") throw new Error("expected the drop to merge");
     expect(winner.state).toBe("consumed");
   });
+
+  it("carries installed item type definitions across a merge", () => {
+    const left = {
+      v: 1 as const,
+      items: [],
+      folders: [],
+      itemTypes: { a: "{a}" },
+    };
+    const right = {
+      v: 1 as const,
+      items: [],
+      folders: [],
+      itemTypes: { b: "{b}" },
+    };
+    // A definition installed on either device is installed on both after a
+    // sync — that is the whole of how an item type reaches another device.
+    expect(mergeVaultBodies(left, right).itemTypes).toEqual({
+      a: "{a}",
+      b: "{b}",
+    });
+    expect(mergeVaultBodies(right, left).itemTypes).toEqual({
+      a: "{a}",
+      b: "{b}",
+    });
+  });
+
+  it("leaves itemTypes off a body that never had one", () => {
+    const merged = mergeVaultBodies(
+      { v: 1, items: [], folders: [] },
+      { v: 1, items: [], folders: [] },
+    );
+    expect("itemTypes" in merged).toBe(false);
+  });
 });

@@ -3,7 +3,8 @@
  * decoration — so refresh, share, and click all land on the same area.
  */
 
-import { type ItemKind, KIND_LABEL, KIND_PLURAL } from "./vault/model.js";
+import { itemTypeRegistry, typePlural } from "./vault/item-types.js";
+import { type ItemKind, KIND_LABEL } from "./vault/model.js";
 
 export type Crumb = {
   label: string;
@@ -43,14 +44,17 @@ const HASH_TO_SETTINGS = new Map<string, SettingsCategory>([
 const VAULT_FILTER_LABEL = new Map([
   ["favorites", "Favorites"],
   ["trash", "Trash"],
-  ["login", KIND_PLURAL.login],
-  ["passkey", KIND_PLURAL.passkey],
-  ["card", KIND_PLURAL.card],
-  ["secret", KIND_PLURAL.secret],
-  ["drop", KIND_PLURAL.drop],
-  ["note", KIND_PLURAL.note],
-  ["certificate", "Certificates"],
 ]);
+
+/**
+ * A vault filter is a type id (ADR 0087), so its crumb comes from the type's
+ * own definition. The two non-type filters above keep their fixed labels.
+ */
+function vaultFilterLabel(filter: string): string | undefined {
+  const fixed = VAULT_FILTER_LABEL.get(filter);
+  if (fixed !== undefined) return fixed;
+  return itemTypeRegistry().has(filter) ? typePlural(filter) : undefined;
+}
 
 const ITEM_KINDS = new Set<string>(Object.keys(KIND_LABEL));
 const SETTINGS_CATEGORY_SET = new Set<string>(SETTINGS_CATEGORIES);
@@ -158,7 +162,7 @@ function vaultCrumbs(
     crumbs.push({ label: ctx.folderName });
     return crumbs;
   }
-  const filterLabel = filter ? VAULT_FILTER_LABEL.get(filter) : undefined;
+  const filterLabel = filter ? vaultFilterLabel(filter) : undefined;
   if (filterLabel) {
     crumbs.push({ label: filterLabel });
     return crumbs;

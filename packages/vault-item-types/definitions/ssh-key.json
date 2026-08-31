@@ -1,0 +1,56 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "ssh-key",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "SSH key",
+    "plural": "SSH keys",
+    "extension": ".ssh",
+    "summary": "An SSH key pair, its fingerprint, and the hosts it opens.",
+    "categories": ["access", "developer"],
+    "sections": [
+      {
+        "id": "key",
+        "title": "Key",
+        "fields": [
+          {
+            "id": "keyType",
+            "type": "select",
+            "label": "Key type",
+            "options": ["ed25519", "ecdsa", "rsa", "ed25519-sk", "ecdsa-sk"]
+          },
+          { "id": "keyPair", "type": "key-pair", "label": "Key pair" },
+          { "id": "passphrase", "type": "password", "label": "Passphrase" },
+          { "id": "fingerprint", "type": "string", "label": "Fingerprint" },
+          { "id": "comment", "type": "string", "label": "Comment" }
+        ]
+      },
+      {
+        "id": "use",
+        "title": "Where it is used",
+        "fields": [
+          { "id": "hosts", "type": "host-port", "label": "Host" },
+          { "id": "principal", "type": "string", "label": "Remote user" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "passphrase",
+      "trailer": [
+        { "key": "key_type", "field": "keyType" },
+        { "key": "key", "field": "keyPair" },
+        { "key": "fingerprint", "field": "fingerprint" },
+        { "key": "comment", "field": "comment" },
+        { "key": "host", "field": "hosts" },
+        { "key": "login", "field": "principal" }
+      ]
+    },
+    "cxf": { "credential": "ssh-key" },
+    "subtitle": ["keyType", "comment"],
+    "search": ["keyType", "comment", "fingerprint", "principal"]
+  }
+}

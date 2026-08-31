@@ -104,6 +104,7 @@ const stubPanels: SettingsPanels = {
   ChangelogPanel: () => <div data-testid="changelog-panel" />,
   GithubBackupPanel: () => <div data-testid="github-backup-panel" />,
   ImportPanel: () => <div data-testid="import-panel" />,
+  ItemTypesPanel: () => <div data-testid="item-types-panel" />,
   OfflineBackupPanel: () => <div data-testid="offline-backup-panel" />,
   SecretConfigsPanel: () => <div data-testid="secret-configs-panel" />,
   SyncTargetsPanel: () => <div data-testid="sync-targets-panel" />,

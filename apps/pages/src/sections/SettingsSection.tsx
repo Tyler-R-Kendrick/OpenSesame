@@ -54,6 +54,7 @@ import { EndpointsPanel, TursoSyncPanel } from "./settings/EndpointsPanel.js";
 import { GithubBackupPanel as DefaultGithubBackupPanel } from "./settings/GithubBackupPanel.js";
 import { ImportPanel as DefaultImportPanel } from "./settings/ImportPanel.js";
 import { InstallPanel as DefaultInstallPanel } from "./settings/InstallPanel.js";
+import { ItemTypesPanel as DefaultItemTypesPanel } from "./settings/ItemTypesPanel.js";
 import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/ModelProviderPanel.js";
 import { OfflineBackupPanel as DefaultOfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
 import { SecretConfigsPanel as DefaultSecretConfigsPanel } from "./settings/SecretConfigsPanel.js";
@@ -140,6 +141,7 @@ export type SettingsPanels = {
   ChangelogPanel: ComponentType;
   OfflineBackupPanel: ComponentType;
   ImportPanel: ComponentType;
+  ItemTypesPanel: ComponentType;
 };
 
 const defaultPanels: SettingsPanels = {
@@ -155,6 +157,7 @@ const defaultPanels: SettingsPanels = {
   ChangelogPanel: DefaultChangelogPanel,
   OfflineBackupPanel: DefaultOfflineBackupPanel,
   ImportPanel: DefaultImportPanel,
+  ItemTypesPanel: DefaultItemTypesPanel,
 };
 
 /** `#import` predates the categories and deep-links into Vault data. */
@@ -746,6 +749,8 @@ export function SettingsSection({
       {category !== "data" ? null : <resolvedPanels.OfflineBackupPanel />}
 
       {category !== "data" ? null : <resolvedPanels.ImportPanel />}
+
+      {category !== "data" ? null : <resolvedPanels.ItemTypesPanel />}
 
       {category !== "data" ? null : (
         <section className="panel">

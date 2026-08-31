@@ -2003,6 +2003,52 @@
     }
   },
   {
+    "id": "vault.item_types.list",
+    "title": "List the item types registered on this device",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/item-types.ts:itemTypeRegistry",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+        "adr": "0087-vault-item-type-plugins.md"
+      }
+    }
+  },
+  {
+    "id": "vault.item_types.install",
+    "title": "Install or remove a vault item type definition",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/settings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+        "adr": "0087-vault-item-type-plugins.md"
+      },
+      "mcp_client": {
+        "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+        "adr": "0087-vault-item-type-plugins.md"
+      },
+      "webmcp": {
+        "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+        "adr": "0087-vault-item-type-plugins.md"
+      }
+    }
+  },
+  {
     "id": "vault.export",
     "title": "Export/backup the vault (plaintext-capable)",
     "plane": "client_local",

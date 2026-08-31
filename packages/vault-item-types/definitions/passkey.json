@@ -1,0 +1,62 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "passkey",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Passkey",
+    "plural": "Passkeys",
+    "extension": ".passkey",
+    "summary": "A WebAuthn credential, held in this vault or recorded as living elsewhere.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "credential",
+        "title": "Credential",
+        "fields": [
+          {
+            "id": "rpId",
+            "type": "string",
+            "label": "Relying party",
+            "required": true
+          },
+          { "id": "username", "type": "string", "label": "Username" },
+          {
+            "id": "credentialIdB64",
+            "type": "string",
+            "label": "Credential id"
+          },
+          { "id": "publicKeyB64", "type": "string", "label": "Public key" },
+          {
+            "id": "authenticator",
+            "type": "select",
+            "label": "Authenticator",
+            "options": ["platform", "cross-platform"]
+          },
+          {
+            "id": "unlocksVault",
+            "type": "boolean",
+            "label": "Unlocks this vault"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": null,
+      "trailer": [
+        { "key": "rpid", "field": "rpId" },
+        { "key": "login", "field": "username" },
+        { "key": "credential_id", "field": "credentialIdB64" },
+        { "key": "public_key", "field": "publicKeyB64" },
+        { "key": "authenticator", "field": "authenticator" }
+      ]
+    },
+    "cxf": { "credential": "passkey" },
+    "subtitle": ["username", "rpId"],
+    "search": ["username", "rpId"],
+    "handler": "passkey"
+  }
+}
