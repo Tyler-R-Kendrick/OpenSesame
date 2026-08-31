@@ -280,22 +280,16 @@ notificationCallbackRoutes.post("/:provider", async (c) => {
     channelKind: adapter.kind,
   });
 
-  let comparisonSatisfied = false;
-  if (policy.requireComparison && claim.comparisonValue) {
-    const challenge = await ctx.repos.comparisonChallenges.consumeAttempt(
-      row.id,
-      now,
-    );
-    comparisonSatisfied = evaluateComparison({
-      ...(challenge ? { challenge } : undefined),
-      presentedDigest: comparisonValueDigest(
-        row.id,
-        claim.comparisonValue,
-        ctx.config.claimPepper,
-      ),
-      now,
-    }).satisfied;
-  }
+  // A comparison can never be satisfied out here, and that is the design.
+  //
+  // The point of number matching is that the person carries a value from the
+  // surface that started the request to the surface that approves it. A code
+  // typed back into the same chat message the prompt arrived in compares
+  // nothing — whoever controls that message controls both halves. So no
+  // adapter extracts one, and a policy that requires comparison refuses
+  // external settlement outright (`comparison_required`) and sends the person
+  // to the in-app ceremony, which is the only place the value exists.
+  const comparisonSatisfied = false;
 
   const principal = approverPrincipalId
     ? await ctx.repos.principals.getById(approverPrincipalId)

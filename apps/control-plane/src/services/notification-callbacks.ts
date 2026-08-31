@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  type CallbackRequest,
   type ChannelAdapter,
   type CallbackVerification as PackageVerification,
   createSlackAdapter,
@@ -72,8 +73,6 @@ export interface CallbackClaim {
   /** The opaque, MAC-addressed reference this deployment put in the message. */
   transactionRef: string;
   decision: "approved" | "denied";
-  /** Transcribed comparison value, where the surface can carry one. */
-  comparisonValue?: string;
 }
 
 export type CallbackHeaders = (name: string) => string | undefined;
@@ -226,15 +225,19 @@ const CALLBACK_HEADER_NAMES = [
  * into a provider's verifier; naming the set keeps what crosses that boundary
  * to what a verifier actually asked for.
  */
-export interface CallbackHeaderBag {
-  "x-slack-signature"?: string;
-  "x-slack-request-timestamp"?: string;
-  "x-telegram-bot-api-secret-token"?: string;
-  "content-type"?: string;
-}
+/**
+ * The bag a verifier reads, built only from names we chose.
+ *
+ * Typed as the package's own parameter type rather than an ad-hoc dictionary,
+ * so this stays one contract rather than two that can drift. The closed
+ * `CALLBACK_HEADER_NAMES` list is what actually bounds it: an unrelated
+ * inbound header cannot ride into a provider's verifier because nothing ever
+ * copies one in.
+ */
+type CallbackHeaderBag = CallbackRequest["headers"];
 
 function collectHeaders(header: CallbackHeaders): CallbackHeaderBag {
-  const out: CallbackHeaderBag = {};
+  const out: { [name: string]: string } = {};
   for (const name of CALLBACK_HEADER_NAMES) {
     const value = header(name);
     if (value !== undefined) out[name] = value;
