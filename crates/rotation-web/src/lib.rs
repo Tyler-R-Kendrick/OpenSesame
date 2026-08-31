@@ -29,9 +29,14 @@
 //! the wait and the assertion, and the critical section is what stops a handoff
 //! landing between the assertion and the submit and voiding it.
 
+mod capture;
 mod executor;
 mod tools;
 
+pub use capture::{
+    classify, solve_mask, strip_targets, ActionRecord, Classification, FieldSnapshot, FrameRecord,
+    ThoughtRecord,
+};
 pub use executor::{
     run_change_password, ActionStep, BlockedReason, CandidateVault, ChangePasswordRecipe,
     ExecutorError, RunOutcome, RunReport,
