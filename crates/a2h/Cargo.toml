@@ -1,0 +1,18 @@
+[package]
+name = "opensesame-a2h"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "A2H (Agent-to-Human) v1.0 envelope, intent mapping, and response verification"
+
+[dependencies]
+opensesame-agent-events = { path = "../agent-events" }
+opensesame-session-observe = { path = "../session-observe" }
+base64 = { workspace = true }
+chrono = { workspace = true }
+hmac = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+subtle = { workspace = true }
+thiserror = { workspace = true }

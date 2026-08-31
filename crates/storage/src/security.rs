@@ -520,11 +520,36 @@ impl Db {
 
     // —— delivery ledger ——————————————————————————————————————————
 
+    /// One delivery row, by id alone.
+    ///
+    /// Deliberately untenanted, because the one caller is the A2H callback,
+    /// which a third-party gateway reaches with no session — the request's
+    /// signature is its authentication, and the tenant is *derived* from the row
+    /// rather than asserted by the caller. Nothing about the lookup is
+    /// observable: every failed check on that route answers identically, so a
+    /// caller cannot use it to learn whether an id exists.
+    ///
+    /// # Errors
+    ///
+    /// Propagates database failures.
+    pub async fn get_security_delivery(
+        &self,
+        delivery_id: &str,
+    ) -> anyhow::Result<Option<StoredSecurityDelivery>> {
+        let row = sqlx::query("SELECT * FROM security_deliveries WHERE id = ?")
+            .bind(delivery_id)
+            .fetch_optional(self.pool())
+            .await
+            .context("get security delivery")?;
+        Ok(row.as_ref().map(delivery_from_row))
+    }
+
     /// Queue one delivery.
     ///
     /// # Errors
     ///
-    /// Returns an error when the insert fails or the payload is not JSON.
+    /// Propagates database failures, and refuses a payload that is not a JSON
+    /// document.
     pub async fn enqueue_security_delivery(
         &self,
         delivery: &StoredSecurityDelivery,

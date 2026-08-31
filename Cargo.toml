@@ -31,6 +31,7 @@ members = [
   "crates/rotation",
   "crates/session-observe",
   "crates/agent-events",
+  "crates/a2h",
   "crates/lifecycle",
   "crates/security-events",
   "crates/breach-intel",

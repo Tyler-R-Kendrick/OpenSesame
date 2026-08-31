@@ -1002,6 +1002,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0022_rotation_policy_owner",
         include_str!("../../../migrations/0022_rotation_policy_owner.sql"),
     ),
+    (
+        "0023_a2h_delivery_and_web_login_watermarks",
+        include_str!("../../../migrations/0023_a2h_delivery_and_web_login_watermarks.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.

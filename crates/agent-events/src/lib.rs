@@ -249,6 +249,69 @@ impl AgentEvent {
             .map(|deadline| (deadline - now).num_seconds().max(0))
     }
 
+    /// Reconstruct an event from the payload a subscriber received.
+    ///
+    /// The delivery ledger is the durable queue (ADR 0039's saga shape), so a
+    /// notifier that survives a restart works from the persisted payload rather
+    /// than from the in-memory event. That makes the payload a two-way contract:
+    /// whatever a subscriber is given must be enough to rebuild the fact, and
+    /// the round-trip test is what keeps a field from being dropped from the
+    /// wire without anyone noticing.
+    ///
+    /// Returns `None` when a required field is absent or unparseable, rather
+    /// than filling in a default — a notification built from a half-read event
+    /// would name the wrong origin or the wrong person.
+    #[must_use]
+    pub fn from_payload(payload: &Value) -> Option<Self> {
+        let body = payload.as_object()?;
+        let text = |key: &str| body.get(key)?.as_str().map(str::to_string);
+        let phase = match body.get("phase")?.as_str()? {
+            "started" => AgentPhase::Started,
+            "blocked" => AgentPhase::Blocked,
+            "awaiting_human" => AgentPhase::AwaitingHuman,
+            "control_granted" => AgentPhase::ControlGranted,
+            "control_released" => AgentPhase::ControlReleased,
+            "resumed" => AgentPhase::Resumed,
+            "completed" => AgentPhase::Completed,
+            "failed" => AgentPhase::Failed,
+            _ => return None,
+        };
+        let occurred_at = DateTime::parse_from_rfc3339(body.get("occurred_at")?.as_str()?)
+            .ok()?
+            .with_timezone(&Utc);
+        let responds_by = match body.get("responds_by") {
+            Some(value) => Some(
+                DateTime::parse_from_rfc3339(value.as_str()?)
+                    .ok()?
+                    .with_timezone(&Utc),
+            ),
+            None => None,
+        };
+        // The construction rule holds on the way back in: a waiting phase
+        // without a deadline, or a notice carrying one, is a payload we refuse
+        // rather than repair.
+        if phase.needs_human() != responds_by.is_some() {
+            return None;
+        }
+        let run = AgentRun {
+            run_id: text("run_id")?,
+            job_id: text("job_id")?,
+            organization_id: text("organization_id")?,
+            owner_principal_id: text("owner_principal_id")?,
+            origin: text("origin")?,
+            tier: text("tier")?,
+            control_state: text("control_state")?,
+        };
+        Some(Self {
+            event_type: phase.event_type().to_string(),
+            phase,
+            run,
+            occurred_at,
+            responds_by,
+            detail: text("detail"),
+        })
+    }
+
     /// The value-blind payload a subscriber receives.
     #[must_use]
     pub fn payload(&self) -> Value {
@@ -446,6 +509,59 @@ mod tests {
         let object = payload.as_object().unwrap();
         assert!(!object.contains_key("responds_by"));
         assert_eq!(object["needs_human"], json!(false));
+    }
+
+    #[test]
+    fn a_payload_round_trips_back_into_the_fact_it_described() {
+        let deadline = now() + chrono::Duration::seconds(300);
+        for original in [
+            AgentEvent::waiting(run(), AgentPhase::Blocked, now(), deadline, Some("stuck"))
+                .unwrap(),
+            AgentEvent::waiting(run(), AgentPhase::AwaitingHuman, now(), deadline, None).unwrap(),
+            AgentEvent::notice(run(), AgentPhase::Completed, now(), Some("done")).unwrap(),
+            AgentEvent::notice(run(), AgentPhase::Failed, now(), None).unwrap(),
+            AgentEvent::notice(run(), AgentPhase::Started, now(), None).unwrap(),
+        ] {
+            let rebuilt = AgentEvent::from_payload(&original.payload());
+            assert_eq!(rebuilt.as_ref(), Some(&original), "{original:?}");
+        }
+    }
+
+    #[test]
+    fn a_half_read_payload_is_refused_rather_than_repaired() {
+        let deadline = now() + chrono::Duration::seconds(300);
+        let event = AgentEvent::waiting(run(), AgentPhase::Blocked, now(), deadline, None).unwrap();
+
+        // A missing field is not defaulted: a notification built from one would
+        // name the wrong origin or the wrong person.
+        for key in [
+            "phase",
+            "run_id",
+            "origin",
+            "owner_principal_id",
+            "occurred_at",
+        ] {
+            let mut payload = event.payload();
+            payload.as_object_mut().unwrap().remove(key);
+            assert!(
+                AgentEvent::from_payload(&payload).is_none(),
+                "payload without {key} was accepted"
+            );
+        }
+
+        // And the construction rule holds in both directions.
+        let mut deadlineless = event.payload();
+        deadlineless.as_object_mut().unwrap().remove("responds_by");
+        assert!(AgentEvent::from_payload(&deadlineless).is_none());
+
+        let mut notice = AgentEvent::notice(run(), AgentPhase::Completed, now(), None)
+            .unwrap()
+            .payload();
+        notice
+            .as_object_mut()
+            .unwrap()
+            .insert("responds_by".into(), json!(deadline.to_rfc3339()));
+        assert!(AgentEvent::from_payload(&notice).is_none());
     }
 
     #[test]
