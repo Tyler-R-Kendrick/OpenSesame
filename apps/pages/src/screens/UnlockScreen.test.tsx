@@ -151,9 +151,8 @@ Object.assign(unlockScreenDependencies, {
   identityBase: () => identityBaseHolder.current,
 });
 Object.assign(setupScreenDependencies, {
-  // The ceremony's own step-picking is covered in SetupScreen.test.tsx; these
+  // The ceremony's own behaviour is covered in SetupScreen.test.tsx; these
   // tests only care that it is reached and handed back from.
-  initialStep: () => "identity" as const,
   completeSetup,
 });
 
@@ -245,7 +244,7 @@ describe("UnlockScreen — setup gate", () => {
 
     // The screen this replaces led with an amber report of the same state.
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Where does identity live?",
+      "How do people sign in?",
     );
     expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
   });
@@ -254,7 +253,8 @@ describe("UnlockScreen — setup gate", () => {
     fresh();
     setupRequiredHolder.current = true;
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    // Two taps: the brokered road needs nothing typed.
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
 
     return waitFor(() =>
@@ -301,7 +301,7 @@ describe("UnlockScreen — setup gate", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Where does identity live?",
+      "How do people sign in?",
     );
   });
 
@@ -313,7 +313,7 @@ describe("UnlockScreen — setup gate", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Set it up" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Where does identity live?",
+      "How do people sign in?",
     );
   });
 

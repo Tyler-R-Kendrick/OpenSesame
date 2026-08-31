@@ -747,6 +747,123 @@
 .wrote__val--off {
   color: var(--ink-3);
 }
+
+/* ——— The commit control (styles.css) ————————————————————————
+   A screen's one terminal action is an ink square carrying the glyph of what
+   it does, with its sentence beside it in the margin voice. Never a wide text
+   button — see docs/design/controls.md. */
+.go-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.go {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
+  cursor: pointer;
+}
+
+.go-verb {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ——— The one question that matters ————————————————————————
+   Three roads, not a URL field. The first is selected on arrival because it
+   already works: a deployment nobody has configured can still sign people in
+   through the compiled broker. */
+.road {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.road__opt {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.road__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.road__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.road__opt.is-on .road__mark,
+.road__on {
+  color: var(--accent);
+}
+
+.road__body {
+  display: grid;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.road__name {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.road__kind {
+  font-family: var(--font);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.road__opt.is-on .road__kind {
+  color: var(--accent);
+}
+
+.road__on {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+/* What an unopened row already holds, so the screen reads without opening
+   three disclosures to learn nothing is set. */
+.alt__state {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
   </style>
 </helmet>
 <div class="os" data-theme="{{theme}}" style="width: 390px; height: 680px; padding: 22px 20px; display: grid; gap: 14px; align-content: start; --sk: #b8b8b8">

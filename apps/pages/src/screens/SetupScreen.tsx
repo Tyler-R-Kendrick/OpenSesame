@@ -4,104 +4,90 @@
  * What this replaces: a block of amber above the unlock form, reporting that
  * the deployment had no identity service and offering a text field for an
  * address the reader had never been given — above sign-in options that could
- * not work and an Unlock tab for a vault that did not exist. It was an
- * accurate report of a state nobody had been asked to resolve.
+ * not work and an Unlock tab for a vault that did not exist.
  *
- * The first person to open a fresh deployment is the only one who can resolve
- * it, so they are treated as its operator and asked. Four questions, one per
- * screen, every one of them skippable and every skip stated in what it costs:
- * a local-only vault is a legitimate answer to setup, not a failure of it.
+ * And then, briefly, something not much better: four steps that led with an
+ * OpenSesame identity service URL, a Host URL and a daemon on the operator's
+ * own machine. That had the dependency backwards. `TRUSTED_UPSTREAMS` compiles
+ * a browser-capable upstream into every build, so **sign-in already works on a
+ * deployment nobody has configured** — and the ceremony was making everyone
+ * walk past three self-hosted fields to reach it.
  *
- * The shape is the app's own ceremony vocabulary (`CeremonyShell`,
- * `FieldShell`, the found card and its expand-in-place alternatives), with one
- * addition that is the whole of the mobile fix: **the commitment lives at the
- * bottom of the phone, in the same place on every step.** Nothing in the
- * ceremony navigates — the pairing step mounts the real pairing ceremony
- * rather than sending anyone to Settings.
+ * So it is two steps. The first asks the only question with a wrong answer —
+ * how do people sign in — with the zero-config road selected by default and
+ * the identity service asked for only on the road that needs one. The second
+ * is optional, closed, and holds the infrastructure an operator who has it
+ * needs somewhere to name.
+ *
+ * The commitment lives at the bottom of the phone, in the same place on both
+ * steps, as the shared `.go` control: an ink square carrying the glyph of what
+ * it does, its sentence beside it. Never a wide text button — see
+ * `docs/design/controls.md`.
  *
  * Designed in `docs/design/first-run-setup/`.
  */
 
 import { useState } from "react";
-import { IconChevronLeft, IconMark } from "../components/Icons.js";
+import {
+  IconArrowRight,
+  IconCheck,
+  IconChevronLeft,
+  IconMark,
+} from "../components/Icons.js";
 import { loadSettings } from "../lib/settings.js";
 import {
   SETUP_STEPS,
+  type SetupIdentityChoice,
   type SetupStep,
   completeSetup,
-  initialStep,
 } from "../lib/setup.js";
-import { HostStep } from "./setup/HostStep.js";
-import { IdentityStep } from "./setup/IdentityStep.js";
-import { MachineStep } from "./setup/MachineStep.js";
-import { ReviewStep } from "./setup/ReviewStep.js";
+import { MoreStep } from "./setup/MoreStep.js";
+import { SignInStep } from "./setup/SignInStep.js";
 import "./setup.css";
 
 const STEP_LABEL = {
-  identity: "Identity",
-  host: "Host",
-  machine: "Machine",
-  review: "Review",
+  signin: "Sign-in",
+  more: "Everything else",
 } satisfies Record<SetupStep, string>;
 
 const STEP_TITLE = {
-  identity: "Where does identity live?",
-  host: "Is there a Host?",
-  machine: "Pair this machine",
-  review: "Ready",
+  signin: "How do people sign in?",
+  more: "Anything else?",
 } satisfies Record<SetupStep, string>;
 
 const STEP_LEAD = {
-  identity:
-    "You are the first person here, so you are the operator. Point this app at the services it should use — every answer is optional.",
-  host: "The authority plane. It authorizes every ConnectionRef and signs every receipt. A vault without one still holds your own items.",
-  machine:
-    "A daemon on your tailnet fronts the Host and Identity APIs, so this page can reach them from wherever you are signed in.",
-  review:
-    "This is what gets written. Nothing has left this device — these are addresses, not credentials.",
-} satisfies Record<SetupStep, string>;
-
-const STEP_SKIP = {
-  identity: "Skip identity",
-  host: "No Host",
-  machine: "Not now",
-  review: "Start over",
+  signin:
+    "You are the first person here, so you are the operator. This is the one question that matters — and it already has a working answer.",
+  more: "All optional, and all of it changeable later. Open a row only if you run that thing yourself.",
 } satisfies Record<SetupStep, string>;
 
 export const setupScreenDependencies = {
   loadSettings,
   completeSetup,
-  initialStep,
 };
 
 export function SetupScreen({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState<SetupStep>(() =>
-    setupScreenDependencies.initialStep(),
-  );
+  const [step, setStep] = useState<SetupStep>("signin");
+  // The zero-config road is the default, because it is the one that already
+  // works. Nobody has to choose it to get a usable app.
+  const [choice, setChoice] = useState<SetupIdentityChoice>("brokered");
   const [provider, setProvider] = useState("");
   const [finishing, setFinishing] = useState(false);
-  // Bumped when a step writes settings, so Review re-reads them on arrival
-  // rather than showing what `loadSettings()` said when the screen mounted.
-  const [revision, setRevision] = useState(0);
 
   const index = SETUP_STEPS.indexOf(step);
   const last = index === SETUP_STEPS.length - 1;
-
-  function goto(next: SetupStep) {
-    setRevision((value) => value + 1);
-    setStep(next);
-  }
+  const verb = finishing ? "Saving…" : last ? "Finish setup" : "Continue";
 
   function advance() {
     if (!last) {
-      goto(SETUP_STEPS[index + 1] ?? "review");
+      setStep(SETUP_STEPS[index + 1] ?? "more");
       return;
     }
     const settings = setupScreenDependencies.loadSettings();
     setFinishing(true);
     void setupScreenDependencies
       .completeSetup({
-        identity: settings.identityApi.trim() ? "connected" : "local-only",
+        identity: choice,
         provider,
         host: Boolean(settings.hostApi.trim()),
         machine: Boolean(settings.daemonApi.trim()),
@@ -140,7 +126,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
                     : "setup__seg"
               }
               aria-current={position === index ? "step" : undefined}
-              onClick={() => goto(id)}
+              onClick={() => setStep(id)}
             >
               <span className="setup__seg-bar" aria-hidden="true" />
               <span className="setup__seg-label">{STEP_LABEL[id]}</span>
@@ -154,49 +140,55 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
             <p>{STEP_LEAD[step]}</p>
           </div>
 
-          {step === "identity" ? (
-            <IdentityStep provider={provider} onProviderChange={setProvider} />
-          ) : null}
-          {step === "host" ? (
-            <HostStep onPairInstead={() => goto("machine")} />
-          ) : null}
-          {step === "machine" ? (
-            <MachineStep onPaired={() => goto("review")} />
-          ) : null}
-          {step === "review" ? (
-            <ReviewStep key={revision} provider={provider} />
-          ) : null}
+          {step === "signin" ? (
+            <SignInStep
+              choice={choice}
+              onChoiceChange={setChoice}
+              provider={provider}
+              onProviderChange={setProvider}
+            />
+          ) : (
+            <MoreStep choice={choice} provider={provider} />
+          )}
         </main>
 
+        {/* The terminal commit: an ink square with the glyph of what it does,
+            its sentence beside it. `docs/design/controls.md`. */}
         <div className="setup__foot">
           <button
             type="button"
             className="icon-btn"
             aria-label="Previous step"
             disabled={index === 0}
-            onClick={() => goto(SETUP_STEPS[index - 1] ?? "identity")}
+            onClick={() => setStep(SETUP_STEPS[index - 1] ?? "signin")}
           >
             <IconChevronLeft size={20} />
           </button>
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={finishing}
-            aria-busy={finishing}
-            onClick={advance}
-          >
-            {last ? (finishing ? "Saving…" : "Finish setup") : "Continue"}
-          </button>
-          <button
-            type="button"
-            className="setup__skip"
-            disabled={finishing}
-            onClick={() =>
-              goto(last ? "identity" : (SETUP_STEPS[index + 1] ?? "review"))
-            }
-          >
-            {STEP_SKIP[step]}
-          </button>
+          <div className="go-row">
+            <button
+              type="button"
+              className="go"
+              disabled={finishing}
+              aria-busy={finishing}
+              aria-label={verb}
+              title={verb}
+              onClick={advance}
+            >
+              {last ? <IconCheck size={18} /> : <IconArrowRight size={18} />}
+            </button>
+            <span className="go-verb" aria-hidden="true">
+              {verb}
+            </span>
+          </div>
+          {last ? null : (
+            <button
+              type="button"
+              className="setup__skip"
+              onClick={() => setStep("more")}
+            >
+              Skip
+            </button>
+          )}
         </div>
       </div>
     </div>

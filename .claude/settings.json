@@ -20,6 +20,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/design-lint.sh",
+            "timeout": 15,
+            "statusMessage": "Checking the control contract"
+          }
+        ]
+      }
     ]
   }
 }

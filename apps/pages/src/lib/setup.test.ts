@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TRUSTED_UPSTREAMS } from "./federation.js";
 import { kvSeams } from "./kv.js";
 import { settingsSeams } from "./settings.js";
 
@@ -14,8 +15,8 @@ Object.assign(kvSeams, {
 import {
   SETUP_KEY,
   SETUP_STEPS,
+  brokeredSignInReady,
   completeSetup,
-  initialStep,
   loadSetup,
   setupRequired,
   setupSeams,
@@ -24,19 +25,6 @@ import {
 
 const originalSetupSeams = { ...setupSeams };
 const originalSettingsSeams = { ...settingsSeams };
-
-type Endpoints = { identityApi: string; hostApi: string };
-
-function withEndpoints({ identityApi, hostApi }: Endpoints): void {
-  setupSeams.loadSettings = () =>
-    // Only the two fields `initialStep` reads matter; the rest of PagesSettings
-    // is filled by the real loader in production.
-    ({
-      ...originalSettingsSeams.loadSettings(),
-      identityApi,
-      hostApi,
-    });
-}
 
 beforeEach(() => {
   store.clear();
@@ -47,7 +35,7 @@ beforeEach(() => {
 describe("the setup record", () => {
   it("round-trips what the operator answered", async () => {
     await completeSetup({
-      identity: "connected",
+      identity: "byo",
       provider: "workos",
       host: true,
       machine: false,
@@ -55,7 +43,7 @@ describe("the setup record", () => {
 
     const record = loadSetup();
     expect(record).not.toBeNull();
-    expect(record?.identity).toBe("connected");
+    expect(record?.identity).toBe("byo");
     expect(record?.provider).toBe("workos");
     expect(record?.host).toBe(true);
     expect(record?.machine).toBe(false);
@@ -64,7 +52,7 @@ describe("the setup record", () => {
 
   it("stores no endpoint of its own", async () => {
     await completeSetup({
-      identity: "connected",
+      identity: "brokered",
       provider: "",
       host: true,
       machine: true,
@@ -82,13 +70,15 @@ describe("the setup record", () => {
     }
   });
 
-  it("defaults a record written by an older shape to connected", () => {
+  it("reads an unknown or absent choice as the zero-config road", () => {
     store.set(
       SETUP_KEY,
       JSON.stringify({ completedAt: "2026-08-31T00:00:00Z" }),
     );
     const record = loadSetup();
-    expect(record?.identity).toBe("connected");
+    // "brokered" is the answer that needs nothing configured, so it is the
+    // safe reading of a record that does not say.
+    expect(record?.identity).toBe("brokered");
     expect(record?.provider).toBe("");
     expect(record?.host).toBe(false);
   });
@@ -103,7 +93,7 @@ describe("setupRequired", () => {
 
   it("is false once the ceremony has been answered", async () => {
     await completeSetup({
-      identity: "local-only",
+      identity: "none",
       provider: "",
       host: false,
       machine: false,
@@ -151,35 +141,34 @@ describe("unlockViable", () => {
   });
 });
 
-describe("initialStep", () => {
-  it("starts at the beginning when nothing is configured", () => {
-    withEndpoints({ identityApi: "", hostApi: "" });
-    expect(initialStep()).toBe("identity");
+describe("brokeredSignInReady", () => {
+  it("every compiled upstream carries an issuer", () => {
+    // The invariant the whole provider-first ceremony rests on: a build always
+    // ships an upstream a browser can run the code flow against, so a
+    // deployment nobody has configured can still sign somebody in. If this ever
+    // becomes false, leading with the zero-config road is a lie.
+    expect(TRUSTED_UPSTREAMS.length).toBeGreaterThan(0);
+    for (const upstream of TRUSTED_UPSTREAMS) {
+      expect(upstream.issuer.trim().length).toBeGreaterThan(0);
+    }
   });
 
-  it("skips to the Host question when identity is already known", () => {
-    withEndpoints({ identityApi: "https://id.acme.com", hostApi: "" });
-    expect(initialStep()).toBe("host");
+  it("is true when the default upstream has an issuer", () => {
+    setupSeams.defaultUpstreamIssuer = () => "https://shoo.dev";
+    expect(brokeredSignInReady()).toBe(true);
   });
 
-  it("opens on Review when the deployment already carries both", () => {
-    // Loopback dev, or a static deploy whose os-runtime-config.json names the
-    // endpoints: four screens of pre-filled fields would teach the operator
-    // that the ceremony is theatre.
-    withEndpoints({
-      identityApi: "http://127.0.0.1:18788",
-      hostApi: "http://127.0.0.1:18787",
-    });
-    expect(initialStep()).toBe("review");
+  it("is false only if a build shipped without one", () => {
+    setupSeams.defaultUpstreamIssuer = () => "";
+    expect(brokeredSignInReady()).toBe(false);
   });
+});
 
-  it("treats whitespace as unset", () => {
-    withEndpoints({ identityApi: "   ", hostApi: "   " });
-    expect(initialStep()).toBe("identity");
-  });
-
-  it("only ever names a real step", () => {
-    withEndpoints({ identityApi: "https://id.acme.com", hostApi: "" });
-    expect(SETUP_STEPS).toContain(initialStep());
+describe("SETUP_STEPS", () => {
+  it("asks sign-in first and nothing else that is required", () => {
+    // It was four steps, three of which asked for self-hosted addresses most
+    // deployments do not have. Sign-in is the only question with a wrong
+    // answer, so it leads and everything else folds behind it.
+    expect(SETUP_STEPS).toEqual(["signin", "more"]);
   });
 });

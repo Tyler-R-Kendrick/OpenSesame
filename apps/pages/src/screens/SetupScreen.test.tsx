@@ -42,13 +42,29 @@ Object.assign(settingsSeams, {
 
 import { planeNoteSeams } from "../components/PlaneNote.js";
 Object.assign(planeNoteSeams, {
-  // The real pairing ceremony probes a tailnet; the setup step's contract with
-  // it is only "mounts it, and moves on when it reports paired".
+  // The real pairing ceremony probes a tailnet; this step's contract with it
+  // is only "mounts it, and re-reads settings when it reports paired".
   ConnectThisMachine: ({ onPaired }: { onPaired?: () => void }) => (
-    <button type="button" onClick={() => onPaired?.()}>
+    <button
+      type="button"
+      onClick={() => {
+        written.daemonApi = "https://kestrel.tail9c2f.ts.net";
+        onPaired?.();
+      }}
+    >
       Pretend pairing succeeded
     </button>
   ),
+});
+
+import { federationSeams } from "../lib/federation.js";
+Object.assign(federationSeams, {
+  defaultUpstream: () => ({
+    id: "shoo",
+    displayName: "Shoo",
+    issuer: "https://shoo.dev",
+    accountKind: "Google (via shoo.dev)",
+  }),
 });
 
 import { byoSeams } from "../lib/byo.js";
@@ -78,7 +94,6 @@ beforeEach(() => {
   Object.assign(setupScreenDependencies, {
     loadSettings: () => currentSettings(),
     completeSetup,
-    initialStep: () => "identity" as const,
   });
 });
 
@@ -103,142 +118,128 @@ function stepHeading(): string {
   return screen.getByRole("heading", { level: 1 }).textContent ?? "";
 }
 
+/** The screen's terminal commit — an ink square, never a text button. */
+function commit(): HTMLElement {
+  const foot = document.querySelector(".setup__foot");
+  const go = foot?.querySelector(".go");
+  if (!(go instanceof HTMLElement)) throw new Error("no commit control");
+  return go;
+}
+
 describe("the setup ceremony", () => {
-  it("walks the four steps from a bare deployment", () => {
+  it("asks sign-in first, and nothing that is not required", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-
-    expect(stepHeading()).toBe("Where does identity live?");
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(stepHeading()).toBe("Is there a Host?");
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(stepHeading()).toBe("Pair this machine");
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(stepHeading()).toBe("Ready");
-    // The last step commits rather than continuing.
-    expect(screen.getByRole("button", { name: "Finish setup" })).toBeDefined();
+    expect(stepHeading()).toBe("How do people sign in?");
+    // No URL field on arrival: the road that needs one is not the default.
+    expect(screen.queryByLabelText("Identity service")).toBeNull();
+    expect(screen.queryByLabelText("Host API")).toBeNull();
   });
 
-  it("opens on the step the deployment has not answered", () => {
-    setupScreenDependencies.initialStep = () => "review";
+  it("is two steps, not four", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    expect(stepHeading()).toBe("Ready");
+    expect(screen.getByText("1 / 2")).toBeDefined();
+    fireEvent.click(commit());
+    expect(stepHeading()).toBe("Anything else?");
+    expect(screen.getByText("2 / 2")).toBeDefined();
   });
 
-  it("keeps the commitment in one place on every step", () => {
-    // The whole of the mobile fix: the primary action never moves, so it is
-    // never something to hunt for after a field expands.
-    render(<SetupScreen onDone={vi.fn()} />);
-    for (const _ of [0, 1, 2]) {
-      const foot = document.querySelector(".setup__foot");
-      expect(foot?.querySelector(".btn--primary")).not.toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    }
-    const foot = document.querySelector(".setup__foot");
-    expect(foot?.querySelector(".btn--primary")?.textContent).toBe(
-      "Finish setup",
-    );
-  });
-
-  it("lets the rail jump straight to a step", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(stepHeading()).toBe("Ready");
-    fireEvent.click(screen.getByRole("button", { name: "Identity" }));
-    expect(stepHeading()).toBe("Where does identity live?");
-  });
-
-  it("cannot go back from the first step", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
-    const back = screen.getByRole("button", { name: "Previous step" });
-    expect(back.hasAttribute("disabled")).toBe(true);
-  });
-
-  it("skipping a step is moving on, not abandoning setup", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Skip identity" }));
-    expect(stepHeading()).toBe("Is there a Host?");
-    fireEvent.click(screen.getByRole("button", { name: "No Host" }));
-    expect(stepHeading()).toBe("Pair this machine");
-  });
-
-  it("writes the endpoints the operator typed", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com/");
-    expect(written.identityApi).toBe("https://id.acme.com");
-
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    type("Host API", "https://host.acme.com/");
-    expect(written.hostApi).toBe("https://host.acme.com");
-  });
-
-  it("records what was answered and hands back", async () => {
+  it("finishes with nothing typed at all", async () => {
+    // The whole point of leading with the brokered road: a deployment nobody
+    // has configured is already usable, so setup can be two taps.
     const onDone = vi.fn();
     render(<SetupScreen onDone={onDone} />);
-    type("Identity API", "https://id.acme.com");
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
+    fireEvent.click(commit());
+    fireEvent.click(commit());
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(completeSetup).toHaveBeenCalledWith({
-      identity: "connected",
+      identity: "brokered",
       provider: "",
       host: false,
       machine: false,
     });
+    expect(written.identityApi).toBe("");
   });
 
-  it("records a deliberate local-only deployment as such", async () => {
+  it("selects the zero-config road on arrival", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    const brokered = screen.getByRole("radio", {
+      name: /Google \(via shoo\.dev\)/,
+    });
+    // A narrowing guard rather than a cast: the road picker is real radio
+    // inputs, and if that ever changes this should fail loudly here.
+    if (!(brokered instanceof HTMLInputElement)) {
+      throw new Error("the brokered road is not a radio input");
+    }
+    expect(brokered.checked).toBe(true);
+  });
+
+  it("names the road by what the sign-in screen will actually say", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(
+      screen.getByRole("radio", { name: /Google \(via shoo\.dev\)/ }),
+    ).toBeDefined();
+  });
+
+  it("records a deliberate no-accounts deployment", async () => {
     const onDone = vi.fn();
     render(<SetupScreen onDone={onDone} />);
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
+    fireEvent.click(screen.getByRole("radio", { name: /No accounts/ }));
+    fireEvent.click(commit());
+    fireEvent.click(commit());
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(completeSetup.mock.calls[0]?.[0]?.identity).toBe("local-only");
+    expect(completeSetup.mock.calls[0]?.[0]?.identity).toBe("none");
   });
 
   it("hands back even when the record cannot be persisted", async () => {
-    // A browser with no durable storage must not strand the operator on the
-    // last step; it will simply ask again next time.
     completeSetup.mockRejectedValue(new Error("OPFS unavailable"));
     const onDone = vi.fn();
     render(<SetupScreen onDone={onDone} />);
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
+    fireEvent.click(commit());
+    fireEvent.click(commit());
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
   });
 
-  it("moves on by itself once a daemon pairs", () => {
+  it("cannot go back from the first step", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Machine" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Pretend pairing succeeded" }),
-    );
-    expect(stepHeading()).toBe("Ready");
+    expect(
+      screen
+        .getByRole("button", { name: "Previous step" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
   });
 
-  it("hands the Host step over to pairing rather than duplicating it", () => {
+  it("lets the rail jump between steps", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Host" }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Let a paired daemon front it" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Go to pairing" }));
-    expect(stepHeading()).toBe("Pair this machine");
+    fireEvent.click(screen.getByRole("button", { name: "Everything else" }));
+    expect(stepHeading()).toBe("Anything else?");
+    fireEvent.click(screen.getByRole("button", { name: "Sign-in" }));
+    expect(stepHeading()).toBe("How do people sign in?");
   });
 });
 
-describe("the identity step", () => {
+describe("bringing your own provider", () => {
+  function chooseByo(): void {
+    fireEvent.click(screen.getByRole("radio", { name: /Your own provider/ }));
+  }
+
+  it("asks for an identity service only on the road that needs one", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(screen.queryByLabelText("Identity service")).toBeNull();
+    chooseByo();
+    expect(fieldNamed("Identity service")).toBeDefined();
+  });
+
   it("will not offer a provider before there is somewhere to register it", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    // Presets register *through* the Identity API by OIDC discovery, so an
-    // issuer typed before the address has nowhere to go.
+    chooseByo();
     expect(
       screen.getByRole("button", { name: /WorkOS/ }).hasAttribute("disabled"),
     ).toBe(true);
 
-    type("Identity API", "https://id.acme.com");
+    type("Identity service", "https://id.acme.com");
     expect(
       screen.getByRole("button", { name: /WorkOS/ }).hasAttribute("disabled"),
     ).toBe(false);
@@ -246,20 +247,20 @@ describe("the identity step", () => {
 
   it("asks each preset for the field its issuer is built from", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com");
+    chooseByo();
+    type("Identity service", "https://id.acme.com");
 
     fireEvent.click(screen.getByRole("button", { name: /Okta/ }));
     expect(fieldNamed("Okta domain").placeholder).toBe("dev-123456.okta.com");
 
-    fireEvent.click(screen.getByRole("button", { name: /Better Auth/ }));
-    expect(fieldNamed("Deployment URL").placeholder).toBe(
-      "https://auth.acme.com",
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Other OIDC/ }));
+    expect(fieldNamed("Issuer URL").placeholder).toBe("https://idp.acme.com");
   });
 
   it("asks WorkOS for nothing — its issuer is fixed", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com");
+    chooseByo();
+    type("Identity service", "https://id.acme.com");
     fireEvent.click(screen.getByRole("button", { name: /WorkOS/ }));
 
     expect(screen.queryByLabelText("Deployment URL")).toBeNull();
@@ -270,7 +271,7 @@ describe("the identity step", () => {
     ).toBe(false);
   });
 
-  it("registers through the Identity API and records the preset", async () => {
+  it("registers through the identity service and records the preset", async () => {
     registerByoProvider.mockResolvedValue({
       id: "byo-1",
       issuer: "https://acme.okta.com",
@@ -280,8 +281,10 @@ describe("the identity step", () => {
       registrationSource: "dcr",
       redirectUri: "https://id.acme.com/cb",
     });
-    render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com");
+    const onDone = vi.fn();
+    render(<SetupScreen onDone={onDone} />);
+    chooseByo();
+    type("Identity service", "https://id.acme.com");
     fireEvent.click(screen.getByRole("button", { name: /Okta/ }));
     fireEvent.change(fieldNamed("Okta domain"), {
       target: { value: "acme.okta.com" },
@@ -294,41 +297,36 @@ describe("the identity step", () => {
       }),
     );
     await screen.findByText(/Okta registered/);
+
+    fireEvent.click(commit());
+    fireEvent.click(commit());
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(completeSetup.mock.calls[0]?.[0]).toMatchObject({
+      identity: "byo",
+      provider: "okta",
+    });
   });
 
-  it("offers a bare issuer URL for a provider with no preset", async () => {
-    // Keycloak, Authentik, Zitadel, a deployment's own server: not an edge
-    // case on first run, and the sign-in screen's globe is on a screen the
-    // operator has not reached yet.
-    registerByoProvider.mockResolvedValue({
-      id: "byo-2",
-      issuer: "https://idp.acme.com",
-      label: "idp.acme.com",
-      clientId: "client",
-      clientAuth: "none",
-      registrationSource: "dcr",
-      redirectUri: "https://id.acme.com/cb",
-    });
+  it("refuses a malformed domain before it reaches the network", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com");
-    fireEvent.click(screen.getByRole("button", { name: /Other OIDC/ }));
-    fireEvent.change(fieldNamed("Issuer URL"), {
-      target: { value: "https://idp.acme.com/" },
+    chooseByo();
+    type("Identity service", "https://id.acme.com");
+    fireEvent.click(screen.getByRole("button", { name: /Okta/ }));
+    fireEvent.change(fieldNamed("Okta domain"), {
+      target: { value: "not-an-okta-domain" },
     });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Register Other OIDC" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Register Okta" }));
 
-    await waitFor(() =>
-      expect(registerByoProvider).toHaveBeenCalledWith({
-        issuer: "https://idp.acme.com",
-      }),
-    );
+    expect(registerByoProvider).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Use your Okta domain, like dev-123456.okta.com."),
+    ).toBeDefined();
   });
 
   it("holds a bare issuer to https off loopback", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com");
+    chooseByo();
+    type("Identity service", "https://id.acme.com");
     fireEvent.click(screen.getByRole("button", { name: /Other OIDC/ }));
     fireEvent.change(fieldNamed("Issuer URL"), {
       target: { value: "http://idp.acme.com" },
@@ -343,27 +341,13 @@ describe("the identity step", () => {
     ).toBeDefined();
   });
 
-  it("refuses a malformed domain before it reaches the network", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com");
-    fireEvent.click(screen.getByRole("button", { name: /Okta/ }));
-    fireEvent.change(fieldNamed("Okta domain"), {
-      target: { value: "not-an-okta-domain" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Register Okta" }));
-
-    expect(registerByoProvider).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("Use your Okta domain, like dev-123456.okta.com."),
-    ).toBeDefined();
-  });
-
   it("says so when registration fails rather than claiming success", async () => {
     registerByoProvider.mockRejectedValue(
       new Error("The identity service couldn't be reached."),
     );
     render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com");
+    chooseByo();
+    type("Identity service", "https://id.acme.com");
     fireEvent.click(screen.getByRole("button", { name: /Auth0/ }));
     fireEvent.change(fieldNamed("Tenant domain"), {
       target: { value: "acme.auth0.com" },
@@ -374,34 +358,44 @@ describe("the identity step", () => {
   });
 });
 
-describe("the review step", () => {
-  it("states every answer, including the ones left unset", () => {
-    written.identityApi = "https://id.acme.com";
-    written.daemonApi = "https://kestrel.tail9c2f.ts.net";
-    render(<SetupScreen onDone={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+describe("everything else", () => {
+  function goToMore(): void {
+    fireEvent.click(screen.getByRole("button", { name: "Everything else" }));
+  }
 
-    expect(screen.getByText("https://id.acme.com")).toBeDefined();
-    expect(screen.getByText("https://kestrel.tail9c2f.ts.net")).toBeDefined();
-    // An operator who chose to run without a Host should see the choice
-    // recorded, not an absence they have to infer.
-    expect(screen.getAllByText("not set").length).toBeGreaterThan(0);
-  });
-
-  it("re-reads settings written by an earlier step", () => {
+  it("keeps every optional thing closed, and says what each already holds", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    type("Identity API", "https://id.acme.com");
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    expect(screen.getByText("https://id.acme.com")).toBeDefined();
-  });
-
-  it("keeps the rarer endpoint behind a disclosure", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    goToMore();
+    // Closed: the fields are not in the document until a row is opened.
+    expect(screen.queryByLabelText("Host API")).toBeNull();
     expect(screen.queryByLabelText("Mobile MFA app")).toBeNull();
+    // Readable without opening anything.
+    expect(screen.getAllByText("none").length).toBeGreaterThan(0);
+    expect(screen.getByText("not paired")).toBeDefined();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "More endpoints" }));
-    type("Mobile MFA app", "https://mfa.acme.com/");
-    expect(written.mfaAppUrl).toBe("https://mfa.acme.com");
+  it("writes the Host only when an operator opens the row and types one", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    goToMore();
+    fireEvent.click(screen.getByRole("button", { name: /^Host/ }));
+    type("Host API", "https://host.acme.com/");
+    expect(written.hostApi).toBe("https://host.acme.com");
+  });
+
+  it("re-reads the write-out after pairing writes settings behind it", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    goToMore();
+    fireEvent.click(screen.getByRole("button", { name: /^This machine/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pretend pairing succeeded" }),
+    );
+    expect(screen.getByText("https://kestrel.tail9c2f.ts.net")).toBeDefined();
+  });
+
+  it("states every answer, including the ones left unset", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    goToMore();
+    expect(screen.getByText("brokered")).toBeDefined();
+    expect(screen.getAllByText("not set").length).toBeGreaterThan(0);
   });
 });

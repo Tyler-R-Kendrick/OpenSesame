@@ -739,10 +739,10 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                       ? "Unlock with passkey"
                       : "Unlock";
               return (
-                <div className="unlock__go-row">
+                <div className="go-row">
                   <button
                     type="submit"
-                    className="unlock__go"
+                    className="go"
                     disabled={disabled}
                     aria-busy={busy}
                     aria-label={verb}
@@ -754,7 +754,7 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                       <IconArrowRight size={18} />
                     )}
                   </button>
-                  <span className="unlock__go-verb" aria-hidden="true">
+                  <span className="go-verb" aria-hidden="true">
                     {verb}
                   </span>
                 </div>
