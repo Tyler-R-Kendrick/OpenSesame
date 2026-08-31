@@ -230,6 +230,8 @@ For the implementation pass. Nothing below is built yet.
 | Tier resolution, recipe evaluation, step IR, runner trait | new crate, e.g. `crates/rotation-web` |
 | Web-login executor dispatch | `execute_rotation` in `crates/connection-broker/src/rotation.rs` |
 | Routes for policies, teaching sessions, recordings | `apps/gateway/src/routes/rotation.rs` |
+| Live observation lanes, frame admission, control lease | `crates/session-observe` (exists; ADR 0078) |
+| Sealed observation log, attach ceremony, WSS relay | `crates/storage`, `apps/gateway/src/routes/rotation.rs` |
 | Registry entries | `packages/capability-registry/src/index.ts`, then regenerate `capabilities.json` |
 
 The new crate must **not** become a daemon dependency —
