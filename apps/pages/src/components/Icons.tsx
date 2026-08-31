@@ -499,3 +499,30 @@ export function IconPhone(props: IconProps) {
     </Svg>
   );
 }
+
+/* —— Install ————————————————————————————————————————————————— */
+
+/**
+ * iOS Share — the exact glyph the reader is hunting for in Safari's toolbar.
+ * Drawn rather than described, because "the share button" is three different
+ * shapes across the platforms this app runs on.
+ */
+export function IconShare(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.5v10.5" />
+      <path d="M8.5 7L12 3.5 15.5 7" />
+      <path d="M8 10.5H6.2A1.7 1.7 0 0 0 4.5 12.2v6.6A1.7 1.7 0 0 0 6.2 20.5h11.6a1.7 1.7 0 0 0 1.7-1.7v-6.6a1.7 1.7 0 0 0-1.7-1.7H16" />
+    </Svg>
+  );
+}
+
+/** "Add to Home Screen" — the plus-in-a-square beside that row in the sheet. */
+export function IconAddSquare(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4" y="4" width="16" height="16" rx="2.5" />
+      <path d="M12 8.5v7M8.5 12h7" />
+    </Svg>
+  );
+}

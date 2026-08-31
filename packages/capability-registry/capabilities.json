@@ -1980,6 +1980,25 @@
     }
   },
   {
+    "id": "app.install",
+    "title": "Install the PWA on this device",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/install.ts:installWorthShowing",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "installing is a browser-mediated act on the human's own device: the install dialog only opens inside a transient user activation, and there is no gesture an agent can supply or consent it can give on the device owner's behalf",
+        "adr": "0085-pwa-install-offer.md"
+      }
+    }
+  },
+  {
     "id": "setup.first_run",
     "title": "First-run deployment setup ceremony",
     "plane": "client_local",

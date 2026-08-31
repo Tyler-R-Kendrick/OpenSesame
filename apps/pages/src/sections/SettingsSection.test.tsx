@@ -95,6 +95,7 @@ import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
 
 const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
+  InstallPanel: () => <div data-testid="install-panel" />,
   ActiveProjectPanel: () => <div data-testid="active-project-panel" />,
   ModelProviderPanel: () => <div data-testid="model-provider-panel" />,
   CapabilityConnectorsPanel: () => (
