@@ -116,10 +116,10 @@ describe("AppShell", () => {
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
     expect(screen.getAllByTestId("account-switcher").length).toBe(2);
-    // One per chrome: the phone top bar and the desktop statusline both
-    // carry plane truth; CSS shows exactly one per breakpoint.
-    expect(screen.getAllByTestId("connectivity-bar").length).toBe(2);
-    expect(screen.getAllByTestId("notifications-bar").length).toBe(2);
+    // Plane truth lives in the statusline at every width — one copy, not a
+    // second in the phone top bar competing for 390px with the prompt.
+    expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
+    expect(screen.getAllByTestId("notifications-bar").length).toBe(1);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
   });
 

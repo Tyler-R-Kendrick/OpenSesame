@@ -324,6 +324,10 @@ mod tests {
             interval_seconds,
             last_rotated_at: last_rotated_at.map(str::to_string),
             enabled: true,
+            attempts: 0,
+            next_attempt_at: None,
+            needs_attention: false,
+            last_error: None,
             created_at: "2026-08-30T00:00:00+00:00".into(),
             updated_at: "2026-08-30T00:00:00+00:00".into(),
         }

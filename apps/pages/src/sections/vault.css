@@ -2,6 +2,11 @@
   display: grid;
   grid-template-columns: var(--list-w) 1fr;
   flex: 1;
+  /* Grid and flex children default to min-width:auto, which lets a nowrap row
+     dictate the column width — on a phone that pushed the whole app wider
+     than the screen and every tap landed offset. Every link in the chain
+     from here to the row is pinned to 0 so the pane tracks the viewport. */
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -11,6 +16,7 @@
 .vault__list {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--line);
   background: var(--surface);
@@ -80,6 +86,7 @@
 
 .vtree {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -142,8 +149,14 @@
 
 .vtree__rows {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
+  /* A flick that runs past the end of the tree must not drag the page or
+     trigger the browser's pull-to-refresh behind it. */
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 0.25rem 0;
   outline: none;
 }
@@ -157,11 +170,15 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  min-width: 0;
   height: 1.75rem;
   padding: 0 0.75rem;
   color: var(--ink);
   cursor: pointer;
   white-space: nowrap;
+  /* Taps act immediately: no 300ms double-tap-to-zoom wait. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .vtree__row--child {
@@ -257,6 +274,7 @@
   place-items: center;
   width: 1.25rem;
   height: 1.25rem;
+  touch-action: manipulation;
   border: 0;
   border-radius: 2px;
   padding: 0;
@@ -624,6 +642,57 @@
    its own width instead of stretching the grid column. */
 .detail > .btn {
   justify-self: start;
+}
+
+/* —— Touch —————————————————————————————————————————————————
+   A finger needs a 44px row and a 44px key, and it has no hover to reveal
+   anything with. The mono density survives: the row grows, the type does
+   not. */
+@media (pointer: coarse) {
+  .vtree__row {
+    height: 2.75rem;
+    padding: 0 0.9rem;
+  }
+
+  .vtree__row--child {
+    padding-left: 1.6rem;
+  }
+
+  .vtree__more {
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-right: -0.55rem;
+    opacity: 1;
+  }
+
+  .vtree__row:active {
+    background: var(--surface-3);
+  }
+
+  .vtree__row.is-cursor:active {
+    background: color-mix(in srgb, var(--ink) 88%, var(--canvas));
+  }
+
+  /* The menu is a touch sheet, not a hover popover: full-width targets. */
+  .vtree__menu button {
+    min-height: 2.75rem;
+  }
+
+  /* The `/` key is a real affordance on a phone — search still matters with
+     no keyboard. `?` lists keyboard shortcuts a touch device does not have,
+     so it stands down rather than taking a 44px slot from the verbs. */
+  .vtree__key {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .vtree__key--help {
+    display: none;
+  }
+
+  .vtree__cmd input {
+    min-height: 2.75rem;
+  }
 }
 
 /* —— Editor ————————————————————————————————————————————————— */

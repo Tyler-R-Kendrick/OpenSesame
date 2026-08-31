@@ -14,6 +14,8 @@ opensesame-connection-detect = { path = "../connection-detect" }
 opensesame-domain = { path = "../domain" }
 opensesame-relay = { path = "../relay" }
 opensesame-rotation = { path = "../rotation" }
+opensesame-invoke-through = { path = "../invoke-through" }
+secrecy = { workspace = true }
 opensesame-task-bus = { path = "../task-bus" }
 anyhow = { workspace = true }
 async-trait = { workspace = true }

@@ -367,6 +367,122 @@ mod tests {
         );
     }
 
+    /// Two gateway processes scanning the same due policy must produce one
+    /// rotation, not two. The scanner has no view of concurrency — it evaluates
+    /// watermarks and responds — so the rotation responder claims a lease
+    /// before acting (ADR 0076). Concurrently rotating one credential twice is
+    /// a lockout, not merely wasted work.
+    #[tokio::test]
+    async fn concurrent_scans_rotate_a_due_policy_once() {
+        let st = test_demo_state().await;
+        let org = st.connection_organization.to_string();
+        st.connection_broker
+            .upsert_rotation_policy(
+                &org,
+                UpsertRotationPolicy {
+                    id: None,
+                    target: RotationTarget::StorePath {
+                        path: "Dev/contended".into(),
+                    },
+                    interval_seconds: 3600,
+                    enabled: true,
+                },
+            )
+            .await
+            .unwrap();
+
+        let now = Utc::now();
+        let (first, second) = tokio::join!(pass(&st, now), pass(&st, now));
+        first.unwrap();
+        second.unwrap();
+
+        let jobs = st
+            .connection_broker
+            .list_rotation_jobs(&org, 10)
+            .await
+            .unwrap();
+        assert_eq!(
+            jobs.len(),
+            1,
+            "the lease admits one rotation even when both scans fire the rung",
+        );
+    }
+
+    /// A rotation that keeps failing backs off and then parks: it stops
+    /// retrying, stays enabled, and is flagged. Auto-disabling would hide a
+    /// rotation that is not happening (ADR 0052 §11).
+    #[tokio::test]
+    async fn a_failing_policy_parks_without_disabling_itself() {
+        let st = test_demo_state().await;
+        let org = st.connection_organization.to_string();
+        // A connection target naming a connection that does not exist fails on
+        // every attempt.
+        let policy = st
+            .connection_broker
+            .upsert_rotation_policy(
+                &org,
+                UpsertRotationPolicy {
+                    id: None,
+                    target: RotationTarget::Connection {
+                        connection_id: "conn_does_not_exist".into(),
+                    },
+                    interval_seconds: 1,
+                    enabled: true,
+                },
+            )
+            .await
+            .unwrap();
+
+        // Drive failures directly: the responder's backoff otherwise holds the
+        // policy off for a minute between scans.
+        for _ in 0..8 {
+            assert!(
+                st.connection_broker
+                    .claim_rotation_policy(&policy.id, 0)
+                    .await
+                    .unwrap(),
+                "an un-parked policy is claimable",
+            );
+            let current = st
+                .connection_broker
+                .list_rotation_policies(&org)
+                .await
+                .unwrap()
+                .into_iter()
+                .find(|p| p.id == policy.id)
+                .expect("policy");
+            let next = (current.attempts < 7).then(Utc::now);
+            st.connection_broker
+                .release_rotation_policy_failure(&policy.id, next, "provider unreachable")
+                .await
+                .unwrap();
+        }
+
+        let parked = st
+            .connection_broker
+            .list_rotation_policies(&org)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|p| p.id == policy.id)
+            .expect("policy");
+        assert!(parked.enabled, "a parked policy stays enabled and visible");
+        assert!(parked.needs_attention, "and is flagged for the operator");
+        assert!(
+            parked.next_attempt_at.is_none(),
+            "parked means no next attempt"
+        );
+        assert!(parked.last_error.is_some(), "with a hint");
+
+        assert!(
+            !st.connection_broker
+                .claim_rotation_policy(&policy.id, 600)
+                .await
+                .unwrap(),
+            "a parked policy is not claimed again",
+        );
+    }
+
     #[tokio::test]
     async fn a_disabled_policy_is_never_rotated() {
         let st = test_demo_state().await;
