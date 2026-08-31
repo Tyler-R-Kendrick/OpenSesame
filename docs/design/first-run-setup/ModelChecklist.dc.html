@@ -1,0 +1,809 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+/* Lifted from apps/pages/src/styles.css — the vault's own tokens and the
+   component rules the setup ceremony reuses. Scoped to `.os` so each artboard
+   carries the whole design system without a stylesheet import. Values are
+   verbatim: 2px radii, the mono chrome / sans prose split, OpenSesame teal. */
+
+.os {
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #ededed;
+  --ink: #171717;
+  --ink-2: #5c5c5c;
+  --ink-3: #6f6f6f;
+  --line: #e7e7e7;
+  --line-strong: #d4d4d4;
+  --accent: #0d7268;
+  --accent-ink: #ffffff;
+  --accent-wash: #eaf2f0;
+  --accent-line: #bcd6d1;
+  --ok: #0f7a51;
+  --ok-wash: #e3f6ec;
+  --warn: #a25a05;
+  --warn-wash: #fdf1de;
+  --err: #b32424;
+  --err-wash: #fceaea;
+  --radius: 2px;
+  --radius-pill: 999px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  color-scheme: light;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-synthesis-weight: none;
+}
+
+.os[data-theme="dark"] {
+  --canvas: #0f0f0f;
+  --surface: #171717;
+  --surface-2: #1d1d1d;
+  --surface-3: #242424;
+  --ink: #f0f0f0;
+  --ink-2: #a6a6a6;
+  --ink-3: #8c8c8c;
+  --line: #262626;
+  --line-strong: #3a3a3a;
+  --accent: #2fb3a3;
+  --accent-ink: #04231f;
+  --accent-wash: #102a26;
+  --accent-line: #1d5c55;
+  --ok: #35b57e;
+  --ok-wash: #0f2c22;
+  --warn: #d99320;
+  --warn-wash: #33240c;
+  --err: #ef6d6d;
+  --err-wash: #351717;
+  color-scheme: dark;
+}
+
+.os *,
+.os *::before,
+.os *::after {
+  box-sizing: border-box;
+}
+
+.os h1,
+.os h2,
+.os h3 {
+  margin: 0;
+  letter-spacing: -0.021em;
+  text-wrap: balance;
+  font-weight: 600;
+}
+
+.os h1 {
+  font-size: 1.5rem;
+}
+.os h2 {
+  font-size: 1.125rem;
+}
+.os h3 {
+  font-size: 0.9375rem;
+}
+
+.os p {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 0.9375rem;
+}
+
+.os a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
+.os a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.os code {
+  font-family: var(--mono);
+  font-size: 0.875em;
+  font-variant-ligatures: none;
+}
+
+.os :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.os .hint {
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+/* ——— Buttons ——————————————————————————————————————————— */
+
+.os .btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 550;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.os .btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--ink-3);
+}
+
+.os .btn--primary {
+  background: var(--ink);
+  border-color: transparent;
+  color: var(--canvas);
+}
+
+.os .btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
+}
+
+.os .btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-2);
+}
+
+.os .btn--ghost:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.os .btn--block {
+  width: 100%;
+}
+
+.os .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.os .icon-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.os .icon-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.os .icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ——— Fields ———————————————————————————————————————————— */
+
+.os .f {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.os .f__labelrow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.1rem;
+}
+
+.os .f__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.os .f__shell {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: transparent;
+  overflow: hidden;
+}
+
+.os .f__shell:focus-within {
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
+}
+
+.os .f__lead {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.os .f__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.625rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  padding: 0.35rem 0.45rem 0.35rem 0;
+}
+
+.os .f__input:focus {
+  outline: none;
+}
+
+.os .f__input::placeholder {
+  color: var(--ink-3);
+}
+
+.os .f__fills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.os .f__fills-label {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.os .fill {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.os .fill:hover {
+  border-style: solid;
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+/* ——— Chips, notes, rules ———————————————————————————————— */
+
+.os .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.os .chip--ok {
+  color: var(--ok);
+  background: var(--ok-wash);
+  border-color: color-mix(in srgb, var(--ok) 30%, var(--line));
+}
+
+.os .chip--accent {
+  color: var(--accent);
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+}
+
+.os .note {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--font);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.os .note--warn {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  background: var(--warn-wash);
+}
+
+.os .note svg {
+  flex: none;
+  margin-top: 0.1rem;
+}
+
+.os .or {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.os .or::before,
+.os .or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* ——— Ceremony card + alternatives (CeremonyShell) ——————————— */
+
+.os .found {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.os .found__top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.os .found__name {
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.os .found dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.os .found dt {
+  color: var(--ink-2);
+}
+
+.os .found dd {
+  margin: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.os .found--attn {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  background: var(--warn-wash);
+}
+
+.os .found--attn .found__top {
+  color: var(--warn);
+}
+
+.os .found__do {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-self: start;
+}
+
+.os .alt {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.os .alt__item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.os .alt__btn {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 550;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.os .alt__btn:hover {
+  background: var(--surface-2);
+}
+
+.os .alt__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.os .alt__grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.os .alt__chev {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+  transition: transform 160ms var(--ease);
+}
+
+.os .alt__chev.is-open {
+  transform: rotate(90deg);
+}
+
+.os .alt__body {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.15rem 0.8rem 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.os .spin {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent);
+  animation: turn 700ms linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ——— The setup shell — new vocabulary, same system ——————————— */
+
+.os {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.setup__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+  padding: 0.9rem 1.15rem 0.65rem;
+}
+
+.setup__wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.setup__count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The progress rail: four segments, the passed ones filled in ink. A dot row
+   would be decoration; a segment says how much is left. */
+.setup__rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  flex: none;
+  padding: 0 1.15rem 0.85rem;
+}
+
+.setup__seg {
+  appearance: none;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink-3);
+}
+
+.setup__seg-bar {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.setup__seg.is-done .setup__seg-bar,
+.setup__seg.is-now .setup__seg-bar {
+  background: var(--ink);
+}
+
+.setup__seg.is-now {
+  color: var(--ink);
+}
+
+.setup__seg-label {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setup__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.35rem 1.15rem 1.25rem;
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.setup__head {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.setup__head p {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  max-width: 38ch;
+}
+
+/* The thumb bar. Every step's commitment sits here, at the bottom of the
+   phone, in the same place — the one thing the old screen never had. */
+.setup__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.15rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.setup__foot .btn--primary {
+  flex: 1;
+}
+
+.setup__skip {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0.35rem 0;
+  font: inherit;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  justify-self: start;
+}
+
+/* Provider presets — a two-up grid of real choices, not a select. */
+.preset {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.preset__opt {
+  appearance: none;
+  display: grid;
+  gap: 0.15rem;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.preset__opt:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.preset__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.preset__name {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.preset__kind {
+  font-family: var(--font);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.preset__opt.is-on .preset__kind {
+  color: var(--accent);
+}
+
+/* The review step's write-out. */
+.wrote {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.wrote__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.wrote__key {
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.wrote__val {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.wrote__val--off {
+  color: var(--ink-3);
+}
+  </style>
+</helmet>
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 680px; padding: 22px 20px; display: grid; gap: 14px; align-content: start; --sk: #b8b8b8">
+  <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3)">Option B · One scrolling checklist</p>
+
+  <div style="border: 1.5px solid var(--sk); border-radius: 2px; padding: 16px 14px; display: grid; gap: 10px; background: var(--surface)">
+    <div style="height: 13px; width: 52%; background: var(--sk)"></div>
+    <div style="height: 7px; width: 88%; background: #dedede"></div>
+
+    <div style="border: 1.5px solid var(--sk); padding: 10px; display: grid; gap: 8px; margin-top: 4px">
+      <div style="display: flex; align-items: center; gap: 8px">
+        <div style="width: 16px; height: 16px; border-radius: 50%; background: var(--ink)"></div>
+        <div style="height: 8px; width: 90px; background: var(--sk)"></div>
+        <div style="margin-left: auto; height: 8px; width: 34px; background: #dedede"></div>
+      </div>
+      <div style="height: 26px; border-bottom: 1.5px solid var(--sk)"></div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px">
+        <div style="height: 30px; border: 1.5px solid var(--sk)"></div>
+        <div style="height: 30px; border: 1.5px solid var(--sk)"></div>
+      </div>
+    </div>
+
+    <div style="border: 1.5px solid var(--sk); padding: 10px; display: flex; align-items: center; gap: 8px">
+      <div style="width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 8px; width: 74px; background: var(--sk)"></div>
+      <div style="margin-left: auto; width: 8px; height: 8px; border-right: 1.5px solid var(--sk); border-top: 1.5px solid var(--sk); transform: rotate(45deg)"></div>
+    </div>
+
+    <div style="border: 1.5px solid var(--sk); padding: 10px; display: flex; align-items: center; gap: 8px">
+      <div style="width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 8px; width: 96px; background: var(--sk)"></div>
+      <div style="margin-left: auto; width: 8px; height: 8px; border-right: 1.5px solid var(--sk); border-top: 1.5px solid var(--sk); transform: rotate(45deg)"></div>
+    </div>
+
+    <div style="border: 1.5px solid var(--sk); padding: 10px; display: flex; align-items: center; gap: 8px">
+      <div style="width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 8px; width: 64px; background: var(--sk)"></div>
+      <div style="margin-left: auto; width: 8px; height: 8px; border-right: 1.5px solid var(--sk); border-top: 1.5px solid var(--sk); transform: rotate(45deg)"></div>
+    </div>
+
+    <div style="height: 40px; background: var(--ink); margin-top: 6px"></div>
+  </div>
+
+  <div style="display: grid; gap: 6px">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600">Why</p>
+    <p class="hint">The vocabulary the app already speaks — the connectivity bar's ceremonies are rows that expand in place and never navigate. Everything optional is visibly optional, and a returning operator opens the one row they came for.</p>
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; margin-top: 4px">Costs</p>
+    <p class="hint">On a phone an expanded row pushes the finish button off screen, so the one action that ends setup moves every time something opens — which is the complaint that started this. Nothing states an order, so "am I done?" has no answer.</p>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":680}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>
+</body>
+</html>

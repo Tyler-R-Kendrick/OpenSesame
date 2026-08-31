@@ -136,7 +136,26 @@ Object.assign(providersSeams, {
   requestEmailMagicLink,
 });
 
-import { UnlockScreen } from "./UnlockScreen.js";
+import { setupScreenDependencies } from "./SetupScreen.js";
+import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
+
+// This file exercises the unlock form. Setup has a suite of its own; here the
+// ceremony is already answered, which is the state of every device that has a
+// vault on it, and the few tests that do reach it only assert the handoff.
+const setupRequiredHolder = { current: false };
+const identityBaseHolder = { current: "http://127.0.0.1:18788" };
+const completeSetup = vi.fn<() => Promise<void>>();
+Object.assign(unlockScreenDependencies, {
+  setupRequired: () => setupRequiredHolder.current,
+  currentSession: () => null,
+  identityBase: () => identityBaseHolder.current,
+});
+Object.assign(setupScreenDependencies, {
+  // The ceremony's own step-picking is covered in SetupScreen.test.tsx; these
+  // tests only care that it is reached and handed back from.
+  initialStep: () => "identity" as const,
+  completeSetup,
+});
 
 const STRONG = "correct horse battery staple";
 
@@ -197,8 +216,112 @@ beforeEach(() => {
   // Identity API).
   listFederatedProviders.mockResolvedValue([]);
   endSession.mockReset();
+  setupRequiredHolder.current = false;
+  identityBaseHolder.current = "http://127.0.0.1:18788";
+  completeSetup.mockReset();
+  completeSetup.mockResolvedValue(undefined);
   sessionHolder.current = null;
   upstreamHolder.current = UPSTREAM;
+});
+
+describe("UnlockScreen — setup gate", () => {
+  afterEach(cleanup);
+
+  function fresh() {
+    v.state = {
+      status: "empty",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingTotp: false,
+    };
+  }
+
+  it("runs the setup ceremony before anything else on a fresh deployment", () => {
+    fresh();
+    setupRequiredHolder.current = true;
+    render(<UnlockScreen />);
+
+    // The screen this replaces led with an amber report of the same state.
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Where does identity live?",
+    );
+    expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
+  });
+
+  it("hands back to the unlock screen once setup is answered", () => {
+    fresh();
+    setupRequiredHolder.current = true;
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
+
+    return waitFor(() =>
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+        "Sign in",
+      ),
+    );
+  });
+
+  it("withholds the Unlock tab while nothing is sealed on this device", () => {
+    // Not disabled: a greyed tab still asserts the action exists and merely is
+    // unavailable right now, which is a different and untrue claim.
+    fresh();
+    render(<UnlockScreen />);
+    expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Sign in" })).toBeNull();
+  });
+
+  it("offers the Unlock tab as soon as there is a vault to open", () => {
+    v.state = {
+      status: "locked",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingTotp: false,
+    };
+    render(<UnlockScreen />);
+    expect(screen.getByRole("tab", { name: "Unlock" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Sign in" })).toBeTruthy();
+  });
+
+  it("names the deployment it is pointed at, and the road back into setup", () => {
+    v.state = {
+      status: "locked",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingTotp: false,
+    };
+    render(<UnlockScreen />);
+    expect(screen.getByText("127.0.0.1:18788")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Where does identity live?",
+    );
+  });
+
+  it("replaces dead sign-in buttons with the setup road when identity is unset", () => {
+    fresh();
+    identityBaseHolder.current = "";
+    render(<UnlockScreen />);
+    expect(screen.getByText(/No identity service is configured/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Set it up" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Where does identity live?",
+    );
+  });
+
+  it("says nothing about identity on a deployment that has one", () => {
+    fresh();
+    render(<UnlockScreen />);
+    expect(screen.queryByText(/No identity service is configured/)).toBeNull();
+  });
 });
 
 describe("UnlockScreen — first run", () => {

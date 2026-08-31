@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { IDP_PRESETS, presetFor, presetIssuer } from "./idp-presets.js";
+import {
+  IDP_PRESETS,
+  issuerFromUrl,
+  presetFor,
+  presetIssuer,
+} from "./idp-presets.js";
 
 describe("idp presets", () => {
   it("lists every provider type the registry contract carries", () => {
@@ -101,5 +106,36 @@ describe("idp presets", () => {
       const built = presetIssuer("better-auth", input);
       expect(built.ok, input).toBe(false);
     }
+  });
+});
+
+describe("issuerFromUrl", () => {
+  it("takes the URL as entered, minus trailing slashes", () => {
+    expect(issuerFromUrl("https://idp.acme.com/")).toEqual({
+      ok: true,
+      issuer: "https://idp.acme.com",
+    });
+  });
+
+  it("allows http only on loopback", () => {
+    expect(issuerFromUrl("http://localhost:8080")).toEqual({
+      ok: true,
+      issuer: "http://localhost:8080",
+    });
+    expect(issuerFromUrl("http://idp.acme.com")).toEqual({
+      ok: false,
+      error: "https is required, except on localhost for local dev.",
+    });
+  });
+
+  it("carries the caller's wording for a malformed URL", () => {
+    expect(issuerFromUrl("not a url")).toEqual({
+      ok: false,
+      error: "Use the issuer's base URL, like https://idp.acme.com.",
+    });
+    expect(issuerFromUrl("not a url", "Use the deployment URL.")).toEqual({
+      ok: false,
+      error: "Use the deployment URL.",
+    });
   });
 });

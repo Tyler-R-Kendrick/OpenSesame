@@ -121,26 +121,40 @@ export function presetIssuer(
       }
       return { ok: true, issuer: `https://${host}` };
     }
-    case "better-auth": {
-      // The issuer is the deployment URL as entered, minus trailing slashes.
-      const issuer = input.trim().replace(/\/+$/, "");
-      let parsed: URL;
-      try {
-        parsed = new URL(issuer);
-      } catch {
-        return {
-          ok: false,
-          error: "Use the deployment URL, like https://auth.acme.com.",
-        };
-      }
-      if (parsed.protocol === "https:") return { ok: true, issuer };
-      if (parsed.protocol === "http:" && isLoopbackHost(parsed.hostname)) {
-        return { ok: true, issuer };
-      }
-      return {
-        ok: false,
-        error: "https is required, except on localhost for local dev.",
-      };
-    }
+    case "better-auth":
+      return issuerFromUrl(
+        input,
+        "Use the deployment URL, like https://auth.acme.com.",
+      );
   }
+}
+
+/**
+ * An issuer given as a bare URL — the road for any OIDC provider without a
+ * preset of its own (Keycloak, Authentik, Zitadel, a deployment's own server),
+ * and the rule Better Auth's deployment URL follows.
+ *
+ * Client-side shape only: the server re-runs discovery behind its SSRF fence
+ * and is the thing that decides whether the issuer is real.
+ */
+export function issuerFromUrl(
+  input: string,
+  malformed = "Use the issuer's base URL, like https://idp.acme.com.",
+): IssuerResult {
+  // The issuer is the URL as entered, minus trailing slashes.
+  const issuer = input.trim().replace(/\/+$/, "");
+  let parsed: URL;
+  try {
+    parsed = new URL(issuer);
+  } catch {
+    return { ok: false, error: malformed };
+  }
+  if (parsed.protocol === "https:") return { ok: true, issuer };
+  if (parsed.protocol === "http:" && isLoopbackHost(parsed.hostname)) {
+    return { ok: true, issuer };
+  }
+  return {
+    ok: false,
+    error: "https is required, except on localhost for local dev.",
+  };
 }

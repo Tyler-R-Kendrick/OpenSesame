@@ -1,0 +1,308 @@
+/* First-run setup ceremony — mobile-first.
+   Drawn in docs/design/first-run-setup/. Everything here is layout: colours,
+   controls, fields and the ceremony card come from styles.css unchanged. */
+
+.setup {
+  min-height: 100dvh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+/* The frame is what the desktop breakpoint re-centres; on a phone it simply
+   is the column, so the body can own the only scrollport. */
+.setup__frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.setup__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+  padding: 0.9rem 1.15rem 0.65rem;
+}
+
+.setup__wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.setup__count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The progress rail: four segments, the passed ones filled in ink. A row of
+   dots would be decoration; a segment says how much is left, and each one is
+   a jump for the operator who came back to change one answer. */
+.setup__rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  flex: none;
+  padding: 0 1.15rem 0.85rem;
+}
+
+.setup__seg {
+  appearance: none;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink-3);
+}
+
+.setup__seg-bar {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  transition: background 200ms var(--ease);
+}
+
+.setup__seg.is-done .setup__seg-bar,
+.setup__seg.is-now .setup__seg-bar {
+  background: var(--ink);
+}
+
+.setup__seg.is-now {
+  color: var(--ink);
+}
+
+.setup__seg-label {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setup__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.35rem 1.15rem 1.5rem;
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.setup__head {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.setup__head h1 {
+  font-size: 1.4rem;
+  line-height: 1.2;
+}
+
+.setup__head p {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  max-width: 38ch;
+  text-wrap: balance;
+}
+
+.setup__stack {
+  display: grid;
+  gap: 0.85rem;
+}
+
+/* The thumb bar. Every step's commitment sits here, at the bottom of the
+   phone, in the same place — the one thing the screen this replaces never
+   had. It is the whole of the mobile-navigation fix. */
+.setup__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.15rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.setup__foot .btn--primary {
+  flex: 1;
+}
+
+.setup__skip {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0.35rem 0;
+  font: inherit;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.setup__skip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Provider presets — a two-up grid of real choices, not a select. On a phone
+   a select hides five of six options behind a tap; the grid states them. */
+.preset {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.preset__opt {
+  appearance: none;
+  display: grid;
+  gap: 0.15rem;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.preset__opt:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.preset__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.preset__opt:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.preset__name {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.preset__kind {
+  font-family: var(--font);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.preset__opt.is-on .preset__kind {
+  color: var(--accent);
+}
+
+/* The Review step's write-out: what setup is about to save, in the order it
+   was asked. Unset rows read as deliberate, not as gaps. */
+.wrote-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.wrote-list__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.wrote-list__key {
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.wrote-list__val {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.wrote-list__val--off {
+  color: var(--ink-3);
+}
+
+/* Above the phone the ceremony is the same column, centred. Only the thumb bar
+   unpins: on a wide viewport the action belongs with the content it commits,
+   because there is no thumb to reach with. */
+@media (min-width: 40rem) {
+  .setup {
+    display: grid;
+    place-items: center;
+    padding: 2rem 1.25rem;
+    height: auto;
+  }
+
+  .setup__frame {
+    flex: none;
+    width: min(100%, 34rem);
+    display: grid;
+    gap: 1rem;
+  }
+
+  .setup__bar,
+  .setup__rail,
+  .setup__body,
+  .setup__foot {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .setup__body {
+    overflow: visible;
+  }
+
+  .setup__head p {
+    max-width: 52ch;
+    font-size: 0.9375rem;
+  }
+
+  .setup__foot {
+    border-top: 0;
+    background: transparent;
+    padding-bottom: 0;
+  }
+
+  /* No thumb to reach with, so the primary stops spanning the frame and
+     sits at the size of what it says. */
+  .setup__foot .btn--primary {
+    flex: none;
+    min-width: 11rem;
+  }
+}

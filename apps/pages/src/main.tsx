@@ -55,6 +55,7 @@ void (async () => {
     PROJECTS_KEY,
     TOMBS_REGISTRY_KEY,
     "settings.v1",
+    "setup.v1",
     "outbox.v1",
     "connections.firstRun.v1",
   ]);
