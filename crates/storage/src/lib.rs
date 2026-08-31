@@ -1010,6 +1010,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0024_session_grant_watermarks",
         include_str!("../../../migrations/0024_session_grant_watermarks.sql"),
     ),
+    (
+        "0025_runner_steps",
+        include_str!("../../../migrations/0025_runner_steps.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.
@@ -6846,6 +6850,10 @@ pub use security::{
 };
 
 mod observation;
+
+mod runner_steps;
+pub use runner_steps::{StoredRunnerStep, STEP_CLAIM_SECONDS};
+
 pub use observation::{
     ObservationAppend, ObservationControlUpdate, StoredObservationEvent, StoredObservationRun,
     MAX_BLOCKED_REASON_CHARS, OBSERVATION_READ_LIMIT,

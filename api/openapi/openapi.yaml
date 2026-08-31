@@ -2061,6 +2061,91 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AgentRunError" }
+  /agent/runs/{id}/steps/claim:
+    post:
+      summary: Claim the run's outstanding step
+      description: >-
+        The driver's half of the step channel (ADR 0079 §4). The driver is the
+        owner's own browser, so the entitlement is the one that gates watching:
+        a run belongs to whoever's credential it rotates, and nobody else may
+        drive it.
+
+
+        One step is outstanding per run by design — a browser has one DOM, and a
+        queue that could hold two steps for one page could reorder them. A claim
+        is held under a lease, so a driver that crashed releases its work by the
+        clock rather than by anybody deciding it is dead.
+
+
+        The returned request names a credential *reference* and a selector. It
+        has no field able to carry a value: the driver resolves the reference
+        itself, because in the local model the driver holds the vault.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The claimed step
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, seq, request, secrets_returned]
+                properties:
+                  run_id: { type: string }
+                  seq: { type: integer }
+                  request:
+                    type: object
+                    description: The StepRequest, verbatim.
+                  claim_expires_at: { type: string, nullable: true }
+                  secrets_returned: { type: boolean, const: false }
+        "204":
+          description: >-
+            Nothing to do, or another driver holds a live claim. A cheap answer
+            for a polling driver rather than an error to interpret.
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /agent/runs/{id}/steps/{seq}/outcome:
+    post:
+      summary: Report what a step did
+      description: >-
+        Only the claimant may, and a claim that lapsed is not a claim. A driver
+        that went away and came back finds its step taken and is told so, rather
+        than settling a step somebody else is now executing.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: seq, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome]
+              properties:
+                outcome:
+                  type: object
+                  description: >-
+                    The StepOutcome. No variant carries a credential value.
+      responses:
+        "200":
+          description: Recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: settled }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409":
+          description: The caller does not hold this step's claim
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AgentRunError" }
 components:
   securitySchemes:
     HostBearer:
