@@ -203,7 +203,16 @@ type vault_item
 
 A direct `reader` on `vault_item` is the row grant. Inheritance from the
 collection means a collection reader still reads the row; there is no shape here
-in which an item tuple grants more than the collection does. Enforcement stays
+in which an item tuple grants more than the collection does. Dropping either
+`from collection` clause would quietly turn an additive grant into a
+replacement one — a collection reader would *lose* rows — so a test pins both
+clauses rather than merely that the type exists.
+
+**No `session` type joins the policy model.** Session membership and grants
+live in the Host's own store, where `SessionGrant::permits` is the single
+check. Modelling them in OpenFGA as well would create two authorities on one
+question, free to disagree; the policy model answers "who may read this item",
+and that is the whole of its part. Enforcement stays
 where enforcement already is — the check is at the Host's authorization fence,
 and the transport is not an authorization surface. **A message arriving on the
 session channel is a request like any other, not evidence that its sender is
