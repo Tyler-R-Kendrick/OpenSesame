@@ -242,7 +242,7 @@ fn pact_certificate_statuses_are_the_documented_set() {
 }
 
 #[test]
-fn pact_migrations_are_append_only_and_end_with_0021() {
+fn pact_migrations_are_append_only_and_end_with_0022() {
     let versions = migration_versions();
     assert_eq!(
         versions,
@@ -268,10 +268,8 @@ fn pact_migrations_are_append_only_and_end_with_0021() {
             "0019_web_login_observation",
             "0020_rotation_policy_owner",
             "0021_a2h_delivery_and_web_login_watermarks",
+            "0022_runner_steps",
         ]
     );
-    assert_eq!(
-        versions.last().copied(),
-        Some("0021_a2h_delivery_and_web_login_watermarks")
-    );
+    assert_eq!(versions.last().copied(), Some("0022_runner_steps"));
 }

@@ -438,6 +438,14 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/agent/runs/{id}/release",
             post(agent_runs::release_control),
         )
+        .route(
+            "/api/v1/agent/runs/{id}/steps/claim",
+            post(agent_runs::claim_step),
+        )
+        .route(
+            "/api/v1/agent/runs/{id}/steps/{seq}/outcome",
+            post(agent_runs::settle_step),
+        )
         // WP-9: durable rotation policies (owner/admin configuration surface).
         .route(
             "/api/v1/rotation/policies",

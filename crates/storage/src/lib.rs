@@ -998,6 +998,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0021_a2h_delivery_and_web_login_watermarks",
         include_str!("../../../migrations/0021_a2h_delivery_and_web_login_watermarks.sql"),
     ),
+    (
+        "0022_runner_steps",
+        include_str!("../../../migrations/0022_runner_steps.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.
@@ -6831,6 +6835,10 @@ pub use lifecycle::{
 };
 
 mod observation;
+
+mod runner_steps;
+pub use runner_steps::{StoredRunnerStep, STEP_CLAIM_SECONDS};
+
 pub use observation::{
     ObservationAppend, ObservationControlUpdate, StoredObservationEvent, StoredObservationRun,
     MAX_BLOCKED_REASON_CHARS, OBSERVATION_READ_LIMIT,
