@@ -206,6 +206,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/testing` | Shared test utilities (incl. `test:security`) |
 | `packages/identity-atproto` / `identity-nostr` | Alternate-identity linking |
 | `packages/observability` | Structured logging + deep redaction |
+| `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0084) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
 | `packages/webmcp` | WebMCP (`navigator.modelContext`) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
 | `packages/config` | Shared tsconfig |
@@ -226,7 +227,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0082).
+  0001–0084).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -252,6 +253,19 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   (`managed: true`), never agent-reachable, and its renewal lead is clamped to
   half the lifetime so renewal terminates
   ([ADR 0075](docs/adr/0075-host-certificate-key-custody.md)).
+- Where a person is notified and what it takes for them to approve are separate
+  mechanisms. A preference may reorder and narrow the destinations policy
+  allows; it can never admit a channel policy refused, and never lowers an
+  assurance requirement. Channel capability is a closed record in
+  `packages/os-domain/src/notifications.ts` — no adapter declares its own, and
+  no channel but the in-app ceremony may claim phishing resistance. Direct
+  external settlement is default-deny and needs an explicit per-channel policy
+  opt-in *and* the assurance gate; a provider-signed callback proves provenance,
+  never authorization ([ADR 0084](docs/adr/0084-external-authorization-notifications.md)).
+- A sensitive approval is bound to its transaction: the WebAuthn activation
+  commits to the request digest, the decision verb, and the effective policy
+  digest, and is spent by a durable compare-and-set. An activation minted for
+  one request, one verb, or one policy can never settle another (ADR 0084).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,
@@ -269,6 +283,10 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 
 ## 6. Security posture
 
+- `docs/security/notification-approval-threat-model.md` — trust boundaries and
+  residual risks for external notification and approval (ADR 0084);
+  `docs/operators/notification-channels.md` — the channel capability matrix and
+  per-provider setup.
 - `docs/security/security-boundaries.md`, `docs/security/threat-model.md`,
   `docs/security/identity-threat-model.md`,
   `docs/security/key-hierarchy.md` — architecture-level security docs.

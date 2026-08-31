@@ -1,12 +1,19 @@
 import { randomUUID } from "node:crypto";
 import type {
+  ApprovalActivation,
+  ApprovalReceipt,
   AuditEvent,
   AuthorizationRequest,
   BetterAuthSubject,
   ByoUpstream,
+  CallbackReplayRecord,
   ClaimItem,
   ClaimSession,
+  ComparisonChallenge,
+  ExternalChannelBinding,
   ExternalIdentity,
+  NotificationDelivery,
+  NotificationPreferences,
   Organization,
   OrganizationMembership,
   OutboxEvent,
@@ -17,17 +24,26 @@ import type {
   WebhookEndpoint,
 } from "@opensesame/os-domain";
 import {
+  type ApprovalActivationRepository,
+  type ApprovalReceiptRepository,
   type AuditEventRepository,
   type AuthorizationRequestRepository,
   type BetterAuthSubjectRepository,
   type ByoUpstreamRepository,
+  type CallbackReplayRepository,
+  type ChannelBindingChallenge,
+  type ChannelBindingChallengeRepository,
+  type ChannelBindingRepository,
   type ClaimItemRepository,
   type ClaimSessionRepository,
+  type ComparisonChallengeRepository,
   ConflictError,
   type EnsurePersonalProjectResult,
   type ExternalIdentityRepository,
   type NewOutboxEvent,
   NotFoundError,
+  type NotificationDeliveryRepository,
+  type NotificationPreferenceRepository,
   OUTBOX_CLAIM_HOLD_MS,
   type OrganizationMembershipStore,
   type OrganizationStore,
@@ -37,6 +53,8 @@ import {
   type ProjectMembershipStore,
   type ProjectStore,
   type ProjectStores,
+  type PushSubscription,
+  type PushSubscriptionRepository,
   type Repositories,
   type TransactionFn,
   type UnitOfWork,
@@ -123,6 +141,73 @@ function cloneByoUpstream(record: ByoUpstream): ByoUpstream {
   return { ...record };
 }
 
+/**
+ * structuredClone, not a spread: `metadata` is nested JSON and the Postgres
+ * implementation round-trips it through jsonb. A shallow copy would let a
+ * caller mutate a stored row here and not there.
+ */
+function cloneChannelBinding(
+  binding: ExternalChannelBinding,
+): ExternalChannelBinding {
+  return structuredClone(binding);
+}
+
+/** Flat row — every field is a scalar or a Date, so a spread is a full copy. */
+function cloneBindingChallenge(
+  challenge: ChannelBindingChallenge,
+): ChannelBindingChallenge {
+  return { ...challenge };
+}
+
+/** `byClass` is a nested object of per-class preferences; see cloneChannelBinding. */
+function cloneNotificationPreferences(
+  preferences: NotificationPreferences,
+): NotificationPreferences {
+  return structuredClone(preferences);
+}
+
+/** `payload` is nested JSON round-tripped through jsonb; see cloneChannelBinding. */
+function cloneNotificationDelivery(
+  delivery: NotificationDelivery,
+): NotificationDelivery {
+  return structuredClone(delivery);
+}
+
+/** Flat row — see cloneBindingChallenge. */
+function cloneActivation(activation: ApprovalActivation): ApprovalActivation {
+  return { ...activation };
+}
+
+/** Flat row — see cloneBindingChallenge. */
+function cloneComparison(challenge: ComparisonChallenge): ComparisonChallenge {
+  return { ...challenge };
+}
+
+/** The assurance/evidence arrays are nested; see cloneChannelBinding. */
+function cloneReceipt(receipt: ApprovalReceipt): ApprovalReceipt {
+  return structuredClone(receipt);
+}
+
+/** Flat row — see cloneBindingChallenge. */
+function cloneReplay(record: CallbackReplayRecord): CallbackReplayRecord {
+  return { ...record };
+}
+
+/** Flat row — see cloneBindingChallenge. */
+function clonePushSubscription(sub: PushSubscription): PushSubscription {
+  return { ...sub };
+}
+
+/**
+ * The idempotence key Postgres computes as a generated column:
+ * `coalesce(binding_id, endpoint_id, '')`. Derived in exactly one place here
+ * too, so the two implementations cannot disagree about what "the same
+ * destination" means.
+ */
+function deliveryDestinationId(delivery: NotificationDelivery): string {
+  return delivery.bindingId ?? delivery.endpointId ?? "";
+}
+
 type PendingOp = () => void;
 
 class MemoryUnitOfWork implements UnitOfWork {
@@ -173,6 +258,22 @@ class MemoryStore {
   authorizationRequests = new Map<string, AuthorizationRequest>();
   webhookEndpoints = new Map<string, WebhookEndpoint>();
   webhookDeliveries = new Map<string, WebhookDelivery>();
+  channelBindings = new Map<string, ExternalChannelBinding>();
+  channelBindingChallenges = new Map<string, ChannelBindingChallenge>();
+  /** Keyed by principal: one preference row per person, as the PK says. */
+  notificationPreferences = new Map<string, NotificationPreferences>();
+  notificationDeliveries = new Map<string, NotificationDelivery>();
+  approvalActivations = new Map<string, ApprovalActivation>();
+  /**
+   * Keyed by `authReqId`, which is the column Postgres holds unique. Keying by
+   * the id and indexing the request separately would let the two disagree; a
+   * Map keyed by the unique column cannot.
+   */
+  comparisonChallenges = new Map<string, ComparisonChallenge>();
+  /** Keyed by `authReqId` — one decision per request; see comparisonChallenges. */
+  approvalReceipts = new Map<string, ApprovalReceipt>();
+  callbackReplays = new Map<string, CallbackReplayRecord>();
+  pushSubscriptions = new Map<string, PushSubscription>();
 }
 
 function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void) {
@@ -218,6 +319,37 @@ export class MemoryRepositories implements Repositories {
         for (const [key, subject] of this.#store.betterAuth) {
           if (subject.principalId === id) this.#store.betterAuth.delete(key);
         }
+        // Hand-rolled equivalent of the `on delete cascade` the principal FK
+        // carries in Postgres. A destination or a half-finished binding
+        // ceremony that outlived its principal is a live route to a person
+        // who no longer exists.
+        for (const [key, row] of this.#store.channelBindings) {
+          if (row.principalId === id) this.#store.channelBindings.delete(key);
+        }
+        for (const [key, row] of this.#store.channelBindingChallenges) {
+          if (row.principalId === id) {
+            this.#store.channelBindingChallenges.delete(key);
+          }
+        }
+        this.#store.notificationPreferences.delete(id);
+        for (const [key, row] of this.#store.notificationDeliveries) {
+          if (row.principalId === id) {
+            this.#store.notificationDeliveries.delete(key);
+          }
+        }
+        for (const [key, row] of this.#store.approvalActivations) {
+          if (row.principalId === id) {
+            this.#store.approvalActivations.delete(key);
+          }
+        }
+        for (const [key, row] of this.#store.pushSubscriptions) {
+          if (row.principalId === id) {
+            this.#store.pushSubscriptions.delete(key);
+          }
+        }
+        // Receipts are deliberately NOT cascaded: `approval_receipts` carries
+        // no FK, because the record of why something was allowed has to
+        // survive the deletion of everything it names.
       };
       applyNowOrDefer(uow, apply);
       return true;
@@ -764,6 +896,508 @@ export class MemoryRepositories implements Repositories {
         nextAttemptAt,
         ...(dead ? { deadAt: nextAttemptAt } : undefined),
       });
+    },
+  };
+
+  readonly channelBindings: ChannelBindingRepository = {
+    create: async (binding, uow) => {
+      if (this.#store.channelBindings.has(binding.id)) {
+        throw new ConflictError(
+          `channel binding already exists: ${binding.id}`,
+        );
+      }
+      if (binding.providerSubjectId === "") {
+        // Mirrors `channel_bindings_provider_subject_id_check`. An empty
+        // subject is not an identity, and a row holding one is a row every
+        // caller who sends nothing would match.
+        throw new Error(
+          "channel binding provider subject id must not be empty",
+        );
+      }
+      for (const existing of this.#store.channelBindings.values()) {
+        if (
+          existing.kind === binding.kind &&
+          existing.providerId === binding.providerId &&
+          existing.providerTenantId === binding.providerTenantId &&
+          existing.providerSubjectId === binding.providerSubjectId
+        ) {
+          throw new ConflictError(
+            "channel binding collision for kind+provider+tenant+subject",
+          );
+        }
+      }
+      const row = cloneChannelBinding(binding);
+      applyNowOrDefer(uow, () => {
+        this.#store.channelBindings.set(row.id, cloneChannelBinding(row));
+      });
+      return cloneChannelBinding(row);
+    },
+
+    getById: async (id) => {
+      const row = this.#store.channelBindings.get(id);
+      return row ? cloneChannelBinding(row) : null;
+    },
+
+    listForPrincipal: async (principalId) => {
+      return [...this.#store.channelBindings.values()]
+        .filter((row) => row.principalId === principalId)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map(cloneChannelBinding);
+    },
+
+    findByProviderIdentity: async (
+      kind,
+      providerId,
+      providerTenantId,
+      providerSubjectId,
+    ) => {
+      // All four components, and a non-empty subject. Subject ids are unique
+      // within a provider tenant and not across them, so matching on fewer
+      // lets a caller who controls their own workspace mint an identity that
+      // resolves to somebody else's binding.
+      if (providerSubjectId === "") return null;
+      for (const row of this.#store.channelBindings.values()) {
+        if (
+          row.kind === kind &&
+          row.providerId === providerId &&
+          row.providerTenantId === providerTenantId &&
+          row.providerSubjectId === providerSubjectId
+        ) {
+          return cloneChannelBinding(row);
+        }
+      }
+      return null;
+    },
+
+    updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      const current = this.#store.channelBindings.get(id);
+      if (!current) {
+        throw new NotFoundError(`channel binding not found: ${id}`);
+      }
+      if (current.version !== expectedVersion) {
+        throw new ConflictError(
+          `channel binding version conflict: expected ${expectedVersion}, got ${current.version}`,
+        );
+      }
+      const merged: ExternalChannelBinding = {
+        ...current,
+        ...patch,
+        id: current.id,
+        createdAt: current.createdAt,
+        version: current.version + 1,
+      };
+      applyNowOrDefer(uow, () => {
+        this.#store.channelBindings.set(id, cloneChannelBinding(merged));
+      });
+      return cloneChannelBinding(merged);
+    },
+  };
+
+  readonly channelBindingChallenges: ChannelBindingChallengeRepository = {
+    create: async (challenge, uow) => {
+      if (this.#store.channelBindingChallenges.has(challenge.id)) {
+        throw new ConflictError(
+          `channel binding challenge already exists: ${challenge.id}`,
+        );
+      }
+      const row = cloneBindingChallenge(challenge);
+      applyNowOrDefer(uow, () => {
+        this.#store.channelBindingChallenges.set(
+          row.id,
+          cloneBindingChallenge(row),
+        );
+      });
+      return cloneBindingChallenge(row);
+    },
+
+    getById: async (id) => {
+      const row = this.#store.channelBindingChallenges.get(id);
+      return row ? cloneBindingChallenge(row) : null;
+    },
+
+    consumeAttempt: async (id, now) => {
+      const current = this.#store.channelBindingChallenges.get(id);
+      if (!current) return null;
+      if (current.completedAt) return null;
+      if (current.expiresAt.getTime() <= now.getTime()) return null;
+      if (current.attempts >= current.maxAttempts) return null;
+      const next: ChannelBindingChallenge = {
+        ...current,
+        attempts: current.attempts + 1,
+        version: current.version + 1,
+      };
+      this.#store.channelBindingChallenges.set(id, cloneBindingChallenge(next));
+      return cloneBindingChallenge(next);
+    },
+
+    complete: async (id, at) => {
+      const current = this.#store.channelBindingChallenges.get(id);
+      // The read and the write cannot interleave: JavaScript runs this
+      // function to completion before another task observes the Map, which is
+      // what the `completed_at is null` predicate buys in Postgres.
+      if (!current || current.completedAt) return null;
+      const next: ChannelBindingChallenge = {
+        ...current,
+        completedAt: at,
+        version: current.version + 1,
+      };
+      this.#store.channelBindingChallenges.set(id, cloneBindingChallenge(next));
+      return cloneBindingChallenge(next);
+    },
+  };
+
+  readonly notificationPreferences: NotificationPreferenceRepository = {
+    get: async (principalId) => {
+      const row = this.#store.notificationPreferences.get(principalId);
+      return row ? cloneNotificationPreferences(row) : null;
+    },
+
+    upsert: async (preferences, uow) => {
+      const row = cloneNotificationPreferences(preferences);
+      applyNowOrDefer(uow, () => {
+        this.#store.notificationPreferences.set(
+          row.principalId,
+          cloneNotificationPreferences(row),
+        );
+      });
+      return cloneNotificationPreferences(row);
+    },
+  };
+
+  readonly notificationDeliveries: NotificationDeliveryRepository = {
+    enqueue: async (delivery, uow) => {
+      if (this.#store.notificationDeliveries.has(delivery.id)) {
+        throw new ConflictError(
+          `notification delivery already exists: ${delivery.id}`,
+        );
+      }
+      const destinationId = deliveryDestinationId(delivery);
+      for (const existing of this.#store.notificationDeliveries.values()) {
+        if (
+          existing.outboxEventId === delivery.outboxEventId &&
+          existing.kind === delivery.kind &&
+          deliveryDestinationId(existing) === destinationId
+        ) {
+          // The same unique index Postgres holds. The outbox is at-least-once,
+          // so the router treats this as "already fanned out" rather than
+          // ringing the same doorbell twice.
+          throw new ConflictError(
+            `notification delivery already fanned out: ${delivery.outboxEventId}/${delivery.kind}/${destinationId}`,
+          );
+        }
+      }
+      const row = cloneNotificationDelivery(delivery);
+      applyNowOrDefer(uow, () => {
+        this.#store.notificationDeliveries.set(
+          row.id,
+          cloneNotificationDelivery(row),
+        );
+      });
+      return cloneNotificationDelivery(row);
+    },
+
+    claimDue: async (limit, now) => {
+      const due = [...this.#store.notificationDeliveries.values()]
+        .filter(
+          (row) =>
+            (row.state === "pending" || row.state === "failed") &&
+            row.nextAttemptAt <= now,
+        )
+        .sort((a, b) => a.nextAttemptAt.getTime() - b.nextAttemptAt.getTime())
+        .slice(0, limit);
+      const claimed: NotificationDelivery[] = [];
+      for (const row of due) {
+        const next = cloneNotificationDelivery(row);
+        next.attempts = row.attempts + 1;
+        this.#store.notificationDeliveries.set(
+          row.id,
+          cloneNotificationDelivery(next),
+        );
+        claimed.push(next);
+      }
+      return claimed;
+    },
+
+    markDelivered: async (id, at, providerMessageRef) => {
+      const row = this.#store.notificationDeliveries.get(id);
+      // A missing row is a no-op in both implementations: the Postgres UPDATE
+      // simply matches nothing, and a delivery ledger is not the place to
+      // raise on a row a purge already took.
+      if (!row) return;
+      const next = cloneNotificationDelivery(row);
+      next.state = "delivered";
+      next.deliveredAt = at;
+      if (providerMessageRef !== undefined) {
+        next.providerMessageRef = providerMessageRef;
+      }
+      this.#store.notificationDeliveries.set(id, next);
+    },
+
+    recordFailure: async (id, error, nextAttemptAt, dead) => {
+      const row = this.#store.notificationDeliveries.get(id);
+      if (!row) return;
+      const next = cloneNotificationDelivery(row);
+      // A classified reason code, never a provider response body.
+      next.lastError = error;
+      next.nextAttemptAt = nextAttemptAt;
+      next.state = dead ? "dead" : "failed";
+      this.#store.notificationDeliveries.set(id, next);
+    },
+
+    existsForEvent: async (outboxEventId, kind, destinationId) => {
+      for (const row of this.#store.notificationDeliveries.values()) {
+        if (
+          row.outboxEventId === outboxEventId &&
+          row.kind === kind &&
+          deliveryDestinationId(row) === destinationId
+        ) {
+          return true;
+        }
+      }
+      return false;
+    },
+
+    listForRequest: async (authReqId) => {
+      return [...this.#store.notificationDeliveries.values()]
+        .filter((row) => row.authReqId === authReqId)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map(cloneNotificationDelivery);
+    },
+  };
+
+  readonly approvalActivations: ApprovalActivationRepository = {
+    create: async (activation, uow) => {
+      if (this.#store.approvalActivations.has(activation.id)) {
+        throw new ConflictError(
+          `approval activation already exists: ${activation.id}`,
+        );
+      }
+      for (const existing of this.#store.approvalActivations.values()) {
+        if (existing.challengeDigest === activation.challengeDigest) {
+          throw new ConflictError(
+            "approval activation challenge digest already issued",
+          );
+        }
+      }
+      const row = cloneActivation(activation);
+      applyNowOrDefer(uow, () => {
+        this.#store.approvalActivations.set(row.id, cloneActivation(row));
+      });
+      return cloneActivation(row);
+    },
+
+    getById: async (id) => {
+      const row = this.#store.approvalActivations.get(id);
+      return row ? cloneActivation(row) : null;
+    },
+
+    findByChallengeDigest: async (digest) => {
+      for (const row of this.#store.approvalActivations.values()) {
+        if (row.challengeDigest === digest) return cloneActivation(row);
+      }
+      return null;
+    },
+
+    updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      const current = this.#store.approvalActivations.get(id);
+      if (!current) {
+        throw new NotFoundError(`approval activation not found: ${id}`);
+      }
+      if (current.version !== expectedVersion) {
+        throw new ConflictError(
+          `approval activation version conflict: expected ${expectedVersion}, got ${current.version}`,
+        );
+      }
+      const merged: ApprovalActivation = {
+        ...current,
+        ...patch,
+        id: current.id,
+        createdAt: current.createdAt,
+        version: current.version + 1,
+      };
+      applyNowOrDefer(uow, () => {
+        this.#store.approvalActivations.set(id, cloneActivation(merged));
+      });
+      return cloneActivation(merged);
+    },
+
+    consume: async (id, at) => {
+      const current = this.#store.approvalActivations.get(id);
+      // Compare-and-set, not read-then-write. The guard and the store happen
+      // in one synchronous run, so of two settlements racing on the same
+      // activation exactly one sees `activated` — the same property the
+      // `state = 'activated'` predicate gives the Postgres UPDATE.
+      if (!current || current.state !== "activated") return null;
+      const next: ApprovalActivation = {
+        ...current,
+        state: "consumed",
+        consumedAt: at,
+        version: current.version + 1,
+      };
+      this.#store.approvalActivations.set(id, cloneActivation(next));
+      return cloneActivation(next);
+    },
+  };
+
+  readonly comparisonChallenges: ComparisonChallengeRepository = {
+    create: async (challenge, uow) => {
+      if (this.#store.comparisonChallenges.has(challenge.authReqId)) {
+        // The unique index on `auth_req_id`, and the reason the attempt budget
+        // means anything: re-issuing a code must collide rather than hand back
+        // a fresh set of guesses against a six-digit value.
+        throw new ConflictError(
+          `comparison challenge already issued for request: ${challenge.authReqId}`,
+        );
+      }
+      const row = cloneComparison(challenge);
+      applyNowOrDefer(uow, () => {
+        this.#store.comparisonChallenges.set(
+          row.authReqId,
+          cloneComparison(row),
+        );
+      });
+      return cloneComparison(row);
+    },
+
+    getForRequest: async (authReqId) => {
+      const row = this.#store.comparisonChallenges.get(authReqId);
+      return row ? cloneComparison(row) : null;
+    },
+
+    consumeAttempt: async (authReqId, now) => {
+      const current = this.#store.comparisonChallenges.get(authReqId);
+      if (!current) return null;
+      if (current.satisfiedAt) return null;
+      if (current.expiresAt.getTime() <= now.getTime()) return null;
+      // Budget checked and spent together. A budget a second caller can
+      // observe mid-flight is not a budget.
+      if (current.attempts >= current.maxAttempts) return null;
+      const next: ComparisonChallenge = {
+        ...current,
+        attempts: current.attempts + 1,
+        version: current.version + 1,
+      };
+      this.#store.comparisonChallenges.set(authReqId, cloneComparison(next));
+      return cloneComparison(next);
+    },
+
+    markSatisfied: async (authReqId, at) => {
+      const current = this.#store.comparisonChallenges.get(authReqId);
+      if (!current || current.satisfiedAt) return null;
+      const next: ComparisonChallenge = {
+        ...current,
+        satisfiedAt: at,
+        version: current.version + 1,
+      };
+      this.#store.comparisonChallenges.set(authReqId, cloneComparison(next));
+      return cloneComparison(next);
+    },
+  };
+
+  readonly approvalReceipts: ApprovalReceiptRepository = {
+    create: async (receipt, uow) => {
+      if (this.#store.approvalReceipts.has(receipt.authReqId)) {
+        throw new ConflictError(
+          `approval receipt already recorded for request: ${receipt.authReqId}`,
+        );
+      }
+      const row = cloneReceipt(receipt);
+      applyNowOrDefer(uow, () => {
+        this.#store.approvalReceipts.set(row.authReqId, cloneReceipt(row));
+      });
+      return cloneReceipt(row);
+    },
+
+    getForRequest: async (authReqId) => {
+      const row = this.#store.approvalReceipts.get(authReqId);
+      return row ? cloneReceipt(row) : null;
+    },
+  };
+
+  readonly pushSubscriptions: PushSubscriptionRepository = {
+    create: async (sub, uow) => {
+      // The same endpoint is the same browser. Postgres holds
+      // `endpoint_digest` unique and upserts onto it; here the existing row is
+      // found and rewritten in place, keeping its id and `createdAt` and
+      // reviving it if it had been disabled — a second row would push the same
+      // person twice and leave the operator unable to say which is live.
+      let existingId: string | undefined;
+      let existingCreatedAt: Date | undefined;
+      for (const row of this.#store.pushSubscriptions.values()) {
+        if (row.endpointDigest === sub.endpointDigest) {
+          existingId = row.id;
+          existingCreatedAt = row.createdAt;
+          break;
+        }
+      }
+      const row: PushSubscription = {
+        ...sub,
+        ...(existingId ? { id: existingId } : undefined),
+        ...(existingCreatedAt ? { createdAt: existingCreatedAt } : undefined),
+      };
+      if (!sub.disabledAt) Reflect.deleteProperty(row, "disabledAt");
+      applyNowOrDefer(uow, () => {
+        this.#store.pushSubscriptions.set(row.id, clonePushSubscription(row));
+      });
+      return clonePushSubscription(row);
+    },
+
+    listForPrincipal: async (principalId) => {
+      return [...this.#store.pushSubscriptions.values()]
+        .filter(
+          (row) =>
+            row.principalId === principalId && row.disabledAt === undefined,
+        )
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map(clonePushSubscription);
+    },
+
+    getById: async (id) => {
+      const row = this.#store.pushSubscriptions.get(id);
+      return row ? clonePushSubscription(row) : null;
+    },
+
+    findByEndpointDigest: async (digest) => {
+      for (const row of this.#store.pushSubscriptions.values()) {
+        if (row.endpointDigest === digest) return clonePushSubscription(row);
+      }
+      return null;
+    },
+
+    disable: async (id, at) => {
+      const current = this.#store.pushSubscriptions.get(id);
+      // Compare-and-set on "not already disabled", so only the caller that
+      // actually retired the subscription is told it did.
+      if (!current || current.disabledAt) return false;
+      this.#store.pushSubscriptions.set(id, {
+        ...current,
+        disabledAt: at,
+      });
+      return true;
+    },
+  };
+
+  readonly callbackReplays: CallbackReplayRepository = {
+    claim: async (record) => {
+      // The insert is the claim. `has` and `set` run in one synchronous turn —
+      // JavaScript will not schedule another task between them — so this is
+      // the same single round trip as the Postgres
+      // `on conflict do nothing ... returning`. Checking first and writing
+      // later is the race an attacker replaying a callback wins.
+      if (this.#store.callbackReplays.has(record.id)) return false;
+      this.#store.callbackReplays.set(record.id, cloneReplay(record));
+      return true;
+    },
+
+    purgeExpired: async (now) => {
+      let purged = 0;
+      for (const [id, row] of this.#store.callbackReplays) {
+        if (row.expiresAt.getTime() <= now.getTime()) {
+          this.#store.callbackReplays.delete(id);
+          purged += 1;
+        }
+      }
+      return purged;
     },
   };
 

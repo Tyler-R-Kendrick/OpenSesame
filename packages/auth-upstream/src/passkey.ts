@@ -14,6 +14,23 @@ export interface PasskeyAssertion {
   clientDataJSON: Uint8Array;
   authenticatorData: Uint8Array;
   signature: Uint8Array;
+  /**
+   * Which kind of challenge the caller minted and is willing to spend.
+   *
+   * Omitted means `"authentication"`, so the plain sign-in path keeps its
+   * existing meaning and a caller who does not think about this gets the
+   * narrow answer rather than the broad one.
+   *
+   * It exists because a challenge minted to approve one authorization
+   * transaction must not be redeemable as a generic second factor. Both
+   * assertions prove the same momentary fact — this person, this
+   * authenticator, just now — so nothing in the signature distinguishes them;
+   * only the purpose the challenge was issued under does, and a verifier that
+   * accepts either lets a page mint an approval ceremony, have the person
+   * touch their key for something harmless-looking, and redeem the result as
+   * a login.
+   */
+  expectedPurpose?: string;
 }
 
 /**

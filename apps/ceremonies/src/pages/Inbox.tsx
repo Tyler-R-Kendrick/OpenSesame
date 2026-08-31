@@ -1,7 +1,15 @@
-import { overlapCast } from "@opensesame/os-domain";
-import { createOpenSesame } from "@opensesame/sdk-browser";
 import { useCallback, useEffect, useState } from "react";
-import { issuer } from "../lib/issuer.js";
+import { Link } from "react-router";
+import {
+  type ApprovalDecision,
+  ApprovalError,
+  type AuthorizationRequestView,
+  assuranceSummary,
+  describeDetail,
+  listPending,
+  needsCeremony,
+  settle,
+} from "../lib/approvals.js";
 
 /**
  * The authorization-request inbox (ADR 0046).
@@ -15,101 +23,49 @@ import { issuer } from "../lib/issuer.js";
  * Deciding echoes the request digest back. If what is stored has changed since
  * this list was drawn, the server refuses rather than accepting consent for
  * something the person did not read.
+ *
+ * A row that needs more than a decision — a transaction-bound passkey touch, a
+ * comparison code — is deliberately *not* decidable from here (ADR 0084).
+ * There is no honest way to run those ceremonies inside a list, so the row
+ * links to the review page instead and says what will be asked for. An inline
+ * "Approve" that quietly did less than the policy demands would be the worst
+ * of both: a person believing they had approved, and a server that refused.
  */
 
-interface AuthorizationDetail {
-  type: string;
-  locations?: string[];
-  actions?: string[];
-  identifier?: string;
-}
-
-interface InboxItem {
-  authReqId: string;
-  status: string;
-  bindingMessage: string;
-  requestDigest: string;
-  authorizationDetails: AuthorizationDetail[];
-  expiresAt: string;
-  connectionId?: string;
-  decidedByKind?: string;
-}
-
-function describeDetail(detail: AuthorizationDetail): string {
-  const actions = detail.actions?.length ? detail.actions.join(", ") : "use";
-  const where = detail.locations?.length
-    ? detail.locations.join(", ")
-    : (detail.identifier ?? detail.type);
-  return `${actions} — ${where}`;
-}
-
 export function Inbox() {
-  const [items, setItems] = useState<InboxItem[] | null>(null);
+  const [items, setItems] = useState<AuthorizationRequestView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [signedIn, setSignedIn] = useState(true);
 
-  const base = issuer.replace(/\/$/, "");
-
-  const authorized = useCallback(
-    async (path: string, init?: RequestInit): Promise<Response> => {
-      const session = await createOpenSesame({ issuer }).getSession();
-      if (!session) {
-        setSignedIn(false);
-        throw new Error("Sign in to see requests waiting for you.");
-      }
-      setSignedIn(true);
-      return fetch(`${base}${path}`, {
-        ...init,
-        headers: {
-          ...(init?.headers ?? {}),
-          "content-type": "application/json",
-          authorization: `Bearer ${session.accessToken}`,
-        },
-      });
-    },
-    [base],
-  );
-
   const load = useCallback(async () => {
     setError(null);
     try {
-      const res = await authorized("/v1/authorization-requests?status=pending");
-      if (!res.ok) throw new Error(`Could not load the inbox (${res.status}).`);
-      const body: { requests: InboxItem[] } = overlapCast(await res.json());
-      setItems(body.requests);
+      setItems(await listPending());
+      setSignedIn(true);
     } catch (e) {
       setItems([]);
+      if (e instanceof ApprovalError && e.code === "signin") setSignedIn(false);
       setError(e instanceof Error ? e.message : String(e));
     }
-  }, [authorized]);
+  }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  async function decide(item: InboxItem, decision: "approve" | "deny") {
+  async function decide(
+    item: AuthorizationRequestView,
+    decision: ApprovalDecision,
+  ) {
     setBusyId(item.authReqId);
     setError(null);
     try {
       // The digest travels back exactly as it was shown. A request that changed
       // in between is refused rather than silently consented to.
-      const res = await authorized(
-        `/v1/authorization-requests/${encodeURIComponent(item.authReqId)}/${decision}`,
-        {
-          method: "POST",
-          body: JSON.stringify({ requestDigest: item.requestDigest }),
-        },
-      );
-      if (res.status === 409) {
-        throw new Error(
-          "This request changed since it was shown, so nothing was decided. Reload and read it again.",
-        );
-      }
-      if (res.status === 410) {
-        throw new Error("This request expired before it was decided.");
-      }
-      if (!res.ok) throw new Error(`That did not go through (${res.status}).`);
+      await settle(item.authReqId, decision, {
+        requestDigest: item.requestDigest,
+      });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -119,9 +75,9 @@ export function Inbox() {
   }
 
   return (
-    <section className="panel">
+    <section className="panel" aria-labelledby="inbox-title">
       <div className="badge">Requests for you</div>
-      <h1>Approve or deny access requests</h1>
+      <h1 id="inbox-title">Approve or deny access requests</h1>
       <p>
         Someone — a person or an agent — is asking to use authority that is
         yours. Read what each one would actually do before allowing it.
@@ -155,24 +111,36 @@ export function Inbox() {
             Expires {new Date(item.expiresAt).toLocaleString()} · request{" "}
             <code>{item.requestDigest.slice(0, 12)}…</code>
           </p>
-          <div className="actions">
-            <button
-              type="button"
-              className="primary"
-              disabled={busyId === item.authReqId}
-              aria-busy={busyId === item.authReqId}
-              onClick={() => void decide(item, "approve")}
-            >
-              Approve
-            </button>
-            <button
-              type="button"
-              disabled={busyId === item.authReqId}
-              onClick={() => void decide(item, "deny")}
-            >
-              Deny
-            </button>
-          </div>
+          <p className="fine">{assuranceSummary(item)}</p>
+          {needsCeremony(item) ? (
+            <div className="actions">
+              <Link
+                className="button"
+                to={`/approve/${encodeURIComponent(item.authReqId)}`}
+              >
+                Review
+              </Link>
+            </div>
+          ) : (
+            <div className="actions">
+              <button
+                type="button"
+                className="primary"
+                disabled={busyId === item.authReqId}
+                aria-busy={busyId === item.authReqId}
+                onClick={() => void decide(item, "approve")}
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                disabled={busyId === item.authReqId}
+                onClick={() => void decide(item, "deny")}
+              >
+                Deny
+              </button>
+            </div>
+          )}
         </div>
       ))}
 

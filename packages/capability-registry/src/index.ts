@@ -62,6 +62,8 @@ const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
 const ADR_SECURITY_EVENTS = "0080-security-event-hooks.md";
 const ADR_LIVE_OBSERVATION = "0081-live-session-observation.md";
 const ADR_MODEL_PLANE = "0083-browser-plane-inference-fallback.md";
+const ADR_NOTIFICATION_CEREMONIES =
+  "0084-external-authorization-notifications.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -84,6 +86,24 @@ const HUMAN_CEREMONY: CapabilityExclusion = {
 const OPS_PLANE: CapabilityExclusion = {
   reason: "operator/device lifecycle surface, not an agent capability",
   adr: ADR_AGENT_SURFACE_PARITY,
+};
+
+/**
+ * Where an authorization prompt appears is who gets to approve it. An agent
+ * that could rebind a destination could route its principal's prompts to
+ * itself, so this is withheld from every agent surface rather than merely
+ * gated.
+ */
+const APPROVAL_ROUTING: CapabilityExclusion = {
+  reason:
+    "binding a notification destination decides where authorization prompts appear; an agent that could rebind one could route its principal's prompts to itself",
+  adr: ADR_NOTIFICATION_CEREMONIES,
+};
+
+const APPROVAL_CEREMONY: CapabilityExclusion = {
+  reason:
+    "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
+  adr: ADR_NOTIFICATION_CEREMONIES,
 };
 
 const PM_PLANE: CapabilityExclusion = {
@@ -1554,6 +1574,134 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: AUTH_CEREMONY,
       mcp_client: AUTH_CEREMONY,
       webmcp: AUTH_CEREMONY,
+    },
+  },
+
+  {
+    id: "identity.notification.channels.read",
+    title: "List notification channels and what each can do",
+    plane: "identity",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: APPROVAL_ROUTING,
+      mcp_client: APPROVAL_ROUTING,
+    },
+  },
+  {
+    id: "identity.notification.bindings.manage",
+    title: "Bind, verify, or revoke a notification destination",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: APPROVAL_ROUTING,
+      mcp_client: APPROVAL_ROUTING,
+    },
+  },
+  {
+    id: "identity.notification.preferences.manage",
+    title: "Read or change where authorization prompts are delivered",
+    plane: "identity",
+    kind: "admin",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: APPROVAL_ROUTING,
+      mcp_client: APPROVAL_ROUTING,
+    },
+  },
+  {
+    id: "identity.approval.activation",
+    title: "Run the transaction-bound authenticator ceremony for an approval",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: APPROVAL_CEREMONY,
+      mcp_client: APPROVAL_CEREMONY,
+    },
+  },
+  {
+    id: "identity.approval.comparison",
+    title: "Issue and check the number-matching value for an approval",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: APPROVAL_CEREMONY,
+      mcp_client: APPROVAL_CEREMONY,
+    },
+  },
+  {
+    id: "identity.approval.report",
+    title: "Report an authorization request as unrecognized",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: APPROVAL_CEREMONY,
+      mcp_client: APPROVAL_CEREMONY,
+    },
+  },
+  {
+    id: "identity.approval.receipt.read",
+    title: "Read the decision receipt for an authorization request",
+    plane: "identity",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: {
+        reason:
+          "a receipt names the approver, the channel and the binding that settled a request; agent visibility into who approved what is deferred until a scoped projection exists",
+        adr: ADR_NOTIFICATION_CEREMONIES,
+      },
+      mcp_client: {
+        reason:
+          "a receipt names the approver, the channel and the binding that settled a request; agent visibility into who approved what is deferred until a scoped projection exists",
+        adr: ADR_NOTIFICATION_CEREMONIES,
+      },
     },
   },
 
