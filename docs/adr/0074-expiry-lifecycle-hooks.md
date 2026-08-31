@@ -135,12 +135,15 @@ behaviour they always did.
 
 The responder set is a closed lookup by subject kind, not a registry a manifest
 can extend: acting on an expiry means using the broker's authority, which is
-ADR 0065 Tier X. Kinds with no unattended platform path — leaf certificate
-reissuance, CA re-keying, signer rotation — do not silently no-op. They report
-the gap as a `lifecycle.renewal.failed` outcome naming the missing responder and
-pointing at `lifecycle.renewal.due`, so a subscriber knows the renewal is theirs
-to perform. A CA is deliberately never in that set: re-keying one changes trust
-for everything it signed (ADR 0052-cert), so authorities are alert-only.
+ADR 0065 Tier X. Kinds with no unattended platform path — CA re-keying and signer
+rotation — do not silently no-op. They report the gap as a
+`lifecycle.renewal.failed` outcome naming the missing responder and pointing at
+`lifecycle.renewal.due`, so a subscriber knows the renewal is theirs to perform.
+Leaf certificates gained a responder in
+[ADR 0075](0075-host-certificate-key-custody.md), gated on host key custody; one
+whose key went to its requester still reports `not_in_custody`. A CA is
+deliberately never in that set: re-keying one changes trust for everything it
+signed (ADR 0052-cert), so authorities are alert-only.
 
 An outcome event keeps the stage that produced it — that is how a subscriber
 knows which rung was acted on — so `should_respond` requires a *ladder* event.
@@ -220,16 +223,14 @@ Recorded so each is a decision rather than an oversight.
   before the Certificate Manager's `CaFacts` document carry no parsed validity,
   and the collector does not crack open sealed material to find one. An
   untracked authority is reported as absent rather than guessed at.
-- **Certificate custody, not certificate renewal, is the missing piece.** The
-  leaf responder above is blocked on something structural rather than on
-  effort: every issuance path in `apps/gateway/src/routes/certs.rs` returns the
-  new private key to the caller in a sealed delivery they then acknowledge, and
-  `managed_certificate_keys` — the table that would let the host hold a leaf key
-  itself — has no reader or writer anywhere in the gateway. An unattended
-  renewal would therefore mint a private key with **no recipient**. Wiring host
-  key custody is a security decision about which certificates the host may hold
-  keys for and under what policy; it belongs in its own ADR, not bolted onto
-  this one.
+- **Certificate renewal landed in [ADR 0075](0075-host-certificate-key-custody.md).**
+  It was blocked here on something structural rather than on effort: every
+  issuance path returned the new private key to its caller in a sealed
+  delivery, so an unattended renewal would have minted a key with no recipient.
+  ADR 0075 adds opt-in host key custody, which is the precondition, and
+  registers the `certificate` responder. Certificates whose key went to their
+  requester still report `not_in_custody` — the platform genuinely cannot renew
+  those.
 - **SSF/CAEP and Security Event Tokens** (ADR 0046 §12's richer tier) remain
   future work; the simple Standard Webhooks tier ships here.
 

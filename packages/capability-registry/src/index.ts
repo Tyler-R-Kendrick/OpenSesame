@@ -56,6 +56,7 @@ const ADR_MCP_BEARER = "0023-mcp-bearer-vs-dpop.md";
 const ADR_PM_BRIDGING = "0052-password-manager-ecosystem-bridging.md";
 const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
 const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
+const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -90,6 +91,12 @@ const HOOK_SECRET_ISSUANCE: CapabilityExclusion = {
   reason:
     "registering a lifecycle hook mints and returns a whsec_ signing secret once; an agent surface must never be the thing that receives it",
   adr: ADR_LIFECYCLE_HOOKS,
+};
+
+const CUSTODY_KEY_MATERIAL: CapabilityExclusion = {
+  reason:
+    "returns or places a certificate private key; agent-facing APIs carry references, never material",
+  adr: ADR_KEY_CUSTODY,
 };
 
 const DEFERRED: CapabilityExclusion = {
@@ -867,6 +874,40 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: "rotation_trigger",
       mcp_client: null,
       webmcp: null,
+    },
+  },
+  {
+    id: "certificates.custody.issue",
+    title: "Issue a certificate under host key custody",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame cert issue",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: CUSTODY_KEY_MATERIAL,
+      webmcp: CUSTODY_KEY_MATERIAL,
+    },
+  },
+  {
+    id: "certificates.custody.reveal",
+    title: "Collect a host-custody private key",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame cert key",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: CUSTODY_KEY_MATERIAL,
+      webmcp: CUSTODY_KEY_MATERIAL,
     },
   },
   // ── Host plane: expiry lifecycle hooks (ADR 0074) ─────────────────────

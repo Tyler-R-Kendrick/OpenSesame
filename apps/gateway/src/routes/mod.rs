@@ -89,6 +89,9 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/certs/deliveries/{request_id}/ack",
             post(certs::acknowledge_delivery),
         )
+        // ADR 0075: reveal a host-custody private key. Human/operator only and
+        // deliberately absent from every agent surface.
+        .route("/api/v1/certs/{id}/key", get(certs::reveal_key))
         // ADR 0066/0067: certificate-manager authorities — root and
         // intermediate CAs, externally signed chains, renewal and CRL
         // distribution settings (plan §5.6, 16 KiB; 512 KiB for chain import).

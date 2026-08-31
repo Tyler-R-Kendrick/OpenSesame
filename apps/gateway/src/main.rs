@@ -14,6 +14,7 @@ mod dev_pki;
 mod github_webhook;
 mod identity_mapping;
 mod lifecycle;
+mod managed_certs;
 mod middleware;
 mod oci_component;
 mod routes;

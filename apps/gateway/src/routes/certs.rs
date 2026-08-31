@@ -36,6 +36,7 @@ use crate::cert_issuers::{
     GeneratedLeafRequest, IssuedCertificate, IssuerKind, TrustClass,
 };
 use crate::dev_pki::{self, DevCa, IssuedRecord, DEFAULT_TTL, DEV_CA_CN};
+use crate::managed_certs;
 use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
 
 const KV_CA: &str = "certs.dev_ca";
@@ -492,6 +493,42 @@ pub struct IssueBody {
     pub ttl_hours: Option<u64>,
     #[serde(default)]
     pub issuer_connection_id: Option<String>,
+    /// Keep the private key in host custody as well as returning it once
+    /// (ADR 0075). Custody is what makes unattended renewal possible: without
+    /// it a reissued key would have no recipient.
+    #[serde(default)]
+    pub managed: bool,
+    /// How far ahead of expiry the renewal window opens, for `managed` issuance.
+    #[serde(default)]
+    pub renew_before_hours: Option<u64>,
+}
+
+/// The issuance body, as a value so a managed issuance can add its own fields
+/// without a second copy of the shape drifting from this one.
+fn issue_response_value(
+    issued: &dev_pki::IssuedCert,
+    delivery_id: Option<&str>,
+    persistent: bool,
+    issuer_label: &str,
+    issuer_kind: &str,
+    trust_scope: &str,
+) -> Value {
+    json!({
+        "certificate": issued.certificate,
+        "private_key": issued.private_key,
+        "ca_certificate": issued.ca_certificate,
+        "serial": issued.serial,
+        "common_name": issued.common_name,
+        "dns_names": issued.dns_names,
+        "not_before": issued.not_before,
+        "not_after": issued.not_after,
+        "delivery_id": delivery_id,
+        "issuer": issuer_label,
+        "issuer_kind": issuer_kind,
+        "purpose": "local_tls",
+        "trust_scope": trust_scope,
+        "persistent": persistent,
+    })
 }
 
 fn issue_response(
@@ -504,22 +541,14 @@ fn issue_response(
 ) -> Response {
     (
         StatusCode::OK,
-        Json(json!({
-            "certificate": issued.certificate,
-            "private_key": issued.private_key,
-            "ca_certificate": issued.ca_certificate,
-            "serial": issued.serial,
-            "common_name": issued.common_name,
-            "dns_names": issued.dns_names,
-            "not_before": issued.not_before,
-            "not_after": issued.not_after,
-            "delivery_id": delivery_id,
-            "issuer": issuer_label,
-            "issuer_kind": issuer_kind,
-            "purpose": "local_tls",
-            "trust_scope": trust_scope,
-            "persistent": persistent,
-        })),
+        Json(issue_response_value(
+            issued,
+            delivery_id,
+            persistent,
+            issuer_label,
+            issuer_kind,
+            trust_scope,
+        )),
     )
         .into_response()
 }
@@ -1500,7 +1529,10 @@ async fn issue_private(
                 Ok(rows) => rows,
                 Err(response) => return response,
             };
-            rows.insert(0, dev_pki::to_record(&issued));
+            match dev_pki::to_record(&issued) {
+                Ok(record) => rows.insert(0, record),
+                Err(hint) => return internal(hint, "record issued certificate"),
+            }
             rows.truncate(MAX_ISSUED);
             if let Err(response) = save_issued(st, organization, &rows).await {
                 return response;
@@ -1514,6 +1546,119 @@ async fn issue_private(
                 "private_local",
             )
         }
+    }
+}
+
+/// Issue under host key custody, then return the material once.
+///
+/// The key is both sealed into custody *and* returned here, which is not a
+/// contradiction: the requester still has to deploy it the first time. What
+/// custody buys is that the host can reissue later without needing anyone to
+/// be listening — and `GET /certs/{id}/key` is how an operator picks up what a
+/// renewal produced.
+async fn issue_managed_certificate(
+    st: &AppState,
+    organization: &opensesame_domain::OrganizationId,
+    actor: &str,
+    request: &dev_pki::IssueRequest,
+    renew_before_seconds: i64,
+) -> Response {
+    let resolved = match load_or_create_ca(st, organization).await {
+        Ok(resolved) => resolved,
+        Err(response) => return response,
+    };
+    let ResolvedCa::Persisted { authority_id, ca } = resolved else {
+        // An ephemeral CA lives only in this process. A certificate it signed
+        // could not be renewed after a restart, so promising custody over one
+        // would be a promise the host cannot keep.
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "certificate_key_protection_unavailable",
+                "hint": "host key custody requires a persisted certificate authority",
+            })),
+        )
+            .into_response();
+    };
+    match managed_certs::issue_managed(
+        st,
+        organization,
+        &authority_id,
+        &ca,
+        request,
+        renew_before_seconds,
+        actor,
+        None,
+    )
+    .await
+    {
+        Ok(issued) => {
+            let mut view = issue_response_value(
+                &issued.material,
+                None,
+                true,
+                "OpenSesame Private CA",
+                INTERNAL_ISSUER,
+                trust_name(TrustClass::PrivateLocal),
+            );
+            if let Some(object) = view.as_object_mut() {
+                object.insert("certificate_id".into(), json!(issued.certificate.id));
+                object.insert("managed".into(), json!(true));
+                object.insert(
+                    "renew_before_seconds".into(),
+                    json!(issued.certificate.renew_before_seconds),
+                );
+                object.insert(
+                    "auto_renew_enabled".into(),
+                    json!(issued.certificate.auto_renew_enabled),
+                );
+            }
+            (StatusCode::OK, Json(view)).into_response()
+        }
+        Err(error) => custody_error(&error),
+    }
+}
+
+fn custody_error(error: &managed_certs::CustodyError) -> Response {
+    if let managed_certs::CustodyError::Storage(inner) = error {
+        return internal(inner, "managed certificate custody");
+    }
+    (
+        StatusCode::from_u16(error.http_status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+        Json(json!({"error": error.code(), "hint": error.to_string()})),
+    )
+        .into_response()
+}
+
+/// `GET /api/v1/certs/{id}/key` — reveal a managed private key.
+///
+/// Human/operator only and never mapped onto an agent surface: this is the one
+/// route in the certificate plane that returns key material on demand, and it
+/// exists so an operator can redeploy after an unattended renewal.
+pub async fn reveal_key(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Path(certificate_id): Path<String>,
+) -> Response {
+    let who = match require_configurator(&st, &headers) {
+        Ok(who) => who,
+        Err(response) => return response,
+    };
+    let organization = match resolve_caller_organization(&st, &who, &headers) {
+        Ok(organization) => organization,
+        Err(response) => return response,
+    };
+    match managed_certs::reveal_managed_key(&st, &organization.to_string(), &certificate_id).await {
+        Ok(private_key) => (
+            StatusCode::OK,
+            Json(json!({
+                "certificate_id": certificate_id,
+                "private_key": private_key,
+                "managed": true,
+            })),
+        )
+            .into_response(),
+        Err(error) => custody_error(&error),
     }
 }
 
@@ -1531,6 +1676,12 @@ pub async fn issue(
         Err(response) => return response,
     };
     let actor = delivery_actor(&who);
+    let managed = body.managed;
+    let renew_before = body
+        .renew_before_hours
+        .and_then(|hours| i64::try_from(hours).ok())
+        .and_then(|hours| hours.checked_mul(3_600))
+        .unwrap_or(opensesame_lifecycle::DEFAULT_RENEW_BEFORE_SECONDS);
     let (requested_issuer, validated, request) = match parse_issue_body(body) {
         Ok(parsed) => parsed,
         Err(response) => return response,
@@ -1540,6 +1691,19 @@ pub async fn issue(
             Ok(external) => external,
             Err(response) => return response,
         };
+    if managed {
+        if external.is_some() {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": "invalid_request",
+                    "hint": "host key custody applies to the internal private CA; an external issuer delivers its own material",
+                })),
+            )
+                .into_response();
+        }
+        return issue_managed_certificate(&st, &organization, &actor, &request, renew_before).await;
+    }
     if let Some(connection) = external {
         return match issue_external(
             &st,

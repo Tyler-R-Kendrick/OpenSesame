@@ -6806,6 +6806,8 @@ macro_rules! optional_sealed_material {
 // Declared here rather than at the top of the file because
 // `optional_sealed_material!` is a textually scoped `macro_rules!` macro: a
 // module declared above its definition cannot see it.
+mod managed_certs;
+
 mod lifecycle;
 pub use lifecycle::{
     StoredLifecycleDelivery, StoredLifecycleHook, StoredLifecycleWatermark, DELIVERY_BATCH_LIMIT,

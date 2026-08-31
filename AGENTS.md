@@ -219,7 +219,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0074).
+  0001–0075).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -228,6 +228,12 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   `lifecycle.*` hook feed — never by a subsystem's own private due-check.
   `OpenSesame`'s own rotation subscribes to that feed, so a break in it breaks
   our rotations too ([ADR 0074](docs/adr/0074-expiry-lifecycle-hooks.md)).
+- A certificate is renewed unattended only when the host holds its key
+  (`managed_certificate_keys`); one whose key went to its requester reports
+  `not_in_custody` rather than minting a key with no recipient. Custody is opt-in
+  (`managed: true`), never agent-reachable, and its renewal lead is clamped to
+  half the lifetime so renewal terminates
+  ([ADR 0075](docs/adr/0075-host-certificate-key-custody.md)).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,

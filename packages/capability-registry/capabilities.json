@@ -877,6 +877,52 @@
     }
   },
   {
+    "id": "certificates.custody.issue",
+    "title": "Issue a certificate under host key custody",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame cert issue",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "returns or places a certificate private key; agent-facing APIs carry references, never material",
+        "adr": "0075-host-certificate-key-custody.md"
+      },
+      "webmcp": {
+        "reason": "returns or places a certificate private key; agent-facing APIs carry references, never material",
+        "adr": "0075-host-certificate-key-custody.md"
+      }
+    }
+  },
+  {
+    "id": "certificates.custody.reveal",
+    "title": "Collect a host-custody private key",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame cert key",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "returns or places a certificate private key; agent-facing APIs carry references, never material",
+        "adr": "0075-host-certificate-key-custody.md"
+      },
+      "webmcp": {
+        "reason": "returns or places a certificate private key; agent-facing APIs carry references, never material",
+        "adr": "0075-host-certificate-key-custody.md"
+      }
+    }
+  },
+  {
     "id": "lifecycle.expiring.read",
     "title": "Read tracked expiry deadlines and their ladders",
     "plane": "host",

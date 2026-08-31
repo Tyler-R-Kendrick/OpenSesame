@@ -21,9 +21,12 @@ use opensesame_domain::OrganizationId;
 use opensesame_lifecycle::{LifecycleEvent, SubjectKind};
 
 use crate::app_state::AppState;
+use crate::managed_certs;
 
 /// Responder id recorded on an internal hook row and in outcome details.
 pub const ROTATION_RESPONDER: &str = "rotation";
+/// Responder that reissues certificates the host holds the key for.
+pub const CERTIFICATE_RESPONDER: &str = "certificate";
 
 /// What a responder did, so the caller can publish the matching outcome event.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -58,11 +61,15 @@ impl Outcome {
 pub fn responder_for(kind: SubjectKind) -> Option<&'static str> {
     match kind {
         SubjectKind::ConnectionCredential | SubjectKind::StorePath => Some(ROTATION_RESPONDER),
-        // Leaf certificate reissuance, CA re-keying, and signer rotation have
-        // no unattended platform path yet. They are not silently skipped: the
-        // dispatcher reports the gap as an outcome event so a subscriber knows
-        // the renewal is theirs to perform.
-        SubjectKind::Certificate | SubjectKind::CertificateAuthority | SubjectKind::Signer => None,
+        // Only certificates the host holds the key for can actually be
+        // reissued unattended; `renew_managed` refuses the rest with
+        // `NotInCustody`, which becomes the outcome a subscriber reads.
+        SubjectKind::Certificate => Some(CERTIFICATE_RESPONDER),
+        // A certificate authority is never re-keyed unattended: it changes
+        // trust for everything it signed (ADR 0052-cert). Signer rotation has
+        // no unattended path yet. Neither is silently skipped — the dispatcher
+        // reports the gap as an outcome event.
+        SubjectKind::CertificateAuthority | SubjectKind::Signer => None,
     }
 }
 
@@ -72,6 +79,7 @@ pub fn responder_for(kind: SubjectKind) -> Option<&'static str> {
 pub async fn respond(state: &AppState, event: &LifecycleEvent) -> Outcome {
     match responder_for(event.subject.kind) {
         Some(ROTATION_RESPONDER) => rotate(state, event).await,
+        Some(CERTIFICATE_RESPONDER) => renew_certificate(state, event).await,
         Some(other) => Outcome::failed(format!("unknown responder '{other}'")),
         None => Outcome::failed(format!(
             "no platform responder for subject kind '{}'; subscribe to lifecycle.renewal.due to act",
@@ -138,6 +146,26 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
     outcome
 }
 
+/// Reissue a certificate the host holds the key for.
+///
+/// The custody check lives in [`crate::managed_certs::renew_managed`] rather
+/// than here, so the same refusal reaches an operator calling the route and a
+/// subscriber reading the hook feed. A certificate whose key was delivered to
+/// its requester reports `not_in_custody`: the platform genuinely cannot renew
+/// it, because a new key would have nobody to go to.
+async fn renew_certificate(state: &AppState, event: &LifecycleEvent) -> Outcome {
+    let Ok(organization_id) = OrganizationId::parse(&event.subject.organization_id) else {
+        return Outcome::failed("subject carries a non-canonical organization id");
+    };
+    match managed_certs::renew_managed(state, &organization_id, &event.subject.subject_id).await {
+        Ok(renewed) => Outcome::ok(format!(
+            "reissued as {} valid until {}",
+            renewed.id, renewed.expires_at
+        )),
+        Err(error) => Outcome::failed(format!("{}: {error}", error.code())),
+    }
+}
+
 fn rotation_target(event: &LifecycleEvent) -> Option<RotationTarget> {
     match event.subject.kind {
         SubjectKind::ConnectionCredential => Some(RotationTarget::Connection {
@@ -175,11 +203,15 @@ mod tests {
     use opensesame_lifecycle::{ExpiryStage, ExpirySubject};
 
     fn event(kind: SubjectKind) -> LifecycleEvent {
+        event_in(kind, &OrganizationId::new().to_string())
+    }
+
+    fn event_in(kind: SubjectKind, organization_id: &str) -> LifecycleEvent {
         LifecycleEvent::for_stage(
             ExpirySubject {
                 kind,
                 subject_id: "target:1".into(),
-                organization_id: "org:1".into(),
+                organization_id: organization_id.to_string(),
                 expires_at: "2026-08-30T00:00:00Z".parse().unwrap(),
                 renew_before_seconds: Some(1),
                 auto_respond: true,
@@ -204,14 +236,34 @@ mod tests {
     }
 
     #[test]
+    fn certificates_are_reissued_by_the_certificate_responder() {
+        assert_eq!(
+            responder_for(SubjectKind::Certificate),
+            Some(CERTIFICATE_RESPONDER),
+        );
+    }
+
+    #[test]
     fn kinds_without_an_unattended_path_report_no_responder() {
-        for kind in [
-            SubjectKind::Certificate,
-            SubjectKind::CertificateAuthority,
-            SubjectKind::Signer,
-        ] {
+        for kind in [SubjectKind::CertificateAuthority, SubjectKind::Signer] {
             assert_eq!(responder_for(kind), None, "{kind:?}");
         }
+    }
+
+    #[tokio::test]
+    async fn a_non_canonical_organization_is_refused_rather_than_guessed() {
+        let state = crate::app_state::test_demo_state().await;
+        let outcome = respond(
+            &state,
+            &event_in(SubjectKind::Certificate, "org:not-a-uuid"),
+        )
+        .await;
+        assert!(!outcome.succeeded);
+        assert!(
+            outcome.detail.contains("non-canonical"),
+            "{}",
+            outcome.detail
+        );
     }
 
     #[test]
@@ -234,7 +286,7 @@ mod tests {
     #[tokio::test]
     async fn an_unhandled_kind_fails_loudly_rather_than_silently() {
         let state = crate::app_state::test_demo_state().await;
-        let outcome = respond(&state, &event(SubjectKind::Certificate)).await;
+        let outcome = respond(&state, &event(SubjectKind::Signer)).await;
         assert!(!outcome.succeeded);
         assert!(
             outcome.detail.contains("no platform responder"),
@@ -244,6 +296,20 @@ mod tests {
         assert!(
             outcome.detail.contains("lifecycle.renewal.due"),
             "the gap must point a subscriber at the event they can act on: {}",
+            outcome.detail,
+        );
+    }
+
+    #[tokio::test]
+    async fn a_certificate_the_host_holds_no_key_for_reports_why_it_cannot_be_renewed() {
+        // The honest refusal: a delivered certificate's key went to its
+        // requester, so a reissue would mint a key with nobody to give it to.
+        let state = crate::app_state::test_demo_state().await;
+        let outcome = respond(&state, &event(SubjectKind::Certificate)).await;
+        assert!(!outcome.succeeded);
+        assert!(
+            outcome.detail.starts_with("not_found") || outcome.detail.starts_with("not_in_custody"),
+            "{}",
             outcome.detail,
         );
     }

@@ -276,6 +276,16 @@ enum CertCmd {
     },
     /// List issued certificates (metadata only — no private keys).
     Ls,
+    /// Collect a host-custody private key after an unattended renewal.
+    Key {
+        /// Certificate id, as returned by `cert issue --managed`.
+        id: String,
+        /// Print the private key. Human operator only.
+        #[arg(long, default_value = "false")]
+        reveal: bool,
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -1323,6 +1333,9 @@ async fn main() -> anyhow::Result<()> {
                 .await?;
             }
             CertCmd::Ls => certs::cmd_ls(&cli.server, &cli.output).await?,
+            CertCmd::Key { id, reveal, out } => {
+                certs::cmd_key(&cli.server, &cli.output, &id, reveal, out).await?;
+            }
         },
     }
     Ok(())

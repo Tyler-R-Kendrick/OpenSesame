@@ -500,7 +500,7 @@ mod tests {
         st
     }
 
-    async fn send(
+    pub(super) async fn send(
         app: &Router,
         headers: &axum::http::HeaderMap,
         method: &str,
@@ -985,5 +985,327 @@ mod tests {
                 "{uri} rendered {forbidden}: {rendered}",
             );
         }
+    }
+}
+
+/// End-to-end coverage of host-custody certificate renewal (ADR 0074 + 0075).
+///
+/// These are the tests the whole design exists to make possible: a certificate
+/// the host holds the key for, approaching expiry, reissued by the lifecycle
+/// hook without anyone watching — and an operator able to pick up the result.
+#[cfg(test)]
+mod custody_e2e {
+    use super::tests::*;
+    use super::*;
+    use crate::app_state::{test_demo_state, test_session_headers};
+    use axum::http::StatusCode;
+    use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
+    use opensesame_domain::OrganizationRole;
+    use std::sync::Arc;
+
+    /// Issue a managed certificate and age it until its renewal window opens.
+    ///
+    /// The window cannot be forced open at issuance: `converging_renew_before`
+    /// caps the lead at half the lifetime precisely so a fresh certificate is
+    /// never immediately due. So the certificate is issued normally and then
+    /// its validity is slid backwards, which is what actually happens to a
+    /// real certificate — it gets old — without a test waiting a day for it.
+    async fn issue_and_age_certificate(
+        state: &AppState,
+        app: &axum::Router,
+        headers: &axum::http::HeaderMap,
+    ) -> (String, String) {
+        let (status, issued) = send(
+            app,
+            headers,
+            "POST",
+            "/api/v1/certs/issue",
+            Some(json!({
+                "common_name": "api.internal.test",
+                "dns_names": ["api.internal.test"],
+                "ttl_hours": 24,
+                "managed": true,
+                "renew_before_hours": 12,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{issued}");
+        assert_eq!(issued["managed"], json!(true));
+        assert_eq!(issued["auto_renew_enabled"], json!(true));
+        assert_eq!(
+            issued["renew_before_seconds"],
+            json!(12 * 3_600),
+            "a 12h lead fits inside a 24h life",
+        );
+        let id = issued["certificate_id"].as_str().unwrap().to_string();
+        let key = issued["private_key"].as_str().unwrap().to_string();
+        assert!(
+            key.contains("BEGIN"),
+            "the requester still gets the key once"
+        );
+        age_certificate(state, &id, 23).await;
+        (id, key)
+    }
+
+    /// Slide a certificate's whole validity window `hours` into the past,
+    /// keeping its span — an aged certificate, not a malformed one.
+    async fn age_certificate(state: &AppState, certificate_id: &str, hours: i64) {
+        let shift = chrono::Duration::hours(hours);
+        let stored = state
+            .db
+            .get_certificate(&state.connection_organization.to_string(), certificate_id)
+            .await
+            .unwrap()
+            .expect("certificate");
+        let slide = |raw: &str| {
+            (chrono::DateTime::parse_from_rfc3339(raw)
+                .expect("stored timestamps are RFC 3339")
+                .with_timezone(&Utc)
+                - shift)
+                .to_rfc3339()
+        };
+        sqlx::query(
+            "UPDATE issued_certificates SET not_before = ?, expires_at = ?              WHERE organization_id = ? AND id = ?",
+        )
+        .bind(slide(&stored.not_before))
+        .bind(slide(&stored.expires_at))
+        .bind(state.connection_organization.to_string())
+        .bind(certificate_id)
+        .execute(state.db.pool())
+        .await
+        .unwrap();
+    }
+
+    async fn custody_state() -> AppState {
+        let mut st = test_demo_state().await;
+        st.connection_broker = Arc::new(
+            ConnectionBroker::new(
+                st.db.pool().clone(),
+                BrokerConfig::in_memory(Some([42u8; 32]), "http://127.0.0.1:8787"),
+            )
+            .unwrap(),
+        );
+        st
+    }
+
+    #[tokio::test]
+    async fn a_managed_certificate_is_reissued_by_the_hook_and_the_operator_can_collect_it() {
+        let st = custody_state().await;
+        let org = st.connection_organization;
+        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let app = crate::routes::router(st.clone());
+        let (original_id, original_key) = issue_and_age_certificate(&st, &app, &admin).await;
+
+        // A subscriber is watching the feed, exactly as a third-party tool would.
+        let mut hook = json!({
+            "name": "cert-watcher",
+            "event_types": ["lifecycle.*"],
+            "endpoint_url": "https://hooks.example.com/certs",
+            "subject_kinds": ["certificate"],
+        });
+        hook["subject_kinds"] = json!(["certificate"]);
+        let (status, _) = send(&app, &admin, "PUT", "/api/v1/lifecycle/hooks", Some(hook)).await;
+        assert_eq!(status, StatusCode::OK);
+
+        // The scan is the only trigger. Nothing calls renewal directly.
+        let (status, scanned) = send(&app, &admin, "POST", "/api/v1/lifecycle/scan", None).await;
+        assert_eq!(status, StatusCode::OK, "{scanned}");
+        assert!(scanned["published"].as_i64().unwrap() >= 1, "{scanned}");
+
+        // The predecessor is retired and linked to a live successor.
+        let previous = st
+            .db
+            .get_certificate(&org.to_string(), &original_id)
+            .await
+            .unwrap()
+            .expect("predecessor survives");
+        assert_eq!(previous.status, "renewed", "the old certificate is retired");
+        let successor_id = previous
+            .renewed_by_id
+            .clone()
+            .expect("the hook produced a successor");
+        let successor = st
+            .db
+            .get_certificate(&org.to_string(), &successor_id)
+            .await
+            .unwrap()
+            .expect("successor exists");
+        assert_eq!(successor.status, "active");
+        assert_eq!(successor.common_name, previous.common_name);
+        assert_eq!(successor.san_json, previous.san_json);
+        assert_eq!(
+            successor.renewed_from_id.as_deref(),
+            Some(original_id.as_str()),
+            "the chain links both ways",
+        );
+        assert!(successor.auto_renew_enabled, "renewal stays unattended");
+        assert!(
+            successor.expires_at > previous.expires_at,
+            "a renewal must actually extend the deadline: {} -> {}",
+            previous.expires_at,
+            successor.expires_at,
+        );
+
+        // The subscriber was told, on the same feed, with both events.
+        let (_, ledger) = send(&app, &admin, "GET", "/api/v1/lifecycle/deliveries", None).await;
+        let delivered: Vec<&str> = ledger["deliveries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row["event_type"].as_str().unwrap())
+            .collect();
+        assert!(
+            delivered.contains(&"lifecycle.renewal.due"),
+            "{delivered:?}",
+        );
+        assert!(
+            delivered.contains(&"lifecycle.renewal.succeeded"),
+            "a subscriber must learn the renewal worked: {delivered:?}",
+        );
+
+        // And an operator can collect what the unattended renewal produced.
+        let (status, revealed) = send(
+            &app,
+            &admin,
+            "GET",
+            &format!("/api/v1/certs/{successor_id}/key"),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{revealed}");
+        let renewed_key = revealed["private_key"].as_str().unwrap();
+        assert!(renewed_key.contains("BEGIN"));
+        assert_ne!(
+            renewed_key, original_key,
+            "a renewal must mint a fresh key, not re-hand the old one",
+        );
+    }
+
+    #[tokio::test]
+    async fn a_second_scan_does_not_reissue_the_same_certificate_again() {
+        let st = custody_state().await;
+        let org = st.connection_organization;
+        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let app = crate::routes::router(st.clone());
+        issue_and_age_certificate(&st, &app, &admin).await;
+
+        send(&app, &admin, "POST", "/api/v1/lifecycle/scan", None).await;
+        let after_first = st
+            .db
+            .list_certificates(&org.to_string(), &Default::default())
+            .await
+            .unwrap()
+            .len();
+        send(&app, &admin, "POST", "/api/v1/lifecycle/scan", None).await;
+        let after_second = st
+            .db
+            .list_certificates(&org.to_string(), &Default::default())
+            .await
+            .unwrap()
+            .len();
+        assert_eq!(
+            after_first, after_second,
+            "a renewed certificate leaves the sweep and its successor is not yet due; \
+             scanning again must not mint another",
+        );
+        assert_eq!(after_first, 2, "one predecessor, one successor");
+    }
+
+    #[tokio::test]
+    async fn a_delivered_certificate_is_never_renewed_unattended() {
+        // The default issuance path hands the key to its requester, so the
+        // host cannot reissue it — and must say so rather than mint a key
+        // nobody will receive.
+        let st = custody_state().await;
+        let org = st.connection_organization;
+        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let app = crate::routes::router(st.clone());
+
+        let (status, issued) = send(
+            &app,
+            &admin,
+            "POST",
+            "/api/v1/certs/issue",
+            Some(json!({"common_name": "delivered.internal.test", "ttl_hours": 1})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{issued}");
+        assert!(issued["certificate_id"].is_null(), "not a managed issuance");
+
+        let certificates = st
+            .db
+            .list_certificates(&org.to_string(), &Default::default())
+            .await
+            .unwrap();
+        let delivered = certificates.first().expect("one certificate");
+        assert!(
+            !delivered.auto_renew_enabled,
+            "a delivered certificate never opts into unattended renewal",
+        );
+        assert!(
+            st.db
+                .get_managed_certificate_key(&org.to_string(), &delivered.id)
+                .await
+                .unwrap()
+                .is_none(),
+            "the host holds no key for it",
+        );
+
+        // The reveal route refuses it for the same reason.
+        let (status, refused) = send(
+            &app,
+            &admin,
+            "GET",
+            &format!("/api/v1/certs/{}/key", delivered.id),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{refused}");
+        assert_eq!(refused["error"], json!("not_in_custody"));
+    }
+
+    #[tokio::test]
+    async fn a_certificate_too_short_lived_to_renew_is_refused_at_issuance() {
+        // Accepting it would mint something whose replacement is due the
+        // instant it is signed — a responder loop, one reissue per tick.
+        let st = custody_state().await;
+        let org = st.connection_organization;
+        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let app = crate::routes::router(st.clone());
+        let (status, refused) = send(
+            &app,
+            &admin,
+            "POST",
+            "/api/v1/certs/issue",
+            Some(json!({
+                "common_name": "brief.internal.test",
+                "ttl_hours": 1,
+                "managed": true,
+            })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{refused}");
+        assert_eq!(refused["error"], json!("lifetime_too_short"));
+    }
+
+    #[tokio::test]
+    async fn managed_custody_is_refused_for_an_external_issuer() {
+        let st = custody_state().await;
+        let org = st.connection_organization;
+        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let app = crate::routes::router(st.clone());
+        let (status, refused) = send(
+            &app,
+            &admin,
+            "POST",
+            "/api/v1/certs/issue",
+            Some(json!({
+                "common_name": "public.example",
+                "managed": true,
+                "issuer_connection_id": "connection:letsencrypt",
+            })),
+        )
+        .await;
+        assert_ne!(status, StatusCode::OK, "{refused}");
     }
 }
