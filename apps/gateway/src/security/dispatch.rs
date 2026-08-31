@@ -190,6 +190,79 @@ mod tests {
         }
     }
 
+    /// A blocked web-login run, as the agent family publishes it.
+    fn blocked_run() -> SecurityNotice {
+        use opensesame_agent_events::{AgentEvent, AgentPhase, AgentRun};
+        AgentEvent::waiting(
+            AgentRun {
+                run_id: "run:1".into(),
+                job_id: "job:1".into(),
+                organization_id: "org-1".into(),
+                owner_principal_id: "principal:alice".into(),
+                origin: "https://example.com".into(),
+                tier: "t4".into(),
+                control_state: "suspended".into(),
+            },
+            AgentPhase::Blocked,
+            now(),
+            now() + chrono::Duration::seconds(3_600),
+            Some("step-up challenge"),
+        )
+        .unwrap()
+        .notice()
+    }
+
+    #[test]
+    fn an_a2h_subscription_is_queued_a_delivery_like_any_other_sink() {
+        // The bug this replaces: the agent family had its own fan-out whose
+        // `wants_delivery` read `hook.delivery == "webhook"`, so an a2h
+        // subscription — registrable, schema-valid, with a working send path
+        // behind it — was never queued a single row. The whole channel was
+        // unreachable, and nothing failed loudly enough to say so.
+        //
+        // Publishing through the shared dispatcher makes that unrepresentable:
+        // `wants_delivery` asks the `Delivery` enum whether the sink is
+        // outbound, so a sink added later is queued without anybody
+        // remembering to widen a string comparison.
+        let notice = blocked_run();
+        for kind in [
+            Delivery::Webhook,
+            Delivery::Alertmanager,
+            Delivery::PagerDuty,
+            Delivery::A2h,
+        ] {
+            assert!(
+                hooks::wants_delivery(&hook(kind), &notice),
+                "{kind:?} would never be queued a delivery",
+            );
+        }
+
+        let mut internal = hook(Delivery::Internal);
+        internal.delivery = Delivery::Internal.as_str().into();
+        internal.endpoint_url = None;
+        internal.responder = Some("notify".into());
+        assert!(
+            !hooks::wants_delivery(&internal, &notice),
+            "an in-process responder must not be queued a row nobody drains",
+        );
+    }
+
+    #[test]
+    fn an_agent_notice_reaches_the_ledger_as_the_envelope_a2h_reads_back() {
+        // `send_a2h` and the callback route both decode the stored row as a
+        // SecurityNotice and take `AgentEvent::from_payload` of its payload.
+        // If fan-out ever stored the bare agent payload again, every a2h
+        // delivery would dead-letter as "names no run owner".
+        let notice = blocked_run();
+        let payload = serde_json::to_string(&notice).unwrap();
+        let row = pending_delivery(&hook(Delivery::A2h), &notice, payload, now());
+        let decoded: SecurityNotice = serde_json::from_str(&row.payload_json).unwrap();
+        let event = opensesame_agent_events::AgentEvent::from_payload(&decoded.payload)
+            .expect("the stored envelope still rebuilds the run it is about");
+        assert_eq!(event.run.owner_principal_id, "principal:alice");
+        assert_eq!(event.run.origin, "https://example.com");
+    }
+
     #[test]
     fn a_queued_delivery_carries_the_notice_and_its_routing_keys() {
         let notice = notice();

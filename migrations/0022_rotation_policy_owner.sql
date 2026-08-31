@@ -1,4 +1,4 @@
--- A rotation policy records who it rotates for (ADR 0078 §8).
+-- A rotation policy records who it rotates for (ADR 0081 §8).
 --
 -- Only the credential's owner may observe a run, so a run has to know whose it
 -- is. `owner_subject` matches the column `connections` already carries

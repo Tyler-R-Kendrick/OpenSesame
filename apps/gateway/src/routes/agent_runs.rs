@@ -1,4 +1,4 @@
-//! Watching a sandboxed run, and taking the page (ADR 0078).
+//! Watching a sandboxed run, and taking the page (ADR 0081).
 //!
 //! Three surfaces, and the split between them is the design:
 //!
@@ -44,7 +44,7 @@ use crate::middleware::auth::{
 ///
 /// The log is a database table, not a broadcast channel, so a tail is a poll.
 /// 500ms is chosen against what the stream actually carries: frames are
-/// admitted at a rate the mask solver bounds (ADR 0078 §3), and the action lane
+/// admitted at a rate the mask solver bounds (ADR 0081 §3), and the action lane
 /// moves at the speed of a browser step. A tighter loop would spend queries to
 /// deliver the same events.
 const TAIL_POLL: Duration = Duration::from_millis(500);
@@ -56,7 +56,7 @@ const TAIL_MAX_TICKS: u32 = 600;
 
 /// Longest a control lease is held without being renewed.
 ///
-/// When it expires the run parks — it never returns to the agent (ADR 0078 §7).
+/// When it expires the run parks — it never returns to the agent (ADR 0081 §7).
 pub const LEASE_SECONDS: i64 = 900;
 
 fn refusal(refusal: AttachRefusal) -> Response {
@@ -84,7 +84,7 @@ const fn refusal_code(refusal: AttachRefusal) -> &'static str {
 
 /// How this caller stands to the run.
 ///
-/// An operator is `Operator` even when it could read the row: ADR 0078 §8's
+/// An operator is `Operator` even when it could read the row: ADR 0081 §8's
 /// point is that reading somebody's session is not an operations capability.
 fn relation(who: &Caller, run: &StoredObservationRun) -> ViewerRelation {
     match who {
@@ -239,7 +239,7 @@ const fn default_after() -> i64 {
 
 /// `GET /api/v1/agent/runs/{id}/observe` — the sealed log, tailed.
 ///
-/// Live and replay are the same read at different cursors (ADR 0078 §1): a
+/// Live and replay are the same read at different cursors (ADR 0081 §1): a
 /// viewer passes its last position and gets the tail, the overlay passes an
 /// earlier one and gets a seek. There is no second pipeline, so there is no
 /// code that could be live-only and therefore no redaction that could apply on
@@ -578,7 +578,7 @@ pub async fn take_control(
         return unreadable_run();
     };
     // A suspended run is claimed by a person, never resumed into. Re-attaching
-    // is its own edge for exactly that reason (ADR 0078 §7).
+    // is its own edge for exactly that reason (ADR 0081 §7).
     if lease.state() == ControlState::Suspended {
         if let Err(error) = lease.reattach() {
             return lease_error(&error);
@@ -645,7 +645,7 @@ mod tests {
     const ALICE: &str = "user:alice";
     const BOB: &str = "user:bob";
 
-    fn seed(id: &str, owner: &str, org: &str, state: &str) -> StoredObservationRun {
+    pub(super) fn seed(id: &str, owner: &str, org: &str, state: &str) -> StoredObservationRun {
         StoredObservationRun {
             id: id.into(),
             organization_id: org.into(),
@@ -675,13 +675,30 @@ mod tests {
         method: &str,
         uri: &str,
     ) -> (StatusCode, Value) {
-        let builder = Request::builder().method(method).uri(uri).header(
+        send_json(app, headers, method, uri, None).await
+    }
+
+    pub(super) async fn send_json(
+        app: &Router,
+        headers: &HeaderMap,
+        method: &str,
+        uri: &str,
+        body: Option<Value>,
+    ) -> (StatusCode, Value) {
+        let mut builder = Request::builder().method(method).uri(uri).header(
             "authorization",
             headers.get("authorization").unwrap().as_bytes(),
         );
+        let payload = match body {
+            Some(value) => {
+                builder = builder.header("content-type", "application/json");
+                Body::from(value.to_string())
+            }
+            None => Body::empty(),
+        };
         let response = app
             .clone()
-            .oneshot(builder.body(Body::empty()).unwrap())
+            .oneshot(builder.body(payload).unwrap())
             .await
             .unwrap();
         let status = response.status();
@@ -692,15 +709,15 @@ mod tests {
         (status, value)
     }
 
-    struct Fixture {
-        app: Router,
-        state: AppState,
-        org: String,
-        alice: HeaderMap,
-        bob: HeaderMap,
+    pub(super) struct Fixture {
+        pub(super) app: Router,
+        pub(super) state: AppState,
+        pub(super) org: String,
+        pub(super) alice: HeaderMap,
+        pub(super) bob: HeaderMap,
     }
 
-    async fn fixture() -> Fixture {
+    pub(super) async fn fixture() -> Fixture {
         let state = test_demo_state().await;
         let org = state.connection_organization;
         let alice = test_session_headers(&state, ALICE, org, OrganizationRole::Owner);
@@ -836,7 +853,7 @@ mod tests {
             send(&f.app, &f.alice, "POST", "/api/v1/agent/runs/run:1/release").await;
         assert_eq!(status, StatusCode::OK, "{view}");
         // Not agent_driving: the runner re-asserts the run's preconditions
-        // against the page before it drives again (ADR 0078 §6).
+        // against the page before it drives again (ADR 0081 §6).
         assert_eq!(view["control_state"], json!("resume_requested"));
         assert_eq!(view["driver"], json!("agent"));
     }
@@ -890,5 +907,269 @@ mod tests {
         let (_, view) = send(&f.app, &f.alice, "GET", "/api/v1/agent/runs/run:1").await;
         assert_eq!(view["control_state"], json!("agent_driving"));
         assert_eq!(view["handoff_queued"], json!(true));
+    }
+}
+
+// —— the driver's half of the step channel (ADR 0079 §4) ————————————
+
+/// `POST /api/v1/agent/runs/{id}/steps/claim` — take the run's outstanding step.
+///
+/// The driver here is the owner's own browser, so the entitlement is the same
+/// one that gates watching: a run belongs to whoever's credential it rotates,
+/// and nobody else may drive it. Claiming is `Attachment::Control` for exactly
+/// that reason — issuing input events into an authenticated third-party session
+/// is the thing control means.
+///
+/// Returns 204 when there is nothing to do, so a polling driver has a cheap
+/// answer rather than an error to interpret.
+pub async fn claim_step(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path(run_id): Path<String>,
+) -> Response {
+    let (who, organization_id, run) = match load(&st, &headers, &run_id, Attachment::Control).await
+    {
+        Ok(loaded) => loaded,
+        Err(response) => return response,
+    };
+    let Some(claimant) = subject_of(&who) else {
+        return refusal(AttachRefusal::StepUpRequired);
+    };
+    let now = Utc::now();
+    let expires_at = now + chrono::Duration::seconds(opensesame_storage::STEP_CLAIM_SECONDS);
+    match st
+        .db
+        .claim_runner_step(
+            &organization_id,
+            &run.id,
+            &claimant,
+            &now.to_rfc3339(),
+            &expires_at.to_rfc3339(),
+        )
+        .await
+    {
+        Ok(Some(step)) => Json(json!({
+            "run_id": step.run_id,
+            "seq": step.seq,
+            // The StepRequest, verbatim. It names a credential reference and a
+            // selector; it has no field able to carry a value.
+            "request": serde_json::from_str::<serde_json::Value>(&step.request_json)
+                .unwrap_or(serde_json::Value::Null),
+            "claim_expires_at": step.claim_expires_at,
+            "secrets_returned": false,
+        }))
+        .into_response(),
+        // Nothing pending, or somebody else holds a live claim. A polling
+        // driver wants a cheap answer here, not an error to interpret.
+        Ok(None) => StatusCode::NO_CONTENT.into_response(),
+        Err(error) => {
+            tracing::error!(%error, run_id = %run.id, "runner step could not be claimed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "internal"})),
+            )
+                .into_response()
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OutcomeBody {
+    /// The `StepOutcome`. Validated as JSON here and interpreted by the
+    /// executor, which is the side that knows what it asked for.
+    pub outcome: serde_json::Value,
+}
+
+/// `POST /api/v1/agent/runs/{id}/steps/{seq}/outcome` — report what happened.
+///
+/// Only the claimant may, and a claim that lapsed is not a claim. A driver that
+/// went away and came back finds its step taken and is told so, rather than
+/// settling a step somebody else is now executing.
+pub async fn settle_step(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Path((run_id, seq)): Path<(String, i64)>,
+    Json(body): Json<OutcomeBody>,
+) -> Response {
+    let (who, organization_id, run) = match load(&st, &headers, &run_id, Attachment::Control).await
+    {
+        Ok(loaded) => loaded,
+        Err(response) => return response,
+    };
+    let Some(claimant) = subject_of(&who) else {
+        return refusal(AttachRefusal::StepUpRequired);
+    };
+    let Ok(encoded) = serde_json::to_string(&body.outcome) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid_request", "hint": "outcome is not encodable"})),
+        )
+            .into_response();
+    };
+    match st
+        .db
+        .settle_runner_step(
+            &organization_id,
+            &run.id,
+            seq,
+            &claimant,
+            &encoded,
+            &Utc::now().to_rfc3339(),
+        )
+        .await
+    {
+        Ok(true) => (StatusCode::OK, Json(json!({"status": "settled"}))).into_response(),
+        Ok(false) => (
+            StatusCode::CONFLICT,
+            Json(json!({
+                "error": "not_the_claimant",
+                "hint": "this step is not yours to settle; claim it again"
+            })),
+        )
+            .into_response(),
+        Err(error) => {
+            tracing::error!(%error, run_id = %run.id, "runner step could not be settled");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": "internal"})),
+            )
+                .into_response()
+        }
+    }
+}
+
+#[cfg(test)]
+mod step_channel_tests {
+    use super::tests::{fixture, seed, send_json};
+    use axum::http::StatusCode;
+    use serde_json::json;
+
+    const ALICE: &str = "user:alice";
+
+    #[tokio::test]
+    async fn a_driver_claims_a_step_then_settles_it() {
+        let f = fixture().await;
+        f.state
+            .db
+            .create_observation_run(&seed("run:1", ALICE, &f.org, "agent_driving"))
+            .await
+            .unwrap();
+        f.state
+            .db
+            .enqueue_runner_step(
+                &f.org,
+                "run:1",
+                0,
+                r#"{"step":"navigate","url":"https://example.com"}"#,
+                "2026-08-31T00:00:00+00:00",
+            )
+            .await
+            .unwrap();
+
+        let (status, claimed) = send_json(
+            &f.app,
+            &f.alice,
+            "POST",
+            "/api/v1/agent/runs/run:1/steps/claim",
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{claimed}");
+        assert_eq!(claimed["seq"], json!(0));
+        assert_eq!(claimed["request"]["step"], json!("navigate"));
+        assert_eq!(claimed["secrets_returned"], json!(false));
+
+        let (status, settled) = send_json(
+            &f.app,
+            &f.alice,
+            "POST",
+            "/api/v1/agent/runs/run:1/steps/0/outcome",
+            Some(json!({"outcome": {"outcome": "done"}})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{settled}");
+        assert_eq!(settled["status"], json!("settled"));
+    }
+
+    #[tokio::test]
+    async fn nothing_to_do_answers_cheaply() {
+        let f = fixture().await;
+        f.state
+            .db
+            .create_observation_run(&seed("run:1", ALICE, &f.org, "agent_driving"))
+            .await
+            .unwrap();
+        let (status, _) = send_json(
+            &f.app,
+            &f.alice,
+            "POST",
+            "/api/v1/agent/runs/run:1/steps/claim",
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    #[tokio::test]
+    async fn somebody_elses_run_is_not_drivable_and_does_not_admit_it_exists() {
+        let f = fixture().await;
+        f.state
+            .db
+            .create_observation_run(&seed("run:1", ALICE, &f.org, "agent_driving"))
+            .await
+            .unwrap();
+        f.state
+            .db
+            .enqueue_runner_step(
+                &f.org,
+                "run:1",
+                0,
+                r#"{"step":"navigate","url":"https://example.com"}"#,
+                "2026-08-31T00:00:00+00:00",
+            )
+            .await
+            .unwrap();
+
+        let (status, _) = send_json(
+            &f.app,
+            &f.bob,
+            "POST",
+            "/api/v1/agent/runs/run:1/steps/claim",
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn a_step_nobody_claimed_cannot_be_settled() {
+        let f = fixture().await;
+        f.state
+            .db
+            .create_observation_run(&seed("run:1", ALICE, &f.org, "agent_driving"))
+            .await
+            .unwrap();
+        f.state
+            .db
+            .enqueue_runner_step(
+                &f.org,
+                "run:1",
+                0,
+                r##"{"step":"submit","selector":"#save"}"##,
+                "2026-08-31T00:00:00+00:00",
+            )
+            .await
+            .unwrap();
+
+        let (status, body) = send_json(
+            &f.app,
+            &f.alice,
+            "POST",
+            "/api/v1/agent/runs/run:1/steps/0/outcome",
+            Some(json!({"outcome": {"outcome": "done"}})),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT, "{body}");
+        assert_eq!(body["error"], json!("not_the_claimant"));
     }
 }

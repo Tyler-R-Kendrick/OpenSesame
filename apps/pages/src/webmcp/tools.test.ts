@@ -27,6 +27,8 @@ import {
   type Principal,
   identitySeams,
 } from "../lib/identity.js";
+import { kvSetDurable } from "../lib/kv.js";
+import { MODEL_PROVIDER_KEY } from "../lib/model-provider.js";
 import { type VaultItem, createItem, newUri } from "../lib/vault/model.js";
 import { vaultStore } from "../lib/vault/store.js";
 import {
@@ -495,6 +497,28 @@ describe("read tools over the existing lib seams", () => {
     expect(settings.hostApi).toEqual(expect.any(String));
     expect(settings.identityApi).toEqual(expect.any(String));
     expect(JSON.stringify(raw)).not.toContain("tursoUrl");
+  });
+
+  it("opensesame_settings_read reports the model plane but never its address", async () => {
+    // An agent may learn whether autonomous reset is on, so it does not offer a
+    // ceremony that cannot run. It may not learn where the frames go, because
+    // that is half of the redirect it is excluded from making (ADR 0083).
+    await kvSetDurable(
+      MODEL_PROVIDER_KEY,
+      JSON.stringify({
+        kind: "hosted",
+        provider: "anthropic",
+        endpoint: "https://api.anthropic.com",
+        model: "claude-sonnet-5",
+      }),
+    );
+    const raw = await run("opensesame_settings_read");
+    const settings: { modelPlane: JsonObject } = overlapCast(raw);
+    const plane: { kind: string; autonomousResetAvailable: boolean } =
+      overlapCast(settings.modelPlane);
+    expect(plane.kind).toBe("hosted");
+    expect(plane.autonomousResetAvailable).toBe(true);
+    expect(JSON.stringify(raw)).not.toContain("api.anthropic.com");
   });
 
   it("opensesame_connections_read serves providers/connections/integrations", async () => {

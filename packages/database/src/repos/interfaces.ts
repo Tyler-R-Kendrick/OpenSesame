@@ -1,18 +1,27 @@
 import { randomUUID } from "node:crypto";
 import {
+  type ApprovalActivation,
+  type ApprovalReceipt,
   type AuditEvent,
   type AuthorizationRequest,
   type AuthorizationRequestStatus,
   type BetterAuthSubject,
   type ByoUpstream,
+  type CallbackReplayRecord,
   type ClaimItem,
   type ClaimSession,
+  type ComparisonChallenge,
+  type ExternalChannelBinding,
   type ExternalIdentity,
+  type NotificationChannelKind,
+  type NotificationDelivery,
+  type NotificationPreferences,
   type Organization,
   type OrganizationMembership,
   type OutboxEvent,
   PERSONAL_PROJECT_SLUG,
   type Principal,
+  type PrincipalId,
   type Project,
   type ProjectMembership,
   type WebhookDelivery,
@@ -445,6 +454,253 @@ export interface WebhookDeliveryRepository {
   ): Promise<void>;
 }
 
+/* ------------------------------------------------------------------ *
+ * External notification channels and approval ceremonies (ADR 0084)
+ * ------------------------------------------------------------------ */
+
+/**
+ * A short-lived challenge for the ceremony that adds a notification
+ * destination.
+ *
+ * Adding a destination changes where authorization prompts can appear, so it
+ * is itself a security-sensitive operation: a challenge is bound to the
+ * principal, the channel and the proposed provider identity, expires, and
+ * succeeds exactly once. Only the digest of the nonce is stored — the nonce
+ * itself lives in one response body and in the provider round-trip, never at
+ * rest.
+ */
+export interface ChannelBindingChallenge {
+  id: string;
+  principalId: string;
+  kind: NotificationChannelKind;
+  providerId: string;
+  /** Digest of the one-time nonce. Never the nonce. */
+  nonceDigest: string;
+  /** The provider identity this challenge may complete against, if pinned. */
+  expectedTenantId?: string;
+  expectedSubjectId?: string;
+  attempts: number;
+  maxAttempts: number;
+  createdAt: Date;
+  expiresAt: Date;
+  completedAt?: Date;
+  version: number;
+}
+
+export interface ChannelBindingRepository {
+  create(
+    binding: ExternalChannelBinding,
+    uow?: UnitOfWork,
+  ): Promise<ExternalChannelBinding>;
+  getById(id: string): Promise<ExternalChannelBinding | null>;
+  listForPrincipal(principalId: string): Promise<ExternalChannelBinding[]>;
+  /**
+   * Resolve a callback's claimed provider identity to a binding.
+   *
+   * All three components are part of the key. Subject ids are unique within a
+   * provider tenant and not across them, so a lookup by subject alone lets a
+   * caller who controls their own workspace mint an identity that collides
+   * with somebody else's binding.
+   */
+  findByProviderIdentity(
+    kind: NotificationChannelKind,
+    providerId: string,
+    providerTenantId: string,
+    providerSubjectId: string,
+  ): Promise<ExternalChannelBinding | null>;
+  updateWithVersion(
+    id: string,
+    expectedVersion: number,
+    patch: Partial<
+      Pick<
+        ExternalChannelBinding,
+        "state" | "verifiedAt" | "revokedAt" | "expiresAt" | "displayLabel"
+      >
+    >,
+    uow?: UnitOfWork,
+  ): Promise<ExternalChannelBinding>;
+}
+
+export interface ChannelBindingChallengeRepository {
+  create(
+    challenge: ChannelBindingChallenge,
+    uow?: UnitOfWork,
+  ): Promise<ChannelBindingChallenge>;
+  getById(id: string): Promise<ChannelBindingChallenge | null>;
+  /**
+   * Spend one attempt against the stored budget, atomically.
+   *
+   * Durable rather than counted in memory: an attempt budget a second replica
+   * cannot see is not a budget, and the value being guessed is short.
+   */
+  consumeAttempt(
+    id: string,
+    now: Date,
+  ): Promise<ChannelBindingChallenge | null>;
+  /** Exactly one caller may complete a challenge. Losers get null. */
+  complete(id: string, at: Date): Promise<ChannelBindingChallenge | null>;
+}
+
+export interface NotificationPreferenceRepository {
+  get(principalId: string): Promise<NotificationPreferences | null>;
+  upsert(
+    preferences: NotificationPreferences,
+    uow?: UnitOfWork,
+  ): Promise<NotificationPreferences>;
+}
+
+export interface NotificationDeliveryRepository {
+  enqueue(
+    delivery: NotificationDelivery,
+    uow?: UnitOfWork,
+  ): Promise<NotificationDelivery>;
+  /** Attempts counted on claim, so a crash mid-send still burned a try. */
+  claimDue(limit: number, now: Date): Promise<NotificationDelivery[]>;
+  markDelivered(
+    id: string,
+    at: Date,
+    providerMessageRef?: string,
+  ): Promise<void>;
+  recordFailure(
+    id: string,
+    error: string,
+    nextAttemptAt: Date,
+    dead: boolean,
+  ): Promise<void>;
+  /**
+   * Has this outbox event already fanned out to this destination?
+   *
+   * The outbox is at-least-once, so the fan-out must be idempotent or a
+   * retried drain rings the same doorbell twice.
+   */
+  existsForEvent(
+    outboxEventId: string,
+    kind: NotificationChannelKind,
+    destinationId: string,
+  ): Promise<boolean>;
+  listForRequest(authReqId: string): Promise<NotificationDelivery[]>;
+}
+
+export interface ApprovalActivationRepository {
+  create(
+    activation: ApprovalActivation,
+    uow?: UnitOfWork,
+  ): Promise<ApprovalActivation>;
+  getById(id: string): Promise<ApprovalActivation | null>;
+  findByChallengeDigest(digest: string): Promise<ApprovalActivation | null>;
+  updateWithVersion(
+    id: string,
+    expectedVersion: number,
+    patch: Partial<
+      Pick<
+        ApprovalActivation,
+        "state" | "activatedAt" | "consumedAt" | "trustSessionId" | "method"
+      >
+    >,
+    uow?: UnitOfWork,
+  ): Promise<ApprovalActivation>;
+  /**
+   * Spend an activation, exactly once, atomically.
+   *
+   * A compare-and-set rather than a read-then-write: two settlements racing
+   * on the same activation must not both succeed, and the loser must be told
+   * rather than silently applied.
+   */
+  consume(id: string, at: Date): Promise<ApprovalActivation | null>;
+}
+
+export interface ComparisonChallengeRepository {
+  create(
+    challenge: ComparisonChallenge,
+    uow?: UnitOfWork,
+  ): Promise<ComparisonChallenge>;
+  getForRequest(authReqId: string): Promise<ComparisonChallenge | null>;
+  /**
+   * Spend one guess. Durable, and deliberately not reset by re-issuing a
+   * code: a budget that a second `POST` refills is not a budget.
+   */
+  consumeAttempt(
+    authReqId: string,
+    now: Date,
+  ): Promise<ComparisonChallenge | null>;
+  markSatisfied(
+    authReqId: string,
+    at: Date,
+  ): Promise<ComparisonChallenge | null>;
+}
+
+export interface ApprovalReceiptRepository {
+  create(receipt: ApprovalReceipt, uow?: UnitOfWork): Promise<ApprovalReceipt>;
+  getForRequest(authReqId: string): Promise<ApprovalReceipt | null>;
+}
+
+/**
+ * A W3C Push subscription.
+ *
+ * Deliberately not an `ExternalChannelBinding`. A binding's `metadata` is
+ * documented as digest-shaped and never secret, and a push subscription
+ * carries two things that are neither: `endpoint` is a capability URL — a
+ * bearer credential for pushing to that browser, which anyone holding it can
+ * use — and `authSecret` is the RFC 8291 shared secret that the content
+ * encryption is keyed from. Both must be stored whole, because signing and
+ * encrypting need the raw bytes (the same reason `webhook_endpoints.secret`
+ * cannot be a hash), and neither may ever reach an API response, a log line,
+ * or a notification body. `endpointDigest` exists so a subscription can be
+ * deduplicated and named without either.
+ *
+ * NOTE FOR THE COORDINATOR: this type lives here rather than in
+ * `packages/os-domain/src/approval-ceremony.ts` only because this agent's
+ * scope is `packages/database`. It is a pure domain shape and belongs beside
+ * the other ADR 0084 types; move it when convenient — the only import to
+ * repoint is `ChannelBindingChallenge`-style, i.e. this file's own re-export.
+ */
+export interface PushSubscription {
+  id: string;
+  principalId: PrincipalId;
+  /** Capability URL: anyone holding it can push to that browser. Never returned by any API. */
+  endpoint: string;
+  /** Subscriber public key (P-256, base64url). Not secret, but not useful alone. */
+  p256dhKey: string;
+  /** RFC 8291 auth secret. Secret — write-only, never returned, never logged. */
+  authSecret: string;
+  /** Digest of the endpoint, for dedupe and for naming a subscription in a log. */
+  endpointDigest: string;
+  deviceLabel?: string;
+  createdAt: Date;
+  lastUsedAt?: Date;
+  disabledAt?: Date;
+}
+
+export interface PushSubscriptionRepository {
+  /**
+   * Register a subscription. A browser that re-subscribes presents the same
+   * endpoint, and the same endpoint is the same destination: the store
+   * replaces the stored keys in place (keeping the existing row's id and
+   * `createdAt`, and reviving a disabled row) rather than accumulating a
+   * second row that pushes to the same browser.
+   */
+  create(sub: PushSubscription, uow?: UnitOfWork): Promise<PushSubscription>;
+  /** Live subscriptions only — a disabled one is not a destination. */
+  listForPrincipal(principalId: string): Promise<PushSubscription[]>;
+  getById(id: string): Promise<PushSubscription | null>;
+  /** A browser re-subscribing with the same endpoint must replace, not duplicate. */
+  findByEndpointDigest(digest: string): Promise<PushSubscription | null>;
+  /** Compare-and-set: true only for the caller that actually disabled it. */
+  disable(id: string, at: Date): Promise<boolean>;
+}
+
+export interface CallbackReplayRepository {
+  /**
+   * Record a callback as seen, and say whether it already was.
+   *
+   * `true` means this caller is the first to claim it. The insert is the
+   * claim — checking then inserting is a race an attacker replaying a
+   * callback into two replicas wins.
+   */
+  claim(record: CallbackReplayRecord): Promise<boolean>;
+  purgeExpired(now: Date): Promise<number>;
+}
+
 export interface Repositories {
   principals: PrincipalRepository;
   authorizationRequests: AuthorizationRequestRepository;
@@ -457,6 +713,15 @@ export interface Repositories {
   outbox: OutboxRepository;
   webhookEndpoints: WebhookEndpointRepository;
   webhookDeliveries: WebhookDeliveryRepository;
+  channelBindings: ChannelBindingRepository;
+  channelBindingChallenges: ChannelBindingChallengeRepository;
+  notificationPreferences: NotificationPreferenceRepository;
+  notificationDeliveries: NotificationDeliveryRepository;
+  approvalActivations: ApprovalActivationRepository;
+  comparisonChallenges: ComparisonChallengeRepository;
+  approvalReceipts: ApprovalReceiptRepository;
+  pushSubscriptions: PushSubscriptionRepository;
+  callbackReplays: CallbackReplayRepository;
   /**
    * Run work in a single transaction. Domain writes + outbox append must share this boundary.
    */

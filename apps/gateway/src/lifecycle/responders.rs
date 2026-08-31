@@ -235,7 +235,7 @@ async fn publish_agent_phase(
     outcome: &Outcome,
 ) {
     // Without an owner there is nobody entitled to observe the run and nobody
-    // to notify (ADR 0078 §8). `upsert_rotation_policy` refuses a web-login
+    // to notify (ADR 0081 §8). `upsert_rotation_policy` refuses a web-login
     // policy with no owner, so reaching here means a policy predating that rule
     // or an operator-triggered run — either way, saying nothing to nobody beats
     // addressing a notification at the whole organization.
@@ -264,7 +264,7 @@ async fn publish_agent_phase(
         .into(),
     };
     let built = if outcome.succeeded {
-        AgentEvent::notice(run, AgentPhase::Completed, now, Some(&outcome.detail))
+        AgentEvent::reporting(run, AgentPhase::Completed, now, Some(&outcome.detail))
     } else {
         AgentEvent::waiting(
             run,
@@ -275,7 +275,12 @@ async fn publish_agent_phase(
         )
     };
     match built {
-        Ok(agent_event) => crate::agent_hooks::publish(state, &agent_event, now).await,
+        // ADR 0080's one feed, entered the only way a family may enter it:
+        // as a `SecurityNotice`. Everything a subscriber, the notifier, the
+        // alerter and every sink do with this is already written.
+        Ok(agent_event) => {
+            crate::security::dispatch::publish(state, &agent_event.notice(), now).await;
+        }
         Err(error) => tracing::warn!(%error, "agent event could not be built"),
     }
 }

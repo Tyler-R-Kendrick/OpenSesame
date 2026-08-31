@@ -1,4 +1,8 @@
 import {
+  NOTIFICATION_CHANNEL_KINDS,
+  type NotificationChannelKind,
+} from "@opensesame/os-domain";
+import {
   type ProviderDescriptor,
   assertProviderDescriptor,
   configuredProviders,
@@ -86,6 +90,42 @@ export interface ControlPlaneConfig {
    * configured provider is a trusted provider by construction.
    */
   providers: ProviderDescriptor[];
+  /**
+   * Where prompts may be delivered, and which of those destinations an
+   * operator has allowed to settle a decision by themselves (ADR 0084).
+   *
+   * `directApprovalChannels` and `directDenialChannels` are empty unless a
+   * human wrote a channel down. A deployment that has not thought about Slack
+   * has not permitted Slack to approve anything, and the adapter secrets
+   * below are what make a callback's provenance checkable at all — a channel
+   * listed without its secret cannot authenticate anything and is refused at
+   * boot in production.
+   */
+  notifications: {
+    /** Kinds whose adapter is actually configured here. */
+    availableChannels: NotificationChannelKind[];
+    /** Kinds allowed to settle an approval by provider callback. */
+    directApprovalChannels: NotificationChannelKind[];
+    /** Kinds allowed to settle a denial by provider callback. */
+    directDenialChannels: NotificationChannelKind[];
+    /** VAPID application server public key, base64url. Public by design. */
+    pushPublicKey: string;
+    /** Slack request-signing secret (v0 signatures over the raw body). */
+    slackSigningSecret: string;
+    /** Telegram `secret_token` echoed on every webhook update. */
+    telegramSecretToken: string;
+    /**
+     * Accept a provider identity the *caller* supplied when completing a
+     * binding ceremony.
+     *
+     * Development only. A destination is authority-adjacent — it decides
+     * where an approval prompt appears and, where an operator opted the
+     * channel in, which provider subject may settle it — so outside dev the
+     * identity has to come back through the provider, never from the browser
+     * asking for the binding.
+     */
+    allowSelfAssertedBindings: boolean;
+  };
   protocolFeatures: {
     oid4vp: boolean;
     oid4vci: boolean;
@@ -133,6 +173,25 @@ export function assertListenHostAllowed(
   throw new Error(
     `listen host \`${host}\` is not loopback; set OPENSESAME_ALLOW_NONLOCAL=1 to override`,
   );
+}
+
+/**
+ * Read a channel list from configuration.
+ *
+ * Unknown names are dropped rather than passed through: a typo in
+ * `OPENSESAME_DIRECT_APPROVAL_CHANNELS` must not reach the policy layer as a
+ * channel kind nothing in the capability table describes.
+ */
+export function parseChannelKinds(
+  raw: string | undefined,
+  fallback: NotificationChannelKind[],
+): NotificationChannelKind[] {
+  if (raw === undefined || raw.trim() === "") return [...fallback];
+  const wanted = raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  return NOTIFICATION_CHANNEL_KINDS.filter((kind) => wanted.includes(kind));
 }
 
 export function loadConfig(
@@ -240,6 +299,28 @@ export function loadConfig(
       providers,
     ),
     providers,
+    notifications: {
+      // `in_app` is the durable inbox and is always configured: it is the
+      // surface every other channel merely points at.
+      availableChannels: parseChannelKinds(
+        env.OPENSESAME_NOTIFICATION_CHANNELS,
+        ["in_app"],
+      ),
+      // Default deny, in both directions. Nothing external settles anything
+      // until an operator names it.
+      directApprovalChannels: parseChannelKinds(
+        env.OPENSESAME_DIRECT_APPROVAL_CHANNELS,
+        [],
+      ),
+      directDenialChannels: parseChannelKinds(
+        env.OPENSESAME_DIRECT_DENIAL_CHANNELS,
+        [],
+      ),
+      pushPublicKey: env.OPENSESAME_WEBPUSH_PUBLIC_KEY ?? "",
+      slackSigningSecret: env.OPENSESAME_SLACK_SIGNING_SECRET ?? "",
+      telegramSecretToken: env.OPENSESAME_TELEGRAM_WEBHOOK_SECRET ?? "",
+      allowSelfAssertedBindings: allowDevDefaults,
+    },
     protocolFeatures: {
       oid4vp: truthy(env.OPENSESAME_OID4VP_ENABLED),
       oid4vci: truthy(env.OPENSESAME_OID4VCI_ENABLED),
@@ -369,6 +450,36 @@ export function assertSecureConfig(
         `provider \`${provider.id}\` carries client credentials but its issuer is not listed in OPENSESAME_TRUSTED_UPSTREAMS`,
       );
     }
+  }
+  // A channel that may settle a decision must be one whose callbacks this
+  // deployment can actually authenticate. Without the provider's own signing
+  // material, `callbackAuthenticated` could only ever be a guess, and the one
+  // thing worse than no direct approval is direct approval nobody can verify.
+  //
+  // Read through a partial view because this function's whole job is to be
+  // right about configs assembled by hand: a caller that supplied no
+  // notification block has opted no channel in, which is the safe reading.
+  const partial: Partial<ControlPlaneConfig> = config;
+  const notifications = partial.notifications;
+  const settling = new Set([
+    ...(notifications?.directApprovalChannels ?? []),
+    ...(notifications?.directDenialChannels ?? []),
+  ]);
+  const missingSecret = [...settling].find((kind) => {
+    if (kind === "slack") return !notifications?.slackSigningSecret;
+    if (kind === "telegram") return !notifications?.telegramSecretToken;
+    // Any other kind has no provenance mechanism this repository implements.
+    return true;
+  });
+  if (missingSecret) {
+    throw new Error(
+      `notification channel \`${missingSecret}\` is listed for direct settlement but has no verifiable callback secret configured`,
+    );
+  }
+  if (config.isProduction && notifications?.allowSelfAssertedBindings) {
+    throw new Error(
+      "self-asserted notification channel bindings must be off in production",
+    );
   }
   assertListenHostAllowed(config.host, env);
 }

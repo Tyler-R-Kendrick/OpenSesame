@@ -33,11 +33,11 @@ choice can be overruled rather than assumed.
 | File | What it shows |
 |------|---------------|
 | `Main.dc.html` | **Live.** The board, on a 390×844 phone. Tap a card to see it configured and tap again to see it unset — what changes is the state line, which names what is *lost* by not setting the thing up rather than counting what is left to do. |
-| `Models.dc.html` | Choosing who runs the model. Local options first, hosted ones below a fold, and the one-sentence statement of what the provider is shown. |
+| `Models.dc.html` | Choosing who runs the model. The browser's own on-device model first, then a model server on this machine, then hosted ones below a fold — ordered by how far the redacted page travels. |
 | `Invite.dc.html` | Inviting somebody: who, what they may do, how long the link lasts, how long their access lasts. |
 | `Devices.dc.html` | Registering a device: a short-lived pairing code, and what a device does and does not get. |
 | `WhyABoard.dc.html` | Stepper versus board, with the case for each. |
-| `ModelBoundary.dc.html` | What crosses to the model provider, what structurally cannot, and why — plus the residual risk the setup step must not pretend away. |
+| `ModelBoundary.dc.html` | What crosses to the model provider, what structurally cannot, and why — plus how far the page travels on each plane, and the residual risk the setup step must not pretend away. |
 | `LinkLife.dc.html` | The two clocks, their defaults and ceiling, and what expiry does and does not undo. |
 | `canvas.json` | Three pages (the board and its sheets, why a board, what is at stake), layout, sticky notes, launch view. |
 
@@ -49,6 +49,14 @@ tool surface — `fill_credential(ref, selector)` names *which* credential and
 redaction happens at capture rather than at render, because a redaction applied
 when a transcript is displayed is not redaction. `ModelBoundary.dc.html` is
 that section drawn.
+
+[ADR 0083](../../adr/0083-browser-plane-inference-fallback.md) for the browser
+plane and for the bypass rule the Models sheet states in its last line: skipping
+resolves to the device's own model where the browser carries one that can be
+shown a page, and to nothing where it cannot. Never to a download — the top rung
+is the only fallback, and the two rungs below it are offers with their cost
+named. `apps/pages/src/lib/browser-inference.ts` is that ladder;
+`apps/pages/src/lib/model-provider.ts` is the rule.
 
 [ADR 0079](../../adr/0079-shared-sessions-and-scoped-grants.md) §3 for the
 seven-day ceiling and for refusing an over-long lifetime rather than clamping
@@ -85,4 +93,13 @@ cd docs/design/setup-next-steps
 node build.mjs
 ```
 
-Nothing here is implemented yet.
+## What is implemented
+
+The models path is built, in Settings → Connectivity rather than on the board —
+the board itself is still a design. `ModelProviderPanel` carries the sheet's
+list and its ordering, the capability ladder and the bypass rule, and reports at
+the top of the panel what is running *right now*, which with nothing configured
+may well be the browser's own model.
+
+The invite and device sheets, the board, and the link/access two-clock picker
+are not implemented.
