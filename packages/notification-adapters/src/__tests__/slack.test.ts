@@ -11,7 +11,7 @@ import {
 import type { CallbackRequest } from "../contract.js";
 import { FIXED_NOW, jsonFetch, renderInput, throwingFetch } from "./helpers.js";
 
-const SIGNING_SECRET = "8f742231b10e8888abcd99yyyzzz85a5";
+const SIGNING_SECRET = "slack-signing-secret-for-tests-only";
 const OTHER_SECRET = "0000000000000000000000000000fedc";
 const BOT_TOKEN = "xoxb-test-token";
 

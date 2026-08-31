@@ -27,8 +27,8 @@ import type {
 } from "../contract.js";
 import { FIXED_NOW, seededBytes } from "./helpers.js";
 
-const SLACK_SECRET = "8f742231b10e8888abcd99yyyzzz85a5";
-const TELEGRAM_SECRET = "wh_secret_2Kx9QmZr4TpL";
+const SLACK_SECRET = "slack-signing-secret-for-tests-only";
+const TELEGRAM_SECRET = "telegram-webhook-secret-for-tests-only";
 const WECHAT_TOKEN = "opensesame-oa-token";
 const NOW_SECONDS = String(Math.floor(FIXED_NOW.getTime() / 1000));
 

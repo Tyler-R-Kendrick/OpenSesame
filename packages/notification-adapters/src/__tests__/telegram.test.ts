@@ -6,7 +6,7 @@ import type { CallbackRequest } from "../contract.js";
 import { jsonFetch, renderInput } from "./helpers.js";
 
 const BOT_TOKEN = "123456:AAH-test-bot-token";
-const SECRET_TOKEN = "wh_secret_2Kx9QmZr4TpL";
+const SECRET_TOKEN = "telegram-webhook-secret-for-tests-only";
 
 function update(fromId = 987654321, data = "otp_e4Kx9QmZ"): string {
   return JSON.stringify({
