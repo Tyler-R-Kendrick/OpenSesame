@@ -1344,6 +1344,46 @@
     }
   },
   {
+    "id": "model_plane.read",
+    "title": "Read which plane runs the password-reset model",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/settings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_settings_read"
+    }
+  },
+  {
+    "id": "model_plane.choose",
+    "title": "Choose who runs the password-reset model",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/settings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
+        "adr": "0083-browser-plane-inference-fallback.md"
+      },
+      "mcp_client": {
+        "reason": "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
+        "adr": "0083-browser-plane-inference-fallback.md"
+      },
+      "webmcp": {
+        "reason": "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
+        "adr": "0083-browser-plane-inference-fallback.md"
+      }
+    }
+  },
+  {
     "id": "changelog.read",
     "title": "Read the project changelog feed",
     "plane": "host",

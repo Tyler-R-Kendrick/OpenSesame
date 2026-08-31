@@ -4228,6 +4228,7 @@ dependencies = [
  "futures",
  "insta",
  "opensesame-domain",
+ "opensesame-lifecycle",
  "proptest",
  "serde",
  "serde_json",

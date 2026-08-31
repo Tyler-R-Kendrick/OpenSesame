@@ -1795,7 +1795,7 @@ paths:
     post:
       summary: Receive a human's A2H reply
       description: >-
-        Callback for an A2H gateway (ADR 0078). Unauthenticated by design: the
+        Callback for an A2H gateway (ADR 0081). Unauthenticated by design: the
         gateway holds no session, and the request's HMAC over
         `{timestamp}.{body}` under the subscription's `whsec_` secret is its
         authentication. Every failed check answers 401 identically, so the shape
@@ -1870,7 +1870,7 @@ paths:
         Metadata only (ADR 0076 §5): a run row never carries a frame, a
         rationale, or page content. Filtered by entitlement rather than by
         tenant — an organization is not a person, and a run belongs to whoever's
-        credential it rotates (ADR 0078 §8).
+        credential it rotates (ADR 0081 §8).
       security: [{ HostBearer: [] }]
       responses:
         "200":
@@ -1909,7 +1909,7 @@ paths:
       summary: Tail the sealed observation log
       description: >-
         Server-sent events. Live and replay are the same read at different
-        cursors (ADR 0078 §1) — pass the last sequence you hold for a tail, or
+        cursors (ADR 0081 §1) — pass the last sequence you hold for a tail, or
         omit `after` for the whole log, which is what the replay overlay does.
 
 
@@ -1986,7 +1986,7 @@ paths:
       description: >-
         Accepted at a quiescent point and **queued** inside the critical section
         between the candidate assertion and the submit, where the answer says so
-        rather than dropping the request (ADR 0078 §6). A request that vanishes
+        rather than dropping the request (ADR 0081 §6). A request that vanishes
         teaches people to press the button again; that span is the one place a
         second actor would void the check standing between a rotation and a
         lockout.
@@ -2018,7 +2018,7 @@ paths:
         Only from a parked run: there is no path that takes the page out from
         under the agent mid-step, which is what lets the receipt say who did
         what. Requires a fresh step-up, because decrypting frames and issuing
-        input events are different capabilities (ADR 0078 §8).
+        input events are different capabilities (ADR 0081 §8).
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -2044,7 +2044,7 @@ paths:
         Autonomy does not resume here. The run lands in `resume_requested`, and
         the runner re-asserts the run's preconditions against the page before
         driving again — what the assertion established was true of a page the
-        agent controlled, and a person has been in it since (ADR 0078 §6).
+        agent controlled, and a person has been in it since (ADR 0081 §6).
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }

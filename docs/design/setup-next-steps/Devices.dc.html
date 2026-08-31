@@ -1594,6 +1594,40 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.9rem;
 }
+
+/* A small comparison table. Used where a claim is a ranking rather than a
+   sentence — the boundary board's "how far the page travels, by plane" — so
+   the ordering itself carries the argument and the reader can check it. */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tbl th,
+.tbl td {
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.tbl th {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.tbl tbody tr:first-child td {
+  color: var(--ink);
+}
+
+.tbl tbody tr:last-child td {
+  border-bottom: none;
+}
   </style>
 </helmet>
 <div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px">

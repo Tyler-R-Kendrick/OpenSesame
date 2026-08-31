@@ -1,4 +1,4 @@
-<div class="os" data-theme="{{theme}}" style="width: 390px; height: 900px">
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 1080px">
 
   <div class="setup__bar">
     <p class="setup__wordmark">
@@ -14,9 +14,21 @@
     </div>
 
     <div class="ways">
-      <div class="ways__head"><span>On this machine</span></div>
+      <div class="ways__head"><span>In this browser</span></div>
       <div class="preset">
         <button type="button" class="preset__opt is-on">
+          <span class="preset__name">This device's own model</span>
+          <span class="preset__kind">already here</span>
+        </button>
+      </div>
+      <p class="hint">The narrowest arrangement there is, and the one you get by skipping this whole sheet: the frames never leave the page, so not even a second process on your own machine holds them. Offered only where the browser really carries a model that can be shown a page — where it does not, this row is not here at all.</p>
+    </div>
+
+    <p class="or"><span>or a model server on this machine</span></p>
+
+    <div class="ways">
+      <div class="preset">
+        <button type="button" class="preset__opt">
           <span class="preset__name">Ollama</span>
           <span class="preset__kind">nothing leaves</span>
         </button>
@@ -25,7 +37,7 @@
           <span class="preset__kind">nothing leaves</span>
         </button>
       </div>
-      <p class="hint">A local model is the only arrangement where nobody but you sees the page. It is slower and needs the hardware; that is the whole trade.</p>
+      <p class="hint">Still nobody but you, but a separate process now holds the frames and keeps its own logs. Bigger models than the browser's, at that cost.</p>
     </div>
 
     <p class="or"><span>or a hosted one</span></p>
@@ -81,7 +93,7 @@
       </div>
     </div>
 
-    <p class="hint">Skip this and password changes stay as they are today: OpenSesame takes you to the right settings page and you do it yourself. It never half-tries.</p>
+    <p class="hint">Skip this and this device's own model does it, where the browser has one that can see a page. Where it has not, password changes stay as they are today: OpenSesame takes you to the right settings page and you do it yourself. It never half-tries, and skipping never starts a download.</p>
   </main>
 
   <div class="setup__foot">
@@ -94,7 +106,7 @@
   </div>
 </div>
 
-<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":900}}'>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":1080}}'>
 class Component extends DCLogic {
   renderVals() {
     return { theme: this.props.theme || "light" };

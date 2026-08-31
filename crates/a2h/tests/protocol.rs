@@ -1,4 +1,4 @@
-//! A2H client behaviour (ADR 0078 §10, A2H v1.0).
+//! A2H client behaviour (ADR 0081 §10, A2H v1.0).
 //!
 //! Organised around the three things that would hurt if they were wrong: an
 //! escalation that outlives or underlives the run it is about, a reply that
@@ -92,6 +92,60 @@ fn nothing_this_product_sends_ever_asks_a_person_to_type_anything() {
         AgentPhase::Failed,
     ] {
         assert_ne!(intent_for(phase), IntentType::Collect, "{phase:?}");
+    }
+}
+
+#[test]
+fn a_person_reads_prose_not_markup() {
+    // These strings land in an SMS, an email or a push notification, where a
+    // backtick is a backtick. `clippy::doc_markdown` governs documentation;
+    // treating a sentence somebody reads at 04:00 as documentation is how they
+    // get woken by "`OpenSesame` stopped part-way through".
+    // Every phase, not only the four that used to produce a message:
+    // `intent_for` is total now, so the quiet ones have copy of their own and
+    // it has to be prose too.
+    for phase in [
+        AgentPhase::Started,
+        AgentPhase::Blocked,
+        AgentPhase::AwaitingHuman,
+        AgentPhase::ControlGranted,
+        AgentPhase::ControlReleased,
+        AgentPhase::Resumed,
+        AgentPhase::Completed,
+        AgentPhase::Failed,
+    ] {
+        let event = if phase.needs_human() {
+            AgentEvent::waiting(
+                run(),
+                phase,
+                now(),
+                now() + chrono::Duration::seconds(600),
+                Some("step-up challenge"),
+            )
+            .unwrap()
+        } else {
+            AgentEvent::reporting(run(), phase, now(), Some("2 steps")).unwrap()
+        };
+        let message = message_for(&event, &context(), now(), "int-1", "msg-1");
+        assert!(
+            !message.render.body.contains('`'),
+            "{phase:?}: {}",
+            message.render.body,
+        );
+        assert!(
+            !message
+                .render
+                .title
+                .as_deref()
+                .unwrap_or_default()
+                .contains('`'),
+            "{phase:?}",
+        );
+        let why = message.explanation_bundle.as_ref().unwrap()["why"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        assert!(!why.contains('`'), "{phase:?}: {why}");
     }
 }
 

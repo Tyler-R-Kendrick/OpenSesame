@@ -30,9 +30,9 @@ use crate::envelope::{
 /// by asking for a stronger factor:
 ///
 /// - **Taking control is unreachable.** The observation log is sealed to the
-///   owner's viewer key (ADR 0078 §9), so driving the page requires a client
+///   owner's viewer key (ADR 0081 §9), so driving the page requires a client
 ///   that holds it. An SMS reply cannot decrypt a frame, let alone issue one.
-/// - **Resuming autonomy is unreachable.** ADR 0078 §6 requires the run's
+/// - **Resuming autonomy is unreachable.** ADR 0081 §6 requires the run's
 ///   preconditions to be re-asserted against the page before the agent drives
 ///   again, and a reply from a phone asserts nothing about a DOM.
 ///
@@ -173,9 +173,11 @@ pub fn message_for(
         assurance: assurance_for(intent_type),
         callback: context.callback.clone(),
         created_at: now.to_rfc3339(),
+        // Also read by a person: A2H gateways surface the explanation bundle
+        // in consent and audit UIs.
         explanation_bundle: Some(serde_json::json!({
             "why": format!(
-                "`OpenSesame` is rotating a saved password at {}.",
+                "OpenSesame is rotating a saved password at {}.",
                 event.run.origin
             ),
         })),
@@ -205,32 +207,33 @@ fn ttl_for(event: &AgentEvent, gateway_max: Option<i64>, now: DateTime<Utc>) -> 
 /// name on it.
 fn render_for(event: &AgentEvent, attach_url: Option<&str>) -> RenderContent {
     let origin = UntrustedText::capture(&event.run.origin);
+    // Deliberately unbackticked, unlike every doc comment around it. These
+    // strings land in an SMS, an email or a push notification, where a
+    // backtick is a backtick — `clippy::doc_markdown` governs documentation,
+    // and treating a sentence a person reads as documentation is how somebody
+    // gets woken at 04:00 by "`OpenSesame` stopped part-way through".
+    let product = "OpenSesame";
+    let site = origin.as_untrusted_str();
     let title = match event.phase {
         AgentPhase::Blocked | AgentPhase::AwaitingHuman => "Password change needs you",
         AgentPhase::Completed => "Password changed",
         AgentPhase::Failed => "Password change failed",
-        _ => "`OpenSesame`",
+        _ => product,
     };
     let mut body = match event.phase {
         AgentPhase::Blocked | AgentPhase::AwaitingHuman => format!(
-            "`OpenSesame` stopped part-way through changing your password at {}. \
-             Your old password still works. Open `OpenSesame` to see what happened \
-             and finish it.",
-            origin.as_untrusted_str()
+            "{product} stopped part-way through changing your password at {site}. \
+             Your old password still works. Open {product} to see what happened \
+             and finish it."
         ),
-        AgentPhase::Completed => format!(
-            "`OpenSesame` finished changing your password at {}. The new one is saved.",
-            origin.as_untrusted_str()
-        ),
+        AgentPhase::Completed => {
+            format!("{product} finished changing your password at {site}. The new one is saved.")
+        }
         AgentPhase::Failed => format!(
-            "`OpenSesame` could not change your password at {}. Your old password \
-             still works and nothing was changed.",
-            origin.as_untrusted_str()
+            "{product} could not change your password at {site}. Your old password \
+             still works and nothing was changed."
         ),
-        _ => format!(
-            "`OpenSesame` has an update about {}.",
-            origin.as_untrusted_str()
-        ),
+        _ => format!("{product} has an update about {site}."),
     };
     if let Some(detail) = &event.detail {
         let hint = UntrustedText::capture(detail);
