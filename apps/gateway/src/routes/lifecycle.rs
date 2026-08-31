@@ -1,4 +1,4 @@
-//! Expiry lifecycle hook routes (ADR 0073).
+//! Expiry lifecycle hook routes (ADR 0074).
 //!
 //! Four surfaces, all metadata-only:
 //!

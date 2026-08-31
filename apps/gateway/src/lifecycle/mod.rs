@@ -1,4 +1,4 @@
-//! Expiry lifecycle hooks (ADR 0073).
+//! Expiry lifecycle hooks (ADR 0074).
 //!
 //! When something with a deadline approaches it, that is a fact the platform
 //! detects once and publishes once, on a feed anyone can subscribe to:

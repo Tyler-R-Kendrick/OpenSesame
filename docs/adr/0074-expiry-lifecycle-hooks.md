@@ -1,4 +1,4 @@
-# ADR 0073 — Expiry lifecycle hooks, and rotation as their first subscriber
+# ADR 0074 — Expiry lifecycle hooks, and rotation as their first subscriber
 
 Status: Accepted
 Date: 2026-08-30

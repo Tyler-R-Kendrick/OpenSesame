@@ -1,4 +1,4 @@
-//! Expiry lifecycle hook commands (ADR 0073).
+//! Expiry lifecycle hook commands (ADR 0074).
 //!
 //! Every deadline the Host tracks, the subscriptions receiving them, and the
 //! ledger showing whether those deliveries landed. All metadata: no command

@@ -1,4 +1,4 @@
--- Expiry lifecycle hooks (ADR 0073).
+-- Expiry lifecycle hooks (ADR 0074).
 --
 -- Conventions mirror 0016_certificate_manager.sql: TEXT primary keys, RFC3339
 -- TEXT timestamps, composite UNIQUE(organization_id, id) so child rows can key

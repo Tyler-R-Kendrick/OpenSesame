@@ -16,7 +16,7 @@
 //! Nothing here does I/O. The gateway supplies subjects and persistence, and
 //! **`OpenSesame`'s own rotation and certificate responders subscribe to the same
 //! events an external tool does** — the platform has no private trigger path
-//! that would let the public one rot (ADR 0073).
+//! that would let the public one rot (ADR 0074).
 //!
 //! The crate structurally cannot leak credential material: [`ExpirySubject`]
 //! has no field able to carry a value, and [`LifecycleEvent::payload`] builds

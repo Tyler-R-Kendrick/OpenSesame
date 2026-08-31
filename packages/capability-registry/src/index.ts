@@ -55,7 +55,7 @@ const ADR_AUTHORITY_HANDLE = "0005-authority-handle-connectionref.md";
 const ADR_MCP_BEARER = "0023-mcp-bearer-vs-dpop.md";
 const ADR_PM_BRIDGING = "0052-password-manager-ecosystem-bridging.md";
 const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
-const ADR_LIFECYCLE_HOOKS = "0073-expiry-lifecycle-hooks.md";
+const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -869,7 +869,7 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: null,
     },
   },
-  // ── Host plane: expiry lifecycle hooks (ADR 0073) ─────────────────────
+  // ── Host plane: expiry lifecycle hooks (ADR 0074) ─────────────────────
   {
     id: "lifecycle.expiring.read",
     title: "Read tracked expiry deadlines and their ladders",

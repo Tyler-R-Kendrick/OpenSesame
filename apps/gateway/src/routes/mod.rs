@@ -397,7 +397,7 @@ pub fn router(state: AppState) -> Router {
                 .layer(DefaultBodyLimit::max(32 * 1024)),
         )
         .route("/api/v1/rotations/{id}", get(rotation::get_job))
-        // ADR 0073: expiry lifecycle hooks. The read view is any caller; the
+        // ADR 0074: expiry lifecycle hooks. The read view is any caller; the
         // subscription surface is integration configuration (owner/admin or
         // operator), like sync targets and rotation policies.
         .route("/api/v1/lifecycle/expiring", get(lifecycle::list_expiring))

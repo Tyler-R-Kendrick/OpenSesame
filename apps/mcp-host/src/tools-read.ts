@@ -25,7 +25,7 @@ export function registerReadTools(server: McpServer): void {
   const scopeSchema = z.string().regex(SCOPE_PATTERN);
 
   /**
-   * Expiry lifecycle (ADR 0073). Metadata only by construction upstream, and
+   * Expiry lifecycle (ADR 0074). Metadata only by construction upstream, and
    * narrowed again here: the Host's hook views never carry a signing secret,
    * and this allowlist would drop one if a future field tried to.
    */

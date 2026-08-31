@@ -1,4 +1,4 @@
-//! Persistence for expiry lifecycle hooks (ADR 0073).
+//! Persistence for expiry lifecycle hooks (ADR 0074).
 //!
 //! Three concerns, deliberately kept apart:
 //!

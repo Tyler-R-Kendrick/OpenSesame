@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
     // fans out `sync_all_for_config`; config-value mutations wake it via
     // `sync_notify`, the tick covers everything else.
     tokio::spawn(sync_actor::run(state.clone()));
-    // LIFECYCLE_SCANNER: the single expiry detector (ADR 0073). Gathers every
+    // LIFECYCLE_SCANNER: the single expiry detector (ADR 0074). Gathers every
     // deadline — certificates, authorities, signers, credentials, rotation
     // policies — and publishes what each one owes. Rotation is a *subscriber*
     // to that feed rather than a second due-check of its own, so our own
