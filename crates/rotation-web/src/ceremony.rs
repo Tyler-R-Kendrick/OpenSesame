@@ -55,11 +55,26 @@ pub enum CaptureError {
 impl CaptureError {
     /// Whether asking again could plausibly answer differently.
     ///
-    /// Only a page problem is worth another attempt. A refusal is a verdict on
-    /// what the page contained, so a retry re-reads the same wrong thing.
+    /// Enumerated rather than "any [`StepError`]", because two of them are
+    /// answers rather than accidents. A refused navigation is the egress
+    /// policy speaking and will refuse identically forever; a challenge is the
+    /// relying party asking for a human, and a runner that retried it would
+    /// spin against a gate that exists to stop exactly that — and would look
+    /// like an attack from the other side.
+    ///
+    /// The other three are timing: a page that has not rendered, a step that
+    /// ran out of time, a driver that went away. Those are worth another
+    /// attempt. A [`CaptureRefusal`] never is — it is a verdict on what the
+    /// page contained, so a retry re-reads the same wrong thing.
     #[must_use]
     pub const fn is_retryable(self) -> bool {
-        matches!(self, Self::Step(_))
+        match self {
+            Self::Step(step) => matches!(
+                step,
+                StepError::Timeout | StepError::NoSuchElement | StepError::Transport
+            ),
+            Self::Refused(_) => false,
+        }
     }
 }
 

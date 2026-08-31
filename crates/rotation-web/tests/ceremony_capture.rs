@@ -394,3 +394,27 @@ async fn one_slot_cannot_be_captured_twice() {
     );
     assert_eq!(browser.sealed_slots(), vec![Slot::AppId], "sealed twice");
 }
+
+#[tokio::test]
+async fn a_challenge_and_a_refused_navigation_are_answers_rather_than_accidents() {
+    // A runner honouring `is_retryable` would otherwise spin against a relying
+    // party that asked for a human, and against an egress policy that will
+    // refuse identically forever.
+    for answered in [StepError::Navigation, StepError::Challenge] {
+        assert!(
+            !CaptureError::Step(answered).is_retryable(),
+            "{answered:?} is an answer, not a timing problem",
+        );
+    }
+    for timing in [
+        StepError::Timeout,
+        StepError::NoSuchElement,
+        StepError::Transport,
+    ] {
+        assert!(
+            CaptureError::Step(timing).is_retryable(),
+            "{timing:?} is worth another attempt",
+        );
+    }
+    assert!(!CaptureError::Refused(CaptureRefusal::WrongShape).is_retryable());
+}
