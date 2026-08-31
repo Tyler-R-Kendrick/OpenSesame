@@ -1,0 +1,62 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "membership",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Membership",
+    "plural": "Memberships",
+    "extension": ".member",
+    "summary": "A loyalty, club or professional membership and the number that proves it.",
+    "categories": ["identity"],
+    "sections": [
+      {
+        "id": "membership",
+        "title": "Membership",
+        "fields": [
+          {
+            "id": "organisation",
+            "type": "string",
+            "label": "Organisation",
+            "required": true
+          },
+          {
+            "id": "memberNumber",
+            "type": "concealed",
+            "label": "Member number"
+          },
+          { "id": "memberName", "type": "person-name", "label": "Member" },
+          { "id": "tier", "type": "string", "label": "Tier" },
+          { "id": "joinedAt", "type": "date", "label": "Joined" },
+          { "id": "expiresAt", "type": "date", "label": "Expires" }
+        ]
+      },
+      {
+        "id": "contact",
+        "title": "Contact",
+        "fields": [
+          { "id": "phone", "type": "phone", "label": "Telephone" },
+          { "id": "portal", "type": "url", "label": "Member portal" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "memberNumber",
+      "trailer": [
+        { "key": "organisation", "field": "organisation" },
+        { "key": "member", "field": "memberName" },
+        { "key": "tier", "field": "tier" },
+        { "key": "joined_at", "field": "joinedAt" },
+        { "key": "expires_at", "field": "expiresAt" },
+        { "key": "phone", "field": "phone" },
+        { "key": "url", "field": "portal" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["organisation", "tier"],
+    "search": ["organisation", "tier"]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "drop",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Drop",
+    "plural": "Drops",
+    "extension": ".drop",
+    "summary": "A record of a one-time share in flight. Never the payload itself.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "claim",
+        "title": "Claim",
+        "fields": [
+          {
+            "id": "state",
+            "type": "select",
+            "label": "State",
+            "options": ["pending", "consumed", "expired"]
+          },
+          { "id": "claimId", "type": "string", "label": "Claim id" },
+          { "id": "bearerToken", "type": "concealed", "label": "Bearer token" },
+          { "id": "expiresAt", "type": "date", "label": "Lapses" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": null,
+      "trailer": [
+        { "key": "state", "field": "state" },
+        { "key": "claim_id", "field": "claimId" },
+        { "key": "expires_at", "field": "expiresAt" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["state", "expiresAt"],
+    "search": ["state"],
+    "handler": "drop"
+  }
+}

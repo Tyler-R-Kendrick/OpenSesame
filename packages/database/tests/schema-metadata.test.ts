@@ -53,6 +53,9 @@ const EXPECTED_TABLES = [
   "claim_items",
   "authorization_requests",
   "device_authorization_sessions",
+  // The one cross-device handoff envelope (ADR 0086). It sits beside the
+  // ceremonies it fronts rather than replacing any of them.
+  "interactions",
   "audit_events",
   "outbox_events",
   "webhook_endpoints",

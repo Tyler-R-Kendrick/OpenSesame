@@ -109,6 +109,23 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "deliveryId",
   "detailsDigest",
   "receiptVersion",
+  // Cross-device interactions (ADR 0086). `interactionId` is the stored id and
+  // never the public reference: a reference is what a stranger holding a
+  // photographed QR has, and an audit row is not the place to hand a reader
+  // one. `mechanism` records how an approval was proven — recorded, never
+  // inferred from the session. `walletProvider`/`passId` identify a pass
+  // without describing it, and `assurance` is the level cleared, not the
+  // evidence that cleared it.
+  "interactionId",
+  "interactionKind",
+  "subjectKind",
+  "subjectId",
+  "mechanism",
+  "credentialRef",
+  "assurance",
+  "walletProvider",
+  "passId",
+  "presentationId",
 ]);
 
 /**

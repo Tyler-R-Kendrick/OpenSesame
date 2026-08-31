@@ -1,0 +1,67 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "server",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Server",
+    "plural": "Servers",
+    "extension": ".server",
+    "summary": "A machine, the account that reaches it, and how to get in.",
+    "categories": ["developer", "access"],
+    "sections": [
+      {
+        "id": "host",
+        "title": "Host",
+        "fields": [
+          {
+            "id": "endpoint",
+            "type": "host-port",
+            "label": "Endpoint",
+            "required": true
+          },
+          { "id": "username", "type": "string", "label": "Username" },
+          { "id": "password", "type": "password", "label": "Password" },
+          {
+            "id": "privateKey",
+            "type": "key-material",
+            "label": "Private key"
+          },
+          {
+            "id": "protocol",
+            "type": "select",
+            "label": "Protocol",
+            "options": ["ssh", "rdp", "vnc", "telnet", "winrm", "other"]
+          }
+        ]
+      },
+      {
+        "id": "operations",
+        "title": "Operations",
+        "fields": [
+          { "id": "environment", "type": "string", "label": "Environment" },
+          { "id": "consoleUrl", "type": "url", "label": "Console" },
+          { "id": "notesUrl", "type": "url", "label": "Runbook" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "password",
+      "trailer": [
+        { "key": "host", "field": "endpoint" },
+        { "key": "login", "field": "username" },
+        { "key": "protocol", "field": "protocol" },
+        { "key": "private_key", "field": "privateKey" },
+        { "key": "environment", "field": "environment" },
+        { "key": "url", "field": "consoleUrl" },
+        { "key": "runbook", "field": "notesUrl" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["endpoint", "environment"],
+    "search": ["endpoint", "username", "environment"]
+  }
+}

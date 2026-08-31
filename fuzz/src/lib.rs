@@ -1185,3 +1185,74 @@ pub fn fuzz_kv_v2_path(data: &[u8]) {
         }
     }
 }
+
+/// Vault item type manifests (ADR 0087 §5).
+///
+/// The invariants every accepted definition must hold: no concealed field in
+/// a preview surface, no default on a concealed field, a native secret that
+/// can actually hold line one, and — for anything not published by the
+/// platform — no ceremony handler. Then the projection: `to_entry` must never
+/// break line one, whatever the definition asked for.
+pub fn fuzz_vault_item_type(data: &[u8]) {
+    use opensesame_vault_item_types::{
+        parse_definition, to_entry, FieldValue, FieldValues, PLATFORM_PUBLISHER,
+    };
+
+    let bytes = truncate(data);
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        return;
+    };
+    let Ok(definition) = parse_definition(text, opensesame_vault_item_types::Trust::Community)
+    else {
+        return;
+    };
+
+    assert_ne!(
+        definition.metadata.publisher, PLATFORM_PUBLISHER,
+        "a community install must not claim the platform publisher"
+    );
+    assert!(
+        definition.spec.handler.is_none(),
+        "a community definition must never name a ceremony handler"
+    );
+
+    for id in definition
+        .spec
+        .subtitle
+        .iter()
+        .chain(definition.spec.search.iter())
+    {
+        let field = definition
+            .field(id)
+            .expect("an accepted preview names a real field");
+        assert!(
+            !field.field_type.concealed(),
+            "an accepted definition put a concealed field in a preview surface"
+        );
+    }
+    for field in definition.fields() {
+        assert!(
+            field.default.is_none() || !field.field_type.concealed(),
+            "an accepted definition carried a default on a concealed field"
+        );
+    }
+
+    // Line one is the whole point of the base native secret: a value that
+    // could split it would corrupt every entry the host plane reads back.
+    let mut values: FieldValues = std::collections::BTreeMap::new();
+    for field in definition.fields() {
+        values.insert(
+            field.id.clone(),
+            FieldValue::Text("a\nb\\c\rd".to_owned()),
+        );
+    }
+    let entry = to_entry(&definition, &values);
+    assert!(
+        !entry.secret.contains('\n'),
+        "the projection wrote a newline onto line one"
+    );
+    assert!(
+        entry.trailer.is_empty() || entry.trailer.ends_with('\n'),
+        "the projection left an unterminated trailer"
+    );
+}

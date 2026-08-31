@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   type ApprovalActivation,
+  type ApprovalProof,
   type ApprovalReceipt,
   type AuditEvent,
   type AuthorizationRequest,
@@ -12,6 +13,8 @@ import {
   type ComparisonChallenge,
   type ExternalChannelBinding,
   type ExternalIdentity,
+  type Interaction,
+  type InteractionStatus,
   type JsonObject,
   type NotificationDelivery,
   type NotificationPreferences,
@@ -33,6 +36,7 @@ import {
   desc,
   eq,
   getTableColumns,
+  inArray,
   isNull,
   notExists,
   or,
@@ -58,6 +62,7 @@ import {
   ConflictError,
   type EnsurePersonalProjectResult,
   type ExternalIdentityRepository,
+  type InteractionRepository,
   type NewOutboxEvent,
   NotFoundError,
   type NotificationDeliveryRepository,
@@ -204,6 +209,74 @@ function mapAuthorizationRequest(
       : undefined),
     version: row.version,
   };
+}
+
+/**
+ * The statuses `interactions_live_subject_idx` treats as live.
+ *
+ * Kept as one constant because two readers of "live" are two chances to
+ * disagree: the partial unique index in the schema and the subject lookup
+ * below must select the same rows, or `getBySubject` will hand back an
+ * envelope the index has already released for reuse.
+ */
+const LIVE_INTERACTION_STATUSES: readonly InteractionStatus[] = [
+  "pending",
+  "presented",
+  "awaiting_approval",
+  "approved",
+];
+
+/**
+ * Rebuild an `ApprovalProof` from jsonb.
+ *
+ * `verifiedAt` goes into the column as a `Date` and comes back as an ISO
+ * string, so it is revived here rather than at the call site. That is what
+ * keeps the two implementations interchangeable: the memory store hands back a
+ * real `Date`, and a Postgres read that returned a string would push the
+ * difference onto every consumer — including whichever one compares an
+ * approval's age against a maximum authentication age and silently gets it
+ * wrong on a string.
+ */
+function mapApprovalProof(value: JsonObject): ApprovalProof {
+  const stored: Omit<ApprovalProof, "verifiedAt"> & { verifiedAt: string } =
+    overlapCast(value);
+  return { ...stored, verifiedAt: new Date(stored.verifiedAt) };
+}
+
+function mapInteraction(
+  row: typeof schema.interactions.$inferSelect,
+): Interaction {
+  const mapped: Interaction = {
+    id: row.id,
+    kind: overlapCast(row.kind),
+    status: overlapCast(row.status),
+    subject: { kind: overlapCast(row.subjectKind), subjectId: row.subjectId },
+    createdAt: row.createdAt,
+    expiresAt: row.expiresAt,
+    authorizationDetails: row.authorizationDetails,
+    version: row.version,
+  };
+  if (row.requesterRef) mapped.requesterRef = row.requesterRef;
+  if (row.approverPrincipalId) {
+    mapped.approverPrincipalId = row.approverPrincipalId;
+  }
+  if (row.requestDigest) mapped.requestDigest = row.requestDigest;
+  if (row.bindingMessageDigest) {
+    mapped.bindingMessageDigest = row.bindingMessageDigest;
+  }
+  if (row.bindingMessage) mapped.bindingMessage = row.bindingMessage;
+  if (row.resourceRef) mapped.resourceRef = row.resourceRef;
+  if (row.assuranceRequired) {
+    mapped.assuranceRequired = overlapCast(row.assuranceRequired);
+  }
+  if (row.approvalProof) {
+    mapped.approvalProof = mapApprovalProof(row.approvalProof);
+  }
+  if (row.presentedAt) mapped.presentedAt = row.presentedAt;
+  if (row.decidedAt) mapped.decidedAt = row.decidedAt;
+  if (row.consumedAt) mapped.consumedAt = row.consumedAt;
+  if (row.revokedAt) mapped.revokedAt = row.revokedAt;
+  return mapped;
 }
 
 function mapClaim(row: typeof schema.claimSessions.$inferSelect): ClaimSession {
@@ -955,6 +1028,153 @@ export class PostgresRepositories implements Repositories {
         );
       }
       return mapAuthorizationRequest(row);
+    },
+  };
+
+  readonly interactions: InteractionRepository = {
+    create: async (interaction, uow) => {
+      try {
+        const [row] = await dbOf(uow, this.db)
+          .insert(schema.interactions)
+          .values({
+            id: interaction.id,
+            kind: interaction.kind,
+            status: interaction.status,
+            subjectKind: interaction.subject.kind,
+            subjectId: interaction.subject.subjectId,
+            createdAt: interaction.createdAt,
+            expiresAt: interaction.expiresAt,
+            requesterRef: interaction.requesterRef,
+            approverPrincipalId: interaction.approverPrincipalId,
+            requestDigest: interaction.requestDigest,
+            bindingMessageDigest: interaction.bindingMessageDigest,
+            bindingMessage: interaction.bindingMessage,
+            authorizationDetails: interaction.authorizationDetails,
+            resourceRef: interaction.resourceRef,
+            assuranceRequired: interaction.assuranceRequired
+              ? overlapCast(interaction.assuranceRequired)
+              : null,
+            approvalProof: interaction.approvalProof
+              ? overlapCast(interaction.approvalProof)
+              : null,
+            presentedAt: interaction.presentedAt,
+            decidedAt: interaction.decidedAt,
+            consumedAt: interaction.consumedAt,
+            revokedAt: interaction.revokedAt,
+            version: interaction.version,
+          })
+          .returning();
+        if (!row) throw new Error("insert interaction failed");
+        return mapInteraction(row);
+      } catch (err) {
+        const boundaryError: BoundaryValue = overlapCast(err);
+        // Two unique constraints answer here: the primary key, and the
+        // partial index that allows one live envelope per ceremony. Both mean
+        // "somebody else already holds this slot", and the caller's move is
+        // the same either way — read what is there instead of writing over it.
+        if (isUniqueViolation(boundaryError)) {
+          throw new ConflictError(`interaction conflict: ${interaction.id}`);
+        }
+        throw err;
+      }
+    },
+
+    getById: async (id) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.interactions)
+        .where(eq(schema.interactions.id, id))
+        .limit(1);
+      return row ? mapInteraction(row) : null;
+    },
+
+    getBySubject: async (subjectKind, subjectId) => {
+      const [row] = await this.db
+        .select()
+        .from(schema.interactions)
+        .where(
+          and(
+            eq(schema.interactions.subjectKind, subjectKind),
+            eq(schema.interactions.subjectId, subjectId),
+            inArray(schema.interactions.status, LIVE_INTERACTION_STATUSES),
+          ),
+        )
+        .limit(1);
+      return row ? mapInteraction(row) : null;
+    },
+
+    listForApprover: async (principalId, filter) => {
+      const where = filter?.status
+        ? and(
+            eq(schema.interactions.approverPrincipalId, principalId),
+            eq(schema.interactions.status, filter.status),
+          )
+        : eq(schema.interactions.approverPrincipalId, principalId);
+      const rows = await this.db
+        .select()
+        .from(schema.interactions)
+        .where(where)
+        .orderBy(desc(schema.interactions.createdAt))
+        .limit(filter?.limit ?? 50);
+      return rows.map(mapInteraction);
+    },
+
+    updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      // One statement, guarded on the version we read. Two executors racing to
+      // spend the same approval both send this; exactly one matches the
+      // version row and the loser's UPDATE touches nothing, which is the whole
+      // of the replay defence — `machines/interaction.ts` cannot serialize
+      // callers it never sees.
+      const [row] = await dbOf(uow, this.db)
+        .update(schema.interactions)
+        .set({
+          ...(patch.status !== undefined
+            ? { status: patch.status }
+            : undefined),
+          ...(patch.approverPrincipalId !== undefined
+            ? { approverPrincipalId: patch.approverPrincipalId }
+            : undefined),
+          ...(patch.approvalProof !== undefined
+            ? { approvalProof: overlapCast(patch.approvalProof) }
+            : undefined),
+          ...(patch.presentedAt !== undefined
+            ? { presentedAt: patch.presentedAt }
+            : undefined),
+          ...(patch.decidedAt !== undefined
+            ? { decidedAt: patch.decidedAt }
+            : undefined),
+          ...(patch.consumedAt !== undefined
+            ? { consumedAt: patch.consumedAt }
+            : undefined),
+          ...(patch.revokedAt !== undefined
+            ? { revokedAt: patch.revokedAt }
+            : undefined),
+          version: expectedVersion + 1,
+        })
+        .where(
+          and(
+            eq(schema.interactions.id, id),
+            eq(schema.interactions.version, expectedVersion),
+          ),
+        )
+        .returning();
+      if (!row) {
+        // No row matched, and the two reasons need different answers: an id
+        // that was never written is the caller's mistake, while an id at a
+        // different version is a race the caller can retry after re-reading.
+        const [current] = await this.db
+          .select()
+          .from(schema.interactions)
+          .where(eq(schema.interactions.id, id))
+          .limit(1);
+        if (!current) {
+          throw new NotFoundError(`interaction not found: ${id}`);
+        }
+        throw new ConflictError(
+          `interaction version conflict: expected ${expectedVersion}, got ${current.version}`,
+        );
+      }
+      return mapInteraction(row);
     },
   };
 

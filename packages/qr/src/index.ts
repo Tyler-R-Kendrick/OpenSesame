@@ -66,3 +66,9 @@ export function encodeQrSize(value: string): number {
   const payload = assertPayload(value);
   return encode(payload, { ecc: "M", border: 2 }).size;
 }
+
+/** Interaction-link QR encoders, refusing credential material first. */
+export {
+  encodeInteractionQr,
+  encodeInteractionQrTerminal,
+} from "./interaction.js";

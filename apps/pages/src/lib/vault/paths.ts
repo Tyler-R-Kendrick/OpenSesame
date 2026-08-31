@@ -1,7 +1,12 @@
-import type { Folder, ItemKind, VaultItem } from "./model.js";
+import { itemTypeId, typeExtension } from "./item-types.js";
+import type { Folder, LegacyItemKind, VaultItem } from "./model.js";
 
-/** Items are files; the kind is the extension. One vocabulary for the tree,
-    the editor's type selector, and search. */
+/** Items are files; the type is the extension. One vocabulary for the tree,
+    the editor's type selector, and search.
+
+    Every extension — these included — is declared by the item type's own
+    definition (ADR 0087 §1); this table is the fallback for a caller holding
+    a legacy kind and no item. */
 export const KIND_EXT = {
   login: ".login",
   passkey: ".passkey",
@@ -10,7 +15,12 @@ export const KIND_EXT = {
   drop: ".drop",
   note: ".note",
   certificate: ".cert",
-} satisfies Record<ItemKind, string>;
+} satisfies Record<LegacyItemKind, string>;
+
+/** The extension for any item, plugin-defined types included. */
+export function itemExtension(item: VaultItem): string {
+  return typeExtension(itemTypeId(item));
+}
 
 export function pathSegment(name: string): string {
   return (name.trim() || "Untitled").replaceAll("/", "／");

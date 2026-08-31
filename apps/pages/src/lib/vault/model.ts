@@ -1,5 +1,21 @@
 /** Vault item model. Everything here lives inside the sealed body — never in plaintext storage. */
 
+import type {
+  FieldValues,
+  ItemTypeDefinition,
+} from "@opensesame/vault-item-types";
+// Type-only in the other direction, so this stays a leaf at runtime.
+import { typedSearchText, typedSubtitle } from "./item-types.js";
+
+/**
+ * The kinds that predate ADR 0087, each stored as named properties on the
+ * item, plus `typed` — every plugin-defined type, which carries its type id in
+ * `typeId` and its fields in `values`.
+ *
+ * `kind` stayed a closed union rather than becoming the type id outright so
+ * that no item already in a vault has to be rewritten. `itemTypeId()` in
+ * `item-types.ts` is the one accessor that hides the difference.
+ */
 export type ItemKind =
   | "login"
   | "passkey"
@@ -7,7 +23,11 @@ export type ItemKind =
   | "secret"
   | "note"
   | "certificate"
-  | "drop";
+  | "drop"
+  | "typed";
+
+/** Every kind whose fields are named properties on the item. */
+export type LegacyItemKind = Exclude<ItemKind, "typed">;
 
 export type UriMatch = "domain" | "host" | "exact" | "never";
 
@@ -153,6 +173,21 @@ export type DropItem = BaseItem & {
   keptCopy?: DropKeptCopy;
 };
 
+/**
+ * An item of a plugin-defined type. Its shape is whatever its definition
+ * declares; nothing in this file knows the field names.
+ *
+ * An item whose definition is not installed on this device keeps every value
+ * it arrived with and renders through the unknown-type fallback. Coercing it
+ * to a note would destroy it on every other device, because
+ * `mergeVaultBodies` is last-writer-wins per item.
+ */
+export type TypedItem = BaseItem & {
+  kind: "typed";
+  typeId: string;
+  values: FieldValues;
+};
+
 export type CertificateItem = BaseItem & {
   kind: "certificate";
   commonName: string;
@@ -173,7 +208,11 @@ export type VaultItem =
   | SecretItem
   | NoteItem
   | CertificateItem
-  | DropItem;
+  | DropItem
+  | TypedItem;
+
+/** Definitions installed into this vault, keyed by type id, as authored JSON. */
+export type InstalledItemTypes = Readonly<Record<string, string>>;
 
 export type Folder = {
   id: string;
@@ -186,6 +225,12 @@ export type VaultBody = {
   items: VaultItem[];
   folders: Folder[];
   /**
+   * Item type definitions installed into this vault (ADR 0087 §7). They live
+   * inside the sealed body so they sync E2EE to the user's other devices,
+   * work offline, and need no server.
+   */
+  itemTypes?: InstalledItemTypes;
+  /**
    * Writes so far. Sealed with the body, so it cannot be edited without the vault
    * key, and compared against the header on unlock: a body that has gone
    * backwards is one restored from an older copy, not the vault as last left.
@@ -193,6 +238,11 @@ export type VaultBody = {
   rev?: number;
 };
 
+/**
+ * Labels for the legacy kinds only. Every type's label — these included —
+ * comes from its definition through `typeLabel()`; these tables remain as the
+ * fallback for a screen holding a legacy kind and nothing else.
+ */
 export const KIND_LABEL = {
   login: "Login",
   passkey: "Passkey",
@@ -201,6 +251,7 @@ export const KIND_LABEL = {
   note: "Secure note",
   certificate: "Certificate",
   drop: "Drop",
+  typed: "Item",
 };
 
 export const KIND_PLURAL = {
@@ -211,6 +262,7 @@ export const KIND_PLURAL = {
   note: "Secure notes",
   certificate: "Certificates",
   drop: "Drops",
+  typed: "Items",
 };
 
 export function newId(): string {
@@ -219,6 +271,20 @@ export function newId(): string {
 
 export function emptyBody(): VaultBody {
   return { v: 1, items: [], folders: [], rev: 0 };
+}
+
+/** Build an item of a plugin-defined type from its definition. */
+export function createTypedItem(
+  definition: ItemTypeDefinition,
+  values: FieldValues,
+  name = "",
+): TypedItem {
+  return {
+    ...base("typed", name),
+    kind: "typed",
+    typeId: definition.metadata.id,
+    values: { ...values },
+  };
 }
 
 /** Deterministic, no-data-loss merge for two encrypted whole-vault snapshots. */
@@ -237,10 +303,18 @@ export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
       folders.set(incoming.id, incoming);
     }
   }
+  // Installed definitions merge by type id. A definition is inert data and an
+  // id belongs to one publisher (ADR 0087 §7), so taking the incoming text on
+  // a conflict cannot change what any existing item means.
+  const itemTypes = { ...left.itemTypes };
+  for (const [id, text] of Object.entries(right.itemTypes ?? {})) {
+    if (text !== undefined) itemTypes[id] = text;
+  }
   return {
     v: 1,
     items: [...items.values()],
     folders: [...folders.values()],
+    ...(Object.keys(itemTypes).length > 0 ? { itemTypes } : undefined),
     rev: Math.max(left.rev ?? 0, right.rev ?? 0),
   };
 }
@@ -312,8 +386,8 @@ export function createItem(kind: "secret", name?: string): SecretItem;
 export function createItem(kind: "note", name?: string): NoteItem;
 export function createItem(kind: "certificate", name?: string): CertificateItem;
 export function createItem(kind: "drop", name?: string): DropItem;
-export function createItem(kind: ItemKind, name?: string): VaultItem;
-export function createItem(kind: ItemKind, name = ""): VaultItem {
+export function createItem(kind: LegacyItemKind, name?: string): VaultItem;
+export function createItem(kind: LegacyItemKind, name = ""): VaultItem {
   const b = base(kind, name);
   switch (kind) {
     case "login":
@@ -419,6 +493,8 @@ export function itemSubtitle(item: VaultItem): string {
         : item.state === "consumed"
           ? "Opened — purges on next read"
           : "Expired — purges on next read";
+    case "typed":
+      return typedSubtitle(item);
   }
 }
 
@@ -469,6 +545,7 @@ export function searchMatches(item: VaultItem, query: string): boolean {
     haystack.push(item.commonName, item.dnsNames, item.serial);
   }
   if (item.kind === "drop") haystack.push(item.state);
+  if (item.kind === "typed") haystack.push(...typedSearchText(item));
   for (const field of item.fields) {
     if (!field.hidden) haystack.push(field.name, field.value);
     else haystack.push(field.name);

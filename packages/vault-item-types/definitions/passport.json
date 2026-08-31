@@ -1,0 +1,83 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "passport",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Passport",
+    "plural": "Passports",
+    "extension": ".passport",
+    "summary": "A travel document, following the data elements of ICAO Doc 9303.",
+    "categories": ["identity", "documents"],
+    "sections": [
+      {
+        "id": "document",
+        "title": "Document",
+        "fields": [
+          {
+            "id": "issuingCountry",
+            "type": "country",
+            "label": "Issuing country",
+            "required": true
+          },
+          {
+            "id": "documentNumber",
+            "type": "concealed",
+            "label": "Passport number"
+          },
+          {
+            "id": "documentType",
+            "type": "select",
+            "label": "Type",
+            "options": [
+              "ordinary",
+              "official",
+              "diplomatic",
+              "service",
+              "emergency"
+            ]
+          },
+          { "id": "issuedAt", "type": "date", "label": "Issued" },
+          { "id": "expiresAt", "type": "date", "label": "Expires" },
+          {
+            "id": "issuingAuthority",
+            "type": "string",
+            "label": "Issuing authority"
+          }
+        ]
+      },
+      {
+        "id": "holder",
+        "title": "Holder",
+        "fields": [
+          { "id": "fullName", "type": "person-name", "label": "Name" },
+          { "id": "nationality", "type": "country", "label": "Nationality" },
+          { "id": "dateOfBirth", "type": "date", "label": "Date of birth" },
+          { "id": "placeOfBirth", "type": "string", "label": "Place of birth" },
+          { "id": "sex", "type": "string", "label": "Sex" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "documentNumber",
+      "trailer": [
+        { "key": "issuing_country", "field": "issuingCountry" },
+        { "key": "document_type", "field": "documentType" },
+        { "key": "issued_at", "field": "issuedAt" },
+        { "key": "expires_at", "field": "expiresAt" },
+        { "key": "authority", "field": "issuingAuthority" },
+        { "key": "name", "field": "fullName" },
+        { "key": "nationality", "field": "nationality" },
+        { "key": "date_of_birth", "field": "dateOfBirth" },
+        { "key": "place_of_birth", "field": "placeOfBirth" },
+        { "key": "sex", "field": "sex" }
+      ]
+    },
+    "cxf": { "credential": "passport" },
+    "subtitle": ["issuingCountry", "expiresAt"],
+    "search": ["issuingCountry", "nationality"]
+  }
+}

@@ -19,6 +19,7 @@
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",
+    "@opensesame/vault-item-types": "workspace:*",
     "@opensesame/webmcp": "workspace:*",
     "@tursodatabase/sync-wasm": "0.7.2",
     "hash-wasm": "4.12.0",

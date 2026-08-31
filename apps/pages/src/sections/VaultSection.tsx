@@ -8,30 +8,41 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { isString } from "@opensesame/os-domain";
 import { IconDownload, IconPlus } from "../components/Icons.js";
 import { swipeBack } from "../lib/gestures.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { stashImportFile } from "../lib/vault/import/handoff.js";
 import {
-  type Folder,
-  type ItemKind,
-  KIND_PLURAL,
-  type VaultItem,
-  sortItems,
-} from "../lib/vault/model.js";
+  definitionFor,
+  itemTypeId,
+  itemTypeRegistry,
+  readItemField,
+  typePlural,
+} from "../lib/vault/item-types.js";
+import { type Folder, type VaultItem, sortItems } from "../lib/vault/model.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
 
-const KIND_ORDER: ItemKind[] = [
-  "login",
-  "passkey",
-  "card",
-  "secret",
-  "drop",
-  "note",
-  "certificate",
-];
+/**
+ * The filter chips, in registry order (built-ins first), for the types this
+ * vault actually holds. Derived rather than listed: a plugin-defined type is a
+ * type like any other, so it earns its own chip the moment an item exists
+ * (ADR 0087 §1). A hardcoded list would quietly bucket every community type
+ * into one undifferentiated pile.
+ */
+function chipTypeIds(live: readonly VaultItem[]): readonly string[] {
+  const present = new Set(live.map(itemTypeId));
+  const ordered = itemTypeRegistry()
+    .list()
+    .map(({ definition }) => definition.metadata.id)
+    .filter((id) => present.has(id));
+  // A type whose definition is not installed here still deserves its chip;
+  // the label falls back to the id rather than the item vanishing from view.
+  const orphans = [...present].filter((id) => !itemTypeRegistry().has(id));
+  return [...ordered, ...orphans.sort()];
+}
 
 const FILTER_TITLE = new Map([
   ["all", "All items"],
@@ -76,8 +87,8 @@ function MobileFilters({
     <fieldset className="vault__chips" aria-label="Filter items">
       {chip("", filter === "all" && !folderId, "All")}
       {chip("?f=favorites", filter === "favorites", "Favorites")}
-      {KIND_ORDER.filter((kind) => live.some((item) => item.kind === kind)).map(
-        (kind) => chip(`?f=${kind}`, filter === kind, KIND_PLURAL[kind]),
+      {chipTypeIds(live).map((typeId) =>
+        chip(`?f=${typeId}`, filter === typeId, typePlural(typeId)),
       )}
       {folders.map((folder) =>
         chip(
@@ -133,8 +144,9 @@ function ImportButton({ verb = false }: { verb?: boolean }) {
   );
 }
 
-function isItemKind(value: string): value is ItemKind {
-  return KIND_ORDER.some((kind) => kind === value);
+/** Any registered type may be the one a filtered "+ new" creates. */
+function isRegisteredType(value: string): boolean {
+  return itemTypeRegistry().has(value);
 }
 
 function concealedValue(item: VaultItem): string | null {
@@ -142,7 +154,23 @@ function concealedValue(item: VaultItem): string | null {
   if (item.kind === "secret") return item.value;
   if (item.kind === "card") return item.number;
   if (item.kind === "certificate") return item.privateKeyPem;
-  return null;
+  // A plugin-defined type already says which field is its secret — the same
+  // field that becomes line one of its native entry (ADR 0087 §3).
+  const definition = definitionFor(item);
+  const secretField = definition?.spec.native.secret;
+  if (
+    definition === undefined ||
+    secretField === undefined ||
+    secretField === null
+  ) {
+    return null;
+  }
+  const field = definition.spec.sections
+    .flatMap((section) => section.fields)
+    .find((candidate) => candidate.id === secretField);
+  if (field === undefined) return null;
+  const value = readItemField(item, field);
+  return isString(value) && value !== "" ? value : null;
 }
 
 function username(item: VaultItem): string | null {
@@ -183,7 +211,7 @@ export function VaultSection() {
           filter !== "all" &&
           filter !== "favorites" &&
           filter !== "trash" &&
-          item.kind !== filter
+          itemTypeId(item) !== filter
         ) {
           return false;
         }
@@ -194,7 +222,7 @@ export function VaultSection() {
 
   const detailOpen = location.pathname !== "/vault";
   const title = folderId ? "Folder" : (FILTER_TITLE.get(filter) ?? "All items");
-  const createKind = isItemKind(filter) ? filter : "login";
+  const createKind = isRegisteredType(filter) ? filter : "login";
   const treeFolders = useMemo(() => {
     if (folderId) return [];
     if (

@@ -1,0 +1,63 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "wifi",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Wi-Fi network",
+    "plural": "Wi-Fi networks",
+    "extension": ".wifi",
+    "summary": "A network name, its passphrase, and how it is secured.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "network",
+        "title": "Network",
+        "fields": [
+          {
+            "id": "ssid",
+            "type": "string",
+            "label": "Network name (SSID)",
+            "required": true
+          },
+          { "id": "passphrase", "type": "password", "label": "Passphrase" },
+          {
+            "id": "security",
+            "type": "select",
+            "label": "Security",
+            "options": ["wpa3", "wpa2", "wpa", "wep", "open"]
+          },
+          { "id": "hidden", "type": "boolean", "label": "Hidden network" }
+        ]
+      },
+      {
+        "id": "router",
+        "title": "Router",
+        "fields": [
+          { "id": "adminUrl", "type": "url", "label": "Admin page" },
+          {
+            "id": "adminPassword",
+            "type": "password",
+            "label": "Admin password"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "passphrase",
+      "trailer": [
+        { "key": "ssid", "field": "ssid" },
+        { "key": "security", "field": "security" },
+        { "key": "hidden", "field": "hidden" },
+        { "key": "url", "field": "adminUrl" },
+        { "key": "admin_password", "field": "adminPassword" }
+      ]
+    },
+    "cxf": { "credential": "wifi" },
+    "subtitle": ["ssid", "security"],
+    "search": ["ssid"]
+  }
+}

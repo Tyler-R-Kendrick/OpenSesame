@@ -1,0 +1,30 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "note",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Secure note",
+    "plural": "Secure notes",
+    "extension": ".note",
+    "summary": "Free text, sealed with everything else in the vault.",
+    "categories": ["documents"],
+    "sections": [
+      {
+        "id": "note",
+        "title": "Note",
+        "fields": [{ "id": "notes", "type": "multiline", "label": "Note" }]
+      }
+    ],
+    "native": {
+      "secret": null,
+      "trailer": [{ "key": "notes", "field": "notes" }]
+    },
+    "cxf": { "credential": "note" },
+    "subtitle": [],
+    "search": ["notes"]
+  }
+}
