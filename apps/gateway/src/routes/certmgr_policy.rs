@@ -489,6 +489,7 @@ pub async fn get(
 /// compare-and-swap on `version`.
 #[expect(
     clippy::too_many_lines,
+    clippy::cognitive_complexity,
     reason = "one linear validate-then-write path; splitting it would hide the ordering that keeps the authz gate ahead of every read and the rules merge ahead of the write"
 )]
 pub async fn update(

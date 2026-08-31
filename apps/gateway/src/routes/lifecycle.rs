@@ -227,6 +227,59 @@ const fn default_true() -> bool {
 
 /// `PUT /api/v1/lifecycle/hooks` — register or edit a subscription.
 ///
+/// A freshly minted hook secret: the sealed blob to store, and the
+/// `(hook_id, plaintext)` to reveal exactly once. Both are `None` for a hook
+/// that keeps an existing secret.
+type MintedHookSecret = (Option<SealedCertificateMaterial>, Option<(String, String)>);
+
+/// Mint and seal a new hook's signing secret, returning the sealed blob and the
+/// one-time reveal.
+///
+/// Split out of `put_hook` so the registration path stays readable; the reveal
+/// still happens exactly once, at the single call site above.
+#[expect(
+    clippy::result_large_err,
+    reason = "the error path is an axum Response, which is the handler's own return type"
+)]
+fn mint_hook_secret(
+    st: &AppState,
+    body: &HookBody,
+    organization: &str,
+) -> Result<MintedHookSecret, Response> {
+    let secret = delivery::generate_secret();
+    let id_for_seal = body
+        .id
+        .clone()
+        .unwrap_or_else(|| format!("lch_{}", uuid::Uuid::now_v7()));
+    let Some(key) = st.connection_broker.config().key().copied() else {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "sealing_unavailable",
+                "hint": "a sealing key is required to register a webhook hook",
+            })),
+        )
+            .into_response());
+    };
+    let blob = seal_scoped(
+        &key,
+        LIFECYCLE_HOOK_SECRET_SCOPE,
+        &id_for_seal,
+        organization,
+        secret.as_bytes(),
+    )
+    .map_err(|error| internal(&anyhow::anyhow!("{error}"), "seal lifecycle hook secret"))?;
+    Ok((
+        Some(SealedCertificateMaterial {
+            key_id: KEY_ID.into(),
+            ciphertext: blob.ciphertext,
+            nonce: blob.nonce,
+            aad_digest: blob.aad_digest,
+        }),
+        Some((id_for_seal, secret)),
+    ))
+}
+
 /// A new registration mints a `whsec_` secret and returns it **once**. An edit
 /// keeps the existing secret: rotating it is a delete and re-register, so a
 /// caller cannot silently invalidate every receiver's verification by editing
@@ -287,45 +340,12 @@ pub async fn put_hook(
     }
 
     // An existing hook keeps its secret; a new one mints and reveals one once.
-    let (sealed_secret, revealed) = match &existing {
-        Some(hook) => (hook.sealed_secret.clone(), None),
-        None => {
-            let secret = delivery::generate_secret();
-            let id_for_seal = body
-                .id
-                .clone()
-                .unwrap_or_else(|| format!("lch_{}", uuid::Uuid::now_v7()));
-            let Some(key) = st.connection_broker.config().key().copied() else {
-                return (
-                    StatusCode::SERVICE_UNAVAILABLE,
-                    Json(json!({
-                        "error": "sealing_unavailable",
-                        "hint": "a sealing key is required to register a webhook hook",
-                    })),
-                )
-                    .into_response();
-            };
-            let blob = match seal_scoped(
-                &key,
-                LIFECYCLE_HOOK_SECRET_SCOPE,
-                &id_for_seal,
-                &organization,
-                secret.as_bytes(),
-            ) {
-                Ok(blob) => blob,
-                Err(error) => {
-                    return internal(&anyhow::anyhow!("{error}"), "seal lifecycle hook secret")
-                }
-            };
-            (
-                Some(SealedCertificateMaterial {
-                    key_id: KEY_ID.into(),
-                    ciphertext: blob.ciphertext,
-                    nonce: blob.nonce,
-                    aad_digest: blob.aad_digest,
-                }),
-                Some((id_for_seal, secret)),
-            )
+    let (sealed_secret, revealed) = if let Some(hook) = &existing {
+        (hook.sealed_secret.clone(), None)
+    } else {
+        match mint_hook_secret(&st, &body, &organization) {
+            Ok(minted) => minted,
+            Err(response) => return response,
         }
     };
 
@@ -1001,6 +1021,7 @@ mod custody_e2e {
     use axum::http::StatusCode;
     use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
     use opensesame_domain::OrganizationRole;
+    use opensesame_storage::CertificateFilter;
     use std::sync::Arc;
 
     /// Issue a managed certificate and age it until its renewal window opens.
@@ -1192,14 +1213,14 @@ mod custody_e2e {
         send(&app, &admin, "POST", "/api/v1/lifecycle/scan", None).await;
         let after_first = st
             .db
-            .list_certificates(&org.to_string(), &Default::default())
+            .list_certificates(&org.to_string(), &CertificateFilter::default())
             .await
             .unwrap()
             .len();
         send(&app, &admin, "POST", "/api/v1/lifecycle/scan", None).await;
         let after_second = st
             .db
-            .list_certificates(&org.to_string(), &Default::default())
+            .list_certificates(&org.to_string(), &CertificateFilter::default())
             .await
             .unwrap()
             .len();
@@ -1209,6 +1230,48 @@ mod custody_e2e {
              scanning again must not mint another",
         );
         assert_eq!(after_first, 2, "one predecessor, one successor");
+    }
+
+    /// Two gateway processes scanning at the same moment must reissue one
+    /// certificate, not two.
+    ///
+    /// The scanner has no view of concurrency: it evaluates watermarks and then
+    /// responds. Both processes read an unrecorded rung, so both would renew.
+    /// The watermark write is the claim, and only the winner acts (ADR 0073).
+    #[tokio::test]
+    async fn concurrent_scans_reissue_a_certificate_once() {
+        let st = custody_state().await;
+        let org = st.connection_organization;
+        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let app = crate::routes::router(st.clone());
+        issue_and_age_certificate(&st, &app, &admin).await;
+
+        let before = st
+            .db
+            .list_certificates(&org.to_string(), &CertificateFilter::default())
+            .await
+            .unwrap()
+            .len();
+
+        let now = chrono::Utc::now();
+        let (first, second) = tokio::join!(
+            crate::lifecycle::scanner::scan_organization(&st, &org, now),
+            crate::lifecycle::scanner::scan_organization(&st, &org, now)
+        );
+        first.unwrap();
+        second.unwrap();
+
+        let after = st
+            .db
+            .list_certificates(&org.to_string(), &CertificateFilter::default())
+            .await
+            .unwrap()
+            .len();
+        assert_eq!(
+            after,
+            before + 1,
+            "the claim admits one reissue even when both scans fire the rung",
+        );
     }
 
     #[tokio::test]
@@ -1234,7 +1297,7 @@ mod custody_e2e {
 
         let certificates = st
             .db
-            .list_certificates(&org.to_string(), &Default::default())
+            .list_certificates(&org.to_string(), &CertificateFilter::default())
             .await
             .unwrap();
         let delivered = certificates.first().expect("one certificate");

@@ -92,9 +92,8 @@ impl CustodyError {
     pub const fn http_status(&self) -> u16 {
         match self {
             Self::SealingUnavailable => 503,
-            Self::NoAuthority | Self::NotInCustody | Self::NotActive => 409,
+            Self::NoAuthority | Self::NotInCustody | Self::NotActive | Self::Superseded => 409,
             Self::NotFound => 404,
-            Self::Superseded => 409,
             Self::LifetimeTooShort | Self::Mint(_) => 400,
             Self::Storage(_) => 500,
         }
@@ -215,16 +214,33 @@ pub fn converging_renew_before(
 /// Returns [`CustodyError`] when sealing is unavailable, the lifetime is too
 /// short to renew unattended, the leaf will not mint, or the request is
 /// superseded before it completes.
+/// Everything one managed issuance needs. Bundled because the call carries a
+/// authority, a CA, a request and an actor together, and threading eight
+/// positional arguments through a renewal is how a caller swaps two `&str`.
+pub struct ManagedIssue<'a> {
+    pub organization: &'a OrganizationId,
+    pub authority_id: &'a str,
+    pub ca: &'a DevCa,
+    pub request: &'a dev_pki::IssueRequest,
+    pub renew_before_seconds: i64,
+    pub actor: &'a str,
+    /// Set when this issuance supersedes an existing certificate.
+    pub renewed_from: Option<&'a str>,
+}
+
 pub async fn issue_managed(
     state: &AppState,
-    organization: &OrganizationId,
-    authority_id: &str,
-    ca: &DevCa,
-    request: &dev_pki::IssueRequest,
-    renew_before_seconds: i64,
-    actor: &str,
-    renewed_from: Option<&str>,
+    issue: ManagedIssue<'_>,
 ) -> Result<ManagedIssuance, CustodyError> {
+    let ManagedIssue {
+        organization,
+        authority_id,
+        ca,
+        request,
+        renew_before_seconds,
+        actor,
+        renewed_from,
+    } = issue;
     let key = sealing_key(state)?;
     let lifetime = i64::try_from(request.ttl.as_secs()).unwrap_or(i64::MAX);
     let renew_before_seconds = converging_renew_before(renew_before_seconds, lifetime)?;
@@ -236,22 +252,15 @@ pub async fn issue_managed(
     // NOT NULL with a unique foreign key, so a renewal is auditable as a
     // request in exactly the way a first issuance is.
     let request_id = format!("certificate-request:{}", uuid::Uuid::new_v4());
-    let stored_request = StoredCertificateIssuanceRequest {
-        id: request_id.clone(),
-        organization_id: organization.clone(),
-        authority_id: authority_id.into(),
-        request_digest: custody_digest(&organization, authority_id, &request_id, request),
-        idempotency_key: format!("managed:{request_id}"),
-        created_by: actor.into(),
-        state: "created".into(),
-        common_name: request.common_name.clone(),
-        san_json: san_json.clone(),
-        delivery: None,
-        expires_at: (now + Duration::minutes(REQUEST_TTL_MINUTES)).to_rfc3339(),
-        version: 1,
-        created_at: now.to_rfc3339(),
-        updated_at: now.to_rfc3339(),
-    };
+    let stored_request = issuance_request_row(&IssuanceRequestRow {
+        request_id: &request_id,
+        organization: &organization,
+        authority_id,
+        request,
+        san_json: &san_json,
+        actor,
+        now,
+    });
     if !state
         .db
         .insert_certificate_issuance_request(&stored_request)
@@ -273,40 +282,17 @@ pub async fn issue_managed(
     .map_err(|error| CustodyError::Storage(anyhow::anyhow!("{error}")))?;
 
     let stamp = now.to_rfc3339();
-    let certificate = StoredManagedCertificate {
-        id: certificate_id.clone(),
-        organization_id: organization.clone(),
-        authority_id: authority_id.into(),
-        request_id: request_id.clone(),
-        certificate_digest: format!(
-            "sha256:{}",
-            hex::encode(Sha256::digest(material.certificate.as_bytes()))
-        ),
-        serial_number: material.serial.clone(),
-        common_name: material.common_name.clone(),
+    let certificate = managed_certificate_row(ManagedCertificateRow {
+        certificate_id: &certificate_id,
+        organization: &organization,
+        authority_id,
+        request_id: &request_id,
+        material: &material,
         san_json,
-        not_before: material.not_before.clone(),
-        expires_at: material.not_after.clone(),
-        status: "active".into(),
-        application_id: None,
-        profile_id: None,
-        source: "issued".into(),
-        enrollment_method: Some("api".into()),
-        metadata_json: "{}".into(),
-        key_algorithm: None,
-        signature_algorithm: None,
-        fingerprint_sha256: None,
-        chain_pem: Some(material.ca_certificate.clone()),
-        renewed_from_id: renewed_from.map(str::to_string),
-        renewed_by_id: None,
-        auto_renew_enabled: true,
-        renew_before_seconds: Some(renew_before_seconds),
-        revocation_reason: None,
-        revoked_at: None,
-        version: 1,
-        created_at: stamp.clone(),
-        updated_at: stamp.clone(),
-    };
+        renewed_from,
+        renew_before_seconds,
+        stamp: &stamp,
+    });
     let sealed_key = StoredManagedCertificateKey {
         id: format!("managed-key:{certificate_id}"),
         organization_id: organization.clone(),
@@ -406,6 +392,92 @@ fn inherited_ttl(previous: &StoredManagedCertificate) -> std::time::Duration {
         .unwrap_or(dev_pki::DEFAULT_TTL)
 }
 
+struct IssuanceRequestRow<'a> {
+    request_id: &'a str,
+    organization: &'a str,
+    authority_id: &'a str,
+    request: &'a dev_pki::IssueRequest,
+    san_json: &'a str,
+    actor: &'a str,
+    now: DateTime<Utc>,
+}
+
+/// Every certificate row needs its own issuance request: `request_id` is NOT
+/// NULL with a unique foreign key, so a renewal is auditable as a request in
+/// exactly the way a first issuance is.
+fn issuance_request_row(row: &IssuanceRequestRow<'_>) -> StoredCertificateIssuanceRequest {
+    StoredCertificateIssuanceRequest {
+        id: row.request_id.to_string(),
+        organization_id: row.organization.to_string(),
+        authority_id: row.authority_id.into(),
+        request_digest: custody_digest(
+            row.organization,
+            row.authority_id,
+            row.request_id,
+            row.request,
+        ),
+        idempotency_key: format!("managed:{}", row.request_id),
+        created_by: row.actor.into(),
+        state: "created".into(),
+        common_name: row.request.common_name.clone(),
+        san_json: row.san_json.to_string(),
+        delivery: None,
+        expires_at: (row.now + Duration::minutes(REQUEST_TTL_MINUTES)).to_rfc3339(),
+        version: 1,
+        created_at: row.now.to_rfc3339(),
+        updated_at: row.now.to_rfc3339(),
+    }
+}
+
+struct ManagedCertificateRow<'a> {
+    certificate_id: &'a str,
+    organization: &'a str,
+    authority_id: &'a str,
+    request_id: &'a str,
+    material: &'a dev_pki::IssuedCert,
+    san_json: String,
+    renewed_from: Option<&'a str>,
+    renew_before_seconds: i64,
+    stamp: &'a str,
+}
+
+fn managed_certificate_row(row: ManagedCertificateRow<'_>) -> StoredManagedCertificate {
+    StoredManagedCertificate {
+        id: row.certificate_id.to_string(),
+        organization_id: row.organization.to_string(),
+        authority_id: row.authority_id.into(),
+        request_id: row.request_id.to_string(),
+        certificate_digest: format!(
+            "sha256:{}",
+            hex::encode(Sha256::digest(row.material.certificate.as_bytes()))
+        ),
+        serial_number: row.material.serial.clone(),
+        common_name: row.material.common_name.clone(),
+        san_json: row.san_json,
+        not_before: row.material.not_before.clone(),
+        expires_at: row.material.not_after.clone(),
+        status: "active".into(),
+        application_id: None,
+        profile_id: None,
+        source: "issued".into(),
+        enrollment_method: Some("api".into()),
+        metadata_json: "{}".into(),
+        key_algorithm: None,
+        signature_algorithm: None,
+        fingerprint_sha256: None,
+        chain_pem: Some(row.material.ca_certificate.clone()),
+        renewed_from_id: row.renewed_from.map(str::to_string),
+        renewed_by_id: None,
+        auto_renew_enabled: true,
+        renew_before_seconds: Some(row.renew_before_seconds),
+        revocation_reason: None,
+        revoked_at: None,
+        version: 1,
+        created_at: row.stamp.to_string(),
+        updated_at: row.stamp.to_string(),
+    }
+}
+
 /// Reissue a certificate the host holds the key for.
 ///
 /// The successor inherits the predecessor's subject, SANs, validity span, and
@@ -448,15 +520,17 @@ pub async fn renew_managed(
     };
     let renewed = issue_managed(
         state,
-        organization,
-        &authority_id,
-        &ca,
-        &request,
-        previous
-            .renew_before_seconds
-            .unwrap_or(opensesame_lifecycle::DEFAULT_RENEW_BEFORE_SECONDS),
-        "lifecycle-responder",
-        Some(certificate_id),
+        ManagedIssue {
+            organization,
+            authority_id: &authority_id,
+            ca: &ca,
+            request: &request,
+            renew_before_seconds: previous
+                .renew_before_seconds
+                .unwrap_or(opensesame_lifecycle::DEFAULT_RENEW_BEFORE_SECONDS),
+            actor: "lifecycle-responder",
+            renewed_from: Some(certificate_id),
+        },
     )
     .await?;
 

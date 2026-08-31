@@ -375,7 +375,19 @@ impl Db {
         Ok(rows.iter().map(watermark_from_row).collect())
     }
 
-    /// Advance one track's watermark. Idempotent by primary key.
+    /// Claim one track's rung by advancing its watermark.
+    ///
+    /// Returns `true` when this caller advanced it, and `false` when the rung
+    /// was already recorded — by an earlier pass, or by another gateway process
+    /// racing the same scan. The table's own comment says a rung fires exactly
+    /// once; this is what makes that true across processes, because the write
+    /// is the claim rather than a note taken after the fact. A caller that acts
+    /// on the subject must act only when it won (ADR 0073, ADR 0074).
+    ///
+    /// The `WHERE` mirrors `newly_crossed` + `Watermarks::effective` exactly: a
+    /// rung is new when the subject's expiry changed (the ladder reset) or the
+    /// incoming threshold is strictly further down the ladder. Any other write
+    /// is a duplicate and claims nothing.
     ///
     /// # Errors
     ///
@@ -385,14 +397,16 @@ impl Db {
         &self,
         mark: &StoredLifecycleWatermark,
         now: DateTime<Utc>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<bool> {
         let now = now.to_rfc3339();
-        sqlx::query(
+        let advanced = sqlx::query(
             "INSERT INTO lifecycle_watermarks (organization_id, subject_kind, subject_id, track, stage, threshold_seconds, expires_at, created_at, updated_at) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(organization_id, subject_kind, subject_id, track) DO UPDATE SET \
                stage = excluded.stage, threshold_seconds = excluded.threshold_seconds, \
-               expires_at = excluded.expires_at, updated_at = excluded.updated_at",
+               expires_at = excluded.expires_at, updated_at = excluded.updated_at \
+             WHERE lifecycle_watermarks.expires_at <> excluded.expires_at \
+                OR excluded.threshold_seconds < lifecycle_watermarks.threshold_seconds",
         )
         .bind(&mark.organization_id)
         .bind(&mark.subject_kind)
@@ -405,8 +419,9 @@ impl Db {
         .bind(&now)
         .execute(&self.pool)
         .await
-        .context("record lifecycle watermark")?;
-        Ok(())
+        .context("record lifecycle watermark")?
+        .rows_affected();
+        Ok(advanced == 1)
     }
 
     /// Forget a subject's watermarks — used when the subject itself is gone,
@@ -878,6 +893,83 @@ mod tests {
             .unwrap()
             .is_empty());
         assert!(!db.delete_lifecycle_hook(ORG, "hook:1").await.unwrap());
+    }
+
+    /// The write is the claim: a rung already recorded advances nothing, so a
+    /// second caller learns it lost and must not act on the subject.
+    #[tokio::test]
+    async fn a_recorded_rung_is_claimed_exactly_once() {
+        let db = seeded_db().await;
+        let rung = watermark("renewal", "renewal", 604_800);
+
+        assert!(
+            db.record_lifecycle_watermark(&rung, now()).await.unwrap(),
+            "the first caller claims the rung"
+        );
+        assert!(
+            !db.record_lifecycle_watermark(&rung, now()).await.unwrap(),
+            "an identical rung claims nothing"
+        );
+    }
+
+    /// Descending the ladder is a new rung; climbing back up is not. This
+    /// mirrors `newly_crossed`, which fires a stage only while its threshold is
+    /// strictly below the watermark.
+    #[tokio::test]
+    async fn only_a_lower_threshold_claims_the_next_rung() {
+        let db = seeded_db().await;
+        assert!(db
+            .record_lifecycle_watermark(&watermark("alert", "notice", 2_592_000), now())
+            .await
+            .unwrap());
+
+        assert!(
+            db.record_lifecycle_watermark(&watermark("alert", "warning", 604_800), now())
+                .await
+                .unwrap(),
+            "a threshold further down the ladder is a new rung"
+        );
+        assert!(
+            !db.record_lifecycle_watermark(&watermark("alert", "notice", 2_592_000), now())
+                .await
+                .unwrap(),
+            "a threshold already passed claims nothing"
+        );
+    }
+
+    /// A renewed subject resets its ladder, so the same threshold claims again
+    /// against the new expiry — matching `Watermarks::effective`, which ignores
+    /// a watermark recorded for a different `expires_at`.
+    #[tokio::test]
+    async fn a_new_expiry_resets_the_ladder() {
+        let db = seeded_db().await;
+        let first = watermark("renewal", "renewal", 604_800);
+        assert!(db.record_lifecycle_watermark(&first, now()).await.unwrap());
+        assert!(!db.record_lifecycle_watermark(&first, now()).await.unwrap());
+
+        let mut renewed = first.clone();
+        renewed.expires_at = "2027-09-30T00:00:00+00:00".into();
+        assert!(
+            db.record_lifecycle_watermark(&renewed, now())
+                .await
+                .unwrap(),
+            "a new expiry is a new ladder, so the rung claims again"
+        );
+    }
+
+    /// Two processes racing one rung: exactly one may act. This is the defect
+    /// the claim exists for — without it both renew the same certificate.
+    #[tokio::test]
+    async fn concurrent_callers_claim_a_rung_once() {
+        let db = seeded_db().await;
+        let rung = watermark("renewal", "renewal", 604_800);
+
+        let (first, second) = tokio::join!(
+            db.record_lifecycle_watermark(&rung, now()),
+            db.record_lifecycle_watermark(&rung, now())
+        );
+        let won = usize::from(first.unwrap()) + usize::from(second.unwrap());
+        assert_eq!(won, 1, "exactly one caller may claim the rung");
     }
 
     #[tokio::test]

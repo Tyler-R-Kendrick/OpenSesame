@@ -268,11 +268,23 @@ A policy that exhausts its attempts **parks**: it stops retrying, stays
 rotation policy that silently switches itself off is the ADR 0052 §11 failure
 mode — the operator believes credentials are rotating and they are not.
 
-One residual, recorded rather than fixed here: the same unconditional-respond
-path applies to every other lifecycle subject, so certificate renewal can still
-double-fire across processes. That is a defect in ADR 0074's dispatcher, not in
-rotation, and widening this change into it would have been a change nobody
-reviewed.
+**The dispatcher claims too, so this holds for every subject.** The same
+unconditional-respond path applied to certificates, authorities and signers, so
+certificate renewal double-fired across processes for exactly the same reason.
+`lifecycle::dispatch::publish` now treats the watermark write as the claim: only
+the process that advanced it runs the responder.
+
+The `WHERE` on that write mirrors `newly_crossed` and `Watermarks::effective`
+exactly — a rung is new when the subject's expiry changed (the ladder reset) or
+the incoming threshold is strictly further down. Anything else advances nothing
+and claims nothing.
+
+Publishing is deliberately *not* gated. A crash between emit and record
+re-notifies rather than drops, which is the safe direction for an expiry notice
+and what subscribers are built for. Acting is the opposite: renewing a
+certificate twice is a real fault. So the claim gates the responder and nothing
+else, and a watermark write that errors stands the responder down rather than
+letting it act unclaimed.
 
 **T2 verification is now real.** `execute_connection_rotation` used to record
 `verify_skipped: provider catalog exposes no no-op verification invoke` and walk
