@@ -174,9 +174,10 @@ plane truth (connectivity, notifications, lock) at the foot. The vault adds
 a 21rem list column between rail and detail, giving ranger's three panes;
 the other sections read as a single 60rem flowing document of chapters.
 
-Below 900px the rail and statusline give way to a slim top bar (identity,
-connectivity, lock) and a five-item tab bar, and the vault collapses to one
-pane at a time with a back link. Because the rail carries the vault's
+Below 900px the rail gives way to a slim top bar (identity and the lock),
+the statusline keeps carrying plane truth, a five-item tab bar closes the
+frame, and the vault collapses to one pane at a time with a back key and a
+back swipe. Because the rail carries the vault's
 filters, the list header grows a scrolling chip row at that breakpoint —
 nothing in the rail may become unreachable.
 
@@ -212,6 +213,31 @@ line always shows the focused path, item count, and active filter (or the
 live query). Pointer access remains complete: rows click, directories
 toggle, a `⋯` menu on the cursor or hovered row carries the verbs, and the
 `/` and `?` key chips in the path strip are buttons.
+
+## Touch
+
+A finger is not a mouse pointer, and the phone is not a narrow desktop.
+
+- **Nothing may make the document wider than the device.** Every pane in the
+  grid/flex chain is pinned to `min-width: 0` so a `nowrap` row truncates
+  instead of dictating the page width; a page that overflows sideways gets
+  shrink-to-fit, which scales every target away from where it is drawn.
+- **44px is the floor.** Under `(pointer: coarse)` every row, key, chip and
+  tab is at least 2.75rem. The mono density survives the change: the row
+  grows, the type does not.
+- **Nothing waits to find out it was a tap.** Interactive elements set
+  `touch-action: manipulation`, drop the platform tap highlight, and answer
+  with a `:active` ink instead.
+- **Every hover-only affordance has a touch twin.** The `⋯` row menu is
+  revealed by hover for a mouse and by a long press for a finger; the back
+  key is also a rightward swipe on the pane. Nothing is gesture-only.
+- **The frame is rows, not overlays.** The tab bar is a row of the app grid
+  rather than a bar floating over the content, so nothing scrolls under it,
+  and `env(safe-area-inset-*)` keeps it clear of the home indicator.
+- **Scrollers contain their own overscroll** and never hand a flick to the
+  page behind them.
+- **The keyboard is not summoned uninvited**: a form does not autofocus on a
+  touch pointer, where it would throw the keyboard over the record.
 
 ## Elevation & Depth
 

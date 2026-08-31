@@ -562,14 +562,15 @@ describe("VaultWelcome", () => {
     vi.clearAllMocks();
   });
 
-  it("offers the first-login path on an empty vault", () => {
+  it("says where items live on an empty vault, without a second empty state", () => {
     renderWelcome();
-    expect(screen.getByText("Nothing sealed on this device")).toBeTruthy();
+    // The list pane states the empty vault and carries the actions that fill
+    // it; the buffer says what belongs here and offers nothing to argue with.
+    expect(screen.getByText(/Human items live on this device/)).toBeTruthy();
     expect(
-      screen
-        .getByRole("link", { name: /Add your first login/i })
-        .getAttribute("href"),
-    ).toBe("/vault/new/login");
+      screen.queryByRole("link", { name: /Add your first login/i }),
+    ).toBeNull();
+    expect(screen.queryByText("Nothing sealed on this device")).toBeNull();
   });
 
   it("states the seal and hands over the keys — no dashboard", () => {
