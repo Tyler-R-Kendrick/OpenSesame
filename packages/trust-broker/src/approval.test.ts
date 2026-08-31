@@ -115,6 +115,19 @@ const inAppHighAssurance = {
   now: NOW,
 };
 
+/**
+ * The in-app base without the two fields only an in-app ceremony can supply.
+ *
+ * Omitted rather than set to `undefined`: under `exactOptionalPropertyTypes`
+ * those are different types, and "absent" is what an external callback
+ * actually looks like when it reaches the evaluator.
+ */
+const {
+  activationAuthentication: _noFacts,
+  activation: _noActivation,
+  ...externalBase
+} = inAppHighAssurance;
+
 describe("evaluateApprovalCeremony", () => {
   it("contract: an in-app transaction-bound passkey approval is allowed", () => {
     const result = evaluateApprovalCeremony(inAppHighAssurance);
@@ -136,7 +149,7 @@ describe("evaluateApprovalCeremony", () => {
     // The headline claim. Every verified fact about the callback is true and
     // it still cannot clear a bar that requires an origin-bound credential.
     const result = evaluateApprovalCeremony({
-      ...inAppHighAssurance,
+      ...externalBase,
       path: "external_direct",
       channelKind: "slack",
       policy: {
@@ -145,8 +158,6 @@ describe("evaluateApprovalCeremony", () => {
         directApprovalChannels: ["slack"],
         requireTransactionBoundActivation: false,
       },
-      activationAuthentication: undefined,
-      activation: undefined,
       binding: binding(),
       claimedIdentity: {
         providerId: "slack",
@@ -165,7 +176,7 @@ describe("evaluateApprovalCeremony", () => {
 
   it("contract: the same callback settles a low-risk policy that permits it", () => {
     const result = evaluateApprovalCeremony({
-      ...inAppHighAssurance,
+      ...externalBase,
       path: "external_direct",
       channelKind: "slack",
       policy: {
@@ -174,8 +185,6 @@ describe("evaluateApprovalCeremony", () => {
         directApprovalChannels: ["slack"],
         requireTransactionBoundActivation: false,
       },
-      activationAuthentication: undefined,
-      activation: undefined,
       binding: binding(),
       claimedIdentity: {
         providerId: "slack",
@@ -196,7 +205,7 @@ describe("evaluateApprovalCeremony", () => {
     // external path derives its facts from the channel ceiling. Only an
     // activation the server itself verified may supply them.
     const withForgedFacts = evaluateApprovalCeremony({
-      ...inAppHighAssurance,
+      ...externalBase,
       path: "external_direct",
       channelKind: "slack",
       policy: {
@@ -206,8 +215,6 @@ describe("evaluateApprovalCeremony", () => {
         requireTransactionBoundActivation: false,
       },
       // No activation ran, so no verified facts exist to pass.
-      activationAuthentication: undefined,
-      activation: undefined,
       binding: binding(),
       claimedIdentity: {
         providerId: "slack",
@@ -224,7 +231,7 @@ describe("evaluateApprovalCeremony", () => {
 
   it("adversarial: a cross-tenant callback is refused", () => {
     const result = evaluateApprovalCeremony({
-      ...inAppHighAssurance,
+      ...externalBase,
       path: "external_direct",
       channelKind: "slack",
       policy: {
@@ -233,8 +240,6 @@ describe("evaluateApprovalCeremony", () => {
         directApprovalChannels: ["slack"],
         requireTransactionBoundActivation: false,
       },
-      activationAuthentication: undefined,
-      activation: undefined,
       binding: binding(),
       claimedIdentity: {
         providerId: "slack",
@@ -253,7 +258,7 @@ describe("evaluateApprovalCeremony", () => {
     // The default has to be the safe one. A route that forgets this field is
     // a route that did not check, and it must not be read as "fresh".
     const result = evaluateApprovalCeremony({
-      ...inAppHighAssurance,
+      ...externalBase,
       path: "external_direct",
       channelKind: "slack",
       policy: {
@@ -262,8 +267,6 @@ describe("evaluateApprovalCeremony", () => {
         directApprovalChannels: ["slack"],
         requireTransactionBoundActivation: false,
       },
-      activationAuthentication: undefined,
-      activation: undefined,
       binding: binding(),
       claimedIdentity: {
         providerId: "slack",

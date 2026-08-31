@@ -243,9 +243,34 @@ async function persistExpiry(
   }
 }
 
-function toResponse(request: AuthorizationRequest) {
+/**
+ * Project a request for a client.
+ *
+ * `approval` is a *summary*, computed from the same resolver settlement uses,
+ * so an inbox can send a request that needs a ceremony to the review screen
+ * rather than offering an Approve button the server will refuse. It is not
+ * the gate and must never be read as one: the policy is resolved again at
+ * decision time, because the answer can change between the list being drawn
+ * and the button being pressed.
+ */
+function toResponse(request: AuthorizationRequest, ctx?: AppContext) {
+  // Same resolver settlement uses, so the summary a client sees and the gate
+  // it will meet cannot describe different policies.
+  const resolved = ctx ? policyFor(ctx, request) : undefined;
   return AuthorizationRequestResponseSchema.parse({
     authReqId: request.id,
+    requesterRef: request.requesterRef,
+    ...(resolved
+      ? {
+          approval: {
+            riskClass: resolved.policy.riskClass,
+            requireTransactionBoundActivation:
+              resolved.policy.requireTransactionBoundActivation,
+            requireComparison: resolved.policy.requireComparison,
+            required: requiredReasonCodes(resolved.policy),
+          },
+        }
+      : undefined),
     status: request.status,
     bindingMessage: request.bindingMessage,
     requestDigest: request.requestDigest,
@@ -411,7 +436,7 @@ authorizationRequestRoutes.post(
         row.expiresAt.getTime() > now.getTime() &&
         row.requestDigest === digest,
     );
-    if (duplicate) return c.json(toResponse(duplicate), 200);
+    if (duplicate) return c.json(toResponse(duplicate, ctx), 200);
 
     const windowStart = now.getTime() - PROMPT_WINDOW_MS;
     const inWindow = recent.filter(
@@ -483,7 +508,7 @@ authorizationRequestRoutes.post(
       },
     });
 
-    return c.json(toResponse(created), 201);
+    return c.json(toResponse(created, ctx), 201);
   },
 );
 
@@ -506,7 +531,7 @@ authorizationRequestRoutes.get("/", requirePrincipal(), async (c) => {
   const projected = await Promise.all(
     rows.map((row) => persistExpiry(ctx, row, now)),
   );
-  return c.json({ requests: projected.map(toResponse) });
+  return c.json({ requests: projected.map((row) => toResponse(row, ctx)) });
 });
 
 /**
@@ -555,7 +580,7 @@ authorizationRequestRoutes.get("/:id", requirePrincipal(), async (c) => {
   const callerId = authenticatedPrincipalId(c.get("principalId"));
   const row = await loadForCaller(ctx, c.req.param("id") ?? "", callerId);
   if (!row) return c.json({ error: "not_found" }, 404);
-  return c.json(toResponse(await persistExpiry(ctx, row, ctx.clock())));
+  return c.json(toResponse(await persistExpiry(ctx, row, ctx.clock()), ctx));
 });
 
 /**
@@ -638,7 +663,7 @@ authorizationRequestRoutes.get("/:id/poll", requirePrincipal(), async (c) => {
     // retain one per request for the life of the process.
     POLL_STATE.delete(id);
   }
-  return c.json(toResponse(current));
+  return c.json(toResponse(current, ctx));
 });
 
 /* ------------------------------------------------------------------ *
@@ -1207,7 +1232,7 @@ function settlementResponse(
 ) {
   if (outcome.ok) {
     POLL_STATE.delete(id);
-    return c.json(toResponse(outcome.request));
+    return c.json(toResponse(outcome.request, c.get("ctx")));
   }
   if (outcome.reason === "domain") {
     return c.json(
