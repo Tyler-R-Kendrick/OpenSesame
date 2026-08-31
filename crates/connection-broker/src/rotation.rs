@@ -392,7 +392,7 @@ impl ConnectionBroker {
             ));
         }
         // A web-login run is observed, and only its owner may observe it
-        // (ADR 0078 §8). A policy with no owner would produce runs nobody is
+        // (ADR 0081 §8). A policy with no owner would produce runs nobody is
         // entitled to watch and nobody can be notified about — so it is refused
         // here, at the one moment a person is present to answer, rather than
         // discovered when a run gets stuck at four in the morning.

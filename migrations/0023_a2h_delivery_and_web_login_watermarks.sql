@@ -1,5 +1,5 @@
 -- A2H becomes a hook delivery mode, and web logins become a watchable subject
--- kind (ADR 0078, A2H v1.0).
+-- kind (ADR 0081, A2H v1.0).
 --
 -- Two rebuilds, because SQLite cannot alter a CHECK in place.
 --

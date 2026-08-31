@@ -1,4 +1,4 @@
-//! Fan-out for the `agent.*` feed (ADR 0078).
+//! Fan-out for the `agent.*` feed (ADR 0081).
 //!
 //! Deliberately the *same* subscription table, the same delivery ledger and the
 //! same Standard Webhooks worker the expiry feed uses. A run that blocks is

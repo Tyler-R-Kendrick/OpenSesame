@@ -1,5 +1,5 @@
 -- Web-login rotation targets, and the sealed observation log behind live
--- session preview (ADR 0076, ADR 0078).
+-- session preview (ADR 0076, ADR 0081).
 --
 -- Two jobs:
 --   1. Widen rotation_policies.target_kind to admit 'web_login'.
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS observation_runs (
   -- A driver is recorded exactly when the state says one is driving. Neither
   -- half can exist without the other, so "who did this" is never unanswerable.
   CHECK ((control_state = 'human_driving') = (lease_holder IS NOT NULL)),
-  -- A lease without an expiry is a lease that never times out, and ADR 0078 §7
+  -- A lease without an expiry is a lease that never times out, and ADR 0081 §7
   -- turns on expiry parking the run.
   CHECK ((lease_holder IS NULL) OR (lease_expires_at IS NOT NULL))
 );
@@ -117,7 +117,7 @@ CREATE INDEX IF NOT EXISTS idx_observation_runs_expiry
   ON observation_runs(expires_at);
 
 -- The log itself. Live tails it, replay seeks in it — one artifact, one
--- retention, one redaction path (ADR 0078 §1).
+-- retention, one redaction path (ADR 0081 §1).
 --
 -- There is deliberately NO plaintext column. The runner seals each event to the
 -- owner's viewer key before it reaches here, so the gateway relays a body it

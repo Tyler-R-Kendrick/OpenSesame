@@ -235,7 +235,7 @@ async fn publish_agent_phase(
     outcome: &Outcome,
 ) {
     // Without an owner there is nobody entitled to observe the run and nobody
-    // to notify (ADR 0078 §8). `upsert_rotation_policy` refuses a web-login
+    // to notify (ADR 0081 §8). `upsert_rotation_policy` refuses a web-login
     // policy with no owner, so reaching here means a policy predating that rule
     // or an operator-triggered run — either way, saying nothing to nobody beats
     // addressing a notification at the whole organization.

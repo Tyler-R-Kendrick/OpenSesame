@@ -1,4 +1,4 @@
-//! The callback an A2H gateway posts a human's reply to (ADR 0078, A2H v1.0).
+//! The callback an A2H gateway posts a human's reply to (ADR 0081, A2H v1.0).
 //!
 //! Nothing here trusts the caller. The gateway sits between a run and the person
 //! who owns it, so a forged reply is a way to cancel somebody's rotation, and
