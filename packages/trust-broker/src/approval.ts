@@ -53,6 +53,16 @@ export interface ApprovalCeremonyInput {
   approverPrincipalId: PrincipalId;
   /** The principal the request is addressed to. */
   requestPrincipalId: PrincipalId;
+  /**
+   * The request being settled.
+   *
+   * Supplied by the caller from the row it loaded, never read back out of the
+   * activation. Taking it from the activation would compare the activation
+   * against itself, and an activation minted for one request would settle any
+   * other — which is exactly the cross-transaction replay this field exists
+   * to refuse.
+   */
+  authReqId: string;
   evidence: IdentityEvidence[];
   trustSession?: TrustSession;
   /**
@@ -168,7 +178,7 @@ export function evaluateApprovalCeremony(
   if (policy.requireTransactionBoundActivation) {
     const act = evaluateActivation({
       ...(input.activation ? { activation: input.activation } : undefined),
-      authReqId: input.activation?.authReqId ?? "",
+      authReqId: input.authReqId,
       principalId: input.approverPrincipalId,
       decision: input.decision,
       expectedTransactionDigest: input.expectedTransactionDigest,
