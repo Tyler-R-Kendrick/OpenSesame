@@ -237,14 +237,53 @@ The new crate must **not** become a daemon dependency —
 `uds-authn` trees, and ADR 0053 §2's rule is that the daemon depends on none of
 this. A browser driver in the daemon's tree would be a large regression.
 
-Two pre-existing gaps are worth fixing in the same pass, because web-login
-rotation makes both worse:
+## Two gaps that are now closed
 
-- **The scheduler has no claim/lease.** Unlike `backup.rs` and `sync_actor.rs`,
-  `rotation_scheduler.rs` has no lease, no backoff and no dead-letter, so two
-  gateway processes both execute the same due policy. Two concurrent password
-  changes on one account is a lockout.
-- **T2 is unwired.** `crates/invoke-through` is a dependency of `apps/daemon`
-  only. Rotation never reaches it, so `execute_connection_rotation` is an OAuth
-  refresh and nothing else, and `CandidateVerified` is the honest placeholder
-  `verify_skipped: provider catalog exposes no no-op verification invoke`.
+Both were pre-existing defects that web-login rotation would have made
+dangerous. Both are fixed; they are recorded here because the reasoning is the
+same reasoning the tiers above rely on.
+
+**The scheduler now claims and leases.** `rotation_scheduler.rs` previously
+listed enabled policies and executed each due one with no lease, so two gateway
+processes both executed the same policy — for a password change, a lockout. It
+now claims through `store::claim_due_rotation_policies`, mirroring the
+claim/lease sagas in `backup.rs` and `sync_actor.rs`, with exponential backoff
+and an attempt cap.
+
+Due-ness moved into the SQL predicate, because a claim that selects and then
+filters in Rust is not atomic. `policy_due_at` remains the pure statement of the
+same rule, and a test pins the two against each other over a case table — two
+statements of one rule drift, and a drift here either rotates a credential early
+or never rotates it at all.
+
+A policy that exhausts its attempts **parks**: it stops retrying, stays
+`enabled`, and raises `needs_attention`. It is deliberately not auto-disabled. A
+rotation policy that silently switches itself off is the ADR 0052 §11 failure
+mode — the operator believes credentials are rotating and they are not.
+
+**T2 verification is now real.** `execute_connection_rotation` used to record
+`verify_skipped: provider catalog exposes no no-op verification invoke` and walk
+`CandidateVerified` anyway. Honest, but it meant the machine's Kani-proven
+verify-before-revoke edge proved nothing.
+
+The broker now calls the provider's own read-only identity endpoint through the
+`invoke-through` fences before activating a candidate. Three properties matter:
+
+- **The daemon's egress allowlist is untouched.** `EGRESS_RULES` is a static
+  that `apps/daemon` links and serves from `POST /v1/invoke_through`; adding
+  providers to it would widen that surface for callers who never asked. The
+  broker passes its own `ROTATION_EGRESS_RULES` through `Invoker::with_rules`,
+  and a test pins the daemon's table to `github` only.
+- **The fence bites before the credential is opened.** `preflight` runs first;
+  `resolve_bearer` is only reached once it passes, so a denied verification
+  never decrypts the credential. A `pact::assert_source_order` test pins that
+  order in the source.
+- **A rejection parks the job.** `refresh` has already activated the new token,
+  so a rejection cannot be rolled back. The job goes to
+  `ReconciliationRequired` with the previous value retained — the machine
+  permits `CandidateInstalled → ReconciliationRequired` for exactly this case.
+
+Verify endpoints ship as catalog data, and only for providers whose documented
+endpoint is unambiguous. A provider without one still records the honest skip:
+an invented path turns a verification into a false negative, which is worse than
+admitting we cannot check.

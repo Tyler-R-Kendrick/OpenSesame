@@ -23,6 +23,8 @@ pub mod installation;
 pub mod integration;
 pub mod model;
 pub mod rotation;
+pub mod rotation_egress;
+pub mod rotation_verify;
 pub mod secret_config;
 pub mod store;
 pub mod sync_target;

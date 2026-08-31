@@ -52,7 +52,10 @@
           "name": "workflow",
           "sensitive": true
         }
-      ]
+      ],
+      "verify": {
+        "path": "/user"
+      }
     },
     {
       "auth": {
@@ -94,7 +97,10 @@
           "name": "api",
           "sensitive": true
         }
-      ]
+      ],
+      "verify": {
+        "path": "/api/v4/user"
+      }
     },
     {
       "auth": {
@@ -640,7 +646,10 @@
       "id": "stripe",
       "operations": ["customer.read", "charge.read", "invoice.read"],
       "provenance_url": "https://docs.stripe.com/keys",
-      "scopes": []
+      "scopes": [],
+      "verify": {
+        "path": "/v1/account"
+      }
     },
     {
       "auth": {
@@ -659,7 +668,10 @@
       "id": "openai",
       "operations": ["completion.create", "embedding.create", "model.list"],
       "provenance_url": "https://platform.openai.com/docs/api-reference/authentication",
-      "scopes": []
+      "scopes": [],
+      "verify": {
+        "path": "/v1/models"
+      }
     },
     {
       "auth": {
@@ -991,7 +1003,10 @@
         "dns_record.write",
         "account.read",
         "acme_dns_challenge.write"
-      ]
+      ],
+      "verify": {
+        "path": "/client/v4/user/tokens/verify"
+      }
     },
     {
       "id": "cloudflare-origin-ca",
@@ -1078,7 +1093,10 @@
         "domain.read",
         "env.set",
         "secrets.sync"
-      ]
+      ],
+      "verify": {
+        "path": "/v2/user"
+      }
     },
     {
       "id": "render",
@@ -1479,7 +1497,10 @@
         "project.read",
         "dns.record.create",
         "dns.record.delete"
-      ]
+      ],
+      "verify": {
+        "path": "/v2/account"
+      }
     },
     {
       "id": "railway",

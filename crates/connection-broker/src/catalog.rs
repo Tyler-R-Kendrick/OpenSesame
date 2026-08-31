@@ -234,8 +234,19 @@ pub struct ScopeDef {
     pub default: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
+/// A read-only endpoint that answers "does this credential still work?".
+///
+/// Deliberately narrow: `GET` only, no body, no query, and the host comes from
+/// the provider's own `egress.authorities` rather than from this block — so a
+/// verify entry can never reach a host the provider's egress does not already
+/// name.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct VerifySpec {
+    /// Absolute path on the provider's first egress authority.
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct EgressSpec {
     pub scheme: String,
     pub authorities: Vec<String>,
@@ -296,6 +307,13 @@ pub struct Provider {
     /// Present when the provider can receive sealed uploads (ADR 0065 §6).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub attachment_upload: Option<AttachmentUploadShape>,
+    /// Present when the provider exposes a side-effect-free authenticated
+    /// endpoint that proves a credential works (ADR 0073). Absent means
+    /// rotation records an honest `verify_skipped`, never a guessed endpoint:
+    /// an invented path turns a verification into a false negative, which is
+    /// worse than admitting we cannot check.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verify: Option<VerifySpec>,
     #[serde(default)]
     pub integration_configuration_fields: Vec<ConfigurationFieldDef>,
     #[serde(default)]

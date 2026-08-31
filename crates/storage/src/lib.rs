@@ -978,6 +978,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0016_certificate_manager",
         include_str!("../../../migrations/0016_certificate_manager.sql"),
     ),
+    (
+        "0017_rotation_leases",
+        include_str!("../../../migrations/0017_rotation_leases.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.

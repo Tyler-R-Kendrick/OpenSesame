@@ -122,6 +122,36 @@ mod pact_coverage {
         );
     }
 
+    /// ADR 0073: the egress fence must bite before the sealed credential is
+    /// opened, so a denied verification never causes the credential to be
+    /// decrypted at all. `Invoker` splits preflight from execute precisely so
+    /// this order is expressible; this pins that the broker keeps it.
+    #[test]
+    fn rotation_verify_preflights_before_opening_the_credential() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("../../../crates/connection-broker/src/rotation_verify.rs"),
+            &[
+                "let prepared = match invoker.preflight(request) {",
+                "let Some(token) = self.resolve_bearer(row).await? else {",
+                "invoker.execute(&token, prepared).await",
+            ],
+        );
+    }
+
+    /// ADR 0073: rotation verifies before it activates, which is what makes the
+    /// machine's Kani-proven verify-before-revoke ordering mean something.
+    #[test]
+    fn rotation_verifies_before_activating_the_candidate() {
+        opensesame_host_core::pact::assert_source_order(
+            include_str!("../../../crates/connection-broker/src/rotation.rs"),
+            &[
+                "RotationState::CandidateInstalled,",
+                "verify_candidate(&context, state).await?;",
+                "RotationState::CandidateActivated,",
+            ],
+        );
+    }
+
     #[test]
     fn sync_blobs_require_session_before_opaque_contract() {
         opensesame_host_core::pact::assert_source_order(

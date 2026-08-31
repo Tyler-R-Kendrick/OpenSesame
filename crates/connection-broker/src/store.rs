@@ -2069,6 +2069,17 @@ pub struct RotationPolicyRow {
     pub interval_seconds: i64,
     pub last_rotated_at: Option<String>,
     pub enabled: bool,
+    /// Set while a scheduler process is executing this policy; a claim is only
+    /// granted once it has expired, so a crashed process releases by the clock.
+    pub lease_until: Option<String>,
+    /// Consecutive failed attempts; reset to 0 on success.
+    pub attempts: i64,
+    /// Earliest time this policy may be claimed again (exponential backoff).
+    pub next_attempt_at: Option<String>,
+    /// Attempts exhausted: stop retrying but stay enabled and visible.
+    pub needs_attention: bool,
+    /// Truncated, value-blind failure hint. Never a response body.
+    pub last_error: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -2087,6 +2098,42 @@ pub struct RotationJobRow {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Lease/backoff columns added by migration 0017 (ADR 0073), as
+/// `ALTER TABLE ... ADD COLUMN` fragments. Compile-time constants only — no
+/// caller data ever reaches this SQL.
+const ROTATION_POLICY_LEASE_COLUMNS: &[&str] = &[
+    "lease_until TEXT",
+    "attempts INTEGER NOT NULL DEFAULT 0",
+    "next_attempt_at TEXT",
+    "needs_attention INTEGER NOT NULL DEFAULT 0",
+    "last_error TEXT",
+];
+
+/// Adds one lease column, treating an existing column as success.
+///
+/// `SQLite` has no `ADD COLUMN IF NOT EXISTS`, and the duplicate-column error is
+/// the expected steady state once the column exists. Every other database error
+/// still propagates, so this stays a narrow idempotence shim rather than a
+/// blanket ignore.
+async fn add_rotation_policy_column(pool: &SqlitePool, column: &'static str) -> Result<()> {
+    // `column` is one of the compile-time constants above; no data is interpolated.
+    // ast-grep-ignore: sql-format-injection
+    let outcome = sqlx::query(&format!(
+        "ALTER TABLE rotation_policies ADD COLUMN {column}"
+    ))
+    .execute(pool)
+    .await;
+    match outcome {
+        Ok(_) => Ok(()),
+        Err(error) if is_duplicate_column(&error) => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn is_duplicate_column(error: &sqlx::Error) -> bool {
+    matches!(error, sqlx::Error::Database(db) if db.message().contains("duplicate column name"))
+}
+
 /// Ensures durable rotation policy and job schemas exist.
 ///
 /// # Errors
@@ -2102,15 +2149,34 @@ pub async fn ensure_rotation_schema(pool: &SqlitePool) -> Result<()> {
             interval_seconds INTEGER NOT NULL,
             last_rotated_at TEXT NULL,
             enabled INTEGER NOT NULL DEFAULT 1,
+            lease_until TEXT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
+            next_attempt_at TEXT NULL,
+            needs_attention INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
          )",
     )
     .execute(pool)
     .await?;
+    // A pool whose table predates migration 0017 (ADR 0073) is upgraded in
+    // place. `CREATE TABLE IF NOT EXISTS` above cannot add columns to a table
+    // that already exists, and this function is reachable on pools that never
+    // ran the embedded migrations (bare test pools), so both paths converge
+    // here rather than only in the migration.
+    for column in ROTATION_POLICY_LEASE_COLUMNS {
+        add_rotation_policy_column(pool, column).await?;
+    }
     sqlx::query(
         "CREATE INDEX IF NOT EXISTS idx_rotation_policies_org \
          ON rotation_policies(organization_id)",
+    )
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "CREATE INDEX IF NOT EXISTS idx_rotation_policies_claimable \
+         ON rotation_policies(enabled, next_attempt_at, lease_until)",
     )
     .execute(pool)
     .await?;
@@ -2147,6 +2213,11 @@ fn rotation_policy_from_row(row: &sqlx::sqlite::SqliteRow) -> RotationPolicyRow 
         interval_seconds: row.get("interval_seconds"),
         last_rotated_at: row.get("last_rotated_at"),
         enabled: row.get::<i64, _>("enabled") != 0,
+        lease_until: row.get("lease_until"),
+        attempts: row.get("attempts"),
+        next_attempt_at: row.get("next_attempt_at"),
+        needs_attention: row.get::<i64, _>("needs_attention") != 0,
+        last_error: row.get("last_error"),
         created_at: parse_time(&row.get::<String, _>("created_at")),
         updated_at: parse_time(&row.get::<String, _>("updated_at")),
     }
@@ -2167,7 +2238,8 @@ fn rotation_job_from_row(row: &sqlx::sqlite::SqliteRow) -> RotationJobRow {
 }
 
 const ROTATION_POLICY_COLUMNS: &str = "id, organization_id, target_kind, target_id, \
-     interval_seconds, last_rotated_at, enabled, created_at, updated_at";
+     interval_seconds, last_rotated_at, enabled, lease_until, attempts, next_attempt_at, \
+     needs_attention, last_error, created_at, updated_at";
 
 const ROTATION_JOB_COLUMNS: &str = "id, policy_id, organization_id, target_kind, target_id, \
      state, detail, created_at, updated_at";
@@ -2186,7 +2258,8 @@ pub async fn upsert_rotation_policy(pool: &SqlitePool, row: &RotationPolicyRow) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) \
          ON CONFLICT (id) DO UPDATE SET target_kind = excluded.target_kind, \
          target_id = excluded.target_id, interval_seconds = excluded.interval_seconds, \
-         enabled = excluded.enabled, updated_at = excluded.updated_at",
+         enabled = excluded.enabled, updated_at = excluded.updated_at, \
+         attempts = 0, needs_attention = 0, last_error = NULL, next_attempt_at = NULL",
     )
     .bind(&row.id)
     .bind(&row.organization_id)
@@ -2277,6 +2350,127 @@ pub async fn set_policy_last_rotated(
         .bind(id)
         .execute(pool)
         .await?;
+    Ok(())
+}
+
+/// Atomically claims the rotation policies that are due, stamping a lease on
+/// each (ADR 0073).
+///
+/// Due-ness lives in the SQL predicate, not in the caller, because a claim that
+/// selects and then filters in Rust is not atomic — two schedulers would both
+/// see the same policy as due. `rotation::policy_due_at` remains the pure
+/// statement of the same rule and is pinned against this predicate by test.
+///
+/// A claim is granted only when the previous lease has expired, so a scheduler
+/// that crashed mid-rotation releases its policy by the clock. A policy parked
+/// by `needs_attention` is never claimed: it stays enabled and visible, and an
+/// operator re-saving it clears the flag.
+///
+/// # Errors
+///
+/// Returns a database error when the claim transaction fails.
+pub async fn claim_due_rotation_policies(
+    pool: &SqlitePool,
+    limit: i64,
+    lease_seconds: i64,
+) -> Result<Vec<RotationPolicyRow>> {
+    ensure_rotation_schema(pool).await?;
+    let now = Utc::now();
+    let now_text = now.to_rfc3339();
+    let lease_until = (now + chrono::Duration::seconds(lease_seconds)).to_rfc3339();
+    let mut tx = pool.begin().await?;
+    // ROTATION_POLICY_COLUMNS is a compile-time constant; every value is bound.
+    // ast-grep-ignore: sql-format-injection
+    let rows = sqlx::query(&format!(
+        "SELECT {ROTATION_POLICY_COLUMNS} FROM rotation_policies \
+         WHERE enabled = 1 \
+           AND needs_attention = 0 \
+           AND (lease_until IS NULL OR lease_until <= ?1) \
+           AND ( \
+                 (next_attempt_at IS NOT NULL AND next_attempt_at <= ?1) \
+                 OR (next_attempt_at IS NULL AND ( \
+                       last_rotated_at IS NULL \
+                       OR (julianday(?1) - julianday(last_rotated_at)) * 86400.0 \
+                          >= interval_seconds \
+                    )) \
+               ) \
+         ORDER BY created_at ASC, id ASC LIMIT ?2"
+    ))
+    .bind(&now_text)
+    .bind(limit)
+    .fetch_all(&mut *tx)
+    .await?;
+    let claimed: Vec<RotationPolicyRow> = rows.iter().map(rotation_policy_from_row).collect();
+    for policy in &claimed {
+        sqlx::query("UPDATE rotation_policies SET lease_until = ?, updated_at = ? WHERE id = ?")
+            .bind(&lease_until)
+            .bind(&now_text)
+            .bind(&policy.id)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await?;
+    Ok(claimed)
+}
+
+/// Releases a claimed policy after a successful rotation: the lease drops, the
+/// failure counters reset, and the next attempt is scheduled one interval out.
+///
+/// # Errors
+///
+/// Returns a database error when the update fails.
+pub async fn release_rotation_policy_success(
+    pool: &SqlitePool,
+    id: &str,
+    rotated_at: DateTime<Utc>,
+    interval_seconds: i64,
+) -> Result<()> {
+    ensure_rotation_schema(pool).await?;
+    let next = rotated_at + chrono::Duration::seconds(interval_seconds.max(1));
+    sqlx::query(
+        "UPDATE rotation_policies SET lease_until = NULL, attempts = 0, needs_attention = 0, \
+         last_error = NULL, last_rotated_at = ?, next_attempt_at = ?, updated_at = ? \
+         WHERE id = ?",
+    )
+    .bind(rotated_at.to_rfc3339())
+    .bind(next.to_rfc3339())
+    .bind(Utc::now().to_rfc3339())
+    .bind(id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Releases a claimed policy after a failed rotation.
+///
+/// `next_attempt_at` is the backoff deadline; passing `None` parks the policy —
+/// it stops retrying, keeps `enabled = 1`, and raises `needs_attention` so the
+/// operator can see a rotation that is not happening. `last_error` must already
+/// be a truncated, value-blind hint.
+///
+/// # Errors
+///
+/// Returns a database error when the update fails.
+pub async fn release_rotation_policy_failure(
+    pool: &SqlitePool,
+    id: &str,
+    next_attempt_at: Option<DateTime<Utc>>,
+    last_error: &str,
+) -> Result<()> {
+    ensure_rotation_schema(pool).await?;
+    let parked = next_attempt_at.is_none();
+    sqlx::query(
+        "UPDATE rotation_policies SET lease_until = NULL, attempts = attempts + 1, \
+         next_attempt_at = ?, needs_attention = ?, last_error = ?, updated_at = ? \
+         WHERE id = ?",
+    )
+    .bind(next_attempt_at.map(|at| at.to_rfc3339()))
+    .bind(i64::from(parked))
+    .bind(last_error)
+    .bind(Utc::now().to_rfc3339())
+    .bind(id)
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
