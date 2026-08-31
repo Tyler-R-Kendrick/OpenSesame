@@ -365,6 +365,68 @@ kbd {
   cursor: progress;
 }
 
+/* ——— The commit control ————————————————————————————————————
+   A screen's one terminal action — the thing that ends the ceremony you came
+   for — is an ink square carrying the glyph of what it does, with its sentence
+   beside it in the margin voice. Not a wide text button: at the bottom of a
+   phone a full-width slab of prose reads as a banner, and the verb it carries
+   is the one piece of text a person has already decided to act on.
+
+   This is deliberately NOT the pattern for an action *inside* a card — those
+   stay `.btn--primary` with a text label, beside the facts that justify them
+   (`.found__do`). Two patterns, one each for "end this screen" and "do this
+   thing here". `docs/design/controls.md` names both; `scripts/design-lint.mjs`
+   holds new commit bars to this one. */
+.go-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.go {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
+  cursor: pointer;
+  transition: background 140ms var(--ease);
+}
+
+.go:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
+}
+
+.go:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.go[aria-busy="true"] {
+  cursor: progress;
+}
+
+/* The verb, in the margin voice. `aria-hidden`: the square already carries it
+   as its accessible name, and a screen reader must not hear it twice. */
+.go-verb {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+/* A finger is not a pointer — the floor the app keeps everywhere else. */
+@media (pointer: coarse) {
+  .go {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
 /* Square icon-only button, used heavily in field rows. */
 .icon-btn {
   appearance: none;

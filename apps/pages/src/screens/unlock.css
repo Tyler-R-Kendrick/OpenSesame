@@ -99,48 +99,8 @@
   border-bottom-color: var(--ink);
 }
 
-/* The submit is the form's enter key: one ink square, its sentence beside
-   it in the margin voice. */
-.unlock__go-row {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.unlock__go {
-  appearance: none;
-  display: grid;
-  place-items: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  flex: none;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--ink);
-  color: var(--canvas);
-  cursor: pointer;
-  transition: background 140ms var(--ease);
-}
-
-.unlock__go:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
-}
-
-.unlock__go:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.unlock__go[aria-busy="true"] {
-  cursor: progress;
-}
-
-.unlock__go-verb {
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-}
-
+/* The submit is this screen's terminal commit, so it is the shared `.go`
+   control (styles.css) rather than a second copy of it. */
 .unlock__reveal {
   position: relative;
   display: flex;

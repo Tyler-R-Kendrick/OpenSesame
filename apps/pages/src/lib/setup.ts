@@ -25,22 +25,36 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { defaultUpstream } from "./federation.js";
 import { kvGet, kvSetDurable } from "./kv.js";
 import { loadSettings } from "./settings.js";
 
 export const SETUP_KEY = "setup.v1";
 
-/** Which road the operator took on the identity step. */
-export type SetupIdentityChoice = "connected" | "local-only";
+/**
+ * How people sign in to this deployment — the first and often only question.
+ *
+ *  - `brokered`  what this build already brokers, out of the box. No identity
+ *                service, no address to type, nothing to run. This is the
+ *                default, and on the public web it is a working sign-in the
+ *                moment the page loads.
+ *  - `byo`       an identity provider the operator brings — WorkOS, Okta,
+ *                Auth0, Better Auth, any other OIDC issuer. A browser cannot
+ *                speak those legs itself, so this road (and only this road)
+ *                needs an OpenSesame identity service to run them.
+ *  - `none`      no accounts at all: a local vault, sealed on this device.
+ */
+export type SetupIdentityChoice = "brokered" | "byo" | "none";
 
 export type SetupRecord = {
   /** When the ceremony was answered — ISO 8601, for the Review readout. */
   completedAt: string;
   identity: SetupIdentityChoice;
   /**
-   * The upstream provider preset registered during setup ("workos", "okta",
-   * "auth0", "better-auth", "oidc"), or "" when none was added. Never a secret:
-   * registration itself happens server-side through the Identity API.
+   * The provider preset registered during setup ("workos", "okta", "auth0",
+   * "better-auth", "oidc"), or "" when the deployment kept what it brokers.
+   * Never a secret: registration happens server-side through the identity
+   * service.
    */
   provider: string;
   /** True when a Host API was pointed at. */
@@ -50,7 +64,8 @@ export type SetupRecord = {
 };
 
 function readChoice(value: BoundaryValue | undefined): SetupIdentityChoice {
-  return value === "local-only" ? "local-only" : "connected";
+  if (value === "byo" || value === "none") return value;
+  return "brokered";
 }
 
 function loadSetupDefault(): SetupRecord | null {
@@ -100,6 +115,7 @@ export const setupSeams = {
   loadSetup: loadSetupDefault,
   completeSetup: completeSetupDefault,
   loadSettings,
+  defaultUpstreamIssuer: () => defaultUpstream().issuer,
 };
 
 export function loadSetup(): SetupRecord | null {
@@ -145,23 +161,31 @@ export function unlockViable(
   return vaultStatus !== "empty";
 }
 
-/** The four steps, in the order the ceremony asks them. */
-export const SETUP_STEPS = ["identity", "host", "machine", "review"] as const;
+/**
+ * Two steps, in the order they matter.
+ *
+ * It was four, and three of them asked for addresses that most deployments do
+ * not have and do not need — an OpenSesame identity service, a Host, a daemon
+ * on the operator's own machine. Leading with self-hosted infrastructure made
+ * the common case (someone who just wants to sign in and use the thing) walk
+ * past three fields they had no answer for.
+ *
+ * So: sign-in first, because it is the only question with a wrong answer, and
+ * everything else folded into one optional screen behind it.
+ */
+export const SETUP_STEPS = ["signin", "more"] as const;
 
 export type SetupStep = (typeof SETUP_STEPS)[number];
 
 /**
- * Which step to open on.
+ * Whether this deployment can already sign somebody in with nothing typed.
  *
- * A deployment that already carries endpoints — loopback dev, or a static
- * deploy whose `os-runtime-config.json` names them — has answered the first two
- * questions before anyone arrived. Marching such an operator through four
- * screens of pre-filled fields would teach them the ceremony is theatre, so it
- * opens on Review and they confirm. Everyone else starts at the beginning.
+ * True wherever the build compiles a browser-capable upstream — which is
+ * everywhere: `TRUSTED_UPSTREAMS` carries the public broker on the open web and
+ * the reference IdP on loopback, and neither needs an identity service. It is
+ * the reason the sign-in step opens with a working default selected rather than
+ * an empty URL field.
  */
-export function initialStep(): SetupStep {
-  const settings = setupSeams.loadSettings();
-  if (!settings.identityApi.trim()) return "identity";
-  if (!settings.hostApi.trim()) return "host";
-  return "review";
+export function brokeredSignInReady(): boolean {
+  return setupSeams.defaultUpstreamIssuer().trim().length > 0;
 }

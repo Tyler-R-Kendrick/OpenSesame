@@ -13,7 +13,7 @@ Published canvas:
 
 | File | What it shows |
 |------|---------------|
-| `Main.dc.html` | **Live.** The whole four-step ceremony on a 390×844 phone — Identity, Host, Machine, Review. Type an address, pick a provider preset, run daemon discovery; the rail jumps between steps. |
+| `Main.dc.html` | **Live.** The two-step ceremony on a 390×844 phone. Pick a sign-in road — the zero-config one is selected on arrival — and watch the identity-service field appear only on the road that needs it. |
 | `WayIn.dc.html` | The complaint and the answer, side by side: today's amber notice above a live Unlock tab, against the post-setup screen with the notice gone, Unlock withheld, and the paired deployment named along the foot. |
 | `Wide.dc.html` | The same ceremony above 640px — one centred column, the action row unpinned from the bottom. |
 | `ModelStepper.dc.html` | Option A (built): one question per screen, commitment fixed at the bottom. Low-fi, with its costs stated. |
@@ -75,15 +75,16 @@ constraints of its own.
 - **Unlock is withheld, not disabled, while no vault is sealed.** A greyed tab
   still claims the action exists. The tab row only appears once there is a
   header on the device to open.
-- **Identity API and upstream IdP are two different questions.** The IdP preset
-  (Better Auth, WorkOS, Okta, Auth0, other OIDC) registers *through* the
-  Identity API by OIDC discovery — so the address comes first, and the preset
-  grid stays disabled until it is set.
+- **Sign-in leads, and it already works.** `TRUSTED_UPSTREAMS` compiles a
+  browser-capable upstream into every build, so a deployment nobody has
+  configured can still sign people in. The zero-config road is selected on
+  arrival; an identity service is asked for only on the road that needs one
+  (the IdP presets register *through* it by OIDC discovery). Self-hosting is a
+  road, never the road.
+- **The commit is an ink square,** the shared `.go` control — not a wide text
+  button. See `docs/design/controls.md`, enforced by `pnpm lint:design`.
 
 ## Open questions
 
-- Whether the Review step should offer to seal the vault immediately, or always
+- Whether the second step should offer to seal the vault immediately, or always
   hand back to the sign-in screen (drawn as the latter).
-- Whether an operator who reaches a deployment that is already configured by
-  `os-runtime-config.json` should see the ceremony at all, or only its
-  Review step as a confirmation.

@@ -43,29 +43,43 @@ with it, and only the first is cosmetic:
 ### 1. The first visitor to an unconfigured deployment is treated as its operator
 
 Not as a user who has arrived somewhere broken. `apps/pages/src/screens/
-SetupScreen.tsx` is a four-step ceremony that runs **before** the unlock screen,
-and asks the operator's questions in the order they can be answered:
+SetupScreen.tsx` runs **before** the unlock screen and asks two questions.
 
-| Step | Question | Writes |
-|------|----------|--------|
-| Identity | Where does identity live? Then, optionally, which upstream provider? | `settings.identityApi`; a BYO registration through it |
-| Host | Is there a Host? | `settings.hostApi` |
-| Machine | Pair a daemon on this machine or tailnet | `daemonApi`, and `hostApi`/`identityApi` out of the daemon's health record |
-| Review | What is about to be written | `settings.mfaAppUrl` behind a disclosure |
+### 2. Sign-in leads, and it already has a working answer
+
+The first cut of this ceremony had four steps, and led with an OpenSesame
+identity service URL, then a Host URL, then a daemon on the operator's own
+machine. That had the dependency backwards, and review said so.
+
+`TRUSTED_UPSTREAMS` compiles a **browser-capable** upstream into every build —
+the public broker on the open web, the reference IdP on loopback. A browser can
+run that entire code flow itself. **Sign-in therefore works on a deployment
+nobody has configured**, and demanding three self-hosted addresses first made
+the common case walk past fields it had no answer for to reach a service it did
+not need.
+
+So step one is the choice, and infrastructure appears only for the answer that
+requires it:
+
+| Road | Needs an identity service? |
+|------|----------------------------|
+| What this build already brokers — **selected by default** | No |
+| Your own provider (WorkOS, Okta, Auth0, Better Auth, any OIDC issuer) | Yes — asked for *here*, in place |
+| No accounts — a local vault | No |
+
+The OpenSesame identity service is one option among the providers, never a
+prerequisite for them. Self-hosting anything is a road, not the road.
 
 Nothing here is new product surface. `presetIssuer` and `registerByoProvider`
-are the functions the Identity ceremony and the sign-in sheet already call, and
-the Machine step **mounts `ConnectThisMachine` itself** rather than
-reimplementing the hardest flow in the app.
+are the functions the Identity ceremony and the sign-in sheet already call.
 
-### 2. Identity API and upstream IdP are two questions, asked in that order
+### 3. Everything else is one optional screen
 
-A preset (Better Auth, WorkOS, Okta, Auth0, any other OIDC issuer) is registered
-by SSRF-fenced discovery and RFC 7591 dynamic client registration against the
-Identity API — so the preset grid is **disabled until an Identity API is set**,
-rather than accepting an issuer it has nowhere to send. Changing the Identity
-API afterwards clears the recorded registration, because it was made against a
-different server.
+Host, machine pairing and the Mobile MFA app are still configurable on first
+run — an operator who runs them needs somewhere to say so — but as rows that
+expand in place, closed, each showing what it already holds so the screen reads
+without opening anything. The machine row **mounts `ConnectThisMachine`
+itself** rather than reimplementing the hardest flow in the app.
 
 ### 3. Every step is skippable, and every skip states its cost
 
@@ -104,13 +118,21 @@ The unlock screen's foot names the deployment this app is pointed at and offers
 `Deployment setup` — quiet, because on a working deployment it is a fact rather
 than a problem.
 
-### 6. The commitment lives at the bottom of the phone
+### 6. The commitment lives at the bottom of the phone — as an ink square
 
-One question per screen, with the primary action pinned to a foot bar in the
-same place on every step, and a four-segment rail that both reports progress and
-jumps. Above `40rem` the frame centres and the foot unpins: on a wide viewport
-the action belongs with the content it commits, because there is no thumb to
-reach with.
+One question per screen, with the terminal commit pinned to a foot bar in the
+same place on every step, and a rail that both reports progress and jumps. Above
+`40rem` the frame centres and the foot unpins: on a wide viewport the action
+belongs with the content it commits, because there is no thumb to reach with.
+
+That commit is the shared `.go` control — an ink square carrying the glyph of
+what it does, its sentence beside it in the margin voice — not a wide text
+button. The first cut used a full-width `.btn--primary`, which is the *other*
+primary pattern (the one for actions inside a card) and read as a banner. Both
+patterns are now named in [`docs/design/controls.md`](../design/controls.md),
+`.go` is defined once in `styles.css`, and `scripts/design-lint.mjs` holds new
+code to the contract from the `pre-commit` hook and a Claude Code `PostToolUse`
+hook.
 
 The alternative — one scrolling checklist of expand-in-place rows, which is the
 connectivity bar's existing vocabulary — was drawn and rejected: on a phone an
@@ -132,10 +154,8 @@ human decision, on the human's device, taken once.
 
 - A fresh deployment's first screen is answerable. The amber block is gone, and
   with it `UnconfiguredIdentityNotice` and its test.
-- Loopback development and any deployment carrying `os-runtime-config.json`
-  already know their endpoints, so the ceremony opens on **Review** and is one
-  confirmation — marching an operator through four screens of pre-filled fields
-  would teach them the ceremony is theatre.
+- **Setup can be finished with nothing typed.** Two taps on a fresh deployment,
+  because the road that needs no configuration is the one already selected.
 - Existing installs are untouched: a device with a vault never sees setup, and
   reaches it only by asking for it from the unlock screen's foot.
 - `setup.v1` joins the plaintext boundary documented in [ADR 0063](0063-encrypted-vfs-tombs.md) alongside boot

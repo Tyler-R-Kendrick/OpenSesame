@@ -747,6 +747,123 @@
 .wrote__val--off {
   color: var(--ink-3);
 }
+
+/* ——— The commit control (styles.css) ————————————————————————
+   A screen's one terminal action is an ink square carrying the glyph of what
+   it does, with its sentence beside it in the margin voice. Never a wide text
+   button — see docs/design/controls.md. */
+.go-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.go {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
+  cursor: pointer;
+}
+
+.go-verb {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ——— The one question that matters ————————————————————————
+   Three roads, not a URL field. The first is selected on arrival because it
+   already works: a deployment nobody has configured can still sign people in
+   through the compiled broker. */
+.road {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.road__opt {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.road__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.road__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.road__opt.is-on .road__mark,
+.road__on {
+  color: var(--accent);
+}
+
+.road__body {
+  display: grid;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.road__name {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.road__kind {
+  font-family: var(--font);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.road__opt.is-on .road__kind {
+  color: var(--accent);
+}
+
+.road__on {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+/* What an unopened row already holds, so the screen reads without opening
+   three disclosures to learn nothing is set. */
+.alt__state {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
   </style>
 </helmet>
 <div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px">
@@ -762,7 +879,7 @@
   </div>
 
   <div class="setup__rail">
-    <sc-for list="{{segs}}" as="seg" hint-placeholder-count="4">
+    <sc-for list="{{segs}}" as="seg" hint-placeholder-count="2">
       <button type="button" class="{{seg.cls}}" onClick="{{seg.go}}">
         <span class="setup__seg-bar"></span>
         <span class="setup__seg-label">{{seg.label}}</span>
@@ -776,241 +893,112 @@
       <p>{{lead}}</p>
     </div>
 
-    <sc-if value="{{isIdentity}}" hint-placeholder-val="{{true}}">
-      <div style="display: grid; gap: 1rem">
-        <div class="f">
-          <div class="f__labelrow">
-            <span class="f__label">Identity API</span>
-            <span class="{{identityChip}}">{{identityChipText}}</span>
-          </div>
-          <div class="f__shell">
-            <span class="f__lead" aria-hidden="true">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="8.5" cy="12" r="4"></circle>
-                <path d="M12.5 12H21M18 12v3M15 12v2.2"></path>
-              </svg>
-            </span>
-            <input class="f__input" type="url" placeholder="https://id.example.com" value="{{identity}}" onChange="{{setIdentity}}" />
-          </div>
-          <div class="f__fills">
-            <span class="f__fills-label">Fill with</span>
-            <button type="button" class="fill" onClick="{{fillIdentityLocal}}">http://127.0.0.1:18788</button>
-          </div>
-          <p class="hint">Where sign-in happens. Ask whoever runs your deployment — it is saved on this device only, never sent anywhere.</p>
+    <sc-if value="{{isSignIn}}" hint-placeholder-val="{{true}}">
+      <div style="display: grid; gap: 0.85rem">
+        <div class="road">
+          <sc-for list="{{roads}}" as="r" hint-placeholder-count="3">
+            <button type="button" class="{{r.cls}}" aria-pressed="{{r.on}}" onClick="{{r.pick}}">
+              <span class="road__mark" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="8.5" cy="12" r="4"></circle>
+                  <path d="M12.5 12H21M18 12v3M15 12v2.2"></path>
+                </svg>
+              </span>
+              <span class="road__body">
+                <span class="road__name">{{r.name}}</span>
+                <span class="road__kind">{{r.kind}}</span>
+              </span>
+              <sc-if value="{{r.on}}" hint-placeholder-val="{{true}}">
+                <span class="road__on" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12.5l4.5 4.5L19 7"></path>
+                  </svg>
+                </span>
+              </sc-if>
+            </button>
+          </sc-for>
         </div>
 
-        <p class="or"><span>then, optionally</span></p>
+        <sc-if value="{{isBrokered}}" hint-placeholder-val="{{true}}">
+          <p class="hint">This build already brokers a sign-in that runs entirely in the browser, so there is nothing to run and no address to type. People sign in the moment they open the app.</p>
+        </sc-if>
 
-        <div style="display: grid; gap: 0.5rem">
-          <h3>Your organization's sign-in</h3>
-          <p class="hint">Registered through the Identity API above by OIDC discovery. Skip it and people sign in with the providers this deployment already brokers.</p>
-          <sc-if value="{{noIdentityYet}}" hint-placeholder-val="{{false}}">
-            <p class="hint">Set an Identity API first — a provider is registered through it, so there is nowhere to send one yet.</p>
-          </sc-if>
-          <div class="preset">
-            <sc-for list="{{presets}}" as="p" hint-placeholder-count="5">
-              <button type="button" class="{{p.cls}}" aria-pressed="{{p.on}}" disabled="{{p.off}}" onClick="{{p.pick}}">
-                <span class="preset__name">{{p.name}}</span>
-                <span class="preset__kind">{{p.kind}}</span>
-              </button>
-            </sc-for>
-          </div>
+        <sc-if value="{{isNone}}" hint-placeholder-val="{{false}}">
+          <p class="hint">Everything stays on this device, sealed with a passkey, PIN, or password. No sync between devices, and no recovery.</p>
+        </sc-if>
 
-          <sc-if value="{{hasPresetField}}" hint-placeholder-val="{{true}}">
-            <div class="f" style="margin-top: 0.35rem">
+        <sc-if value="{{isByo}}" hint-placeholder-val="{{false}}">
+          <div style="display: grid; gap: 0.85rem">
+            <p class="hint">A browser cannot speak these providers' legs directly, so they run server-side. Point at an OpenSesame identity service — one you run, or one someone runs for you — and register the provider through it.</p>
+
+            <div class="f">
               <div class="f__labelrow">
-                <span class="f__label">{{presetLabel}}</span>
+                <span class="f__label">Identity service</span>
+                <span class="chip">Needed for this road</span>
               </div>
               <div class="f__shell">
                 <span class="f__lead" aria-hidden="true">
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="8.5"></circle>
-                    <path d="M3.5 12h17"></path>
-                    <path d="M12 3.5a13 13 0 0 1 0 17 13 13 0 0 1 0-17z"></path>
+                    <circle cx="12" cy="8" r="3.2"></circle>
+                    <path d="M5.2 19.2c1.1-3.2 3.5-4.8 6.8-4.8s5.7 1.6 6.8 4.8"></path>
                   </svg>
                 </span>
-                <input class="f__input" type="text" placeholder="{{presetPlaceholder}}" value="{{issuer}}" onChange="{{setIssuer}}" />
+                <input class="f__input" type="url" placeholder="https://id.example.com" value="{{identity}}" onChange="{{setIdentity}}" />
               </div>
-              <p class="hint">{{presetHint}}</p>
+              <p class="hint">Saved on this device only, and never sent anywhere else.</p>
             </div>
-          </sc-if>
 
-          <sc-if value="{{presetIsWorkos}}" hint-placeholder-val="{{false}}">
-            <div class="note" style="margin-top: 0.35rem">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="8.5"></circle>
-                <path d="M12 16.2v-4.7M12 8h.01"></path>
-              </svg>
-              <span>AuthKit's issuer is fixed at <code>api.workos.com</code> for every deployment — there is nothing to type.</span>
+            <div class="preset">
+              <sc-for list="{{presets}}" as="p" hint-placeholder-count="5">
+                <button type="button" class="{{p.cls}}" disabled="{{p.off}}" onClick="{{p.pick}}">
+                  <span class="preset__name">{{p.name}}</span>
+                  <span class="preset__kind">{{p.kind}}</span>
+                </button>
+              </sc-for>
             </div>
-          </sc-if>
-        </div>
-      </div>
-    </sc-if>
 
-    <sc-if value="{{isHost}}" hint-placeholder-val="{{false}}">
-      <div style="display: grid; gap: 0.85rem">
-        <div class="f">
-          <div class="f__labelrow">
-            <span class="f__label">Host API</span>
-            <span class="{{hostChip}}">{{hostChipText}}</span>
-          </div>
-          <div class="f__shell">
-            <span class="f__lead" aria-hidden="true">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3l7.5 3.2v5.1c0 4.7-3.1 8.1-7.5 9.4-4.4-1.3-7.5-4.7-7.5-9.4V6.2z"></path>
-                <path d="M9.2 12.1l2 2 3.6-3.9"></path>
-              </svg>
-            </span>
-            <input class="f__input" type="url" placeholder="https://host.example.com" value="{{host}}" onChange="{{setHost}}" />
-          </div>
-          <div class="f__fills">
-            <span class="f__fills-label">Fill with</span>
-            <button type="button" class="fill" onClick="{{fillHostLocal}}">http://127.0.0.1:18787</button>
-          </div>
-        </div>
-
-        <div class="note">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="8.5"></circle>
-            <path d="M12 16.2v-4.7M12 8h.01"></path>
-          </svg>
-          <span>Leave this empty and the vault still works. Without a Host there are no ConnectionRefs, no receipts, and no agent-facing authority — human items only.</span>
-        </div>
-
-        <p class="or"><span>or</span></p>
-
-        <div class="alt">
-          <div class="alt__item">
-            <button type="button" class="alt__btn" aria-expanded="{{altPairOpen}}" onClick="{{toggleAltPair}}">
-              <span class="alt__mark" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
-                  <path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path>
-                </svg>
-              </span>
-              <span class="alt__grow">Let a paired daemon front it</span>
-              <span class="{{altPairChev}}" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path>
-                </svg>
-              </span>
-            </button>
-            <sc-if value="{{altPairOpen}}" hint-placeholder-val="{{false}}">
-              <div class="alt__body">
-                <p class="hint">Pairing a daemon on the next step writes its Host and Identity addresses too. If you are running OpenSesame on your own machine, that is the shorter road — skip this field.</p>
-                <button type="button" class="btn" onClick="{{goMachine}}">Go to pairing</button>
-              </div>
+            <sc-if value="{{noIdentityYet}}" hint-placeholder-val="{{true}}">
+              <p class="hint">Set the identity service first — the provider is registered through it, so there is nowhere to send one yet.</p>
             </sc-if>
           </div>
-        </div>
+        </sc-if>
       </div>
     </sc-if>
 
-    <sc-if value="{{isMachine}}" hint-placeholder-val="{{false}}">
+    <sc-if value="{{isMore}}" hint-placeholder-val="{{false}}">
       <div style="display: grid; gap: 0.85rem">
-        <sc-if value="{{machineIdle}}" hint-placeholder-val="{{true}}">
-          <div class="found found--attn">
-            <p class="found__top">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="8.5"></circle>
-                <path d="M12 7.8v4.7M12 16h.01"></path>
-              </svg>
-              Not paired
-            </p>
-            <p class="found__name">No daemon connected</p>
-            <div class="found__do">
-              <button type="button" class="btn btn--primary" onClick="{{lookForDaemon}}">Find my daemon</button>
-            </div>
-          </div>
-        </sc-if>
-
-        <sc-if value="{{machineLooking}}" hint-placeholder-val="{{false}}">
-          <div class="found found--attn">
-            <p class="found__top">
-              <span class="spin" aria-hidden="true"></span>
-              Looking
-            </p>
-            <p class="found__name">Sweeping your tailnet…</p>
-            <p class="hint">If this browser is not on the tailnet yet, the Tailscale app opens and this waits for you to sign in there.</p>
-          </div>
-        </sc-if>
-
-        <sc-if value="{{machineFound}}" hint-placeholder-val="{{false}}">
-          <div class="found">
-            <p class="found__top">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12.5l4.5 4.5L19 7"></path>
-              </svg>
-              Found on your tailnet
-            </p>
-            <p class="found__name">https://kestrel.tail9c2f.ts.net</p>
-            <dl>
-              <dt>Host it fronts</dt>
-              <dd>http://127.0.0.1:18787</dd>
-              <dt>Identity it fronts</dt>
-              <dd>http://127.0.0.1:18788</dd>
-            </dl>
-            <div class="found__do">
-              <button type="button" class="btn btn--primary" onClick="{{pairDaemon}}">Pair this daemon</button>
-            </div>
-          </div>
-        </sc-if>
-
-        <sc-if value="{{machinePaired}}" hint-placeholder-val="{{false}}">
-          <div class="found">
-            <p class="found__top">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12.5l4.5 4.5L19 7"></path>
-              </svg>
-              Paired
-            </p>
-            <p class="found__name">https://kestrel.tail9c2f.ts.net</p>
-            <p class="hint">Host and Identity came with it — steps 1 and 2 are filled in.</p>
-          </div>
-        </sc-if>
-
-        <p class="or"><span>or</span></p>
-
         <div class="alt">
-          <div class="alt__item">
-            <button type="button" class="alt__btn" aria-expanded="{{altUrlOpen}}" onClick="{{toggleAltUrl}}">
-              <span class="alt__mark" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
-                  <path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path>
-                </svg>
-              </span>
-              <span class="alt__grow">Paste a Serve URL instead</span>
-              <span class="{{altUrlChev}}" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path>
-                </svg>
-              </span>
-            </button>
-            <sc-if value="{{altUrlOpen}}" hint-placeholder-val="{{false}}">
-              <div class="alt__body">
-                <div class="f">
-                  <div class="f__shell">
-                    <span class="f__lead" aria-hidden="true">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
-                        <path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path>
-                      </svg>
-                    </span>
-                    <input class="f__input" type="url" placeholder="https://your-machine.tailnet.ts.net" value="{{daemon}}" onChange="{{setDaemon}}" />
+          <sc-for list="{{extras}}" as="x" hint-placeholder-count="3">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{x.toggle}}">
+                <span class="alt__mark" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect>
+                    <path d="M7 9.5l2.8 2.5L7 14.5M12.5 15h4.2"></path>
+                  </svg>
+                </span>
+                <span class="alt__grow">{{x.label}}</span>
+                <span class="alt__state">{{x.state}}</span>
+                <span class="{{x.chev}}" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path>
+                  </svg>
+                </span>
+              </button>
+              <sc-if value="{{x.open}}" hint-placeholder-val="{{false}}">
+                <div class="alt__body">
+                  <p class="hint">{{x.hint}}</p>
+                  <div class="f">
+                    <div class="f__shell">
+                      <input class="f__input" type="url" placeholder="{{x.placeholder}}" />
+                    </div>
                   </div>
                 </div>
-                <p class="hint">On the daemon machine, <code>curl -s http://127.0.0.1:18790/health</code> prints <code>tailscale_url</code>.</p>
-              </div>
-            </sc-if>
-          </div>
+              </sc-if>
+            </div>
+          </sc-for>
         </div>
-      </div>
-    </sc-if>
 
-    <sc-if value="{{isReview}}" hint-placeholder-val="{{false}}">
-      <div style="display: grid; gap: 1rem">
         <dl class="wrote">
           <sc-for list="{{rows}}" as="row" hint-placeholder-count="5">
             <div class="wrote__row">
@@ -1020,55 +1008,37 @@
           </sc-for>
         </dl>
 
-        <div class="alt">
-          <div class="alt__item">
-            <button type="button" class="alt__btn" aria-expanded="{{altMoreOpen}}" onClick="{{toggleAltMore}}">
-              <span class="alt__mark" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="7" y="2.5" width="10" height="19" rx="2.5"></rect>
-                  <path d="M11 18.5h2"></path>
-                </svg>
-              </span>
-              <span class="alt__grow">More endpoints</span>
-              <span class="{{altMoreChev}}" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9.5 5.5l6.5 6.5-6.5 6.5"></path>
-                </svg>
-              </span>
-            </button>
-            <sc-if value="{{altMoreOpen}}" hint-placeholder-val="{{false}}">
-              <div class="alt__body">
-                <div class="f">
-                  <div class="f__labelrow"><span class="f__label">Mobile MFA app</span></div>
-                  <div class="f__shell">
-                    <span class="f__lead" aria-hidden="true">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="7" y="2.5" width="10" height="19" rx="2.5"></rect>
-                        <path d="M11 18.5h2"></path>
-                      </svg>
-                    </span>
-                    <input class="f__input" type="url" placeholder="https://mfa.example.com" value="{{mfa}}" onChange="{{setMfa}}" />
-                  </div>
-                  <p class="hint">When this browser cannot finish a passkey, the ceremony shows a QR that opens this URL on your phone.</p>
-                </div>
-              </div>
-            </sc-if>
-          </div>
-        </div>
-
-        <p class="hint">Everything here is saved on this device only. Change any of it later under Settings → Endpoints.</p>
+        <p class="hint">All of this is saved on this device only — they are addresses, not credentials, and nothing has been sent anywhere.</p>
       </div>
     </sc-if>
   </div>
 
+  <!-- The terminal commit: an ink square carrying the glyph of what it does,
+       its sentence beside it in the margin voice. docs/design/controls.md. -->
   <div class="setup__foot">
-    <button type="button" class="icon-btn" aria-label="Back" disabled="{{atStart}}" onClick="{{back}}">
+    <button type="button" class="icon-btn" aria-label="Previous step" disabled="{{atStart}}" onClick="{{back}}">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14.5 5.5L8 12l6.5 6.5"></path>
       </svg>
     </button>
-    <button type="button" class="btn btn--primary" onClick="{{next}}">{{primaryLabel}}</button>
-    <button type="button" class="setup__skip" onClick="{{skip}}">{{skipLabel}}</button>
+    <div class="go-row">
+      <button type="button" class="go" aria-label="{{verb}}" title="{{verb}}" onClick="{{next}}">
+        <sc-if value="{{atLast}}" hint-placeholder-val="{{false}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12.5l4.5 4.5L19 7"></path>
+          </svg>
+        </sc-if>
+        <sc-if value="{{notLast}}" hint-placeholder-val="{{true}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.5 12h14M13 6.5l5.5 5.5-5.5 5.5"></path>
+          </svg>
+        </sc-if>
+      </button>
+      <span class="go-verb" aria-hidden="true">{{verb}}</span>
+    </div>
+    <sc-if value="{{notLast}}" hint-placeholder-val="{{true}}">
+      <button type="button" class="setup__skip" onClick="{{next}}">Skip</button>
+    </sc-if>
   </div>
 </div>
 </x-dc>
@@ -1078,16 +1048,10 @@ class Component extends DCLogic {
     super(props);
     this.state = {
       step: 0,
-      preset: null,
+      road: "brokered",
       identity: "",
-      issuer: "",
-      host: "",
-      daemon: "",
-      mfa: "",
-      machine: "idle",
-      altPair: false,
-      altUrl: false,
-      altMore: false,
+      preset: null,
+      open: null,
     };
   }
 
@@ -1098,116 +1062,90 @@ class Component extends DCLogic {
   renderVals() {
     const s = this.state;
     const steps = [
-      { key: "identity", label: "Identity" },
-      { key: "host", label: "Host" },
-      { key: "machine", label: "Machine" },
-      { key: "review", label: "Review" },
+      { key: "signin", label: "Sign-in" },
+      { key: "more", label: "Everything else" },
+    ];
+    const roads = [
+      { id: "brokered", name: "Google (via shoo.dev)", kind: "ready — nothing to set up" },
+      { id: "byo", name: "Your own provider", kind: "WorkOS, Okta, Auth0, OIDC" },
+      { id: "none", name: "No accounts", kind: "local vault only" },
     ];
     const presets = [
-      { id: "workos", name: "WorkOS", kind: "AuthKit", label: "", placeholder: "", hint: "" },
-      { id: "okta", name: "Okta", kind: "enterprise SSO", label: "Okta domain", placeholder: "dev-123456.okta.com", hint: "Your Okta org domain — https:// is optional." },
-      { id: "auth0", name: "Auth0", kind: "enterprise SSO", label: "Tenant domain", placeholder: "acme.auth0.com", hint: "Your Auth0 tenant or custom domain." },
-      { id: "better-auth", name: "Better Auth", kind: "self-hosted", label: "Deployment URL", placeholder: "https://auth.acme.com", hint: "The base URL of the deployment — http only on localhost." },
-      { id: "oidc", name: "Other OIDC", kind: "any issuer", label: "Issuer URL", placeholder: "https://idp.acme.com", hint: "Discovery and client registration run server-side, behind an SSRF fence." },
+      { id: "workos", name: "WorkOS", kind: "AuthKit" },
+      { id: "okta", name: "Okta", kind: "enterprise SSO" },
+      { id: "auth0", name: "Auth0", kind: "enterprise SSO" },
+      { id: "better-auth", name: "Better Auth", kind: "self-hosted" },
+      { id: "oidc", name: "Other OIDC", kind: "any issuer" },
     ];
-    const chosen = presets.find((p) => p.id === s.preset) || null;
+    const extras = [
+      { id: "host", label: "Host", hint: "The authority plane — it authorizes every ConnectionRef and signs every receipt. Without one the vault still holds your own items.", placeholder: "https://host.example.com" },
+      { id: "machine", label: "This machine", hint: "Only if you run OpenSesame on your own machine. A static deployment cannot call 127.0.0.1, so a daemon on your tailnet stands in for it.", placeholder: "https://your-machine.tailnet.ts.net" },
+      { id: "mfa", label: "Mobile MFA app", hint: "When this browser cannot finish a passkey, the passkey note shows a QR that opens this URL on your phone.", placeholder: "https://mfa.example.com" },
+    ];
     const headings = [
-      { title: "Where does identity live?", lead: "You are the first person here, so you are the operator. Point this app at the services it should use — every answer is optional." },
-      { title: "Is there a Host?", lead: "The authority plane. It authorizes every ConnectionRef and signs every receipt. A vault without one still holds your own items." },
-      { title: "Pair this machine", lead: "A daemon on your tailnet fronts the Host and Identity APIs, so this page can reach them from anywhere you are signed in." },
-      { title: "Ready", lead: "This is what gets written. Nothing has left this device — these are addresses, not credentials." },
+      { title: "How do people sign in?", lead: "You are the first person here, so you are the operator. This is the one question that matters — and it already has a working answer." },
+      { title: "Anything else?", lead: "All optional, and all of it changeable later. Open a row only if you run that thing yourself." },
     ];
-    const skips = ["Skip identity", "No Host", "Not now", "Change something"];
-    const primaries = ["Continue", "Continue", "Continue", "Finish setup"];
+    const chosen = roads.find((r) => r.id === s.road);
 
     return {
       theme: this.props.theme || "light",
-      count: (s.step + 1) + " / 4",
+      count: (s.step + 1) + " / 2",
       title: headings[s.step].title,
       lead: headings[s.step].lead,
-      primaryLabel: primaries[s.step],
-      skipLabel: skips[s.step],
+      verb: s.step === 1 ? "Finish setup" : "Continue",
       atStart: s.step === 0,
+      atLast: s.step === 1,
+      notLast: s.step === 0,
       segs: steps.map((seg, i) => ({
         label: seg.label,
         cls: "setup__seg" + (i < s.step ? " is-done" : i === s.step ? " is-now" : ""),
         go: () => this.set({ step: i }),
       })),
-      isIdentity: s.step === 0,
-      isHost: s.step === 1,
-      isMachine: s.step === 2,
-      isReview: s.step === 3,
+      isSignIn: s.step === 0,
+      isMore: s.step === 1,
+
+      roads: roads.map((r) => ({
+        name: r.name,
+        kind: r.kind,
+        on: s.road === r.id,
+        cls: "road__opt" + (s.road === r.id ? " is-on" : ""),
+        pick: () => this.set({ road: r.id }),
+      })),
+      isBrokered: s.road === "brokered",
+      isByo: s.road === "byo",
+      isNone: s.road === "none",
 
       identity: s.identity,
       setIdentity: (e) => this.set({ identity: e.target.value }),
-      fillIdentityLocal: () => this.set({ identity: "http://127.0.0.1:18788" }),
-      identityChip: s.identity ? "chip chip--ok" : "chip",
-      identityChipText: s.identity ? "Will connect" : "Not set",
-
+      noIdentityYet: !s.identity,
       presets: presets.map((p) => ({
         name: p.name,
         kind: p.kind,
-        on: s.preset === p.id,
         off: !s.identity,
         cls: "preset__opt" + (s.preset === p.id ? " is-on" : ""),
-        pick: () => this.set({ preset: p.id, issuer: "" }),
+        pick: () => this.set({ preset: p.id }),
       })),
-      noIdentityYet: !s.identity,
-      hasPresetField: Boolean(chosen && chosen.label),
-      presetLabel: chosen ? chosen.label : "",
-      presetPlaceholder: chosen ? chosen.placeholder : "",
-      presetHint: chosen ? chosen.hint : "",
-      presetIsWorkos: s.preset === "workos",
-      issuer: s.issuer,
-      setIssuer: (e) => this.set({ issuer: e.target.value }),
 
-      host: s.host,
-      setHost: (e) => this.set({ host: e.target.value }),
-      fillHostLocal: () => this.set({ host: "http://127.0.0.1:18787" }),
-      hostChip: s.host ? "chip chip--ok" : "chip",
-      hostChipText: s.host ? "Will connect" : "Optional",
-      altPairOpen: s.altPair,
-      altPairChev: "alt__chev" + (s.altPair ? " is-open" : ""),
-      toggleAltPair: () => this.set({ altPair: !s.altPair }),
-      goMachine: () => this.set({ step: 2, altPair: false }),
-
-      machineIdle: s.machine === "idle",
-      machineLooking: s.machine === "looking",
-      machineFound: s.machine === "found",
-      machinePaired: s.machine === "paired",
-      lookForDaemon: () => {
-        this.set({ machine: "looking" });
-        setTimeout(() => this.set({ machine: "found" }), 1400);
-      },
-      pairDaemon: () =>
-        this.set({
-          machine: "paired",
-          daemon: "https://kestrel.tail9c2f.ts.net",
-          host: s.host || "http://127.0.0.1:18787",
-          identity: s.identity || "http://127.0.0.1:18788",
-        }),
-      daemon: s.daemon,
-      setDaemon: (e) => this.set({ daemon: e.target.value }),
-      altUrlOpen: s.altUrl,
-      altUrlChev: "alt__chev" + (s.altUrl ? " is-open" : ""),
-      toggleAltUrl: () => this.set({ altUrl: !s.altUrl }),
-
+      extras: extras.map((x) => ({
+        label: x.label,
+        hint: x.hint,
+        placeholder: x.placeholder,
+        state: "none",
+        open: s.open === x.id,
+        chev: "alt__chev" + (s.open === x.id ? " is-open" : ""),
+        toggle: () => this.set({ open: s.open === x.id ? null : x.id }),
+      })),
       rows: [
-        { key: "Identity API", value: s.identity || "none — local vault only", cls: s.identity ? "wrote__val" : "wrote__val wrote__val--off" },
-        { key: "Sign-in provider", value: chosen ? chosen.name : "brokered defaults", cls: chosen ? "wrote__val" : "wrote__val wrote__val--off" },
-        { key: "Host API", value: s.host || "not connected", cls: s.host ? "wrote__val" : "wrote__val wrote__val--off" },
-        { key: "This machine", value: s.daemon || "not paired", cls: s.daemon ? "wrote__val" : "wrote__val wrote__val--off" },
-        { key: "Mobile MFA app", value: s.mfa || "not set", cls: s.mfa ? "wrote__val" : "wrote__val wrote__val--off" },
+        { key: "Sign-in", value: chosen ? chosen.name : "brokered", cls: "wrote__val" },
+        { key: "Identity service", value: s.identity || "not set", cls: s.identity ? "wrote__val" : "wrote__val wrote__val--off" },
+        { key: "Host API", value: "not set", cls: "wrote__val wrote__val--off" },
+        { key: "This machine", value: "not paired", cls: "wrote__val wrote__val--off" },
+        { key: "Mobile MFA app", value: "not set", cls: "wrote__val wrote__val--off" },
       ],
-      mfa: s.mfa,
-      setMfa: (e) => this.set({ mfa: e.target.value }),
-      altMoreOpen: s.altMore,
-      altMoreChev: "alt__chev" + (s.altMore ? " is-open" : ""),
-      toggleAltMore: () => this.set({ altMore: !s.altMore }),
 
       back: () => this.set({ step: Math.max(0, s.step - 1) }),
-      next: () => this.set({ step: Math.min(3, s.step + 1) }),
-      skip: () => this.set({ step: s.step === 3 ? 0 : Math.min(3, s.step + 1) }),
+      next: () => this.set({ step: Math.min(1, s.step + 1) }),
     };
   }
 }

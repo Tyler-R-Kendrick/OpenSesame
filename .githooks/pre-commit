@@ -41,6 +41,17 @@ if [ -n "$anti_slop_files" ]; then
   pnpm lint:anti-slop:files $anti_slop_files
 fi
 
+design_files=$(printf '%s\n' "$staged_files" | grep -E '\.(tsx|css)$' || true)
+if [ -n "$design_files" ]; then
+  echo "==> design lint (control contract, staged UI files only)"
+  # shellcheck disable=SC2086
+  if ! node scripts/design-lint.mjs $design_files; then
+    echo "pre-commit: design lint failed." >&2
+    echo "  -> see docs/design/controls.md for the two primary-action patterns." >&2
+    exit 1
+  fi
+fi
+
 rust_lint_files=$(printf '%s\n' "$staged_files" | grep -E '(^|/)(Cargo\.toml|Cargo\.lock|clippy\.toml|rustfmt\.toml)$|\.rs$' || true)
 if [ -n "$rust_lint_files" ]; then
   echo "==> rustfmt + Clippy (full workspace)"

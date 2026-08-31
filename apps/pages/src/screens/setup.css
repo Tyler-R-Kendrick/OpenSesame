@@ -143,8 +143,15 @@
   background: var(--surface);
 }
 
-.setup__foot .btn--primary {
+.setup__foot .go-row {
   flex: 1;
+  min-width: 0;
+}
+
+.setup__foot .go-verb {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .setup__skip {
@@ -299,11 +306,9 @@
     padding-bottom: 0;
   }
 
-  /* No thumb to reach with, so the primary stops spanning the frame and
-     sits at the size of what it says. */
-  .setup__foot .btn--primary {
+  /* No thumb to reach with, so the commit row stops spanning the frame. */
+  .setup__foot .go-row {
     flex: none;
-    min-width: 11rem;
   }
 }
 
@@ -313,7 +318,8 @@
    `.setup` so the connection ceremonies sharing these classes are untouched. */
 @media (pointer: coarse) {
   .setup .btn,
-  .setup .alt__btn {
+  .setup .alt__btn,
+  .setup .road__opt {
     min-height: 2.75rem;
   }
 
@@ -321,4 +327,118 @@
     width: 2.75rem;
     height: 2.75rem;
   }
+}
+
+/* The one question that matters, as three roads rather than a URL field. The
+   first is selected on arrival because it already works: a deployment nobody
+   has configured can still sign people in through the compiled broker. */
+.road {
+  display: grid;
+  gap: 0.4rem;
+}
+
+/* The group's name is the step's own heading; the legend is for the
+   accessibility tree, where a fieldset without one is an unnamed group. */
+.road__legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The card is the control. The input stays in the tree for its semantics and
+   keyboard behaviour, and takes the focus ring with it. */
+.road__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.road__opt:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.road__opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.road__opt:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.road__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.road__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.road__opt.is-on .road__mark,
+.road__on {
+  color: var(--accent);
+}
+
+.road__body {
+  display: grid;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.road__name {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.road__kind {
+  font-family: var(--font);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.road__opt.is-on .road__kind {
+  color: var(--accent);
+}
+
+.road__on {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+/* What an unopened row already holds, so the screen can be read without
+   opening three disclosures to find out nothing is set. */
+.alt__state {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
 }

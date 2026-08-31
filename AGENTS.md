@@ -52,6 +52,7 @@ pnpm dev                 # turbo dev (control-plane, console, worker,
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
+pnpm lint:design         # control contract (docs/design/controls.md)
 pnpm lint:all            # full-repository Biome + anti-slop audit
 pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
@@ -239,6 +240,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,
   mcp-client, pages, and both CLIs enforce this
   ([ADR 0065](docs/adr/0065-agent-surface-parity.md)).
+- A screen's terminal commit is the shared `.go` ink square with its verb
+  beside it; `.btn--primary` with a text label is for actions *inside* a card.
+  Both patterns are named in [`docs/design/controls.md`](docs/design/controls.md)
+  and enforced by `pnpm lint:design` (`scripts/design-lint.mjs`), which runs in
+  the `pre-commit` hook and a Claude Code `PostToolUse` hook.
 - No `sudo` (`.cursor/rules/no-sudo.mdc`).
 - Configuration follows the `.env.schema` env-spec pattern (`@type`,
   `@required`, `@sensitive`, `@public` annotations). Never commit live
