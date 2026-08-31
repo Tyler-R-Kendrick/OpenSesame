@@ -5,7 +5,13 @@ use uuid::Uuid;
 
 macro_rules! opaque_id {
     ($name:ident, $prefix:literal) => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        // `Ord` so ids can live in a `BTreeSet` — a row-scoped session grant
+        // (ADR 0079) needs its item set ordered so the same scope always
+        // serializes the same way. Ordering is the underlying UUID's and
+        // carries no meaning of its own.
+        #[derive(
+            Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+        )]
         #[serde(transparent)]
         pub struct $name(Uuid);
 
@@ -87,6 +93,10 @@ opaque_id!(EnforcementAcknowledgementId, "enfack");
 opaque_id!(DelegationChainId, "delchain");
 opaque_id!(VerificationEvidenceId, "verevid");
 opaque_id!(TaskCredentialId, "taskcred");
+opaque_id!(SessionId, "session");
+opaque_id!(SessionGrantId, "sgrant");
+opaque_id!(JoinRequestId, "joinreq");
+opaque_id!(VaultItemId, "item");
 
 /// Stable profile IDs derived from slug strings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
