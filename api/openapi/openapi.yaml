@@ -1306,6 +1306,258 @@ paths:
                   secrets_returned: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions:
+    get:
+      summary: Discover public shared sessions (ADR 0079)
+      description: >-
+        A name and an id, never a session's contents, its operator or its
+        roster. `visibility=public` is required rather than defaulted: a caller
+        who omits it is refused rather than handed a listing they did not ask
+        for, and private sessions are never listed under any query.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - name: visibility
+          in: query
+          required: true
+          schema: { type: string, enum: [public] }
+      responses:
+        "200":
+          description: The discovery record for each open public session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, display_name]
+                      additionalProperties: false
+                      properties:
+                        id: { type: string }
+                        display_name: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Open a shared session; the caller becomes its operator
+      security: [{ HostBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [display_name]
+              properties:
+                display_name: { type: string, minLength: 1, maxLength: 120 }
+                visibility: { type: string, enum: [private, public], default: private }
+      responses:
+        "201":
+          description: The opened session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedSession" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}:
+    get:
+      summary: A shared session and its roster
+      description: >-
+        Participants only. A caller with no standing — including one whose join
+        request is pending — receives 404 rather than 403, so the surface is not
+        an oracle for which private sessions exist. A participant sees who else
+        is here and in what role; only the operator sees each grant's scope.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The session, with a roster whose detail depends on the caller
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedSessionDetail" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/grants:
+    post:
+      summary: Grant a participant scoped reach into a vault
+      description: >-
+        Operator only. The lifetime is bounded between one minute and seven days
+        and an out-of-bounds request is refused rather than clamped; `granted_at`
+        is the server's clock, never the body's. A row scope must name at least
+        one item.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_principal_id, scope, role, expires_at]
+              properties:
+                subject_principal_id: { type: string }
+                scope: { $ref: "#/components/schemas/SessionGrantScope" }
+                role: { type: string, enum: [read, write] }
+                expires_at: { type: string, format: date-time }
+      responses:
+        "201":
+          description: The minted grant, in the operator's view
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [grant]
+                properties:
+                  grant: { $ref: "#/components/schemas/SessionGrantView" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/grants/{grant_id}:
+    delete:
+      summary: Withdraw a participant's grant
+      description: >-
+        Operator only, and idempotent — revoking an already-revoked grant is the
+        same answer. New authorizations stop immediately; a former participant who
+        kept ciphertext keeps the ability to read the versions they already had,
+        so the response states that re-keying is what makes future versions
+        unreadable (ADR 0079 section 3).
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: grant_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Withdrawn, with what withdrawal does not undo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revoked, note]
+                properties:
+                  revoked: { type: boolean, const: true }
+                  note: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/join-requests:
+    get:
+      summary: Requests nobody has decided yet
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: >-
+            Operator only. Each note is untrusted text written by somebody with
+            no standing in the session; whatever renders it escapes it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [requests]
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, requester_principal_id, requested_at]
+                      properties:
+                        id: { type: string }
+                        requester_principal_id: { type: string }
+                        note: { type: string, nullable: true, maxLength: 280 }
+                        requested_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Ask to join a public shared session
+      description: >-
+        Only a public session accepts one; a private session answers 404 here
+        exactly as it does elsewhere, so this route cannot be used to probe for
+        private sessions by id. Admission precedes connection — a pending
+        requester learns their request is pending and nothing else: no roster,
+        no channel, no peer. Asking twice is the same ask.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 280 }
+      responses:
+        "202":
+          description: Recorded, pending an operator's decision
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision]
+                properties:
+                  id: { type: string }
+                  decision: { type: string, const: pending }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/join-requests/{request_id}/decide:
+    post:
+      summary: Admit or refuse a join request
+      description: >-
+        Operator only, and once — a decided request is 409, so a refusal cannot
+        be turned into an admission after the fact. Admission is a grant: the two
+        land in one transaction or not at all. The grant's subject is always the
+        requester; a body that names another is refused rather than ignored.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: request_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [admitted, refused] }
+                grant:
+                  description: Required for admitted, refused for refused. Carries no subject.
+                  type: object
+                  required: [scope, role, expires_at]
+                  properties:
+                    scope: { $ref: "#/components/schemas/SessionGrantScope" }
+                    role: { type: string, enum: [read, write] }
+                    expires_at: { type: string, format: date-time }
+      responses:
+        "200":
+          description: The decision, and the grant an admission minted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision]
+                properties:
+                  id: { type: string }
+                  decision: { type: string, enum: [admitted, refused] }
+                  grant: { $ref: "#/components/schemas/SessionGrantView" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
 components:
   securitySchemes:
     HostBearer:
@@ -1517,6 +1769,58 @@ components:
         last_error: { type: [string, "null"], description: Truncated operator hint, never a response body }
         delivered_at: { type: [string, "null"] }
         created_at: { type: string }
+    SharedSession:
+      type: object
+      required: [id, display_name, visibility, operator_principal_id, created_at]
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        visibility: { type: string, enum: [private, public] }
+        operator_principal_id: { type: string }
+        created_at: { type: string, format: date-time }
+    SharedSessionDetail:
+      allOf:
+        - $ref: "#/components/schemas/SharedSession"
+        - type: object
+          required: [participants]
+          properties:
+            closed_at: { type: string, format: date-time, nullable: true }
+            participants:
+              description: >-
+                Roster entries. A participant receives who and in what role; the
+                operator additionally receives each grant's id and scope. Which
+                rows a colleague holds is never published to a participant.
+              type: array
+              items: { $ref: "#/components/schemas/SessionRosterEntry" }
+    SessionRosterEntry:
+      type: object
+      required: [principal_id, role, expires_at]
+      properties:
+        principal_id: { type: string }
+        role: { type: string, enum: [read, write] }
+        expires_at: { type: string, format: date-time }
+    SessionGrantView:
+      allOf:
+        - $ref: "#/components/schemas/SessionRosterEntry"
+        - type: object
+          required: [grant_id, granted_by, scope]
+          properties:
+            grant_id: { type: string }
+            granted_by: { type: string }
+            scope: { $ref: "#/components/schemas/SessionGrantScope" }
+    SessionGrantScope:
+      description: >-
+        The whole vault, or named rows within it. A row scope must name at least
+        one item; an empty one is refused rather than read as "everything".
+      type: object
+      required: [kind, vault_id]
+      properties:
+        kind: { type: string, enum: [collection, rows] }
+        vault_id: { type: string }
+        items:
+          type: array
+          minItems: 1
+          items: { type: string }
     DelegationOffer:
       type: object
       required: [id, state, manifest_digest, expires_at, items]

@@ -58,6 +58,7 @@ const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
 const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
 const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
 const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
+const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -104,6 +105,18 @@ const DEFERRED: CapabilityExclusion = {
   reason:
     "not yet exposed to agents; revisit deliberately rather than by accretion",
   adr: ADR_AGENT_SURFACE_PARITY,
+};
+
+const SESSION_AUTHORITY_CEREMONY: CapabilityExclusion = {
+  reason:
+    "hands one person reach into another's vault; deciding who may read somebody else's rows is a human decision, and an agent that could make it could admit itself",
+  adr: ADR_SHARED_SESSIONS,
+};
+
+const SESSION_SURFACE_DEFERRED: CapabilityExclusion = {
+  reason:
+    "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
+  adr: ADR_SHARED_SESSIONS,
 };
 
 const FIRST_RUN_CEREMONY: CapabilityExclusion = {
@@ -328,6 +341,129 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: "receipt_verify",
       mcp_client: null,
       webmcp: null,
+    },
+  },
+
+  // ── Host plane: shared sessions (ADR 0079) ────────────────────────────
+  {
+    id: "shared_sessions.open",
+    title: "Open a shared session",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_SURFACE_DEFERRED,
+      mcp_client: SESSION_SURFACE_DEFERRED,
+    },
+  },
+  {
+    id: "shared_sessions.discover",
+    title: "List public shared sessions",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_SURFACE_DEFERRED,
+      mcp_client: SESSION_SURFACE_DEFERRED,
+    },
+  },
+  {
+    id: "shared_sessions.roster",
+    title: "Read a shared session and its roster",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_SURFACE_DEFERRED,
+      mcp_client: SESSION_SURFACE_DEFERRED,
+    },
+  },
+  {
+    id: "shared_sessions.grant",
+    title: "Grant a participant scoped reach into a vault",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_AUTHORITY_CEREMONY,
+      mcp_client: SESSION_AUTHORITY_CEREMONY,
+      webmcp: SESSION_AUTHORITY_CEREMONY,
+    },
+  },
+  {
+    id: "shared_sessions.revoke",
+    title: "Withdraw a participant's grant",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_SURFACE_DEFERRED,
+      mcp_client: SESSION_SURFACE_DEFERRED,
+    },
+  },
+  {
+    id: "shared_sessions.join_request",
+    title: "Ask to join a public shared session",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_SURFACE_DEFERRED,
+      mcp_client: SESSION_SURFACE_DEFERRED,
+    },
+  },
+  {
+    id: "shared_sessions.decide_join_request",
+    title: "Admit or refuse a join request",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_AUTHORITY_CEREMONY,
+      mcp_client: SESSION_AUTHORITY_CEREMONY,
+      webmcp: SESSION_AUTHORITY_CEREMONY,
     },
   },
 

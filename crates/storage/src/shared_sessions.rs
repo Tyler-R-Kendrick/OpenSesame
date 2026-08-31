@@ -124,9 +124,9 @@ fn stored_join_request(row: &SqliteRow) -> anyhow::Result<JoinRequest> {
     let decision = match decision.as_str() {
         "pending" => JoinDecision::Pending,
         "admitted" => {
-            let raw = grant_id.context("an admitted request with no grant")?;
+            let minted = grant_id.context("an admitted request with no grant")?;
             JoinDecision::Admitted {
-                grant_id: SessionGrantId::parse(&raw).context("admitted grant id")?,
+                grant_id: SessionGrantId::parse(&minted).context("admitted grant id")?,
             }
         }
         "refused" => JoinDecision::Refused,
@@ -511,15 +511,6 @@ impl Db {
         Ok(())
     }
 
-    /// Live grants approaching their deadline, for the lifecycle scanner.
-    ///
-    /// Revoked grants are excluded: a withdrawn grant has no deadline worth
-    /// narrating, and telling somebody their access expires in an hour when it
-    /// ended yesterday is worse than silence.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the query or a stored row cannot be read.
     /// Open, public sessions in one organization — the discovery record.
     ///
     /// Selected, not filtered afterwards: `visibility = 'public'` is in the
@@ -655,6 +646,15 @@ impl Db {
         row.as_ref().map(stored_join_request).transpose()
     }
 
+    /// Live grants approaching their deadline, for the lifecycle scanner.
+    ///
+    /// Revoked grants are excluded: a withdrawn grant has no deadline worth
+    /// narrating, and telling somebody their access expires in an hour when it
+    /// ended yesterday is worse than silence.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query or a stored row cannot be read.
     pub async fn session_grants_expiring(
         &self,
         organization_id: &str,

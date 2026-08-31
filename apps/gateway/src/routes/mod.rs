@@ -26,6 +26,7 @@ mod relay;
 mod rotation;
 mod secret_configs;
 mod session;
+mod shared_sessions;
 mod sync;
 mod sync_blobs;
 mod sync_targets;
@@ -301,6 +302,27 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/delegations/{id}", delete(delegations::revoke))
         .route("/api/v1/delegations/{id}/narrow", post(delegations::narrow))
+        .route(
+            "/api/v1/shared-sessions",
+            get(shared_sessions::discover).post(shared_sessions::open),
+        )
+        .route("/api/v1/shared-sessions/{id}", get(shared_sessions::detail))
+        .route(
+            "/api/v1/shared-sessions/{id}/grants",
+            post(shared_sessions::grant),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/grants/{grant_id}",
+            delete(shared_sessions::revoke),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/join-requests",
+            get(shared_sessions::list_join_requests).post(shared_sessions::ask_to_join),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/join-requests/{request_id}/decide",
+            post(shared_sessions::decide_join_request),
+        )
         // ADR 0046: relayed execution — dual-RPC tier. The holder's runtime
         // heartbeats, drains, decides, and reports; the delegate submits and
         // polls. Admission rules run at submit and at result.
