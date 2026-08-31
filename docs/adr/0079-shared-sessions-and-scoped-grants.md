@@ -130,6 +130,20 @@ Nothing is sent as a key over the channel: the wrap happens client-side in the
 granting operator's session, exactly as ADR 0062 wraps a drop, and the ciphertext
 travels as an envelope addressed to one recipient.
 
+**Every grant expires, and there is no standing one.** The design note below
+called a non-expiring grant "a deliberate, named exception"; building it, that
+exception is not implemented at all. A grant carries a mandatory lifetime
+between `MIN_GRANT_LIFETIME` (one minute) and `MAX_GRANT_LIFETIME` (seven
+days), and an over-long request is **refused rather than clamped** — silently
+shortening it would leave the operator believing something the system did not
+do. Seven days is a handover, not an arrangement; a longer reach is a project
+membership (ADR 0038), which is a different and more visible thing to hold.
+
+**Expiry is enforced at the check, not only announced.** `SessionGrant::assert_active`
+compares against the caller's own clock reading on every authorization, so the
+`lifecycle.*` feed below announces a deadline it never performs: a scanner that
+misses a tick cannot extend anybody's reach.
+
 **The honest consequence, which the UI must state rather than bury: revocation
 is re-keying, not a switch.** A participant who held a wrapped IDK and copied
 the ciphertext keeps the ability to read that version. Withdrawing a grant
@@ -240,8 +254,11 @@ for, so the shape and its security story can be reviewed before code exists.
 - **A server-side "share this item" endpoint.** It would require the server to
   hold plaintext, which ADR 0062 already rejected for the same reason: the
   product is passthrough, and the reveal stays human-gated (ADR 0005).
-- **Standing (non-expiring) grants as the default.** Given that revocation is
-  re-keying, a grant that never lapses is a key handed out permanently. TTL is
-  the default; a standing grant is a deliberate, named exception.
+- **Standing (non-expiring) grants, at all.** Given that revocation is
+  re-keying, a grant that never lapses is a key handed out permanently. The
+  type carries no way to express one, so the question cannot be reopened by a
+  caller passing `None`.
+- **Clamping an over-long lifetime down to the cap.** Refusing is louder and
+  cannot be misread as agreement.
 - **Filtering rows client-side over a collection-scoped read.** Not a
   permission model.
