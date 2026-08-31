@@ -31,6 +31,7 @@
 
 mod capture;
 mod executor;
+mod extension;
 mod tools;
 
 pub use capture::{
@@ -41,6 +42,7 @@ pub use executor::{
     run_change_password, ActionStep, BlockedReason, CandidateVault, ChangePasswordRecipe,
     ExecutorError, RunOutcome, RunReport,
 };
+pub use extension::{ExtensionTransport, StepChannel, StepOutcome, StepRequest};
 pub use tools::{
     AdmittedFrame, BrowserTransport, CandidateHandle, CredentialRef, Filled, Presence, RedactedDom,
     StepError, Verified,

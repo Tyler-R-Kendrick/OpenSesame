@@ -49,7 +49,7 @@ impl BrowserTransport for FakeBrowser {
 
     async fn wait_for(&self, _selector: &str) -> Result<(), StepError> {
         self.record("wait_for");
-        self.wait_error.clone().map_or(Ok(()), Err)
+        self.wait_error.map_or(Ok(()), Err)
     }
 
     async fn fill_credential(
