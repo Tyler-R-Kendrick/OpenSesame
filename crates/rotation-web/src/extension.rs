@@ -216,6 +216,18 @@ impl<C: StepChannel> ExtensionTransport<C> {
             .map_err(|_| CaptureError::Step(StepError::Transport))?
             .admit(slot, &value)?;
         let marker = vault.store(slot, &value).await?;
+        if marker.contains(value.as_str()) {
+            // The digest is the one thing here that goes back to the model, and
+            // `CaptureVault::store` is documented to return a marker for the
+            // sealed blob rather than the plaintext. Documented is not
+            // enforced, and a host that got this wrong would hand the model the
+            // secret through the very type built to redeem nothing — so it is
+            // checked rather than trusted.
+            //
+            // The value is sealed and stays sealed; what is refused is the
+            // receipt. The slot counts as filled, because it was.
+            return Err(CaptureError::Step(StepError::Transport));
+        }
         Ok(CaptureDigest::of_sealed(slot, marker))
     }
 
@@ -390,10 +402,17 @@ impl<C: StepChannel> BrowserTransport for ExtensionTransport<C> {
 #[async_trait]
 impl<C: StepChannel> CeremonyTransport for ExtensionTransport<C> {
     async fn outstanding(&self) -> Vec<Slot> {
+        // Recovered rather than defaulted. An empty list means "nothing still
+        // owed", which `CaptureReport::is_complete` reads as success — so
+        // answering a poisoned lock with `unwrap_or_default()` would report a
+        // finished ceremony for one that captured nothing, in the one
+        // direction this whole design exists to prevent. `DeclaredSlots` is
+        // two vectors and `admit` pushes last, so the data behind a poisoned
+        // lock is still the truth; reading it beats inventing a better answer.
         self.slots
             .lock()
-            .map(|slots| slots.outstanding())
-            .unwrap_or_default()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .outstanding()
     }
 
     async fn capture_credential(

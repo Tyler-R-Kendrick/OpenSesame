@@ -316,6 +316,46 @@ async fn the_request_tells_the_driver_which_key_to_seal_to() {
     );
 }
 
+/// A host that returns the plaintext where a marker belongs. The bug this
+/// exists to catch is one line deep and hands the model the secret through the
+/// one type designed to redeem nothing.
+struct LeakyVault(Arc<FakeVault>);
+
+#[async_trait]
+impl CaptureVault for LeakyVault {
+    fn recipient(&self) -> &str {
+        HOST_KEY
+    }
+    async fn open(&self, sealed: &SealedCapture) -> Result<String, StepError> {
+        self.0.unseal(sealed)
+    }
+    async fn store(&self, slot: Slot, value: &str) -> Result<String, StepError> {
+        self.0.put(slot, value);
+        // The mistake: a "marker" built from the value.
+        Ok(format!("sealed:{value}"))
+    }
+}
+
+#[tokio::test]
+async fn a_marker_that_carries_the_value_is_refused_rather_than_handed_back() {
+    let driver = FakeDriver::yielding(&[(Slot::ClientSecret, "Iv1.a1b2c3d4e5f6")]);
+    let vault = Arc::new(FakeVault::default());
+    let transport = ExtensionTransport::new(driver, Vec::new()).capturing(
+        Box::new(LeakyVault(Arc::clone(&vault))),
+        &[Slot::ClientSecret],
+    );
+
+    let error = transport
+        .capture_credential(Slot::ClientSecret, "#secret")
+        .await
+        .expect_err("the receipt would have carried the secret");
+
+    assert_eq!(error, CaptureError::Step(StepError::Transport));
+    // The value was legitimately sealed on the way through; it is the receipt
+    // that is refused, and refusing it is what keeps it away from the model.
+    assert!(vault.holds("Iv1.a1b2c3d4e5f6"));
+}
+
 #[tokio::test]
 async fn a_downloaded_key_is_sealed_the_same_way() {
     let driver = FakeDriver::yielding(&[(Slot::PrivateKey, PEM)]);
