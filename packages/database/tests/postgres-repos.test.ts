@@ -7,11 +7,20 @@ import {
 } from "../src/repos/postgres.js";
 import * as schema from "../src/schema/index.js";
 import {
+  makeApprovalActivation,
+  makeApprovalReceipt,
   makeAuditEvent,
+  makeBindingChallenge,
+  makeCallbackReplay,
+  makeChannelBinding,
   makeClaim,
   makeClaimItem,
+  makeComparisonChallenge,
   makeIdentity,
+  makeNotificationDelivery,
+  makeNotificationPreferences,
   makePrincipal,
+  makePushSubscription,
 } from "./factories.js";
 import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
 
@@ -633,5 +642,641 @@ describe("createPostgresRepositories", () => {
   it("wraps a database handle", () => {
     const repos = createPostgresRepositories(ctx.db);
     expect(repos).toBeDefined();
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * External notification channels and approval ceremonies (ADR 0081)
+ *
+ * The Postgres half of the parity suite. Every assertion below mirrors one in
+ * `notification-repos.test.ts`: a rule the two stores disagree about is a rule
+ * neither of them really has.
+ * ------------------------------------------------------------------ */
+
+async function seedPrincipal(): Promise<string> {
+  const principal = await ctx.repos.principals.create(makePrincipal());
+  return principal.id;
+}
+
+describe("PostgresRepositories.channelBindings", () => {
+  it("adversarial: a matching subject in the wrong tenant resolves to nothing", async () => {
+    const principalId = await seedPrincipal();
+    const tenant = `T_ACME_${randomUUID().slice(0, 8)}`;
+    const subject = `U_ALICE_${randomUUID().slice(0, 8)}`;
+    const binding = await ctx.repos.channelBindings.create(
+      makeChannelBinding(principalId, {
+        providerTenantId: tenant,
+        providerSubjectId: subject,
+      }),
+    );
+
+    expect(
+      await ctx.repos.channelBindings.findByProviderIdentity(
+        "slack",
+        "slack",
+        `T_EVIL_${randomUUID().slice(0, 8)}`,
+        subject,
+      ),
+    ).toBeNull();
+    expect(
+      await ctx.repos.channelBindings.findByProviderIdentity(
+        "slack",
+        "slack",
+        tenant,
+        `U_MALLORY_${randomUUID().slice(0, 8)}`,
+      ),
+    ).toBeNull();
+    expect(
+      await ctx.repos.channelBindings.findByProviderIdentity(
+        "telegram",
+        "slack",
+        tenant,
+        subject,
+      ),
+    ).toBeNull();
+    const found = await ctx.repos.channelBindings.findByProviderIdentity(
+      "slack",
+      "slack",
+      tenant,
+      subject,
+    );
+    expect(found?.id).toBe(binding.id);
+  });
+
+  it("adversarial: an empty subject matches nothing", async () => {
+    const principalId = await seedPrincipal();
+    const tenant = `T_ACME_${randomUUID().slice(0, 8)}`;
+    await ctx.repos.channelBindings.create(
+      makeChannelBinding(principalId, { providerTenantId: tenant }),
+    );
+    expect(
+      await ctx.repos.channelBindings.findByProviderIdentity(
+        "slack",
+        "slack",
+        tenant,
+        "",
+      ),
+    ).toBeNull();
+  });
+
+  it("adversarial: an empty subject cannot even be stored", async () => {
+    const principalId = await seedPrincipal();
+    // `channel_bindings_provider_subject_id_check`. The memory store raises
+    // the same refusal from its own guard.
+    await expect(
+      ctx.repos.channelBindings.create(
+        makeChannelBinding(principalId, { providerSubjectId: "" }),
+      ),
+    ).rejects.toBeInstanceOf(Error);
+  });
+
+  it("adversarial: the same provider identity cannot be bound twice", async () => {
+    const principalId = await seedPrincipal();
+    const tenant = `T_ACME_${randomUUID().slice(0, 8)}`;
+    const subject = `U_ALICE_${randomUUID().slice(0, 8)}`;
+    await ctx.repos.channelBindings.create(
+      makeChannelBinding(principalId, {
+        providerTenantId: tenant,
+        providerSubjectId: subject,
+      }),
+    );
+    await expect(
+      ctx.repos.channelBindings.create(
+        makeChannelBinding(principalId, {
+          providerTenantId: tenant,
+          providerSubjectId: subject,
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("property: updateWithVersion with a stale version always conflicts", async () => {
+    const principalId = await seedPrincipal();
+    const created = await ctx.repos.channelBindings.create(
+      makeChannelBinding(principalId),
+    );
+    for (const stale of [0, 2, 5, 99]) {
+      await expect(
+        ctx.repos.channelBindings.updateWithVersion(created.id, stale, {
+          state: "revoked",
+        }),
+      ).rejects.toBeInstanceOf(ConflictError);
+    }
+    const revoked = await ctx.repos.channelBindings.updateWithVersion(
+      created.id,
+      created.version,
+      { state: "revoked", revokedAt: new Date() },
+    );
+    expect(revoked.version).toBe(2);
+    expect(revoked.state).toBe("revoked");
+    await expect(
+      ctx.repos.channelBindings.updateWithVersion(randomUUID(), 1, {
+        state: "revoked",
+      }),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("chaos: a stored binding is a copy, so mutating it cannot rewrite the row", async () => {
+    const principalId = await seedPrincipal();
+    const created = await ctx.repos.channelBindings.create(
+      makeChannelBinding(principalId),
+    );
+    created.state = "revoked";
+    created.displayLabel = "smuggled";
+    created.metadata.smuggled = "yes";
+
+    const fresh = await ctx.repos.channelBindings.getById(created.id);
+    expect(fresh?.state).toBe("active");
+    expect(fresh?.displayLabel).toBeUndefined();
+    expect(fresh?.metadata).toEqual({});
+  });
+
+  it("contract: a principal's bindings list is their own", async () => {
+    const principalId = await seedPrincipal();
+    const otherId = await seedPrincipal();
+    await ctx.repos.channelBindings.create(makeChannelBinding(principalId));
+    await ctx.repos.channelBindings.create(makeChannelBinding(otherId));
+
+    const listed =
+      await ctx.repos.channelBindings.listForPrincipal(principalId);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]?.principalId).toBe(principalId);
+  });
+});
+
+describe("PostgresRepositories.channelBindingChallenges", () => {
+  it("adversarial: completing a challenge twice only works once", async () => {
+    const principalId = await seedPrincipal();
+    const challenge = await ctx.repos.channelBindingChallenges.create(
+      makeBindingChallenge(principalId),
+    );
+    const at = new Date();
+
+    const won = await ctx.repos.channelBindingChallenges.complete(
+      challenge.id,
+      at,
+    );
+    expect(won?.completedAt).toEqual(at);
+    expect(
+      await ctx.repos.channelBindingChallenges.complete(
+        challenge.id,
+        new Date(),
+      ),
+    ).toBeNull();
+  });
+
+  it("contract: the attempt budget is spent durably and then refused", async () => {
+    const principalId = await seedPrincipal();
+    const now = new Date();
+    const challenge = await ctx.repos.channelBindingChallenges.create(
+      makeBindingChallenge(principalId, { maxAttempts: 2 }),
+    );
+
+    expect(
+      (
+        await ctx.repos.channelBindingChallenges.consumeAttempt(
+          challenge.id,
+          now,
+        )
+      )?.attempts,
+    ).toBe(1);
+    expect(
+      (
+        await ctx.repos.channelBindingChallenges.consumeAttempt(
+          challenge.id,
+          now,
+        )
+      )?.attempts,
+    ).toBe(2);
+    expect(
+      await ctx.repos.channelBindingChallenges.consumeAttempt(
+        challenge.id,
+        now,
+      ),
+    ).toBeNull();
+    expect(
+      (await ctx.repos.channelBindingChallenges.getById(challenge.id))
+        ?.attempts,
+    ).toBe(2);
+  });
+
+  it("contract: an expired challenge spends nothing", async () => {
+    const principalId = await seedPrincipal();
+    const now = new Date();
+    const challenge = await ctx.repos.channelBindingChallenges.create(
+      makeBindingChallenge(principalId, {
+        expiresAt: new Date(now.getTime() - 1_000),
+      }),
+    );
+    expect(
+      await ctx.repos.channelBindingChallenges.consumeAttempt(
+        challenge.id,
+        now,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("PostgresRepositories.notificationPreferences", () => {
+  it("contract: preferences round-trip and upsert replaces in place", async () => {
+    const principalId = await seedPrincipal();
+    expect(await ctx.repos.notificationPreferences.get(principalId)).toBeNull();
+
+    await ctx.repos.notificationPreferences.upsert(
+      makeNotificationPreferences(principalId),
+    );
+    const stored = await ctx.repos.notificationPreferences.get(principalId);
+    expect(stored?.byClass).toEqual({
+      authorization_request: { channels: ["in_app"], fanOut: false },
+    });
+
+    await ctx.repos.notificationPreferences.upsert(
+      makeNotificationPreferences(principalId, {
+        byClass: {
+          security_event: { channels: ["in_app", "slack"], fanOut: true },
+        },
+        version: 2,
+      }),
+    );
+    const updated = await ctx.repos.notificationPreferences.get(principalId);
+    expect(updated?.version).toBe(2);
+    expect(updated?.byClass).toEqual({
+      security_event: { channels: ["in_app", "slack"], fanOut: true },
+    });
+  });
+});
+
+describe("PostgresRepositories.notificationDeliveries", () => {
+  it("contract: existsForEvent is true after enqueue and a duplicate fan-out conflicts", async () => {
+    const principalId = await seedPrincipal();
+    const outboxEventId = randomUUID();
+    const bindingId = `chb_${randomUUID()}`;
+    await ctx.repos.notificationDeliveries.enqueue(
+      makeNotificationDelivery(principalId, { outboxEventId, bindingId }),
+    );
+
+    expect(
+      await ctx.repos.notificationDeliveries.existsForEvent(
+        outboxEventId,
+        "slack",
+        bindingId,
+      ),
+    ).toBe(true);
+    expect(
+      await ctx.repos.notificationDeliveries.existsForEvent(
+        outboxEventId,
+        "slack",
+        `chb_${randomUUID()}`,
+      ),
+    ).toBe(false);
+    expect(
+      await ctx.repos.notificationDeliveries.existsForEvent(
+        outboxEventId,
+        "telegram",
+        bindingId,
+      ),
+    ).toBe(false);
+
+    await expect(
+      ctx.repos.notificationDeliveries.enqueue(
+        makeNotificationDelivery(principalId, { outboxEventId, bindingId }),
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("contract: a destination-less delivery still keys on the empty string", async () => {
+    const principalId = await seedPrincipal();
+    const outboxEventId = randomUUID();
+    await ctx.repos.notificationDeliveries.enqueue(
+      makeNotificationDelivery(principalId, { outboxEventId, kind: "in_app" }),
+    );
+    expect(
+      await ctx.repos.notificationDeliveries.existsForEvent(
+        outboxEventId,
+        "in_app",
+        "",
+      ),
+    ).toBe(true);
+  });
+
+  it("contract: claimDue burns an attempt, and failure schedules the next one", async () => {
+    const principalId = await seedPrincipal();
+    const now = new Date();
+    const authReqId = `areq_${randomUUID()}`;
+    const delivery = await ctx.repos.notificationDeliveries.enqueue(
+      makeNotificationDelivery(principalId, { authReqId, nextAttemptAt: now }),
+    );
+
+    const claimed = await ctx.repos.notificationDeliveries.claimDue(10, now);
+    expect(claimed.map((row) => row.id)).toContain(delivery.id);
+    expect(claimed.find((row) => row.id === delivery.id)?.attempts).toBe(1);
+
+    const later = new Date(now.getTime() + 60_000);
+    await ctx.repos.notificationDeliveries.recordFailure(
+      delivery.id,
+      "provider_rejected",
+      later,
+      false,
+    );
+    const [failed] =
+      await ctx.repos.notificationDeliveries.listForRequest(authReqId);
+    expect(failed?.state).toBe("failed");
+    expect(failed?.lastError).toBe("provider_rejected");
+    expect(failed?.nextAttemptAt).toEqual(later);
+
+    await ctx.repos.notificationDeliveries.markDelivered(
+      delivery.id,
+      later,
+      "slack:1700000000.0001",
+    );
+    const [delivered] =
+      await ctx.repos.notificationDeliveries.listForRequest(authReqId);
+    expect(delivered?.state).toBe("delivered");
+    expect(delivered?.providerMessageRef).toBe("slack:1700000000.0001");
+    expect(
+      (await ctx.repos.notificationDeliveries.claimDue(10, later)).map(
+        (row) => row.id,
+      ),
+    ).not.toContain(delivery.id);
+  });
+});
+
+describe("PostgresRepositories.approvalActivations", () => {
+  it("adversarial: two settlements racing on one activation, exactly one wins", async () => {
+    const principalId = await seedPrincipal();
+    const activation = await ctx.repos.approvalActivations.create(
+      makeApprovalActivation(principalId, { state: "activated" }),
+    );
+    const at = new Date();
+
+    const results = await Promise.all([
+      ctx.repos.approvalActivations.consume(activation.id, at),
+      ctx.repos.approvalActivations.consume(activation.id, at),
+    ]);
+    expect(results.filter((row) => row !== null)).toHaveLength(1);
+    expect(
+      (await ctx.repos.approvalActivations.getById(activation.id))?.state,
+    ).toBe("consumed");
+  });
+
+  it("adversarial: an activation that was never activated cannot be spent", async () => {
+    const principalId = await seedPrincipal();
+    const activation = await ctx.repos.approvalActivations.create(
+      makeApprovalActivation(principalId, { state: "pending" }),
+    );
+    expect(
+      await ctx.repos.approvalActivations.consume(activation.id, new Date()),
+    ).toBeNull();
+  });
+
+  it("contract: an activation is found by its challenge digest and moves under CAS", async () => {
+    const principalId = await seedPrincipal();
+    const challengeDigest = `sha256:${randomUUID()}`;
+    const activation = await ctx.repos.approvalActivations.create(
+      makeApprovalActivation(principalId, {
+        state: "pending",
+        challengeDigest,
+      }),
+    );
+
+    const found =
+      await ctx.repos.approvalActivations.findByChallengeDigest(
+        challengeDigest,
+      );
+    expect(found?.id).toBe(activation.id);
+    expect(
+      await ctx.repos.approvalActivations.findByChallengeDigest(
+        `sha256:${randomUUID()}`,
+      ),
+    ).toBeNull();
+
+    const activated = await ctx.repos.approvalActivations.updateWithVersion(
+      activation.id,
+      activation.version,
+      { state: "activated", activatedAt: new Date(), method: "webauthn" },
+    );
+    expect(activated.state).toBe("activated");
+    expect(activated.version).toBe(2);
+    await expect(
+      ctx.repos.approvalActivations.updateWithVersion(
+        activation.id,
+        activation.version,
+        { state: "consumed" },
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+});
+
+describe("PostgresRepositories.comparisonChallenges", () => {
+  it("adversarial: the budget runs out and re-issuing does not refill it", async () => {
+    const now = new Date();
+    const authReqId = `areq_${randomUUID()}`;
+    await ctx.repos.comparisonChallenges.create(
+      makeComparisonChallenge({ authReqId, maxAttempts: 2 }),
+    );
+
+    expect(
+      (await ctx.repos.comparisonChallenges.consumeAttempt(authReqId, now))
+        ?.attempts,
+    ).toBe(1);
+    expect(
+      (await ctx.repos.comparisonChallenges.consumeAttempt(authReqId, now))
+        ?.attempts,
+    ).toBe(2);
+    expect(
+      await ctx.repos.comparisonChallenges.consumeAttempt(authReqId, now),
+    ).toBeNull();
+
+    await expect(
+      ctx.repos.comparisonChallenges.create(
+        makeComparisonChallenge({ authReqId, maxAttempts: 2 }),
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(
+      await ctx.repos.comparisonChallenges.consumeAttempt(authReqId, now),
+    ).toBeNull();
+    expect(
+      (await ctx.repos.comparisonChallenges.getForRequest(authReqId))?.attempts,
+    ).toBe(2);
+  });
+
+  it("contract: a challenge is satisfied exactly once", async () => {
+    const authReqId = `areq_${randomUUID()}`;
+    await ctx.repos.comparisonChallenges.create(
+      makeComparisonChallenge({ authReqId }),
+    );
+    const at = new Date();
+
+    expect(
+      (await ctx.repos.comparisonChallenges.markSatisfied(authReqId, at))
+        ?.satisfiedAt,
+    ).toEqual(at);
+    expect(
+      await ctx.repos.comparisonChallenges.markSatisfied(authReqId, new Date()),
+    ).toBeNull();
+    expect(
+      await ctx.repos.comparisonChallenges.consumeAttempt(
+        authReqId,
+        new Date(),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("PostgresRepositories.approvalReceipts", () => {
+  it("contract: one receipt per request, and it reads back whole", async () => {
+    const principalId = await seedPrincipal();
+    const authReqId = `areq_${randomUUID()}`;
+    const receipt = await ctx.repos.approvalReceipts.create(
+      makeApprovalReceipt(principalId, { authReqId }),
+    );
+
+    const stored = await ctx.repos.approvalReceipts.getForRequest(authReqId);
+    expect(stored).toEqual(receipt);
+    expect(stored?.requiredAssurance).toEqual(["user_verification"]);
+    expect(stored?.achievedAssurance).toEqual(["user_verification"]);
+
+    await expect(
+      ctx.repos.approvalReceipts.create(
+        makeApprovalReceipt(principalId, { authReqId }),
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
+    expect(
+      await ctx.repos.approvalReceipts.getForRequest(`areq_${randomUUID()}`),
+    ).toBeNull();
+  });
+});
+
+describe("PostgresRepositories.callbackReplays", () => {
+  it("adversarial: the second claim of one callback is refused", async () => {
+    const record = makeCallbackReplay();
+
+    expect(await ctx.repos.callbackReplays.claim(record)).toBe(true);
+    expect(await ctx.repos.callbackReplays.claim(record)).toBe(false);
+    expect(
+      await ctx.repos.callbackReplays.claim({
+        ...record,
+        id: `slack:${randomUUID()}`,
+      }),
+    ).toBe(true);
+  });
+
+  it("adversarial: concurrent claims of one callback produce exactly one winner", async () => {
+    const record = makeCallbackReplay();
+    const results = await Promise.all([
+      ctx.repos.callbackReplays.claim(record),
+      ctx.repos.callbackReplays.claim(record),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+  });
+
+  it("contract: purgeExpired drops lapsed rows and frees the id", async () => {
+    const now = new Date();
+    const expired = makeCallbackReplay({
+      expiresAt: new Date(now.getTime() - 1_000),
+    });
+    const live = makeCallbackReplay({
+      expiresAt: new Date(now.getTime() + 60_000),
+    });
+    await ctx.repos.callbackReplays.claim(expired);
+    await ctx.repos.callbackReplays.claim(live);
+
+    expect(await ctx.repos.callbackReplays.purgeExpired(now)).toBe(1);
+    expect(await ctx.repos.callbackReplays.claim(expired)).toBe(true);
+    expect(await ctx.repos.callbackReplays.claim(live)).toBe(false);
+  });
+});
+
+describe("PostgresRepositories.pushSubscriptions", () => {
+  it("contract: re-subscribing with the same endpoint replaces rather than duplicates", async () => {
+    const principalId = await seedPrincipal();
+    const endpointDigest = `sha256:${randomUUID()}`;
+    const first = await ctx.repos.pushSubscriptions.create(
+      makePushSubscription(principalId, {
+        endpointDigest,
+        deviceLabel: "old laptop",
+      }),
+    );
+
+    const second = await ctx.repos.pushSubscriptions.create(
+      makePushSubscription(principalId, {
+        endpointDigest,
+        deviceLabel: "same laptop",
+      }),
+    );
+    expect(second.id).toBe(first.id);
+    expect(second.createdAt).toEqual(first.createdAt);
+    expect(second.deviceLabel).toBe("same laptop");
+    expect(second.authSecret).not.toBe(first.authSecret);
+
+    const live =
+      await ctx.repos.pushSubscriptions.listForPrincipal(principalId);
+    expect(live).toHaveLength(1);
+    expect(live[0]?.id).toBe(first.id);
+    expect(
+      (await ctx.repos.pushSubscriptions.findByEndpointDigest(endpointDigest))
+        ?.id,
+    ).toBe(first.id);
+  });
+
+  it("adversarial: a disabled subscription is no longer a destination", async () => {
+    const principalId = await seedPrincipal();
+    const sub = await ctx.repos.pushSubscriptions.create(
+      makePushSubscription(principalId),
+    );
+    const other = await ctx.repos.pushSubscriptions.create(
+      makePushSubscription(principalId),
+    );
+    const at = new Date();
+
+    expect(await ctx.repos.pushSubscriptions.disable(sub.id, at)).toBe(true);
+    expect(await ctx.repos.pushSubscriptions.disable(sub.id, new Date())).toBe(
+      false,
+    );
+    expect(await ctx.repos.pushSubscriptions.disable(randomUUID(), at)).toBe(
+      false,
+    );
+
+    const live =
+      await ctx.repos.pushSubscriptions.listForPrincipal(principalId);
+    expect(live.map((row) => row.id)).toEqual([other.id]);
+    expect(
+      (await ctx.repos.pushSubscriptions.getById(sub.id))?.disabledAt,
+    ).toEqual(at);
+  });
+
+  it("contract: re-subscribing revives a disabled subscription", async () => {
+    const principalId = await seedPrincipal();
+    const endpointDigest = `sha256:${randomUUID()}`;
+    const sub = await ctx.repos.pushSubscriptions.create(
+      makePushSubscription(principalId, { endpointDigest }),
+    );
+    await ctx.repos.pushSubscriptions.disable(sub.id, new Date());
+    expect(
+      await ctx.repos.pushSubscriptions.listForPrincipal(principalId),
+    ).toEqual([]);
+
+    const revived = await ctx.repos.pushSubscriptions.create(
+      makePushSubscription(principalId, { endpointDigest }),
+    );
+    expect(revived.id).toBe(sub.id);
+    expect(revived.disabledAt).toBeUndefined();
+    expect(
+      (await ctx.repos.pushSubscriptions.listForPrincipal(principalId)).map(
+        (row) => row.id,
+      ),
+    ).toEqual([sub.id]);
+  });
+
+  it("contract: a principal's subscriptions are their own", async () => {
+    const principalId = await seedPrincipal();
+    const otherId = await seedPrincipal();
+    await ctx.repos.pushSubscriptions.create(makePushSubscription(principalId));
+    await ctx.repos.pushSubscriptions.create(makePushSubscription(otherId));
+
+    const mine =
+      await ctx.repos.pushSubscriptions.listForPrincipal(principalId);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]?.principalId).toBe(principalId);
   });
 });

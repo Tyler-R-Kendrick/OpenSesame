@@ -440,11 +440,14 @@ describe("direct settlement", () => {
   });
 
   it("adversarial: a denial from an unbound destination is refused", () => {
+    // The keys are omitted rather than set to undefined: under
+    // exactOptionalPropertyTypes an explicit undefined is a different type
+    // from an absent key, and "absent" is what a callback with no binding
+    // actually looks like at the route.
+    const { binding: _b, claimedIdentity: _c, ...unbound } = goodCallback;
     const result = evaluateDirectSettlement({
-      ...goodCallback,
+      ...unbound,
       decision: "denied",
-      binding: undefined,
-      claimedIdentity: undefined,
     });
     expect(result.permitted).toBe(false);
     expect(result.refusals).toContain("binding_not_usable");
@@ -453,9 +456,9 @@ describe("direct settlement", () => {
   it("adversarial: an authentic callback is not by itself an authorization", () => {
     // Provenance and authorization are separate checks. A callback that Slack
     // really sent, from a workspace we have no binding in, settles nothing.
+    const { binding: _unused, ...noBinding } = goodCallback;
     const result = evaluateDirectSettlement({
-      ...goodCallback,
-      binding: undefined,
+      ...noBinding,
       claimedIdentity: {
         providerId: "slack",
         providerTenantId: "T_ATTACKER_OWNS_THIS",

@@ -1566,3 +1566,481 @@ export const authorizationRequests = pgTable(
       .where(sql`${t.status} = 'pending'`),
   ],
 );
+
+/* ------------------------------------------------------------------ *
+ * External notification channels and approval ceremonies (ADR 0081)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Where a principal can be reached, and who they are at the provider.
+ *
+ * The authority-bearing key is the whole tuple
+ * (kind, provider_id, provider_tenant_id, provider_subject_id), and the unique
+ * index is on all four. Subject ids are unique *within* a provider tenant and
+ * not across them, so a key that omitted the tenant would let anyone who can
+ * create their own workspace mint a subject that collides with somebody
+ * else's binding. `display_label` is deliberately outside the key: an email
+ * address, a @username and a display name are all things another person can
+ * come to own.
+ */
+export const channelBindings = pgTable(
+  "channel_bindings",
+  {
+    id: text("id").primaryKey(),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    /** Issuer/provider identifier, e.g. `slack`, `telegram`, a push origin. */
+    providerId: text("provider_id").notNull(),
+    /** Workspace/tenant/account. Empty string where the provider has none. */
+    providerTenantId: text("provider_tenant_id").notNull(),
+    /** Stable provider subject. Never a display name, handle, or address. */
+    providerSubjectId: text("provider_subject_id").notNull(),
+    /** Non-authoritative, for showing the person which destination this is. */
+    displayLabel: text("display_label"),
+    state: text("state").notNull(),
+    verification: text("verification").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true, mode: "date" }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),
+    /** Digest-shaped, never secret material. */
+    metadata: jsonb("metadata").$type<JsonObject>().notNull().default({}),
+    version: integer("version").notNull().default(1),
+  },
+  (t) => [
+    uniqueIndex("channel_bindings_provider_identity_uidx").on(
+      t.kind,
+      t.providerId,
+      t.providerTenantId,
+      t.providerSubjectId,
+    ),
+    index("channel_bindings_principal_id_idx").on(t.principalId),
+    check(
+      "channel_bindings_kind_check",
+      sql`${t.kind} in ('in_app','native_push','slack','teams','telegram','wechat','sms','webhook')`,
+    ),
+    check(
+      "channel_bindings_state_check",
+      sql`${t.state} in ('pending','active','revoked','expired')`,
+    ),
+    check(
+      "channel_bindings_verification_check",
+      sql`${t.verification} in ('provider_oauth_install','provider_callback_challenge','push_subscription','operator_provisioned')`,
+    ),
+    /**
+     * An empty subject is not an identity. Without this fence a provider that
+     * omits the field, or a callback that sends `""`, would resolve to any
+     * binding stored the same way — one row every unauthenticated caller
+     * matches.
+     */
+    check(
+      "channel_bindings_provider_subject_id_check",
+      sql`${t.providerSubjectId} <> ''`,
+    ),
+  ],
+);
+
+/**
+ * The ceremony that adds a destination.
+ *
+ * Adding a destination changes where authorization prompts can appear, so it
+ * is itself security-sensitive: bound to a principal, a channel and (when
+ * pinned) the proposed provider identity, expiring, attempt-fenced, and
+ * completable exactly once.
+ *
+ * `nonce_digest` and never the nonce: the nonce is one-time secret-ish
+ * material that exists in one response body and in the provider round-trip,
+ * and has no reason to be readable at rest. A dump of this table must not let
+ * the reader complete a pending binding.
+ */
+export const channelBindingChallenges = pgTable(
+  "channel_binding_challenges",
+  {
+    id: text("id").primaryKey(),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    providerId: text("provider_id").notNull(),
+    /** Digest of the one-time nonce. Never the nonce. */
+    nonceDigest: text("nonce_digest").notNull(),
+    /** The provider identity this challenge may complete against, if pinned. */
+    expectedTenantId: text("expected_tenant_id"),
+    expectedSubjectId: text("expected_subject_id"),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    version: integer("version").notNull().default(1),
+  },
+  (t) => [
+    index("channel_binding_challenges_principal_id_idx").on(t.principalId),
+    index("channel_binding_challenges_expires_at_idx").on(t.expiresAt),
+    check(
+      "channel_binding_challenges_kind_check",
+      sql`${t.kind} in ('in_app','native_push','slack','teams','telegram','wechat','sms','webhook')`,
+    ),
+  ],
+);
+
+/**
+ * Where a person wants to hear about things — a preference, never a policy.
+ *
+ * One row per principal, so the primary key is the principal: a second row
+ * would be a second answer to a question that has one.
+ */
+export const notificationPreferences = pgTable("notification_preferences", {
+  principalId: text("principal_id")
+    .primaryKey()
+    .references(() => principals.id, { onDelete: "cascade" }),
+  /** `{ [NotificationClass]: { channels, fanOut } }`. */
+  byClass: jsonb("by_class").$type<JsonObject>().notNull().default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+    .notNull()
+    .defaultNow(),
+  version: integer("version").notNull().default(1),
+});
+
+/**
+ * One attempt to tell one person on one channel.
+ *
+ * A separate state machine from the authorization request on purpose: nothing
+ * here may move the request. A dead-lettered delivery has not denied
+ * anything; a delivered one has not approved anything.
+ *
+ * `destination_id` is generated rather than written by the caller, because it
+ * exists only to key the idempotence index and a column the fan-out fills in
+ * by hand is a column the fan-out can forget. Together with
+ * `(outbox_event_id, kind)` it is unique: the outbox is at-least-once, so a
+ * retried drain must collide instead of ringing the same doorbell twice.
+ */
+export const notificationDeliveries = pgTable(
+  "notification_deliveries",
+  {
+    id: text("id").primaryKey(),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    bindingId: text("binding_id"),
+    /** Set for the generic-webhook adapter, which routes by endpoint. */
+    endpointId: text("endpoint_id"),
+    /** Derived key: the binding, else the endpoint, else "no destination". */
+    destinationId: text("destination_id")
+      .notNull()
+      .generatedAlwaysAs(sql`coalesce("binding_id", "endpoint_id", '')`),
+    notificationClass: text("notification_class").notNull(),
+    eventType: text("event_type").notNull(),
+    /** Correlates back to the outbox row that produced this. */
+    outboxEventId: text("outbox_event_id").notNull(),
+    authReqId: text("auth_req_id"),
+    /** Rendered body, already reduced to the step's confidentiality. */
+    payload: jsonb("payload").$type<JsonObject>().notNull().default({}),
+    confidentiality: text("confidentiality").notNull(),
+    state: text("state").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .notNull()
+      .defaultNow(),
+    /**
+     * A classified reason code — `provider_rejected`, `timeout` — and never a
+     * provider response body, which routinely echoes the message back.
+     */
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    deliveredAt: timestamp("delivered_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    /** Provider handle for a message we may later revise or withdraw. */
+    providerMessageRef: text("provider_message_ref"),
+  },
+  (t) => [
+    uniqueIndex("notification_deliveries_event_kind_destination_uidx").on(
+      t.outboxEventId,
+      t.kind,
+      t.destinationId,
+    ),
+    index("notification_deliveries_next_attempt_idx").on(t.nextAttemptAt),
+    index("notification_deliveries_principal_id_idx").on(t.principalId),
+    index("notification_deliveries_auth_req_id_idx").on(t.authReqId),
+    check(
+      "notification_deliveries_kind_check",
+      sql`${t.kind} in ('in_app','native_push','slack','teams','telegram','wechat','sms','webhook')`,
+    ),
+    check(
+      "notification_deliveries_confidentiality_check",
+      sql`${t.confidentiality} in ('minimal','descriptive','full')`,
+    ),
+    check(
+      "notification_deliveries_state_check",
+      sql`${t.state} in ('pending','delivered','failed','dead','skipped')`,
+    ),
+  ],
+);
+
+/**
+ * A WebAuthn ceremony pinned to one approval transaction.
+ *
+ * Durable and multi-instance safe: the consumption is a compare-and-set on
+ * this row, not a delete from a process-local map, so two settlements racing
+ * on one activation cannot both win.
+ *
+ * `challenge_digest` rather than the challenge, for the same reason as the
+ * binding nonce — it is one-time material with no reason to be readable at
+ * rest, and the row is looked up *by* the digest of what the caller presents.
+ */
+export const approvalActivations = pgTable(
+  "approval_activations",
+  {
+    id: text("id").primaryKey(),
+    authReqId: text("auth_req_id").notNull(),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    /** Commits to the request *and* the decision, so a "deny" cannot be spent as an "approve". */
+    transactionDigest: text("transaction_digest").notNull(),
+    decision: text("decision").notNull(),
+    policyDigest: text("policy_digest").notNull(),
+    channelKind: text("channel_kind").notNull(),
+    /** Digest of the one-time challenge. Never the challenge. */
+    challengeDigest: text("challenge_digest").notNull(),
+    state: text("state").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    activatedAt: timestamp("activated_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    trustSessionId: text("trust_session_id"),
+    method: text("method"),
+    version: integer("version").notNull().default(1),
+  },
+  (t) => [
+    // Unique: a challenge is one-time, so a digest that resolved to two rows
+    // would make "which activation did this assertion answer?" ambiguous.
+    uniqueIndex("approval_activations_challenge_digest_uidx").on(
+      t.challengeDigest,
+    ),
+    index("approval_activations_auth_req_idx").on(t.authReqId, t.state),
+    index("approval_activations_principal_id_idx").on(t.principalId),
+    check(
+      "approval_activations_decision_check",
+      sql`${t.decision} in ('approved','denied')`,
+    ),
+    check(
+      "approval_activations_state_check",
+      sql`${t.state} in ('pending','activated','consumed')`,
+    ),
+    check(
+      "approval_activations_channel_kind_check",
+      sql`${t.channelKind} in ('in_app','native_push','slack','teams','telegram','wechat','sms','webhook')`,
+    ),
+  ],
+);
+
+/**
+ * Number matching, per ADR 0046's anti-fatigue requirement.
+ *
+ * `value_digest` only: the plaintext exists in one response body, on the
+ * initiating surface, and nowhere else — never in the external notification,
+ * whose job is to send the person to the surface that has it, and never in a
+ * log or a table somebody can read.
+ *
+ * One live challenge per request (`auth_req_id` is unique), which is what
+ * makes the attempt budget mean something: re-issuing a code collides instead
+ * of handing back a fresh set of guesses against a six-digit value.
+ */
+export const comparisonChallenges = pgTable(
+  "comparison_challenges",
+  {
+    id: text("id").primaryKey(),
+    authReqId: text("auth_req_id").notNull(),
+    /** Digest of the plaintext. The plaintext is never persisted. */
+    valueDigest: text("value_digest").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    satisfiedAt: timestamp("satisfied_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    version: integer("version").notNull().default(1),
+  },
+  (t) => [
+    uniqueIndex("comparison_challenges_auth_req_id_uidx").on(t.authReqId),
+    index("comparison_challenges_expires_at_idx").on(t.expiresAt),
+  ],
+);
+
+/**
+ * Why a request was allowed — the record that outlives the policy.
+ *
+ * `principal_id` carries no foreign key on purpose: a receipt must survive
+ * the deletion of everything it refers to, exactly as `audit_events` does.
+ * Both the required and the achieved assurance are kept, so a later policy
+ * change cannot silently re-characterise a historical approval.
+ */
+export const approvalReceipts = pgTable(
+  "approval_receipts",
+  {
+    id: text("id").primaryKey(),
+    authReqId: text("auth_req_id").notNull(),
+    principalId: text("principal_id").notNull(),
+    decision: text("decision").notNull(),
+    decidedByKind: text("decided_by_kind").notNull(),
+    path: text("path").notNull(),
+    channelKind: text("channel_kind").notNull(),
+    bindingId: text("binding_id"),
+    requestDigest: text("request_digest").notNull(),
+    transactionDigest: text("transaction_digest").notNull(),
+    policyDigest: text("policy_digest").notNull(),
+    /** Reason codes from the assurance evaluator, not a scalar. */
+    requiredAssurance: jsonb("required_assurance")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    achievedAssurance: jsonb("achieved_assurance")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    evidenceIds: jsonb("evidence_ids").$type<string[]>().notNull().default([]),
+    trustSessionId: text("trust_session_id"),
+    activationId: text("activation_id"),
+    comparisonRequired: boolean("comparison_required").notNull().default(false),
+    comparisonSatisfied: boolean("comparison_satisfied")
+      .notNull()
+      .default(false),
+    /** Digest of the provider callback that settled it, when one did. */
+    callbackDigest: text("callback_digest"),
+    decidedAt: timestamp("decided_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    receiptVersion: integer("receipt_version").notNull().default(1),
+  },
+  (t) => [
+    // One decision per request: a second receipt would be a second answer.
+    uniqueIndex("approval_receipts_auth_req_id_uidx").on(t.authReqId),
+    index("approval_receipts_principal_id_idx").on(t.principalId),
+    check(
+      "approval_receipts_decision_check",
+      sql`${t.decision} in ('approved','denied')`,
+    ),
+    check(
+      "approval_receipts_decided_by_kind_check",
+      sql`${t.decidedByKind} in ('human','agent')`,
+    ),
+    check(
+      "approval_receipts_path_check",
+      sql`${t.path} in ('in_app','external_rendezvous','external_direct','agent')`,
+    ),
+    check(
+      "approval_receipts_channel_kind_check",
+      sql`${t.channelKind} in ('in_app','native_push','slack','teams','telegram','wechat','sms','webhook')`,
+    ),
+  ],
+);
+
+/**
+ * Callbacks we have already processed.
+ *
+ * The primary key *is* the claim: an insert that conflicts is the answer to
+ * "have I seen this?", asked in one round trip that two replicas cannot both
+ * win. Asking with a SELECT and answering with an INSERT is a race an
+ * attacker replaying an approval into two instances wins.
+ */
+export const callbackReplays = pgTable(
+  "callback_replays",
+  {
+    /** `${providerId}:${callbackDigest}`. */
+    id: text("id").primaryKey(),
+    providerId: text("provider_id").notNull(),
+    callbackDigest: text("callback_digest").notNull(),
+    seenAt: timestamp("seen_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    authReqId: text("auth_req_id"),
+  },
+  (t) => [
+    index("callback_replays_expires_at_idx").on(t.expiresAt),
+    index("callback_replays_auth_req_id_idx").on(t.authReqId),
+  ],
+);
+
+/**
+ * W3C Push subscriptions.
+ *
+ * Deliberately its own table rather than a `channel_bindings` row: a binding's
+ * `metadata` is digest-shaped and never secret, and both `endpoint` and
+ * `auth_secret` are the opposite. The endpoint is a capability URL — whoever
+ * holds it can push to that browser — and `auth_secret` is the RFC 8291 shared
+ * secret the content encryption is keyed from. Neither can be stored as a
+ * hash, because sending needs the raw bytes (the same reason
+ * `webhook_endpoints.secret` is not a digest), and neither may ever appear in
+ * an API response, a log line, or a notification body. `endpoint_digest` is
+ * what deduplicates and names a subscription without disclosing either.
+ *
+ * `endpoint_digest` is unique: a browser that re-subscribes presents the same
+ * endpoint, and a second row for it would push the same person twice.
+ */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "cascade" }),
+    /** Capability URL. Never returned by an API, never logged. */
+    endpoint: text("endpoint").notNull(),
+    /** Subscriber public key (P-256, base64url). Not secret, not useful alone. */
+    p256dhKey: text("p256dh_key").notNull(),
+    /** RFC 8291 auth secret. Secret material — write-only above this layer. */
+    authSecret: text("auth_secret").notNull(),
+    /** Digest of the endpoint: the dedupe key, and the safe name for a log. */
+    endpointDigest: text("endpoint_digest").notNull(),
+    deviceLabel: text("device_label"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: "date" }),
+    disabledAt: timestamp("disabled_at", { withTimezone: true, mode: "date" }),
+  },
+  (t) => [
+    uniqueIndex("push_subscriptions_endpoint_digest_uidx").on(t.endpointDigest),
+    index("push_subscriptions_principal_id_idx").on(t.principalId),
+  ],
+);
