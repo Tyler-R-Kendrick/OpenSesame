@@ -91,7 +91,11 @@ describe("openDrop", () => {
     const { manifest, fragmentKey } = await sealText("s3cr3t");
     const flipped = {
       ...manifest,
-      ciphertext: `A${manifest.ciphertext.slice(1)}`,
+      // A *different* first character, not a literal "A": the ciphertext is
+      // random, so one run in 64 already begins with "A" and the tamper was a
+      // no-op — `openDrop` then rightly succeeded and this assertion failed.
+      // The rest of the time it asserted nothing about tampering at all.
+      ciphertext: `${manifest.ciphertext.startsWith("A") ? "B" : "A"}${manifest.ciphertext.slice(1)}`,
     };
     await expect(openDrop(flipped, fragmentKey)).rejects.toMatchObject({
       code: "tampered",

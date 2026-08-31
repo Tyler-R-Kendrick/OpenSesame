@@ -57,7 +57,7 @@ const ADR_PM_BRIDGING = "0052-password-manager-ecosystem-bridging.md";
 const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
 const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
 const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
-const ADR_FIRST_RUN_SETUP = "0076-first-run-setup-ceremony.md";
+const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:

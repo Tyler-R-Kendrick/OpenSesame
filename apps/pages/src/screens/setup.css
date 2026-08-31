@@ -306,3 +306,19 @@
     min-width: 11rem;
   }
 }
+
+/* A finger is not a pointer — the floor main established in #284. The ceremony
+   reuses the app's `.btn`/`.icon-btn`, which are sized for a mouse, so the
+   controls a thumb actually lands on get the 44px minimum here. Scoped to
+   `.setup` so the connection ceremonies sharing these classes are untouched. */
+@media (pointer: coarse) {
+  .setup .btn,
+  .setup .alt__btn {
+    min-height: 2.75rem;
+  }
+
+  .setup .icon-btn {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}

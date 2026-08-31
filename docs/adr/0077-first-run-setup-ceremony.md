@@ -1,4 +1,4 @@
-# ADR 0076 — First-run setup: the anonymous visitor is the operator
+# ADR 0077 — First-run setup: the anonymous visitor is the operator
 
 Status: Accepted
 Date: 2026-08-31
