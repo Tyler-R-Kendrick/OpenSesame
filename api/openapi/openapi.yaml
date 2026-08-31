@@ -1383,6 +1383,63 @@ paths:
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/activity:
+    post:
+      summary: Tell the session what you are working on (ADR 0079)
+      description: >-
+        The one thing a participant sends, and it is a request like any other —
+        the announcer's own reach is checked before anything is broadcast, so a
+        participant cannot manufacture activity for an item they were never
+        granted. Refusal is the module's usual 404, because distinguishing "no
+        such item" from "not yours" would make this an oracle for what the vault
+        holds. The resulting event carries ids and reaches only the participants
+        who can reach that item.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, vault_id, item_id]
+              properties:
+                kind: { type: string, enum: [opened, changed] }
+                vault_id: { type: string }
+                item_id: { type: string }
+      responses:
+        "202": { description: Announced to whoever may hear it }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/events:
+    get:
+      summary: The session's live channel (ADR 0079)
+      description: >-
+        Server-sent events, one direction only — deliberately. ADR 0079 section
+        6 holds that an inbound message is a request like any other and never
+        evidence its sender is allowed, and the cheapest way to keep that rule
+        is to have no inbound frame path at all: everything a participant does
+        goes through the authenticated routes. Every event carries references
+        (ids) and never labels, values or text a human wrote. Standing is
+        re-read from the store on every event, so a participant whose grant is
+        withdrawn or lapses mid-stream stops receiving on the next event rather
+        than at their next reconnect. An `event: lagged` frame tells one slow
+        reader how many events it missed; it never grows the buffer for others.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: An `text/event-stream` of SessionEvent frames
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/SessionEvent" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
   /shared-sessions/{id}/grants:
     post:
       summary: Grant a participant scoped reach into a vault
@@ -1769,6 +1826,36 @@ components:
         last_error: { type: [string, "null"], description: Truncated operator hint, never a response body }
         delivered_at: { type: [string, "null"] }
         created_at: { type: string }
+    SessionEvent:
+      description: >-
+        References only. Every field is an id, a closed enum or a timestamp;
+        the type has no field able to carry an item label, a vault name, a note
+        somebody typed, a token or a value. Each client renders the labels it
+        can already decrypt.
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum:
+            [
+              participant_joined,
+              participant_left,
+              grant_added,
+              grant_withdrawn,
+              item_opened,
+              item_changed,
+              join_requested,
+            ]
+        principal_id: { type: string }
+        subject_principal_id: { type: string }
+        by_principal_id: { type: string }
+        grant_id: { type: string }
+        request_id: { type: string }
+        vault_id: { type: string }
+        item_id: { type: string }
+        role: { type: string, enum: [read, write] }
+        expires_at: { type: string, format: date-time }
     SharedSession:
       type: object
       required: [id, display_name, visibility, operator_principal_id, created_at]

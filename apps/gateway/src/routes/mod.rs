@@ -308,6 +308,14 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/shared-sessions/{id}", get(shared_sessions::detail))
         .route(
+            "/api/v1/shared-sessions/{id}/activity",
+            post(shared_sessions::announce_activity),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/events",
+            get(shared_sessions::events),
+        )
+        .route(
             "/api/v1/shared-sessions/{id}/grants",
             post(shared_sessions::grant),
         )

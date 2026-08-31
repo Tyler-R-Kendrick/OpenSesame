@@ -397,6 +397,40 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
   {
+    id: "shared_sessions.activity",
+    title: "Announce activity on an item in a shared session",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_SURFACE_DEFERRED,
+      mcp_client: SESSION_SURFACE_DEFERRED,
+    },
+  },
+  {
+    id: "shared_sessions.events",
+    title: "Subscribe to a shared session's live channel",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: SESSION_SURFACE_DEFERRED,
+      mcp_client: SESSION_SURFACE_DEFERRED,
+    },
+  },
+  {
     id: "shared_sessions.grant",
     title: "Grant a participant scoped reach into a vault",
     plane: "host",
