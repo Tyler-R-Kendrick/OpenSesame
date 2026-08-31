@@ -164,6 +164,26 @@ fn delivery_from_row(row: &SqliteRow) -> StoredLifecycleDelivery {
 }
 
 impl Db {
+    // —— tenants ——————————————————————————————————————————————————
+
+    /// Every organization id in the tenant registry, ordered.
+    ///
+    /// The lifecycle scanner's tick needs this to sweep more than the single
+    /// organization the gateway is configured with; without it a second
+    /// tenant's certificates are only ever scanned when someone calls the
+    /// on-demand route by hand.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
+    pub async fn list_organization_ids(&self) -> anyhow::Result<Vec<String>> {
+        let rows = sqlx::query("SELECT id FROM organizations ORDER BY id")
+            .fetch_all(&self.pool)
+            .await
+            .context("list organization ids")?;
+        Ok(rows.iter().map(|row| row.get::<String, _>("id")).collect())
+    }
+
     // —— hooks ————————————————————————————————————————————————————
 
     /// Create or replace a subscription. `version` advances on every write so
@@ -714,6 +734,22 @@ mod tests {
                 .await
                 .unwrap_or_else(|error| panic!("{table} is missing: {error}"));
         }
+    }
+
+    #[tokio::test]
+    async fn organization_ids_list_every_tenant() {
+        let db = seeded_db().await;
+        sqlx::query("INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)")
+            .bind("org:second")
+            .bind("Second")
+            .bind(NOW)
+            .execute(db.pool())
+            .await
+            .unwrap();
+        assert_eq!(
+            db.list_organization_ids().await.unwrap(),
+            vec![ORG.to_string(), "org:second".to_string()],
+        );
     }
 
     #[tokio::test]

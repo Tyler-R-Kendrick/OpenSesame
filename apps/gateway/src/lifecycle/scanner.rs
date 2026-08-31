@@ -5,6 +5,7 @@
 //! one detector for every kind of expiry, and the rotation responder is one of
 //! its subscribers rather than a second, parallel notion of "due".
 
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -49,16 +50,93 @@ pub async fn run(state: AppState) {
     }
 }
 
-/// One scanner pass over one organization's deadlines. Returns how many events
+/// One scanner pass over every tenant's deadlines. Returns how many events
 /// were published.
+///
+/// A per-organization failure is logged and skipped rather than aborting the
+/// sweep: one tenant with an unreadable table must not stop another tenant's
+/// certificate from being renewed.
 ///
 /// # Errors
 ///
-/// Returns an error only when the watermark table cannot be read. A single
-/// unreadable source is logged inside [`subjects::collect`] and skipped, so one
-/// broken table never stops a renewal elsewhere.
+/// Returns an error only when the tenant list itself cannot be read.
 pub async fn pass(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<usize> {
-    scan_organization(state, &state.connection_organization.clone(), now).await
+    let mut published = 0usize;
+    for organization_id in scannable_organizations(state).await {
+        match scan_organization(state, &organization_id, now).await {
+            Ok(count) => published += count,
+            Err(error) => tracing::warn!(
+                %error,
+                organization_id = %organization_id,
+                "lifecycle scan skipped an organization",
+            ),
+        }
+    }
+    Ok(published)
+}
+
+/// Every organization the tick should sweep.
+///
+/// The union of three sources, because no single one is complete:
+///
+/// - the gateway's configured organization, which in a deployment without a
+///   demo bootstrap is the nil UUID and has no `organizations` row at all;
+/// - the tenant registry, which is what makes the sweep multi-tenant;
+/// - the organizations named by enabled rotation policies, whose table carries
+///   no foreign key into the registry and so can name one that is not there.
+///
+/// Ids that are not canonical are skipped at `debug`, not `warn`: a stray row
+/// is a data artifact, and warning about it on every tick would be noise.
+async fn scannable_organizations(state: &AppState) -> Vec<OrganizationId> {
+    // Keyed on the canonical string rather than the id: `OrganizationId` is
+    // `Hash` but not `Ord`, and a deterministic sweep order is worth more here
+    // than saving the formatting.
+    let mut found: BTreeMap<String, OrganizationId> = BTreeMap::new();
+    let mut remember = |id: OrganizationId| {
+        found.insert(id.to_string(), id);
+    };
+    remember(state.connection_organization);
+
+    match state.db.list_organization_ids().await {
+        Ok(ids) => {
+            for id in ids.iter().filter_map(|id| parse_organization(id)) {
+                remember(id);
+            }
+        }
+        Err(error) => tracing::warn!(%error, "lifecycle scan could not read the tenant registry"),
+    }
+    match state
+        .connection_broker
+        .list_enabled_rotation_policies()
+        .await
+    {
+        Ok(policies) => {
+            for id in policies
+                .iter()
+                .filter_map(|policy| parse_organization(&policy.organization_id))
+            {
+                remember(id);
+            }
+        }
+        Err(error) => tracing::warn!(
+            error = %error.hint(),
+            "lifecycle scan could not read rotation policies for tenant discovery",
+        ),
+    }
+    found.into_values().collect()
+}
+
+fn parse_organization(raw: &str) -> Option<OrganizationId> {
+    match OrganizationId::parse(raw) {
+        Ok(id) => Some(id),
+        Err(_) => {
+            tracing::debug!(
+                organization_id = raw,
+                "skipping a non-canonical organization id"
+            );
+            None
+        }
+    }
 }
 
 /// Evaluate every subject in one organization and publish what it owes.
@@ -348,6 +426,76 @@ mod tests {
             ["renewal"],
             "a schedule must not narrate on the alert track: {marks:?}",
         );
+    }
+
+    #[tokio::test]
+    async fn the_tick_sweeps_every_tenant_not_just_the_configured_one() {
+        let st = test_demo_state().await;
+        let configured = st.connection_organization;
+        // A second tenant with its own rotation policy. Before the sweep was
+        // multi-tenant this org's deadlines were only ever reached by someone
+        // calling the on-demand route by hand.
+        let second = OrganizationId::new();
+        st.db
+            .create_organization(&second, "Second tenant")
+            .await
+            .unwrap();
+        st.connection_broker
+            .upsert_rotation_policy(
+                &second.to_string(),
+                UpsertRotationPolicy {
+                    id: None,
+                    target: RotationTarget::StorePath {
+                        path: "Second/api-token".into(),
+                    },
+                    interval_seconds: 3_600,
+                    enabled: true,
+                },
+            )
+            .await
+            .unwrap();
+
+        let organizations = scannable_organizations(&st).await;
+        assert!(organizations.contains(&configured), "{organizations:?}");
+        assert!(organizations.contains(&second), "{organizations:?}");
+
+        assert_eq!(
+            pass(&st, Utc::now()).await.unwrap(),
+            1,
+            "the second tenant's policy must come due on the tick",
+        );
+        let marks = st
+            .db
+            .get_lifecycle_watermarks(&second.to_string(), "store_path", "Second/api-token")
+            .await
+            .unwrap();
+        assert_eq!(marks.len(), 1, "the second tenant advanced its own ladder");
+    }
+
+    #[tokio::test]
+    async fn the_configured_organization_is_swept_without_a_tenant_row() {
+        // The nil-UUID deployment: no `organizations` row exists, and the
+        // configured organization still has to be swept.
+        let st = test_demo_state().await;
+        assert!(scannable_organizations(&st)
+            .await
+            .contains(&st.connection_organization));
+    }
+
+    #[tokio::test]
+    async fn a_non_canonical_organization_id_is_skipped_not_fatal() {
+        let st = test_demo_state().await;
+        sqlx::query("INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, ?, ?)")
+            .bind("not-a-uuid")
+            .bind("Stray")
+            .bind("2026-08-30T00:00:00+00:00")
+            .execute(st.db.pool())
+            .await
+            .unwrap();
+        // The stray row must not appear, and must not stop the sweep.
+        let organizations = scannable_organizations(&st).await;
+        assert!(organizations.contains(&st.connection_organization));
+        assert!(pass(&st, Utc::now()).await.is_ok());
     }
 
     #[tokio::test]

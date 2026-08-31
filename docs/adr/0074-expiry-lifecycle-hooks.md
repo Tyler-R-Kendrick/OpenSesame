@@ -43,7 +43,7 @@ observer path.
 
 ## Decision
 
-### 1. Expiry is a platform-detected fact with one detector
+### 1. Expiry is a platform-detected fact with one detector, across every tenant
 
 `crates/lifecycle` is the vocabulary: an `ExpirySubject` (what expires, as
 metadata), an `ExpiryStage` ladder, a `LifecycleEvent`, and `evaluate` — a pure
@@ -53,6 +53,15 @@ every firing decision is exhaustively testable without a database.
 `apps/gateway/src/lifecycle/` supplies the rest: `subjects` gathers deadlines
 from every source, `scanner` runs the pass, `dispatch` fans out, `responders`
 acts, `delivery` sends. One detector, five sources, one feed.
+
+The tick sweeps every organization, not just the one the gateway is configured
+with, and it discovers them from three places because no single one is
+complete: the configured organization (which in a deployment without a demo
+bootstrap is the nil UUID with no `organizations` row at all), the tenant
+registry, and the organizations named by enabled rotation policies (whose table
+carries no foreign key into the registry, per the consequence noted below). A
+per-organization failure is logged and skipped — one tenant's unreadable table
+must not stop another tenant's certificate from being renewed.
 
 ### 2. Two ladders, because one aliases itself
 
@@ -211,9 +220,16 @@ Recorded so each is a decision rather than an oversight.
   before the Certificate Manager's `CaFacts` document carry no parsed validity,
   and the collector does not crack open sealed material to find one. An
   untracked authority is reported as absent rather than guessed at.
-- **The scanner sweeps one organization** — the gateway's configured
-  `connection_organization` — per tick. Multi-tenant sweeping is a scheduling
-  change, not a model change.
+- **Certificate custody, not certificate renewal, is the missing piece.** The
+  leaf responder above is blocked on something structural rather than on
+  effort: every issuance path in `apps/gateway/src/routes/certs.rs` returns the
+  new private key to the caller in a sealed delivery they then acknowledge, and
+  `managed_certificate_keys` — the table that would let the host hold a leaf key
+  itself — has no reader or writer anywhere in the gateway. An unattended
+  renewal would therefore mint a private key with **no recipient**. Wiring host
+  key custody is a security decision about which certificates the host may hold
+  keys for and under what policy; it belongs in its own ADR, not bolted onto
+  this one.
 - **SSF/CAEP and Security Event Tokens** (ADR 0046 §12's richer tier) remain
   future work; the simple Standard Webhooks tier ships here.
 
