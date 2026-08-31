@@ -14,6 +14,7 @@
 //! connector author never gets to choose which of those they are.
 
 use chrono::Utc;
+use opensesame_agent_events::{AgentEvent, AgentPhase, AgentRun};
 use opensesame_connection_broker::{
     execute_rotation, request_rotation, RotationPolicy, RotationTarget,
 };
@@ -163,9 +164,11 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
     )
     .await;
 
+    let mut job_id = None;
     let outcome = match requested {
         Err(error) => Outcome::failed(format!("rotation request failed: {}", error.hint())),
         Ok(job) => {
+            job_id = Some(job.id.clone());
             match execute_rotation(broker, bus.as_ref(), &organization_id, &job.id).await {
                 // The failure is already persisted on the job and in the
                 // changelog; the outcome event makes it visible to subscribers
@@ -179,10 +182,94 @@ async fn rotate(state: &AppState, event: &LifecycleEvent) -> Outcome {
     };
     drop(bus);
 
+    // A web login is observed, so its runs are announced on the agent feed as
+    // well as the lifecycle one. The two say different things: `lifecycle.*`
+    // reports that a deadline was acted on, `agent.*` reports that a run needs
+    // a person — and it is the second that a phone should ring for.
+    if event.subject.kind == SubjectKind::WebLogin {
+        publish_agent_phase(
+            state,
+            event,
+            policy.as_ref().and_then(|p| p.owner_subject.clone()),
+            job_id,
+            &outcome,
+        )
+        .await;
+    }
+
     if let Some(policy) = policy {
         release_policy(broker, &policy, &outcome).await;
     }
     outcome
+}
+
+/// How long a person has to pick up a blocked web-login run before it is only
+/// a parked row.
+///
+/// It bounds the notification, not the database: acting inside the window
+/// resumes *this* run, and acting after it starts a fresh one. An escalation
+/// with no clock is one nobody can act on in time, so `crates/agent-events`
+/// makes the deadline a construction requirement rather than a field somebody
+/// remembers to fill in.
+const WEB_LOGIN_RESPONSE_WINDOW_SECONDS: i64 = 3_600;
+
+/// Announce a web-login run's outcome on the `agent.*` feed.
+///
+/// A failed web-login rotation is not merely a failure: ADR 0076's whole T5
+/// design is that a run which cannot continue parks and asks a person to show
+/// it the way through. So failure maps to `agent.run.blocked` — an escalation
+/// with a deadline — rather than to a notice nobody is expected to answer.
+async fn publish_agent_phase(
+    state: &AppState,
+    event: &LifecycleEvent,
+    owner_subject: Option<String>,
+    job_id: Option<String>,
+    outcome: &Outcome,
+) {
+    // Without an owner there is nobody entitled to observe the run and nobody
+    // to notify (ADR 0078 §8). `upsert_rotation_policy` refuses a web-login
+    // policy with no owner, so reaching here means a policy predating that rule
+    // or an operator-triggered run — either way, saying nothing to nobody beats
+    // addressing a notification at the whole organization.
+    let Some(owner_principal_id) = owner_subject else {
+        tracing::warn!(
+            subject_id = %event.subject.subject_id,
+            "web-login run has no owner; no agent event published",
+        );
+        return;
+    };
+    let now = Utc::now();
+    let run = AgentRun {
+        run_id: job_id.clone().unwrap_or_else(|| "unassigned".into()),
+        job_id: job_id.unwrap_or_default(),
+        organization_id: event.subject.organization_id.clone(),
+        owner_principal_id,
+        origin: event.subject.subject_id.clone(),
+        // Without a runner the ladder never reaches the agentic rung; a run
+        // that did reach it is published by the runner itself.
+        tier: "t3".into(),
+        control_state: if outcome.succeeded {
+            "agent_driving"
+        } else {
+            "suspended"
+        }
+        .into(),
+    };
+    let built = if outcome.succeeded {
+        AgentEvent::notice(run, AgentPhase::Completed, now, Some(&outcome.detail))
+    } else {
+        AgentEvent::waiting(
+            run,
+            AgentPhase::Blocked,
+            now,
+            now + chrono::Duration::seconds(WEB_LOGIN_RESPONSE_WINDOW_SECONDS),
+            Some(&outcome.detail),
+        )
+    };
+    match built {
+        Ok(agent_event) => crate::agent_hooks::publish(state, &agent_event, now).await,
+        Err(error) => tracing::warn!(%error, "agent event could not be built"),
+    }
 }
 
 /// Releases the lease taken above.

@@ -30,6 +30,7 @@ members = [
   "crates/relay",
   "crates/rotation",
   "crates/session-observe",
+  "crates/agent-events",
   "crates/lifecycle",
   "crates/provider-openbao",
   "crates/provider-openfga",

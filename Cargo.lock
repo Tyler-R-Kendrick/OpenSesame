@@ -3448,6 +3448,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
+name = "opensesame-agent-events"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "opensesame-audit"
 version = "0.1.0"
 dependencies = [
@@ -3807,6 +3817,7 @@ dependencies = [
  "http-body-util",
  "insta",
  "instant-acme",
+ "opensesame-agent-events",
  "opensesame-audit",
  "opensesame-authn",
  "opensesame-authz",
@@ -3825,6 +3836,7 @@ dependencies = [
  "opensesame-provider-openfga",
  "opensesame-redaction",
  "opensesame-relay",
+ "opensesame-session-observe",
  "opensesame-storage",
  "opensesame-task-access",
  "opensesame-task-bus",

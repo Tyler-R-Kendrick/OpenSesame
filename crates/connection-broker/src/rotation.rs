@@ -110,6 +110,8 @@ pub struct RotationPolicy {
     pub id: String,
     pub organization_id: String,
     pub target: RotationTarget,
+    /// The principal this rotates for, when the policy names one.
+    pub owner_subject: Option<String>,
     pub interval_seconds: u64,
     pub last_rotated_at: Option<String>,
     pub enabled: bool,
@@ -151,6 +153,7 @@ impl RotationPolicy {
             target: RotationTarget::from_parts(&row.target_kind, &row.target_id)?,
             id: row.id,
             organization_id: row.organization_id,
+            owner_subject: row.owner_subject,
             interval_seconds: u64::try_from(row.interval_seconds.max(1)).ok()?,
             last_rotated_at: row.last_rotated_at,
             enabled: row.enabled,
@@ -169,6 +172,9 @@ impl RotationPolicy {
 pub struct UpsertRotationPolicy {
     pub id: Option<String>,
     pub target: RotationTarget,
+    /// Who this rotates for. Required for a `web_login` target and optional for
+    /// the rest — see [`ConnectionBroker::upsert_rotation_policy`].
+    pub owner_subject: Option<String>,
     pub interval_seconds: u64,
     pub enabled: bool,
 }
@@ -385,6 +391,20 @@ impl ConnectionBroker {
                 "rotation interval must be at least one second".into(),
             ));
         }
+        // A web-login run is observed, and only its owner may observe it
+        // (ADR 0078 §8). A policy with no owner would produce runs nobody is
+        // entitled to watch and nobody can be notified about — so it is refused
+        // here, at the one moment a person is present to answer, rather than
+        // discovered when a run gets stuck at four in the morning.
+        let names_an_owner = upsert
+            .owner_subject
+            .as_deref()
+            .is_some_and(|owner| !owner.trim().is_empty());
+        if matches!(upsert.target, RotationTarget::WebLogin { .. }) && !names_an_owner {
+            return Err(BrokerError::Invalid(
+                "a web_login rotation policy must name the principal it rotates for".into(),
+            ));
+        }
         let now = Utc::now();
         let (id, created_at, last_rotated_at) = match upsert.id {
             Some(id) => {
@@ -403,6 +423,7 @@ impl ConnectionBroker {
             organization_id: organization_id.to_string(),
             target_kind: upsert.target.kind().to_string(),
             target_id: upsert.target.target_id().to_string(),
+            owner_subject: upsert.owner_subject,
             interval_seconds: i64::try_from(upsert.interval_seconds).unwrap_or(i64::MAX),
             last_rotated_at,
             enabled: upsert.enabled,
@@ -1091,6 +1112,7 @@ mod tests {
             id: "rotpol_test".into(),
             organization_id: "org_test".into(),
             target: policy_target(),
+            owner_subject: None,
             interval_seconds,
             last_rotated_at: None,
             enabled,
@@ -1111,6 +1133,7 @@ mod tests {
             organization_id: "org_claim".into(),
             target_kind: "store_path".into(),
             target_id: "Dev/claim".into(),
+            owner_subject: None,
             interval_seconds,
             last_rotated_at: None,
             enabled: true,
@@ -1174,6 +1197,7 @@ mod tests {
             organization_id: "org_parked".into(),
             target_kind: "store_path".into(),
             target_id: "Dev/parked".into(),
+            owner_subject: None,
             interval_seconds: 60,
             last_rotated_at: None,
             enabled: true,
@@ -1228,6 +1252,7 @@ mod tests {
             organization_id: "org_ok".into(),
             target_kind: "store_path".into(),
             target_id: "Dev/ok".into(),
+            owner_subject: None,
             interval_seconds: 3600,
             last_rotated_at: None,
             enabled: true,
@@ -1593,6 +1618,7 @@ mod tests {
                 UpsertRotationPolicy {
                     id: None,
                     target: policy_target(),
+                    owner_subject: None,
                     interval_seconds: 3600,
                     enabled: true,
                 },
@@ -1642,6 +1668,7 @@ mod tests {
                 UpsertRotationPolicy {
                     id: None,
                     target: policy_target(),
+                    owner_subject: None,
                     interval_seconds: 60,
                     enabled: true,
                 },
@@ -1661,6 +1688,7 @@ mod tests {
                 UpsertRotationPolicy {
                     id: Some(policy.id.clone()),
                     target: policy_target(),
+                    owner_subject: None,
                     interval_seconds: 120,
                     enabled: false,
                 },
@@ -1679,6 +1707,7 @@ mod tests {
                 UpsertRotationPolicy {
                     id: Some(policy.id.clone()),
                     target: policy_target(),
+                    owner_subject: None,
                     interval_seconds: 60,
                     enabled: true,
                 },

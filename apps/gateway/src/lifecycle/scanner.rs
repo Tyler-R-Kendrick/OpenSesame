@@ -321,6 +321,7 @@ mod tests {
                     target: RotationTarget::StorePath {
                         path: "Dev/api-token".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 3600,
                     enabled: true,
                 },
@@ -384,6 +385,7 @@ mod tests {
                     target: RotationTarget::StorePath {
                         path: "Dev/contended".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 3600,
                     enabled: true,
                 },
@@ -426,6 +428,7 @@ mod tests {
                     target: RotationTarget::Connection {
                         connection_id: "conn_does_not_exist".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 1,
                     enabled: true,
                 },
@@ -495,6 +498,7 @@ mod tests {
                     target: RotationTarget::StorePath {
                         path: "Dev/other".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 60,
                     enabled: false,
                 },
@@ -522,6 +526,7 @@ mod tests {
                     target: RotationTarget::StorePath {
                         path: "Dev/quiet".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 60,
                     enabled: true,
                 },
@@ -562,6 +567,7 @@ mod tests {
                     target: RotationTarget::StorePath {
                         path: "Second/api-token".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 3_600,
                     enabled: true,
                 },

@@ -77,6 +77,9 @@ pub struct RotationRequestBody {
     pub connection_id: Option<String>,
     /// Sealed-store logical path (metadata schedule only on Host).
     pub store_path: Option<String>,
+    /// Relying-party origin for a web login (ADR 0076). An origin, never an
+    /// account: `https://example.com`, not a username or a settings path.
+    pub web_login_origin: Option<String>,
     pub project_id: Option<String>,
     /// Optional schedule interval (`24h`, `3600`, …). Stored without secrets.
     pub interval: Option<String>,
@@ -96,11 +99,16 @@ fn target_from_body(body: &RotationRequestBody) -> Result<RotationTarget, Respon
             .as_deref()
             .map(str::trim)
             .filter(|s| !s.is_empty()),
+        body.web_login_origin
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
     ) {
-        (Some(connection_id), None) => Ok(RotationTarget::Connection {
+        (Some(connection_id), None, None) => Ok(RotationTarget::Connection {
             connection_id: connection_id.to_string(),
         }),
-        (None, Some(path)) => {
+        (None, None, Some(origin)) => web_login_target(origin),
+        (None, Some(path), None) => {
             if path.contains("..") || path.contains('\0') {
                 return Err((
                     StatusCode::BAD_REQUEST,
@@ -115,23 +123,60 @@ fn target_from_body(body: &RotationRequestBody) -> Result<RotationTarget, Respon
                 path: path.to_string(),
             })
         }
-        (Some(_), Some(_)) => Err((
+        _ => Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
                 "error": "invalid_request",
-                "hint": "provide exactly one of connection_id or store_path"
-            })),
-        )
-            .into_response()),
-        (None, None) => Err((
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "error": "invalid_request",
-                "hint": "connection_id or store_path is required"
+                "hint": "provide exactly one of connection_id, store_path, or web_login_origin"
             })),
         )
             .into_response()),
     }
+}
+
+/// Parse a relying-party origin, refusing anything that is not one.
+///
+/// The scheme must be `https`, and there must be no path, query, fragment,
+/// userinfo or credentials in it. An origin is the unit a recipe, a per-domain
+/// opt-in and a rate limit are scoped to (ADR 0076), so a "target" carrying a
+/// path would quietly scope all three to the wrong thing — and a URL with
+/// userinfo in it is a username, which this surface must never store.
+#[allow(clippy::result_large_err)]
+fn web_login_target(raw: &str) -> Result<RotationTarget, Response> {
+    let refusal = |hint: &str| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "invalid_request", "hint": hint})),
+        )
+            .into_response()
+    };
+    let Ok(url) = url::Url::parse(raw) else {
+        return Err(refusal("web_login_origin must be an absolute https URL"));
+    };
+    if url.scheme() != "https" {
+        return Err(refusal("web_login_origin must use https"));
+    }
+    if !url.username().is_empty() || url.password().is_some() {
+        return Err(refusal("web_login_origin must not carry credentials"));
+    }
+    if url.path() != "/" && !url.path().is_empty() {
+        return Err(refusal(
+            "web_login_origin must be an origin, without a path",
+        ));
+    }
+    if url.query().is_some() || url.fragment().is_some() {
+        return Err(refusal(
+            "web_login_origin must be an origin, without a query or fragment",
+        ));
+    }
+    let Some(host) = url.host_str() else {
+        return Err(refusal("web_login_origin must name a host"));
+    };
+    let origin = match url.port() {
+        Some(port) => format!("https://{host}:{port}"),
+        None => format!("https://{host}"),
+    };
+    Ok(RotationTarget::WebLogin { origin })
 }
 
 /// `POST /api/v1/rotations` — enqueue rotation; never returns secrets.
@@ -177,6 +222,7 @@ pub async fn request(
                 UpsertRotationPolicy {
                     id: None,
                     target: target.clone(),
+                    owner_subject: session_subject(&who),
                     interval_seconds: duration.as_secs(),
                     enabled: true,
                 },
@@ -325,6 +371,12 @@ pub struct PolicyPutBody {
     pub id: Option<String>,
     pub connection_id: Option<String>,
     pub store_path: Option<String>,
+    /// Relying-party origin for a web login (ADR 0076).
+    pub web_login_origin: Option<String>,
+    /// Whose credential this is. A session caller may omit it and is recorded
+    /// as the owner; an operator, who acts on nobody's behalf, must name one
+    /// for a web login or be refused.
+    pub owner_subject: Option<String>,
     /// Schedule interval (`24h`, `3600`, …).
     pub interval: String,
     #[serde(default = "default_enabled")]
@@ -361,6 +413,63 @@ pub async fn list_policies(State(st): State<AppState>, headers: axum::http::Head
     }
 }
 
+/// The caller's own principal, when it has one.
+///
+/// An operator is unfenced and acts on nobody's behalf, so it has no subject to
+/// record — which is why it must name one explicitly for a web login.
+fn session_subject(who: &Caller) -> Option<String> {
+    match who {
+        Caller::Operator => None,
+        Caller::Session { subject, .. } => Some(subject.clone()),
+    }
+}
+
+/// Who a policy rotates for.
+///
+/// A session caller is the owner; naming somebody else would let one principal
+/// enrol another's account into an observable run, so an explicit
+/// `owner_subject` that disagrees with the session is refused rather than
+/// quietly honoured. An operator has no subject of its own and must name one,
+/// and for a web login that is mandatory: ADR 0078 §8 lets only the owner watch
+/// a run, so a run with no owner is one nobody may watch and nobody can be
+/// notified about.
+#[allow(clippy::result_large_err)]
+fn policy_owner(
+    who: &Caller,
+    target: &RotationTarget,
+    requested: Option<&str>,
+) -> Result<Option<String>, Response> {
+    let requested = requested.map(str::trim).filter(|value| !value.is_empty());
+    let owner = match (session_subject(who), requested) {
+        (Some(mine), None) => Some(mine),
+        (Some(mine), Some(asked)) => {
+            if !crate::middleware::auth::same_principal_subject(&mine, asked) {
+                return Err((
+                    StatusCode::FORBIDDEN,
+                    Json(json!({
+                        "error": "forbidden",
+                        "hint": "a session may only own its own rotation policies"
+                    })),
+                )
+                    .into_response());
+            }
+            Some(mine)
+        }
+        (None, requested) => requested.map(str::to_string),
+    };
+    if matches!(target, RotationTarget::WebLogin { .. }) && owner.is_none() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "invalid_request",
+                "hint": "a web_login policy must name owner_subject: only its owner may observe the run"
+            })),
+        )
+            .into_response());
+    }
+    Ok(owner)
+}
+
 /// `PUT /api/v1/rotation/policies` — upsert one durable policy (owner/admin
 /// gated). Values never appear anywhere on this surface.
 pub async fn put_policy(
@@ -380,11 +489,16 @@ pub async fn put_policy(
     let target = match target_from_body(&RotationRequestBody {
         connection_id: body.connection_id.clone(),
         store_path: body.store_path.clone(),
+        web_login_origin: body.web_login_origin.clone(),
         project_id: None,
         interval: None,
         execute_now: false,
     }) {
         Ok(target) => target,
+        Err(resp) => return resp,
+    };
+    let owner_subject = match policy_owner(&who, &target, body.owner_subject.as_deref()) {
+        Ok(owner) => owner,
         Err(resp) => return resp,
     };
     if let RotationTarget::Connection { connection_id } = &target {
@@ -419,6 +533,7 @@ pub async fn put_policy(
             UpsertRotationPolicy {
                 id: body.id,
                 target,
+                owner_subject,
                 interval_seconds: duration.as_secs(),
                 enabled: body.enabled,
             },
@@ -611,5 +726,112 @@ mod tests {
         assert!(!text.contains("access_token"));
         assert!(!text.contains("refresh_token"));
         assert!(!text.contains("\"password\""));
+    }
+}
+
+#[cfg(test)]
+mod web_login_policy_tests {
+    use super::{policy_owner, web_login_target};
+    use crate::middleware::auth::Caller;
+    use opensesame_connection_broker::RotationTarget;
+    use opensesame_domain::{OrganizationId, OrganizationRole};
+
+    fn session(subject: &str) -> Caller {
+        Caller::Session {
+            subject: subject.into(),
+            organization_id: OrganizationId::parse("00000000-0000-0000-0000-000000000000").unwrap(),
+            role: OrganizationRole::Owner,
+        }
+    }
+
+    fn origin(raw: &str) -> Option<String> {
+        match web_login_target(raw) {
+            Ok(RotationTarget::WebLogin { origin }) => Some(origin),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn an_origin_is_accepted_and_normalized() {
+        assert_eq!(
+            origin("https://example.com"),
+            Some("https://example.com".into())
+        );
+        assert_eq!(
+            origin("https://example.com/"),
+            Some("https://example.com".into())
+        );
+        assert_eq!(
+            origin("https://example.com:8443/"),
+            Some("https://example.com:8443".into())
+        );
+    }
+
+    #[test]
+    fn anything_that_is_not_an_origin_is_refused() {
+        // A path would scope the recipe, the per-domain opt-in and the rate
+        // limit to the wrong thing.
+        assert_eq!(origin("https://example.com/settings/password"), None);
+        assert_eq!(origin("https://example.com?next=/x"), None);
+        assert_eq!(origin("https://example.com#frag"), None);
+        // http is not a place to type a password.
+        assert_eq!(origin("http://example.com"), None);
+        assert_eq!(origin("example.com"), None);
+    }
+
+    #[test]
+    fn an_origin_may_never_carry_credentials() {
+        // userinfo is a username, and this surface stores origins precisely so
+        // it never stores accounts.
+        assert_eq!(origin("https://alice@example.com"), None);
+        assert_eq!(origin("https://alice:hunter2@example.com"), None);
+    }
+
+    #[test]
+    fn a_session_owns_its_own_policies() {
+        let target = RotationTarget::WebLogin {
+            origin: "https://example.com".into(),
+        };
+        assert_eq!(
+            policy_owner(&session("user:alice"), &target, None).ok(),
+            Some(Some("user:alice".into()))
+        );
+        assert_eq!(
+            policy_owner(&session("user:alice"), &target, Some("user:alice")).ok(),
+            Some(Some("user:alice".into()))
+        );
+    }
+
+    #[test]
+    fn a_session_cannot_enrol_somebody_elses_account() {
+        let target = RotationTarget::WebLogin {
+            origin: "https://example.com".into(),
+        };
+        assert!(policy_owner(&session("user:alice"), &target, Some("user:bob")).is_err());
+    }
+
+    #[test]
+    fn an_operator_must_name_an_owner_for_a_web_login() {
+        let web = RotationTarget::WebLogin {
+            origin: "https://example.com".into(),
+        };
+        // An operator acts on nobody's behalf, so a run it starts would have
+        // nobody entitled to watch it (ADR 0078 §8).
+        assert!(policy_owner(&Caller::Operator, &web, None).is_err());
+        assert_eq!(
+            policy_owner(&Caller::Operator, &web, Some("user:alice")).ok(),
+            Some(Some("user:alice".into()))
+        );
+    }
+
+    #[test]
+    fn other_targets_stay_ownerless_as_they_were() {
+        let store = RotationTarget::StorePath {
+            path: "Dev/api-token".into(),
+        };
+        assert_eq!(
+            policy_owner(&Caller::Operator, &store, None).ok(),
+            Some(None)
+        );
     }
 }

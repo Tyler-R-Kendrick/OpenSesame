@@ -242,7 +242,7 @@ fn pact_certificate_statuses_are_the_documented_set() {
 }
 
 #[test]
-fn pact_migrations_are_append_only_and_end_with_0019() {
+fn pact_migrations_are_append_only_and_end_with_0020() {
     let versions = migration_versions();
     assert_eq!(
         versions,
@@ -266,7 +266,8 @@ fn pact_migrations_are_append_only_and_end_with_0019() {
             "0017_lifecycle_hooks",
             "0018_rotation_leases",
             "0019_web_login_observation",
+            "0020_rotation_policy_owner",
         ]
     );
-    assert_eq!(versions.last().copied(), Some("0019_web_login_observation"));
+    assert_eq!(versions.last().copied(), Some("0020_rotation_policy_owner"));
 }

@@ -26,10 +26,11 @@ use axum::{
     Json,
 };
 use chrono::Utc;
+use opensesame_agent_events::{AGENT_EVENT_TYPES, EVENT_WILDCARD as AGENT_WILDCARD};
 use opensesame_connection_broker::crypto::seal_scoped;
 use opensesame_lifecycle::{
-    filter_is_valid, ExpiryStage, ExpirySubject, SubjectKind, Track, LIFECYCLE_EVENT_TYPES,
-    MAX_DETAIL_CHARS,
+    ExpiryStage, ExpirySubject, SubjectKind, Track, EVENT_WILDCARD as LIFECYCLE_WILDCARD,
+    LIFECYCLE_EVENT_TYPES, MAX_DETAIL_CHARS,
 };
 use opensesame_storage::{
     SealedCertificateMaterial, StoredLifecycleHook, LIFECYCLE_HOOK_SECRET_SCOPE,
@@ -173,7 +174,7 @@ pub async fn list_expiring(State(st): State<AppState>, headers: axum::http::Head
             .iter()
             .map(|subject| subject_view(subject, now))
             .collect::<Vec<_>>(),
-        "event_types": LIFECYCLE_EVENT_TYPES,
+        "event_types": subscribable_event_types(),
         "subject_kinds": SubjectKind::ALL.map(SubjectKind::as_str),
         "stages": ExpiryStage::ALL.map(ExpiryStage::as_str),
         "secrets_returned": false,
@@ -231,6 +232,37 @@ const fn default_true() -> bool {
 /// keeps the existing secret: rotating it is a delete and re-register, so a
 /// caller cannot silently invalidate every receiver's verification by editing
 /// a name.
+/// Every event type a subscription may name, across both families.
+///
+/// One hook table serves the expiry feed and the agent feed, so discovery has
+/// to answer for both — a caller that reads this list and then registers from
+/// it must not be told half the vocabulary.
+fn subscribable_event_types() -> Vec<&'static str> {
+    LIFECYCLE_EVENT_TYPES
+        .iter()
+        .chain(AGENT_EVENT_TYPES.iter())
+        .copied()
+        .collect()
+}
+
+/// Whether every entry in a filter is a name one of the two families
+/// recognises.
+///
+/// Entry by entry rather than family by family, so one hook can watch a
+/// certificate expiring and an agent getting stuck without registering twice.
+/// An empty filter is still refused: a subscription that names no events is a
+/// misconfiguration, and reading it as "everything" is the wrong direction to
+/// fail.
+fn filter_is_valid(filter: &[String]) -> bool {
+    !filter.is_empty()
+        && filter.iter().all(|entry| {
+            entry == LIFECYCLE_WILDCARD
+                || opensesame_lifecycle::is_lifecycle_event_type(entry)
+                || entry == AGENT_WILDCARD
+                || opensesame_agent_events::is_agent_event_type(entry)
+        })
+}
+
 /// Validate a subscription request before anything is written.
 ///
 /// Split out of [`put_hook`] so the handler reads as the sequence it is —
@@ -243,7 +275,8 @@ fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
     }
     if !filter_is_valid(&body.event_types) {
         return Err(bad_request(
-            "event_types must be a non-empty list of lifecycle event types or \"lifecycle.*\"",
+            "event_types must be a non-empty list of lifecycle or agent event types, \
+             or the \"lifecycle.*\" / \"agent.*\" wildcards",
         ));
     }
     if let Some(kinds) = &body.subject_kinds {
@@ -846,6 +879,7 @@ mod tests {
                     target: opensesame_connection_broker::RotationTarget::StorePath {
                         path: "Dev/api-token".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 3_600,
                     enabled: true,
                 },
@@ -858,8 +892,8 @@ mod tests {
         assert_eq!(status, StatusCode::OK, "{view}");
         assert_eq!(
             view["event_types"].as_array().unwrap().len(),
-            LIFECYCLE_EVENT_TYPES.len(),
-            "the frozen vocabulary is part of the contract",
+            LIFECYCLE_EVENT_TYPES.len() + AGENT_EVENT_TYPES.len(),
+            "the frozen vocabulary is part of the contract, and it spans both families",
         );
         assert_eq!(view["secrets_returned"], json!(false));
 
@@ -898,6 +932,7 @@ mod tests {
                     target: opensesame_connection_broker::RotationTarget::StorePath {
                         path: "Dev/api-token".into(),
                     },
+                    owner_subject: None,
                     interval_seconds: 3_600,
                     enabled: true,
                 },
@@ -1375,5 +1410,56 @@ mod custody_e2e {
         )
         .await;
         assert_ne!(status, StatusCode::OK, "{refused}");
+    }
+}
+
+#[cfg(test)]
+mod hook_filter_tests {
+    use super::{filter_is_valid, subscribable_event_types};
+    use opensesame_agent_events::{AGENT_EVENT_TYPES, EVENT_RUN_BLOCKED};
+    use opensesame_lifecycle::{EVENT_RENEWAL_DUE, LIFECYCLE_EVENT_TYPES};
+
+    fn filter(entries: &[&str]) -> Vec<String> {
+        entries.iter().map(|entry| (*entry).to_string()).collect()
+    }
+
+    #[test]
+    fn one_subscription_may_span_both_families() {
+        assert!(filter_is_valid(&filter(&[
+            EVENT_RENEWAL_DUE,
+            EVENT_RUN_BLOCKED
+        ])));
+        assert!(filter_is_valid(&filter(&["lifecycle.*", "agent.*"])));
+    }
+
+    #[test]
+    fn an_unknown_name_is_refused_even_beside_valid_ones() {
+        assert!(!filter_is_valid(&filter(&[
+            EVENT_RENEWAL_DUE,
+            "agent.run.exploded"
+        ])));
+        assert!(!filter_is_valid(&filter(&["everything"])));
+    }
+
+    #[test]
+    fn an_empty_filter_is_refused_rather_than_read_as_everything() {
+        assert!(!filter_is_valid(&[]));
+    }
+
+    #[test]
+    fn discovery_answers_for_both_families() {
+        let advertised = subscribable_event_types();
+        for name in LIFECYCLE_EVENT_TYPES.iter().chain(AGENT_EVENT_TYPES.iter()) {
+            assert!(advertised.contains(name), "{name} is not discoverable");
+        }
+        // Everything advertised must also be registrable: a caller that reads
+        // this list and registers from it can never be told a name it was just
+        // given is unknown.
+        for name in &advertised {
+            assert!(
+                filter_is_valid(&[(*name).to_string()]),
+                "{name} is advertised but not registrable"
+            );
+        }
     }
 }
