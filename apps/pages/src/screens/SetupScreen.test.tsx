@@ -130,6 +130,7 @@ async function addProvider(
   preset: RegExp,
   fields: ProviderFields,
 ): Promise<void> {
+  const discoveries = discover.mock.calls.length;
   fireEvent.click(screen.getByRole("button", { name: preset }));
   if (fields.issuer) {
     fireEvent.change(fieldNamed(fields.issuer[0]), {
@@ -141,7 +142,17 @@ async function addProvider(
   });
   const add = screen.getByRole("button", { name: /^Add / });
   fireEvent.click(add);
-  await waitFor(() => expect(discover).toHaveBeenCalled());
+  // Wait for *this* add to land, not for some earlier one to have happened:
+  // `discover` is one mock for the whole test, so a provider added a moment
+  // ago satisfies `toHaveBeenCalled` on the spot and this returns while the
+  // add is still in flight. An add is finished only once discovery has come
+  // back and the form has closed behind it — until then the screen is `busy`,
+  // every preset button is disabled, and the next caller's click lands on
+  // nothing.
+  await waitFor(() => {
+    expect(discover.mock.calls.length).toBe(discoveries + 1);
+    expect(screen.queryByLabelText("Client ID")).toBeNull();
+  });
 }
 
 describe("the setup ceremony", () => {

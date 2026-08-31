@@ -1,0 +1,88 @@
+/* Watching a sandboxed run (ADR 0081).
+ *
+ * Three lanes on one timeline. The visual weight is deliberately uneven: the
+ * "did" lane is the record and reads as the page's own voice, while the
+ * thinking lane is set back and quoted, because it is a model narrating and,
+ * upstream of that, a relying party's text. A rationale that looked like our
+ * prose would be a phishing surface wearing our chrome. */
+
+.run__head {
+  margin-bottom: var(--gap);
+}
+
+.run__origin {
+  font: inherit;
+  font-weight: 600;
+  margin: 0;
+}
+
+.run__state {
+  color: var(--ink-2);
+  margin: 0.25rem 0 0;
+}
+
+.run__tier {
+  color: var(--ink-2);
+  font-size: 0.9em;
+  margin: 0 0 var(--gap);
+}
+
+.run-log {
+  list-style: none;
+  margin: 0 0 var(--gap);
+  padding: 0;
+}
+
+.run-lane {
+  align-items: baseline;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 2.5rem 5rem 1fr auto;
+  padding: 0.4rem 0;
+}
+
+.run-lane__seq,
+.run-lane__kind,
+.run-lane__at {
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
+.run-lane__body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Set back and quoted: this is somebody else's page talking through a model,
+ * and it must not read as ours. */
+.run-lane--thought .run-lane__body {
+  color: var(--ink-2);
+}
+
+.run-lane__thought {
+  font-style: italic;
+}
+
+.run-lane__sealed {
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+
+.run__do {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 34rem) {
+  .run-lane {
+    grid-template-columns: 2.5rem 1fr;
+  }
+
+  .run-lane__at {
+    grid-column: 2;
+  }
+}
