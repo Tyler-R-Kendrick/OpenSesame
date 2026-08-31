@@ -130,3 +130,53 @@ construction, not the scanner:
 Test anchors: `crates/connection-detect` (canary/no-value-escape
 properties), `apps/daemon` promote/invoke-through canary tests, fuzz
 targets `mcp_config`, `ini_parse`, `whois_response`, `promote_request`.
+
+## Breach scanner access profile (ADR 0080)
+
+The breach scanner adds the gateway's first outbound calls to a third party
+that is neither a credential provider nor a customer endpoint, so its access
+profile is stated the same way the daemon's discovery scanner is — anything
+outside it is, by construction, not the scanner:
+
+- **Network:** exactly two request shapes, both to Have I Been Pwned, both
+  confined to `apps/gateway/src/breach/sources.rs`, both with redirects
+  disabled and a 15-second timeout.
+  - `GET https://api.pwnedpasswords.com/range/{prefix}` with
+    `Add-Padding: true`. The path carries **five hexadecimal characters** of a
+    SHA-1 and nothing else; `range_url` interpolates the prefix only, and a
+    unit test asserts the suffix never appears in the URL. The response is
+    matched locally, and padding means its size discloses nothing either.
+  - `GET https://haveibeenpwned.com/api/v3/breaches`. Unauthenticated, carries
+    no tenant data at all, and the body is size-capped (16 MiB) so an
+    impersonated source cannot make a pass allocate without bound.
+- **What is deliberately absent:** the breached-account API. It would require
+  sending the account identifiers a tenant manages, which are not ours to
+  disclose. Provider coverage is obtained by matching the public catalogue
+  locally instead.
+- **Reads:** connection *metadata* only — the egress authorities each
+  connection is bound to reach. The scanner opens no sealed column, so a
+  gateway with no sealing key still gets provider coverage.
+- **The one secret-accepting route.** `POST /api/v1/security/breach-check` is
+  the only route in the product whose body carries a secret value. It is
+  owner/admin or operator gated, bounded at 4 KiB, hashed once, and the hash
+  is not persisted. The value is never written to the database, never logged,
+  never returned, and never included in a published event; the copy the
+  handler owns is zeroized. It is excluded from every agent surface
+  (`security.breach_check.run`), because an agent surface must never be the
+  thing that carries a secret — even to have it vetted.
+- **Writes:** `breach_findings` rows, which are metadata. There is
+  deliberately no column for a hash or a hash prefix: a stored SHA-1 of a
+  password is a crackable artifact, and keeping one to save a re-check next
+  pass would be a bad trade for a system whose claim is that it holds no
+  recoverable copy of what it protects. The cost of that choice is that
+  periodic re-checking of stored passwords is not offered — only
+  check-at-set-time, which is where NIST SP 800-63B puts it anyway.
+- **Egress from the notification path:** alert sinks are absolute `https://`
+  only and re-checked against the private/metadata-address fence at send time,
+  not only at registration. There is no `syslog` delivery kind: RFC 5424 lines
+  are emitted to the host's own log stream rather than over plaintext egress.
+
+Test anchors: `crates/breach-intel` (k-anonymity and value-blindness
+properties), `apps/gateway/src/routes/security.rs` (metadata-only findings,
+refusals that do not echo the candidate), `apps/gateway/src/security/sinks.rs`
+(no sink renders a secret-shaped key).

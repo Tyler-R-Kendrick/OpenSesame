@@ -1,13 +1,17 @@
-//! Persistence for expiry lifecycle hooks (ADR 0074).
+//! Persistence for the security-event feed (ADR 0074, ADR 0080).
 //!
-//! Three concerns, deliberately kept apart:
+//! Four concerns, deliberately kept apart:
 //!
-//! - [`StoredLifecycleHook`] — who subscribes and where it is delivered. The
-//!   Standard Webhooks signing secret lives in a sealed column group and never
-//!   renders through `Debug`.
-//! - [`StoredLifecycleWatermark`] — how far up each ladder a subject has been
-//!   reported, so a rung fires exactly once.
-//! - [`StoredLifecycleDelivery`] — the outbound ledger, with the ADR 0039 saga
+//! - [`StoredSecurityHook`] — who subscribes, to which events, at what
+//!   severity, and where it is delivered. Sealed material — a Standard
+//!   Webhooks signing secret or a `PagerDuty` routing key — lives in a sealed
+//!   column group and never renders through `Debug`.
+//! - [`StoredLifecycleWatermark`] — how far up each expiry ladder a subject has
+//!   been reported, so a rung fires exactly once.
+//! - [`StoredBreachFinding`] — what the breach scanner has already reported,
+//!   and whether it still reproduces. A watermark counts up; a finding can go
+//!   away, and that transition is itself an event.
+//! - [`StoredSecurityDelivery`] — the outbound ledger, with the ADR 0039 saga
 //!   shape (claim under lease, backoff, dead-letter) but its own table, so hook
 //!   fan-out never provokes the backup actor.
 
@@ -23,29 +27,44 @@ use crate::{
     SealedCertificateMaterial,
 };
 
-/// Seal scope for a hook's Standard Webhooks signing secret. Distinct from
-/// every Certificate Manager scope, so a hook secret cannot be opened as a
-/// signing key even if rows were moved between tables.
-pub const LIFECYCLE_HOOK_SECRET_SCOPE: &str = "lifecycle_hook_secret";
+/// Seal scope for a hook's sealed material — a Standard Webhooks signing
+/// secret, or a `PagerDuty` routing key. Distinct from every Certificate
+/// Manager scope, so a hook secret cannot be opened as a signing key even if
+/// rows were moved between tables.
+///
+/// The *value* is deliberately still `lifecycle_hook_secret` even though the
+/// constant and its table were renamed. A seal scope is bound into the AAD of
+/// every blob sealed under it: changing the string would make every secret
+/// registered before this rename permanently unopenable, which is a migration
+/// disguised as a tidy-up.
+pub const SECURITY_HOOK_SECRET_SCOPE: &str = "lifecycle_hook_secret";
 
 /// Deliveries handed out in one claim.
 pub const DELIVERY_BATCH_LIMIT: usize = 32;
 
-/// A registered lifecycle subscription. The sealed signing secret never
-/// renders through `Debug`.
+/// A registered security-event subscription. The sealed material never renders
+/// through `Debug`.
 #[derive(Clone, PartialEq, Eq)]
-pub struct StoredLifecycleHook {
+pub struct StoredSecurityHook {
     pub id: String,
     pub organization_id: String,
     pub name: String,
-    /// Frozen lifecycle event types, or the `lifecycle.*` wildcard.
+    /// Frozen event types from any family, or a family wildcard
+    /// (`lifecycle.*`, `breach.*`).
     pub event_types: Vec<String>,
-    /// `webhook` or `internal`.
+    /// `webhook`, `internal`, `alertmanager`, or `pagerduty`.
     pub delivery: String,
+    /// Absolute `https://` endpoint for every outbound delivery; `None` for an
+    /// internal responder.
     pub endpoint_url: Option<String>,
+    /// Platform responder id when `delivery` is `internal`.
     pub responder: Option<String>,
     /// `None` means every subject kind.
     pub subject_kinds: Option<Vec<String>>,
+    /// Severity floor as a wire name (`info`|`warning`|`error`|`critical`).
+    /// `info` admits everything, which is what a row written before severity
+    /// floors existed carries.
+    pub severity_min: String,
     pub enabled: bool,
     pub sealed_secret: Option<SealedCertificateMaterial>,
     pub last_delivered_at: Option<String>,
@@ -55,10 +74,10 @@ pub struct StoredLifecycleHook {
     pub updated_at: String,
 }
 
-impl std::fmt::Debug for StoredLifecycleHook {
+impl std::fmt::Debug for StoredSecurityHook {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("StoredLifecycleHook")
+            .debug_struct("StoredSecurityHook")
             .field("id", &self.id)
             .field("organization_id", &self.organization_id)
             .field("name", &self.name)
@@ -67,6 +86,7 @@ impl std::fmt::Debug for StoredLifecycleHook {
             .field("endpoint_url", &self.endpoint_url)
             .field("responder", &self.responder)
             .field("subject_kinds", &self.subject_kinds)
+            .field("severity_min", &self.severity_min)
             .field("enabled", &self.enabled)
             .field("sealed_secret", &"[REDACTED]")
             .field("version", &self.version)
@@ -88,7 +108,7 @@ pub struct StoredLifecycleWatermark {
 
 /// One queued or settled outbound delivery.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StoredLifecycleDelivery {
+pub struct StoredSecurityDelivery {
     pub id: String,
     pub organization_id: String,
     pub hook_id: String,
@@ -105,15 +125,15 @@ pub struct StoredLifecycleDelivery {
     pub updated_at: String,
 }
 
-fn hook_from_row(row: &SqliteRow) -> anyhow::Result<StoredLifecycleHook> {
+fn hook_from_row(row: &SqliteRow) -> anyhow::Result<StoredSecurityHook> {
     let event_types_json: String = row.get("event_types_json");
     let subject_kinds_json: Option<String> = row.get("subject_kinds_json");
-    Ok(StoredLifecycleHook {
+    Ok(StoredSecurityHook {
         id: row.get("id"),
         organization_id: row.get("organization_id"),
         name: row.get("name"),
         event_types: serde_json::from_str(&event_types_json)
-            .context("lifecycle hook event_types_json is not a JSON array of strings")?,
+            .context("security hook event_types_json is not a JSON array of strings")?,
         delivery: row.get("delivery"),
         endpoint_url: row.get("endpoint_url"),
         responder: row.get("responder"),
@@ -121,7 +141,8 @@ fn hook_from_row(row: &SqliteRow) -> anyhow::Result<StoredLifecycleHook> {
             .as_deref()
             .map(serde_json::from_str)
             .transpose()
-            .context("lifecycle hook subject_kinds_json is not a JSON array of strings")?,
+            .context("security hook subject_kinds_json is not a JSON array of strings")?,
+        severity_min: row.get("severity_min"),
         enabled: row.get::<i64, _>("enabled") != 0,
         sealed_secret: optional_sealed_material!(row, "sealed_secret"),
         last_delivered_at: row.get("last_delivered_at"),
@@ -144,8 +165,8 @@ fn watermark_from_row(row: &SqliteRow) -> StoredLifecycleWatermark {
     }
 }
 
-fn delivery_from_row(row: &SqliteRow) -> StoredLifecycleDelivery {
-    StoredLifecycleDelivery {
+fn delivery_from_row(row: &SqliteRow) -> StoredSecurityDelivery {
+    StoredSecurityDelivery {
         id: row.get("id"),
         organization_id: row.get("organization_id"),
         hook_id: row.get("hook_id"),
@@ -160,6 +181,54 @@ fn delivery_from_row(row: &SqliteRow) -> StoredLifecycleDelivery {
         delivered_at: row.get("delivered_at"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
+    }
+}
+
+/// Wire value for a finding that currently reproduces.
+pub const BREACH_FINDING_OPEN: &str = "open";
+/// Wire value for a finding that has stopped reproducing.
+pub const BREACH_FINDING_CLEARED: &str = "cleared";
+
+/// One breach finding: a subject, a corpus, and whether the match still holds.
+///
+/// No field can carry a value, and none carries anything derived from one
+/// either. There is deliberately no column for a hash or a hash prefix: a
+/// stored SHA-1 of a password is a crackable artifact, and keeping one to save
+/// a re-check next pass would be a bad trade for a system whose whole claim is
+/// that it does not hold recoverable copies of what it protects.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StoredBreachFinding {
+    pub organization_id: String,
+    pub subject_kind: String,
+    pub subject_id: String,
+    /// Which corpus reported it.
+    pub source: String,
+    /// Which finding within the subject: a published breach name for a
+    /// disclosure, empty for a password-corpus match.
+    pub reference: String,
+    pub severity: String,
+    /// Corpus occurrence count for a password match. A property of the corpus.
+    pub occurrences: Option<i64>,
+    /// [`BREACH_FINDING_OPEN`] or [`BREACH_FINDING_CLEARED`].
+    pub state: String,
+    pub first_seen_at: String,
+    pub last_seen_at: String,
+    pub cleared_at: Option<String>,
+}
+
+fn breach_finding_from_row(row: &SqliteRow) -> StoredBreachFinding {
+    StoredBreachFinding {
+        organization_id: row.get("organization_id"),
+        subject_kind: row.get("subject_kind"),
+        subject_id: row.get("subject_id"),
+        source: row.get("source"),
+        reference: row.get("reference"),
+        severity: row.get("severity"),
+        occurrences: row.get("occurrences"),
+        state: row.get("state"),
+        first_seen_at: row.get("first_seen_at"),
+        last_seen_at: row.get("last_seen_at"),
+        cleared_at: row.get("cleared_at"),
     }
 }
 
@@ -193,27 +262,28 @@ impl Db {
     ///
     /// Returns an error when the sealed group is malformed, the JSON columns
     /// are not arrays, or the row violates a schema `CHECK`.
-    pub async fn upsert_lifecycle_hook(&self, hook: &StoredLifecycleHook) -> anyhow::Result<()> {
+    pub async fn upsert_security_hook(&self, hook: &StoredSecurityHook) -> anyhow::Result<()> {
         validate_optional_sealed_material(hook.sealed_secret.as_ref())?;
-        let event_types_json = serde_json::to_string(&hook.event_types)
-            .context("encode lifecycle hook event types")?;
-        validate_json_document(&event_types_json, "lifecycle hook event types")?;
+        let event_types_json =
+            serde_json::to_string(&hook.event_types).context("encode security hook event types")?;
+        validate_json_document(&event_types_json, "security hook event types")?;
         let subject_kinds_json = hook
             .subject_kinds
             .as_ref()
             .map(serde_json::to_string)
             .transpose()
-            .context("encode lifecycle hook subject kinds")?;
+            .context("encode security hook subject kinds")?;
         let (key_id, ciphertext, nonce, aad_digest) = sealed_parts(hook.sealed_secret.as_ref());
         sqlx::query(
-            "INSERT INTO lifecycle_hooks (id, organization_id, name, event_types_json, delivery, endpoint_url, responder, subject_kinds_json, enabled, sealed_secret_key_id, sealed_secret_ciphertext, sealed_secret_nonce, sealed_secret_aad_digest, last_delivered_at, last_error, version, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+            "INSERT INTO security_hooks (id, organization_id, name, event_types_json, delivery, endpoint_url, responder, subject_kinds_json, severity_min, enabled, sealed_secret_key_id, sealed_secret_ciphertext, sealed_secret_nonce, sealed_secret_aad_digest, last_delivered_at, last_error, version, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(id) DO UPDATE SET name = excluded.name, event_types_json = excluded.event_types_json, \
                delivery = excluded.delivery, endpoint_url = excluded.endpoint_url, responder = excluded.responder, \
-               subject_kinds_json = excluded.subject_kinds_json, enabled = excluded.enabled, \
+               subject_kinds_json = excluded.subject_kinds_json, severity_min = excluded.severity_min, \
+               enabled = excluded.enabled, \
                sealed_secret_key_id = excluded.sealed_secret_key_id, sealed_secret_ciphertext = excluded.sealed_secret_ciphertext, \
                sealed_secret_nonce = excluded.sealed_secret_nonce, sealed_secret_aad_digest = excluded.sealed_secret_aad_digest, \
-               version = lifecycle_hooks.version + 1, updated_at = excluded.updated_at",
+               version = security_hooks.version + 1, updated_at = excluded.updated_at",
         )
         .bind(&hook.id)
         .bind(&hook.organization_id)
@@ -223,6 +293,7 @@ impl Db {
         .bind(&hook.endpoint_url)
         .bind(&hook.responder)
         .bind(&subject_kinds_json)
+        .bind(&hook.severity_min)
         .bind(i64::from(hook.enabled))
         .bind(key_id)
         .bind(ciphertext)
@@ -235,7 +306,7 @@ impl Db {
         .bind(&hook.updated_at)
         .execute(&self.pool)
         .await
-        .context("upsert lifecycle hook")?;
+        .context("upsert security hook")?;
         Ok(())
     }
 
@@ -244,17 +315,16 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the query fails or a row cannot be decoded.
-    pub async fn list_lifecycle_hooks(
+    pub async fn list_security_hooks(
         &self,
         organization_id: &str,
-    ) -> anyhow::Result<Vec<StoredLifecycleHook>> {
-        let rows = sqlx::query(
-            "SELECT * FROM lifecycle_hooks WHERE organization_id = ? ORDER BY name, id",
-        )
-        .bind(organization_id)
-        .fetch_all(&self.pool)
-        .await
-        .context("list lifecycle hooks")?;
+    ) -> anyhow::Result<Vec<StoredSecurityHook>> {
+        let rows =
+            sqlx::query("SELECT * FROM security_hooks WHERE organization_id = ? ORDER BY name, id")
+                .bind(organization_id)
+                .fetch_all(&self.pool)
+                .await
+                .context("list security hooks")?;
         rows.iter().map(hook_from_row).collect()
     }
 
@@ -263,17 +333,17 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the query fails or the row cannot be decoded.
-    pub async fn get_lifecycle_hook(
+    pub async fn get_security_hook(
         &self,
         organization_id: &str,
         id: &str,
-    ) -> anyhow::Result<Option<StoredLifecycleHook>> {
-        let row = sqlx::query("SELECT * FROM lifecycle_hooks WHERE organization_id = ? AND id = ?")
+    ) -> anyhow::Result<Option<StoredSecurityHook>> {
+        let row = sqlx::query("SELECT * FROM security_hooks WHERE organization_id = ? AND id = ?")
             .bind(organization_id)
             .bind(id)
             .fetch_optional(&self.pool)
             .await
-            .context("get lifecycle hook")?;
+            .context("get security hook")?;
         row.as_ref().map(hook_from_row).transpose()
     }
 
@@ -282,18 +352,17 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the delete fails.
-    pub async fn delete_lifecycle_hook(
+    pub async fn delete_security_hook(
         &self,
         organization_id: &str,
         id: &str,
     ) -> anyhow::Result<bool> {
-        let result =
-            sqlx::query("DELETE FROM lifecycle_hooks WHERE organization_id = ? AND id = ?")
-                .bind(organization_id)
-                .bind(id)
-                .execute(&self.pool)
-                .await
-                .context("delete lifecycle hook")?;
+        let result = sqlx::query("DELETE FROM security_hooks WHERE organization_id = ? AND id = ?")
+            .bind(organization_id)
+            .bind(id)
+            .execute(&self.pool)
+            .await
+            .context("delete lifecycle hook")?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -303,7 +372,7 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the update fails.
-    pub async fn record_lifecycle_hook_attempt(
+    pub async fn record_security_hook_attempt(
         &self,
         organization_id: &str,
         id: &str,
@@ -311,7 +380,7 @@ impl Db {
         error: Option<&str>,
     ) -> anyhow::Result<()> {
         sqlx::query(
-            "UPDATE lifecycle_hooks SET last_delivered_at = ?, last_error = ?, updated_at = ? \
+            "UPDATE security_hooks SET last_delivered_at = ?, last_error = ?, updated_at = ? \
              WHERE organization_id = ? AND id = ?",
         )
         .bind(if error.is_none() {
@@ -456,13 +525,13 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the insert fails or the payload is not JSON.
-    pub async fn enqueue_lifecycle_delivery(
+    pub async fn enqueue_security_delivery(
         &self,
-        delivery: &StoredLifecycleDelivery,
+        delivery: &StoredSecurityDelivery,
     ) -> anyhow::Result<()> {
         validate_json_document(&delivery.payload_json, "lifecycle delivery payload")?;
         sqlx::query(
-            "INSERT INTO lifecycle_deliveries (id, organization_id, hook_id, event_type, subject_kind, subject_id, payload_json, state, attempts, available_at, last_error, delivered_at, created_at, updated_at) \
+            "INSERT INTO security_deliveries (id, organization_id, hook_id, event_type, subject_kind, subject_id, payload_json, state, attempts, available_at, last_error, delivered_at, created_at, updated_at) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&delivery.id)
@@ -495,15 +564,15 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the transaction fails.
-    pub async fn claim_lifecycle_deliveries(
+    pub async fn claim_security_deliveries(
         &self,
         limit: usize,
         lease_seconds: i64,
         now: DateTime<Utc>,
-    ) -> anyhow::Result<Vec<StoredLifecycleDelivery>> {
+    ) -> anyhow::Result<Vec<StoredSecurityDelivery>> {
         let mut transaction = self.pool.begin().await.context("begin delivery claim")?;
         let rows = sqlx::query(
-            "SELECT * FROM lifecycle_deliveries \
+            "SELECT * FROM security_deliveries \
              WHERE state = 'pending' AND (available_at IS NULL OR available_at <= ?) \
              ORDER BY created_at, id LIMIT ?",
         )
@@ -514,9 +583,9 @@ impl Db {
         .context("claim lifecycle deliveries")?;
 
         let lease_until = (now + chrono::Duration::seconds(lease_seconds.max(1))).to_rfc3339();
-        let claimed: Vec<StoredLifecycleDelivery> = rows.iter().map(delivery_from_row).collect();
+        let claimed: Vec<StoredSecurityDelivery> = rows.iter().map(delivery_from_row).collect();
         for delivery in &claimed {
-            sqlx::query("UPDATE lifecycle_deliveries SET available_at = ? WHERE id = ?")
+            sqlx::query("UPDATE security_deliveries SET available_at = ? WHERE id = ?")
                 .bind(&lease_until)
                 .bind(&delivery.id)
                 .execute(&mut *transaction)
@@ -535,14 +604,14 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the update fails.
-    pub async fn mark_lifecycle_delivered(
+    pub async fn mark_security_delivered(
         &self,
         id: &str,
         now: DateTime<Utc>,
     ) -> anyhow::Result<()> {
         let now = now.to_rfc3339();
         sqlx::query(
-            "UPDATE lifecycle_deliveries SET state = 'delivered', delivered_at = ?, \
+            "UPDATE security_deliveries SET state = 'delivered', delivered_at = ?, \
              last_error = NULL, available_at = NULL, updated_at = ? WHERE id = ?",
         )
         .bind(&now)
@@ -559,7 +628,7 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the update fails.
-    pub async fn park_lifecycle_delivery(
+    pub async fn park_security_delivery(
         &self,
         id: &str,
         retry_at: DateTime<Utc>,
@@ -567,7 +636,7 @@ impl Db {
         now: DateTime<Utc>,
     ) -> anyhow::Result<()> {
         sqlx::query(
-            "UPDATE lifecycle_deliveries SET attempts = attempts + 1, available_at = ?, \
+            "UPDATE security_deliveries SET attempts = attempts + 1, available_at = ?, \
              last_error = ?, updated_at = ? WHERE id = ?",
         )
         .bind(retry_at.to_rfc3339())
@@ -586,14 +655,14 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the update fails.
-    pub async fn dead_letter_lifecycle_delivery(
+    pub async fn dead_letter_security_delivery(
         &self,
         id: &str,
         error: &str,
         now: DateTime<Utc>,
     ) -> anyhow::Result<()> {
         sqlx::query(
-            "UPDATE lifecycle_deliveries SET state = 'dead_lettered', attempts = attempts + 1, \
+            "UPDATE security_deliveries SET state = 'dead_lettered', attempts = attempts + 1, \
              available_at = NULL, last_error = ?, updated_at = ? WHERE id = ?",
         )
         .bind(error)
@@ -610,13 +679,13 @@ impl Db {
     /// # Errors
     ///
     /// Returns an error when the query fails.
-    pub async fn list_lifecycle_deliveries(
+    pub async fn list_security_deliveries(
         &self,
         organization_id: &str,
         limit: usize,
-    ) -> anyhow::Result<Vec<StoredLifecycleDelivery>> {
+    ) -> anyhow::Result<Vec<StoredSecurityDelivery>> {
         let rows = sqlx::query(
-            "SELECT * FROM lifecycle_deliveries WHERE organization_id = ? \
+            "SELECT * FROM security_deliveries WHERE organization_id = ? \
              ORDER BY created_at DESC, id DESC LIMIT ?",
         )
         .bind(organization_id)
@@ -625,6 +694,154 @@ impl Db {
         .await
         .context("list lifecycle deliveries")?;
         Ok(rows.iter().map(delivery_from_row).collect())
+    }
+
+    // —— breach findings ——————————————————————————————————————————
+
+    /// Record that a finding currently reproduces.
+    ///
+    /// Returns `true` when this call is the one that *opened* it — a finding
+    /// never seen before, or one that had been cleared and has come back. That
+    /// return is the publish gate: a breach that reproduces on every pass must
+    /// produce one event, not one per minute, and two gateway processes
+    /// scanning concurrently must not both publish it.
+    ///
+    /// The claim and the refresh are separate writes on purpose. The claim is
+    /// conditional, so exactly one caller can win it; the refresh is
+    /// unconditional, so `last_seen_at` advances on every pass and a finding
+    /// that stops reproducing is detectable as stale.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when either write fails or violates a `CHECK`.
+    pub async fn record_breach_finding(
+        &self,
+        finding: &StoredBreachFinding,
+        now: DateTime<Utc>,
+    ) -> anyhow::Result<bool> {
+        let now = now.to_rfc3339();
+        let opened = sqlx::query(
+            "INSERT INTO breach_findings (organization_id, subject_kind, subject_id, source, reference, severity, occurrences, state, first_seen_at, last_seen_at, cleared_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, NULL) \
+             ON CONFLICT(organization_id, subject_kind, subject_id, source, reference) DO UPDATE SET \
+               severity = excluded.severity, occurrences = excluded.occurrences, \
+               state = 'open', cleared_at = NULL, \
+               first_seen_at = excluded.first_seen_at, last_seen_at = excluded.last_seen_at \
+             WHERE breach_findings.state = 'cleared'",
+        )
+        .bind(&finding.organization_id)
+        .bind(&finding.subject_kind)
+        .bind(&finding.subject_id)
+        .bind(&finding.source)
+        .bind(&finding.reference)
+        .bind(&finding.severity)
+        .bind(finding.occurrences)
+        .bind(&now)
+        .bind(&now)
+        .execute(&self.pool)
+        .await
+        .context("record breach finding")?
+        .rows_affected();
+
+        sqlx::query(
+            "UPDATE breach_findings SET last_seen_at = ?, severity = ?, occurrences = ? \
+             WHERE organization_id = ? AND subject_kind = ? AND subject_id = ? \
+               AND source = ? AND reference = ? AND state = 'open'",
+        )
+        .bind(&now)
+        .bind(&finding.severity)
+        .bind(finding.occurrences)
+        .bind(&finding.organization_id)
+        .bind(&finding.subject_kind)
+        .bind(&finding.subject_id)
+        .bind(&finding.source)
+        .bind(&finding.reference)
+        .execute(&self.pool)
+        .await
+        .context("refresh breach finding")?;
+
+        Ok(opened == 1)
+    }
+
+    /// Mark a finding as no longer reproducing.
+    ///
+    /// Returns `true` only on the transition, so the clear publishes once and
+    /// resolves whatever alert the finding opened.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the update fails.
+    pub async fn clear_breach_finding(
+        &self,
+        organization_id: &str,
+        subject_kind: &str,
+        subject_id: &str,
+        source: &str,
+        reference: &str,
+        now: DateTime<Utc>,
+    ) -> anyhow::Result<bool> {
+        let cleared = sqlx::query(
+            "UPDATE breach_findings SET state = 'cleared', cleared_at = ? \
+             WHERE organization_id = ? AND subject_kind = ? AND subject_id = ? \
+               AND source = ? AND reference = ? AND state = 'open'",
+        )
+        .bind(now.to_rfc3339())
+        .bind(organization_id)
+        .bind(subject_kind)
+        .bind(subject_id)
+        .bind(source)
+        .bind(reference)
+        .execute(&self.pool)
+        .await
+        .context("clear breach finding")?
+        .rows_affected();
+        Ok(cleared == 1)
+    }
+
+    /// Every finding in an organization that still reproduces.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
+    pub async fn list_open_breach_findings(
+        &self,
+        organization_id: &str,
+    ) -> anyhow::Result<Vec<StoredBreachFinding>> {
+        let rows = sqlx::query(
+            "SELECT * FROM breach_findings WHERE organization_id = ? AND state = 'open' \
+             ORDER BY subject_kind, subject_id, source, reference",
+        )
+        .bind(organization_id)
+        .fetch_all(&self.pool)
+        .await
+        .context("list open breach findings")?;
+        Ok(rows.iter().map(breach_finding_from_row).collect())
+    }
+
+    /// Findings in an organization, most recently seen first.
+    ///
+    /// Cleared rows are included: an operator reading the ledger needs to see
+    /// that something *was* exposed and has since been rotated, not just what
+    /// is exposed right now.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
+    pub async fn list_breach_findings(
+        &self,
+        organization_id: &str,
+        limit: usize,
+    ) -> anyhow::Result<Vec<StoredBreachFinding>> {
+        let rows = sqlx::query(
+            "SELECT * FROM breach_findings WHERE organization_id = ? \
+             ORDER BY last_seen_at DESC, subject_kind, subject_id LIMIT ?",
+        )
+        .bind(organization_id)
+        .bind(i64::try_from(limit).unwrap_or(i64::MAX))
+        .fetch_all(&self.pool)
+        .await
+        .context("list breach findings")?;
+        Ok(rows.iter().map(breach_finding_from_row).collect())
     }
 }
 
@@ -663,8 +880,8 @@ mod tests {
         Db::connect_memory().await.unwrap()
     }
 
-    fn webhook_hook(id: &str, name: &str) -> StoredLifecycleHook {
-        StoredLifecycleHook {
+    fn webhook_hook(id: &str, name: &str) -> StoredSecurityHook {
+        StoredSecurityHook {
             id: id.into(),
             organization_id: ORG.into(),
             name: name.into(),
@@ -673,6 +890,7 @@ mod tests {
             endpoint_url: Some("https://hooks.example/expiry".into()),
             responder: None,
             subject_kinds: Some(vec!["certificate".into()]),
+            severity_min: "info".into(),
             enabled: true,
             sealed_secret: Some(SealedCertificateMaterial {
                 key_id: "seal:hook".into(),
@@ -688,8 +906,8 @@ mod tests {
         }
     }
 
-    fn internal_hook(id: &str, name: &str) -> StoredLifecycleHook {
-        StoredLifecycleHook {
+    fn internal_hook(id: &str, name: &str) -> StoredSecurityHook {
+        StoredSecurityHook {
             delivery: "internal".into(),
             endpoint_url: None,
             responder: Some("rotation".into()),
@@ -712,8 +930,8 @@ mod tests {
         }
     }
 
-    fn delivery(id: &str, hook_id: &str) -> StoredLifecycleDelivery {
-        StoredLifecycleDelivery {
+    fn delivery(id: &str, hook_id: &str) -> StoredSecurityDelivery {
+        StoredSecurityDelivery {
             id: id.into(),
             organization_id: ORG.into(),
             hook_id: hook_id.into(),
@@ -740,9 +958,9 @@ mod tests {
             .unwrap()
             .contains(&"0017_lifecycle_hooks".to_string()));
         for table in [
-            "lifecycle_hooks",
+            "security_hooks",
             "lifecycle_watermarks",
-            "lifecycle_deliveries",
+            "security_deliveries",
         ] {
             sqlx::query(&format!("SELECT 1 FROM {table} LIMIT 0"))
                 .execute(db.pool())
@@ -774,13 +992,13 @@ mod tests {
         // would make the scanner refuse to record anything in exactly those
         // deployments, silently stopping the rotations they run today.
         let db = unseeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .expect("a hook must persist without a tenant row");
         db.record_lifecycle_watermark(&watermark("renewal", "renewal", 1), now())
             .await
             .expect("a watermark must persist without a tenant row");
-        db.enqueue_lifecycle_delivery(&delivery("del:1", "hook:1"))
+        db.enqueue_security_delivery(&delivery("del:1", "hook:1"))
             .await
             .expect("a delivery must persist without a tenant row");
     }
@@ -788,11 +1006,11 @@ mod tests {
     #[tokio::test]
     async fn hooks_round_trip_and_upsert_advances_the_version() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
         let stored = db
-            .get_lifecycle_hook(ORG, "hook:1")
+            .get_security_hook(ORG, "hook:1")
             .await
             .unwrap()
             .expect("hook is stored");
@@ -803,8 +1021,8 @@ mod tests {
 
         let mut edited = webhook_hook("hook:1", "expiry");
         edited.enabled = false;
-        db.upsert_lifecycle_hook(&edited).await.unwrap();
-        let stored = db.get_lifecycle_hook(ORG, "hook:1").await.unwrap().unwrap();
+        db.upsert_security_hook(&edited).await.unwrap();
+        let stored = db.get_security_hook(ORG, "hook:1").await.unwrap().unwrap();
         assert!(!stored.enabled);
         assert_eq!(stored.version, 2, "an edit must advance the version");
     }
@@ -812,16 +1030,16 @@ mod tests {
     #[tokio::test]
     async fn a_hook_is_scoped_to_its_organization() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
         assert!(db
-            .get_lifecycle_hook("org:other", "hook:1")
+            .get_security_hook("org:other", "hook:1")
             .await
             .unwrap()
             .is_none());
         assert!(db
-            .list_lifecycle_hooks("org:other")
+            .list_security_hooks("org:other")
             .await
             .unwrap()
             .is_empty());
@@ -833,7 +1051,7 @@ mod tests {
         let mut broken = webhook_hook("hook:1", "expiry");
         broken.endpoint_url = None;
         assert!(
-            db.upsert_lifecycle_hook(&broken).await.is_err(),
+            db.upsert_security_hook(&broken).await.is_err(),
             "the schema CHECK must refuse a webhook hook with nowhere to deliver",
         );
     }
@@ -849,7 +1067,7 @@ mod tests {
             aad_digest: "sha256:x".into(),
         });
         assert!(
-            db.upsert_lifecycle_hook(&broken).await.is_err(),
+            db.upsert_security_hook(&broken).await.is_err(),
             "an in-process responder signs nothing and must store nothing",
         );
     }
@@ -857,11 +1075,11 @@ mod tests {
     #[tokio::test]
     async fn an_internal_hook_round_trips() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&internal_hook("hook:rot", "rotation"))
+        db.upsert_security_hook(&internal_hook("hook:rot", "rotation"))
             .await
             .unwrap();
         let stored = db
-            .get_lifecycle_hook(ORG, "hook:rot")
+            .get_security_hook(ORG, "hook:rot")
             .await
             .unwrap()
             .unwrap();
@@ -880,19 +1098,19 @@ mod tests {
     #[tokio::test]
     async fn deleting_a_hook_cascades_to_its_queued_deliveries() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
-        db.enqueue_lifecycle_delivery(&delivery("del:1", "hook:1"))
+        db.enqueue_security_delivery(&delivery("del:1", "hook:1"))
             .await
             .unwrap();
-        assert!(db.delete_lifecycle_hook(ORG, "hook:1").await.unwrap());
+        assert!(db.delete_security_hook(ORG, "hook:1").await.unwrap());
         assert!(db
-            .list_lifecycle_deliveries(ORG, 10)
+            .list_security_deliveries(ORG, 10)
             .await
             .unwrap()
             .is_empty());
-        assert!(!db.delete_lifecycle_hook(ORG, "hook:1").await.unwrap());
+        assert!(!db.delete_security_hook(ORG, "hook:1").await.unwrap());
     }
 
     /// The write is the claim: a rung already recorded advances nothing, so a
@@ -1040,16 +1258,16 @@ mod tests {
     #[tokio::test]
     async fn claiming_a_delivery_leases_it_away_from_a_second_worker() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
-        db.enqueue_lifecycle_delivery(&delivery("del:1", "hook:1"))
+        db.enqueue_security_delivery(&delivery("del:1", "hook:1"))
             .await
             .unwrap();
 
-        let first = db.claim_lifecycle_deliveries(10, 60, now()).await.unwrap();
+        let first = db.claim_security_deliveries(10, 60, now()).await.unwrap();
         assert_eq!(first.len(), 1);
-        let second = db.claim_lifecycle_deliveries(10, 60, now()).await.unwrap();
+        let second = db.claim_security_deliveries(10, 60, now()).await.unwrap();
         assert!(
             second.is_empty(),
             "a leased delivery must not be re-claimed"
@@ -1057,27 +1275,27 @@ mod tests {
 
         // …and the lease expires, so a crashed worker cannot wedge the queue.
         let later = now() + chrono::Duration::seconds(120);
-        let third = db.claim_lifecycle_deliveries(10, 60, later).await.unwrap();
+        let third = db.claim_security_deliveries(10, 60, later).await.unwrap();
         assert_eq!(third.len(), 1, "an expired lease must become claimable");
     }
 
     #[tokio::test]
     async fn a_delivered_row_is_never_claimed_again() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
-        db.enqueue_lifecycle_delivery(&delivery("del:1", "hook:1"))
+        db.enqueue_security_delivery(&delivery("del:1", "hook:1"))
             .await
             .unwrap();
-        db.mark_lifecycle_delivered("del:1", now()).await.unwrap();
+        db.mark_security_delivered("del:1", now()).await.unwrap();
         let later = now() + chrono::Duration::days(7);
         assert!(db
-            .claim_lifecycle_deliveries(10, 60, later)
+            .claim_security_deliveries(10, 60, later)
             .await
             .unwrap()
             .is_empty());
-        let stored = &db.list_lifecycle_deliveries(ORG, 10).await.unwrap()[0];
+        let stored = &db.list_security_deliveries(ORG, 10).await.unwrap()[0];
         assert_eq!(stored.state, "delivered");
         assert!(stored.delivered_at.is_some());
     }
@@ -1085,28 +1303,28 @@ mod tests {
     #[tokio::test]
     async fn parking_counts_the_attempt_and_defers_the_retry() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
-        db.enqueue_lifecycle_delivery(&delivery("del:1", "hook:1"))
+        db.enqueue_security_delivery(&delivery("del:1", "hook:1"))
             .await
             .unwrap();
         let retry_at = now() + chrono::Duration::minutes(5);
-        db.park_lifecycle_delivery("del:1", retry_at, "502 from endpoint", now())
+        db.park_security_delivery("del:1", retry_at, "502 from endpoint", now())
             .await
             .unwrap();
 
-        let stored = &db.list_lifecycle_deliveries(ORG, 10).await.unwrap()[0];
+        let stored = &db.list_security_deliveries(ORG, 10).await.unwrap()[0];
         assert_eq!(stored.attempts, 1);
         assert_eq!(stored.state, "pending");
         assert_eq!(stored.last_error.as_deref(), Some("502 from endpoint"));
         assert!(db
-            .claim_lifecycle_deliveries(10, 60, now())
+            .claim_security_deliveries(10, 60, now())
             .await
             .unwrap()
             .is_empty());
         assert_eq!(
-            db.claim_lifecycle_deliveries(10, 60, retry_at)
+            db.claim_security_deliveries(10, 60, retry_at)
                 .await
                 .unwrap()
                 .len(),
@@ -1117,20 +1335,20 @@ mod tests {
     #[tokio::test]
     async fn a_dead_letter_is_kept_for_an_operator_to_see() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
-        db.enqueue_lifecycle_delivery(&delivery("del:1", "hook:1"))
+        db.enqueue_security_delivery(&delivery("del:1", "hook:1"))
             .await
             .unwrap();
-        db.dead_letter_lifecycle_delivery("del:1", "endpoint gone", now())
+        db.dead_letter_security_delivery("del:1", "endpoint gone", now())
             .await
             .unwrap();
-        let stored = &db.list_lifecycle_deliveries(ORG, 10).await.unwrap()[0];
+        let stored = &db.list_security_deliveries(ORG, 10).await.unwrap()[0];
         assert_eq!(stored.state, "dead_lettered");
         assert_eq!(stored.last_error.as_deref(), Some("endpoint gone"));
         assert!(db
-            .claim_lifecycle_deliveries(10, 60, now() + chrono::Duration::days(30))
+            .claim_security_deliveries(10, 60, now() + chrono::Duration::days(30))
             .await
             .unwrap()
             .is_empty());
@@ -1139,32 +1357,233 @@ mod tests {
     #[tokio::test]
     async fn a_non_json_payload_is_refused_before_it_reaches_a_subscriber() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
         let mut broken = delivery("del:1", "hook:1");
         broken.payload_json = "not json".into();
-        assert!(db.enqueue_lifecycle_delivery(&broken).await.is_err());
+        assert!(db.enqueue_security_delivery(&broken).await.is_err());
     }
 
     #[tokio::test]
     async fn recording_an_attempt_reports_success_and_failure_distinctly() {
         let db = seeded_db().await;
-        db.upsert_lifecycle_hook(&webhook_hook("hook:1", "expiry"))
+        db.upsert_security_hook(&webhook_hook("hook:1", "expiry"))
             .await
             .unwrap();
-        db.record_lifecycle_hook_attempt(ORG, "hook:1", now(), Some("connection refused"))
+        db.record_security_hook_attempt(ORG, "hook:1", now(), Some("connection refused"))
             .await
             .unwrap();
-        let stored = db.get_lifecycle_hook(ORG, "hook:1").await.unwrap().unwrap();
+        let stored = db.get_security_hook(ORG, "hook:1").await.unwrap().unwrap();
         assert_eq!(stored.last_error.as_deref(), Some("connection refused"));
         assert_eq!(stored.last_delivered_at, None);
 
-        db.record_lifecycle_hook_attempt(ORG, "hook:1", now(), None)
+        db.record_security_hook_attempt(ORG, "hook:1", now(), None)
             .await
             .unwrap();
-        let stored = db.get_lifecycle_hook(ORG, "hook:1").await.unwrap().unwrap();
+        let stored = db.get_security_hook(ORG, "hook:1").await.unwrap().unwrap();
         assert_eq!(stored.last_error, None);
         assert!(stored.last_delivered_at.is_some());
+    }
+
+    // —— breach findings ——————————————————————————————————————————
+
+    fn finding(subject_id: &str, reference: &str) -> StoredBreachFinding {
+        StoredBreachFinding {
+            organization_id: ORG.into(),
+            subject_kind: "store_path".into(),
+            subject_id: subject_id.into(),
+            source: "hibp_passwords".into(),
+            reference: reference.into(),
+            severity: "critical".into(),
+            occurrences: Some(42),
+            state: BREACH_FINDING_OPEN.into(),
+            first_seen_at: NOW.into(),
+            last_seen_at: NOW.into(),
+            cleared_at: None,
+        }
+    }
+
+    fn at(raw: &str) -> DateTime<Utc> {
+        raw.parse().unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_finding_opens_once_however_often_it_reproduces() {
+        let db = unseeded_db().await;
+        let row = finding("Dev/api-token", "");
+        assert!(db.record_breach_finding(&row, at(NOW)).await.unwrap());
+        for pass in 1..4 {
+            assert!(
+                !db.record_breach_finding(&row, at("2026-08-30T00:05:00+00:00"))
+                    .await
+                    .unwrap(),
+                "pass {pass} re-published a finding that was already open",
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn every_pass_refreshes_the_sighting_even_when_it_does_not_publish() {
+        let db = unseeded_db().await;
+        let row = finding("Dev/api-token", "");
+        db.record_breach_finding(&row, at(NOW)).await.unwrap();
+        db.record_breach_finding(&row, at("2026-08-31T00:00:00+00:00"))
+            .await
+            .unwrap();
+        let open = db.list_open_breach_findings(ORG).await.unwrap();
+        assert_eq!(open[0].last_seen_at, "2026-08-31T00:00:00+00:00");
+        assert_eq!(
+            open[0].first_seen_at, NOW,
+            "the first sighting must not move",
+        );
+    }
+
+    #[tokio::test]
+    async fn clearing_reports_only_the_transition() {
+        let db = unseeded_db().await;
+        let row = finding("Dev/api-token", "");
+        db.record_breach_finding(&row, at(NOW)).await.unwrap();
+        let cleared = db
+            .clear_breach_finding(
+                ORG,
+                "store_path",
+                "Dev/api-token",
+                "hibp_passwords",
+                "",
+                at(NOW),
+            )
+            .await
+            .unwrap();
+        assert!(cleared);
+        assert!(
+            !db.clear_breach_finding(
+                ORG,
+                "store_path",
+                "Dev/api-token",
+                "hibp_passwords",
+                "",
+                at(NOW)
+            )
+            .await
+            .unwrap(),
+            "a second clear must not re-publish",
+        );
+    }
+
+    #[tokio::test]
+    async fn a_finding_that_comes_back_opens_again() {
+        let db = unseeded_db().await;
+        let row = finding("Dev/api-token", "");
+        db.record_breach_finding(&row, at(NOW)).await.unwrap();
+        db.clear_breach_finding(
+            ORG,
+            "store_path",
+            "Dev/api-token",
+            "hibp_passwords",
+            "",
+            at(NOW),
+        )
+        .await
+        .unwrap();
+        assert!(
+            db.record_breach_finding(&row, at("2026-09-01T00:00:00+00:00"))
+                .await
+                .unwrap(),
+            "a rotated-then-reused secret is news again",
+        );
+        let open = db.list_open_breach_findings(ORG).await.unwrap();
+        assert_eq!(open.len(), 1);
+        assert_eq!(open[0].cleared_at, None);
+    }
+
+    #[tokio::test]
+    async fn clearing_a_finding_that_was_never_recorded_reports_nothing() {
+        let db = unseeded_db().await;
+        assert!(!db
+            .clear_breach_finding(ORG, "store_path", "ghost", "hibp_passwords", "", at(NOW))
+            .await
+            .unwrap());
+    }
+
+    #[tokio::test]
+    async fn two_disclosures_about_one_subject_are_two_findings() {
+        let db = unseeded_db().await;
+        let mut first = finding("adobe.com", "Adobe");
+        first.subject_kind = "domain".into();
+        first.source = "hibp_breaches".into();
+        let mut second = first.clone();
+        second.reference = "Adobe2".into();
+        assert!(db.record_breach_finding(&first, at(NOW)).await.unwrap());
+        assert!(db.record_breach_finding(&second, at(NOW)).await.unwrap());
+        assert_eq!(db.list_open_breach_findings(ORG).await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn the_ledger_keeps_cleared_findings_but_the_open_list_does_not() {
+        let db = unseeded_db().await;
+        db.record_breach_finding(&finding("Dev/api-token", ""), at(NOW))
+            .await
+            .unwrap();
+        db.clear_breach_finding(
+            ORG,
+            "store_path",
+            "Dev/api-token",
+            "hibp_passwords",
+            "",
+            at(NOW),
+        )
+        .await
+        .unwrap();
+        assert!(db.list_open_breach_findings(ORG).await.unwrap().is_empty());
+        let ledger = db.list_breach_findings(ORG, 50).await.unwrap();
+        assert_eq!(ledger.len(), 1);
+        assert_eq!(ledger[0].state, BREACH_FINDING_CLEARED);
+        assert_eq!(ledger[0].cleared_at.as_deref(), Some(NOW));
+    }
+
+    #[tokio::test]
+    async fn findings_are_scoped_to_their_organization() {
+        let db = unseeded_db().await;
+        let mut other = finding("Dev/api-token", "");
+        other.organization_id = "org:other".into();
+        db.record_breach_finding(&finding("Dev/api-token", ""), at(NOW))
+            .await
+            .unwrap();
+        db.record_breach_finding(&other, at(NOW)).await.unwrap();
+        assert_eq!(db.list_open_breach_findings(ORG).await.unwrap().len(), 1);
+        assert_eq!(
+            db.list_open_breach_findings("org:other")
+                .await
+                .unwrap()
+                .len(),
+            1,
+        );
+    }
+
+    #[tokio::test]
+    async fn a_severity_floor_round_trips_through_a_hook_row() {
+        let db = seeded_db().await;
+        let mut hook = webhook_hook("hook:floor", "paging");
+        hook.severity_min = "critical".into();
+        db.upsert_security_hook(&hook).await.unwrap();
+        let stored = db
+            .get_security_hook(ORG, "hook:floor")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(stored.severity_min, "critical");
+    }
+
+    #[tokio::test]
+    async fn an_alerting_sink_stores_without_a_responder() {
+        let db = seeded_db().await;
+        let mut sink = webhook_hook("hook:pd", "pagerduty");
+        sink.delivery = "pagerduty".into();
+        sink.endpoint_url = Some("https://events.pagerduty.com/v2/enqueue".into());
+        db.upsert_security_hook(&sink).await.unwrap();
+        let stored = db.get_security_hook(ORG, "hook:pd").await.unwrap().unwrap();
+        assert_eq!(stored.delivery, "pagerduty");
+        assert_eq!(stored.responder, None);
     }
 }

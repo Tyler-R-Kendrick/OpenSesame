@@ -586,4 +586,37 @@ export function registerActTools(server: McpServer): void {
       }
     },
   );
+  server.tool(
+    "security_breach_scan",
+    "Run one breach scan now instead of waiting for the Host tick: fetches the public breach catalogue and matches it locally against the hosts this organization's connections reach; nothing about the organization leaves the Host",
+    {},
+    async () => {
+      try {
+        const res = await hostFetch("/api/v1/security/breach-scan", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const body = await res.json();
+        return {
+          content: textContent(
+            agentJson(
+              body,
+              res.ok,
+              z.object({
+                published: z.number().int().nonnegative(),
+                catalogue_entries: z.number().int().nonnegative().optional(),
+              }),
+            ),
+          ),
+          isError: !res.ok,
+        };
+      } catch (e) {
+        return toolError(
+          "security_breach_scan_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
 }

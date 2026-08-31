@@ -37,6 +37,7 @@ export const hostTools = [
   "lifecycle_expiring_read",
   "lifecycle_hooks_read",
   "lifecycle_deliveries_read",
+  "security_findings_read",
   "changelog_read",
   "backup_status",
   "delegation_narrow",
@@ -51,6 +52,7 @@ export const hostTools = [
   "sync_pull",
   "rotation_trigger",
   "lifecycle_scan",
+  "security_breach_scan",
 ] as const;
 
 export function assertsNoSecretTools(names: readonly string[]): void {

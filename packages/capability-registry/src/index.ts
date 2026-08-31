@@ -59,6 +59,7 @@ const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
 const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
 const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
 const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
+const ADR_SECURITY_EVENTS = "0080-security-event-hooks.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -93,6 +94,12 @@ const HOOK_SECRET_ISSUANCE: CapabilityExclusion = {
   reason:
     "registering a lifecycle hook mints and returns a whsec_ signing secret once; an agent surface must never be the thing that receives it",
   adr: ADR_LIFECYCLE_HOOKS,
+};
+
+const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
+  reason:
+    "the only route that accepts a secret value; an agent surface must never be the thing that carries one, even to have it vetted",
+  adr: ADR_SECURITY_EVENTS,
 };
 
 const CUSTODY_KEY_MATERIAL: CapabilityExclusion = {
@@ -1180,6 +1187,50 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: "lifecycle_scan",
       mcp_client: null,
       webmcp: null,
+    },
+  },
+  // ── Host plane: breach exposure (ADR 0080) ────────────────────────────
+  {
+    id: "security.findings.read",
+    title: "Read breach findings for this organization",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame security findings",
+      pwa: null,
+      mcp_host: "security_findings_read",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "security.breach_scan.trigger",
+    title: "Run one breach scan now",
+    plane: "host",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame security scan",
+      pwa: null,
+      mcp_host: "security_breach_scan",
+      mcp_client: null,
+      webmcp: null,
+    },
+  },
+  {
+    id: "security.breach_check.run",
+    title: "Check a candidate secret against the breached-password corpus",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame security check",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: BREACH_CHECK_TAKES_A_SECRET,
+      webmcp: BREACH_CHECK_TAKES_A_SECRET,
     },
   },
   {

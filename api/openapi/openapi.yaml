@@ -1615,6 +1615,182 @@ paths:
         "404": { $ref: "#/components/responses/ContractError" }
         "409": { $ref: "#/components/responses/ContractError" }
         "422": { $ref: "#/components/responses/ContractError" }
+  /security/hooks:
+    get:
+      summary: List registered security-event subscriptions
+      description: >-
+        The same subscriptions as `/lifecycle/hooks`, under the name that
+        describes what the feed now carries: expiry, breach exposure, and any
+        family added later. Both paths serve one table; the `/lifecycle` ones
+        are kept because subscribers are registered against them.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Subscriptions, without their sealed material
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hooks, secrets_returned]
+                properties:
+                  hooks:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleHook" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    put:
+      summary: Register or edit a security-event subscription
+      description: >-
+        Owner/admin or operator only. `delivery` selects the wire format:
+        `webhook` (Standard Webhooks, mints a `whsec_` secret returned once),
+        `alertmanager` (Prometheus Alertmanager v2), or `pagerduty` (Events
+        API v2, whose routing key is supplied as the secret). `severity_min`
+        sets a floor so a paging integration can take everything loud without
+        also taking every 30-day expiry notice.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LifecycleHookRequest" }
+      responses:
+        "200":
+          description: The stored subscription; `signing_secret` present only on first registration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleHook" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "503": { $ref: "#/components/responses/ContractError" }
+  /security/hooks/{id}:
+    delete:
+      summary: Remove a security-event subscription and its queued deliveries
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: boolean }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /security/deliveries:
+    get:
+      summary: The outbound delivery ledger
+      description: >-
+        The same ledger as `/lifecycle/deliveries`, covering every sink.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Recent deliveries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deliveries, secrets_returned]
+                properties:
+                  deliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleDelivery" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /security/findings:
+    get:
+      summary: Breach findings for this organization
+      description: >-
+        Metadata only. Each row names what was checked, which corpus reported
+        it, and whether the finding still reproduces. Cleared findings are
+        included: an operator needs to see that something was exposed and has
+        since been rotated, not only what is exposed right now. No column can
+        carry a value, and none carries a hash of one either.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Findings, most recently seen first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [findings, secrets_returned]
+                properties:
+                  findings:
+                    type: array
+                    items: { $ref: "#/components/schemas/BreachFinding" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /security/breach-scan:
+    post:
+      summary: Run one breach scan now
+      description: >-
+        Fetches the published breach catalogue and matches it against every
+        host this organization's connections are bound to reach. Nothing about
+        the organization leaves the host: the catalogue is public and the
+        matching is local. A source that cannot be reached publishes
+        `breach.scan.failed` and answers 502, rather than reporting a clean
+        result it did not obtain.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: How many events the pass published
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [published, secrets_returned]
+                properties:
+                  published: { type: integer }
+                  catalogue_entries: { type: integer }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "502": { $ref: "#/components/responses/ContractError" }
+  /security/breach-check:
+    post:
+      summary: Check a candidate secret against the breached-password corpus
+      description: >-
+        Owner/admin or operator only, and the one route that accepts a secret
+        value. It exists because NIST SP 800-63B asks that a chosen password be
+        checked against known-breached corpora at the moment it is set, which
+        is the check that prevents the exposure rather than reporting it later.
+        The value is hashed with SHA-1; five hexadecimal characters of that
+        hash are sent to the corpus, which is asked to pad its response, and
+        the match is performed on the host. The value is never stored, never
+        logged, and never returned. A match publishes
+        `breach.password.compromised` against the named subject; a clean result
+        clears any open finding for it, which resolves the alert an earlier
+        check opened.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BreachCheckRequest" }
+      responses:
+        "200":
+          description: Whether the candidate appears in the corpus
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BreachCheckResult" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "502": { $ref: "#/components/responses/ContractError" }
 components:
   securitySchemes:
     HostBearer:
@@ -1787,12 +1963,23 @@ components:
           items: { type: string }
         delivery:
           type: string
-          enum: [webhook, internal]
+          enum: [webhook, internal, alertmanager, pagerduty]
           description: >-
             `webhook` is the community surface — an observer, delivered
             asynchronously, unable to influence any decision. `internal` names
-            a platform responder that runs in process and cannot be registered
-            over this API.
+            a platform subscriber that runs in process and cannot be registered
+            over this API; the built-in notifier and alerter are two such rows.
+            `alertmanager` and `pagerduty` are the same observer surface
+            rendered into the formats an on-call rotation already reads. There
+            is deliberately no `syslog` delivery: RFC 5424 is a line format, and
+            those lines go to the host's own log stream rather than over
+            plaintext egress to a remote collector.
+        severity_min:
+          type: string
+          enum: [info, warning, error, critical]
+          description: >-
+            Severity floor. `info` admits everything, which is what a
+            subscription registered before floors existed carries.
         endpoint_url: { type: [string, "null"] }
         responder: { type: [string, "null"] }
         subject_kinds: { type: [array, "null"], items: { type: string } }
@@ -1908,6 +2095,70 @@ components:
           type: array
           minItems: 1
           items: { type: string }
+    BreachFinding:
+      type: object
+      required: [subject_kind, subject_id, source, severity, state, first_seen_at, last_seen_at]
+      properties:
+        subject_kind:
+          type: string
+          enum: [store_path, connection_credential, domain, breach_source]
+        subject_id: { type: string }
+        source:
+          type: string
+          enum: [hibp_passwords, hibp_breaches]
+        reference:
+          type: string
+          description: >-
+            The published breach name for a provider disclosure; empty for a
+            password-corpus match, of which there is one per subject.
+        severity: { type: string, enum: [info, warning, error, critical] }
+        occurrences:
+          type: [integer, "null"]
+          description: >-
+            How many times the corpus has seen this password. A property of the
+            corpus; it says nothing about the value.
+        state: { type: string, enum: [open, cleared] }
+        first_seen_at: { type: string }
+        last_seen_at: { type: string }
+        cleared_at: { type: [string, "null"] }
+    BreachCheckRequest:
+      type: object
+      required: [secret, subject_id]
+      properties:
+        secret:
+          type: string
+          maxLength: 4096
+          description: >-
+            The candidate value. Hashed on the host; never stored, logged, or
+            returned. Only five hexadecimal characters of its SHA-1 leave the
+            host.
+        subject_id:
+          type: string
+          maxLength: 256
+          description: What the secret belongs to — a store path or connection id.
+        subject_kind:
+          type: string
+          enum: [store_path, connection_credential]
+          default: store_path
+    BreachCheckResult:
+      type: object
+      required: [compromised, occurrences, secrets_returned]
+      properties:
+        compromised: { type: boolean }
+        occurrences:
+          type: integer
+          description: Times the corpus has seen this password; 0 when not found.
+        published:
+          type: boolean
+          description: >-
+            Whether this call opened the finding, and therefore published
+            `breach.password.compromised`. False when it was already open.
+        cleared:
+          type: boolean
+          description: >-
+            Whether a clean result closed a previously open finding, publishing
+            `breach.finding.cleared`.
+        secrets_returned: { type: boolean, const: false }
     DelegationOffer:
       type: object
       required: [id, state, manifest_digest, expires_at, items]
