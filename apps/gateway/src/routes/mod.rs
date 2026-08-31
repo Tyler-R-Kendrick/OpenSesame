@@ -5,6 +5,7 @@ mod agent_runs;
 mod agents;
 mod attachments;
 mod backup;
+mod ceremonies;
 pub(crate) mod certmgr_ca;
 pub(crate) mod certmgr_policy;
 pub(crate) mod certmgr_profile;
@@ -474,6 +475,7 @@ pub fn router(state: AppState) -> Router {
         // Unauthenticated by design: the A2H gateway holds no session, and the
         // request's HMAC is its authentication (see routes/a2h.rs).
         .route("/api/v1/a2h/callback", post(a2h::callback))
+        .route("/api/v1/ceremonies", get(ceremonies::list_ceremonies))
         .route("/api/v1/agent/runs", get(agent_runs::list_runs))
         .route("/api/v1/agent/runs/{id}", get(agent_runs::get_run))
         .route("/api/v1/agent/runs/{id}/observe", get(agent_runs::observe))

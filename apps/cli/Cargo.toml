@@ -9,6 +9,7 @@ name = "opensesame"
 path = "src/main.rs"
 
 [dependencies]
+opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-env-spec = { path = "../../crates/env-spec" }

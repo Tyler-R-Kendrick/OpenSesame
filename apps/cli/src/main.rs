@@ -1,6 +1,7 @@
 mod agent_runs;
 mod attach;
 mod bridge;
+mod ceremony;
 mod certs;
 mod configs;
 mod connect;
@@ -211,6 +212,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: RotateCmd,
     },
+    /// Connector registration ceremonies: what this build can set up for you.
+    Ceremony {
+        #[command(subcommand)]
+        cmd: CeremonyCmd,
+    },
     /// Issue TLS certificates with an automatically selected Host-owned issuer.
     Cert {
         #[command(subcommand)]
@@ -242,6 +248,17 @@ enum SecurityCmd {
         /// `store_path` (default) or `connection_credential`.
         #[arg(long, default_value = "store_path")]
         subject_kind: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum CeremonyCmd {
+    /// Every provider a ceremony covers, and how far each one gets.
+    List,
+    /// One provider in full: the plan, what it may capture, and its proof.
+    Show {
+        /// A provider id, from `opensesame ceremony list`.
+        provider: String,
     },
 }
 
@@ -1341,6 +1358,12 @@ async fn main() -> anyhow::Result<()> {
             RotateCmd::Attach { run } => {
                 agent_runs::cmd_attach(&cli.server, &cli.output, &run).await?;
             }
+        },
+        // No `&cli.server`: the catalog is compiled in, and this verb is read
+        // before a Host exists. See `ceremony`'s module docs.
+        Commands::Ceremony { cmd } => match cmd {
+            CeremonyCmd::List => ceremony::cmd_list(&cli.output)?,
+            CeremonyCmd::Show { provider } => ceremony::cmd_show(&cli.output, &provider)?,
         },
         Commands::Lifecycle { cmd } => match cmd {
             LifecycleCmd::Expiring => lifecycle::cmd_expiring(&cli.server, &cli.output).await?,

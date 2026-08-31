@@ -1285,6 +1285,25 @@
     }
   },
   {
+    "id": "ceremony.catalog.read",
+    "title": "Read which connector registrations this build can automate",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame ceremony list",
+      "pwa": null,
+      "mcp_host": "ceremony_catalog_read",
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the PWA has no ceremony surface yet; mapping a WebMCP tool onto a screen that does not exist would offer a road that dead-ends",
+        "adr": "0082-agent-run-registration-ceremonies.md"
+      }
+    }
+  },
+  {
     "id": "agent.runs.read",
     "title": "Read sandboxed agent runs and their control state",
     "plane": "host",

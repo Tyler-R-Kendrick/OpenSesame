@@ -91,6 +91,41 @@ export function registerReadTools(server: McpServer): void {
     secrets_returned: z.literal(false).optional(),
   });
 
+  const ceremonyResponseSchema = z.object({
+    ceremonies: z
+      .array(
+        z.object({
+          provider_id: safeTokenSchema,
+          native_registration: z.boolean().optional(),
+          native_registration_note: z.string().max(400).nullable().optional(),
+          recipe: z.boolean().optional(),
+          agentic_allowed: z.boolean().optional(),
+          // Slot names only, never the thing a slot names. A slot is
+          // permission to seal one item, so the catalog says which item,
+          // not what is in it.
+          declares: z.array(safeTokenSchema).max(32).optional(),
+          verifies_by: z.string().max(200).nullable().optional(),
+          note: z.string().max(1000).nullable().optional(),
+          runnable: z.boolean().optional(),
+          plan: z
+            .array(
+              z.object({
+                phase: safeTokenSchema,
+                tier: safeTokenSchema,
+                uses_a_model: z.boolean().optional(),
+                requires_a_present_user: z.boolean().optional(),
+              }),
+            )
+            .max(16)
+            .optional(),
+          secrets_returned: z.literal(false).optional(),
+        }),
+      )
+      .max(256),
+    phases: z.array(safeTokenSchema).max(16).optional(),
+    secrets_returned: z.literal(false).optional(),
+  });
+
   const lifecycleHooksResponseSchema = z.object({
     hooks: z
       .array(
@@ -901,6 +936,27 @@ export function registerReadTools(server: McpServer): void {
       } catch (e) {
         return toolError(
           "agent_runs_read_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "ceremony_catalog_read",
+    "Read which connector registrations this build can automate and how far each gets \u2014 per provider, the tier each phase resolves to, the capture slots the ceremony is permitted to seal, and how the result is proved. The whole catalog, never a per-provider lookup, and it is checked-in data rather than anything about this tenant",
+    {},
+    async () => {
+      try {
+        const res = await hostFetch("/api/v1/ceremonies");
+        const body = await res.json();
+        return {
+          content: textContent(agentJson(body, res.ok, ceremonyResponseSchema)),
+          isError: !res.ok,
+        };
+      } catch (e) {
+        return toolError(
+          "ceremony_catalog_read_failed",
           e instanceof Error ? e : String(e),
         );
       }
