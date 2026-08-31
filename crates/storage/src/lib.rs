@@ -1006,6 +1006,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "0023_a2h_delivery_and_web_login_watermarks",
         include_str!("../../../migrations/0023_a2h_delivery_and_web_login_watermarks.sql"),
     ),
+    (
+        "0024_session_grant_watermarks",
+        include_str!("../../../migrations/0024_session_grant_watermarks.sql"),
+    ),
 ];
 
 /// Embedded migration versions in the order they are applied.
