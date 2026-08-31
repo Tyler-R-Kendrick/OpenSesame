@@ -68,11 +68,19 @@ pub fn responder_for(kind: SubjectKind) -> Option<&'static str> {
         // reissued unattended; `renew_managed` refuses the rest with
         // `NotInCustody`, which becomes the outcome a subscriber reads.
         SubjectKind::Certificate => Some(CERTIFICATE_RESPONDER),
+        // Three kinds with no unattended path, for two different reasons.
+        //
         // A certificate authority is never re-keyed unattended: it changes
         // trust for everything it signed (ADR 0052-cert). Signer rotation has
-        // no unattended path yet. Neither is silently skipped — the dispatcher
-        // reports the gap as an outcome event.
-        SubjectKind::CertificateAuthority | SubjectKind::Signer => None,
+        // no unattended path *yet*. A session grant has none and never will —
+        // extending one human's reach into another's vault is a decision only
+        // a human makes (ADR 0079), which is why `SubjectKind::renewable`
+        // refuses it in `should_respond` before the dispatcher is even
+        // reached; this is the second fence.
+        //
+        // None of the three is silently skipped: the dispatcher reports the
+        // gap as an outcome event.
+        SubjectKind::CertificateAuthority | SubjectKind::Signer | SubjectKind::SessionGrant => None,
     }
 }
 
@@ -407,8 +415,36 @@ mod tests {
 
     #[test]
     fn kinds_without_an_unattended_path_report_no_responder() {
-        for kind in [SubjectKind::CertificateAuthority, SubjectKind::Signer] {
+        for kind in [
+            SubjectKind::CertificateAuthority,
+            SubjectKind::Signer,
+            // A session grant is the strongest case of this: not "no
+            // unattended path yet" but never one, because extending one
+            // human's reach into another's vault is a human decision
+            // (ADR 0079). `should_respond` refuses the kind before the
+            // dispatcher is reached; this is the second fence.
+            SubjectKind::SessionGrant,
+        ] {
             assert_eq!(responder_for(kind), None, "{kind:?}");
+        }
+    }
+
+    #[test]
+    fn every_kind_is_accounted_for_by_the_responder_lookup() {
+        // The closed set exists so adding a kind is an explicit choice about
+        // what acts on it. This walks the whole set rather than a list that
+        // could silently fall behind it.
+        for kind in SubjectKind::ALL {
+            let has_responder = responder_for(kind).is_some();
+            assert_eq!(
+                has_responder,
+                kind.renewable()
+                    && !matches!(
+                        kind,
+                        SubjectKind::CertificateAuthority | SubjectKind::Signer
+                    ),
+                "{kind:?} responder presence"
+            );
         }
     }
 

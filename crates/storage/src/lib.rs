@@ -987,6 +987,14 @@ const MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/0018_rotation_leases.sql"),
     ),
     (
+        "0019_shared_sessions",
+        include_str!("../../../migrations/0019_shared_sessions.sql"),
+    ),
+    (
+        "0020_security_events",
+        include_str!("../../../migrations/0020_security_events.sql"),
+    ),
+    (
         "0021_web_login_observation",
         include_str!("../../../migrations/0021_web_login_observation.sql"),
     ),
@@ -6820,10 +6828,13 @@ macro_rules! optional_sealed_material {
 // module declared above its definition cannot see it.
 mod managed_certs;
 
-mod lifecycle;
-pub use lifecycle::{
-    StoredLifecycleDelivery, StoredLifecycleHook, StoredLifecycleWatermark, DELIVERY_BATCH_LIMIT,
-    LIFECYCLE_HOOK_SECRET_SCOPE,
+mod shared_sessions;
+pub use shared_sessions::StoredSession;
+
+mod security;
+pub use security::{
+    StoredBreachFinding, StoredLifecycleWatermark, StoredSecurityDelivery, StoredSecurityHook,
+    BREACH_FINDING_CLEARED, BREACH_FINDING_OPEN, DELIVERY_BATCH_LIMIT, SECURITY_HOOK_SECRET_SCOPE,
 };
 
 mod observation;

@@ -266,8 +266,12 @@ describe("IdentitySection", () => {
     // secondary "Sign-in providers" section.
     expect(screen.getByLabelText(/Custom OIDC issuer/i)).toBeTruthy();
     expect(screen.getByText("Sign-in providers")).toBeTruthy();
+    // `find`, not `get`: the heading above renders immediately but the row
+    // beneath it waits on the provider catalog, which is a *second* async
+    // resolution this test never awaited. Locally both settle in the same
+    // flush and it passes; under CI load it does not.
     expect(
-      screen.getByRole("button", { name: "Continue with Google" }),
+      await screen.findByRole("button", { name: "Continue with Google" }),
     ).toBeTruthy();
     expect(screen.getByText("Set up later")).toBeTruthy();
     // No tabs behind the gate.
@@ -278,7 +282,7 @@ describe("IdentitySection", () => {
     renderIdentity();
     await screen.findByText("Connect your identity provider");
     await userEvent.click(
-      screen.getByRole("button", { name: "Continue with Google" }),
+      await screen.findByRole("button", { name: "Continue with Google" }),
     );
 
     await waitFor(() => expect(beginSignIn).toHaveBeenCalled());
@@ -1026,7 +1030,7 @@ describe("IdentitySection", () => {
     await userEvent.click(firstButton("Register an IdP"));
     await screen.findByText("Connect your identity provider");
     await userEvent.click(
-      screen.getByRole("button", { name: "Continue with Google" }),
+      await screen.findByRole("button", { name: "Continue with Google" }),
     );
     await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(1));
     expect(

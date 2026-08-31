@@ -12,7 +12,7 @@
 
 use chrono::{DateTime, Utc};
 use opensesame_agent_events::{filter_matches, AgentEvent};
-use opensesame_storage::{StoredLifecycleDelivery, StoredLifecycleHook};
+use opensesame_storage::{StoredSecurityDelivery, StoredSecurityHook};
 use opensesame_task_bus::BusEvent;
 
 use crate::app_state::AppState;
@@ -60,7 +60,7 @@ async fn publish_to_bus(state: &AppState, event: &AgentEvent) {
 /// that names no events is a misconfiguration, and defaulting it to
 /// "everything" is the wrong direction to fail.
 #[must_use]
-pub fn hook_matches(hook: &StoredLifecycleHook, event: &AgentEvent) -> bool {
+pub fn hook_matches(hook: &StoredSecurityHook, event: &AgentEvent) -> bool {
     if !hook.enabled {
         return false;
     }
@@ -77,18 +77,18 @@ pub fn hook_matches(hook: &StoredLifecycleHook, event: &AgentEvent) -> bool {
 ///
 /// `internal` rows document a platform responder that runs in process, so
 /// queueing an outbound delivery for one would be a row nobody drains.
-fn wants_delivery(hook: &StoredLifecycleHook, event: &AgentEvent) -> bool {
+fn wants_delivery(hook: &StoredSecurityHook, event: &AgentEvent) -> bool {
     hook.delivery == "webhook" && hook_matches(hook, event)
 }
 
 /// One queued delivery of `event` to `hook`.
 fn pending_delivery(
-    hook: &StoredLifecycleHook,
+    hook: &StoredSecurityHook,
     event: &AgentEvent,
     payload_json: String,
     now: DateTime<Utc>,
-) -> StoredLifecycleDelivery {
-    StoredLifecycleDelivery {
+) -> StoredSecurityDelivery {
+    StoredSecurityDelivery {
         id: format!("lcd_{}", uuid::Uuid::now_v7()),
         organization_id: hook.organization_id.clone(),
         hook_id: hook.id.clone(),
@@ -115,10 +115,10 @@ fn pending_delivery(
 async fn fanout_inputs(
     state: &AppState,
     event: &AgentEvent,
-) -> Option<(Vec<StoredLifecycleHook>, String)> {
+) -> Option<(Vec<StoredSecurityHook>, String)> {
     let hooks = state
         .db
-        .list_lifecycle_hooks(&event.run.organization_id)
+        .list_security_hooks(&event.run.organization_id)
         .await
         .inspect_err(|error| {
             tracing::warn!(%error, "agent fan-out could not read subscriptions");
@@ -138,7 +138,7 @@ async fn enqueue_for_subscribers(state: &AppState, event: &AgentEvent, now: Date
     };
     for hook in hooks.iter().filter(|hook| wants_delivery(hook, event)) {
         let delivery = pending_delivery(hook, event, payload.clone(), now);
-        if let Err(error) = state.db.enqueue_lifecycle_delivery(&delivery).await {
+        if let Err(error) = state.db.enqueue_security_delivery(&delivery).await {
             tracing::warn!(%error, hook_id = %hook.id, "agent delivery could not be queued");
         }
     }
@@ -174,13 +174,14 @@ mod tests {
         .unwrap()
     }
 
-    fn hook(event_types: &[&str], kinds: Option<&[&str]>) -> StoredLifecycleHook {
-        StoredLifecycleHook {
+    fn hook(event_types: &[&str], kinds: Option<&[&str]>) -> StoredSecurityHook {
+        StoredSecurityHook {
             id: "hook:1".into(),
             organization_id: "org:1".into(),
             name: "agent".into(),
             event_types: event_types.iter().map(|s| (*s).to_string()).collect(),
             delivery: "webhook".into(),
+            severity_min: "info".into(),
             endpoint_url: Some("https://hooks.example/agent".into()),
             responder: None,
             subject_kinds: kinds.map(|k| k.iter().map(|s| (*s).to_string()).collect()),

@@ -787,82 +787,75 @@
    Three roads, not a URL field. The first is selected on arrival because it
    already works: a deployment nobody has configured can still sign people in
    through the compiled broker. */
-.road {
+.ways {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ways__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ways__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.ways__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
   gap: 0.4rem;
 }
 
-.road__opt {
-  appearance: none;
+.ways__item {
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  width: 100%;
-  min-height: 3.5rem;
-  padding: 0.65rem 0.8rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
-.road__opt.is-on {
-  border-color: var(--accent);
-  background: var(--accent-wash);
-}
-
-.road__mark {
+.ways__mark {
   display: grid;
   place-items: center;
   flex: none;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
-.road__opt.is-on .road__mark,
-.road__on {
-  color: var(--accent);
-}
-
-.road__body {
-  display: grid;
-  gap: 0.1rem;
+.ways__body {
   flex: 1;
   min-width: 0;
-}
-
-.road__name {
-  font-family: var(--mono);
-  font-size: 0.875rem;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.road__kind {
-  font-family: var(--font);
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
-.road__opt.is-on .road__kind {
-  color: var(--accent);
-}
-
-.road__on {
   display: grid;
-  place-items: center;
-  flex: none;
+  gap: 0.1rem;
 }
 
-/* What an unopened row already holds, so the screen reads without opening
-   three disclosures to learn nothing is set. */
-.alt__state {
-  flex: none;
+.ways__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ways__kind {
   font-family: var(--mono);
   font-size: 0.6875rem;
   color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
   </style>
 </helmet>
@@ -954,7 +947,7 @@
 
       <div style="flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 22px 18px; border-top: 1px solid var(--line); background: var(--surface)">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color: var(--ink-3); flex: none"><path d="M12 3l7.5 3.2v5.1c0 4.7-3.1 8.1-7.5 9.4-4.4-1.3-7.5-4.7-7.5-9.4V6.2z"></path><path d="M9.2 12.1l2 2 3.6-3.9"></path></svg>
-        <span style="flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">id.acme.com · host paired</span>
+        <span style="flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap">acme.okta.com · your provider</span>
         <button type="button" class="setup__skip">Deployment setup</button>
       </div>
     </div>

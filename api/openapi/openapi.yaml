@@ -1306,6 +1306,491 @@ paths:
                   secrets_returned: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions:
+    get:
+      summary: Discover public shared sessions (ADR 0079)
+      description: >-
+        A name and an id, never a session's contents, its operator or its
+        roster. `visibility=public` is required rather than defaulted: a caller
+        who omits it is refused rather than handed a listing they did not ask
+        for, and private sessions are never listed under any query.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - name: visibility
+          in: query
+          required: true
+          schema: { type: string, enum: [public] }
+      responses:
+        "200":
+          description: The discovery record for each open public session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, display_name]
+                      additionalProperties: false
+                      properties:
+                        id: { type: string }
+                        display_name: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Open a shared session; the caller becomes its operator
+      security: [{ HostBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [display_name]
+              properties:
+                display_name: { type: string, minLength: 1, maxLength: 120 }
+                visibility: { type: string, enum: [private, public], default: private }
+      responses:
+        "201":
+          description: The opened session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedSession" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}:
+    get:
+      summary: A shared session and its roster
+      description: >-
+        Participants only. A caller with no standing — including one whose join
+        request is pending — receives 404 rather than 403, so the surface is not
+        an oracle for which private sessions exist. A participant sees who else
+        is here and in what role; only the operator sees each grant's scope.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The session, with a roster whose detail depends on the caller
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedSessionDetail" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/activity:
+    post:
+      summary: Tell the session what you are working on (ADR 0079)
+      description: >-
+        The one thing a participant sends, and it is a request like any other —
+        the announcer's own reach is checked before anything is broadcast, so a
+        participant cannot manufacture activity for an item they were never
+        granted. Refusal is the module's usual 404, because distinguishing "no
+        such item" from "not yours" would make this an oracle for what the vault
+        holds. The resulting event carries ids and reaches only the participants
+        who can reach that item.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [kind, vault_id, item_id]
+              properties:
+                kind: { type: string, enum: [opened, changed] }
+                vault_id: { type: string }
+                item_id: { type: string }
+      responses:
+        "202": { description: Announced to whoever may hear it }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/events:
+    get:
+      summary: The session's live channel (ADR 0079)
+      description: >-
+        Server-sent events, one direction only — deliberately. ADR 0079 section
+        6 holds that an inbound message is a request like any other and never
+        evidence its sender is allowed, and the cheapest way to keep that rule
+        is to have no inbound frame path at all: everything a participant does
+        goes through the authenticated routes. Every event carries references
+        (ids) and never labels, values or text a human wrote. Standing is
+        re-read from the store on every event, so a participant whose grant is
+        withdrawn or lapses mid-stream stops receiving on the next event rather
+        than at their next reconnect. An `event: lagged` frame tells one slow
+        reader how many events it missed; it never grows the buffer for others.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: An `text/event-stream` of SessionEvent frames
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/SessionEvent" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/grants:
+    post:
+      summary: Grant a participant scoped reach into a vault
+      description: >-
+        Operator only. The lifetime is bounded between one minute and seven days
+        and an out-of-bounds request is refused rather than clamped; `granted_at`
+        is the server's clock, never the body's. A row scope must name at least
+        one item.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject_principal_id, scope, role, expires_at]
+              properties:
+                subject_principal_id: { type: string }
+                scope: { $ref: "#/components/schemas/SessionGrantScope" }
+                role: { type: string, enum: [read, write] }
+                expires_at: { type: string, format: date-time }
+      responses:
+        "201":
+          description: The minted grant, in the operator's view
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [grant]
+                properties:
+                  grant: { $ref: "#/components/schemas/SessionGrantView" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/grants/{grant_id}:
+    delete:
+      summary: Withdraw a participant's grant
+      description: >-
+        Operator only, and idempotent — revoking an already-revoked grant is the
+        same answer. New authorizations stop immediately; a former participant who
+        kept ciphertext keeps the ability to read the versions they already had,
+        so the response states that re-keying is what makes future versions
+        unreadable (ADR 0079 section 3).
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: grant_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Withdrawn, with what withdrawal does not undo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revoked, note]
+                properties:
+                  revoked: { type: boolean, const: true }
+                  note: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/join-requests:
+    get:
+      summary: Requests nobody has decided yet
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: >-
+            Operator only. Each note is untrusted text written by somebody with
+            no standing in the session; whatever renders it escapes it.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [requests]
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, requester_principal_id, requested_at]
+                      properties:
+                        id: { type: string }
+                        requester_principal_id: { type: string }
+                        note: { type: string, nullable: true, maxLength: 280 }
+                        requested_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Ask to join a public shared session
+      description: >-
+        Only a public session accepts one; a private session answers 404 here
+        exactly as it does elsewhere, so this route cannot be used to probe for
+        private sessions by id. Admission precedes connection — a pending
+        requester learns their request is pending and nothing else: no roster,
+        no channel, no peer. Asking twice is the same ask.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note: { type: string, maxLength: 280 }
+      responses:
+        "202":
+          description: Recorded, pending an operator's decision
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision]
+                properties:
+                  id: { type: string }
+                  decision: { type: string, const: pending }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/join-requests/{request_id}/decide:
+    post:
+      summary: Admit or refuse a join request
+      description: >-
+        Operator only, and once — a decided request is 409, so a refusal cannot
+        be turned into an admission after the fact. Admission is a grant: the two
+        land in one transaction or not at all. The grant's subject is always the
+        requester; a body that names another is refused rather than ignored.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: request_id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [admitted, refused] }
+                grant:
+                  description: Required for admitted, refused for refused. Carries no subject.
+                  type: object
+                  required: [scope, role, expires_at]
+                  properties:
+                    scope: { $ref: "#/components/schemas/SessionGrantScope" }
+                    role: { type: string, enum: [read, write] }
+                    expires_at: { type: string, format: date-time }
+      responses:
+        "200":
+          description: The decision, and the grant an admission minted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, decision]
+                properties:
+                  id: { type: string }
+                  decision: { type: string, enum: [admitted, refused] }
+                  grant: { $ref: "#/components/schemas/SessionGrantView" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "409": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /security/hooks:
+    get:
+      summary: List registered security-event subscriptions
+      description: >-
+        The same subscriptions as `/lifecycle/hooks`, under the name that
+        describes what the feed now carries: expiry, breach exposure, and any
+        family added later. Both paths serve one table; the `/lifecycle` ones
+        are kept because subscribers are registered against them.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: Subscriptions, without their sealed material
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hooks, secrets_returned]
+                properties:
+                  hooks:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleHook" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+    put:
+      summary: Register or edit a security-event subscription
+      description: >-
+        Owner/admin or operator only. `delivery` selects the wire format:
+        `webhook` (Standard Webhooks, mints a `whsec_` secret returned once),
+        `alertmanager` (Prometheus Alertmanager v2), or `pagerduty` (Events
+        API v2, whose routing key is supplied as the secret). `severity_min`
+        sets a floor so a paging integration can take everything loud without
+        also taking every 30-day expiry notice.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LifecycleHookRequest" }
+      responses:
+        "200":
+          description: The stored subscription; `signing_secret` present only on first registration
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LifecycleHook" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "503": { $ref: "#/components/responses/ContractError" }
+  /security/hooks/{id}:
+    delete:
+      summary: Remove a security-event subscription and its queued deliveries
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deleted]
+                properties:
+                  deleted: { type: boolean }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+  /security/deliveries:
+    get:
+      summary: The outbound delivery ledger
+      description: >-
+        The same ledger as `/lifecycle/deliveries`, covering every sink.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Recent deliveries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deliveries, secrets_returned]
+                properties:
+                  deliveries:
+                    type: array
+                    items: { $ref: "#/components/schemas/LifecycleDelivery" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /security/findings:
+    get:
+      summary: Breach findings for this organization
+      description: >-
+        Metadata only. Each row names what was checked, which corpus reported
+        it, and whether the finding still reproduces. Cleared findings are
+        included: an operator needs to see that something was exposed and has
+        since been rotated, not only what is exposed right now. No column can
+        carry a value, and none carries a hash of one either.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      parameters:
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 500 } }
+      responses:
+        "200":
+          description: Findings, most recently seen first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [findings, secrets_returned]
+                properties:
+                  findings:
+                    type: array
+                    items: { $ref: "#/components/schemas/BreachFinding" }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+  /security/breach-scan:
+    post:
+      summary: Run one breach scan now
+      description: >-
+        Fetches the published breach catalogue and matches it against every
+        host this organization's connections are bound to reach. Nothing about
+        the organization leaves the host: the catalogue is public and the
+        matching is local. A source that cannot be reached publishes
+        `breach.scan.failed` and answers 502, rather than reporting a clean
+        result it did not obtain.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      responses:
+        "200":
+          description: How many events the pass published
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [published, secrets_returned]
+                properties:
+                  published: { type: integer }
+                  catalogue_entries: { type: integer }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "502": { $ref: "#/components/responses/ContractError" }
+  /security/breach-check:
+    post:
+      summary: Check a candidate secret against the breached-password corpus
+      description: >-
+        Owner/admin or operator only, and the one route that accepts a secret
+        value. It exists because NIST SP 800-63B asks that a chosen password be
+        checked against known-breached corpora at the moment it is set, which
+        is the check that prevents the exposure rather than reporting it later.
+        The value is hashed with SHA-1; five hexadecimal characters of that
+        hash are sent to the corpus, which is asked to pad its response, and
+        the match is performed on the host. The value is never stored, never
+        logged, and never returned. A match publishes
+        `breach.password.compromised` against the named subject; a clean result
+        clears any open finding for it, which resolves the alert an earlier
+        check opened.
+      security: [{ HostBearer: [] }, { HostOperatorHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BreachCheckRequest" }
+      responses:
+        "200":
+          description: Whether the candidate appears in the corpus
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BreachCheckResult" }
+        "400": { $ref: "#/components/responses/ContractError" }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "502": { $ref: "#/components/responses/ContractError" }
 components:
   securitySchemes:
     HostBearer:
@@ -1478,12 +1963,23 @@ components:
           items: { type: string }
         delivery:
           type: string
-          enum: [webhook, internal]
+          enum: [webhook, internal, alertmanager, pagerduty]
           description: >-
             `webhook` is the community surface — an observer, delivered
             asynchronously, unable to influence any decision. `internal` names
-            a platform responder that runs in process and cannot be registered
-            over this API.
+            a platform subscriber that runs in process and cannot be registered
+            over this API; the built-in notifier and alerter are two such rows.
+            `alertmanager` and `pagerduty` are the same observer surface
+            rendered into the formats an on-call rotation already reads. There
+            is deliberately no `syslog` delivery: RFC 5424 is a line format, and
+            those lines go to the host's own log stream rather than over
+            plaintext egress to a remote collector.
+        severity_min:
+          type: string
+          enum: [info, warning, error, critical]
+          description: >-
+            Severity floor. `info` admits everything, which is what a
+            subscription registered before floors existed carries.
         endpoint_url: { type: [string, "null"] }
         responder: { type: [string, "null"] }
         subject_kinds: { type: [array, "null"], items: { type: string } }
@@ -1517,6 +2013,152 @@ components:
         last_error: { type: [string, "null"], description: Truncated operator hint, never a response body }
         delivered_at: { type: [string, "null"] }
         created_at: { type: string }
+    SessionEvent:
+      description: >-
+        References only. Every field is an id, a closed enum or a timestamp;
+        the type has no field able to carry an item label, a vault name, a note
+        somebody typed, a token or a value. Each client renders the labels it
+        can already decrypt.
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum:
+            [
+              participant_joined,
+              participant_left,
+              grant_added,
+              grant_withdrawn,
+              item_opened,
+              item_changed,
+              join_requested,
+            ]
+        principal_id: { type: string }
+        subject_principal_id: { type: string }
+        by_principal_id: { type: string }
+        grant_id: { type: string }
+        request_id: { type: string }
+        vault_id: { type: string }
+        item_id: { type: string }
+        role: { type: string, enum: [read, write] }
+        expires_at: { type: string, format: date-time }
+    SharedSession:
+      type: object
+      required: [id, display_name, visibility, operator_principal_id, created_at]
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+        visibility: { type: string, enum: [private, public] }
+        operator_principal_id: { type: string }
+        created_at: { type: string, format: date-time }
+    SharedSessionDetail:
+      allOf:
+        - $ref: "#/components/schemas/SharedSession"
+        - type: object
+          required: [participants]
+          properties:
+            closed_at: { type: string, format: date-time, nullable: true }
+            participants:
+              description: >-
+                Roster entries. A participant receives who and in what role; the
+                operator additionally receives each grant's id and scope. Which
+                rows a colleague holds is never published to a participant.
+              type: array
+              items: { $ref: "#/components/schemas/SessionRosterEntry" }
+    SessionRosterEntry:
+      type: object
+      required: [principal_id, role, expires_at]
+      properties:
+        principal_id: { type: string }
+        role: { type: string, enum: [read, write] }
+        expires_at: { type: string, format: date-time }
+    SessionGrantView:
+      allOf:
+        - $ref: "#/components/schemas/SessionRosterEntry"
+        - type: object
+          required: [grant_id, granted_by, scope]
+          properties:
+            grant_id: { type: string }
+            granted_by: { type: string }
+            scope: { $ref: "#/components/schemas/SessionGrantScope" }
+    SessionGrantScope:
+      description: >-
+        The whole vault, or named rows within it. A row scope must name at least
+        one item; an empty one is refused rather than read as "everything".
+      type: object
+      required: [kind, vault_id]
+      properties:
+        kind: { type: string, enum: [collection, rows] }
+        vault_id: { type: string }
+        items:
+          type: array
+          minItems: 1
+          items: { type: string }
+    BreachFinding:
+      type: object
+      required: [subject_kind, subject_id, source, severity, state, first_seen_at, last_seen_at]
+      properties:
+        subject_kind:
+          type: string
+          enum: [store_path, connection_credential, domain, breach_source]
+        subject_id: { type: string }
+        source:
+          type: string
+          enum: [hibp_passwords, hibp_breaches]
+        reference:
+          type: string
+          description: >-
+            The published breach name for a provider disclosure; empty for a
+            password-corpus match, of which there is one per subject.
+        severity: { type: string, enum: [info, warning, error, critical] }
+        occurrences:
+          type: [integer, "null"]
+          description: >-
+            How many times the corpus has seen this password. A property of the
+            corpus; it says nothing about the value.
+        state: { type: string, enum: [open, cleared] }
+        first_seen_at: { type: string }
+        last_seen_at: { type: string }
+        cleared_at: { type: [string, "null"] }
+    BreachCheckRequest:
+      type: object
+      required: [secret, subject_id]
+      properties:
+        secret:
+          type: string
+          maxLength: 4096
+          description: >-
+            The candidate value. Hashed on the host; never stored, logged, or
+            returned. Only five hexadecimal characters of its SHA-1 leave the
+            host.
+        subject_id:
+          type: string
+          maxLength: 256
+          description: What the secret belongs to — a store path or connection id.
+        subject_kind:
+          type: string
+          enum: [store_path, connection_credential]
+          default: store_path
+    BreachCheckResult:
+      type: object
+      required: [compromised, occurrences, secrets_returned]
+      properties:
+        compromised: { type: boolean }
+        occurrences:
+          type: integer
+          description: Times the corpus has seen this password; 0 when not found.
+        published:
+          type: boolean
+          description: >-
+            Whether this call opened the finding, and therefore published
+            `breach.password.compromised`. False when it was already open.
+        cleared:
+          type: boolean
+          description: >-
+            Whether a clean result closed a previously open finding, publishing
+            `breach.finding.cleared`.
+        secrets_returned: { type: boolean, const: false }
     DelegationOffer:
       type: object
       required: [id, state, manifest_digest, expires_at, items]

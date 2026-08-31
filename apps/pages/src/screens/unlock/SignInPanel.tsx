@@ -47,9 +47,14 @@ import {
   TRUSTED_UPSTREAMS,
   beginSignIn,
   defaultUpstream,
+  operatorUpstream,
 } from "../../lib/federation.js";
 import { continueAsGuest } from "../../lib/guest-auth.js";
-import { endSession, useIdentitySession } from "../../lib/identity.js";
+import {
+  endSession,
+  identityBase,
+  useIdentitySession,
+} from "../../lib/identity.js";
 import {
   type OrgAuthMethod,
   type OrgTenant,
@@ -64,6 +69,7 @@ import {
   brokeredUpstream,
   requestEmailMagicLink,
 } from "../../lib/providers.js";
+import { signInMethods } from "../../lib/settings.js";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
 import { brandFor } from "./ProviderBrand.js";
@@ -133,7 +139,20 @@ export function SignInPanel(props: Props) {
   const visibleProviders = catalogProviders.slice(0, VISIBLE_PROVIDERS);
   const overflowProviders = catalogProviders.slice(VISIBLE_PROVIDERS);
   const upstreamBrand = brandFor(upstream.id);
-  const fallbackUpstream = upstream.id === "mock" ? null : upstream;
+  /**
+   * What first-run setup allowed, and nothing else (ADR 0078 §3).
+   *
+   * The screen used to offer every road it could name — the compiled broker, a
+   * bring-your-own globe, a magic link, guest — whether or not the deployment
+   * had anything behind them. Most of those need an Identity API, so on a
+   * deployment without one they were buttons that could only fail. Setup is
+   * the allowlist now: these two lines decide the whole bar.
+   */
+  const methods = signInMethods();
+  /** The service roads — org SSO, SAML, magic link, guest, BYO — need one. */
+  const hasIdentityService = identityBase().trim().length > 0;
+  const fallbackUpstream =
+    methods.builtin && upstream.id !== "mock" ? upstream : null;
 
   // The ⋯ menu closes on Escape and on any press outside it — the two ways a
   // person says "not that, actually" without picking anything.
@@ -342,7 +361,7 @@ export function SignInPanel(props: Props) {
           {/* The anonymous road out of this screen, in the card's top-right
               corner where a "skip" always lives. First run only — beside an
               existing vault a guest principal would seal a second one. */}
-          {firstRun ? (
+          {firstRun && hasIdentityService ? (
             <button
               type="button"
               className="unlock__switch signin__skip"
@@ -375,6 +394,28 @@ export function SignInPanel(props: Props) {
                 authorized in this browser) is detected by the provider itself
                 once the leg starts. */}
             <div className="signin__bar">
+              {/* The operator's own providers, in the order they added them,
+                  wearing their own marks where an official one exists. */}
+              {methods.providers.map((idp) => {
+                const brand = brandFor(idp.providerId);
+                return (
+                  <button
+                    key={idp.issuer}
+                    type="button"
+                    className={`btn signin__social${
+                      brand ? ` ${brand.className}` : ""
+                    }`}
+                    aria-label={`Continue with ${idp.label}`}
+                    title={`Continue with ${idp.label}`}
+                    disabled={busy}
+                    onClick={() =>
+                      startFederated(() => beginSignIn(operatorUpstream(idp)))
+                    }
+                  >
+                    {brand ? <brand.Icon size={20} /> : <IconSite size={20} />}
+                  </button>
+                );
+              })}
               {catalogProviders.length > 0 ? (
                 visibleProviders.map((provider) => {
                   const brand = brandFor(provider.id);
@@ -419,74 +460,81 @@ export function SignInPanel(props: Props) {
                 </button>
               ) : null}
               {/* BYO OIDC as an icon in the same row: the globe is the
-                  conventional mark for "my own identity provider". */}
-              <button
-                type="button"
-                className="btn signin__social"
-                aria-label="Continue with your IdP"
-                title="Continue with your IdP"
-                disabled={busy}
-                onClick={() => setStage("byo")}
-              >
-                <IconSite size={20} />
-              </button>
-              <div className="signin__menuwrap" ref={menuRef}>
+                  conventional mark for "my own identity provider". It
+                  registers through an identity service, so it appears only
+                  where there is one — a globe that can only fail is exactly
+                  the dead end setup exists to remove. */}
+              {hasIdentityService ? (
                 <button
                   type="button"
                   className="btn signin__social"
-                  aria-label="More sign-in options"
-                  title="More sign-in options"
-                  aria-expanded={menuOpen}
+                  aria-label="Continue with your IdP"
+                  title="Continue with your IdP"
                   disabled={busy}
-                  onClick={() => setMenuOpen((open) => !open)}
+                  onClick={() => setStage("byo")}
                 >
-                  <IconDots size={20} />
+                  <IconSite size={20} />
                 </button>
-                {menuOpen ? (
-                  <div className="signin__menu">
-                    {overflowProviders.map((provider) => {
-                      const brand = brandFor(provider.id);
-                      return (
-                        <button
-                          key={provider.id}
-                          type="button"
-                          className="signin__menu-item"
-                          disabled={busy}
-                          onClick={() => {
-                            setMenuOpen(false);
-                            startProvider(provider);
-                          }}
-                        >
-                          {brand ? (
-                            <brand.Icon size={18} />
-                          ) : (
-                            <IconLogin size={18} />
-                          )}
-                          {providerLabel(provider)}
-                        </button>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      className="signin__menu-item"
-                      disabled={busy}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setStage("magic-link");
-                      }}
-                    >
-                      <IconLogin size={18} />
-                      Email me a sign-in link
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+              ) : null}
+              {overflowProviders.length > 0 || hasIdentityService ? (
+                <div className="signin__menuwrap" ref={menuRef}>
+                  <button
+                    type="button"
+                    className="btn signin__social"
+                    aria-label="More sign-in options"
+                    title="More sign-in options"
+                    aria-expanded={menuOpen}
+                    disabled={busy}
+                    onClick={() => setMenuOpen((open) => !open)}
+                  >
+                    <IconDots size={20} />
+                  </button>
+                  {menuOpen ? (
+                    <div className="signin__menu">
+                      {overflowProviders.map((provider) => {
+                        const brand = brandFor(provider.id);
+                        return (
+                          <button
+                            key={provider.id}
+                            type="button"
+                            className="signin__menu-item"
+                            disabled={busy}
+                            onClick={() => {
+                              setMenuOpen(false);
+                              startProvider(provider);
+                            }}
+                          >
+                            {brand ? (
+                              <brand.Icon size={18} />
+                            ) : (
+                              <IconLogin size={18} />
+                            )}
+                            {providerLabel(provider)}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className="signin__menu-item"
+                        disabled={busy}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setStage("magic-link");
+                        }}
+                      >
+                        <IconLogin size={18} />
+                        Email me a sign-in link
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             {/* Guest is the most common road in, so it is a full-size button
                 beside the social bar — never a footnote. First run only:
                 beside an existing vault a guest principal would seal a
                 second one. */}
-            {firstRun ? (
+            {firstRun && hasIdentityService ? (
               <button
                 type="button"
                 className="btn btn--block signin__provider"
@@ -499,7 +547,9 @@ export function SignInPanel(props: Props) {
             ) : null}
             <p className="hint signin__provider-note">
               {firstRun
-                ? "No passkey or password — this device opens with your account."
+                ? hasIdentityService
+                  ? "No passkey or password — this device opens with your account."
+                  : "Signing in attaches an account to this device; the vault still opens with your passkey, PIN, or password."
                 : "Attaches your account to this device so it can sync. The vault still opens with your passkey, PIN, or password."}
             </p>
             {brokerNotes.map((note) => (
@@ -509,19 +559,26 @@ export function SignInPanel(props: Props) {
             ))}
           </div>
 
-          <div className="signin__divider" aria-hidden="true">
-            or
-          </div>
+          {/* The identifier field looks an organisation up and routes to its
+              SSO, SAML or LDAP — all of which the Identity API runs. Without
+              one there is nothing to look anybody up in. */}
+          {hasIdentityService ? (
+            <div className="signin__divider" aria-hidden="true">
+              or
+            </div>
+          ) : null}
         </>
       )}
 
-      <IdentifierField
-        disabled={busy}
-        autoFocus
-        onStartOrgMethod={startOrgMethod}
-        onContinueWithDomain={continueWithDomain}
-        onEngagedChange={setIdentifierEngaged}
-      />
+      {hasIdentityService ? (
+        <IdentifierField
+          disabled={busy}
+          autoFocus
+          onStartOrgMethod={startOrgMethod}
+          onContinueWithDomain={continueWithDomain}
+          onEngagedChange={setIdentifierEngaged}
+        />
+      ) : null}
 
       {errorNote}
 

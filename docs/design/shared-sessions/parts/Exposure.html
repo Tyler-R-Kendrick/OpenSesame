@@ -1,0 +1,82 @@
+<div class="os" data-theme="{{theme}}" style="width: 1120px; height: 900px; padding: 40px 44px; display: grid; gap: 22px; align-content: start; overflow: hidden">
+
+  <div style="display: grid; gap: 8px">
+    <h1>What a shared session may carry</h1>
+    <p style="color: var(--ink-2); font-size: 15px; max-width: 74ch">The line is already drawn in <code>docs/security/key-hierarchy.md</code>: <strong>a valid sign-in is not possession of the vault key.</strong> The session channel lives on the session-plane side of it and stays there. ADR 0079.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 22px">
+    <div class="gate gate--allow">
+      <p class="gate__head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"></path></svg>
+        May cross the transport
+      </p>
+      <ul class="gate__list">
+        <li>the session id, and the roster this viewer is entitled to see</li>
+        <li>roles and grant <em>metadata</em> — subject, scope, expiry</li>
+        <li>presence and activity naming <strong>references</strong>: an item id, a collection id</li>
+        <li>ciphertext already sealed for one named recipient's key — the channel is a courier, not a party</li>
+        <li>signalling for the channel itself</li>
+      </ul>
+    </div>
+
+    <div class="gate gate--deny">
+      <p class="gate__head">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+        Never crosses it, under any framing
+      </p>
+      <ul class="gate__list">
+        <li>the vault root key or any wrapper of it — passkey PRF output, the password KEK, the recovery key, the device KEK</li>
+        <li>a collection key or an item key in the clear</li>
+        <li>any access token, claim token or session bearer</li>
+        <li>a raw secret value, or a decrypted attachment</li>
+        <li>anything from the authority plane — receipt signing keys, sealed CA or signer keys, HSM PINs</li>
+        <li><strong>item names and titles.</strong> "Tyler opened <em>AWS root credentials</em>" leaks the label to everyone, including a participant granted a different row</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px">
+    <div class="finding">
+      <p class="finding__head">A shared session cannot be serverless</p>
+      <p style="font-size: 13px; color: var(--ink-2); margin: 0">Every candidate transport needs one. WebRTC needs signalling and, in practice, a relay; SignalR and WebTransport are server protocols outright. Setup just established that signing in needs no service at all — <strong>sharing is the feature that reintroduces the dependency</strong>, so the share screen says so and offers the road to a Host.</p>
+    </div>
+
+    <div class="finding">
+      <p class="finding__head">A peer mesh would leak addresses</p>
+      <p style="font-size: 13px; color: var(--ink-2); margin: 0">ICE candidates carry host and reflexive addresses, so every peer learns every other peer's IP. On a public session a stranger who has merely <em>asked</em> to join would learn the operator's home address. Hence: a Host-served channel, admission before any connection, and relay-only candidates if a peer path is ever added for large transfers.</p>
+    </div>
+
+    <div class="finding">
+      <p class="finding__head">Revocation is re-keying, not a switch</p>
+      <p style="font-size: 13px; color: var(--ink-2); margin: 0">Withdrawing a grant stops new reads at once, but a participant who copied ciphertext keeps the key they were given for it. Future versions become unreadable only when the item is re-keyed. This is why every grant is time-bound by default and a standing one is a named exception.</p>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 22px">
+    <div class="gate">
+      <p class="gate__head" style="color: var(--ink-3)">Granularity the key hierarchy already has</p>
+      <dl style="display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 1rem; margin: 0; font-size: 13px">
+        <dt style="font-family: var(--mono); font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em">Whole vault</dt>
+        <dd style="margin: 0">wrap the collection key for the grantee</dd>
+        <dt style="font-family: var(--mono); font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em">Chosen rows</dt>
+        <dd style="margin: 0">wrap each item's own key for the grantee</dd>
+      </dl>
+      <p style="font-size: 13px; color: var(--ink-2); margin: 0.2rem 0 0">Row level is not a filter over a collection read — that would be theatre. It is a direct grant in the policy model, additive to a collection grant and never able to widen one.</p>
+    </div>
+
+    <div class="gate">
+      <p class="gate__head" style="color: var(--ink-3)">Expiry rides the feed we already trust</p>
+      <p style="font-size: 13px; color: var(--ink-2); margin: 0">A grant is a thing with a deadline, so it joins the lifecycle scanner beside certificates and rotations rather than keeping a private timer — the rule ADR 0074 set. It inherits the whole ladder (notice, warning, urgent, expired) and delivers on the webhook endpoints that already exist, with retry.</p>
+      <p style="font-size: 13px; color: var(--ink-2); margin: 0">And the payload is value-blind by construction: the event type has no field able to carry a value. <strong>An expiry notification structurally cannot carry what was granted</strong>, however carelessly a future subscriber is written.</p>
+    </div>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":1120,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

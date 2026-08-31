@@ -12,6 +12,7 @@ import {
   restoreSession,
 } from "./identity.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
+import { type OperatorIdp, signInMethods } from "./settings.js";
 /**
  * Federated sign-in against a trusted upstream broker (ADR 0033).
  *
@@ -32,6 +33,16 @@ export type TrustedUpstream = {
   issuer: string;
   /** What the human is actually signing in with, said plainly on the button. */
   accountKind: string;
+  /**
+   * The OAuth client id to present, when it is not this origin's own profile.
+   *
+   * Compiled-in brokers and the Identity API both understand `origin:<origin>`
+   * and mint a client for it on sight. A provider the operator brought — an
+   * Okta org, an Auth0 tenant, an Entra directory — knows only the client it
+   * was configured with, so that id travels with the upstream and is what the
+   * `aud` claim is checked against (ADR 0078).
+   */
+  clientId?: string;
 };
 
 /**
@@ -72,6 +83,45 @@ function defaultUpstreamDefault(): TrustedUpstream {
 
 export function upstreamByIssuer(issuer: string): TrustedUpstream | undefined {
   return TRUSTED_UPSTREAMS.find((u) => u.issuer === issuer);
+}
+
+/**
+ * One operator-configured provider, as an upstream this app runs the code flow
+ * against directly (ADR 0078).
+ *
+ * This is the road that makes an external IdP *be* the identity service. It
+ * needs no OpenSesame identity service behind it: the browser is a public
+ * OAuth client, PKCE binds the exchange, and the provider's own discovery
+ * document supplies every endpoint. Its `clientId` is whatever the operator
+ * registered for this origin at their provider — configuration, never a
+ * credential, and useless without the redirect URI it is bound to.
+ */
+export function operatorUpstream(idp: OperatorIdp): TrustedUpstream {
+  return {
+    id: `operator:${idp.issuer}`,
+    displayName: idp.label,
+    issuer: idp.issuer,
+    accountKind: idp.label,
+    clientId: idp.clientId,
+  };
+}
+
+/**
+ * An operator's own provider is a trusted issuer for this deployment.
+ *
+ * `TRUSTED_UPSTREAMS` is compiled in because a *runtime-discovered* issuer
+ * must never become trusted by completing a flow (ADR 0033 §2). This is the
+ * other case: an issuer the operator durably configured, which is the same
+ * trust relationship the configured Identity API already has in
+ * `isBrokeredIssuer` — somebody with the deployment's settings said "this one
+ * speaks for my users". It admits exactly the stored issuers, never whatever a
+ * response happens to claim.
+ */
+export function isOperatorIdpIssuer(issuer: string): boolean {
+  const wanted = trimSlashes(issuer);
+  return signInMethods().providers.some(
+    (idp) => trimSlashes(idp.issuer) === wanted,
+  );
 }
 
 function trimSlashes(value: string): string {
@@ -282,6 +332,12 @@ type PendingAuth = {
    * back to the base.
    */
   redirectUri?: string;
+  /**
+   * The client id the authorize request presented. The token exchange repeats
+   * it and the `aud` claim is checked against it; absent (a pending from an
+   * older build, or any origin-profile broker) means this origin's own id.
+   */
+  clientId?: string;
   /** Where to send the human once they are back, if they were mid-task. */
   returnTo?: string;
   /** Tenant slug when this round-trip is org SSO/SAML, not a global broker. */
@@ -345,12 +401,17 @@ async function beginSignInDefault(
   const discovery = await discover(upstream.issuer);
   const { verifier, challenge } = await createPkce();
   const state = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
-  const scope = options.scope ?? "openid";
+  // An operator's own provider needs a subject and a name to be worth signing
+  // in with; the origin-profile brokers have always answered `openid` alone.
+  const scope =
+    options.scope ?? (upstream.clientId ? "openid profile email" : "openid");
   // Brokered legs return to the Identity API's registered canonical callback;
-  // direct legs to the app base the loopback/mock brokers accept.
+  // direct legs to the app base the loopback/mock brokers accept — which is
+  // also the URI an operator registers at their own provider.
   const returnUri = isBrokeredIssuer(upstream.issuer)
     ? originCallbackUri()
     : redirectUri();
+  const clientId = upstream.clientId ?? originClientId();
 
   storePending({
     upstreamId: upstream.id,
@@ -361,6 +422,7 @@ async function beginSignInDefault(
     jwksUri: discovery.jwks_uri,
     scope,
     redirectUri: returnUri,
+    clientId,
     returnTo: options.returnTo,
     orgSlug: options.orgSlug,
     orgMethod: options.orgMethod,
@@ -368,7 +430,7 @@ async function beginSignInDefault(
 
   const url = new URL(discovery.authorization_endpoint);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", originClientId());
+  url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", returnUri);
   url.searchParams.set("state", state);
   url.searchParams.set("code_challenge", challenge);
@@ -454,7 +516,7 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     // Byte-identical to what the authorize request carried, whichever shape
     // that was — token endpoints compare, not resolve.
     redirect_uri: pending.redirectUri ?? redirectUri(),
-    client_id: originClientId(),
+    client_id: pending.clientId ?? originClientId(),
     code_verifier: pending.verifier,
   });
 
@@ -468,10 +530,12 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     });
   } catch {
     // Browser-side exchange only works if the upstream serves CORS on its
-    // token endpoint, which is a stated requirement of a trusted broker.
+    // token endpoint. Compiled-in brokers are required to; an operator's own
+    // provider has to be configured for a single-page app, which is the same
+    // requirement said in the provider's own words.
     throw new FederationError(
       "upstream_unavailable",
-      `Could not reach the token endpoint at ${pending.issuer}. A trusted broker must serve CORS there.`,
+      `Could not reach the token endpoint at ${pending.issuer}. It has to allow browser requests — in most providers that means registering this app as a single-page or public client.`,
     );
   }
   if (!response.ok) {
@@ -597,7 +661,8 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
   if (
     !pending.orgSlug &&
     !upstreamByIssuer(issuer) &&
-    !isBrokeredIssuer(issuer)
+    !isBrokeredIssuer(issuer) &&
+    !isOperatorIdpIssuer(issuer)
   ) {
     throw new FederationError(
       "untrusted_issuer",
@@ -605,7 +670,7 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
     );
   }
 
-  const expected = originClientId();
+  const expected = pending.clientId ?? originClientId();
   const audience = Array.isArray(claims.aud)
     ? claims.aud.filter((value): value is string => isString(value))
     : [String(claims.aud ?? "")];
@@ -621,12 +686,25 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
     throw new FederationError("expired", "Token was already expired.");
   }
 
-  // `sub` stands in for `pairwise_sub` on the two legs whose subject is already
-  // per-origin: an org round-trip, and the brokered issuer — the Identity API
-  // mints origin-profile subjects pairwise by construction (ADR 0050). Every
-  // other broker must say `pairwise_sub` and mean it.
+  // `sub` stands in for `pairwise_sub` on the legs whose subject is not a
+  // shared broker's:
+  //
+  //  - an org round-trip, and the brokered issuer — the Identity API mints
+  //    origin-profile subjects pairwise by construction (ADR 0050);
+  //  - the operator's own provider (ADR 0078). `pairwise_sub` exists because a
+  //    broker serving many unrelated relying parties would otherwise hand them
+  //    all the same subject to correlate on. An Okta org or an Entra directory
+  //    the operator configured is not that: they are the relying party. They
+  //    also do not mint a claim of that name — it is our brokers' contract, not
+  //    OIDC's — so demanding it would refuse every real provider. Correlation
+  //    downstream is unaffected: an origin this app brokers *to* still gets the
+  //    per-origin subject `derivedSubjectFor` computes, whatever the source.
+  //
+  // Every other broker must say `pairwise_sub` and mean it.
   const subjectIsPairwise =
-    Boolean(pending.orgSlug) || isBrokeredIssuer(issuer);
+    Boolean(pending.orgSlug) ||
+    isBrokeredIssuer(issuer) ||
+    isOperatorIdpIssuer(issuer);
   const pairwiseSub = isString(claims.pairwise_sub)
     ? claims.pairwise_sub
     : subjectIsPairwise && isString(claims.sub)
@@ -690,7 +768,8 @@ function loadSessionDefault(): UpstreamIdentity | null {
     }
     if (
       !upstreamByIssuer(identity.issuer) &&
-      !isBrokeredIssuer(identity.issuer)
+      !isBrokeredIssuer(identity.issuer) &&
+      !isOperatorIdpIssuer(identity.issuer)
     ) {
       // Trust can be withdrawn between sessions; a stored identity from an
       // issuer no longer listed — or from an Identity API this app has since

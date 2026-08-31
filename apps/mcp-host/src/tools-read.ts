@@ -80,6 +80,25 @@ export function registerReadTools(server: McpServer): void {
       .max(256),
   });
 
+  const securityFindingsResponseSchema = z.object({
+    findings: z
+      .array(
+        z.object({
+          subject_kind: safeTokenSchema,
+          subject_id: scopeSchema,
+          source: safeTokenSchema,
+          reference: z.string().max(128).optional(),
+          severity: safeTokenSchema,
+          occurrences: z.number().int().nonnegative().nullable().optional(),
+          state: safeTokenSchema,
+          first_seen_at: timeSchema.optional(),
+          last_seen_at: timeSchema.optional(),
+          cleared_at: timeSchema.nullable().optional(),
+        }),
+      )
+      .max(256),
+  });
+
   const lifecycleDeliveriesResponseSchema = z.object({
     deliveries: z
       .array(
@@ -806,6 +825,29 @@ export function registerReadTools(server: McpServer): void {
       } catch (e) {
         return toolError(
           "lifecycle_expiring_read_failed",
+          e instanceof Error ? e : String(e),
+        );
+      }
+    },
+  );
+
+  server.tool(
+    "security_findings_read",
+    "Read breach findings for this organization: what has turned up in a public corpus, and what has since been cleared (metadata only, never a value or a hash of one)",
+    {},
+    async () => {
+      try {
+        const res = await hostFetch("/api/v1/security/findings");
+        const body = await res.json();
+        return {
+          content: textContent(
+            agentJson(body, res.ok, securityFindingsResponseSchema),
+          ),
+          isError: !res.ok,
+        };
+      } catch (e) {
+        return toolError(
+          "security_findings_read_failed",
           e instanceof Error ? e : String(e),
         );
       }
