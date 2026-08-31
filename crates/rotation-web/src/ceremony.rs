@@ -137,6 +137,69 @@ pub trait CeremonyTransport: BrowserTransport {
     ) -> Result<CaptureDigest, CaptureError>;
 }
 
+/// What a driver sealed, on its way to the host.
+///
+/// Opaque on purpose. A capture is the one step whose result *is* the material,
+/// so it crosses the channel encrypted to the host's vault key and this type is
+/// what crosses: there is no constructor from a plaintext here and no accessor
+/// that returns one. `rotation-web` never opens it — [`CaptureVault::open`]
+/// does, on the host side, and this crate stays free of a crypto choice the
+/// same way it stays free of a browser driver.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SealedCapture {
+    /// Who the driver sealed to. Echoed back so the host can refuse an
+    /// envelope addressed to a key it did not offer, rather than trying it.
+    pub recipient: String,
+    /// The envelope, base64 or armor, as the host's scheme defines it.
+    pub envelope: String,
+}
+
+/// The host's side of a capture: the key a driver seals to, and the vault the
+/// admitted value goes into.
+///
+/// A trait rather than a crypto choice, matching [`crate::CandidateVault`]. The
+/// host holds the private key and the store; this crate holds the ordering.
+///
+/// That ordering is the security property, and it is enforced in
+/// [`ExtensionTransport`](crate::ExtensionTransport) rather than here:
+/// **open, then admit, then store.** A value that fails the shape or ledger
+/// check must never reach [`Self::store`], because a vault that briefly held a
+/// session cookie labelled `client_secret` is the outcome ADR 0082 §3 exists to
+/// prevent — and "we deleted it afterwards" is not the same as never writing
+/// it.
+#[async_trait]
+pub trait CaptureVault: Send + Sync {
+    /// The public recipient a driver seals a capture to.
+    ///
+    /// Public by definition: it goes out with the step request, and the driver
+    /// needs it before it has anything to send.
+    fn recipient(&self) -> &str;
+
+    /// Open what the driver sealed.
+    ///
+    /// Returns the plaintext, to the host, which is the only party entitled to
+    /// judge it. The caller holds it for exactly as long as the admission check
+    /// takes.
+    ///
+    /// # Errors
+    ///
+    /// [`StepError::Transport`] when the envelope will not open — a wrong
+    /// recipient, a truncated body, or a driver that sealed to a key the host
+    /// does not hold.
+    async fn open(&self, sealed: &SealedCapture) -> Result<String, StepError>;
+
+    /// Store an *already admitted* value and return an opaque marker.
+    ///
+    /// The marker names the stored blob, never the plaintext: a digest of a
+    /// secret is a crackable artifact, which ADR 0080 §5 already refused for
+    /// breach findings.
+    ///
+    /// # Errors
+    ///
+    /// [`StepError::Transport`] when the store is unavailable.
+    async fn store(&self, slot: Slot, value: &str) -> Result<String, StepError>;
+}
+
 /// What a sequence of capture steps produced.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CaptureReport {

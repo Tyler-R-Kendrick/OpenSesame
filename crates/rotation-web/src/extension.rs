@@ -1,9 +1,13 @@
+use std::sync::Mutex;
+
 use async_trait::async_trait;
+use opensesame_ceremony::{CaptureDigest, DeclaredSlots, Slot};
 use serde::{Deserialize, Serialize};
 
 use opensesame_session_observe::{admit_frame, LayoutEpoch, MaskManifest};
 
 use crate::capture::FieldSnapshot;
+use crate::ceremony::{CaptureError, CaptureVault, CeremonyTransport, SealedCapture};
 use crate::tools::{
     AdmittedFrame, BrowserTransport, CredentialRef, Filled, Presence, RedactedDom, StepError,
     Verified,
@@ -49,13 +53,35 @@ pub enum StepRequest {
     VerifyLogin {
         reference: String,
     },
+    /// Read the node at `selector` and seal it to `recipient`.
+    ///
+    /// The slot travels so the driver knows what it is being asked for and can
+    /// refuse an obviously impossible request; it is not the driver's decision
+    /// whether the value fits, and this side checks again on the way in.
+    CaptureCredential {
+        slot: String,
+        selector: String,
+        recipient: String,
+    },
+    /// Take the file the page delivered and seal it to `recipient`.
+    CaptureDownload {
+        slot: String,
+        content_type: String,
+        recipient: String,
+    },
 }
 
 /// What a driver reports back.
 ///
-/// No variant carries a credential value, which is the same property the
-/// [`BrowserTransport`] trait has — restated on the wire, because a channel is
-/// exactly where a convenient extra field gets added.
+/// No variant carries a credential *value*. That was literally true when every
+/// step moved a credential toward the page, and it stays true now that a
+/// ceremony capture moves one the other way: [`StepOutcome::Captured`] carries
+/// a [`SealedCapture`], an envelope encrypted to the host's vault key, and the
+/// driver cannot open what it just sealed.
+///
+/// The property is restated on the wire because a channel is exactly where a
+/// convenient extra field gets added — and a `plaintext` beside the envelope
+/// would be that field.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "outcome")]
 pub enum StepOutcome {
@@ -78,6 +104,11 @@ pub enum StepOutcome {
         epoch: u64,
         /// How many of the requested boxes the driver actually covered.
         masked_boxes: u32,
+    },
+    /// A capture, sealed to the host. Ciphertext, and the driver holds no key
+    /// for it.
+    Captured {
+        sealed: SealedCapture,
     },
     Failed {
         error: StepError,
@@ -118,17 +149,99 @@ pub struct ExtensionTransport<C: StepChannel> {
     /// The fields the current page is known to have, from the last read.
     /// Supplied by the caller because classification is policy, not transport.
     fields: Vec<FieldSnapshot>,
+    /// The host's vault, present only when this transport may capture.
+    ///
+    /// `None` is a transport that drives rotations and nothing else, which is
+    /// most of them. Capture is opt-in at construction rather than a flag on
+    /// each call, so a rotation runner cannot acquire the ability halfway
+    /// through a run.
+    vault: Option<Box<dyn CaptureVault>>,
+    /// The slots the recipe declared, and which are filled.
+    ///
+    /// Behind a lock because [`CeremonyTransport`] takes `&self` — the ledger
+    /// has to live with the party that holds the plaintext, and that is this
+    /// side (ADR 0082 §3).
+    slots: Mutex<DeclaredSlots>,
 }
 
 impl<C: StepChannel> ExtensionTransport<C> {
     #[must_use]
-    pub const fn new(channel: C, fields: Vec<FieldSnapshot>) -> Self {
-        Self { channel, fields }
+    pub fn new(channel: C, fields: Vec<FieldSnapshot>) -> Self {
+        Self {
+            channel,
+            fields,
+            vault: None,
+            slots: Mutex::new(DeclaredSlots::declare(&[])),
+        }
+    }
+
+    /// Let this transport capture into `vault`, for the slots `declares` names.
+    ///
+    /// Both at once, deliberately. A vault with no declared slots can capture
+    /// nothing and a declaration with no vault has nowhere to put it, so
+    /// offering them separately would only create two half-configured states
+    /// that fail at the first capture instead of at construction.
+    #[must_use]
+    pub fn capturing(mut self, vault: Box<dyn CaptureVault>, declares: &[Slot]) -> Self {
+        self.vault = Some(vault);
+        self.slots = Mutex::new(DeclaredSlots::declare(declares));
+        self
+    }
+
+    /// Open, admit, store — in that order, which is the point.
+    ///
+    /// A value that fails the shape or ledger check never reaches
+    /// [`CaptureVault::store`]. Writing first and checking after would put a
+    /// session cookie in the vault under the name `client_secret` for however
+    /// long the check took, and a delete afterwards is not the same as never
+    /// having written it.
+    async fn admit_sealed(
+        &self,
+        slot: Slot,
+        sealed: &SealedCapture,
+    ) -> Result<CaptureDigest, CaptureError> {
+        let vault = self.vault.as_ref().ok_or(CaptureError::Step(
+            // A transport built without a vault was never meant to capture,
+            // and there is nowhere for this to go.
+            StepError::Transport,
+        ))?;
+        if sealed.recipient != vault.recipient() {
+            // Addressed to a key we did not offer. Refuse rather than try it:
+            // an envelope from somewhere else is not a capture from our run.
+            return Err(CaptureError::Step(StepError::Transport));
+        }
+        let value = vault.open(sealed).await?;
+        self.slots
+            .lock()
+            .map_err(|_| CaptureError::Step(StepError::Transport))?
+            .admit(slot, &value)?;
+        let marker = vault.store(slot, &value).await?;
+        Ok(CaptureDigest::of_sealed(slot, marker))
+    }
+
+    /// Dispatch a capture step and take the envelope out of the outcome.
+    async fn sealed_from(&self, request: StepRequest) -> Result<SealedCapture, CaptureError> {
+        match self.channel.dispatch(request).await? {
+            StepOutcome::Captured { sealed } => Ok(sealed),
+            StepOutcome::Failed { error } => Err(CaptureError::Step(error)),
+            // A driver answering a capture with anything else is a protocol
+            // violation, not something to coerce into a value.
+            _ => Err(CaptureError::Step(StepError::Transport)),
+        }
     }
 
     /// Replace the field inventory after a navigation.
     pub fn observed(&mut self, fields: Vec<FieldSnapshot>) {
         self.fields = fields;
+    }
+
+    /// The channel this transport dispatches through.
+    ///
+    /// Borrowed rather than taken back: a caller that built the channel often
+    /// still needs it — to report queue depth, or to assert what was actually
+    /// dispatched — and moving it out would end the transport.
+    pub const fn channel(&self) -> &C {
+        &self.channel
     }
 
     async fn expect_done(&self, request: StepRequest) -> Result<(), StepError> {
@@ -271,5 +384,57 @@ impl<C: StepChannel> BrowserTransport for ExtensionTransport<C> {
             StepOutcome::Failed { error } => Err(error),
             _ => Err(StepError::Transport),
         }
+    }
+}
+
+#[async_trait]
+impl<C: StepChannel> CeremonyTransport for ExtensionTransport<C> {
+    async fn outstanding(&self) -> Vec<Slot> {
+        self.slots
+            .lock()
+            .map(|slots| slots.outstanding())
+            .unwrap_or_default()
+    }
+
+    async fn capture_credential(
+        &self,
+        slot: Slot,
+        selector: &str,
+    ) -> Result<CaptureDigest, CaptureError> {
+        let recipient = self
+            .vault
+            .as_ref()
+            .ok_or(CaptureError::Step(StepError::Transport))?
+            .recipient()
+            .to_string();
+        let sealed = self
+            .sealed_from(StepRequest::CaptureCredential {
+                slot: slot.as_str().to_string(),
+                selector: selector.to_string(),
+                recipient,
+            })
+            .await?;
+        self.admit_sealed(slot, &sealed).await
+    }
+
+    async fn capture_download(
+        &self,
+        slot: Slot,
+        content_type: &str,
+    ) -> Result<CaptureDigest, CaptureError> {
+        let recipient = self
+            .vault
+            .as_ref()
+            .ok_or(CaptureError::Step(StepError::Transport))?
+            .recipient()
+            .to_string();
+        let sealed = self
+            .sealed_from(StepRequest::CaptureDownload {
+                slot: slot.as_str().to_string(),
+                content_type: content_type.to_string(),
+                recipient,
+            })
+            .await?;
+        self.admit_sealed(slot, &sealed).await
     }
 }

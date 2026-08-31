@@ -43,7 +43,8 @@ pub use capture::{
     ThoughtRecord,
 };
 pub use ceremony::{
-    run_capture_steps, CaptureError, CaptureReport, CaptureStep, CeremonyTransport,
+    run_capture_steps, CaptureError, CaptureReport, CaptureStep, CaptureVault, CeremonyTransport,
+    SealedCapture,
 };
 pub use executor::{
     run_change_password, ActionStep, BlockedReason, CandidateVault, ChangePasswordRecipe,
