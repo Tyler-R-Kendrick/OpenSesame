@@ -1,0 +1,1267 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+/* Lifted from apps/pages/src/styles.css — the vault's own tokens and the
+   component rules the setup ceremony reuses. Scoped to `.os` so each artboard
+   carries the whole design system without a stylesheet import. Values are
+   verbatim: 2px radii, the mono chrome / sans prose split, OpenSesame teal. */
+
+.os {
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #ededed;
+  --ink: #171717;
+  --ink-2: #5c5c5c;
+  --ink-3: #6f6f6f;
+  --line: #e7e7e7;
+  --line-strong: #d4d4d4;
+  --accent: #0d7268;
+  --accent-ink: #ffffff;
+  --accent-wash: #eaf2f0;
+  --accent-line: #bcd6d1;
+  --ok: #0f7a51;
+  --ok-wash: #e3f6ec;
+  --warn: #a25a05;
+  --warn-wash: #fdf1de;
+  --err: #b32424;
+  --err-wash: #fceaea;
+  --radius: 2px;
+  --radius-pill: 999px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  color-scheme: light;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-synthesis-weight: none;
+}
+
+.os[data-theme="dark"] {
+  --canvas: #0f0f0f;
+  --surface: #171717;
+  --surface-2: #1d1d1d;
+  --surface-3: #242424;
+  --ink: #f0f0f0;
+  --ink-2: #a6a6a6;
+  --ink-3: #8c8c8c;
+  --line: #262626;
+  --line-strong: #3a3a3a;
+  --accent: #2fb3a3;
+  --accent-ink: #04231f;
+  --accent-wash: #102a26;
+  --accent-line: #1d5c55;
+  --ok: #35b57e;
+  --ok-wash: #0f2c22;
+  --warn: #d99320;
+  --warn-wash: #33240c;
+  --err: #ef6d6d;
+  --err-wash: #351717;
+  color-scheme: dark;
+}
+
+.os *,
+.os *::before,
+.os *::after {
+  box-sizing: border-box;
+}
+
+.os h1,
+.os h2,
+.os h3 {
+  margin: 0;
+  letter-spacing: -0.021em;
+  text-wrap: balance;
+  font-weight: 600;
+}
+
+.os h1 {
+  font-size: 1.5rem;
+}
+.os h2 {
+  font-size: 1.125rem;
+}
+.os h3 {
+  font-size: 0.9375rem;
+}
+
+.os p {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 0.9375rem;
+}
+
+.os a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
+.os a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.os code {
+  font-family: var(--mono);
+  font-size: 0.875em;
+  font-variant-ligatures: none;
+}
+
+.os :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.os .hint {
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+/* ——— Buttons ——————————————————————————————————————————— */
+
+.os .btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 550;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.os .btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--ink-3);
+}
+
+.os .btn--primary {
+  background: var(--ink);
+  border-color: transparent;
+  color: var(--canvas);
+}
+
+.os .btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
+}
+
+.os .btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-2);
+}
+
+.os .btn--ghost:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.os .btn--block {
+  width: 100%;
+}
+
+.os .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.os .icon-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.os .icon-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.os .icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ——— Fields ———————————————————————————————————————————— */
+
+.os .f {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.os .f__labelrow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.1rem;
+}
+
+.os .f__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.os .f__shell {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: transparent;
+  overflow: hidden;
+}
+
+.os .f__shell:focus-within {
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
+}
+
+.os .f__lead {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.os .f__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.625rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  padding: 0.35rem 0.45rem 0.35rem 0;
+}
+
+.os .f__input:focus {
+  outline: none;
+}
+
+.os .f__input::placeholder {
+  color: var(--ink-3);
+}
+
+.os .f__fills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.os .f__fills-label {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.os .fill {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.os .fill:hover {
+  border-style: solid;
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+/* ——— Chips, notes, rules ———————————————————————————————— */
+
+.os .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.os .chip--ok {
+  color: var(--ok);
+  background: var(--ok-wash);
+  border-color: color-mix(in srgb, var(--ok) 30%, var(--line));
+}
+
+.os .chip--accent {
+  color: var(--accent);
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+}
+
+.os .note {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--font);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.os .note--warn {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  background: var(--warn-wash);
+}
+
+.os .note svg {
+  flex: none;
+  margin-top: 0.1rem;
+}
+
+.os .or {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.os .or::before,
+.os .or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* ——— Ceremony card + alternatives (CeremonyShell) ——————————— */
+
+.os .found {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.os .found__top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.os .found__name {
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.os .found dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.os .found dt {
+  color: var(--ink-2);
+}
+
+.os .found dd {
+  margin: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.os .found--attn {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  background: var(--warn-wash);
+}
+
+.os .found--attn .found__top {
+  color: var(--warn);
+}
+
+.os .found__do {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-self: start;
+}
+
+.os .alt {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.os .alt__item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.os .alt__btn {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 550;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.os .alt__btn:hover {
+  background: var(--surface-2);
+}
+
+.os .alt__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.os .alt__grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.os .alt__chev {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+  transition: transform 160ms var(--ease);
+}
+
+.os .alt__chev.is-open {
+  transform: rotate(90deg);
+}
+
+.os .alt__body {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.15rem 0.8rem 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.os .spin {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent);
+  animation: turn 700ms linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ——— The setup shell — new vocabulary, same system ——————————— */
+
+.os {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.setup__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+  padding: 0.9rem 1.15rem 0.65rem;
+}
+
+.setup__wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.setup__count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The progress rail: four segments, the passed ones filled in ink. A dot row
+   would be decoration; a segment says how much is left. */
+.setup__rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  flex: none;
+  padding: 0 1.15rem 0.85rem;
+}
+
+.setup__seg {
+  appearance: none;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink-3);
+}
+
+.setup__seg-bar {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.setup__seg.is-done .setup__seg-bar,
+.setup__seg.is-now .setup__seg-bar {
+  background: var(--ink);
+}
+
+.setup__seg.is-now {
+  color: var(--ink);
+}
+
+.setup__seg-label {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setup__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.35rem 1.15rem 1.25rem;
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.setup__head {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.setup__head p {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  max-width: 38ch;
+}
+
+/* The thumb bar. Every step's commitment sits here, at the bottom of the
+   phone, in the same place — the one thing the old screen never had. */
+.setup__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.15rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.setup__foot .btn--primary {
+  flex: 1;
+}
+
+.setup__skip {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0.35rem 0;
+  font: inherit;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  justify-self: start;
+}
+
+/* Provider presets — a two-up grid of real choices, not a select. */
+.preset {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.preset__opt {
+  appearance: none;
+  display: grid;
+  gap: 0.15rem;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.preset__opt:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.preset__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.preset__name {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.preset__kind {
+  font-family: var(--font);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.preset__opt.is-on .preset__kind {
+  color: var(--accent);
+}
+
+/* The review step's write-out. */
+.wrote {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.wrote__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.wrote__key {
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.wrote__val {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.wrote__val--off {
+  color: var(--ink-3);
+}
+
+/* ——— The commit control (styles.css) ————————————————————————
+   A screen's one terminal action is an ink square carrying the glyph of what
+   it does, with its sentence beside it in the margin voice. Never a wide text
+   button — see docs/design/controls.md. */
+.go-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.go {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
+  cursor: pointer;
+}
+
+.go-verb {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ——— The one question that matters ————————————————————————
+   Three roads, not a URL field. The first is selected on arrival because it
+   already works: a deployment nobody has configured can still sign people in
+   through the compiled broker. */
+.ways {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ways__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ways__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.ways__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.ways__item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ways__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-2);
+}
+
+.ways__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.ways__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ways__kind {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Shared sessions (ADR 0079) ───────────────────────────────────────── */
+
+/* A participant row: who, what they hold, and the one control that ends it. */
+.who {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.who__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.6rem 0.55rem 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.who__face {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.who__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.who__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who__scope {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.who__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+/* A grant's remaining life, said as time rather than a date. */
+.ttl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  color: var(--ink-2);
+}
+
+.ttl--soon {
+  border-color: var(--warn);
+  background: var(--warn-wash);
+  color: var(--warn);
+}
+
+.ttl--none {
+  border-color: var(--err);
+  background: var(--err-wash);
+  color: var(--err);
+}
+
+/* Row-level scope: the items a grant names, one line each. */
+.rows {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.rows__opt {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  font: inherit;
+  font-family: var(--font);
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.rows__opt:hover {
+  background: var(--surface-3);
+}
+
+.rows__opt.is-on {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+}
+
+.rows__box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.rows__opt.is-on .rows__box {
+  border-color: var(--accent);
+}
+
+.rows__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rows__kind {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.625rem;
+  color: var(--ink-3);
+}
+
+/* The out-of-band half of an invite: big, spaced, readable aloud. */
+.code {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+  padding: 0.7rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+}
+
+/* Two columns of the exposure review: what may cross, and what never may. */
+.gate {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.gate--deny {
+  border-color: var(--err);
+  background: var(--err-wash);
+}
+
+.gate--allow {
+  border-color: var(--ok);
+  background: var(--ok-wash);
+}
+
+.gate__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gate--allow .gate__head { color: var(--ok); }
+.gate--deny .gate__head { color: var(--err); }
+
+.gate__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.gate__list li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.gate__list li::before {
+  content: "";
+  flex: none;
+  width: 0.3rem;
+  height: 0.3rem;
+  margin-top: 0.5rem;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  opacity: 0.5;
+}
+
+/* A finding worth a reader stopping on. */
+.finding {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.finding__head {
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+/* Section label, shared by every session page. */
+.band {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.band__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+  </style>
+</helmet>
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px">
+  <div class="setup__bar">
+    <span class="setup__wordmark">
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
+        <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
+      </svg>
+      opensesame
+    </span>
+  </div>
+
+  <div class="setup__body">
+    <div class="setup__head">
+      <h1>Who is in this session</h1>
+      <p>Everyone here, what each one can reach, and how long it lasts. Presence is not permission — a person in the room with no grant sees nothing.</p>
+    </div>
+
+    <div style="display: grid; gap: 1.1rem">
+      <div style="display: grid; gap: 0.55rem">
+        <p class="band">Waiting to be let in <span class="band__count">2</span></p>
+        <div class="who">
+          <div class="who__item">
+            <span class="who__face">JR</span>
+            <span class="who__body">
+              <span class="who__name">Jordan Reyes</span>
+              <span class="who__scope">jordan@acme.com · asked 4 min ago</span>
+              <span class="who__scope">"covering the incident tonight"</span>
+            </span>
+            <span style="display: flex; gap: 0.3rem; flex: none">
+              <button type="button" class="icon-btn" aria-label="Refuse Jordan Reyes">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+              </button>
+              <button type="button" class="btn btn--sm">Let in…</button>
+            </span>
+          </div>
+          <div class="who__item">
+            <span class="who__face">?</span>
+            <span class="who__body">
+              <span class="who__name">Unknown account</span>
+              <span class="who__scope">signed in with Okta · no prior grant here</span>
+            </span>
+            <span style="display: flex; gap: 0.3rem; flex: none">
+              <button type="button" class="icon-btn" aria-label="Refuse this request">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+              </button>
+              <button type="button" class="btn btn--sm">Let in…</button>
+            </span>
+          </div>
+        </div>
+        <p class="hint">A request is not a connection. Until you let someone in they get no channel, no participant list, and no way to reach anyone else here.</p>
+      </div>
+
+      <div style="display: grid; gap: 0.55rem">
+        <p class="band">Participants <span class="band__count">4</span></p>
+        <div class="who">
+          <div class="who__item">
+            <span class="who__face">TK</span>
+            <span class="who__body">
+              <span class="who__name">You</span>
+              <span class="who__scope">the whole vault · owner</span>
+              <span class="who__tags">
+                <span class="chip chip--accent">operator</span>
+              </span>
+            </span>
+          </div>
+
+          <div class="who__item">
+            <span class="who__face">MK</span>
+            <span class="who__body">
+              <span class="who__name">Mara Kelling</span>
+              <span class="who__scope">2 rows · prod deploy key, Grafana admin</span>
+              <span class="who__tags">
+                <span class="chip">read</span>
+                <span class="ttl">7h 12m left</span>
+              </span>
+            </span>
+            <button type="button" class="icon-btn" aria-label="Withdraw Mara Kelling's grant">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+            </button>
+          </div>
+
+          <div class="who__item">
+            <span class="who__face">DV</span>
+            <span class="who__body">
+              <span class="who__name">On-call, Platform</span>
+              <span class="who__scope">the whole vault · 4 people</span>
+              <span class="who__tags">
+                <span class="chip">read and write</span>
+                <span class="ttl ttl--soon">18m left</span>
+              </span>
+            </span>
+            <button type="button" class="icon-btn" aria-label="Withdraw the on-call team's grant">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+            </button>
+          </div>
+
+          <div class="who__item">
+            <span class="who__face">SB</span>
+            <span class="who__body">
+              <span class="who__name">Sam Brooke</span>
+              <span class="who__scope">1 row · *.acme.com certificate</span>
+              <span class="who__tags">
+                <span class="chip">read</span>
+                <span class="ttl ttl--none">no expiry</span>
+              </span>
+            </span>
+            <button type="button" class="icon-btn" aria-label="Withdraw Sam Brooke's grant">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- The honest half of revocation, on the screen where people revoke. -->
+      <div class="note">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 16.2v-4.7M12 8h.01"></path></svg>
+        <span>Withdrawing a grant stops new reads at once. It does not un-read what was already opened: to make future versions unreadable, the item is re-keyed on its next change — a whole vault re-keys every item, which takes a while.</span>
+      </div>
+
+      <p class="hint">Grants expire on their own. Each one is on the same lifecycle feed as certificates and rotations, so the warnings — a week, a day, an hour, expired — arrive on your webhooks without this page being open.</p>
+    </div>
+  </div>
+
+  <div class="setup__foot">
+    <div class="go-row">
+      <button type="button" class="go" aria-label="Share with someone else" title="Share with someone else">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5.5v13M5.5 12h13"></path>
+        </svg>
+      </button>
+      <span class="go-verb" aria-hidden="true">Share with someone else</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>
+</body>
+</html>
