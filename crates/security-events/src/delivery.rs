@@ -27,14 +27,22 @@ pub enum Delivery {
     Alertmanager,
     /// A `PagerDuty` Events API v2 `enqueue`.
     PagerDuty,
+    /// An A2H v1.0 intent to a gateway that reaches a person.
+    ///
+    /// The one sink whose audience is a *person* rather than an on-call
+    /// system, which is why it is a delivery kind and not a bespoke path: SMS,
+    /// email, `WhatsApp`, push and voice are the gateway's problem, and every
+    /// attempt rides the same retry ledger and egress guard as the rest.
+    A2h,
 }
 
 impl Delivery {
-    pub const ALL: [Self; 4] = [
+    pub const ALL: [Self; 5] = [
         Self::Webhook,
         Self::Internal,
         Self::Alertmanager,
         Self::PagerDuty,
+        Self::A2h,
     ];
 
     /// Frozen wire name, stored verbatim in `security_hooks.delivery`.
@@ -45,6 +53,7 @@ impl Delivery {
             Self::Internal => "internal",
             Self::Alertmanager => "alertmanager",
             Self::PagerDuty => "pagerduty",
+            Self::A2h => "a2h",
         }
     }
 
@@ -79,9 +88,12 @@ impl Delivery {
     /// Webhook needs a `whsec_` signing key and `PagerDuty` needs a routing key.
     /// Alertmanager needs neither: its ingest API is unauthenticated by
     /// design, and operators put it behind network policy or a proxy instead.
+    /// A2H needs one too, and in the other direction: the `whsec_` secret
+    /// verifies the `X-A2H-Signature` on what the gateway posts *back*. An
+    /// unsigned callback is a stranger claiming a person answered.
     #[must_use]
     pub const fn requires_secret(self) -> bool {
-        matches!(self, Self::Webhook | Self::PagerDuty)
+        matches!(self, Self::Webhook | Self::PagerDuty | Self::A2h)
     }
 
     /// Whether the row may carry sealed secret material at all.
@@ -109,7 +121,10 @@ mod tests {
     #[test]
     fn wire_names_are_frozen() {
         let names: Vec<&str> = Delivery::ALL.iter().map(|kind| kind.as_str()).collect();
-        assert_eq!(names, ["webhook", "internal", "alertmanager", "pagerduty"]);
+        assert_eq!(
+            names,
+            ["webhook", "internal", "alertmanager", "pagerduty", "a2h"]
+        );
     }
 
     #[test]
@@ -155,6 +170,17 @@ mod tests {
         for kind in Delivery::ALL {
             assert_eq!(kind.requires_responder(), kind == Delivery::Internal);
         }
+    }
+
+    #[test]
+    fn a2h_holds_a_secret_because_it_is_the_one_sink_that_answers_back() {
+        // Every other sink is fire-and-forget. A2H's gateway posts a person's
+        // reply to us, and the shared secret is the only thing separating that
+        // from a stranger claiming somebody answered.
+        assert!(Delivery::A2h.requires_secret());
+        assert!(Delivery::A2h.requires_endpoint());
+        assert!(Delivery::A2h.is_outbound());
+        assert!(!Delivery::A2h.requires_responder());
     }
 
     #[test]

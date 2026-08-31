@@ -3448,6 +3448,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
+name = "opensesame-a2h"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "hmac 0.12.1",
+ "opensesame-agent-events",
+ "opensesame-session-observe",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "subtle",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "opensesame-agent-events"
 version = "0.1.0"
 dependencies = [

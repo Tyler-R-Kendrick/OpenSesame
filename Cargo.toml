@@ -33,6 +33,7 @@ members = [
   "crates/lifecycle",
   "crates/security-events",
   "crates/agent-events",
+  "crates/a2h",
   "crates/breach-intel",
   "crates/provider-openbao",
   "crates/provider-openfga",
