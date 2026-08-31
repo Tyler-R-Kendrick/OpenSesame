@@ -3,7 +3,7 @@
 Watching an agent work inside your account while it happens, reading what it
 believes it is doing, and taking the page back.
 
-Decision record: [ADR 0078](../adr/0078-live-session-observation.md).
+Decision record: [ADR 0081](../adr/0081-live-session-observation.md).
 Vocabulary: `crates/session-observe`.
 Overall flow: [web-login rotation](web-login-rotation.md).
 After the fact: [teaching sessions and replay](rotation-teaching-and-replay.md).
@@ -58,7 +58,7 @@ loop. The viewer shows that silence rather than hiding it: you can tell which
 tier you are watching without being told.
 
 Where the action lane and the thought lane disagree, the action lane is right.
-A UI that presents them as peers is a bug against ADR 0078 §2.
+A UI that presents them as peers is a bug against ADR 0081 §2.
 
 ## Frames are admitted, not merely masked
 
