@@ -133,7 +133,8 @@ impl AdmittedFrame {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Error)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Error, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum StepError {
     #[error("the page did not reach the expected state in time")]
     Timeout,

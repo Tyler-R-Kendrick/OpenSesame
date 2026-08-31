@@ -214,7 +214,7 @@ pub async fn run_change_password(
             lease
                 .suspend()
                 .map_err(|e| ExecutorError::Lease(e.to_string()))?;
-            return Ok(blocked(step_block(&error), steps, lease));
+            return Ok(blocked(step_block(error), steps, lease));
         }
     }
 
@@ -284,7 +284,7 @@ async fn fill_fields(
             match browser.fill_credential(&reference, &selector).await {
                 Ok(Filled::Ok) => Ok(step),
                 Ok(Filled::NoSuchField) => Err(BlockedReason::RecipeDrift),
-                Err(error) => Err(step_block(&error)),
+                Err(error) => Err(step_block(error)),
             }
         }
     };
@@ -313,7 +313,7 @@ fn blocked(reason: BlockedReason, steps: Vec<ActionStep>, lease: ControlLease) -
     }
 }
 
-const fn step_block(error: &crate::tools::StepError) -> BlockedReason {
+const fn step_block(error: crate::tools::StepError) -> BlockedReason {
     match error {
         crate::tools::StepError::Challenge => BlockedReason::Challenge,
         crate::tools::StepError::Timeout | crate::tools::StepError::NoSuchElement => {
