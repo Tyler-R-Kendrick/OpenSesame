@@ -21,6 +21,7 @@ opensesame-audit = { path = "../../crates/audit" }
 opensesame-pki-core = { path = "../../crates/pki-core" }
 base64 = { workspace = true }
 rand = { workspace = true }
+opensesame-a2h = { path = "../../crates/a2h" }
 opensesame-agent-events = { path = "../../crates/agent-events" }
 url = { workspace = true }
 opensesame-lifecycle = { path = "../../crates/lifecycle" }
