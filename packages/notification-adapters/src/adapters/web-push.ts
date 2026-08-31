@@ -312,10 +312,15 @@ export function encryptWebPushPayload(
     asPublicKey,
     salt,
   );
+  // The tag length is stated rather than defaulted. RFC 8291 fixes it at 16
+  // bytes, and naming it here is what keeps the encrypt and decrypt sides
+  // from disagreeing — a decipher that accepts a shorter tag accepts a weaker
+  // forgery bound than the one this record was written under.
   const cipher = createCipheriv(
     "aes-128-gcm",
     keys.contentEncryptionKey,
     keys.nonce,
+    { authTagLength: AES_GCM_TAG_LENGTH },
   );
   // The delimiter distinguishes the final record from a truncated stream;
   // without it a receiver cannot tell a complete message from one that was
@@ -378,6 +383,7 @@ export function decryptWebPushPayload(
     "aes-128-gcm",
     keys.contentEncryptionKey,
     keys.nonce,
+    { authTagLength: AES_GCM_TAG_LENGTH },
   );
   decipher.setAuthTag(sealed.subarray(sealed.length - AES_GCM_TAG_LENGTH));
   const padded = concatBytes([
