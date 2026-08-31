@@ -18,11 +18,13 @@ import {
   IconShield,
   IconUser,
 } from "../components/Icons.js";
+import { defaultUpstream } from "../lib/federation.js";
 import { currentSession, identityBase } from "../lib/identity.js";
 import {
   type FederatedProviderSummary,
   listFederatedProviders,
 } from "../lib/providers.js";
+import { noWayIn, signInMethods } from "../lib/settings.js";
 import { setupRequired, unlockViable } from "../lib/setup.js";
 import { WrongPasswordError } from "../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
@@ -95,6 +97,9 @@ export const unlockScreenDependencies = {
   setupRequired,
   currentSession,
   identityBase,
+  noWayIn,
+  signInMethods,
+  defaultUpstream,
 };
 
 /**
@@ -154,10 +159,30 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
   // nothing has ever been sealed here.
   const returningTabs = unlockViable(status) && !awaitingTotp;
   const signInTabActive = returningTabs && screenTab === "signin";
-  // Sign-in of any kind needs an Identity API. Where there is none, the road
-  // out is setup, not a row of buttons that redirect into nothing.
-  const identityUnconfigured =
-    unlockScreenDependencies.identityBase().trim() === "";
+  // Not "no identity service" — the compiled-in broker and any provider the
+  // operator brought run in this browser and need no service at all (ADR
+  // 0078). This is the narrower and truer claim: setup left no way in.
+  const nothingSignsIn = unlockScreenDependencies.noWayIn();
+  /**
+   * What this app is pointed at, said as the operator would say it: the
+   * identity service where there is one, otherwise the provider that will
+   * actually sign people in. "No identity service" was the old line, and it
+   * read as broken on a deployment whose Google button worked fine.
+   */
+  const deploymentName = (() => {
+    const service = unlockScreenDependencies.identityBase().trim();
+    if (service) return briefOrigin(service);
+    const configured = unlockScreenDependencies.signInMethods();
+    const [first] = configured.providers;
+    if (first) {
+      const more = configured.providers.length - 1;
+      return more > 0 ? `${first.label} +${more}` : first.label;
+    }
+    if (configured.builtin) {
+      return unlockScreenDependencies.defaultUpstream().displayName;
+    }
+    return "No accounts";
+  })();
 
   const methods = useMemo<UnlockMethodId[]>(() => {
     // A returning vault gets the same menu as every other vault: which
@@ -415,15 +440,15 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
           </div>
         ) : null}
 
-        {/* Sign-in needs an Identity API, and this deployment has none. The
-            old screen reported that in a block of amber above every sign-in
-            button, all of which still redirected into nothing. One sentence
-            and the road that fixes it. */}
-        {identityUnconfigured && (signInStage || signInTabActive) ? (
+        {/* Setup left no way in at all: no broker, no provider, no identity
+            service. The old screen reported a near-miss of this in a block of
+            amber above every sign-in button, all of which still redirected
+            into nothing. One sentence and the road that fixes it. */}
+        {nothingSignsIn && (signInStage || signInTabActive) ? (
           <div className="note unlock__unset">
             <span>
-              No identity service is configured for this deployment yet, so
-              sign-in has nowhere to go.
+              No way in is configured for this deployment yet, so sign-in has
+              nowhere to go.
             </span>
             <button type="button" className="btn btn--sm" onClick={onOpenSetup}>
               Set it up
@@ -839,11 +864,7 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
               problem — the operator who needs it is looking for it. */}
           <p className="unlock__deployment">
             <IconAuthority size={14} />
-            <span className="unlock__deployment-name">
-              {identityUnconfigured
-                ? "No identity service"
-                : briefOrigin(unlockScreenDependencies.identityBase())}
-            </span>
+            <span className="unlock__deployment-name">{deploymentName}</span>
             <button
               type="button"
               className="unlock__switch"

@@ -4,7 +4,7 @@ Extends `docs/security/threat-model.md` for autonomous password rotation at
 consumer websites through remote agent browsers.
 
 Decision record: [ADR 0076](../adr/0076-autonomous-web-login-rotation.md),
-extended by [ADR 0078](../adr/0078-live-session-observation.md) for the live
+extended by [ADR 0081](../adr/0081-live-session-observation.md) for the live
 observation and control channel.
 Design: [web-login rotation](../architecture/web-login-rotation.md),
 [live session observation](../architecture/live-session-observation.md).
@@ -19,14 +19,14 @@ actor in its own right:
 - a **model** planning actions inside a credentialed flow
 - **run recordings**, which are authenticated views of people's accounts
 - a **live bidirectional channel** into that browser, over which a person
-  watches the run and can take the page (ADR 0078)
+  watches the run and can take the page (ADR 0081)
 
 ## Assets
 
 - The password being rotated (previous and candidate values)
 - The **authenticated session** the sandbox establishes — higher value than the
   password, see S1
-- Run recordings and replay artifacts — and, per ADR 0078 §1, the live stream,
+- Run recordings and replay artifacts — and, per ADR 0081 §1, the live stream,
   which is the tail of the same log rather than a second asset
 - The **control lease**: the right to act on the page in place of the agent
 - Rotation recipes and the signing key that makes one trusted
@@ -38,7 +38,7 @@ actor in its own right:
 Everything in the base model, plus: the sandbox operator, the remote browser
 process, the planning model, the relying party's own JavaScript, an anti-bot
 vendor, a contributor proposing a recipe to the shared corpus, and — since
-ADR 0078 — an attached **viewer**, who is the credential's owner and whose
+ADR 0081 — an attached **viewer**, who is the credential's owner and whose
 client is a new endpoint on a live path into the sandbox.
 
 ## Trust boundaries
@@ -79,7 +79,7 @@ Numbered to continue the base model's list.
 | Agent surface gains a recording or value read | `rotations.recording_read` excluded on all agent surfaces citing ADR 0076 §5 | `packages/capability-registry` self-test |
 | Browser driver pulled into the daemon's tree | New crate is not a daemon dependency | `scripts/daemon-deps-gate.sh` |
 | A live frame ships before its mask is solved, or masked with geometry from a layout the page has left | Frames carry their layout generation; `admit_frame` requires a manifest for that exact generation covering every sensitive node, and drops otherwise | `session-observe` frame-admission tests |
-| A low-latency live path skips a redaction the recorded path applies | Live is a read position on one log, not a second pipeline (ADR 0078 §1) | there is no live-only capture code to test |
+| A low-latency live path skips a redaction the recorded path applies | Live is a read position on one log, not a second pipeline (ADR 0081 §1) | there is no live-only capture code to test |
 | A hostile page plants text in the model's rationale, which renders inside `OpenSesame`'s chrome | Thoughts are inert quoted data, never in a notification body, never cited by an approval; bidi overrides and controls stripped at capture | `UntrustedText::capture` tests |
 | A human takes control between the candidate assertion and the submit | The span has no quiescent point: handoff is queued and reported as queued, `park()` is refused inside it | `handoff_inside_the_critical_section_is_queued_not_honoured` |
 | A stale assertion is inherited across a change of driver | Resume re-runs the assertion; a failed re-assertion parks the run | `a_failed_reassertion_parks_rather_than_resuming` |
@@ -178,7 +178,7 @@ the trade being declined.
 
 ## S5. The live channel is the largest new surface, and it is worth it
 
-ADR 0078 adds a bidirectional path into a browser holding an authenticated
+ADR 0081 adds a bidirectional path into a browser holding an authenticated
 first-party session. That is a bigger surface than anything else in this
 document, and it is added deliberately.
 
@@ -207,7 +207,7 @@ one endpoint further out.
 Two honest notes on what live observation does **not** do:
 
 - It does not mitigate S1. Watching a takeover makes it visible sooner. It does
-  not prevent it, and copy that suggests otherwise is a bug against ADR 0078.
+  not prevent it, and copy that suggests otherwise is a bug against ADR 0081.
 - It does not make the thought lane trustworthy. The model narrates; the action
   lane is what happened. A reviewer who reads the rationale as an execution trace
   is reading the wrong lane, and where the two disagree the UI is at fault for

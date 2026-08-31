@@ -25,6 +25,8 @@ pub mod protected_resource;
 pub mod protocol_profile;
 pub mod provider;
 pub mod receipt;
+pub mod shared_session;
+mod shared_session_adversarial;
 pub mod task;
 pub mod verification_evidence;
 
@@ -58,5 +60,6 @@ pub use protected_resource::*;
 pub use protocol_profile::*;
 pub use provider::*;
 pub use receipt::*;
+pub use shared_session::*;
 pub use task::*;
 pub use verification_evidence::*;

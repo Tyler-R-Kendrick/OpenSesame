@@ -3509,6 +3509,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-breach-intel"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "opensesame-security-events",
+ "serde",
+ "serde_json",
+ "sha1 0.10.7",
+ "zeroize",
+]
+
+[[package]]
 name = "opensesame-broker"
 version = "0.1.0"
 dependencies = [
@@ -3801,6 +3813,7 @@ dependencies = [
  "bytes",
  "chrono",
  "clap",
+ "futures",
  "hex",
  "hmac 0.12.1",
  "http",
@@ -3810,6 +3823,7 @@ dependencies = [
  "opensesame-audit",
  "opensesame-authn",
  "opensesame-authz",
+ "opensesame-breach-intel",
  "opensesame-broker",
  "opensesame-claims",
  "opensesame-client-core",
@@ -3825,6 +3839,7 @@ dependencies = [
  "opensesame-provider-openfga",
  "opensesame-redaction",
  "opensesame-relay",
+ "opensesame-security-events",
  "opensesame-storage",
  "opensesame-task-access",
  "opensesame-task-bus",
@@ -3939,6 +3954,7 @@ name = "opensesame-lifecycle"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "opensesame-security-events",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -4152,6 +4168,16 @@ dependencies = [
  "thiserror 2.0.19",
  "url",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-security-events"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
 ]
 
 [[package]]

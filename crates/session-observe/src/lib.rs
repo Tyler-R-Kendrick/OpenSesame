@@ -1,4 +1,4 @@
-//! Live session observation and control handoff (ADR 0078).
+//! Live session observation and control handoff (ADR 0081).
 //!
 //! When an agent drives a browser through somebody's account — the ADR 0076
 //! T4 tier of web-login rotation — the person whose account it is should be

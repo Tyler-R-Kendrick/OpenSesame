@@ -9,6 +9,7 @@ import {
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { SignInMethods } from "../lib/settings.js";
 import type { UnlockMethodId } from "../lib/vault/unlock-methods.js";
 
 type TestVaultState = {
@@ -144,11 +145,27 @@ import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
 // vault on it, and the few tests that do reach it only assert the handoff.
 const setupRequiredHolder = { current: false };
 const identityBaseHolder = { current: "http://127.0.0.1:18788" };
+/** What setup left as the ways in — the screen reads this, not the URL. */
+type WaysInHolder = { current: SignInMethods };
+const waysInHolder: WaysInHolder = {
+  current: { builtin: true, providers: [] },
+};
 const completeSetup = vi.fn<() => Promise<void>>();
 Object.assign(unlockScreenDependencies, {
   setupRequired: () => setupRequiredHolder.current,
   currentSession: () => null,
   identityBase: () => identityBaseHolder.current,
+  signInMethods: () => waysInHolder.current,
+  noWayIn: () =>
+    !waysInHolder.current.builtin &&
+    waysInHolder.current.providers.length === 0 &&
+    identityBaseHolder.current.trim() === "",
+  defaultUpstream: () => ({
+    id: "shoo",
+    displayName: "Shoo",
+    issuer: "https://shoo.dev",
+    accountKind: "Google (via shoo.dev)",
+  }),
 });
 Object.assign(setupScreenDependencies, {
   // The ceremony's own behaviour is covered in SetupScreen.test.tsx; these
@@ -217,6 +234,7 @@ beforeEach(() => {
   endSession.mockReset();
   setupRequiredHolder.current = false;
   identityBaseHolder.current = "http://127.0.0.1:18788";
+  waysInHolder.current = { builtin: true, providers: [] };
   completeSetup.mockReset();
   completeSetup.mockResolvedValue(undefined);
   sessionHolder.current = null;
@@ -253,8 +271,8 @@ describe("UnlockScreen — setup gate", () => {
     fresh();
     setupRequiredHolder.current = true;
     render(<UnlockScreen />);
-    // Two taps: the brokered road needs nothing typed.
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    // One tap: the brokered road needs nothing typed, and there is only the
+    // one question.
     fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
 
     return waitFor(() =>
@@ -305,11 +323,12 @@ describe("UnlockScreen — setup gate", () => {
     );
   });
 
-  it("replaces dead sign-in buttons with the setup road when identity is unset", () => {
+  it("offers the setup road when setup left no way in at all", () => {
     fresh();
     identityBaseHolder.current = "";
+    waysInHolder.current = { builtin: false, providers: [] };
     render(<UnlockScreen />);
-    expect(screen.getByText(/No identity service is configured/)).toBeTruthy();
+    expect(screen.getByText(/No way in is configured/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Set it up" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
@@ -320,7 +339,28 @@ describe("UnlockScreen — setup gate", () => {
   it("says nothing about identity on a deployment that has one", () => {
     fresh();
     render(<UnlockScreen />);
-    expect(screen.queryByText(/No identity service is configured/)).toBeNull();
+    expect(screen.queryByText(/No way in is configured/)).toBeNull();
+  });
+
+  it("says nothing where the ways in need no identity service", () => {
+    // The old line was "no identity service", and it read as broken on a
+    // deployment whose Google button worked fine (ADR 0078). A provider the
+    // operator brought runs in this browser and needs no service at all.
+    fresh();
+    identityBaseHolder.current = "";
+    waysInHolder.current = {
+      builtin: false,
+      providers: [
+        {
+          providerId: "google",
+          issuer: "https://accounts.google.com",
+          clientId: "google-client.apps",
+          label: "Google",
+        },
+      ],
+    };
+    render(<UnlockScreen />);
+    expect(screen.queryByText(/No way in is configured/)).toBeNull();
   });
 });
 

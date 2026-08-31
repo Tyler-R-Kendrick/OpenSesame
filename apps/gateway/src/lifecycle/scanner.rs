@@ -75,7 +75,12 @@ pub async fn pass(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<usize>
     Ok(published)
 }
 
-/// Every organization the tick should sweep.
+/// Every organization a scan pass should sweep.
+///
+/// Shared with the breach scanner ([`crate::breach`]): tenant discovery is a
+/// property of the deployment, not of what is being scanned, and two detectors
+/// disagreeing about which tenants exist is a bug waiting to be found in
+/// production.
 ///
 /// The union of three sources, because no single one is complete:
 ///
@@ -87,7 +92,7 @@ pub async fn pass(state: &AppState, now: DateTime<Utc>) -> anyhow::Result<usize>
 ///
 /// Ids that are not canonical are skipped at `debug`, not `warn`: a stray row
 /// is a data artifact, and warning about it on every tick would be noise.
-async fn scannable_organizations(state: &AppState) -> Vec<OrganizationId> {
+pub async fn scannable_organizations(state: &AppState) -> Vec<OrganizationId> {
     // Keyed on the canonical string rather than the id: `OrganizationId` is
     // `Hash` but not `Ord`, and a deterministic sweep order is worth more here
     // than saving the formatting.
@@ -148,6 +153,13 @@ pub async fn scan_organization(
     now: DateTime<Utc>,
 ) -> anyhow::Result<usize> {
     let organization = organization_id.to_string();
+    // The feed's built-in subscribers are seeded here as well as by the breach
+    // scanner, on purpose. They belong to the *feed*, not to either detector,
+    // and seeding them from only one would mean the guarantee that every
+    // security event reaches a notifier quietly depended on that detector
+    // running — and, at startup, on it winning a race against this loop.
+    // Seeding is a conditional insert, so doing it from both is free.
+    crate::security::hooks::ensure_defaults(state, &organization, now).await;
     let stored = state.db.list_lifecycle_watermarks(&organization).await?;
     let subjects = subjects::collect(state, organization_id, now).await;
 
