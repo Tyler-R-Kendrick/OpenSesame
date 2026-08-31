@@ -24,7 +24,6 @@ rand = { workspace = true }
 opensesame-agent-events = { path = "../../crates/agent-events" }
 url = { workspace = true }
 opensesame-lifecycle = { path = "../../crates/lifecycle" }
-opensesame-session-observe = { path = "../../crates/session-observe" }
 opensesame-security-events = { path = "../../crates/security-events" }
 opensesame-breach-intel = { path = "../../crates/breach-intel" }
 opensesame-storage = { path = "../../crates/storage" }
@@ -77,4 +76,3 @@ insta = { workspace = true, features = ["redactions", "json"] }
 proptest = { workspace = true }
 sqlx = { workspace = true }
 tower = { workspace = true }
-url = { workspace = true }

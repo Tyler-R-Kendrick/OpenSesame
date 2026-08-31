@@ -2,12 +2,30 @@
 
 Every security fact `OpenSesame` detects — a certificate about to expire, a
 credential due for rotation, a stored password found in a public breach corpus,
-a provider that announced a breach — is published on one feed, with one
-subscription model. This page is how you point that feed at whatever your team
-already watches.
+a provider that announced a breach, an agent that got stuck changing somebody's
+password at 04:00 — is published on one feed, with one subscription model. This
+page is how you point that feed at whatever your team already watches.
 
 Design rationale is in [ADR 0080](../adr/0080-security-event-hooks.md); the
-expiry half is [ADR 0074](../adr/0074-expiry-lifecycle-hooks.md).
+expiry half is [ADR 0074](../adr/0074-expiry-lifecycle-hooks.md), and the agent
+half is [ADR 0081](../adr/0081-live-session-observation.md).
+
+## The families
+
+| Family | Detects | Subject kinds |
+|--------|---------|---------------|
+| `lifecycle.*` | deadlines: certificates, CAs, brokered credentials, store paths, signers, web logins, session grants | every kind |
+| `breach.*` | a stored password in a public corpus; a provider that announced an incident; a corpus that could not be consulted | `store_path`, `connection_credential`, `source` |
+| `agent.*` | a sandboxed run rotating a web login: started, blocked, waiting for you, control taken and handed back, resumed, completed, failed | `web_login` |
+
+Subscribe by exact name, by family wildcard (`agent.*`), or by `*` for
+everything the platform detects, now and later. `GET /api/v1/lifecycle/expiring`
+advertises the full vocabulary; anything it lists is registrable.
+
+An `agent.*` subscription is metadata about a run — an origin, a phase, a
+reason it stopped. It is never the run's observation log: what the agent saw is
+sealed to the credential owner's viewer key and the gateway cannot read it, let
+alone forward it to your pager (ADR 0081 §9).
 
 ## What you get without configuring anything
 
@@ -94,9 +112,9 @@ matters because the ledger is at-least-once.
 
 | Severity | Examples |
 |----------|----------|
-| `info` | expiry within 30 days; a renewal that succeeded; a finding that cleared |
-| `warning` | expiry within 7 days; a renewal coming due; a corpus that could not be reached |
-| `error` | expiry within 24 hours; a renewal that failed; a provider breach that exposed passwords |
+| `info` | expiry within 30 days; a renewal that succeeded; a finding that cleared; an agent run starting, resuming, finishing, or handed to you |
+| `warning` | expiry within 7 days; a renewal coming due; a corpus that could not be reached; a run parked with a person nominally in the loop |
+| `error` | expiry within 24 hours; a renewal that failed; a provider breach that exposed passwords; a run blocked or failed |
 | `critical` | something already expired; a stored secret found in the password corpus |
 
 `severity_min` is a floor, so a paging integration can take everything loud
@@ -104,9 +122,18 @@ without also taking every 30-day notice. A renewal *coming due* is only a
 warning — our own responder is about to handle it; its *failure* is an error.
 
 Events carry a per-subject alert key, and resolutions carry it too. A
-successful renewal closes the page its approaching deadline opened, and a
-cleared breach finding closes the one the finding opened. You should not have
-to manually resolve anything `OpenSesame` fixed itself.
+successful renewal closes the page its approaching deadline opened, a cleared
+breach finding closes the one the finding opened, and somebody taking the page
+from a stuck agent closes the one that asked them to. You should not have to
+manually resolve anything `OpenSesame` fixed itself.
+
+**The floor applies to problems, not to their endings.** A resolution reaches
+every subscription whose event filter and subject kinds select it, whatever its
+`severity_min` — otherwise a `critical`-floor pager would take the fire and
+never the `info`-severity clear, and the incident would sit open until somebody
+closed it by hand. A resolution for an alert your sink never opened is a no-op
+at both Alertmanager and `PagerDuty`; a resolution that never arrives is a page
+your on-call learns to ignore.
 
 ## Breach scanning
 

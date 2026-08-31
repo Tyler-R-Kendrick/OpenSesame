@@ -1,4 +1,4 @@
-//! The sealed observation log's invariants (ADR 0078).
+//! The sealed observation log's invariants (ADR 0081).
 //!
 //! Three properties are the point of this suite, and each one is a bug class
 //! the schema is meant to make unrepresentable rather than merely unlikely:

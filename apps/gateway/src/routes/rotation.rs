@@ -430,7 +430,7 @@ fn session_subject(who: &Caller) -> Option<String> {
 /// enrol another's account into an observable run, so an explicit
 /// `owner_subject` that disagrees with the session is refused rather than
 /// quietly honoured. An operator has no subject of its own and must name one,
-/// and for a web login that is mandatory: ADR 0078 §8 lets only the owner watch
+/// and for a web login that is mandatory: ADR 0081 §8 lets only the owner watch
 /// a run, so a run with no owner is one nobody may watch and nobody can be
 /// notified about.
 #[allow(clippy::result_large_err)]
@@ -816,7 +816,7 @@ mod web_login_policy_tests {
             origin: "https://example.com".into(),
         };
         // An operator acts on nobody's behalf, so a run it starts would have
-        // nobody entitled to watch it (ADR 0078 §8).
+        // nobody entitled to watch it (ADR 0081 §8).
         assert!(policy_owner(&Caller::Operator, &web, None).is_err());
         assert_eq!(
             policy_owner(&Caller::Operator, &web, Some("user:alice")).ok(),

@@ -115,9 +115,25 @@ pub fn floor_of(hook: &StoredSecurityHook) -> Severity {
 
 /// Whether a stored subscription selects this notice.
 ///
-/// Four gates, all required: the row is enabled, the event filter names it,
-/// the severity clears the row's floor, and the subject kind is one the row
-/// asked for. An empty event filter matches nothing.
+/// Four gates: the row is enabled, the event filter names it, the severity
+/// clears the row's floor, and the subject kind is one the row asked for. An
+/// empty event filter matches nothing.
+///
+/// **The severity floor gates firing notices only.** A floor is a statement
+/// about which problems a subscriber wants to hear about, not about which of
+/// the problems it already heard about are allowed to end. Applying it to a
+/// resolution is how `breach.finding.cleared` (`Info`) fails to close the
+/// incident `breach.password.compromised` (`Critical`) opened, and how
+/// `lifecycle.renewal.succeeded` (`Info`) fails to close
+/// `lifecycle.expiry.urgent` (`Error`) — both promised by ADR 0080 §2, and
+/// both silently undeliverable under the built-in alerter's `Warning` floor.
+///
+/// The asymmetry is deliberate and matches the one ADR 0080 already accepts
+/// for at-least-once delivery: a resolve for an alert the sink never opened is
+/// a no-op at every sink we support (`PagerDuty` ignores a resolve for an
+/// unknown `dedup_key`; an Alertmanager `endsAt` in the past for an unknown
+/// alert changes nothing), while a resolve that never arrives is a page an
+/// on-call rotation has to clear by hand and eventually learns to ignore.
 #[must_use]
 pub fn hook_matches(hook: &StoredSecurityHook, notice: &SecurityNotice) -> bool {
     if !hook.enabled {
@@ -126,7 +142,7 @@ pub fn hook_matches(hook: &StoredSecurityHook, notice: &SecurityNotice) -> bool 
     if !filter::matches(&hook.event_types, &notice.event_type) {
         return false;
     }
-    if !notice.severity.at_least(floor_of(hook)) {
+    if !notice.state.is_resolved() && !notice.severity.at_least(floor_of(hook)) {
         return false;
     }
     match &hook.subject_kinds {
@@ -220,6 +236,14 @@ mod tests {
             summary: "something".into(),
             detail: None,
             payload: json!({}),
+        }
+    }
+
+    /// The same notice, settling rather than raising.
+    fn resolution(event_type: &str, severity: Severity) -> SecurityNotice {
+        SecurityNotice {
+            state: NoticeState::Resolved,
+            ..notice(event_type, severity)
         }
     }
 
@@ -365,6 +389,73 @@ mod tests {
             &paging,
             &notice("breach.password.compromised", Severity::Critical),
         ));
+    }
+
+    #[test]
+    fn a_quiet_resolution_still_closes_a_page_a_loud_event_opened() {
+        // ADR 0080 §2 promises `breach.finding.cleared` resolves what
+        // `breach.password.compromised` opened. Both existing families spell
+        // their resolution `Info` (`crates/breach-intel`'s `cleared`,
+        // `crates/lifecycle`'s `renewal.succeeded`), so a floor applied to
+        // resolutions means the page never closes and the alert key is
+        // decoration.
+        let paging = hook(Delivery::PagerDuty, Severity::Critical);
+        assert!(hook_matches(
+            &paging,
+            &notice("breach.password.compromised", Severity::Critical),
+        ));
+        assert!(
+            hook_matches(
+                &paging,
+                &resolution("breach.finding.cleared", Severity::Info)
+            ),
+            "a resolution must reach the sink that got the fire, whatever its floor",
+        );
+        assert!(hook_matches(
+            &paging,
+            &resolution("lifecycle.renewal.succeeded", Severity::Info),
+        ));
+    }
+
+    #[test]
+    fn a_resolution_still_obeys_every_gate_that_is_not_the_floor() {
+        // The carve-out is for the severity floor and nothing else. A
+        // resolution for an event a subscriber never asked about, or for a
+        // subject kind it filtered out, is still not its business.
+        let mut narrowed = hook(Delivery::PagerDuty, Severity::Critical);
+        narrowed.event_types = vec!["breach.*".into()];
+        narrowed.subject_kinds = Some(vec!["certificate".into()]);
+        assert!(hook_matches(
+            &narrowed,
+            &resolution("breach.finding.cleared", Severity::Info)
+        ));
+
+        assert!(!hook_matches(
+            &narrowed,
+            &resolution("lifecycle.renewal.succeeded", Severity::Info),
+        ));
+
+        let mut other_subject = resolution("breach.finding.cleared", Severity::Info);
+        other_subject.subject_kind = "store_path".into();
+        assert!(!hook_matches(&narrowed, &other_subject));
+
+        let mut off = hook(Delivery::PagerDuty, Severity::Critical);
+        off.enabled = false;
+        assert!(!hook_matches(
+            &off,
+            &resolution("breach.finding.cleared", Severity::Info)
+        ));
+    }
+
+    #[test]
+    fn the_built_in_alerter_hears_a_resolution_it_would_not_have_paged_for() {
+        let defaults = default_hooks("org:1", now());
+        let cleared = resolution("breach.finding.cleared", Severity::Info);
+        assert!(builtin_selects(&defaults, ALERT_RESPONDER, &cleared));
+        assert!(
+            builtin_selects(&[], ALERT_RESPONDER, &cleared),
+            "the unseeded fallback closes pages too, or a fresh gateway leaks them",
+        );
     }
 
     #[test]

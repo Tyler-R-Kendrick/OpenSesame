@@ -3452,6 +3452,7 @@ name = "opensesame-agent-events"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "opensesame-security-events",
  "serde",
  "serde_json",
  "thiserror 2.0.19",
@@ -3851,7 +3852,6 @@ dependencies = [
  "opensesame-redaction",
  "opensesame-relay",
  "opensesame-security-events",
- "opensesame-session-observe",
  "opensesame-storage",
  "opensesame-task-access",
  "opensesame-task-bus",
