@@ -16,6 +16,7 @@ import {
   issueCertificate,
 } from "../../lib/certs.js";
 import { compileSecretToHost } from "../../lib/connections.js";
+import { isTouchPointer } from "../../lib/gestures.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   type CustomField,
@@ -272,8 +273,8 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
             aria-label="Name"
             placeholder="Untitled"
             value={draft.name}
-            // biome-ignore lint/a11y/noAutofocus: reached only by an explicit "new item" or "edit" action, where the name is the first thing to type
-            autoFocus
+            // biome-ignore lint/a11y/noAutofocus: reached only by an explicit "new item" or "edit" action, where the name is the first thing to type — but never on a phone, where it would throw the keyboard over the record before it can be read
+            autoFocus={!isTouchPointer()}
             onChange={(event) => patch({ name: event.target.value })}
           />
           {mode === "new" ? (

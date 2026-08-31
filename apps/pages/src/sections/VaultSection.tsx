@@ -9,6 +9,7 @@ import {
 } from "react-router";
 
 import { IconDownload, IconPlus } from "../components/Icons.js";
+import { swipeBack } from "../lib/gestures.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { stashImportFile } from "../lib/vault/import/handoff.js";
@@ -250,6 +251,16 @@ export function VaultSection() {
     filter === "trash" ? item.deletedAt !== null : item.deletedAt === null,
   ).length;
 
+  const detailRef = useRef<HTMLDivElement>(null);
+  const listPath = `/vault${location.search}`;
+  useEffect(() => {
+    const pane = detailRef.current;
+    // Only when the buffer is the pane on screen: on a desktop both panes
+    // are visible and there is nothing to go back from.
+    if (!pane || !detailOpen) return;
+    return swipeBack(pane, () => navigate(listPath));
+  }, [detailOpen, listPath, navigate]);
+
   return (
     <div className="vault" data-pane={detailOpen ? "detail" : "list"}>
       <div className="vault__list">
@@ -311,7 +322,9 @@ export function VaultSection() {
         )}
       </div>
 
-      <div className="vault__detail">
+      {/* Dragging the buffer rightwards goes back to the list — the
+          platform's own back gesture, and the touch twin of the ← key. */}
+      <div className="vault__detail" ref={detailRef}>
         <Outlet />
       </div>
     </div>
@@ -328,24 +341,14 @@ export function VaultWelcome() {
   const live = items.filter((item) => item.deletedAt === null);
 
   if (live.length === 0) {
+    // The list pane states the empty vault and carries the actions that fill
+    // it. Saying it twice, side by side, only asks which one to believe.
     return (
-      <div className="detail">
-        <div className="empty">
-          <h2>Nothing sealed on this device</h2>
-          <p>
-            This store is for human items on this machine. Host connectors and
-            agent grants live on the Host — they never appear here as secrets.
-            Start with a .env import or add a login by hand.
-          </p>
-          <div className="actions">
-            <Link className="btn btn--primary btn--sm" to="/vault/new/login">
-              Add your first login
-            </Link>
-            {/* An empty vault is exactly when someone is arriving from another
-                manager, so the import is offered here and not only in Settings. */}
-            <ImportButton />
-          </div>
-        </div>
+      <div className="buffer">
+        <p className="buffer__line">
+          Human items live on this device. Host connectors and agent grants live
+          on the Host — they never appear here as secrets.
+        </p>
       </div>
     );
   }

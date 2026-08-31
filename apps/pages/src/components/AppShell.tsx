@@ -271,6 +271,26 @@ function NavTree() {
   );
 }
 
+/**
+ * The session context, as a shell prompt: who@tomb:/ — each segment opens
+ * its own switcher. A div, not a paragraph: the switchers render divs, and
+ * a <p> may not contain them.
+ */
+function SessionPrompt() {
+  return (
+    <div className="rail__prompt">
+      <AccountSwitcher />
+      <span className="prompt__dim" aria-hidden="true">
+        @
+      </span>
+      <ProjectSwitcher />
+      <span className="prompt__dim" aria-hidden="true">
+        :/
+      </span>
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
   const store = useVaultStore();
@@ -300,18 +320,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
           <p className="rail__wordmark">opensesame</p>
         </div>
 
-        {/* The session context is a shell prompt, not a widget stack:
-            who@tomb:/ — each segment opens its switcher. */}
-        <p className="rail__prompt">
-          <AccountSwitcher />
-          <span className="prompt__dim" aria-hidden="true">
-            @
-          </span>
-          <ProjectSwitcher />
-          <span className="prompt__dim" aria-hidden="true">
-            :/
-          </span>
-        </p>
+        <SessionPrompt />
 
         <div className="rail__scroll">
           <NavTree />
@@ -324,20 +333,8 @@ export function AppShell({ children }: { children?: ReactNode }) {
             rail is gone. */}
         <header className="topbar">
           <IconMark size={16} />
-          <p className="rail__prompt">
-            <AccountSwitcher />
-            <span className="prompt__dim" aria-hidden="true">
-              @
-            </span>
-            <ProjectSwitcher />
-            <span className="prompt__dim" aria-hidden="true">
-              :/
-            </span>
-          </p>
+          <SessionPrompt />
           <span className="topbar__spacer" />
-          <NotificationsBar />
-          <ConnectivityBar />
-          <span className="topbar__rule" aria-hidden="true" />
           <button
             type="button"
             className="icon-btn"
@@ -352,21 +349,6 @@ export function AppShell({ children }: { children?: ReactNode }) {
         <Crumbs />
 
         {children}
-
-        <nav className="tabbar" aria-label="Sections">
-          {SECTIONS.map(({ to, label, Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `tabbar__link${isActive ? " is-active" : ""}`
-              }
-            >
-              <Icon size={20} />
-              <span>{label}</span>
-            </NavLink>
-          ))}
-        </nav>
       </div>
 
       {/* The workspace statusline: plane truth on the left, notifications and
@@ -386,6 +368,21 @@ export function AppShell({ children }: { children?: ReactNode }) {
           <IconLock size={15} />
         </button>
       </footer>
+      <nav className="tabbar" aria-label="Sections">
+        {SECTIONS.map(({ to, label, Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `tabbar__link${isActive ? " is-active" : ""}`
+            }
+          >
+            <Icon size={20} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
       <KeymapSheet open={keymapOpen} close={closeKeymap} />
     </div>
   );

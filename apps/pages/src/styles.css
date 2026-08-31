@@ -702,6 +702,10 @@ input[type="radio"] {
   overflow: hidden;
 }
 
+.tabbar {
+  grid-area: tabs;
+}
+
 .rail {
   grid-area: rail;
 }
@@ -728,12 +732,27 @@ input[type="radio"] {
   margin-left: auto;
 }
 
-/* The statusline is a strip, not a toolbar: its chips stay slim. */
-.statusline .cx__btn,
-.statusline .icon-btn {
-  min-width: 0;
-  min-height: 0;
-  padding: 0.15rem 0.3rem 0.1rem;
+/* The statusline is a strip, not a toolbar: its chips stay slim — for a
+   mouse. A finger gets the full target instead (see the coarse block). */
+@media (pointer: fine) {
+  .statusline .cx__btn,
+  .statusline .icon-btn {
+    min-width: 0;
+    min-height: 0;
+    padding: 0.15rem 0.3rem 0.1rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .statusline {
+    gap: 0.15rem;
+  }
+
+  .statusline .cx__btn,
+  .statusline .icon-btn {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }
 
 .rail {
@@ -765,12 +784,20 @@ input[type="radio"] {
    the rail renders. Each segment is a button that opens its switcher. */
 .rail__prompt {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-width: 0;
   margin: 0;
   padding: 0.15rem 1rem 0.5rem;
   font-family: var(--mono);
   font-size: 0.8125rem;
   white-space: nowrap;
+}
+
+/* The separators are punctuation, not words: they never wrap away from the
+   segment they belong to. */
+.prompt__dim {
+  flex: none;
 }
 
 .prompt__dim {
@@ -954,6 +981,15 @@ input[type="radio"] {
   flex-direction: column;
 }
 
+/* Nothing in the app may make the document wider than the device: a page
+   that overflows sideways gets shrink-to-fit by mobile browsers, which
+   scales every hit target away from where it is drawn. */
+html,
+body {
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
 /* ——— Top bar ————————————————————————————————————————————
    Phone chrome: where the rail is gone it carries identity, the connectivity
    bar and Lock. On a desktop the rail and the statusline carry all of it. */
@@ -961,21 +997,30 @@ input[type="radio"] {
   display: flex;
   align-items: center;
   gap: 0.6rem;
+  min-width: 0;
   padding: 0.5rem 0.85rem;
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
+  padding-left: calc(0.85rem + env(safe-area-inset-left));
+  padding-right: calc(0.85rem + env(safe-area-inset-right));
   background: var(--surface);
   color: var(--ink);
   border-bottom: 1px solid var(--line);
   flex: none;
 }
 
-@media (min-width: 901px) {
-  .topbar {
-    display: none;
-  }
+/* The prompt yields first: the plane glyphs and the lock keep their size. */
+.topbar .rail__prompt {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
-@media (max-width: 900px) {
-  .statusline {
+.topbar > svg {
+  flex: none;
+}
+
+@media (min-width: 901px) {
+  .topbar {
     display: none;
   }
 }
@@ -1033,14 +1078,6 @@ input[type="radio"] {
 .crumbs__here {
   color: var(--ink);
   font-weight: 600;
-}
-
-.topbar__rule {
-  width: 1px;
-  height: 20px;
-  flex: none;
-  background: var(--rail-line);
-  margin: 0 0.2rem;
 }
 
 .notice-card {
@@ -1345,6 +1382,36 @@ input[type="radio"] {
   }
 }
 
+@media (pointer: coarse) {
+  /* A finger is not a mouse pointer: nothing that does something may be
+     smaller than 44px, and nothing may wait 300ms to find out it was a tap. */
+  a,
+  button,
+  [role="treeitem"],
+  label,
+  summary {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .prompt__seg,
+  .crumbs a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .railtree__row {
+    height: 2.75rem;
+  }
+
+  .icon-btn:active,
+  .btn:active,
+  .vtree__key:active {
+    background: var(--surface-3);
+  }
+}
+
 @media (pointer: coarse), (max-width: 900px) {
   .btn,
   .conn-doc-link,
@@ -1415,8 +1482,16 @@ input[type="radio"] {
 /* ——— Responsive frame ————————————————————————————————————— */
 
 @media (max-width: 900px) {
+  /* One column, and the tab bar is a row of the frame rather than a bar
+     floating over it — a fixed bar covered the list's last rows and its
+     status line, and nothing could scroll out from under it. */
   .app {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "main"
+      "status"
+      "tabs";
     height: 100dvh;
   }
 
@@ -1425,35 +1500,51 @@ input[type="radio"] {
   }
 
   .section {
-    padding: 1.15rem 1rem 6rem;
+    padding: 1.15rem 1rem 2rem;
+    padding-left: calc(1rem + env(safe-area-inset-left));
+    padding-right: calc(1rem + env(safe-area-inset-right));
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Plane truth stays legible on a phone: glyphs and the count, no labels. */
+  .statusline {
+    padding-left: calc(0.85rem + env(safe-area-inset-left));
+    padding-right: calc(0.85rem + env(safe-area-inset-right));
   }
 
   .tabbar {
-    position: fixed;
-    inset: auto 0 0 0;
-    z-index: 20;
     display: grid;
     /* Column per section, whatever the count, so adding one never overflows. */
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
     gap: 0.1rem;
     padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom));
+    padding-left: calc(0.35rem + env(safe-area-inset-left));
+    padding-right: calc(0.35rem + env(safe-area-inset-right));
     background: var(--surface);
     border-top: 1px solid var(--line);
-    box-shadow: var(--shadow);
   }
 
   .tabbar__link {
     display: grid;
     justify-items: center;
+    align-content: center;
     gap: 0.15rem;
     min-width: 0;
+    min-height: 2.75rem;
     padding: 0.4rem 0.15rem;
     border-radius: 2px;
     color: var(--ink-2);
     text-decoration: none;
     font-size: 0.625rem;
     font-weight: 600;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tabbar__link:active {
+    background: var(--surface-3);
   }
 
   /* Six sections on a narrow phone: the icon carries the target, so a long

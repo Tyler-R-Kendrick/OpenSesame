@@ -6,6 +6,7 @@ import {
   IconDots,
   IconStar,
 } from "../../components/Icons.js";
+import { longPress } from "../../lib/gestures.js";
 import { registerVaultKeymap, showKeymapHelp } from "../../lib/keymap.js";
 import { activeProject } from "../../lib/projects.js";
 import type { Folder, VaultItem } from "../../lib/vault/model.js";
@@ -344,6 +345,25 @@ export function VaultTree({
     if (query !== null) searchRef.current?.focus();
   }, [query]);
 
+  // Holding a row opens its actions — the touch twin of the ⋯ key, which a
+  // finger cannot reveal by hovering.
+  useEffect(() => {
+    const list = treeRef.current;
+    if (!list) return;
+    return longPress(list, (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const row = target.closest("[data-vtree-key]");
+      if (!(row instanceof HTMLElement)) return;
+      const key = row.dataset.vtreeKey;
+      if (!key) return;
+      const hit = rowsRef.current.find((candidate) => candidate.key === key);
+      if (hit?.type !== "item") return;
+      setCursor(key);
+      setMenuFor(key);
+    });
+  }, []);
+
   useEffect(() => {
     const rowAt = (key: string | null) =>
       rowsRef.current.find((row) => row.key === key) ?? null;
@@ -443,7 +463,7 @@ export function VaultTree({
           </button>
           <button
             type="button"
-            className="vtree__key"
+            className="vtree__key vtree__key--help"
             title="Keyboard shortcuts (?)"
             onClick={showKeymapHelp}
           >
@@ -521,6 +541,7 @@ export function VaultTree({
             <div
               key={row.key}
               role="treeitem"
+              data-vtree-key={row.key}
               {...shared}
               {...(row.type === "dir" ? { "aria-expanded": row.expanded } : {})}
               onClick={() => {
