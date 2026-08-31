@@ -1003,8 +1003,13 @@ const MIGRATIONS: &[(&str, &str)] = &[
         include_str!("../../../migrations/0022_rotation_policy_owner.sql"),
     ),
     (
+<<<<<<< HEAD
         "0024_a2h_delivery",
         include_str!("../../../migrations/0024_a2h_delivery.sql"),
+=======
+        "0023_watermark_subject_kinds",
+        include_str!("../../../migrations/0023_watermark_subject_kinds.sql"),
+>>>>>>> claude/watermark-subject-kinds
     ),
 ];
 
