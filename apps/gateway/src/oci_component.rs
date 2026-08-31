@@ -253,32 +253,7 @@ mod tests {
                 "/token",
                 get(|| async { axum::Json(serde_json::json!({"token": "anon-token"})) }),
             )
-            .route(
-                "/v2/acme/echo/blobs/{digest}",
-                get(
-                    |State((blob, challenged, realm)): State<(
-                        Vec<u8>,
-                        Arc<AtomicBool>,
-                        String,
-                    )>,
-                     headers: HeaderMap| async move {
-                        if headers.get("authorization").is_none() {
-                            challenged.store(true, Ordering::SeqCst);
-                            return Err((
-                                StatusCode::UNAUTHORIZED,
-                                [(
-                                    "www-authenticate",
-                                    format!(
-                                        "Bearer realm=\"{realm}\",service=\"test\",scope=\"repository:acme/echo:pull\""
-                                    ),
-                                )],
-                            ));
-                        }
-                        assert_eq!(headers.get("authorization").unwrap(), "Bearer anon-token");
-                        Ok(blob)
-                    },
-                ),
-            )
+            .route("/v2/acme/echo/blobs/{digest}", get(challenge_then_serve))
             .with_state(state);
         tokio::spawn(async move {
             axum::serve(listener, app).await.unwrap();
@@ -295,15 +270,41 @@ mod tests {
         );
     }
 
+    /// Blob bytes, the "was challenged" flag, and the realm to advertise.
+    type ChallengeState = (Vec<u8>, Arc<AtomicBool>, String);
+    /// A 401 carrying exactly one `www-authenticate` header.
+    type ChallengeResponse = (StatusCode, [(&'static str, String); 1]);
+
+    /// Answer the first request with a token challenge, then serve the blob.
+    ///
+    /// Named rather than inline so the two-leg flow reads as two legs; as a
+    /// closure inside `Router::route` it nested four deep.
+    async fn challenge_then_serve(
+        State((blob, challenged, realm)): State<ChallengeState>,
+        headers: HeaderMap,
+    ) -> Result<Vec<u8>, ChallengeResponse> {
+        let Some(authorization) = headers.get("authorization") else {
+            challenged.store(true, Ordering::SeqCst);
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                [(
+                    "www-authenticate",
+                    format!(
+                        "Bearer realm=\"{realm}\",service=\"test\",scope=\"repository:acme/echo:pull\""
+                    ),
+                )],
+            ));
+        };
+        assert_eq!(authorization, "Bearer anon-token");
+        Ok(blob)
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn a_wrong_digest_is_refused_even_from_a_cooperative_registry() {
         let blob = b"honest-bytes".to_vec();
         let app = Router::new().route(
             "/v2/acme/echo/blobs/{digest}",
-            get(move || {
-                let blob = blob.clone();
-                async move { blob }
-            }),
+            get(move || std::future::ready(blob.clone())),
         );
         let base = serve(app).await;
         let http = reqwest::Client::new();

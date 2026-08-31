@@ -53,28 +53,51 @@ pub async fn collect(
     let organization = organization_id.to_string();
     let mut subjects: Vec<ExpirySubject> = Vec::new();
 
-    match certificates(&state.db, &organization, now).await {
-        Ok(found) => subjects.extend(found),
-        Err(error) => tracing::warn!(%error, "lifecycle scan could not read certificates"),
-    }
-    match authorities(&state.db, &organization).await {
-        Ok(found) => subjects.extend(found),
-        Err(error) => tracing::warn!(%error, "lifecycle scan could not read authorities"),
-    }
-    match signers(&state.db, &organization, now).await {
-        Ok(found) => subjects.extend(found),
-        Err(error) => tracing::warn!(%error, "lifecycle scan could not read signers"),
-    }
-    match connections(state, organization_id).await {
-        Ok(found) => subjects.extend(found),
-        Err(error) => tracing::warn!(%error, "lifecycle scan could not read connections"),
-    }
-    match rotation_policies(state, &organization).await {
-        Ok(found) => subjects.extend(found),
-        Err(error) => tracing::warn!(%error, "lifecycle scan could not read rotation policies"),
-    }
+    // Collection order is load-bearing: rotation policies come last so
+    // `dedupe`'s last-writer-wins lets a policy outrank a credential's own
+    // advertised expiry.
+    absorb(
+        &mut subjects,
+        certificates(&state.db, &organization, now).await,
+        "certificates",
+    );
+    absorb(
+        &mut subjects,
+        authorities(&state.db, &organization).await,
+        "authorities",
+    );
+    absorb(
+        &mut subjects,
+        signers(&state.db, &organization, now).await,
+        "signers",
+    );
+    absorb(
+        &mut subjects,
+        connections(state, organization_id).await,
+        "connections",
+    );
+    absorb(
+        &mut subjects,
+        rotation_policies(state, &organization).await,
+        "rotation policies",
+    );
 
     dedupe(subjects)
+}
+
+/// Add one source's subjects, or log why it contributed none.
+///
+/// A source that fails is skipped rather than fatal: one unreadable table must
+/// not stop a certificate elsewhere from being renewed.
+fn absorb(
+    subjects: &mut Vec<ExpirySubject>,
+    found: anyhow::Result<Vec<ExpirySubject>>,
+    source: &'static str,
+) {
+    match found {
+        Ok(found) => subjects.extend(found),
+        Err(error) => tracing::warn!(%error, source, "lifecycle scan could not read a source"),
+    }
 }
 
 /// Keep one subject per `(kind, subject_id)`, last writer winning.

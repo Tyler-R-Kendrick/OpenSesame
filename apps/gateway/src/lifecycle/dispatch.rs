@@ -34,23 +34,7 @@ pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc
     }
     let outcome = responders::respond(state, event).await;
     let detail: String = outcome.detail.chars().take(MAX_DETAIL_CHARS).collect();
-    if outcome.succeeded {
-        tracing::info!(
-            event_type = %event.event_type,
-            subject_kind = event.subject.kind.as_str(),
-            subject_id = %event.subject.subject_id,
-            detail = %detail,
-            "lifecycle responder acted",
-        );
-    } else {
-        tracing::warn!(
-            event_type = %event.event_type,
-            subject_kind = event.subject.kind.as_str(),
-            subject_id = %event.subject.subject_id,
-            detail = %detail,
-            "lifecycle responder could not act",
-        );
-    }
+    log_outcome(event, outcome.succeeded, &detail);
 
     // The outcome is itself a subscribable event: a tool that wants to take
     // over when our rotation fails needs to hear that it failed. It is never
@@ -64,6 +48,26 @@ pub async fn publish(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc
     );
     publish_to_bus(state, &outcome_event).await;
     enqueue_for_subscribers(state, &outcome_event, now).await;
+}
+
+fn log_outcome(event: &LifecycleEvent, succeeded: bool, detail: &str) {
+    if succeeded {
+        tracing::info!(
+            event_type = %event.event_type,
+            subject_kind = event.subject.kind.as_str(),
+            subject_id = %event.subject.subject_id,
+            detail,
+            "lifecycle responder acted",
+        );
+    } else {
+        tracing::warn!(
+            event_type = %event.event_type,
+            subject_kind = event.subject.kind.as_str(),
+            subject_id = %event.subject.subject_id,
+            detail,
+            "lifecycle responder could not act",
+        );
+    }
 }
 
 /// Publish on the `TaskBus`. The bus accelerates and observes; the delivery
@@ -105,48 +109,70 @@ pub fn hook_matches(hook: &StoredLifecycleHook, event: &LifecycleEvent) -> bool 
     }
 }
 
-async fn enqueue_for_subscribers(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
-    let hooks = match state
+/// One queued delivery of `event` to `hook`.
+fn pending_delivery(
+    hook: &StoredLifecycleHook,
+    event: &LifecycleEvent,
+    payload_json: String,
+    now: DateTime<Utc>,
+) -> StoredLifecycleDelivery {
+    StoredLifecycleDelivery {
+        id: format!("lcd_{}", uuid::Uuid::now_v7()),
+        organization_id: hook.organization_id.clone(),
+        hook_id: hook.id.clone(),
+        event_type: event.event_type.clone(),
+        subject_kind: event.subject.kind.as_str().to_string(),
+        subject_id: event.subject.subject_id.clone(),
+        payload_json,
+        state: "pending".into(),
+        attempts: 0,
+        available_at: None,
+        last_error: None,
+        delivered_at: None,
+        created_at: now.to_rfc3339(),
+        updated_at: now.to_rfc3339(),
+    }
+}
+
+/// Whether this subscription should receive an outbound delivery.
+///
+/// Internal hook rows are documentation of a platform responder, not a
+/// delivery target: the responder runs in-process, so queueing an outbound
+/// delivery for it would be a row nobody ever drains.
+fn wants_delivery(hook: &StoredLifecycleHook, event: &LifecycleEvent) -> bool {
+    hook.delivery == "webhook" && hook_matches(hook, event)
+}
+
+/// The subscriptions and the encoded payload one fan-out needs.
+///
+/// `None` when either could not be obtained, which is logged here so the
+/// caller stays a loop rather than a funnel of early returns.
+async fn fanout_inputs(
+    state: &AppState,
+    event: &LifecycleEvent,
+) -> Option<(Vec<StoredLifecycleHook>, String)> {
+    let hooks = state
         .db
         .list_lifecycle_hooks(&event.subject.organization_id)
         .await
-    {
-        Ok(hooks) => hooks,
-        Err(error) => {
+        .inspect_err(|error| {
             tracing::warn!(%error, "lifecycle fan-out could not read subscriptions");
-            return;
-        }
-    };
-    let payload = match serde_json::to_string(&event.payload()) {
-        Ok(payload) => payload,
-        Err(error) => {
+        })
+        .ok()?;
+    let payload = serde_json::to_string(&event.payload())
+        .inspect_err(|error| {
             tracing::warn!(%error, "lifecycle payload could not be encoded");
-            return;
-        }
+        })
+        .ok()?;
+    Some((hooks, payload))
+}
+
+async fn enqueue_for_subscribers(state: &AppState, event: &LifecycleEvent, now: DateTime<Utc>) {
+    let Some((hooks, payload)) = fanout_inputs(state, event).await else {
+        return;
     };
-    for hook in hooks {
-        // Internal hook rows are documentation of a platform responder, not a
-        // delivery target: the responder runs in-process, so queueing an
-        // outbound delivery for it would be a row nobody ever drains.
-        if hook.delivery != "webhook" || !hook_matches(&hook, event) {
-            continue;
-        }
-        let delivery = StoredLifecycleDelivery {
-            id: format!("lcd_{}", uuid::Uuid::now_v7()),
-            organization_id: hook.organization_id.clone(),
-            hook_id: hook.id.clone(),
-            event_type: event.event_type.clone(),
-            subject_kind: event.subject.kind.as_str().to_string(),
-            subject_id: event.subject.subject_id.clone(),
-            payload_json: payload.clone(),
-            state: "pending".into(),
-            attempts: 0,
-            available_at: None,
-            last_error: None,
-            delivered_at: None,
-            created_at: now.to_rfc3339(),
-            updated_at: now.to_rfc3339(),
-        };
+    for hook in hooks.iter().filter(|hook| wants_delivery(hook, event)) {
+        let delivery = pending_delivery(hook, event, payload.clone(), now);
         if let Err(error) = state.db.enqueue_lifecycle_delivery(&delivery).await {
             tracing::warn!(%error, hook_id = %hook.id, "lifecycle delivery could not be queued");
         }

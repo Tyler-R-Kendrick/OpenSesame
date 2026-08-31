@@ -1582,13 +1582,15 @@ async fn issue_managed_certificate(
     };
     match managed_certs::issue_managed(
         st,
-        organization,
-        &authority_id,
-        &ca,
-        request,
-        renew_before_seconds,
-        actor,
-        None,
+        &managed_certs::ManagedRequest {
+            organization,
+            authority_id: &authority_id,
+            ca: &ca,
+            request,
+            renew_before_seconds,
+            actor,
+            renewed_from: None,
+        },
     )
     .await
     {

@@ -382,6 +382,7 @@ pub async fn get(
 /// compare-and-swap on `version`, re-validated end to end.
 #[expect(
     clippy::too_many_lines,
+    clippy::cognitive_complexity,
     reason = "one linear validate-then-write path; splitting it would hide the ordering that keeps authz and referential checks ahead of the write"
 )]
 pub async fn update(
@@ -424,12 +425,11 @@ pub async fn update(
     // resolved against both, so a `self_signed` switch cannot leave a stale
     // authority id behind.
     if body.issuer_type.is_some() || body.certificate_authority_id.is_some() {
-        let issuer_type = match body
+        let Some(issuer_type) = body
             .issuer_type
             .or_else(|| IssuerType::parse(&current.issuer_type))
-        {
-            Some(value) => value,
-            None => return internal("unrecognized stored issuer_type", "resolve issuer type"),
+        else {
+            return internal("unrecognized stored issuer_type", "resolve issuer type");
         };
         let requested = body.certificate_authority_id.or_else(|| match issuer_type {
             // Keep the existing authority when only the type was restated.

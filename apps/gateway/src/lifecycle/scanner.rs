@@ -127,16 +127,14 @@ async fn scannable_organizations(state: &AppState) -> Vec<OrganizationId> {
 }
 
 fn parse_organization(raw: &str) -> Option<OrganizationId> {
-    match OrganizationId::parse(raw) {
-        Ok(id) => Some(id),
-        Err(_) => {
-            tracing::debug!(
-                organization_id = raw,
-                "skipping a non-canonical organization id"
-            );
-            None
-        }
+    let parsed = OrganizationId::parse(raw).ok();
+    if parsed.is_none() {
+        tracing::debug!(
+            organization_id = raw,
+            "skipping a non-canonical organization id"
+        );
     }
+    parsed
 }
 
 /// Evaluate every subject in one organization and publish what it owes.

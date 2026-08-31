@@ -92,9 +92,8 @@ impl CustodyError {
     pub const fn http_status(&self) -> u16 {
         match self {
             Self::SealingUnavailable => 503,
-            Self::NoAuthority | Self::NotInCustody | Self::NotActive => 409,
+            Self::NoAuthority | Self::NotInCustody | Self::NotActive | Self::Superseded => 409,
             Self::NotFound => 404,
-            Self::Superseded => 409,
             Self::LifetimeTooShort | Self::Mint(_) => 400,
             Self::Storage(_) => 500,
         }
@@ -215,52 +214,36 @@ pub fn converging_renew_before(
 /// Returns [`CustodyError`] when sealing is unavailable, the lifetime is too
 /// short to renew unattended, the leaf will not mint, or the request is
 /// superseded before it completes.
+/// Everything one host-custody issuance needs that is not the gateway itself.
+///
+/// Grouped into a struct rather than passed as eight positional arguments,
+/// which is both what Clippy objects to and genuinely easy to get wrong: two
+/// of them are `&str` and mixing them up would file a certificate under the
+/// wrong authority.
+pub struct ManagedRequest<'a> {
+    pub organization: &'a OrganizationId,
+    pub authority_id: &'a str,
+    pub ca: &'a DevCa,
+    pub request: &'a dev_pki::IssueRequest,
+    pub renew_before_seconds: i64,
+    pub actor: &'a str,
+    /// The certificate this one replaces, when it is a renewal.
+    pub renewed_from: Option<&'a str>,
+}
+
 pub async fn issue_managed(
     state: &AppState,
-    organization: &OrganizationId,
-    authority_id: &str,
-    ca: &DevCa,
-    request: &dev_pki::IssueRequest,
-    renew_before_seconds: i64,
-    actor: &str,
-    renewed_from: Option<&str>,
+    spec: &ManagedRequest<'_>,
 ) -> Result<ManagedIssuance, CustodyError> {
     let key = sealing_key(state)?;
-    let lifetime = i64::try_from(request.ttl.as_secs()).unwrap_or(i64::MAX);
-    let renew_before_seconds = converging_renew_before(renew_before_seconds, lifetime)?;
-    let organization = organization.to_string();
+    let lifetime = i64::try_from(spec.request.ttl.as_secs()).unwrap_or(i64::MAX);
+    let renew_before_seconds = converging_renew_before(spec.renew_before_seconds, lifetime)?;
+    let organization = spec.organization.to_string();
     let now = Utc::now();
-    let san_json = san_document(request);
+    let san_json = san_document(spec.request);
 
-    // Every certificate row needs its own issuance request: `request_id` is
-    // NOT NULL with a unique foreign key, so a renewal is auditable as a
-    // request in exactly the way a first issuance is.
-    let request_id = format!("certificate-request:{}", uuid::Uuid::new_v4());
-    let stored_request = StoredCertificateIssuanceRequest {
-        id: request_id.clone(),
-        organization_id: organization.clone(),
-        authority_id: authority_id.into(),
-        request_digest: custody_digest(&organization, authority_id, &request_id, request),
-        idempotency_key: format!("managed:{request_id}"),
-        created_by: actor.into(),
-        state: "created".into(),
-        common_name: request.common_name.clone(),
-        san_json: san_json.clone(),
-        delivery: None,
-        expires_at: (now + Duration::minutes(REQUEST_TTL_MINUTES)).to_rfc3339(),
-        version: 1,
-        created_at: now.to_rfc3339(),
-        updated_at: now.to_rfc3339(),
-    };
-    if !state
-        .db
-        .insert_certificate_issuance_request(&stored_request)
-        .await?
-    {
-        return Err(CustodyError::Superseded);
-    }
-
-    let material = dev_pki::issue_leaf(ca, request).map_err(CustodyError::Mint)?;
+    let request_id = open_issuance_request(state, spec, &organization, &san_json, now).await?;
+    let material = dev_pki::issue_leaf(spec.ca, spec.request).map_err(CustodyError::Mint)?;
 
     let certificate_id = format!("certificate:{}", uuid::Uuid::new_v4());
     let sealed = seal_scoped(
@@ -276,7 +259,7 @@ pub async fn issue_managed(
     let certificate = StoredManagedCertificate {
         id: certificate_id.clone(),
         organization_id: organization.clone(),
-        authority_id: authority_id.into(),
+        authority_id: spec.authority_id.into(),
         request_id: request_id.clone(),
         certificate_digest: format!(
             "sha256:{}",
@@ -297,7 +280,7 @@ pub async fn issue_managed(
         signature_algorithm: None,
         fingerprint_sha256: None,
         chain_pem: Some(material.ca_certificate.clone()),
-        renewed_from_id: renewed_from.map(str::to_string),
+        renewed_from_id: spec.renewed_from.map(str::to_string),
         renewed_by_id: None,
         auto_renew_enabled: true,
         renew_before_seconds: Some(renew_before_seconds),
@@ -310,7 +293,7 @@ pub async fn issue_managed(
     let sealed_key = StoredManagedCertificateKey {
         id: format!("managed-key:{certificate_id}"),
         organization_id: organization.clone(),
-        certificate_id: certificate_id.clone(),
+        certificate_id,
         sealed_key: SealedCertificateMaterial {
             key_id: KEY_ID.into(),
             ciphertext: sealed.ciphertext,
@@ -340,6 +323,46 @@ pub async fn issue_managed(
         certificate,
         material,
     })
+}
+
+/// Record the issuance request this certificate will be filed against.
+///
+/// Every certificate row needs its own: `request_id` is NOT NULL behind a
+/// unique foreign key, so a renewal is auditable as a request in exactly the
+/// way a first issuance is.
+async fn open_issuance_request(
+    state: &AppState,
+    spec: &ManagedRequest<'_>,
+    organization: &str,
+    san_json: &str,
+    now: DateTime<Utc>,
+) -> Result<String, CustodyError> {
+    let request_id = format!("certificate-request:{}", uuid::Uuid::new_v4());
+    let stored_request = StoredCertificateIssuanceRequest {
+        id: request_id.clone(),
+        organization_id: organization.to_string(),
+        authority_id: spec.authority_id.into(),
+        request_digest: custody_digest(organization, spec.authority_id, &request_id, spec.request),
+        idempotency_key: format!("managed:{request_id}"),
+        created_by: spec.actor.into(),
+        state: "created".into(),
+        common_name: spec.request.common_name.clone(),
+        san_json: san_json.to_string(),
+        delivery: None,
+        expires_at: (now + Duration::minutes(REQUEST_TTL_MINUTES)).to_rfc3339(),
+        version: 1,
+        created_at: now.to_rfc3339(),
+        updated_at: now.to_rfc3339(),
+    };
+    if state
+        .db
+        .insert_certificate_issuance_request(&stored_request)
+        .await?
+    {
+        Ok(request_id)
+    } else {
+        Err(CustodyError::Superseded)
+    }
 }
 
 /// Open a managed certificate's private key.
@@ -448,15 +471,17 @@ pub async fn renew_managed(
     };
     let renewed = issue_managed(
         state,
-        organization,
-        &authority_id,
-        &ca,
-        &request,
-        previous
-            .renew_before_seconds
-            .unwrap_or(opensesame_lifecycle::DEFAULT_RENEW_BEFORE_SECONDS),
-        "lifecycle-responder",
-        Some(certificate_id),
+        &ManagedRequest {
+            organization,
+            authority_id: &authority_id,
+            ca: &ca,
+            request: &request,
+            renew_before_seconds: previous
+                .renew_before_seconds
+                .unwrap_or(opensesame_lifecycle::DEFAULT_RENEW_BEFORE_SECONDS),
+            actor: "lifecycle-responder",
+            renewed_from: Some(certificate_id),
+        },
     )
     .await?;
 
