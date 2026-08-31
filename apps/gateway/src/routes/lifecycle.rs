@@ -212,14 +212,23 @@ pub struct HookBody {
     /// Stable id. Omit to create; supply to edit in place.
     pub id: Option<String>,
     pub name: String,
-    /// Frozen lifecycle event types, or the `lifecycle.*` wildcard.
+    /// Frozen lifecycle or agent event types, or a family wildcard.
     pub event_types: Vec<String>,
-    /// Absolute `https://` endpoint receiving Standard Webhooks deliveries.
+    /// Absolute `https://` endpoint. For `webhook` it receives Standard
+    /// Webhooks deliveries; for `a2h` it is the A2H gateway's base URL.
     pub endpoint_url: String,
+    /// `webhook` (default) or `a2h`. `internal` names a platform responder and
+    /// is not registrable from outside.
+    #[serde(default = "default_delivery")]
+    pub delivery: String,
     /// Optional narrowing to particular subject kinds.
     pub subject_kinds: Option<Vec<String>>,
     #[serde(default = "default_true")]
     pub enabled: bool,
+}
+
+fn default_delivery() -> String {
+    "webhook".into()
 }
 
 const fn default_true() -> bool {
@@ -287,12 +296,31 @@ fn validate_hook_body(body: &HookBody) -> Result<(), Response> {
             return Err(bad_request(&format!("unknown subject kind \"{unknown}\"")));
         }
     }
+    // `internal` is a platform responder called in process. Accepting it here
+    // would let a caller register a row claiming to be one, which the delivery
+    // worker would then skip forever — a subscription that looks live and
+    // silently receives nothing.
+    if body.delivery != "webhook" && body.delivery != "a2h" {
+        return Err(bad_request("delivery must be \"webhook\" or \"a2h\""));
+    }
     let endpoint = body.endpoint_url.trim();
     if endpoint.chars().count() > MAX_ENDPOINT_CHARS {
         return Err(bad_request("endpoint_url is too long"));
     }
     if let Err(hint) = delivery::assert_deliverable(endpoint) {
         return Err(bad_request(&hint));
+    }
+    // An A2H hook that names no agent event would deliver nothing: the
+    // lifecycle family has no intent mapping, so every row would settle
+    // unsent. Refusing here beats a subscription that looks configured.
+    if body.delivery == "a2h"
+        && !body.event_types.iter().any(|entry| {
+            entry == AGENT_WILDCARD || opensesame_agent_events::is_agent_event_type(entry)
+        })
+    {
+        return Err(bad_request(
+            "an a2h subscription must name at least one agent event type",
+        ));
     }
     Ok(())
 }
@@ -396,7 +424,7 @@ pub async fn put_hook(
         organization_id: organization.clone(),
         name: name.to_string(),
         event_types: body.event_types.clone(),
-        delivery: "webhook".into(),
+        delivery: body.delivery.clone(),
         endpoint_url: Some(endpoint.to_string()),
         responder: None,
         subject_kinds: body.subject_kinds.clone(),
@@ -1461,5 +1489,50 @@ mod hook_filter_tests {
                 "{name} is advertised but not registrable"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod a2h_hook_tests {
+    use super::{validate_hook_body, HookBody};
+    use opensesame_agent_events::EVENT_RUN_BLOCKED;
+    use opensesame_lifecycle::EVENT_RENEWAL_DUE;
+
+    fn body(delivery: &str, event_types: &[&str]) -> HookBody {
+        HookBody {
+            id: None,
+            name: "notifier".into(),
+            event_types: event_types.iter().map(|e| (*e).to_string()).collect(),
+            endpoint_url: "https://a2h.example".into(),
+            delivery: delivery.into(),
+            subject_kinds: None,
+            enabled: true,
+        }
+    }
+
+    #[test]
+    fn a2h_is_registrable_beside_webhook() {
+        assert!(validate_hook_body(&body("webhook", &[EVENT_RENEWAL_DUE])).is_ok());
+        assert!(validate_hook_body(&body("a2h", &[EVENT_RUN_BLOCKED])).is_ok());
+        assert!(validate_hook_body(&body("a2h", &["agent.*"])).is_ok());
+    }
+
+    #[test]
+    fn internal_is_not_registrable_from_outside() {
+        // A row claiming to be a platform responder is one the delivery worker
+        // skips forever: a subscription that looks live and receives nothing.
+        assert!(validate_hook_body(&body("internal", &["agent.*"])).is_err());
+        assert!(validate_hook_body(&body("carrier-pigeon", &["agent.*"])).is_err());
+    }
+
+    #[test]
+    fn an_a2h_hook_naming_only_lifecycle_events_is_refused() {
+        // The lifecycle family has no intent mapping, so every row would settle
+        // unsent — a configured-looking subscription that can never fire.
+        assert!(validate_hook_body(&body("a2h", &[EVENT_RENEWAL_DUE])).is_err());
+        assert!(validate_hook_body(&body("a2h", &["lifecycle.*"])).is_err());
+        // Naming both families is fine: the lifecycle half simply settles
+        // unsent while the agent half escalates.
+        assert!(validate_hook_body(&body("a2h", &[EVENT_RENEWAL_DUE, EVENT_RUN_BLOCKED])).is_ok());
     }
 }

@@ -1306,6 +1306,78 @@ paths:
                   secrets_returned: { type: boolean, const: false }
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
+  /a2h/callback:
+    post:
+      summary: Receive a human's A2H reply
+      description: >-
+        Callback for an A2H gateway (ADR 0078). Unauthenticated by design: the
+        gateway holds no session, and the request's HMAC over
+        `{timestamp}.{body}` under the subscription's `whsec_` secret is its
+        authentication. Every failed check answers 401 identically, so the shape
+        of a refusal cannot tell an unsigned caller whether an interaction
+        exists.
+
+
+        A verified reply may only *narrow* what is happening: acknowledge, or
+        cancel the run. It can never grant the control lease or resume autonomy
+        — taking the page needs the viewer key the log is sealed to, and
+        resuming needs the run's preconditions re-asserted against the page.
+        Neither is reachable from a phone, at any assurance level.
+      security: []
+      parameters:
+        - name: X-A2H-Signature
+          in: header
+          required: true
+          description: "`t=<unix>,v1=<base64 HMAC-SHA256>`"
+          schema: { type: string }
+        - name: X-A2H-Delivery-ID
+          in: header
+          required: false
+          description: >-
+            The gateway's per-attempt id, logged for correlation. Not the
+            idempotency key: that is the interaction, which is stable across
+            retries.
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, interaction_id, responds_to]
+              properties:
+                type: { type: string, const: RESPONSE }
+                interaction_id: { type: string }
+                responds_to: { type: string }
+                decision: { type: string, enum: [APPROVE, DECLINE] }
+                decided_at: { type: string, format: date-time }
+                evidence:
+                  type: object
+                  properties:
+                    factor: { type: string }
+                    proof: { type: object }
+                signature: { type: string }
+      responses:
+        "200":
+          description: The reply was applied, acknowledged, or already applied
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string }
+        "401":
+          description: >-
+            The request did not verify. Returned identically for a bad
+            signature, a stale timestamp, and an unknown interaction.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [error]
+                properties:
+                  error: { type: string, const: invalid_request }
 components:
   securitySchemes:
     HostBearer:

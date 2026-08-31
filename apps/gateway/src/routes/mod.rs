@@ -1,3 +1,4 @@
+mod a2h;
 mod aauth;
 mod admin;
 mod agents;
@@ -417,6 +418,9 @@ pub fn router(state: AppState) -> Router {
             get(lifecycle::list_deliveries),
         )
         .route("/api/v1/lifecycle/scan", post(lifecycle::scan))
+        // Unauthenticated by design: the A2H gateway holds no session, and the
+        // request's HMAC is its authentication (see routes/a2h.rs).
+        .route("/api/v1/a2h/callback", post(a2h::callback))
         // WP-9: durable rotation policies (owner/admin configuration surface).
         .route(
             "/api/v1/rotation/policies",
