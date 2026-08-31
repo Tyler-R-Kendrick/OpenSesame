@@ -155,6 +155,7 @@ describe("evaluateApprovalCeremony", () => {
       },
       callbackAuthenticated: true,
       callbackFresh: true,
+      freshnessSource: "provider_timestamp" as const,
       callbackUnseen: true,
     });
     expect(result.allowed).toBe(false);
@@ -183,6 +184,7 @@ describe("evaluateApprovalCeremony", () => {
       },
       callbackAuthenticated: true,
       callbackFresh: true,
+      freshnessSource: "provider_timestamp" as const,
       callbackUnseen: true,
     });
     expect(result.refusals).toEqual([]);
@@ -214,6 +216,7 @@ describe("evaluateApprovalCeremony", () => {
       },
       callbackAuthenticated: true,
       callbackFresh: true,
+      freshnessSource: "provider_timestamp" as const,
       callbackUnseen: true,
     });
     expect(withForgedFacts.allowed).toBe(false);
@@ -240,9 +243,39 @@ describe("evaluateApprovalCeremony", () => {
       },
       callbackAuthenticated: true,
       callbackFresh: true,
+      freshnessSource: "provider_timestamp" as const,
       callbackUnseen: true,
     });
     expect(result.refusals).toContain("binding_identity_mismatch");
+  });
+
+  it("adversarial: a caller who omits the freshness source is refused", () => {
+    // The default has to be the safe one. A route that forgets this field is
+    // a route that did not check, and it must not be read as "fresh".
+    const result = evaluateApprovalCeremony({
+      ...inAppHighAssurance,
+      path: "external_direct",
+      channelKind: "slack",
+      policy: {
+        ...defaultApprovalPolicy("low"),
+        allowedChannels: ["slack", "in_app"],
+        directApprovalChannels: ["slack"],
+        requireTransactionBoundActivation: false,
+      },
+      activationAuthentication: undefined,
+      activation: undefined,
+      binding: binding(),
+      claimedIdentity: {
+        providerId: "slack",
+        providerTenantId: "T_WS",
+        providerSubjectId: "U_ME",
+      },
+      callbackAuthenticated: true,
+      callbackFresh: true,
+      callbackUnseen: true,
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.refusals).toContain("callback_freshness_unestablished");
   });
 
   it("adversarial: an activation for a different request is refused", () => {

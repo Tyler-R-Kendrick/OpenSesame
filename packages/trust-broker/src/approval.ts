@@ -25,6 +25,7 @@ import {
   type ApprovalPath,
   type ActivationRefusal,
   type AssuranceVector,
+  type CallbackFreshnessSource,
   type DirectSettlementRefusal,
   type ExternalChannelBinding,
   type IdentityEvidence,
@@ -81,6 +82,12 @@ export interface ApprovalCeremonyInput {
   };
   callbackAuthenticated?: boolean;
   callbackFresh?: boolean;
+  /**
+   * How freshness was established. Absent means "not established", which is a
+   * refusal — the default has to be the safe one, because a caller that
+   * forgets this field is a caller that did not check.
+   */
+  freshnessSource?: CallbackFreshnessSource;
   callbackUnseen?: boolean;
   requestPending: boolean;
   requestDigestMatches: boolean;
@@ -138,6 +145,7 @@ export function evaluateApprovalCeremony(
         : undefined),
       callbackAuthenticated: input.callbackAuthenticated === true,
       callbackFresh: input.callbackFresh === true,
+      freshnessSource: input.freshnessSource ?? "none",
       callbackUnseen: input.callbackUnseen === true,
       requestPending: input.requestPending,
       requestDigestMatches: input.requestDigestMatches,

@@ -132,6 +132,16 @@ export interface ChannelCapabilities {
   canSatisfyPhishingResistance: boolean;
   /** Can ask the person to transcribe a comparison value. */
   supportsComparisonEntry: boolean;
+  /**
+   * The provider stamps its callbacks with a time we can check.
+   *
+   * Slack signs a timestamp into the string it MACs; WeChat's signature
+   * covers one. The Telegram Bot API stamps a button press with nothing at
+   * all. A channel without this must establish freshness some other way — in
+   * practice a one-time server-minted reference — and `evaluateDirectSettlement`
+   * refuses rather than accepting a caller's word for it.
+   */
+  attestsCallbackTimestamp: boolean;
   /** Can revise or withdraw a message it already sent. */
   supportsNotificationUpdate: boolean;
   /** Strongest device binding this channel can ever evidence. */
@@ -183,6 +193,7 @@ export const CHANNEL_CAPABILITIES: {
     supportsTransactionBinding: true,
     canSatisfyPhishingResistance: true,
     supportsComparisonEntry: true,
+    attestsCallbackTimestamp: true,
     supportsNotificationUpdate: true,
     maximumDeviceBinding: "hardware",
     maximumKeyProtection: "external_hardware",
@@ -193,6 +204,12 @@ export const CHANNEL_CAPABILITIES: {
   /**
    * W3C Push. The subscription is bound to a device, but a push endpoint is
    * a delivery address: possession of it is not a person. It rings and links.
+   *
+   * It cannot revise a message it already delivered. The `Topic` header
+   * replaces an *undelivered* push still queued at the push service, which is
+   * a different thing, and needs the subscription rather than a message
+   * handle. Claiming otherwise would have the worker try to withdraw a
+   * settled request's banner and quietly fail.
    */
   native_push: {
     kind: "native_push",
@@ -207,7 +224,8 @@ export const CHANNEL_CAPABILITIES: {
     supportsTransactionBinding: false,
     canSatisfyPhishingResistance: false,
     supportsComparisonEntry: false,
-    supportsNotificationUpdate: true,
+    attestsCallbackTimestamp: false,
+    supportsNotificationUpdate: false,
     maximumDeviceBinding: "software",
     maximumKeyProtection: "software_non_exportable",
     maximumUserVerification: "none",
@@ -235,6 +253,7 @@ export const CHANNEL_CAPABILITIES: {
     supportsTransactionBinding: true,
     canSatisfyPhishingResistance: false,
     supportsComparisonEntry: false,
+    attestsCallbackTimestamp: true,
     supportsNotificationUpdate: true,
     maximumDeviceBinding: "none",
     maximumKeyProtection: "unknown",
@@ -263,6 +282,7 @@ export const CHANNEL_CAPABILITIES: {
     supportsTransactionBinding: false,
     canSatisfyPhishingResistance: false,
     supportsComparisonEntry: false,
+    attestsCallbackTimestamp: false,
     supportsNotificationUpdate: false,
     maximumDeviceBinding: "none",
     maximumKeyProtection: "unknown",
@@ -289,6 +309,7 @@ export const CHANNEL_CAPABILITIES: {
     supportsTransactionBinding: true,
     canSatisfyPhishingResistance: false,
     supportsComparisonEntry: false,
+    attestsCallbackTimestamp: false,
     supportsNotificationUpdate: true,
     maximumDeviceBinding: "none",
     maximumKeyProtection: "unknown",
@@ -316,6 +337,7 @@ export const CHANNEL_CAPABILITIES: {
     supportsTransactionBinding: false,
     canSatisfyPhishingResistance: false,
     supportsComparisonEntry: false,
+    attestsCallbackTimestamp: true,
     supportsNotificationUpdate: false,
     maximumDeviceBinding: "none",
     maximumKeyProtection: "unknown",
@@ -342,6 +364,7 @@ export const CHANNEL_CAPABILITIES: {
     supportsTransactionBinding: false,
     canSatisfyPhishingResistance: false,
     supportsComparisonEntry: false,
+    attestsCallbackTimestamp: false,
     supportsNotificationUpdate: false,
     maximumDeviceBinding: "none",
     maximumKeyProtection: "unknown",
@@ -366,6 +389,7 @@ export const CHANNEL_CAPABILITIES: {
     supportsTransactionBinding: false,
     canSatisfyPhishingResistance: false,
     supportsComparisonEntry: false,
+    attestsCallbackTimestamp: false,
     supportsNotificationUpdate: false,
     maximumDeviceBinding: "none",
     maximumKeyProtection: "unknown",
@@ -812,6 +836,22 @@ export function leastConfidentiality(
  * Direct external settlement
  * ------------------------------------------------------------------ */
 
+/**
+ * How a callback's freshness was established.
+ *
+ * Named rather than reduced to a boolean, because the two mechanisms have
+ * different failure modes and only one of them is available on any given
+ * channel. `provider_timestamp` is a signed time inside the provider's own
+ * MAC. `one_time_reference` is a server-minted opaque token that the replay
+ * ledger retires on first use — which is what a channel that stamps nothing,
+ * like a Telegram button press, must rely on instead. `none` is a caller who
+ * could not establish either, and is refused.
+ */
+export type CallbackFreshnessSource =
+  | "provider_timestamp"
+  | "one_time_reference"
+  | "none";
+
 export type DirectSettlementRefusal =
   | "channel_not_permitted_by_policy"
   | "channel_cannot_settle"
@@ -819,6 +859,7 @@ export type DirectSettlementRefusal =
   | "binding_identity_mismatch"
   | "callback_not_authenticated"
   | "callback_stale"
+  | "callback_freshness_unestablished"
   | "callback_replayed"
   | "request_not_pending"
   | "request_digest_changed"
@@ -839,6 +880,12 @@ export interface DirectSettlementInput {
   callbackAuthenticated: boolean;
   /** The adapter's freshness window accepted the callback's timestamp. */
   callbackFresh: boolean;
+  /**
+   * Which mechanism established that freshness. Checked against the channel's
+   * capabilities below, so a caller cannot claim a provider timestamp on a
+   * channel whose provider does not send one.
+   */
+  freshnessSource: CallbackFreshnessSource;
   /** The replay ledger had not seen this callback before. */
   callbackUnseen: boolean;
   requestPending: boolean;
@@ -899,6 +946,17 @@ export function evaluateDirectSettlement(
   }
   if (!input.callbackAuthenticated) refusals.push("callback_not_authenticated");
   if (!input.callbackFresh) refusals.push("callback_stale");
+  // Freshness must come from somewhere real. A caller asserting
+  // `provider_timestamp` on a channel that stamps nothing is describing a
+  // check that did not happen, and "none" is saying so outright — both are
+  // the same refusal, because a replayed decision is the prize.
+  if (
+    input.freshnessSource === "none" ||
+    (input.freshnessSource === "provider_timestamp" &&
+      !caps.attestsCallbackTimestamp)
+  ) {
+    refusals.push("callback_freshness_unestablished");
+  }
   if (!input.callbackUnseen) refusals.push("callback_replayed");
   if (!input.requestPending) refusals.push("request_not_pending");
   if (!input.requestDigestMatches) refusals.push("request_digest_changed");

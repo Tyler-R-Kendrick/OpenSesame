@@ -121,6 +121,16 @@ describe("channel capabilities", () => {
     expect(CHANNEL_CAPABILITIES.native_push.canRenderDecisionActions).toBe(false);
     expect(CHANNEL_CAPABILITIES.webhook.bindsExternalIdentity).toBe(false);
     expect(CHANNEL_CAPABILITIES.webhook.maximumInteractionMode).toBe("notify");
+    // Web Push replaces an undelivered message, which is not the same as
+    // revising a delivered one, and needs the subscription rather than a
+    // message handle. Claiming otherwise would have the worker try to
+    // withdraw a settled request's banner and silently fail.
+    expect(CHANNEL_CAPABILITIES.native_push.supportsNotificationUpdate).toBe(
+      false,
+    );
+    // Telegram stamps a button press with nothing.
+    expect(CHANNEL_CAPABILITIES.telegram.attestsCallbackTimestamp).toBe(false);
+    expect(CHANNEL_CAPABILITIES.slack.attestsCallbackTimestamp).toBe(true);
   });
 });
 
@@ -376,6 +386,7 @@ describe("direct settlement", () => {
     },
     callbackAuthenticated: true,
     callbackFresh: true,
+    freshnessSource: "provider_timestamp" as const,
     callbackUnseen: true,
     requestPending: true,
     requestDigestMatches: true,
@@ -451,6 +462,58 @@ describe("direct settlement", () => {
     });
     expect(result.permitted).toBe(false);
     expect(result.refusals).toContain("binding_not_usable");
+  });
+
+  it("adversarial: a channel that stamps nothing cannot claim a provider timestamp", () => {
+    // Telegram signs a connection, not a moment. A caller reporting
+    // `provider_timestamp` for it is describing a check that did not run.
+    const result = evaluateDirectSettlement({
+      ...goodCallback,
+      kind: "telegram",
+      policy: {
+        ...permissive,
+        allowedChannels: ["telegram", "in_app"],
+        directApprovalChannels: ["telegram"],
+      },
+      binding: binding({ kind: "telegram", providerId: "telegram" }),
+      claimedIdentity: {
+        providerId: "telegram",
+        providerTenantId: "T_WORKSPACE",
+        providerSubjectId: "U_PERSON",
+      },
+      freshnessSource: "provider_timestamp",
+    });
+    expect(result.permitted).toBe(false);
+    expect(result.refusals).toContain("callback_freshness_unestablished");
+  });
+
+  it("contract: such a channel settles on a one-time reference instead", () => {
+    const result = evaluateDirectSettlement({
+      ...goodCallback,
+      kind: "telegram",
+      policy: {
+        ...permissive,
+        allowedChannels: ["telegram", "in_app"],
+        directApprovalChannels: ["telegram"],
+      },
+      binding: binding({ kind: "telegram", providerId: "telegram" }),
+      claimedIdentity: {
+        providerId: "telegram",
+        providerTenantId: "T_WORKSPACE",
+        providerSubjectId: "U_PERSON",
+      },
+      freshnessSource: "one_time_reference",
+    });
+    expect(result.refusals).toEqual([]);
+  });
+
+  it("adversarial: freshness established by nothing is refused", () => {
+    const result = evaluateDirectSettlement({
+      ...goodCallback,
+      freshnessSource: "none",
+    });
+    expect(result.permitted).toBe(false);
+    expect(result.refusals).toContain("callback_freshness_unestablished");
   });
 
   it("adversarial: an authentic callback is not by itself an authorization", () => {
