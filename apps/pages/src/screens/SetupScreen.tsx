@@ -1,15 +1,19 @@
 /**
- * The first-run ceremony — set this device up, or join a session.
+ * Deployment setup and joining a session — two optional ceremonies.
  *
- * A device with no vault and no session has two honest roads. Treating every
- * first visitor as the operator (ADR 0077) left people who had been invited
- * answering "how do people sign in?" for a deployment they do not run. Join
- * is the other road: a claim invite (ADR 0079 §7) or a request into a public
- * session. The Host is asked for only on that road, because sharing is the
- * action that reintroduces the server.
+ * Neither is a gate. This static app is complete without a backend (ADR
+ * 0090): a first visitor signs in through the compiled-in broker, continues
+ * as a guest, or seals a local vault, and never has to answer an operator's
+ * question first. This screen is reached on purpose — `Deployment setup` or
+ * `Join a session` from the sign-in screen's foot — or by arriving on an
+ * invite link, which opens the join road directly because the link *is* the
+ * request.
  *
  * The operator road is still one question: who signs people in. No stepper,
- * no counter, no skip. The terminal commit is the shared `.go` control.
+ * no counter. The terminal commit is the shared `.go` control. The join road
+ * is a claim invite (ADR 0079 §7) or a request into a public session, and is
+ * the only place the Host is asked for, because sharing is the action that
+ * reintroduces the server.
  *
  * Designed in `docs/design/first-run-setup/` and `docs/design/shared-sessions/`.
  */
@@ -36,11 +40,7 @@ export const setupScreenDependencies = {
   readJoinFromLocation,
 };
 
-type Road = "choice" | "setup" | "join";
-
-function initialRoad(): Road {
-  return setupScreenDependencies.readJoinFromLocation() ? "join" : "choice";
-}
+export type SetupRoad = "setup" | "join";
 
 function initialInvite(): ParsedInvite | null {
   return setupScreenDependencies.readJoinFromLocation();
@@ -48,17 +48,21 @@ function initialInvite(): ParsedInvite | null {
 
 export function SetupScreen({
   onDone,
-  intent,
+  road,
 }: {
+  /** Back to the sign-in screen — after finishing, or by backing out. */
   onDone: () => void;
-  /** Skip the fork when a vault or session already exists and setup was asked for. */
-  intent?: Road;
+  /**
+   * Which ceremony to open. Absent, an invite in the address bar opens join;
+   * otherwise the operator question.
+   */
+  road?: SetupRoad;
 }) {
   useSupportRoute("/setup");
   const finishRef = useGuideTarget<HTMLButtonElement>("setup.finish");
-  const [road, setRoad] = useState<Road>(intent ?? initialRoad);
   const [invite] = useState<ParsedInvite | null>(initialInvite);
   const [finishing, setFinishing] = useState(false);
+  const active: SetupRoad = road ?? (invite ? "join" : "setup");
 
   useEffect(() => {
     scrubJoinHash();
@@ -94,26 +98,21 @@ export function SetupScreen({
     <div className="setup">
       <div className="setup__frame">
         <div className="setup__bar">
-          {road === "choice" ? (
-            <p className="setup__wordmark">
-              <IconMark size={16} />
-              opensesame
-            </p>
-          ) : (
-            <button
-              type="button"
-              className="setup__back"
-              onClick={() => setRoad("choice")}
-            >
-              <IconChevronLeft size={16} />
-              Back
-            </button>
-          )}
+          <p className="setup__wordmark">
+            <IconMark size={16} />
+            opensesame
+          </p>
+          {/* Backing out changes nothing: the ways-in list writes to settings
+              as it is edited, and nothing here was ever required. */}
+          <button type="button" className="setup__back" onClick={onDone}>
+            <IconChevronLeft size={16} />
+            Back
+          </button>
         </div>
 
-        {road === "join" ? (
+        {active === "join" ? (
           <JoinSession initial={invite} onDone={onDone} />
-        ) : road === "setup" ? (
+        ) : (
           <>
             <main className="setup__body" id="main">
               <div className="setup__head">
@@ -152,37 +151,6 @@ export function SetupScreen({
               </div>
             </div>
           </>
-        ) : (
-          <main className="setup__body" id="main">
-            <div className="setup__head">
-              <h1>This device is empty</h1>
-            </div>
-
-            <div className="roads">
-              <GuideTarget id="setup.choose">
-                <button
-                  type="button"
-                  className="preset__opt"
-                  onClick={() => setRoad("setup")}
-                >
-                  <span className="preset__name">Set up this device</span>
-                  <span className="preset__kind">
-                    Choose who signs people in
-                  </span>
-                </button>
-              </GuideTarget>
-              <GuideTarget id="setup.join">
-                <button
-                  type="button"
-                  className="preset__opt"
-                  onClick={() => setRoad("join")}
-                >
-                  <span className="preset__name">Join a session</span>
-                  <span className="preset__kind">A link and a code</span>
-                </button>
-              </GuideTarget>
-            </div>
-          </main>
         )}
       </div>
     </div>

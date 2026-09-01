@@ -212,3 +212,31 @@ describe("AccountSwitcher", () => {
     ).toBeTruthy();
   });
 });
+
+describe("AccountSwitcher — signed in through the broker, no Identity API (ADR 0090)", () => {
+  const original = federationSeams.loadSession;
+  beforeEach(() => {
+    federationSeams.loadSession = () => ({
+      issuer: "https://shoo.dev",
+      upstreamId: "shoo",
+      idToken: "id.token",
+      pairwiseSub: "pw_abc",
+      audience: "origin:https://tyler-r-kendrick.github.io",
+      jwksUri: "https://shoo.dev/.well-known/jwks.json",
+      expiresAt: Date.now() + 60_000,
+      name: "Test Person",
+    });
+    identitySeams.useIdentitySession = () => null;
+    identitySeams.currentSession = () => null;
+  });
+  afterEach(() => {
+    federationSeams.loadSession = original;
+    cleanup();
+  });
+
+  it("names the person, not a guest", () => {
+    renderSwitcher();
+    expect(screen.getByText("Test Person")).toBeTruthy();
+    expect(screen.queryByText("guest")).toBeNull();
+  });
+});

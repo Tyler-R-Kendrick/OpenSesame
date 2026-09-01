@@ -56,6 +56,7 @@ import {
 import {
   HostSessionError,
   IdentityError,
+  hostBase,
   identityBase,
   identityFetch,
   identityJson,
@@ -78,6 +79,7 @@ import {
   staticSiteSnippet,
 } from "../lib/site-broker.js";
 import { useOnline } from "../lib/use-online.js";
+import { useSettingsEpoch } from "../lib/use-settings.js";
 import { useVault } from "../lib/vault/hooks.js";
 import type { SecretItem, VaultItem } from "../lib/vault/model.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -213,6 +215,13 @@ export function AccessSection() {
 
   const clearPolicyFocus = useCallback(() => setPolicyFocus(null), []);
 
+  // Everything on this screen — grants, requests, sessions, resources,
+  // policies — lives on a Host. A deployment with none connected is complete
+  // (ADR 0090): say so once, quietly, instead of asking five panels to fail
+  // with a red "No Identity API is configured" each.
+  useSettingsEpoch();
+  const hostConfigured = hostBase().trim().length > 0;
+
   return (
     <div className="section__inner">
       <header className="section__head">
@@ -231,7 +240,20 @@ export function AccessSection() {
         ))}
       </div>
 
-      {tab === "grants" ? (
+      {hostConfigured ? null : (
+        <div className="empty">
+          <h3>No Host connected</h3>
+          <p className="hint">
+            Access is brokered by a Host: grants, requests, sessions, resources
+            and policies all live there. This deployment has none connected,
+            which is fine — connect one under{" "}
+            <Link to="/settings/connectivity">Settings → Connectivity</Link>{" "}
+            when agents should draw scoped authority from this vault.
+          </p>
+        </div>
+      )}
+
+      {!hostConfigured ? null : tab === "grants" ? (
         ceremony === null ? (
           <GrantsPanel online={online} onGrantAccess={openGrant} />
         ) : (
@@ -244,20 +266,22 @@ export function AccessSection() {
           </GuideTarget>
         )
       ) : null}
-      {tab === "requests" ? (
+      {!hostConfigured ? null : tab === "requests" ? (
         <GuideTarget id="access.relay">
           <RequestsPanel online={online} />
         </GuideTarget>
       ) : null}
-      {tab === "sessions" ? <SessionsPanel online={online} /> : null}
-      {tab === "resources" ? (
+      {!hostConfigured ? null : tab === "sessions" ? (
+        <SessionsPanel online={online} />
+      ) : null}
+      {!hostConfigured ? null : tab === "resources" ? (
         <ResourcesPanel
           online={online}
           onGrant={openGrant}
           onPolicy={openPolicy}
         />
       ) : null}
-      {tab === "policies" ? (
+      {!hostConfigured ? null : tab === "policies" ? (
         <PoliciesPanel
           online={online}
           focusId={policyFocus}

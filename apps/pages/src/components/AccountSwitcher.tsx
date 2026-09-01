@@ -9,7 +9,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router";
-import { beginSignIn } from "../lib/federation.js";
+import { beginSignIn, displayName, loadSession } from "../lib/federation.js";
 import {
   IdentityError,
   ensureIdentitySession,
@@ -35,6 +35,16 @@ function guestLabel(hasSession: boolean, assurance?: string): string {
   if (!hasSession) return "guest";
   if (assurance === "provisional" || !assurance) return "guest";
   return "account";
+}
+
+/**
+ * Who signed in through the broker, when somebody did. On a deployment with
+ * no Identity API the broker's assertion is the whole identity (ADR 0090), so
+ * the prompt says the person's name rather than calling them a guest.
+ */
+function federatedLabel(): string | null {
+  const identity = loadSession();
+  return identity ? displayName(identity) : null;
 }
 
 function AccountSwitcherDefault() {
@@ -69,7 +79,8 @@ function AccountSwitcherDefault() {
   }, [session, open]);
 
   const activeOrg = memberships.find((org) => org.id === activeId);
-  const label = activeOrg?.displayName ?? guestLabel(Boolean(session));
+  const label =
+    activeOrg?.displayName ?? federatedLabel() ?? guestLabel(Boolean(session));
 
   function close(): void {
     setOpen(false);
