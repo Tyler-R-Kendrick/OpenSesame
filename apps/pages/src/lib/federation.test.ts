@@ -49,7 +49,7 @@ function jwt(claims: JsonObject): string {
 }
 
 function seedPending(overrides: JsonObject = {}): void {
-  sessionStorage.setItem(
+  localStorage.setItem(
     PKCE_KEY,
     JSON.stringify({
       upstreamId: "mock",
@@ -62,6 +62,11 @@ function seedPending(overrides: JsonObject = {}): void {
       ...overrides,
     }),
   );
+}
+
+/** The pending record, wherever the current build keeps it. */
+function storedPending(): JsonObject {
+  return JSON.parse(localStorage.getItem(PKCE_KEY) ?? "null");
 }
 
 function identity(overrides: Partial<UpstreamIdentity> = {}): UpstreamIdentity {
@@ -79,6 +84,7 @@ function identity(overrides: Partial<UpstreamIdentity> = {}): UpstreamIdentity {
 
 beforeEach(() => {
   sessionStorage.clear();
+  localStorage.clear();
   history.replaceState(null, "", "/");
 });
 
@@ -228,7 +234,7 @@ describe("beginSignIn", () => {
 
     await beginSignIn(upstream, { scope: "openid email", returnTo: "/access" });
 
-    const pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? "null");
+    const pending = storedPending();
     expect(pending).toMatchObject({
       upstreamId: "mock",
       issuer: "http://127.0.0.1:9090",
@@ -262,13 +268,64 @@ describe("beginSignIn", () => {
     await beginSignIn(upstream);
 
     expect(fetchMock).not.toHaveBeenCalled();
-    const pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? "null");
+    const pending = storedPending();
     expect(pending.tokenEndpoint).toBe("https://shoo.dev/token");
+    expect(pending.sessionCheckEndpoint).toBe("https://shoo.dev/session/check");
     expect(seen).toHaveLength(1);
     expect(seen[0]?.startsWith("https://shoo.dev/authorize?")).toBe(true);
     expect(seen[0]).toContain(
       `client_id=${encodeURIComponent(`origin:${window.location.origin}`)}`,
     );
+  });
+
+  it("speaks Shoo's authorize dialect, not generic OIDC", async () => {
+    const seen: string[] = [];
+    vi.stubGlobal("location", {
+      origin: window.location.origin,
+      hostname: window.location.hostname,
+      href: window.location.href,
+      search: window.location.search,
+      assign: (url: string) => {
+        seen.push(url);
+      },
+    });
+    const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "shoo");
+    if (!upstream) throw new Error("shoo upstream missing");
+
+    await beginSignIn(upstream);
+
+    // Exactly what shoo.js sends (docs.shoo.dev): client, redirect, state and
+    // an S256 challenge. `response_type` and `scope` are not part of Shoo's
+    // protocol, and profile data is the `pii` flag — absent unless asked for.
+    const url = new URL(seen[0] ?? "");
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(url.searchParams.get("code_challenge")).toBeTruthy();
+    expect(url.searchParams.get("state")).toBeTruthy();
+    expect(url.searchParams.get("redirect_uri")).toBe(redirectUri());
+    expect(url.searchParams.get("response_type")).toBeNull();
+    expect(url.searchParams.get("scope")).toBeNull();
+    expect(url.searchParams.get("pii")).toBeNull();
+  });
+
+  it("asks Shoo for PII when the caller wants profile data", async () => {
+    const seen: string[] = [];
+    vi.stubGlobal("location", {
+      origin: window.location.origin,
+      hostname: window.location.hostname,
+      href: window.location.href,
+      search: window.location.search,
+      assign: (url: string) => {
+        seen.push(url);
+      },
+    });
+    const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "shoo");
+    if (!upstream) throw new Error("shoo upstream missing");
+
+    await beginSignIn(upstream, { scope: "openid profile email" });
+
+    const url = new URL(seen[0] ?? "");
+    expect(url.searchParams.get("pii")).toBe("true");
+    expect(url.searchParams.get("scope")).toBeNull();
   });
 
   it("stores org tenant metadata for an SSO/SAML round trip", async () => {
@@ -294,7 +351,7 @@ describe("beginSignIn", () => {
       },
       { orgSlug: "acme", orgMethod: "sso", returnTo: "/vault" },
     );
-    const pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? "null");
+    const pending = storedPending();
     expect(pending).toMatchObject({
       orgSlug: "acme",
       orgMethod: "sso",
@@ -356,8 +413,69 @@ describe("completeSignIn", () => {
     });
   });
 
+  it("treats a replayed callback as a non-event when already signed in", async () => {
+    // The callback URL reopened from history after a finished sign-in: the
+    // pending record is spent, but the person IS signed in. Erroring here sent
+    // them back to the sign-in screen in a loop.
+    saveSession(identity());
+    history.replaceState(null, "", "/?code=spent&state=old-state");
+    await expect(completeSignIn()).resolves.toBeNull();
+    expect(location.search).toBe("");
+    expect(loadSession()?.pairwiseSub).toBe("pairwise-1");
+  });
+
+  it("refuses a pending record older than Shoo's ten-minute PKCE ceiling", async () => {
+    seedPending({ createdAt: Date.now() - 11 * 60 * 1000 });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    await expect(completeSignIn()).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    // The stale record is gone either way; a retry starts clean.
+    expect(localStorage.getItem(PKCE_KEY)).toBeNull();
+  });
+
+  it("refuses a stale pending out loud even beside a live session", async () => {
+    // An account-switch sign-in that aged past the ceiling is a failed
+    // ceremony, not a replayed callback: swallowing it into the existing
+    // session would silently discard the sign-in the person just made.
+    saveSession(identity());
+    seedPending({ createdAt: Date.now() - 11 * 60 * 1000 });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    await expect(completeSignIn()).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+  });
+
+  it("finishes a sign-in that an older build left in sessionStorage", async () => {
+    localStorage.clear();
+    sessionStorage.setItem(
+      PKCE_KEY,
+      JSON.stringify({
+        upstreamId: "mock",
+        issuer: "http://127.0.0.1:9090",
+        verifier: "verifier-1",
+        state: "state-1",
+        tokenEndpoint: "http://127.0.0.1:9090/token",
+        jwksUri: "http://127.0.0.1:9090/jwks",
+        scope: "openid",
+      }),
+    );
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    stubTokenResponse({
+      id_token: jwt({
+        iss: "http://127.0.0.1:9090",
+        aud: originClientId(),
+        exp: Date.now() / 1000 + 3600,
+        pairwise_sub: "sub-legacy",
+      }),
+    });
+    const result = await completeSignIn();
+    expect(result?.identity.pairwiseSub).toBe("sub-legacy");
+    expect(sessionStorage.getItem(PKCE_KEY)).toBeNull();
+  });
+
   it("refuses a code when the stored PKCE state is unreadable", async () => {
-    sessionStorage.setItem(PKCE_KEY, "{corrupt");
+    localStorage.setItem(PKCE_KEY, "{corrupt");
     history.replaceState(null, "", "/?code=abc&state=state-1");
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "invalid_request",
@@ -516,11 +634,135 @@ describe("completeSignIn", () => {
       expiresAt: 4_000_000_000_000,
     });
     // The pending PKCE state is single-use.
+    expect(localStorage.getItem(PKCE_KEY)).toBeNull();
     expect(sessionStorage.getItem(PKCE_KEY)).toBeNull();
     // The session survives a same-tab reload until it expires.
     expect(loadSession()?.pairwiseSub).toBe("sub-1");
     // The address bar no longer carries a replayable code.
     expect(location.search).toBe("");
+  });
+
+  /**
+   * "We actually have an authorized user" (docs.shoo.dev/server-verification):
+   * Shoo's JWKS serves no CORS, so the ES256 signature cannot be verified in
+   * this page — `POST /session/check` is the broker's signature- and
+   * revocation-backed answer, and its explicit 401 refuses the sign-in.
+   */
+  describe("upstream session check", () => {
+    const CHECK = "https://shoo.dev/session/check";
+
+    function shooToken(): string {
+      return jwt({
+        iss: "https://shoo.dev",
+        aud: originClientId(),
+        exp: 4_000_000_000,
+        pairwise_sub: "ps_sub-1",
+      });
+    }
+
+    function seedShooPending(): void {
+      seedPending({
+        upstreamId: "shoo",
+        issuer: "https://shoo.dev",
+        tokenEndpoint: "https://shoo.dev/token",
+        jwksUri: "https://shoo.dev/.well-known/jwks.json",
+        sessionCheckEndpoint: CHECK,
+      });
+    }
+
+    function stubExchangeThenCheck(check: () => Response) {
+      const calls: Array<{ url: string; init: RequestInit }> = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((input: RequestInfo | URL, init: RequestInit = {}) => {
+          const url = String(input);
+          calls.push({ url, init });
+          if (url === CHECK) return Promise.resolve(check());
+          return Promise.resolve(Response.json({ id_token: shooToken() }));
+        }),
+      );
+      return calls;
+    }
+
+    it("asks the broker and passes an active session through", async () => {
+      seedShooPending();
+      history.replaceState(null, "", "/?code=abc&state=state-1");
+      const calls = stubExchangeThenCheck(() =>
+        Response.json({ status: "active" }),
+      );
+
+      const result = await completeSignIn();
+
+      expect(result?.identity.pairwiseSub).toBe("ps_sub-1");
+      const check = calls.find((call) => call.url === CHECK);
+      const headers = new Headers(check?.init.headers);
+      expect(headers.get("authorization")).toBe(`Bearer ${shooToken()}`);
+      expect(loadSession()?.pairwiseSub).toBe("ps_sub-1");
+    });
+
+    it("refuses a sign-in the broker says is revoked, saving nothing", async () => {
+      seedShooPending();
+      history.replaceState(null, "", "/?code=abc&state=state-1");
+      stubExchangeThenCheck(
+        () =>
+          new Response(
+            JSON.stringify({ status: "login_required", reason: "revoked" }),
+            { status: 401 },
+          ),
+      );
+
+      await expect(completeSignIn()).rejects.toMatchObject({
+        code: "login_required",
+      });
+      expect(loadSession()).toBeNull();
+    });
+
+    it("does not block on a broker without the endpoint", async () => {
+      seedShooPending();
+      history.replaceState(null, "", "/?code=abc&state=state-1");
+      stubExchangeThenCheck(() => new Response("not here", { status: 404 }));
+
+      const result = await completeSignIn();
+      expect(result?.identity.pairwiseSub).toBe("ps_sub-1");
+    });
+
+    it("does not block on a transport failure after a good exchange", async () => {
+      seedShooPending();
+      history.replaceState(null, "", "/?code=abc&state=state-1");
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((input: RequestInfo | URL) => {
+          if (String(input) === CHECK) {
+            return Promise.reject(new TypeError("failed to fetch"));
+          }
+          return Promise.resolve(Response.json({ id_token: shooToken() }));
+        }),
+      );
+
+      const result = await completeSignIn();
+      expect(result?.identity.pairwiseSub).toBe("ps_sub-1");
+    });
+
+    it("never calls a check endpoint an upstream does not declare", async () => {
+      seedPending();
+      history.replaceState(null, "", "/?code=abc&state=state-1");
+      const fetchMock = vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            id_token: jwt({
+              iss: "http://127.0.0.1:9090",
+              aud: originClientId(),
+              exp: Date.now() / 1000 + 3600,
+              pairwise_sub: "sub-1",
+            }),
+          }),
+        ),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+
+      await completeSignIn();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("accepts an org-tenant issuer that is not a global trusted broker", async () => {
@@ -564,17 +806,19 @@ describe("session storage", () => {
   it("drops an expired session", () => {
     saveSession(identity({ expiresAt: Date.now() - 1000 }));
     expect(loadSession()).toBeNull();
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
   });
 
   it("drops a session whose issuer is no longer trusted", () => {
     saveSession(identity({ issuer: "https://evil.example" }));
     expect(loadSession()).toBeNull();
+    expect(localStorage.getItem(SESSION_KEY)).toBeNull();
     expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
   });
 
   it("ignores a corrupt session payload", () => {
-    sessionStorage.setItem(SESSION_KEY, "{not json");
+    localStorage.setItem(SESSION_KEY, "{not json");
     expect(loadSession()).toBeNull();
   });
 
@@ -957,7 +1201,7 @@ describe("an operator's own identity provider", () => {
 
     await beginSignIn(operatorUpstream(OKTA));
 
-    const pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? "null");
+    const pending = storedPending();
     // `origin:<origin>` is a profile only our own brokers mint on sight; a
     // real Okta org would reject it as an unknown client.
     expect(pending.clientId).toBe(OKTA.clientId);

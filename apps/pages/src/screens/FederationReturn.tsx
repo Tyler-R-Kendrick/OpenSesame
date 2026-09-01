@@ -1,6 +1,7 @@
 /**
  * FederationReturn — finish upstream OIDC after redirect to the Pages root.
- * Must run without unlocking the vault (session is sessionStorage-only).
+ * Must run without unlocking the vault (the federation session lives in web
+ * storage — see `saveSession` — never inside the encrypted vault).
  *
  * Whatever happens here is said out loud: a ceremony that ends with the vault
  * open lands inside the app (the notifications bell carries anything

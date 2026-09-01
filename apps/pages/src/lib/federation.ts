@@ -46,12 +46,30 @@ export type TrustedUpstream = {
   /**
    * Compiled OIDC endpoints. A static page cannot discover these when the
    * broker omits CORS on `/.well-known/openid-configuration` (shoo.dev serves
-   * CORS on `POST /token` only). Authorization is a top-level navigation, so
-   * it needs no CORS; the token POST already allows this origin.
+   * CORS on `POST /token` and `POST /session/check` only). Authorization is a
+   * top-level navigation, so it needs no CORS; the token POST already allows
+   * this origin.
    */
   authorizationEndpoint?: string;
   tokenEndpoint?: string;
   jwksUri?: string;
+  /**
+   * Shoo speaks its own, deliberately small authorize dialect — exactly what
+   * its official clients (`shoo.js`, `@shoojs/auth`) send: `client_id`,
+   * `redirect_uri`, `state`, `code_challenge`, `code_challenge_method=S256`,
+   * and `pii=true` when profile data is wanted. There is no `response_type`
+   * and no `scope`; profile consent is the `pii` flag, never a scope string.
+   * Everything else here speaks standard OIDC.
+   */
+  protocol?: "shoo" | "oidc";
+  /**
+   * Where a live "is this user still authorized?" answer comes from. Shoo's
+   * JWKS endpoint serves no CORS, so this static page cannot verify the ES256
+   * signature itself; `POST /session/check` with the id_token as bearer is the
+   * check the broker built for browsers — its server verifies the signature
+   * and the revocation list and answers active/login_required.
+   */
+  sessionCheckEndpoint?: string;
 };
 
 /**
@@ -67,6 +85,8 @@ export const TRUSTED_UPSTREAMS: readonly TrustedUpstream[] = [
     authorizationEndpoint: "https://shoo.dev/authorize",
     tokenEndpoint: "https://shoo.dev/token",
     jwksUri: "https://shoo.dev/.well-known/jwks.json",
+    protocol: "shoo",
+    sessionCheckEndpoint: "https://shoo.dev/session/check",
   },
   {
     // Hermetic tests name this upstream explicitly. It is never the product
@@ -358,6 +378,15 @@ type PendingAuth = {
   jwksUri: string;
   scope: string;
   /**
+   * When this record was written. A pending older than `PENDING_MAX_AGE_MS`
+   * is refused rather than exchanged — the same ten-minute ceiling shoo's own
+   * clients put on a PKCE verifier — so an abandoned sign-in from last week
+   * can never be resumed by a stale link.
+   */
+  createdAt?: number;
+  /** Where to revalidate the finished sign-in, when the upstream offers it. */
+  sessionCheckEndpoint?: string;
+  /**
    * The redirect_uri the authorize request carried — the token exchange must
    * repeat it byte for byte. Brokered legs use the canonical origin callback,
    * direct legs the app base; absent (a pending from an older build) falls
@@ -377,21 +406,59 @@ type PendingAuth = {
   orgMethod?: "sso" | "saml";
 };
 
+/** Ten minutes, matching the ceiling shoo.js puts on its own PKCE bundle. */
+const PENDING_MAX_AGE_MS = 10 * 60 * 1000;
+
 function storePending(pending: PendingAuth): void {
-  // PKCE state must survive the upstream redirect in this static PWA.
+  // localStorage, not sessionStorage, ON PURPOSE: the upstream round trip does
+  // not always come back to the same browsing context. An installed PWA hands
+  // the out-of-scope navigation to a browser/custom tab whose sessionStorage
+  // is empty, so a per-tab record made every such sign-in die with "no sign-in
+  // was in progress" and bounce the person back to the sign-in screen — the
+  // literal unauthorized loop. The record is a state nonce and a PKCE verifier
+  // (useless without the single-use code), expires in ten minutes, and is
+  // consumed on first read. This is also exactly where shoo's own clients
+  // keep theirs.
   // ast-grep-ignore: ts-localstorage-set
-  sessionStorage.setItem(PKCE_KEY, JSON.stringify(pending));
+  localStorage.setItem(
+    PKCE_KEY,
+    JSON.stringify({ ...pending, createdAt: Date.now() }),
+  );
 }
 
-function takePending(): PendingAuth | null {
-  const raw = sessionStorage.getItem(PKCE_KEY);
-  if (!raw) return null;
+type TakenPending = {
+  pending: PendingAuth | null;
+  /**
+   * A record WAS there but could not be used (older than the ceiling, or
+   * unreadable). Distinct from "no record at all" so a real sign-in that went
+   * stale mid-ceremony is refused out loud, never mistaken for a replayed
+   * callback and silently dropped into an existing session.
+   */
+  stale: boolean;
+};
+
+function takePending(): TakenPending {
+  // The sessionStorage read keeps a sign-in that an older build started
+  // mid-flight finishable; new records only ever land in localStorage.
+  const raw =
+    localStorage.getItem(PKCE_KEY) ?? sessionStorage.getItem(PKCE_KEY);
+  if (!raw) return { pending: null, stale: false };
+  localStorage.removeItem(PKCE_KEY);
   sessionStorage.removeItem(PKCE_KEY);
+  let pending: PendingAuth | null;
   try {
-    return overlapCast(JSON.parse(raw));
+    pending = overlapCast(JSON.parse(raw));
   } catch {
-    return null;
+    return { pending: null, stale: true };
   }
+  if (
+    pending &&
+    isNumber(pending.createdAt) &&
+    Date.now() - pending.createdAt > PENDING_MAX_AGE_MS
+  ) {
+    return { pending: null, stale: true };
+  }
+  return { pending, stale: !pending };
 }
 
 /**
@@ -453,6 +520,7 @@ async function beginSignInDefault(
     tokenEndpoint: discovery.token_endpoint,
     jwksUri: discovery.jwks_uri,
     scope,
+    sessionCheckEndpoint: upstream.sessionCheckEndpoint,
     redirectUri: returnUri,
     clientId,
     returnTo: options.returnTo,
@@ -461,20 +529,32 @@ async function beginSignInDefault(
   });
 
   const url = new URL(discovery.authorization_endpoint);
-  url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", returnUri);
   url.searchParams.set("state", state);
   url.searchParams.set("code_challenge", challenge);
   url.searchParams.set("code_challenge_method", "S256");
-  url.searchParams.set("scope", scope);
-  if (options.providerHint) {
-    // Both names, because the hosted login page reads either one and the SDK
-    // has always sent both.
-    url.searchParams.set("kc_idp_hint", options.providerHint);
-    url.searchParams.set("login_hint_provider", options.providerHint);
+  if (upstream.protocol === "shoo") {
+    // Shoo's authorize dialect (docs.shoo.dev): the five parameters above plus
+    // an opt-in `pii` flag. No `response_type`, no `scope` — profile data is
+    // consent on shoo's side, not a scope string, and asking with a scope
+    // grants nothing.
+    if (/\b(profile|email)\b/.test(scope)) {
+      url.searchParams.set("pii", "true");
+    }
+  } else {
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("scope", scope);
+    if (options.providerHint) {
+      // Both names, because the hosted login page reads either one and the
+      // SDK has always sent both.
+      url.searchParams.set("kc_idp_hint", options.providerHint);
+      url.searchParams.set("login_hint_provider", options.providerHint);
+    }
+    if (options.loginHint) {
+      url.searchParams.set("login_hint", options.loginHint);
+    }
   }
-  if (options.loginHint) url.searchParams.set("login_hint", options.loginHint);
   location.assign(url.toString());
 }
 
@@ -502,6 +582,56 @@ export type CompletedSignIn = {
 };
 
 /**
+ * Ask the upstream whether this token is actually authorized, when it offers
+ * a way to ask (shoo's CORS-enabled `POST /session/check`).
+ *
+ * Only the upstream's explicit "no" — a 401 with a reason — refuses the
+ * sign-in: that answer is signature-verified and revocation-aware on the
+ * broker's side, which is exactly the verification this static page cannot do
+ * itself (the JWKS endpoint serves no CORS). A missing endpoint (404/501 from
+ * an older broker) or a transport failure does not invalidate a token that
+ * just arrived from the same broker's token endpoint over TLS; claims were
+ * already checked in `readIdentity`.
+ */
+async function requireActiveUpstreamSession(
+  idToken: string,
+  pending: PendingAuth,
+): Promise<void> {
+  const endpoint =
+    pending.sessionCheckEndpoint ??
+    upstreamByIssuer(pending.issuer)?.sessionCheckEndpoint;
+  if (!endpoint) return;
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: { authorization: `Bearer ${idToken}` },
+      credentials: "omit",
+    });
+  } catch {
+    return;
+  }
+  if (response.status !== 401) return;
+  let reason = "revoked";
+  try {
+    const body: { reason?: BoundaryValue } = overlapCast(await response.json());
+    // The reason lands in on-screen copy: admit only a short token-shaped
+    // word, never an arbitrary string a broker response happens to carry.
+    if (isString(body.reason) && /^[a-z][a-z0-9_-]{0,63}$/i.test(body.reason)) {
+      reason = body.reason;
+    }
+  } catch {
+    /* the status alone is the answer */
+  }
+  throw new FederationError(
+    "login_required",
+    reason === "expired"
+      ? "That sign-in expired before it could finish. Try again."
+      : `${pending.issuer} says this sign-in is not authorized (${reason}). Sign in again.`,
+  );
+}
+
+/**
  * Finish a redirect that `beginSignIn` started. Returns null when this load is
  * not an upstream response, so it is safe to call on every startup.
  */
@@ -512,7 +642,7 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   const state = params.get("state");
   if (!code && !error) return null;
 
-  const pending = takePending();
+  const { pending, stale } = takePending();
   clearAuthResponseFromUrl();
 
   if (error) {
@@ -522,9 +652,18 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     );
   }
   if (!pending) {
+    // A code with NO pending record at all is usually a replay — the callback
+    // URL reopened from history or a bookmark after the sign-in already
+    // finished. When a live session exists, this load is not a failed sign-in
+    // and must not be turned into one: the code is already spent (or somebody
+    // else's), the person is signed in, and the app just proceeds. A STALE
+    // record is different: a real ceremony was in flight and went bad, so it
+    // is refused out loud even beside a live session — silence here would
+    // discard an account-switch sign-in without a word.
+    if (!stale && loadSessionDefault()) return null;
     throw new FederationError(
       "invalid_request",
-      "No sign-in was in progress in this tab.",
+      "This sign-in expired or started somewhere else. Start again from the sign-in screen.",
     );
   }
   // Binds the response to the request this tab made; without it a link could
@@ -587,6 +726,12 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   }
 
   const identity = readIdentity(tokens.id_token, pending);
+  // "We actually have an authorized user": where the broker offers a session
+  // check (shoo does; its JWKS serves no CORS, so this is the one signature-
+  // and revocation-backed answer a static page can get), ask it before the
+  // identity is saved or handed to anyone. A refusal here is a refusal of the
+  // whole sign-in.
+  await requireActiveUpstreamSession(identity.idToken, pending);
   // Org SSO/SAML is a one-shot assertion for Identity join, not a durable
   // Pages federation session. Saving it would collide with Shoo/mock sign-in.
   if (!pending.orgSlug) saveSession(identity);
@@ -775,27 +920,36 @@ export function clearAuthResponseFromUrl(): void {
 }
 
 /**
- * sessionStorage rather than localStorage: the assertion must not outlive the
- * browser session as durable XSS-exfiltrable material, but it does have to
- * survive the upstream redirect and popup navigations within this tab.
+ * localStorage, like the pending record above and for the same reason: the
+ * upstream round trip can finish in a different browsing context than it
+ * started in (an installed PWA hands out-of-scope navigation to a browser
+ * tab), and a session only the finishing tab can see leaves the app itself
+ * signed out — the person signs in successfully and still lands on the
+ * sign-in screen. This is also where shoo's official clients keep the same
+ * identity. The stored assertion is bounded by its own `exp`, checked on
+ * every load, and dropped the moment its issuer loses trust. The broker's
+ * session check vetted it once, when the sign-in completed; an upstream
+ * revocation after that takes effect only when `exp` passes.
  */
 export function saveSession(identity: UpstreamIdentity): void {
-  // The verified assertion must survive same-tab navigation but not the tab.
   // ast-grep-ignore: ts-localstorage-set
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(identity));
+  localStorage.setItem(SESSION_KEY, JSON.stringify(identity));
 }
 
 function loadSessionDefault(): UpstreamIdentity | null {
-  const raw = sessionStorage.getItem(SESSION_KEY);
+  // The sessionStorage read admits a session an older build saved; new ones
+  // only ever land in localStorage.
+  const raw =
+    localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
     const identity: BoundaryValue = JSON.parse(raw);
     if (!isUpstreamIdentity(identity)) {
-      sessionStorage.removeItem(SESSION_KEY);
+      clearSessionDefault();
       return null;
     }
     if (identity.expiresAt <= Date.now()) {
-      sessionStorage.removeItem(SESSION_KEY);
+      clearSessionDefault();
       return null;
     }
     if (
@@ -806,16 +960,21 @@ function loadSessionDefault(): UpstreamIdentity | null {
       // Trust can be withdrawn between sessions; a stored identity from an
       // issuer no longer listed — or from an Identity API this app has since
       // been pointed away from — must not keep working.
-      sessionStorage.removeItem(SESSION_KEY);
+      clearSessionDefault();
       return null;
     }
     return identity;
   } catch {
+    // Unparsable is as dead as invalid: clear it, or a corrupt localStorage
+    // value would persist across restarts and shadow the legacy
+    // sessionStorage fallback forever.
+    clearSessionDefault();
     return null;
   }
 }
 
 function clearSessionDefault(): void {
+  localStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_KEY);
 }
 
