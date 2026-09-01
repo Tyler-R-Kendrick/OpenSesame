@@ -49,6 +49,7 @@ import {
   defaultUpstream,
   operatorUpstream,
 } from "../../lib/federation.js";
+import { landFocus } from "../../lib/focus.js";
 import { continueAsGuest } from "../../lib/guest-auth.js";
 import {
   endSession,
@@ -117,6 +118,7 @@ export function SignInPanel(props: Props) {
   const [linkError, setLinkError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const hubRef = useRef<HTMLDivElement>(null);
   const session = useIdentitySession();
   // Reads location.hostname, so it must be resolved at render, not at import:
   // loopback deployments get the local mock IdP, everything else the broker.
@@ -158,6 +160,19 @@ export function SignInPanel(props: Props) {
   const hasIdentityService = identityBase().trim().length > 0;
   const fallbackUpstream =
     methods.builtin && upstream.id !== "mock" ? upstream : null;
+
+  // On arrival the keyboard is on the first road in: the first brand mark in
+  // the social bar, else the guest button. Where an Identity API exists the
+  // identifier field takes the caret itself (it is the one typed step), so
+  // this yields to it. Without one there was nowhere for a key to go.
+  useEffect(() => {
+    if (stage !== "hub" || identifierEngaged || hasIdentityService) return;
+    landFocus(
+      hubRef.current?.querySelector(
+        ".signin__bar button:not([disabled]), .signin__provider:not([disabled])",
+      ),
+    );
+  }, [stage, identifierEngaged, hasIdentityService]);
 
   // The ⋯ menu closes on Escape and on any press outside it — the two ways a
   // person says "not that, actually" without picking anything.
@@ -353,7 +368,7 @@ export function SignInPanel(props: Props) {
   }
 
   return (
-    <div className="signin">
+    <div className="signin" ref={hubRef}>
       {identifierEngaged ? null : (
         <>
           {/* The anonymous road out of this screen, in the card's top-right

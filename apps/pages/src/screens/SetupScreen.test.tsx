@@ -613,3 +613,17 @@ describe("keeping it on this device", () => {
     ).toBeNull();
   });
 });
+
+describe("where the keyboard lands", () => {
+  it("lands setup on its commit, never on a provider's Remove", () => {
+    render(<SetupScreen road="setup" onDone={vi.fn()} />);
+    expect(document.activeElement).toBe(commit());
+  });
+
+  it("lands join inside its form, on the invite", () => {
+    render(<SetupScreen road="join" onDone={vi.fn()} />);
+    expect(screen.getByRole("main").contains(document.activeElement)).toBe(
+      true,
+    );
+  });
+});

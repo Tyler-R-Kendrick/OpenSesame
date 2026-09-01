@@ -387,6 +387,12 @@
   background: var(--canvas);
 }
 
+/* On a phone the buffer is the pane on screen and holds the keyboard for the
+   landing; it is a surface, not a control, and draws no ring. */
+.vault__detail:focus {
+  outline: none;
+}
+
 .detail {
   max-width: 44rem;
   padding: 1.5rem 1.75rem 4rem;

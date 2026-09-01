@@ -10,6 +10,7 @@ import {
 
 import { isString } from "@opensesame/os-domain";
 import { IconDownload, IconPlus } from "../components/Icons.js";
+import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { swipeBack } from "../lib/gestures.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
@@ -287,8 +288,15 @@ export function VaultSection() {
     (itemId !== undefined && !location.pathname.endsWith("/edit"));
   const actions = useMemo(
     () => ({
-      open: (item: VaultItem) =>
-        navigate(`/vault/${item.id}${location.search}`),
+      open: (item: VaultItem) => {
+        // Enter on the item the cursor already previewed must not push a
+        // second entry for the same place — Back would then land on the very
+        // screen it was pressed on, and read as doing nothing.
+        const path = `/vault/${item.id}`;
+        navigate(`${path}${location.search}`, {
+          replace: location.pathname === path,
+        });
+      },
       preview: (item: VaultItem) => {
         if (previewable && item.id !== itemId) {
           navigate(`/vault/${item.id}${location.search}`, { replace: true });
@@ -314,6 +322,7 @@ export function VaultSection() {
       copySecret,
       createKind,
       itemId,
+      location.pathname,
       location.search,
       navigate,
       previewable,
@@ -325,11 +334,42 @@ export function VaultSection() {
   ).length;
 
   const detailRef = useRef<HTMLDivElement>(null);
+  const listPaneRef = useRef<HTMLDivElement>(null);
+  const newItemRef = useRef<HTMLAnchorElement>(null);
   // Exactly one of the two "new item" affordances is on screen at a time —
   // the empty state or the list header — so one binding covers both.
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = `/vault${location.search}`;
+
+  // Every navigation into or within the vault — an unlock, `g v`, Back from an
+  // item, from settings, from an editor — lands the keyboard where the cursor
+  // is: the tree, or the "New item" link of an empty vault. It yields to a
+  // caret something else already placed (an editor's first field), and on a
+  // phone, where only one pane is on screen, it follows the visible pane: a
+  // hidden tree cannot hold focus, and a Back that hides the detail must hand
+  // the keyboard back to the list rather than leave it on `<body>`.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: location.key is the navigation itself — the effect re-runs per arrival, and reads the panes at that moment
+  useEffect(() => {
+    const list = listPaneRef.current;
+    const detail = detailRef.current;
+    if (!list || !detail) return;
+    const hidden = (pane: HTMLElement) =>
+      getComputedStyle(pane).display === "none";
+    const active = document.activeElement;
+    const idle = keyboardIsIdle();
+    if (!hidden(list)) {
+      const strandedInDetail =
+        hidden(detail) && active !== null && detail.contains(active);
+      if (idle || strandedInDetail) {
+        if (!landFocus(list.querySelector('[role="tree"]'))) {
+          landFocus(newItemRef.current);
+        }
+      }
+      return;
+    }
+    if (idle || (active !== null && list.contains(active))) landFocus(detail);
+  }, [location.key]);
   useEffect(() => {
     const pane = detailRef.current;
     // Only when the buffer is the pane on screen: on a desktop both panes
@@ -340,7 +380,13 @@ export function VaultSection() {
 
   return (
     <div className="vault" data-pane={detailOpen ? "detail" : "list"}>
-      <div className="vault__list" ref={listRef}>
+      <div
+        className="vault__list"
+        ref={(element) => {
+          listPaneRef.current = element;
+          listRef(element);
+        }}
+      >
         <MobileFilters
           items={items}
           folders={folders}
@@ -357,7 +403,10 @@ export function VaultSection() {
               // import, not just mention it.
               <div className="actions">
                 <Link
-                  ref={createRef}
+                  ref={(element) => {
+                    newItemRef.current = element;
+                    createRef(element);
+                  }}
                   className="btn btn--primary btn--sm"
                   to={`/vault/new/${createKind}`}
                 >
@@ -398,7 +447,7 @@ export function VaultSection() {
 
       {/* Dragging the buffer rightwards goes back to the list — the
           platform's own back gesture, and the touch twin of the ← key. */}
-      <div className="vault__detail" ref={detailRef}>
+      <div className="vault__detail" ref={detailRef} tabIndex={-1}>
         <Outlet />
       </div>
     </div>
