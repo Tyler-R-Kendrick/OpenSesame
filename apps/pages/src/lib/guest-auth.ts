@@ -11,6 +11,7 @@ import {
   IdentityError,
   connectProvisional,
   currentSession,
+  identityBase,
   identityJson,
 } from "./identity.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
@@ -44,6 +45,7 @@ const COLLISION_MESSAGE =
 export const guestAuthDependencies = {
   connectProvisional,
   currentSession,
+  identityBase,
   identityJson,
   createGuest: () => vaultStore.createGuest(),
   vaultStatus: () => vaultStore.getSnapshot().status,
@@ -97,7 +99,21 @@ function pendingLinkMarked(): boolean {
 
 let inFlightClaim: Promise<void> | null = null;
 
+/**
+ * Whether there is an identity service to attach a principal to at all.
+ *
+ * A static deployment with no Identity API is the common case and a complete
+ * one (ADR 0090): a guest session is a local vault, and a federated sign-in is
+ * the broker's assertion held on this device. Nothing here is "pending" — a
+ * claim or link prompt would name a service that does not exist and read as
+ * an error on a deployment that is working exactly as designed.
+ */
+function hasIdentityService(): boolean {
+  return guestAuthDependencies.identityBase().trim().length > 0;
+}
+
 async function claimGuestAuthDefault(): Promise<void> {
+  if (!hasIdentityService()) return;
   if (listNotices().some((notice) => notice.kind === "guest_claim")) {
     return;
   }
@@ -161,6 +177,11 @@ function describeLinkFailure(caught: Error | null): string {
  */
 export type FederatedAdoptOutcome =
   | { kind: "linked" }
+  /**
+   * Signed in on this device with no identity service to attach to. Not a
+   * failure and not pending: the broker's assertion is the identity here.
+   */
+  | { kind: "local" }
   | { kind: "pending_link" }
   | { kind: "link_failed"; reason: string };
 
@@ -177,6 +198,15 @@ async function adoptFederatedIdentityDefault(
   idToken: string,
 ): Promise<FederatedAdoptOutcome> {
   const status = guestAuthDependencies.vaultStatus();
+
+  if (!hasIdentityService()) {
+    // No principal to link to, so nothing to defer or retry. A true first run
+    // still opens the same ephemeral vault a guest gets; a locked vault stays
+    // locked, and the caller's "signed in, now unlock" banner says so.
+    if (status === "empty") await guestAuthDependencies.createGuest();
+    clearPendingLink();
+    return { kind: "local" };
+  }
 
   if (status === "empty") {
     await guestAuthDependencies.createGuest();

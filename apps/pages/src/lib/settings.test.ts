@@ -176,8 +176,21 @@ describe("settings subscriptions and guards", () => {
   it("falls back to defaults when persisted JSON is corrupt", async () => {
     const { kvSet } = await import("./kv.js");
     kvSet("settings.v1", "{corrupt");
-    const { loadSettings, shippedHostApi } = await import("./settings.js");
-    expect(loadSettings().hostApi).toBe(shippedHostApi);
+    const { loadSettings } = await import("./settings.js");
+    expect(loadSettings().hostApi).toBe("");
+  });
+
+  it("assumes no local host on any origin (ADR 0090)", async () => {
+    // A loopback tab used to default Host/daemon/MFA to 127.0.0.1 endpoints
+    // nothing had said were running. A local host is configured — VITE_*,
+    // os-runtime-config.json, Settings, a paired daemon — never assumed.
+    const { loadSettings, settingsSeams } = await import("./settings.js");
+    settingsSeams.pageIsLoopback = () => true;
+    const settings = loadSettings();
+    expect(settings.hostApi).toBe("");
+    expect(settings.daemonApi).toBe("");
+    expect(settings.mfaAppUrl).toBe("");
+    expect(settings.identityApi).toBe("");
   });
 
   it("counts a tailnet daemon without a Host as a remote pairing", async () => {

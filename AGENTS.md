@@ -147,6 +147,19 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 pnpm --filter @opensesame/pages dev   # vite --port 5180 --strictPort
 ```
 
+**Pages as a static front end, no backend (ADR 0090) — run before touching
+sign-in, setup, settings defaults or anything on the boot path:**
+```bash
+VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:static
+# Drives dist/ under https://tyler-r-kendrick.github.io/OpenSesame/ in
+# headless Chromium: first screen is sign-in + guest (no setup wall), guest
+# walks every section, Google via a mocked shoo.dev lands unlocked, deep
+# links resolve. Fails on any page error, console error, loopback request,
+# missing asset, or on-screen "No Identity API" copy.
+```
+
 Sealed-store Settings bridge: export a path manifest in Pages, then
 `opensesame pass seal manifest.json --shred` encrypts it into the store and
 `opensesame pass backup` pushes ciphertext to the git remote. Importing a manifest
@@ -238,7 +251,20 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0089).
+  0001–0090).
+- **The static front end is complete without a backend**
+  ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
+  `apps/pages` is a broker: an empty device opens on the sign-in screen with
+  the compiled-in Google-via-Shoo road and the guest road, and nothing — no
+  operator ceremony, no Identity API, no Host, no daemon, no localhost — may
+  be placed in front of them. `Deployment setup` and `Join a session` are
+  ceremonies a person opens from the sign-in foot (an invite link opens join
+  by itself); `setupRequired` does not exist and must not come back. No
+  default may point at a local host: `lib/settings.ts` defaults are empty on
+  every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
+  offer, never something the app assumes. With no Identity API configured a
+  guest or federated sign-in is complete, not pending — no notice may name a
+  service that is not there.
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

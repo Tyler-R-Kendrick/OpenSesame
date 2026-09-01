@@ -128,7 +128,9 @@ export function classifyHostConnector(
   offline: boolean,
 ): ConnectorStatus {
   const base = briefOrigin(status.hostBase);
-  const shell = { id: "host", name: "Host", required: true } as const;
+  // Optional (ADR 0090): a Host is a capability somebody connects, never
+  // something this static app needs to run.
+  const shell = { id: "host", name: "Host", required: false } as const;
   if (status.host === "unset") {
     return {
       ...shell,
@@ -167,7 +169,8 @@ export function classifyIdentityConnector(
   offline: boolean,
 ): ConnectorStatus {
   const base = briefOrigin(status.identityBase);
-  const shell = { id: "identity", name: "Identity", required: true } as const;
+  // Optional (ADR 0090): the compiled-in broker signs people in without one.
+  const shell = { id: "identity", name: "Identity", required: false } as const;
   if (!base) {
     return {
       ...shell,
@@ -193,10 +196,11 @@ export function classifyMachineConnector(
   offline: boolean,
 ): ConnectorStatus {
   const base = briefOrigin(daemonApi);
+  // Optional (ADR 0090): pairing a daemon is a road, never a requirement.
   const shell = {
     id: "machine",
     name: "This machine",
-    required: true,
+    required: false,
   } as const;
   if (!daemonApi.trim() || !daemonIsProbable(daemonApi, pageIsLoopback())) {
     return { ...shell, tone: "off", detail: "Not paired", ...probed(target) };
@@ -316,9 +320,29 @@ export function useConnectors(): ConnectorStatus[] {
   return buildConnectors(plane, monitor, loadSettings());
 }
 
-/** How many required connectors are asking for something. */
+/** The planes that are addresses: configured by somebody, so answerable. */
+const ENDPOINT_CONNECTORS: ReadonlySet<ConnectorId> = new Set([
+  "host",
+  "identity",
+  "machine",
+]);
+
+/**
+ * How many connectors are asking for something.
+ *
+ * An endpoint that is configured and broken (`attn`) counts: somebody pointed
+ * the app at an address and it is not answering. One that is simply not
+ * configured (`off`) counts only when it is required — and since ADR 0090
+ * none of the core planes is, "nothing connected" is a fact, not a fault.
+ * Bindings (the key vault, git history) are never endpoints, so their own
+ * `attn` — an authorization to finish — stays theirs to show.
+ */
 export function needsAttention(connectors: ConnectorStatus[]): number {
-  return connectors.filter((c) => c.required && c.tone !== "live").length;
+  return connectors.filter(
+    (c) =>
+      (c.tone === "attn" && ENDPOINT_CONNECTORS.has(c.id)) ||
+      (c.required && c.tone !== "live"),
+  ).length;
 }
 
 /** True when the browser itself has no network, so no endpoint is to blame. */

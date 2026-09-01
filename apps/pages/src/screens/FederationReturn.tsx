@@ -79,7 +79,7 @@ async function processReturn(): Promise<ReturnOutcome> {
     const inApp = await openVaultAfterSignIn();
     if (!inApp && adopted.kind !== "pending_link") {
       storeAuthOutcome(
-        adopted.kind === "linked"
+        adopted.kind === "linked" || adopted.kind === "local"
           ? { kind: "linked", who: displayName(result.identity) }
           : {
               kind: "link_failed",

@@ -1370,3 +1370,31 @@ describe("AccessSection sites", () => {
     expect(screen.queryByText("session.created")).toBeNull();
   });
 });
+
+describe("with no Host connected (ADR 0090)", () => {
+  const originalHostBase = identitySeams.hostBase;
+  beforeEach(() => {
+    identitySeams.hostBase = () => "";
+    connections.listConnections.mockClear();
+  });
+  afterEach(() => {
+    identitySeams.hostBase = originalHostBase;
+  });
+
+  it("says so once, quietly, instead of failing every tab in red", async () => {
+    render(
+      <MemoryRouter>
+        <AccessSection />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("No Host connected")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText(/No Identity API is configured/)).toBeNull();
+    // The road to a Host is named, not demanded.
+    expect(
+      screen.getByRole("link", { name: "Settings → Connectivity" }),
+    ).toBeTruthy();
+    // Nothing was asked of a Host that is not there.
+    expect(connections.listConnections).not.toHaveBeenCalled();
+  });
+});

@@ -19,20 +19,24 @@ import {
   IconUser,
 } from "../components/Icons.js";
 import { defaultUpstream } from "../lib/federation.js";
+import { firstControl, landFocus } from "../lib/focus.js";
 import { continueAsGuest } from "../lib/guest-auth.js";
 import {
   currentSession,
   identityBase,
   useIdentitySession,
 } from "../lib/identity.js";
-import { resumeStashedJoin } from "../lib/join-session.js";
+import {
+  readJoinFromLocation,
+  resumeStashedJoin,
+} from "../lib/join-session.js";
 import { PERSONAL_PROJECT_ID } from "../lib/projects.js";
 import {
   type FederatedProviderSummary,
   listFederatedProviders,
 } from "../lib/providers.js";
 import { noWayIn, signInMethods } from "../lib/settings.js";
-import { setupRequired, unlockViable } from "../lib/setup.js";
+import { unlockViable } from "../lib/setup.js";
 import { WrongPasswordError } from "../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
@@ -46,7 +50,7 @@ import {
 import { deviceHasSeveralVaults, listDeviceVaults } from "../lib/vaults.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
-import { SetupScreen } from "./SetupScreen.js";
+import { type SetupRoad, SetupScreen } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -105,7 +109,6 @@ function useCountdown(until: number | null): number {
 }
 
 export const unlockScreenDependencies = {
-  setupRequired,
   currentSession,
   identityBase,
   noWayIn,
@@ -114,43 +117,29 @@ export const unlockScreenDependencies = {
   resumeStashedJoin,
   deviceHasSeveralVaults,
   listDeviceVaults,
+  readJoinFromLocation,
 };
 
 /**
- * Setup comes before every other pre-vault screen.
+ * Sign-in is the first screen, and nothing gates it (ADR 0090).
  *
- * A device with no vault and no session cannot offer a working sign-in or a
- * vault to unlock, so the first visitor is asked to set this deployment up or
- * join an existing session — not shown two broken affordances and a warning.
- * Once the ceremony is answered — or it never applied, because a vault or a
- * session is already here — this is the unlock form and nothing else.
- *
- * The split exists so the early return happens above the form's hooks rather
- * than among them. The gate is re-read on every render: freezing it in
- * `useState` would skip the ceremony if the vault still looked sealed on the
- * first paint, and would keep a returning user in setup if a late hydrate then
- * found a vault.
- */
-/**
- * Setup comes before every other pre-vault screen.
- *
- * A device with no vault and no session cannot offer a working sign-in or a
- * vault to unlock, so the first visitor is asked to set this deployment up or
- * join an existing session — not shown two broken affordances and a warning.
- * Once the ceremony is answered — or it never applied, because a vault or a
- * session is already here — this is the unlock form and nothing else.
+ * This static app is complete without a backend: the compiled-in broker runs
+ * the whole code flow in the browser, guest seals a local vault, and a
+ * local-only seal needs nothing at all. So an empty device opens on the
+ * sign-in form, never on an operator's question. Deployment setup and joining
+ * a session are ceremonies a person opens on purpose from the foot of that
+ * form — except an invite link, which opens join directly because the link is
+ * the request.
  *
  * The split exists so the early return happens above the form's hooks rather
- * than among them. The gate is re-read on every render: freezing it in
- * `useState` would skip the ceremony if the vault still looked sealed on the
- * first paint, and would keep a returning user in setup if a late hydrate then
- * found a vault.
+ * than among them.
  */
 export function UnlockScreen() {
   const { status } = useVault();
   const session = useIdentitySession();
-  const [dismissed, setDismissed] = useState(false);
-  const [forced, setForced] = useState(false);
+  const [ceremony, setCeremony] = useState<SetupRoad | null>(() =>
+    unlockScreenDependencies.readJoinFromLocation() ? "join" : null,
+  );
   // A device holding more than one vault opens on the choice, not on
   // whichever tomb the boot pointer named (ADR 0089). One vault, no choice:
   // straight to its unlock form, as before.
@@ -175,30 +164,16 @@ export function UnlockScreen() {
       cancelled = true;
     };
   }, []);
-  const required = unlockScreenDependencies.setupRequired({
-    vaultStatus: status,
-    hasSession: unlockScreenDependencies.currentSession() !== null,
-  });
-  const setupOpen = forced || (required && !dismissed);
-
   useEffect(() => {
-    if (setupOpen || !session) return;
+    if (ceremony || !session) return;
     void unlockScreenDependencies.resumeStashedJoin().catch(() => {
       // A spent or expired stash is not a reason to trap unlock. The next
       // invite is a new one.
     });
-  }, [setupOpen, session]);
+  }, [ceremony, session]);
 
-  if (setupOpen) {
-    return (
-      <SetupScreen
-        intent={forced && !required ? "setup" : undefined}
-        onDone={() => {
-          setForced(false);
-          setDismissed(true);
-        }}
-      />
-    );
+  if (ceremony) {
+    return <SetupScreen road={ceremony} onDone={() => setCeremony(null)} />;
   }
   if (vaultsOpen) {
     return (
@@ -211,10 +186,8 @@ export function UnlockScreen() {
   return (
     <UnlockForm
       providers={providers}
-      onOpenSetup={() => {
-        setDismissed(false);
-        setForced(true);
-      }}
+      onOpenSetup={() => setCeremony("setup")}
+      onOpenJoin={() => setCeremony("join")}
       onOpenVaults={() => setVaultsOpen(true)}
     />
   );
@@ -223,10 +196,13 @@ export function UnlockScreen() {
 function UnlockForm({
   providers,
   onOpenSetup,
+  onOpenJoin,
   onOpenVaults,
 }: {
   providers: FederatedProviderSummary[];
   onOpenSetup: () => void;
+  /** Join a session somebody invited this device to (ADR 0079 §7). */
+  onOpenJoin: () => void;
   /** Back to the front door: every vault on this device (ADR 0089). */
   onOpenVaults: () => void;
 }) {
@@ -235,6 +211,7 @@ function UnlockForm({
   const secretRef = useGuideTarget<HTMLInputElement>("unlock.secret");
   const passkeyRef = useGuideTarget<HTMLButtonElement>("unlock.passkey");
   const setupRef = useGuideTarget<HTMLButtonElement>("unlock.setup");
+  const joinRef = useGuideTarget<HTMLButtonElement>("setup.join");
   const {
     status,
     tomb,
@@ -332,6 +309,9 @@ function UnlockForm({
   const passwordRef = useRef<HTMLInputElement>(null);
   const pinRef = useRef<HTMLInputElement>(null);
   const totpRef = useRef<HTMLInputElement>(null);
+  const goRef = useRef<HTMLButtonElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const acceptRef = useRef<HTMLInputElement>(null);
 
   const lockedFor = useCountdown(lockedOutUntil);
   const passkeyAbort = useRef<AbortController | null>(null);
@@ -346,14 +326,37 @@ function UnlockForm({
     setBusy(false);
   }, []);
 
+  // The keyboard lands where the ceremony is — on every form this screen can
+  // show, not only when the method changes. A reload, a hydrate that turns
+  // "loading" into "locked", "Use without an account", the end of a lockout:
+  // each puts a different field on screen, and each has to be typeable at
+  // once, with no click first. Passkey has no field, so its go control holds
+  // the keyboard and Enter starts the ceremony. The sign-in panel lands its
+  // own caret.
+  const formGated = lockedFor > 0;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: status is a hydrate signal — "loading" becoming "locked" swaps the form under the same method, and the caret must follow
   useEffect(() => {
+    if (signInStage || signInTabActive || formGated) return;
     if (awaitingTotp) {
-      totpRef.current?.focus();
+      landFocus(totpRef.current);
       return;
     }
-    if (activeMethod === "pin") pinRef.current?.focus();
-    else if (activeMethod === "password") passwordRef.current?.focus();
-  }, [activeMethod, awaitingTotp]);
+    if (activeMethod === "pin") landFocus(pinRef.current);
+    else if (activeMethod === "password") landFocus(passwordRef.current);
+    // Passkey: the go control, unless it is refusing — a first seal wants the
+    // acknowledgement ticked first, and a host that cannot do WebAuthn leaves
+    // the method tabs as the only live controls.
+    else if (!landFocus(goRef.current) && !landFocus(acceptRef.current)) {
+      landFocus(firstControl(formRef.current));
+    }
+  }, [
+    activeMethod,
+    awaitingTotp,
+    signInStage,
+    signInTabActive,
+    formGated,
+    status,
+  ]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -573,7 +576,11 @@ function UnlockForm({
             <SignInPanel placement="secondary" providers={providers} />
           </GuideTarget>
         ) : (
-          <form className="unlock__form" onSubmit={(e) => void onSubmit(e)}>
+          <form
+            className="unlock__form"
+            ref={formRef}
+            onSubmit={(e) => void onSubmit(e)}
+          >
             {showMethodTabs ? (
               <div
                 className="unlock__methods"
@@ -806,6 +813,7 @@ function UnlockForm({
                 <label className="check">
                   <input
                     type="checkbox"
+                    ref={acceptRef}
                     checked={accepted}
                     onChange={(e) => setAccepted(e.target.checked)}
                   />
@@ -872,7 +880,10 @@ function UnlockForm({
               return (
                 <div className="go-row">
                   <button
-                    ref={submitRef}
+                    ref={(element) => {
+                      goRef.current = element;
+                      submitRef(element);
+                    }}
                     type="submit"
                     className="go"
                     disabled={disabled}
@@ -978,9 +989,11 @@ function UnlockForm({
             )
           ) : null}
 
-          {/* Where this app is pointed, and the way back into setup. Quiet,
-              because on a working deployment it is a fact rather than a
-              problem — the operator who needs it is looking for it. */}
+          {/* Where this app is pointed, and the two optional ceremonies:
+              setup for the operator who runs a deployment, join for somebody
+              who was invited to a session. Quiet, because on a working
+              deployment both are facts rather than problems — whoever needs
+              one is looking for it (ADR 0090). */}
           <p className="unlock__deployment">
             <IconAuthority size={14} />
             <span className="unlock__deployment-name">{deploymentName}</span>
@@ -990,6 +1003,14 @@ function UnlockForm({
               onClick={onOpenSetup}
             >
               Deployment setup
+            </button>
+            <button
+              ref={joinRef}
+              type="button"
+              className="unlock__switch"
+              onClick={onOpenJoin}
+            >
+              Join a session
             </button>
           </p>
         </div>

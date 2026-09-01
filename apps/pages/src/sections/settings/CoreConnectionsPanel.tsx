@@ -20,8 +20,9 @@ export const coreConnectionsDependencies = {
 /**
  * The five connections the bar shows, as states rather than as a form.
  *
- * Host, Identity, and this machine are required. Git history is optional
- * persistence; the key vault is built in. Each tile opens the same ceremony
+ * Every one of them is optional (ADR 0090): this static app is complete with
+ * none connected. Git history is optional persistence; the key vault is built
+ * in. Each tile opens the same ceremony
  * the connectivity bar opens, so there is one way to repair a connection,
  * not two.
  */
@@ -37,6 +38,7 @@ export function CoreConnectionsPanel() {
   const [open, setOpen] = useState<ConnectorId | null>(null);
   const panelRef = useGuideTarget<HTMLElement>("settings.core-connections");
   const attention = needsAttention(connectors);
+  const unconnected = connectors.filter((c) => c.tone !== "live").length;
   // Offline is one cause, not four broken connectors. Counting it as "3 need
   // setup" would send someone to fix endpoints that are perfectly fine.
   const offline = isOfflineSet(connectors);
@@ -52,9 +54,11 @@ export function CoreConnectionsPanel() {
         >
           {offline
             ? "Offline"
-            : attention === 0
-              ? "All connected"
-              : `${attention} ${attention === 1 ? "needs" : "need"} setup`}
+            : attention > 0
+              ? `${attention} ${attention === 1 ? "needs" : "need"} attention`
+              : unconnected === 0
+                ? "All connected"
+                : "Nothing needs setup"}
         </output>
       </div>
       <div className="panel__body">

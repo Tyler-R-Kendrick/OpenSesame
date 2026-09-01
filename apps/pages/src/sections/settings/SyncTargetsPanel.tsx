@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
 import {
   ensureHostSession,
+  hostBase,
   hostLocalSessionEligible,
   useIdentitySession,
 } from "../../lib/identity.js";
@@ -13,6 +14,7 @@ import {
   syncTarget,
 } from "../../lib/sync-targets.js";
 import { useOnline } from "../../lib/use-online.js";
+import { useSettingsEpoch } from "../../lib/use-settings.js";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -23,13 +25,17 @@ type Flash = { tone: "ok" | "err" | "warn"; text: string };
 export function SyncTargetsPanel() {
   const online = useOnline();
   const session = useIdentitySession();
+  // Sync targets live on a Host. A deployment with none connected is complete
+  // (ADR 0090): nothing is asked, and nothing is reported as failing.
+  useSettingsEpoch();
+  const hostConfigured = hostBase().trim().length > 0;
   const [targets, setTargets] = useState<SyncTarget[]>([]);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (!online) return;
+    if (!online || !hostConfigured) return;
     setLoading(true);
     setFlash(null);
     try {
@@ -49,7 +55,7 @@ export function SyncTargetsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [online, session]);
+  }, [online, hostConfigured, session]);
 
   useEffect(() => {
     void refresh();
@@ -107,12 +113,19 @@ export function SyncTargetsPanel() {
         <button
           type="button"
           className="btn"
-          disabled={!online || loading}
+          disabled={!online || loading || !hostConfigured}
           onClick={() => void refresh()}
         >
           Refresh
         </button>
       </div>
+
+      {!hostConfigured ? (
+        <p className="hint">
+          Sync targets live on a Host, and none is connected — optional. Connect
+          one under Core connections to fan secrets out to Vercel or Railway.
+        </p>
+      ) : null}
 
       {!online ? (
         <output className="note note--warn">
@@ -130,7 +143,7 @@ export function SyncTargetsPanel() {
         </p>
       ) : null}
 
-      {targets.length === 0 && !loading ? (
+      {!hostConfigured ? null : targets.length === 0 && !loading ? (
         <p className="hint">
           No sync targets yet. Create them via Host API against an active Vercel
           or Railway connection (<code>POST /api/v1/sync-targets</code>).

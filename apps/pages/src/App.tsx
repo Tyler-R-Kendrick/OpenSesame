@@ -6,10 +6,12 @@ import {
   lazy,
   useContext,
   useEffect,
+  useRef,
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { AppShell as DefaultAppShell } from "./components/AppShell.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
+import { keyboardIsIdle, landFocus } from "./lib/focus.js";
 import { recoverPendingFederatedLink } from "./lib/guest-auth.js";
 import { resumeStashedJoin } from "./lib/join-session.js";
 import {
@@ -100,10 +102,22 @@ const defaultSlots: AppSlots = {
 
 const AppSlotsContext = createContext<AppSlots>(defaultSlots);
 
-/** Scrolling frame for every section except the vault, which owns its own panes. */
+/**
+ * Scrolling frame for every section except the vault, which owns its own
+ * panes. Arriving here — `g s`, a rail row, a Back — lands the keyboard on
+ * the section itself, so the next Tab is the section's first control rather
+ * than the top of the document; a caret a section placed on its own field
+ * is left where it is.
+ */
 function Framed({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLElement>(null);
+  const location = useLocation();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: location.key is the arrival itself; the effect runs once per navigation
+  useEffect(() => {
+    if (keyboardIsIdle()) landFocus(ref.current);
+  }, [location.key]);
   return (
-    <main id="main" className="section">
+    <main id="main" className="section" ref={ref} tabIndex={-1}>
       {children}
     </main>
   );

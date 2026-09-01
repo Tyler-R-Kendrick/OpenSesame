@@ -94,7 +94,8 @@ describe("CoreConnectionsPanel", () => {
     ]);
     expect(screen.getByText("Optional")).toBeTruthy();
     expect(screen.queryByText("Required")).toBeNull();
-    expect(screen.getByText("All connected")).toBeTruthy();
+    // Not "all connected" — nothing is — and not a complaint either.
+    expect(screen.getByText("Nothing needs setup")).toBeTruthy();
   });
 
   it("summarises attention in the panel head", () => {
@@ -103,7 +104,7 @@ describe("CoreConnectionsPanel", () => {
       status({ id: "machine", name: "This machine", tone: "attn" }),
       status({ id: "history", name: "Git history", tone: "off" }),
     ]);
-    expect(screen.getByText("2 need setup")).toBeTruthy();
+    expect(screen.getByText("2 need attention")).toBeTruthy();
   });
 
   it("says so plainly when nothing needs doing", () => {
