@@ -1,0 +1,44 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 680px; padding: 22px 20px; display: grid; gap: 14px; align-content: start; --sk: #b8b8b8">
+  <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3)">Option B · A strip above everything</p>
+
+  <div style="border: 1.5px solid var(--sk); border-radius: 2px; padding: 16px 14px; display: grid; gap: 12px; background: var(--surface)">
+    <div style="border: 1.5px solid var(--warn); background: var(--warn-wash); padding: 9px 10px; display: flex; align-items: center; gap: 8px">
+      <div style="width: 16px; height: 16px; border: 1.5px solid var(--warn)"></div>
+      <div style="flex: 1; display: grid; gap: 4px">
+        <div style="height: 6px; width: 88%; background: color-mix(in srgb, var(--warn) 40%, transparent)"></div>
+        <div style="height: 6px; width: 54%; background: color-mix(in srgb, var(--warn) 40%, transparent)"></div>
+      </div>
+      <div style="width: 12px; height: 12px; border: 1.5px solid var(--warn)"></div>
+    </div>
+
+    <div style="height: 13px; width: 62%; background: var(--sk)"></div>
+    <div style="display: grid; gap: 5px">
+      <div style="height: 7px; width: 100%; background: #dedede"></div>
+      <div style="height: 7px; width: 84%; background: #dedede"></div>
+    </div>
+    <div style="display: grid; gap: 6px; margin-top: 4px">
+      <div style="height: 44px; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 44px; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 44px; border: 1.5px solid var(--sk)"></div>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center; border-top: 1.5px solid var(--sk); padding-top: 12px; margin-top: 6px">
+      <div style="width: 40px; height: 40px; background: var(--ink)"></div>
+      <div style="flex: 1; height: 9px; background: var(--sk)"></div>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 6px">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600">Why</p>
+    <p class="hint">Cheapest to build and it reaches every screen, not just first run — one component mounted once in the shell, dismissible, and it leaves the one-question ceremony untouched.</p>
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; margin-top: 4px">Costs</p>
+    <p class="hint">This is the amber notice the first-run ceremony was built to delete, wearing a friendlier hat: a block of colour above the question the reader actually came to answer, competing with it for the top of the screen. Install is an offer, not a status, and an offer that follows you around is a nag — the reader learns to hit the × without reading, which is the one outcome that makes the app worse at the thing it is trying to do.</p>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":680}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

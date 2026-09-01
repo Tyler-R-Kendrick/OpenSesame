@@ -95,6 +95,7 @@ import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
 
 const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
+  InstallPanel: () => <div data-testid="install-panel" />,
   ActiveProjectPanel: () => <div data-testid="active-project-panel" />,
   ModelProviderPanel: () => <div data-testid="model-provider-panel" />,
   CapabilityConnectorsPanel: () => (
@@ -103,6 +104,7 @@ const stubPanels: SettingsPanels = {
   ChangelogPanel: () => <div data-testid="changelog-panel" />,
   GithubBackupPanel: () => <div data-testid="github-backup-panel" />,
   ImportPanel: () => <div data-testid="import-panel" />,
+  ItemTypesPanel: () => <div data-testid="item-types-panel" />,
   OfflineBackupPanel: () => <div data-testid="offline-backup-panel" />,
   SecretConfigsPanel: () => <div data-testid="secret-configs-panel" />,
   SyncTargetsPanel: () => <div data-testid="sync-targets-panel" />,

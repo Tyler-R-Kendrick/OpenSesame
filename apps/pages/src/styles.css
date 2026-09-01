@@ -2497,6 +2497,82 @@ body {
   justify-self: start;
 }
 
+/* ——— The install offer ——— */
+
+/* A finished install is not a discovery, so it drops the accent wash the
+   `.found` card uses for "here is something you can act on". It reports, in
+   the ok voice, and offers nothing. */
+.found--done {
+  border-color: color-mix(in srgb, var(--ok) 32%, var(--line));
+  background: var(--ok-wash);
+}
+
+.found--done .found__top {
+  color: var(--ok);
+}
+
+/* The offer's own stack — everything inside it is a shared component, so this
+   only sets the rhythm between the card and the sentence justifying it. */
+.keep {
+  display: grid;
+  gap: 0.85rem;
+}
+
+/* iOS has no prompt to fire, so the road there is the reader's own hands.
+   Numbered, because the order is the whole instruction. */
+.keep__steps {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.keep__step {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.keep__num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(0.15rem);
+}
+
+/* The Share glyph sits mid-sentence, so it rides the text baseline rather than
+   a line box of its own — the reader is looking for this exact shape in their
+   own toolbar. */
+.keep__glyph {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: -0.18em;
+  color: var(--accent);
+}
+
+/* What installing actually buys, in the margin voice, under the card that
+   offers it. It is the one claim on the screen the code has to keep. */
+.keep__why {
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+  max-width: 44ch;
+}
+
 /* ——— Ceremony alternatives ——— */
 
 /* The rule between "what we found" and "or do something else". */

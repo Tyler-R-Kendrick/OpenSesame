@@ -18,6 +18,7 @@ import {
   connectionVerb,
   providerVerb,
 } from "../../lib/identity-graph.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { BindingEditor } from "./BindingEditor.js";
 import { authKindLabel } from "./CatalogPanel.js";
 import { ConnectForm } from "./ConnectForm.js";
@@ -68,10 +69,13 @@ export function ConnectorSettingsPage({
   ) => void;
   onChanged: () => void;
 }) {
+  const backRef = useGuideTarget<HTMLAnchorElement>("connections.back");
+  const authorizeRef = useGuideTarget<HTMLElement>("connections.authorize");
+  const bindingsRef = useGuideTarget<HTMLElement>("connections.bindings");
   if (!provider) {
     return (
       <div className="section__inner">
-        <Link className="conn-back" to="/connections">
+        <Link ref={backRef} className="conn-back" to="/connections">
           <IconChevronLeft size={16} /> Connections
         </Link>
         <div className="panel">
@@ -94,7 +98,7 @@ export function ConnectorSettingsPage({
   const automatic = canConfigureAutomatically(provider);
   return (
     <div className="section__inner conn-settings">
-      <Link className="conn-back" to="/connections">
+      <Link ref={backRef} className="conn-back" to="/connections">
         <IconChevronLeft size={16} /> Connections
       </Link>
       <PagesCannotHostNote ceremony="Host authorization" />
@@ -174,7 +178,7 @@ export function ConnectorSettingsPage({
       ) : null}
 
       {automatic ? (
-        <section className="panel" id="authorization">
+        <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <div>
               <h2>Authorization</h2>
@@ -194,7 +198,7 @@ export function ConnectorSettingsPage({
           </ul>
         </section>
       ) : connection ? (
-        <section className="panel" id="authorization">
+        <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <h2>Authorization</h2>
           </div>
@@ -210,7 +214,7 @@ export function ConnectorSettingsPage({
           </ul>
         </section>
       ) : connections.length > 1 ? (
-        <section className="panel" id="authorization">
+        <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <div>
               <h2>Authorizations</h2>
@@ -242,7 +246,7 @@ export function ConnectorSettingsPage({
           ) : null}
         </section>
       ) : (
-        <section className="panel" id="authorization">
+        <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <h2>Connect</h2>
           </div>
@@ -271,7 +275,7 @@ export function ConnectorSettingsPage({
 
       {connection ? (
         <>
-          <section className="panel" id="access">
+          <section className="panel" id="access" ref={bindingsRef}>
             <div className="panel__head">
               <div>
                 <h2>Who can use it</h2>

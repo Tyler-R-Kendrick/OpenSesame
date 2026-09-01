@@ -80,6 +80,7 @@ import {
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
 import type { SecretItem, VaultItem } from "../lib/vault/model.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { BindingEditor } from "./connections/BindingEditor.js";
 import { ConnectorMark } from "./connections/ConnectorMark.js";
 import { PolicyEditor } from "./connections/PolicyEditor.js";
@@ -89,13 +90,40 @@ import "./access.css";
 
 type AccessTab = "grants" | "requests" | "sessions" | "resources" | "policies";
 
-const TABS: Array<{ id: AccessTab; label: string }> = [
-  { id: "grants", label: "Grants" },
-  { id: "requests", label: "Requests" },
-  { id: "sessions", label: "Sessions" },
-  { id: "resources", label: "Resources" },
-  { id: "policies", label: "Policies" },
+const TABS: Array<{ id: AccessTab; label: string; guideId: string }> = [
+  { id: "grants", label: "Grants", guideId: "access.grants" },
+  { id: "requests", label: "Requests", guideId: "access.requests" },
+  { id: "sessions", label: "Sessions", guideId: "access.sessions" },
+  { id: "resources", label: "Resources", guideId: "access.resources" },
+  { id: "policies", label: "Policies", guideId: "access.policies" },
 ];
+
+/** One tab, named so a guide can point at it without knowing the markup. */
+function AccessTabButton({
+  guideId,
+  label,
+  active,
+  onSelect,
+}: {
+  guideId: string;
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const ref = useGuideTarget<HTMLButtonElement>(guideId);
+  return (
+    <button
+      ref={ref}
+      type="button"
+      role="tab"
+      aria-selected={active}
+      className={`access-tab${active ? " is-active" : ""}`}
+      onClick={onSelect}
+    >
+      {label}
+    </button>
+  );
+}
 
 type GrantTarget =
   | { kind: "connection"; connection: Connection }
@@ -192,17 +220,14 @@ export function AccessSection() {
       </header>
 
       <div className="access-tabs" role="tablist" aria-label="Access views">
-        {TABS.map(({ id, label }) => (
-          <button
+        {TABS.map(({ id, label, guideId }) => (
+          <AccessTabButton
             key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={`access-tab${tab === id ? " is-active" : ""}`}
-            onClick={() => setTab(id)}
-          >
-            {label}
-          </button>
+            guideId={guideId}
+            label={label}
+            active={tab === id}
+            onSelect={() => setTab(id)}
+          />
         ))}
       </div>
 
@@ -276,6 +301,7 @@ function GrantsPanel({
   const [flash, setFlash] = useState<Flash | null>(null);
   const run = useRef(0);
   const now = useNow(30_000);
+  const grantRef = useGuideTarget<HTMLButtonElement>("access.grant-access");
 
   const load = useCallback(async () => {
     const id = ++run.current;
@@ -330,6 +356,7 @@ function GrantsPanel({
             <IconRefresh />
           </button>
           <button
+            ref={grantRef}
             type="button"
             className="btn btn--primary"
             disabled={!online}

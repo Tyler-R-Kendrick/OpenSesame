@@ -1,0 +1,66 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "software-license",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Software licence",
+    "plural": "Software licences",
+    "extension": ".license",
+    "summary": "A licence key, who it is registered to, and what it entitles.",
+    "categories": ["finance", "documents"],
+    "sections": [
+      {
+        "id": "licence",
+        "title": "Licence",
+        "fields": [
+          {
+            "id": "product",
+            "type": "string",
+            "label": "Product",
+            "required": true
+          },
+          { "id": "version", "type": "string", "label": "Version" },
+          { "id": "licenseKey", "type": "concealed", "label": "Licence key" },
+          { "id": "seats", "type": "number", "label": "Seats" },
+          { "id": "registeredTo", "type": "string", "label": "Registered to" },
+          {
+            "id": "registeredEmail",
+            "type": "email",
+            "label": "Registered email"
+          }
+        ]
+      },
+      {
+        "id": "purchase",
+        "title": "Purchase",
+        "fields": [
+          { "id": "purchasedAt", "type": "date", "label": "Purchased" },
+          { "id": "expiresAt", "type": "date", "label": "Expires" },
+          { "id": "orderNumber", "type": "string", "label": "Order number" },
+          { "id": "publisherUrl", "type": "url", "label": "Publisher" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "licenseKey",
+      "trailer": [
+        { "key": "product", "field": "product" },
+        { "key": "version", "field": "version" },
+        { "key": "seats", "field": "seats" },
+        { "key": "registered_to", "field": "registeredTo" },
+        { "key": "email", "field": "registeredEmail" },
+        { "key": "purchased_at", "field": "purchasedAt" },
+        { "key": "expires_at", "field": "expiresAt" },
+        { "key": "order_number", "field": "orderNumber" },
+        { "key": "url", "field": "publisherUrl" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["product", "version"],
+    "search": ["product", "version", "registeredTo", "orderNumber"]
+  }
+}

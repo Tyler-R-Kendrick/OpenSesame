@@ -1,0 +1,61 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "contact",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Contact",
+    "plural": "Contacts",
+    "extension": ".contact",
+    "summary": "A person and how to reach them, kept beside the credentials that involve them.",
+    "categories": ["identity"],
+    "sections": [
+      {
+        "id": "person",
+        "title": "Person",
+        "fields": [
+          {
+            "id": "fullName",
+            "type": "person-name",
+            "label": "Name",
+            "required": true
+          },
+          { "id": "company", "type": "string", "label": "Company" },
+          { "id": "role", "type": "string", "label": "Role" },
+          {
+            "id": "emails",
+            "type": "email",
+            "label": "Email",
+            "multiple": true
+          },
+          {
+            "id": "phones",
+            "type": "phone",
+            "label": "Telephone",
+            "multiple": true
+          },
+          { "id": "address", "type": "address", "label": "Address" },
+          { "id": "dateOfBirth", "type": "date", "label": "Date of birth" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": null,
+      "trailer": [
+        { "key": "name", "field": "fullName" },
+        { "key": "company", "field": "company" },
+        { "key": "role", "field": "role" },
+        { "key": "email", "field": "emails" },
+        { "key": "phone", "field": "phones" },
+        { "key": "address", "field": "address" },
+        { "key": "date_of_birth", "field": "dateOfBirth" }
+      ]
+    },
+    "cxf": { "credential": "person-name" },
+    "subtitle": ["company", "role"],
+    "search": ["company", "role", "emails"]
+  }
+}

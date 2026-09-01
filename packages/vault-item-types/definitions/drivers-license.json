@@ -1,0 +1,75 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "drivers-license",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Driving licence",
+    "plural": "Driving licences",
+    "extension": ".dl",
+    "summary": "A driving licence, following the mandatory data fields of ISO 18013-1.",
+    "categories": ["identity", "documents"],
+    "sections": [
+      {
+        "id": "document",
+        "title": "Licence",
+        "fields": [
+          {
+            "id": "licenseNumber",
+            "type": "concealed",
+            "label": "Licence number"
+          },
+          {
+            "id": "issuingCountry",
+            "type": "country",
+            "label": "Issuing country",
+            "required": true
+          },
+          {
+            "id": "issuingRegion",
+            "type": "string",
+            "label": "Issuing state or province"
+          },
+          { "id": "issuedAt", "type": "date", "label": "Issued" },
+          { "id": "expiresAt", "type": "date", "label": "Expires" },
+          {
+            "id": "categories",
+            "type": "string",
+            "label": "Vehicle categories",
+            "multiple": true
+          },
+          { "id": "restrictions", "type": "string", "label": "Restrictions" }
+        ]
+      },
+      {
+        "id": "holder",
+        "title": "Holder",
+        "fields": [
+          { "id": "fullName", "type": "person-name", "label": "Name" },
+          { "id": "dateOfBirth", "type": "date", "label": "Date of birth" },
+          { "id": "address", "type": "address", "label": "Address" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "licenseNumber",
+      "trailer": [
+        { "key": "issuing_country", "field": "issuingCountry" },
+        { "key": "issuing_region", "field": "issuingRegion" },
+        { "key": "issued_at", "field": "issuedAt" },
+        { "key": "expires_at", "field": "expiresAt" },
+        { "key": "category", "field": "categories" },
+        { "key": "restrictions", "field": "restrictions" },
+        { "key": "name", "field": "fullName" },
+        { "key": "date_of_birth", "field": "dateOfBirth" },
+        { "key": "address", "field": "address" }
+      ]
+    },
+    "cxf": { "credential": "drivers-license" },
+    "subtitle": ["issuingCountry", "expiresAt"],
+    "search": ["issuingCountry", "issuingRegion"]
+  }
+}

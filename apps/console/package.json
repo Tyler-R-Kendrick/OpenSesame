@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@opensesame/api-client": "workspace:*",
+    "@opensesame/ceremony-kit": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/sdk-browser": "workspace:*",
     "react": "19.2.8",

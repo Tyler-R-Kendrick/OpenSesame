@@ -33,6 +33,7 @@ import { useState } from "react";
 import { IconCheck, IconMark } from "../components/Icons.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
+import { KeepIt } from "./setup/KeepIt.js";
 import { WaysIn } from "./setup/WaysIn.js";
 import "./setup.css";
 
@@ -91,6 +92,11 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
           </div>
 
           <WaysIn />
+
+          {/* Not a second question — an offer with no wrong answer, below the
+              one that matters and withheld entirely where the browser will not
+              install. ADR 0086. */}
+          <KeepIt />
         </main>
 
         {/* The terminal commit: an ink square with the glyph of what it does,

@@ -113,14 +113,9 @@ h1 {
   text-wrap: balance;
 }
 
-.lede,
 .hint {
   color: var(--ink-2);
   line-height: 1.5;
-}
-
-.lede strong {
-  color: var(--ink);
 }
 
 section {
@@ -132,12 +127,6 @@ section {
   box-shadow: var(--shadow-sm);
 }
 
-/* The step the deep link is asking for leads with the accent. */
-section.priority {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
-  box-shadow: inset 0 3px 0 var(--accent), var(--shadow-sm);
-}
-
 h2 {
   font-size: 1rem;
   font-weight: 650;
@@ -145,10 +134,13 @@ h2 {
   margin: 0 0 0.5rem;
 }
 
-label {
+.field {
   display: grid;
   gap: 0.3rem;
   margin-top: 0.75rem;
+}
+
+label {
   font-size: 0.75rem;
   font-weight: 650;
   letter-spacing: 0.02em;
@@ -156,7 +148,6 @@ label {
   color: var(--ink-2);
 }
 
-/* Labels wrap their inputs, so undo the label typography for the value. */
 input {
   font: inherit;
   font-size: 0.9375rem;
@@ -227,6 +218,9 @@ button:disabled {
 }
 
 .status {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
   margin-top: 1.25rem;
   padding: 0.65rem 0.8rem;
   border: 1px solid var(--line);
@@ -237,6 +231,11 @@ button:disabled {
   color: var(--ink);
 }
 
+.status__mark {
+  flex: none;
+  font-weight: 700;
+}
+
 .status-ok {
   border-color: color-mix(in srgb, var(--ok) 35%, var(--line));
   background: var(--ok-wash);
@@ -245,11 +244,6 @@ button:disabled {
 .status-err {
   border-color: color-mix(in srgb, var(--err) 35%, var(--line));
   background: var(--err-wash);
-}
-
-.status-info {
-  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
-  background: var(--accent-wash);
 }
 
 code {
@@ -280,4 +274,177 @@ code {
   *::after {
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── The approval surface ─────────────────────────────────────────────────
+   Opened on an interaction link, this section is the whole screen, so it
+   carries the page's h1 and gets the width the stacked cards used to share. */
+
+.approve h1 {
+  font-size: 1.35rem;
+  margin: 0 0 0.75rem;
+}
+
+/* A heading is focused on every phase change, so it needs a visible ring —
+   an invisible focus move is worse than none. */
+.approve h1:focus-visible,
+.outcome:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* The binding message: the one string both devices show. Set apart from the
+   facts because comparing it is the human's actual job here (CIBA). */
+.match {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0 0 0.9rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.match__label {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.match__value {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    monospace;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  word-break: break-word;
+}
+
+.facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+
+.facts li {
+  word-break: break-word;
+}
+
+/* Approve and deny sit side by side and are the same size: a deny that is
+   smaller or quieter than its approve is a nudge, and this is not a screen
+   that should be nudging. */
+.decide {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1.1rem;
+}
+
+.decide button {
+  flex: 1 1 8rem;
+  min-height: 3rem;
+}
+
+/* Destructive, and looking it. Outlined rather than filled so it cannot be
+   mistaken for the commit at a glance, but in the error colour so it cannot
+   be mistaken for a neutral secondary either. */
+button.danger {
+  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 55%, var(--line));
+  background: var(--surface);
+  font-weight: 600;
+}
+
+button.danger:hover:not(:disabled) {
+  background: var(--err-wash);
+  border-color: var(--err);
+}
+
+/* ── Terminal states ──────────────────────────────────────────────────────
+   Each ending gets its own word, its own mark, and only then its own colour.
+   `data-outcome` is what varies; the word beside the mark is what carries the
+   meaning when the colour does not arrive. */
+
+.approve--done {
+  text-align: left;
+}
+
+.outcome {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.outcome__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  border-radius: 50%;
+  border: 1px solid currentcolor;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+[data-outcome="approved"] .outcome {
+  color: var(--ok);
+}
+
+[data-outcome="denied"] .outcome,
+[data-outcome="revoked"] .outcome,
+[data-outcome="refused"] .outcome {
+  color: var(--err);
+}
+
+[data-outcome="expired"] .outcome,
+[data-outcome="consumed"] .outcome,
+[data-outcome="missing"] .outcome {
+  color: var(--ink-2);
+}
+
+/* ── Enrolment, folded away behind a decision ─────────────────────────── */
+
+.disclosure {
+  margin-top: 1.5rem;
+}
+
+.disclosure > summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  padding: 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.disclosure > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* The disclosure already names the section; a second heading inside it would
+   be announced twice. */
+.disclosure section > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

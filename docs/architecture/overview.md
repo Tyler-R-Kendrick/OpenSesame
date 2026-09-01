@@ -22,3 +22,4 @@ Clients (CLI, extension, SDK, MCP, PWA, toolbar)
 - Identity plane: `docs/architecture/identity-plane.md`
 - Availability classes A0–A3: ADR 0003
 - ConnectionRef over SecretRef: ADR 0005
+- In-product contextual support and GuideLang: `docs/architecture/ai-contextual-support.md`, ADR 0087

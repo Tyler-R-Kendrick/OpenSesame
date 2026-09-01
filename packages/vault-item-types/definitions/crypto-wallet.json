@@ -1,0 +1,67 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "crypto-wallet",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Crypto wallet",
+    "plural": "Crypto wallets",
+    "extension": ".wallet",
+    "summary": "A wallet's recovery phrase, its addresses, and the network it lives on.",
+    "categories": ["finance"],
+    "sections": [
+      {
+        "id": "wallet",
+        "title": "Wallet",
+        "fields": [
+          {
+            "id": "walletName",
+            "type": "string",
+            "label": "Wallet",
+            "required": true
+          },
+          { "id": "network", "type": "string", "label": "Network" },
+          {
+            "id": "recoveryPhrase",
+            "type": "key-material",
+            "label": "Recovery phrase"
+          },
+          {
+            "id": "privateKey",
+            "type": "key-material",
+            "label": "Private key"
+          },
+          { "id": "pin", "type": "pin", "label": "PIN" },
+          {
+            "id": "addresses",
+            "type": "string",
+            "label": "Address",
+            "multiple": true
+          },
+          {
+            "id": "derivationPath",
+            "type": "string",
+            "label": "Derivation path"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "recoveryPhrase",
+      "trailer": [
+        { "key": "wallet", "field": "walletName" },
+        { "key": "network", "field": "network" },
+        { "key": "private_key", "field": "privateKey" },
+        { "key": "pin", "field": "pin" },
+        { "key": "address", "field": "addresses" },
+        { "key": "derivation_path", "field": "derivationPath" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["walletName", "network"],
+    "search": ["walletName", "network", "addresses"]
+  }
+}

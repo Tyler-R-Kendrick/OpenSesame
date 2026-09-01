@@ -381,6 +381,12 @@ async function mintHostSession(
     );
   }
 
+  // The same route the human device ceremony uses, but this is a machine leg of
+  // Host session minting: nobody typed this code, so `@opensesame/ceremony-kit`'s
+  // `approveDevice` — worded for a person holding a device — would report an act
+  // the user never performed. Failure goes through `hostSessionFailure` like
+  // every other leg of this function, which preserves both the nested Host hint
+  // and the `setup_required` classification Connections renders on.
   const approve = await identityFetch("/v1/device/approve", {
     method: "POST",
     headers: { "content-type": "application/json" },

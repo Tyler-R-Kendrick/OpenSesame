@@ -127,11 +127,35 @@ describe("pwa WebMCP tools", () => {
 });
 
 describe("registerPwaWebMcp", () => {
-  it("no-ops without navigator.modelContext", () => {
+  it("no-ops when neither document nor navigator carries modelContext", () => {
     stubSession(null);
     const unregister = registerPwaWebMcp(CONFIG);
     expect(unregister).toBeInstanceOf(Function);
     unregister();
+  });
+
+  // The draft moved modelContext onto `document`; a browser that only
+  // implements the current shape must still get the PWA's tools.
+  it("registers through document.modelContext when that is the implementation", () => {
+    stubSession(null);
+    stubHost(true, true);
+    const names: string[] = [];
+    Object.defineProperty(document, "modelContext", {
+      value: {
+        registerTool(tool: RegisteredTool) {
+          names.push(tool.name);
+          return () => {};
+        },
+      },
+      configurable: true,
+    });
+    try {
+      const unregister = registerPwaWebMcp(CONFIG);
+      expect(names.length).toBeGreaterThan(0);
+      unregister();
+    } finally {
+      Reflect.deleteProperty(document, "modelContext");
+    }
   });
 
   it("registers fenced tools when the API exists", async () => {

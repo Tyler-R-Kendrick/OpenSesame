@@ -24,6 +24,7 @@ import {
 import { loadQueue } from "../lib/queue.js";
 import { buildHealthReport } from "../lib/vault/health.js";
 import { useVault } from "../lib/vault/hooks.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CeremonyLink } from "./CeremonyLauncher.js";
 import { CeremonyShell } from "./CeremonyShell.js";
 import { IconAlert, IconBell, IconInfo, IconShield, IconX } from "./Icons.js";
@@ -45,6 +46,7 @@ function NotificationsBarDefault() {
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
+  const healthRef = useGuideTarget<HTMLAnchorElement>("notifications.health");
   useModalFocus(open, sheetRef, closeRef, close);
 
   const label =
@@ -116,6 +118,7 @@ function NotificationsBarDefault() {
                   </p>
                   <div className="actions">
                     <Link
+                      ref={healthRef}
                       className="btn btn--sm btn--primary"
                       to="/vault/health"
                       onClick={close}

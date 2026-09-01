@@ -117,6 +117,9 @@ describe("DevicePage", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  // The wording is the shared kit's, asserted verbatim: this screen authenticates
+  // by session cookie alone, and the kit's copy is the only one that names the
+  // localhost/127.0.0.1 mismatch that drops that cookie and produces the 401.
   it("explains that sign-in is required on 401 and 403", async () => {
     for (const status of [401, 403]) {
       vi.mocked(fetch).mockResolvedValue(jsonResponse(status));
@@ -124,7 +127,7 @@ describe("DevicePage", () => {
       await type(field(), "ABCD-EFGH");
       await click(approveButton());
       expect(container.textContent).toContain(
-        "Sign in first, then authorize this CLI code.",
+        "Sign in first, then approve this code. Use the same hostname as this page — mixing localhost and 127.0.0.1 drops the session cookie.",
       );
       await act(async () => {
         root.unmount();

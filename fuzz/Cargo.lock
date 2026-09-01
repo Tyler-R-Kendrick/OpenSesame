@@ -2742,11 +2742,13 @@ dependencies = [
  "opensesame-claims",
  "opensesame-connection-detect",
  "opensesame-domain",
+ "opensesame-invoke-through",
  "opensesame-relay",
  "opensesame-rotation",
  "opensesame-task-bus",
  "rand 0.8.7",
  "reqwest",
+ "secrecy",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -2852,6 +2854,7 @@ dependencies = [
  "opensesame-storage",
  "opensesame-tailscale-authn",
  "opensesame-task-bus",
+ "opensesame-vault-item-types",
  "opensesame-xkeys",
  "serde",
  "serde_json",
@@ -2885,6 +2888,7 @@ dependencies = [
  "opensesame-connector-host",
  "opensesame-domain",
  "opensesame-host-core",
+ "opensesame-lifecycle",
  "opensesame-pki-core",
  "opensesame-proof",
  "opensesame-protocol-aauth",
@@ -2963,6 +2967,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-invoke-through"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
 name = "opensesame-kdbx-bridge"
 version = "0.1.0"
 dependencies = [
@@ -2971,6 +2993,16 @@ dependencies = [
  "serde",
  "thiserror 2.0.20",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-lifecycle"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
 ]
 
 [[package]]
@@ -3194,6 +3226,16 @@ dependencies = [
  "serde_json",
  "tokio",
  "x25519-dalek",
+]
+
+[[package]]
+name = "opensesame-vault-item-types"
+version = "0.1.0"
+dependencies = [
+ "opensesame-sealed-store",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

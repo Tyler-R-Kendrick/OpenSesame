@@ -455,4 +455,34 @@ describe("directory client", () => {
     }
     expect(error.message).toMatch(/exactly as the device shows it/);
   });
+
+  // The two 4xx cases below are why this client keys its wording on the body's
+  // error code rather than on the status, and so why it cannot be folded into
+  // `@opensesame/ceremony-kit`'s status-keyed `approveDevice`: the control plane
+  // is a proxy, so one status covers unrelated causes and only the code tells
+  // them apart. A 403 here is never "sign in" — the session is fine and the
+  // organization is not.
+  it("maps an organization refusal to org wording, not a sign-in prompt", async () => {
+    identityFetch.mockResolvedValue(
+      jsonResponse({ error: "organization_access_denied" }, 403),
+    );
+    const error = await failureOf(approveDevice("ABCD-EFGH"));
+    if (error instanceof DirectoryError) {
+      expect(error.status).toBe(403);
+      expect(error.code).toBe("organization_access_denied");
+    }
+    expect(error.message).toBe(
+      "You do not have access to the organization that device is joining.",
+    );
+  });
+
+  it("falls back to the transport's wording when no code is carried", async () => {
+    identityFetch.mockResolvedValue(jsonResponse({}, 401));
+    const error = await failureOf(approveDevice("ABCD-EFGH"));
+    if (error instanceof DirectoryError) {
+      expect(error.status).toBe(401);
+      expect(error.code).toBe("unknown_error");
+    }
+    expect(error.message).toMatch(/needs a signed-in session/);
+  });
 });

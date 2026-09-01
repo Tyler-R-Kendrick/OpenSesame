@@ -4,6 +4,7 @@ import { IconSettings } from "../../components/Icons.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { createConnection, revokeConnection } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import {
   type Flash,
@@ -37,6 +38,7 @@ export function ConnectedPanel({
   }) => void;
   setupRequired: boolean;
 }) {
+  const panelRef = useGuideTarget<HTMLElement>("connections.connected");
   const live = (connections ?? []).filter((c) => c.status !== "revoked");
   const automatic = providers.filter(canConfigureAutomatically);
   const automaticIds = new Set(automatic.map((provider) => provider.id));
@@ -45,7 +47,7 @@ export function ConnectedPanel({
   );
 
   return (
-    <section className="panel">
+    <section className="panel" ref={panelRef}>
       <div className="panel__head">
         <h2>Connected</h2>
       </div>

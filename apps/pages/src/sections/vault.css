@@ -522,6 +522,11 @@
   color: var(--ink-3);
 }
 
+/* A multiline field keeps the shape it was typed in. */
+.frow__value--wrap {
+  white-space: pre-wrap;
+}
+
 .frow__actions {
   display: flex;
   gap: 0.15rem;

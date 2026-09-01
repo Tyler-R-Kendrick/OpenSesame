@@ -8,30 +8,42 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { isString } from "@opensesame/os-domain";
 import { IconDownload, IconPlus } from "../components/Icons.js";
 import { swipeBack } from "../lib/gestures.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { stashImportFile } from "../lib/vault/import/handoff.js";
 import {
-  type Folder,
-  type ItemKind,
-  KIND_PLURAL,
-  type VaultItem,
-  sortItems,
-} from "../lib/vault/model.js";
+  definitionFor,
+  itemTypeId,
+  itemTypeRegistry,
+  readItemField,
+  typePlural,
+} from "../lib/vault/item-types.js";
+import { type Folder, type VaultItem, sortItems } from "../lib/vault/model.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
 
-const KIND_ORDER: ItemKind[] = [
-  "login",
-  "passkey",
-  "card",
-  "secret",
-  "drop",
-  "note",
-  "certificate",
-];
+/**
+ * The filter chips, in registry order (built-ins first), for the types this
+ * vault actually holds. Derived rather than listed: a plugin-defined type is a
+ * type like any other, so it earns its own chip the moment an item exists
+ * (ADR 0087 §1). A hardcoded list would quietly bucket every community type
+ * into one undifferentiated pile.
+ */
+function chipTypeIds(live: readonly VaultItem[]): readonly string[] {
+  const present = new Set(live.map(itemTypeId));
+  const ordered = itemTypeRegistry()
+    .list()
+    .map(({ definition }) => definition.metadata.id)
+    .filter((id) => present.has(id));
+  // A type whose definition is not installed here still deserves its chip;
+  // the label falls back to the id rather than the item vanishing from view.
+  const orphans = [...present].filter((id) => !itemTypeRegistry().has(id));
+  return [...ordered, ...orphans.sort()];
+}
 
 const FILTER_TITLE = new Map([
   ["all", "All items"],
@@ -44,6 +56,31 @@ const FILTER_TITLE = new Map([
   ["drop", "Drops"],
   ["note", "Secure notes"],
 ]);
+
+/** A filter chip a guide can name. Same markup as the untracked ones. */
+function GuidedChip({
+  guideId,
+  to,
+  isActive,
+  label,
+}: {
+  guideId: string;
+  to: string;
+  isActive: boolean;
+  label: string;
+}) {
+  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
+  return (
+    <Link
+      ref={ref}
+      to={to}
+      className={`vault__chip${isActive ? " is-active" : ""}`}
+      aria-current={isActive ? "true" : undefined}
+    >
+      {label}
+    </Link>
+  );
+}
 
 /**
  * The rail carries these filters on desktop, but it is hidden on a phone — so the
@@ -61,6 +98,7 @@ function MobileFilters({
   folderId: string | null;
 }) {
   const live = items.filter((item) => item.deletedAt === null);
+  const healthRef = useGuideTarget<HTMLAnchorElement>("vault.health");
   const chip = (query: string, isActive: boolean, label: string) => (
     <Link
       key={query || "all"}
@@ -75,9 +113,25 @@ function MobileFilters({
   return (
     <fieldset className="vault__chips" aria-label="Filter items">
       {chip("", filter === "all" && !folderId, "All")}
-      {chip("?f=favorites", filter === "favorites", "Favorites")}
-      {KIND_ORDER.filter((kind) => live.some((item) => item.kind === kind)).map(
-        (kind) => chip(`?f=${kind}`, filter === kind, KIND_PLURAL[kind]),
+      <GuidedChip
+        key="favorites"
+        guideId="vault.filter.favorites"
+        to="/vault?f=favorites"
+        isActive={filter === "favorites"}
+        label="Favorites"
+      />
+      {chipTypeIds(live).map((typeId) =>
+        typeId === "login" ? (
+          <GuidedChip
+            key="login"
+            guideId="vault.filter.logins"
+            to="/vault?f=login"
+            isActive={filter === "login"}
+            label={typePlural(typeId)}
+          />
+        ) : (
+          chip(`?f=${typeId}`, filter === typeId, typePlural(typeId))
+        ),
       )}
       {folders.map((folder) =>
         chip(
@@ -87,7 +141,7 @@ function MobileFilters({
         ),
       )}
       {chip("?f=trash", filter === "trash", "Trash")}
-      <Link className="vault__chip" to="/vault/health">
+      <Link ref={healthRef} className="vault__chip" to="/vault/health">
         Health
       </Link>
     </fieldset>
@@ -105,9 +159,11 @@ const IMPORT_ACCEPT =
 function ImportButton({ verb = false }: { verb?: boolean }) {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
+  const guideRef = useGuideTarget<HTMLButtonElement>("vault.import");
   return (
     <>
       <button
+        ref={guideRef}
         type="button"
         className={verb ? "icon-btn icon-btn--sm" : "btn btn--sm"}
         aria-label={verb ? "Import items" : undefined}
@@ -133,8 +189,9 @@ function ImportButton({ verb = false }: { verb?: boolean }) {
   );
 }
 
-function isItemKind(value: string): value is ItemKind {
-  return KIND_ORDER.some((kind) => kind === value);
+/** Any registered type may be the one a filtered "+ new" creates. */
+function isRegisteredType(value: string): boolean {
+  return itemTypeRegistry().has(value);
 }
 
 function concealedValue(item: VaultItem): string | null {
@@ -142,7 +199,23 @@ function concealedValue(item: VaultItem): string | null {
   if (item.kind === "secret") return item.value;
   if (item.kind === "card") return item.number;
   if (item.kind === "certificate") return item.privateKeyPem;
-  return null;
+  // A plugin-defined type already says which field is its secret — the same
+  // field that becomes line one of its native entry (ADR 0087 §3).
+  const definition = definitionFor(item);
+  const secretField = definition?.spec.native.secret;
+  if (
+    definition === undefined ||
+    secretField === undefined ||
+    secretField === null
+  ) {
+    return null;
+  }
+  const field = definition.spec.sections
+    .flatMap((section) => section.fields)
+    .find((candidate) => candidate.id === secretField);
+  if (field === undefined) return null;
+  const value = readItemField(item, field);
+  return isString(value) && value !== "" ? value : null;
 }
 
 function username(item: VaultItem): string | null {
@@ -183,7 +256,7 @@ export function VaultSection() {
           filter !== "all" &&
           filter !== "favorites" &&
           filter !== "trash" &&
-          item.kind !== filter
+          itemTypeId(item) !== filter
         ) {
           return false;
         }
@@ -194,7 +267,7 @@ export function VaultSection() {
 
   const detailOpen = location.pathname !== "/vault";
   const title = folderId ? "Folder" : (FILTER_TITLE.get(filter) ?? "All items");
-  const createKind = isItemKind(filter) ? filter : "login";
+  const createKind = isRegisteredType(filter) ? filter : "login";
   const treeFolders = useMemo(() => {
     if (folderId) return [];
     if (
@@ -252,6 +325,10 @@ export function VaultSection() {
   ).length;
 
   const detailRef = useRef<HTMLDivElement>(null);
+  // Exactly one of the two "new item" affordances is on screen at a time —
+  // the empty state or the list header — so one binding covers both.
+  const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
+  const listRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = `/vault${location.search}`;
   useEffect(() => {
     const pane = detailRef.current;
@@ -263,7 +340,7 @@ export function VaultSection() {
 
   return (
     <div className="vault" data-pane={detailOpen ? "detail" : "list"}>
-      <div className="vault__list">
+      <div className="vault__list" ref={listRef}>
         <MobileFilters
           items={items}
           folders={folders}
@@ -285,6 +362,7 @@ export function VaultSection() {
               // import, not just mention it.
               <div className="actions">
                 <Link
+                  ref={createRef}
                   className="btn btn--primary btn--sm"
                   to={`/vault/new/${createKind}`}
                 >
@@ -308,6 +386,7 @@ export function VaultSection() {
                     from another manager should not require an empty vault or
                     a hunt through Settings to find it. */}
                 <Link
+                  ref={createRef}
                   className="icon-btn icon-btn--sm"
                   aria-label="New item"
                   title="New item (n)"

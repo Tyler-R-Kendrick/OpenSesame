@@ -1,0 +1,58 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 680px; padding: 22px 20px; display: grid; gap: 14px; align-content: start; --sk: #b8b8b8">
+  <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3)">Option A · A section of the one screen</p>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+    <div style="border: 1.5px solid var(--sk); border-radius: 2px; padding: 12px 10px; display: grid; gap: 9px; background: var(--surface); align-content: start">
+      <div style="height: 11px; width: 78%; background: var(--sk)"></div>
+      <div style="height: 6px; width: 92%; background: #dedede"></div>
+      <div style="height: 6px; width: 60%; background: #dedede"></div>
+      <div style="height: 28px; border: 1.5px solid var(--sk); margin-top: 2px"></div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px">
+        <div style="height: 22px; border: 1.5px solid var(--sk)"></div>
+        <div style="height: 22px; border: 1.5px solid var(--sk)"></div>
+      </div>
+      <div style="height: 1px; background: var(--line); margin: 2px 0"></div>
+      <div style="border: 1.5px solid var(--accent); background: var(--accent-wash); padding: 8px; display: grid; gap: 6px">
+        <div style="height: 6px; width: 70%; background: var(--accent-line)"></div>
+        <div style="height: 6px; width: 46%; background: var(--accent-line)"></div>
+        <div style="height: 20px; width: 74%; background: var(--accent)"></div>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center; border-top: 1.5px solid var(--sk); padding-top: 9px; margin-top: 4px">
+        <div style="width: 26px; height: 26px; background: var(--ink)"></div>
+        <div style="flex: 1; height: 7px; background: var(--sk)"></div>
+      </div>
+      <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-3)">can install</p>
+    </div>
+
+    <div style="border: 1.5px solid var(--sk); border-radius: 2px; padding: 12px 10px; display: grid; gap: 9px; background: var(--surface); align-content: start">
+      <div style="height: 11px; width: 78%; background: var(--sk)"></div>
+      <div style="height: 6px; width: 92%; background: #dedede"></div>
+      <div style="height: 6px; width: 60%; background: #dedede"></div>
+      <div style="height: 28px; border: 1.5px solid var(--sk); margin-top: 2px"></div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px">
+        <div style="height: 22px; border: 1.5px solid var(--sk)"></div>
+        <div style="height: 22px; border: 1.5px solid var(--sk)"></div>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center; border-top: 1.5px solid var(--sk); padding-top: 9px; margin-top: 4px">
+        <div style="width: 26px; height: 26px; background: var(--ink)"></div>
+        <div style="flex: 1; height: 7px; background: var(--sk)"></div>
+      </div>
+      <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-3)">cannot — no trace</p>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 6px">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600">Why</p>
+    <p class="hint">The ceremony is one screen and one question, and this is not a second one: it asks nothing, has no wrong answer, and does not gate the commit. So it takes the shape the screen already uses for its other sections — a heading in the same voice as "Add a provider", below the question rather than in front of it. And it obeys the rule the ceremony lives by: the whole section is withheld where the browser will not install, the way Unlock is withheld where there is no sealed vault.</p>
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; margin-top: 4px">Costs</p>
+    <p class="hint">The one-question screen now carries something that is not the question. It is bounded — absent entirely on a browser that cannot install, and never in front of the sign-in list — but it is one more thing on the only screen the ceremony has, and the next such offer will point at this one as precedent.</p>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":680}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

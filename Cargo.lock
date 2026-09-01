@@ -4324,6 +4324,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-vault-item-types"
+version = "0.1.0"
+dependencies = [
+ "opensesame-sealed-store",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "opensesame-worker"
 version = "0.1.0"
 dependencies = [
