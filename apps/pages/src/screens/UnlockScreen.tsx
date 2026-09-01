@@ -26,6 +26,7 @@ import {
   useIdentitySession,
 } from "../lib/identity.js";
 import { resumeStashedJoin } from "../lib/join-session.js";
+import { PERSONAL_PROJECT_ID } from "../lib/projects.js";
 import {
   type FederatedProviderSummary,
   listFederatedProviders,
@@ -42,9 +43,11 @@ import {
   describeWebauthnError,
   pinPolicyProblems,
 } from "../lib/vault/unlock-methods.js";
+import { deviceHasSeveralVaults, listDeviceVaults } from "../lib/vaults.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { SetupScreen } from "./SetupScreen.js";
+import { VaultsScreen } from "./VaultsScreen.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import "./unlock.css";
@@ -109,6 +112,8 @@ export const unlockScreenDependencies = {
   signInMethods,
   defaultUpstream,
   resumeStashedJoin,
+  deviceHasSeveralVaults,
+  listDeviceVaults,
 };
 
 /**
@@ -146,6 +151,30 @@ export function UnlockScreen() {
   const session = useIdentitySession();
   const [dismissed, setDismissed] = useState(false);
   const [forced, setForced] = useState(false);
+  // A device holding more than one vault opens on the choice, not on
+  // whichever tomb the boot pointer named (ADR 0089). One vault, no choice:
+  // straight to its unlock form, as before.
+  const [vaultsOpen, setVaultsOpen] = useState(() =>
+    unlockScreenDependencies.deviceHasSeveralVaults(),
+  );
+  // Whatever this deployment brokers (D7), fetched once for both the front
+  // door and the unlock form. An empty catalog — no Identity API, an
+  // unreachable one, a deployment older than the endpoint — is not an error
+  // state: SignInPanel falls back to the single default upstream.
+  const [providers, setProviders] = useState<FederatedProviderSummary[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void listFederatedProviders()
+      .then((list) => {
+        if (!cancelled) setProviders(list);
+      })
+      .catch(() => {
+        /* the empty catalog stands */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const required = unlockScreenDependencies.setupRequired({
     vaultStatus: status,
     hasSession: unlockScreenDependencies.currentSession() !== null,
@@ -171,17 +200,36 @@ export function UnlockScreen() {
       />
     );
   }
+  if (vaultsOpen) {
+    return (
+      <VaultsScreen
+        providers={providers}
+        onPicked={() => setVaultsOpen(false)}
+      />
+    );
+  }
   return (
     <UnlockForm
+      providers={providers}
       onOpenSetup={() => {
         setDismissed(false);
         setForced(true);
       }}
+      onOpenVaults={() => setVaultsOpen(true)}
     />
   );
 }
 
-function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
+function UnlockForm({
+  providers,
+  onOpenSetup,
+  onOpenVaults,
+}: {
+  providers: FederatedProviderSummary[];
+  onOpenSetup: () => void;
+  /** Back to the front door: every vault on this device (ADR 0089). */
+  onOpenVaults: () => void;
+}) {
   useSupportRoute("/unlock");
   const submitRef = useGuideTarget<HTMLButtonElement>("unlock.submit");
   const secretRef = useGuideTarget<HTMLInputElement>("unlock.secret");
@@ -189,6 +237,7 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
   const setupRef = useGuideTarget<HTMLButtonElement>("unlock.setup");
   const {
     status,
+    tomb,
     header,
     lockedOutUntil,
     failedAttempts,
@@ -197,6 +246,17 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
   } = useVault();
   const store = useVaultStore();
   const firstRun = status === "empty";
+  // Which vault this key opens, said in the prompt voice the rail uses once
+  // inside — shown whenever there is a choice to go back to, or this is not
+  // the personal vault (a project sealed a moment ago from the front door).
+  const activeTomb = tomb ?? PERSONAL_PROJECT_ID;
+  const vaultCrumb =
+    unlockScreenDependencies.deviceHasSeveralVaults() ||
+    activeTomb !== PERSONAL_PROJECT_ID
+      ? (unlockScreenDependencies
+          .listDeviceVaults()
+          .find((vault) => vault.id === activeTomb)?.label ?? activeTomb)
+      : null;
   const passkeyHost = checkWebauthnHost();
   // First run leads with identity (ADR 0033 §4): sign-in is the default
   // stage, and the local seal form is the explicit "use without an account"
@@ -275,22 +335,6 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
 
   const lockedFor = useCountdown(lockedOutUntil);
   const passkeyAbort = useRef<AbortController | null>(null);
-
-  // Whatever this deployment brokers (D7), on both screens. An empty catalog —
-  // no Identity API, an unreachable one, a deployment older than the endpoint —
-  // is not an error state: SignInPanel falls back to the single default
-  // upstream this screen has always shown, because neither screen may dead-end.
-  const [providers, setProviders] = useState<FederatedProviderSummary[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void listFederatedProviders().then((list) => {
-      if (!cancelled) setProviders(list);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // Switching methods (or leaving the passkey tab) must cancel any pending
   // platform prompt — a blocking WebAuthn request must never hold the other
@@ -429,6 +473,24 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                   ? "Confirm it is you"
                   : "Unlock"}
           </h1>
+          {vaultCrumb ? (
+            <p className="unlock__crumb">
+              <button
+                type="button"
+                className="unlock__switch"
+                onClick={onOpenVaults}
+              >
+                ‹ Vaults
+              </button>
+              <span className="prompt__dim" aria-hidden="true">
+                /
+              </span>
+              <span className="unlock__crumb-tomb">{vaultCrumb}</span>
+              <span className="prompt__dim" aria-hidden="true">
+                :/
+              </span>
+            </p>
+          ) : null}
         </div>
 
         {returningTabs ? (

@@ -15,6 +15,7 @@ export type Crumb = {
 export const SETTINGS_CATEGORIES = [
   "general",
   "security",
+  "vaults",
   "connectivity",
   "data",
   "danger",
@@ -24,6 +25,7 @@ export type SettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
 export const SETTINGS_CATEGORY_LABEL = {
   general: "General",
   security: "Security",
+  vaults: "Vaults",
   connectivity: "Connectivity",
   data: "Vault data",
   danger: "Danger",
@@ -32,6 +34,7 @@ export const SETTINGS_CATEGORY_LABEL = {
 const HASH_TO_SETTINGS = new Map<string, SettingsCategory>([
   ["general", "general"],
   ["security", "security"],
+  ["vaults", "vaults"],
   ["connectivity", "connectivity"],
   ["data", "data"],
   ["danger", "danger"],

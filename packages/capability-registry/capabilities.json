@@ -1986,6 +1986,33 @@
     }
   },
   {
+    "id": "vaults.switch",
+    "title": "Switch between the vaults on this device, seal or delete one",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vaults.ts:switchVault",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "picking, sealing or deleting a vault on a device is a human ceremony at the unlock boundary; an agent holds a ConnectionRef into one open vault and never chooses which tomb is open",
+        "adr": "0089-device-vault-switching.md"
+      },
+      "mcp_client": {
+        "reason": "picking, sealing or deleting a vault on a device is a human ceremony at the unlock boundary; an agent holds a ConnectionRef into one open vault and never chooses which tomb is open",
+        "adr": "0089-device-vault-switching.md"
+      },
+      "webmcp": {
+        "reason": "picking, sealing or deleting a vault on a device is a human ceremony at the unlock boundary; an agent holds a ConnectionRef into one open vault and never chooses which tomb is open",
+        "adr": "0089-device-vault-switching.md"
+      }
+    }
+  },
+  {
     "id": "vault.totp.code",
     "title": "Read a current TOTP code (never the seed)",
     "plane": "client_local",

@@ -238,7 +238,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0088).
+  0001–0089).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -265,6 +265,15 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   the tests in `SignInPanel.test.tsx`, `UnlockScreen.test.tsx`, and
   `store.test.ts` asserting guest exists and stays isolated are load-bearing
   and must not be deleted or inverted.
+- A device holds several vaults (the personal tomb, one per project, the
+  guest tomb), and there is exactly one list of them: `listDeviceVaults()` in
+  `apps/pages/src/lib/vaults.ts`, rendered by `components/VaultList.tsx` on the
+  front door (`screens/VaultsScreen.tsx`), the `@tomb` prompt, and Settings →
+  Vaults. Do not add a second switcher. A project's name is sealed inside its
+  tomb, so nothing may show it before unlock (`vaultLabel` says
+  `project · 4f2a`); a vault opens without a prompt only when
+  `VaultStore.sharesKeyWith` proves it shares the session's wrap material
+  ([ADR 0089](docs/adr/0089-device-vault-switching.md)).
 - Anything with a deadline (certificate, CA, signer, brokered credential,
   rotation policy) is detected by the lifecycle scanner and published on the
   `lifecycle.*` hook feed — never by a subsystem's own private due-check.

@@ -162,11 +162,12 @@ function bootView(): ProjectsState {
   const projects: PagesProject[] = [personalProject()];
   for (const id of [...ids].sort()) {
     if (id === PERSONAL_PROJECT_ID) continue;
+    const known = unsealedNames.get(id);
     projects.push({
       id,
-      name: id,
+      name: known?.name ?? id,
       kind: "standard",
-      createdAt: new Date(0).toISOString(),
+      createdAt: known?.createdAt ?? new Date(0).toISOString(),
     });
   }
   return { v: 1, projects, activeId };
@@ -175,6 +176,17 @@ function bootView(): ProjectsState {
 type Listener = () => void;
 const listeners = new Set<Listener>();
 let cached: ProjectsState | null = null;
+/**
+ * Names given in this tab that no tomb has sealed yet — a project created
+ * from the vault switcher before its tomb had a projects view. They ride
+ * over every boot-view rebuild (a lock discards the sealed view) until the
+ * first sealed write carries them, and are forgotten the moment it does.
+ * Never a name read back from a sealed copy: those stay inside the tomb.
+ */
+const unsealedNames = new Map<
+  string,
+  Pick<PagesProject, "name" | "createdAt">
+>();
 /** The tomb this session's sealed view belongs to, when hydrated on unlock. */
 let activeTomb: string | null = null;
 
@@ -202,7 +214,14 @@ export async function hydrateProjectsFromVfs(tomb: string): Promise<void> {
     cached = sanitize(JSON.parse(new TextDecoder().decode(bytes)));
   } catch (error) {
     if (error instanceof VfsError && error.code === "locked") throw error;
+    // No sealed copy yet — a tomb sealed moments ago from the vault switcher.
+    // The boot view carries any name typed in this tab (`unsealedNames`);
+    // seal it here now rather than leaving it to the next mutation.
     cached = bootView();
+    if (unsealedNames.has(tomb) && tombUnlocked(tomb)) {
+      await writeState(cached);
+      return;
+    }
   }
   emit();
 }
@@ -257,8 +276,54 @@ async function writeState(next: ProjectsState): Promise<void> {
       PROJECTS_CONFIG_PATH,
       new TextEncoder().encode(JSON.stringify(next)),
     );
+    // This tomb's own name is sealed in its own view now; a sibling's name
+    // in this view says nothing about the sibling's tomb, so it stays.
+    unsealedNames.delete(tomb);
   }
   emit();
+}
+
+/**
+ * Give a tomb its own sealed projects view when it has none yet — the
+ * moment a shared-key project is opened or forked with the key in hand.
+ * Names come from the view that was open a moment ago (`previous`) and from
+ * anything typed in this tab; sealed here now, none of it has to ride in
+ * memory or fall back to an id after a lock. No-op once a view exists.
+ */
+export async function carryProjectsViewInto(
+  tomb: string,
+  previous: ProjectsState,
+): Promise<void> {
+  if (!tombUnlocked(tomb)) return;
+  try {
+    await readFile(tomb, PROJECTS_CONFIG_PATH);
+    return;
+  } catch (error) {
+    if (error instanceof VfsError && error.code === "locked") throw error;
+  }
+  activeTomb = tomb;
+  const merged = withKnownNames(bootView(), previous);
+  await writeState({ ...merged, activeId: readBootActiveId() });
+}
+
+function withKnownNames(
+  next: ProjectsState,
+  previous: ProjectsState,
+): ProjectsState {
+  const known = new Map(
+    previous.projects
+      .filter((project) => project.name !== project.id)
+      .map((project) => [project.id, project] as const),
+  );
+  return {
+    ...next,
+    projects: next.projects.map((project) => {
+      const seen = known.get(project.id);
+      return seen && project.name === project.id
+        ? { ...project, name: seen.name, createdAt: seen.createdAt }
+        : project;
+    }),
+  };
 }
 
 export function listProjects(): PagesProject[] {
@@ -318,6 +383,10 @@ async function createProjectDefault(name: string): Promise<PagesProject> {
     kind: "standard",
     createdAt: new Date().toISOString(),
   };
+  unsealedNames.set(project.id, {
+    name: project.name,
+    createdAt: project.createdAt,
+  });
   await writeState({
     ...state,
     projects: [...state.projects, project],
@@ -380,6 +449,7 @@ async function deleteProjectDefault(id: string): Promise<void> {
     deleteFile(id, "config/org-profile"),
     unregisterTomb(id),
   ]);
+  unsealedNames.delete(id);
   await writeState({
     v: 1,
     projects: state.projects.filter((project) => project.id !== id),

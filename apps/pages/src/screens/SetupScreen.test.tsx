@@ -362,12 +362,7 @@ describe("building the list of ways in", () => {
       clientId: "generic",
     });
 
-    expect(ways()).toEqual([
-      "Google",
-      "Google",
-      "Okta",
-      "Other OIDC",
-    ]);
+    expect(ways()).toEqual(["Google", "Google", "Okta", "Other OIDC"]);
     expect(written.signIn.providers.map((idp) => idp.issuer)).toEqual([
       "https://accounts.google.com",
       "https://acme.okta.com",
@@ -414,9 +409,7 @@ describe("building the list of ways in", () => {
 
   it("says plainly what removing everything means", async () => {
     const onDone = openSetup(vi.fn());
-    fireEvent.click(
-      screen.getByRole("button", { name: "Remove Google" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Remove Google" }));
 
     expect(ways()).toEqual([]);
     expect(screen.getByText(/Local vault only: no recovery/)).toBeDefined();

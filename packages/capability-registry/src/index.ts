@@ -68,6 +68,7 @@ const ADR_NOTIFICATION_CEREMONIES =
   "0084-external-authorization-notifications.md";
 const ADR_PWA_INSTALL = "0085-pwa-install-offer.md";
 const ADR_INTERACTION_LAYER = "0086-wallet-native-interaction-layer.md";
+const ADR_DEVICE_VAULTS = "0089-device-vault-switching.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -194,6 +195,12 @@ const FIRST_RUN_CEREMONY: CapabilityExclusion = {
   reason:
     "the anonymous first visitor is the deployment's operator; letting an agent answer who this app trusts for identity would let it choose the issuer that authenticates every later human",
   adr: ADR_FIRST_RUN_SETUP,
+};
+
+const DEVICE_VAULT_CEREMONY: CapabilityExclusion = {
+  reason:
+    "picking, sealing or deleting a vault on a device is a human ceremony at the unlock boundary; an agent holds a ConnectionRef into one open vault and never chooses which tomb is open",
+  adr: ADR_DEVICE_VAULTS,
 };
 
 export const CAPABILITIES: readonly Capability[] = [
@@ -1880,6 +1887,24 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_open_reveal",
+    },
+  },
+  {
+    id: "vaults.switch",
+    title: "Switch between the vaults on this device, seal or delete one",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vaults.ts:switchVault",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: DEVICE_VAULT_CEREMONY,
+      mcp_client: DEVICE_VAULT_CEREMONY,
+      webmcp: DEVICE_VAULT_CEREMONY,
     },
   },
   {
