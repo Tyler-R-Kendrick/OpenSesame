@@ -306,6 +306,10 @@ describe("support panel", () => {
     const computer = screen.getByText("Computer").closest("details");
     expect(thoughts?.open).toBe(false);
     expect(computer?.open).toBe(false);
+    // Nested in the Conversation live region; without this, expanding dumps
+    // the trace into assistive technology as if it were a new answer.
+    expect(thoughts?.getAttribute("aria-live")).toBe("off");
+    expect(computer?.getAttribute("aria-live")).toBe("off");
 
     await user.click(screen.getByText("Thoughts"));
     expect(thoughts?.open).toBe(true);
