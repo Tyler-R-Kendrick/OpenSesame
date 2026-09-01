@@ -543,7 +543,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "lib/join-session.ts:askToJoin",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -551,6 +551,7 @@ export const CAPABILITIES: readonly Capability[] = [
     excluded: {
       mcp_host: SESSION_SURFACE_DEFERRED,
       mcp_client: SESSION_SURFACE_DEFERRED,
+      webmcp: SESSION_SURFACE_DEFERRED,
     },
   },
   {

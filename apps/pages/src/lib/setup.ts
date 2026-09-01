@@ -54,6 +54,12 @@ export type SetupRecord = {
   ways: string[];
   /** True when an OpenSesame identity service was named. */
   service: boolean;
+  /**
+   * True when this device joined an existing session rather than answering
+   * "who signs people in" as the operator. The record still exists so a reload
+   * does not treat the visitor as a first operator again.
+   */
+  joined: boolean;
 };
 
 function readWays(value: BoundaryValue | undefined): string[] {
@@ -74,6 +80,7 @@ function loadSetupDefault(): SetupRecord | null {
       completedAt: parsed.completedAt,
       ways: readWays(parsed.ways),
       service: parsed.service === true,
+      joined: parsed.joined === true,
     };
   } catch {
     // A corrupt record is the same as no record: the ceremony runs again,
@@ -91,10 +98,11 @@ export type SetupContext = {
 };
 
 async function completeSetupDefault(
-  outcome: Omit<SetupRecord, "completedAt">,
+  outcome: Omit<SetupRecord, "completedAt" | "joined"> & { joined?: boolean },
 ): Promise<void> {
   const record: SetupRecord = {
     completedAt: new Date().toISOString(),
+    joined: false,
     ...outcome,
   };
   // Durable: losing this write means asking the operator the same question
@@ -115,7 +123,7 @@ export function loadSetup(): SetupRecord | null {
 }
 
 export async function completeSetup(
-  outcome: Omit<SetupRecord, "completedAt">,
+  outcome: Omit<SetupRecord, "completedAt" | "joined"> & { joined?: boolean },
 ): Promise<void> {
   return setupSeams.completeSetup(outcome);
 }

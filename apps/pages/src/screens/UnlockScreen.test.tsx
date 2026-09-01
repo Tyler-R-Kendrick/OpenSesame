@@ -171,6 +171,7 @@ Object.assign(setupScreenDependencies, {
   // The ceremony's own behaviour is covered in SetupScreen.test.tsx; these
   // tests only care that it is reached and handed back from.
   completeSetup,
+  readJoinFromLocation: () => null,
 });
 
 const STRONG = "correct horse battery staple";
@@ -262,7 +263,7 @@ describe("UnlockScreen — setup gate", () => {
 
     // The screen this replaces led with an amber report of the same state.
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
+      "This device is empty",
     );
     expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
   });
@@ -291,7 +292,7 @@ describe("UnlockScreen — setup gate", () => {
     setupRequiredHolder.current = true;
     rerender(<UnlockScreen />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
+      "This device is empty",
     );
   });
 
@@ -300,7 +301,7 @@ describe("UnlockScreen — setup gate", () => {
     setupRequiredHolder.current = true;
     const { rerender } = render(<UnlockScreen />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
+      "This device is empty",
     );
 
     v.state = {
@@ -322,8 +323,8 @@ describe("UnlockScreen — setup gate", () => {
     fresh();
     setupRequiredHolder.current = true;
     render(<UnlockScreen />);
-    // One tap: the brokered road needs nothing typed, and there is only the
-    // one question.
+    fireEvent.click(screen.getByRole("button", { name: /Set up this device/ }));
+    // One tap after that: the brokered road needs nothing typed.
     fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
 
     return waitFor(() =>
@@ -370,7 +371,7 @@ describe("UnlockScreen — setup gate", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
+      "This device is empty",
     );
   });
 
@@ -383,7 +384,7 @@ describe("UnlockScreen — setup gate", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Set it up" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
+      "This device is empty",
     );
   });
 
