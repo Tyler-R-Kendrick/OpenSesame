@@ -105,28 +105,46 @@ export const unlockScreenDependencies = {
 /**
  * Setup comes before every other pre-vault screen.
  *
- * A deployment nobody has configured cannot offer a working sign-in or a vault
- * to unlock, so the first visitor is asked the operator's four questions
- * instead of being shown two broken affordances and a warning. Once the
- * ceremony is answered — or it never applied, because a vault or a session is
- * already here — this is the unlock form and nothing else.
+ * A device with no vault and no session cannot offer a working sign-in or a
+ * vault to unlock, so the first visitor is asked to set this deployment up or
+ * join an existing session — not shown two broken affordances and a warning.
+ * Once the ceremony is answered — or it never applied, because a vault or a
+ * session is already here — this is the unlock form and nothing else.
  *
  * The split exists so the early return happens above the form's hooks rather
- * than among them.
+ * than among them. The gate is re-read on every render: freezing it in
+ * `useState` would skip the ceremony if the vault still looked sealed on the
+ * first paint, and would keep a returning user in setup if a late hydrate then
+ * found a vault.
  */
 export function UnlockScreen() {
   const { status } = useVault();
-  const [setupOpen, setSetupOpen] = useState(() =>
-    unlockScreenDependencies.setupRequired({
-      vaultStatus: status,
-      hasSession: unlockScreenDependencies.currentSession() !== null,
-    }),
-  );
+  const [dismissed, setDismissed] = useState(false);
+  const [forced, setForced] = useState(false);
+  const required = unlockScreenDependencies.setupRequired({
+    vaultStatus: status,
+    hasSession: unlockScreenDependencies.currentSession() !== null,
+  });
+  const setupOpen = forced || (required && !dismissed);
 
   if (setupOpen) {
-    return <SetupScreen onDone={() => setSetupOpen(false)} />;
+    return (
+      <SetupScreen
+        onDone={() => {
+          setForced(false);
+          setDismissed(true);
+        }}
+      />
+    );
   }
-  return <UnlockForm onOpenSetup={() => setSetupOpen(true)} />;
+  return (
+    <UnlockForm
+      onOpenSetup={() => {
+        setDismissed(false);
+        setForced(true);
+      }}
+    />
+  );
 }
 
 function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
