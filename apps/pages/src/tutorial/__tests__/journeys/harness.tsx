@@ -160,13 +160,16 @@ function buildEngine(
   transport: SupportTransport,
 ): JourneyEngine {
   registerGuidePredicates();
-  const readContext = (): SupportPageContext =>
-    buildSupportPageContext({
+  const readContext = (question?: string): SupportPageContext => {
+    const input = {
       pageId: "pages",
       route: host.currentRoute(),
       hostReachable: true,
       identityReachable: true,
-    });
+    };
+    if (question === undefined) return buildSupportPageContext(input);
+    return buildSupportPageContext({ ...input, question });
+  };
   const vocabulary: SupportGuideVocabulary = {
     get goals() {
       return readContext().goals.map((goal) => goal.id);

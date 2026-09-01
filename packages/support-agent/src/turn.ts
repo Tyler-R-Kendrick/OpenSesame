@@ -23,6 +23,8 @@ import {
   SUPPORT_LIMITS,
   type SupportAgentPort,
   type SupportComputerStep,
+  type SupportGrounding,
+  type SupportHelpEntry,
   type SupportPageContext,
   type SupportRequest,
   type SupportTurn,
@@ -75,6 +77,8 @@ export type SupportTurnOptions = {
 
 export type SupportTurnOutcome = {
   readonly answer: string;
+  /** What the answer's procedure rests on, from its `sources:` line. */
+  readonly grounding: SupportGrounding;
   readonly program: GuideProgram | null;
   readonly guideError: GuideCompileFailureSummary | null;
   readonly suggestedQuestions: readonly string[];
@@ -233,6 +237,79 @@ export function parseSupportTurn(raw: string): SupportTurn {
   };
 }
 
+const SOURCES_LINE = /^\s*sources?\s*:\s*(.*)$/iu;
+const NONE_SOURCES = new Set(["", "none", "n/a", "-", "—"]);
+
+export type SupportSourcesExtraction = {
+  /** The answer with its `sources:` line removed. */
+  readonly answer: string;
+  /** `null` when the answer carried no `sources:` line at all. */
+  readonly cited: readonly string[] | null;
+};
+
+/**
+ * Splits the trailing `sources:` line off an answer. Only the last non-blank
+ * line counts: a model that mentions "sources" mid-answer has said a word, not
+ * made a citation. Identifiers are taken as written, minus the quoting a
+ * model tends to add, and are matched against the context by the caller — the
+ * text here is still model output and proves nothing by itself.
+ */
+export function extractSupportSources(
+  answer: string,
+): SupportSourcesExtraction {
+  const lines = answer.split(/\r?\n/);
+  let last = lines.length - 1;
+  while (last >= 0 && (lines[last] ?? "").trim().length === 0) last -= 1;
+  if (last < 0) return { answer: answer.trim(), cited: null };
+  const match = SOURCES_LINE.exec(lines[last] ?? "");
+  if (match === null) return { answer: answer.trim(), cited: null };
+  const cited = (match[1] ?? "")
+    .split(/[,;\s]+/u)
+    .map((token) =>
+      token
+        .replace(/[`'"\[\]()<>*.]+$/gu, "")
+        .replace(/^[`'"\[\]()<>*]+/gu, ""),
+    )
+    .map((token) => token.trim().toLowerCase())
+    .filter((token) => !NONE_SOURCES.has(token));
+  return {
+    answer: lines.slice(0, last).join("\n").trim(),
+    cited,
+  };
+}
+
+/**
+ * Decides what an answer rests on. A citation counts only when it names an
+ * entry the model was actually shown, in the order the context listed them;
+ * naming something else is the same as naming nothing.
+ */
+export type SupportGroundedAnswer = {
+  readonly answer: string;
+  readonly grounding: SupportGrounding;
+};
+
+export function groundSupportAnswer(
+  answer: string,
+  help: readonly SupportHelpEntry[],
+): SupportGroundedAnswer {
+  const extracted = extractSupportSources(answer);
+  if (extracted.cited === null) {
+    return { answer: extracted.answer, grounding: { kind: "uncited" } };
+  }
+  if (extracted.cited.length === 0) {
+    return { answer: extracted.answer, grounding: { kind: "none" } };
+  }
+  const named = new Set(extracted.cited);
+  const matched = help.filter((entry) => named.has(entry.id.toLowerCase()));
+  if (matched.length === 0) {
+    return { answer: extracted.answer, grounding: { kind: "uncited" } };
+  }
+  return {
+    answer: extracted.answer,
+    grounding: { kind: "cited", help: matched },
+  };
+}
+
 /**
  * The parse and validation diagnostics share only a code, so this is the
  * intersection both branches satisfy. Reading them structurally keeps the
@@ -372,7 +449,10 @@ export async function runSupportTurn(
 ): Promise<SupportTurnOutcome> {
   const sanitized = sanitizeSupportRequest(request);
   const first = await port.run(sanitized, { signal: options.signal });
-  const answer = parseSupportTurn(first.answer).answer;
+  const { answer, grounding } = groundSupportAnswer(
+    parseSupportTurn(first.answer).answer,
+    sanitized.context.help,
+  );
   const suggestedQuestions = clampSuggestions(first.suggestedQuestions);
   const thoughts = clampThoughts(first.thoughts);
   const computer = clampComputer(first.computer);
@@ -380,6 +460,7 @@ export async function runSupportTurn(
   if (source === null) {
     return {
       answer,
+      grounding,
       program: null,
       guideError: null,
       suggestedQuestions,
@@ -396,6 +477,7 @@ export async function runSupportTurn(
     if (result.ok) {
       return {
         answer,
+        grounding,
         program: result.program,
         guideError: null,
         suggestedQuestions,
@@ -416,6 +498,7 @@ export async function runSupportTurn(
 
   return {
     answer,
+    grounding,
     program: null,
     guideError: { stage, codes: uniqueCodes(issues), issues, attempts },
     suggestedQuestions,

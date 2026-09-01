@@ -201,6 +201,12 @@ pub mod http_security {
     use tower_http::cors::{AllowOrigin, CorsLayer};
 
     pub const ENV_CORS_ORIGINS: &str = "OPENSESAME_CORS_ORIGINS";
+    /// The deployed GitHub Pages vault. It is the one browser client every
+    /// Host is expected to serve, and the Identity API keeps it on its
+    /// allowlist however `OPENSESAME_CORS_ORIGINS` is set — so the Host does
+    /// the same, or the two planes disagree and the PWA reports one of them
+    /// down with a CORS error the operator cannot explain.
+    pub const PAGES_DEPLOY_ORIGIN: &str = "https://tyler-r-kendrick.github.io";
     /// Vite apps that call Host API / daemon from the browser.
     pub const DEV_CORS_ORIGINS: &str = concat!(
         "http://127.0.0.1:5173,http://localhost:5173,",
@@ -212,13 +218,24 @@ pub mod http_security {
         "https://tyler-r-kendrick.github.io"
     );
 
+    /// Parses the allowlist, keeping the deployed Pages origin on it. A
+    /// wildcard entry is left as written so `assert_cors_origins_allowed`
+    /// can refuse it; nothing is appended beside one.
     pub fn parse_cors_origins(raw: Option<&str>) -> Vec<String> {
-        raw.unwrap_or(DEV_CORS_ORIGINS)
+        let mut origins: Vec<String> = raw
+            .unwrap_or(DEV_CORS_ORIGINS)
             .split(',')
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(str::to_string)
-            .collect()
+            .collect();
+        let wildcard = origins
+            .iter()
+            .any(|o| o == "*" || o.eq_ignore_ascii_case("null"));
+        if !wildcard && !origins.iter().any(|o| o == PAGES_DEPLOY_ORIGIN) {
+            origins.push(PAGES_DEPLOY_ORIGIN.to_string());
+        }
+        origins
     }
 
     #[must_use]
@@ -573,6 +590,32 @@ mod tests {
         assert!(origins.contains(&"http://127.0.0.1:5180".into()));
         assert!(origins.contains(&"https://tyler-r-kendrick.github.io".into()));
         assert!(assert_cors_origins_allowed(&origins, false).is_ok());
+    }
+
+    #[test]
+    fn cors_origins_keep_the_pages_origin_when_overridden() {
+        use super::http_security::PAGES_DEPLOY_ORIGIN;
+        let origins = parse_cors_origins(Some("https://app.example, https://ops.example"));
+        assert_eq!(
+            origins,
+            vec![
+                "https://app.example".to_string(),
+                "https://ops.example".to_string(),
+                PAGES_DEPLOY_ORIGIN.to_string(),
+            ]
+        );
+        // Listed already: not duplicated.
+        let listed =
+            parse_cors_origins(Some(&format!("{PAGES_DEPLOY_ORIGIN},https://app.example")));
+        assert_eq!(
+            listed
+                .iter()
+                .filter(|o| o.as_str() == PAGES_DEPLOY_ORIGIN)
+                .count(),
+            1
+        );
+        // A wildcard is left for the production check to refuse, not padded.
+        assert_eq!(parse_cors_origins(Some("*")), vec!["*".to_string()]);
     }
 
     #[test]

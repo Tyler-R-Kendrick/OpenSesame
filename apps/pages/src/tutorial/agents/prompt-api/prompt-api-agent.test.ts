@@ -102,6 +102,8 @@ const pageContext: SupportPageContext = {
     { id: "connection.create", title: "Create a connection", available: true },
   ],
   goals: [{ id: "connection.create", title: "Add a connection" }],
+  help: [],
+  tools: [],
 };
 
 function makeRequest(question = "How do I add a connection?"): SupportRequest {

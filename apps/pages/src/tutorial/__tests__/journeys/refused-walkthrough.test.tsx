@@ -50,9 +50,12 @@ describe("a walkthrough the compiler refuses", () => {
 
     const thread = within(panel).getByRole("region", { name: "Conversation" });
     const lines = within(thread).getAllByRole("article");
-    expect(lines).toHaveLength(3);
+    // Question, answer, the refusal, and the grounding note every model
+    // answer now carries — this one cited nothing, so it is labelled.
+    expect(lines).toHaveLength(4);
     expect(lines[1]?.textContent).toContain(ANSWER);
     expect(lines[2]?.textContent).toContain(GUIDE_REFUSED_TEXT);
+    expect(lines[3]?.textContent).toContain("written help");
 
     // Nothing ran: not the `click`, and not the `say` and `focus` above it.
     expect(journey.drawn()).toEqual([]);

@@ -296,5 +296,28 @@ export function fakeSupportPageContext(): SupportPageContext {
       { id: "connection.create", title: "Add a provider connection" },
       { id: "vault.unlock", title: "Unlock the vault" },
     ],
+    help: [
+      {
+        id: "help.connection.create",
+        title: "How do I connect a provider?",
+        answer:
+          "Connections, then Add a connection. Search the catalog, open the provider's page, and approve it once on its Authorization panel.",
+        goal: "connection.create",
+      },
+      {
+        id: "help.lock",
+        title: "Where do I lock the vault?",
+        answer: "The lock sits on the right of the statusline.",
+        goal: null,
+      },
+    ],
+    tools: [
+      {
+        name: "opensesame_connections_read",
+        description:
+          "Read the Host connection plane: provider catalog, connections, one connection with its activity events, or configured integrations.",
+        exposed: true,
+      },
+    ],
   };
 }

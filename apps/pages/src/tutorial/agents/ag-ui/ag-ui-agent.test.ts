@@ -45,6 +45,21 @@ const CONTEXT: SupportPageContext = {
     { id: "connection.create", title: "Create a connection", available: true },
   ],
   goals: [{ id: "connection.create", title: "Add a provider connection" }],
+  help: [
+    {
+      id: "help.connection.create",
+      title: "How do I connect a provider?",
+      answer: "Connections, then Add a connection.",
+      goal: "connection.create",
+    },
+  ],
+  tools: [
+    {
+      name: "opensesame_connections_read",
+      description: "Read the Host connection plane.",
+      exposed: true,
+    },
+  ],
 };
 
 const REQUEST: SupportRequest = {
@@ -204,6 +219,8 @@ describe("egress", () => {
         state: [],
         capabilities: [],
         goals: [],
+        help: [],
+        tools: [],
       },
     };
     // SAFETY: the fixture deliberately carries what the declared contract
@@ -307,6 +324,21 @@ describe("egress", () => {
         ],
         goals: [
           { id: "connection.create", title: "Add a provider connection" },
+        ],
+        help: [
+          {
+            id: "help.connection.create",
+            title: "How do I connect a provider?",
+            answer: "Connections, then Add a connection.",
+            goal: "connection.create",
+          },
+        ],
+        tools: [
+          {
+            name: "opensesame_connections_read",
+            description: "Read the Host connection plane.",
+            exposed: true,
+          },
         ],
       },
       history: [

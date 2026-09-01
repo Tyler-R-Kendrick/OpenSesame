@@ -8,9 +8,14 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { IconSupport, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
+import {
+  subscribeWebMcpRegistration,
+  webmcpRegistrationSnapshot,
+} from "../../webmcp/registration.js";
 import {
   GUIDE_GOALS,
   type GuideGoalDescriptor,
@@ -23,7 +28,7 @@ import { guideRouteWithin } from "../registry/routes.js";
 import type { SupportEntry } from "../session.js";
 import { useSupport } from "../session.js";
 import "../support.css";
-import { UNAVAILABLE_TEXT } from "./messages.js";
+import { UNAVAILABLE_TEXT, webmcpStatusText } from "./messages.js";
 
 const SPEAKER = {
   question: "you",
@@ -187,6 +192,26 @@ export function SupportPanel(): ReactElement {
                     </ol>
                   </details>
                 ) : null}
+                {entry.walkthroughs.length > 0 ? (
+                  <div className="support__suggestions">
+                    {entry.walkthroughs.map((walkthrough) => {
+                      const named = guideGoal(walkthrough.goal);
+                      if (!named) return null;
+                      return (
+                        <button
+                          key={walkthrough.goal}
+                          type="button"
+                          className="btn btn--sm"
+                          onClick={() =>
+                            void support.startGuide(named.guide, "authored")
+                          }
+                        >
+                          Show me: {walkthrough.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
                 {entry.suggestions.length > 0 ? (
                   <div className="support__suggestions">
                     {entry.suggestions.map((suggestion) => (
@@ -282,6 +307,8 @@ export function SupportPanel(): ReactElement {
             })}
           </section>
 
+          <WebMcpStatus />
+
           {goals.length > 0 ? (
             <section className="support__goals" aria-label="Walkthroughs">
               <p className="support__section-label">Walkthroughs</p>
@@ -333,6 +360,25 @@ export function SupportPanel(): ReactElement {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * What this page has registered with the browser's model context. The same
+ * fact the DevTools WebMCP panel reports, shown where a person can see it
+ * without DevTools — and where "no tools detected" can be told apart from "no
+ * model context in this browser".
+ */
+function WebMcpStatus(): ReactElement {
+  const snapshot = useSyncExternalStore(
+    subscribeWebMcpRegistration,
+    webmcpRegistrationSnapshot,
+    webmcpRegistrationSnapshot,
+  );
+  return (
+    <p className="hint support__webmcp" aria-label="WebMCP status">
+      {webmcpStatusText(snapshot)}
+    </p>
   );
 }
 

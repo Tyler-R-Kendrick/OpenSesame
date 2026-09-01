@@ -40,6 +40,10 @@ import {
   createKeymapHandler,
   registerVaultKeymap,
 } from "../../lib/keymap.js";
+import {
+  noteWebMcpRegistered,
+  resetWebMcpRegistrationForTests,
+} from "../../webmcp/registration.js";
 import { webmcpSupportSeam } from "../../webmcp/tools.js";
 import { buildSupportPageContext } from "../registry/context.js";
 import { GUIDE_GOALS } from "../registry/goals.js";
@@ -86,7 +90,16 @@ function buildEngine(
   const session = createSupportSession({
     port: agent,
     vocabulary,
-    readContext: () => context,
+    // Re-read per question, as the app does: the written help a model is
+    // shown is retrieved for what was asked.
+    readContext: (question) =>
+      buildSupportPageContext({
+        pageId: "test",
+        route: "/vault",
+        hostReachable: true,
+        identityReachable: true,
+        question,
+      }),
   });
   const renderer = createRecordingRenderer();
   const targets = createFakeTargets(vocabulary.targets, vocabulary.targets);
@@ -418,6 +431,87 @@ describe("support panel", () => {
 
     const field = await composer();
     await waitFor(() => expect(field.disabled).toBe(false));
+  });
+
+  it("labels an answer with the written help it cited and offers its walkthrough", async () => {
+    const user = userEvent.setup();
+    mount(
+      fakeAgentAnswering(
+        "Identity, then Providers, then Register an IdP.\nsources: help.identity.account.add",
+      ),
+    );
+    await openPanel(user);
+    await ask(user, "how do I add a user?");
+
+    expect(
+      await screen.findByText(
+        "Identity, then Providers, then Register an IdP.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Drawn from the written help: “How do I add someone to this deployment?”.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Show me: Add an account to this deployment",
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/sources:/)).toBeNull();
+  });
+
+  it("puts the written answer beside a reply that cited nothing it plainly covers", async () => {
+    const user = userEvent.setup();
+    mount(
+      fakeAgentAnswering(
+        "Navigate to Identity, then select Identity.schema and click Add.",
+      ),
+    );
+    await openPanel(user);
+    await ask(user, "how do I add a user?");
+
+    const note = await screen.findByText(/cited nothing from the written help/);
+    expect(note.textContent).toContain(
+      "“How do I add someone to this deployment?”",
+    );
+    expect(note.textContent).toContain("Register an IdP");
+    expect(
+      screen.getByRole("button", {
+        name: "Show me: Add an account to this deployment",
+      }),
+    ).toBeTruthy();
+  });
+
+  it("marks a reply unverified when it cites nothing and nothing written matches", async () => {
+    const user = userEvent.setup();
+    mount(fakeAgentAnswering("Try the Billing tab."));
+    await openPanel(user);
+    await ask(user, "zzyzx quux?");
+    expect(
+      await screen.findByText(
+        /it is unverified: a control it names may not exist/,
+      ),
+    ).toBeTruthy();
+  });
+
+  it("reports what this page has registered with the browser's model context", async () => {
+    const user = userEvent.setup();
+    mount(fakeAgentAlwaysUnavailable("no_local_model"), "none");
+    await openPanel(user);
+    const status = await screen.findByLabelText("WebMCP status");
+    expect(status.textContent).toContain("exposes no model context");
+
+    noteWebMcpRegistered("document", "boot", [
+      { name: "opensesame_status", description: "status", scope: "boot" },
+      { name: "opensesame_health", description: "health", scope: "boot" },
+    ]);
+    await waitFor(() =>
+      expect(status.textContent).toBe(
+        "WebMCP: 2 tools exposed to this browser's agent through document.modelContext.",
+      ),
+    );
+    resetWebMcpRegistrationForTests();
   });
 
   it("searches the written help without asking anything", async () => {

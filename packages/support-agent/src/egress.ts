@@ -25,6 +25,7 @@ import {
   SUPPORT_LIMITS,
   type SupportCapabilityDescription,
   type SupportGoalDescription,
+  type SupportHelpEntry,
   type SupportMessage,
   type SupportMessageRole,
   type SupportPageContext,
@@ -33,6 +34,7 @@ import {
   type SupportStateFact,
   type SupportTargetDescription,
   type SupportTargetRole,
+  type SupportToolDescription,
 } from "./contract.js";
 
 /**
@@ -314,7 +316,11 @@ const CONTEXT_KEYS: readonly string[] = [
   "state",
   "capabilities",
   "goals",
+  "help",
+  "tools",
 ];
+const HELP_KEYS: readonly string[] = ["id", "title", "answer", "goal"];
+const TOOL_KEYS: readonly string[] = ["name", "description", "exposed"];
 const TARGET_KEYS: readonly string[] = ["id", "description", "role", "mounted"];
 const ROUTE_KEYS: readonly string[] = ["id", "title"];
 const STATE_KEYS: readonly string[] = ["id", "value"];
@@ -448,6 +454,60 @@ function sanitizeGoals(
   return out;
 }
 
+/**
+ * Written help is authored prose and the one long text the context carries.
+ * `goal` is an identifier or null — never free text — so the walkthrough it
+ * names is looked up in the registry rather than described by the model.
+ */
+function sanitizeHelp(
+  value: BoundaryValue | undefined,
+): readonly SupportHelpEntry[] {
+  const list = requireArray(value, "request.context.help");
+  const out: SupportHelpEntry[] = [];
+  const count = Math.min(list.length, SUPPORT_LIMITS.maxHelpEntries);
+  for (let index = 0; index < count; index += 1) {
+    const field = `request.context.help[${index}]`;
+    const record = requireObject(list[index], field);
+    requireExactKeys(record, HELP_KEYS, field);
+    const goal = record.goal;
+    out.push({
+      id: requireIdentifier(record.id, `${field}.id`),
+      title: clampText(
+        requireString(record.title, `${field}.title`),
+        MAX_DESCRIPTION_CHARS,
+      ),
+      answer: clampText(
+        requireString(record.answer, `${field}.answer`),
+        SUPPORT_LIMITS.maxHelpAnswerChars,
+      ),
+      goal: goal === null ? null : requireIdentifier(goal, `${field}.goal`),
+    });
+  }
+  return out;
+}
+
+function sanitizeTools(
+  value: BoundaryValue | undefined,
+): readonly SupportToolDescription[] {
+  const list = requireArray(value, "request.context.tools");
+  const out: SupportToolDescription[] = [];
+  const count = Math.min(list.length, SUPPORT_LIMITS.maxTools);
+  for (let index = 0; index < count; index += 1) {
+    const field = `request.context.tools[${index}]`;
+    const record = requireObject(list[index], field);
+    requireExactKeys(record, TOOL_KEYS, field);
+    out.push({
+      name: requireIdentifier(record.name, `${field}.name`),
+      description: clampText(
+        requireString(record.description, `${field}.description`),
+        MAX_DESCRIPTION_CHARS,
+      ),
+      exposed: requireBoolean(record.exposed, `${field}.exposed`),
+    });
+  }
+  return out;
+}
+
 function sanitizeContext(value: BoundaryValue | undefined): SupportPageContext {
   const record = requireObject(value, "request.context");
   requireExactKeys(record, CONTEXT_KEYS, "request.context");
@@ -463,6 +523,8 @@ function sanitizeContext(value: BoundaryValue | undefined): SupportPageContext {
     state: sanitizeState(record.state),
     capabilities: sanitizeCapabilities(record.capabilities),
     goals: sanitizeGoals(record.goals),
+    help: sanitizeHelp(record.help),
+    tools: sanitizeTools(record.tools),
   };
 }
 

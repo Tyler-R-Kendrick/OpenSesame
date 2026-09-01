@@ -35,6 +35,8 @@ const BODY: AgUiOutboundBody = {
     state: [],
     capabilities: [],
     goals: [],
+    help: [],
+    tools: [],
   },
   history: [],
   question: "How do I add a connection?",

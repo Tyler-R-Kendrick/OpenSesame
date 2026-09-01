@@ -22,6 +22,7 @@ describe("package surface", () => {
       "fenceForAgent",
       "forAgent",
       "listRegisteredTools",
+      "liveWebMcpToolNames",
       "looksLikeCredential",
       "scrubLocalSecrets",
       "toolDisposition",
@@ -35,7 +36,7 @@ describe("package surface", () => {
     ).toEqual([]);
   });
 
-  it("keeps executeTool unreachable when the browser implements it", () => {
+  it("keeps executeTool unreachable when the browser implements it", async () => {
     const executed: string[] = [];
     const api: ModelContextApi = {
       source: "document",
@@ -45,7 +46,7 @@ describe("package surface", () => {
         return null;
       },
     };
-    const summaries = listRegisteredTools(api);
+    const summaries = await listRegisteredTools(api);
     expect(summaries.map((summary) => summary.name)).toEqual([
       "opensesame_status",
     ]);

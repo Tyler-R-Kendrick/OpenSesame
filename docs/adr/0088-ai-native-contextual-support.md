@@ -286,6 +286,60 @@ identical pipeline model output goes through: an authored guide gets no
 privileged path, because a path that only executes when the model is missing is
 a path that is never exercised.
 
+### 11. Answers are grounded in the written help, and say so (amendment, 2026-09-01)
+
+The first deployment showed the gap in §10 as written. An on-device model
+asked "how do I add a user?" on the Identity screen answered with a tab and a
+button that do not exist, and the only thing that stopped the walkthrough it
+attached was the validator. The prose reached the person unchallenged. The
+help graph held the right answer the whole time — "How do I add someone to
+this deployment?" — and the model was never shown it.
+
+So the page context now carries two more authored sections, and the turn is
+checked against one of them:
+
+- **Written help, retrieved per question.** `rankHelpTopics` in
+  `apps/pages/src/tutorial/registry/goals.ts` scores every authored topic
+  against the words of the question — authored `keywords` first (the words
+  people use that the prose does not: "user" for an account), then the title,
+  then the answer — and the best matches go into `SupportPageContext.help`
+  with their full checked-in prose. Retrieval is lexical, offline and
+  deterministic; there is no embedding and no index to ship.
+- **The tools this page implements.** The WebMCP lifecycle records every
+  registration in `apps/pages/src/webmcp/registration.ts`, and
+  `SupportPageContext.tools` lists the names and authored descriptions of what
+  is registered right now, with whether the browser at hand actually exposes
+  them. This is the "grounded in what is implemented" list: a locked vault
+  reports three boot tools, an unlocked one twenty. The model still cannot
+  call any of them (§8 stands unchanged); it is told what exists so it stops
+  inventing what does not.
+- **A `sources:` line.** The instruction requires every answer to end with
+  `sources: <help ids>` or `sources: none`, and `groundSupportAnswer` in
+  `@opensesame/support-agent` strips the line and checks it against the help
+  the model was shown. An id the context never offered counts as nothing
+  cited. The outcome is one of `cited`, `none` or `uncited`, and the panel
+  labels every answer by it: a cited answer names the entries it drew on and
+  offers their walkthroughs; an uncited answer whose question the written
+  help confidently covers gets the written answer placed beside it; an
+  uncited answer that matches nothing is marked unverified rather than
+  hidden.
+
+The written help is still the source of truth and the model is still what
+gets re-grounded — this is the mechanism that does the re-grounding on every
+turn instead of leaving it to the next catalog edit. The policy clauses that
+implement it are in `SUPPORT_POLICY_CLAUSES` and asserted verbatim.
+
+Two adjacent findings landed with it. `packages/webmcp` was written against
+an early draft in which `registerTool` returned an unregister handle; the
+current draft returns a promise, rejects a duplicate name, and ends a
+registration only through the `AbortSignal` passed in — so nothing this page
+registered was ever unregistered, and a re-registration on route change was
+refused silently. The registrar now passes a signal, calls `unregisterTool`
+where an early build offers it, retires a live name before registering it
+again, and reports a refusal through `onFailure` to the registration store
+the support panel reads. The on-device session is also created with its
+output language declared, which Chrome had been warning about on every turn.
+
 ## What was rejected, and why
 
 - **LLM-authored CSS selectors.** The direct route to "point at the control",

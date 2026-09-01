@@ -33,6 +33,12 @@ export type HelpTopic = {
   readonly routes: readonly GuideRouteId[];
   /** Goal to offer alongside the answer, when one applies. */
   readonly goal: GuideGoalId | null;
+  /**
+   * The words a person uses for this that the title and answer do not: "user"
+   * for an account, "reset" for a master password. Retrieval is lexical and
+   * offline, so synonyms are authored here rather than inferred anywhere.
+   */
+  readonly keywords: readonly string[];
 };
 
 export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
@@ -480,6 +486,17 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "The lock sits on the right of the statusline, and on the top bar on a phone. Locking drops the vault keys held in memory; your master password opens it again. Settings → Security can also lock automatically after a period of inactivity.",
     routes: [],
     goal: "vault.lock",
+    keywords: [
+      "lock",
+      "locking",
+      "logout",
+      "log out",
+      "sign out",
+      "leave",
+      "away",
+      "idle",
+      "auto-lock",
+    ],
   },
   {
     id: "help.health",
@@ -488,6 +505,18 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Two different questions, two places. The statusline reports whether the Host plane and the Identity plane are reachable. Vault health, under Vault, reports on the items themselves — weak, reused and aging credentials.",
     routes: [],
     goal: "host.health.check",
+    keywords: [
+      "health",
+      "healthy",
+      "status",
+      "reachable",
+      "online",
+      "down",
+      "connectivity",
+      "plane",
+      "statusline",
+      "working",
+    ],
   },
   {
     id: "help.connection.create",
@@ -496,6 +525,20 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Connections → Add a connection. Search the catalog, open the provider's page, and approve it once on its Authorization panel. The credential is sealed on the Host; projects and agents are bound to the connection afterwards, and never receive the credential itself.",
     routes: [],
     goal: "connection.create",
+    keywords: [
+      "connection",
+      "connect",
+      "provider",
+      "integration",
+      "oauth",
+      "authorize",
+      "link",
+      "catalog",
+      "github",
+      "google",
+      "slack",
+      "api",
+    ],
   },
   {
     id: "help.connection.broken",
@@ -504,6 +547,20 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Open that connector's page from Connections. An authorization that only needs a fresh credential offers Renew now; one the provider has invalidated has to be authorized again. If the whole list fails to load, the Host plane is the thing to check first, on the statusline.",
     routes: [],
     goal: null,
+    keywords: [
+      "broken",
+      "stopped working",
+      "failed",
+      "failing",
+      "error",
+      "renew",
+      "expired",
+      "revoked",
+      "reauthorize",
+      "fix",
+      "repair",
+      "not working",
+    ],
   },
   {
     id: "help.vault.item.create",
@@ -512,6 +569,21 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Vault → New item. The kind follows whichever filter is active, so narrowing to Logins first gives you a login. Everything you enter — the name and the folder as much as the secret — is encrypted into the vault body on this device.",
     routes: [],
     goal: "vault.item.create",
+    keywords: [
+      "login",
+      "secret",
+      "password",
+      "item",
+      "entry",
+      "credential",
+      "new",
+      "create",
+      "store",
+      "save",
+      "api key",
+      "note",
+      "card",
+    ],
   },
   {
     id: "help.vault.import",
@@ -520,6 +592,22 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Import sits beside New item in the Vault, and takes a .env, .csv, .json, .1pux, .zip or .kdbx export. Choosing a file hands it to the import panel under Settings → Vault data, which is also where an earlier OpenSesame export is merged back in.",
     routes: [],
     goal: null,
+    keywords: [
+      "import",
+      "migrate",
+      "bring",
+      "move",
+      "1password",
+      "bitwarden",
+      "lastpass",
+      "keepass",
+      "kdbx",
+      "csv",
+      "json",
+      "env",
+      "another password manager",
+      "transfer",
+    ],
   },
   {
     id: "help.vault.health.review",
@@ -528,6 +616,19 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Vault → Health scores every stored password for strength, reuse and age. It runs entirely on this device over the already-decrypted collection: no password, and no hash of one, is sent anywhere.",
     routes: [],
     goal: "vault.health.review",
+    keywords: [
+      "weak",
+      "reused",
+      "reuse",
+      "old",
+      "aging",
+      "strength",
+      "audit",
+      "health",
+      "report",
+      "compromised",
+      "score",
+    ],
   },
   {
     id: "help.identity.account.add",
@@ -536,6 +637,28 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Identity → Providers, then Register an IdP. People sign in through a registered identity provider, so the provider is bound first; the shipped presets cover the common enterprise issuers and a custom OIDC issuer is the fallback.",
     routes: [],
     goal: "identity.account.add",
+    keywords: [
+      "user",
+      "users",
+      "person",
+      "people",
+      "someone",
+      "member",
+      "members",
+      "team",
+      "invite",
+      "add account",
+      "account",
+      "sign in",
+      "sign-in",
+      "idp",
+      "provider",
+      "register",
+      "deployment",
+      "onboard",
+      "seat",
+      "colleague",
+    ],
   },
   {
     id: "help.settings.security.review",
@@ -544,6 +667,19 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Settings → Security. It holds the unlock methods enrolled on this device — password, PIN, passkey — and the master password they are wrapped under. Changing the master password re-wraps the vault key; it does not re-encrypt your items.",
     routes: [],
     goal: "settings.security.review",
+    keywords: [
+      "unlock",
+      "master password",
+      "passphrase",
+      "pin",
+      "passkey",
+      "biometric",
+      "security",
+      "change password",
+      "reset",
+      "settings",
+      "lock timer",
+    ],
   },
   {
     id: "help.access.grant",
@@ -552,6 +688,20 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Access → Grants → Grant access. You choose what is being shared, narrow what may be done with it, decide who it is for, and mint a claim code. The agent receives a delegation, never the credential behind it.",
     routes: [],
     goal: "access.grant",
+    keywords: [
+      "agent",
+      "access",
+      "grant",
+      "delegate",
+      "delegation",
+      "share",
+      "permission",
+      "claim code",
+      "scope",
+      "allow",
+      "authority",
+      "token",
+    ],
   },
   {
     id: "help.unlock",
@@ -560,6 +710,16 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "The unlock screen is the passkey, PIN or master password challenge for this device. Signing in with an identity provider is a separate tab and does not unwrap the vault key.",
     routes: ["/unlock"],
     goal: "unlock.open",
+    keywords: [
+      "unlock",
+      "open",
+      "locked",
+      "master password",
+      "pin",
+      "passkey",
+      "get in",
+      "sign in",
+    ],
   },
   {
     id: "help.setup",
@@ -568,6 +728,18 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "An empty device offers two roads: set it up as the operator, or join a session you were invited to. The operator road is the allowlist of sign-in providers; finish records it and returns to sign-in. An empty list is a local-only vault.",
     routes: ["/setup"],
     goal: "setup.first-run",
+    keywords: [
+      "setup",
+      "set up",
+      "first run",
+      "operator",
+      "allowlist",
+      "who can sign in",
+      "sign-in providers",
+      "join",
+      "new device",
+      "install",
+    ],
   },
   {
     id: "help.backup",
@@ -576,6 +748,18 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "Settings → Vault data. GitHub backup stores ciphertext in a repo this Host already has an app on. The encrypted export on the same page is how a vault moves to another device — the master password still opens it.",
     routes: [],
     goal: "settings.backup",
+    keywords: [
+      "backup",
+      "back up",
+      "export",
+      "restore",
+      "github",
+      "sync",
+      "copy",
+      "another device",
+      "recover",
+      "move vault",
+    ],
   },
   {
     id: "help.account.register",
@@ -584,6 +768,18 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "People sign in through a registered identity provider. Identity → Providers → Register an IdP binds the issuer; the sign-in screen then offers it. First-run setup is the same allowlist before anyone has unlocked.",
     routes: [],
     goal: "identity.account.add",
+    keywords: [
+      "register",
+      "sign up",
+      "signup",
+      "new account",
+      "create account",
+      "user",
+      "account",
+      "join",
+      "onboard",
+      "enroll",
+    ],
   },
 ];
 
@@ -681,10 +877,155 @@ export function helpTopicsForRoute(route: GuideRouteId): readonly HelpTopic[] {
   );
 }
 
-/** Substring search over authored help. No index, no model, works offline. */
+/**
+ * Words that carry no topic on their own. A question is mostly these, and a
+ * ranking that counted them would find every topic equally relevant.
+ */
+const STOPWORDS: ReadonlySet<string> = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "can",
+  "do",
+  "does",
+  "for",
+  "from",
+  "get",
+  "have",
+  "here",
+  "how",
+  "i",
+  "if",
+  "in",
+  "is",
+  "it",
+  "its",
+  "me",
+  "my",
+  "of",
+  "on",
+  "one",
+  "or",
+  "our",
+  "should",
+  "so",
+  "the",
+  "there",
+  "this",
+  "to",
+  "up",
+  "want",
+  "we",
+  "what",
+  "when",
+  "where",
+  "which",
+  "why",
+  "with",
+  "would",
+  "you",
+  "your",
+]);
+
+/** Lowercase word stems: plural and progressive endings dropped. */
+function stem(word: string): string {
+  if (word.length > 4 && word.endsWith("ing")) return word.slice(0, -3);
+  if (word.length > 3 && word.endsWith("es")) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith("s")) return word.slice(0, -1);
+  return word;
+}
+
+function tokenize(text: string): readonly string[] {
+  const out: string[] = [];
+  for (const raw of text.toLowerCase().split(/[^a-z0-9]+/u)) {
+    if (raw.length < 2 || STOPWORDS.has(raw)) continue;
+    const word = stem(raw);
+    if (!out.includes(word)) out.push(word);
+  }
+  return out;
+}
+
+const KEYWORD_WEIGHT = 3;
+const TITLE_WEIGHT = 2;
+const ANSWER_WEIGHT = 1;
+/** A keyword hit, or a title word plus anything else, is a confident match. */
+const STRONG_SCORE = 3;
+
+type IndexedTopic = {
+  readonly topic: HelpTopic;
+  readonly keywords: ReadonlySet<string>;
+  readonly title: ReadonlySet<string>;
+  readonly answer: ReadonlySet<string>;
+};
+
+const INDEX: readonly IndexedTopic[] = HELP_TOPICS.map((topic) => ({
+  topic,
+  keywords: new Set(topic.keywords.flatMap((keyword) => tokenize(keyword))),
+  title: new Set(tokenize(topic.title)),
+  answer: new Set(tokenize(topic.answer)),
+}));
+
+export type RankedHelpTopic = {
+  readonly topic: HelpTopic;
+  readonly score: number;
+  /** Confident enough to stand in for an answer that cited nothing. */
+  readonly strong: boolean;
+};
+
+function scoreTopic(indexed: IndexedTopic, words: readonly string[]): number {
+  let score = 0;
+  for (const word of words) {
+    if (indexed.keywords.has(word)) score += KEYWORD_WEIGHT;
+    else if (indexed.title.has(word)) score += TITLE_WEIGHT;
+    else if (indexed.answer.has(word)) score += ANSWER_WEIGHT;
+  }
+  return score;
+}
+
+/**
+ * The written help that answers a question, best first. Lexical, offline and
+ * deterministic: a word of the question against each topic's authored
+ * keywords, title and answer. This is the retrieval step that puts the
+ * checked-in answer in front of a model before it is asked — and, when a model
+ * cites nothing, decides whether a written answer can stand in for it.
+ */
+export function rankHelpTopics(
+  question: string,
+  route: GuideRouteId | null = null,
+): readonly RankedHelpTopic[] {
+  const words = tokenize(question);
+  if (words.length === 0) return [];
+  const ranked: RankedHelpTopic[] = [];
+  for (const indexed of INDEX) {
+    const { topic } = indexed;
+    const scoped =
+      route === null ||
+      topic.routes.length === 0 ||
+      topic.routes.some((candidate) => guideRouteWithin(route, candidate));
+    if (!scoped) continue;
+    const score = scoreTopic(indexed, words);
+    if (score === 0) continue;
+    ranked.push({ topic, score, strong: score >= STRONG_SCORE });
+  }
+  // A stable sort keeps authored order among equals.
+  return ranked.sort((left, right) => right.score - left.score);
+}
+
+/**
+ * Search over authored help: ranked by the words that match, with the old
+ * substring match kept as the fallback so a fragment of a title still finds
+ * it. No index, no model, works offline.
+ */
 export function searchHelpTopics(query: string): readonly HelpTopic[] {
   const needle = query.trim().toLowerCase();
   if (needle.length === 0) return HELP_TOPICS;
+  const ranked = rankHelpTopics(needle).map((entry) => entry.topic);
+  if (ranked.length > 0) return ranked;
   return HELP_TOPICS.filter(
     (topic) =>
       topic.title.toLowerCase().includes(needle) ||
