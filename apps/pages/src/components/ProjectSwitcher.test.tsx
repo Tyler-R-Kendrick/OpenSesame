@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,7 +21,7 @@ const proj = vi.hoisted(() => ({
         createdAt: "2025-01-01T00:00:00Z",
       },
       {
-        id: "work",
+        id: "prj_work",
         name: "Work",
         kind: "standard" as const,
         createdAt: "2025-01-02T00:00:00Z",
@@ -29,29 +30,38 @@ const proj = vi.hoisted(() => ({
     activeId: "personal",
   },
   createProject: vi.fn(),
-  deleteProject: vi.fn(),
   setActiveProject: vi.fn(),
   afterProjectChange: vi.fn(),
+  continueAsGuest: vi.fn(),
   unlocked: false,
 }));
 
 import { projectSeams } from "../lib/projects.js";
-const originalProjectSeams = { ...projectSeams };
 Object.assign(projectSeams, {
   projectsState: () => proj.state,
   subscribeProjects: () => () => {},
   createProject: proj.createProject,
-  deleteProject: proj.deleteProject,
   setActiveProject: proj.setActiveProject,
 });
 
 import { vaultStore } from "../lib/vault/store.js";
 vi.spyOn(vaultStore, "isUnlocked").mockImplementation(() => proj.unlocked);
 
+import { guestAuthSeams } from "../lib/guest-auth.js";
+Object.assign(guestAuthSeams, { continueAsGuest: proj.continueAsGuest });
+
 import { ProjectSwitcher, projectSwitcherSeams } from "./ProjectSwitcher.js";
 Object.assign(projectSwitcherSeams, {
   afterProjectChange: proj.afterProjectChange,
 });
+
+function renderSwitcher() {
+  return render(
+    <MemoryRouter>
+      <ProjectSwitcher />
+    </MemoryRouter>,
+  );
+}
 
 function openMenu() {
   const toggle = document.querySelector(".project-switcher .prompt__seg");
@@ -59,24 +69,25 @@ function openMenu() {
   fireEvent.click(toggle);
 }
 
-/** The row inside the open menu, not the switcher toggle itself. */
-function menuItem(name: string): HTMLElement {
-  const matches = screen
-    .getAllByRole("button", { name })
-    .filter((el) => el.className.includes("project-switcher__item"));
-  if (matches.length !== 1) throw new Error(`menu item ${name} not found`);
+/** A vault row inside the open menu, by its label. */
+function vaultRow(label: string): HTMLElement {
+  const matches = [...document.querySelectorAll(".vault-row__body")].filter(
+    (el) => el.querySelector(".vault-row__name")?.textContent === label,
+  );
+  if (matches.length !== 1) throw new Error(`vault row ${label} not found`);
   return overlapCast(matches[0]);
 }
 
-describe("ProjectSwitcher", () => {
+describe("ProjectSwitcher — the @tomb prompt", () => {
   beforeEach(() => {
     proj.state.activeId = "personal";
     proj.unlocked = false;
     proj.createProject.mockReset();
-    proj.deleteProject.mockReset();
     proj.setActiveProject.mockReset();
     proj.afterProjectChange.mockReset();
     proj.afterProjectChange.mockResolvedValue(undefined);
+    proj.continueAsGuest.mockReset();
+    proj.continueAsGuest.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -84,79 +95,92 @@ describe("ProjectSwitcher", () => {
     vi.unstubAllGlobals();
   });
 
-  it("shows the active project and stays closed until asked", () => {
-    render(<ProjectSwitcher />);
-    expect(screen.queryByText("Projects")).toBeNull();
+  it("names the open vault and stays closed until asked", () => {
+    renderSwitcher();
+    expect(screen.queryByText("Vaults on this device")).toBeNull();
+    expect(screen.getByRole("button", { name: "personal" })).toBeTruthy();
     openMenu();
-    expect(screen.getByText("Projects")).toBeTruthy();
-    const active = menuItem("Personal");
-    expect(active.getAttribute("aria-current")).toBe("true");
-    expect(active.className).toContain("is-active");
+    expect(screen.getByText("Vaults on this device")).toBeTruthy();
+    // The cost of a switch is said where it is paid.
+    expect(screen.getByText("switching locks this one")).toBeTruthy();
   });
 
-  it("clicking the active project just closes the menu", () => {
-    render(<ProjectSwitcher />);
+  it("lists every vault on the device with guest as a peer", () => {
+    renderSwitcher();
     openMenu();
-    fireEvent.click(menuItem("Personal"));
-    expect(proj.setActiveProject).not.toHaveBeenCalled();
-    expect(screen.queryByText("Projects")).toBeNull();
+    expect(vaultRow("personal")).toBeTruthy();
+    expect(vaultRow("Work")).toBeTruthy();
+    expect(vaultRow("guest")).toBeTruthy();
+    expect(
+      screen.getByText("no key · this tab only · nothing here is touched"),
+    ).toBeTruthy();
   });
 
-  it("switching projects delegates to the store without reloading", async () => {
+  it("switching vaults delegates to the store without reloading", async () => {
     proj.setActiveProject.mockResolvedValue(undefined);
     const reload = vi.fn();
     vi.stubGlobal("location", { ...window.location, reload });
-    render(<ProjectSwitcher />);
+    renderSwitcher();
     openMenu();
-    fireEvent.click(screen.getByRole("button", { name: "Work" }));
+    fireEvent.click(vaultRow("Work"));
     await waitFor(() =>
-      expect(proj.setActiveProject).toHaveBeenCalledWith("work"),
+      expect(proj.setActiveProject).toHaveBeenCalledWith("prj_work"),
     );
+    // Nothing on this device shares a key, so the swap locks.
     expect(proj.afterProjectChange).toHaveBeenCalledWith(false);
     expect(reload).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+    expect(screen.queryByText("Vaults on this device")).toBeNull();
+  });
+
+  it("the guest row locks and continues as guest (AGENTS.md §5)", async () => {
+    renderSwitcher();
+    openMenu();
+    fireEvent.click(vaultRow("guest"));
+    await waitFor(() => expect(proj.continueAsGuest).toHaveBeenCalledTimes(1));
+    expect(proj.setActiveProject).not.toHaveBeenCalled();
   });
 
   it("surfaces swap failures instead of reloading", async () => {
     proj.setActiveProject.mockRejectedValue(new Error("vault busy"));
-    render(<ProjectSwitcher />);
+    renderSwitcher();
     openMenu();
-    fireEvent.click(screen.getByRole("button", { name: "Work" }));
+    fireEvent.click(vaultRow("Work"));
     expect(await screen.findByText("vault busy")).toBeTruthy();
   });
 
   it("Escape and the backdrop both close the menu", () => {
-    const { container, unmount } = render(<ProjectSwitcher />);
+    const { unmount } = renderSwitcher();
     openMenu();
-    fireEvent.keyDown(screen.getByLabelText("Projects"), { key: "Escape" });
-    expect(screen.queryByText("Projects")).toBeNull();
+    fireEvent.keyDown(screen.getByLabelText("Vaults on this device"), {
+      key: "Escape",
+    });
+    expect(screen.queryByText("Vaults on this device")).toBeNull();
     unmount();
 
-    const second = render(<ProjectSwitcher />);
+    const second = renderSwitcher();
     openMenu();
     fireEvent.click(
       overlapCast(
         second.container.querySelector(".project-switcher__backdrop"),
       ),
     );
-    expect(screen.queryByText("Projects")).toBeNull();
-    expect(container).toBeTruthy();
+    expect(screen.queryByText("Vaults on this device")).toBeNull();
   });
 
-  it("creates a project from the draft name and activates it", async () => {
+  it("seals a new vault from the draft name and activates it", async () => {
     proj.createProject.mockResolvedValue({
-      id: "side",
+      id: "prj_side",
       name: "Side quest",
       kind: "standard",
       createdAt: "2025-01-03T00:00:00Z",
     });
     proj.setActiveProject.mockResolvedValue(undefined);
-    render(<ProjectSwitcher />);
+    renderSwitcher();
     openMenu();
 
-    const submit = screen.getByRole("button", { name: "Create project" });
+    const submit = screen.getByRole("button", { name: "Seal a new vault" });
     expect(overlapCast(submit).disabled).toBe(true);
-    fireEvent.change(screen.getByLabelText("New project name"), {
+    fireEvent.change(screen.getByLabelText("New vault name"), {
       target: { value: "Side quest" },
     });
     expect(overlapCast(submit).disabled).toBe(false);
@@ -164,130 +188,83 @@ describe("ProjectSwitcher", () => {
     await waitFor(() =>
       expect(proj.createProject).toHaveBeenCalledWith("Side quest"),
     );
-    expect(proj.setActiveProject).toHaveBeenCalledWith("side");
+    expect(proj.setActiveProject).toHaveBeenCalledWith("prj_side");
     expect(proj.afterProjectChange).toHaveBeenCalledWith(false);
   });
 
-  it("carries a guest unlock into a new project instead of reauthenticating", async () => {
+  it("carries an open vault's key into a new one instead of reauthenticating", async () => {
     proj.unlocked = true;
     proj.createProject.mockResolvedValue({
-      id: "side",
+      id: "prj_side",
       name: "Side quest",
       kind: "standard",
       createdAt: "2025-01-03T00:00:00Z",
     });
     proj.setActiveProject.mockResolvedValue(undefined);
-    const reload = vi.fn();
-    vi.stubGlobal("location", { ...window.location, reload });
-    render(<ProjectSwitcher />);
+    renderSwitcher();
     openMenu();
-    fireEvent.change(screen.getByLabelText("New project name"), {
+    fireEvent.change(screen.getByLabelText("New vault name"), {
       target: { value: "Side quest" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
     await waitFor(() =>
       expect(proj.afterProjectChange).toHaveBeenCalledWith(true),
     );
-    expect(reload).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
   });
 
   it("reports create failures inline", async () => {
     proj.createProject.mockRejectedValue(new Error("name taken"));
-    render(<ProjectSwitcher />);
+    renderSwitcher();
     openMenu();
-    fireEvent.change(screen.getByLabelText("New project name"), {
+    fireEvent.change(screen.getByLabelText("New vault name"), {
       target: { value: "Personal" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
     expect(await screen.findByText("name taken")).toBeTruthy();
   });
 
-  it("arms delete before removing a non-personal, non-active project", async () => {
-    proj.deleteProject.mockResolvedValue(undefined);
-    render(<ProjectSwitcher />);
+  it("never deletes from the prompt — that lives in Settings → Vaults", () => {
+    renderSwitcher();
     openMenu();
-
-    // The personal project and the active project never get a delete button.
-    expect(
-      screen.queryByRole("button", { name: "Delete project Personal" }),
-    ).toBeNull();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delete project Work" }),
-    );
-    const confirm = screen.getByRole("button", { name: "Really delete?" });
-    fireEvent.click(confirm);
-    await waitFor(() =>
-      expect(proj.deleteProject).toHaveBeenCalledWith("work"),
-    );
+    expect(screen.queryByRole("button", { name: /Delete/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Manage" })).toBeTruthy();
   });
 
-  it("keeps the project when delete fails", async () => {
-    proj.deleteProject.mockRejectedValue(new Error("still unlocked"));
-    render(<ProjectSwitcher />);
-    openMenu();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delete project Work" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Really delete?" }));
-    expect(await screen.findByText("still unlocked")).toBeTruthy();
-  });
-
-  it("falls back to the first project when the active id is unknown", () => {
+  it("falls back to the first vault when the active id is unknown", () => {
     proj.state.activeId = "ghost";
-    render(<ProjectSwitcher />);
-    expect(screen.getByRole("button", { name: /Personal/ })).toBeTruthy();
+    renderSwitcher();
+    expect(screen.getByRole("button", { name: "personal" })).toBeTruthy();
   });
 
-  it("falls back to the Personal label when there are no projects at all", () => {
+  it("falls back to the personal label when there are no projects at all", () => {
     const projects = proj.state.projects;
     proj.state.projects = [];
     proj.state.activeId = "ghost";
-    render(<ProjectSwitcher />);
-    expect(screen.getByRole("button", { name: /Personal/ })).toBeTruthy();
+    renderSwitcher();
+    expect(screen.getByRole("button", { name: "personal" })).toBeTruthy();
     proj.state.projects = projects;
   });
 
   it("clicking the toggle again closes the menu", () => {
-    render(<ProjectSwitcher />);
+    renderSwitcher();
     openMenu();
-    expect(screen.getByText("Projects")).toBeTruthy();
+    expect(screen.getByText("Vaults on this device")).toBeTruthy();
     openMenu();
-    expect(screen.queryByText("Projects")).toBeNull();
+    expect(screen.queryByText("Vaults on this device")).toBeNull();
   });
 
-  it("stringifies non-Error failures from swap, create, and delete", async () => {
+  it("stringifies non-Error failures from swap and create", async () => {
     proj.setActiveProject.mockRejectedValue("plain string failure");
-    render(<ProjectSwitcher />);
+    renderSwitcher();
     openMenu();
-    fireEvent.click(menuItem("Work"));
+    fireEvent.click(vaultRow("Work"));
     expect(await screen.findByText("plain string failure")).toBeTruthy();
 
     proj.createProject.mockRejectedValue("create blew up");
-    fireEvent.change(screen.getByLabelText("New project name"), {
+    fireEvent.change(screen.getByLabelText("New vault name"), {
       target: { value: "X" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Seal a new vault" }));
     expect(await screen.findByText("create blew up")).toBeTruthy();
-
-    proj.deleteProject.mockRejectedValue("delete blew up");
-    fireEvent.click(
-      screen.getByRole("button", { name: "Delete project Work" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Really delete?" }));
-    expect(await screen.findByText("delete blew up")).toBeTruthy();
-  });
-
-  it("never offers delete for the active project, even when non-personal", () => {
-    proj.state.activeId = "work";
-    render(<ProjectSwitcher />);
-    openMenu();
-    expect(
-      screen.queryByRole("button", { name: "Delete project Work" }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Delete project Personal" }),
-    ).toBeNull();
   });
 });

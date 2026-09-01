@@ -467,6 +467,22 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "identity.login",
   },
   {
+    id: "vaults.list",
+    description:
+      "The list of vaults on this device — the personal vault, each project vault, and the guest road — where pressing a row switches to it.",
+    role: "surface",
+    routes: ["/unlock", "/settings/vaults"],
+    capabilityId: "vaults.switch",
+  },
+  {
+    id: "prompt.tomb",
+    description:
+      "The vault segment of the shell prompt (who@vault:/); opens the list of vaults on this device to switch between them.",
+    role: "action",
+    routes: [],
+    capabilityId: "vaults.switch",
+  },
+  {
     id: "unlock.setup",
     description:
       "Opens first-run setup, where the operator chooses who may sign people in.",

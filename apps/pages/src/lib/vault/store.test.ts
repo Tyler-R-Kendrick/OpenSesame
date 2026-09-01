@@ -27,6 +27,7 @@ import {
   WrongPasswordError,
   defaultPrefs,
   normalizeVaultPrefs,
+  readTombHeader,
 } from "./store.js";
 import { LEGACY_PREFS_KEY } from "./tomb-migration.js";
 
@@ -294,6 +295,115 @@ describe("VaultStore multi-method unlock", () => {
     expect(kvGet(HEADER_KEY)).not.toBeNull();
     expect(kvGet(tombFileKey(GUEST_TOMB, BODY_PATH))).toBeNull();
     expect(store.getSnapshot().status).toBe("locked");
+  });
+
+  it("knows which headers share its key, and only while open", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    const own = store.getSnapshot().header;
+    expect(store.sharesKeyWith(own)).toBe(true);
+    const { header: other } = await createVault("a wholly different secret");
+    expect(store.sharesKeyWith(other)).toBe(false);
+    expect(store.sharesKeyWith(null)).toBe(false);
+    // A wrap-less header opens with nothing, so it shares nothing.
+    expect(store.sharesKeyWith({ v: 1, createdAt: "2026-01-01" })).toBe(false);
+    store.lock();
+    expect(store.sharesKeyWith(own)).toBe(false);
+  });
+
+  it("opens a shared-key project with the key in hand, and refuses any other", async () => {
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await store.saveItem(createItem("login", "Personal only"));
+
+    // Sealed with this vault's key (the Manage panel's "share" road).
+    const shared = await createProject("Work");
+    await setActiveProject(shared.id);
+    await store.forkUnlockedIntoActiveScope();
+    await store.saveItem(createItem("login", "Work only"));
+
+    // Back to personal the plain way: lock, unlock.
+    await setActiveProject(PERSONAL_PROJECT_ID);
+    store.loadActiveProjectScope();
+    expect(store.getSnapshot().status).toBe("locked");
+    await store.unlock(PASSWORD);
+    expect(store.getSnapshot().tomb).toBe(PERSONAL_PROJECT_ID);
+
+    // Now the switcher's road: no prompt, the same key.
+    await setActiveProject(shared.id);
+    await store.openActiveScopeWithCurrentKey();
+    expect(store.getSnapshot().status).toBe("unlocked");
+    expect(store.getSnapshot().tomb).toBe(shared.id);
+    expect(store.getSnapshot().items.map((item) => item.name)).toEqual([
+      "Work only",
+    ]);
+
+    // A tomb sealed with a different key is refused, and the session comes
+    // back exactly where it was: same tomb, same key, same items.
+    const foreign = await createProject("Foreign");
+    const { header } = await createVault("a wholly different secret");
+    kvSet(tombFileKey(foreign.id, HEADER_PATH), JSON.stringify(header));
+    await setActiveProject(foreign.id);
+    await expect(store.openActiveScopeWithCurrentKey()).rejects.toThrow(
+      /different key/,
+    );
+    expect(store.getSnapshot().status).toBe("unlocked");
+    expect(store.getSnapshot().tomb).toBe(shared.id);
+    expect(store.getSnapshot().items.map((item) => item.name)).toEqual([
+      "Work only",
+    ]);
+    await store.saveItem(createItem("login", "Still writable"));
+
+    // Enrolling another method on one side does not break the prediction:
+    // the shared records are still identical.
+    await store.enrollPin("48291037");
+    expect(store.sharesKeyWith(readTombHeader(PERSONAL_PROJECT_ID))).toBe(true);
+
+    store.lock();
+    await setActiveProject(PERSONAL_PROJECT_ID);
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+  });
+
+  it("never forks a guest's key into a new tomb", async () => {
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+    const store = new VaultStore();
+    await store.createGuest();
+    const project = await createProject("Trap");
+    await setActiveProject(project.id);
+    await expect(store.forkUnlockedIntoActiveScope()).rejects.toThrow(
+      /no key to share/,
+    );
+    expect(kvGet(tombFileKey(project.id, HEADER_PATH))).toBeNull();
+    store.lock();
+    await setActiveProject(PERSONAL_PROJECT_ID);
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+  });
+
+  it("isolates a guest whenever any vault on the device is sealed", async () => {
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
+    // Personal is sealed; the boot pointer sits on a project that never got
+    // its own key. A guest must not land in that project's tomb.
+    const sealed = new VaultStore();
+    await sealed.create(PASSWORD);
+    sealed.lock();
+    const project = await createProject("Unsealed");
+    await setActiveProject(project.id);
+    const store = new VaultStore();
+    store.loadActiveProjectScope();
+    expect(store.getSnapshot().status).toBe("empty");
+    await store.createGuest();
+    expect(store.getSnapshot().tomb).toBe(GUEST_TOMB);
+    expect(store.getSnapshot().guest).toBe(true);
+    store.lock();
+    await setActiveProject(PERSONAL_PROJECT_ID);
+    kvDelete(PROJECTS_KEY);
+    rehydrateProjects();
   });
 
   it("rejects a weak PIN without creating a vault", async () => {

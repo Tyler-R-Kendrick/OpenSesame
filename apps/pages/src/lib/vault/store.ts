@@ -19,13 +19,19 @@ import {
   kvGet,
   kvSet,
 } from "../kv.js";
-import { activeProject, scopedKey } from "../projects.js";
+import {
+  activeProject,
+  carryProjectsViewInto,
+  projectsState,
+  scopedKey,
+} from "../projects.js";
 import {
   BODY_PATH,
   HEADER_PATH,
   VfsError,
   deleteFile,
   deletePlaintextFile,
+  listTombs,
   lockTomb,
   readFile,
   readPlaintextFile,
@@ -136,6 +142,52 @@ function guestVaultScope(): VaultScope {
 
 export type VaultStatus = "empty" | "locked" | "unlocked";
 
+/**
+ * A tomb's plaintext header, or null when nothing was ever sealed there (or
+ * the file is unreadable — treated the same: nothing to unlock). Public
+ * parameters only, the documented ADR 0063 boundary; the vault switcher reads
+ * these for every tomb on the device to say when each was sealed.
+ */
+/**
+ * Whether any tomb on this device holds a sealed vault. The guest road
+ * isolates itself whenever one does — a guest must never end up sealing the
+ * tomb of a project that was created but not yet given its own key.
+ */
+export function deviceHoldsSealedVault(): boolean {
+  return listTombs().some((tomb) => readTombHeader(tomb) !== null);
+}
+
+/**
+ * Whether two headers carry an identical wrap record — the same password
+ * wrap and derivation, the same PIN record, or the same passkey record. A
+ * project forked "with this vault's key" starts with every record equal;
+ * enrolling another method on one side leaves the shared ones intact, so
+ * one identical record is enough to predict a shared key. It is a
+ * prediction: opening the sealed body is the proof.
+ */
+export function sharesWrapRecord(a: VaultHeader, b: VaultHeader): boolean {
+  const same = (x: unknown, y: unknown) =>
+    x !== undefined &&
+    y !== undefined &&
+    x !== null &&
+    y !== null &&
+    JSON.stringify(x) === JSON.stringify(y);
+  if (same(a.wrap, b.wrap) && same(a.kdf, b.kdf)) return true;
+  if (same(a.unlocks?.pin, b.unlocks?.pin)) return true;
+  if (same(a.unlocks?.passkey, b.unlocks?.passkey)) return true;
+  return false;
+}
+
+export function readTombHeader(tomb: string): VaultHeader | null {
+  const raw = readPlaintextFile(tomb, HEADER_PATH);
+  if (!raw) return null;
+  try {
+    return overlapCast(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
 export type VaultPrefs = {
   /** Minutes of inactivity before the vault locks. 0 disables the timer. */
   autoLockMinutes: number;
@@ -204,6 +256,10 @@ export function normalizeVaultPrefs(
 
 export type VaultState = {
   status: VaultStatus;
+  /** The tomb this session is scoped to — a project id, `personal`, or `guest`. */
+  tomb: string;
+  /** True while a guest session holds the key: never wrapped to disk. */
+  guest: boolean;
   header: VaultHeader | null;
   items: VaultItem[];
   folders: Folder[];
@@ -316,6 +372,11 @@ export class VaultStore {
         "Unlock the vault before carrying it into a new project.",
       );
     }
+    // A guest holds a key that was never wrapped to disk: forking it would
+    // seal a tomb no passkey, PIN or password can ever open.
+    if (this.#ephemeral) {
+      throw new Error("A guest session has no key to share.");
+    }
     this.#scope = scopedVaultScope();
     unlockTomb(this.#scope.tomb, this.#vaultKey);
     const header: VaultHeader = {
@@ -336,19 +397,99 @@ export class VaultStore {
     );
     this.#persistPrefs();
     await this.#persist();
+    // The new tomb's own projects view, sealed now, so its name never has to
+    // ride in memory or fall back to its id after a lock.
+    await carryProjectsViewInto(this.#scope.tomb, projectsState());
     this.touch();
     this.#armIdleTimer();
     this.#emit();
   }
 
-  #readHeader(): VaultHeader | null {
-    const raw = readPlaintextFile(this.#scope.tomb, HEADER_PATH);
-    if (!raw) return null;
-    try {
-      return overlapCast(JSON.parse(raw));
-    } catch {
-      return null;
+  /** The tomb this session is scoped to. */
+  activeTomb(): string {
+    return this.#scope.tomb;
+  }
+
+  /**
+   * Whether `other` was sealed with this session's key — the header a
+   * project gets from `forkUnlockedIntoActiveScope` carries the same wrap
+   * material verbatim, so an equal wrap is the proof, not a name or a flag.
+   * False while locked: without a session there is nothing to share.
+   */
+  sharesKeyWith(other: VaultHeader | null): boolean {
+    if (!this.#vaultKey || !this.#header || !other) return false;
+    if (this.#ephemeral) return false;
+    return sharesWrapRecord(this.#header, other);
+  }
+
+  /**
+   * Swap into the active project's tomb and open it with the key already in
+   * hand — the road a shared-key project takes, so a person who sealed
+   * "Work" with their personal key is not asked for that key again.
+   *
+   * The target's header must share this session's wrap material
+   * (`sharesKeyWith`); anything else throws before the scope moves, and the
+   * caller falls back to a plain lock-and-unlock. The previous tomb locks
+   * first: two tombs are never open in one session.
+   */
+  async openActiveScopeWithCurrentKey(): Promise<void> {
+    const vaultKey = this.#vaultKey;
+    if (!vaultKey || !this.#header || this.#ephemeral) {
+      throw new Error("Unlock the vault before carrying it into another.");
     }
+    const next = scopedVaultScope();
+    const header = readTombHeader(next.tomb);
+    if (!header) {
+      throw new Error("That vault has not been sealed yet.");
+    }
+    // The header comparison is the cheap, sync prediction the switcher shows;
+    // the proof is opening the target's sealed body with the key in hand. A
+    // tomb with no body yet has nothing to prove against, so the prediction
+    // is the gate there.
+    if (
+      readSealedFile(next.tomb, BODY_PATH) === null &&
+      !sharesWrapRecord(this.#header, header)
+    ) {
+      throw new Error("That vault was sealed with a different key.");
+    }
+    // A vault whose unlock methods drifted from its sibling's still opens
+    // when the key is the same, and a matching header never opens a body
+    // sealed under a different one.
+    const previous = {
+      scope: this.#scope,
+      header: this.#header,
+      body: this.#body,
+      projects: projectsState(),
+    };
+    for (const handler of this.#lockHandlers) handler();
+    lockTomb(previous.scope.tomb);
+    discardTombCaches();
+    this.#scope = next;
+    this.#header = header;
+    this.#body = emptyBody();
+    try {
+      await this.#activateSession(vaultKey);
+    } catch (error) {
+      // Back where we were, key intact: the swap never happened.
+      lockTomb(next.tomb);
+      this.#scope = previous.scope;
+      this.#header = previous.header;
+      this.#body = previous.body;
+      this.#vaultKey = vaultKey;
+      unlockTomb(previous.scope.tomb, vaultKey);
+      await hydrateAndMigrateTombOnUnlock(previous.scope.tomb).catch(
+        () => undefined,
+      );
+      this.#emit();
+      throw error instanceof VaultCorruptError
+        ? new Error("That vault was sealed with a different key.")
+        : error;
+    }
+    await carryProjectsViewInto(next.tomb, previous.projects);
+  }
+
+  #readHeader(): VaultHeader | null {
+    return readTombHeader(this.#scope.tomb);
   }
 
   /**
@@ -402,6 +543,8 @@ export class VaultStore {
     );
     return {
       status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
+      tomb: this.#scope.tomb,
+      guest: this.#ephemeral && this.#vaultKey !== null,
       header: this.#header,
       items: this.#body.items,
       folders: this.#body.folders,
@@ -495,7 +638,7 @@ export class VaultStore {
     if (this.#vaultKey || this.#pendingVaultKey) {
       throw new Error("Lock the open vault before continuing as a guest.");
     }
-    if (this.#header) {
+    if (this.#header || deviceHoldsSealedVault()) {
       this.#scope = guestVaultScope();
       // Whatever a previous guest left behind is ciphertext under a key that
       // died with its tab — unreadable, and in the way of a fresh session.

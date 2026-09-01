@@ -590,3 +590,31 @@
     padding-left: 1.6rem;
   }
 }
+
+/* Which vault this key opens, in the prompt voice the rail uses inside:
+   `‹ Vaults / work :/` — the way back on the left, the tomb in accent. */
+.unlock__crumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.unlock__crumb .unlock__switch {
+  text-decoration: none;
+}
+
+.unlock__crumb .unlock__switch:hover {
+  text-decoration: underline;
+}
+
+.unlock__crumb-tomb {
+  font-weight: 600;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

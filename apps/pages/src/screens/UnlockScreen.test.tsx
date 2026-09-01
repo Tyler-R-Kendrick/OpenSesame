@@ -1553,3 +1553,105 @@ describe("UnlockScreen — TOTP step-up", () => {
     expect(screen.queryByLabelText("Email or organization")).toBeNull();
   });
 });
+
+/* ── Several vaults on one device (ADR 0089) ─────────────────────────── */
+
+import { vaultsSeams } from "../lib/vaults.js";
+
+describe("UnlockScreen — several vaults on this device", () => {
+  const originalDeps = { ...unlockScreenDependencies };
+  const originalVaultsSeams = { ...vaultsSeams };
+  const switchVault = vi.fn();
+  const vaults = [
+    {
+      id: "personal",
+      kind: "personal" as const,
+      label: "personal",
+      named: true,
+      sealedAt: "2026-08-14T10:00:00Z",
+      state: "locked" as const,
+      sharedKey: false,
+    },
+    {
+      id: "prj_0000-4f2a",
+      kind: "project" as const,
+      label: "project · 4f2a",
+      named: false,
+      sealedAt: "2026-08-27T10:00:00Z",
+      state: "locked" as const,
+      sharedKey: false,
+    },
+    {
+      id: "guest",
+      kind: "guest" as const,
+      label: "guest",
+      named: true,
+      sealedAt: null,
+      state: "empty" as const,
+      sharedKey: false,
+    },
+  ];
+
+  beforeEach(() => {
+    v.state = {
+      status: "locked",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingTotp: false,
+    };
+    switchVault.mockReset().mockResolvedValue("locked");
+    Object.assign(vaultsSeams, {
+      switchVault,
+      listDeviceVaults: () => vaults,
+      deviceHasSeveralVaults: () => true,
+    });
+    Object.assign(unlockScreenDependencies, {
+      deviceHasSeveralVaults: () => true,
+      listDeviceVaults: () => vaults,
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    Object.assign(unlockScreenDependencies, originalDeps);
+    Object.assign(vaultsSeams, originalVaultsSeams);
+  });
+
+  it("opens on the choice, not on the boot pointer's tomb", async () => {
+    render(<UnlockScreen />);
+    expect(screen.getByRole("heading", { name: "Vaults" })).toBeTruthy();
+    // The sealed name is a secret before unlock: the id's tail stands in.
+    expect(screen.getByText("project · 4f2a")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /guest/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByText("project · 4f2a"));
+    await waitFor(() =>
+      expect(switchVault).toHaveBeenCalledWith("prj_0000-4f2a"),
+    );
+    // Picked: its unlock form is next, with the way back beside the heading.
+    expect(await screen.findByRole("heading", { name: "Unlock" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "‹ Vaults" })).toBeTruthy();
+  });
+
+  it("the crumb leads back to the front door", async () => {
+    render(<UnlockScreen />);
+    fireEvent.click(
+      screen.getByText("personal", { selector: ".vault-row__name" }),
+    );
+    expect(await screen.findByRole("heading", { name: "Unlock" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "‹ Vaults" }));
+    expect(screen.getByRole("heading", { name: "Vaults" })).toBeTruthy();
+  });
+
+  it("a device with one vault still opens straight on its unlock form", () => {
+    Object.assign(unlockScreenDependencies, {
+      deviceHasSeveralVaults: () => false,
+    });
+    Object.assign(vaultsSeams, { deviceHasSeveralVaults: () => false });
+    render(<UnlockScreen />);
+    expect(screen.getByRole("heading", { name: "Unlock" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "‹ Vaults" })).toBeNull();
+  });
+});

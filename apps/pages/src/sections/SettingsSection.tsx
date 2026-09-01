@@ -62,6 +62,7 @@ import { SecretConfigsPanel as DefaultSecretConfigsPanel } from "./settings/Secr
 import { SyncTargetsPanel as DefaultSyncTargetsPanel } from "./settings/SyncTargetsPanel.js";
 import { TaskBusPanel as DefaultTaskBusPanel } from "./settings/TaskBusPanel.js";
 import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
+import { VaultsPanel as DefaultVaultsPanel } from "./settings/VaultsPanel.js";
 import "./settings.css";
 import { overlapCast } from "@opensesame/os-domain";
 
@@ -155,6 +156,7 @@ export type SettingsPanels = {
   OfflineBackupPanel: ComponentType;
   ImportPanel: ComponentType;
   ItemTypesPanel: ComponentType;
+  VaultsPanel: ComponentType;
 };
 
 const defaultPanels: SettingsPanels = {
@@ -171,6 +173,7 @@ const defaultPanels: SettingsPanels = {
   OfflineBackupPanel: DefaultOfflineBackupPanel,
   ImportPanel: DefaultImportPanel,
   ItemTypesPanel: DefaultItemTypesPanel,
+  VaultsPanel: DefaultVaultsPanel,
 };
 
 /** `#import` predates the categories and deep-links into Vault data. */
@@ -721,6 +724,8 @@ export function SettingsSection({
           </div>
         </section>
       )}
+
+      {category !== "vaults" ? null : <resolvedPanels.VaultsPanel />}
 
       {category !== "connectivity" ? null : <CoreConnectionsPanel />}
 

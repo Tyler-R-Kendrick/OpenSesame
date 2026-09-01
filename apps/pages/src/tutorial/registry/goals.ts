@@ -51,6 +51,20 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
+    id: "vaults.switch",
+    title: "Switch to another vault on this device",
+    routes: [],
+    guide: [
+      "guide/1",
+      'goal "vaults.switch"',
+      'say "A device can hold several vaults: the personal one, one per project, and a guest session beside them. Switching locks the open vault unless the other shares its key."',
+      'focus "prompt.tomb" "This segment names the open vault. Press it to see every vault on this device." side=bottom',
+      'wait target "prompt.tomb" event=activate timeout=30000',
+      'say "Each row says when it was sealed and whether it opens without a prompt. Settings → Vaults is where a vault is sealed with a choice, or deleted."',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "host.health.check",
     title: "Check whether OpenSesame is healthy",
     routes: [],
@@ -567,6 +581,7 @@ export function guideGoal(id: GuideGoalId): GuideGoalDescriptor | null {
  * are the same screen); the map is many-to-one on purpose.
  */
 export const CAPABILITY_TUTORIALS: Readonly<Record<string, GuideGoalId>> = {
+  "vaults.switch": "vaults.switch",
   "host.health": "host.health.check",
   "host.health.pages": "host.health.check",
   "host.whoami": "identity.account.add",
