@@ -166,7 +166,9 @@ export function SetupScreen({
                   onClick={() => setRoad("setup")}
                 >
                   <span className="preset__name">Set up this device</span>
-                  <span className="preset__kind">Choose who signs people in</span>
+                  <span className="preset__kind">
+                    Choose who signs people in
+                  </span>
                 </button>
               </GuideTarget>
               <GuideTarget id="setup.join">
