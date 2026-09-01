@@ -16,6 +16,7 @@ colors:
   accent: "#0d7268"
   accent-ink: "#ffffff"
   accent-wash: "#eaf2f0"
+  scrim: "rgba(0, 0, 0, 0.44)"
   ok: "#0f7a51"
   warn: "#a25a05"
   err: "#b32424"
@@ -29,9 +30,14 @@ typography:
     fontFamily: "system mono stack"
     fontSize: "1.0625rem"
     fontWeight: 600
+  chrome:
+    fontFamily: "system mono stack"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.5
   body:
-    fontFamily: "system mono stack for chrome; system-ui for prose"
-    fontSize: "14px"
+    fontFamily: "system-ui"
+    fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.5
   label:
