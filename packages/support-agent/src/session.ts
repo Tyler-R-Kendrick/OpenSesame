@@ -160,11 +160,11 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
       if (mine !== generation) return;
       thoughts = outcome.thoughts;
       computer = outcome.computer;
+      // Traces stay on the snapshot, never on history: sanitizeHistory
+      // exact-keys `role`/`text`, and reasoning must not leave on the next ask.
       transcript.push({
         role: "assistant",
         text: outcome.answer,
-        ...(thoughts === null ? {} : { thoughts }),
-        ...(computer.length === 0 ? {} : { computer }),
       });
       program = outcome.program;
       guideError = outcome.guideError;

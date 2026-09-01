@@ -447,8 +447,8 @@ export function createSupportController(
       const last = snapshot.messages.at(-1);
       if (last && last.role === "assistant") {
         push("answer", last.text, snapshot.suggestedQuestions, {
-          thoughts: last.thoughts ?? snapshot.thoughts,
-          computer: last.computer ?? snapshot.computer,
+          thoughts: snapshot.thoughts,
+          computer: snapshot.computer,
         });
       }
       // A walkthrough the compiler rejected is reported as a walkthrough that

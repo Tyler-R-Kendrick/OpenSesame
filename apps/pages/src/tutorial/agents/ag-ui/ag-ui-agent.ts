@@ -208,16 +208,9 @@ function consumeEvent(
       return false;
     case "TOOL_CALL_END":
     case "TOOL_CALL_RESULT":
-      // Names only. Arguments and results are untrusted payload and are
-      // never shown — a server that "returns" a secret must not get it onto
-      // the page through the computer trace.
-      rememberComputer(
-        traces,
-        traces.openTool ??
-          readString(event.toolCallName) ??
-          readString(event.name),
-        undefined,
-      );
+      // Names only, and only the name from TOOL_CALL_START. RESULT/END
+      // `name` is untrusted payload — a server must not park a secret there.
+      rememberComputer(traces, traces.openTool ?? undefined, undefined);
       traces.openTool = null;
       return false;
     case "STEP_STARTED":

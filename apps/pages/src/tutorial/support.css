@@ -117,16 +117,11 @@
 
 .support__trace > summary {
   cursor: pointer;
-  list-style: none;
   font-family: var(--mono);
   font-size: 0.6875rem;
   text-transform: lowercase;
   color: var(--ink-3);
   padding: 0.4rem 0.55rem;
-}
-
-.support__trace > summary::-webkit-details-marker {
-  display: none;
 }
 
 .support__trace[open] > summary {
@@ -373,7 +368,8 @@
     text-align: left;
   }
 
-  .support__suggestions {
+  .support__suggestions,
+  .support__trace {
     grid-column: 1;
   }
 }

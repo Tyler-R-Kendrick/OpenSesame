@@ -147,11 +147,7 @@ export function SupportPanel(): ReactElement {
               in the same paint as its first message is not reliably announced,
               which would lose exactly the turn that matters most: the first
               question somebody asks and the answer they get back. */}
-          <section
-            className="support__thread"
-            aria-label="Conversation"
-            aria-live="polite"
-          >
+          <section className="support__thread" aria-label="Conversation">
             {view.transcript.map((entry) => (
               <article
                 key={entry.id}
@@ -161,7 +157,9 @@ export function SupportPanel(): ReactElement {
                 <span className="support__who" aria-hidden="true">
                   {SPEAKER[entry.kind]}
                 </span>
-                <p className="support__text">{entry.text}</p>
+                <p className="support__text" aria-live="polite">
+                  {entry.text}
+                </p>
                 {entry.thoughts ? (
                   <details className="support__trace">
                     <summary>Thoughts</summary>
