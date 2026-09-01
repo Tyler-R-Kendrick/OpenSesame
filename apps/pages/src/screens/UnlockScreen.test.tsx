@@ -267,6 +267,57 @@ describe("UnlockScreen — setup gate", () => {
     expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
   });
 
+  it("opens the ceremony once the device is known to be empty", () => {
+    // The vault header is hydrated from OPFS before first paint in production,
+    // but a one-shot `useState` initializer still races: if the first render
+    // saw a sealed tomb (or a live session) the ceremony never ran, even after
+    // that reading was corrected. Re-read the gate so a first-time visit
+    // cannot miss it.
+    v.state = {
+      status: "locked",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingTotp: false,
+    };
+    setupRequiredHolder.current = false;
+    const { rerender } = render(<UnlockScreen />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Unlock",
+    );
+
+    fresh();
+    setupRequiredHolder.current = true;
+    rerender(<UnlockScreen />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "How do people sign in?",
+    );
+  });
+
+  it("leaves a returning vault on unlock when a late hydrate finds one", () => {
+    fresh();
+    setupRequiredHolder.current = true;
+    const { rerender } = render(<UnlockScreen />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "How do people sign in?",
+    );
+
+    v.state = {
+      status: "locked",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingTotp: false,
+    };
+    setupRequiredHolder.current = false;
+    rerender(<UnlockScreen />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Unlock",
+    );
+  });
+
   it("hands back to the unlock screen once setup is answered", () => {
     fresh();
     setupRequiredHolder.current = true;
