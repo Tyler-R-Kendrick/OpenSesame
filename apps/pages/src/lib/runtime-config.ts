@@ -3,8 +3,9 @@
  *
  * A static Pages deploy cannot bake `VITE_*` endpoints without a rebuild, so
  * deploy-pages.sh writes this small same-origin file instead and the app reads
- * it once before first render. Absence is normal (a dev server, an older
- * deploy); every failure resolves to "no config" rather than blocking boot.
+ * it once before first render. The build ships `{}` so the fetch is a 200
+ * even when no endpoints are configured; every failure still resolves to
+ * "no config" rather than blocking boot.
  *
  * The file only carries endpoint URLs for the Settings layer. It can never
  * extend the compiled upstream trust list (ADR 0033 §2) — a hijacked config

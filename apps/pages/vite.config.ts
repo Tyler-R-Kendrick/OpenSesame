@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
@@ -64,6 +65,7 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.ts",
       registerType: "autoUpdate",
+      injectRegister: false,
       includeAssets: ["icon.svg", "auth.js"],
       manifest: {
         name: "OpenSesame",
@@ -90,5 +92,29 @@ export default defineConfig({
       },
       devOptions: { enabled: true, navigateFallback: "index.html" },
     }),
+    {
+      // Dev-only: Vite injects inline module scripts that CSP would block.
+      name: "csp-inline-script-hashes",
+      transformIndexHtml: {
+        order: "post",
+        handler(html) {
+          const hashes = [
+            ...html.matchAll(
+              /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi,
+            ),
+          ].map(
+            (match) =>
+              `'sha256-${createHash("sha256")
+                .update(match[1] ?? "")
+                .digest("base64")}'`,
+          );
+          if (hashes.length === 0) return html;
+          return html.replace(
+            "script-src 'self' 'wasm-unsafe-eval'",
+            `script-src 'self' 'wasm-unsafe-eval' ${hashes.join(" ")}`,
+          );
+        },
+      },
+    },
   ],
 });
