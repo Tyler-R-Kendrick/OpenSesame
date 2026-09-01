@@ -1,5 +1,3 @@
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   type ReferenceIdp,
   startReferenceIdp,
@@ -13,6 +11,7 @@ import {
   samlServiceProviderMetadata,
 } from "../interactions/saml.js";
 import type { startServer } from "../server.js";
+import { onFreePort } from "./free-port.js";
 import { hopUrl } from "./upstream-hop.js";
 
 /**
@@ -83,16 +82,6 @@ async function startControlPlane(
       OPENSESAME_TRUSTED_UPSTREAMS: upstreamIssuer,
     },
   });
-}
-
-/** Reserve a port so publicUrl can name it before the server binds. */
-async function reservePort(): Promise<number> {
-  const probe = createServer();
-  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-  // SAFETY: probe.listen established the runtime AddressInfo invariant.
-  const port = (probe.address() as AddressInfo).port;
-  await new Promise<void>((r) => probe.close(() => r()));
-  return port;
 }
 
 function extractCsrf(html: string): string {
@@ -260,7 +249,7 @@ describe("native SAML SP, SP-initiated", () => {
     resetSamlMetadataCache();
     resetSamlCompletionCodes();
     idp = await startReferenceIdp({ protocol: "saml" });
-    started = await startControlPlane(idp.issuer, await reservePort());
+    started = await onFreePort((port) => startControlPlane(idp.issuer, port));
     base = `http://127.0.0.1:${started.port}`;
     const now = started.ctx.clock();
     await started.ctx.stores.organizations.set(organizationId, {

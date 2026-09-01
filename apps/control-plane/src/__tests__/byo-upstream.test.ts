@@ -1,6 +1,4 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   type ReferenceIdp,
   startReferenceIdp,
@@ -18,6 +16,7 @@ import {
   resetFederatedDiscoveryCache,
 } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
+import { onFreePort } from "./free-port.js";
 import { hopUrl } from "./upstream-hop.js";
 
 /**
@@ -101,16 +100,6 @@ async function startControlPlane(
   });
 }
 
-/** Reserve a port so publicUrl can name it before the server binds. */
-async function reservePort(): Promise<number> {
-  const probe = createServer();
-  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-  // SAFETY: probe.listen established the runtime AddressInfo invariant.
-  const port = (probe.address() as AddressInfo).port;
-  await new Promise<void>((r) => probe.close(() => r()));
-  return port;
-}
-
 function extractCsrf(html: string): string {
   const match = html.match(/name="_csrf" value="([^"]+)"/);
   if (!match?.[1]) throw new Error("no csrf token in page");
@@ -188,7 +177,9 @@ describe("bring-your-own upstream", () => {
       startReferenceIdp({ registration: true }),
       startReferenceIdp({ registration: true }),
     ]);
-    started = await startControlPlane(allowlisted.issuer, await reservePort());
+    started = await onFreePort((port) =>
+      startControlPlane(allowlisted.issuer, port),
+    );
     base = `http://127.0.0.1:${started.port}`;
   }, 60_000);
 
