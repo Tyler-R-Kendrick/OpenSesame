@@ -46,7 +46,7 @@ Object.assign(federationSeams, {
     id: "shoo",
     displayName: "Shoo",
     issuer: "https://shoo.dev",
-    accountKind: "Google (via shoo.dev)",
+    accountKind: "Google",
   }),
 });
 
@@ -323,7 +323,7 @@ describe("the setup ceremony", () => {
     // The whole point: a deployment nobody has configured is already usable,
     // so setup can be one tap.
     openSetup();
-    expect(ways()).toEqual(["Google (via shoo.dev)"]);
+    expect(ways()).toEqual(["Google"]);
   });
 
   it("finishes with nothing typed at all", async () => {
@@ -363,7 +363,7 @@ describe("building the list of ways in", () => {
     });
 
     expect(ways()).toEqual([
-      "Google (via shoo.dev)",
+      "Google",
       "Google",
       "Okta",
       "Other OIDC",
@@ -402,19 +402,20 @@ describe("building the list of ways in", () => {
     openSetup();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove Google" }));
+    const removeGoogle = () =>
+      screen.getAllByRole("button", { name: "Remove Google" });
+    // Builtin Google first, then the operator-added Google.
+    fireEvent.click(removeGoogle()[1]);
     expect(written.signIn.providers).toEqual([]);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Remove Google (via shoo.dev)" }),
-    );
+    fireEvent.click(removeGoogle()[0]);
     expect(written.signIn.builtin).toBe(false);
   });
 
   it("says plainly what removing everything means", async () => {
     const onDone = openSetup(vi.fn());
     fireEvent.click(
-      screen.getByRole("button", { name: "Remove Google (via shoo.dev)" }),
+      screen.getByRole("button", { name: "Remove Google" }),
     );
 
     expect(ways()).toEqual([]);

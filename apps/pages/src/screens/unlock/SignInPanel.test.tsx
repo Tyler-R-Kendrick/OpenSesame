@@ -46,7 +46,7 @@ Object.assign(federationSeams, {
     id: "shoo",
     displayName: "Shoo",
     issuer: "https://shoo.dev",
-    accountKind: "Google (via shoo.dev)",
+    accountKind: "Google",
   }),
   loadSession: () => null,
 });
@@ -82,7 +82,7 @@ describe("what the sign-in screen offers", () => {
     renderPanel();
     expect(
       screen.getByRole("button", {
-        name: "Continue with Google (via shoo.dev)",
+        name: "Continue with Google",
       }),
     ).toBeDefined();
   });
@@ -92,7 +92,7 @@ describe("what the sign-in screen offers", () => {
     renderPanel();
     expect(
       screen.queryByRole("button", {
-        name: "Continue with Google (via shoo.dev)",
+        name: "Continue with Google",
       }),
     ).toBeNull();
   });

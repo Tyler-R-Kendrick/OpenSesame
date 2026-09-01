@@ -94,15 +94,7 @@ const GOOGLE: ProviderBrand = {
 
 const BRANDS: ReadonlyMap<string, ProviderBrand> = new Map([
   ["google", GOOGLE],
-  // shoo.dev fronts Google sign-in, so the button is the Google button; the
-  // broker is disclosed underneath, not shouted on the button itself.
-  [
-    "shoo",
-    {
-      ...GOOGLE,
-      note: "Google sign-in here runs through the shoo.dev broker.",
-    },
-  ],
+  ["shoo", GOOGLE],
   [
     "github",
     {

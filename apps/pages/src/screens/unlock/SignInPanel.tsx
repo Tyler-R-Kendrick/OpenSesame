@@ -435,8 +435,8 @@ export function SignInPanel(props: Props) {
                   className={`btn signin__social${
                     upstreamBrand ? ` ${upstreamBrand.className}` : ""
                   }`}
-                  aria-label={`Continue with ${fallbackUpstream.accountKind}`}
-                  title={`Continue with ${fallbackUpstream.accountKind}`}
+                  aria-label={`Continue with ${upstreamBrand?.label ?? fallbackUpstream.accountKind}`}
+                  title={`Continue with ${upstreamBrand?.label ?? fallbackUpstream.accountKind}`}
                   disabled={busy}
                   onClick={() =>
                     startFederated(() => beginSignIn(fallbackUpstream))

@@ -201,10 +201,24 @@ function pageIsLoopbackDefault(hostname?: string): boolean {
   return host === "127.0.0.1" || host === "localhost" || host === "[::1]";
 }
 
+/**
+ * An OpenSesame Identity API is optional. First-run sign-in is the compiled
+ * Shoo/Google broker. Loopback URLs baked by `pages-dev.sh` (`VITE_IDENTITY_API`
+ * / `shippedIdentityApi`) must not become a requirement just because this tab
+ * is on localhost.
+ */
+function defaultIdentityApi(): string {
+  const deployed = deployedConfig.identityApi?.trim();
+  if (deployed) return deployed;
+  const built = builtIdentityApi?.trim();
+  if (!built || isLoopbackUrl(built)) return "";
+  return built;
+}
+
 function localDefaults(): PersistedSettings {
   return {
     hostApi: runtimeHostApiValue() || shippedHostApi,
-    identityApi: runtimeIdentityApiValue() || shippedIdentityApi,
+    identityApi: defaultIdentityApi(),
     daemonApi: runtimeDaemonApiValue() || shippedDaemonApi,
     tursoUrl: "",
     mfaAppUrl: runtimeMfaAppUrlValue() || shippedMfaAppUrl,
@@ -217,7 +231,7 @@ function localDefaults(): PersistedSettings {
 function remoteDefaults(): PersistedSettings {
   return {
     hostApi: runtimeHostApiValue() || "",
-    identityApi: runtimeIdentityApiValue() || "",
+    identityApi: defaultIdentityApi(),
     // github.io cannot reach loopback — leave empty so the pairing UI asks for
     // the Tailscale Serve FQDN instead of looking like localhost will work.
     daemonApi: runtimeDaemonApiValue() || "",
@@ -383,14 +397,14 @@ function loadPersisted(): PersistedSettings {
         )
           ? hostApi
           : defaults.hostApi,
-      identityApi:
-        identityApi &&
-        !(
-          runtimeIdentityApiValue() &&
-          LEGACY_IDENTITY_APIS.some((legacy) => legacy === identityApi)
-        )
-          ? identityApi
-          : defaults.identityApi,
+      identityApi: (() => {
+        const rewriteLegacy =
+          Boolean(identityApi) &&
+          Boolean(runtimeIdentityApiValue()) &&
+          LEGACY_IDENTITY_APIS.some((legacy) => legacy === identityApi);
+        if (rewriteLegacy) return runtimeIdentityApiValue() ?? "";
+        return identityApi || defaults.identityApi;
+      })(),
       daemonApi: daemonApi || defaults.daemonApi,
       tursoUrl,
       mfaAppUrl:

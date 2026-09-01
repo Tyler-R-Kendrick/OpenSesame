@@ -104,7 +104,7 @@ const UPSTREAM = {
   id: "shoo",
   displayName: "Shoo",
   issuer: "https://shoo.dev",
-  accountKind: "Google (via shoo.dev)",
+  accountKind: "Google",
 };
 /** Tests that need a different default upstream (e.g. the dev mock) swap this. */
 const upstreamHolder = { current: UPSTREAM };
@@ -164,7 +164,7 @@ Object.assign(unlockScreenDependencies, {
     id: "shoo",
     displayName: "Shoo",
     issuer: "https://shoo.dev",
-    accountKind: "Google (via shoo.dev)",
+    accountKind: "Google",
   }),
   resumeStashedJoin: async () => false,
 });
@@ -710,15 +710,14 @@ describe("UnlockScreen — first run", () => {
       { id: "acme", label: "Acme SSO", kind: "oidc", browserCapable: false },
     ]);
     render(<UnlockScreen />);
+    expect(
+      await screen.findByRole("button", { name: "Continue with GitHub" }),
+    ).toBeTruthy();
     for (const label of ["Google", "GitHub", "Acme SSO"]) {
       expect(
-        await screen.findByRole("button", {
-          name: `Continue with ${label}`,
-        }),
-      ).toBeTruthy();
+        screen.getAllByRole("button", { name: `Continue with ${label}` }),
+      ).toHaveLength(1);
     }
-    // The catalog replaces the single default, it does not sit beside it.
-    expect(screen.queryByRole("button", { name: FEDERATED_BUTTON })).toBeNull();
   });
 
   it("starts a brokered provider against the Identity API with a provider hint", async () => {
@@ -726,8 +725,10 @@ describe("UnlockScreen — first run", () => {
       { id: "google", label: "Google", kind: "oidc", browserCapable: false },
     ]);
     render(<UnlockScreen />);
+    await screen.findByRole("button", { name: "Continue with Google" });
+    await waitFor(() => expect(listFederatedProviders).toHaveBeenCalled());
     fireEvent.click(
-      await screen.findByRole("button", { name: "Continue with Google" }),
+      screen.getByRole("button", { name: "Continue with Google" }),
     );
     expect(beginSignIn).toHaveBeenCalledWith(
       {
@@ -744,19 +745,26 @@ describe("UnlockScreen — first run", () => {
     listFederatedProviders.mockResolvedValue([
       {
         id: "shoo",
-        label: "Google (via shoo.dev)",
+        label: "Google",
         kind: "oidc",
         browserCapable: true,
       },
     ]);
     render(<UnlockScreen />);
-    // The branded catalog button appears once the catalog lands — the
-    // fallback button's label is the upstream's account kind, not this.
+    await waitFor(() => expect(listFederatedProviders).toHaveBeenCalled());
     fireEvent.click(
       await screen.findByRole("button", { name: "Continue with Google" }),
     );
     // The compiled trust list decides this, not the catalog: no hint, no broker.
-    expect(beginSignIn).toHaveBeenCalledWith(UPSTREAM, {});
+    expect(beginSignIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "shoo",
+        issuer: "https://shoo.dev",
+        authorizationEndpoint: "https://shoo.dev/authorize",
+        tokenEndpoint: "https://shoo.dev/token",
+      }),
+      {},
+    );
   });
 
   it("never offers the loopback test account, even when the catalog publishes it", async () => {
@@ -1137,14 +1145,16 @@ describe("UnlockScreen — password unlock", () => {
     expect(
       await screen.findByRole("button", { name: "Continue with Google" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: FEDERATED_BUTTON })).toBeNull();
+    expect(
+      screen.getAllByRole("button", { name: "Continue with Google" }),
+    ).toHaveLength(1);
   });
 
   it("renders known providers with their official brand treatment", async () => {
     listFederatedProviders.mockResolvedValue([
       {
         id: "shoo",
-        label: "Google (via shoo.dev)",
+        label: "Google",
         kind: "oidc",
         browserCapable: true,
       },
@@ -1158,8 +1168,6 @@ describe("UnlockScreen — password unlock", () => {
     expect(google.className).toContain("signin__provider--google");
     const github = screen.getByRole("button", { name: "Continue with GitHub" });
     expect(github.className).toContain("signin__provider--github");
-    // The broker is disclosed under the buttons, not baked into the label.
-    expect(screen.getByText(/runs through the shoo\.dev broker/)).toBeTruthy();
   });
 
   it("shows the stored reminder and the same challenge menu as every vault", () => {

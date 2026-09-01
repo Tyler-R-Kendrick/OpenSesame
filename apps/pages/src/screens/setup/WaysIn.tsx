@@ -227,11 +227,10 @@ export function WaysIn() {
       ? [
           {
             key: "builtin",
-            // Sentence-cased: `accountKind` is written to sit mid-sentence
-            // ("Continue with a test account") and this is a title.
             name:
+              brandFor(upstream.id)?.label ??
               upstream.accountKind.charAt(0).toUpperCase() +
-              upstream.accountKind.slice(1),
+                upstream.accountKind.slice(1),
             kind: "built in",
             brandId: upstream.id,
             remove: () => write({ builtin: false }),
