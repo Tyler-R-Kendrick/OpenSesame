@@ -1,5 +1,7 @@
 /**
- * Pre-unlock surface for the last sign-in's outcome.
+ * Pre-unlock surface for the last sign-in's outcome — and, since the account
+ * menu gained its exits, for the last sign-out: "signed out", "choose the
+ * account to sign in with", "choose an account to attach".
  *
  * The notifications bell only exists inside the unlocked shell, so a sign-in
  * that came back to a locked vault used to vanish without a word — the
@@ -19,7 +21,7 @@ import {
 import { recoverPendingFederatedLink } from "../../lib/guest-auth.js";
 
 type BannerModel = {
-  tone: "ok" | "warn" | "err";
+  tone: "ok" | "warn" | "err" | "plain";
   text: string;
 };
 
@@ -57,6 +59,18 @@ function describeOutcome(outcome: AuthOutcome): BannerModel {
         tone: "err",
         text: outcome.detail ?? "Sign-in failed. Nothing was changed.",
       };
+    case "signed_out":
+      return {
+        tone: "plain",
+        text: outcome.switching
+          ? "Signed out. Choose the account to sign in with."
+          : "Signed out of this device.",
+      };
+    case "attach":
+      return {
+        tone: "plain",
+        text: "Choose an account to attach to the one this device already has.",
+      };
   }
 }
 
@@ -76,7 +90,11 @@ export function PendingLinkBanner() {
 
   return (
     <output
-      className={`note note--${model.tone} unlock__outcome`}
+      className={
+        model.tone === "plain"
+          ? "note unlock__outcome"
+          : `note note--${model.tone} unlock__outcome`
+      }
       aria-live="polite"
     >
       <span>{model.text}</span>

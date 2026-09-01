@@ -1,0 +1,92 @@
+<div class="os" style="width: 390px; height: 1180px">
+  <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 1.25rem 1.15rem 1.5rem; display: grid; gap: 1.5rem; align-content: start">
+    <p style="font-family: var(--mono); font-size: 0.8125rem; color: var(--ink-3)">settings<span style="color: var(--ink-3)">/</span>security</p>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div><h2>Unlock methods</h2></div>
+      </div>
+      <div class="panel__body set__unlock">
+
+        <div class="set__unlock-row">
+          <div>
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg>
+              Passkey
+            </h3>
+            <p class="hint">Enrolled.</p>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn btn--ghost btn--sm">Remove</button>
+          </div>
+        </div>
+
+        <div class="set__unlock-row">
+          <div>
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
+              PIN
+            </h3>
+          </div>
+          <div class="set__unlock-form">
+            <input type="password" inputmode="numeric" placeholder="PIN" aria-label="New PIN" />
+            <input type="password" inputmode="numeric" placeholder="Confirm" aria-label="Confirm PIN" />
+            <button type="button" class="btn btn--primary btn--sm" disabled="true">Enroll PIN</button>
+          </div>
+        </div>
+
+        <div class="set__unlock-row">
+          <div>
+            <h3>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"></path></svg>
+              Password
+            </h3>
+            <p class="hint">Enrolled.</p>
+          </div>
+          <button type="button" class="btn btn--ghost btn--sm">Remove</button>
+        </div>
+
+        <div class="set__unlock-row">
+          <div>
+            <h3>Authenticator MFA</h3>
+            <p class="hint">Optional second step after any of the above. The seed is sealed under the vault key, and MFA turns on only once a code from your app matches — a bad scan can never lock you out.</p>
+          </div>
+
+          <div class="set__unlock-totp" style="width: 100%">
+            <svg width="160" height="160" viewBox="0 0 21 21" shape-rendering="crispEdges" role="img" aria-label="Scan to add vault MFA" style="background: #fff; border-radius: 2px">
+              <rect width="21" height="21" fill="#fff"></rect>
+              <path fill="#171717" d="M1 1h7v1H1zM1 2h1v5H1zM7 2h1v5H7zM3 3h3v3H3zM2 7h6v1H2zM13 1h7v1h-7zM13 2h1v5h-1zM19 2h1v5h-1zM15 3h3v3h-3zM13 7h7v1h-7zM1 13h7v1H1zM1 14h1v5H1zM7 14h1v5H7zM3 15h3v3H3zM1 19h7v1H1zM9 1h1v2H9zM11 2h1v1h-1zM9 4h3v1H9zM10 6h1v2h-1zM1 9h2v1H1zM4 9h1v2H4zM6 9h3v1H6zM10 9h1v1h-1zM12 9h2v1h-2zM15 9h1v2h-1zM17 9h3v1h-3zM2 11h2v1H2zM6 11h1v1H6zM8 11h3v1H8zM12 11h1v1h-1zM14 11h1v1h-1zM16 11h4v1h-4zM9 13h2v1H9zM12 13h1v2h-1zM14 13h3v1h-3zM18 13h2v1h-2zM9 15h1v2H9zM11 15h2v1h-2zM14 15h1v2h-1zM16 15h1v1h-1zM18 15h2v2h-2zM10 17h2v1h-2zM13 17h1v1h-1zM15 17h2v1h-2zM19 17h1v1h-1zM9 19h3v1H9zM13 19h2v1h-2zM16 19h1v1h-1zM18 19h2v1h-2z"></path>
+            </svg>
+            <p class="hint">Scan with your authenticator, then enter the code it shows.</p>
+            <div class="identifier__row" style="width: 100%">
+              <input type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" aria-label="Authenticator code" />
+              <button type="button" class="btn btn--primary btn--sm" style="min-height: 2.75rem">Turn on</button>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn btn--ghost btn--sm">Cancel</button>
+              <span class="hint">Nothing is written until a code matches.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="opacity: 1">
+      <div class="panel__head">
+        <div><h2>The same row, beside a guest session</h2></div>
+      </div>
+      <div class="panel__body set__unlock">
+        <div class="set__unlock-row">
+          <div>
+            <h3>Authenticator MFA</h3>
+            <p class="hint">Optional second step after a passkey, PIN or password.</p>
+          </div>
+          <div class="note note--warn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19H3z"></path><path d="M12 9.5v4.2M12 16.6v.2"></path></svg>
+            <span>Withheld until this vault has a key. A guest session holds nothing wrapped to disk, so a code would guard nothing — enroll a passkey, PIN or password first, and MFA follows.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

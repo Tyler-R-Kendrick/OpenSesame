@@ -62,3 +62,25 @@ describe("PendingLinkBanner", () => {
     expect(screen.queryByText(/Signed in as/)).toBeNull();
   });
 });
+
+describe("PendingLinkBanner — the roads out of an account", () => {
+  it("says a plain sign-out happened", () => {
+    storeAuthOutcome({ kind: "signed_out" });
+    render(<PendingLinkBanner />);
+    expect(screen.getByText("Signed out of this device.")).toBeTruthy();
+  });
+
+  it("asks which account to sign in with after a switch", () => {
+    storeAuthOutcome({ kind: "signed_out", switching: true });
+    render(<PendingLinkBanner />);
+    expect(
+      screen.getByText("Signed out. Choose the account to sign in with."),
+    ).toBeTruthy();
+  });
+
+  it("asks which account to attach", () => {
+    storeAuthOutcome({ kind: "attach" });
+    render(<PendingLinkBanner />);
+    expect(screen.getByText(/Choose an account to attach/)).toBeTruthy();
+  });
+});

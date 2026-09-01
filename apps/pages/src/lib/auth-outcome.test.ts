@@ -55,3 +55,25 @@ describe("auth outcome store", () => {
     expect(readAuthOutcome()).toBeNull();
   });
 });
+
+describe("sign-out and attach outcomes", () => {
+  it("round-trips a switching sign-out", () => {
+    storeAuthOutcome({ kind: "signed_out", switching: true });
+    expect(readAuthOutcome()).toEqual({ kind: "signed_out", switching: true });
+  });
+
+  it("knows which outcomes ask for the Sign in tab, and which force a login", async () => {
+    const { outcomeForcesLogin, outcomeWantsSignIn } = await import(
+      "./auth-outcome.js"
+    );
+    expect(outcomeWantsSignIn({ kind: "signed_out" })).toBe(true);
+    expect(outcomeWantsSignIn({ kind: "attach" })).toBe(true);
+    expect(outcomeWantsSignIn({ kind: "linked" })).toBe(false);
+    expect(outcomeWantsSignIn(null)).toBe(false);
+    expect(outcomeForcesLogin({ kind: "signed_out", switching: true })).toBe(
+      true,
+    );
+    expect(outcomeForcesLogin({ kind: "signed_out" })).toBe(false);
+    expect(outcomeForcesLogin({ kind: "attach" })).toBe(false);
+  });
+});

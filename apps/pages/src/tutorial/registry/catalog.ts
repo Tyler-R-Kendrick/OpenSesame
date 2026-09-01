@@ -64,6 +64,14 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
+    id: "shell.account",
+    description:
+      "The account segment of the shell prompt (who@vault:/); opens the menu that names the signed-in account, switches org profiles, and offers to attach another account, switch account, or sign out.",
+    role: "action",
+    routes: [],
+    capabilityId: "identity.signout",
+  },
+  {
     id: "shell.notifications",
     description:
       "Statusline bell listing notices that need a person: pending links, failed syncs, expiring items.",
@@ -457,6 +465,14 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     role: "action",
     routes: ["/unlock"],
     capabilityId: null,
+  },
+  {
+    id: "unlock.account",
+    description:
+      "Names the account this device is signed in as, above the Unlock and Sign in tabs, with Switch and Sign out beside it. Absent when nobody is signed in.",
+    role: "status",
+    routes: ["/unlock"],
+    capabilityId: "identity.signout",
   },
   {
     id: "unlock.signin",

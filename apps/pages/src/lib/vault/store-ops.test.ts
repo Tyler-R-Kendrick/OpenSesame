@@ -24,6 +24,15 @@ import {
 } from "./store.js";
 import { LEGACY_PREFS_KEY } from "./tomb-migration.js";
 
+/** Enroll an authenticator code the way Settings does: begin, then confirm. */
+async function enrollTotp(store: VaultStore): Promise<string> {
+  const uri = await store.beginTotpEnrollment();
+  const secret = new URL(uri).searchParams.get("secret") ?? "";
+  const { totpCode, parseTotp } = await import("./totp.js");
+  await store.confirmTotpEnrollment(await totpCode(parseTotp(secret)));
+  return uri;
+}
+
 const PASSWORD = "correct horse battery staple";
 const NEXT_PASSWORD = "fourteen ungulate carriage nail";
 
@@ -417,7 +426,7 @@ describe("VaultStore TOTP challenge flow", () => {
     const { parseTotp, totpCode } = await import("./totp.js");
     const store = new VaultStore();
     await store.create(PASSWORD);
-    const uri = await store.enrollTotp();
+    const uri = await enrollTotp(store);
     const secret = new URL(uri).searchParams.get("secret");
     if (!secret) throw new Error("expected totp secret");
     store.lock();
@@ -503,7 +512,7 @@ describe("VaultStore unlock method management", () => {
 
   it("removes an enrolled TOTP gate", async () => {
     const store = await unlockedStore();
-    await store.enrollTotp();
+    await enrollTotp(store);
     expect(store.getSnapshot().header?.unlocks?.totp).toBeDefined();
     await store.removeTotp();
     expect(store.getSnapshot().header?.unlocks?.totp).toBeUndefined();
@@ -513,7 +522,7 @@ describe("VaultStore unlock method management", () => {
     const store = new VaultStore();
     await expect(store.enrollPin("48291037")).rejects.toThrow(/Unlock/);
     await expect(store.enrollPassword(NEXT_PASSWORD)).rejects.toThrow(/Unlock/);
-    await expect(store.enrollTotp()).rejects.toThrow(/Unlock/);
+    await expect(store.beginTotpEnrollment()).rejects.toThrow(/Unlock/);
   });
 });
 
@@ -621,5 +630,48 @@ describe("VaultStore prefs and idle auto-lock", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("VaultStore authenticator enrollment", () => {
+  it("writes the gate only once a code from the app matches", async () => {
+    const store = await unlockedStore();
+    const uri = await store.beginTotpEnrollment();
+    expect(uri.startsWith("otpauth://totp/")).toBe(true);
+    // Nothing on disk yet: the seed is an offer until a code proves the scan.
+    expect(store.getSnapshot().header?.unlocks?.totp).toBeUndefined();
+    await expect(store.confirmTotpEnrollment("000000")).rejects.toBeInstanceOf(
+      WrongPasswordError,
+    );
+    expect(store.getSnapshot().header?.unlocks?.totp).toBeUndefined();
+    // A wrong code during enrollment is not a failed unlock.
+    expect(store.getSnapshot().failedAttempts).toBe(0);
+    const secret = new URL(uri).searchParams.get("secret") ?? "";
+    const { totpCode, parseTotp } = await import("./totp.js");
+    await store.confirmTotpEnrollment(await totpCode(parseTotp(secret)));
+    expect(store.getSnapshot().header?.unlocks?.totp).toBeDefined();
+  });
+
+  it("refuses to confirm with no enrollment in progress, and forgets a cancelled one", async () => {
+    const store = await unlockedStore();
+    await expect(store.confirmTotpEnrollment("123456")).rejects.toThrow(
+      /Start authenticator enrollment/,
+    );
+    await store.beginTotpEnrollment();
+    store.cancelTotpEnrollment();
+    await expect(store.confirmTotpEnrollment("123456")).rejects.toThrow(
+      /Start authenticator enrollment/,
+    );
+  });
+
+  it("refuses a guest session: a code can only guard a key", async () => {
+    const store = new VaultStore();
+    await store.createGuest();
+    await expect(store.beginTotpEnrollment()).rejects.toThrow(
+      /passkey, PIN or password/,
+    );
+    // The bug this closes: a guest that enrolled MFA wrote a header with a
+    // gate and no wrap — a vault nothing could ever open.
+    expect(store.getSnapshot().header?.unlocks?.totp).toBeUndefined();
   });
 });

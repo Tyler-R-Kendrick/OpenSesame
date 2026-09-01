@@ -482,6 +482,16 @@ export type BeginSignInOptions = {
    * address bar, in history, or in the hosted page's request log (T28).
    */
   loginHint?: string;
+  /**
+   * Standard OIDC `prompt=login` (Core §3.1.2.1): the issuer must ask the
+   * person to authenticate again instead of reusing the session it still
+   * holds. This is what "switch account" needs, or a second sign-in would
+   * silently come back as the same person. Every OIDC issuer supports it.
+   * Shoo does not read `prompt` at all (docs.shoo.dev), so on that dialect
+   * it is not sent: shoo.dev answers with the Google account it remembers,
+   * and a different one means signing out at shoo.dev/me first.
+   */
+  prompt?: "login";
 };
 
 async function beginSignInDefault(
@@ -553,6 +563,9 @@ async function beginSignInDefault(
     }
     if (options.loginHint) {
       url.searchParams.set("login_hint", options.loginHint);
+    }
+    if (options.prompt) {
+      url.searchParams.set("prompt", options.prompt);
     }
   }
   location.assign(url.toString());

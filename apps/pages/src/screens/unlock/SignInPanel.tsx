@@ -22,7 +22,8 @@
  *    exactly that when it comes back to a locked vault. "Use without an
  *    account" is not offered (it would seal a second vault in place); guest
  *    IS — the store runs it in an isolated tomb beside the sealed vault, which
- *    stays untouched and comes back on lock. A live session gets a Sign out.
+ *    stays untouched and comes back on lock. Who is signed in, and the way
+ *    out of it, is the `AccountRow` above both tabs — not this panel's.
  *
  * Every federated entry ends in a navigation, so success never returns here —
  * only a failure gets to clear `busy` and say why, in plain words.
@@ -41,21 +42,24 @@ import {
   IconSite,
   IconUser,
 } from "../../components/Icons.js";
+import {
+  clearAuthOutcome,
+  outcomeForcesLogin,
+  readAuthOutcome,
+} from "../../lib/auth-outcome.js";
 import type { ByoRegistration } from "../../lib/byo.js";
 import { describeFederationError } from "../../lib/federation-copy.js";
 import {
+  type BeginSignInOptions,
   TRUSTED_UPSTREAMS,
-  beginSignIn,
+  type TrustedUpstream,
+  beginSignIn as beginFederatedSignIn,
   defaultUpstream,
   operatorUpstream,
 } from "../../lib/federation.js";
 import { landFocus } from "../../lib/focus.js";
 import { continueAsGuest } from "../../lib/guest-auth.js";
-import {
-  endSession,
-  identityBase,
-  useIdentitySession,
-} from "../../lib/identity.js";
+import { identityBase } from "../../lib/identity.js";
 import {
   type OrgAuthMethod,
   type OrgTenant,
@@ -119,7 +123,6 @@ export function SignInPanel(props: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const hubRef = useRef<HTMLDivElement>(null);
-  const session = useIdentitySession();
   // Reads location.hostname, so it must be resolved at render, not at import:
   // loopback deployments get the local mock IdP, everything else the broker.
   const upstream = defaultUpstream();
@@ -206,6 +209,28 @@ export function SignInPanel(props: Props) {
     });
   }, []);
 
+  /**
+   * Every road through this panel starts here. A sign-out that was the first
+   * half of "switch account" left a note asking the next sign-in to make the
+   * issuer authenticate afresh (`prompt=login` on OIDC; shoo.dev reads no
+   * such flag and answers with the Google account it remembers). Whatever
+   * the note said, starting a sign-in spends it — the banner it drew should
+   * not still be there when the person comes back.
+   */
+  function beginSignIn(
+    upstream: TrustedUpstream,
+    options?: BeginSignInOptions,
+  ): Promise<void> {
+    const forceLogin = outcomeForcesLogin(readAuthOutcome());
+    clearAuthOutcome();
+    const merged: BeginSignInOptions | undefined = forceLogin
+      ? { ...options, prompt: "login" }
+      : options;
+    return merged === undefined
+      ? beginFederatedSignIn(upstream)
+      : beginFederatedSignIn(upstream, merged);
+  }
+
   function startProvider(provider: FederatedProviderSummary): void {
     // A browser-capable provider is one this tab can talk to directly — and it
     // still has to be in the compiled trust list to be started that way. The
@@ -284,6 +309,7 @@ export function SignInPanel(props: Props) {
   function startGuest(): void {
     setError(null);
     setBusy(true);
+    clearAuthOutcome();
     void continueAsGuest()
       .catch((caught) => {
         setError(
@@ -385,18 +411,6 @@ export function SignInPanel(props: Props) {
             >
               Skip
             </button>
-          ) : null}
-          {!firstRun && session ? (
-            <p className="hint signin__session">
-              <button
-                type="button"
-                className="unlock__switch"
-                disabled={busy}
-                onClick={() => endSession()}
-              >
-                Sign out
-              </button>
-            </p>
           ) : null}
           <div className="signin__providers">
             {/* Social sign-in is the default road: one row of official brand

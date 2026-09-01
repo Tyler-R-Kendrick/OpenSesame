@@ -618,3 +618,98 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Who this device is signed in as — above both tabs, because the account is
+   a fact about the device rather than the vault. Name, way in, two roads out. */
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.who__mark {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.who__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.05rem;
+}
+
+.who__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who__sub {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who__acts {
+  display: flex;
+  gap: 0.65rem;
+  flex: none;
+}
+
+/* The unlock ceremony's steps, drawn only when this vault enrolled an
+   authenticator code: the second step is then a fact about the vault, said
+   before the first step is taken rather than sprung afterwards. The same
+   segment rail setup uses, because it makes the same claim. */
+.steps {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+}
+
+.steps__seg {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--ink-3);
+}
+
+.steps__bar {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.steps__seg.is-done .steps__bar,
+.steps__seg.is-now .steps__bar {
+  background: var(--ink);
+}
+
+.steps__seg.is-now {
+  color: var(--ink);
+}
+
+.steps__label {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

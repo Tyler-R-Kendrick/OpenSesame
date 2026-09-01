@@ -18,6 +18,7 @@ import {
   IconShield,
   IconUser,
 } from "../components/Icons.js";
+import { outcomeWantsSignIn, readAuthOutcome } from "../lib/auth-outcome.js";
 import { defaultUpstream } from "../lib/federation.js";
 import { firstControl, landFocus } from "../lib/focus.js";
 import { continueAsGuest } from "../lib/guest-auth.js";
@@ -35,6 +36,7 @@ import {
   type FederatedProviderSummary,
   listFederatedProviders,
 } from "../lib/providers.js";
+import { signOut, switchAccount } from "../lib/session-exit.js";
 import { noWayIn, signInMethods } from "../lib/settings.js";
 import { unlockViable } from "../lib/setup.js";
 import { WrongPasswordError } from "../lib/vault/crypto.js";
@@ -45,13 +47,16 @@ import {
   type UnlockMethodId,
   checkWebauthnHost,
   describeWebauthnError,
+  listAvailableUnlockMethods,
   pinPolicyProblems,
+  preferredUnlockMethod,
 } from "../lib/vault/unlock-methods.js";
 import { deviceHasSeveralVaults, listDeviceVaults } from "../lib/vaults.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { type SetupRoad, SetupScreen } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
+import { AccountRow } from "./unlock/AccountRow.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import "./unlock.css";
@@ -245,7 +250,11 @@ function UnlockForm({
   // passkey/PIN/password challenge, "Sign in" is the federated ceremony
   // (a different user, or attaching an account). Only one is on screen at a
   // time. Mid-MFA there is no choice to offer: the code field is the screen.
-  const [screenTab, setScreenTab] = useState<"unlock" | "signin">("unlock");
+  // A sign-out, a switch or an "attach an account" from inside the app lands
+  // here on purpose, so the tab it wanted is the one that opens.
+  const [screenTab, setScreenTab] = useState<"unlock" | "signin">(() =>
+    outcomeWantsSignIn(readAuthOutcome()) ? "signin" : "unlock",
+  );
   // The Unlock tab is offered only where unlocking is an action this device
   // can actually perform — a sealed vault to open. It is withheld rather than
   // disabled: a greyed tab still asserts the action exists and merely is not
@@ -279,22 +288,33 @@ function UnlockForm({
   })();
 
   const methods = useMemo<UnlockMethodId[]>(() => {
-    // A returning vault gets the same menu as every other vault: which
-    // challenges are enrolled is the user's own knowledge, not something the
-    // screen should enumerate for whoever is holding the device.
-    if (!firstRun) return ["passkey", "pin", "password"];
+    // A returning vault offers exactly the challenges it enrolled. The screen
+    // used to show all three whatever the vault had, on the theory that which
+    // ones exist is the person's own knowledge — but the header on disk is
+    // plaintext and already says so, so hiding it protected nothing and cost
+    // the person their own configuration: a PIN tab for a vault with no PIN,
+    // and no sign of the authenticator code they set up.
+    if (!firstRun) return listAvailableUnlockMethods(header);
     const available: UnlockMethodId[] = [];
     if (passkeyHost.ok) available.push("passkey");
     available.push("pin", "password");
     return available;
-  }, [firstRun, passkeyHost.ok]);
+  }, [firstRun, header, passkeyHost.ok]);
+  // A vault with an authenticator code but no passkey, PIN or password: a
+  // code can only ever follow a key, so nothing here can open it. Said out
+  // loud rather than drawn as three tabs that all fail.
+  const noPrimary = !firstRun && methods.length === 0;
+  // The second step, announced before the first is taken.
+  const hasTotpStep = !firstRun && !noPrimary && Boolean(header?.unlocks?.totp);
   const [method, setMethod] = useState<UnlockMethodId | null>(null);
-  // The default tab is uniform too — never shaped by what this vault uses.
-  const fallbackMethod: UnlockMethodId =
-    firstRun && !passkeyHost.ok ? "password" : "passkey";
+  const fallbackMethod: UnlockMethodId = firstRun
+    ? passkeyHost.ok
+      ? "passkey"
+      : "password"
+    : (preferredUnlockMethod(header) ?? "password");
   const activeMethod =
     method && methods.includes(method) ? method : fallbackMethod;
-  const showMethodTabs = !awaitingTotp;
+  const showMethodTabs = !awaitingTotp && !noPrimary;
 
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
@@ -450,7 +470,8 @@ function UnlockForm({
         : password.length < 12 || password !== confirm || strength.score < 2);
 
   let unlockBlocked = true;
-  if (awaitingTotp) unlockBlocked = totp.replace(/\s/g, "").length < 6;
+  if (noPrimary) unlockBlocked = true;
+  else if (awaitingTotp) unlockBlocked = totp.replace(/\s/g, "").length < 6;
   else if (activeMethod === "passkey") unlockBlocked = !passkeyHost.ok;
   else if (activeMethod === "pin") unlockBlocked = pin.length < 4;
   else unlockBlocked = !password;
@@ -495,6 +516,25 @@ function UnlockForm({
             </p>
           ) : null}
         </div>
+
+        {/* Who this device is signed in as, above both tabs: the account is a
+            fact about the device, not the vault. Switch ends the session and
+            arms a fresh sign-in; Sign out ends it and says so. */}
+        <AccountRow
+          disabled={busy}
+          onSwitch={() => {
+            cancelPasskeyCeremony();
+            switchAccount();
+            setError(null);
+            setScreenTab("signin");
+          }}
+          onSignOut={() => {
+            cancelPasskeyCeremony();
+            signOut();
+            setError(null);
+            setScreenTab("signin");
+          }}
+        />
 
         {returningTabs ? (
           <div
@@ -581,6 +621,35 @@ function UnlockForm({
             ref={formRef}
             onSubmit={(e) => void onSubmit(e)}
           >
+            {hasTotpStep ? (
+              <div className="steps" aria-label="Unlock steps">
+                <div
+                  className={
+                    awaitingTotp ? "steps__seg is-done" : "steps__seg is-now"
+                  }
+                >
+                  <span className="steps__bar" />
+                  <span className="steps__label">1 · Key</span>
+                </div>
+                <div
+                  className={awaitingTotp ? "steps__seg is-now" : "steps__seg"}
+                >
+                  <span className="steps__bar" />
+                  <span className="steps__label">2 · Authenticator code</span>
+                </div>
+              </div>
+            ) : null}
+
+            {noPrimary ? (
+              <output className="note note--err">
+                <span>
+                  This vault has an authenticator code but no passkey, PIN or
+                  password to open it with, so nothing here can unlock it.
+                  Delete it and seal it again, or continue as a guest.
+                </span>
+              </output>
+            ) : null}
+
             {showMethodTabs ? (
               <div
                 className="unlock__methods"
@@ -637,6 +706,10 @@ function UnlockForm({
                   onChange={(e) => setTotp(e.target.value)}
                   placeholder="6-digit code"
                 />
+                <p className="hint">
+                  The key was right. This vault also asks for the code your
+                  authenticator app shows for OpenSesame.
+                </p>
                 <button
                   type="button"
                   className="unlock__switch"
@@ -851,58 +924,60 @@ function UnlockForm({
               </output>
             ) : null}
 
-            {(() => {
-              // The submit is the terminal's enter key: an ink square whose
-              // glyph is the ceremony, with the sentence in its name.
-              const verb = busy
-                ? firstRun
-                  ? activeMethod === "passkey"
-                    ? "Waiting for passkey…"
-                    : activeMethod === "pin"
-                      ? "Sealing…"
-                      : "Deriving key…"
-                  : awaitingTotp
-                    ? "Checking code…"
-                    : activeMethod === "passkey"
-                      ? "Waiting for passkey…"
-                      : "Unlocking…"
-                : firstRun
-                  ? activeMethod === "passkey"
-                    ? "Seal with passkey"
-                    : activeMethod === "pin"
-                      ? "Seal with PIN"
-                      : "Seal this device"
-                  : awaitingTotp
-                    ? "Confirm MFA"
-                    : activeMethod === "passkey"
-                      ? "Unlock with passkey"
-                      : "Unlock";
-              return (
-                <div className="go-row">
-                  <button
-                    ref={(element) => {
-                      goRef.current = element;
-                      submitRef(element);
-                    }}
-                    type="submit"
-                    className="go"
-                    disabled={disabled}
-                    aria-busy={busy}
-                    aria-label={verb}
-                    title={verb}
-                  >
-                    {activeMethod === "passkey" && !awaitingTotp ? (
-                      <IconPasskey size={18} />
-                    ) : (
-                      <IconArrowRight size={18} />
-                    )}
-                  </button>
-                  <span className="go-verb" aria-hidden="true">
-                    {verb}
-                  </span>
-                </div>
-              );
-            })()}
+            {noPrimary
+              ? null
+              : (() => {
+                  // The submit is the terminal's enter key: an ink square whose
+                  // glyph is the ceremony, with the sentence in its name.
+                  const verb = busy
+                    ? firstRun
+                      ? activeMethod === "passkey"
+                        ? "Waiting for passkey…"
+                        : activeMethod === "pin"
+                          ? "Sealing…"
+                          : "Deriving key…"
+                      : awaitingTotp
+                        ? "Checking code…"
+                        : activeMethod === "passkey"
+                          ? "Waiting for passkey…"
+                          : "Unlocking…"
+                    : firstRun
+                      ? activeMethod === "passkey"
+                        ? "Seal with passkey"
+                        : activeMethod === "pin"
+                          ? "Seal with PIN"
+                          : "Seal this device"
+                      : awaitingTotp
+                        ? "Confirm MFA"
+                        : activeMethod === "passkey"
+                          ? "Unlock with passkey"
+                          : "Unlock";
+                  return (
+                    <div className="go-row">
+                      <button
+                        ref={(element) => {
+                          goRef.current = element;
+                          submitRef(element);
+                        }}
+                        type="submit"
+                        className="go"
+                        disabled={disabled}
+                        aria-busy={busy}
+                        aria-label={verb}
+                        title={verb}
+                      >
+                        {activeMethod === "passkey" && !awaitingTotp ? (
+                          <IconPasskey size={18} />
+                        ) : (
+                          <IconArrowRight size={18} />
+                        )}
+                      </button>
+                      <span className="go-verb" aria-hidden="true">
+                        {verb}
+                      </span>
+                    </div>
+                  );
+                })()}
 
             {firstRun &&
             activeMethod === "password" &&
