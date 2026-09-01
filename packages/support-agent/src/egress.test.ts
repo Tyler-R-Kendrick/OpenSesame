@@ -279,6 +279,8 @@ describe("sanitizeSupportRequest limits", () => {
         state: [],
         capabilities: [],
         goals,
+        help: [],
+        tools: [],
       },
     });
     const sanitized = sanitizeSupportRequest(request);
@@ -306,10 +308,73 @@ describe("sanitizeSupportRequest limits", () => {
         state: [],
         capabilities: [],
         goals: [],
+        help: [],
+        tools: [],
       },
     });
     const sanitized = sanitizeSupportRequest(request);
     expect(sanitized.context.targets[0]?.description).toHaveLength(240);
+  });
+});
+
+describe("sanitizeSupportRequest written help and tools", () => {
+  it("rebuilds help entries and tool descriptions field by field", () => {
+    const sanitized = sanitizeSupportRequest(legitimateRequest());
+    expect(sanitized.context.help).toEqual(fakeSupportPageContext().help);
+    expect(sanitized.context.tools).toEqual(fakeSupportPageContext().tools);
+    expect(sanitized.context.help[0]).not.toBe(
+      legitimateRequest().context.help[0],
+    );
+  });
+
+  it("refuses a help entry or tool that carries an undeclared key", () => {
+    const base = fakeSupportPageContext();
+    const withElement: MutableBoundaryObject = overlapCast({ ...base });
+    withElement.help = [{ ...base.help[0], element: {} }];
+    expect(() =>
+      sanitizeSupportRequest(
+        asRequest({ question: "hello", history: [], context: withElement }),
+      ),
+    ).toThrow(SupportEgressRefused);
+    const withExecute: MutableBoundaryObject = overlapCast({ ...base });
+    withExecute.tools = [{ ...base.tools[0], execute: () => null }];
+    expect(() =>
+      sanitizeSupportRequest(
+        asRequest({ question: "hello", history: [], context: withExecute }),
+      ),
+    ).toThrow(SupportEgressRefused);
+  });
+
+  it("caps help entries and tools at their budgets and clamps an answer", () => {
+    const base = fakeSupportPageContext();
+    const help: BoundaryValue[] = [];
+    for (let index = 0; index < SUPPORT_LIMITS.maxHelpEntries + 3; index += 1) {
+      help.push({
+        id: `help.n${index}`,
+        title: "a topic",
+        answer: "a".repeat(SUPPORT_LIMITS.maxHelpAnswerChars + 50),
+        goal: null,
+      });
+    }
+    const tools: BoundaryValue[] = [];
+    for (let index = 0; index < SUPPORT_LIMITS.maxTools + 3; index += 1) {
+      tools.push({
+        name: `opensesame_n${index}`,
+        description: "a tool",
+        exposed: false,
+      });
+    }
+    const oversized: MutableBoundaryObject = overlapCast({ ...base });
+    oversized.help = help;
+    oversized.tools = tools;
+    const sanitized = sanitizeSupportRequest(
+      asRequest({ question: "hello", history: [], context: oversized }),
+    );
+    expect(sanitized.context.help).toHaveLength(SUPPORT_LIMITS.maxHelpEntries);
+    expect(sanitized.context.help[0]?.answer).toHaveLength(
+      SUPPORT_LIMITS.maxHelpAnswerChars,
+    );
+    expect(sanitized.context.tools).toHaveLength(SUPPORT_LIMITS.maxTools);
   });
 });
 

@@ -76,6 +76,32 @@ export type SupportGoalDescription = {
 };
 
 /**
+ * One entry of the written help, chosen for the question being asked. The
+ * prose is checked in beside the app and is the source of truth for how the
+ * interface works (ADR 0088 §10); a model is asked to answer *from* these and
+ * to say which it used. `goal` names the authored walkthrough that goes with
+ * the entry, so an answer can offer it without the model naming one.
+ */
+export type SupportHelpEntry = {
+  readonly id: string;
+  readonly title: string;
+  readonly answer: string;
+  readonly goal: string | null;
+};
+
+/**
+ * A WebMCP tool this page implements, as metadata. `exposed` says whether the
+ * browser at hand actually holds the registration; the description is the
+ * one the page registers, authored in-repo. There is no way to call one from
+ * here — the list tells a model what the app can do, not how to do it.
+ */
+export type SupportToolDescription = {
+  readonly name: string;
+  readonly description: string;
+  readonly exposed: boolean;
+};
+
+/**
  * Everything the model learns about the page. Built from authored registries,
  * never from `innerText`, form values, vault records or storage.
  */
@@ -88,7 +114,23 @@ export type SupportPageContext = {
   readonly state: readonly SupportStateFact[];
   readonly capabilities: readonly SupportCapabilityDescription[];
   readonly goals: readonly SupportGoalDescription[];
+  /** The written help that applies to the question, best match first. */
+  readonly help: readonly SupportHelpEntry[];
+  /** The WebMCP tools this page implements right now. */
+  readonly tools: readonly SupportToolDescription[];
 };
+
+/**
+ * Where an answer's procedure came from, decided by the trailing `sources:`
+ * line the instruction asks for. `cited` names written-help entries from the
+ * context the model said it used; `none` is the model saying nothing written
+ * covers the question; `uncited` is a model that named nothing at all, which
+ * is the case an answer must be treated as a guess.
+ */
+export type SupportGrounding =
+  | { readonly kind: "cited"; readonly help: readonly SupportHelpEntry[] }
+  | { readonly kind: "none" }
+  | { readonly kind: "uncited" };
 
 export type SupportRequest = {
   readonly question: string;
@@ -158,6 +200,9 @@ export const SUPPORT_LIMITS = {
   maxCapabilities: 60,
   maxGoals: 40,
   maxRoutes: 32,
+  maxHelpEntries: 6,
+  maxHelpAnswerChars: 800,
+  maxTools: 40,
   maxAnswerChars: 4000,
   maxSuggestedQuestions: 4,
   /** One bounded re-ask when a model returns unparseable GuideLang. */

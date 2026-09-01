@@ -82,6 +82,43 @@ tailscale serve --bg 8788      # https://<host>.<tailnet>.ts.net
 # then restart the broker with OPENSESAME_PUBLIC_URL set to that URL
 ```
 
+### The deployed Pages vault over Tailscale Serve
+
+`https://tyler-r-kendrick.github.io` is on both planes' CORS allowlists by
+default, and stays there when `OPENSESAME_CORS_ORIGINS` is overridden — the
+Identity API (`apps/control-plane/src/config.ts`) and the Host API
+(`crates/host-core`, `parse_cors_origins`) both append it. A browser console
+full of
+
+```
+Access to fetch at 'https://<host>.<tailnet>.ts.net/identity/v1/health/live'
+from origin 'https://tyler-r-kendrick.github.io' has been blocked by CORS
+policy: No 'Access-Control-Allow-Origin' header is present
+```
+
+is therefore almost never the allowlist. Look at the status on the same line:
+`net::ERR_FAILED 502 (Bad Gateway)` means Tailscale Serve answered because the
+process behind it was not listening, and Serve's own 502 carries no CORS
+headers — the browser reports the missing header, the cause is the service
+being down. Check from the machine that runs it:
+
+```bash
+curl -si http://127.0.0.1:8788/v1/health/live \
+  -H 'Origin: https://tyler-r-kendrick.github.io' | grep -i 'access-control\|HTTP/'
+curl -si http://127.0.0.1:8787/api/v1/health \
+  -H 'Origin: https://tyler-r-kendrick.github.io' | grep -i 'access-control\|HTTP/'
+tailscale serve status
+```
+
+A `200` with `access-control-allow-origin: https://tyler-r-kendrick.github.io`
+on loopback and a `502` through Serve is a Serve target pointing at the wrong
+port or a service that has exited; a `200` on loopback with no
+`access-control-allow-origin` is an `OPENSESAME_CORS_ORIGINS` set to `*` or
+`null`, which production refuses to start with and which suppresses the
+appended Pages origin. The vault polls every plane on a 30-second cadence
+(5 seconds while one is down), so the console repeats the same failure until
+the service is back; the statusline shows the same fact once.
+
 Point a static site at it. Nothing is registered in advance — the broker admits
 an origin on its first `/auth`:
 

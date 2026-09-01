@@ -62,11 +62,25 @@ type PlatformMonitor = {
   ) => void;
 };
 
+type PlatformExpectation = {
+  readonly type: "text";
+  readonly languages: readonly string[];
+};
+
 type PlatformCreateOptions = {
   initialPrompts?: readonly LocalModelPrompt[];
+  expectedInputs?: readonly PlatformExpectation[];
+  expectedOutputs?: readonly PlatformExpectation[];
   monitor?: (monitor: PlatformMonitor) => void;
   signal?: AbortSignal;
 };
+
+/**
+ * The language a session is created for. Chrome warns on every request that
+ * omits it ("No output language was specified") and says quality suffers;
+ * the support surface is authored in English, so that is what is declared.
+ */
+export const LOCAL_MODEL_LANGUAGES: readonly string[] = ["en"];
 
 type PlatformAvailability = () => Promise<BoundaryValue>;
 type PlatformCreate = (
@@ -170,7 +184,10 @@ export function detectLocalLanguageModel(): LocalLanguageModelApi | null {
     availability: async () =>
       normalizeAvailability(await availability.call(model)),
     create: async (options) => {
-      const payload: PlatformCreateOptions = {};
+      const payload: PlatformCreateOptions = {
+        expectedInputs: [{ type: "text", languages: LOCAL_MODEL_LANGUAGES }],
+        expectedOutputs: [{ type: "text", languages: LOCAL_MODEL_LANGUAGES }],
+      };
       // An empty `initialPrompts` is not the same as none: send the member
       // only when there is a system instruction to seed the session with.
       if (options.initialPrompts.length > 0) {

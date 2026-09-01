@@ -12,10 +12,12 @@ export {
   HELP_TOPICS,
   type GuideGoalDescriptor,
   type HelpTopic,
+  type RankedHelpTopic,
   describeGuideGoals,
   guideGoal,
   guideGoalIds,
   helpTopicsForRoute,
+  rankHelpTopics,
   searchHelpTopics,
 } from "./goals.js";
 export { GuideTarget, useGuideTarget } from "./react.jsx";

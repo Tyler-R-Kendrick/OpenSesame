@@ -15,6 +15,8 @@ const EMPTY_CONTEXT: SupportPageContext = {
   state: [],
   capabilities: [],
   goals: [],
+  help: [],
+  tools: [],
 };
 
 describe("SUPPORT_POLICY_CLAUSES", () => {
@@ -93,6 +95,8 @@ describe("buildSupportInstructions", () => {
       state: context.state,
       capabilities: context.capabilities,
       goals: context.goals,
+      help: context.help,
+      tools: context.tools,
     };
     expect(buildSupportInstructions(withoutTargets)).not.toContain(
       "nav.connections",

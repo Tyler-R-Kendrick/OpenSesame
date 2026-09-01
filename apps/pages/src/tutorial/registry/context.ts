@@ -11,11 +11,17 @@
 import { CAPABILITIES } from "@opensesame/capability-registry";
 import type {
   SupportCapabilityDescription,
+  SupportHelpEntry,
   SupportPageContext,
+  SupportToolDescription,
 } from "@opensesame/support-agent";
 import { SUPPORT_LIMITS } from "@opensesame/support-agent";
+import {
+  isWebMcpToolExposed,
+  webmcpRegistrationSnapshot,
+} from "../../webmcp/registration.js";
 import { inDevelopment } from "./dev.js";
-import { describeGuideGoals } from "./goals.js";
+import { describeGuideGoals, rankHelpTopics } from "./goals.js";
 import {
   type GuideRouteId,
   describeGuideRoutes,
@@ -77,11 +83,52 @@ function withinBudget<T>(
   return list.slice(0, limit);
 }
 
+/**
+ * The written help worth showing a model for this question: the best lexical
+ * matches, in rank order, with their authored prose. Without a question there
+ * is nothing to retrieve against, and the model is told so.
+ */
+function describeHelp(
+  question: string | undefined,
+  route: GuideRouteId,
+): readonly SupportHelpEntry[] {
+  if (question === undefined || question.trim().length === 0) return [];
+  return rankHelpTopics(question, route)
+    .slice(0, SUPPORT_LIMITS.maxHelpEntries)
+    .map(({ topic }) => ({
+      id: topic.id,
+      title: topic.title,
+      answer: topic.answer,
+      goal: topic.goal,
+    }));
+}
+
+/**
+ * The WebMCP tools this page holds registered right now — the app's own
+ * account of what it implements, read from the registration store rather than
+ * from a static list, so a locked vault reports its boot tools and nothing
+ * else. Descriptions are the ones the page registers; `exposed` says whether
+ * this browser's agent can actually see the tool.
+ */
+function describeTools(): readonly SupportToolDescription[] {
+  const out: SupportToolDescription[] = [];
+  for (const tool of webmcpRegistrationSnapshot().implemented) {
+    out.push({
+      name: tool.name,
+      description: tool.description,
+      exposed: isWebMcpToolExposed(tool.name),
+    });
+  }
+  return withinBudget(out, SUPPORT_LIMITS.maxTools, "tools");
+}
+
 export type PageContextInput = {
   readonly pageId: string;
   readonly route: GuideRouteId;
   readonly hostReachable: boolean;
   readonly identityReachable: boolean;
+  /** The question being asked, when there is one; it selects the written help. */
+  readonly question?: string;
 };
 
 /**
@@ -128,5 +175,7 @@ export function buildSupportPageContext(
       SUPPORT_LIMITS.maxGoals,
       "goals",
     ),
+    help: describeHelp(input.question, route),
+    tools: describeTools(),
   };
 }

@@ -142,9 +142,9 @@ describe("discovery is not execution", () => {
     expect(tripwire.fired).toEqual([]);
   });
 
-  it("lists tools as metadata that holds no callable", () => {
+  it("lists tools as metadata that holds no callable", async () => {
     const tripwire = armTripwire();
-    const listed = webmcp.listRegisteredTools(tripwire.api);
+    const listed = await webmcp.listRegisteredTools(tripwire.api);
 
     expect(listed.length).toBe(WEBMCP_TOOLS.length);
     for (const summary of listed) {

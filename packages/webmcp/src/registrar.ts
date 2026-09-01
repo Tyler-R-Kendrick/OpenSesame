@@ -41,6 +41,13 @@ export type WebMcpToolSpec = {
   description: string;
   inputSchema: JsonObject;
   disposition?: WebMcpToolDisposition;
+  /**
+   * Declares that the tool mutates nothing. Sent to the browser as the draft's
+   * `readOnlyHint` annotation, so its agent can tell a lookup from a ceremony
+   * before it calls either. A hint, never a control: the tool's own `execute`
+   * is what decides what happens.
+   */
+  readOnly?: boolean;
   execute: (args: JsonObject) => BoundaryValue | Promise<BoundaryValue>;
 };
 
@@ -56,11 +63,44 @@ export type WebMcpToolSummary = {
   readonly inputSchema: JsonObject;
 };
 
+/**
+ * A registration the browser refused. The draft rejects a duplicate name, an
+ * empty description or a malformed name with a `DOMException`; an early build
+ * throws synchronously. Either way the page finds out here instead of in an
+ * unhandled-rejection line nobody reads.
+ */
+export type WebMcpRegistrationFailure = {
+  readonly name: string;
+  /** One scrubbed line. Never a stack, never anything credential-shaped. */
+  readonly reason: string;
+};
+
+export type WebMcpRegistrarOptions = {
+  appId: string;
+  onFailure?: (failure: WebMcpRegistrationFailure) => void;
+};
+
 export type WebMcpRegistrar = {
   register: (tools: readonly WebMcpToolSpec[]) => Unregister;
 };
 
 const TOOL_PREFIX = "opensesame_";
+
+/**
+ * Every tool this package currently has registered with the browser, by name.
+ *
+ * There is one `modelContext` per document and the browser refuses a name it
+ * already holds, so a second registration of a live name — React StrictMode
+ * running an effect twice, a router hook handing out a fresh `navigate` — has
+ * to retire the first one. Tracking it here, rather than per registrar, is
+ * what makes that true across every registrar a page creates.
+ */
+const live = new Map<string, Unregister>();
+
+/** The names currently registered through this package, sorted. */
+export function liveWebMcpToolNames(): readonly string[] {
+  return [...live.keys()].sort();
+}
 
 function textResult(text: string, isError = false): WebMcpToolResult {
   const result: WebMcpToolResult = { content: [{ type: "text", text }] };
@@ -68,15 +108,23 @@ function textResult(text: string, isError = false): WebMcpToolResult {
   return result;
 }
 
+/** One scrubbed line, or a fixed word when the line itself looks like a secret. */
+function safeLine(message: string, fallback: string): string {
+  const line = scrubLocalSecrets(message).split("\n")[0]?.trim() ?? "";
+  return line.length === 0 || looksLikeCredential(line) ? fallback : line;
+}
+
 /**
  * Errors cross to the agent as scrubbed one-line messages — never stacks,
  * never class names, and never anything the fence flags as credential-shaped.
  */
 function errorResult(message: string): WebMcpToolResult {
-  const line = scrubLocalSecrets(message).split("\n")[0]?.trim() ?? "";
-  const text =
-    line.length === 0 || looksLikeCredential(line) ? "tool_failed" : line;
-  return textResult(text, true);
+  return textResult(safeLine(message, "tool_failed"), true);
+}
+
+function messageOf(cause: BoundaryValue): string {
+  if (cause instanceof Error) return cause.message;
+  return isString(cause) ? cause : "";
 }
 
 function toUnregister(handle: BoundaryValue): Unregister | null {
@@ -98,8 +146,17 @@ function toUnregister(handle: BoundaryValue): Unregister | null {
   return null;
 }
 
+/** The draft's `registerTool` answers with a promise; the early builds with nothing. */
+function isThenable(value: BoundaryValue): boolean {
+  if (value === null || !isTypeofObject(value) || Array.isArray(value)) {
+    return false;
+  }
+  const record: BoundaryObject = overlapCast(value);
+  return isFunction(record.then);
+}
+
 function wrapTool(tool: WebMcpToolSpec): WebMcpToolDescriptor {
-  return {
+  const descriptor: WebMcpToolDescriptor = {
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
@@ -115,6 +172,62 @@ function wrapTool(tool: WebMcpToolSpec): WebMcpToolDescriptor {
       }
     },
   };
+  if (tool.readOnly === true) descriptor.annotations = { readOnlyHint: true };
+  return descriptor;
+}
+
+function retire(name: string): void {
+  const previous = live.get(name);
+  if (previous) previous();
+}
+
+function registerOne(
+  api: ModelContextApi,
+  registerTool: NonNullable<ModelContextApi["registerTool"]>,
+  descriptor: WebMcpToolDescriptor,
+  onFailure: (failure: WebMcpRegistrationFailure) => void,
+): Unregister {
+  const { name } = descriptor;
+  retire(name);
+  const controller = new AbortController();
+  let handle: Unregister | null = null;
+  const fail = (cause: BoundaryValue) => {
+    onFailure({
+      name,
+      reason: safeLine(messageOf(cause), "registration_failed"),
+    });
+  };
+  try {
+    const returned = registerTool(descriptor, { signal: controller.signal });
+    handle = toUnregister(returned);
+    if (isThenable(returned)) {
+      const pending: Promise<BoundaryValue> = overlapCast(returned);
+      pending.then(undefined, (cause: BoundaryValue) => fail(cause));
+    }
+  } catch (cause) {
+    fail(cause instanceof Error ? cause : null);
+  }
+  let done = false;
+  const unregister: Unregister = () => {
+    if (done) return;
+    done = true;
+    if (live.get(name) === unregister) live.delete(name);
+    // Every way a browser has offered to end a registration, in case this one
+    // offers several: the draft's abort signal, the early builds' method, and
+    // the polyfills' returned handle. None of them minds being redundant.
+    controller.abort();
+    const unregisterTool = api.unregisterTool;
+    if (unregisterTool) {
+      try {
+        unregisterTool(name);
+      } catch {
+        // A browser that never held the tool has nothing to release.
+      }
+    }
+    if (handle) handle();
+  };
+  live.set(name, unregister);
+  return unregister;
 }
 
 /**
@@ -124,9 +237,10 @@ function wrapTool(tool: WebMcpToolSpec): WebMcpToolDescriptor {
  */
 export function createWebMcpRegistrar(
   api: ModelContextApi | null,
-  options: { appId: string },
+  options: WebMcpRegistrarOptions,
 ): WebMcpRegistrar {
   const { appId } = options;
+  const onFailure = options.onFailure ?? (() => {});
   return {
     register(tools) {
       const names = tools.map((tool) => tool.name);
@@ -140,16 +254,33 @@ export function createWebMcpRegistrar(
 
       const descriptors = tools.map(wrapTool);
       const handles: Unregister[] = [];
-      if (api.registerTool) {
+      const registerTool = api.registerTool;
+      if (registerTool) {
         for (const descriptor of descriptors) {
-          const handle = toUnregister(api.registerTool(descriptor));
-          if (handle) handles.push(handle);
+          handles.push(registerOne(api, registerTool, descriptor, onFailure));
         }
       } else if (api.provideContext) {
-        api.provideContext({ description: appId, tools: descriptors });
-        handles.push(() => {
+        for (const name of names) retire(name);
+        let cleared = false;
+        const clear: Unregister = () => {
+          if (cleared) return;
+          cleared = true;
+          for (const name of names) {
+            if (live.get(name) === clear) live.delete(name);
+          }
           api.provideContext?.({ description: appId, tools: [] });
-        });
+        };
+        try {
+          api.provideContext({ description: appId, tools: descriptors });
+          for (const name of names) live.set(name, clear);
+          handles.push(clear);
+        } catch (cause) {
+          const reason = safeLine(
+            cause instanceof Error ? cause.message : "",
+            "registration_failed",
+          );
+          for (const name of names) onFailure({ name, reason });
+        }
       }
 
       let done = false;
@@ -187,6 +318,8 @@ function summarizeTool(entry: BoundaryValue): WebMcpToolSummary | null {
  * Tools the browser reports as registered on this document, as metadata only.
  * Browsers on the older draft have no `getTools`, so the answer there is `[]`
  * rather than an error — discovery is an enhancement like the rest of WebMCP.
+ * The current draft answers with a promise and the early builds with an
+ * array; both are awaited, so a caller never sees the difference.
  *
  * Every field is copied out of the browser's descriptor, so nothing a caller
  * receives holds a reference to a callable tool. This package intentionally
@@ -194,12 +327,17 @@ function summarizeTool(entry: BoundaryValue): WebMcpToolSummary | null {
  * that can read this list still has no way to run anything in it, and that is
  * the property the absence of such an export enforces.
  */
-export function listRegisteredTools(
+export async function listRegisteredTools(
   api: ModelContextApi | null,
-): readonly WebMcpToolSummary[] {
+): Promise<readonly WebMcpToolSummary[]> {
   const getTools = api?.getTools;
   if (!getTools) return [];
-  const listed = getTools();
+  let listed: BoundaryValue;
+  try {
+    listed = await getTools();
+  } catch {
+    return [];
+  }
   if (!Array.isArray(listed)) return [];
   const summaries: WebMcpToolSummary[] = [];
   for (const entry of listed) {

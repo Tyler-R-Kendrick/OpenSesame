@@ -294,6 +294,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     name: "opensesame_status",
     capabilityIds: ["host.whoami", "app.status"],
     scope: "boot",
+    readOnly: true,
     description:
       "Vault and session status for the OpenSesame authority vault: lock state, item and folder counts, storage durability, and whether an identity session is active. Never returns secret material.",
     inputSchema: {
@@ -349,6 +350,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     name: "opensesame_health",
     capabilityIds: ["host.health.pages"],
     scope: "boot",
+    readOnly: true,
     description:
       "Connectivity posture of this vault tab: browser online state and last-probed health of the Host API, Identity API and local machine agent.",
     inputSchema: {
@@ -373,6 +375,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     name: "opensesame_vault_search",
     capabilityIds: ["vault.items.search"],
     scope: "session",
+    readOnly: true,
     description:
       "Search vault items by text, kind, folder or favorites. Returns metadata only (names, kinds, folders, flags, timestamps, health issues) — never passwords, seeds or other secret fields.",
     inputSchema: {
@@ -411,6 +414,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     name: "opensesame_vault_item_read",
     capabilityIds: ["vault.items.read_meta"],
     scope: "session",
+    readOnly: true,
     description:
       "Read one vault item's metadata by id: name, kind, folder, flags, timestamps and health issues. Secret fields are never included; use opensesame_open_reveal to hand a reveal to the human.",
     inputSchema: {
@@ -530,6 +534,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       "integrations.read",
     ],
     scope: "session",
+    readOnly: true,
     description:
       "Read the Host connection plane: provider catalog, connections, one connection with its activity events, or configured integrations. Read-only; never returns credentials.",
     inputSchema: {
@@ -581,6 +586,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       "agent_identities.read",
     ],
     scope: "session",
+    readOnly: true,
     description:
       "Read the access plane: task runs, one task with its capability ceiling, delegations, the caller's delegation offers, the relay approval inbox, or a connection's receipts. Read-only.",
     inputSchema: {
@@ -705,6 +711,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     name: "opensesame_identity_read",
     capabilityIds: ["identity.whoami", "identity.admin"],
     scope: "session",
+    readOnly: true,
     description:
       "Read-only identity summary: whether a session is active and, when signed in, the principal with its linked identities. Never returns tokens.",
     inputSchema: {
@@ -743,6 +750,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       "model_plane.read",
     ],
     scope: "session",
+    readOnly: true,
     description:
       "Read-only settings summary: configured endpoint URLs, the active project, capability-connector bindings, and which plane runs the password-reset model. Values that could carry credentials are omitted, and the plane is reported but never chosen here (ADR 0087).",
     inputSchema: {

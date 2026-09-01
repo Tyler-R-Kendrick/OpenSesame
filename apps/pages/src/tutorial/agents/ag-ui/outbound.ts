@@ -57,6 +57,19 @@ export type AgUiOutboundGoal = {
   readonly title: string;
 };
 
+export type AgUiOutboundHelp = {
+  readonly id: string;
+  readonly title: string;
+  readonly answer: string;
+  readonly goal: string | null;
+};
+
+export type AgUiOutboundTool = {
+  readonly name: string;
+  readonly description: string;
+  readonly exposed: boolean;
+};
+
 export type AgUiOutboundContext = {
   readonly version: 1;
   readonly pageId: string;
@@ -66,6 +79,8 @@ export type AgUiOutboundContext = {
   readonly state: readonly AgUiOutboundState[];
   readonly capabilities: readonly AgUiOutboundCapability[];
   readonly goals: readonly AgUiOutboundGoal[];
+  readonly help: readonly AgUiOutboundHelp[];
+  readonly tools: readonly AgUiOutboundTool[];
 };
 
 export type AgUiOutboundBody = {
@@ -110,6 +125,17 @@ export function buildAgUiOutboundBody(
       goals: context.goals.map((goal) => ({
         id: goal.id,
         title: goal.title,
+      })),
+      help: context.help.map((entry) => ({
+        id: entry.id,
+        title: entry.title,
+        answer: entry.answer,
+        goal: entry.goal,
+      })),
+      tools: context.tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        exposed: tool.exposed,
       })),
     },
     history: request.history.map((message) => ({
