@@ -176,6 +176,18 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
+    id: "setup.join-session",
+    title: "Join a session",
+    routes: ["/setup"],
+    guide: [
+      "guide/1",
+      'goal "setup.join-session"',
+      'say "Join a session you were invited to: a link and a code, or a public session to ask into."',
+      'focus "setup.join" "This road never asks you to be the operator. The Host is asked for only here, because sharing reintroduces the server." side=bottom',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "identity.sign-in",
     title: "Sign in with an identity provider",
     routes: ["/unlock"],
@@ -592,6 +604,7 @@ export const CAPABILITY_TUTORIALS: Readonly<Record<string, GuideGoalId>> = {
   "pwa.status": "host.health.check",
   "app.install": "app.install",
   "setup.first_run": "setup.first-run",
+  "shared_sessions.join_request": "setup.join-session",
 };
 
 /** Authored topics relevant to where the person currently is. */
