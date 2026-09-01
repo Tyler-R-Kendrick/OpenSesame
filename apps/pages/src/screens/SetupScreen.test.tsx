@@ -249,6 +249,7 @@ describe("the first-visit fork", () => {
       ],
     });
     const onDone = vi.fn();
+    const writeJoinStash = vi.fn();
     Object.assign(joinSessionDependencies, {
       presentInvite,
       currentSession: () => null,
@@ -258,6 +259,7 @@ describe("the first-visit fork", () => {
         written.hostApi = next.hostApi;
       },
       completeSetup,
+      writeJoinStash,
       parseInviteInput: (raw: string) =>
         raw.trim() ? { host: "https://host.example", token: raw.trim() } : null,
     });
@@ -267,8 +269,16 @@ describe("the first-visit fork", () => {
     type("Invite", "osc_clm_id.secret");
     fireEvent.click(screen.getByRole("button", { name: "Look it up" }));
     await waitFor(() => expect(screen.getByText("ready")).toBeTruthy());
+    type("Code", "FKM2RD");
     fireEvent.click(screen.getByRole("button", { name: "Sign in to accept" }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(writeJoinStash).toHaveBeenCalledWith({
+      kind: "invite",
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+      userCode: "FKM2RD",
+      acceptedItemIds: ["item_1"],
+    });
     expect(completeSetup).toHaveBeenCalledWith({
       ways: [],
       service: false,

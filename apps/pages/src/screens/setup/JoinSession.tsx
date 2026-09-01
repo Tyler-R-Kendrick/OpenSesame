@@ -23,6 +23,7 @@ import {
   askToJoin,
   parseInviteInput,
   presentInvite,
+  writeJoinStash,
 } from "../../lib/join-session.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
 import { completeSetup } from "../../lib/setup.js";
@@ -38,6 +39,7 @@ export const joinSessionDependencies = {
   saveSettings,
   completeSetup,
   parseInviteInput,
+  writeJoinStash,
 };
 
 type Mode = "invite" | "ask";
@@ -84,7 +86,7 @@ export function JoinSession({
 
   const verb = (() => {
     if (busy) return "Working…";
-    if (mode === "ask") return "Ask to join";
+    if (mode === "ask") return signedIn ? "Ask to join" : "Sign in to ask";
     if (offer) return signedIn ? "Accept" : "Sign in to accept";
     return "Look it up";
   })();
@@ -107,6 +109,16 @@ export function JoinSession({
         const pointed = commitHost(host);
         if (!pointed) {
           throw new Error("Joining needs a Host. Paste its address.");
+        }
+        if (!signedIn) {
+          joinSessionDependencies.writeJoinStash({
+            kind: "ask",
+            host: pointed,
+            sessionId: sessionId.trim(),
+            note: note.trim(),
+          });
+          await finishJoin();
+          return;
         }
         const receipt = await joinSessionDependencies.askToJoin(
           sessionId,
@@ -139,6 +151,13 @@ export function JoinSession({
       }
 
       if (!signedIn) {
+        joinSessionDependencies.writeJoinStash({
+          kind: "invite",
+          host: pointed,
+          token,
+          userCode: code.trim(),
+          acceptedItemIds: offer.items.map((item) => item.id),
+        });
         await finishJoin();
         return;
       }
@@ -160,9 +179,7 @@ export function JoinSession({
     busy ||
     (mode === "ask"
       ? !sessionId.trim() || !host.trim()
-      : !invite.trim() ||
-        !host.trim() ||
-        (Boolean(offer) && signedIn && !code.trim()));
+      : !invite.trim() || !host.trim() || (Boolean(offer) && !code.trim()));
 
   return (
     <>

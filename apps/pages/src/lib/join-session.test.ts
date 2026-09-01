@@ -4,10 +4,14 @@ import { AccessError } from "./access.js";
 import { identitySeams } from "./identity.js";
 import {
   askToJoin,
+  clearJoinStash,
   joinSessionSeams,
   parseInviteInput,
   presentInvite,
   readJoinFromLocation,
+  readJoinStash,
+  resumeStashedJoin,
+  writeJoinStash,
 } from "./join-session.js";
 
 const original = { ...joinSessionSeams };
@@ -61,9 +65,22 @@ describe("readJoinFromLocation", () => {
     expect(
       readJoinFromLocation(
         "https://pages.example/OpenSesame/#token=osc_clm_id.secret",
+        "https://pages.example",
       ),
     ).toEqual({
-      host: "https://pages.example",
+      host: null,
+      token: "osc_clm_id.secret",
+    });
+  });
+
+  it("keeps the Host origin when the paste is not this page", () => {
+    expect(
+      readJoinFromLocation(
+        "https://host.example/c/osc_clm_id.secret",
+        "https://pages.example",
+      ),
+    ).toEqual({
+      host: "https://host.example",
       token: "osc_clm_id.secret",
     });
   });
@@ -179,5 +196,73 @@ describe("askToJoin", () => {
       },
     );
     expect(receipt).toEqual({ id: "jr_1", decision: "pending" });
+  });
+});
+
+describe("join stash", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    Object.assign(joinSessionSeams, original);
+  });
+  afterEach(() => {
+    sessionStorage.clear();
+    Object.assign(joinSessionSeams, original);
+  });
+
+  it("round-trips an invite stash", () => {
+    writeJoinStash({
+      kind: "invite",
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+      userCode: "FKM2RD",
+      acceptedItemIds: ["item_1"],
+    });
+    expect(readJoinStash()).toEqual({
+      kind: "invite",
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+      userCode: "FKM2RD",
+      acceptedItemIds: ["item_1"],
+    });
+    clearJoinStash();
+    expect(readJoinStash()).toBeNull();
+  });
+
+  it("does not resume without a session", async () => {
+    writeJoinStash({
+      kind: "invite",
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+      userCode: "FKM2RD",
+      acceptedItemIds: ["item_1"],
+    });
+    joinSessionSeams.currentSession = () => null;
+    expect(await resumeStashedJoin()).toBe(false);
+    const stash = readJoinStash();
+    expect(stash?.kind === "invite" && stash.token).toBe("osc_clm_id.secret");
+  });
+
+  it("accepts a stashed invite once a session is live", async () => {
+    writeJoinStash({
+      kind: "invite",
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+      userCode: "FKM2RD",
+      acceptedItemIds: ["item_1"],
+    });
+    joinSessionSeams.currentSession = () =>
+      ({
+        principalId: "prn_1",
+        accessToken: "tok",
+        issuerOrigin: "http://127.0.0.1:18788",
+      }) as ReturnType<typeof original.currentSession>;
+    joinSessionSeams.acceptInvite = vi.fn().mockResolvedValue([]);
+    expect(await resumeStashedJoin()).toBe(true);
+    expect(joinSessionSeams.acceptInvite).toHaveBeenCalledWith({
+      claimToken: "osc_clm_id.secret",
+      userCode: "FKM2RD",
+      acceptedItemIds: ["item_1"],
+    });
+    expect(readJoinStash()).toBeNull();
   });
 });

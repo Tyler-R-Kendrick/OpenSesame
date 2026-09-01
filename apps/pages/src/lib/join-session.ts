@@ -15,6 +15,7 @@
 import {
   type BoundaryValue,
   type JsonObject,
+  isJsonObject,
   isString,
   isTypeofObject,
   overlapCast,
@@ -110,12 +111,117 @@ export function parseInviteInput(raw: string): ParsedInvite | null {
 /**
  * An invite that arrived as this page's own URL — a hash bearer or a claim
  * token in the query. Absence is not an error: most first visits have none.
+ * This page's origin is never the Host: a Pages deploy cannot mint a grant.
  */
 export function readJoinFromLocation(
   href: string = globalThis.location?.href ?? "",
+  pageOrigin: string = globalThis.location?.origin ?? "",
 ): ParsedInvite | null {
   if (!href) return null;
-  return parseInviteInput(href);
+  const parsed = parseInviteInput(href);
+  if (!parsed) return null;
+  if (parsed.host && pageOrigin && parsed.host === pageOrigin) {
+    return { host: null, token: parsed.token };
+  }
+  return parsed;
+}
+
+const STASH_KEY = "join.invite.v1";
+
+/** Tab-scoped: present spends the bearer, and sign-in is a detour. */
+export type JoinStash =
+  | {
+      kind: "invite";
+      host: string;
+      token: string;
+      userCode: string;
+      acceptedItemIds: string[];
+    }
+  | {
+      kind: "ask";
+      host: string;
+      sessionId: string;
+      note: string;
+    };
+
+function stashStorage(): Storage | null {
+  try {
+    return globalThis.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function writeJoinStash(next: JoinStash): void {
+  try {
+    stashStorage()?.setItem(STASH_KEY, JSON.stringify(next));
+  } catch {
+    // The ceremony still works in one sitting.
+  }
+}
+
+export function readJoinStash(): JoinStash | null {
+  try {
+    const raw = stashStorage()?.getItem(STASH_KEY);
+    if (!raw) return null;
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed)) return null;
+    const kind = parsed.kind;
+    const host = isString(parsed.host) ? parsed.host : "";
+    if (kind === "invite") {
+      if (!isString(parsed.token) || !parsed.token) return null;
+      const ids = Array.isArray(parsed.acceptedItemIds)
+        ? parsed.acceptedItemIds.filter(
+            (id): id is string => isString(id) && id.length > 0,
+          )
+        : [];
+      return {
+        kind: "invite",
+        host,
+        token: parsed.token,
+        userCode: isString(parsed.userCode) ? parsed.userCode : "",
+        acceptedItemIds: ids,
+      };
+    }
+    if (kind === "ask") {
+      if (!isString(parsed.sessionId) || !parsed.sessionId) return null;
+      return {
+        kind: "ask",
+        host,
+        sessionId: parsed.sessionId,
+        note: isString(parsed.note) ? parsed.note : "",
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearJoinStash(): void {
+  try {
+    stashStorage()?.removeItem(STASH_KEY);
+  } catch {
+    /* nothing stored */
+  }
+}
+
+/** Finish a join that was stashed across sign-in. No-op without a session. */
+export async function resumeStashedJoin(): Promise<boolean> {
+  const stash = readJoinStash();
+  if (!stash) return false;
+  if (!joinSessionSeams.currentSession()) return false;
+  if (stash.kind === "invite") {
+    await joinSessionSeams.acceptInvite({
+      claimToken: stash.token,
+      userCode: stash.userCode,
+      acceptedItemIds: stash.acceptedItemIds,
+    });
+  } else {
+    await joinSessionSeams.askToJoin(stash.sessionId, stash.note);
+  }
+  clearJoinStash();
+  return true;
 }
 
 async function presentInviteDefault(
@@ -221,14 +327,9 @@ async function askToJoinDefault(
       },
     );
   } catch (error) {
-    if (error instanceof AccessError || error instanceof Error) {
-      if (
-        error instanceof Error &&
-        !(error instanceof TypeError) &&
-        error.name !== "HostSessionError"
-      ) {
-        throw error;
-      }
+    if (error instanceof AccessError) throw error;
+    if (error instanceof Error && error.name === "HostSessionError") {
+      throw new AccessError(0, "setup_required", error.message);
     }
     throw new AccessError(
       0,
