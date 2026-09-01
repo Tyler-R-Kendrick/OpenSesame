@@ -12,7 +12,13 @@ import { isFunction, isTypeofObject } from "@opensesame/os-domain";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { GUIDE_TARGETS } from "./catalog.js";
-import { GUIDE_GOALS, HELP_TOPICS, guideGoalIds } from "./goals.js";
+import {
+  CAPABILITY_TUTORIALS,
+  GUIDE_GOALS,
+  HELP_TOPICS,
+  guideGoal,
+  guideGoalIds,
+} from "./goals.js";
 import { GUIDE_PREDICATES, registerGuidePredicates } from "./predicates.js";
 import { GUIDE_ROUTES, isKnownGuideRoute } from "./routes.js";
 import { guidePredicateIds } from "./state.js";
@@ -188,6 +194,22 @@ describe("the authored guides", () => {
       "settings.security.review",
     ]) {
       expect(goals.has(required)).toBe(true);
+    }
+  });
+
+  it("maps every PWA-surfaced capability to a compiling walkthrough", () => {
+    const pwa = CAPABILITIES.filter(
+      (capability) => capability.surfaces.pwa !== null,
+    );
+    expect(pwa.length).toBeGreaterThan(0);
+    for (const capability of pwa) {
+      const goalId = CAPABILITY_TUTORIALS[capability.id];
+      expect(goalId, capability.id).toBeTruthy();
+      const named = guideGoal(goalId ?? "");
+      expect(named, `${capability.id} -> ${goalId}`).not.toBeNull();
+    }
+    for (const goalId of new Set(Object.values(CAPABILITY_TUTORIALS))) {
+      expect(guideGoalIds()).toContain(goalId);
     }
   });
 });

@@ -46,7 +46,7 @@ import {
   planManifestMerge,
   vaultItemToEntry,
 } from "../lib/vault/store-sync.js";
-import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { ActiveProjectPanel as DefaultActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
 import { CapabilityConnectorsPanel as DefaultCapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
 import { ChangelogPanel as DefaultChangelogPanel } from "./settings/ChangelogPanel.js";
@@ -411,7 +411,9 @@ export function SettingsSection({
 
       {category !== "general" ? null : (
         <>
-          <resolvedPanels.InstallPanel />
+          <GuideTarget id="settings.install">
+            <resolvedPanels.InstallPanel />
+          </GuideTarget>
 
           <section className="panel">
             <div className="panel__head">
@@ -731,14 +733,22 @@ export function SettingsSection({
       )}
 
       {category !== "connectivity" ? null : (
-        <resolvedPanels.ModelProviderPanel />
+        <GuideTarget id="settings.model-provider">
+          <resolvedPanels.ModelProviderPanel />
+        </GuideTarget>
       )}
 
       {category !== "connectivity" ? null : (
-        <resolvedPanels.SecretConfigsPanel />
+        <GuideTarget id="settings.secret-configs">
+          <resolvedPanels.SecretConfigsPanel />
+        </GuideTarget>
       )}
 
-      {category !== "connectivity" ? null : <resolvedPanels.SyncTargetsPanel />}
+      {category !== "connectivity" ? null : (
+        <GuideTarget id="settings.sync-targets">
+          <resolvedPanels.SyncTargetsPanel />
+        </GuideTarget>
+      )}
 
       {category !== "connectivity" ? null : <resolvedPanels.TaskBusPanel />}
 
@@ -746,7 +756,11 @@ export function SettingsSection({
 
       {category !== "connectivity" ? null : <EndpointsPanel />}
 
-      {category !== "data" ? null : <resolvedPanels.GithubBackupPanel />}
+      {category !== "data" ? null : (
+        <GuideTarget id="settings.backup">
+          <resolvedPanels.GithubBackupPanel />
+        </GuideTarget>
+      )}
 
       {category !== "data" ? null : <resolvedPanels.ChangelogPanel />}
 
@@ -754,7 +768,11 @@ export function SettingsSection({
 
       {category !== "data" ? null : <resolvedPanels.ImportPanel />}
 
-      {category !== "data" ? null : <resolvedPanels.ItemTypesPanel />}
+      {category !== "data" ? null : (
+        <GuideTarget id="settings.item-types">
+          <resolvedPanels.ItemTypesPanel />
+        </GuideTarget>
+      )}
 
       {category !== "data" ? null : (
         <section className="panel">
@@ -802,57 +820,59 @@ export function SettingsSection({
       )}
 
       {category !== "data" ? null : (
-        <section className="panel">
-          <div className="panel__head">
-            <div>
-              <h2>Backup and move to another device</h2>
-            </div>
-          </div>
-          <div className="panel__body">
-            <div className="actions">
-              <button type="button" className="btn" onClick={exportVault}>
-                <IconDownload size={16} />
-                Export encrypted vault
-              </button>
-            </div>
-
-            <div className="set__inline">
-              <div className="field set__inline-grow">
-                <label htmlFor="import-password">
-                  Master password that export was sealed under
-                </label>
-                <input
-                  id="import-password"
-                  type="password"
-                  autoComplete="off"
-                  value={importPassword}
-                  onChange={(event) => setImportPassword(event.target.value)}
-                />
+        <GuideTarget id="vault.export">
+          <section className="panel">
+            <div className="panel__head">
+              <div>
+                <h2>Backup and move to another device</h2>
               </div>
-              <input
-                ref={fileRef}
-                id="import-file"
-                type="file"
-                accept="application/json"
-                className="visually-hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void importVault(file);
-                }}
-              />
-              <label htmlFor="import-file" className="btn">
-                <IconUpload size={16} />
-                Choose an OpenSesame export
-              </label>
             </div>
-            <p className="hint">
-              Importing merges items this vault does not already have by id.
-              Nothing is overwritten.
-            </p>
+            <div className="panel__body">
+              <div className="actions">
+                <button type="button" className="btn" onClick={exportVault}>
+                  <IconDownload size={16} />
+                  Export encrypted vault
+                </button>
+              </div>
 
-            <StatusNote message={dataMessage} />
-          </div>
-        </section>
+              <div className="set__inline">
+                <div className="field set__inline-grow">
+                  <label htmlFor="import-password">
+                    Master password that export was sealed under
+                  </label>
+                  <input
+                    id="import-password"
+                    type="password"
+                    autoComplete="off"
+                    value={importPassword}
+                    onChange={(event) => setImportPassword(event.target.value)}
+                  />
+                </div>
+                <input
+                  ref={fileRef}
+                  id="import-file"
+                  type="file"
+                  accept="application/json"
+                  className="visually-hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void importVault(file);
+                  }}
+                />
+                <label htmlFor="import-file" className="btn">
+                  <IconUpload size={16} />
+                  Choose an OpenSesame export
+                </label>
+              </div>
+              <p className="hint">
+                Importing merges items this vault does not already have by id.
+                Nothing is overwritten.
+              </p>
+
+              <StatusNote message={dataMessage} />
+            </div>
+          </section>
+        </GuideTarget>
       )}
 
       {category !== "data" ? null : (

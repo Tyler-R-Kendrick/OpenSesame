@@ -433,4 +433,181 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     routes: [],
     capabilityId: null,
   },
+
+  // ── Unlock, first-run setup, broker ───────────────────────────────────
+  {
+    id: "unlock.submit",
+    description:
+      "The ink square that opens the vault — passkey, PIN or master password, whichever method is selected.",
+    role: "action",
+    routes: ["/unlock"],
+    capabilityId: "identity.login",
+  },
+  {
+    id: "unlock.secret",
+    description:
+      "The field that takes the master password or PIN used to unwrap the vault key on this device.",
+    role: "action",
+    routes: ["/unlock"],
+    capabilityId: null,
+  },
+  {
+    id: "unlock.passkey",
+    description: "Chooses the passkey challenge as the way to open this vault.",
+    role: "action",
+    routes: ["/unlock"],
+    capabilityId: null,
+  },
+  {
+    id: "unlock.signin",
+    description:
+      "The sign-in panel: identity providers configured for this deployment, plus the option to bring your own issuer.",
+    role: "ceremony",
+    routes: ["/unlock"],
+    capabilityId: "identity.login",
+  },
+  {
+    id: "unlock.setup",
+    description:
+      "Opens first-run setup, where the operator chooses who may sign people in.",
+    role: "ceremony",
+    routes: ["/unlock"],
+    capabilityId: "setup.first_run",
+  },
+  {
+    id: "setup.choose",
+    description:
+      "The operator road on first visit: set this empty device up and choose who may sign people in.",
+    role: "action",
+    routes: ["/setup"],
+    capabilityId: "setup.first_run",
+  },
+  {
+    id: "setup.join",
+    description:
+      "The join road on first visit: a claim invite or a request into a public session.",
+    role: "action",
+    routes: ["/setup"],
+    capabilityId: "setup.first_run",
+  },
+  {
+    id: "setup.ways",
+    description:
+      "The allowlist of sign-in roads: brokered providers, operators' own issuers, and an optional Identity service.",
+    role: "surface",
+    routes: ["/setup"],
+    capabilityId: "setup.first_run",
+  },
+  {
+    id: "setup.keep",
+    description:
+      "The offer to keep this app on the device — install the PWA, with no wrong answer if declined.",
+    role: "action",
+    routes: ["/setup"],
+    capabilityId: "app.install",
+  },
+  {
+    id: "setup.finish",
+    description:
+      "The ink square that finishes setup and returns to sign-in with the roads just chosen.",
+    role: "action",
+    routes: ["/setup"],
+    capabilityId: "setup.first_run",
+  },
+  {
+    id: "broker.consent",
+    description:
+      "The broker popup that asks a person to approve a static site receiving an upstream identity assertion.",
+    role: "ceremony",
+    routes: ["/broker/authorize"],
+    capabilityId: "identity.login",
+  },
+  {
+    id: "federation.return",
+    description:
+      "The screen that finishes an identity-provider redirect and lands back in the vault or on unlock.",
+    role: "ceremony",
+    routes: ["/federation"],
+    capabilityId: "identity.login",
+  },
+  {
+    id: "access.grant-ceremony",
+    description:
+      "The grant ceremony itself: pick what is shared, narrow the scope, decide who it is for, mint a claim code.",
+    role: "ceremony",
+    routes: ["/access"],
+    capabilityId: "delegations.offers.mint",
+  },
+  {
+    id: "access.claim",
+    description:
+      "Claims a grant that was minted for this person or agent, by entering the claim code.",
+    role: "ceremony",
+    routes: ["/access"],
+    capabilityId: "delegations.claim",
+  },
+  {
+    id: "access.relay",
+    description:
+      "Pending relay approval requests: a person decides whether a running agent may continue.",
+    role: "ceremony",
+    routes: ["/access"],
+    capabilityId: "relay.decide",
+  },
+  {
+    id: "settings.backup",
+    description:
+      "Server-side GitHub backup of the sealed store, and the offline encrypted export that moves a vault to another device.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "backup.target.set",
+  },
+  {
+    id: "settings.model-provider",
+    description:
+      "Chooses which plane runs the password-reset model, or that this deployment does not use one.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "model_plane.choose",
+  },
+  {
+    id: "settings.secret-configs",
+    description:
+      "Write-only intake for secret-config values. Keys and metadata are listed; values never come back out.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "configs.set",
+  },
+  {
+    id: "settings.sync-targets",
+    description:
+      "Replication targets for the sealed store, and the control that triggers a run.",
+    role: "action",
+    routes: ["/settings"],
+    capabilityId: "sync_targets.trigger",
+  },
+  {
+    id: "settings.item-types",
+    description:
+      "Installs or removes a vault item type definition. Types are JSON manifests, not code paths.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "vault.item_types.install",
+  },
+  {
+    id: "settings.install",
+    description:
+      "Installs this app on the device as a PWA, so it is available without a browser chrome.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "app.install",
+  },
+  {
+    id: "vault.export",
+    description:
+      "Exports the sealed vault body plus its key-wrapping header, for moving to another device.",
+    role: "ceremony",
+    routes: ["/settings"],
+    capabilityId: "vault.export",
+  },
 ];

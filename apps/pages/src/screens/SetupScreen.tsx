@@ -23,6 +23,7 @@ import {
 } from "../lib/join-session.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
+import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { JoinSession } from "./setup/JoinSession.js";
 import { KeepIt } from "./setup/KeepIt.js";
@@ -54,6 +55,7 @@ export function SetupScreen({
   intent?: Road;
 }) {
   useSupportRoute("/setup");
+  const finishRef = useGuideTarget<HTMLButtonElement>("setup.finish");
   const [road, setRoad] = useState<Road>(intent ?? initialRoad);
   const [invite] = useState<ParsedInvite | null>(initialInvite);
   const [finishing, setFinishing] = useState(false);
@@ -118,17 +120,22 @@ export function SetupScreen({
                 <h1>How do people sign in?</h1>
               </div>
 
-              <WaysIn />
+              <GuideTarget id="setup.ways">
+                <WaysIn />
+              </GuideTarget>
 
               {/* Not a second question — an offer with no wrong answer, below
                   the one that matters and withheld entirely where the browser
                   will not install. ADR 0086. */}
-              <KeepIt />
+              <GuideTarget id="setup.keep">
+                <KeepIt />
+              </GuideTarget>
             </main>
 
             <div className="setup__foot">
               <div className="go-row">
                 <button
+                  ref={finishRef}
                   type="button"
                   className="go"
                   disabled={finishing}
@@ -152,22 +159,26 @@ export function SetupScreen({
             </div>
 
             <div className="roads">
-              <button
-                type="button"
-                className="preset__opt"
-                onClick={() => setRoad("setup")}
-              >
-                <span className="preset__name">Set up this device</span>
-                <span className="preset__kind">Choose who signs people in</span>
-              </button>
-              <button
-                type="button"
-                className="preset__opt"
-                onClick={() => setRoad("join")}
-              >
-                <span className="preset__name">Join a session</span>
-                <span className="preset__kind">A link and a code</span>
-              </button>
+              <GuideTarget id="setup.choose">
+                <button
+                  type="button"
+                  className="preset__opt"
+                  onClick={() => setRoad("setup")}
+                >
+                  <span className="preset__name">Set up this device</span>
+                  <span className="preset__kind">Choose who signs people in</span>
+                </button>
+              </GuideTarget>
+              <GuideTarget id="setup.join">
+                <button
+                  type="button"
+                  className="preset__opt"
+                  onClick={() => setRoad("join")}
+                >
+                  <span className="preset__name">Join a session</span>
+                  <span className="preset__kind">A link and a code</span>
+                </button>
+              </GuideTarget>
             </div>
           </main>
         )}
