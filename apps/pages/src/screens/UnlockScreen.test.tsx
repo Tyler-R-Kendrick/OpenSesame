@@ -144,10 +144,12 @@ Object.assign(providersSeams, {
 import { setupScreenDependencies } from "./SetupScreen.js";
 import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
 
-// This file exercises the unlock form. Setup has a suite of its own; here the
-// ceremony is already answered, which is the state of every device that has a
-// vault on it, and the few tests that do reach it only assert the handoff.
-const setupRequiredHolder = { current: false };
+// This file exercises the unlock form. Setup has a suite of its own and is
+// never a gate (ADR 0090); the few tests that reach it only assert the
+// handoff from the sign-in screen's foot, or from an invite in the URL.
+const inviteHolder: { current: { host: string; token: string } | null } = {
+  current: null,
+};
 const identityBaseHolder = { current: "http://127.0.0.1:18788" };
 /** What setup left as the ways in — the screen reads this, not the URL. */
 type WaysInHolder = { current: SignInMethods };
@@ -156,7 +158,7 @@ const waysInHolder: WaysInHolder = {
 };
 const completeSetup = vi.fn<() => Promise<void>>();
 Object.assign(unlockScreenDependencies, {
-  setupRequired: () => setupRequiredHolder.current,
+  readJoinFromLocation: () => inviteHolder.current,
   currentSession: () => null,
   identityBase: () => identityBaseHolder.current,
   signInMethods: () => waysInHolder.current,
@@ -242,7 +244,7 @@ beforeEach(() => {
   // Identity API).
   listFederatedProviders.mockResolvedValue([]);
   endSession.mockReset();
-  setupRequiredHolder.current = false;
+  inviteHolder.current = null;
   identityBaseHolder.current = "http://127.0.0.1:18788";
   waysInHolder.current = { builtin: true, providers: [] };
   completeSetup.mockReset();
@@ -251,7 +253,7 @@ beforeEach(() => {
   upstreamHolder.current = UPSTREAM;
 });
 
-describe("UnlockScreen — setup gate", () => {
+describe("UnlockScreen — setup is optional (ADR 0090)", () => {
   afterEach(cleanup);
 
   function fresh() {
@@ -265,74 +267,32 @@ describe("UnlockScreen — setup gate", () => {
     };
   }
 
-  it("runs the setup ceremony before anything else on a fresh deployment", () => {
+  it("opens on sign-in on a fresh device, with the broker and guest on offer", () => {
+    // The screen this replaces was an operator's question ("This device is
+    // empty") with no sign-in and no guest road on it at all.
     fresh();
-    setupRequiredHolder.current = true;
     render(<UnlockScreen />);
 
-    // The screen this replaces led with an amber report of the same state.
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "This device is empty",
+      "Sign in",
     );
+    expect(
+      screen.getByRole("button", { name: "Continue with Google" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Continue as guest" }),
+    ).toBeTruthy();
+    expect(screen.queryByText("This device is empty")).toBeNull();
     expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
   });
 
-  it("opens the ceremony once the device is known to be empty", () => {
-    // The vault header is hydrated from OPFS before first paint in production,
-    // but a one-shot `useState` initializer still races: if the first render
-    // saw a sealed tomb (or a live session) the ceremony never ran, even after
-    // that reading was corrected. Re-read the gate so a first-time visit
-    // cannot miss it.
-    v.state = {
-      status: "locked",
-      header: null,
-      lockedOutUntil: null,
-      failedAttempts: 0,
-      durable: true,
-      awaitingTotp: false,
-    };
-    setupRequiredHolder.current = false;
-    const { rerender } = render(<UnlockScreen />);
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Unlock",
-    );
-
+  it("reaches deployment setup from the foot and hands back to sign-in", () => {
     fresh();
-    setupRequiredHolder.current = true;
-    rerender(<UnlockScreen />);
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "This device is empty",
-    );
-  });
-
-  it("leaves a returning vault on unlock when a late hydrate finds one", () => {
-    fresh();
-    setupRequiredHolder.current = true;
-    const { rerender } = render(<UnlockScreen />);
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "This device is empty",
-    );
-
-    v.state = {
-      status: "locked",
-      header: null,
-      lockedOutUntil: null,
-      failedAttempts: 0,
-      durable: true,
-      awaitingTotp: false,
-    };
-    setupRequiredHolder.current = false;
-    rerender(<UnlockScreen />);
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Unlock",
-    );
-  });
-
-  it("hands back to the unlock screen once setup is answered", () => {
-    fresh();
-    setupRequiredHolder.current = true;
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: /Set up this device/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "How do people sign in?",
+    );
     // One tap after that: the brokered road needs nothing typed.
     fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
 
@@ -341,6 +301,45 @@ describe("UnlockScreen — setup gate", () => {
         "Sign in",
       ),
     );
+  });
+
+  it("backs out of setup without recording anything", () => {
+    fresh();
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Sign in",
+    );
+    expect(completeSetup).not.toHaveBeenCalled();
+  });
+
+  it("reaches the join road from the foot", () => {
+    fresh();
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Join a session",
+    );
+  });
+
+  it("opens join directly when the visit is an invite link", () => {
+    // The link is the request: nobody who was invited should have to find
+    // the road themselves.
+    fresh();
+    inviteHolder.current = {
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+    };
+    setupScreenDependencies.readJoinFromLocation = () => inviteHolder.current;
+    try {
+      render(<UnlockScreen />);
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+        "Join a session",
+      );
+    } finally {
+      setupScreenDependencies.readJoinFromLocation = () => null;
+    }
   });
 
   it("withholds the Unlock tab while nothing is sealed on this device", () => {
@@ -1755,5 +1754,90 @@ describe("UnlockScreen — several vaults on this device", () => {
     render(<UnlockScreen />);
     expect(screen.getByRole("heading", { name: "Unlock" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "‹ Vaults" })).toBeNull();
+  });
+});
+
+describe("UnlockScreen — where the keyboard lands", () => {
+  beforeEach(() => {
+    v.state = {
+      status: "locked",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingTotp: false,
+    };
+    v.methods = ["passkey", "pin", "password"];
+    v.preferred = "passkey";
+    v.host = { ok: true };
+    for (const fn of Object.values(v.store)) fn.mockReset();
+  });
+
+  afterEach(cleanup);
+
+  it("lands on the go control for passkey, then follows the method tabs", () => {
+    // A returning vault opens on passkey, which has no field: Enter on the go
+    // control starts the ceremony. Choosing a typed method moves the caret
+    // into its field — no click in the field first.
+    render(<UnlockScreen />);
+    expect(document.activeElement).toBe(submitButton());
+    fireEvent.click(screen.getByRole("tab", { name: "Password" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Password"));
+    fireEvent.click(screen.getByRole("tab", { name: "PIN" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("PIN"));
+  });
+
+  it("lands on the code mid-MFA", () => {
+    v.state.awaitingTotp = true;
+    render(<UnlockScreen />);
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Authenticator code"),
+    );
+  });
+
+  it("lands on the master password once 'Use without an account' is chosen", () => {
+    // The seal form mounts after the sign-in stage on the same screen; the
+    // caret has to move into it even though the method never changed.
+    v.state.status = "empty";
+    v.host = { ok: false, reason: "no passkeys here", fixUrl: null };
+    render(<UnlockScreen />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use without an account" }),
+    );
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Master password"),
+    );
+  });
+
+  it("lands on the acknowledgement when the seal form opens on passkey", () => {
+    // Passkey has nothing to type, and the go control refuses until the
+    // no-recovery line is accepted — so that checkbox is the first answer.
+    v.state.status = "empty";
+    render(<UnlockScreen />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use without an account" }),
+    );
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("I understand this vault cannot be recovered."),
+    );
+  });
+
+  it("lands on the method tabs when this host cannot do passkeys", () => {
+    v.host = { ok: false, reason: "not on a DNS hostname", fixUrl: null };
+    render(<UnlockScreen />);
+    expect(document.activeElement).toBe(
+      screen.getByRole("tab", { name: "Passkey" }),
+    );
+  });
+
+  it("hands the caret back to the field when unlock is refused", async () => {
+    v.store.unlock.mockRejectedValue(new Error("wrong"));
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("tab", { name: "Password" }));
+    const field = screen.getByLabelText("Password");
+    fireEvent.change(field, { target: { value: "nope" } });
+    fireEvent.click(submitButton());
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    expect(document.activeElement).toBe(field);
   });
 });

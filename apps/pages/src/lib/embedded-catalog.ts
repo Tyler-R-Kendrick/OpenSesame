@@ -447,7 +447,24 @@ function withTimeout<T>(
   });
 }
 
+/**
+ * The turso wasm worker hands the page a SharedArrayBuffer, which a browser
+ * only allows in a cross-origin-isolated context. A static host sends no
+ * COOP/COEP headers, so the very first load of the deployed app (before the
+ * service worker adds them and reloads) is not isolated, and starting the
+ * worker there is an uncaught DataCloneError. Answer the question before
+ * asking; the in-memory catalog is the fallback either way. Test runtimes
+ * do not define the flag at all, and are left alone.
+ */
+function workerIsolationBlocked(): boolean {
+  const isolated: unknown = Reflect.get(globalThis, "crossOriginIsolated");
+  return isolated === false;
+}
+
 async function open(): Promise<TursoDb> {
+  if (workerIsolationBlocked()) {
+    throw new Error("turso_requires_cross_origin_isolation");
+  }
   const settings = loadSettings();
   const remote = settings.tursoUrl.trim();
   const { connectTurso } = await import("./turso-connect.js");

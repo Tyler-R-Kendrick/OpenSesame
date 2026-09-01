@@ -17,7 +17,6 @@ import {
   brokeredSignInReady,
   completeSetup,
   loadSetup,
-  setupRequired,
   setupSeams,
   unlockViable,
 } from "./setup.js";
@@ -72,9 +71,6 @@ describe("the setup record", () => {
     await completeSetup({ ways: [], service: false, joined: true });
     const record = loadSetup();
     expect(record?.joined).toBe(true);
-    expect(setupRequired({ vaultStatus: "empty", hasSession: false })).toBe(
-      false,
-    );
   });
 
   it("reads a corrupt or truncated record as no record", () => {
@@ -129,44 +125,12 @@ describe("the setup record", () => {
   });
 });
 
-describe("setupRequired", () => {
-  const fresh = { vaultStatus: "empty", hasSession: false } as const;
-
-  it("is true for a device nobody has been to", () => {
-    expect(setupRequired(fresh)).toBe(true);
-  });
-
-  it("is false once the ceremony has been answered", async () => {
-    await completeSetup({ ways: [], service: false });
-    expect(setupRequired(fresh)).toBe(false);
-  });
-
-  it("is false where a vault already exists, record or not", () => {
-    // Every build before the ceremony let people seal a vault without one.
-    // Sending them to first-run setup would tell a returning user their vault
-    // is a fresh install.
-    expect(setupRequired({ vaultStatus: "locked", hasSession: false })).toBe(
-      false,
-    );
-    expect(setupRequired({ vaultStatus: "unlocked", hasSession: false })).toBe(
-      false,
-    );
-  });
-
-  it("is false where an Identity session is live", () => {
-    // A session is only reachable through a working Identity API, so somebody
-    // has already pointed this app at one.
-    expect(setupRequired({ vaultStatus: "empty", hasSession: true })).toBe(
-      false,
-    );
-  });
-
-  it("survives a KV read that throws", () => {
-    kvSeams.kvGet = vi.fn(() => {
-      throw new Error("OPFS unavailable");
-    });
-    expect(setupRequired(fresh)).toBe(true);
-    kvSeams.kvGet = (key: string) => store.get(key) ?? null;
+describe("the record is never a gate (ADR 0090)", () => {
+  it("has no unanswered state the app could block on", () => {
+    // A device nobody has been to reads as "no record", and that is all: the
+    // sign-in screen opens regardless, and setup is reached on purpose.
+    expect(loadSetup()).toBeNull();
+    expect(setupSeams).not.toHaveProperty("setupRequired");
   });
 });
 

@@ -1290,6 +1290,12 @@ body {
   padding: 1.75rem 2rem 4rem;
 }
 
+/* A landing, not a control: the keyboard rests here so the next Tab is the
+   section's first control. */
+.section:focus {
+  outline: none;
+}
+
 .section__inner {
   max-width: 60rem;
   display: grid;

@@ -475,15 +475,34 @@ describe("buildConnectors", () => {
     expect(isOfflineSet(built)).toBe(true);
   });
 
-  it("counts only the required, non-live connectors as needing attention", () => {
+  it("counts configured-but-broken connectors, never merely unconfigured ones", () => {
     const built = buildConnectors(
       plane({ host: "down", identity: "none" }),
       snapshot({ host: target({ health: "unreachable" }) }),
       settings(),
     );
-    // Host down, Identity sessionless, machine unpaired — three required.
-    // Git history is optional persistence; the built-in key vault is not
-    // required either.
-    expect(needsAttention(built)).toBe(3);
+    // Host down and Identity sessionless are configured addresses that are
+    // not answering — two. The unpaired machine, optional git history and
+    // the built-in key vault are not problems: none of the core planes is
+    // required (ADR 0090).
+    expect(needsAttention(built)).toBe(2);
+    for (const status of built) expect(status.required).toBe(false);
+  });
+
+  it("asks for nothing on a deployment with no backend at all", () => {
+    // The production static deploy: no Host, no Identity, no daemon. That is
+    // a complete deployment, and the connectivity chip must not say three
+    // things need setting up.
+    const built = buildConnectors(
+      plane({
+        host: "unset",
+        hostBase: "",
+        identity: "none",
+        identityBase: "",
+      }),
+      snapshot({}),
+      settings(),
+    );
+    expect(needsAttention(built)).toBe(0);
   });
 });

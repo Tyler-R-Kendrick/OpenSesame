@@ -8,7 +8,14 @@ import {
   waitFor,
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
-import { MemoryRouter, Route, Routes } from "react-router";
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useNavigationType,
+} from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createKeymapHandler } from "../lib/keymap.js";
@@ -613,5 +620,115 @@ describe("VaultWelcome", () => {
     renderWelcome();
     expect(screen.queryByText(/passwords need attention/)).toBeNull();
     expect(screen.getByText("1 item")).toBeTruthy();
+  });
+});
+
+/**
+ * Stands in for the buffer: says how the route was reached and offers the
+ * browser's own Back, so a test can arrive the way a person does.
+ */
+function DetailProbe() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return (
+    <div>
+      <p>detail pane</p>
+      <output data-testid="arrival">{useNavigationType()}</output>
+      <output data-testid="where">{location.pathname}</output>
+      <button type="button" onClick={() => navigate(-1)}>
+        Back
+      </button>
+    </div>
+  );
+}
+
+function renderWithHistory(entries: string[]) {
+  return render(
+    <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
+      <Routes>
+        <Route path="/vault" element={<VaultSection />}>
+          <Route index element={<div>welcome pane</div>} />
+          <Route path=":itemId" element={<DetailProbe />} />
+        </Route>
+        <Route path="/settings" element={<DetailProbe />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+describe("VaultSection — where the keyboard lands", () => {
+  beforeEach(() => {
+    vault.current = {
+      items: [makeLogin(), makeNote()],
+      folders: [],
+      header: null,
+    };
+    vaultTreeSeams.loadCollapsed = async () => [];
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+
+  it("opening the item the cursor already previews replaces, so Back leaves it", () => {
+    // Browsing is previewing: j replaces the list entry with the item, so the
+    // entry before the vault is where Back belongs.
+    renderWithHistory(["/settings", "/vault"]);
+    const handler = keymap();
+    press(handler, "j");
+    expect(screen.getByTestId("arrival").textContent).toBe("REPLACE");
+    // Enter on the previewed item is the same place: no second entry for it.
+    press(handler, "Enter");
+    expect(screen.getByTestId("arrival").textContent).toBe("REPLACE");
+    expect(screen.getByTestId("where").textContent).toBe("/vault/itm_1");
+    // Back now goes somewhere, rather than to the screen it was pressed on.
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByTestId("where").textContent).toBe("/settings");
+    expect(screen.queryByRole("tree")).toBeNull();
+  });
+
+  it("opening a different item than the previewed one still pushes", () => {
+    renderWithHistory(["/vault"]);
+    const handler = keymap();
+    press(handler, "j");
+    // The cursor previews itm_1; a pointer opens the other file.
+    const other = document.getElementById("vtree-row-itm_2");
+    if (!other) throw new Error("expected the row for itm_2");
+    fireEvent.click(other);
+    expect(screen.getByTestId("arrival").textContent).toBe("PUSH");
+    expect(screen.getByTestId("where").textContent).toBe("/vault/itm_2");
+  });
+
+  it("Back from a section hands the keyboard to the tree", async () => {
+    renderWithHistory(["/vault", "/settings"]);
+    expect(screen.queryByRole("tree")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("tree")),
+    );
+  });
+
+  it("Back from an item lands on the tree when nothing else holds the keyboard", async () => {
+    renderWithHistory(["/vault", "/vault/itm_1"]);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("tree")),
+    );
+    // Something in the buffer took the keyboard, then the buffer went away.
+    screen.getByRole("button", { name: "Back" }).focus();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("tree")),
+    );
+  });
+
+  it("an empty vault lands on the New item link", async () => {
+    vault.current = { items: [], folders: [], header: null };
+    renderWithHistory(["/vault"]);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("link", { name: "New item" }),
+      ),
+    );
   });
 });

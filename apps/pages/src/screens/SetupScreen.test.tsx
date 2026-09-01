@@ -148,8 +148,7 @@ function commit(): HTMLElement {
 }
 
 function openSetup(onDone: () => void = vi.fn()): () => void {
-  render(<SetupScreen onDone={onDone} />);
-  fireEvent.click(screen.getByRole("button", { name: /Set up this device/ }));
+  render(<SetupScreen road="setup" onDone={onDone} />);
   return onDone;
 }
 
@@ -189,31 +188,31 @@ async function addProvider(
   });
 }
 
-describe("the first-visit fork", () => {
-  it("asks set-up or join before treating the visitor as operator", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
-    expect(heading()).toBe("This device is empty");
-    expect(
-      screen.getByRole("button", { name: /Set up this device/ }),
-    ).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Join a session/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Finish setup" })).toBeNull();
-  });
-
-  it("opens the operator question from set up", () => {
+describe("two optional ceremonies, never a fork (ADR 0090)", () => {
+  it("opens the operator question when asked for", () => {
     openSetup();
     expect(heading()).toBe("How do people sign in?");
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(heading()).toBe("This device is empty");
+    expect(screen.queryByText("This device is empty")).toBeNull();
   });
 
-  it("opens join from the other road", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /Join a session/ }));
+  it("backs out to the caller without recording anything", () => {
+    const onDone = openSetup();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(completeSetup).not.toHaveBeenCalled();
+  });
+
+  it("opens join when asked for", () => {
+    render(<SetupScreen road="join" onDone={vi.fn()} />);
     expect(heading()).toBe("Join a session");
     expect(screen.getByLabelText("Invite")).toBeTruthy();
     expect(screen.getByLabelText("Code")).toBeTruthy();
     expect(screen.getByLabelText("Host")).toBeTruthy();
+  });
+
+  it("defaults to the operator question with no invite in the address bar", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(heading()).toBe("How do people sign in?");
   });
 
   it("opens join directly when the visit is an invite", () => {
@@ -264,8 +263,7 @@ describe("the first-visit fork", () => {
       parseInviteInput: (raw: string) =>
         raw.trim() ? { host: "https://host.example", token: raw.trim() } : null,
     });
-    render(<SetupScreen onDone={onDone} />);
-    fireEvent.click(screen.getByRole("button", { name: /Join a session/ }));
+    render(<SetupScreen road="join" onDone={onDone} />);
     type("Host", "https://host.example");
     type("Invite", "osc_clm_id.secret");
     fireEvent.click(screen.getByRole("button", { name: "Look it up" }));
@@ -613,5 +611,19 @@ describe("keeping it on this device", () => {
     expect(
       screen.queryByRole("button", { name: "Install OpenSesame" }),
     ).toBeNull();
+  });
+});
+
+describe("where the keyboard lands", () => {
+  it("lands setup on its commit, never on a provider's Remove", () => {
+    render(<SetupScreen road="setup" onDone={vi.fn()} />);
+    expect(document.activeElement).toBe(commit());
+  });
+
+  it("lands join inside its form, on the invite", () => {
+    render(<SetupScreen road="join" onDone={vi.fn()} />);
+    expect(screen.getByRole("main").contains(document.activeElement)).toBe(
+      true,
+    );
   });
 });

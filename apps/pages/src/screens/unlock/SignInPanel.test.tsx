@@ -195,3 +195,30 @@ describe("what the sign-in screen offers", () => {
     ).toBeDefined();
   });
 });
+
+describe("SignInPanel — where the keyboard lands", () => {
+  it("lands on the first road in when there is no identifier field to take it", () => {
+    // No Identity API: no identifier field, so nothing else claims the caret.
+    // The first brand mark in the social bar is the first road, and Enter
+    // starts it — the screen is answerable without a click.
+    renderPanel();
+    const first = screen.getByRole("button", { name: /Continue with/ });
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("lands on guest when setup left no provider at all", () => {
+    state.signIn = { ...defaultSignInMethods(), builtin: false, providers: [] };
+    renderPanel();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /Continue as guest/ }),
+    );
+  });
+
+  it("yields to the identifier field where an identity service exists", () => {
+    state.identityApi = "http://127.0.0.1:18788";
+    renderPanel();
+    expect(document.activeElement).toBe(
+      screen.getByLabelText(/Email or organization/i),
+    );
+  });
+});

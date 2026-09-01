@@ -501,25 +501,17 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.setup",
     description:
-      "Opens first-run setup, where the operator chooses who may sign people in.",
+      "Opens optional deployment setup, where the operator chooses who may sign people in.",
     role: "ceremony",
     routes: ["/unlock"],
     capabilityId: "setup.first_run",
   },
   {
-    id: "setup.choose",
-    description:
-      "The operator road on first visit: set this empty device up and choose who may sign people in.",
-    role: "action",
-    routes: ["/setup"],
-    capabilityId: "setup.first_run",
-  },
-  {
     id: "setup.join",
     description:
-      "The join road on first visit: a claim invite or a request into a public session.",
+      "Opens the join road from the sign-in screen: a claim invite or a request into a public session.",
     role: "action",
-    routes: ["/setup"],
+    routes: ["/unlock"],
     capabilityId: "setup.first_run",
   },
   {

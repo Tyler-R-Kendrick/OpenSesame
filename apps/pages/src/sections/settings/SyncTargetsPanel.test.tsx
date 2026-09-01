@@ -22,6 +22,9 @@ Object.assign(identitySeams, {
   useIdentitySession: () => session.current,
   ensureHostSession,
   hostLocalSessionEligible,
+  // A Host is connected in every case below; the no-Host road (ADR 0090)
+  // has its own test at the end of the file.
+  hostBase: () => "http://127.0.0.1:18787",
 });
 const listSyncTargets = vi.hoisted(() => vi.fn());
 const syncTarget = vi.hoisted(() => vi.fn());
@@ -193,5 +196,23 @@ describe("SyncTargetsPanel", () => {
     await screen.findByText(/No sync targets yet/i);
     await userEvent.click(screen.getByRole("button", { name: /Refresh/i }));
     await waitFor(() => expect(listSyncTargets).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("SyncTargetsPanel — no Host connected (ADR 0090)", () => {
+  const withHost = identitySeams.hostBase;
+  beforeEach(() => {
+    identitySeams.hostBase = () => "";
+    listSyncTargets.mockClear();
+  });
+  afterEach(() => {
+    identitySeams.hostBase = withHost;
+  });
+
+  it("asks nothing of a Host that is not there, and reports no failure", () => {
+    render(<SyncTargetsPanel />);
+    expect(listSyncTargets).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByText(/none is connected — optional/)).toBeTruthy();
   });
 });

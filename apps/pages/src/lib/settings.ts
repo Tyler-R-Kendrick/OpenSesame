@@ -101,9 +101,12 @@ type PersistedSettings = {
   signIn: SignInMethods;
 };
 
-/** Local Host for `pages-dev.sh` — avoids the common :8787 collision. */
+/**
+ * The loopback addresses `pages-dev.sh` runs the planes on (`:187xx` avoids
+ * the classic `:8787`/`:8788` collisions). These are *suggestions* a loopback
+ * tab may offer in a pairing field — never defaults the app assumes (ADR 0090).
+ */
 export const shippedHostApi = "http://127.0.0.1:18787";
-/** Local Identity for `pages-dev.sh` — avoids the common :8788 collision. */
 export const shippedIdentityApi = "http://127.0.0.1:18788";
 export const shippedDaemonApi = "http://127.0.0.1:18790";
 export const shippedMfaAppUrl = "http://127.0.0.1:5177";
@@ -215,37 +218,31 @@ function defaultIdentityApi(): string {
   return built;
 }
 
-function localDefaults(): PersistedSettings {
-  return {
-    hostApi: runtimeHostApiValue() || shippedHostApi,
-    identityApi: defaultIdentityApi(),
-    daemonApi: runtimeDaemonApiValue() || shippedDaemonApi,
-    tursoUrl: "",
-    mfaAppUrl: runtimeMfaAppUrlValue() || shippedMfaAppUrl,
-    capabilityConnectors: defaultCapabilityConnectors(),
-    activeProjectId: "",
-    signIn: defaultSignInMethods(),
-  };
-}
-
-function remoteDefaults(): PersistedSettings {
+/**
+ * What this app talks to when nobody has said: nothing.
+ *
+ * A local host is a capability somebody configures — `pages-dev.sh` bakes
+ * `VITE_*`, a deploy writes `os-runtime-config.json`, an operator fills in
+ * Settings → Endpoints or pairs a daemon — never something the app assumes
+ * from its own hostname (ADR 0090). The old split (loopback tabs defaulted to
+ * `127.0.0.1` Host/daemon/MFA endpoints, everything else to empty) made a dev
+ * tab look paired with services that were not running, and left every
+ * "Connect this machine" hint half true. Empty is honest on every origin: the
+ * pairing UI asks for an address instead of looking like loopback will work,
+ * and the shipped loopback values remain *suggestions* where a loopback tab
+ * asks for one (`shippedHostApi` and friends).
+ */
+function defaultsForPage(): PersistedSettings {
   return {
     hostApi: runtimeHostApiValue() || "",
     identityApi: defaultIdentityApi(),
-    // github.io cannot reach loopback — leave empty so the pairing UI asks for
-    // the Tailscale Serve FQDN instead of looking like localhost will work.
     daemonApi: runtimeDaemonApiValue() || "",
     tursoUrl: "",
-    // Remote Pages: operator must point at a reachable MFA PWA.
     mfaAppUrl: runtimeMfaAppUrlValue() || "",
     capabilityConnectors: defaultCapabilityConnectors(),
     activeProjectId: "",
     signIn: defaultSignInMethods(),
   };
-}
-
-function defaultsForPage(): PersistedSettings {
-  return pageIsLoopback() ? localDefaults() : remoteDefaults();
 }
 
 function optionalString(value: JsonValue | undefined): string | undefined {

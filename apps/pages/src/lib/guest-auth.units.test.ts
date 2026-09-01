@@ -44,7 +44,13 @@ type GuestAuthDependencyOverrides = {
 type SessionOverrides = Partial<IdentitySession>;
 
 function withDeps(overrides: GuestAuthDependencyOverrides): void {
-  Object.assign(guestAuthDependencies, overrides);
+  // An identity service is configured in every unit here; the no-service
+  // road (ADR 0090) has its own cases in guest-auth.test.ts.
+  Object.assign(
+    guestAuthDependencies,
+    { identityBase: () => "http://127.0.0.1:18788" },
+    overrides,
+  );
 }
 
 function session(extra: SessionOverrides = {}): IdentitySession {

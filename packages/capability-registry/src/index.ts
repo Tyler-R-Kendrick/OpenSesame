@@ -2114,12 +2114,12 @@ export const CAPABILITIES: readonly Capability[] = [
   },
   {
     id: "setup.first_run",
-    title: "First-run deployment setup ceremony",
+    title: "Deployment setup ceremony (optional, never a gate — ADR 0090)",
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/setup.ts:setupRequired",
+      pwa: "lib/setup.ts:completeSetup",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,

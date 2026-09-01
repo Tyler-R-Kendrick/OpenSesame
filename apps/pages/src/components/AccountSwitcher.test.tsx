@@ -245,12 +245,14 @@ describe("AccountSwitcher — the roads out", () => {
       guest: false,
     });
     renderSwitcher();
-    // The prompt segment is a short handle, never a name or an address.
+    // The prompt segment names the account the way the unlock screen does.
     expect(
       document.querySelector(".account-switcher .prompt__seg")?.textContent,
-    ).toBe("google");
+    ).toBe("Google account");
     openMenu();
-    expect(screen.getByText("Google account")).toBeTruthy();
+    expect(
+      document.querySelector(".account-switcher__who .who__name")?.textContent,
+    ).toBe("Google account");
     expect(screen.getByText("via shoo.dev · prn · 8f3c")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Add an account…" }));
     expect(attachAccount).toHaveBeenCalledTimes(1);
@@ -289,5 +291,33 @@ describe("AccountSwitcher — the roads out", () => {
     expect(
       screen.queryByRole("button", { name: "Switch account…" }),
     ).toBeNull();
+  });
+});
+
+describe("AccountSwitcher — signed in through the broker, no Identity API (ADR 0090)", () => {
+  const original = federationSeams.loadSession;
+  beforeEach(() => {
+    federationSeams.loadSession = () => ({
+      issuer: "https://shoo.dev",
+      upstreamId: "shoo",
+      idToken: "id.token",
+      pairwiseSub: "pw_abc",
+      audience: "origin:https://tyler-r-kendrick.github.io",
+      jwksUri: "https://shoo.dev/.well-known/jwks.json",
+      expiresAt: Date.now() + 60_000,
+      name: "Test Person",
+    });
+    identitySeams.useIdentitySession = () => null;
+    identitySeams.currentSession = () => null;
+  });
+  afterEach(() => {
+    federationSeams.loadSession = original;
+    cleanup();
+  });
+
+  it("names the person, not a guest", () => {
+    renderSwitcher();
+    expect(screen.getByText("Test Person")).toBeTruthy();
+    expect(screen.queryByText("guest")).toBeNull();
   });
 });

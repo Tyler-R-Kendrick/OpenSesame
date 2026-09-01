@@ -83,14 +83,15 @@ function AccountSwitcherDefault() {
   }, [session, open]);
 
   const activeOrg = memberships.find((org) => org.id === activeId);
-  // The prompt's first segment: the org profile when one is active, else a
-  // short handle for the account — the provider it came through ("google"),
-  // or "guest". Never a name or an address in the rail.
+  // The prompt's first segment: the org profile when one is active, else the
+  // account — the person's name where the assertion carries one, otherwise
+  // the provider's account ("Google account"), and "guest" for a provisional
+  // principal nobody vouches for. On a deployment with no Identity API the
+  // broker's assertion is the whole identity (ADR 0090), so it is never
+  // called a guest.
   const label =
     activeOrg?.displayName ??
-    (account && !account.guest
-      ? (account.providerId ?? "account")
-      : guestLabel(Boolean(session)));
+    (account && !account.guest ? account.name : guestLabel(Boolean(session)));
   const brand = account?.providerId ? brandFor(account.providerId) : null;
 
   function close(): void {

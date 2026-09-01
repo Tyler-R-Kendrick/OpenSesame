@@ -1,6 +1,6 @@
 # Authentication flow — design canvas
 
-Design record for [ADR 0090](../../adr/0090-account-exits-and-unlock-ceremony.md):
+Design record for [ADR 0091](../../adr/0091-account-exits-and-unlock-ceremony.md):
 the Pages vault's unlock screen redrawn to state both things a device knows —
 **who** is signed in and **which key** opens the vault — with the roads out of
 an account that the app never had (sign out, switch account, attach another),

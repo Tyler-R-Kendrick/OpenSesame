@@ -137,3 +137,19 @@ describe("VaultsScreen — the front door", () => {
     ).toBeTruthy();
   });
 });
+
+describe("VaultsScreen — where the keyboard lands", () => {
+  it("lands on the first vault that can be opened, so Enter opens it", () => {
+    renderScreen();
+    const rows = screen.getAllByRole("button", { name: /personal|project/ });
+    expect(document.activeElement).toBe(rows[0]);
+  });
+
+  it("moves to the name when sealing a new vault", () => {
+    renderScreen();
+    fireEvent.click(screen.getByRole("button", { name: /Seal a new vault/ }));
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Seal a new vault"),
+    );
+  });
+});

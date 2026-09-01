@@ -1,4 +1,4 @@
-# ADR 0090 — Two ledgers on one screen: the account, the key, and the roads out
+# ADR 0091 — Two ledgers on one screen: the account, the key, and the roads out
 
 - Status: Accepted
 - Date: 2026-09-01
