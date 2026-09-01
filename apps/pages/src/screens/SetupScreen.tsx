@@ -14,8 +14,9 @@
  * Designed in `docs/design/first-run-setup/` and `docs/design/shared-sessions/`.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconCheck, IconChevronLeft, IconMark } from "../components/Icons.js";
+import { firstControl, landFocus } from "../lib/focus.js";
 import {
   type ParsedInvite,
   readJoinFromLocation,
@@ -59,10 +60,24 @@ export function SetupScreen({
   const [road, setRoad] = useState<Road>(intent ?? initialRoad);
   const [invite] = useState<ParsedInvite | null>(initialInvite);
   const [finishing, setFinishing] = useState(false);
+  const frameRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrubJoinHash();
   }, []);
+
+  // Each road lands the keyboard where its answer is — the first road on the
+  // choice, the invite on join, and on setup the terminal commit: the
+  // compiled-in broker is already a way in, so Enter finishes, and Shift+Tab
+  // walks back up into the list. The first control in setup's body is a
+  // provider's Remove, which is the one thing an arrival must not land on.
+  useEffect(() => {
+    if (road === "setup") {
+      landFocus(frameRef.current?.querySelector(".go"));
+      return;
+    }
+    landFocus(firstControl(frameRef.current?.querySelector("main")));
+  }, [road]);
 
   const verb = finishing ? "Saving…" : "Finish setup";
 
@@ -92,7 +107,7 @@ export function SetupScreen({
 
   return (
     <div className="setup">
-      <div className="setup__frame">
+      <div className="setup__frame" ref={frameRef}>
         <div className="setup__bar">
           {road === "choice" ? (
             <p className="setup__wordmark">

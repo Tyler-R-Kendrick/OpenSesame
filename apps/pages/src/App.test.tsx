@@ -159,3 +159,12 @@ describe("App", () => {
     }
   });
 });
+
+describe("App — where the keyboard lands", () => {
+  it("lands a framed section on its content so Tab starts inside it", () => {
+    env.vaultStatus = "unlocked";
+    renderApp("/settings");
+    expect(screen.getByText("settings section")).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole("main"));
+  });
+});

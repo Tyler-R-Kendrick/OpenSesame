@@ -13,9 +13,10 @@
  * ever appears here before unlock.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconMark, IconPlus } from "../components/Icons.js";
 import { VaultList } from "../components/VaultList.js";
+import { firstControl, landFocus } from "../lib/focus.js";
 import type { FederatedProviderSummary } from "../lib/providers.js";
 import {
   type DeviceVault,
@@ -43,6 +44,21 @@ export function VaultsScreen({ providers, onPicked }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // The front door is the first screen a device with several vaults shows, so
+  // it lands the keyboard on the first vault that can be opened — Enter opens
+  // it, arrows and Tab walk the rest. Sealing lands on the name. The sign-in
+  // tab's panel lands its own.
+  useEffect(() => {
+    if (tab !== "device") return;
+    if (naming) {
+      landFocus(nameRef.current);
+      return;
+    }
+    landFocus(firstControl(listRef.current));
+  }, [tab, naming]);
 
   function run(task: () => Promise<unknown>): void {
     setError(null);
@@ -115,7 +131,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
         {tab === "signin" ? (
           <SignInPanel placement="secondary" providers={providers} />
         ) : (
-          <div className="vaults">
+          <div className="vaults" ref={listRef}>
             <GuideTarget id="vaults.list">
               <VaultList vaults={vaults} disabled={busy} onPick={pick} />
             </GuideTarget>
@@ -132,6 +148,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
                 <div className="identifier__row">
                   <input
                     id="vaults-new-name"
+                    ref={nameRef}
                     type="text"
                     value={name}
                     placeholder="Name"

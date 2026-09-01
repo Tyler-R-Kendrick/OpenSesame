@@ -615,3 +615,26 @@ describe("keeping it on this device", () => {
     ).toBeNull();
   });
 });
+
+describe("where the keyboard lands", () => {
+  it("lands on the first road on arrival", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /Set up this device/ }),
+    );
+  });
+
+  it("lands setup on its commit, never on a provider's Remove", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Set up this device/ }));
+    expect(document.activeElement).toBe(commit());
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /Set up this device/ }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Join a session/ }));
+    expect(screen.getByRole("main").contains(document.activeElement)).toBe(
+      true,
+    );
+  });
+});

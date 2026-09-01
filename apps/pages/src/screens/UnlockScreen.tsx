@@ -19,6 +19,7 @@ import {
   IconUser,
 } from "../components/Icons.js";
 import { defaultUpstream } from "../lib/federation.js";
+import { firstControl, landFocus } from "../lib/focus.js";
 import { continueAsGuest } from "../lib/guest-auth.js";
 import {
   currentSession,
@@ -332,6 +333,9 @@ function UnlockForm({
   const passwordRef = useRef<HTMLInputElement>(null);
   const pinRef = useRef<HTMLInputElement>(null);
   const totpRef = useRef<HTMLInputElement>(null);
+  const goRef = useRef<HTMLButtonElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const acceptRef = useRef<HTMLInputElement>(null);
 
   const lockedFor = useCountdown(lockedOutUntil);
   const passkeyAbort = useRef<AbortController | null>(null);
@@ -346,14 +350,37 @@ function UnlockForm({
     setBusy(false);
   }, []);
 
+  // The keyboard lands where the ceremony is — on every form this screen can
+  // show, not only when the method changes. A reload, a hydrate that turns
+  // "loading" into "locked", "Use without an account", the end of a lockout:
+  // each puts a different field on screen, and each has to be typeable at
+  // once, with no click first. Passkey has no field, so its go control holds
+  // the keyboard and Enter starts the ceremony. The sign-in panel lands its
+  // own caret.
+  const formGated = lockedFor > 0;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: status is a hydrate signal — "loading" becoming "locked" swaps the form under the same method, and the caret must follow
   useEffect(() => {
+    if (signInStage || signInTabActive || formGated) return;
     if (awaitingTotp) {
-      totpRef.current?.focus();
+      landFocus(totpRef.current);
       return;
     }
-    if (activeMethod === "pin") pinRef.current?.focus();
-    else if (activeMethod === "password") passwordRef.current?.focus();
-  }, [activeMethod, awaitingTotp]);
+    if (activeMethod === "pin") landFocus(pinRef.current);
+    else if (activeMethod === "password") landFocus(passwordRef.current);
+    // Passkey: the go control, unless it is refusing — a first seal wants the
+    // acknowledgement ticked first, and a host that cannot do WebAuthn leaves
+    // the method tabs as the only live controls.
+    else if (!landFocus(goRef.current) && !landFocus(acceptRef.current)) {
+      landFocus(firstControl(formRef.current));
+    }
+  }, [
+    activeMethod,
+    awaitingTotp,
+    signInStage,
+    signInTabActive,
+    formGated,
+    status,
+  ]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -573,7 +600,11 @@ function UnlockForm({
             <SignInPanel placement="secondary" providers={providers} />
           </GuideTarget>
         ) : (
-          <form className="unlock__form" onSubmit={(e) => void onSubmit(e)}>
+          <form
+            className="unlock__form"
+            ref={formRef}
+            onSubmit={(e) => void onSubmit(e)}
+          >
             {showMethodTabs ? (
               <div
                 className="unlock__methods"
@@ -806,6 +837,7 @@ function UnlockForm({
                 <label className="check">
                   <input
                     type="checkbox"
+                    ref={acceptRef}
                     checked={accepted}
                     onChange={(e) => setAccepted(e.target.checked)}
                   />
@@ -872,7 +904,10 @@ function UnlockForm({
               return (
                 <div className="go-row">
                   <button
-                    ref={submitRef}
+                    ref={(element) => {
+                      goRef.current = element;
+                      submitRef(element);
+                    }}
                     type="submit"
                     className="go"
                     disabled={disabled}
