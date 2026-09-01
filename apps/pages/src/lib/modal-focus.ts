@@ -18,6 +18,13 @@ export function useModalFocus(
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        // Support sits above ceremony sheets. Both listen on window; without
+        // this, Escape would close every open sheet at once.
+        const sheets = document.querySelectorAll(".sheet");
+        const top = sheets.item(sheets.length - 1);
+        if (container.current !== top) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
         close();
         return;
       }

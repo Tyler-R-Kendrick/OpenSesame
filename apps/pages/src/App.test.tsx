@@ -56,18 +56,21 @@ describe("App", () => {
     renderApp("/?code=abc&state=xyz");
     expect(screen.getByText("federation return stub")).toBeTruthy();
     expect(screen.queryByTestId("app-shell")).toBeNull();
+    expect(screen.getByRole("button", { name: "Support" })).toBeTruthy();
   });
 
   it("serves the broker authorize popup without unlocking", () => {
     renderApp("/broker/authorize?client_id=x");
     expect(screen.getByText("broker authorize stub")).toBeTruthy();
     expect(screen.queryByTestId("app-shell")).toBeNull();
+    expect(screen.getByRole("button", { name: "Support" })).toBeTruthy();
   });
 
   it("gates the whole app behind the unlock screen", () => {
     renderApp("/vault");
     expect(screen.getByText("unlock screen stub")).toBeTruthy();
     expect(screen.queryByTestId("app-shell")).toBeNull();
+    expect(screen.getByRole("button", { name: "Support" })).toBeTruthy();
   });
 
   it("redirects the root to the vault once unlocked", () => {
@@ -109,8 +112,24 @@ describe("App", () => {
       const { unmount } = renderApp(route);
       expect(screen.getByText(marker)).toBeTruthy();
       expect(screen.getByTestId("app-shell")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Support" })).toBeTruthy();
       unmount();
     }
+  });
+
+  it("keeps the support overlay on the locked, broker and unlocked screens", () => {
+    for (const route of ["/vault", "/broker/authorize"]) {
+      const { unmount } = renderApp(route);
+      expect(
+        screen.getByRole("button", { name: "Support" }).className,
+      ).toContain("support-launch");
+      unmount();
+    }
+    env.vaultStatus = "unlocked";
+    renderApp("/vault");
+    expect(screen.getByRole("button", { name: "Support" }).className).toContain(
+      "support-launch",
+    );
   });
 
   it("redirects /agents to the Access section", () => {

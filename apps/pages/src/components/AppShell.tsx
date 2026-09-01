@@ -21,8 +21,6 @@ import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { SupportProvider } from "../tutorial/session.js";
-import { SupportLauncher } from "../tutorial/ui/SupportLauncher.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
 import { ConnectivityBar } from "./ConnectivityBar.js";
 import { Crumbs } from "./Crumbs.js";
@@ -427,7 +425,6 @@ function Shell({ children }: { children?: ReactNode }) {
         <div ref={notificationsRef}>
           <NotificationsBar />
         </div>
-        <SupportLauncher />
         <button
           ref={lockRef}
           type="button"
@@ -450,15 +447,7 @@ function Shell({ children }: { children?: ReactNode }) {
   );
 }
 
-/**
- * Support wraps the shell rather than sitting inside it: the panel, the guide
- * runtime and whatever is answering are all one session, and that session ends
- * when the vault locks and this tree unmounts.
- */
+/** Unlocked chrome. Support is mounted at the app root, not here. */
 export function AppShell({ children }: { children?: ReactNode }) {
-  return (
-    <SupportProvider>
-      <Shell>{children}</Shell>
-    </SupportProvider>
-  );
+  return <Shell>{children}</Shell>;
 }

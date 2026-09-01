@@ -23,6 +23,7 @@ import {
 } from "../lib/join-session.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
+import { useSupportRoute } from "../tutorial/session.js";
 import { JoinSession } from "./setup/JoinSession.js";
 import { KeepIt } from "./setup/KeepIt.js";
 import { WaysIn } from "./setup/WaysIn.js";
@@ -52,6 +53,7 @@ export function SetupScreen({
   /** Skip the fork when a vault or session already exists and setup was asked for. */
   intent?: Road;
 }) {
+  useSupportRoute("/setup");
   const [road, setRoad] = useState<Road>(intent ?? initialRoad);
   const [invite] = useState<ParsedInvite | null>(initialInvite);
   const [finishing, setFinishing] = useState(false);

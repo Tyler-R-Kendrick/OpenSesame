@@ -35,6 +35,7 @@ import {
   type ReactNode,
   createContext,
   createElement,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -721,6 +722,23 @@ export const supportSessionSeams: SupportSessionDependencies = {
 
 const SupportContext = createContext<SupportController | null>(null);
 
+const SupportRouteOverrideContext = createContext<
+  (route: GuideRouteId | null) => void
+>(() => {});
+
+/**
+ * Screens that are not a URL — unlock, setup, the broker popup — declare
+ * themselves so page context names the ceremony the person is actually in,
+ * not the path the router still holds.
+ */
+export function useSupportRoute(route: GuideRouteId): void {
+  const setOverride = useContext(SupportRouteOverrideContext);
+  useEffect(() => {
+    setOverride(route);
+    return () => setOverride(null);
+  }, [route, setOverride]);
+}
+
 /**
  * Written with `createElement` rather than JSX so the composition root stays a
  * `.ts` file: it wires the feature together, it does not draw anything.
@@ -733,6 +751,10 @@ export function SupportProvider({
   );
   const location = useLocation();
   const navigate = useNavigate();
+  const [override, setOverride] = useState<GuideRouteId | null>(null);
+  const setRouteOverride = useCallback((route: GuideRouteId | null) => {
+    setOverride(route);
+  }, []);
 
   useEffect(() => () => controller.destroy(), [controller]);
 
@@ -745,8 +767,8 @@ export function SupportProvider({
   );
 
   useEffect(() => {
-    controller.setRoute(guideRouteForPath(location.pathname));
-  }, [controller, location.pathname]);
+    controller.setRoute(override ?? guideRouteForPath(location.pathname));
+  }, [controller, location.pathname, override]);
 
   useEffect(() => {
     controller.setNavigator((route) => navigate(route));
@@ -778,9 +800,9 @@ export function SupportProvider({
   }, [controller]);
 
   return createElement(
-    SupportContext.Provider,
-    { value: controller },
-    children,
+    SupportRouteOverrideContext.Provider,
+    { value: setRouteOverride },
+    createElement(SupportContext.Provider, { value: controller }, children),
   );
 }
 
