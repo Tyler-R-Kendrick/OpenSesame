@@ -27,6 +27,7 @@ opensesame-agent-events = { path = "../../crates/agent-events" }
 opensesame-session-observe = { path = "../../crates/session-observe" }
 url = { workspace = true }
 opensesame-lifecycle = { path = "../../crates/lifecycle" }
+opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-security-events = { path = "../../crates/security-events" }
 opensesame-breach-intel = { path = "../../crates/breach-intel" }
 opensesame-storage = { path = "../../crates/storage" }

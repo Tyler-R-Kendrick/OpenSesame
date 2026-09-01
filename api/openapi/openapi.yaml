@@ -1863,6 +1863,47 @@ paths:
                 required: [error]
                 properties:
                   error: { type: string, const: invalid_request }
+  /ceremonies:
+    get:
+      summary: Which connector registrations this build can automate
+      description: >-
+        The ceremony catalog, whole. Deliberately not a per-provider lookup:
+        asking a server which ceremony covers `provider-x` tells it which
+        provider is being onboarded, and the catalog is checked in precisely so
+        nobody has to answer that (ADR 0052 §12 — a lookup is a disclosure). The
+        caller takes the list and matches locally, as ADR 0080 §5 does for the
+        public breach catalogue.
+
+
+        Checked-in data, not tenant data: compiled from
+        `crates/ceremony/catalog.json`, identical for every caller on the Host,
+        and scoped to no organization. `declares` names the capture slots a
+        ceremony is *permitted* to seal — never a value, and never a record of
+        one that was.
+
+
+        A provider absent from the list is not a gap: every phase resolves to
+        `c3_blocked` and it keeps the setup instructions it has today (ADR
+        0082).
+      security: [{ HostBearer: [] }]
+      responses:
+        "200":
+          description: Every provider the catalog covers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ceremonies, secrets_returned]
+                properties:
+                  ceremonies:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ceremony" }
+                  phases:
+                    type: array
+                    description: Every ceremony phase, in the order they run.
+                    items: { type: string }
+                  secrets_returned: { type: boolean, const: false }
+        "401": { $ref: "#/components/responses/ContractError" }
   /agent/runs:
     get:
       summary: List the caller's own sandboxed runs
@@ -3182,6 +3223,55 @@ components:
           description: RFC 8693 actor — the caller that requested the mint.
         issued_at: { type: string, format: date-time }
 
+    Ceremony:
+      type: object
+      description: >-
+        One provider's ceremony coverage. Capabilities and the tiers they
+        resolve to, never a captured value: a ceremony describes what it may
+        seal, and the sealing happens somewhere this route cannot see.
+      required: [provider_id]
+      properties:
+        provider_id: { type: string }
+        native_registration:
+          type: boolean
+          description: >-
+            The provider publishes an endpoint that creates the app or client.
+            It covers registration and nothing else — it cannot make somebody
+            signed in, install on an org, or prove the result works.
+        native_registration_note: { type: string, nullable: true }
+        recipe:
+          type: boolean
+          description: A signed, checked-in step IR covering this provider exists.
+        agentic_allowed:
+          type: boolean
+          description: This deployment permits a model to drive the provider's UI.
+        declares:
+          type: array
+          description: >-
+            Capture slot names this ceremony may seal. A slot the recipe did not
+            declare cannot be captured at all, whatever the page offers.
+          items: { type: string }
+        verifies_by:
+          type: string
+          nullable: true
+          description: The round trip that proves the credential works (ADR 0082 §6).
+        note: { type: string, nullable: true }
+        runnable:
+          type: boolean
+          description: False when every phase is blocked — a provider still set up by hand.
+        plan:
+          type: array
+          items:
+            type: object
+            required: [phase, tier]
+            properties:
+              phase: { type: string }
+              tier:
+                type: string
+                enum: [c0_provider_native, c1_deterministic, c2_agentic, c3_blocked]
+              uses_a_model: { type: boolean }
+              requires_a_present_user: { type: boolean }
+        secrets_returned: { type: boolean, const: false }
     AgentRun:
       type: object
       description: >-

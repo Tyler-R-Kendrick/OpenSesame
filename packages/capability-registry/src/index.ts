@@ -62,6 +62,7 @@ const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
 const ADR_SECURITY_EVENTS = "0080-security-event-hooks.md";
 const ADR_AI_SUPPORT = "0088-ai-native-contextual-support.md";
 const ADR_LIVE_OBSERVATION = "0081-live-session-observation.md";
+const ADR_CEREMONIES = "0082-agent-run-registration-ceremonies.md";
 const ADR_MODEL_PLANE = "0083-browser-plane-inference-fallback.md";
 const ADR_NOTIFICATION_CEREMONIES =
   "0084-external-authorization-notifications.md";
@@ -1294,6 +1295,31 @@ export const CAPABILITIES: readonly Capability[] = [
     excluded: {
       mcp_host: BREACH_CHECK_TAKES_A_SECRET,
       webmcp: BREACH_CHECK_TAKES_A_SECRET,
+    },
+  },
+  {
+    id: "ceremony.catalog.read",
+    title: "Read which connector registrations this build can automate",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame ceremony list",
+      pwa: null,
+      mcp_host: "ceremony_catalog_read",
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      // Not a secret and not tenant data: the catalog is compiled in from
+      // crates/ceremony/catalog.json and reads the same on every Host. The
+      // WebMCP surface is pending rather than refused — apps/pages has no
+      // ceremony screen yet, and a tool that names one would be a road nobody
+      // configured.
+      webmcp: {
+        reason:
+          "the PWA has no ceremony surface yet; mapping a WebMCP tool onto a screen that does not exist would offer a road that dead-ends",
+        adr: ADR_CEREMONIES,
+      },
     },
   },
   {

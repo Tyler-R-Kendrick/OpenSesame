@@ -35,6 +35,7 @@ export const hostTools = [
   "sync_target_read",
   "rotation_read",
   "agent_runs_read",
+  "ceremony_catalog_read",
   "lifecycle_expiring_read",
   "lifecycle_hooks_read",
   "lifecycle_deliveries_read",
