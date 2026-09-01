@@ -45,6 +45,8 @@ export function SupportLauncher(): ReactElement {
         title={label}
         aria-haspopup="dialog"
         aria-expanded={view.open}
+        aria-hidden={view.open || undefined}
+        tabIndex={view.open ? -1 : undefined}
         onClick={() => (view.open ? support.close() : support.open())}
       >
         <IconHelp size={18} />
@@ -53,7 +55,12 @@ export function SupportLauncher(): ReactElement {
         <Suspense
           fallback={
             <div className="sheet-layer">
-              <span className="scrim" />
+              <button
+                type="button"
+                className="scrim"
+                aria-label="Close"
+                onClick={() => support.close()}
+              />
             </div>
           }
         >

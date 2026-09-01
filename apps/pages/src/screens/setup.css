@@ -111,7 +111,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.7rem 1.15rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
-  padding-left: 3.6rem;
+  padding-left: calc(3.6rem + env(safe-area-inset-left, 0px));
   border-top: 1px solid var(--line);
   background: var(--surface);
 }
@@ -236,9 +236,12 @@
   }
 
   .setup__bar,
-  .setup__body,
-  .setup__foot {
+  .setup__body {
     padding-left: 0;
+    padding-right: 0;
+  }
+
+  .setup__foot {
     padding-right: 0;
   }
 

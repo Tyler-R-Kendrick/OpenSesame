@@ -583,4 +583,10 @@
   .unlock__card {
     padding: 1.5rem 1.15rem 1.35rem;
   }
+
+  /* Same dock the setup foot and phone tab bar leave: the overlay would
+     otherwise sit on Unlock. */
+  .unlock .go-row {
+    padding-left: 1.6rem;
+  }
 }
