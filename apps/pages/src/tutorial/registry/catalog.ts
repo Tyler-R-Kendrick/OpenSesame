@@ -441,7 +441,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
       "The ink square that opens the vault — passkey, PIN or master password, whichever method is selected.",
     role: "action",
     routes: ["/unlock"],
-    capabilityId: "identity.login",
+    capabilityId: null,
   },
   {
     id: "unlock.secret",
@@ -561,6 +561,14 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "backup.target.set",
+  },
+  {
+    id: "settings.changelog",
+    description:
+      "The in-app changelog of what this build shipped. It is a record, not a backup.",
+    role: "surface",
+    routes: ["/settings"],
+    capabilityId: "changelog.read",
   },
   {
     id: "settings.model-provider",

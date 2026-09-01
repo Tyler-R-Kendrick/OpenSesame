@@ -762,7 +762,11 @@ export function SettingsSection({
         </GuideTarget>
       )}
 
-      {category !== "data" ? null : <resolvedPanels.ChangelogPanel />}
+      {category !== "data" ? null : (
+        <GuideTarget id="settings.changelog">
+          <resolvedPanels.ChangelogPanel />
+        </GuideTarget>
+      )}
 
       {category !== "data" ? null : <resolvedPanels.OfflineBackupPanel />}
 
