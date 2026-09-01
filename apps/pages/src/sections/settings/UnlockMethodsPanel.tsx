@@ -26,8 +26,9 @@ export function UnlockMethodsPanel() {
   const hasTotp = Boolean(header?.unlocks?.totp);
   // A code can only guard a key. A guest session holds nothing wrapped to
   // disk, and a vault with a code but no passkey, PIN or password is one
-  // nothing can open — so the row is withheld until a primary method exists.
-  const canEnrollTotp = !guest && methods.length > 0;
+  // nothing can open. So enrolling MFA on a keyless vault is a two-step
+  // ceremony: set the key first, in the same row, then scan and confirm.
+  const hasKey = !guest && methods.length > 0;
 
   const [message, setMessage] = useState<{
     tone: "ok" | "err";
@@ -40,6 +41,12 @@ export function UnlockMethodsPanel() {
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [totpUri, setTotpUri] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState("");
+  /**
+   * Where the MFA ceremony is: `key` is the step a keyless vault takes first
+   * (choose and set a passkey, PIN or password right here), `code` is the
+   * scan-and-confirm step, `idle` is neither.
+   */
+  const [mfaStage, setMfaStage] = useState<"idle" | "key" | "code">("idle");
   const [webauthnHost, setWebauthnHost] = useState<WebauthnHostCheck>(() =>
     checkWebauthnHost(),
   );
@@ -47,6 +54,18 @@ export function UnlockMethodsPanel() {
   useEffect(() => {
     setWebauthnHost(checkWebauthnHost());
   }, []);
+
+  // The moment step 1 produces a key, step 2 begins on its own: the person
+  // asked for MFA, and setting the key was the prerequisite, not the goal.
+  useEffect(() => {
+    if (mfaStage !== "key" || !hasKey || busy) return;
+    void run(async () => {
+      const uri = await store.beginTotpEnrollment();
+      setTotpCode("");
+      setTotpUri(uri);
+      setMfaStage("code");
+    }, "Key set. Now scan the code with your authenticator and enter the code it shows.");
+  }, [mfaStage, hasKey, busy, store]);
 
   useEffect(() => {
     if (hasPasskey || busy) return;
@@ -351,6 +370,7 @@ export function UnlockMethodsPanel() {
               disabled={busy}
               onClick={() => {
                 setTotpUri(null);
+                setMfaStage("idle");
                 void run(
                   () => store.removeTotp(),
                   "Authenticator MFA removed.",
@@ -359,32 +379,151 @@ export function UnlockMethodsPanel() {
             >
               Remove MFA
             </button>
-          ) : !canEnrollTotp ? (
-            <output className="note note--warn">
-              <IconAlert size={18} />
-              <span>
-                Withheld until this vault has a key. A guest session holds
-                nothing wrapped to disk, so a code would guard nothing — enroll
-                a passkey, PIN or password first, and MFA follows.
-              </span>
-            </output>
-          ) : totpUri ? null : (
+          ) : mfaStage !== "idle" ? null : (
             <button
               type="button"
               className="btn btn--primary btn--sm"
               disabled={busy}
-              onClick={() =>
+              onClick={() => {
+                if (!hasKey) {
+                  // Step 1 first: a code needs a key to guard. The forms above
+                  // still work, but the person came here for MFA, so the key
+                  // is asked for here and MFA follows without a second trip.
+                  setMessage(null);
+                  setMfaStage("key");
+                  return;
+                }
                 void run(async () => {
                   const uri = await store.beginTotpEnrollment();
                   setTotpCode("");
                   setTotpUri(uri);
-                }, "Scan the code with your authenticator, then enter the code it shows to turn MFA on.")
-              }
+                  setMfaStage("code");
+                }, "Scan the code with your authenticator, then enter the code it shows to turn MFA on.");
+              }}
             >
               Enroll MFA
             </button>
           )}
         </div>
+
+        {mfaStage === "key" && !hasKey ? (
+          <div className="set__unlock-totp set__unlock-step">
+            <div className="steps" aria-label="MFA enrollment steps">
+              <div className="steps__seg is-now">
+                <span className="steps__bar" />
+                <span className="steps__label">1 · Set a key</span>
+              </div>
+              <div className="steps__seg">
+                <span className="steps__bar" />
+                <span className="steps__label">2 · Scan and confirm</span>
+              </div>
+            </div>
+            <p className="hint">
+              An authenticator code guards a key, and this vault has none yet
+              {guest ? " — it is a guest session" : ""}. Set the one you will
+              unlock with; the code is asked for after it.
+            </p>
+            <form
+              className="set__unlock-form"
+              aria-label="Set a PIN"
+              onSubmit={enrollPinForm}
+            >
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                placeholder="PIN"
+                value={pin}
+                maxLength={MAX_PIN_LENGTH}
+                onChange={(e) => setPin(e.target.value)}
+                aria-label="PIN for this vault"
+              />
+              <input
+                type="password"
+                inputMode="numeric"
+                autoComplete="new-password"
+                placeholder="Confirm"
+                value={pinConfirm}
+                maxLength={MAX_PIN_LENGTH}
+                onChange={(e) => setPinConfirm(e.target.value)}
+                aria-label="Confirm PIN for this vault"
+              />
+              <button
+                type="submit"
+                className="btn btn--primary btn--sm"
+                disabled={busy || !pinReady}
+              >
+                Use a PIN
+              </button>
+            </form>
+            {pinProblem ? (
+              <p className="note note--err" aria-live="polite">
+                <IconAlert size={16} /> {pinProblem}
+              </p>
+            ) : pinMismatch ? (
+              <p className="note note--err" aria-live="polite">
+                <IconAlert size={16} /> {pinMismatch}
+              </p>
+            ) : null}
+            <form
+              className="set__unlock-form"
+              aria-label="Set a password"
+              onSubmit={enrollPasswordForm}
+            >
+              <input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Master password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                aria-label="Master password for this vault"
+              />
+              <input
+                type="password"
+                autoComplete="new-password"
+                placeholder="Confirm"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                aria-label="Confirm master password for this vault"
+              />
+              <button
+                type="submit"
+                className="btn btn--primary btn--sm"
+                disabled={busy || !passwordOk}
+              >
+                Use a password
+              </button>
+            </form>
+            <div className="actions">
+              {webauthnHost.ok ? (
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(
+                      () => store.enrollPasskey(),
+                      "Passkey unlock enrolled.",
+                    )
+                  }
+                >
+                  <IconPasskey size={16} /> Use a passkey
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                disabled={busy}
+                onClick={() => {
+                  setMfaStage("idle");
+                  setMessage(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {totpUri && !hasTotp ? (
           <form
@@ -395,9 +534,20 @@ export function UnlockMethodsPanel() {
                 await store.confirmTotpEnrollment(totpCode);
                 setTotpCode("");
                 setTotpUri(null);
+                setMfaStage("idle");
               }, "Authenticator MFA is on. Every unlock now asks for a code.");
             }}
           >
+            <div className="steps" aria-label="MFA enrollment steps">
+              <div className="steps__seg is-done">
+                <span className="steps__bar" />
+                <span className="steps__label">1 · Set a key</span>
+              </div>
+              <div className="steps__seg is-now">
+                <span className="steps__bar" />
+                <span className="steps__label">2 · Scan and confirm</span>
+              </div>
+            </div>
             <QrCode value={totpUri} label="Scan to add vault MFA" size={160} />
             <p className="hint">
               Scan with your authenticator, then enter the code it shows.
@@ -430,6 +580,7 @@ export function UnlockMethodsPanel() {
                   store.cancelTotpEnrollment();
                   setTotpCode("");
                   setTotpUri(null);
+                  setMfaStage("idle");
                   setMessage(null);
                 }}
               >

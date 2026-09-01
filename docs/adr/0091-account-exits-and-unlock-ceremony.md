@@ -69,12 +69,18 @@ Every OIDC issuer, by contrast, must honour `prompt=login` (Core §3.1.2.1).
    tabs that fail. The store's rule that an unenrolled challenge fails like a
    wrong one, lockout included, is unchanged.
 
-3. **Enrolling an authenticator code needs a key first and a code second.**
-   `beginTotpEnrollment` refuses a guest session or a header with no primary
-   method; `confirmTotpEnrollment` writes the gate only once a code from the
-   app matches; `cancelTotpEnrollment` and `lock` discard the offered seed.
-   Settings withholds the row beside a guest and asks for the code before
-   turning MFA on.
+3. **Enrolling an authenticator code needs a key first and a code second —
+   and asks for both in one ceremony.** `beginTotpEnrollment` refuses a
+   guest session or a header with no primary method; `confirmTotpEnrollment`
+   writes the gate only once a code from the app matches;
+   `cancelTotpEnrollment` and `lock` discard the offered seed. In Settings,
+   "Enroll MFA" is never withheld: on a keyless vault (a guest, or a
+   federated first sign-in) it opens step 1 — *set a key*, with a PIN,
+   password or passkey form right there — and step 2, *scan and confirm*,
+   begins on its own the moment the key exists. A person who came for a
+   second factor is walked into the first, not sent to find it. The whole
+   road — guest → key → code → lock → key → code → open — is driven in a real
+   browser by `pnpm --filter @opensesame/pages verify:auth`.
 
 4. **Sign out is one operation** (`lib/session-exit.ts`): forget the upstream
    assertion, drop any link waiting on an unlock, revoke the Identity session,

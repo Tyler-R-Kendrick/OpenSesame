@@ -1,4 +1,4 @@
-<div class="os" style="width: 390px; height: 1180px">
+<div class="os" style="width: 390px; height: 1300px">
   <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 1.25rem 1.15rem 1.5rem; display: grid; gap: 1.5rem; align-content: start">
     <p style="font-family: var(--mono); font-size: 0.8125rem; color: var(--ink-3)">settings<span style="color: var(--ink-3)">/</span>security</p>
 
@@ -73,7 +73,7 @@
 
     <section class="panel" style="opacity: 1">
       <div class="panel__head">
-        <div><h2>The same row, beside a guest session</h2></div>
+        <div><h2>The same row, beside a guest session: step 1 first</h2></div>
       </div>
       <div class="panel__body set__unlock">
         <div class="set__unlock-row">
@@ -81,9 +81,26 @@
             <h3>Authenticator MFA</h3>
             <p class="hint">Optional second step after a passkey, PIN or password.</p>
           </div>
-          <div class="note note--warn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 21 19H3z"></path><path d="M12 9.5v4.2M12 16.6v.2"></path></svg>
-            <span>Withheld until this vault has a key. A guest session holds nothing wrapped to disk, so a code would guard nothing — enroll a passkey, PIN or password first, and MFA follows.</span>
+          <div class="set__unlock-totp" style="width: 100%">
+            <div class="steps" aria-label="MFA enrollment steps">
+              <div class="steps__seg is-now"><span class="steps__bar"></span><span class="steps__label">1 · Set a key</span></div>
+              <div class="steps__seg"><span class="steps__bar"></span><span class="steps__label">2 · Scan and confirm</span></div>
+            </div>
+            <p class="hint">An authenticator code guards a key, and this vault has none yet — it is a guest session. Set the one you will unlock with; the code is asked for after it.</p>
+            <div class="identifier__row" style="width: 100%">
+              <input type="password" inputmode="numeric" placeholder="PIN" aria-label="PIN for this vault" />
+              <input type="password" inputmode="numeric" placeholder="Confirm" aria-label="Confirm PIN for this vault" />
+              <button type="button" class="btn btn--primary btn--sm" style="min-height: 2.75rem">Use a PIN</button>
+            </div>
+            <div class="identifier__row" style="width: 100%">
+              <input type="password" placeholder="Master password" aria-label="Master password for this vault" />
+              <input type="password" placeholder="Confirm" aria-label="Confirm master password for this vault" />
+              <button type="button" class="btn btn--primary btn--sm" style="min-height: 2.75rem">Use a password</button>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn btn--sm" style="min-height: 2.75rem">Use a passkey</button>
+              <button type="button" class="btn btn--ghost btn--sm">Cancel</button>
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,11 @@
 import type { JsonObject } from "@opensesame/os-domain";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -414,14 +420,46 @@ describe("UnlockMethodsPanel", () => {
     expect(screen.getByRole("button", { name: /Enroll MFA/i })).toBeTruthy();
   });
 
-  it("withholds MFA beside a guest session — a code can only guard a key", () => {
+  it("walks a guest into setting a key first, then straight on to the code", async () => {
+    // A guest session has no key on disk; asking for MFA asks for the key
+    // in the same row, and the scan step begins on its own once it exists.
+    vault.current = { header: { unlocks: {} }, guest: true };
+    listAvailableUnlockMethods.mockReturnValue([]);
+    const view = render(<UnlockMethodsPanel />);
+    await userEvent.click(screen.getByRole("button", { name: /Enroll MFA/i }));
+    expect(store.beginTotpEnrollment).not.toHaveBeenCalled();
+    expect(screen.getByText("1 · Set a key")).toBeTruthy();
+    expect(screen.getByRole("form", { name: "Set a PIN" })).toBeTruthy();
+    expect(screen.getByRole("form", { name: "Set a password" })).toBeTruthy();
+    await userEvent.type(
+      screen.getByLabelText("PIN for this vault"),
+      "48291037",
+    );
+    await userEvent.type(
+      screen.getByLabelText("Confirm PIN for this vault"),
+      "48291037",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Use a PIN" }));
+    expect(store.enrollPin).toHaveBeenCalledWith("48291037");
+    // The store now reports a key: the same panel, re-rendered, moves on.
+    vault.current = { header: { unlocks: { pin: {} } }, guest: false };
+    listAvailableUnlockMethods.mockReturnValue(["pin"]);
+    view.rerender(<UnlockMethodsPanel />);
+    await waitFor(() => expect(store.beginTotpEnrollment).toHaveBeenCalled());
+    expect(await screen.findByTestId("qr")).toBeTruthy();
+    expect(screen.getByText("2 · Scan and confirm")).toBeTruthy();
+  });
+
+  it("lets a guest back out of step 1 without touching anything", async () => {
     vault.current = { header: { unlocks: {} }, guest: true };
     listAvailableUnlockMethods.mockReturnValue([]);
     render(<UnlockMethodsPanel />);
-    expect(screen.queryByRole("button", { name: /Enroll MFA/i })).toBeNull();
-    expect(
-      screen.getByText(/Withheld until this vault has a key/),
-    ).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: /Enroll MFA/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText("1 · Set a key")).toBeNull();
+    expect(store.enrollPin).not.toHaveBeenCalled();
+    expect(store.beginTotpEnrollment).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /Enroll MFA/i })).toBeTruthy();
   });
 
   it("removes authenticator MFA", async () => {

@@ -75,14 +75,22 @@ generated `.dc.html`, unless reconciling an edit made in the canvas editor.
   says which challenges exist; drawing all three protected nothing.
 - **Step 2 is announced before step 1.** An authenticator code is part of the
   ceremony, not an ambush after it.
-- **A code can only guard a key.** MFA is withheld beside a guest and written
-  only once a code matches.
+- **A code can only guard a key.** A guest who asks for MFA is asked for the
+  key first, in the same row (step 1), and the scan (step 2) follows on its
+  own; the gate is written only once a code matches.
 - **Sign out ends both halves of "who"** and locks; Lock alone keeps the
   account. Switch is sign out plus `prompt=login` on OIDC issuers — and an
   honest sentence about shoo.dev, which ignores the flag.
 - **Every exit lands on the Sign in tab**, the one surface offering every
   configured way in (ADR 0078's allowlist), so there is no second sign-in
   surface to keep in step.
+
+## Verified in a browser
+
+`pnpm --filter @opensesame/pages verify:auth` drives the built bundle in
+headless Chromium through both roads on the canvas — guest → key → code and
+password → code — including lock, reload, a wrong code, and the unlock
+screen's tabs and step rail. Screenshots land in `artifacts/auth-flow/`.
 
 ## Open questions
 

@@ -158,6 +158,13 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # walks every section, Google via a mocked shoo.dev lands unlocked, deep
 # links resolve. Fails on any page error, console error, loopback request,
 # missing asset, or on-screen "No Identity API" copy.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:auth
+# Same harness, the authentication flow (ADR 0091): a guest enrolls MFA and is
+# walked through setting a PIN first, then a code computed from the seed on
+# screen; lock → only the PIN tab, code announced as step 2 → PIN → code →
+# open, again after a reload; and a password-sealed vault the same way.
+# Run before touching unlock methods, MFA enrollment or the unlock screen.
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -302,7 +309,8 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   account" is that plus `prompt=login` on the next OIDC leg, and never on
   Shoo's dialect, which ignores it. An authenticator code may be enrolled only
   once a primary method exists and only after a code from the app matches — a
-  guest can never write a gate with no key behind it
+  guest can never write a gate with no key behind it, and a guest who asks for
+  MFA is asked for the key in the same row (step 1) before the scan (step 2)
   ([ADR 0091](docs/adr/0091-account-exits-and-unlock-ceremony.md)).
 - A device holds several vaults (the personal tomb, one per project, the
   guest tomb), and there is exactly one list of them: `listDeviceVaults()` in
