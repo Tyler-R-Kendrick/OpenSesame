@@ -19,10 +19,10 @@
  *    the Unlock screen's "Sign in" tab. The vault key still comes from the
  *    passkey, PIN, or password on the Unlock tab, so signing in here attaches
  *    an account rather than opening anything — `adoptFederatedIdentity` says
- *    exactly that when it comes back to a locked vault. The two roads that
- *    would make a second vault beside the existing one — "Use without an
- *    account" and guest — are not offered; a live session gets a Sign out
- *    instead.
+ *    exactly that when it comes back to a locked vault. "Use without an
+ *    account" is not offered (it would seal a second vault in place); guest
+ *    IS — the store runs it in an isolated tomb beside the sealed vault, which
+ *    stays untouched and comes back on lock. A live session gets a Sign out.
  *
  * Every federated entry ends in a navigation, so success never returns here —
  * only a failure gets to clear `busy` and say why, in plain words.
@@ -527,21 +527,20 @@ export function SignInPanel(props: Props) {
               ) : null}
             </div>
             {/* Guest is the most common road in, so it is a full-size button
-                beside the social bar — never a footnote. First run only:
-                beside an existing vault a guest principal would seal a
-                second one. Never gated on an Identity API — `continueAsGuest`
-                seals a local vault and works with no service at all. */}
-            {firstRun ? (
-              <button
-                type="button"
-                className="btn btn--block signin__provider"
-                disabled={busy}
-                onClick={startGuest}
-              >
-                <IconUser size={18} />
-                Continue as guest
-              </button>
-            ) : null}
+                beside the social bar — never a footnote, on BOTH placements.
+                Never gated on an Identity API (`continueAsGuest` seals a local
+                vault and works with no service at all) and never withheld
+                beside an existing vault (the store isolates it in its own
+                tomb). AGENTS.md §5: removing this button is a regression. */}
+            <button
+              type="button"
+              className="btn btn--block signin__provider"
+              disabled={busy}
+              onClick={startGuest}
+            >
+              <IconUser size={18} />
+              Continue as guest
+            </button>
             {brokerNotes.map((note) => (
               <p className="hint signin__provider-note" key={note}>
                 {note}
