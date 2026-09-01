@@ -47,7 +47,7 @@ const OUTCOME_KINDS: ReadonlySet<string> = new Set([
 
 function isAuthOutcome(value: BoundaryValue): value is AuthOutcome {
   if (!isJsonObject(value)) return false;
-  return typeof value.kind === "string" && OUTCOME_KINDS.has(value.kind);
+  return isString(value.kind) && OUTCOME_KINDS.has(value.kind);
 }
 
 function storeAuthOutcomeDefault(outcome: AuthOutcome): void {

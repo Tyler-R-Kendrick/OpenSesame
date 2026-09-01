@@ -34,11 +34,14 @@ import { vaultStore } from "./vault/store.js";
  * left to end, and the outcome is stored before the lock so the unlock
  * screen that mounts on lock already knows why it is there.
  */
-function signOutDefault(options: { switching?: boolean } = {}): void {
+/** Whether this sign-out is the first half of "switch account". */
+type SignOutIntent = "leave" | "switch";
+
+function signOutDefault(intent: SignOutIntent = "leave"): void {
   clearFederationSession();
   forgetPendingLink();
   storeAuthOutcome(
-    options.switching
+    intent === "switch"
       ? { kind: "signed_out", switching: true }
       : { kind: "signed_out" },
   );
@@ -54,7 +57,7 @@ function signOutDefault(options: { switching?: boolean } = {}): void {
  * answers with the Google account it remembers (see `BeginSignInOptions`).
  */
 function switchAccountDefault(): void {
-  signOutDefault({ switching: true });
+  signOutDefault("switch");
 }
 
 /**
