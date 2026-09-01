@@ -5,9 +5,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WebauthnHostCheck } from "../../lib/vault/unlock-methods.js";
 
-const vault: { current: { header: JsonObject | null } } = vi.hoisted(() => ({
-  current: { header: null },
-}));
+const vault: { current: { header: JsonObject | null; guest?: boolean } } =
+  vi.hoisted(() => ({
+    current: { header: null },
+  }));
 const store = vi.hoisted(() => ({
   enrollPasskey: vi.fn(),
   removePasskey: vi.fn(),
@@ -15,7 +16,9 @@ const store = vi.hoisted(() => ({
   removePin: vi.fn(),
   enrollPassword: vi.fn(),
   removePassword: vi.fn(),
-  enrollTotp: vi.fn(),
+  beginTotpEnrollment: vi.fn(),
+  confirmTotpEnrollment: vi.fn(),
+  cancelTotpEnrollment: vi.fn(),
   removeTotp: vi.fn(),
 }));
 
@@ -98,7 +101,10 @@ describe("UnlockMethodsPanel", () => {
     store.removePin.mockResolvedValue(undefined);
     store.enrollPassword.mockResolvedValue(undefined);
     store.removePassword.mockResolvedValue(undefined);
-    store.enrollTotp.mockResolvedValue("otpauth://totp/vault?secret=ABC");
+    store.beginTotpEnrollment.mockResolvedValue(
+      "otpauth://totp/vault?secret=ABC",
+    );
+    store.confirmTotpEnrollment.mockResolvedValue(undefined);
     store.removeTotp.mockResolvedValue(undefined);
     window.history.replaceState(null, "", "/settings");
   });
@@ -375,16 +381,47 @@ describe("UnlockMethodsPanel", () => {
     expect(store.enrollPasskey).not.toHaveBeenCalled();
   });
 
-  it("enrolls authenticator MFA and shows the otpauth URI once", async () => {
+  it("turns authenticator MFA on only once a code from the app matches", async () => {
     render(<UnlockMethodsPanel />);
     await userEvent.click(screen.getByRole("button", { name: /Enroll MFA/i }));
-    expect(store.enrollTotp).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Authenticator MFA enrolled/,
-    );
+    expect(store.beginTotpEnrollment).toHaveBeenCalled();
+    expect(store.confirmTotpEnrollment).not.toHaveBeenCalled();
     expect(screen.getByTestId("qr").textContent).toBe(
       "otpauth://totp/vault?secret=ABC",
     );
+    const turnOn = screen.getByRole("button", { name: "Turn on" });
+    expect(turnOn.hasAttribute("disabled")).toBe(true);
+    await userEvent.type(
+      screen.getByRole("textbox", { name: "Authenticator code" }),
+      "123456",
+    );
+    expect(turnOn.hasAttribute("disabled")).toBe(false);
+    await userEvent.click(turnOn);
+    expect(store.confirmTotpEnrollment).toHaveBeenCalledWith("123456");
+    expect((await screen.findByRole("status")).textContent).toMatch(
+      /Authenticator MFA is on/,
+    );
+    expect(screen.queryByTestId("qr")).toBeNull();
+  });
+
+  it("cancels an enrollment before any code matched", async () => {
+    render(<UnlockMethodsPanel />);
+    await userEvent.click(screen.getByRole("button", { name: /Enroll MFA/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(store.cancelTotpEnrollment).toHaveBeenCalled();
+    expect(store.confirmTotpEnrollment).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("qr")).toBeNull();
+    expect(screen.getByRole("button", { name: /Enroll MFA/i })).toBeTruthy();
+  });
+
+  it("withholds MFA beside a guest session — a code can only guard a key", () => {
+    vault.current = { header: { unlocks: {} }, guest: true };
+    listAvailableUnlockMethods.mockReturnValue([]);
+    render(<UnlockMethodsPanel />);
+    expect(screen.queryByRole("button", { name: /Enroll MFA/i })).toBeNull();
+    expect(
+      screen.getByText(/Withheld until this vault has a key/),
+    ).toBeTruthy();
   });
 
   it("removes authenticator MFA", async () => {

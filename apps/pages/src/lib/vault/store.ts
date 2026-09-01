@@ -89,6 +89,7 @@ import {
   createPasskeyUnlockCeremony,
   getPasskeyUnlockCeremony,
   openTotpSecret,
+  primaryUnlockCount,
   randomTotpSecret,
   sealTotpSecret,
   totpCodeMatches,
@@ -316,6 +317,8 @@ export class VaultStore {
   #rawVaultKey: Uint8Array | null = null;
   /** Primary unwrap succeeded; waiting on optional TOTP before activating. */
   #pendingVaultKey: CryptoKey | null = null;
+  /** A seed offered for enrollment; discarded unless a code confirms it. */
+  #pendingTotpSecret: string | null = null;
   #body: VaultBody = emptyBody();
   #header: VaultHeader | null = null;
   #prefs: VaultPrefs = defaultPrefs;
@@ -1022,22 +1025,69 @@ export class VaultStore {
   }
 
   /**
-   * Enroll optional TOTP as a second factor after any primary unlock.
-   * Returns an otpauth URI for QR / authenticator setup.
+   * Start enrolling an authenticator code as the second step after any
+   * primary unlock. Returns an otpauth URI for the QR / authenticator app.
+   *
+   * Nothing is written yet. The gate lands on disk only once
+   * `confirmTotpEnrollment` sees a code from the app that matches — an
+   * unscanned or mis-scanned seed used to become a gate the moment Enroll was
+   * pressed, and the next unlock then asked for a code nobody could produce.
+   *
+   * It also needs a key to guard: a guest session holds nothing wrapped to
+   * disk, and writing `unlocks.totp` alone would seal a vault no passkey, PIN
+   * or password can ever open (that is exactly how one got bricked). So the
+   * ceremony is refused until a primary method exists.
    */
-  async enrollTotp(): Promise<string> {
-    const { vaultKey, header } = this.#requireUnlocked();
+  async beginTotpEnrollment(): Promise<string> {
+    const { header } = this.#requireUnlocked();
+    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
+      throw new Error(
+        "Seal this vault with a passkey, PIN or password before adding an authenticator code — a code can only guard a key.",
+      );
+    }
     const secret = randomTotpSecret();
+    this.#pendingTotpSecret = secret;
+    return totpSetupUri(secret, {
+      label: "OpenSesame vault",
+      issuer: "OpenSesame",
+    });
+  }
+
+  /**
+   * Prove the authenticator was set up, then turn the gate on. A wrong code
+   * leaves everything as it was — this is enrollment, not an unlock, so it
+   * counts toward no lockout.
+   */
+  async confirmTotpEnrollment(code: string): Promise<void> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    const secret = this.#pendingTotpSecret;
+    if (!secret) {
+      throw new Error("Start authenticator enrollment first.");
+    }
+    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
+      this.#pendingTotpSecret = null;
+      throw new Error(
+        "Seal this vault with a passkey, PIN or password before adding an authenticator code — a code can only guard a key.",
+      );
+    }
+    const ok = await totpCodeMatches(secret, code);
+    if (!ok) {
+      throw new WrongPasswordError(
+        "That code did not match. Check the time on your authenticator and try again.",
+      );
+    }
     const gate = await sealTotpSecret(vaultKey, secret);
     const unlocks: VaultUnlocks = {
       ...header.unlocks,
       totp: gate,
     };
     await this.#persistHeader({ ...header, unlocks });
-    return totpSetupUri(secret, {
-      label: "OpenSesame vault",
-      issuer: "OpenSesame",
-    });
+    this.#pendingTotpSecret = null;
+  }
+
+  /** Abandon an enrollment that never saw a matching code. */
+  cancelTotpEnrollment(): void {
+    this.#pendingTotpSecret = null;
   }
 
   async removeTotp(): Promise<void> {
@@ -1059,6 +1109,7 @@ export class VaultStore {
     this.#vaultKey = null;
     this.#zeroRaw();
     this.#pendingVaultKey = null;
+    this.#pendingTotpSecret = null;
     this.#body = emptyBody();
     // A guest that ran beside a sealed vault did so in the isolated guest
     // tomb; locking it hands the screen back to the real vault.

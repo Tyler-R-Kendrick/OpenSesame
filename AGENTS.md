@@ -238,7 +238,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0089).
+  0001–0090).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -265,6 +265,19 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   the tests in `SignInPanel.test.tsx`, `UnlockScreen.test.tsx`, and
   `store.test.ts` asserting guest exists and stays isolated are load-bearing
   and must not be deleted or inverted.
+- A device knows two things and the unlock screen states both: **who** is
+  signed in (the Identity session plus the upstream assertion federation saved)
+  and **which key** opens the vault (the passkey/PIN/password wraps in the
+  plaintext header, then the authenticator gate if enrolled). The unlock tabs
+  are exactly the enrolled methods, never a uniform three; an enrolled
+  authenticator code is announced as step 2 before step 1 is taken. Sign out
+  is one operation in `apps/pages/src/lib/session-exit.ts` (forget the
+  assertion, revoke Identity, lock, note it for the Sign in tab); "switch
+  account" is that plus `prompt=login` on the next OIDC leg, and never on
+  Shoo's dialect, which ignores it. An authenticator code may be enrolled only
+  once a primary method exists and only after a code from the app matches — a
+  guest can never write a gate with no key behind it
+  ([ADR 0090](docs/adr/0090-account-exits-and-unlock-ceremony.md)).
 - A device holds several vaults (the personal tomb, one per project, the
   guest tomb), and there is exactly one list of them: `listDeviceVaults()` in
   `apps/pages/src/lib/vaults.ts`, rendered by `components/VaultList.tsx` on the

@@ -31,6 +31,15 @@ import {
 } from "./store.js";
 import { LEGACY_PREFS_KEY } from "./tomb-migration.js";
 
+/** Enroll an authenticator code the way Settings does: begin, then confirm. */
+async function enrollTotp(store: VaultStore): Promise<string> {
+  const uri = await store.beginTotpEnrollment();
+  const secret = new URL(uri).searchParams.get("secret") ?? "";
+  const { totpCode, parseTotp } = await import("./totp.js");
+  await store.confirmTotpEnrollment(await totpCode(parseTotp(secret)));
+  return uri;
+}
+
 const PASSWORD = "correct horse battery staple";
 
 /** The personal tomb's vault files — where header/body live now (ADR 0063). */
@@ -427,7 +436,7 @@ describe("VaultStore multi-method unlock", () => {
     const { totpCode, parseTotp } = await import("./totp.js");
     const store = new VaultStore();
     await store.create(PASSWORD);
-    const uri = await store.enrollTotp();
+    const uri = await enrollTotp(store);
     const secret = new URL(uri).searchParams.get("secret");
     expect(secret).toBeTruthy();
     if (!secret) throw new Error("expected totp secret in otpauth URI");

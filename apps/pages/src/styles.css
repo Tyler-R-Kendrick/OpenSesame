@@ -1937,6 +1937,85 @@ body {
   font-weight: 600;
 }
 
+/* The identity at the top of the menu: the same `.who` row the unlock screen
+   uses (screens/unlock.css), without its actions — those are the exits. */
+.account-switcher__who {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.3rem 0.6rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.8125rem;
+}
+
+.account-switcher__who .who__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.05rem;
+}
+
+.account-switcher__who .who__mark {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.account-switcher__who .who__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-switcher__who .who__sub {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The roads out of the account: attach another, switch, sign out. */
+.account-switcher__exits {
+  display: grid;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.account-switcher__exit {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.45rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-switcher__exit:hover {
+  background: var(--surface-2);
+}
+
+.account-switcher__exit svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
 .account-switcher__new {
   display: flex;
   gap: 0.3rem;

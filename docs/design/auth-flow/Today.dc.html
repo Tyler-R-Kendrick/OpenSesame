@@ -1,0 +1,1847 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+/* Lifted from apps/pages/src/styles.css — the vault's own tokens and the
+   component rules the setup ceremony reuses. Scoped to `.os` so each artboard
+   carries the whole design system without a stylesheet import. Values are
+   verbatim: 2px radii, the mono chrome / sans prose split, OpenSesame teal. */
+
+.os {
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #ededed;
+  --ink: #171717;
+  --ink-2: #5c5c5c;
+  --ink-3: #6f6f6f;
+  --line: #e7e7e7;
+  --line-strong: #d4d4d4;
+  --accent: #0d7268;
+  --accent-ink: #ffffff;
+  --accent-wash: #eaf2f0;
+  --accent-line: #bcd6d1;
+  --ok: #0f7a51;
+  --ok-wash: #e3f6ec;
+  --warn: #a25a05;
+  --warn-wash: #fdf1de;
+  --err: #b32424;
+  --err-wash: #fceaea;
+  --radius: 2px;
+  --radius-pill: 999px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  color-scheme: light;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-synthesis-weight: none;
+}
+
+.os[data-theme="dark"] {
+  --canvas: #0f0f0f;
+  --surface: #171717;
+  --surface-2: #1d1d1d;
+  --surface-3: #242424;
+  --ink: #f0f0f0;
+  --ink-2: #a6a6a6;
+  --ink-3: #8c8c8c;
+  --line: #262626;
+  --line-strong: #3a3a3a;
+  --accent: #2fb3a3;
+  --accent-ink: #04231f;
+  --accent-wash: #102a26;
+  --accent-line: #1d5c55;
+  --ok: #35b57e;
+  --ok-wash: #0f2c22;
+  --warn: #d99320;
+  --warn-wash: #33240c;
+  --err: #ef6d6d;
+  --err-wash: #351717;
+  color-scheme: dark;
+}
+
+.os *,
+.os *::before,
+.os *::after {
+  box-sizing: border-box;
+}
+
+.os h1,
+.os h2,
+.os h3 {
+  margin: 0;
+  letter-spacing: -0.021em;
+  text-wrap: balance;
+  font-weight: 600;
+}
+
+.os h1 {
+  font-size: 1.5rem;
+}
+.os h2 {
+  font-size: 1.125rem;
+}
+.os h3 {
+  font-size: 0.9375rem;
+}
+
+.os p {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 0.9375rem;
+}
+
+.os a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
+.os a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.os code {
+  font-family: var(--mono);
+  font-size: 0.875em;
+  font-variant-ligatures: none;
+}
+
+.os :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.os .hint {
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+/* ——— Buttons ——————————————————————————————————————————— */
+
+.os .btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 550;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.os .btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--ink-3);
+}
+
+.os .btn--primary {
+  background: var(--ink);
+  border-color: transparent;
+  color: var(--canvas);
+}
+
+.os .btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
+}
+
+.os .btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-2);
+}
+
+.os .btn--ghost:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.os .btn--block {
+  width: 100%;
+}
+
+.os .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.os .icon-btn {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.os .icon-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.os .icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ——— Fields ———————————————————————————————————————————— */
+
+.os .f {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.os .f__labelrow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 1.1rem;
+}
+
+.os .f__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.os .f__shell {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: transparent;
+  overflow: hidden;
+}
+
+.os .f__shell:focus-within {
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
+}
+
+.os .f__lead {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.os .f__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.625rem;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  padding: 0.35rem 0.45rem 0.35rem 0;
+}
+
+.os .f__input:focus {
+  outline: none;
+}
+
+.os .f__input::placeholder {
+  color: var(--ink-3);
+}
+
+.os .f__fills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.os .f__fills-label {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.os .fill {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.os .fill:hover {
+  border-style: solid;
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+/* ——— Chips, notes, rules ———————————————————————————————— */
+
+.os .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.os .chip--ok {
+  color: var(--ok);
+  background: var(--ok-wash);
+  border-color: color-mix(in srgb, var(--ok) 30%, var(--line));
+}
+
+.os .chip--accent {
+  color: var(--accent);
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
+}
+
+.os .note {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--font);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.os .note--warn {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  background: var(--warn-wash);
+}
+
+.os .note svg {
+  flex: none;
+  margin-top: 0.1rem;
+}
+
+.os .or {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.os .or::before,
+.os .or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* ——— Ceremony card + alternatives (CeremonyShell) ——————————— */
+
+.os .found {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius);
+  background: var(--accent-wash);
+}
+
+.os .found__top {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.os .found__name {
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.os .found dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.6rem;
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.os .found dt {
+  color: var(--ink-2);
+}
+
+.os .found dd {
+  margin: 0;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.os .found--attn {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--line));
+  background: var(--warn-wash);
+}
+
+.os .found--attn .found__top {
+  color: var(--warn);
+}
+
+.os .found__do {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-self: start;
+}
+
+.os .alt {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.os .alt__item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.os .alt__btn {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 550;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.os .alt__btn:hover {
+  background: var(--surface-2);
+}
+
+.os .alt__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+}
+
+.os .alt__grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.os .alt__chev {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-3);
+  transition: transform 160ms var(--ease);
+}
+
+.os .alt__chev.is-open {
+  transform: rotate(90deg);
+}
+
+.os .alt__body {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.15rem 0.8rem 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.os .spin {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--accent);
+  animation: turn 700ms linear infinite;
+}
+
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ——— The setup shell — new vocabulary, same system ——————————— */
+
+.os {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.setup__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+  padding: 0.9rem 1.15rem 0.65rem;
+}
+
+.setup__wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.setup__count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The progress rail: four segments, the passed ones filled in ink. A dot row
+   would be decoration; a segment says how much is left. */
+.setup__rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  flex: none;
+  padding: 0 1.15rem 0.85rem;
+}
+
+.setup__seg {
+  appearance: none;
+  display: grid;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink-3);
+}
+
+.setup__seg-bar {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.setup__seg.is-done .setup__seg-bar,
+.setup__seg.is-now .setup__seg-bar {
+  background: var(--ink);
+}
+
+.setup__seg.is-now {
+  color: var(--ink);
+}
+
+.setup__seg-label {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setup__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.35rem 1.15rem 1.25rem;
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.setup__head {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.setup__head p {
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  max-width: 38ch;
+}
+
+/* The thumb bar. Every step's commitment sits here, at the bottom of the
+   phone, in the same place — the one thing the old screen never had. */
+.setup__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.15rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.setup__foot .btn--primary {
+  flex: 1;
+}
+
+.setup__skip {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0.35rem 0;
+  font: inherit;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  justify-self: start;
+}
+
+/* Provider presets — a two-up grid of real choices, not a select. */
+.preset {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.preset__opt {
+  appearance: none;
+  display: grid;
+  gap: 0.15rem;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), background 140ms var(--ease);
+}
+
+.preset__opt:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+
+.preset__opt.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.preset__name {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.preset__kind {
+  font-family: var(--font);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+
+.preset__opt.is-on .preset__kind {
+  color: var(--accent);
+}
+
+/* The review step's write-out. */
+.wrote {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.wrote__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.wrote__key {
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.wrote__val {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.wrote__val--off {
+  color: var(--ink-3);
+}
+
+/* ——— The commit control (styles.css) ————————————————————————
+   A screen's one terminal action is an ink square carrying the glyph of what
+   it does, with its sentence beside it in the margin voice. Never a wide text
+   button — see docs/design/controls.md. */
+.go-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.go {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: none;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--canvas);
+  cursor: pointer;
+}
+
+.go-verb {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ——— The one question that matters ————————————————————————
+   Three roads, not a URL field. The first is selected on arrival because it
+   already works: a deployment nobody has configured can still sign people in
+   through the compiled broker. */
+.ways {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ways__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.ways__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.ways__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.ways__item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ways__mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-2);
+}
+
+.ways__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.ways__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ways__kind {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══ Authentication flow — lifted from screens/unlock.css, styles.css and
+   sections/settings.css. Values verbatim; the `.who`, `.steps` and the
+   account-menu exits are the new vocabulary this canvas proposes. ═══ */
+
+.os {
+  --rail: #fafafa;
+  --rail-2: #efefef;
+  --rail-fg: #171717;
+  --rail-muted: #6f6f6f;
+  --rail-line: #e7e7e7;
+  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.14), 0 4px 12px -6px
+    rgba(0, 0, 0, 0.08);
+  --s-0: #b32424;
+  --s-1: #c2600b;
+  --s-2: #a07a06;
+  --s-3: #0f7a51;
+  --s-4: #0d7268;
+}
+
+.os[data-theme="dark"] {
+  --rail: #0f0f0f;
+  --rail-2: #1d1d1d;
+  --rail-fg: #f0f0f0;
+  --rail-muted: #8c8c8c;
+  --rail-line: #262626;
+  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.6), 0 8px 20px -8px
+    rgba(0, 0, 0, 0.4);
+}
+
+.os .note--ok {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--line));
+  background: var(--ok-wash);
+}
+
+.os .note--err {
+  border-color: color-mix(in srgb, var(--err) 35%, var(--line));
+  background: var(--err-wash);
+}
+
+.os .note > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.os .btn--sm {
+  min-height: 1.875rem;
+  padding: 0 0.6rem;
+  font-size: 0.8125rem;
+}
+
+.os .btn--danger {
+  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 35%, var(--line));
+}
+
+.os .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.os .chip--warn {
+  color: var(--warn);
+  background: var(--warn-wash);
+  border-color: color-mix(in srgb, var(--warn) 30%, var(--line));
+}
+
+/* Inputs, as styles.css draws them: a rule under the text, nothing else. */
+.os input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.1rem;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.os input:focus {
+  outline: none;
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
+}
+
+.os input::placeholder {
+  color: var(--ink-3);
+}
+
+.os input:disabled {
+  color: var(--ink-2);
+  border-bottom-style: dotted;
+}
+
+/* styles.css `.field`: the label sits in a column beside its control. */
+.os .field {
+  display: grid;
+  grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
+  column-gap: 1.1rem;
+  row-gap: 0.3rem;
+  align-items: baseline;
+  padding: 0.45rem 0 0.55rem;
+}
+
+.os .field > label {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.os .field > *:not(label) {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.os .field > .hint {
+  font-size: 0.75rem;
+}
+
+/* ——— Unlock screen (screens/unlock.css) ——————————————————— */
+
+.unlock {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding: 2.5rem 0.9rem 1.25rem;
+  background: var(--canvas);
+  color: var(--ink);
+  overflow-y: auto;
+}
+
+.unlock__card {
+  position: relative;
+  width: 100%;
+  max-width: 27rem;
+  min-width: 0;
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem 1.15rem 1.35rem;
+}
+
+.unlock__card > * {
+  min-width: 0;
+}
+
+.unlock__brand {
+  display: grid;
+  justify-items: start;
+  gap: 0.6rem;
+  text-align: left;
+}
+
+.unlock__wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.unlock__brand h1 {
+  font-size: 1.4rem;
+  line-height: 1.2;
+}
+
+.unlock__form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.unlock__methods {
+  display: flex;
+  gap: 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.unlock__method {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0 0.5rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.unlock__method--active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.unlock__switch {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.unlock__reveal {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.unlock__reveal input {
+  padding-right: 2.6rem;
+}
+
+.unlock__reveal .icon-btn {
+  position: absolute;
+  right: 0.2rem;
+  width: 2rem;
+  height: 2rem;
+}
+
+.unlock__hint {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.unlock__foot {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+  text-align: left;
+  padding-top: 0.15rem;
+}
+
+.unlock__foot p {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  max-width: 34ch;
+  line-height: 1.5;
+}
+
+.unlock__foot .unlock__deployment {
+  display: flex;
+  max-width: none;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  min-width: 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  color: var(--ink-3);
+}
+
+.unlock__deployment-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+.unlock__deployment .unlock__switch {
+  flex: none;
+  font-size: 0.75rem;
+}
+
+.unlock__danger {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--err) 35%, var(--line));
+  border-radius: var(--radius);
+  background: var(--err-wash);
+}
+
+.unlock__danger p {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+/* ——— Sign-in panel (screens/unlock.css) ————————————————————— */
+
+.signin {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.signin__providers {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.signin__bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.signin__social {
+  width: 2.75rem;
+  min-height: 2.6rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.signin__provider {
+  min-height: 2.6rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.signin__provider--google {
+  background: #ffffff;
+  color: #1f1f1f;
+  border-color: #dadce0;
+}
+
+.signin__provider-note {
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.signin__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.signin__divider::before,
+.signin__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.identifier__row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.identifier__row input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ——— NEW: who is signed in, on the unlock screen ———————————————
+   The account is a fact about the device before any vault is open, so it
+   reads above both tabs: who, through which way in, and the two roads out
+   of it. Absent entirely for a device nobody has signed in on. */
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.who__mark {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.who__body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 0.05rem;
+}
+
+.who__name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who__sub {
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who__acts {
+  display: flex;
+  gap: 0.65rem;
+  flex: none;
+}
+
+/* ——— NEW: the unlock ceremony's steps ——————————————————————
+   Drawn only when the vault enrolled an authenticator code: the second step
+   is then a fact about this vault, and the screen says so before the first
+   step is taken rather than springing it afterwards. The same segment rail
+   setup uses, because it is the same claim — how much is left. */
+.steps {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+}
+
+.steps__seg {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--ink-3);
+}
+
+.steps__bar {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.steps__seg.is-done .steps__bar,
+.steps__seg.is-now .steps__bar {
+  background: var(--ink);
+}
+
+.steps__seg.is-now {
+  color: var(--ink);
+}
+
+.steps__label {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ——— The rail and its prompt (styles.css) —————————————————— */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--rail);
+  color: var(--rail-fg);
+  border-right: 1px solid var(--rail-line);
+}
+
+.rail__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.9rem 1rem 0.15rem;
+}
+
+.rail__wordmark {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.rail__prompt {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+  margin: 0;
+  padding: 0.15rem 1rem 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.prompt__dim {
+  flex: none;
+  color: var(--rail-muted);
+}
+
+.prompt__seg {
+  appearance: none;
+  display: inline-block;
+  max-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--rail-fg);
+  font: inherit;
+  font-weight: 600;
+  text-transform: lowercase;
+  cursor: pointer;
+  text-decoration: underline dotted var(--rail-muted);
+  text-underline-offset: 3px;
+}
+
+.prompt__seg[aria-expanded="true"] {
+  text-decoration-style: solid;
+  text-decoration-color: var(--ink);
+}
+
+.prompt__seg--tomb {
+  color: var(--accent);
+}
+
+.railtree {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.railtree__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.75rem;
+  padding: 0 0.55rem;
+  color: var(--rail-fg);
+  text-decoration: none;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.railtree__row.is-active {
+  opacity: 1;
+}
+
+.railtree__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.railtree__dim {
+  color: var(--rail-muted);
+}
+
+.railtree__count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--rail-muted);
+}
+
+.railtree__jump {
+  flex: none;
+  margin-left: auto;
+  padding: 0.05rem 0.25rem;
+  border: 1px solid var(--rail-line);
+  border-radius: var(--radius);
+  color: var(--rail-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.railtree__count ~ .railtree__jump {
+  margin-left: 0.4rem;
+}
+
+.railtree__caret {
+  flex: none;
+  color: var(--rail-muted);
+}
+
+/* ——— The account menu (styles.css `.account-switcher__*`) ——————— */
+
+.account-switcher {
+  position: relative;
+  display: inline-block;
+}
+
+.account-switcher__menu {
+  position: absolute;
+  z-index: 41;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 14rem;
+  padding: 0.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--mono);
+}
+
+.account-switcher__label {
+  margin: 0 0 0.3rem;
+  padding: 0 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.account-switcher__item,
+.account-switcher__add,
+.account-switcher__exit {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.45rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-switcher__item:hover,
+.account-switcher__add:hover,
+.account-switcher__exit:hover {
+  background: var(--surface-2);
+}
+
+.account-switcher__item.is-active {
+  font-weight: 600;
+}
+
+.account-switcher__item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-switcher__add {
+  margin-top: 0.35rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+  font-weight: 600;
+}
+
+/* NEW: the identity header at the top of the menu, and the roads out. */
+.account-switcher__who {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0.3rem 0.6rem;
+  margin-bottom: 0.3rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-switcher__exits {
+  display: grid;
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.account-switcher__exit svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+/* ——— Settings panels (styles.css, sections/settings.css) ——————— */
+
+.os .panel {
+  background: transparent;
+  border: 0;
+}
+
+.os .panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 0 0.7rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.os .panel__body {
+  padding: 1rem 0 0;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.set__unlock {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.set__unlock-row {
+  display: grid;
+  gap: 0.55rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.set__unlock-row > .btn,
+.set__unlock-row > .actions {
+  justify-self: start;
+}
+
+.set__unlock-row:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.set__unlock-row h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+}
+
+.set__unlock-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.set__unlock-form input {
+  flex: 1 1 8rem;
+  min-width: 7rem;
+}
+
+.set__unlock-totp {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: start;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.set__unlock-secret {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 0.7rem;
+  color: var(--ink-3);
+}
+
+/* ——— The flow map: two lanes, one screen ———————————————————— */
+
+.lane {
+  display: grid;
+  gap: 0.6rem;
+  align-content: start;
+}
+
+.lane__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.lane__head strong {
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--ink);
+}
+
+.box {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.box--dim {
+  border-style: dashed;
+  background: transparent;
+}
+
+.box--accent {
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
+}
+
+.box--ink {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.box__name {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.box__sub {
+  font-family: var(--font);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.box--ink .box__sub {
+  color: color-mix(in srgb, var(--canvas) 70%, var(--ink));
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.rule-note {
+  padding: 0.65rem 0.8rem;
+  border-left: 2px solid var(--accent);
+  font-family: var(--font);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+  </style>
+</helmet>
+<div class="os" style="width: 840px; height: 900px; flex-direction: row; gap: 60px; justify-content: center; align-items: start; padding: 28px 0; overflow: hidden">
+
+  <div style="display: grid; gap: 12px; align-content: start">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--err); letter-spacing: 0.02em; text-transform: uppercase">Today</p>
+    <div style="width: 390px; height: 780px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--canvas); overflow: hidden; padding: 30px 22px; display: grid; gap: 16px; align-content: start">
+      <div style="display: grid; gap: 10px; justify-items: start">
+        <span class="unlock__wordmark">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect><rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect></svg>
+          opensesame
+        </span>
+        <h1>Unlock</h1>
+      </div>
+
+      <div class="unlock__methods">
+        <span class="unlock__method unlock__method--active">Unlock</span>
+        <span class="unlock__method">Sign in</span>
+      </div>
+
+      <div class="unlock__methods">
+        <span class="unlock__method unlock__method--active">Passkey</span>
+        <span class="unlock__method">PIN</span>
+        <span class="unlock__method">Password</span>
+      </div>
+
+      <div class="go-row">
+        <span class="go" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg>
+        </span>
+        <span class="go-verb">Unlock with passkey</span>
+      </div>
+
+      <div style="display: grid; gap: 8px; justify-items: start; padding-top: 6px">
+        <span class="unlock__switch">Continue as guest</span>
+        <span class="unlock__switch">Forgotten how to unlock?</span>
+      </div>
+
+      <div style="display: grid; gap: 10px; margin-top: 18px">
+        <p class="hint">Three tabs, whether or not a PIN was ever enrolled — the screen deliberately would not say which challenges this vault has, so the person is left to remember.</p>
+        <p class="hint">The authenticator code they configured is nowhere: it appears only after the key, as a surprise, with no sign beforehand that it will be asked.</p>
+        <p class="hint">Nobody is named. A Google account signed in through shoo.dev is a fact the device holds, and the only place it could be ended was a link on the other tab. Inside the app there is no sign-out at all.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 12px; align-content: start">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; text-transform: uppercase">After</p>
+    <div style="width: 390px; height: 780px; border: 1px solid var(--line-strong); border-radius: 2px; background: var(--canvas); overflow: hidden; padding: 30px 22px; display: grid; gap: 16px; align-content: start">
+      <div style="display: grid; gap: 10px; justify-items: start">
+        <span class="unlock__wordmark">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect><rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect></svg>
+          opensesame
+        </span>
+        <h1>Unlock</h1>
+      </div>
+
+      <div class="who">
+        <span class="who__mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+        </span>
+        <span class="who__body">
+          <span class="who__name">Google account</span>
+          <span class="who__sub">via shoo.dev · attached to this device</span>
+        </span>
+        <span class="who__acts">
+          <span class="unlock__switch">Switch</span>
+          <span class="unlock__switch">Sign out</span>
+        </span>
+      </div>
+
+      <div class="unlock__methods">
+        <span class="unlock__method unlock__method--active">Unlock</span>
+        <span class="unlock__method">Sign in</span>
+      </div>
+
+      <div class="steps">
+        <div class="steps__seg is-now"><span class="steps__bar"></span><span class="steps__label">1 · Key</span></div>
+        <div class="steps__seg"><span class="steps__bar"></span><span class="steps__label">2 · Authenticator code</span></div>
+      </div>
+
+      <div class="unlock__methods">
+        <span class="unlock__method unlock__method--active">Passkey</span>
+        <span class="unlock__method">Password</span>
+      </div>
+
+      <div class="go-row">
+        <span class="go" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg>
+        </span>
+        <span class="go-verb">Unlock with passkey</span>
+      </div>
+
+      <div style="display: grid; gap: 10px; margin-top: 18px">
+        <p class="hint">Who is signed in, through which way in, and the two roads out — above both tabs, because the account is a fact about the device, not the vault.</p>
+        <p class="hint">Only the challenges this vault enrolled. The header on disk already says which; hiding them protected nothing and cost the person their own configuration.</p>
+        <p class="hint">Two steps, named before the first is taken. The authenticator code is part of the ceremony, not an ambush after it.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

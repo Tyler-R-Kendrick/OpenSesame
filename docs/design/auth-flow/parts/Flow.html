@@ -1,0 +1,82 @@
+<div class="os" style="width: 1180px; height: 780px; padding: 28px 32px; gap: 22px; overflow: hidden">
+  <div style="display: grid; gap: 6px">
+    <h1 style="font-size: 1.5rem">One screen, two facts</h1>
+    <p style="color: var(--ink-2); font-size: 0.9375rem; max-width: 72ch">A device knows <strong>who</strong> is signed in and <strong>which key</strong> opens a vault. They are separate ledgers with separate exits, and the unlock screen states both. Neither ever stands in for the other.</p>
+  </div>
+
+  <div class="lane">
+    <p class="lane__head"><strong>Who</strong> the account · Identity plane · ends with Sign out</p>
+    <div style="display: grid; grid-template-columns: 1.35fr 40px 1fr 40px 1fr 40px 1.2fr; gap: 10px; align-items: stretch">
+      <div class="box">
+        <span class="box__name">Ways in — what setup allowed</span>
+        <span class="box__sub">Google via shoo.dev (compiled in) · an operator's own IdP · org SSO / SAML / LDAP · magic link · your own issuer · guest, always.</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="box">
+        <span class="box__name">Assertion</span>
+        <span class="box__sub">A signed id_token for this origin (pairwise, no PII unless asked), checked against the broker's <code>/session/check</code>. Kept in web storage, bounded by <code>exp</code>.</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="box">
+        <span class="box__name">Principal</span>
+        <span class="box__sub">With an Identity API: provisional on arrival, linked to the identity on sign-in, one principal for many identities. Without one: the assertion is the whole account.</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="box box--accent">
+        <span class="box__name">Named on screen</span>
+        <span class="box__sub">Above both unlock tabs, and as the first segment of <code>who@vault:/</code> inside. Provider, broker, and a short principal tail — never a raw subject.</span>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px">
+      <div class="box box--ink">
+        <span class="box__name">Sign out</span>
+        <span class="box__sub">Forgets the assertion, revokes the Identity session (bearer and cookie), locks the vault. Lands on the Sign in tab, which says so. shoo.dev itself keeps its Google session — <code>shoo.dev/me</code> ends that.</span>
+      </div>
+      <div class="box box--ink">
+        <span class="box__name">Switch account</span>
+        <span class="box__sub">Sign out, then a fresh sign-in through the same way in. An OIDC issuer is asked with <code>prompt=login</code>; shoo.dev honours no such flag and answers with the Google account it remembers.</span>
+      </div>
+      <div class="box box--ink">
+        <span class="box__name">Add an account</span>
+        <span class="box__sub">The old "Sign in" beside a session, named for what it does: another identity attached to this principal. Refused in plain words when the identity already belongs to someone else.</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="rule-note">Signing in never opens a vault. Unlocking never signs you in. A sign-in that comes back to a device with a sealed vault lands on <strong>Unlock</strong> with the account named above the tabs — and a lock keeps the account unless Settings says otherwise.</p>
+
+  <div class="lane">
+    <p class="lane__head"><strong>Key</strong> the vault · this device · ends with Lock</p>
+    <div style="display: grid; grid-template-columns: 1.35fr 40px 1fr 40px 1fr 40px 1.2fr; gap: 10px; align-items: stretch">
+      <div class="box">
+        <span class="box__name">Sealed vault — what was enrolled</span>
+        <span class="box__sub">Passkey, PIN, password: any one opens it, and the unlock screen offers exactly those. A challenge the vault never enrolled fails like a wrong one, but is not a tab.</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="box">
+        <span class="box__name">Authenticator code</span>
+        <span class="box__sub">Step 2, only when enrolled, announced before step 1. The seed lives under the vault key, so the code can only ever follow a right key.</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="box">
+        <span class="box__name">Open</span>
+        <span class="box__sub">The key is in memory; the tomb's sealed config comes with it. Idle, tab-hide and the lock buttons drop it.</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="box box--ink">
+        <span class="box__name">Lock</span>
+        <span class="box__sub">Drops the key and everything that left the vault (clipboard, staged claims). The account stays signed in — "Sign out of Identity too" is the strict preference.</span>
+      </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+      <div class="box box--dim">
+        <span class="box__name">Enrolling MFA</span>
+        <span class="box__sub">Needs a primary method first — a guest has no key on disk for a code to guard, and a vault with a code but no key is one nothing can open. The gate is written only after a code from the app matches.</span>
+      </div>
+      <div class="box box--dim">
+        <span class="box__name">A vault that already has a code and no key</span>
+        <span class="box__sub">Said out loud on Unlock: no tab can open it, delete it and seal again. Never three tabs that all fail.</span>
+      </div>
+    </div>
+  </div>
+</div>

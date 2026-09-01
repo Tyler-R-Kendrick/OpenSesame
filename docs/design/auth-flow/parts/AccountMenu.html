@@ -1,0 +1,94 @@
+<div class="os" style="width: 460px; height: 640px; flex-direction: row; align-items: stretch">
+  <aside class="rail" style="width: 248px; flex: none; position: relative">
+    <div class="rail__brand">
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
+        <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
+      </svg>
+      <p class="rail__wordmark">opensesame</p>
+    </div>
+
+    <div class="rail__prompt">
+      <div class="account-switcher">
+        <button type="button" class="prompt__seg" aria-haspopup="listbox" aria-expanded="true" title="Switch account">google</button>
+
+        <div class="account-switcher__menu" aria-label="Accounts" style="min-width: 15.5rem">
+          <div class="account-switcher__who">
+            <span class="who__mark" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+            </span>
+            <span class="who__body">
+              <span class="who__name">Google account</span>
+              <span class="who__sub">via shoo.dev · prn_8f3c…</span>
+            </span>
+          </div>
+
+          <p class="account-switcher__label">Profiles</p>
+          <button type="button" class="account-switcher__item is-active" aria-current="true">
+            <span class="account-switcher__item-name">personal</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4L19 7"></path></svg>
+          </button>
+          <button type="button" class="account-switcher__item">
+            <span class="account-switcher__item-name">acme-corp</span>
+          </button>
+          <button type="button" class="account-switcher__add">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+            Add organization
+          </button>
+
+          <div class="account-switcher__exits">
+            <button type="button" class="account-switcher__exit">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3.2"></circle><path d="M3.5 19.2c1-3.2 3.3-4.8 6.5-4.8 1.2 0 2.3.2 3.2.7"></path><path d="M18 14v6M15 17h6"></path></svg>
+              Add an account
+            </button>
+            <button type="button" class="account-switcher__exit">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"></path></svg>
+              Switch account…
+            </button>
+            <button type="button" class="account-switcher__exit">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9"></path></svg>
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+      <span class="prompt__dim" aria-hidden="true">@</span>
+      <button type="button" class="prompt__seg prompt__seg--tomb">personal</button>
+      <span class="prompt__dim" aria-hidden="true">:/</span>
+    </div>
+
+    <nav class="railtree" aria-label="Sections">
+      <a class="railtree__row is-active" href="#">
+        <svg class="railtree__caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(90deg)"><path d="M9 6l6 6-6 6"></path></svg>
+        <span class="railtree__name">vault<span class="railtree__dim">/</span></span>
+        <span class="railtree__count">12</span>
+        <kbd class="railtree__jump">gv</kbd>
+      </a>
+      <a class="railtree__row" href="#">
+        <svg class="railtree__caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+        <span class="railtree__name">connections<span class="railtree__dim">/</span></span>
+        <kbd class="railtree__jump">gc</kbd>
+      </a>
+      <a class="railtree__row" href="#">
+        <svg class="railtree__caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+        <span class="railtree__name">access<span class="railtree__dim">/</span></span>
+        <kbd class="railtree__jump">ga</kbd>
+      </a>
+      <a class="railtree__row" href="#">
+        <svg class="railtree__caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+        <span class="railtree__name">identity<span class="railtree__dim">/</span></span>
+        <kbd class="railtree__jump">gi</kbd>
+      </a>
+      <a class="railtree__row" href="#">
+        <svg class="railtree__caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+        <span class="railtree__name">settings<span class="railtree__dim">/</span></span>
+        <kbd class="railtree__jump">gs</kbd>
+      </a>
+    </nav>
+  </aside>
+
+  <div style="flex: 1; min-width: 0; padding: 1.2rem 1rem; display: grid; gap: 0.7rem; align-content: start">
+    <p class="hint"><strong>The prompt is the switcher.</strong> <code>who@vault:/</code> — the first segment names the account and opens this menu; the second names the open vault and opens the vault list (ADR 0089). Neither is new; the three roads at the bottom are.</p>
+    <p class="hint">A guest reads <code>guest@personal:/</code>. Its menu has no account to add to, so the exits are <em>Sign in</em> and <em>Sign out</em> — the latter ends the provisional session and locks.</p>
+  </div>
+</div>

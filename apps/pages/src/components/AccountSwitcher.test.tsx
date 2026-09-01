@@ -212,3 +212,82 @@ describe("AccountSwitcher", () => {
     ).toBeTruthy();
   });
 });
+
+import { accountSeams } from "../lib/account.js";
+import { sessionExitSeams } from "../lib/session-exit.js";
+
+describe("AccountSwitcher — the roads out", () => {
+  const originalAccount = { ...accountSeams };
+  const originalExits = { ...sessionExitSeams };
+  const signOut = vi.fn();
+  const switchAccount = vi.fn();
+  const attachAccount = vi.fn();
+
+  beforeEach(() => {
+    signOut.mockReset();
+    switchAccount.mockReset();
+    attachAccount.mockReset();
+    Object.assign(sessionExitSeams, { signOut, switchAccount, attachAccount });
+    orgs.listOrgMemberships.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    Object.assign(accountSeams, originalAccount);
+    Object.assign(sessionExitSeams, originalExits);
+    cleanup();
+  });
+
+  it("names the account at the top and offers attach, switch and sign out", () => {
+    accountSeams.describeAccount = () => ({
+      name: "Google account",
+      detail: "via shoo.dev · prn · 8f3c",
+      providerId: "google",
+      guest: false,
+    });
+    renderSwitcher();
+    // The prompt segment is a short handle, never a name or an address.
+    expect(
+      document.querySelector(".account-switcher .prompt__seg")?.textContent,
+    ).toBe("google");
+    openMenu();
+    expect(screen.getByText("Google account")).toBeTruthy();
+    expect(screen.getByText("via shoo.dev · prn · 8f3c")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Add an account…" }));
+    expect(attachAccount).toHaveBeenCalledTimes(1);
+    openMenu();
+    fireEvent.click(screen.getByRole("button", { name: "Switch account…" }));
+    expect(switchAccount).toHaveBeenCalledTimes(1);
+    openMenu();
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers a guest a way to sign in, and a way to end the guest session", () => {
+    accountSeams.describeAccount = () => ({
+      name: "guest",
+      detail: "prn · 8f3c · provisional",
+      providerId: null,
+      guest: true,
+    });
+    renderSwitcher();
+    openMenu();
+    expect(
+      screen.queryByRole("button", { name: "Add an account…" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sign in…" }));
+    expect(attachAccount).toHaveBeenCalledTimes(1);
+    openMenu();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+  });
+
+  it("offers only sign-in when nobody is signed in at all", () => {
+    accountSeams.describeAccount = () => null;
+    renderSwitcher();
+    openMenu();
+    expect(screen.getByRole("button", { name: "Sign in…" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Sign out" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Switch account…" }),
+    ).toBeNull();
+  });
+});

@@ -1322,3 +1322,68 @@ describe("an operator's own identity provider", () => {
     expect(loadSession()).toBeNull();
   });
 });
+
+describe("prompt=login for switching accounts", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  function captureNavigation(): string[] {
+    const seen: string[] = [];
+    vi.stubGlobal("location", {
+      origin: window.location.origin,
+      hostname: window.location.hostname,
+      href: window.location.href,
+      search: window.location.search,
+      assign: (url: string) => {
+        seen.push(url);
+      },
+    });
+    return seen;
+  }
+
+  it("asks an OIDC issuer to authenticate afresh", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          Response.json({
+            issuer: "http://127.0.0.1:9090",
+            authorization_endpoint: "http://127.0.0.1:9090/authorize",
+            token_endpoint: "http://127.0.0.1:9090/token",
+            jwks_uri: "http://127.0.0.1:9090/jwks",
+          }),
+        ),
+      ),
+    );
+    const seen = captureNavigation();
+    const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "mock");
+    if (!upstream) throw new Error("mock upstream missing");
+
+    await beginSignIn(upstream, { prompt: "login" });
+
+    const url = new URL(seen[0] ?? "");
+    expect(url.searchParams.get("prompt")).toBe("login");
+  });
+
+  it("never sends prompt to Shoo, which reads no such flag", async () => {
+    const seen = captureNavigation();
+    const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "shoo");
+    if (!upstream) throw new Error("shoo upstream missing");
+
+    await beginSignIn(upstream, { prompt: "login" });
+
+    const url = new URL(seen[0] ?? "");
+    expect(url.searchParams.get("prompt")).toBeNull();
+    // The dialect stays exactly Shoo's: nothing else crept in beside it.
+    expect([...url.searchParams.keys()].sort()).toEqual([
+      "client_id",
+      "code_challenge",
+      "code_challenge_method",
+      "redirect_uri",
+      "state",
+    ]);
+  });
+});

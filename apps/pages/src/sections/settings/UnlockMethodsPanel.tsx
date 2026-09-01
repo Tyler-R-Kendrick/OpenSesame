@@ -17,13 +17,17 @@ import {
 const ENROLL_PASSKEY_PARAM = "enroll-passkey";
 
 export function UnlockMethodsPanel() {
-  const { header } = useVault();
+  const { header, guest } = useVault();
   const store = useVaultStore();
   const methods = listAvailableUnlockMethods(header);
   const hasPasskey = Boolean(header?.unlocks?.passkey);
   const hasPin = Boolean(header?.unlocks?.pin);
   const hasPassword = Boolean(header?.wrap && header?.kdf);
   const hasTotp = Boolean(header?.unlocks?.totp);
+  // A code can only guard a key. A guest session holds nothing wrapped to
+  // disk, and a vault with a code but no passkey, PIN or password is one
+  // nothing can open — so the row is withheld until a primary method exists.
+  const canEnrollTotp = !guest && methods.length > 0;
 
   const [message, setMessage] = useState<{
     tone: "ok" | "err";
@@ -35,6 +39,7 @@ export function UnlockMethodsPanel() {
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [totpUri, setTotpUri] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState("");
   const [webauthnHost, setWebauthnHost] = useState<WebauthnHostCheck>(() =>
     checkWebauthnHost(),
   );
@@ -336,7 +341,7 @@ export function UnlockMethodsPanel() {
             <p className="hint">
               {hasTotp
                 ? "Required after every primary unlock on this device."
-                : "Optional second factor. The seed is sealed under the vault key."}
+                : "Optional second step after a passkey, PIN or password. The seed is sealed under the vault key, and MFA turns on only once a code from your app matches — a bad scan can never lock you out."}
             </p>
           </div>
           {hasTotp ? (
@@ -354,16 +359,26 @@ export function UnlockMethodsPanel() {
             >
               Remove MFA
             </button>
-          ) : (
+          ) : !canEnrollTotp ? (
+            <output className="note note--warn">
+              <IconAlert size={18} />
+              <span>
+                Withheld until this vault has a key. A guest session holds
+                nothing wrapped to disk, so a code would guard nothing — enroll
+                a passkey, PIN or password first, and MFA follows.
+              </span>
+            </output>
+          ) : totpUri ? null : (
             <button
               type="button"
               className="btn btn--primary btn--sm"
               disabled={busy}
               onClick={() =>
                 void run(async () => {
-                  const uri = await store.enrollTotp();
+                  const uri = await store.beginTotpEnrollment();
+                  setTotpCode("");
                   setTotpUri(uri);
-                }, "Authenticator MFA enrolled. Scan the QR before you lock.")
+                }, "Scan the code with your authenticator, then enter the code it shows to turn MFA on.")
               }
             >
               Enroll MFA
@@ -371,15 +386,57 @@ export function UnlockMethodsPanel() {
           )}
         </div>
 
-        {totpUri ? (
-          <div className="set__unlock-totp">
+        {totpUri && !hasTotp ? (
+          <form
+            className="set__unlock-totp"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void run(async () => {
+                await store.confirmTotpEnrollment(totpCode);
+                setTotpCode("");
+                setTotpUri(null);
+              }, "Authenticator MFA is on. Every unlock now asks for a code.");
+            }}
+          >
             <QrCode value={totpUri} label="Scan to add vault MFA" size={160} />
             <p className="hint">
-              Scan once with your authenticator, then lock and unlock to confirm
-              the flow. The secret is not shown again after you leave Settings.
+              Scan with your authenticator, then enter the code it shows.
+              Nothing is written until a code matches; the secret is not shown
+              again after you leave Settings.
             </p>
             <code className="set__unlock-secret">{totpUri}</code>
-          </div>
+            <div className="set__unlock-form">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="6-digit code"
+                aria-label="Authenticator code"
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="btn btn--primary btn--sm"
+                disabled={busy || totpCode.replace(/\s/g, "").length < 6}
+              >
+                Turn on
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                disabled={busy}
+                onClick={() => {
+                  store.cancelTotpEnrollment();
+                  setTotpCode("");
+                  setTotpUri(null);
+                  setMessage(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         ) : null}
       </div>
     </section>

@@ -1654,6 +1654,60 @@
     }
   },
   {
+    "id": "identity.signout",
+    "title": "Sign out of this device: end the Identity session, forget the upstream assertion, lock the vault",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id logout",
+      "pwa": "lib/session-exit.ts:signOut",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "mcp_client": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "webmcp": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      }
+    }
+  },
+  {
+    "id": "identity.switch_account",
+    "title": "Switch account: sign out, then sign in afresh as somebody else (prompt=login on OIDC issuers)",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/session-exit.ts:switchAccount",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "mcp_client": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "webmcp": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      }
+    }
+  },
+  {
     "id": "identity.whoami",
     "title": "Resolve the identity-plane principal",
     "plane": "identity",

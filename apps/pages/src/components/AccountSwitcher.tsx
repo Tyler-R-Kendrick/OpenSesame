@@ -1,5 +1,13 @@
 /**
- * Account switcher — guest / personal plus org profiles on this principal.
+ * Account switcher — who this device is signed in as, the org profiles on
+ * that principal, and the roads out.
+ *
+ * The `who@` segment of the prompt opens it. At the top it names the account
+ * the way the unlock screen does (`lib/account.ts`); in the middle are the
+ * profiles it always had; at the bottom the three exits the shell never
+ * offered: attach another account, switch to a different one, sign out. All
+ * three land on the unlock screen's Sign in tab, the one surface that offers
+ * every configured way in (`lib/session-exit.ts`).
  *
  * Adding an organization looks up the tenant slug, then starts the method it
  * advertises: an OIDC round-trip run in this tab when the tenant published an
@@ -9,6 +17,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router";
+import { useAccount } from "../lib/account.js";
 import { beginSignIn } from "../lib/federation.js";
 import {
   IdentityError,
@@ -29,7 +38,10 @@ import {
   subscribeOrgProfile,
 } from "../lib/orgs.js";
 import { brokeredOrgUpstream } from "../lib/providers.js";
-import { IconCheck, IconPlus } from "./Icons.js";
+import { attachAccount, signOut, switchAccount } from "../lib/session-exit.js";
+import { brandFor } from "../screens/unlock/ProviderBrand.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { IconCheck, IconPlus, IconUser } from "./Icons.js";
 
 function guestLabel(hasSession: boolean, assurance?: string): string {
   if (!hasSession) return "guest";
@@ -40,6 +52,8 @@ function guestLabel(hasSession: boolean, assurance?: string): string {
 function AccountSwitcherDefault() {
   const location = useLocation();
   const session = useIdentitySession();
+  const account = useAccount();
+  const segRef = useGuideTarget<HTMLButtonElement>("shell.account");
   const activeId = useSyncExternalStore(
     subscribeOrgProfile,
     activeOrgProfileId,
@@ -69,7 +83,15 @@ function AccountSwitcherDefault() {
   }, [session, open]);
 
   const activeOrg = memberships.find((org) => org.id === activeId);
-  const label = activeOrg?.displayName ?? guestLabel(Boolean(session));
+  // The prompt's first segment: the org profile when one is active, else a
+  // short handle for the account — the provider it came through ("google"),
+  // or "guest". Never a name or an address in the rail.
+  const label =
+    activeOrg?.displayName ??
+    (account && !account.guest
+      ? (account.providerId ?? "account")
+      : guestLabel(Boolean(session)));
+  const brand = account?.providerId ? brandFor(account.providerId) : null;
 
   function close(): void {
     setOpen(false);
@@ -138,6 +160,7 @@ function AccountSwitcherDefault() {
   return (
     <div className="account-switcher">
       <button
+        ref={segRef}
         type="button"
         className="prompt__seg"
         aria-haspopup="listbox"
@@ -163,6 +186,17 @@ function AccountSwitcherDefault() {
               if (event.key === "Escape") close();
             }}
           >
+            {account ? (
+              <div className="account-switcher__who">
+                <span className="who__mark" aria-hidden="true">
+                  {brand ? <brand.Icon size={16} /> : <IconUser size={16} />}
+                </span>
+                <span className="who__body">
+                  <span className="who__name">{account.name}</span>
+                  <span className="who__sub">{account.detail}</span>
+                </span>
+              </div>
+            ) : null}
             <p className="account-switcher__label">Accounts</p>
             <button
               type="button"
@@ -261,6 +295,86 @@ function AccountSwitcherDefault() {
             ) : null}
 
             {error ? <p className="account-switcher__error">{error}</p> : null}
+
+            {/* The roads out. Each one lands on the unlock screen's Sign in
+                tab, which says what just happened. */}
+            <div className="account-switcher__exits">
+              {account && !account.guest ? (
+                <button
+                  type="button"
+                  className="account-switcher__exit"
+                  onClick={() => {
+                    close();
+                    attachAccount();
+                  }}
+                >
+                  <IconPlus size={14} />
+                  Add an account…
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="account-switcher__exit"
+                  onClick={() => {
+                    close();
+                    attachAccount();
+                  }}
+                >
+                  <IconUser size={14} />
+                  Sign in…
+                </button>
+              )}
+              {account ? (
+                <>
+                  <button
+                    type="button"
+                    className="account-switcher__exit"
+                    onClick={() => {
+                      close();
+                      switchAccount();
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M4 8h13l-3-3M20 16H7l3 3" />
+                    </svg>
+                    Switch account…
+                  </button>
+                  <button
+                    type="button"
+                    className="account-switcher__exit"
+                    onClick={() => {
+                      close();
+                      signOut();
+                    }}
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9" />
+                    </svg>
+                    Sign out
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
         </>
       ) : null}

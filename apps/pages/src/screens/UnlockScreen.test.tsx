@@ -1,4 +1,8 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -14,7 +18,7 @@ import type { UnlockMethodId } from "../lib/vault/unlock-methods.js";
 
 type TestVaultState = {
   status: "empty" | "locked";
-  header: { hint: string } | null;
+  header: { hint?: string; unlocks?: Record<string, JsonObject> } | null;
   lockedOutUntil: number | null;
   failedAttempts: number;
   durable: boolean;
@@ -217,6 +221,10 @@ function submitIdentifier(value: string): void {
 // first run, so the federation seams need a known state before every test in
 // this file rather than inside the one block that used to be the sole caller.
 beforeEach(() => {
+  // A sign-out or a switch leaves a one-shot note for the next unlock screen;
+  // one test's note must never open another's on the Sign in tab.
+  sessionStorage.clear();
+  localStorage.clear();
   continueAsGuest.mockReset();
   continueAsGuest.mockResolvedValue(undefined);
   beginSignIn.mockReset();
@@ -1180,16 +1188,107 @@ describe("UnlockScreen — password unlock", () => {
     expect(github.className).toContain("signin__provider--github");
   });
 
-  it("shows the stored reminder and the same challenge menu as every vault", () => {
+  it("shows the stored reminder and exactly the challenges this vault enrolled", () => {
     render(<UnlockScreen />);
     expect(screen.getByRole("heading", { name: "Unlock" })).toBeTruthy();
-    // The challenge menu is uniform: which methods are enrolled is the user's
-    // own knowledge, never something the screen enumerates.
-    for (const name of ["Passkey", "PIN", "Password"]) {
-      expect(screen.getByRole("tab", { name })).toBeTruthy();
-    }
-    fireEvent.click(screen.getByRole("tab", { name: "Password" }));
+    // Only what the header on disk says is enrolled: a PIN tab for a vault
+    // with no PIN was a challenge that could only fail.
+    expect(screen.getByRole("tab", { name: "Password" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "PIN" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Passkey" })).toBeNull();
     expect(screen.getByText(/my usual place/)).toBeTruthy();
+  });
+
+  it("announces the authenticator step before the key when this vault enrolled one", () => {
+    v.state = { ...v.state, header: { hint: "x", unlocks: { totp: {} } } };
+    render(<UnlockScreen />);
+    expect(screen.getByText("1 · Key")).toBeTruthy();
+    expect(screen.getByText("2 · Authenticator code")).toBeTruthy();
+  });
+
+  it("draws no step rail for a vault without an authenticator code", () => {
+    render(<UnlockScreen />);
+    expect(screen.queryByText("2 · Authenticator code")).toBeNull();
+  });
+
+  it("says so when a vault has an authenticator code but no key to guard", () => {
+    v.state = { ...v.state, header: { unlocks: { totp: {} } } };
+    v.methods = [];
+    render(<UnlockScreen />);
+    expect(
+      screen.getByText(/no passkey, PIN or password to open it with/),
+    ).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Password" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Unlock/ })).toBeNull();
+    // The roads that still work stay: guest, and deleting to seal again.
+    expect(
+      screen.getByRole("button", { name: "Continue as guest" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Forgotten how to unlock?" }),
+    ).toBeTruthy();
+  });
+
+  it("names the signed-in account above both tabs and signs out from there", () => {
+    sessionHolder.current = {
+      principalId: "prn_8f3c",
+      accessToken: "pst_1",
+      issuerOrigin: "http://127.0.0.1:18788",
+    };
+    render(<UnlockScreen />);
+    // On the Unlock tab, not only the Sign in tab: the account is a fact
+    // about the device, and the way out of it must not hide behind a tab.
+    expect(screen.getByTestId("account-row").textContent).toContain("guest");
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(endSession).toHaveBeenCalledTimes(1);
+    expect(
+      screen
+        .getByRole("tab", { name: "Sign in" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(screen.getByText("Signed out of this device.")).toBeTruthy();
+  });
+
+  it("switching signs out and arms the next sign-in to ask the issuer afresh", () => {
+    sessionHolder.current = {
+      principalId: "prn_8f3c",
+      accessToken: "pst_1",
+      issuerOrigin: "http://127.0.0.1:18788",
+    };
+    render(<UnlockScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "Switch" }));
+    expect(endSession).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByText("Signed out. Choose the account to sign in with."),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: FEDERATED_BUTTON }));
+    expect(beginSignIn).toHaveBeenCalledWith(UPSTREAM, { prompt: "login" });
+  });
+
+  it("opens on the Sign in tab after a sign-out from inside the app", () => {
+    sessionStorage.setItem(
+      "opensesame:federation:outcome",
+      JSON.stringify({ kind: "signed_out" }),
+    );
+    render(<UnlockScreen />);
+    expect(
+      screen
+        .getByRole("tab", { name: "Sign in" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();
+  });
+
+  it("opens on the Sign in tab to attach an account, keeping the session", () => {
+    sessionStorage.setItem(
+      "opensesame:federation:outcome",
+      JSON.stringify({ kind: "attach" }),
+    );
+    render(<UnlockScreen />);
+    expect(screen.getByText(/Choose an account to attach/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: FEDERATED_BUTTON }));
+    // Attaching is not switching: the issuer may reuse its session.
+    expect(beginSignIn).toHaveBeenCalledWith(UPSTREAM, {});
   });
 
   it("unlocks with the typed password and clears the field", async () => {
@@ -1231,6 +1330,8 @@ describe("UnlockScreen — password unlock", () => {
   });
 
   it("points at localhost when passkeys cannot work on this host", () => {
+    v.methods = ["passkey", "password"];
+    v.preferred = "passkey";
     v.host = {
       ok: false,
       reason: "Passkeys need a DNS hostname.",
@@ -1279,6 +1380,7 @@ describe("UnlockScreen — password unlock", () => {
   });
 
   it("counts down the lockout and disables input", () => {
+    v.methods = ["passkey", "pin", "password"];
     v.state.lockedOutUntil = Date.now() + 45_000;
     v.state.failedAttempts = 3;
     render(<UnlockScreen />);

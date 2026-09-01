@@ -91,6 +91,15 @@ function clearPendingLink(): void {
   }
 }
 
+/**
+ * Drop a link that was waiting on an unlock. Sign-out calls this: the
+ * assertion it would have attached is being forgotten in the same breath, so
+ * a prompt to finish attaching it would name an account that is gone.
+ */
+export function forgetPendingLink(): void {
+  clearPendingLink();
+}
+
 function pendingLinkMarked(): boolean {
   return storedKeyPresent(PENDING_LINK_KEY);
 }

@@ -17,6 +17,7 @@ import { useState } from "react";
 import { IconMark, IconPlus } from "../components/Icons.js";
 import { VaultList } from "../components/VaultList.js";
 import type { FederatedProviderSummary } from "../lib/providers.js";
+import { signOut, switchAccount } from "../lib/session-exit.js";
 import {
   type DeviceVault,
   sealNewVault,
@@ -25,6 +26,7 @@ import {
 } from "../lib/vaults.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
+import { AccountRow } from "./unlock/AccountRow.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 
 type Props = {
@@ -78,6 +80,18 @@ export function VaultsScreen({ providers, onPicked }: Props) {
             key. Pick one to open it.
           </p>
         </div>
+
+        <AccountRow
+          disabled={busy}
+          onSwitch={() => {
+            switchAccount();
+            setTab("signin");
+          }}
+          onSignOut={() => {
+            signOut();
+            setTab("signin");
+          }}
+        />
 
         <div
           className="unlock__methods"
