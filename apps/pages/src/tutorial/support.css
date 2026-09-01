@@ -36,6 +36,13 @@
   border-color: var(--accent);
 }
 
+@media (pointer: coarse), (max-width: 900px) {
+  .support-launch {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
 .sheet.support {
   width: min(30rem, 100vw);
 }
