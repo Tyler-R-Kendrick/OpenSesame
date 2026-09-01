@@ -403,7 +403,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "lib/join-session.ts:askToJoin",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -414,6 +414,10 @@
         "adr": "0079-shared-sessions-and-scoped-grants.md"
       },
       "mcp_client": {
+        "reason": "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
+        "adr": "0079-shared-sessions-and-scoped-grants.md"
+      },
+      "webmcp": {
         "reason": "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
         "adr": "0079-shared-sessions-and-scoped-grants.md"
       }

@@ -65,6 +65,16 @@ describe("the setup record", () => {
     const record = loadSetup();
     expect(record?.ways).toEqual([]);
     expect(record?.service).toBe(false);
+    expect(record?.joined).toBe(false);
+  });
+
+  it("records a join as a decision, not as an unanswered ceremony", async () => {
+    await completeSetup({ ways: [], service: false, joined: true });
+    const record = loadSetup();
+    expect(record?.joined).toBe(true);
+    expect(setupRequired({ vaultStatus: "empty", hasSession: false })).toBe(
+      false,
+    );
   });
 
   it("reads a corrupt or truncated record as no record", () => {
