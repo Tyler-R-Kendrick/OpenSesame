@@ -1,22 +1,22 @@
 /**
- * First-run setup — the record that this deployment has an operator.
+ * Deployment setup — the record that an operator has answered for this
+ * deployment.
  *
  * A static Pages deploy arrives with no Identity API, no Host, and no daemon,
- * and the first person to open it is the only one who can say what those
- * should be. The screen used to tell them so with a warning: a block of amber
- * above an unlock form, naming a service they had never heard of and offering
- * a text field for an address nobody had given them. That is a report, not a
- * road — and it sat above sign-in options that could not work and an Unlock tab
- * for a vault that did not exist.
+ * and is complete that way (ADR 0090): the compiled-in broker signs people in
+ * from the browser, guest seals a local vault, and nothing here is asked of a
+ * first visitor. The ceremony this module records is *optional* — reached
+ * from the sign-in screen's foot by the person who runs a deployment and
+ * wants to say who signs people in. It is never a gate in front of sign-in;
+ * the screen that once treated every first visitor as the operator (ADR 0077
+ * §1) is superseded.
  *
- * So the first visitor is treated as the operator, and asked — once, about the
- * only thing the app cannot work out for itself: who signs people in. This
- * module holds the small thing that ceremony leaves behind: whether it has
- * been answered, and which road was taken. It stores no addresses of its own —
- * the issuer, the client id and every endpoint belong to `lib/settings.ts` and
- * are written there — only the fact of the decision, so the app can tell
- * "nobody has set this up" apart from "the operator deliberately runs this
- * with no accounts at all".
+ * This module holds the small thing that ceremony leaves behind: whether it
+ * has been answered, and which road was taken. It stores no addresses of its
+ * own — the issuer, the client id and every endpoint belong to
+ * `lib/settings.ts` and are written there — only the fact of the decision, so
+ * the app can tell "nobody has set this up" apart from "the operator
+ * deliberately runs this with no accounts at all".
  *
  * What it deliberately does not record is infrastructure. A Host API and a
  * paired machine were once two of four setup questions; neither is a question
@@ -24,8 +24,8 @@
  * own (ADR 0078 §4). They live in Settings → Endpoints, where an operator who
  * runs them goes looking anyway.
  *
- * The record is plaintext beside the vault, never inside it: the ceremony runs
- * before any vault exists, so there is nothing to seal it with.
+ * The record is plaintext beside the vault, never inside it: the ceremony can
+ * run before any vault exists, so there is nothing to seal it with.
  */
 
 import {
@@ -89,13 +89,8 @@ function loadSetupDefault(): SetupRecord | null {
   }
 }
 
-/** What the app already knows about this device when setup is considered. */
-export type SetupContext = {
-  /** The vault store's status: "empty" means nothing has ever been sealed. */
-  vaultStatus: "empty" | "locked" | "unlocked";
-  /** True when an Identity session is live in this tab. */
-  hasSession: boolean;
-};
+/** The vault store's status: "empty" means nothing has ever been sealed. */
+export type VaultStatus = "empty" | "locked" | "unlocked";
 
 async function completeSetupDefault(
   outcome: Omit<SetupRecord, "completedAt" | "joined"> & { joined?: boolean },
@@ -129,24 +124,6 @@ export async function completeSetup(
 }
 
 /**
- * Whether the setup ceremony must run before anything else is shown.
- *
- * Three ways to have been here before, and any one of them is enough:
- *
- *  - the ceremony was answered (the record);
- *  - a vault was sealed on this device, which every build before this one let
- *    you do without a ceremony — dropping those people into setup would be
- *    telling a returning user their vault is a fresh install;
- *  - an Identity session is live, which is only reachable through a working
- *    Identity API, so somebody has already pointed this app at one.
- */
-export function setupRequired(context: SetupContext): boolean {
-  if (loadSetup() !== null) return false;
-  if (context.vaultStatus !== "empty") return false;
-  return !context.hasSession;
-}
-
-/**
  * Whether "Unlock" is an action this device can actually perform.
  *
  * Only a sealed vault can be unlocked. With nothing on the device the tab is a
@@ -155,9 +132,7 @@ export function setupRequired(context: SetupContext): boolean {
  * disabled: a greyed control still asserts the action exists and merely is not
  * available *right now*, which is a different and untrue claim.
  */
-export function unlockViable(
-  vaultStatus: SetupContext["vaultStatus"],
-): boolean {
+export function unlockViable(vaultStatus: VaultStatus): boolean {
   return vaultStatus !== "empty";
 }
 

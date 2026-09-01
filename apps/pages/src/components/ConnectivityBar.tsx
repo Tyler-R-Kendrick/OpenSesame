@@ -95,7 +95,9 @@ function ConnectivityBarDefault() {
               ? "Connections — 1 needs setup"
               : attention > 1
                 ? `Connections — ${attention} need setup`
-                : "Connections — all connected"
+                : connectors.every((c) => c.tone === "live")
+                  ? "Connections — all connected"
+                  : "Connections — nothing needs setup"
         }
       >
         {connectors.map((connector) => (

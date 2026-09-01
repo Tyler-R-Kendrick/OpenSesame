@@ -15,9 +15,11 @@ const currentSession = vi.fn();
 const createGuest = vi.fn();
 const vaultStatus = vi.fn();
 const loadFederationSession = vi.fn();
+const identityBase = vi.fn(() => "http://127.0.0.1:18788");
 
 Object.assign(guestAuthDependencies, {
   connectProvisional,
+  identityBase,
   identityJson,
   currentSession,
   createGuest,
@@ -37,6 +39,8 @@ beforeEach(() => {
   vaultStatus.mockReturnValue("unlocked");
   loadFederationSession.mockReset();
   loadFederationSession.mockReturnValue(null);
+  identityBase.mockReset();
+  identityBase.mockReturnValue("http://127.0.0.1:18788");
   connectProvisional.mockResolvedValue({
     principalId: "prn_guest",
     accessToken: "guest-tok",
@@ -91,6 +95,45 @@ describe("continueAsGuest", () => {
       kind: "guest_claim",
       body: "Continue as guest succeeded. Claim auth from the notifications bell when you want a registered sign-in.",
     });
+  });
+});
+
+describe("with no identity service configured (ADR 0090)", () => {
+  // The common static deployment: no Identity API at all, and complete that
+  // way. A guest is a local vault; a federated sign-in is the broker's
+  // assertion held on this device. Neither is "pending" anything.
+  beforeEach(() => {
+    identityBase.mockReturnValue("");
+  });
+
+  it("enters as a guest with nothing to claim and no notice", async () => {
+    await continueAsGuest();
+    expect(createGuest).toHaveBeenCalledTimes(1);
+    expect(connectProvisional).not.toHaveBeenCalled();
+    expect(listNotices()).toHaveLength(0);
+  });
+
+  it("adopts a federated identity on first run as a local sign-in", async () => {
+    vaultStatus.mockReturnValue("empty");
+    await expect(adoptFederatedIdentity("id.token.here")).resolves.toEqual({
+      kind: "local",
+    });
+    expect(createGuest).toHaveBeenCalledTimes(1);
+    expect(connectProvisional).not.toHaveBeenCalled();
+    expect(identityJson).not.toHaveBeenCalled();
+    expect(listNotices()).toHaveLength(0);
+    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
+  });
+
+  it("leaves a locked vault locked and defers nothing", async () => {
+    vaultStatus.mockReturnValue("locked");
+    currentSession.mockReturnValue(null);
+    await expect(adoptFederatedIdentity("id.token.here")).resolves.toEqual({
+      kind: "local",
+    });
+    expect(createGuest).not.toHaveBeenCalled();
+    expect(listNotices()).toHaveLength(0);
+    expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
   });
 });
 

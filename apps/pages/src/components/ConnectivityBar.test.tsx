@@ -153,7 +153,9 @@ describe("ConnectivityBar", () => {
       status(),
       status({ id: "keys", name: "Key vault", tone: "attn", required: false }),
     ]);
-    expect(screen.getByRole("group", { name: /all connected/i })).toBeTruthy();
+    expect(
+      screen.getByRole("group", { name: /nothing needs setup/i }),
+    ).toBeTruthy();
   });
 
   it("opens the pairing ceremony from the machine glyph", () => {

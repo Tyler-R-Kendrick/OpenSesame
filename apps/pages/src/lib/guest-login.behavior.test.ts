@@ -19,6 +19,7 @@ describe("guest login journey", () => {
   beforeEach(() => {
     clearNotices();
     guestAuthDependencies.createGuest = vi.fn().mockResolvedValue(undefined);
+    guestAuthDependencies.identityBase = () => "http://127.0.0.1:18788";
     guestAuthDependencies.connectProvisional = vi
       .fn()
       .mockResolvedValue({ principalId: "prn_guest" });

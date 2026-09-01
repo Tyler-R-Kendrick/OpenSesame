@@ -18,6 +18,7 @@ describe("chaos — guest login under a broken Identity plane", () => {
   beforeEach(() => {
     clearNotices();
     guestAuthDependencies.createGuest = vi.fn().mockResolvedValue(undefined);
+    guestAuthDependencies.identityBase = () => "http://127.0.0.1:18788";
     guestAuthDependencies.connectProvisional = vi.fn();
     guestAuthDependencies.identityJson = vi.fn();
     guestAuthDependencies.currentSession = () => null;
