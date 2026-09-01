@@ -46,6 +46,7 @@ import {
   planManifestMerge,
   vaultItemToEntry,
 } from "../lib/vault/store-sync.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { ActiveProjectPanel as DefaultActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
 import { CapabilityConnectorsPanel as DefaultCapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
 import { ChangelogPanel as DefaultChangelogPanel } from "./settings/ChangelogPanel.js";
@@ -53,6 +54,8 @@ import { CoreConnectionsPanel } from "./settings/CoreConnectionsPanel.js";
 import { EndpointsPanel, TursoSyncPanel } from "./settings/EndpointsPanel.js";
 import { GithubBackupPanel as DefaultGithubBackupPanel } from "./settings/GithubBackupPanel.js";
 import { ImportPanel as DefaultImportPanel } from "./settings/ImportPanel.js";
+import { InstallPanel as DefaultInstallPanel } from "./settings/InstallPanel.js";
+import { ItemTypesPanel as DefaultItemTypesPanel } from "./settings/ItemTypesPanel.js";
 import { ModelProviderPanel as DefaultModelProviderPanel } from "./settings/ModelProviderPanel.js";
 import { OfflineBackupPanel as DefaultOfflineBackupPanel } from "./settings/OfflineBackupPanel.js";
 import { SecretConfigsPanel as DefaultSecretConfigsPanel } from "./settings/SecretConfigsPanel.js";
@@ -117,17 +120,49 @@ function autoLockExplainer(minutes: number): string {
  * renders.
  */
 const CATEGORIES = [
-  { id: "general", label: "General" },
-  { id: "security", label: "Security" },
-  { id: "connectivity", label: "Connectivity" },
-  { id: "data", label: "Vault data" },
-  { id: "danger", label: "Danger" },
+  { id: "general", label: "General", guideId: "settings.general" },
+  { id: "security", label: "Security", guideId: "settings.security" },
+  {
+    id: "connectivity",
+    label: "Connectivity",
+    guideId: "settings.connectivity",
+  },
+  { id: "data", label: "Vault data", guideId: "settings.data" },
+  { id: "danger", label: "Danger", guideId: "settings.danger" },
 ] as const;
+
+/** One category link, named so a guide can point at it. */
+function CategoryLink({
+  guideId,
+  to,
+  label,
+  danger,
+  current,
+}: {
+  guideId: string;
+  to: string;
+  label: string;
+  danger: boolean;
+  current: boolean;
+}) {
+  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
+  return (
+    <Link
+      ref={ref}
+      to={to}
+      className={`set__nav-link${danger ? " set__nav-link--danger" : ""}`}
+      aria-current={current ? "page" : undefined}
+    >
+      {label}
+    </Link>
+  );
+}
 
 type CategoryId = SettingsCategory;
 
 export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
+  InstallPanel: ComponentType;
   ActiveProjectPanel: ComponentType;
   CapabilityConnectorsPanel: ComponentType;
   ModelProviderPanel: ComponentType;
@@ -138,10 +173,12 @@ export type SettingsPanels = {
   ChangelogPanel: ComponentType;
   OfflineBackupPanel: ComponentType;
   ImportPanel: ComponentType;
+  ItemTypesPanel: ComponentType;
 };
 
 const defaultPanels: SettingsPanels = {
   UnlockMethodsPanel: DefaultUnlockMethodsPanel,
+  InstallPanel: DefaultInstallPanel,
   ActiveProjectPanel: DefaultActiveProjectPanel,
   CapabilityConnectorsPanel: DefaultCapabilityConnectorsPanel,
   ModelProviderPanel: DefaultModelProviderPanel,
@@ -152,6 +189,7 @@ const defaultPanels: SettingsPanels = {
   ChangelogPanel: DefaultChangelogPanel,
   OfflineBackupPanel: DefaultOfflineBackupPanel,
   ImportPanel: DefaultImportPanel,
+  ItemTypesPanel: DefaultItemTypesPanel,
 };
 
 /** `#import` predates the categories and deep-links into Vault data. */
@@ -255,6 +293,11 @@ export function SettingsSection({
       if (storeFileRef.current) storeFileRef.current.value = "";
     }
   }
+
+  const autoLockRef = useGuideTarget<HTMLSelectElement>("settings.auto-lock");
+  const rekeyRef = useGuideTarget<HTMLButtonElement>(
+    "settings.master-password",
+  );
 
   const [newFolder, setNewFolder] = useState("");
   const [sampleMessage, setSampleMessage] = useState<{
@@ -378,19 +421,21 @@ export function SettingsSection({
 
       <nav className="set__nav" aria-label="Settings sections">
         {CATEGORIES.map((entry) => (
-          <Link
+          <CategoryLink
             key={entry.id}
+            guideId={entry.guideId}
             to={settingsPath(entry.id)}
-            className={`set__nav-link${entry.id === "danger" ? " set__nav-link--danger" : ""}`}
-            aria-current={category === entry.id ? "page" : undefined}
-          >
-            {entry.label}
-          </Link>
+            label={entry.label}
+            danger={entry.id === "danger"}
+            current={category === entry.id}
+          />
         ))}
       </nav>
 
       {category !== "general" ? null : (
         <>
+          <resolvedPanels.InstallPanel />
+
           <section className="panel">
             <div className="panel__head">
               <div>
@@ -430,6 +475,7 @@ export function SettingsSection({
               <p className="sent">
                 Lock the vault{" "}
                 <select
+                  ref={autoLockRef}
                   aria-label="Lock after inactivity"
                   value={prefs.autoLockMinutes}
                   onChange={(event) =>
@@ -617,6 +663,7 @@ export function SettingsSection({
             <StatusNote message={rekey} />
             <div className="actions">
               <button
+                ref={rekeyRef}
                 type="submit"
                 className="btn btn--primary"
                 disabled={rekeying || !header?.wrap || !current || nextTooWeak}
@@ -741,6 +788,8 @@ export function SettingsSection({
       {category !== "data" ? null : <resolvedPanels.OfflineBackupPanel />}
 
       {category !== "data" ? null : <resolvedPanels.ImportPanel />}
+
+      {category !== "data" ? null : <resolvedPanels.ItemTypesPanel />}
 
       {category !== "data" ? null : (
         <section className="panel">

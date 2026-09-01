@@ -1,4 +1,4 @@
-import { type JsonObject, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 /**
  * @vitest-environment jsdom
  * @vitest-environment-options {"url": "opensesame-mfa://approve"}
@@ -29,15 +29,20 @@ afterEach(async () => {
 });
 
 describe("App deep-link (opensesame-mfa:// without params)", () => {
-  it("falls back to empty code and no claim hint", async () => {
+  it("is not a link at all, so the standalone surface renders", async () => {
     await act(async () => {
       root.render(<App />);
     });
-    const input = overlapCast(
-      container.querySelector('input[placeholder="ABCD-EFGH"]'),
+    // A scheme with no code carries no question. Guessing at one would start a
+    // ceremony nobody asked for, so this falls all the way through to `none`.
+    expect(
+      [...container.querySelectorAll("h1")].map((h) => h.textContent),
+    ).toEqual(["Mobile MFA"]);
+    const input: HTMLInputElement = overlapCast(
+      container.querySelector("#user-code"),
     );
     expect(input.value).toBe("");
-    expect(container.textContent).toContain("Ready for step-up");
-    expect(container.textContent).not.toContain("Deep-link claim id");
+    expect(container.textContent).not.toContain("is not settled here");
+    expect(container.querySelector("details.disclosure")).toBeNull();
   });
 });

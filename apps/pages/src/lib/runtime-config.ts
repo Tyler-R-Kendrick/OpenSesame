@@ -17,6 +17,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { applyAgUiEndpoint } from "../tutorial/agents/ag-ui/endpoint.js";
 import { type RuntimeEndpointConfig, applyRuntimeConfig } from "./settings.js";
 
 const RUNTIME_CONFIG_FETCH_MS = 3000;
@@ -43,6 +44,7 @@ async function fetchRuntimeConfigDefault(): Promise<RuntimeEndpointConfig | null
       identityApi: readEndpoint(body.identityApi),
       daemonApi: readEndpoint(body.daemonApi),
       mfaAppUrl: readEndpoint(body.mfaAppUrl),
+      supportAgentUrl: readEndpoint(body.supportAgentUrl),
     };
   } catch {
     return null;
@@ -59,4 +61,7 @@ export const runtimeConfigSeams = {
 export async function loadRuntimeConfig(): Promise<void> {
   const config = await runtimeConfigSeams.fetchRuntimeConfig();
   if (config) applyRuntimeConfig(config);
+  // Remote support reads the same file rather than fetching it a second time.
+  // Absent is the normal case, and it resolves to "no remote transport".
+  applyAgUiEndpoint(config);
 }

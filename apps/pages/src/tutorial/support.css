@@ -1,0 +1,283 @@
+/* In-product support — the sheet, its transcript, and the written help.
+
+   Scoped entirely to `.support*`. Nothing here restyles a shared control: the
+   panel is the app's ceremony sheet with a conversation in it, so it inherits
+   `.sheet`, `.btn`, `.f__shell` and the notes rather than reinventing them.
+
+   The transcript is set the way this app sets everything else that is a record
+   rather than a document: a mono speaker tag in the margin, the words
+   themselves in the reading face. No bubbles, no avatars, no floating round
+   button — a vault does not need to look like a helpdesk widget to answer a
+   question. */
+
+.sheet.support {
+  width: min(30rem, 100vw);
+}
+
+.support__body {
+  gap: 1.15rem;
+}
+
+/* ——— The conversation ————————————————————————————————————— */
+
+.support__thread {
+  display: grid;
+  gap: 0.85rem;
+  padding-bottom: 0.15rem;
+}
+
+.support__line {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+  gap: 0.1rem 0.6rem;
+  align-items: baseline;
+}
+
+.support__who {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  text-transform: lowercase;
+  color: var(--ink-3);
+  text-align: right;
+}
+
+.support__line--question .support__who {
+  color: var(--accent);
+}
+
+.support__text {
+  margin: 0;
+  min-width: 0;
+  /* Model prose keeps its own line breaks; it is text, and stays text. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.support__line--note .support__text {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.support__suggestions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-top: 0.35rem;
+}
+
+/* ——— Waiting on an answer ————————————————————————————————— */
+
+.support__pending {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.support__pending-read {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.support__pending-read::after {
+  content: "";
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.9em;
+  margin-left: 0.3rem;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  animation: support-caret 1s steps(2, end) infinite;
+}
+
+@keyframes support-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+/* A blink is the only motion in the panel, and it is the one carrying meaning,
+   so reduced motion gets a steady mark rather than nothing at all. */
+@media (prefers-reduced-motion: reduce) {
+  .support__pending-read::after {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* ——— Acquiring an on-device model ————————————————————————— */
+
+.support__download {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: start;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.support__download-read {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.support__progress {
+  width: 100%;
+  height: 0.4rem;
+  appearance: none;
+  border: 0;
+  background: var(--surface-3);
+}
+
+.support__progress::-webkit-progress-bar {
+  background: var(--surface-3);
+}
+
+.support__progress::-webkit-progress-value {
+  background: var(--accent);
+}
+
+.support__progress::-moz-progress-bar {
+  background: var(--accent);
+}
+
+/* ——— A walkthrough in flight ——————————————————————————————— */
+
+.support__guide {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--accent-line);
+  background: var(--accent-wash);
+}
+
+.support__guide-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.support__guide-step {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ——— The written help, which needs no model ————————————————— */
+
+.support__help,
+.support__goals {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.support__section-label {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+
+.support__search {
+  margin-bottom: 0.15rem;
+}
+
+.support__topic {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.support__topic-open {
+  appearance: none;
+  display: block;
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8438rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.support__topic-open:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+
+.support__goal {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0 0.4rem 0.05rem;
+  border-top: 1px solid var(--line);
+}
+
+.support__goal:first-of-type {
+  border-top: 0;
+}
+
+.support__goal-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8438rem;
+}
+
+/* ——— Asking ———————————————————————————————————————————————— */
+
+.support__composer {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.support__composer .f__shell {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  /* The shared sheet becomes a bottom sheet at this width, and a widened one
+     would be over-constrained against its own left and right edges. */
+  .sheet.support {
+    width: 100%;
+  }
+
+  /* A bottom sheet gets the thread and the composer; the margin the speaker
+     tag sits in is width this width does not have. */
+  .support__line {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .support__who {
+    text-align: left;
+  }
+
+  .support__suggestions {
+    grid-column: 1;
+  }
+}

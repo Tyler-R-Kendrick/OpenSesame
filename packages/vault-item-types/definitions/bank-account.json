@@ -1,0 +1,86 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "bank-account",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Bank account",
+    "plural": "Bank accounts",
+    "extension": ".bank",
+    "summary": "Account and routing numbers, the branch they belong to, and the PIN that goes with them.",
+    "categories": ["finance"],
+    "sections": [
+      {
+        "id": "account",
+        "title": "Account",
+        "fields": [
+          { "id": "bank", "type": "string", "label": "Bank", "required": true },
+          {
+            "id": "accountHolder",
+            "type": "person-name",
+            "label": "Account holder"
+          },
+          {
+            "id": "accountType",
+            "type": "select",
+            "label": "Type",
+            "options": [
+              "checking",
+              "savings",
+              "money-market",
+              "brokerage",
+              "other"
+            ]
+          },
+          {
+            "id": "accountNumber",
+            "type": "concealed",
+            "label": "Account number"
+          },
+          {
+            "id": "routingNumber",
+            "type": "concealed",
+            "label": "Routing number"
+          },
+          { "id": "iban", "type": "concealed", "label": "IBAN" },
+          { "id": "swift", "type": "string", "label": "SWIFT/BIC" },
+          { "id": "pin", "type": "pin", "label": "PIN" }
+        ]
+      },
+      {
+        "id": "branch",
+        "title": "Branch",
+        "fields": [
+          { "id": "branchPhone", "type": "phone", "label": "Branch telephone" },
+          {
+            "id": "branchAddress",
+            "type": "address",
+            "label": "Branch address"
+          },
+          { "id": "onlineBanking", "type": "url", "label": "Online banking" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "accountNumber",
+      "trailer": [
+        { "key": "bank", "field": "bank" },
+        { "key": "account_holder", "field": "accountHolder" },
+        { "key": "account_type", "field": "accountType" },
+        { "key": "routing_number", "field": "routingNumber" },
+        { "key": "iban", "field": "iban" },
+        { "key": "swift", "field": "swift" },
+        { "key": "pin", "field": "pin" },
+        { "key": "branch_phone", "field": "branchPhone" },
+        { "key": "branch_address", "field": "branchAddress" },
+        { "key": "url", "field": "onlineBanking" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["bank", "accountType"],
+    "search": ["bank", "accountType", "swift"]
+  }
+}

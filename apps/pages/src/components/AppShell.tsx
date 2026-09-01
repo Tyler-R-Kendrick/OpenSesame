@@ -20,6 +20,9 @@ import {
 import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { SupportProvider } from "../tutorial/session.js";
+import { SupportLauncher } from "../tutorial/ui/SupportLauncher.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
 import { ConnectivityBar } from "./ConnectivityBar.js";
 import { Crumbs } from "./Crumbs.js";
@@ -42,6 +45,7 @@ const SECTIONS = [
     to: "/vault",
     label: "Vault",
     segment: "vault",
+    guide: "nav.vault",
     jump: "v",
     Icon: IconVault,
   },
@@ -49,6 +53,7 @@ const SECTIONS = [
     to: "/connections",
     label: "Connections",
     segment: "connections",
+    guide: "nav.connections",
     jump: "c",
     Icon: IconConnection,
   },
@@ -56,6 +61,7 @@ const SECTIONS = [
     to: "/access",
     label: "Access",
     segment: "access",
+    guide: "nav.access",
     jump: "a",
     Icon: IconAuthority,
   },
@@ -63,6 +69,7 @@ const SECTIONS = [
     to: "/identity",
     label: "Identity",
     segment: "identity",
+    guide: "nav.identity",
     jump: "i",
     Icon: IconUser,
   },
@@ -70,6 +77,7 @@ const SECTIONS = [
     to: "/settings",
     label: "Settings",
     segment: "settings",
+    guide: "nav.settings",
     jump: "s",
     Icon: IconSettings,
   },
@@ -93,6 +101,7 @@ function TreeRow({
   children,
   label,
   end,
+  navRef,
 }: {
   to: string;
   isActive?: boolean;
@@ -100,10 +109,13 @@ function TreeRow({
   children: ReactNode;
   label?: string;
   end?: boolean;
+  /** Set only on rows the tutorial registry names, so a guide can point here. */
+  navRef?: (element: HTMLAnchorElement | null) => void;
 }) {
   const fixed = isActive !== undefined;
   return (
     <NavLink
+      ref={navRef}
       to={to}
       end={end}
       aria-label={label}
@@ -116,6 +128,65 @@ function TreeRow({
     >
       {/* react-router NavLink children typing vs React 19 ReactNode */}
       {overlapCast(children)}
+    </NavLink>
+  );
+}
+
+/**
+ * A section directory in the rail, bound to the semantic target a tutorial
+ * names it by (`nav.connections`, never a selector). The rail is instrumented
+ * rather than the phone tab bar: the catalog describes these as rail entries,
+ * and a target may be bound to exactly one live element.
+ */
+function SectionRow({
+  section,
+  open,
+  count,
+}: {
+  section: (typeof SECTIONS)[number];
+  open: boolean;
+  count?: number;
+}) {
+  const ref = useGuideTarget<HTMLAnchorElement>(section.guide);
+  return (
+    <TreeRow to={section.to} label={section.label} navRef={ref}>
+      <IconChevronRight
+        size={12}
+        className={`railtree__caret${open ? " is-open" : ""}`}
+      />
+      <span className="railtree__name">
+        {section.segment}
+        <span className="railtree__dim">/</span>
+      </span>
+      {count !== undefined ? (
+        <span className="railtree__count">{count}</span>
+      ) : null}
+      <kbd className="railtree__jump" title={`Press g then ${section.jump}`}>
+        g{section.jump}
+      </kbd>
+    </TreeRow>
+  );
+}
+
+/**
+ * The same destination as its rail row, and bound to the same semantic target.
+ * Only one of the two is visible at any width, so the registry holds both as
+ * candidates and resolves to whichever can actually be pointed at — otherwise
+ * every navigation guide would fail closed on one form factor.
+ */
+function TabRow({ section }: { section: (typeof SECTIONS)[number] }) {
+  const ref = useGuideTarget<HTMLAnchorElement>(section.guide);
+  const { to, label, Icon } = section;
+  return (
+    <NavLink
+      ref={ref}
+      to={to}
+      className={({ isActive }) =>
+        `tabbar__link${isActive ? " is-active" : ""}`
+      }
+    >
+      <Icon size={20} />
+      <span>{label}</span>
     </NavLink>
   );
 }
@@ -157,29 +228,6 @@ function NavTree() {
     };
   }, [items]);
 
-  const dirRow = (
-    section: (typeof SECTIONS)[number],
-    open: boolean,
-    count?: number,
-  ) => (
-    <TreeRow key={section.to} to={section.to} label={section.label}>
-      <IconChevronRight
-        size={12}
-        className={`railtree__caret${open ? " is-open" : ""}`}
-      />
-      <span className="railtree__name">
-        {section.segment}
-        <span className="railtree__dim">/</span>
-      </span>
-      {count !== undefined ? (
-        <span className="railtree__count">{count}</span>
-      ) : null}
-      <kbd className="railtree__jump" title={`Press g then ${section.jump}`}>
-        g{section.jump}
-      </kbd>
-    </TreeRow>
-  );
-
   const entry = (
     query: string,
     isActive: boolean,
@@ -206,7 +254,7 @@ function NavTree() {
 
   return (
     <nav className="railtree" aria-label="Sections">
-      {dirRow(SECTIONS[0], inVault, counts.all)}
+      <SectionRow section={SECTIONS[0]} open={inVault} count={counts.all} />
       {inVault ? (
         <div className="railtree__kids">
           {entry(
@@ -249,10 +297,19 @@ function NavTree() {
         </div>
       ) : null}
 
-      {dirRow(SECTIONS[1], location.pathname.startsWith("/connections"))}
-      {dirRow(SECTIONS[2], location.pathname.startsWith("/access"))}
-      {dirRow(SECTIONS[3], location.pathname.startsWith("/identity"))}
-      {dirRow(SECTIONS[4], inSettings)}
+      <SectionRow
+        section={SECTIONS[1]}
+        open={location.pathname.startsWith("/connections")}
+      />
+      <SectionRow
+        section={SECTIONS[2]}
+        open={location.pathname.startsWith("/access")}
+      />
+      <SectionRow
+        section={SECTIONS[3]}
+        open={location.pathname.startsWith("/identity")}
+      />
+      <SectionRow section={SECTIONS[4]} open={inSettings} />
       {inSettings ? (
         <div className="railtree__kids">
           {SETTINGS_CATEGORIES.map((category) => (
@@ -291,9 +348,17 @@ function SessionPrompt() {
   );
 }
 
-export function AppShell({ children }: { children?: ReactNode }) {
+function Shell({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
   const store = useVaultStore();
+  // The statusline is the strip that survives every width, so it is the one
+  // place a tutorial can point at the lock, the bell, the planes or support
+  // and be right on a phone and a desktop alike.
+  const connectivityRef = useGuideTarget<HTMLDivElement>("shell.connectivity");
+  const notificationsRef = useGuideTarget<HTMLDivElement>(
+    "shell.notifications",
+  );
+  const lockRef = useGuideTarget<HTMLButtonElement>("shell.lock");
   const [keymapOpen, setKeymapOpen] = useState(false);
   const showKeymap = useCallback(() => setKeymapOpen(true), []);
   const closeKeymap = useCallback(() => setKeymapOpen(false), []);
@@ -355,10 +420,16 @@ export function AppShell({ children }: { children?: ReactNode }) {
           the lock on the right — the one strip that is always telling the
           truth about Host and Identity. */}
       <footer className="statusline">
-        <ConnectivityBar />
+        <div ref={connectivityRef}>
+          <ConnectivityBar />
+        </div>
         <span className="statusline__spacer" />
-        <NotificationsBar />
+        <div ref={notificationsRef}>
+          <NotificationsBar />
+        </div>
+        <SupportLauncher />
         <button
+          ref={lockRef}
           type="button"
           className="icon-btn"
           onClick={store.lock}
@@ -369,21 +440,25 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </button>
       </footer>
       <nav className="tabbar" aria-label="Sections">
-        {SECTIONS.map(({ to, label, Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `tabbar__link${isActive ? " is-active" : ""}`
-            }
-          >
-            <Icon size={20} />
-            <span>{label}</span>
-          </NavLink>
+        {SECTIONS.map((section) => (
+          <TabRow key={section.to} section={section} />
         ))}
       </nav>
 
       <KeymapSheet open={keymapOpen} close={closeKeymap} />
     </div>
+  );
+}
+
+/**
+ * Support wraps the shell rather than sitting inside it: the panel, the guide
+ * runtime and whatever is answering are all one session, and that session ends
+ * when the vault locks and this tree unmounts.
+ */
+export function AppShell({ children }: { children?: ReactNode }) {
+  return (
+    <SupportProvider>
+      <Shell>{children}</Shell>
+    </SupportProvider>
   );
 }

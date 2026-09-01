@@ -8,6 +8,7 @@ import {
   buildHealthReport,
 } from "../../lib/vault/health.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 const ISSUE_TONE = {
   weak: "chip--err",
@@ -19,6 +20,10 @@ const ISSUE_TONE = {
 export function HealthPanel() {
   const { items } = useVault();
   const report = useMemo(() => buildHealthReport(items), [items]);
+  const summaryRef = useGuideTarget<HTMLParagraphElement>(
+    "vault.health.summary",
+  );
+  const findingsRef = useGuideTarget<HTMLElement>("vault.health.findings");
 
   return (
     <div className="detail">
@@ -55,7 +60,7 @@ export function HealthPanel() {
       ) : (
         <div className="health">
           {/* The verdict is one status line, not a metric wall. */}
-          <p className="health__line">
+          <p className="health__line" ref={summaryRef}>
             {report.scored} reviewed · {report.clean} clean
             {report.counts.weak > 0 ? (
               <span className="health__bad"> · {report.counts.weak} weak</span>
@@ -79,7 +84,7 @@ export function HealthPanel() {
               </span>
             </div>
           ) : (
-            <section className="detail__group">
+            <section className="detail__group" ref={findingsRef}>
               <h2 className="detail__grouphead">
                 {report.findings.length}{" "}
                 {report.findings.length === 1 ? "item needs" : "items need"}{" "}

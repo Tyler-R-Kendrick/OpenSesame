@@ -15,6 +15,7 @@ import {
   revokeConnection,
 } from "../../lib/connections.js";
 import { ensureHostSession } from "../../lib/identity.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ActivityLog } from "./ActivityLog.js";
 import { BindingEditor } from "./BindingEditor.js";
 import {
@@ -43,6 +44,8 @@ export function ConnectionCard({
   const [busy, setBusy] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
+  const renewRef = useGuideTarget<HTMLButtonElement>("connections.renew");
+  const revokeRef = useGuideTarget<HTMLButtonElement>("connections.revoke");
   const chip = STATUS_CHIP[connection.status];
   const revoked = connection.status === "revoked";
 
@@ -193,6 +196,7 @@ export function ConnectionCard({
             <>
               {connection.status === "active" && connection.refreshable ? (
                 <button
+                  ref={renewRef}
                   type="button"
                   className="btn btn--sm"
                   disabled={busy !== null || !online}
@@ -240,6 +244,7 @@ export function ConnectionCard({
           </button>
           {revoked ? null : (
             <button
+              ref={revokeRef}
               type="button"
               className="btn btn--sm btn--danger"
               disabled={busy !== null || !online}

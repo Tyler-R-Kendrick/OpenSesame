@@ -38,6 +38,7 @@ import {
   projectVaultItemMeta,
   resetTotpRateLimitForTests,
   webmcpNavigationSeam,
+  webmcpSupportSeam,
 } from "./tools.js";
 
 const SENTINELS = {
@@ -585,6 +586,48 @@ describe("ceremony-open tools", () => {
       `/vault/${loginId}`,
     ]);
     expect(approve).not.toHaveBeenCalled();
+  });
+});
+
+describe("guidance tools", () => {
+  const originalSupportSeam = { ...webmcpSupportSeam };
+
+  afterEach(() => {
+    Object.assign(webmcpSupportSeam, originalSupportSeam);
+  });
+
+  it("carry nothing out of a fully populated vault", async () => {
+    const seen: string[] = [];
+    Object.assign(webmcpSupportSeam, {
+      openSupport: (topic: string | null) => {
+        seen.push(`open:${topic ?? ""}`);
+      },
+      startGuide: (goal: string) => {
+        seen.push(`start:${goal}`);
+      },
+    });
+
+    const help = await run("opensesame_help", { topic: "help.lock" });
+    const guide = await run("opensesame_guide_start", { goal: "vault.lock" });
+    assertNoSentinels(help);
+    assertNoSentinels(guide);
+
+    const text = `${JSON.stringify(help)}${JSON.stringify(guide)}`;
+    for (const item of vaultStore.getSnapshot().items) {
+      expect(text, `leaks item name ${item.name}`).not.toContain(item.name);
+      expect(text, `leaks item id ${item.id}`).not.toContain(item.id);
+    }
+    expect(seen).toEqual(["open:help.lock", "start:vault.lock"]);
+    expect(navigateCalls).toEqual([]);
+  });
+
+  it("open and start nothing when the caller invents a name", async () => {
+    await expect(run("opensesame_help", { topic: "GitHub" })).rejects.toThrow(
+      "unknown_help_topic",
+    );
+    await expect(
+      run("opensesame_guide_start", { goal: 'guide/1\ngoal "x"' }),
+    ).rejects.toThrow("unknown_guide_goal");
   });
 });
 

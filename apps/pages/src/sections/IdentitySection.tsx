@@ -88,6 +88,7 @@ import {
 } from "../lib/providers.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { monogram } from "./connections/connector-marks.js";
 import type { Flash } from "./connections/shared.js";
 // The brand button treatments (.signin__social, .signin__provider--*) live in
@@ -102,13 +103,48 @@ type IdentityTab =
   | "service-accounts"
   | "organization";
 
-const TABS: Array<{ id: IdentityTab; label: string }> = [
-  { id: "people", label: "People" },
-  { id: "providers", label: "Providers" },
-  { id: "devices", label: "Devices" },
-  { id: "service-accounts", label: "Service accounts" },
-  { id: "organization", label: "Organization" },
+const TABS: Array<{ id: IdentityTab; label: string; guideId: string }> = [
+  { id: "people", label: "People", guideId: "identity.people" },
+  { id: "providers", label: "Providers", guideId: "identity.providers" },
+  { id: "devices", label: "Devices", guideId: "identity.devices" },
+  {
+    id: "service-accounts",
+    label: "Service accounts",
+    guideId: "identity.service-accounts",
+  },
+  {
+    id: "organization",
+    label: "Organization",
+    guideId: "identity.organization",
+  },
 ];
+
+/** One tab, named so a guide can point at it without knowing the markup. */
+function IdentityTabButton({
+  guideId,
+  label,
+  active,
+  onSelect,
+}: {
+  guideId: string;
+  label: string;
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const ref = useGuideTarget<HTMLButtonElement>(guideId);
+  return (
+    <button
+      ref={ref}
+      type="button"
+      role="tab"
+      aria-selected={active}
+      className={`identity-tab${active ? " is-active" : ""}`}
+      onClick={onSelect}
+    >
+      {label}
+    </button>
+  );
+}
 
 /**
  * Identity — the person plane (ADR 0060, ADR 0061). Tailscale's identity IA
@@ -182,17 +218,14 @@ export function IdentitySection() {
             role="tablist"
             aria-label="Identity views"
           >
-            {TABS.map(({ id, label }) => (
-              <button
+            {TABS.map(({ id, label, guideId }) => (
+              <IdentityTabButton
                 key={id}
-                type="button"
-                role="tab"
-                aria-selected={tab === id}
-                className={`identity-tab${tab === id ? " is-active" : ""}`}
-                onClick={() => setTab(id)}
-              >
-                {label}
-              </button>
+                guideId={guideId}
+                label={label}
+                active={tab === id}
+                onSelect={() => setTab(id)}
+              />
             ))}
           </div>
 
@@ -1928,6 +1961,9 @@ function ProvidersPanel({
   const [catalog, setCatalog] = useState<FederatedProviderSummary[] | null>(
     null,
   );
+  const registerRef = useGuideTarget<HTMLButtonElement>(
+    "identity.register-idp",
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1956,6 +1992,7 @@ function ProvidersPanel({
         </div>
         <div className="actions">
           <button
+            ref={registerRef}
             type="button"
             className="btn btn--sm btn--primary"
             onClick={onOpenCeremony}

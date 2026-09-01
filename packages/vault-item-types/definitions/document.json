@@ -1,0 +1,68 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "document",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Document",
+    "plural": "Documents",
+    "extension": ".doc",
+    "summary": "A filed record — a tax return, a deed, a certificate — and where the original lives.",
+    "categories": ["documents"],
+    "sections": [
+      {
+        "id": "record",
+        "title": "Record",
+        "fields": [
+          {
+            "id": "documentKind",
+            "type": "string",
+            "label": "Document",
+            "required": true
+          },
+          {
+            "id": "reference",
+            "type": "concealed",
+            "label": "Reference number"
+          },
+          { "id": "issuer", "type": "string", "label": "Issued by" },
+          { "id": "period", "type": "string", "label": "Period" },
+          { "id": "filedAt", "type": "date", "label": "Filed" },
+          { "id": "expiresAt", "type": "date", "label": "Expires" }
+        ]
+      },
+      {
+        "id": "custody",
+        "title": "Custody",
+        "fields": [
+          {
+            "id": "location",
+            "type": "string",
+            "label": "Where the original is"
+          },
+          { "id": "portal", "type": "url", "label": "Portal" },
+          { "id": "summary", "type": "multiline", "label": "What it says" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "reference",
+      "trailer": [
+        { "key": "document", "field": "documentKind" },
+        { "key": "issuer", "field": "issuer" },
+        { "key": "period", "field": "period" },
+        { "key": "filed_at", "field": "filedAt" },
+        { "key": "expires_at", "field": "expiresAt" },
+        { "key": "location", "field": "location" },
+        { "key": "url", "field": "portal" },
+        { "key": "summary", "field": "summary" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["documentKind", "period"],
+    "search": ["documentKind", "issuer", "period"]
+  }
+}

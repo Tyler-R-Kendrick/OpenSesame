@@ -373,6 +373,17 @@ export function IconInfo(props: IconProps) {
   );
 }
 
+/** Support: a question asked in the room, not a mascot in a bubble. */
+export function IconSupport(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20 12.2a7.6 7.6 0 0 1-11.2 6.7L4.2 20l1.2-4.4A7.6 7.6 0 1 1 20 12.2Z" />
+      <path d="M10.1 9.9a2 2 0 1 1 2.85 2.1c-.62.34-1 .8-1 1.5" />
+      <path d="M11.95 16.1h.01" />
+    </Svg>
+  );
+}
+
 export function IconLock(props: IconProps) {
   return (
     <Svg {...props}>
@@ -496,6 +507,33 @@ export function IconPhone(props: IconProps) {
     <Svg {...props}>
       <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
       <path d="M11 18.5h2" />
+    </Svg>
+  );
+}
+
+/* —— Install ————————————————————————————————————————————————— */
+
+/**
+ * iOS Share — the exact glyph the reader is hunting for in Safari's toolbar.
+ * Drawn rather than described, because "the share button" is three different
+ * shapes across the platforms this app runs on.
+ */
+export function IconShare(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3.5v10.5" />
+      <path d="M8.5 7L12 3.5 15.5 7" />
+      <path d="M8 10.5H6.2A1.7 1.7 0 0 0 4.5 12.2v6.6A1.7 1.7 0 0 0 6.2 20.5h11.6a1.7 1.7 0 0 0 1.7-1.7v-6.6a1.7 1.7 0 0 0-1.7-1.7H16" />
+    </Svg>
+  );
+}
+
+/** "Add to Home Screen" — the plus-in-a-square beside that row in the sheet. */
+export function IconAddSquare(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="4" y="4" width="16" height="16" rx="2.5" />
+      <path d="M12 8.5v7M8.5 12h7" />
     </Svg>
   );
 }

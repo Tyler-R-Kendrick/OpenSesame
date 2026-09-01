@@ -1,0 +1,68 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "certificate",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Certificate",
+    "plural": "Certificates",
+    "extension": ".cert",
+    "summary": "An issued X.509 certificate and the private key it was issued against.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "subject",
+        "title": "Subject",
+        "fields": [
+          {
+            "id": "commonName",
+            "type": "string",
+            "label": "Common name",
+            "required": true
+          },
+          { "id": "dnsNames", "type": "string", "label": "DNS names" },
+          { "id": "ipAddrs", "type": "string", "label": "IP addresses" },
+          { "id": "ttlHours", "type": "number", "label": "Lifetime (hours)" }
+        ]
+      },
+      {
+        "id": "material",
+        "title": "Material",
+        "fields": [
+          {
+            "id": "certificatePem",
+            "type": "multiline",
+            "label": "Certificate"
+          },
+          {
+            "id": "privateKeyPem",
+            "type": "key-material",
+            "label": "Private key"
+          },
+          { "id": "caPem", "type": "multiline", "label": "Issuing CA" },
+          { "id": "serial", "type": "string", "label": "Serial" },
+          { "id": "notAfter", "type": "date", "label": "Expires" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "privateKeyPem",
+      "trailer": [
+        { "key": "common_name", "field": "commonName" },
+        { "key": "dns_names", "field": "dnsNames" },
+        { "key": "ip_addrs", "field": "ipAddrs" },
+        { "key": "certificate", "field": "certificatePem" },
+        { "key": "ca", "field": "caPem" },
+        { "key": "serial", "field": "serial" },
+        { "key": "not_after", "field": "notAfter" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["commonName", "notAfter"],
+    "search": ["commonName", "dnsNames", "serial"],
+    "handler": "certificate"
+  }
+}

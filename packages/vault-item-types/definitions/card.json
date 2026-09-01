@@ -1,0 +1,43 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "card",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Card",
+    "plural": "Cards",
+    "extension": ".card",
+    "summary": "A payment card: the number, who it belongs to, and when it expires.",
+    "categories": ["finance"],
+    "sections": [
+      {
+        "id": "card",
+        "title": "Card",
+        "fields": [
+          { "id": "cardholder", "type": "string", "label": "Cardholder" },
+          { "id": "brand", "type": "string", "label": "Brand" },
+          { "id": "number", "type": "concealed", "label": "Number" },
+          { "id": "expMonth", "type": "string", "label": "Expiry month" },
+          { "id": "expYear", "type": "string", "label": "Expiry year" },
+          { "id": "code", "type": "pin", "label": "Security code" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "number",
+      "trailer": [
+        { "key": "cardholder", "field": "cardholder" },
+        { "key": "brand", "field": "brand" },
+        { "key": "exp_month", "field": "expMonth" },
+        { "key": "exp_year", "field": "expYear" },
+        { "key": "cvv", "field": "code" }
+      ]
+    },
+    "cxf": { "credential": "credit-card" },
+    "subtitle": ["brand", "cardholder"],
+    "search": ["brand", "cardholder"]
+  }
+}

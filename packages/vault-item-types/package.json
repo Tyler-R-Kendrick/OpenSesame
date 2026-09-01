@@ -1,0 +1,27 @@
+{
+  "name": "@opensesame/vault-item-types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vault item type definitions and the runtime registry that loads them (ADR 0087)",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./definitions/*": "./definitions/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "generate": "node scripts/emit-definitions.mjs"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}

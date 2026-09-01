@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App.js";
+import { armInstall, ensurePersistence } from "./lib/install.js";
 import { kvHydrate } from "./lib/kv.js";
 import {
   PROJECTS_KEY,
@@ -42,6 +43,12 @@ if (framed()) {
     "OpenSesame will not run inside a frame. Open it in its own tab.";
   throw new Error("refusing to render inside a frame");
 }
+
+// Chromium fires `beforeinstallprompt` as soon as it decides this page is
+// installable, which is routinely before the boot below has finished awaiting
+// OPFS. Miss that event and there is no second chance until the next load, so
+// the listener goes on before anything asynchronous.
+armInstall();
 
 void (async () => {
   // OPFS is async and the store reads its header synchronously, so pull the
@@ -83,4 +90,15 @@ void (async () => {
     );
   }
   registerSW({ immediate: true });
+  // A launch of the already-installed app fires no `appinstalled` and may never
+  // mount the install card at all — the reader has no cause to open Settings —
+  // so this is the only thing covering them.
+  //
+  // After the first *paint*, never before: browsers that prompt for persistent
+  // storage would otherwise raise a bare permission dialog over a blank page.
+  // `render()` only schedules work, so waiting on it is not enough — a frame
+  // followed by a task is the point at which something is actually on screen.
+  requestAnimationFrame(() => {
+    setTimeout(() => void ensurePersistence(), 0);
+  });
 })();

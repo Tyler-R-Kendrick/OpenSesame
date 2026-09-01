@@ -15,7 +15,7 @@
  *           import-checks, "route:/section" for a pages route, or
  *           "pwa-app:<surface>" for the thin apps/pwa shell.
  * - mcp_host / mcp_client: the MCP tool name on that server.
- * - webmcp: the navigator.modelContext tool name (pages unless the pwa
+ * - webmcp: the document.modelContext tool name (pages unless the pwa
  *           surface is "pwa-app:*").
  */
 
@@ -60,11 +60,14 @@ const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
 const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
 const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
 const ADR_SECURITY_EVENTS = "0080-security-event-hooks.md";
+const ADR_AI_SUPPORT = "0088-ai-native-contextual-support.md";
 const ADR_LIVE_OBSERVATION = "0081-live-session-observation.md";
 const ADR_CEREMONIES = "0082-agent-run-registration-ceremonies.md";
 const ADR_MODEL_PLANE = "0083-browser-plane-inference-fallback.md";
 const ADR_NOTIFICATION_CEREMONIES =
   "0084-external-authorization-notifications.md";
+const ADR_PWA_INSTALL = "0085-pwa-install-offer.md";
+const ADR_INTERACTION_LAYER = "0086-wallet-native-interaction-layer.md";
 
 const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -76,6 +79,18 @@ const AUTH_CEREMONY: CapabilityExclusion = {
   reason:
     "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
   adr: ADR_MCP_BEARER,
+};
+
+const INTERACTION_APPROVAL: CapabilityExclusion = {
+  reason:
+    "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+  adr: ADR_INTERACTION_LAYER,
+};
+
+const INTERACTION_REQUESTER_CHANNEL: CapabilityExclusion = {
+  reason:
+    "the requester already learns the outcome on the channel it created the interaction on; a second agent-facing read would be a way to watch somebody else's inbox",
+  adr: ADR_INTERACTION_LAYER,
 };
 
 const HUMAN_CEREMONY: CapabilityExclusion = {
@@ -125,6 +140,14 @@ const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
   adr: ADR_SECURITY_EVENTS,
 };
 
+const ADR_ITEM_TYPE_PLUGINS = "0087-vault-item-type-plugins.md";
+
+const ITEM_TYPE_HUMAN_CEREMONY: CapabilityExclusion = {
+  reason:
+    "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+  adr: ADR_ITEM_TYPE_PLUGINS,
+};
+
 const CUSTODY_KEY_MATERIAL: CapabilityExclusion = {
   reason:
     "returns or places a certificate private key; agent-facing APIs carry references, never material",
@@ -153,6 +176,18 @@ const MODEL_PLANE_REDIRECT: CapabilityExclusion = {
   reason:
     "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
   adr: ADR_MODEL_PLANE,
+};
+
+const DEVICE_GESTURE: CapabilityExclusion = {
+  reason:
+    "installing is a browser-mediated act on the human's own device: the install dialog only opens inside a transient user activation, and there is no gesture an agent can supply or consent it can give on the device owner's behalf",
+  adr: ADR_PWA_INSTALL,
+};
+
+const IN_PAGE_GUIDANCE_ONLY: CapabilityExclusion = {
+  reason:
+    "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
+  adr: ADR_AI_SUPPORT,
 };
 
 const FIRST_RUN_CEREMONY: CapabilityExclusion = {
@@ -1492,6 +1527,68 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: null,
     },
   },
+  // ── Identity plane: cross-device interactions (ADR 0086) ───────────────
+  //
+  // None of these map onto an agent surface, and that is the design rather
+  // than a backlog. The layer exists to put a question in front of a person
+  // and take an answer bound to a cryptographic proof; a tool that could
+  // answer one would remove the only step that makes the answer mean
+  // anything. They are listed here so the parity sweep sees a decision
+  // instead of an omission.
+  {
+    id: "identity.interaction.create",
+    title: "Ask someone to authorize an operation",
+    plane: "identity",
+    kind: "act",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: INTERACTION_REQUESTER_CHANNEL,
+      mcp_client: INTERACTION_REQUESTER_CHANNEL,
+      webmcp: INTERACTION_REQUESTER_CHANNEL,
+    },
+  },
+  {
+    id: "identity.interaction.approve",
+    title: "Approve a cross-device interaction",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: INTERACTION_APPROVAL,
+      mcp_client: INTERACTION_APPROVAL,
+      webmcp: INTERACTION_APPROVAL,
+    },
+  },
+  {
+    id: "identity.interaction.deny",
+    title: "Deny a cross-device interaction",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: INTERACTION_APPROVAL,
+      mcp_client: INTERACTION_APPROVAL,
+      webmcp: INTERACTION_APPROVAL,
+    },
+  },
   {
     id: "identity.login",
     title: "Identity sign-in (device, loopback, anonymous)",
@@ -1816,6 +1913,38 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
   {
+    id: "vault.item_types.list",
+    title: "List the item types registered on this device",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vault/item-types.ts:itemTypeRegistry",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: ITEM_TYPE_HUMAN_CEREMONY },
+  },
+  {
+    id: "vault.item_types.install",
+    title: "Install or remove a vault item type definition",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: ITEM_TYPE_HUMAN_CEREMONY,
+      mcp_client: ITEM_TYPE_HUMAN_CEREMONY,
+      webmcp: ITEM_TYPE_HUMAN_CEREMONY,
+    },
+  },
+  {
     id: "vault.export",
     title: "Export/backup the vault (plaintext-capable)",
     plane: "client_local",
@@ -1857,6 +1986,41 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: "opensesame_navigate",
     },
   },
+  // ── Client-local plane: in-product guidance ───────────────────────────
+  {
+    id: "client.support",
+    title: "In-product contextual support conversation",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_help",
+    },
+    excluded: {
+      mcp_host: IN_PAGE_GUIDANCE_ONLY,
+      mcp_client: IN_PAGE_GUIDANCE_ONLY,
+    },
+  },
+  {
+    id: "client.tutorial",
+    title: "Named in-product walkthroughs",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_guide_start",
+    },
+    excluded: {
+      mcp_host: IN_PAGE_GUIDANCE_ONLY,
+      mcp_client: IN_PAGE_GUIDANCE_ONLY,
+    },
+  },
   {
     id: "pwa.status",
     title: "Thin PWA session status",
@@ -1869,6 +2033,20 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_client: null,
       webmcp: "opensesame_pwa_status",
     },
+  },
+  {
+    id: "app.install",
+    title: "Install the PWA on this device",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/install.ts:installWorthShowing",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: DEVICE_GESTURE },
   },
   {
     id: "setup.first_run",

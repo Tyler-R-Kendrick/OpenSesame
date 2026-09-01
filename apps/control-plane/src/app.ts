@@ -22,6 +22,10 @@ import { createFederatedCallbackRoutes } from "./routes/federated-callback.js";
 import { federatedProviderRoutes } from "./routes/federated-providers.js";
 import { createFederatedSessionRoutes } from "./routes/federated-session.js";
 import { healthRoutes } from "./routes/health.js";
+import {
+  createInteractionHandoffRoutes,
+  createInteractionLinkRoutes,
+} from "./routes/interaction-handoff.js";
 import { createInteractionRoutes } from "./routes/interactions.js";
 import { mfaRoutes } from "./routes/mfa.js";
 import { notificationCallbackRoutes } from "./routes/notification-callbacks.js";
@@ -87,6 +91,10 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/projects", projectRoutes);
   app.route("/v1/claims", claimRoutes);
   app.route("/v1/authorization-requests", authorizationRequestRoutes);
+  // The cross-device interaction layer (ADR 0086). Versioned prefix, and
+  // deliberately plural: `/interaction` below is the oidc-provider
+  // login/consent slot and a different thing entirely.
+  app.route("/v1/interactions", createInteractionHandoffRoutes());
   app.route("/v1/webhooks", webhookRoutes);
   // Where a person is interrupted, and what it takes to say yes (ADR 0084).
   // Bindings and preferences are the caller's own; the effective route is
@@ -155,6 +163,11 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // here for login/consent. server.ts only intercepts protocol paths, so
   // /interaction/* falls through to Hono.
   app.route("/interaction", createInteractionRoutes());
+  // The canonical short link an interaction reference is printed as
+  // (ADR 0086 §2): `https://<host>/i/<ref>`. Unauthenticated because a
+  // camera, a wallet pass and a pasted link all arrive here with nothing;
+  // it answers with an InteractionSummary, which authorizes nothing.
+  app.route("/i", createInteractionLinkRoutes());
   app.route("/", discoveryRoutes);
 
   app.onError((err, c) => {

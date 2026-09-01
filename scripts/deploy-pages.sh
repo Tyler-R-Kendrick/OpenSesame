@@ -27,6 +27,12 @@
 #   PAGES_HOST_API      Optional Host API base URL, same mechanism.
 #   PAGES_DAEMON_API    Optional daemon base URL, same mechanism.
 #   PAGES_MFA_APP_URL   Optional Mobile MFA PWA URL, same mechanism.
+#   PAGES_SUPPORT_AGENT_URL
+#                       Optional remote support endpoint (ADR 0087). A
+#                       destination, not a credential — the browser sends no
+#                       authorization header, so put a same-origin proxy in
+#                       front if the endpoint needs one. Unset means support
+#                       runs on-device or falls back to authored help.
 #
 # Sign-in note: with no Identity API configured the deployed vault can only
 # offer the local-only path (it says so on screen). With one configured, the
@@ -123,7 +129,8 @@ cp "$PAGES_DIST/index.html" "$PAGES_DIST/404.html"
 # and a deploy that bakes nothing must not ship a vault whose sign-in silently
 # dead-ends. Only the provided keys are written.
 if [ -n "${PAGES_IDENTITY_API:-}" ] || [ -n "${PAGES_HOST_API:-}" ] \
-  || [ -n "${PAGES_DAEMON_API:-}" ] || [ -n "${PAGES_MFA_APP_URL:-}" ]; then
+  || [ -n "${PAGES_DAEMON_API:-}" ] || [ -n "${PAGES_MFA_APP_URL:-}" ] \
+  || [ -n "${PAGES_SUPPORT_AGENT_URL:-}" ]; then
   log "writing os-runtime-config.json (deployment endpoints)"
   {
     printf '{'
@@ -139,6 +146,10 @@ if [ -n "${PAGES_IDENTITY_API:-}" ] || [ -n "${PAGES_HOST_API:-}" ] \
     fi
     if [ -n "${PAGES_MFA_APP_URL:-}" ]; then
       printf '%s\n  "mfaAppUrl": "%s"' "$sep" "$PAGES_MFA_APP_URL"; sep=","
+    fi
+    if [ -n "${PAGES_SUPPORT_AGENT_URL:-}" ]; then
+      printf '%s\n  "supportAgentUrl": "%s"' "$sep" "$PAGES_SUPPORT_AGENT_URL"
+      sep=","
     fi
     printf '\n}\n'
   } > "$PAGES_DIST/os-runtime-config.json"

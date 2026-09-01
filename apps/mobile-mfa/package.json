@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/ceremony-kit": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",
