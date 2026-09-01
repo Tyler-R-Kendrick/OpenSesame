@@ -149,7 +149,12 @@ export function SignInPanel(props: Props) {
    * the allowlist now: these two lines decide the whole bar.
    */
   const methods = signInMethods();
-  /** The service roads — org SSO, SAML, magic link, guest, BYO — need one. */
+  /**
+   * The service roads — org SSO, SAML, magic link, BYO — need one. Guest does
+   * NOT: `continueAsGuest` seals a local vault and merely *offers* a claim
+   * once Identity is reachable, so the guest road is never gated on this (see
+   * AGENTS.md §5 — the guest/anonymous flow must not be removed or gated).
+   */
   const hasIdentityService = identityBase().trim().length > 0;
   const fallbackUpstream =
     methods.builtin && upstream.id !== "mock" ? upstream : null;
@@ -353,8 +358,9 @@ export function SignInPanel(props: Props) {
         <>
           {/* The anonymous road out of this screen, in the card's top-right
               corner where a "skip" always lives. First run only — beside an
-              existing vault a guest principal would seal a second one. */}
-          {firstRun && hasIdentityService ? (
+              existing vault a guest principal would seal a second one. Never
+              gated on an Identity API: guest works fully offline. */}
+          {firstRun ? (
             <button
               type="button"
               className="unlock__switch signin__skip"
@@ -523,8 +529,9 @@ export function SignInPanel(props: Props) {
             {/* Guest is the most common road in, so it is a full-size button
                 beside the social bar — never a footnote. First run only:
                 beside an existing vault a guest principal would seal a
-                second one. */}
-            {firstRun && hasIdentityService ? (
+                second one. Never gated on an Identity API — `continueAsGuest`
+                seals a local vault and works with no service at all. */}
+            {firstRun ? (
               <button
                 type="button"
                 className="btn btn--block signin__provider"

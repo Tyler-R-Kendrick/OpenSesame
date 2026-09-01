@@ -9,11 +9,12 @@ import { defaultSignInMethods, settingsSeams } from "../../lib/settings.js";
  * Setup is the allowlist, and this screen is where that has to be true.
  *
  * It used to offer every road it could name — the compiled broker, a
- * bring-your-own globe, a magic link, guest, an organisation lookup — whether
- * or not the deployment had anything behind them. Most of those need an
- * Identity API, so on a deployment without one they were buttons that could
- * only fail. ADR 0078 §3: the screen renders what first-run setup allowed and
- * nothing else.
+ * bring-your-own globe, a magic link, an organisation lookup — whether or not
+ * the deployment had anything behind them. Most of those need an Identity
+ * API, so on a deployment without one they were buttons that could only fail.
+ * ADR 0078 §3: the screen renders what first-run setup allowed and nothing
+ * else. Guest is the standing exception: it seals a local vault, needs no
+ * service, and is never removed or gated (AGENTS.md §5).
  */
 
 const state = {
@@ -129,23 +130,31 @@ describe("what the sign-in screen offers", () => {
 
   it("hides every road that needs an identity service, when there is none", () => {
     renderPanel();
-    // Bring-your-own registers server-side; the magic link, guest sessions and
-    // the organisation lookup are all Identity API ceremonies.
+    // Bring-your-own registers server-side; the magic link and the
+    // organisation lookup are Identity API ceremonies. Guest is NOT — it
+    // stays, asserted separately below.
     expect(
       screen.queryByRole("button", { name: "Continue with your IdP" }),
     ).toBeNull();
     expect(
       screen.queryByRole("button", { name: "More sign-in options" }),
     ).toBeNull();
+    expect(screen.queryByLabelText(/Email or organization/i)).toBeNull();
+  });
+
+  it("offers guest even without an identity service (AGENTS.md §5)", () => {
+    // `continueAsGuest` seals a local vault and works with no service at all;
+    // the claim step degrades to a bell notice. The guest/anonymous flow must
+    // never be removed from this screen or gated on Identity availability.
+    renderPanel();
     expect(
-      screen.queryByRole("button", { name: /Continue as guest/ }),
-    ).toBeNull();
+      screen.getByRole("button", { name: /Continue as guest/ }),
+    ).toBeDefined();
     expect(
-      screen.queryByRole("button", {
+      screen.getByRole("button", {
         name: "Skip sign-in and continue as guest",
       }),
-    ).toBeNull();
-    expect(screen.queryByLabelText(/Email or organization/i)).toBeNull();
+    ).toBeDefined();
   });
 
   it("brings those roads back the moment one is configured", () => {
@@ -162,11 +171,14 @@ describe("what the sign-in screen offers", () => {
     ).toBeDefined();
   });
 
-  it("offers nothing but the local-only road when setup allowed nothing", () => {
+  it("keeps guest and local-only even when setup allowed nothing", () => {
     state.signIn = { builtin: false, providers: [] };
     renderPanel();
     const bar = document.querySelector(".signin__bar");
     expect(bar?.querySelectorAll("button")).toHaveLength(0);
+    expect(
+      screen.getByRole("button", { name: /Continue as guest/ }),
+    ).toBeDefined();
     expect(
       screen.getByRole("button", { name: "Use without an account" }),
     ).toBeDefined();
