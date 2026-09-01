@@ -191,6 +191,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/pwa` / `apps/mobile-mfa` | Client PWA + step-up MFA UX (against `:8788`) |
 | `apps/pages` | Installable GitHub Pages offline PWA — authority vault |
+| `apps/pages/src/tutorial` | In-product contextual support: the semantic target/route/predicate registries, the Driver.js renderer, the on-device and AG-UI transports, and the support panel (ADR 0087) |
 | `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
 | `apps/console` | Vite Identity console (web UI) |
 | `apps/worker` | Background worker |
@@ -215,7 +216,10 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/observability` | Structured logging + deep redaction |
 | `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0084) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
-| `packages/webmcp` | WebMCP (`navigator.modelContext`) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
+| `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
+| `packages/guide-lang` | GuideLang — the versioned tutorial language an in-product support model may write; parser, canonical serializer and validators. Deliberately cannot express a click, a selector or a URL (ADR 0087) |
+| `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser |
+| `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |
 | `packages/config` | Shared tsconfig |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
@@ -295,6 +299,18 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   `assertNoPaymentCredentials` refuses card data by field name and by
   Luhn-checking values, and OpenSesame issues no cards, provisions no DPANs and
   stores no PAN/CVV (ADR 0086 §6).
+- In-product support guides by *pointing*, never by acting. A model may emit
+  GuideLang and nothing else, and GuideLang has no directive for a click, a
+  keystroke, a submit, a fetch, a tool call, a selector or a URL — an id it
+  names is resolved through the target registry in
+  `apps/pages/src/tutorial/registry`, or the program is discarded whole. Model
+  text reaches the document as text; the renderer hands Driver.js a placeholder
+  and writes prose with `textContent`. Page context is assembled from authored
+  registries only, never from the DOM, so no secret, item name or folder name
+  has a path into a prompt. A new control worth asking about gets a catalog
+  entry with checked-in prose; a new authored guide is compiled by the same
+  parser and validator model output goes through
+  ([ADR 0087](docs/adr/0087-ai-native-contextual-support.md)).
 - A screen's terminal commit is the shared `.go` ink square with its verb
   beside it; `.btn--primary` with a text label is for actions *inside* a card.
   Both patterns are named in [`docs/design/controls.md`](docs/design/controls.md)

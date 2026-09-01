@@ -22,6 +22,7 @@ import {
   typePlural,
 } from "../lib/vault/item-types.js";
 import { type Folder, type VaultItem, sortItems } from "../lib/vault/model.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
 
@@ -56,6 +57,31 @@ const FILTER_TITLE = new Map([
   ["note", "Secure notes"],
 ]);
 
+/** A filter chip a guide can name. Same markup as the untracked ones. */
+function GuidedChip({
+  guideId,
+  to,
+  isActive,
+  label,
+}: {
+  guideId: string;
+  to: string;
+  isActive: boolean;
+  label: string;
+}) {
+  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
+  return (
+    <Link
+      ref={ref}
+      to={to}
+      className={`vault__chip${isActive ? " is-active" : ""}`}
+      aria-current={isActive ? "true" : undefined}
+    >
+      {label}
+    </Link>
+  );
+}
+
 /**
  * The rail carries these filters on desktop, but it is hidden on a phone — so the
  * list header grows a scrolling chip row and nothing becomes unreachable there.
@@ -72,6 +98,7 @@ function MobileFilters({
   folderId: string | null;
 }) {
   const live = items.filter((item) => item.deletedAt === null);
+  const healthRef = useGuideTarget<HTMLAnchorElement>("vault.health");
   const chip = (query: string, isActive: boolean, label: string) => (
     <Link
       key={query || "all"}
@@ -86,9 +113,25 @@ function MobileFilters({
   return (
     <fieldset className="vault__chips" aria-label="Filter items">
       {chip("", filter === "all" && !folderId, "All")}
-      {chip("?f=favorites", filter === "favorites", "Favorites")}
+      <GuidedChip
+        key="favorites"
+        guideId="vault.filter.favorites"
+        to="/vault?f=favorites"
+        isActive={filter === "favorites"}
+        label="Favorites"
+      />
       {chipTypeIds(live).map((typeId) =>
-        chip(`?f=${typeId}`, filter === typeId, typePlural(typeId)),
+        typeId === "login" ? (
+          <GuidedChip
+            key="login"
+            guideId="vault.filter.logins"
+            to="/vault?f=login"
+            isActive={filter === "login"}
+            label={typePlural(typeId)}
+          />
+        ) : (
+          chip(`?f=${typeId}`, filter === typeId, typePlural(typeId))
+        ),
       )}
       {folders.map((folder) =>
         chip(
@@ -98,7 +141,7 @@ function MobileFilters({
         ),
       )}
       {chip("?f=trash", filter === "trash", "Trash")}
-      <Link className="vault__chip" to="/vault/health">
+      <Link ref={healthRef} className="vault__chip" to="/vault/health">
         Health
       </Link>
     </fieldset>
@@ -116,9 +159,11 @@ const IMPORT_ACCEPT =
 function ImportButton({ verb = false }: { verb?: boolean }) {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
+  const guideRef = useGuideTarget<HTMLButtonElement>("vault.import");
   return (
     <>
       <button
+        ref={guideRef}
         type="button"
         className={verb ? "icon-btn icon-btn--sm" : "btn btn--sm"}
         aria-label={verb ? "Import items" : undefined}
@@ -280,6 +325,10 @@ export function VaultSection() {
   ).length;
 
   const detailRef = useRef<HTMLDivElement>(null);
+  // Exactly one of the two "new item" affordances is on screen at a time —
+  // the empty state or the list header — so one binding covers both.
+  const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
+  const listRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = `/vault${location.search}`;
   useEffect(() => {
     const pane = detailRef.current;
@@ -291,7 +340,7 @@ export function VaultSection() {
 
   return (
     <div className="vault" data-pane={detailOpen ? "detail" : "list"}>
-      <div className="vault__list">
+      <div className="vault__list" ref={listRef}>
         <MobileFilters
           items={items}
           folders={folders}
@@ -313,6 +362,7 @@ export function VaultSection() {
               // import, not just mention it.
               <div className="actions">
                 <Link
+                  ref={createRef}
                   className="btn btn--primary btn--sm"
                   to={`/vault/new/${createKind}`}
                 >
@@ -336,6 +386,7 @@ export function VaultSection() {
                     from another manager should not require an empty vault or
                     a hunt through Settings to find it. */}
                 <Link
+                  ref={createRef}
                   className="icon-btn icon-btn--sm"
                   aria-label="New item"
                   title="New item (n)"

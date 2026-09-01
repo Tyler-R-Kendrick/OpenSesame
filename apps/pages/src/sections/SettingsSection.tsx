@@ -46,6 +46,7 @@ import {
   planManifestMerge,
   vaultItemToEntry,
 } from "../lib/vault/store-sync.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { ActiveProjectPanel as DefaultActiveProjectPanel } from "./settings/ActiveProjectPanel.js";
 import { CapabilityConnectorsPanel as DefaultCapabilityConnectorsPanel } from "./settings/CapabilityConnectorsPanel.js";
 import { ChangelogPanel as DefaultChangelogPanel } from "./settings/ChangelogPanel.js";
@@ -119,12 +120,43 @@ function autoLockExplainer(minutes: number): string {
  * renders.
  */
 const CATEGORIES = [
-  { id: "general", label: "General" },
-  { id: "security", label: "Security" },
-  { id: "connectivity", label: "Connectivity" },
-  { id: "data", label: "Vault data" },
-  { id: "danger", label: "Danger" },
+  { id: "general", label: "General", guideId: "settings.general" },
+  { id: "security", label: "Security", guideId: "settings.security" },
+  {
+    id: "connectivity",
+    label: "Connectivity",
+    guideId: "settings.connectivity",
+  },
+  { id: "data", label: "Vault data", guideId: "settings.data" },
+  { id: "danger", label: "Danger", guideId: "settings.danger" },
 ] as const;
+
+/** One category link, named so a guide can point at it. */
+function CategoryLink({
+  guideId,
+  to,
+  label,
+  danger,
+  current,
+}: {
+  guideId: string;
+  to: string;
+  label: string;
+  danger: boolean;
+  current: boolean;
+}) {
+  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
+  return (
+    <Link
+      ref={ref}
+      to={to}
+      className={`set__nav-link${danger ? " set__nav-link--danger" : ""}`}
+      aria-current={current ? "page" : undefined}
+    >
+      {label}
+    </Link>
+  );
+}
 
 type CategoryId = SettingsCategory;
 
@@ -262,6 +294,11 @@ export function SettingsSection({
     }
   }
 
+  const autoLockRef = useGuideTarget<HTMLSelectElement>("settings.auto-lock");
+  const rekeyRef = useGuideTarget<HTMLButtonElement>(
+    "settings.master-password",
+  );
+
   const [newFolder, setNewFolder] = useState("");
   const [sampleMessage, setSampleMessage] = useState<{
     tone: "ok" | "err";
@@ -384,14 +421,14 @@ export function SettingsSection({
 
       <nav className="set__nav" aria-label="Settings sections">
         {CATEGORIES.map((entry) => (
-          <Link
+          <CategoryLink
             key={entry.id}
+            guideId={entry.guideId}
             to={settingsPath(entry.id)}
-            className={`set__nav-link${entry.id === "danger" ? " set__nav-link--danger" : ""}`}
-            aria-current={category === entry.id ? "page" : undefined}
-          >
-            {entry.label}
-          </Link>
+            label={entry.label}
+            danger={entry.id === "danger"}
+            current={category === entry.id}
+          />
         ))}
       </nav>
 
@@ -438,6 +475,7 @@ export function SettingsSection({
               <p className="sent">
                 Lock the vault{" "}
                 <select
+                  ref={autoLockRef}
                   aria-label="Lock after inactivity"
                   value={prefs.autoLockMinutes}
                   onChange={(event) =>
@@ -625,6 +663,7 @@ export function SettingsSection({
             <StatusNote message={rekey} />
             <div className="actions">
               <button
+                ref={rekeyRef}
                 type="submit"
                 className="btn btn--primary"
                 disabled={rekeying || !header?.wrap || !current || nextTooWeak}

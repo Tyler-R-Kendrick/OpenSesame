@@ -15,7 +15,7 @@
  *           import-checks, "route:/section" for a pages route, or
  *           "pwa-app:<surface>" for the thin apps/pwa shell.
  * - mcp_host / mcp_client: the MCP tool name on that server.
- * - webmcp: the navigator.modelContext tool name (pages unless the pwa
+ * - webmcp: the document.modelContext tool name (pages unless the pwa
  *           surface is "pwa-app:*").
  */
 
@@ -60,6 +60,7 @@ const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
 const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
 const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
 const ADR_SECURITY_EVENTS = "0080-security-event-hooks.md";
+const ADR_AI_SUPPORT = "0087-ai-native-contextual-support.md";
 const ADR_LIVE_OBSERVATION = "0081-live-session-observation.md";
 const ADR_MODEL_PLANE = "0083-browser-plane-inference-fallback.md";
 const ADR_NOTIFICATION_CEREMONIES =
@@ -180,6 +181,12 @@ const DEVICE_GESTURE: CapabilityExclusion = {
   reason:
     "installing is a browser-mediated act on the human's own device: the install dialog only opens inside a transient user activation, and there is no gesture an agent can supply or consent it can give on the device owner's behalf",
   adr: ADR_PWA_INSTALL,
+};
+
+const IN_PAGE_GUIDANCE_ONLY: CapabilityExclusion = {
+  reason:
+    "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
+  adr: ADR_AI_SUPPORT,
 };
 
 const FIRST_RUN_CEREMONY: CapabilityExclusion = {
@@ -1951,6 +1958,41 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_navigate",
+    },
+  },
+  // ── Client-local plane: in-product guidance ───────────────────────────
+  {
+    id: "client.support",
+    title: "In-product contextual support conversation",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_help",
+    },
+    excluded: {
+      mcp_host: IN_PAGE_GUIDANCE_ONLY,
+      mcp_client: IN_PAGE_GUIDANCE_ONLY,
+    },
+  },
+  {
+    id: "client.tutorial",
+    title: "Named in-product walkthroughs",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_guide_start",
+    },
+    excluded: {
+      mcp_host: IN_PAGE_GUIDANCE_ONLY,
+      mcp_client: IN_PAGE_GUIDANCE_ONLY,
     },
   },
   {

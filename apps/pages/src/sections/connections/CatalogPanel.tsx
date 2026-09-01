@@ -12,6 +12,7 @@ import {
   VERB_LABEL,
   providerVerb,
 } from "../../lib/identity-graph.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { CATEGORY_LABELS, CATEGORY_ORDER, connectorPath } from "./shared.js";
 
@@ -31,6 +32,11 @@ export function CatalogPanel({
   connections?: Connection[];
 }) {
   const [query, setQuery] = useState("");
+  const panelRef = useGuideTarget<HTMLElement>("connections.catalog");
+  const searchRef = useGuideTarget<HTMLInputElement>(
+    "connections.provider-picker",
+  );
+  const customRef = useGuideTarget<HTMLAnchorElement>("connections.custom");
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const catalogProviders = (providers ?? []).filter(
     (provider) => !canConfigureAutomatically(provider),
@@ -62,10 +68,10 @@ export function CatalogPanel({
   );
 
   return (
-    <section className="panel">
+    <section className="panel" ref={panelRef}>
       <div className="panel__head conn-catalog__head">
         <h2>Add a connection</h2>
-        <Link className="btn btn--sm" to="/connections/new">
+        <Link ref={customRef} className="btn btn--sm" to="/connections/new">
           Custom connector
         </Link>
       </div>
@@ -74,6 +80,7 @@ export function CatalogPanel({
           <span className="visually-hidden">Search connectors</span>
           <IconSearch size={16} />
           <input
+            ref={searchRef}
             type="search"
             placeholder={`Search ${catalogProviders.length} connectors`}
             value={query}

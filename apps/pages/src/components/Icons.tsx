@@ -373,6 +373,17 @@ export function IconInfo(props: IconProps) {
   );
 }
 
+/** Support: a question asked in the room, not a mascot in a bubble. */
+export function IconSupport(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20 12.2a7.6 7.6 0 0 1-11.2 6.7L4.2 20l1.2-4.4A7.6 7.6 0 1 1 20 12.2Z" />
+      <path d="M10.1 9.9a2 2 0 1 1 2.85 2.1c-.62.34-1 .8-1 1.5" />
+      <path d="M11.95 16.1h.01" />
+    </Svg>
+  );
+}
+
 export function IconLock(props: IconProps) {
   return (
     <Svg {...props}>
