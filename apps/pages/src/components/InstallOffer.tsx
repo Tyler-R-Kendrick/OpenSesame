@@ -82,6 +82,8 @@ export function InstallOffer({ heading }: { heading?: string } = {}) {
             <dd>{servedFrom()}</dd>
             <dt>Opens</dt>
             <dd>its own window, offline</dd>
+            <dt>Keeps</dt>
+            <dd>this vault if the browser would clear the tab</dd>
             <dt>Needs</dt>
             <dd>no store, no account</dd>
           </dl>

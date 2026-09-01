@@ -410,7 +410,7 @@ describe("building the list of ways in", () => {
     );
 
     expect(ways()).toEqual([]);
-    expect(screen.getByText("None yet.")).toBeDefined();
+    expect(screen.getByText(/Local vault only: no recovery/)).toBeDefined();
 
     fireEvent.click(commit());
     await waitFor(() => expect(onDone).toHaveBeenCalled());

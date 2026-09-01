@@ -1925,7 +1925,6 @@ function ApproveDeviceCard({ online }: { online: boolean }) {
             </button>
           </div>
         </form>
-
       </div>
     </section>
   );

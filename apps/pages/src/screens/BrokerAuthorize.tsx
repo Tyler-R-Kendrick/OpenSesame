@@ -245,6 +245,9 @@ export function BrokerAuthorize() {
               Release your identity assertion to{" "}
               <code className="broker__origin">{phase.request.origin}</code>?
             </p>
+            <p>
+              Scopes: <code>{phase.request.scope}</code>
+            </p>
             <div className="broker__actions">
               <button
                 type="button"

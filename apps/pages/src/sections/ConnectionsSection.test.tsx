@@ -420,9 +420,7 @@ describe("ConnectionsSection gallery", () => {
       new HostSessionError("setup_required", "No organization selected."),
     );
     renderAt("/connections");
-    expect(
-      await screen.findByText("Choose an organization"),
-    ).toBeTruthy();
+    expect(await screen.findByText("Choose an organization")).toBeTruthy();
   });
 
   it("warns through a notification when the catalog falls back to the bundled copy", async () => {

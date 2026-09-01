@@ -561,31 +561,31 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
             {(firstRun || !awaitingTotp) &&
             activeMethod === "passkey" &&
             !passkeyHost.ok ? (
-                <output className="note note--warn">
-                  <span>
-                    {passkeyHost.reason}
-                    {passkeyHost.fixUrl ? (
-                      <>
-                        {" "}
-                        {/* A button, same as the Settings twin's healPasskeyHost
-                            — the unlock screen was the one auth surface still
-                            repairing its environment through a raw anchor. */}
-                        <button
-                          type="button"
-                          className="unlock__switch"
-                          onClick={() =>
-                            window.location.assign(passkeyHost.fixUrl ?? "")
-                          }
-                        >
-                          Continue on localhost
-                        </button>{" "}
-                        (same vault data), then unlock with passkey.
-                      </>
-                    ) : (
-                      <> Open this app on a DNS hostname, then try again.</>
-                    )}
-                  </span>
-                </output>
+              <output className="note note--warn">
+                <span>
+                  {passkeyHost.reason}
+                  {passkeyHost.fixUrl ? (
+                    <>
+                      {" "}
+                      {/* A button, same as the Settings twin's healPasskeyHost
+                          — the unlock screen was the one auth surface still
+                          repairing its environment through a raw anchor. */}
+                      <button
+                        type="button"
+                        className="unlock__switch"
+                        onClick={() =>
+                          window.location.assign(passkeyHost.fixUrl ?? "")
+                        }
+                      >
+                        Continue on localhost
+                      </button>{" "}
+                      (same vault data), then unlock with passkey.
+                    </>
+                  ) : (
+                    <> Open this app on a DNS hostname, then try again.</>
+                  )}
+                </span>
+              </output>
             ) : null}
 
             {!awaitingTotp && activeMethod === "pin" ? (

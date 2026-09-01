@@ -1118,7 +1118,7 @@ describe("UnlockScreen — password unlock", () => {
     };
     render(<UnlockScreen />);
     fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
-    fireEvent.click(screen.getByRole("button", { name: "sign out" }));
+    fireEvent.click(screen.getByRole("button", { name: /sign out/i }));
     expect(endSession).toHaveBeenCalledTimes(1);
   });
 

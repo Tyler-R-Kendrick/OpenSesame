@@ -267,7 +267,7 @@ export function WaysIn() {
           <span className="ways__count">{ways.length}</span>
         </p>
         {ways.length === 0 ? (
-          <p className="hint">None yet.</p>
+          <p className="hint">None yet. Local vault only: no recovery.</p>
         ) : (
           <ul className="ways__list">
             {ways.map((way) => {
