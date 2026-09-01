@@ -45,7 +45,6 @@ export function SupportLauncher(): ReactElement {
         title={label}
         aria-haspopup="dialog"
         aria-expanded={view.open}
-        aria-hidden={view.open || undefined}
         tabIndex={view.open ? -1 : undefined}
         onClick={() => (view.open ? support.close() : support.open())}
       >
