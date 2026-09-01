@@ -242,6 +242,20 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
+- **Never remove or hide the guest/anonymous access flow** from the Pages
+  sign-in and unlock screens (`apps/pages/src/screens/unlock/SignInPanel.tsx`:
+  the "Continue as guest" button and the "Skip" corner link, first run). This
+  flow has been removed by accident repeatedly — usually by gating it on
+  Identity API availability. It must not be: `continueAsGuest`
+  (`apps/pages/src/lib/guest-auth.ts`) seals a local vault and works with no
+  Identity service at all; the registered-auth claim degrades to a bell
+  notice (ADR 0033). Do not gate guest on `hasIdentityService`, `noWayIn`,
+  the provider catalog, or first-run setup allowlists. The only legitimate
+  suppression is beside an existing vault (`placement: "secondary"`), where a
+  guest principal would seal a second vault. Any change that drops these
+  buttons on first run is a regression, not a cleanup — the tests in
+  `SignInPanel.test.tsx` and `UnlockScreen.test.tsx` asserting guest exists
+  are load-bearing and must not be deleted or inverted.
 - Anything with a deadline (certificate, CA, signer, brokered credential,
   rotation policy) is detected by the lifecycle scanner and published on the
   `lifecycle.*` hook feed — never by a subsystem's own private due-check.
