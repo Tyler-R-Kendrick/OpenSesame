@@ -305,6 +305,7 @@ export function VaultTree({
       if (!live) return;
       setCollapsed(new Set(saved));
       persistReadyRef.current = true;
+      treeRef.current?.focus({ preventScroll: true });
     });
     return () => {
       live = false;

@@ -378,6 +378,19 @@ describe("VaultSection", () => {
     expect(screen.getByText("personal:/Webmail.login")).toBeTruthy();
   });
 
+  it("moves browser focus into the tree after collapse state is restored", async () => {
+    vault.current = {
+      items: [makeLogin()],
+      folders: [],
+      header: null,
+    };
+    renderSection();
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("tree")),
+    );
+  });
+
   it("shows sample and favorite markers on rows", () => {
     vault.current = {
       items: [makeLogin({ sample: true }), makeNote({ favorite: true })],
