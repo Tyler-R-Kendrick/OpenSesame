@@ -4192,6 +4192,7 @@ name = "opensesame-rotation-web"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "opensesame-ceremony",
  "opensesame-session-observe",
  "serde",
  "serde_json",

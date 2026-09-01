@@ -174,7 +174,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
 | `crates/ceremony` | Connector registration ceremonies — the C0..C3 tier ladder, typed capture slots that fail closed, and ADR 0082 §5's refusals as types (ADR 0082) |
 | `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
-| `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076) |
+| `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3) |
 | `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |

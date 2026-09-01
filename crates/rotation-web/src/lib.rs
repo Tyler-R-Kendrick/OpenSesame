@@ -1,7 +1,10 @@
 //! Web-login rotation: the step IR, the tool boundary, and the ordering that
 //! must not be rearranged (ADR 0076).
 //!
-//! Two things live here and nothing else does.
+//! Two things live here and nothing else does — plus, since ADR 0082, the same
+//! boundary read backwards: [`CeremonyTransport`] adds the capture verbs a
+//! registration ceremony needs, as a supertrait rather than as more methods
+//! here, so rotation's surface stays the size ADR 0076 fixed it at.
 //!
 //! [`BrowserTransport`] is the sandbox's tool surface as a trait, and its shape
 //! is the security property: **no method returns a credential value.** An agent
@@ -30,6 +33,7 @@
 //! landing between the assertion and the submit and voiding it.
 
 mod capture;
+mod ceremony;
 mod executor;
 mod extension;
 mod tools;
@@ -37,6 +41,9 @@ mod tools;
 pub use capture::{
     classify, solve_mask, strip_targets, ActionRecord, Classification, FieldSnapshot, FrameRecord,
     ThoughtRecord,
+};
+pub use ceremony::{
+    run_capture_steps, CaptureError, CaptureReport, CaptureStep, CeremonyTransport,
 };
 pub use executor::{
     run_change_password, ActionStep, BlockedReason, CandidateVault, ChangePasswordRecipe,
