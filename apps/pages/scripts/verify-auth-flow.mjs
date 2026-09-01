@@ -225,12 +225,11 @@ async function finishUnlockWithCode(page, secret, name) {
 }
 
 process.on("unhandledRejection", () => undefined);
-const browser = await chromium.launch({
-  ...(process.env.PLAYWRIGHT_CHROMIUM
-    ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM }
-    : {}),
-  headless: true,
-});
+const launch = { headless: true };
+if (process.env.PLAYWRIGHT_CHROMIUM) {
+  launch.executablePath = process.env.PLAYWRIGHT_CHROMIUM;
+}
+const browser = await chromium.launch(launch);
 
 // ---- 1: a guest asks for MFA and is walked through the key first
 {
