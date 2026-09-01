@@ -52,6 +52,14 @@ export const GUIDE_ROUTES: readonly GuideRouteDescriptor[] = [
   ...SETTINGS_ROUTES,
 ];
 
+/** Named by `useSupportRoute`; a guide may wait on them, never navigate to them. */
+export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
+  "/unlock",
+  "/setup",
+  "/broker/authorize",
+  "/federation",
+]);
+
 const byId = new Map<GuideRouteId, GuideRouteDescriptor>();
 for (const route of GUIDE_ROUTES) {
   if (!isGuideRouteId(route.id)) {

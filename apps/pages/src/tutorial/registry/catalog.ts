@@ -539,11 +539,11 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "delegations.offers.mint",
   },
   {
-    id: "access.claim",
+    id: "identity.claim-access",
     description:
-      "Claims a grant that was minted for this person or agent, by entering the claim code.",
+      "Starts the ceremony that claims a grant minted for this person, by entering the claim code.",
     role: "ceremony",
-    routes: ["/access"],
+    routes: ["/identity"],
     capabilityId: "delegations.claim",
   },
   {

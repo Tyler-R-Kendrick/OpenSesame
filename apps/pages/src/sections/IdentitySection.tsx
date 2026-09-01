@@ -929,6 +929,7 @@ function MyAccessCard({
   session: IdentitySession;
   onOpenClaim: () => void;
 }) {
+  const claimRef = useGuideTarget<HTMLButtonElement>("identity.claim-access");
   const [rows, setRows] = useState<Delegation[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -996,6 +997,7 @@ function MyAccessCard({
             <IconRefresh />
           </button>
           <button
+            ref={claimRef}
             type="button"
             className="btn btn--sm btn--primary"
             onClick={onOpenClaim}

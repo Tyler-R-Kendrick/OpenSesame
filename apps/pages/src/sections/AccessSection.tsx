@@ -246,9 +246,7 @@ export function AccessSection() {
       ) : null}
       {tab === "requests" ? (
         <GuideTarget id="access.relay">
-          <GuideTarget id="access.claim">
-            <RequestsPanel online={online} />
-          </GuideTarget>
+          <RequestsPanel online={online} />
         </GuideTarget>
       ) : null}
       {tab === "sessions" ? <SessionsPanel online={online} /> : null}
