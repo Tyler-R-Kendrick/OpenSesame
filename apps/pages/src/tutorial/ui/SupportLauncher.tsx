@@ -40,7 +40,7 @@ export function SupportLauncher(): ReactElement {
       <button
         ref={ref}
         type="button"
-        className={`support-launch${guiding ? " support-launch--live" : ""}`}
+        className={`support-launch${guiding ? " support-launch--live" : ""}${view.open ? " support-launch--open" : ""}`}
         aria-label={label}
         title={label}
         aria-haspopup="dialog"

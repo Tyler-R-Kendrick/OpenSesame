@@ -36,6 +36,13 @@
   border-color: var(--accent);
 }
 
+/* Under the open support sheet so the mark cannot steal the Ask field.
+   Closed, it stays above ceremony sheets — that is the point of the overlay. */
+.support-launch--open {
+  z-index: 50;
+  pointer-events: none;
+}
+
 @media (pointer: coarse), (max-width: 900px) {
   .support-launch {
     width: 2.75rem;

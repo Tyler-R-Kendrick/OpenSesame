@@ -1583,7 +1583,7 @@ body {
     grid-auto-columns: 1fr;
     gap: 0.1rem;
     padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom));
-    padding-left: 3.6rem;
+    padding-left: calc(3.6rem + env(safe-area-inset-left));
     padding-right: calc(0.35rem + env(safe-area-inset-right));
     background: var(--surface);
     border-top: 1px solid var(--line);
