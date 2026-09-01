@@ -27,6 +27,7 @@ import type {
 import type {
   SupportAgentAvailability,
   SupportAgentPort,
+  SupportComputerStep,
   SupportErrorCode,
   SupportSession,
 } from "@opensesame/support-agent";
@@ -82,6 +83,8 @@ export type SupportEntry = {
   readonly kind: SupportEntryKind;
   readonly text: string;
   readonly suggestions: readonly string[];
+  readonly thoughts: string | null;
+  readonly computer: readonly SupportComputerStep[];
 };
 
 export type SupportView = {
@@ -234,12 +237,23 @@ export function createSupportController(
     kind: SupportEntryKind,
     text: string,
     suggestions: readonly string[],
+    traces?: {
+      readonly thoughts?: string | null;
+      readonly computer?: readonly SupportComputerStep[];
+    },
   ): void {
     entries += 1;
     set({
       transcript: [
         ...state.transcript,
-        { id: `e${entries}`, kind, text, suggestions },
+        {
+          id: `e${entries}`,
+          kind,
+          text,
+          suggestions,
+          thoughts: traces?.thoughts ?? null,
+          computer: traces?.computer ?? [],
+        },
       ],
     });
   }
@@ -432,7 +446,10 @@ export function createSupportController(
       }
       const last = snapshot.messages.at(-1);
       if (last && last.role === "assistant") {
-        push("answer", last.text, snapshot.suggestedQuestions);
+        push("answer", last.text, snapshot.suggestedQuestions, {
+          thoughts: last.thoughts ?? snapshot.thoughts,
+          computer: last.computer ?? snapshot.computer,
+        });
       }
       // A walkthrough the compiler rejected is reported as a walkthrough that
       // did not run — never as the codes it failed with, and never as the text.

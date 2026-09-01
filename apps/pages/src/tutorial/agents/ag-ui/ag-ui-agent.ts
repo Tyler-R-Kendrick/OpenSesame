@@ -10,12 +10,13 @@
  *
  * Inbound, an AG-UI stream is a protocol for driving an application: tool
  * calls, state snapshots, JSON-patch deltas, activity, subagents. This adapter
- * implements exactly one of those event families — assistant text — and drops
- * the rest on the floor. There is no branch here that can reach a Host
- * mutation, a WebMCP tool, a router or the DOM, so a server that asks for one
- * is not refused so much as unheard. The only influence a server has is prose
- * and a GuideLang string, and that string goes to the same parser and
- * validator as every other guide, still untrusted.
+ * implements assistant text, and *displays* reasoning and tool names as
+ * optional traces. It still does not execute a tool call, apply a patch, or
+ * reach a Host mutation, a WebMCP tool, a router or the DOM. A server that
+ * asks for an action is unheard. The only influence a server has is prose, a
+ * GuideLang string, and collapsed traces of how it thought — and the guide
+ * string goes to the same parser and validator as every other guide, still
+ * untrusted.
  */
 
 import {
@@ -29,6 +30,7 @@ import {
 import {
   type SupportAgentAvailability,
   type SupportAgentPort,
+  type SupportComputerStep,
   SupportError,
   type SupportRequest,
   type SupportRunOptions,
@@ -78,6 +80,18 @@ type TextAccumulator = {
   produced: boolean;
 };
 
+type TraceAccumulator = {
+  readonly thoughts: string[];
+  thoughtsRemaining: number;
+  readonly computer: SupportComputerStep[];
+  openTool: string | null;
+};
+
+const MAX_THOUGHT_CHARS = 4000;
+const MAX_COMPUTER_STEPS = 8;
+const MAX_COMPUTER_TITLE_CHARS = 80;
+const MAX_COMPUTER_DETAIL_CHARS = 500;
+
 /**
  * Which open message ids are assistant text. A `TEXT_MESSAGE_START` that
  * declares any other role opens a message whose deltas are dropped — a server
@@ -113,19 +127,54 @@ function appendDelta(text: TextAccumulator, event: JsonObject): void {
   text.produced = true;
 }
 
+function appendThought(
+  traces: TraceAccumulator,
+  delta: string | undefined,
+): void {
+  if (delta === undefined || traces.thoughtsRemaining <= 0) return;
+  const slice =
+    delta.length > traces.thoughtsRemaining
+      ? delta.slice(0, traces.thoughtsRemaining)
+      : delta;
+  if (slice.length === 0) return;
+  traces.thoughts.push(slice);
+  traces.thoughtsRemaining -= slice.length;
+}
+
+function clampLabel(value: string, max: number): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= max) return trimmed;
+  return trimmed.slice(0, max);
+}
+
+function rememberComputer(
+  traces: TraceAccumulator,
+  title: string | undefined,
+  detail: string | undefined,
+): void {
+  if (traces.computer.length >= MAX_COMPUTER_STEPS) return;
+  const name = clampLabel(title ?? "", MAX_COMPUTER_TITLE_CHARS);
+  if (name.length === 0) return;
+  const note =
+    detail === undefined || detail.trim().length === 0
+      ? null
+      : clampLabel(detail, MAX_COMPUTER_DETAIL_CHARS);
+  traces.computer.push({ title: name, detail: note });
+}
+
 /**
  * `true` when the stream should stop being read.
  *
- * Every event family this switch does not name — `TOOL_CALL_*`, `STATE_*`,
- * `MESSAGES_SNAPSHOT`, `CUSTOM`, `RAW`, `ACTIVITY_*`, `REASONING_*`,
- * `SUBAGENT_*`, `STEP_*` — falls through to the default and is discarded. That
- * includes `MESSAGES_SNAPSHOT`, which is a wholesale state replacement rather
- * than a message: a server that wants to say something streams it.
+ * Assistant text is the answer. Reasoning and tool *names* are collected as
+ * traces for the UI. Every other event family — `STATE_*`, `MESSAGES_SNAPSHOT`,
+ * `CUSTOM`, `RAW`, `ACTIVITY_*`, `SUBAGENT_*`, tool arguments — is discarded.
+ * Tool calls are never executed.
  */
 function consumeEvent(
   event: JsonObject,
   roles: MessageRoles,
   text: TextAccumulator,
+  traces: TraceAccumulator,
 ): boolean {
   switch (readString(event.type)) {
     case "TEXT_MESSAGE_START":
@@ -137,6 +186,45 @@ function consumeEvent(
       return false;
     case "TEXT_MESSAGE_CONTENT":
       if (acceptsDelta(roles, event)) appendDelta(text, event);
+      return false;
+    case "REASONING_MESSAGE_START":
+    case "THINKING_START":
+      return false;
+    case "REASONING_MESSAGE_CHUNK":
+    case "REASONING_MESSAGE_CONTENT":
+    case "THINKING_CONTENT":
+      appendThought(
+        traces,
+        readString(event.delta) ?? readString(event.content),
+      );
+      return false;
+    case "TOOL_CALL_START":
+      traces.openTool =
+        readString(event.toolCallName) ??
+        readString(event.name) ??
+        traces.openTool;
+      return false;
+    case "TOOL_CALL_END":
+    case "TOOL_CALL_RESULT":
+      // Names only. Arguments and results are untrusted payload and are
+      // never shown — a server that "returns" a secret must not get it onto
+      // the page through the computer trace.
+      rememberComputer(
+        traces,
+        traces.openTool ??
+          readString(event.toolCallName) ??
+          readString(event.name),
+        undefined,
+      );
+      traces.openTool = null;
+      return false;
+    case "STEP_STARTED":
+    case "STEP_FINISHED":
+      rememberComputer(
+        traces,
+        readString(event.stepName) ?? readString(event.name),
+        readString(event.status),
+      );
       return false;
     case "RUN_ERROR":
       throw new SupportError(
@@ -171,10 +259,16 @@ function aborted(): SupportError {
  * cannot hold a cancelled run open, and the iterator is closed on the way out
  * so anything already in flight is dropped rather than appended.
  */
+type CollectedStream = {
+  readonly text: string;
+  readonly thoughts: string | null;
+  readonly computer: readonly SupportComputerStep[];
+};
+
 async function collectAssistantText(
   stream: AsyncIterable<JsonValue>,
   signal: AbortSignal,
-): Promise<string> {
+): Promise<CollectedStream> {
   const iterator = stream[Symbol.asyncIterator]();
   const cancelled = abortPromise(signal);
   const roles: MessageRoles = new Map();
@@ -182,6 +276,12 @@ async function collectAssistantText(
     chunks: [],
     remaining: MAX_STREAM_CHARS,
     produced: false,
+  };
+  const traces: TraceAccumulator = {
+    thoughts: [],
+    thoughtsRemaining: MAX_THOUGHT_CHARS,
+    computer: [],
+    openTool: null,
   };
   let seen = 0;
   try {
@@ -194,7 +294,7 @@ async function collectAssistantText(
       if (seen > MAX_STREAM_EVENTS) break;
       const event: JsonValue = step.value;
       if (!isJsonObject(event)) continue;
-      if (consumeEvent(event, roles, text)) break;
+      if (consumeEvent(event, roles, text, traces)) break;
       if (text.remaining <= 0) break;
     }
   } finally {
@@ -208,7 +308,12 @@ async function collectAssistantText(
       "the support endpoint ended the stream without an assistant message",
     );
   }
-  return text.chunks.join("");
+  const thoughts = traces.thoughts.join("").trim();
+  return {
+    text: text.chunks.join(""),
+    thoughts: thoughts.length > 0 ? thoughts : null,
+    computer: traces.computer,
+  };
 }
 
 export function createAgUiSupportAgent(
@@ -269,7 +374,12 @@ export function createAgUiSupportAgent(
           controller.signal,
         );
         if (controller.signal.aborted) throw aborted();
-        return parseSupportTurn(raw);
+        const parsed = parseSupportTurn(raw.text);
+        return {
+          ...parsed,
+          thoughts: raw.thoughts,
+          computer: raw.computer,
+        };
       } catch (caught) {
         if (controller.signal.aborted) throw aborted();
         if (caught instanceof SupportError) throw caught;

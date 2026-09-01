@@ -22,6 +22,7 @@ import { isString } from "@opensesame/os-domain";
 import {
   SUPPORT_LIMITS,
   type SupportAgentPort,
+  type SupportComputerStep,
   type SupportPageContext,
   type SupportRequest,
   type SupportTurn,
@@ -77,6 +78,8 @@ export type SupportTurnOutcome = {
   readonly program: GuideProgram | null;
   readonly guideError: GuideCompileFailureSummary | null;
   readonly suggestedQuestions: readonly string[];
+  readonly thoughts: string | null;
+  readonly computer: readonly SupportComputerStep[];
 };
 
 export type SupportTurnSeams = {
@@ -177,6 +180,35 @@ function finishAnswer(lines: readonly string[]): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   return clampText(joined, SUPPORT_LIMITS.maxAnswerChars);
+}
+
+function clampThoughts(value: string | null | undefined): string | null {
+  if (value === undefined || value === null) return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  return clampText(trimmed, SUPPORT_LIMITS.maxAnswerChars);
+}
+
+const MAX_COMPUTER_STEPS = 8;
+const MAX_COMPUTER_TITLE_CHARS = 80;
+const MAX_COMPUTER_DETAIL_CHARS = 500;
+
+function clampComputer(
+  steps: readonly SupportComputerStep[] | undefined,
+): readonly SupportComputerStep[] {
+  if (steps === undefined || steps.length === 0) return [];
+  const out: SupportComputerStep[] = [];
+  for (const step of steps) {
+    if (out.length >= MAX_COMPUTER_STEPS) break;
+    const title = clampText(step.title.trim(), MAX_COMPUTER_TITLE_CHARS);
+    if (title.length === 0) continue;
+    const detail =
+      step.detail === null || step.detail.trim().length === 0
+        ? null
+        : clampText(step.detail.trim(), MAX_COMPUTER_DETAIL_CHARS);
+    out.push({ title, detail });
+  }
+  return out;
 }
 
 /**
@@ -342,9 +374,18 @@ export async function runSupportTurn(
   const first = await port.run(sanitized, { signal: options.signal });
   const answer = parseSupportTurn(first.answer).answer;
   const suggestedQuestions = clampSuggestions(first.suggestedQuestions);
+  const thoughts = clampThoughts(first.thoughts);
+  const computer = clampComputer(first.computer);
   let source = guideSourceOf(first);
   if (source === null) {
-    return { answer, program: null, guideError: null, suggestedQuestions };
+    return {
+      answer,
+      program: null,
+      guideError: null,
+      suggestedQuestions,
+      thoughts,
+      computer,
+    };
   }
 
   let attempts = 0;
@@ -358,6 +399,8 @@ export async function runSupportTurn(
         program: result.program,
         guideError: null,
         suggestedQuestions,
+        thoughts,
+        computer,
       };
     }
     const reported: readonly CompileErrorLike[] = result.errors;
@@ -376,5 +419,7 @@ export async function runSupportTurn(
     program: null,
     guideError: { stage, codes: uniqueCodes(issues), issues, attempts },
     suggestedQuestions,
+    thoughts,
+    computer,
   };
 }

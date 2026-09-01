@@ -13,6 +13,7 @@ import type { GuideProgram } from "@opensesame/guide-lang";
 import {
   type SupportAgentAvailability,
   type SupportAgentPort,
+  type SupportComputerStep,
   SupportError,
   type SupportErrorCode,
   type SupportMessage,
@@ -33,6 +34,8 @@ export type SupportSessionSnapshot = {
   readonly program: GuideProgram | null;
   readonly guideError: GuideCompileFailureSummary | null;
   readonly suggestedQuestions: readonly string[];
+  readonly thoughts: string | null;
+  readonly computer: readonly SupportComputerStep[];
   readonly error: SupportErrorCode | null;
   /** Monotonic. A result carrying an older generation is discarded. */
   readonly generation: number;
@@ -73,6 +76,8 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
   let program: GuideProgram | null = null;
   let guideError: GuideCompileFailureSummary | null = null;
   let suggestedQuestions: readonly string[] = [];
+  let thoughts: string | null = null;
+  let computer: readonly SupportComputerStep[] = [];
   let error: SupportErrorCode | null = null;
   /**
    * Every ask takes the next generation. A late result compares its own
@@ -90,6 +95,8 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
       program,
       guideError,
       suggestedQuestions,
+      thoughts,
+      computer,
       error,
       generation,
     };
@@ -126,6 +133,8 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
     program = null;
     guideError = null;
     suggestedQuestions = [];
+    thoughts = null;
+    computer = [];
     error = null;
     publish();
 
@@ -149,7 +158,14 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
         { signal: controller.signal },
       );
       if (mine !== generation) return;
-      transcript.push({ role: "assistant", text: outcome.answer });
+      thoughts = outcome.thoughts;
+      computer = outcome.computer;
+      transcript.push({
+        role: "assistant",
+        text: outcome.answer,
+        ...(thoughts === null ? {} : { thoughts }),
+        ...(computer.length === 0 ? {} : { computer }),
+      });
       program = outcome.program;
       guideError = outcome.guideError;
       suggestedQuestions = outcome.suggestedQuestions;
@@ -193,6 +209,8 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
       program = null;
       guideError = null;
       suggestedQuestions = [];
+      thoughts = null;
+      computer = [];
       error = null;
       if (status !== "destroyed") status = "idle";
       publish();
@@ -204,6 +222,8 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
       program = null;
       guideError = null;
       suggestedQuestions = [];
+      thoughts = null;
+      computer = [];
       error = null;
       status = "destroyed";
       deps.port.destroy();

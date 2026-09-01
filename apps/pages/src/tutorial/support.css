@@ -108,6 +108,62 @@
   padding-top: 0.35rem;
 }
 
+.support__trace {
+  grid-column: 2;
+  margin: 0.35rem 0 0;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.support__trace > summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  text-transform: lowercase;
+  color: var(--ink-3);
+  padding: 0.4rem 0.55rem;
+}
+
+.support__trace > summary::-webkit-details-marker {
+  display: none;
+}
+
+.support__trace[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.support__trace-body {
+  margin: 0;
+  padding: 0.5rem 0.55rem 0.6rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.support__computer {
+  margin: 0;
+  padding: 0.45rem 0.55rem 0.6rem 1.35rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.support__computer-title {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink);
+}
+
+.support__computer-detail {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* ——— Waiting on an answer ————————————————————————————————— */
 
 .support__pending {

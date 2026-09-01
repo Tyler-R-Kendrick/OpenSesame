@@ -162,6 +162,31 @@ export function SupportPanel(): ReactElement {
                   {SPEAKER[entry.kind]}
                 </span>
                 <p className="support__text">{entry.text}</p>
+                {entry.thoughts ? (
+                  <details className="support__trace">
+                    <summary>Thoughts</summary>
+                    <p className="support__trace-body">{entry.thoughts}</p>
+                  </details>
+                ) : null}
+                {entry.computer.length > 0 ? (
+                  <details className="support__trace">
+                    <summary>Computer</summary>
+                    <ol className="support__computer">
+                      {entry.computer.map((step) => (
+                        <li key={step.title}>
+                          <span className="support__computer-title">
+                            {step.title}
+                          </span>
+                          {step.detail ? (
+                            <p className="support__computer-detail">
+                              {step.detail}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                ) : null}
                 {entry.suggestions.length > 0 ? (
                   <div className="support__suggestions">
                     {entry.suggestions.map((suggestion) => (
