@@ -88,11 +88,6 @@ export function CustomConnectorPage() {
       </Link>
       <header className="section__head">
         <h1>Custom connector</h1>
-        <p>
-          Any service with OAuth 2.0 or API-key auth — an MCP server, an OpenAPI
-          backend, an internal API. Its credential can only ever be sent to the
-          base URL you set here.
-        </p>
       </header>
 
       {error ? (

@@ -59,7 +59,9 @@ describe("ByoProviderSheet", () => {
     expect(
       screen.getByText("https://id.example.com/v1/federated/callback"),
     ).toBeTruthy();
-    expect(screen.getByText(/never merged with email accounts/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Continue with auth.kestrel.dev/ }),
+    ).toBeTruthy();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Continue with auth.kestrel.dev" }),

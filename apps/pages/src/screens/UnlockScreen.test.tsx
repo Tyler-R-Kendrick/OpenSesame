@@ -518,7 +518,6 @@ describe("UnlockScreen — first run", () => {
     expect(screen.queryByRole("tab", { name: "Passkey" })).toBeNull();
     expect(screen.getByRole("tab", { name: "PIN" })).toBeTruthy();
     expect(screen.getByLabelText(/Master password/)).toBeTruthy();
-    expect(screen.getByText(/600,000 PBKDF2-SHA256/)).toBeTruthy();
   });
 
   it("switching methods cancels a pending first-run passkey seal", async () => {
@@ -556,7 +555,6 @@ describe("UnlockScreen — first run", () => {
     ).toBeTruthy();
     // Nothing to judge yet: the strength meter stays off a pristine field.
     expect(screen.queryByText("Enter a master password")).toBeNull();
-    expect(screen.getByText(/600,000 PBKDF2-SHA256/)).toBeTruthy();
     expect(submitButton().disabled).toBe(true);
   });
 
@@ -678,7 +676,7 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.queryByLabelText("I understand this vault cannot be recovered."),
     ).toBeNull();
-    expect(screen.getByText(/Sign in to sync your vault/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeTruthy();
   });
 
   it("starts sign-in at the default upstream and returns to the app root", () => {
@@ -1090,9 +1088,6 @@ describe("UnlockScreen — password unlock", () => {
     // signing in opens the vault.
     fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
     expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();
-    expect(
-      screen.getByText(/still opens with your passkey, PIN, or password/),
-    ).toBeTruthy();
     expect(document.querySelector(".unlock__form")).toBeNull();
     // …and back.
     fireEvent.click(screen.getByRole("tab", { name: "Unlock" }));
@@ -1356,7 +1351,9 @@ describe("UnlockScreen — passkey unlock", () => {
   it("never prompts for a passkey until the button is clicked", async () => {
     v.store.unlockWithPasskey.mockResolvedValue(undefined);
     render(<UnlockScreen />);
-    expect(screen.getByText(/Use your platform authenticator/)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Unlock with passkey" }),
+    ).toBeTruthy();
     expect(submitButton().getAttribute("aria-label")).toContain(
       "Unlock with passkey",
     );
@@ -1502,7 +1499,7 @@ describe("UnlockScreen — TOTP step-up", () => {
   it("confirms the authenticator code after primary unlock", async () => {
     render(<UnlockScreen />);
     expect(
-      screen.getByText(/Enter the code from your authenticator/),
+      screen.getByRole("heading", { name: "Confirm it is you" }),
     ).toBeTruthy();
     const input = screen.getByLabelText("Authenticator code");
     expect(submitButton().disabled).toBe(true);

@@ -185,11 +185,6 @@ describe("share ceremony on a secret", () => {
     ).toBeTruthy();
     // Once in the code row, once as the QR's shortcode caption.
     expect(screen.getAllByText("ABCD-EFGH").length).toBeGreaterThan(0);
-    expect(
-      screen.getByText(
-        /Whoever opens the link and enters the code sees it once/,
-      ),
-    ).toBeTruthy();
     // The plaintext is never shown again after sealing.
     expect(screen.queryByText("s3cr3t-value")).toBeNull();
 

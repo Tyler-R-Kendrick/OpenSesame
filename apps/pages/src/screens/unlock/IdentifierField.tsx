@@ -260,10 +260,6 @@ export function IdentifierField({
             Continue
           </button>
         </div>
-        <p className="hint">
-          A work email finds your organization's sign-in; only the domain leaves
-          this device. A personal email gets a one-time link.
-        </p>
       </form>
 
       {error ? (

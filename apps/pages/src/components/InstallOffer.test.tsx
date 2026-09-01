@@ -218,7 +218,7 @@ describe("the install offer", () => {
   it("stays on screen after a refusal, and says where the road is now", () => {
     withState("dismissed");
     render(<InstallOffer />);
-    expect(screen.getByText(/from the browser's own menu/)).toBeDefined();
+    expect(screen.getByText("Install from the browser menu")).toBeDefined();
     expect(screen.queryByRole("button")).toBeNull();
   });
 
@@ -245,7 +245,6 @@ describe("the install offer", () => {
   it("states the reason installing matters to a vault, not a generic pitch", () => {
     withState("prompt");
     render(<InstallOffer />);
-    // The claim `lib/install.ts` then keeps by asking for persistent storage.
-    expect(screen.getByText(/can clear a tab's storage/)).toBeDefined();
+    expect(screen.getByText("its own window, offline")).toBeDefined();
   });
 });

@@ -421,7 +421,7 @@ describe("ConnectionsSection gallery", () => {
     );
     renderAt("/connections");
     expect(
-      await screen.findByText(/Choose an organization to manage connections/),
+      await screen.findByText("Choose an organization"),
     ).toBeTruthy();
   });
 

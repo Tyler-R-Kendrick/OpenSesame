@@ -119,6 +119,21 @@ export const unlockScreenDependencies = {
  * first paint, and would keep a returning user in setup if a late hydrate then
  * found a vault.
  */
+/**
+ * Setup comes before every other pre-vault screen.
+ *
+ * A device with no vault and no session cannot offer a working sign-in or a
+ * vault to unlock, so the first visitor is asked to set this deployment up or
+ * join an existing session — not shown two broken affordances and a warning.
+ * Once the ceremony is answered — or it never applied, because a vault or a
+ * session is already here — this is the unlock form and nothing else.
+ *
+ * The split exists so the early return happens above the form's hooks rather
+ * than among them. The gate is re-read on every render: freezing it in
+ * `useState` would skip the ceremony if the vault still looked sealed on the
+ * first paint, and would keep a returning user in setup if a late hydrate then
+ * found a vault.
+ */
 export function UnlockScreen() {
   const { status } = useVault();
   const [dismissed, setDismissed] = useState(false);
@@ -382,25 +397,6 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
   const disabled =
     busy || lockedFor > 0 || (firstRun ? createBlocked : unlockBlocked);
 
-  // ADR 0033 §4: first run asks who you are before it asks for a master
-  // password. The seal form appears only on the explicit local-only road.
-  const firstRunSealCopy =
-    activeMethod === "passkey"
-      ? "Seal this device with a passkey. A password is optional — add one later in Settings if you want a typed backup."
-      : activeMethod === "pin"
-        ? "Seal this device with a PIN. A password is optional — add one later in Settings if you want a typed backup."
-        : "Choose a master password to seal this device. You can add a passkey or PIN later in Settings.";
-
-  const brandCopy = signInStage
-    ? "Sign in to sync your vault across your devices — or keep everything on this one."
-    : firstRun
-      ? `Local-only vault: no account, no sync, no recovery. ${firstRunSealCopy}`
-      : awaitingTotp
-        ? "Enter the code from your authenticator app to finish unlocking."
-        : signInTabActive
-          ? "Sign in as a different user, or attach an account this device can sync through. The vault itself opens from the Unlock tab."
-          : "Unlock with the challenge you enrolled — passkey, PIN, or password. The vault key is not stored; a reload asks again.";
-
   return (
     <div className="unlock">
       <div className="unlock__card">
@@ -419,7 +415,6 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                   ? "Confirm it is you"
                   : "Unlock"}
           </h1>
-          <p>{brandCopy}</p>
         </div>
 
         {returningTabs ? (
@@ -549,10 +544,6 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                   onChange={(e) => setTotp(e.target.value)}
                   placeholder="6-digit code"
                 />
-                <p className="hint">
-                  MFA is enrolled on this vault. Primary unlock succeeded —
-                  confirm with your authenticator.
-                </p>
                 <button
                   type="button"
                   className="unlock__switch"
@@ -567,13 +558,9 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
               </div>
             ) : null}
 
-            {(firstRun || !awaitingTotp) && activeMethod === "passkey" ? (
-              passkeyHost.ok ? (
-                <p className="hint">
-                  Use your platform authenticator. The WebAuthn PRF extension
-                  unwraps the vault key — no password typed.
-                </p>
-              ) : (
+            {(firstRun || !awaitingTotp) &&
+            activeMethod === "passkey" &&
+            !passkeyHost.ok ? (
                 <output className="note note--warn">
                   <span>
                     {passkeyHost.reason}
@@ -599,7 +586,6 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                     )}
                   </span>
                 </output>
-              )
             ) : null}
 
             {!awaitingTotp && activeMethod === "pin" ? (
@@ -827,20 +813,6 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
         )}
 
         <div className="unlock__foot">
-          {signInStage ? (
-            <p>
-              Signing in never uploads your vault items. It only attaches an
-              identity your devices can sync through.
-            </p>
-          ) : (
-            <p>
-              {firstRun
-                ? activeMethod === "password"
-                  ? "600,000 PBKDF2-SHA256 iterations, AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
-                  : "AES-256-GCM. Human items stay on this device. Host connectors stay on the Host."
-                : "The vault key lives in memory only. Locking or reloading discards it."}
-            </p>
-          )}
           {firstRun && localOnly ? (
             <button
               type="button"

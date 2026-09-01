@@ -64,11 +64,6 @@ export function ChangelogPanel() {
       <div className="panel__head">
         <div>
           <h2>Change log</h2>
-          <p>
-            Durable secret/config history for a project — key names, versions,
-            and sync outcomes only. Values stay out of the audit trail; sealed
-            store git history remains local ciphertext history.
-          </p>
         </div>
       </div>
       <div className="panel__body">

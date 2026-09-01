@@ -716,7 +716,7 @@ describe("IdentitySection", () => {
     );
 
     // Agents are cross-linked, not duplicated.
-    expect(screen.getByText("Agents live in Access")).toBeTruthy();
+    expect(screen.getByText("Agents")).toBeTruthy();
   });
 
   it("shows the empty service-identities state", async () => {
@@ -788,10 +788,7 @@ describe("IdentitySection", () => {
       expect(directory.approveDevice).toHaveBeenCalledWith("ABCD-EFGH"),
     );
     expect(await screen.findByText("Device approved.")).toBeTruthy();
-    // The enumeration honesty note.
-    expect(
-      screen.getByText(/enumerated by the operator, not here/),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Approve device/ })).toBeTruthy();
   });
 
   it("renders the unknown-code one-liner on a 404 from the Host", async () => {

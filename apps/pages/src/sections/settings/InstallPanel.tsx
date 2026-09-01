@@ -28,11 +28,6 @@ export function InstallPanel() {
       <div className="panel__head">
         <div>
           <h2 id="settings-install">Install</h2>
-          <p>
-            OpenSesame runs from a web address, so there is no store listing and
-            nothing to download. Installing puts it on this device as its own
-            app.
-          </p>
         </div>
       </div>
       <div className="panel__body">

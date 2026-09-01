@@ -114,12 +114,6 @@ export function TaskBusPanel() {
       <div className="panel__head">
         <div>
           <h2>TaskBus / NATS</h2>
-          <p>
-            Messaging for backup wakes, webhooks, and rotation. Configure the
-            URL the <strong>Host</strong> dials — e.g.{" "}
-            <code>nats://your-box.tailXXXX.ts.net:4222</code>. This browser
-            never opens NATS.
-          </p>
         </div>
       </div>
       <div className="panel__body">

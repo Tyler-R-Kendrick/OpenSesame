@@ -457,7 +457,7 @@ describe("AccessSection", () => {
     // Step 4: the code card shows token and user code with copy affordances.
     expect(await screen.findByText("osc_dlg_x.y")).toBeTruthy();
     expect(screen.getByText("AAAA-BBBB")).toBeTruthy();
-    expect(screen.getByText(/Hand these to the requester/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Done$/ })).toBeTruthy();
     await userEvent.click(
       screen.getByRole("button", { name: /Copy claim token/i }),
     );

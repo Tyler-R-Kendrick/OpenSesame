@@ -821,7 +821,6 @@ function CustomOidcCard({
             byo.setError(null);
           }}
         />
-        <p className="hint">Any OpenID Connect issuer you control.</p>
       </div>
 
       {byo.needsClient ? (
@@ -1575,10 +1574,6 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
         {identities && identities.length === 0 ? (
           <div className="empty">
             <h3>No linked identities</h3>
-            <p>
-              Sign in through a provider and the identity it vouches for is
-              linked here.
-            </p>
           </div>
         ) : null}
 
@@ -1931,9 +1926,6 @@ function ApproveDeviceCard({ online }: { online: boolean }) {
           </div>
         </form>
 
-        <p className="hint">
-          Connected devices are enumerated by the operator, not here.
-        </p>
       </div>
     </section>
   );
@@ -2393,11 +2385,7 @@ function ServiceAccountsPanel({
       <section className="panel">
         <div className="panel__head">
           <div>
-            <h2>Agents live in Access</h2>
-            <p>
-              Host-plane service accounts (agents) are registered and inspected
-              in Access → Resources.
-            </p>
+            <h2>Agents</h2>
           </div>
         </div>
         <div className="panel__body">
@@ -2645,10 +2633,6 @@ function OrganizationPanel({
           {orgs && orgs.length === 0 ? (
             <div className="empty">
               <h3>No organizations yet</h3>
-              <p>
-                Create one below, or join one by signing in with an account its
-                IdP vouches for.
-              </p>
             </div>
           ) : null}
         </div>
@@ -2807,7 +2791,6 @@ function ConnectIdentityNote({
       <div className="panel__head">
         <div>
           <h2>Sign in to see this</h2>
-          <p>{what} is scoped to a principal — connect to read it.</p>
         </div>
       </div>
       <div className="panel__body">

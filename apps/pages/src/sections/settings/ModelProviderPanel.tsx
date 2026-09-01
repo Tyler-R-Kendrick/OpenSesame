@@ -175,14 +175,6 @@ export function ModelProviderPanel() {
       <div className="panel__head">
         <div>
           <h2>Who runs the model</h2>
-          <p>
-            A model can work a website's own password-reset form for you,
-            adapting when the site is redesigned. Choosing one is choosing who
-            watches that happen. It sees the page with every password field
-            stripped and every credential box masked — struck out before the
-            picture exists, not before it is displayed — and it says{" "}
-            <em>which</em> field to fill, never <em>what</em> to type.
-          </p>
         </div>
       </div>
       <div className="panel__body">

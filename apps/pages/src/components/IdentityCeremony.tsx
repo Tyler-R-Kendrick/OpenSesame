@@ -132,11 +132,6 @@ export function IdentityCeremony({
             icon: <IconUser size={18} />,
             render: () => (
               <>
-                <p className="hint">
-                  Ends this session on this device and starts a fresh sign-in
-                  with {upstream.accountKind}. The vault stays locked or
-                  unlocked exactly as it is now.
-                </p>
                 <div className="actions">
                   <button
                     type="button"
@@ -202,15 +197,7 @@ export function IdentityCeremony({
               }
         }
         alts={alts}
-      >
-        {session ? null : (
-          <p className="hint">
-            Guest needs no passkey or password. You will be asked to claim the
-            session from the notifications bell before it can hold anything
-            durable.
-          </p>
-        )}
-      </CeremonyShell>
+      />
       {error ? <StatusNote message={{ tone: "warn", text: error }} /> : null}
       {flash ? <StatusNote message={flash} /> : null}
     </>

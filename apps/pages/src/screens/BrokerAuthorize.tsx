@@ -172,11 +172,6 @@ export function BrokerAuthorize() {
       <header className="broker__head">
         <p className="broker__brand">OpenSesame</p>
         <h1>Sign in for a static site</h1>
-        <p className="broker__lede">
-          OpenSesame brokers identity from a trusted upstream. It does not mint
-          tokens on this static host — the site receives the upstream assertion
-          only after you approve its origin.
-        </p>
       </header>
 
       <main className="broker__main">
@@ -249,11 +244,6 @@ export function BrokerAuthorize() {
             <p>
               Release your identity assertion to{" "}
               <code className="broker__origin">{phase.request.origin}</code>?
-            </p>
-            <p className="broker__fine">
-              Scopes: <code>{phase.request.scope}</code>. The site verifies the
-              token against the upstream JWKS; audience is this OpenSesame
-              origin, not the site&rsquo;s.
             </p>
             <div className="broker__actions">
               <button

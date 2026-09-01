@@ -100,10 +100,6 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
               setRegistration(null);
             }}
           />
-          <p className="hint">
-            Any OpenID Connect issuer you control. Its discovery document is
-            fetched over HTTPS and must name this exact issuer.
-          </p>
         </div>
         {needsClient ? (
           <>
@@ -198,10 +194,6 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
                 : "Make sure your provider allows this exact redirect URI."}
             </p>
           </div>
-          <p className="hint">
-            Accounts from your own provider are never merged with email accounts
-            — that separation is a security guarantee.
-          </p>
           <button
             type="button"
             className="btn btn--primary btn--block"

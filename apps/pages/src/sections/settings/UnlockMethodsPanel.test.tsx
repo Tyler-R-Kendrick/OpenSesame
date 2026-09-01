@@ -282,7 +282,7 @@ describe("UnlockMethodsPanel", () => {
     };
     listAvailableUnlockMethods.mockReturnValue(["password", "passkey"]);
     render(<UnlockMethodsPanel />);
-    expect(screen.getByText(/^Enrolled\. Platform authenticator/)).toBeTruthy();
+    expect(screen.getByText("Enrolled.")).toBeTruthy();
     const remove = screen.getAllByRole<HTMLButtonElement>("button", {
       name: /^Remove$/i,
     })[0];

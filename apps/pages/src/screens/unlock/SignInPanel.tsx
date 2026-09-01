@@ -325,15 +325,8 @@ export function SignInPanel(props: Props) {
             </button>
           </div>
           {linkSent ? (
-            <p className="hint">
-              Check your email for a sign-in link. It signs you in on this
-              device.
-            </p>
-          ) : (
-            <p className="hint">
-              Passwordless. Works anywhere your inbox does.
-            </p>
-          )}
+            <p className="hint">Check your email for a sign-in link.</p>
+          ) : null}
           {linkError ? (
             <p className="hint identifier__error" role="alert">
               {linkError}
@@ -374,17 +367,14 @@ export function SignInPanel(props: Props) {
           ) : null}
           {!firstRun && session ? (
             <p className="hint signin__session">
-              This device is signed in. Signing in again starts a fresh ceremony
-              — or{" "}
               <button
                 type="button"
                 className="unlock__switch"
                 disabled={busy}
                 onClick={() => endSession()}
               >
-                sign out
-              </button>{" "}
-              first.
+                Sign out
+              </button>
             </p>
           ) : null}
           <div className="signin__providers">
@@ -545,13 +535,6 @@ export function SignInPanel(props: Props) {
                 Continue as guest
               </button>
             ) : null}
-            <p className="hint signin__provider-note">
-              {firstRun
-                ? hasIdentityService
-                  ? "No passkey or password — this device opens with your account."
-                  : "Signing in attaches an account to this device; the vault still opens with your passkey, PIN, or password."
-                : "Attaches your account to this device so it can sync. The vault still opens with your passkey, PIN, or password."}
-            </p>
             {brokerNotes.map((note) => (
               <p className="hint signin__provider-note" key={note}>
                 {note}

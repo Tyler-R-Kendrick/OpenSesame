@@ -92,7 +92,6 @@ function NotificationsBarDefault() {
               </span>
               <div className="sheet__grow">
                 <h2>Notifications</h2>
-                <p>Claims, password health, and service status.</p>
               </div>
               <button
                 type="button"

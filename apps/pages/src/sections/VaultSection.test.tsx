@@ -170,7 +170,7 @@ describe("VaultSection", () => {
 
   it("shows the empty state with new and import actions", () => {
     renderSection();
-    expect(screen.getByText("Nothing here yet")).toBeTruthy();
+    expect(screen.getByText("Nothing here")).toBeTruthy();
     expect(
       screen.getByRole("link", { name: /New item/i }).getAttribute("href"),
     ).toBe("/vault/new/login");
@@ -350,7 +350,7 @@ describe("VaultSection", () => {
   it("shows the trash empty state", () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
     renderSection("/vault?f=trash");
-    expect(screen.getByText(/Deleted items wait here/)).toBeTruthy();
+    expect(screen.getByText("Trash is empty")).toBeTruthy();
   });
 
   it("filters to a folder", () => {
@@ -575,11 +575,9 @@ describe("VaultWelcome", () => {
     vi.clearAllMocks();
   });
 
-  it("says where items live on an empty vault, without a second empty state", () => {
+  it("hands over the keys on an empty vault, without a second empty state", () => {
     renderWelcome();
-    // The list pane states the empty vault and carries the actions that fill
-    // it; the buffer says what belongs here and offers nothing to argue with.
-    expect(screen.getByText(/Human items live on this device/)).toBeTruthy();
+    expect(screen.getByText(/n new/)).toBeTruthy();
     expect(
       screen.queryByRole("link", { name: /Add your first login/i }),
     ).toBeNull();
@@ -599,8 +597,7 @@ describe("VaultWelcome", () => {
       header: { kdf: { iterations: 600_000 } },
     };
     renderWelcome();
-    expect(screen.getByText(/2 items, sealed/)).toBeTruthy();
-    expect(screen.getByText(/600,000 PBKDF2 iterations/)).toBeTruthy();
+    expect(screen.getByText("2 items")).toBeTruthy();
     expect(screen.getByText(/j\/k browse/)).toBeTruthy();
     // The stat-counter dashboard is gone for good.
     expect(screen.queryByText("What is in here")).toBeNull();
@@ -615,8 +612,6 @@ describe("VaultWelcome", () => {
     };
     renderWelcome();
     expect(screen.queryByText(/passwords need attention/)).toBeNull();
-    expect(
-      screen.getByText(/unlock again with an enrolled passkey/),
-    ).toBeTruthy();
+    expect(screen.getByText("1 item")).toBeTruthy();
   });
 });

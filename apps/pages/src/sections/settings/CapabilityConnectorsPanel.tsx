@@ -485,14 +485,6 @@ export function CapabilityConnectorsPanel() {
       <div className="panel__head">
         <div>
           <h2>Capability connectors</h2>
-          <p>
-            Each platform capability binds to a Host connector. Encryption
-            defaults to WebCrypto on this device (the built-in key vault). Git
-            history is optional — the vault already lives on this device.
-            Connect GitHub with OAuth or a personal access token, then select a
-            repo or create a private <code>opensesame-passwords</code> store.
-            Host never returns provider tokens to this page.
-          </p>
         </div>
       </div>
       <div className="panel__body">
@@ -527,7 +519,6 @@ export function CapabilityConnectorsPanel() {
                     <h3>
                       <IconLock size={18} /> {def.title}
                     </h3>
-                    <p>{def.summary}</p>
                   </div>
                   <span
                     className={`chip ${

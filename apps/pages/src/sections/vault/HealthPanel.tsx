@@ -38,21 +38,12 @@ export function HealthPanel() {
         </Link>
         <div className="detail__heading">
           <h1>Password health</h1>
-          <p className="hint">
-            Computed here, over the decrypted collection. No password, and no
-            hash of one, leaves this device — this report never contacts a
-            breach service.
-          </p>
         </div>
       </div>
 
       {report.scored === 0 ? (
         <div className="empty">
           <h2>No passwords to review</h2>
-          <p>
-            Add a login with a password and it will be scored for strength,
-            reuse, and age.
-          </p>
           <Link className="btn btn--primary btn--sm" to="/vault/new/login">
             New login
           </Link>

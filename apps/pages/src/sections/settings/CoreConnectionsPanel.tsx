@@ -46,11 +46,6 @@ export function CoreConnectionsPanel() {
       <div className="panel__head">
         <div>
           <h2>Core connections</h2>
-          <p>
-            The planes OpenSesame needs to authorize anything, plus the key
-            vault that wraps your secrets. Each one is a ceremony, not a form —
-            open it and it tells you what it found.
-          </p>
         </div>
         <output
           className={`chip chip--${offline || attention ? "warn" : "ok"}`}

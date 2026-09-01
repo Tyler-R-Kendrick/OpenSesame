@@ -138,27 +138,9 @@ export function OfflineBackupPanel() {
       <div className="panel__head">
         <div>
           <h2>Offline encrypted backup</h2>
-          <p>
-            Download a project-scoped envelope of vault ciphertext for offline
-            use, or restore one on this device. The Host API only ever stores
-            opaque sync blobs — never plaintext, never your unlock key, and
-            never wrapped with the deployment seal key.
-          </p>
         </div>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Treat the backup file like the vault itself. Anyone with the file
-          still needs the master password (or enrolled unlock) to open it.
-          {projectId ? (
-            <>
-              {" "}
-              Active project: <code>{projectId}</code>.
-            </>
-          ) : (
-            <> No active project selected — backup is device-wide.</>
-          )}
-        </p>
         <div className="actions">
           <button
             type="button"

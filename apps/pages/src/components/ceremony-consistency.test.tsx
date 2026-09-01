@@ -89,7 +89,7 @@ afterEach(() => {
 
 describe("every ceremony wears the same shape", () => {
   for (const id of CONNECTOR_IDS) {
-    it(`${id}: card, footnote, and not one anchor`, async () => {
+    it(`${id}: card, and not one anchor`, async () => {
       const { container } = render(
         <ConnectionCeremony
           id={id}
@@ -103,7 +103,6 @@ describe("every ceremony wears the same shape", () => {
       await vi.waitFor(() => {
         expect(container.querySelector(".found")).toBeTruthy();
       });
-      expect(container.querySelector(".sheet__foot")).toBeTruthy();
       // The rule the whole redesign hangs on: repairing a connection puts
       // you back where you were, so nothing in a ceremony navigates.
       expect(container.querySelector("a")).toBeNull();

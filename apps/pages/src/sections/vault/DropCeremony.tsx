@@ -112,7 +112,6 @@ export function DropCard({ drop }: { drop: CreatedDrop }) {
         />
       </div>
       <p className="hint">Expires {formatExpiry(drop.record.expiresAt)}.</p>
-      <p>Whoever opens the link and enters the code sees it once.</p>
     </section>
   );
 }
@@ -384,11 +383,6 @@ export function NewDropCeremony() {
             <IconX size={17} />
           </Link>
         </div>
-        <p className="hint editor__seal">
-          A one-time share: sealed here, opened once, then gone. The payload is
-          not stored in this vault unless you keep a copy.
-        </p>
-
         <div className="field">
           <span className="label">Payload</span>
           <fieldset className="sites-effect-toggle" aria-label="Payload source">
