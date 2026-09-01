@@ -1,6 +1,4 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   type ReferenceIdp,
   startReferenceIdp,
@@ -17,6 +15,7 @@ import {
 } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import type { startServer } from "../server.js";
+import { onFreePort } from "./free-port.js";
 
 /**
  * Organization sign-in, end to end against the reference IdP.
@@ -389,16 +388,6 @@ describe("organization tenant join — hardened against the reference IdP", () =
   });
 });
 
-/** Reserve a port so publicUrl can name it before the server binds. */
-async function reservePort(): Promise<number> {
-  const probe = createServer();
-  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-  // SAFETY: probe.listen established the runtime AddressInfo invariant.
-  const port = (probe.address() as AddressInfo).port;
-  await new Promise<void>((r) => probe.close(() => r()));
-  return port;
-}
-
 function extractCsrf(html: string): string {
   const match = html.match(/name="_csrf" value="([^"]+)"/);
   if (!match?.[1]) throw new Error("no csrf token in page");
@@ -436,21 +425,22 @@ describe("organization sign-in from the hosted login page", () => {
 
   beforeAll(async () => {
     idp = await startReferenceIdp();
-    const port = await reservePort();
     const { startServer: start } = await import("../server.js");
-    started = await start({
-      config: {
-        host: "127.0.0.1",
-        port,
-        publicUrl: `http://127.0.0.1:${port}`,
-        issuer: `http://127.0.0.1:${port}`,
-      },
-      processEnv: {
-        ...process.env,
-        OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
-        OPENSESAME_TRUSTED_UPSTREAMS: idp.issuer,
-      },
-    });
+    started = await onFreePort((port) =>
+      start({
+        config: {
+          host: "127.0.0.1",
+          port,
+          publicUrl: `http://127.0.0.1:${port}`,
+          issuer: `http://127.0.0.1:${port}`,
+        },
+        processEnv: {
+          ...process.env,
+          OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
+          OPENSESAME_TRUSTED_UPSTREAMS: idp.issuer,
+        },
+      }),
+    );
     base = `http://127.0.0.1:${started.port}`;
 
     const now = started.ctx.clock();

@@ -1,0 +1,56 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 680px; padding: 22px 20px; display: grid; gap: 14px; align-content: start; --sk: #b8b8b8">
+  <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--ink-3)">Option C · Its own step</p>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+    <div style="border: 1.5px solid var(--sk); border-radius: 2px; padding: 12px 10px; display: grid; gap: 9px; background: var(--surface); align-content: start">
+      <div style="display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px">
+        <span style="height: 3px; background: var(--ink)"></span>
+        <span style="height: 3px; background: var(--ink)"></span>
+        <span style="height: 3px; background: var(--sk)"></span>
+      </div>
+      <div style="height: 11px; width: 78%; background: var(--sk)"></div>
+      <div style="height: 6px; width: 92%; background: #dedede"></div>
+      <div style="border: 1.5px solid var(--accent); background: var(--accent-wash); padding: 8px; display: grid; gap: 6px">
+        <div style="height: 6px; width: 70%; background: var(--accent-line)"></div>
+        <div style="height: 6px; width: 46%; background: var(--accent-line)"></div>
+        <div style="height: 20px; width: 74%; background: var(--accent)"></div>
+      </div>
+      <div style="display: flex; gap: 6px; align-items: center; border-top: 1.5px solid var(--sk); padding-top: 9px; margin-top: 4px">
+        <div style="width: 26px; height: 26px; border: 1.5px solid var(--sk)"></div>
+        <div style="flex: 1; height: 26px; background: var(--ink)"></div>
+      </div>
+      <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-3)">can install</p>
+    </div>
+
+    <div style="border: 1.5px solid var(--sk); border-radius: 2px; padding: 12px 10px; display: grid; gap: 9px; background: var(--surface); align-content: start">
+      <div style="display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px">
+        <span style="height: 3px; background: var(--ink)"></span>
+        <span style="height: 3px; background: var(--sk)"></span>
+      </div>
+      <div style="height: 11px; width: 78%; background: var(--sk)"></div>
+      <div style="height: 6px; width: 92%; background: #dedede"></div>
+      <div style="height: 30px; border: 1.5px solid var(--sk)"></div>
+      <div style="height: 30px; border: 1.5px solid var(--sk)"></div>
+      <div style="display: flex; gap: 6px; align-items: center; border-top: 1.5px solid var(--sk); padding-top: 9px; margin-top: 4px">
+        <div style="width: 26px; height: 26px; border: 1.5px solid var(--sk)"></div>
+        <div style="flex: 1; height: 26px; background: var(--ink)"></div>
+      </div>
+      <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-3)">cannot — no trace</p>
+    </div>
+  </div>
+
+  <div style="display: grid; gap: 6px">
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600">Why</p>
+    <p class="hint">Built first, against the two-step ceremony that existed at the time: installing matters to everyone who opens the app, so give it a screen of its own and withhold that screen where the browser cannot install. It reads well on a phone — one thing to decide, the commitment fixed at the bottom.</p>
+    <p style="font-family: var(--mono); font-size: 12px; font-weight: 600; margin-top: 4px">Costs</p>
+    <p class="hint">The ceremony has since been cut to <em>one</em> screen and one question — no stepper, no counter, no skip, no back. Re-adding a stepper to carry one optional offer would undo that outright, and buy a heading with it. The rail would also grow a segment mid-ceremony, since Chromium decides the app is installable a moment after the page loads. Withdrawn for the section.</p>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"$preview":{"width":390,"height":680}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { theme: this.props.theme || "light" };
+  }
+}
+</script>

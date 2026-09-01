@@ -1,0 +1,229 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px">
+  <div class="setup__bar">
+    <span class="setup__wordmark">
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
+        <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
+      </svg>
+      opensesame
+    </span>
+  </div>
+
+  <div class="setup__body">
+    <!-- The one question. Unchanged by any of this — ADR 0078. -->
+    <div class="setup__head">
+      <h1>How do people sign in?</h1>
+      <p>You are the first person here, so you are the operator. This is the only question — and it already has a working answer. Add as many ways in as you like; the sign-in screen offers exactly these.</p>
+    </div>
+
+    <div class="setup__stack">
+      <div class="ways">
+        <p class="ways__head">Ways in <span class="ways__count">1</span></p>
+        <ul class="ways__list">
+          <li class="ways__item">
+            <span class="ways__mark" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8.5" cy="12" r="4"></circle>
+                <path d="M12.5 12H21M18 12v3M15 12v2.2"></path>
+              </svg>
+            </span>
+            <span class="ways__body">
+              <span class="ways__name">Google (via shoo.dev)</span>
+              <span class="ways__kind">built in — nothing to set up</span>
+            </span>
+            <button type="button" class="icon-btn" aria-label="Remove Google (via shoo.dev)">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 7h14M10 7V5.2h4V7M7 7l.8 12.2h8.4L17 7"></path>
+              </svg>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <div class="setup__stack">
+        <p class="ways__head">Add a provider</p>
+        <p class="hint">This browser runs the whole sign-in itself — authorization code with PKCE, against the provider's own discovery document. Register this app there as a single-page or public client, then name it here.</p>
+        <div class="preset">
+          <sc-for list="{{presets}}" as="p" hint-placeholder-count="6">
+            <button type="button" class="preset__opt">
+              <span class="preset__name">{{p.name}}</span>
+              <span class="preset__kind">{{p.kind}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- The whole of this change: a section, never a step. It asks nothing,
+           it does not gate the commit, and it is absent entirely on a browser
+           that cannot install. ADR 0085. -->
+      <sc-if value="{{showKeep}}" hint-placeholder-val="{{true}}">
+        <div class="setup__stack">
+          <p class="ways__head">Keep it on this device</p>
+
+          <!-- Chromium told us this app is installable. That is a discovery, so
+               it wears the discovery card — and the action lives inside it,
+               beside the facts that justify it. docs/design/controls.md. -->
+          <sc-if value="{{canPrompt}}" hint-placeholder-val="{{true}}">
+            <div class="found">
+              <p class="found__top">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 4v10.5M7.5 10.5L12 15l4.5-4.5"></path>
+                  <path d="M4.5 17.5v1.2a1.8 1.8 0 0 0 1.8 1.8h11.4a1.8 1.8 0 0 0 1.8-1.8v-1.2"></path>
+                </svg>
+                This browser can install it
+              </p>
+              <p class="found__name">OpenSesame</p>
+              <dl>
+                <dt>From</dt>
+                <dd>tyler-r-kendrick.github.io</dd>
+                <dt>Opens</dt>
+                <dd>its own window, offline</dd>
+                <dt>Needs</dt>
+                <dd>no store, no account</dd>
+              </dl>
+              <div class="found__do">
+                <button type="button" class="btn btn--primary" onClick="{{install}}">Install OpenSesame</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- iOS has no prompt to fire. Nothing was found, so this is not a
+               found card — it is the reader's own three taps, in the OS's own
+               words, with the glyphs they are hunting for drawn inline. -->
+          <sc-if value="{{isManual}}" hint-placeholder-val="{{false}}">
+            <ol class="keep__steps" role="list">
+              <li class="keep__step" role="listitem">
+                <span class="keep__num" aria-hidden="true">1</span>
+                <span>Tap
+                  <span class="keep__glyph" aria-hidden="true">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 3.5v10.5"></path>
+                      <path d="M8.5 7L12 3.5 15.5 7"></path>
+                      <path d="M8 10.5H6.2A1.7 1.7 0 0 0 4.5 12.2v6.6A1.7 1.7 0 0 0 6.2 20.5h11.6a1.7 1.7 0 0 0 1.7-1.7v-6.6a1.7 1.7 0 0 0-1.7-1.7H16"></path>
+                    </svg>
+                  </span>
+                  Share, in your browser's toolbar.</span>
+              </li>
+              <li class="keep__step" role="listitem">
+                <span class="keep__num" aria-hidden="true">2</span>
+                <span>Scroll to
+                  <span class="keep__glyph" aria-hidden="true">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="4" y="4" width="16" height="16" rx="2.5"></rect>
+                      <path d="M12 8.5v7M8.5 12h7"></path>
+                    </svg>
+                  </span>
+                  <strong>Add to Home Screen</strong>.</span>
+              </li>
+              <li class="keep__step" role="listitem">
+                <span class="keep__num" aria-hidden="true">3</span>
+                <span>Tap <strong>Add</strong>. No browser on iOS lets a page do this for you.</span>
+              </li>
+            </ol>
+          </sc-if>
+
+          <!-- Refused. The card must not simply vanish — the offer gone with no
+               way back reads as the app having taken it badly — and this is the
+               one moment where pointing at the browser's own menu is honest,
+               because a spent event leaves nothing else. -->
+          <sc-if value="{{isDismissed}}" hint-placeholder-val="{{false}}">
+            <p class="keep__why">Your browser will offer again on a later visit — or you can install it from the browser's own menu whenever you like.</p>
+          </sc-if>
+
+          <!-- Done. It reports and offers nothing: an install button beside an
+               installed app is a control with nothing left to do. -->
+          <sc-if value="{{isDone}}" hint-placeholder-val="{{false}}">
+            <div class="found found--done">
+              <p class="found__top">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12.5l4.5 4.5L19 7"></path>
+                </svg>
+                Installed
+              </p>
+              <p class="found__name">OpenSesame</p>
+              <dl>
+                <dt>Storage</dt>
+                <dd>{{storage}}</dd>
+              </dl>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{hasWhy}}" hint-placeholder-val="{{true}}">
+            <p class="keep__why">{{why}}</p>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- The terminal commit: an ink square carrying the glyph of what it does,
+       its sentence beside it in the margin voice. docs/design/controls.md.
+       It reads "Finish setup" whatever the install offer is doing. -->
+  <div class="setup__foot">
+    <div class="go-row">
+      <button type="button" class="go" aria-label="Finish setup" title="Finish setup">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7"></path>
+        </svg>
+      </button>
+      <span class="go-verb" aria-hidden="true">Finish setup</span>
+    </div>
+  </div>
+</div>
+
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Theme"},"install":{"editor":"enum","options":["prompt","manual","dismissed","installed","unavailable"],"default":"prompt","section":"Install state"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { took: false };
+  }
+
+  /**
+   * The five states the browser can put us in. Only two are an offer:
+   * `prompt` is Chromium having fired beforeinstallprompt, `manual` is iOS,
+   * where no API exists and the reader's own hands are the road.
+   */
+  installState() {
+    if (this.state.took) return "installed";
+    return this.props.install || "prompt";
+  }
+
+  renderVals() {
+    const install = this.installState();
+    const why = {
+      prompt:
+        "A browser can clear a tab's storage when the device runs short of room, and this vault lives in that storage. An installed app keeps it — and opens offline, in its own window, with no address bar to lose.",
+      manual:
+        "A browser can clear a tab's storage when the device runs short of room, and this vault lives in that storage. On the home screen it keeps it — and opens offline, in its own window.",
+      dismissed: "",
+      // The shipped card says nothing here: the report is the whole message.
+      installed: "",
+      unavailable: "",
+    };
+
+    return {
+      theme: this.props.theme || "light",
+      presets: [
+        { name: "Google", kind: "consumer + Workspace" },
+        { name: "Microsoft", kind: "Entra ID" },
+        { name: "Okta", kind: "enterprise SSO" },
+        { name: "Auth0", kind: "enterprise SSO" },
+        { name: "WorkOS", kind: "AuthKit" },
+        { name: "Other OIDC", kind: "any issuer" },
+      ],
+
+      // Withheld, not explained away: `unavailable` takes the heading with it.
+      showKeep: install !== "unavailable",
+      canPrompt: install === "prompt",
+      isManual: install === "manual",
+      isDismissed: install === "dismissed",
+      isDone: install === "installed",
+      // What the shipped card renders until the browser actually grants it.
+      storage: this.state.took ? "kept — this device agreed to hold it" : "on this device",
+      why: why[install],
+      hasWhy: why[install].length > 0,
+      install: () => this.setState({ took: true }),
+    };
+  }
+}
+</script>

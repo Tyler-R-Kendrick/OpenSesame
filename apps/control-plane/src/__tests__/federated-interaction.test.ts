@@ -1,6 +1,4 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   type ReferenceIdp,
   startReferenceIdp,
@@ -17,6 +15,7 @@ import {
 } from "../interactions/federated.js";
 import type { startServer } from "../server.js";
 import { renderLoginPage } from "../ui/interaction-pages.js";
+import { onFreePort } from "./free-port.js";
 import { hopUrl } from "./upstream-hop.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
@@ -104,16 +103,6 @@ async function startControlPlane(
       ...extraEnv,
     },
   });
-}
-
-/** Reserve a port so publicUrl can name it before the server binds. */
-async function reservePort(): Promise<number> {
-  const probe = createServer();
-  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-  // SAFETY: probe.listen established the runtime AddressInfo invariant.
-  const port = (probe.address() as AddressInfo).port;
-  await new Promise<void>((r) => probe.close(() => r()));
-  return port;
 }
 
 function extractCsrf(html: string): string {
@@ -403,7 +392,9 @@ describe("federated interaction leg", () => {
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
     upstream = await startReferenceIdp();
-    started = await startControlPlane(upstream.issuer, await reservePort());
+    started = await onFreePort((port) =>
+      startControlPlane(upstream.issuer, port),
+    );
     base = `http://127.0.0.1:${started.port}`;
   }, 30_000);
 
@@ -792,7 +783,9 @@ describe("federated leg, upstream logout", () => {
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
     upstream = await startReferenceIdp();
-    started = await startControlPlane(upstream.issuer, await reservePort());
+    started = await onFreePort((port) =>
+      startControlPlane(upstream.issuer, port),
+    );
     base = `http://127.0.0.1:${started.port}`;
   }, 30_000);
 
@@ -906,7 +899,9 @@ describe("federated leg, organization sign-in", () => {
     allowlisted = await startReferenceIdp();
     tenantIdp = await startReferenceIdp();
     enterpriseIdp = await startReferenceIdp({ clientMode: "confidential" });
-    started = await startControlPlane(allowlisted.issuer, await reservePort());
+    started = await onFreePort((port) =>
+      startControlPlane(allowlisted.issuer, port),
+    );
     base = `http://127.0.0.1:${started.port}`;
     const now = started.ctx.clock();
     await started.ctx.stores.organizations.set(organizationId, {
@@ -1176,8 +1171,12 @@ describe("federated leg, two clients at one issuer", () => {
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
     upstream = await startReferenceIdp();
-    first = await startControlPlane(upstream.issuer, await reservePort());
-    second = await startControlPlane(upstream.issuer, await reservePort());
+    first = await onFreePort((port) =>
+      startControlPlane(upstream.issuer, port),
+    );
+    second = await onFreePort((port) =>
+      startControlPlane(upstream.issuer, port),
+    );
   }, 30_000);
 
   afterAll(async () => {
@@ -1254,17 +1253,22 @@ describe("federated leg, confidential client", () => {
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
     upstream = await startReferenceIdp();
-    const port = await reservePort();
-    // What an operator registers in a provider console: ONE redirect URI, for
-    // the whole deployment, matched byte for byte (ADR 0055). Nothing here
-    // names an interaction, and nothing is re-registered between sign-ins.
-    upstream.setRedirectUris([
-      `http://127.0.0.1:${port}/v1/federated/callback`,
-    ]);
-    started = await startControlPlane(upstream.issuer, port, {
-      OPENSESAME_UPSTREAM_ISSUER: upstream.issuer,
-      OPENSESAME_UPSTREAM_CLIENT_ID: upstream.clientId,
-      OPENSESAME_UPSTREAM_CLIENT_SECRET: upstream.clientSecret,
+    started = await onFreePort((port) => {
+      // What an operator registers in a provider console: ONE redirect URI, for
+      // the whole deployment, matched byte for byte (ADR 0055). Nothing here
+      // names an interaction, and nothing is re-registered between sign-ins.
+      //
+      // Registered inside the retry: a port lost between probing and binding
+      // takes its callback URI with it, and re-registering the old one would
+      // point the upstream at a server that is not there.
+      upstream.setRedirectUris([
+        `http://127.0.0.1:${port}/v1/federated/callback`,
+      ]);
+      return startControlPlane(upstream.issuer, port, {
+        OPENSESAME_UPSTREAM_ISSUER: upstream.issuer,
+        OPENSESAME_UPSTREAM_CLIENT_ID: upstream.clientId,
+        OPENSESAME_UPSTREAM_CLIENT_SECRET: upstream.clientSecret,
+      });
     });
     base = `http://127.0.0.1:${started.port}`;
   }, 30_000);
@@ -1412,7 +1416,9 @@ describe("federated leg, form_post callback", () => {
   beforeAll(async () => {
     resetFederatedDiscoveryCache();
     upstream = await startReferenceIdp({ formPost: true });
-    started = await startControlPlane(upstream.issuer, await reservePort());
+    started = await onFreePort((port) =>
+      startControlPlane(upstream.issuer, port),
+    );
     base = `http://127.0.0.1:${started.port}`;
   }, 30_000);
 

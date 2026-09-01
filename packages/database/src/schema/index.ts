@@ -2044,3 +2044,191 @@ export const pushSubscriptions = pgTable(
     index("push_subscriptions_principal_id_idx").on(t.principalId),
   ],
 );
+
+/**
+ * The canonical cross-device interaction (ADR 0086).
+ *
+ * One row per handoff, whatever surface renders it. A QR on a laptop, a Google
+ * Wallet pass, a phone notification and a CLI poll are four views of this row,
+ * which is the point: the alternative is four link formats and four separate
+ * places to get expiry, replay and enumeration wrong.
+ *
+ * The row does not replace the ceremony it fronts. The device-authorization
+ * session, the authorization request and the claim session keep their own
+ * tables and their own state machines; `subject_kind` + `subject_id` address
+ * one. Nothing here is a bearer — `id` is unguessable and the public reference
+ * over it is MAC-bound (see `crypto/interaction-ref.ts`), so a photographed QR
+ * buys the finder an opaque handle and no authority at all.
+ *
+ * Storage deliberately does not re-implement `machines/interaction.ts`. The
+ * checks below are the invariants a *stored* row must satisfy no matter which
+ * code path wrote it — a second line under the machine, not a copy of it.
+ */
+export const interactions = pgTable(
+  "interactions",
+  {
+    /** `int_<base64url>` — 144 bits of randomness, never derived from the subject. */
+    id: text("id").primaryKey(),
+    /** Which ceremony this fronts. Kinds are not interchangeable (ADR 0009). */
+    kind: text("kind").notNull(),
+    status: text("status").notNull(),
+    /**
+     * The subject, flattened from `Interaction.subject`. Two columns rather
+     * than a jsonb blob because the live-subject uniqueness below has to be an
+     * index the database can enforce, and you cannot index your way out of
+     * JSON without giving up the constraint.
+     */
+    subjectKind: text("subject_kind").notNull(),
+    /**
+     * The underlying ceremony's own primary key. Server-side only: a caller
+     * resolving a reference learns the interaction, never the row behind it,
+     * so a scanned QR cannot be turned into a device-session id.
+     */
+    subjectId: text("subject_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    /**
+     * Not null, and no default. Every interaction lapses; a row that could be
+     * written without a deadline would be a QR that works forever.
+     */
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    /**
+     * Who is asking, as the opaque handle the authorization-request inbox
+     * uses. Canonical principal ids do not go on a screen a stranger may be
+     * holding.
+     */
+    requesterRef: text("requester_ref"),
+    /**
+     * Whose authority is being asked for.
+     *
+     * `set null`, deliberately not `cascade`: an interaction is the record of
+     * a decision somebody made, and deleting the principal must not delete the
+     * evidence that the decision happened. The audit trail outlives the
+     * account — losing the approver's identity is the cost of an erasure
+     * request, losing the fact of the approval is destroying an audit record.
+     */
+    approverPrincipalId: text("approver_principal_id").references(
+      () => principals.id,
+      { onDelete: "set null" },
+    ),
+    /**
+     * Canonical digest of exactly what is being consented to. An executor
+     * hashes what it is about to run and refuses on mismatch, so an approved
+     * interaction cannot be pointed at a different operation afterwards.
+     */
+    requestDigest: text("request_digest"),
+    /** Digest of the binding message, so a receipt can prove the words without carrying them. */
+    bindingMessageDigest: text("binding_message_digest"),
+    /** Short display string rendered identically on both devices (CIBA). */
+    bindingMessage: text("binding_message"),
+    /** RFC 9396 authorization_details — constraint, prompt, and consent echo. */
+    authorizationDetails: jsonb("authorization_details")
+      .$type<JsonObject[]>()
+      .notNull()
+      .default([]),
+    /** Opaque reference to the target. Never a credential or a secret ref. */
+    resourceRef: text("resource_ref"),
+    /** `AssuranceRequirement`: what the approval must clear before it counts. */
+    assuranceRequired: jsonb("assurance_required").$type<JsonObject>(),
+    /**
+     * `ApprovalProof` — mechanism, bound digest, assurance, verification time.
+     * Never the assertion or presentation bytes: those are proof *inputs*,
+     * verified once at the protocol edge and dropped, because a store of
+     * replayable proof material is a store of replayable approvals.
+     *
+     * Typed as `JsonObject` rather than `ApprovalProof` on purpose — jsonb
+     * returns `verifiedAt` as a string, and a column type that claimed `Date`
+     * would be a lie the repositories would then have to launder.
+     */
+    approvalProof: jsonb("approval_proof").$type<JsonObject>(),
+    presentedAt: timestamp("presented_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    decidedAt: timestamp("decided_at", { withTimezone: true, mode: "date" }),
+    consumedAt: timestamp("consumed_at", { withTimezone: true, mode: "date" }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    version: integer("version").notNull().default(1),
+  },
+  (t) => [
+    check(
+      "interactions_kind_check",
+      sql`${t.kind} in ('device_authorization','pairing','claim','grant_claim','authorization_request','transaction_authorization')`,
+    ),
+    check(
+      "interactions_status_check",
+      sql`${t.status} in ('pending','presented','awaiting_approval','approved','denied','consumed','expired','revoked')`,
+    ),
+    check(
+      "interactions_subject_kind_check",
+      sql`${t.subjectKind} in ('device_authorization','pairing','claim','grant_claim','authorization_request','transaction_authorization')`,
+    ),
+    /**
+     * At most one live interaction per underlying ceremony.
+     *
+     * Without it, two QR codes could address the same device-authorization
+     * session: the attacker mints a second interaction over a victim's live
+     * ceremony, gets that one approved, and the ceremony settles on an
+     * envelope its initiator never saw. Partial because terminal rows are the
+     * audit trail — history must accumulate, only the live slot is exclusive,
+     * and a re-issued QR after an expiry is legitimate.
+     */
+    uniqueIndex("interactions_live_subject_idx")
+      .on(t.subjectKind, t.subjectId)
+      .where(
+        sql`${t.status} in ('pending','presented','awaiting_approval','approved')`,
+      ),
+    /**
+     * The sweeper's index. Expiry is enforced on every read (`assertLive`),
+     * but a lapsed row that stays live in the table is an approval window that
+     * never closes if the read path is ever bypassed — so the sweep must be
+     * able to find due rows without scanning the whole history.
+     */
+    index("interactions_expiry_idx")
+      .on(t.expiresAt)
+      .where(
+        sql`${t.status} in ('pending','presented','awaiting_approval','approved')`,
+      ),
+    /**
+     * The approver's inbox read. Composite with `status` so listing one
+     * principal's pending questions never widens into a scan another
+     * principal's rows pass through — an inbox that has to filter in the
+     * application is an inbox that can leak by forgetting to.
+     */
+    index("interactions_approver_idx").on(t.approverPrincipalId, t.status),
+    /**
+     * A consumption time only exists on a consumed row.
+     *
+     * `consumed_at` is what proves an approval was spent exactly once. A row
+     * carrying one while claiming any other status would let a replayed
+     * execution look unspent to a reader that trusts the status column.
+     */
+    check(
+      "interactions_consumed_at_check",
+      sql`${t.consumedAt} is null or ${t.status} = 'consumed'`,
+    ),
+    /**
+     * A settled decision names when it was made.
+     *
+     * `denied` and `consumed` only exist because a human answered: `deny`
+     * stamps `decided_at`, and `consumed` is reachable only from `approved`,
+     * which stamps it too. A row in either state without one is an approval
+     * with no moment attached — unauditable, and indistinguishable from one
+     * written around the machine.
+     *
+     * `expired` and `revoked` are excluded because neither has a decider.
+     * Expiry is the clock running out, and revocation is reachable from
+     * `pending`, where nobody has been asked yet. Widening this check to all
+     * four terminal states would be a constraint the legitimate paths cannot
+     * satisfy.
+     */
+    check(
+      "interactions_decided_at_check",
+      sql`${t.status} not in ('denied','consumed') or ${t.decidedAt} is not null`,
+    ),
+  ],
+);

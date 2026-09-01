@@ -1,0 +1,41 @@
+{
+  "pages": [
+    { "id": "page-1", "name": "Keep it" },
+    { "id": "page-2", "name": "Placement model" }
+  ],
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Setup, on a phone", "is_interactive": true },
+    { "file": "Settings.dc.html", "x": 510, "y": 0, "w": 760, "h": 520, "page": "page-1", "title": "Where it lives afterwards" },
+    { "file": "Wide.dc.html", "x": 0, "y": 1000, "w": 1120, "h": 660, "page": "page-1", "title": "Above 640px" },
+    { "file": "ModelSection.dc.html", "x": 0, "y": 0, "w": 390, "h": 680, "page": "page-2", "title": "Option A — chosen" },
+    { "file": "ModelBanner.dc.html", "x": 510, "y": 0, "w": 390, "h": 680, "page": "page-2", "title": "Option B" },
+    { "file": "ModelStep.dc.html", "x": 1020, "y": 0, "w": 390, "h": 680, "page": "page-2", "title": "Option C — withdrawn" }
+  ],
+  "annotations": [
+    {
+      "id": "start-here",
+      "x": 0,
+      "y": -210,
+      "w": 470,
+      "page": "page-1",
+      "text": "Start here — this artboard is live.\n\nScroll to \"Keep it on this device\" and press Install to watch the offer become a report. The Install state chip above the frame is the browser talking: prompt is Chromium having said the app is installable, manual is iOS (no API exists — the reader's own three taps), dismissed is after a refusal, installed is after the fact, and unavailable removes the whole section, heading included."
+    },
+    {
+      "id": "settings-note",
+      "x": 510,
+      "y": -210,
+      "w": 470,
+      "page": "page-1",
+      "text": "Setup runs once; this is where the offer lives for good.\n\nSame component, same states, same rule — present when there is an install to make or one to report, absent when there is neither. Someone who ignored the section, or opened the deploy on a second device, finds it here rather than hunting the address bar."
+    },
+    {
+      "id": "model-note",
+      "x": 0,
+      "y": -250,
+      "w": 470,
+      "page": "page-2",
+      "text": "The one decision worth arguing: where the install offer goes.\n\nA is built. B is drawn because it is the cheapest thing that could work. C was built first, against the two-step ceremony that existed then — ADR 0078 has since cut setup to one screen and one question, so a stepper would now undo that rather than place anything. Each states its own cost."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-1" }
+}

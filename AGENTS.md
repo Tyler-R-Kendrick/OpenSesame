@@ -175,6 +175,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `crates/ceremony` | Connector registration ceremonies — the C0..C3 tier ladder, typed capture slots that fail closed, and ADR 0082 §5's refusals as types (ADR 0082) |
 | `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
 | `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3) |
+| `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
@@ -190,18 +191,24 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/pwa` / `apps/mobile-mfa` | Client PWA + step-up MFA UX (against `:8788`) |
 | `apps/pages` | Installable GitHub Pages offline PWA — authority vault |
+| `apps/pages/src/tutorial` | In-product contextual support: the semantic target/route/predicate registries, the Driver.js renderer, the on-device and AG-UI transports, and the support panel (ADR 0088) |
 | `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
 | `apps/console` | Vite Identity console (web UI) |
 | `apps/worker` | Background worker |
 | `apps/browser-extension` | WXT browser extension |
 | `apps/example-rp-alpha` / `apps/example-rp-beta` | Example relying-party apps |
 | `apps/example-agent` / `apps/example-headless` | Example agent / headless client |
+| `packages/vault-item-types` | Vault item type definitions (`definitions/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
 | `packages/os-domain` | Domain models — must not import Better Auth/oidc-provider/Hono/Drizzle/React |
 | `packages/database` | Drizzle schema + migrations |
 | `packages/api-client` | Host API TS client |
 | `packages/cli` | Client CLI, binary `opensesame-id` |
 | `packages/auth-upstream` / `oauth-provider` / `claims` / `device-auth` | Identity-plane building blocks |
 | `packages/policy` / `audit` / `contracts` | Authorization policy, audit trail, shared contracts |
+| `packages/ceremony-kit` | UI-independent ceremony logic — canonical interaction URLs, the interaction client, display-safe summaries (ADR 0086) |
+| `packages/wallet` | Vendor-neutral `WalletPassProvider` + Google Wallet Generic Pass adapter; optional, never on the approval path (ADR 0086) |
+| `packages/openid4vp` | OpenID4VP **verifier** — request construction and presentation verification, digest-bound (ADR 0086) |
+| `packages/openid4vci` | OpenID4VCI **issuer** for the minimal OpenSesame credential (ADR 0086) |
 | `packages/sdk-browser` / `sdk-server` / `sdk-cli` | Client SDKs |
 | `packages/agent-protocols` | Agent-facing protocol adapters |
 | `packages/testing` | Shared test utilities (incl. `test:security`) |
@@ -209,7 +216,10 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `packages/observability` | Structured logging + deep redaction |
 | `packages/notification-adapters` | Channel adapters (Slack, Teams, Telegram, WeChat, SMS bridge, Web Push, generic webhook) — provenance verification, rendering, delivery; no provider logic anywhere else (ADR 0084) |
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
-| `packages/webmcp` | WebMCP (`navigator.modelContext`) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
+| `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages`/`apps/pwa` tools |
+| `packages/guide-lang` | GuideLang — the versioned tutorial language an in-product support model may write; parser, canonical serializer and validators. Deliberately cannot express a click, a selector or a URL (ADR 0088) |
+| `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser |
+| `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |
 | `packages/config` | Shared tsconfig |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
@@ -228,7 +238,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0084).
+  0001–0088).
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
@@ -267,11 +277,40 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   commits to the request digest, the decision verb, and the effective policy
   digest, and is spent by a durable compare-and-set. An activation minted for
   one request, one verb, or one policy can never settle another (ADR 0084).
+- A vault item type is a manifest, never a code path. Adding one is a JSON
+  file in `packages/vault-item-types/definitions/` (embedded by both planes),
+  and a user can install one at runtime with no build. Fields name types from
+  the closed catalogue; a concealed field may never reach `subtitle`, `search`,
+  or a VFS filename; only a platform-published definition may name a ceremony
+  handler ([ADR 0087](docs/adr/0087-vault-item-type-plugins.md)).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,
   mcp-client, pages, and both CLIs enforce this
   ([ADR 0065](docs/adr/0065-agent-surface-parity.md)).
+- A cross-device handoff is an `Interaction` and nothing else. Every surface —
+  QR, Google Wallet, the PWA, a CLI link, a future wallet provider — is a
+  presentation adapter over the one envelope, and every proof mechanism is an
+  adapter over `ApprovalProof`. Do not add a second authority model beside it:
+  a reference authorizes nothing, and an approval counts only when
+  `proof.boundDigest` equals the interaction's `requestDigest`
+  ([ADR 0086](docs/adr/0086-wallet-native-interaction-layer.md)).
+- Payment *authorization* is in scope; payment *credentials* never are.
+  `assertNoPaymentCredentials` refuses card data by field name and by
+  Luhn-checking values, and OpenSesame issues no cards, provisions no DPANs and
+  stores no PAN/CVV (ADR 0086 §6).
+- In-product support guides by *pointing*, never by acting. A model may emit
+  GuideLang and nothing else, and GuideLang has no directive for a click, a
+  keystroke, a submit, a fetch, a tool call, a selector or a URL — an id it
+  names is resolved through the target registry in
+  `apps/pages/src/tutorial/registry`, or the program is discarded whole. Model
+  text reaches the document as text; the renderer hands Driver.js a placeholder
+  and writes prose with `textContent`. Page context is assembled from authored
+  registries only, never from the DOM, so no secret, item name or folder name
+  has a path into a prompt. A new control worth asking about gets a catalog
+  entry with checked-in prose; a new authored guide is compiled by the same
+  parser and validator model output goes through
+  ([ADR 0088](docs/adr/0088-ai-native-contextual-support.md)).
 - A screen's terminal commit is the shared `.go` ink square with its verb
   beside it; `.btn--primary` with a text label is for actions *inside* a card.
   Both patterns are named in [`docs/design/controls.md`](docs/design/controls.md)
@@ -285,7 +324,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 ## 6. Security posture
 
 - `docs/security/notification-approval-threat-model.md` — trust boundaries and
-  residual risks for external notification and approval (ADR 0084);
+  residual risks for external notification and approval (ADR 0086);
   `docs/operators/notification-channels.md` — the channel capability matrix and
   per-provider setup.
 - `docs/security/security-boundaries.md`, `docs/security/threat-model.md`,

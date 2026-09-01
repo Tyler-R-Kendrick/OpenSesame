@@ -1546,6 +1546,87 @@
     }
   },
   {
+    "id": "identity.interaction.create",
+    "title": "Ask someone to authorize an operation",
+    "plane": "identity",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "the requester already learns the outcome on the channel it created the interaction on; a second agent-facing read would be a way to watch somebody else's inbox",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "mcp_client": {
+        "reason": "the requester already learns the outcome on the channel it created the interaction on; a second agent-facing read would be a way to watch somebody else's inbox",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "webmcp": {
+        "reason": "the requester already learns the outcome on the channel it created the interaction on; a second agent-facing read would be a way to watch somebody else's inbox",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      }
+    }
+  },
+  {
+    "id": "identity.interaction.approve",
+    "title": "Approve a cross-device interaction",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "mcp_client": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "webmcp": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      }
+    }
+  },
+  {
+    "id": "identity.interaction.deny",
+    "title": "Deny a cross-device interaction",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "mcp_client": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      },
+      "webmcp": {
+        "reason": "approving an interaction is the human decision the whole layer exists to obtain; an agent surface that could answer one would make the ceremony decorative",
+        "adr": "0086-wallet-native-interaction-layer.md"
+      }
+    }
+  },
+  {
     "id": "identity.login",
     "title": "Identity sign-in (device, loopback, anonymous)",
     "plane": "identity",
@@ -1941,6 +2022,52 @@
     }
   },
   {
+    "id": "vault.item_types.list",
+    "title": "List the item types registered on this device",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/item-types.ts:itemTypeRegistry",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+        "adr": "0087-vault-item-type-plugins.md"
+      }
+    }
+  },
+  {
+    "id": "vault.item_types.install",
+    "title": "Install or remove a vault item type definition",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/settings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+        "adr": "0087-vault-item-type-plugins.md"
+      },
+      "mcp_client": {
+        "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+        "adr": "0087-vault-item-type-plugins.md"
+      },
+      "webmcp": {
+        "reason": "an item type defines the shape a human is then asked to fill in; an agent that could install or enumerate one could shape that prompt",
+        "adr": "0087-vault-item-type-plugins.md"
+      }
+    }
+  },
+  {
     "id": "vault.export",
     "title": "Export/backup the vault (plaintext-capable)",
     "plane": "client_local",
@@ -1986,6 +2113,52 @@
     }
   },
   {
+    "id": "client.support",
+    "title": "In-product contextual support conversation",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_help"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
+        "adr": "0088-ai-native-contextual-support.md"
+      },
+      "mcp_client": {
+        "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
+        "adr": "0088-ai-native-contextual-support.md"
+      }
+    }
+  },
+  {
+    "id": "client.tutorial",
+    "title": "Named in-product walkthroughs",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_guide_start"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
+        "adr": "0088-ai-native-contextual-support.md"
+      },
+      "mcp_client": {
+        "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
+        "adr": "0088-ai-native-contextual-support.md"
+      }
+    }
+  },
+  {
     "id": "pwa.status",
     "title": "Thin PWA session status",
     "plane": "client_local",
@@ -1996,6 +2169,25 @@
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_pwa_status"
+    }
+  },
+  {
+    "id": "app.install",
+    "title": "Install the PWA on this device",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/install.ts:installWorthShowing",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "installing is a browser-mediated act on the human's own device: the install dialog only opens inside a transient user activation, and there is no gesture an agent can supply or consent it can give on the device owner's behalf",
+        "adr": "0085-pwa-install-offer.md"
+      }
     }
   },
   {

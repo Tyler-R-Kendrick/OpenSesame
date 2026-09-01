@@ -1,0 +1,88 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "database",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Database",
+    "plural": "Databases",
+    "extension": ".db",
+    "summary": "Connection details for a database, and the credential that opens it.",
+    "categories": ["developer", "access"],
+    "sections": [
+      {
+        "id": "connection",
+        "title": "Connection",
+        "fields": [
+          {
+            "id": "engine",
+            "type": "select",
+            "label": "Engine",
+            "options": [
+              "postgresql",
+              "mysql",
+              "mariadb",
+              "sqlserver",
+              "oracle",
+              "mongodb",
+              "redis",
+              "sqlite",
+              "other"
+            ]
+          },
+          { "id": "endpoint", "type": "host-port", "label": "Endpoint" },
+          { "id": "databaseName", "type": "string", "label": "Database" },
+          { "id": "username", "type": "string", "label": "Username" },
+          { "id": "password", "type": "password", "label": "Password" },
+          {
+            "id": "connectionString",
+            "type": "concealed",
+            "label": "Connection string"
+          }
+        ]
+      },
+      {
+        "id": "tls",
+        "title": "TLS",
+        "fields": [
+          {
+            "id": "sslMode",
+            "type": "select",
+            "label": "SSL mode",
+            "options": [
+              "disable",
+              "allow",
+              "prefer",
+              "require",
+              "verify-ca",
+              "verify-full"
+            ]
+          },
+          {
+            "id": "caCertificate",
+            "type": "multiline",
+            "label": "CA certificate"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "password",
+      "trailer": [
+        { "key": "engine", "field": "engine" },
+        { "key": "host", "field": "endpoint" },
+        { "key": "database", "field": "databaseName" },
+        { "key": "login", "field": "username" },
+        { "key": "connection_string", "field": "connectionString" },
+        { "key": "ssl_mode", "field": "sslMode" },
+        { "key": "ca", "field": "caCertificate" }
+      ]
+    },
+    "cxf": { "credential": "custom-fields" },
+    "subtitle": ["engine", "databaseName"],
+    "search": ["engine", "databaseName", "username"]
+  }
+}

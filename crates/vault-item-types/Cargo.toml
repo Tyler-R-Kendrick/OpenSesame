@@ -1,0 +1,15 @@
+[package]
+name = "opensesame-vault-item-types"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Vault item type definitions, the host-plane parser, and the base native secret projection (ADR 0078)"
+
+[dependencies]
+opensesame-sealed-store = { path = "../sealed-store" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.20.0"

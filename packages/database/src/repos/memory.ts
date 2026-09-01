@@ -12,6 +12,9 @@ import type {
   ComparisonChallenge,
   ExternalChannelBinding,
   ExternalIdentity,
+  Interaction,
+  InteractionKind,
+  InteractionStatus,
   NotificationDelivery,
   NotificationPreferences,
   Organization,
@@ -23,6 +26,7 @@ import type {
   WebhookDelivery,
   WebhookEndpoint,
 } from "@opensesame/os-domain";
+import { interactionMachine } from "@opensesame/os-domain";
 import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
@@ -40,6 +44,7 @@ import {
   ConflictError,
   type EnsurePersonalProjectResult,
   type ExternalIdentityRepository,
+  type InteractionRepository,
   type NewOutboxEvent,
   NotFoundError,
   type NotificationDeliveryRepository,
@@ -97,6 +102,39 @@ function cloneAuthorizationRequest(
   // Postgres implementation round-trips it. A shallow copy would let a caller
   // mutate a stored row here and not there.
   return structuredClone(request);
+}
+
+function cloneInteraction(interaction: Interaction): Interaction {
+  // structuredClone rather than a spread: `subject`, `authorizationDetails`,
+  // `assuranceRequired` and `approvalProof` are nested, and the Postgres
+  // implementation round-trips all four through jsonb. A shallow copy would
+  // let a caller mutate a stored row here and not there, which is the kind of
+  // divergence a test suite passes straight through.
+  return structuredClone(interaction);
+}
+
+/**
+ * The live interaction over one ceremony, if any.
+ *
+ * "Live" is `machines/interaction.ts`'s own definition, read from the machine
+ * rather than restated: a second copy of the terminal set is a second thing to
+ * get out of step with the first.
+ */
+function liveInteractionForSubject(
+  rows: Iterable<Interaction>,
+  subjectKind: InteractionKind,
+  subjectId: string,
+): Interaction | undefined {
+  for (const row of rows) {
+    if (
+      row.subject.kind === subjectKind &&
+      row.subject.subjectId === subjectId &&
+      !interactionMachine.isTerminal(row.status)
+    ) {
+      return row;
+    }
+  }
+  return undefined;
 }
 
 function cloneClaim(session: ClaimSession): ClaimSession {
@@ -256,6 +294,7 @@ class MemoryStore {
   audit = new Map<string, AuditEvent>();
   outbox = new Map<string, OutboxEvent>();
   authorizationRequests = new Map<string, AuthorizationRequest>();
+  interactions = new Map<string, Interaction>();
   webhookEndpoints = new Map<string, WebhookEndpoint>();
   webhookDeliveries = new Map<string, WebhookDelivery>();
   channelBindings = new Map<string, ExternalChannelBinding>();
@@ -593,6 +632,113 @@ export class MemoryRepositories implements Repositories {
       };
       applyNowOrDefer(uow, apply);
       return cloneAuthorizationRequest(merged);
+    },
+  };
+
+  readonly interactions: InteractionRepository = {
+    create: async (interaction, uow) => {
+      if (this.#store.interactions.has(interaction.id)) {
+        throw new ConflictError(
+          `interaction already exists: ${interaction.id}`,
+        );
+      }
+      // Mirrors `interactions_live_subject_idx`. Postgres enforces one live
+      // envelope per ceremony with a partial unique index; a memory store that
+      // let a second one through would green-light the exact write the
+      // database rejects — two QR codes addressing one device-authorization
+      // session, one of which the initiator never saw.
+      if (
+        !interactionMachine.isTerminal(interaction.status) &&
+        liveInteractionForSubject(
+          this.#store.interactions.values(),
+          interaction.subject.kind,
+          interaction.subject.subjectId,
+        )
+      ) {
+        throw new ConflictError(
+          `interaction already live for subject: ${interaction.subject.kind}/${interaction.subject.subjectId}`,
+        );
+      }
+      const row = cloneInteraction(interaction);
+      const apply = () => {
+        this.#store.interactions.set(row.id, cloneInteraction(row));
+      };
+      applyNowOrDefer(uow, apply);
+      return cloneInteraction(row);
+    },
+
+    getById: async (id) => {
+      const row = this.#store.interactions.get(id);
+      return row ? cloneInteraction(row) : null;
+    },
+
+    getBySubject: async (subjectKind, subjectId) => {
+      const row = liveInteractionForSubject(
+        this.#store.interactions.values(),
+        subjectKind,
+        subjectId,
+      );
+      return row ? cloneInteraction(row) : null;
+    },
+
+    listForApprover: async (principalId, filter) => {
+      const rows = [...this.#store.interactions.values()]
+        .filter((row) => row.approverPrincipalId === principalId)
+        .filter((row) => !filter?.status || row.status === filter.status)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      return rows.slice(0, filter?.limit ?? 50).map(cloneInteraction);
+    },
+
+    updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      const current = this.#store.interactions.get(id);
+      if (!current) {
+        throw new NotFoundError(`interaction not found: ${id}`);
+      }
+      if (current.version !== expectedVersion) {
+        throw new ConflictError(
+          `interaction version conflict: expected ${expectedVersion}, got ${current.version}`,
+        );
+      }
+      // Field by field rather than `...patch`, mirroring the explicit `set()`
+      // the Postgres implementation writes. A spread would apply whatever a
+      // JavaScript caller handed over — including the consented-to fields the
+      // patch type forbids — and the two stores would then disagree about
+      // whether a settled interaction can be rewritten, with only the one
+      // nobody runs tests against enforcing it.
+      const merged: Interaction = { ...current, version: current.version + 1 };
+      if (patch.status !== undefined) merged.status = patch.status;
+      if (patch.approverPrincipalId !== undefined) {
+        merged.approverPrincipalId = patch.approverPrincipalId;
+      }
+      if (patch.approvalProof !== undefined) {
+        merged.approvalProof = patch.approvalProof;
+      }
+      if (patch.presentedAt !== undefined)
+        merged.presentedAt = patch.presentedAt;
+      if (patch.decidedAt !== undefined) merged.decidedAt = patch.decidedAt;
+      if (patch.consumedAt !== undefined) merged.consumedAt = patch.consumedAt;
+      if (patch.revokedAt !== undefined) merged.revokedAt = patch.revokedAt;
+      // The partial unique index applies to updates too, so a patch that
+      // brings a row back into the live set has to lose to whoever holds the
+      // slot. Without this a settled envelope could be reopened alongside the
+      // replacement that was issued after it settled.
+      if (!interactionMachine.isTerminal(merged.status)) {
+        const holder = liveInteractionForSubject(
+          this.#store.interactions.values(),
+          merged.subject.kind,
+          merged.subject.subjectId,
+        );
+        if (holder && holder.id !== merged.id) {
+          throw new ConflictError(
+            `interaction already live for subject: ${merged.subject.kind}/${merged.subject.subjectId}`,
+          );
+        }
+      }
+      const apply = () => {
+        this.#store.interactions.set(id, cloneInteraction(merged));
+      };
+      applyNowOrDefer(uow, apply);
+      return cloneInteraction(merged);
     },
   };
 

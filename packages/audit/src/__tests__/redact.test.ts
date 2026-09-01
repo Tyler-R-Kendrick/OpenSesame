@@ -200,6 +200,16 @@ describe("redaction boundaries (mutation coverage)", () => {
       "deliveryId",
       "detailsDigest",
       "receiptVersion",
+      "interactionId",
+      "interactionKind",
+      "subjectKind",
+      "subjectId",
+      "mechanism",
+      "credentialRef",
+      "assurance",
+      "walletProvider",
+      "passId",
+      "presentationId",
     ]);
   });
 

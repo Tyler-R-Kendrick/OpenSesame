@@ -46,6 +46,7 @@ import { buildHealthReport } from "../lib/vault/health.js";
 import {
   type DropState,
   type ItemKind,
+  type LegacyItemKind,
   type PasskeyCustody,
   type UriMatch,
   type VaultItem,
@@ -56,6 +57,7 @@ import {
 } from "../lib/vault/model.js";
 import { vaultStore } from "../lib/vault/store.js";
 import { parseTotp, secondsRemaining, totpCode } from "../lib/vault/totp.js";
+import { HELP_TOPICS, guideGoalIds } from "../tutorial/registry/goals.js";
 
 /** Mirror of AppShell's SECTIONS paths; the parity test pins them together. */
 export const SECTION_PATHS = [
@@ -81,12 +83,29 @@ export const webmcpNavigationSeam: WebMcpNavigationSeam = {
   navigate: noopNavigate,
 };
 
+export type WebMcpSupportSeam = {
+  openSupport: (topic: string | null) => void;
+  startGuide: (goal: string) => void;
+};
+
+/**
+ * Support seam: the support panel binds its live open/start functions here
+ * while it is mounted, the way the lifecycle hook binds the router. The
+ * defaults are silent no-ops so both guidance tools stay callable — and keep
+ * rejecting arguments that are not authored ids — in a build that ships no
+ * support UI, and in tests that drive them without one.
+ */
+export const webmcpSupportSeam: WebMcpSupportSeam = {
+  openSupport: () => {},
+  startGuide: () => {},
+};
+
 export type PagesWebMcpTool = WebMcpToolSpec & {
   capabilityIds: readonly string[];
   scope: "boot" | "session";
 };
 
-const ITEM_KINDS: readonly ItemKind[] = [
+const ITEM_KINDS: readonly LegacyItemKind[] = [
   "login",
   "passkey",
   "card",
@@ -96,12 +115,28 @@ const ITEM_KINDS: readonly ItemKind[] = [
   "drop",
 ];
 
-function isItemKind(value: string): value is ItemKind {
+/**
+ * WebMCP writes only the kinds that predate the item-type registry. Creating a
+ * plugin-defined item means choosing a type, and choosing a type is a human
+ * decision about the shape a person is then asked to fill in (ADR 0087).
+ */
+function isItemKind(value: string): value is LegacyItemKind {
   return ITEM_KINDS.some((kind) => kind === value);
 }
 
 function isSectionPath(value: string): boolean {
   return SECTION_PATHS.some((path) => path === value);
+}
+
+/** Authored help topic ids — checked-in prose keys, never a person's words. */
+const HELP_TOPIC_IDS: readonly string[] = HELP_TOPICS.map((topic) => topic.id);
+
+function isHelpTopicId(value: string): boolean {
+  return HELP_TOPIC_IDS.some((id) => id === value);
+}
+
+function isNamedGuideGoal(value: string): boolean {
+  return guideGoalIds().some((id) => id === value);
 }
 
 function str(args: JsonObject, key: string): string {
@@ -154,6 +189,7 @@ export type VaultItemMeta = {
   notAfter?: string;
   state?: DropState;
   expiresAt?: string;
+  typeId?: string;
 };
 
 /**
@@ -200,6 +236,11 @@ export function projectVaultItemMeta(item: VaultItem): VaultItemMeta {
       return { ...base, state: item.state, expiresAt: item.expiresAt };
     case "note":
       return base;
+    // A plugin-defined item names its type and nothing else. The allowlist is
+    // the point: a definition author must not be able to widen what leaves the
+    // vault into agent context by declaring a field (ADR 0087 §5).
+    case "typed":
+      return { ...base, typeId: item.typeId };
   }
 }
 
@@ -703,7 +744,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     ],
     scope: "session",
     description:
-      "Read-only settings summary: configured endpoint URLs, the active project, capability-connector bindings, and which plane runs the password-reset model. Values that could carry credentials are omitted, and the plane is reported but never chosen here (ADR 0083).",
+      "Read-only settings summary: configured endpoint URLs, the active project, capability-connector bindings, and which plane runs the password-reset model. Values that could carry credentials are omitted, and the plane is reported but never chosen here (ADR 0087).",
     inputSchema: {
       type: "object",
       properties: {},
@@ -713,7 +754,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       const settings = loadSettings();
       // Reported so an agent does not offer a ceremony that cannot run. Which
       // plane, and whether it is on — never the endpoint, which would tell a
-      // caller where to aim a redirect it is not allowed to make (ADR 0083).
+      // caller where to aim a redirect it is not allowed to make (ADR 0087).
       const plane = resolveModelPlane(
         loadModelProvider(),
         await browserInference(),
@@ -814,6 +855,70 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       requireUnlocked();
       const item = findItem(str(args, "itemId"));
       return ceremonyOpened(`/vault/${encodeURIComponent(item.id)}`);
+    },
+  },
+  {
+    name: "opensesame_help",
+    capabilityIds: ["client.support"],
+    scope: "session",
+    disposition: "tutorial_safe",
+    description:
+      "Open in-product support in this tab, optionally on one of the authored help topics. Guidance only: it opens a panel for the person and returns nothing but the topic it opened on — no vault contents, no answer text, no state the caller could not already read.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        topic: {
+          type: "string",
+          enum: [...HELP_TOPIC_IDS],
+          description: "Authored help topic to open on.",
+        },
+      },
+      additionalProperties: false,
+    },
+    execute: (args) => {
+      const topic = optStr(args, "topic");
+      if (topic !== null && !isHelpTopicId(topic)) {
+        throw new Error(
+          `unknown_help_topic:${topic} — topics are ${HELP_TOPIC_IDS.join(", ")}`,
+        );
+      }
+      webmcpSupportSeam.openSupport(topic);
+      return { status: "support_opened", topic };
+    },
+  },
+  {
+    name: "opensesame_guide_start",
+    capabilityIds: ["client.tutorial"],
+    scope: "session",
+    disposition: "tutorial_safe",
+    description:
+      "Start one of the named in-product walkthroughs by goal id. Guidance only: the walkthrough points at controls and waits for the person to act on them; it never acts for them and returns nothing but the goal it started.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        goal: {
+          type: "string",
+          enum: [...guideGoalIds()],
+          description: "Named goal to walk through.",
+        },
+      },
+      required: ["goal"],
+      additionalProperties: false,
+    },
+    // A goal id, and nothing else. Accepting a GuideLang program here is the
+    // surface ADR 0087 declines: a walkthrough handed in by an external
+    // browser agent would be model-authored instruction reaching the person
+    // through our own UI. Walkthroughs are authored in this repository, so
+    // membership in `guideGoalIds()` is the whole of what a caller may say.
+    execute: (args) => {
+      const goal = str(args, "goal");
+      if (!isNamedGuideGoal(goal)) {
+        throw new Error(
+          `unknown_guide_goal:${goal} — goals are ${guideGoalIds().join(", ")}`,
+        );
+      }
+      webmcpSupportSeam.startGuide(goal);
+      return { status: "guide_started", goal };
     },
   },
 ];

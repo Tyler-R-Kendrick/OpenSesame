@@ -10,7 +10,7 @@ import { longPress } from "../../lib/gestures.js";
 import { registerVaultKeymap, showKeymapHelp } from "../../lib/keymap.js";
 import { activeProject } from "../../lib/projects.js";
 import type { Folder, VaultItem } from "../../lib/vault/model.js";
-import { KIND_EXT, pathSegment, tombPath } from "../../lib/vault/paths.js";
+import { itemExtension, pathSegment, tombPath } from "../../lib/vault/paths.js";
 import { readFile, writeFile } from "../../lib/vfs.js";
 import { formatExpiry } from "./DropCeremony.js";
 
@@ -89,7 +89,7 @@ export const vaultTreeSeams = {
 };
 
 function itemMatches(item: VaultItem, query: string): boolean {
-  return `${pathSegment(item.name)}${KIND_EXT[item.kind]}`
+  return `${pathSegment(item.name)}${itemExtension(item)}`
     .toLowerCase()
     .includes(query);
 }
@@ -116,9 +116,9 @@ function buildRows(
   const itemRow = (item: VaultItem, prefix: string): ItemRow => ({
     type: "item",
     key: item.id,
-    path: `${prefix}${pathSegment(item.name)}${KIND_EXT[item.kind]}`,
+    path: `${prefix}${pathSegment(item.name)}${itemExtension(item)}`,
     name: pathSegment(item.name),
-    ext: KIND_EXT[item.kind],
+    ext: itemExtension(item),
     child: prefix !== "",
     item,
   });

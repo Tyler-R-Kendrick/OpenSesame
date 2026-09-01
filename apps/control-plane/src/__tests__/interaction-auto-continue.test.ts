@@ -6,14 +6,13 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   type ReferenceIdp,
   startReferenceIdp,
 } from "@opensesame/mock-upstream-idp/testkit";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { startServer } from "../server.js";
+import { onFreePort } from "./free-port.js";
 
 type Started = Awaited<ReturnType<typeof startServer>>;
 
@@ -50,15 +49,6 @@ class Jar {
   }
 }
 
-async function reservePort(): Promise<number> {
-  const probe = createServer();
-  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-  // SAFETY: probe.listen established the runtime AddressInfo invariant.
-  const port = (probe.address() as AddressInfo).port;
-  await new Promise<void>((r) => probe.close(() => r()));
-  return port;
-}
-
 async function req(base: string, jar: Jar, path: string): Promise<Response> {
   const url = path.startsWith("http") ? path : `${base}${path}`;
   const res = await fetch(url, { redirect: "manual", headers: jar.header() });
@@ -82,27 +72,29 @@ describe("interaction auto-continue is the default", () => {
 
   beforeAll(async () => {
     upstream = await startReferenceIdp();
-    const port = await reservePort();
     const { startServer: start } = await import("../server.js");
     // Deliberately no OPENSESAME_INTERACTION_AUTO_CONTINUE — and scrubbed
     // from the inherited environment, so a developer who exports it cannot
     // make this pass for the wrong reason.
     const { OPENSESAME_INTERACTION_AUTO_CONTINUE: _unset, ...cleanEnv } =
       process.env;
-    started = await start({
-      config: {
-        host: "127.0.0.1",
-        port,
-        publicUrl: `http://127.0.0.1:${port}`,
-        issuer: `http://127.0.0.1:${port}`,
-      },
-      processEnv: {
-        ...cleanEnv,
-        OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
-        OPENSESAME_TRUSTED_UPSTREAMS: upstream.issuer,
-      },
-    });
-    base = `http://127.0.0.1:${port}`;
+    started = await onFreePort((port) =>
+      start({
+        config: {
+          host: "127.0.0.1",
+          port,
+          publicUrl: `http://127.0.0.1:${port}`,
+          issuer: `http://127.0.0.1:${port}`,
+        },
+        processEnv: {
+          ...cleanEnv,
+          OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
+          OPENSESAME_TRUSTED_UPSTREAMS: upstream.issuer,
+        },
+      }),
+    );
+    // The bound port, not the one we asked for: a retried bind lands elsewhere.
+    base = `http://127.0.0.1:${started.port}`;
   });
 
   afterAll(async () => {
@@ -170,23 +162,25 @@ describe("interaction auto-continue", () => {
 
   beforeAll(async () => {
     upstream = await startReferenceIdp();
-    const port = await reservePort();
     const { startServer: start } = await import("../server.js");
-    started = await start({
-      config: {
-        host: "127.0.0.1",
-        port,
-        publicUrl: `http://127.0.0.1:${port}`,
-        issuer: `http://127.0.0.1:${port}`,
-      },
-      processEnv: {
-        ...process.env,
-        OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
-        OPENSESAME_TRUSTED_UPSTREAMS: upstream.issuer,
-        OPENSESAME_INTERACTION_AUTO_CONTINUE: "true",
-      },
-    });
-    base = `http://127.0.0.1:${port}`;
+    started = await onFreePort((port) =>
+      start({
+        config: {
+          host: "127.0.0.1",
+          port,
+          publicUrl: `http://127.0.0.1:${port}`,
+          issuer: `http://127.0.0.1:${port}`,
+        },
+        processEnv: {
+          ...process.env,
+          OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
+          OPENSESAME_TRUSTED_UPSTREAMS: upstream.issuer,
+          OPENSESAME_INTERACTION_AUTO_CONTINUE: "true",
+        },
+      }),
+    );
+    // The bound port, not the one we asked for: a retried bind lands elsewhere.
+    base = `http://127.0.0.1:${started.port}`;
   });
 
   afterAll(async () => {

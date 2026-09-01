@@ -133,6 +133,28 @@ describe("agent-surface parity rules", () => {
     expect(exclusionsFor("mcp_host").length).toBeGreaterThanOrEqual(10);
   });
 
+  it("in-product guidance ships on WebMCP and stays off headless MCP", () => {
+    for (const [id, tool] of [
+      ["client.support", "opensesame_help"],
+      ["client.tutorial", "opensesame_guide_start"],
+    ]) {
+      const capability = CAPABILITIES.find((c) => c.id === id);
+      expect(capability, `registry lost guidance entry ${id}`).toBeDefined();
+      expect(capability?.plane).toBe("client_local");
+      expect(capability?.kind).toBe("read");
+      expect(capability?.surfaces.webmcp).toBe(tool);
+      expect(capability?.surfaces.cli).toBeNull();
+      expect(capability?.surfaces.mcp_host).toBeNull();
+      expect(capability?.surfaces.mcp_client).toBeNull();
+      for (const surface of ["mcp_host", "mcp_client"] as const) {
+        expect(
+          capability?.excluded?.[surface]?.adr,
+          `${id} must cite the contextual-support ADR on ${surface}`,
+        ).toBe("0088-ai-native-contextual-support.md");
+      }
+    }
+  });
+
   it("surface strings follow the documented conventions", () => {
     for (const capability of CAPABILITIES) {
       const { cli, pwa } = capability.surfaces;

@@ -1,0 +1,43 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "address",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Address",
+    "plural": "Addresses",
+    "extension": ".address",
+    "summary": "A postal address, for filling in the forms that keep asking for one.",
+    "categories": ["identity"],
+    "sections": [
+      {
+        "id": "address",
+        "title": "Address",
+        "fields": [
+          { "id": "recipient", "type": "person-name", "label": "Recipient" },
+          {
+            "id": "postal",
+            "type": "address",
+            "label": "Address",
+            "required": true
+          },
+          { "id": "phone", "type": "phone", "label": "Telephone" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": null,
+      "trailer": [
+        { "key": "recipient", "field": "recipient" },
+        { "key": "address", "field": "postal" },
+        { "key": "phone", "field": "phone" }
+      ]
+    },
+    "cxf": { "credential": "address" },
+    "subtitle": [],
+    "search": ["postal"]
+  }
+}

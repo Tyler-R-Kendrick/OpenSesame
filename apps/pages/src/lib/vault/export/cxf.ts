@@ -29,12 +29,20 @@
  * the UI has to say so, and the user has to delete the file afterwards.
  */
 
+import { isString } from "@opensesame/os-domain";
+import {
+  FIELD_TYPES,
+  type FieldValue,
+  definitionFields,
+  displayText,
+} from "@opensesame/vault-item-types";
 import {
   type SkippedRecord,
   base64ToBase64Url,
   base64UrlToBase64,
 } from "../import/types.js";
-import type { VaultBody, VaultItem } from "../model.js";
+import { definitionFor } from "../item-types.js";
+import type { TypedItem, VaultBody, VaultItem } from "../model.js";
 
 export const CXF_VERSION = 1 as const;
 export const CXF_EXPORTER = "OpenSesame" as const;
@@ -230,6 +238,58 @@ function field(
     : { fieldType, value, label };
 }
 
+/**
+ * A plugin-defined item as CXF custom fields.
+ *
+ * Concealment comes from the field type, so a value the vault hides is written
+ * `concealed-string` here — which is what an importer needs to hide it too.
+ * This document is plaintext by design (see the file header); the field type
+ * carries the intent, not the secrecy.
+ */
+function typedCredential(item: TypedItem): CxfCredential | null {
+  const definition = definitionFor(item);
+  const rows: CxfEditableField[] = [];
+  if (definition === undefined) {
+    // No definition on this device. The values are still the user's, and an
+    // export that dropped them would lose them for good.
+    for (const [id, value] of Object.entries(item.values)) {
+      const text = flattenUnknownValue(value);
+      if (text !== "") rows.push(field(text, "concealed-string", id));
+    }
+  } else {
+    for (const declaredField of definitionFields(definition)) {
+      const text = displayText(declaredField, item.values[declaredField.id]);
+      if (text === "") continue;
+      rows.push(
+        field(
+          text,
+          FIELD_TYPES[declaredField.type].concealed
+            ? "concealed-string"
+            : "string",
+          declaredField.label,
+        ),
+      );
+    }
+  }
+  if (rows.length === 0) return null;
+  return {
+    type: CXF_TYPES.customFields,
+    id: item.id,
+    label: definition?.spec.title ?? item.typeId,
+    fields: rows,
+  };
+}
+
+/** A value whose field type is unknown here, flattened without losing parts. */
+function flattenUnknownValue(value: FieldValue | undefined): string {
+  if (value === undefined) return "";
+  if (isString(value)) return value;
+  if (Array.isArray(value)) return value.filter(isString).join(", ");
+  return Object.values(value)
+    .filter((part) => part !== "")
+    .join(", ");
+}
+
 function customFieldsCredential(
   id: string,
   fields: readonly { name: string; value: string; hidden: boolean }[],
@@ -402,6 +462,16 @@ function itemFor(item: VaultItem) {
             "A drop is a one-time share in flight, not a stored secret — the payload never lives in the vault, so there is nothing durable to export.",
         },
       };
+    case "typed": {
+      // `custom-fields` is the floor CXF defines for what the standard did not
+      // anticipate, which is exactly what makes every community type
+      // exportable (ADR 0087 §4). Without this arm a plugin-defined item would
+      // leave here with no credentials at all — silently empty in the file the
+      // user is told holds their whole vault.
+      const declared = typedCredential(item);
+      if (declared !== null) base.credentials.push(declared);
+      break;
+    }
   }
 
   if (note !== null) base.credentials.push(note);
