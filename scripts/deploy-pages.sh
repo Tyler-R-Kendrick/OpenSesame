@@ -154,7 +154,7 @@ if [ -n "${PAGES_IDENTITY_API:-}" ] || [ -n "${PAGES_HOST_API:-}" ] \
     printf '\n}\n'
   } > "$PAGES_DIST/os-runtime-config.json"
 else
-  log "no PAGES_IDENTITY_API set — deploy ships without os-runtime-config.json;"
+  log "no PAGES_* endpoints set — keeping the empty os-runtime-config.json from the build"
   log "the app will show its 'not connected to an identity service' notice"
 fi
 

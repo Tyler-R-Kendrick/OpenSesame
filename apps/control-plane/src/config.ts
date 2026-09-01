@@ -150,6 +150,29 @@ function truthyDefaultOn(v: string | undefined): boolean {
   return !(v === "false" || v === "0");
 }
 
+/** Deployed GitHub Pages vault. Local CORS overrides must not drop this origin. */
+export const PAGES_DEPLOY_ORIGIN = "https://tyler-r-kendrick.github.io";
+
+const DEFAULT_CORS_ORIGINS =
+  "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174,http://127.0.0.1:5176,http://localhost:5176,http://127.0.0.1:5180,http://localhost:5180,http://127.0.0.1:5181,http://localhost:5181,https://tyler-r-kendrick.github.io";
+
+function parseOriginList(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function corsOriginsFromEnv(env: NodeJS.ProcessEnv): string[] {
+  const origins = parseOriginList(
+    env.OPENSESAME_CORS_ORIGINS ?? DEFAULT_CORS_ORIGINS,
+  );
+  if (!origins.includes(PAGES_DEPLOY_ORIGIN)) {
+    origins.push(PAGES_DEPLOY_ORIGIN);
+  }
+  return origins;
+}
+
 /** True when a bind host is loopback (matches Rust host-core daemon policy). */
 export function listenHostIsLoopback(host: string): boolean {
   const h = host.trim().replace(/^\[/, "").replace(/\]$/, "");
@@ -258,13 +281,7 @@ export function loadConfig(
     // gate that on OPENSESAME_DEV_BOOTSTRAP (Host demo seed only).
     bootstrapPersonalOrganization: !isProduction && allowDevDefaults,
     isProduction,
-    corsOrigins: (
-      env.OPENSESAME_CORS_ORIGINS ??
-      "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5174,http://localhost:5174,http://127.0.0.1:5176,http://localhost:5176,http://127.0.0.1:5180,http://localhost:5180,http://127.0.0.1:5181,http://localhost:5181,https://tyler-r-kendrick.github.io"
-    )
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
+    corsOrigins: corsOriginsFromEnv(env),
     hostApiUrl: (
       env.OPENSESAME_HOST_API ??
       env.OPENSESAME_SERVER ??

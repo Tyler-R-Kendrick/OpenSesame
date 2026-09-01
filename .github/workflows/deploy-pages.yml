@@ -10,8 +10,8 @@
 # as repository Actions *variables* (Settings → Secrets and variables →
 # Actions → Variables): PAGES_IDENTITY_API, PAGES_HOST_API,
 # PAGES_DAEMON_API, PAGES_MFA_APP_URL. All optional — with none set the
-# deploy ships without the file and the app shows its "not connected to an
-# identity service" notice, same as scripts/deploy-pages.sh.
+# build still ships `{}` from apps/pages/public/ so the boot fetch is a
+# 200, and the app shows its "not connected to an identity service" notice.
 name: Deploy Pages
 
 on:
@@ -62,7 +62,7 @@ jobs:
           PAGES_MFA_APP_URL: ${{ vars.PAGES_MFA_APP_URL }}
         run: |
           if [ -z "$PAGES_IDENTITY_API$PAGES_HOST_API$PAGES_DAEMON_API$PAGES_MFA_APP_URL" ]; then
-            echo "no PAGES_* variables set — deploying without os-runtime-config.json"
+            echo "no PAGES_* variables set — keeping the empty os-runtime-config.json from the build"
             exit 0
           fi
           node -e '

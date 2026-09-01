@@ -103,7 +103,7 @@ time, so a static deploy is repointed without a rebuild:
 PAGES_IDENTITY_API=https://<broker> scripts/deploy-pages.sh
 ```
 
-Without it the deploy ships no `os-runtime-config.json` and the vault says it is
+Without it the deploy ships an empty `os-runtime-config.json` and the vault says it is
 not connected to an identity service — which is the honest answer, not a bug.
 
 **Real providers.** Google, Microsoft, GitHub and Apple are configured on the
