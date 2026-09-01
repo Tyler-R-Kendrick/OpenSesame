@@ -2108,11 +2108,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
-        "adr": "0087-ai-native-contextual-support.md"
+        "adr": "0088-ai-native-contextual-support.md"
       },
       "mcp_client": {
         "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
-        "adr": "0087-ai-native-contextual-support.md"
+        "adr": "0088-ai-native-contextual-support.md"
       }
     }
   },
@@ -2131,11 +2131,11 @@
     "excluded": {
       "mcp_host": {
         "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
-        "adr": "0087-ai-native-contextual-support.md"
+        "adr": "0088-ai-native-contextual-support.md"
       },
       "mcp_client": {
         "reason": "guidance opens UI in the person's own unlocked tab and points at controls there; a headless MCP server has neither a page to guide nor a person watching it, and the walkthrough itself is authored in-repo rather than accepted from a caller, so there is nothing for a headless surface to carry",
-        "adr": "0087-ai-native-contextual-support.md"
+        "adr": "0088-ai-native-contextual-support.md"
       }
     }
   },

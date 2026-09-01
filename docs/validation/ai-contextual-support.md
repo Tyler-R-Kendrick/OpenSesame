@@ -1,7 +1,7 @@
 # AI-native contextual support — validation
 
 What was actually run for the in-product support assistant and the adaptive
-tutorial system ([ADR 0087](../adr/0087-ai-native-contextual-support.md),
+tutorial system ([ADR 0088](../adr/0088-ai-native-contextual-support.md),
 [architecture](../architecture/ai-contextual-support.md)), what each command
 proves, and — the part that matters more — what it does not.
 
@@ -24,7 +24,7 @@ be the residual gaps rather than the pass counts.
 
 ## `pnpm --filter @opensesame/guide-lang test`
 
-**Proves.** The language is what ADR 0087 §1 says it is.
+**Proves.** The language is what ADR 0088 §1 says it is.
 
 `parse.test.ts` walks the grammar: header and goal placement, every wait
 subject, the budgets at their exact limits, and a case per declared diagnostic
@@ -336,7 +336,7 @@ trajectory instead of pointing at nothing. It also exercises the
 runtime with a program handed in as an AST — the path a parser bug, or any
 future caller that builds a program itself, would take.
 
-`webmcp-boundary.test.ts` attacks the wall ADR 0087 §8 puts between guidance
+`webmcp-boundary.test.ts` attacks the wall ADR 0088 §8 puts between guidance
 and actuation, which the WebMCP suites and the AG-UI suite each test only on
 their own terms — what neither covers is the pair, live in one document, with a
 hostile stream naming a real tool. It proves no export of the WebMCP package

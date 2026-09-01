@@ -3,7 +3,7 @@
 /**
  * What a real, populated vault contributes to model context: nothing.
  *
- * ADR 0087 names the vector precisely — vault item names, folder names,
+ * ADR 0088 names the vector precisely — vault item names, folder names,
  * connection labels and KDBX-imported entries are attacker-controlled text
  * that this application renders by design. The registry suite proves the
  * *catalog* interpolates none of it, which is a source check. This suite
