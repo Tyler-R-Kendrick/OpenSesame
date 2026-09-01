@@ -7,6 +7,7 @@
 export { GUIDE_TARGETS } from "./catalog.js";
 export { buildSupportPageContext, type PageContextInput } from "./context.js";
 export {
+  CAPABILITY_TUTORIALS,
   GUIDE_GOALS,
   HELP_TOPICS,
   type GuideGoalDescriptor,

@@ -80,7 +80,7 @@ import {
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
 import type { SecretItem, VaultItem } from "../lib/vault/model.js";
-import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { BindingEditor } from "./connections/BindingEditor.js";
 import { ConnectorMark } from "./connections/ConnectorMark.js";
 import { PolicyEditor } from "./connections/PolicyEditor.js";
@@ -235,14 +235,20 @@ export function AccessSection() {
         ceremony === null ? (
           <GrantsPanel online={online} onGrantAccess={openGrant} />
         ) : (
-          <GrantCeremony
-            online={online}
-            initialTarget={ceremony.target}
-            onClose={() => setCeremony(null)}
-          />
+          <GuideTarget id="access.grant-ceremony">
+            <GrantCeremony
+              online={online}
+              initialTarget={ceremony.target}
+              onClose={() => setCeremony(null)}
+            />
+          </GuideTarget>
         )
       ) : null}
-      {tab === "requests" ? <RequestsPanel online={online} /> : null}
+      {tab === "requests" ? (
+        <GuideTarget id="access.relay">
+          <RequestsPanel online={online} />
+        </GuideTarget>
+      ) : null}
       {tab === "sessions" ? <SessionsPanel online={online} /> : null}
       {tab === "resources" ? (
         <ResourcesPanel

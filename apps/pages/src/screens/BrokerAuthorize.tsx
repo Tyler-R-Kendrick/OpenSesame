@@ -27,6 +27,7 @@ import {
   parseBrokerRequest,
   touchConsent,
 } from "../lib/site-broker.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
 
@@ -52,6 +53,7 @@ function resumePath(request: BrokerRequest): string {
 
 export function BrokerAuthorize() {
   useSupportRoute("/broker/authorize");
+  const rootRef = useGuideTarget<HTMLDivElement>("broker.consent");
   const [searchParams] = useSearchParams();
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
 
@@ -170,7 +172,7 @@ export function BrokerAuthorize() {
   };
 
   return (
-    <div className="broker">
+    <div ref={rootRef} className="broker">
       <header className="broker__head">
         <p className="broker__brand">OpenSesame</p>
         <h1>Sign in for a static site</h1>

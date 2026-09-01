@@ -47,6 +47,7 @@ import { vaultStore } from "../lib/vault/store.js";
 import { webmcpSupportSeam } from "../webmcp/tools.js";
 import { HELP_TOPICS, guideGoal, guideGoalIds } from "./registry/goals.js";
 import {
+  GUIDE_OVERLAY_ROUTES,
   GUIDE_ROUTES,
   type GuideRouteId,
   guideRouteForPath,
@@ -788,7 +789,10 @@ export function SupportProvider({
   }, [controller, location.pathname, override]);
 
   useEffect(() => {
-    controller.setNavigator((route) => navigate(route));
+    controller.setNavigator((route) => {
+      if (GUIDE_OVERLAY_ROUTES.has(route)) return;
+      navigate(route);
+    });
   }, [controller, navigate]);
 
   // WebMCP's two guidance tools open this panel and start authored

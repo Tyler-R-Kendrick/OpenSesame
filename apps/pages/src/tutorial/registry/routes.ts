@@ -20,6 +20,13 @@ export type GuideRouteDescriptor = {
 };
 
 const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
+  { id: "/unlock", title: "Unlock — open the vault or sign in" },
+  { id: "/setup", title: "Setup — how people sign in to this deployment" },
+  {
+    id: "/broker/authorize",
+    title: "Broker — approve a static site sign-in",
+  },
+  { id: "/federation", title: "Federation return — finish a sign-in" },
   { id: "/vault", title: "Vault — every item this deployment holds" },
   { id: "/vault/health", title: "Vault health — weak, reused and aging items" },
   {
@@ -44,6 +51,14 @@ export const GUIDE_ROUTES: readonly GuideRouteDescriptor[] = [
   ...SECTION_ROUTES,
   ...SETTINGS_ROUTES,
 ];
+
+/** Named by `useSupportRoute`; a guide may wait on them, never navigate to them. */
+export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
+  "/unlock",
+  "/setup",
+  "/broker/authorize",
+  "/federation",
+]);
 
 const byId = new Map<GuideRouteId, GuideRouteDescriptor>();
 for (const route of GUIDE_ROUTES) {

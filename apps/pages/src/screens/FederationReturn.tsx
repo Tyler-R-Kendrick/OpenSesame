@@ -33,6 +33,7 @@ import {
 } from "../lib/guest-auth.js";
 import { ensureIdentitySession } from "../lib/identity.js";
 import { joinOrgTenant } from "../lib/orgs.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
 
@@ -109,6 +110,7 @@ function runReturn(): Promise<ReturnOutcome> {
 
 export function FederationReturn() {
   useSupportRoute("/federation");
+  const rootRef = useGuideTarget<HTMLDivElement>("federation.return");
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
@@ -130,7 +132,7 @@ export function FederationReturn() {
 
   if (error) {
     return (
-      <div className="broker">
+      <div ref={rootRef} className="broker">
         <main className="broker__main">
           <div className="broker__card broker__card--err" role="alert">
             <h2>Sign-in didn't finish</h2>
@@ -149,7 +151,7 @@ export function FederationReturn() {
   }
 
   return (
-    <div className="broker">
+    <div ref={rootRef} className="broker">
       <p className="broker__status">Finishing sign-in…</p>
     </div>
   );

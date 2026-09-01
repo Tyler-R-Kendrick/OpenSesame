@@ -41,6 +41,7 @@ import {
   describeWebauthnError,
   pinPolicyProblems,
 } from "../lib/vault/unlock-methods.js";
+import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { SetupScreen } from "./SetupScreen.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
@@ -181,6 +182,10 @@ export function UnlockScreen() {
 
 function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
   useSupportRoute("/unlock");
+  const submitRef = useGuideTarget<HTMLButtonElement>("unlock.submit");
+  const secretRef = useGuideTarget<HTMLInputElement>("unlock.secret");
+  const passkeyRef = useGuideTarget<HTMLButtonElement>("unlock.passkey");
+  const setupRef = useGuideTarget<HTMLButtonElement>("unlock.setup");
   const {
     status,
     header,
@@ -481,20 +486,29 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
               No way in is configured for this deployment yet, so sign-in has
               nowhere to go.
             </span>
-            <button type="button" className="btn btn--sm" onClick={onOpenSetup}>
+            <button
+              ref={setupRef}
+              type="button"
+              className="btn btn--sm"
+              onClick={onOpenSetup}
+            >
               Set it up
             </button>
           </div>
         ) : null}
 
         {signInStage ? (
-          <SignInPanel
-            placement="primary"
-            providers={providers}
-            onUseLocalOnly={() => setLocalOnly(true)}
-          />
+          <GuideTarget id="unlock.signin">
+            <SignInPanel
+              placement="primary"
+              providers={providers}
+              onUseLocalOnly={() => setLocalOnly(true)}
+            />
+          </GuideTarget>
         ) : signInTabActive ? (
-          <SignInPanel placement="secondary" providers={providers} />
+          <GuideTarget id="unlock.signin">
+            <SignInPanel placement="secondary" providers={providers} />
+          </GuideTarget>
         ) : (
           <form className="unlock__form" onSubmit={(e) => void onSubmit(e)}>
             {showMethodTabs ? (
@@ -506,6 +520,7 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                 {methods.map((id) => (
                   <button
                     key={id}
+                    ref={id === "passkey" ? passkeyRef : undefined}
                     type="button"
                     role="tab"
                     aria-selected={activeMethod === id}
@@ -603,7 +618,10 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                 </label>
                 <input
                   id="unlock-pin"
-                  ref={pinRef}
+                  ref={(element) => {
+                    pinRef.current = element;
+                    secretRef(element);
+                  }}
                   type={reveal ? "text" : "password"}
                   inputMode="numeric"
                   autoComplete={firstRun ? "new-password" : "one-time-code"}
@@ -633,7 +651,10 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
                 <div className="unlock__reveal">
                   <input
                     id="master"
-                    ref={passwordRef}
+                    ref={(element) => {
+                      passwordRef.current = element;
+                      secretRef(element);
+                    }}
                     type={reveal ? "text" : "password"}
                     autoComplete={
                       firstRun ? "new-password" : "current-password"
@@ -788,6 +809,7 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
               return (
                 <div className="go-row">
                   <button
+                    ref={submitRef}
                     type="submit"
                     className="go"
                     disabled={disabled}
