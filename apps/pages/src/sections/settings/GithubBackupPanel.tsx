@@ -508,13 +508,6 @@ export function GithubBackupPanel() {
       <div className="panel__head">
         <div>
           <h2>GitHub persistence</h2>
-          <p>
-            Optional. The vault already lives on this device — connect GitHub
-            here to push sealed ciphertext to a private repo. Create the App,
-            authorize, install it, pick a repo, and map each environment to a
-            branch (<code>env/development</code>, <code>env/staging</code>,{" "}
-            <code>env/production</code>). Host never sees unlock keys.
-          </p>
         </div>
       </div>
       <div className="panel__body">

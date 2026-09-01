@@ -134,16 +134,12 @@ describe("OfflineBackupPanel", () => {
     expect(screen.getByRole("alert")).toBeTruthy();
   });
 
-  it("shows the active project in the hint", () => {
+  it("offers download and restore without an explainer", () => {
     render(<OfflineBackupPanel />);
-    expect(screen.getByText(/Active project:/)).toBeTruthy();
-    expect(screen.getByText("proj_1")).toBeTruthy();
-  });
-
-  it("notes device-wide backup when no project is active", () => {
-    loadSettings.mockReturnValue({ activeProjectId: "  " });
-    render(<OfflineBackupPanel />);
-    expect(screen.getByText(/backup is device-wide/i)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /Download offline backup/i }),
+    ).toBeTruthy();
+    expect(screen.getByText(/Restore offline backup/i)).toBeTruthy();
   });
 
   function makeFile(name: string, contents = "{}"): File {

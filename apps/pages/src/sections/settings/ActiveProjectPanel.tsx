@@ -131,10 +131,6 @@ export function ActiveProjectPanel() {
       <div className="panel__head">
         <div>
           <h2>Active project</h2>
-          <p>
-            Secrets and env scope default to your personal project. Selection is
-            stored with endpoint prefs (not inside the encrypted vault).
-          </p>
         </div>
       </div>
       <div className="panel__body">

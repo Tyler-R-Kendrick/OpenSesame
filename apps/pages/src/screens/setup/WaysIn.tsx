@@ -232,7 +232,7 @@ export function WaysIn() {
             name:
               upstream.accountKind.charAt(0).toUpperCase() +
               upstream.accountKind.slice(1),
-            kind: "built in — nothing to set up",
+            kind: "built in",
             brandId: upstream.id,
             remove: () => write({ builtin: false }),
           },
@@ -267,12 +267,7 @@ export function WaysIn() {
           <span className="ways__count">{ways.length}</span>
         </p>
         {ways.length === 0 ? (
-          <p className="hint">
-            None — this deployment would open a local vault only, sealed on this
-            device with a passkey, PIN, or password. No sync between devices,
-            and no recovery. That is a real answer; add a way in below to change
-            it.
-          </p>
+          <p className="hint">None yet. Local vault only: no recovery.</p>
         ) : (
           <ul className="ways__list">
             {ways.map((way) => {
@@ -304,11 +299,6 @@ export function WaysIn() {
 
       <div className="setup__stack">
         <p className="ways__head">Add a provider</p>
-        <p className="hint">
-          This browser runs the whole sign-in itself — authorization code with
-          PKCE, against the provider's own discovery document. Register this app
-          there as a single-page or public client, then name it here.
-        </p>
 
         <div className="preset">
           {SETUP_PROVIDERS.map((entry) => (
@@ -372,13 +362,7 @@ export function WaysIn() {
                 onValueChange={setIssuerInput}
                 hint={preset.field.hint}
               />
-            ) : (
-              <p className="hint">
-                {preset.id === "workos"
-                  ? "AuthKit's issuer is fixed at api.workos.com for every deployment — there is nothing to type."
-                  : "Google publishes one issuer for everybody — there is nothing to type."}
-              </p>
-            )}
+            ) : null}
 
             <FieldShell
               id="setup-client-id"
@@ -416,11 +400,6 @@ export function WaysIn() {
 
       <div className="setup__stack">
         <p className="ways__head">Or an OpenSesame identity service</p>
-        <p className="hint">
-          One you run, or one someone runs for you. It brings the roads a
-          browser cannot walk on its own: organisation SSO and SAML, LDAP, email
-          magic links, guest sessions, and whatever providers it brokers itself.
-        </p>
         <FieldShell
           id="setup-identity-api"
           label="Identity service"
@@ -444,16 +423,8 @@ export function WaysIn() {
                 ]
               : []
           }
-          hint="Optional. Saved on this device only, and never sent anywhere else."
         />
       </div>
-
-      <p className="hint">
-        Saved on this device only — an issuer and a public client id are
-        configuration, not credentials, and nothing has been sent anywhere. The
-        sign-in screen offers exactly what is listed above. Change any of it
-        later under Settings → Endpoints.
-      </p>
     </div>
   );
 }

@@ -138,11 +138,6 @@ export function UnlockMethodsPanel() {
       <div className="panel__head">
         <div>
           <h2>Unlock methods</h2>
-          <p>
-            Primary unlock can be a passkey (WebAuthn PRF), a short PIN, or a
-            master password. Optional authenticator MFA runs after any primary
-            method succeeds.
-          </p>
         </div>
       </div>
       <div className="panel__body set__unlock">
@@ -153,11 +148,7 @@ export function UnlockMethodsPanel() {
             <h3>
               <IconPasskey size={16} /> Passkey
             </h3>
-            <p className="hint">
-              {hasPasskey
-                ? "Enrolled. Platform authenticator unwraps the vault key via PRF."
-                : "Requires a PRF-capable platform passkey (Chrome / Edge on supported OS)."}
-            </p>
+            {hasPasskey ? <p className="hint">Enrolled.</p> : null}
             {!hasPasskey && !webauthnHost.ok ? (
               <output className="note note--warn">
                 <IconAlert size={18} />
@@ -231,11 +222,7 @@ export function UnlockMethodsPanel() {
             <h3>
               <IconShield size={16} /> PIN
             </h3>
-            <p className="hint">
-              {hasPin
-                ? "Enrolled. Same PBKDF2 wrap path as the master password, shorter input."
-                : `${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters · no spaces · no repeated character · no sequential digits.`}
-            </p>
+            {hasPin ? <p className="hint">Enrolled.</p> : null}
           </div>
           <div className="set__unlock-actions">
             <form className="set__unlock-form" onSubmit={enrollPinForm}>

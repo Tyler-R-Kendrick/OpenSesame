@@ -283,11 +283,6 @@ export function SecretConfigsPanel() {
       <div className="panel__head">
         <div>
           <h2 id="secret-configs-heading">Project configs</h2>
-          <p>
-            Doppler-parity secret configs for the active project. Values go up
-            through a write-only intake and never come back — everything below
-            is key names and version metadata.
-          </p>
         </div>
         <button
           type="button"

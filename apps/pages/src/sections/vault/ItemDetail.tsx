@@ -99,10 +99,6 @@ export function ItemDetail() {
       <div className="detail">
         <div className="empty">
           <h2>That item is not in this vault</h2>
-          <p>
-            It may have been purged, or the link points at another device's
-            vault.
-          </p>
           <Link className="btn btn--sm" to={listPath}>
             Back to the vault
           </Link>
@@ -432,9 +428,7 @@ function UpdateSecretPanel({
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />
-      ) : (
-        <p className="hint">Generates a 32-character password and saves it.</p>
-      )}
+      ) : null}
       {error ? (
         <p className="note note--err" role="alert">
           <span>{error}</span>
@@ -600,10 +594,6 @@ function ItemFields({
                         label="Scan to enroll this authenticator secret in an authenticator app"
                         size={144}
                       />
-                      <p className="hint">
-                        Scan with an authenticator app. The QR encodes the same
-                        seed that powers the code above.
-                      </p>
                     </div>
                   ) : (
                     <span className="frow__value frow__value--muted">
@@ -710,13 +700,6 @@ function ItemFields({
               </span>
             </FieldRow>
           </section>
-          <div className="note">
-            <span>
-              {vaultCustodied
-                ? "OpenSesame holds this passkey's encrypted private key and can answer system credential-provider requests after device authentication."
-                : "This is a metadata-only record for a passkey held by another authenticator. OpenSesame cannot use it to sign in."}
-            </span>
-          </div>
         </>
       );
     }
@@ -1021,10 +1004,6 @@ function ItemFields({
                 revealed={revealed.has("cert-key")}
               />
             </FieldRow>
-            <p className="hint">
-              Trust the Host dev CA on this machine for local TLS. The private
-              key never leaves this vault for an agent.
-            </p>
           </section>
         </>
       );

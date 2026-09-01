@@ -91,7 +91,6 @@ describe("TaskBusPanel render", () => {
     expect(
       await screen.findByRole("heading", { name: /TaskBus \/ NATS/i }),
     ).toBeTruthy();
-    expect(screen.getByText(/This browser never opens NATS/i)).toBeTruthy();
     await waitForConfigLoaded();
     expect(getTaskBusConfig).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /^Save$/i })).toBeTruthy();

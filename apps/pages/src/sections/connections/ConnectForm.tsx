@@ -287,15 +287,10 @@ export function ConnectForm({
             type="password"
             autoComplete="off"
             placeholder="Paste API key once"
-            aria-describedby={`${keyId}-help`}
-            title="Create a restricted API key in the provider console, then paste it here once."
+            title="Paste once. It is not shown again."
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
           />
-          <p className="hint" id={`${keyId}-help`}>
-            Sealed by the authority plane on arrival. It is not shown again
-            here, and no agent can read it back.
-          </p>
         </div>
         <details className="conn-client-alt">
           <summary>Optional settings</summary>

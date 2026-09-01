@@ -122,7 +122,6 @@ export function SupportPanel(): ReactElement {
           </span>
           <div className="sheet__grow">
             <h2>Support</h2>
-            <p>Ask about this screen, or start a walkthrough.</p>
           </div>
           <button
             ref={closeRef}

@@ -84,11 +84,6 @@ export function ConnectorSettingsPage({
             <h1>
               {loading ? "Loading connector settings…" : "Connector not found"}
             </h1>
-            <p>
-              {loading
-                ? "Reading this connector from the Host."
-                : `No connector named ${providerId} is in the active catalog.`}
-            </p>
           </div>
         </div>
       </div>
@@ -182,7 +177,6 @@ export function ConnectorSettingsPage({
           <div className="panel__head">
             <div>
               <h2>Authorization</h2>
-              <p>No account sign-in or additional configuration is required.</p>
             </div>
           </div>
           <ul className="conn-list">
@@ -218,7 +212,6 @@ export function ConnectorSettingsPage({
           <div className="panel__head">
             <div>
               <h2>Authorizations</h2>
-              <p>Choose the account whose access and rules you want to edit.</p>
             </div>
           </div>
           <ul className="conn-list">
@@ -279,10 +272,6 @@ export function ConnectorSettingsPage({
             <div className="panel__head">
               <div>
                 <h2>Who can use it</h2>
-                <p>
-                  Assign this authorization to identities, groups, devices,
-                  projects, or agents.
-                </p>
               </div>
             </div>
             <div className="panel__body">
@@ -298,10 +287,6 @@ export function ConnectorSettingsPage({
             <div className="panel__head">
               <div>
                 <h2>Rules</h2>
-                <p>
-                  Set how broadly this authorization may be delegated and
-                  invoked.
-                </p>
               </div>
             </div>
             <div className="panel__body">

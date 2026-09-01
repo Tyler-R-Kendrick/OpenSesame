@@ -1347,13 +1347,9 @@ function AssignStep({
             <p className="note note--err" role="alert">
               <IconAlert /> {problem}
             </p>
-          ) : (
-            <p className="hint">Bound to the connection with the grant.</p>
-          )}
+          ) : null}
         </div>
-      ) : (
-        <p className="hint">The code alone redeems it — nothing is bound.</p>
-      )}
+      ) : null}
 
       <div className="actions">
         {onBack ? (
@@ -1573,9 +1569,6 @@ function CodeCard({ code, onDone }: { code: MintedCode; onDone: () => void }) {
           <p className="hint">Bound to the connection.</p>
         )
       ) : null}
-      <p className="hint">
-        Hand these to the requester — the grant activates when claimed.
-      </p>
 
       <div className="actions actions--end">
         <button type="button" className="btn btn--primary" onClick={onDone}>

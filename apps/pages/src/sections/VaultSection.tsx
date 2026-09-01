@@ -350,12 +350,7 @@ export function VaultSection() {
 
         {visible.length === 0 ? (
           <div className="empty">
-            <h2>Nothing here yet</h2>
-            <p>
-              {filter === "trash"
-                ? "Deleted items wait here until you purge them."
-                : "Human items on this device: logins, passkeys, notes, certificates, and secrets. Import a .env or password export, or authorize a Host connector instead."}
-            </p>
+            <h2>{filter === "trash" ? "Trash is empty" : "Nothing here"}</h2>
             {filter !== "trash" ? (
               // On narrow screens the detail pane is not rendered, so this is
               // the only empty state a new arrival sees. It has to offer the
@@ -416,7 +411,7 @@ export function VaultSection() {
  * over the keys.
  */
 export function VaultWelcome() {
-  const { items, header } = useVault();
+  const { items } = useVault();
   const live = items.filter((item) => item.deletedAt === null);
 
   if (live.length === 0) {
@@ -424,10 +419,7 @@ export function VaultWelcome() {
     // it. Saying it twice, side by side, only asks which one to believe.
     return (
       <div className="buffer">
-        <p className="buffer__line">
-          Human items live on this device. Host connectors and agent grants live
-          on the Host — they never appear here as secrets.
-        </p>
+        <p className="buffer__keys">n new · / search · ? keys</p>
       </div>
     );
   }
@@ -435,14 +427,7 @@ export function VaultWelcome() {
   return (
     <div className="buffer">
       <p className="buffer__line">
-        {live.length} items, sealed — decrypted in memory for this session only.
-        Locking discards the key
-        {header?.kdf
-          ? `; it is re-derived with ${header.kdf.iterations.toLocaleString()} PBKDF2 iterations`
-          : header
-            ? "; unlock again with an enrolled passkey, PIN, or password"
-            : ""}
-        .
+        {live.length} {live.length === 1 ? "item" : "items"}
       </p>
       <p className="buffer__keys">
         j/k browse · enter open · n new · / search · ? keys

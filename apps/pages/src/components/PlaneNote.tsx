@@ -316,9 +316,7 @@ function ConnectThisMachineDefault({
           <span className="ceremony__done-mark" aria-hidden="true">
             <IconCheck size={24} />
           </span>
-          <p className="hint">
-            Paired. The Host and Identity endpoints came with it.
-          </p>
+          <p className="hint">Paired.</p>
           <dl className="wrote">
             <div>
               <dt>Daemon</dt>

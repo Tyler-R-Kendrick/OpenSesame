@@ -103,10 +103,6 @@ export function SyncTargetsPanel() {
       <div className="panel__head">
         <div>
           <h2 id="sync-targets-heading">Sync targets</h2>
-          <p>
-            Fan-out project configs to PaaS connectors (Vercel, Railway) through
-            Host ConnectionRef invoke. Secret values never appear here.
-          </p>
         </div>
         <button
           type="button"

@@ -36,22 +36,6 @@ export const installOfferDependencies = {
  * the one road that goes through our own button — so the claim holds however
  * the install happened.
  */
-/** The claim itself, written once so the two roads cannot drift apart. */
-const EVICTION =
-  "A browser can clear a tab's storage when the device runs short of room, and this vault lives in that storage.";
-
-const WHY = {
-  prompt: `${EVICTION} An installed app keeps it — and opens offline, in its own window, with no address bar to lose.`,
-  manual: `${EVICTION} On the home screen it keeps it — and opens offline, in its own window.`,
-  // Deliberately asserts nothing about what just happened: this state also
-  // covers a browser whose answer we could not read, and telling somebody who
-  // has just installed the app that nothing was installed is the worse error.
-  dismissed:
-    "Your browser will offer again on a later visit — or you can install it from the browser's own menu whenever you like.",
-  installed: "",
-  unavailable: "",
-};
-
 /** The deployment this app was served from, as it will read in the card. */
 function servedFrom(): string {
   if (globalThis.window === undefined) return "";
@@ -98,6 +82,8 @@ export function InstallOffer({ heading }: { heading?: string } = {}) {
             <dd>{servedFrom()}</dd>
             <dt>Opens</dt>
             <dd>its own window, offline</dd>
+            <dt>Keeps</dt>
+            <dd>this vault if the browser would clear the tab</dd>
             <dt>Needs</dt>
             <dd>no store, no account</dd>
           </dl>
@@ -177,11 +163,14 @@ export function InstallOffer({ heading }: { heading?: string } = {}) {
               3
             </span>
             <span>
-              Tap <strong>Add</strong>. No browser on iOS lets a page do this
-              for you.
+              Tap <strong>Add</strong>.
             </span>
           </li>
         </ol>
+      ) : null}
+
+      {state === "dismissed" ? (
+        <p className="found__top">Install from the browser menu</p>
       ) : null}
 
       {state === "installed" ? (
@@ -203,8 +192,6 @@ export function InstallOffer({ heading }: { heading?: string } = {}) {
           </dl>
         </div>
       ) : null}
-
-      {WHY[state] ? <p className="keep__why">{WHY[state]}</p> : null}
 
       {/* The card is replaced wholesale when the outcome lands, so without
           this the dialog's answer is never spoken and focus is already on

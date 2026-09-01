@@ -221,7 +221,11 @@ describe("ItemDetail", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Show setup QR/i }),
     );
-    expect(screen.getByText(/Scan with an authenticator app/)).toBeTruthy();
+    expect(
+      screen.getByRole("img", {
+        name: /Scan to enroll this authenticator secret/,
+      }),
+    ).toBeTruthy();
     await userEvent.click(
       screen.getByRole("button", { name: /Hide setup QR/i }),
     );
@@ -513,9 +517,7 @@ describe("ItemDetail", () => {
     expect(screen.getByText("example.com")).toBeTruthy();
     expect(screen.getByText("OpenSesame synced passkey")).toBeTruthy();
     expect(screen.getByText("Yes, via WebAuthn PRF")).toBeTruthy();
-    expect(
-      screen.getByText(/can answer system credential-provider requests/),
-    ).toBeTruthy();
+    expect(screen.getByText("OpenSesame synced passkey")).toBeTruthy();
   });
 
   it("renders a note and its empty fallback", () => {

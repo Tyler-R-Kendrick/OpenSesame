@@ -79,12 +79,6 @@ export function ItemTypesPanel() {
       <div className="panel__head">
         <div>
           <h2>Item types</h2>
-          <p>
-            Every type in this vault — logins and cards included — is a
-            definition, not a code path. Paste one to add a type this build has
-            never heard of; it works here immediately and syncs to your other
-            devices inside the sealed vault.
-          </p>
         </div>
       </div>
       <div className="panel__body">

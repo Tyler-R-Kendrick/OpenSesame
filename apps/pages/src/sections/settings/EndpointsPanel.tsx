@@ -82,11 +82,6 @@ export function EndpointsPanel() {
       <div className="panel__head">
         <div>
           <h2>Endpoints</h2>
-          <p>
-            Filled in by the connection ceremonies above. Edit them by hand only
-            when you are pointing at a plane someone else runs. Changes save
-            when you leave the field.
-          </p>
         </div>
         <button
           type="button"
@@ -222,10 +217,6 @@ export function TursoSyncPanel() {
       <div className="panel__head">
         <div>
           <h2>Turso sync</h2>
-          <p>
-            Optional. Blank keeps the connector catalog entirely inside this
-            PWA; a URL plus a token enables explicit push/pull sync.
-          </p>
         </div>
       </div>
       <div className="panel__body">

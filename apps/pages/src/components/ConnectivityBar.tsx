@@ -240,7 +240,6 @@ export function ConnectionCeremony({
           </span>
           <div className="sheet__grow">
             <h2>{connector.name}</h2>
-            <p>{CEREMONY_LEAD[connector.id]}</p>
           </div>
           <button
             type="button"
@@ -268,12 +267,6 @@ export function ConnectionCeremony({
           />
           <Freshness connector={connector} />
         </div>
-        {/* One line of standing truth per ceremony, in the footer the canvas
-            draws. It is the same sentence whatever step you are on, so it can
-            be read once and stop competing with the action. */}
-        <div className="sheet__foot">
-          <p className="hint">{CEREMONY_FOOT[connector.id]}</p>
-        </div>
       </div>
     </div>
   );
@@ -282,28 +275,6 @@ export function ConnectionCeremony({
 function toneChip(tone: ConnectorStatus["tone"]): string {
   return tone === "live" ? "ok" : tone === "attn" ? "warn" : "";
 }
-
-const CEREMONY_LEAD = {
-  host: "The authority plane. It authorizes every ConnectionRef and signs every receipt.",
-  identity:
-    "Who you are to the fabric. Sessions are minted here and never leave this device unwrapped.",
-  machine:
-    "Your local daemon. Ceremonies that touch this machine go through it.",
-  history:
-    "The vault lives on this device. Connect git to persist encrypted history as ciphertext. Agents never see these values.",
-  keys: "Where vault and sealed-store keys are wrapped. WebCrypto on this device is the built-in default.",
-} satisfies Record<ConnectorId, string>;
-
-const CEREMONY_FOOT = {
-  host: "GitHub Pages cannot host this plane. Locally it auto-connects; remotely you pair a daemon or point at a host you run.",
-  identity:
-    "Signing out of Identity does not lock the vault unless the strict option under Security is on.",
-  machine:
-    "Nothing to type in the happy path. If discovery finds nothing, run `curl -s http://127.0.0.1:18790/health` on the daemon machine and paste the tailscale_url it prints.",
-  history:
-    "The remote holds ciphertext only. Seal a manifest with `opensesame pass seal` before it ever reaches git.",
-  keys: "Changing this re-wraps keys; it does not re-encrypt or re-upload your items.",
-} satisfies Record<ConnectorId, string>;
 
 function CeremonyBody({
   connector,

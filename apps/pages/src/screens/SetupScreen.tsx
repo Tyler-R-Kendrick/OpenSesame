@@ -102,11 +102,6 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
             <main className="setup__body" id="main">
               <div className="setup__head">
                 <h1>How do people sign in?</h1>
-                <p>
-                  You are the operator. This is the only question — and it
-                  already has a working answer. Add as many ways in as you like;
-                  the sign-in screen offers exactly these.
-                </p>
               </div>
 
               <WaysIn />
@@ -140,10 +135,6 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
           <main className="setup__body" id="main">
             <div className="setup__head">
               <h1>This device is empty</h1>
-              <p>
-                No session, no vault. Set it up as the operator, or join a
-                session you were invited to.
-              </p>
             </div>
 
             <div className="roads">
@@ -153,9 +144,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
                 onClick={() => setRoad("setup")}
               >
                 <span className="preset__name">Set up this device</span>
-                <span className="preset__kind">
-                  You are the operator. Choose who signs people in.
-                </span>
+                <span className="preset__kind">Choose who signs people in</span>
               </button>
               <button
                 type="button"
@@ -163,9 +152,7 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
                 onClick={() => setRoad("join")}
               >
                 <span className="preset__name">Join a session</span>
-                <span className="preset__kind">
-                  A link and a code, or a public session to ask into.
-                </span>
+                <span className="preset__kind">A link and a code</span>
               </button>
             </div>
           </main>

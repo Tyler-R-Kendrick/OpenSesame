@@ -54,11 +54,7 @@ export function ConnectedPanel({
       <div className="panel__body panel__body--tight">
         {setupRequired ? (
           <div className="empty conn-gate">
-            <h3>Choose an organization to manage connections</h3>
-            <p>
-              Connections are created once Identity and the Host agree on your
-              organization. The catalog below is ready either way.
-            </p>
+            <h3>Choose an organization</h3>
           </div>
         ) : connections === null ? (
           <div className="conn-pad">
@@ -70,12 +66,7 @@ export function ConnectedPanel({
           </div>
         ) : automatic.length === 0 && managed.length === 0 ? (
           <div className="empty">
-            <h3>Nothing connected yet</h3>
-            <p>
-              Pick a service below. You approve it once, and every project or
-              agent you bind to it uses that same authorization — none of them
-              get the credential.
-            </p>
+            <h3>Nothing connected</h3>
           </div>
         ) : (
           <ul className="conn-list">

@@ -54,10 +54,6 @@ function PagesCannotHostNoteDefault({
       <div className="panel__head">
         <div>
           <h2>Connect this machine</h2>
-          <p>
-            This page cannot see 127.0.0.1, so it pairs your daemon over
-            Tailscale Serve instead.
-          </p>
         </div>
       </div>
       <div className="panel__body">

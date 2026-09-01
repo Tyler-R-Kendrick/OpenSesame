@@ -314,11 +314,6 @@ export function ImportPanel() {
       <div className="panel__head">
         <div>
           <h2>Import</h2>
-          <p>
-            Prefer a <code>.env</code> file — each key becomes a secret.
-            Password-manager exports still work. The file is read in this tab
-            and never uploaded; review before anything is written.
-          </p>
         </div>
       </div>
 

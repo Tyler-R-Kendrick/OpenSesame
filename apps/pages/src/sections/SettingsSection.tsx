@@ -96,25 +96,6 @@ const CLIPBOARD = [
 ];
 
 /**
- * Say what the selected auto-lock actually does, rather than covering every
- * case at once in a paragraph nobody finishes.
- */
-function autoLockExplainer(minutes: number): string {
-  if (minutes === 0) {
-    return "Nothing locks on a timer. Closing this window already drops the key from memory, which is why leaving this alone is the recommended setting.";
-  }
-  const span =
-    minutes < 60
-      ? `${minutes} minutes`
-      : minutes === 60
-        ? "an hour"
-        : minutes === 1440
-          ? "a full day"
-          : `${minutes / 60} hours`;
-  return `After ${span} idle the vault key is dropped. You stay signed in to Host and Identity — only the vault needs unlocking again.`;
-}
-
-/**
  * Settings is a lot of unrelated panels; one wall of scroll buries them all.
  * Each panel belongs to exactly one category, and only the active category
  * renders.
@@ -413,10 +394,6 @@ export function SettingsSection({
     <div className="section__inner">
       <div className="section__head">
         <h1>Settings</h1>
-        <p>
-          Everything on this page is stored on this device. Preferences and
-          endpoint URLs sit outside the encrypted vault.
-        </p>
       </div>
 
       <nav className="set__nav" aria-label="Settings sections">
@@ -440,7 +417,6 @@ export function SettingsSection({
             <div className="panel__head">
               <div>
                 <h2>Appearance</h2>
-                <p>Follows your system by default.</p>
               </div>
             </div>
             <div className="panel__body">
@@ -465,10 +441,6 @@ export function SettingsSection({
             <div className="panel__head">
               <div>
                 <h2>Locking</h2>
-                <p>
-                  Locking discards the vault decryption key from memory. Closing
-                  this window already does that.
-                </p>
               </div>
             </div>
             <div className="panel__body">
@@ -508,7 +480,6 @@ export function SettingsSection({
                 </select>
                 .
               </p>
-              <p className="why">{autoLockExplainer(prefs.autoLockMinutes)}</p>
               <div className="sw">
                 <span className="sw__name">
                   Lock when this tab goes to the background
@@ -558,11 +529,6 @@ export function SettingsSection({
           <div className="panel__head">
             <div>
               <h2>Master password</h2>
-              <p>
-                Changing it re-wraps the vault key under a new derivation. Your
-                items are not re-encrypted and nothing is re-uploaded, because
-                nothing was uploaded. Passkey and PIN unlocks stay enrolled.
-              </p>
             </div>
           </div>
           <form
@@ -687,7 +653,6 @@ export function SettingsSection({
           <div className="panel__head">
             <div>
               <h2>Folders</h2>
-              <p>Folders are part of the encrypted body, like items.</p>
             </div>
           </div>
           <div className="panel__body">
@@ -796,16 +761,6 @@ export function SettingsSection({
           <div className="panel__head">
             <div>
               <h2>Git sealed store</h2>
-              <p>
-                Bridge this device vault with an <code>opensesame</code> sealed
-                store (<code>~/.password-store</code> or{" "}
-                <code>OPENSESAME_STORE_DIR</code>). Manifests are plaintext
-                while unlocked — seal them with the CLI before committing to
-                git. Use{" "}
-                <strong>Connectivity → Capability connectors → History</strong>{" "}
-                to authorize GitHub as the default remote for encrypted history.
-                Agents never receive these values; they use ConnectionRefs only.
-              </p>
             </div>
           </div>
           <div className="panel__body">
@@ -851,12 +806,6 @@ export function SettingsSection({
           <div className="panel__head">
             <div>
               <h2>Backup and move to another device</h2>
-              <p>
-                An OpenSesame export is the sealed body plus its key-wrapping
-                header. Anyone holding it still needs the master password. This
-                is not the same as the import above, which reads other products'
-                plaintext exports.
-              </p>
             </div>
           </div>
           <div className="panel__body">
@@ -911,11 +860,6 @@ export function SettingsSection({
           <div className="panel__head">
             <div>
               <h2>Sample data</h2>
-              <p>
-                Opt-in demonstration items, every row badged SYNTHETIC. Includes
-                a weak and a reused password so health has something true to
-                say.
-              </p>
             </div>
           </div>
           <div className="panel__body">
@@ -950,10 +894,6 @@ export function SettingsSection({
           <div className="panel__head">
             <div>
               <h2>Delete this vault</h2>
-              <p>
-                Removes the encrypted file from this browser. There is no copy
-                anywhere else unless you exported one.
-              </p>
             </div>
           </div>
           <div className="panel__body">
