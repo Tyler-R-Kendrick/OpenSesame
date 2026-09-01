@@ -21,6 +21,7 @@ import { PBKDF2_ITERATIONS, createVault } from "./crypto.js";
 import { createItem } from "./model.js";
 import {
   ATTEMPTS_KEY,
+  GUEST_TOMB,
   VaultCorruptError,
   VaultStore,
   WrongPasswordError,
@@ -261,6 +262,38 @@ describe("VaultStore multi-method unlock", () => {
     expect(kvGet(HEADER_KEY)).toBeNull();
     store.lock();
     expect(store.getSnapshot().status).toBe("empty");
+  });
+
+  it("runs a guest beside a sealed vault in its own tomb and hands the vault back on lock", async () => {
+    const store = await storeWithVault();
+    const sealedHeader = kvGet(HEADER_KEY);
+    expect(store.getSnapshot().status).toBe("locked");
+
+    await store.createGuest();
+    expect(store.getSnapshot().status).toBe("unlocked");
+    expect(store.getSnapshot().header?.wrap).toBeUndefined();
+    // A guest write lands in the guest tomb, never on the sealed vault.
+    await store.saveItem(createItem("note", "guest note"));
+    expect(kvGet(HEADER_KEY)).toBe(sealedHeader);
+    expect(kvGet(BODY_KEY)).toBeNull();
+    expect(kvGet(tombFileKey(GUEST_TOMB, BODY_PATH))).not.toBeNull();
+
+    store.lock();
+    // Not "empty": the real vault is back, exactly as it was.
+    expect(store.getSnapshot().status).toBe("locked");
+    expect(store.getSnapshot().header?.wrap).toBeDefined();
+    await store.unlock(PASSWORD);
+    expect(store.getSnapshot().items).toHaveLength(0);
+  });
+
+  it("lets a guest beside a sealed vault delete only the guest tomb", async () => {
+    const store = await storeWithVault();
+    await store.createGuest();
+    await store.saveItem(createItem("note", "guest note"));
+    await store.destroy();
+    expect(kvGet(HEADER_KEY)).not.toBeNull();
+    expect(kvGet(tombFileKey(GUEST_TOMB, BODY_PATH))).toBeNull();
+    expect(store.getSnapshot().status).toBe("locked");
   });
 
   it("rejects a weak PIN without creating a vault", async () => {

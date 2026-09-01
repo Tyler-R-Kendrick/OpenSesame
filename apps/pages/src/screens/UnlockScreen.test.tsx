@@ -1000,7 +1000,7 @@ describe("UnlockScreen — first run", () => {
     expect(await screen.findByText(/not available/)).toBeTruthy();
   });
 
-  it("offers the sign-in entries on an existing vault too, minus the two that would make a second one", async () => {
+  it("offers the sign-in entries on an existing vault too, guest included", async () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
     // Sign-in is its own tab beside Unlock — nothing of it crowds the form.
@@ -1018,13 +1018,23 @@ describe("UnlockScreen — first run", () => {
       screen.getByRole("button", { name: /Email me a sign-in link/ }),
     ).toBeTruthy();
     // Sealing a local-only vault beside the existing one is not a road out of
-    // this screen, and neither is a guest principal.
+    // this screen. Guest IS: the store isolates it beside the sealed vault
+    // (AGENTS.md §5 — never withheld because a vault exists).
     expect(
       screen.queryByRole("button", { name: "Use without an account" }),
     ).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: /Continue as guest/ }),
-    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Continue as guest/ }));
+    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
+  });
+
+  it("offers guest on the Unlock tab of an existing vault (AGENTS.md §5)", async () => {
+    v.state.status = "locked";
+    render(<UnlockScreen />);
+    // Whoever holds the device without its key still gets in as a guest; the
+    // sealed vault is not touched, so nothing here is destructive.
+    fireEvent.click(screen.getByRole("button", { name: "Continue as guest" }));
+    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
+    expect(v.store.destroy).not.toHaveBeenCalled();
   });
 
   it("keeps the social bar to one row and moves overflow providers behind the ⋯ menu", async () => {

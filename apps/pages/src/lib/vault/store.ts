@@ -118,6 +118,22 @@ function scopedVaultScope(): VaultScope {
   };
 }
 
+/**
+ * The tomb a guest session uses when a sealed vault already lives in the
+ * active scope. Guest beside an existing vault must never touch that vault:
+ * it is a separate, throwaway tomb with no header, so nothing a guest writes
+ * can land on the real body, and nothing pushes to the Host (no header, no
+ * snapshot). Not a project id — those are random ids or `personal`.
+ */
+export const GUEST_TOMB = "guest";
+
+function guestVaultScope(): VaultScope {
+  return {
+    tomb: GUEST_TOMB,
+    attempts: `${ATTEMPTS_KEY}.${GUEST_TOMB}`,
+  };
+}
+
 export type VaultStatus = "empty" | "locked" | "unlocked";
 
 export type VaultPrefs = {
@@ -465,10 +481,28 @@ export class VaultStore {
   }
 
   /**
-   * First-run guest session: no passkey, PIN, or password. The vault key lives
-   * in this tab only until an unlock method is enrolled.
+   * Guest session: no passkey, PIN, or password. The vault key lives in this
+   * tab only until an unlock method is enrolled.
+   *
+   * On a first run the guest lives in the active tomb, so enrolling an unlock
+   * method later seals it in place. Beside a sealed vault it moves to the
+   * isolated guest tomb instead (see `GUEST_TOMB`): the existing vault stays
+   * exactly as it was on disk, and `lock()` brings it back on screen. Guest
+   * is never withheld because a vault exists — that was the bug (AGENTS.md
+   * §5), and isolation is the fix, not suppression.
    */
   async createGuest(): Promise<void> {
+    if (this.#vaultKey || this.#pendingVaultKey) {
+      throw new Error("Lock the open vault before continuing as a guest.");
+    }
+    if (this.#header) {
+      this.#scope = guestVaultScope();
+      // Whatever a previous guest left behind is ciphertext under a key that
+      // died with its tab — unreadable, and in the way of a fresh session.
+      lockTomb(this.#scope.tomb);
+      await wipeTombOnDestroy(this.#scope.tomb);
+      await deleteFile(this.#scope.tomb, BODY_PATH);
+    }
     const { vaultKey, rawVaultKey } = await mintVaultKey();
     this.#header = {
       v: 1,
@@ -883,6 +917,9 @@ export class VaultStore {
     this.#zeroRaw();
     this.#pendingVaultKey = null;
     this.#body = emptyBody();
+    // A guest that ran beside a sealed vault did so in the isolated guest
+    // tomb; locking it hands the screen back to the real vault.
+    const guestBesideVault = this.#ephemeral && this.#scope.tomb === GUEST_TOMB;
     if (this.#ephemeral) {
       this.#header = null;
       this.#ephemeral = false;
@@ -891,6 +928,10 @@ export class VaultStore {
     // the projects view, the org profile) is unreadable until the next unlock.
     lockTomb(this.#scope.tomb);
     discardTombCaches();
+    if (guestBesideVault) {
+      this.#scope = scopedVaultScope();
+      this.#header = this.#readHeader();
+    }
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
     for (const handler of this.#lockHandlers) handler();
@@ -1309,10 +1350,15 @@ export class VaultStore {
 
   /** Irreversibly remove the vault from this device. */
   async destroy(): Promise<void> {
+    // The files to remove are the ones this session was using. Captured
+    // before `lock()`, which hands a guest-beside-vault session back to the
+    // real vault's scope: a guest deleting "this vault" deletes the guest
+    // tomb, never the sealed vault it was running beside.
+    const scope = this.#scope;
     // Deleting is at least as final as locking, so it runs the same teardown:
     // clipboard, Identity session, staged claims.
     this.lock();
-    this.#header = null;
+    if (scope.tomb !== GUEST_TOMB) this.#header = null;
     this.#emit();
     // Queued behind any write still in the air. Deleting straight away would let
     // a persist that had already sealed its body land afterwards and put the
@@ -1324,10 +1370,10 @@ export class VaultStore {
         // The sealed area goes with the key: unreadable ciphertext that
         // would otherwise break a fresh vault in this tomb.
         await Promise.all([
-          deletePlaintextFile(this.#scope.tomb, HEADER_PATH),
-          deleteFile(this.#scope.tomb, BODY_PATH),
-          kvDeleteDurable(this.#scope.attempts),
-          wipeTombOnDestroy(this.#scope.tomb),
+          deletePlaintextFile(scope.tomb, HEADER_PATH),
+          deleteFile(scope.tomb, BODY_PATH),
+          kvDeleteDurable(scope.attempts),
+          wipeTombOnDestroy(scope.tomb),
         ]);
       });
     this.#writeChain = done;

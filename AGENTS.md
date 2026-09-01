@@ -243,19 +243,28 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
 - **Never remove or hide the guest/anonymous access flow** from the Pages
-  sign-in and unlock screens (`apps/pages/src/screens/unlock/SignInPanel.tsx`:
-  the "Continue as guest" button and the "Skip" corner link, first run). This
-  flow has been removed by accident repeatedly — usually by gating it on
-  Identity API availability. It must not be: `continueAsGuest`
-  (`apps/pages/src/lib/guest-auth.ts`) seals a local vault and works with no
-  Identity service at all; the registered-auth claim degrades to a bell
-  notice (ADR 0033). Do not gate guest on `hasIdentityService`, `noWayIn`,
-  the provider catalog, or first-run setup allowlists. The only legitimate
-  suppression is beside an existing vault (`placement: "secondary"`), where a
-  guest principal would seal a second vault. Any change that drops these
-  buttons on first run is a regression, not a cleanup — the tests in
-  `SignInPanel.test.tsx` and `UnlockScreen.test.tsx` asserting guest exists
-  are load-bearing and must not be deleted or inverted.
+  sign-in and unlock screens. It lives in three places and all three are
+  required: the "Continue as guest" button in
+  `apps/pages/src/screens/unlock/SignInPanel.tsx` on **both** placements
+  (first run *and* the "Sign in" tab beside an existing vault), the "Skip"
+  corner link on first run, and the "Continue as guest" link in the Unlock
+  tab's footer in `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
+  been removed by accident repeatedly — by gating it on Identity API
+  availability, and by withholding it beside an existing vault. Neither is
+  legitimate. `continueAsGuest` (`apps/pages/src/lib/guest-auth.ts`) seals a
+  local vault and works with no Identity service at all; the registered-auth
+  claim degrades to a bell notice (ADR 0033). Beside a sealed vault the store
+  runs the guest in the isolated `GUEST_TOMB` (`apps/pages/src/lib/vault/store.ts`
+  `createGuest`), so the existing vault is never read, written, or deleted,
+  and `lock()` hands it back — isolation is the answer to "a guest would
+  clobber the vault", suppression is not. Do not gate guest on
+  `hasIdentityService`, `noWayIn`, the provider catalog, first-run setup
+  allowlists, or vault status. The only road that is legitimately withheld
+  beside an existing vault is "Use without an account" (a local-only seal in
+  place). Any change that drops a guest entry is a regression, not a cleanup —
+  the tests in `SignInPanel.test.tsx`, `UnlockScreen.test.tsx`, and
+  `store.test.ts` asserting guest exists and stays isolated are load-bearing
+  and must not be deleted or inverted.
 - Anything with a deadline (certificate, CA, signer, brokered credential,
   rotation policy) is detected by the lifecycle scanner and published on the
   `lifecycle.*` hook feed — never by a subsystem's own private due-check.

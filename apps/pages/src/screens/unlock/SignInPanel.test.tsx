@@ -171,6 +171,17 @@ describe("what the sign-in screen offers", () => {
     ).toBeDefined();
   });
 
+  it("offers guest beside an existing vault too (AGENTS.md §5)", () => {
+    render(<SignInPanel placement="secondary" providers={[]} />);
+    expect(
+      screen.getByRole("button", { name: /Continue as guest/ }),
+    ).toBeDefined();
+    // Local-only would seal a second vault in place, so that road stays off.
+    expect(
+      screen.queryByRole("button", { name: "Use without an account" }),
+    ).toBeNull();
+  });
+
   it("keeps guest and local-only even when setup allowed nothing", () => {
     state.signIn = { builtin: false, providers: [] };
     renderPanel();

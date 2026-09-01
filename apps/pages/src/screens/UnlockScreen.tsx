@@ -19,6 +19,7 @@ import {
   IconUser,
 } from "../components/Icons.js";
 import { defaultUpstream } from "../lib/federation.js";
+import { continueAsGuest } from "../lib/guest-auth.js";
 import {
   currentSession,
   identityBase,
@@ -850,6 +851,32 @@ function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
               onClick={() => setLocalOnly(false)}
             >
               Sign in instead
+            </button>
+          ) : null}
+          {/* The guest road on the Unlock tab itself: whoever holds this
+              device without its key still gets in, as a guest in an isolated
+              tomb, and the sealed vault stays exactly as it is. Never removed,
+              never gated (AGENTS.md §5). */}
+          {!firstRun && !signInTabActive && !showReset ? (
+            <button
+              type="button"
+              className="unlock__switch"
+              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setBusy(true);
+                void continueAsGuest()
+                  .catch((caught) => {
+                    setError(
+                      caught instanceof Error
+                        ? caught.message
+                        : "Guest login failed.",
+                    );
+                  })
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Continue as guest
             </button>
           ) : null}
           {!firstRun && !signInTabActive ? (
