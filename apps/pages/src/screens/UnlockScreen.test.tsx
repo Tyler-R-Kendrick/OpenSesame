@@ -166,6 +166,7 @@ Object.assign(unlockScreenDependencies, {
     issuer: "https://shoo.dev",
     accountKind: "Google (via shoo.dev)",
   }),
+  resumeStashedJoin: async () => false,
 });
 Object.assign(setupScreenDependencies, {
   // The ceremony's own behaviour is covered in SetupScreen.test.tsx; these

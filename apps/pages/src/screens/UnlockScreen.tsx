@@ -20,6 +20,7 @@ import {
 } from "../components/Icons.js";
 import { defaultUpstream } from "../lib/federation.js";
 import { currentSession, identityBase } from "../lib/identity.js";
+import { resumeStashedJoin } from "../lib/join-session.js";
 import {
   type FederatedProviderSummary,
   listFederatedProviders,
@@ -100,6 +101,7 @@ export const unlockScreenDependencies = {
   noWayIn,
   signInMethods,
   defaultUpstream,
+  resumeStashedJoin,
 };
 
 /**
@@ -126,6 +128,14 @@ export function UnlockScreen() {
     hasSession: unlockScreenDependencies.currentSession() !== null,
   });
   const setupOpen = forced || (required && !dismissed);
+
+  useEffect(() => {
+    if (setupOpen) return;
+    void unlockScreenDependencies.resumeStashedJoin().catch(() => {
+      // A spent or expired stash is not a reason to trap unlock. The next
+      // invite is a new one.
+    });
+  }, [setupOpen]);
 
   if (setupOpen) {
     return (
