@@ -58,6 +58,18 @@ export default defineConfig({
           next();
         });
       },
+      // Vite injects an inline React-refresh hook in index.html. Production
+      // has no inline scripts, so the meta CSP stays strict there.
+      transformIndexHtml: {
+        order: "pre",
+        handler(html, ctx) {
+          if (!ctx.server) return html;
+          return html.replace(
+            "script-src 'self' 'wasm-unsafe-eval'",
+            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+          );
+        },
+      },
     },
     react(),
     VitePWA({

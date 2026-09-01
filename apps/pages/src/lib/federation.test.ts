@@ -88,9 +88,11 @@ afterEach(() => {
 });
 
 describe("trusted upstreams", () => {
-  it("picks the local mock IdP on loopback pages", () => {
-    expect(location.hostname).toBe("localhost");
-    expect(defaultUpstream().id).toBe("mock");
+  it("picks Shoo as the compiled-in broker on every origin", () => {
+    expect(defaultUpstream().id).toBe("shoo");
+    expect(defaultUpstream().authorizationEndpoint).toBe(
+      "https://shoo.dev/authorize",
+    );
   });
 
   it("looks upstreams up by exact issuer", () => {
@@ -237,6 +239,36 @@ describe("beginSignIn", () => {
     });
     expect(pending.verifier).toBeTruthy();
     expect(pending.state).toBeTruthy();
+  });
+
+  it("does not fetch discovery for a compiled broker that already has endpoints", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.reject(new Error("discovery must not run")),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const seen: string[] = [];
+    vi.stubGlobal("location", {
+      origin: window.location.origin,
+      hostname: window.location.hostname,
+      href: window.location.href,
+      search: window.location.search,
+      assign: (url: string) => {
+        seen.push(url);
+      },
+    });
+    const upstream = TRUSTED_UPSTREAMS.find((u) => u.id === "shoo");
+    if (!upstream) throw new Error("shoo upstream missing");
+
+    await beginSignIn(upstream);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    const pending = JSON.parse(sessionStorage.getItem(PKCE_KEY) ?? "null");
+    expect(pending.tokenEndpoint).toBe("https://shoo.dev/token");
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.startsWith("https://shoo.dev/authorize?")).toBe(true);
+    expect(seen[0]).toContain(
+      `client_id=${encodeURIComponent(`origin:${window.location.origin}`)}`,
+    );
   });
 
   it("stores org tenant metadata for an SSO/SAML round trip", async () => {

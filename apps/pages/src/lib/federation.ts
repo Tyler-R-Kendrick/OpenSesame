@@ -43,6 +43,15 @@ export type TrustedUpstream = {
    * `aud` claim is checked against (ADR 0078).
    */
   clientId?: string;
+  /**
+   * Compiled OIDC endpoints. A static page cannot discover these when the
+   * broker omits CORS on `/.well-known/openid-configuration` (shoo.dev serves
+   * CORS on `POST /token` only). Authorization is a top-level navigation, so
+   * it needs no CORS; the token POST already allows this origin.
+   */
+  authorizationEndpoint?: string;
+  tokenEndpoint?: string;
+  jwksUri?: string;
 };
 
 /**
@@ -54,30 +63,36 @@ export const TRUSTED_UPSTREAMS: readonly TrustedUpstream[] = [
     id: "shoo",
     displayName: "Shoo",
     issuer: "https://shoo.dev",
-    // Honest label: shoo.dev fronts Google sign-in but is a third-party
-    // broker, and its accounts never email-merge with magic-link accounts —
-    // saying "Google" alone would promise a merge that cannot happen.
-    accountKind: "Google (via shoo.dev)",
+    accountKind: "Google",
+    authorizationEndpoint: "https://shoo.dev/authorize",
+    tokenEndpoint: "https://shoo.dev/token",
+    jwksUri: "https://shoo.dev/.well-known/jwks.json",
   },
   {
+    // Hermetic tests name this upstream explicitly. It is never the product
+    // default — first run signs in through Shoo, which is a real OIDC broker.
     id: "mock",
     displayName: "Local mock IdP",
     issuer: "http://127.0.0.1:9090",
     accountKind: "a test account",
+    authorizationEndpoint: "http://127.0.0.1:9090/authorize",
+    tokenEndpoint: "http://127.0.0.1:9090/token",
+    jwksUri: "http://127.0.0.1:9090/jwks",
   },
 ];
 
 /**
- * Loopback deployments are development, where reaching the public broker would
- * be both wrong and usually impossible; anything else is the real thing.
+ * The compiled-in broker is Shoo on every origin, including loopback.
+ *
+ * A self-hosted Identity API is optional plumbing (org SSO, SAML, magic
+ * link, guest). It is not a requirement for first-run sign-in: this static
+ * page is a public OIDC client of Shoo, which fronts Google — including
+ * Google passkeys — and already serves CORS on `POST /token` for this origin.
+ * The mock IdP stays in the allowlist so hermetic tests can name it.
  */
 function defaultUpstreamDefault(): TrustedUpstream {
-  const local =
-    location !== undefined &&
-    /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-  const wanted = local ? "mock" : "shoo";
-  const found = TRUSTED_UPSTREAMS.find((u) => u.id === wanted);
-  if (!found) throw new Error(`no trusted upstream "${wanted}"`);
+  const found = TRUSTED_UPSTREAMS.find((u) => u.id === "shoo");
+  if (!found) throw new Error('no trusted upstream "shoo"');
   return found;
 }
 
@@ -317,6 +332,23 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
   };
 }
 
+/** Compiled brokers skip CORS discovery; operator-brought issuers still fetch. */
+function discoveryFor(upstream: TrustedUpstream): Promise<OidcDiscovery> {
+  if (
+    upstream.authorizationEndpoint &&
+    upstream.tokenEndpoint &&
+    upstream.jwksUri
+  ) {
+    return Promise.resolve({
+      issuer: upstream.issuer,
+      authorization_endpoint: upstream.authorizationEndpoint,
+      token_endpoint: upstream.tokenEndpoint,
+      jwks_uri: upstream.jwksUri,
+    });
+  }
+  return discover(upstream.issuer);
+}
+
 type PendingAuth = {
   upstreamId: string;
   issuer: string;
@@ -398,7 +430,7 @@ async function beginSignInDefault(
       "This deployment isn't connected to an identity service yet, so this sign-in can't start.",
     );
   }
-  const discovery = await discover(upstream.issuer);
+  const discovery = await discoveryFor(upstream);
   const { verifier, challenge } = await createPkce();
   const state = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
   // An operator's own provider needs a subject and a name to be worth signing
