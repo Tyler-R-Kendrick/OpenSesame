@@ -1,5 +1,5 @@
 import { type ReactElement, Suspense, lazy } from "react";
-import { IconSupport } from "../../components/Icons.js";
+import { IconHelp } from "../../components/Icons.js";
 import { useGuideTarget } from "../registry/react.jsx";
 import { useSupport } from "../session.js";
 
@@ -14,9 +14,9 @@ const SupportPanel = lazy(() =>
 );
 
 /**
- * Support sits in the statusline beside the bell and the lock, because that
- * strip is the one piece of chrome present at every width and on every screen
- * — it is where this app already puts the things that are always true.
+ * Support is a fixed overlay in the same viewport corner on every screen —
+ * unlock, setup, ceremonies, the broker popup, the vault. It is not chrome
+ * of the unlocked shell, because those screens have no shell.
  *
  * There is deliberately no keyboard shortcut. Every free single key belongs to
  * the vault keymap in `lib/keymap.ts`, which owns the one global handler and
@@ -40,14 +40,14 @@ export function SupportLauncher(): ReactElement {
       <button
         ref={ref}
         type="button"
-        className={`cx__btn ${guiding ? "cx__btn--attn" : "cx__btn--off"}`}
+        className={`support-launch${guiding ? " support-launch--live" : ""}`}
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
-        onClick={() => support.open()}
+        aria-expanded={view.open}
+        onClick={() => (view.open ? support.close() : support.open())}
       >
-        <IconSupport size={17} />
-        <span className="cx__pip" aria-hidden="true" />
+        <IconHelp size={18} />
       </button>
       {view.open ? (
         <Suspense

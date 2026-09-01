@@ -27,6 +27,8 @@ import {
 import { HealthPanel as DefaultHealthPanel } from "./sections/vault/HealthPanel.js";
 import { ItemDetail as DefaultItemDetail } from "./sections/vault/ItemDetail.js";
 import { ItemEditor as DefaultItemEditor } from "./sections/vault/ItemEditor.js";
+import { SupportProvider } from "./tutorial/session.js";
+import { SupportLauncher } from "./tutorial/ui/SupportLauncher.js";
 import { useWebMcp } from "./webmcp/lifecycle.js";
 
 // Route-level code splitting: the four big sections load on first visit.
@@ -188,31 +190,27 @@ function VaultApp() {
 
 /**
  * Broker + federated return run without unlocking the vault. Everything else
- * stays behind the master-password gate.
+ * stays behind the master-password gate. Support sits outside that gate so
+ * the overlay is on every screen, including unlock, setup and ceremonies.
  */
 export function App({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
 
-  if (resolved.hasAuthResponse(location.search)) {
-    return (
-      <AppSlotsContext.Provider value={resolved}>
-        <resolved.FederationReturn />
-      </AppSlotsContext.Provider>
-    );
-  }
-
-  if (location.pathname === "/broker/authorize") {
-    return (
-      <AppSlotsContext.Provider value={resolved}>
-        <resolved.BrokerAuthorize />
-      </AppSlotsContext.Provider>
-    );
-  }
+  const body = resolved.hasAuthResponse(location.search) ? (
+    <resolved.FederationReturn />
+  ) : location.pathname === "/broker/authorize" ? (
+    <resolved.BrokerAuthorize />
+  ) : (
+    <VaultApp />
+  );
 
   return (
     <AppSlotsContext.Provider value={resolved}>
-      <VaultApp />
+      <SupportProvider>
+        {body}
+        <SupportLauncher />
+      </SupportProvider>
     </AppSlotsContext.Provider>
   );
 }

@@ -27,6 +27,7 @@ import {
   parseBrokerRequest,
   touchConsent,
 } from "../lib/site-broker.js";
+import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
 
 type Phase =
@@ -50,6 +51,7 @@ function resumePath(request: BrokerRequest): string {
 }
 
 export function BrokerAuthorize() {
+  useSupportRoute("/broker/authorize");
   const [searchParams] = useSearchParams();
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
 

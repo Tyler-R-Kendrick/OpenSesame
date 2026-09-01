@@ -33,6 +33,7 @@ import {
 } from "../lib/guest-auth.js";
 import { ensureIdentitySession } from "../lib/identity.js";
 import { joinOrgTenant } from "../lib/orgs.js";
+import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
 
 type ReturnOutcome = { returnTo?: string };
@@ -107,6 +108,7 @@ function runReturn(): Promise<ReturnOutcome> {
 }
 
 export function FederationReturn() {
+  useSupportRoute("/federation");
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 

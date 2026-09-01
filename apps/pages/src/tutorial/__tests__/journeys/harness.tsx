@@ -68,12 +68,14 @@ import {
   isMountedGuideTarget,
   observeGuideTarget,
 } from "../../registry/targets.js";
-import type {
-  SupportEngine,
-  SupportHost,
-  SupportTransport,
+import {
+  type SupportEngine,
+  type SupportHost,
+  SupportProvider,
+  type SupportTransport,
+  supportSessionSeams,
 } from "../../session.js";
-import { supportSessionSeams } from "../../session.js";
+import { SupportLauncher } from "../../ui/SupportLauncher.js";
 
 export type JourneyUser = ReturnType<typeof userEvent.setup>;
 
@@ -311,9 +313,12 @@ export function renderJourney(
   const user = userEvent.setup();
   render(
     <MemoryRouter initialEntries={[options.at ?? "/vault"]}>
-      <AppShell>
-        <Screens />
-      </AppShell>
+      <SupportProvider>
+        <AppShell>
+          <Screens />
+        </AppShell>
+        <SupportLauncher />
+      </SupportProvider>
     </MemoryRouter>,
   );
 
@@ -343,7 +348,7 @@ export function resetJourney(): void {
   targetsCleared = 0;
 }
 
-/** The statusline affordance, which is present at every width. */
+/** The overlay affordance, which is present at every width. */
 export async function openSupport(user: JourneyUser): Promise<HTMLElement> {
   await user.click(screen.getByRole("button", { name: "Support" }));
   return screen.findByRole("dialog", { name: "Support" });
@@ -351,7 +356,7 @@ export async function openSupport(user: JourneyUser): Promise<HTMLElement> {
 
 /**
  * The way back in while a walkthrough is live. The panel steps aside for one,
- * and the statusline is what says so.
+ * and the overlay is what says so.
  */
 export async function reopenSupport(user: JourneyUser): Promise<HTMLElement> {
   await user.click(

@@ -41,6 +41,7 @@ import {
   describeWebauthnError,
   pinPolicyProblems,
 } from "../lib/vault/unlock-methods.js";
+import { useSupportRoute } from "../tutorial/session.js";
 import { SetupScreen } from "./SetupScreen.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -179,6 +180,7 @@ export function UnlockScreen() {
 }
 
 function UnlockForm({ onOpenSetup }: { onOpenSetup: () => void }) {
+  useSupportRoute("/unlock");
   const {
     status,
     header,

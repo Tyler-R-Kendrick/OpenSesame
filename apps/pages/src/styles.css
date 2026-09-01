@@ -783,7 +783,7 @@ input[type="radio"] {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.25rem 0.85rem;
+  padding: 0.25rem 0.85rem 0.25rem 3.6rem;
   border-top: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--ink-2);
@@ -1583,7 +1583,7 @@ body {
     grid-auto-columns: 1fr;
     gap: 0.1rem;
     padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom));
-    padding-left: calc(0.35rem + env(safe-area-inset-left));
+    padding-left: 3.6rem;
     padding-right: calc(0.35rem + env(safe-area-inset-right));
     background: var(--surface);
     border-top: 1px solid var(--line);

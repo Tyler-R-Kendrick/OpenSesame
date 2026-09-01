@@ -384,6 +384,16 @@ export function IconSupport(props: IconProps) {
   );
 }
 
+/** The overlay mark: a question, not a chat bubble. */
+export function IconHelp(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M9.05 9.1a3 3 0 1 1 4.15 2.8c-.7.4-1.15.95-1.15 1.75" />
+      <path d="M12 17.15h.01" />
+    </Svg>
+  );
+}
+
 export function IconLock(props: IconProps) {
   return (
     <Svg {...props}>

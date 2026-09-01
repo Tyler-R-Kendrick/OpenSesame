@@ -165,6 +165,13 @@ const BARE_ELEMENTS = [
 ];
 
 describe("support.css restyles only the support panel", () => {
+  it("pins the launcher to the same viewport corner on every screen", () => {
+    const rule = ruleFor(supportRules, ".support-launch");
+    expect(declarations(rule, "position")).toEqual(["fixed"]);
+    expect(declarations(rule, "left")[0]).toMatch(/0\.85rem/);
+    expect(declarations(rule, "bottom")[0]).toMatch(/0\.85rem/);
+  });
+
   it("anchors every rule on the panel's own scope", () => {
     const stray = supportRules.flatMap((rule) =>
       rule.selectors.filter(
