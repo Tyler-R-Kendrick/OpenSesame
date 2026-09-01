@@ -159,6 +159,8 @@ function rememberComputer(
     detail === undefined || detail.trim().length === 0
       ? null
       : clampLabel(detail, MAX_COMPUTER_DETAIL_CHARS);
+  const last = traces.computer.at(-1);
+  if (last && last.title === name && last.detail === note) return;
   traces.computer.push({ title: name, detail: note });
 }
 
@@ -219,11 +221,10 @@ function consumeEvent(
       traces.openTool = null;
       return false;
     case "STEP_STARTED":
-    case "STEP_FINISHED":
       rememberComputer(
         traces,
         readString(event.stepName) ?? readString(event.name),
-        readString(event.status),
+        undefined,
       );
       return false;
     case "RUN_ERROR":

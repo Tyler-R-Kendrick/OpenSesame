@@ -172,8 +172,8 @@ export function SupportPanel(): ReactElement {
                   <details className="support__trace">
                     <summary>Computer</summary>
                     <ol className="support__computer">
-                      {entry.computer.map((step) => (
-                        <li key={step.title}>
+                      {entry.computer.map((step, index) => (
+                        <li key={`${step.title}:${index}`}>
                           <span className="support__computer-title">
                             {step.title}
                           </span>
