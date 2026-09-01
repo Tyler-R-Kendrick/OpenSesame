@@ -51,6 +51,33 @@ So "social login without a backend" always has a broker in it. The question is
 only *whose*. A static site may point at shoo.dev, or at an OpenSesame
 deployment — the ceremony it performs is byte-for-byte the same one.
 
+### shoo.dev's dialect
+
+Shoo is not a full OIDC authorize endpoint and its official clients
+(`shoo.js`, `@shoojs/auth`) never pretend it is. Speaking to it, the client
+sends **exactly**: `client_id`, `redirect_uri`, `state`, `code_challenge`,
+`code_challenge_method=S256`, and — only when profile data is wanted —
+`pii=true`. There is no `response_type` and no `scope`; email/name/picture
+are a consent flag on shoo's side, and a `scope` string grants nothing.
+`POST /token` (CORS-enabled) answers `{ id_token, pairwise_sub, expires_in }`.
+
+Two more properties shape the client:
+
+- **`/.well-known/jwks.json` serves no CORS**, so a static page cannot verify
+  the ES256 signature itself. The token arrives directly from the token
+  endpoint over TLS in response to the page's own PKCE-bound request (the case
+  OIDC Core §3.1.3.7 allows), claims are checked locally, and
+  **`POST /session/check`** (CORS-enabled, id_token as bearer) is the
+  signature- and revocation-backed answer to "is this user actually
+  authorized" — a 401 there refuses the sign-in. Relying parties receiving
+  the token second-hand still verify against the JWKS server-side (§3).
+- **The round trip may finish in a different browsing context** than it
+  started in (an installed PWA hands out-of-scope navigation to a browser
+  tab). The PKCE record and the resulting session therefore live in
+  `localStorage` — where shoo's own clients keep theirs — with a ten-minute
+  ceiling on the pending record and `exp`-bounded, trust-checked reads of the
+  session.
+
 ### The ceremony
 
 ```text
