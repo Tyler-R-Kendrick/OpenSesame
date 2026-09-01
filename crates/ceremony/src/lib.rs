@@ -40,6 +40,7 @@
 //! redeems nothing.
 
 pub mod capture;
+pub mod catalog;
 pub mod outcome;
 pub mod refusal;
 pub mod tier;
@@ -48,6 +49,7 @@ pub use capture::{
     check_shape, CaptureDigest, CaptureRefusal, DeclaredSlots, Shape, Slot, MAX_PEM_BYTES,
     MAX_TOKEN_CHARS, MIN_TOKEN_CHARS,
 };
+pub use catalog::{Catalog, CatalogEntry};
 pub use outcome::{Completion, GrantedPermissions, Incomplete, RoundTrip};
 pub use refusal::{Act, Consent, Guard, Presence, Refusal};
 pub use tier::{resolve, Phase, ProviderCapability, Tier};
