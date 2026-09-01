@@ -1743,7 +1743,7 @@
 }
   </style>
 </helmet>
-<div class="os" style="width: 1180px; height: 780px; padding: 28px 32px; gap: 22px; overflow: hidden">
+<div class="os" style="width: 1180px; height: 920px; padding: 28px 32px; gap: 22px; overflow: hidden">
   <div style="display: grid; gap: 6px">
     <h1 style="font-size: 1.5rem">One screen, two facts</h1>
     <p style="color: var(--ink-2); font-size: 0.9375rem; max-width: 72ch">A device knows <strong>who</strong> is signed in and <strong>which key</strong> opens a vault. They are separate ledgers with separate exits, and the unlock screen states both. Neither ever stands in for the other.</p>
@@ -1759,12 +1759,12 @@
       <div class="arrow">→</div>
       <div class="box">
         <span class="box__name">Assertion</span>
-        <span class="box__sub">A signed id_token for this origin (pairwise, no PII unless asked), checked against the broker's <code>/session/check</code>. Kept in web storage, bounded by <code>exp</code>.</span>
+        <span class="box__sub">A signed id_token for this origin — pairwise, no PII unless asked — vetted by the broker's <code>/session/check</code> and kept until <code>exp</code>.</span>
       </div>
       <div class="arrow">→</div>
       <div class="box">
         <span class="box__name">Principal</span>
-        <span class="box__sub">With an Identity API: provisional on arrival, linked to the identity on sign-in, one principal for many identities. Without one: the assertion is the whole account.</span>
+        <span class="box__sub">With an Identity API: provisional on arrival, linked on sign-in, one principal for many identities. Without one, the assertion is the whole account.</span>
       </div>
       <div class="arrow">→</div>
       <div class="box box--accent">
@@ -1805,7 +1805,7 @@
       <div class="arrow">→</div>
       <div class="box">
         <span class="box__name">Open</span>
-        <span class="box__sub">The key is in memory; the tomb's sealed config comes with it. Idle, tab-hide and the lock buttons drop it.</span>
+        <span class="box__sub">The key is in memory; the vault's sealed settings come with it. Idle, tab-hide and the lock buttons drop it.</span>
       </div>
       <div class="arrow">→</div>
       <div class="box box--ink">

@@ -25,7 +25,7 @@
 
           <p class="account-switcher__label">Profiles</p>
           <button type="button" class="account-switcher__item is-active" aria-current="true">
-            <span class="account-switcher__item-name">personal</span>
+            <span class="account-switcher__item-name">account</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.2 4L19 7"></path></svg>
           </button>
           <button type="button" class="account-switcher__item">
@@ -88,7 +88,7 @@
   </aside>
 
   <div style="flex: 1; min-width: 0; padding: 1.2rem 1rem; display: grid; gap: 0.7rem; align-content: start">
-    <p class="hint"><strong>The prompt is the switcher.</strong> <code>who@vault:/</code> — the first segment names the account and opens this menu; the second names the open vault and opens the vault list (ADR 0089). Neither is new; the three roads at the bottom are.</p>
+    <p class="hint"><strong>The prompt is the switcher.</strong> <code>who@vault:/</code> — the first segment names the account and opens this menu; the second names the open vault (<code>personal</code> here) and opens the vault list (ADR 0089). The profiles in the middle are the org profiles the menu always had; the three roads at the bottom are new.</p>
     <p class="hint">A guest reads <code>guest@personal:/</code>. Its menu has no account to add to, so the exits are <em>Sign in</em> and <em>Sign out</em> — the latter ends the provisional session and locks.</p>
   </div>
 </div>
