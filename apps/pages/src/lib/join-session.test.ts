@@ -53,6 +53,24 @@ describe("parseInviteInput", () => {
   it("refuses an empty paste", () => {
     expect(parseInviteInput("  ")).toBeNull();
   });
+
+  it("does not treat this Pages origin as a Host", () => {
+    expect(
+      parseInviteInput(
+        "https://pages.example/OpenSesame/#token=osc_clm_id.secret",
+        "https://pages.example",
+      ),
+    ).toEqual({ host: null, token: "osc_clm_id.secret" });
+  });
+
+  it("does not take a bearer from the query string", () => {
+    expect(
+      parseInviteInput(
+        "https://host.example/claim?token=osc_clm_id.secret",
+        "https://pages.example",
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("readJoinFromLocation", () => {

@@ -14,11 +14,12 @@
  * Designed in `docs/design/first-run-setup/` and `docs/design/shared-sessions/`.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IconCheck, IconChevronLeft, IconMark } from "../components/Icons.js";
 import {
   type ParsedInvite,
   readJoinFromLocation,
+  scrubJoinHash,
 } from "../lib/join-session.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
@@ -43,10 +44,21 @@ function initialInvite(): ParsedInvite | null {
   return setupScreenDependencies.readJoinFromLocation();
 }
 
-export function SetupScreen({ onDone }: { onDone: () => void }) {
-  const [road, setRoad] = useState<Road>(initialRoad);
+export function SetupScreen({
+  onDone,
+  intent,
+}: {
+  onDone: () => void;
+  /** Skip the fork when a vault or session already exists and setup was asked for. */
+  intent?: Road;
+}) {
+  const [road, setRoad] = useState<Road>(intent ?? initialRoad);
   const [invite] = useState<ParsedInvite | null>(initialInvite);
   const [finishing, setFinishing] = useState(false);
+
+  useEffect(() => {
+    scrubJoinHash();
+  }, []);
 
   const verb = finishing ? "Saving…" : "Finish setup";
 

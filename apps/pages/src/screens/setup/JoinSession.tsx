@@ -18,11 +18,13 @@ import {
 import type { DelegationOffer } from "../../lib/access.js";
 import { currentSession, hostBase } from "../../lib/identity.js";
 import {
+  type JoinStash,
   type ParsedInvite,
   acceptInvite,
   askToJoin,
   parseInviteInput,
   presentInvite,
+  readJoinStash,
   writeJoinStash,
 } from "../../lib/join-session.js";
 import { loadSettings, saveSettings } from "../../lib/settings.js";
@@ -40,7 +42,31 @@ export const joinSessionDependencies = {
   completeSetup,
   parseInviteInput,
   writeJoinStash,
+  readJoinStash,
 };
+
+function offerFromStash(
+  stash: Extract<JoinStash, { kind: "invite" }>,
+): DelegationOffer {
+  return {
+    id: "",
+    state: "presented",
+    manifestDigest: "",
+    expiresAt: "",
+    items: stash.acceptedItemIds.map((id) => ({
+      id,
+      connectionId: "",
+      providerId: "",
+      displayName: "Offered grant",
+      actions: [],
+      resources: [],
+      expiresInSeconds: 0,
+      executionMode: "broker",
+      required: true,
+      dependencies: [],
+    })),
+  };
+}
 
 type Mode = "invite" | "ask";
 
@@ -49,9 +75,14 @@ function errorText(caught: unknown): string {
 }
 
 function commitHost(raw: string): string {
-  const next = normalizeApiBase(raw.trim()) ?? raw.trim();
+  const next = normalizeApiBase(raw.trim());
+  if (!next) {
+    throw new Error(
+      "That is not a Host this page may call. Use https, or http on loopback.",
+    );
+  }
   const settings = joinSessionDependencies.loadSettings();
-  if (next && next !== settings.hostApi) {
+  if (next !== settings.hostApi) {
     joinSessionDependencies.saveSettings({ ...settings, hostApi: next });
   }
   return next;
@@ -79,6 +110,14 @@ export function JoinSession({
   const signedIn = joinSessionDependencies.currentSession() !== null;
 
   useEffect(() => {
+    const stash = joinSessionDependencies.readJoinStash();
+    if (stash?.kind === "invite") {
+      setInvite(stash.token);
+      if (stash.host) setHost(stash.host);
+      if (stash.userCode) setCode(stash.userCode);
+      if (stash.acceptedItemIds.length > 0) setOffer(offerFromStash(stash));
+      return;
+    }
     if (!initial?.token) return;
     setInvite(initial.token);
     if (initial.host) setHost(initial.host);
@@ -142,11 +181,23 @@ export function JoinSession({
       if (parsed?.host) setHost(parsed.host);
 
       if (!offer) {
+        const stash = joinSessionDependencies.readJoinStash();
+        if (stash?.kind === "invite" && stash.token === token) {
+          setOffer(offerFromStash(stash));
+          return;
+        }
         const found = await joinSessionDependencies.presentInvite(
           pointed,
           token,
         );
         setOffer(found);
+        joinSessionDependencies.writeJoinStash({
+          kind: "invite",
+          host: pointed,
+          token,
+          userCode: code.trim(),
+          acceptedItemIds: found.items.map((item) => item.id),
+        });
         return;
       }
 

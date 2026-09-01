@@ -260,6 +260,7 @@ describe("the first-visit fork", () => {
       },
       completeSetup,
       writeJoinStash,
+      readJoinStash: () => null,
       parseInviteInput: (raw: string) =>
         raw.trim() ? { host: "https://host.example", token: raw.trim() } : null,
     });
@@ -269,6 +270,13 @@ describe("the first-visit fork", () => {
     type("Invite", "osc_clm_id.secret");
     fireEvent.click(screen.getByRole("button", { name: "Look it up" }));
     await waitFor(() => expect(screen.getByText("ready")).toBeTruthy());
+    expect(writeJoinStash).toHaveBeenCalledWith({
+      kind: "invite",
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+      userCode: "",
+      acceptedItemIds: ["item_1"],
+    });
     type("Code", "FKM2RD");
     fireEvent.click(screen.getByRole("button", { name: "Sign in to accept" }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
