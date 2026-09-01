@@ -372,7 +372,7 @@ describe("UnlockScreen — setup gate", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "This device is empty",
+      "How do people sign in?",
     );
   });
 
@@ -385,7 +385,7 @@ describe("UnlockScreen — setup gate", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Set it up" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "This device is empty",
+      "How do people sign in?",
     );
   });
 

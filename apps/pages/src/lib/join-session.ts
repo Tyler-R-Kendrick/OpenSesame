@@ -87,7 +87,10 @@ function toOffer(value: BoundaryValue): DelegationOffer {
 }
 
 /** Pull a claim bearer and optional Host origin out of a pasted link or token. */
-export function parseInviteInput(raw: string): ParsedInvite | null {
+export function parseInviteInput(
+  raw: string,
+  pageOrigin: string = globalThis.location?.origin ?? "",
+): ParsedInvite | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   try {
@@ -95,35 +98,46 @@ export function parseInviteInput(raw: string): ParsedInvite | null {
     const fragment = new URLSearchParams(
       url.hash.startsWith("#") ? url.hash.slice(1) : url.hash,
     );
+    // Fragment only for the query-shaped bearer: a `?token=` lands in logs
+    // and Referer. A path token is the Host invite URL from the canvas.
     const fromFragment = fragment.get("token");
-    const fromQuery =
-      url.searchParams.get("token") ?? url.searchParams.get("claim_token");
-    const fromPath = trimmed.match(CLAIM_TOKEN)?.[0] ?? null;
-    const token = (fromFragment || fromQuery || fromPath || "").trim();
+    const fromPath = url.pathname.match(CLAIM_TOKEN)?.[0] ?? null;
+    const token = (fromFragment || fromPath || "").trim();
     if (!token) return null;
-    const host = normalizeApiBase(url.origin);
-    return { host, token };
+    if (pageOrigin && url.origin === pageOrigin) {
+      return { host: null, token };
+    }
+    return { host: normalizeApiBase(url.origin), token };
   } catch {
     return { host: null, token: trimmed };
   }
 }
 
 /**
- * An invite that arrived as this page's own URL — a hash bearer or a claim
- * token in the query. Absence is not an error: most first visits have none.
- * This page's origin is never the Host: a Pages deploy cannot mint a grant.
+ * An invite that arrived as this page's own URL — a hash bearer.
+ * Absence is not an error: most first visits have none.
  */
 export function readJoinFromLocation(
   href: string = globalThis.location?.href ?? "",
   pageOrigin: string = globalThis.location?.origin ?? "",
 ): ParsedInvite | null {
   if (!href) return null;
-  const parsed = parseInviteInput(href);
-  if (!parsed) return null;
-  if (parsed.host && pageOrigin && parsed.host === pageOrigin) {
-    return { host: null, token: parsed.token };
+  return parseInviteInput(href, pageOrigin);
+}
+
+/** Drop a fragment bearer from history once we have copied it out. */
+export function scrubJoinHash(): void {
+  try {
+    const { pathname, search, hash } = globalThis.location;
+    if (!hash) return;
+    const params = new URLSearchParams(
+      hash.startsWith("#") ? hash.slice(1) : hash,
+    );
+    if (!params.get("token")) return;
+    globalThis.history.replaceState(null, "", `${pathname}${search}`);
+  } catch {
+    /* not a browser */
   }
-  return parsed;
 }
 
 const STASH_KEY = "join.invite.v1";
@@ -250,6 +264,7 @@ async function presentInviteDefault(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ claim_token: bearer }),
+      credentials: "omit",
       timeoutMs: PRESENT_MS,
     });
   } catch (error) {

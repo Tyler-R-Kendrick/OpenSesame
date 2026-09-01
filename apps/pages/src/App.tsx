@@ -11,6 +11,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router";
 import { AppShell as DefaultAppShell } from "./components/AppShell.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { recoverPendingFederatedLink } from "./lib/guest-auth.js";
+import { resumeStashedJoin } from "./lib/join-session.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
@@ -120,6 +121,9 @@ function VaultApp() {
   useEffect(() => {
     if (status !== "unlocked") return;
     recoverPendingFederatedLink();
+    void resumeStashedJoin().catch(() => {
+      // A spent or expired stash is not a reason to trap the vault.
+    });
   }, [status]);
 
   if (status !== "unlocked") {

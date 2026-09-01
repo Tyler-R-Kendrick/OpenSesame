@@ -19,7 +19,11 @@ import {
   IconUser,
 } from "../components/Icons.js";
 import { defaultUpstream } from "../lib/federation.js";
-import { currentSession, identityBase } from "../lib/identity.js";
+import {
+  currentSession,
+  identityBase,
+  useIdentitySession,
+} from "../lib/identity.js";
 import { resumeStashedJoin } from "../lib/join-session.js";
 import {
   type FederatedProviderSummary,
@@ -136,6 +140,7 @@ export const unlockScreenDependencies = {
  */
 export function UnlockScreen() {
   const { status } = useVault();
+  const session = useIdentitySession();
   const [dismissed, setDismissed] = useState(false);
   const [forced, setForced] = useState(false);
   const required = unlockScreenDependencies.setupRequired({
@@ -145,16 +150,17 @@ export function UnlockScreen() {
   const setupOpen = forced || (required && !dismissed);
 
   useEffect(() => {
-    if (setupOpen) return;
+    if (setupOpen || !session) return;
     void unlockScreenDependencies.resumeStashedJoin().catch(() => {
       // A spent or expired stash is not a reason to trap unlock. The next
       // invite is a new one.
     });
-  }, [setupOpen]);
+  }, [setupOpen, session]);
 
   if (setupOpen) {
     return (
       <SetupScreen
+        intent={forced && !required ? "setup" : undefined}
         onDone={() => {
           setForced(false);
           setDismissed(true);
