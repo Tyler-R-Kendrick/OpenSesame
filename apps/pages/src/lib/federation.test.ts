@@ -434,6 +434,18 @@ describe("completeSignIn", () => {
     expect(localStorage.getItem(PKCE_KEY)).toBeNull();
   });
 
+  it("refuses a stale pending out loud even beside a live session", async () => {
+    // An account-switch sign-in that aged past the ceiling is a failed
+    // ceremony, not a replayed callback: swallowing it into the existing
+    // session would silently discard the sign-in the person just made.
+    saveSession(identity());
+    seedPending({ createdAt: Date.now() - 11 * 60 * 1000 });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    await expect(completeSignIn()).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+  });
+
   it("finishes a sign-in that an older build left in sessionStorage", async () => {
     localStorage.clear();
     sessionStorage.setItem(

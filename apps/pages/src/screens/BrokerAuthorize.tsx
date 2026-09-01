@@ -1,6 +1,7 @@
 /**
  * Broker authorize popup — ADR 0034 / federated-signin.md §2.
- * Runs without unlocking the vault: federation session lives in sessionStorage.
+ * Runs without unlocking the vault: the federation session lives in web
+ * storage (see `saveSession`), never inside the encrypted vault.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

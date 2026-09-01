@@ -187,7 +187,8 @@ async function adoptFederatedIdentityDefault(
     } catch (caught) {
       // The user is already inside the app; throwing here would push them back
       // out of a sign-in that, from their side, worked. The verified assertion
-      // survives in sessionStorage, so the bell can retry.
+      // survives in web storage (federation's `saveSession`), so the bell can
+      // retry.
       const reason = describeLinkFailure(
         caught instanceof Error ? caught : null,
       );
@@ -248,7 +249,7 @@ async function openVaultAfterSignInDefault(): Promise<boolean> {
 /**
  * Re-raise the "finish attaching this sign-in" prompt after a reload. Notices
  * are in-memory, so a refresh drops them while the upstream assertion lives on
- * in sessionStorage. The prompt reuses the notifications bell's existing claim
+ * in web storage. The prompt reuses the notifications bell's existing claim
  * button, which restarts sign-in and lands back in `adoptFederatedIdentity`
  * with the vault now open.
  */

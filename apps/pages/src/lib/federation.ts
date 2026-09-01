@@ -426,28 +426,39 @@ function storePending(pending: PendingAuth): void {
   );
 }
 
-function takePending(): PendingAuth | null {
+type TakenPending = {
+  pending: PendingAuth | null;
+  /**
+   * A record WAS there but could not be used (older than the ceiling, or
+   * unreadable). Distinct from "no record at all" so a real sign-in that went
+   * stale mid-ceremony is refused out loud, never mistaken for a replayed
+   * callback and silently dropped into an existing session.
+   */
+  stale: boolean;
+};
+
+function takePending(): TakenPending {
   // The sessionStorage read keeps a sign-in that an older build started
   // mid-flight finishable; new records only ever land in localStorage.
   const raw =
     localStorage.getItem(PKCE_KEY) ?? sessionStorage.getItem(PKCE_KEY);
-  if (!raw) return null;
+  if (!raw) return { pending: null, stale: false };
   localStorage.removeItem(PKCE_KEY);
   sessionStorage.removeItem(PKCE_KEY);
   let pending: PendingAuth | null;
   try {
     pending = overlapCast(JSON.parse(raw));
   } catch {
-    return null;
+    return { pending: null, stale: true };
   }
   if (
     pending &&
     isNumber(pending.createdAt) &&
     Date.now() - pending.createdAt > PENDING_MAX_AGE_MS
   ) {
-    return null;
+    return { pending: null, stale: true };
   }
-  return pending;
+  return { pending, stale: !pending };
 }
 
 /**
@@ -604,7 +615,11 @@ async function requireActiveUpstreamSession(
   let reason = "revoked";
   try {
     const body: { reason?: BoundaryValue } = overlapCast(await response.json());
-    if (isString(body.reason)) reason = body.reason;
+    // The reason lands in on-screen copy: admit only a short token-shaped
+    // word, never an arbitrary string a broker response happens to carry.
+    if (isString(body.reason) && /^[a-z][a-z0-9_-]{0,63}$/i.test(body.reason)) {
+      reason = body.reason;
+    }
   } catch {
     /* the status alone is the answer */
   }
@@ -627,7 +642,7 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   const state = params.get("state");
   if (!code && !error) return null;
 
-  const pending = takePending();
+  const { pending, stale } = takePending();
   clearAuthResponseFromUrl();
 
   if (error) {
@@ -637,12 +652,15 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     );
   }
   if (!pending) {
-    // A code with no pending record is usually a replay — the callback URL
-    // reopened from history or a bookmark after the sign-in already finished.
-    // When a live session exists, this load is not a failed sign-in and must
-    // not be turned into one: the code is already spent (or somebody else's),
-    // the person is signed in, and the app just proceeds.
-    if (loadSessionDefault()) return null;
+    // A code with NO pending record at all is usually a replay — the callback
+    // URL reopened from history or a bookmark after the sign-in already
+    // finished. When a live session exists, this load is not a failed sign-in
+    // and must not be turned into one: the code is already spent (or somebody
+    // else's), the person is signed in, and the app just proceeds. A STALE
+    // record is different: a real ceremony was in flight and went bad, so it
+    // is refused out loud even beside a live session — silence here would
+    // discard an account-switch sign-in without a word.
+    if (!stale && loadSessionDefault()) return null;
     throw new FederationError(
       "invalid_request",
       "This sign-in expired or started somewhere else. Start again from the sign-in screen.",
@@ -909,8 +927,9 @@ export function clearAuthResponseFromUrl(): void {
  * signed out — the person signs in successfully and still lands on the
  * sign-in screen. This is also where shoo's official clients keep the same
  * identity. The stored assertion is bounded by its own `exp`, checked on
- * every load, dropped the moment its issuer loses trust, and revocable
- * upstream via the broker's session check.
+ * every load, and dropped the moment its issuer loses trust. The broker's
+ * session check vetted it once, when the sign-in completed; an upstream
+ * revocation after that takes effect only when `exp` passes.
  */
 export function saveSession(identity: UpstreamIdentity): void {
   // ast-grep-ignore: ts-localstorage-set
@@ -946,6 +965,10 @@ function loadSessionDefault(): UpstreamIdentity | null {
     }
     return identity;
   } catch {
+    // Unparsable is as dead as invalid: clear it, or a corrupt localStorage
+    // value would persist across restarts and shadow the legacy
+    // sessionStorage fallback forever.
+    clearSessionDefault();
     return null;
   }
 }
