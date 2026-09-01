@@ -1,6 +1,4 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import {
   type ReferenceLdapServer,
   startReferenceLdapServer,
@@ -11,6 +9,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { syncLdapDirectory } from "../interactions/ldap.js";
 import { resetLdapAttemptBudget } from "../routes/interactions-ldap.js";
 import type { startServer } from "../server.js";
+import { onFreePort } from "./free-port.js";
 import { hopUrl } from "./upstream-hop.js";
 
 /**
@@ -35,15 +34,6 @@ const RP_ORIGIN = "http://127.0.0.1:4341";
 
 function secret(): string {
   return randomBytes(24).toString("base64url");
-}
-
-async function reservePort(): Promise<number> {
-  const probe = createServer();
-  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-  // SAFETY: probe.listen established the runtime AddressInfo invariant.
-  const port = (probe.address() as AddressInfo).port;
-  await new Promise<void>((r) => probe.close(() => r()));
-  return port;
 }
 
 class Jar {
@@ -130,20 +120,21 @@ describe("LDAP directory sync", () => {
       ],
     });
 
-    const port = await reservePort();
     const { startServer: start } = await import("../server.js");
-    started = await start({
-      config: {
-        host: "127.0.0.1",
-        port,
-        publicUrl: `http://127.0.0.1:${port}`,
-        issuer: `http://127.0.0.1:${port}`,
-      },
-      processEnv: {
-        ...process.env,
-        OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
-      },
-    });
+    started = await onFreePort((port) =>
+      start({
+        config: {
+          host: "127.0.0.1",
+          port,
+          publicUrl: `http://127.0.0.1:${port}`,
+          issuer: `http://127.0.0.1:${port}`,
+        },
+        processEnv: {
+          ...process.env,
+          OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
+        },
+      }),
+    );
     base = `http://127.0.0.1:${started.port}`;
 
     const now = started.ctx.clock();

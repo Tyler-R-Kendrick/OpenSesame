@@ -1,10 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { orgDomainDependencies } from "../routes/org-domains.js";
 import type { startServer } from "../server.js";
+import { onFreePort } from "./free-port.js";
 
 /**
  * Organization email domains and home-realm discovery (C16, D12).
@@ -56,16 +55,6 @@ class Jar {
   }
 }
 
-/** Reserve a port so publicUrl can name it before the server binds. */
-async function reservePort(): Promise<number> {
-  const probe = createServer();
-  await new Promise<void>((r) => probe.listen(0, "127.0.0.1", r));
-  // SAFETY: probe.listen established the runtime AddressInfo invariant.
-  const port = (probe.address() as AddressInfo).port;
-  await new Promise<void>((r) => probe.close(() => r()));
-  return port;
-}
-
 function extractCsrf(html: string): string {
   const match = html.match(/name="_csrf" value="([^"]+)"/);
   if (!match?.[1]) throw new Error("no csrf token in page");
@@ -78,22 +67,23 @@ const originalResolveTxt = orgDomainDependencies.resolveTxt;
 
 beforeAll(async () => {
   const { startServer: start } = await import("../server.js");
-  const port = await reservePort();
-  started = await start({
-    config: {
-      host: "127.0.0.1",
-      port,
-      publicUrl: `http://127.0.0.1:${port}`,
-      issuer: `http://127.0.0.1:${port}`,
-    },
-    processEnv: {
-      ...process.env,
-      OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
-      OPENSESAME_TRUSTED_UPSTREAMS: UPSTREAM_ISSUER,
-      // Anything this flow logs must be visible to the sweep below.
-      OPENSESAME_LOG_LEVEL: "trace",
-    },
-  });
+  started = await onFreePort((port) =>
+    start({
+      config: {
+        host: "127.0.0.1",
+        port,
+        publicUrl: `http://127.0.0.1:${port}`,
+        issuer: `http://127.0.0.1:${port}`,
+      },
+      processEnv: {
+        ...process.env,
+        OPENSESAME_ORIGIN_CLIENTS_ENABLED: "true",
+        OPENSESAME_TRUSTED_UPSTREAMS: UPSTREAM_ISSUER,
+        // Anything this flow logs must be visible to the sweep below.
+        OPENSESAME_LOG_LEVEL: "trace",
+      },
+    }),
+  );
   base = `http://127.0.0.1:${started.port}`;
 }, 30_000);
 
