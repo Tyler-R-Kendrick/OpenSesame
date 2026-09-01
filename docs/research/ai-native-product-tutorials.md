@@ -1,9 +1,9 @@
 # AI-native product tutorials — ecosystem assessment
 
-Research input for [ADR 0087](../adr/0087-ai-native-contextual-support.md).
+Research input for [ADR 0088](../adr/0088-ai-native-contextual-support.md).
 This document records what the existing tools in this space actually do, what
 each one would have given us, and why it was or was not adopted. It is
-research, not a decision record: where this document and ADR 0087 disagree,
+research, not a decision record: where this document and ADR 0088 disagree,
 the ADR wins.
 
 The question under study: a person using the authority vault

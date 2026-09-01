@@ -2,7 +2,7 @@
 
 How the in-product support assistant and the adaptive tutorial system are put
 together. The decision and its argument are in
-[ADR 0087](../adr/0087-ai-native-contextual-support.md); this document is the
+[ADR 0088](../adr/0088-ai-native-contextual-support.md); this document is the
 map of what is where and why the pieces are separated the way they are. The
 test inventory is
 [`docs/validation/ai-contextual-support.md`](../validation/ai-contextual-support.md)
@@ -418,7 +418,7 @@ what make that decision visible in the diff, and the registry-parity sweep in
 `apps/pages/src/webmcp/registry-parity.test.ts` fails if the implemented
 catalog and the registry-derived catalog disagree.
 
-The reasoning for keeping guidance off the tool channel is in ADR 0087 §8: the
+The reasoning for keeping guidance off the tool channel is in ADR 0088 §8: the
 WebMCP catalog is governed and fenced, and putting support prose and authority
 mutations on one channel at one trust level would leave no structural answer to
 the first request for a guide that "just opens the approval dialog".

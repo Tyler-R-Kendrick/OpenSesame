@@ -150,7 +150,7 @@ describe("agent-surface parity rules", () => {
         expect(
           capability?.excluded?.[surface]?.adr,
           `${id} must cite the contextual-support ADR on ${surface}`,
-        ).toBe("0087-ai-native-contextual-support.md");
+        ).toBe("0088-ai-native-contextual-support.md");
       }
     }
   });

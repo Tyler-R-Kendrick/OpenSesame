@@ -3,7 +3,7 @@
 /**
  * The wall between guidance and actuation.
  *
- * ADR 0087 §8 keeps them on separate channels: the support model may say
+ * ADR 0088 §8 keeps them on separate channels: the support model may say
  * things and emit GuideLang, and WebMCP may run governed tools, and neither
  * reaches the other. The WebMCP suites test that catalog on its own terms and
  * the AG-UI suite tests the stream normalizer on its own terms; what nothing

@@ -7,7 +7,7 @@ Status: design audit of a new subsystem; no vulnerability found, no code changed
 The rest of this series documents a specific vulnerability that was found and
 fixed. This one does not. It is a pre-merge review of a subsystem that is new
 in its entirety — the in-product support assistant and the adaptive tutorial
-system of [ADR 0087](../adr/0087-ai-native-contextual-support.md) — carried out
+system of [ADR 0088](../adr/0088-ai-native-contextual-support.md) — carried out
 by attacking the assembled feature rather than by reading it. Nothing was
 repaired because nothing was found to repair. The entry exists so that what was
 attacked, what held, what is enforced structurally rather than by convention,
@@ -65,7 +65,7 @@ between them were the least-observed part of the feature.
    onto the registered route set for arbitrary paths and arbitrary strings, so
    the route the page reports is always one the registry declares.
 
-4. **Prompt injection through authored content.** ADR 0087 names the real
+4. **Prompt injection through authored content.** ADR 0088 names the real
    vector: vault item names, folder names, connection labels and
    KDBX-imported entries are attacker-controlled text this application renders
    by design. A vault was populated with injection-shaped names, a folder name,
@@ -253,6 +253,6 @@ These are properties of the design, not unfinished work.
   the description differently would need the adapter revisited; the version is
   pinned and `rendering/driver-xss.test.ts` plus the chain suite here are the
   tripwire.
-- **One more parser sits on an untrusted path.** ADR 0087 records this as a
+- **One more parser sits on an untrusted path.** ADR 0088 records this as a
   cost and answers it with no dependencies, no partial programs, and budgets
   enforced before structural work. It remains a cost.

@@ -1,4 +1,4 @@
-# ADR 0087 — Contextual support that guides, in a language that cannot act
+# ADR 0088 — Contextual support that guides, in a language that cannot act
 
 - Status: Accepted
 - Date: 2026-08-31
