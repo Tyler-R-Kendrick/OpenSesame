@@ -53,6 +53,7 @@ Object.assign(federationSeams, {
 import type { InstallOutcome, InstallState } from "../lib/install.js";
 import { installViewSeams } from "../lib/use-install.js";
 import { SetupScreen, setupScreenDependencies } from "./SetupScreen.js";
+import { joinSessionDependencies } from "./setup/JoinSession.js";
 import { waysInDependencies } from "./setup/WaysIn.js";
 
 /**
@@ -76,7 +77,13 @@ type ProviderFields = {
 };
 
 const completeSetup =
-  vi.fn<(outcome: { ways: string[]; service: boolean }) => Promise<void>>();
+  vi.fn<
+    (outcome: {
+      ways: string[];
+      service: boolean;
+      joined?: boolean;
+    }) => Promise<void>
+  >();
 
 beforeEach(() => {
   written.identityApi = "";
@@ -99,6 +106,7 @@ beforeEach(() => {
   Object.assign(setupScreenDependencies, {
     completeSetup,
     loadSettings: () => currentSettings(),
+    readJoinFromLocation: () => null,
   });
   installViewSeams.state = "unavailable";
   installNow.mockClear();
@@ -139,6 +147,12 @@ function commit(): HTMLElement {
   return go;
 }
 
+function openSetup(onDone: () => void = vi.fn()): () => void {
+  render(<SetupScreen onDone={onDone} />);
+  fireEvent.click(screen.getByRole("button", { name: /Set up this device/ }));
+  return onDone;
+}
+
 /** The ways-in list, as it reads on screen. */
 function ways(): string[] {
   return [...document.querySelectorAll(".ways__name")].map(
@@ -175,11 +189,110 @@ async function addProvider(
   });
 }
 
+describe("the first-visit fork", () => {
+  it("asks set-up or join before treating the visitor as operator", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(heading()).toBe("This device is empty");
+    expect(
+      screen.getByRole("button", { name: /Set up this device/ }),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Join a session/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Finish setup" })).toBeNull();
+  });
+
+  it("opens the operator question from set up", () => {
+    openSetup();
+    expect(heading()).toBe("How do people sign in?");
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(heading()).toBe("This device is empty");
+  });
+
+  it("opens join from the other road", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Join a session/ }));
+    expect(heading()).toBe("Join a session");
+    expect(screen.getByLabelText("Invite")).toBeTruthy();
+    expect(screen.getByLabelText("Code")).toBeTruthy();
+    expect(screen.getByLabelText("Host")).toBeTruthy();
+  });
+
+  it("opens join directly when the visit is an invite", () => {
+    setupScreenDependencies.readJoinFromLocation = () => ({
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+    });
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(heading()).toBe("Join a session");
+    expect(fieldNamed("Invite").value).toBe("osc_clm_id.secret");
+    expect(fieldNamed("Host").value).toBe("https://host.example");
+  });
+
+  it("presents an invite without a session, then records the join", async () => {
+    const presentInvite = vi.fn().mockResolvedValue({
+      id: "off_1",
+      state: "presented",
+      manifestDigest: "sha256:abc",
+      expiresAt: "2026-08-31T00:00:00Z",
+      items: [
+        {
+          id: "item_1",
+          connectionId: "conn_1",
+          providerId: "host",
+          displayName: "Grafana admin",
+          actions: ["read"],
+          resources: ["item:1"],
+          expiresInSeconds: 0,
+          executionMode: "broker",
+          required: true,
+          dependencies: [],
+        },
+      ],
+    });
+    const onDone = vi.fn();
+    const writeJoinStash = vi.fn();
+    Object.assign(joinSessionDependencies, {
+      presentInvite,
+      currentSession: () => null,
+      hostBase: () => "",
+      loadSettings: () => currentSettings(),
+      saveSettings: (next: PagesSettings) => {
+        written.hostApi = next.hostApi;
+      },
+      completeSetup,
+      writeJoinStash,
+      parseInviteInput: (raw: string) =>
+        raw.trim() ? { host: "https://host.example", token: raw.trim() } : null,
+    });
+    render(<SetupScreen onDone={onDone} />);
+    fireEvent.click(screen.getByRole("button", { name: /Join a session/ }));
+    type("Host", "https://host.example");
+    type("Invite", "osc_clm_id.secret");
+    fireEvent.click(screen.getByRole("button", { name: "Look it up" }));
+    await waitFor(() => expect(screen.getByText("ready")).toBeTruthy());
+    type("Code", "FKM2RD");
+    fireEvent.click(screen.getByRole("button", { name: "Sign in to accept" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(writeJoinStash).toHaveBeenCalledWith({
+      kind: "invite",
+      host: "https://host.example",
+      token: "osc_clm_id.secret",
+      userCode: "FKM2RD",
+      acceptedItemIds: ["item_1"],
+    });
+    expect(completeSetup).toHaveBeenCalledWith({
+      ways: [],
+      service: false,
+      joined: true,
+    });
+  });
+});
+
 describe("the setup ceremony", () => {
   it("is one screen asking one question", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     expect(heading()).toBe("How do people sign in?");
-    // No stepper, no counter, no skip, no back: there is nowhere else to go.
+    // No stepper, no counter, no skip. Back returns to the setup-or-join
+    // fork — it is not a previous *step* of this question.
     expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
     expect(document.querySelector(".setup__rail")).toBeNull();
@@ -191,7 +304,7 @@ describe("the setup ceremony", () => {
     // is one a first-time visitor has. A Host is optional infrastructure that
     // gates nothing the vault does on its own; the daemon pairing is for a
     // machine you already run OpenSesame on. Settings → Endpoints owns them.
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     expect(screen.queryByLabelText("Host API")).toBeNull();
     expect(screen.queryByLabelText("Mobile MFA app")).toBeNull();
     expect(screen.queryByText(/This machine/)).toBeNull();
@@ -201,13 +314,12 @@ describe("the setup ceremony", () => {
   it("arrives with the compiled-in broker already a way in", () => {
     // The whole point: a deployment nobody has configured is already usable,
     // so setup can be one tap.
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     expect(ways()).toEqual(["Google (via shoo.dev)"]);
   });
 
   it("finishes with nothing typed at all", async () => {
-    const onDone = vi.fn();
-    render(<SetupScreen onDone={onDone} />);
+    const onDone = openSetup(vi.fn());
     fireEvent.click(commit());
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
@@ -220,8 +332,7 @@ describe("the setup ceremony", () => {
 
   it("hands back even when the record cannot be persisted", async () => {
     completeSetup.mockRejectedValue(new Error("OPFS unavailable"));
-    const onDone = vi.fn();
-    render(<SetupScreen onDone={onDone} />);
+    const onDone = openSetup(vi.fn());
     fireEvent.click(commit());
 
     await waitFor(() => expect(onDone).toHaveBeenCalled());
@@ -232,7 +343,7 @@ describe("building the list of ways in", () => {
   it("takes as many providers as the operator wants", async () => {
     // The complaint this answers: one provider is not a deployment. Most want
     // Google for everybody and an org's own IdP for staff.
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
     await addProvider(/^Okta/, {
       issuer: ["Okta domain", "acme.okta.com"],
@@ -260,13 +371,13 @@ describe("building the list of ways in", () => {
   });
 
   it("brands each provider with the mark it will wear at sign-in", async () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
     expect(written.signIn.providers[0]?.providerId).toBe("google");
   });
 
   it("refuses the same issuer twice", async () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
     discover.mockClear();
 
@@ -280,7 +391,7 @@ describe("building the list of ways in", () => {
   });
 
   it("takes a way back out again", async () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
 
     fireEvent.click(screen.getByRole("button", { name: "Remove Google" }));
@@ -293,8 +404,7 @@ describe("building the list of ways in", () => {
   });
 
   it("says plainly what removing everything means", async () => {
-    const onDone = vi.fn();
-    render(<SetupScreen onDone={onDone} />);
+    const onDone = openSetup(vi.fn());
     fireEvent.click(
       screen.getByRole("button", { name: "Remove Google (via shoo.dev)" }),
     );
@@ -309,7 +419,7 @@ describe("building the list of ways in", () => {
   });
 
   it("shows the redirect URI the operator has to register", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     expect(fieldNamed("Redirect URI to register").value).toBe(
       "https://tyler-r-kendrick.github.io/OpenSesame/",
@@ -317,7 +427,7 @@ describe("building the list of ways in", () => {
   });
 
   it("asks each preset for the field its issuer is built from", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
 
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     expect(fieldNamed("Okta domain").placeholder).toBe("dev-123456.okta.com");
@@ -342,7 +452,7 @@ describe("building the list of ways in", () => {
   });
 
   it("refuses a malformed domain before it reaches the network", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     fireEvent.change(fieldNamed("Okta domain"), {
       target: { value: "not-an-okta-domain" },
@@ -357,7 +467,7 @@ describe("building the list of ways in", () => {
   });
 
   it("holds a bare issuer to https off loopback", () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     fireEvent.click(screen.getByRole("button", { name: /Other OIDC/ }));
     fireEvent.change(fieldNamed("Issuer URL"), {
       target: { value: "http://idp.acme.com" },
@@ -378,7 +488,7 @@ describe("building the list of ways in", () => {
     discover.mockRejectedValue(
       new Error("Could not reach https://acme.okta.com."),
     );
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     fireEvent.change(fieldNamed("Okta domain"), {
       target: { value: "acme.okta.com" },
@@ -393,8 +503,7 @@ describe("building the list of ways in", () => {
 
 describe("an OpenSesame identity service", () => {
   it("is a peer way in, and joins the list when it is named", async () => {
-    const onDone = vi.fn();
-    render(<SetupScreen onDone={onDone} />);
+    const onDone = openSetup(vi.fn());
     type("Identity service", "https://id.acme.com/");
 
     expect(written.identityApi).toBe("https://id.acme.com");
@@ -409,7 +518,7 @@ describe("an OpenSesame identity service", () => {
   });
 
   it("is never a prerequisite for bringing a provider", async () => {
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     // Every preset is live with no identity service typed at all.
     for (const name of [/^Google/, /^Okta/, /^Auth0/, /^WorkOS/, /Entra/]) {
       expect(
@@ -428,7 +537,7 @@ describe("keeping it on this device", () => {
   it("leaves no trace at all where the browser will not install", () => {
     // ADR 0086 — the same rule that withholds Unlock while there is no sealed
     // vault. Not a heading over an empty space explaining what cannot be done.
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     expect(screen.queryByText("Keep it on this device")).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Install OpenSesame" }),
@@ -439,7 +548,7 @@ describe("keeping it on this device", () => {
     // The ceremony stays one screen with one heading (ADR 0078): no stepper,
     // no counter, and the install offer does not become a step.
     offering("prompt");
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
 
     expect(heading()).toBe("How do people sign in?");
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
@@ -448,7 +557,7 @@ describe("keeping it on this device", () => {
 
   it("sits below the allowlist, not above the question", () => {
     offering("prompt");
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     const body = document.querySelector(".setup__body");
     const text = body?.textContent ?? "";
     expect(text.indexOf("How do people sign in?")).toBeLessThan(
@@ -460,7 +569,7 @@ describe("keeping it on this device", () => {
     // `docs/design/controls.md`: the foot bar commits the ceremony; the card
     // acts on its own content. The commit still reads "Finish setup".
     offering("prompt");
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
 
     const action = screen.getByRole("button", { name: "Install OpenSesame" });
     expect(action.closest(".setup__foot")).toBeNull();
@@ -471,8 +580,7 @@ describe("keeping it on this device", () => {
   it("never gates finishing setup", async () => {
     // Installing has no wrong answer, so it cannot hold the commit.
     offering("prompt");
-    const onDone = vi.fn();
-    render(<SetupScreen onDone={onDone} />);
+    const onDone = openSetup(vi.fn());
 
     fireEvent.click(commit());
     await waitFor(() => expect(onDone).toHaveBeenCalled());
@@ -486,7 +594,7 @@ describe("keeping it on this device", () => {
 
   it("gives iOS the manual road rather than a button that cannot work", () => {
     offering("manual");
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     expect(screen.getByText("Keep it on this device")).toBeDefined();
     expect(
       screen.queryByRole("button", { name: "Install OpenSesame" }),
@@ -498,7 +606,7 @@ describe("keeping it on this device", () => {
 
   it("keeps reporting the install once it has happened", () => {
     offering("installed");
-    render(<SetupScreen onDone={vi.fn()} />);
+    openSetup();
     expect(screen.getByText("Installed")).toBeDefined();
     expect(
       screen.queryByRole("button", { name: "Install OpenSesame" }),

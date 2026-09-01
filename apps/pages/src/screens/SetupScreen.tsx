@@ -1,38 +1,28 @@
 /**
- * The first-run setup ceremony — one screen, one question.
+ * The first-run ceremony — set this device up, or join a session.
  *
- * What this replaces, in order:
+ * A device with no vault and no session has two honest roads. Treating every
+ * first visitor as the operator (ADR 0077) left people who had been invited
+ * answering "how do people sign in?" for a deployment they do not run. Join
+ * is the other road: a claim invite (ADR 0079 §7) or a request into a public
+ * session. The Host is asked for only on that road, because sharing is the
+ * action that reintroduces the server.
  *
- *  1. A block of amber above the unlock form, reporting that the deployment
- *     had no identity service and offering a text field for an address the
- *     reader had never been given — above sign-in options that could not work
- *     and an Unlock tab for a vault that did not exist.
- *  2. Four steps that led with an OpenSesame identity service URL, a Host URL
- *     and a daemon on the operator's own machine.
- *  3. Two steps, which only moved that same self-hosted plumbing behind a
- *     road and a fold. Bringing WorkOS or Okta still meant standing up an
- *     OpenSesame control plane first, and the readout still said
- *     `Identity service — not set` for a deployment that signed people in.
+ * The operator road is still one question: who signs people in. No stepper,
+ * no counter, no skip. The terminal commit is the shared `.go` control.
  *
- * There is exactly one thing this app cannot work out for itself: who signs
- * people in. Everything that used to share the ceremony with that question —
- * a Host API, pairing this machine, a mobile MFA URL — is either optional
- * infrastructure or a preference, and all of it already lives in Settings →
- * Endpoints. None of it belongs in front of a first-time visitor. See ADR
- * 0078 §4 for what the Host is actually for, and why nothing here waits on it.
- *
- * So: no stepper, no counter, no skip, no back. A question, its roads, and
- * the terminal commit at the bottom of the phone as the shared `.go` control —
- * an ink square carrying the glyph of what it does, its sentence beside it.
- * Never a wide text button; see `docs/design/controls.md`.
- *
- * Designed in `docs/design/first-run-setup/`.
+ * Designed in `docs/design/first-run-setup/` and `docs/design/shared-sessions/`.
  */
 
 import { useState } from "react";
-import { IconCheck, IconMark } from "../components/Icons.js";
+import { IconCheck, IconChevronLeft, IconMark } from "../components/Icons.js";
+import {
+  type ParsedInvite,
+  readJoinFromLocation,
+} from "../lib/join-session.js";
 import { loadSettings, signInMethods } from "../lib/settings.js";
 import { completeSetup } from "../lib/setup.js";
+import { JoinSession } from "./setup/JoinSession.js";
 import { KeepIt } from "./setup/KeepIt.js";
 import { WaysIn } from "./setup/WaysIn.js";
 import "./setup.css";
@@ -40,9 +30,22 @@ import "./setup.css";
 export const setupScreenDependencies = {
   completeSetup,
   loadSettings,
+  readJoinFromLocation,
 };
 
+type Road = "choice" | "setup" | "join";
+
+function initialRoad(): Road {
+  return setupScreenDependencies.readJoinFromLocation() ? "join" : "choice";
+}
+
+function initialInvite(): ParsedInvite | null {
+  return setupScreenDependencies.readJoinFromLocation();
+}
+
 export function SetupScreen({ onDone }: { onDone: () => void }) {
+  const [road, setRoad] = useState<Road>(initialRoad);
+  const [invite] = useState<ParsedInvite | null>(initialInvite);
   const [finishing, setFinishing] = useState(false);
 
   const verb = finishing ? "Saving…" : "Finish setup";
@@ -75,50 +78,98 @@ export function SetupScreen({ onDone }: { onDone: () => void }) {
     <div className="setup">
       <div className="setup__frame">
         <div className="setup__bar">
-          <p className="setup__wordmark">
-            <IconMark size={16} />
-            opensesame
-          </p>
-        </div>
-
-        <main className="setup__body" id="main">
-          <div className="setup__head">
-            <h1>How do people sign in?</h1>
-            <p>
-              You are the first person here, so you are the operator. This is
-              the only question — and it already has a working answer. Add as
-              many ways in as you like; the sign-in screen offers exactly these.
+          {road === "choice" ? (
+            <p className="setup__wordmark">
+              <IconMark size={16} />
+              opensesame
             </p>
-          </div>
-
-          <WaysIn />
-
-          {/* Not a second question — an offer with no wrong answer, below the
-              one that matters and withheld entirely where the browser will not
-              install. ADR 0086. */}
-          <KeepIt />
-        </main>
-
-        {/* The terminal commit: an ink square with the glyph of what it does,
-            its sentence beside it. `docs/design/controls.md`. */}
-        <div className="setup__foot">
-          <div className="go-row">
+          ) : (
             <button
               type="button"
-              className="go"
-              disabled={finishing}
-              aria-busy={finishing}
-              aria-label={verb}
-              title={verb}
-              onClick={finish}
+              className="setup__back"
+              onClick={() => setRoad("choice")}
             >
-              <IconCheck size={18} />
+              <IconChevronLeft size={16} />
+              Back
             </button>
-            <span className="go-verb" aria-hidden="true">
-              {verb}
-            </span>
-          </div>
+          )}
         </div>
+
+        {road === "join" ? (
+          <JoinSession initial={invite} onDone={onDone} />
+        ) : road === "setup" ? (
+          <>
+            <main className="setup__body" id="main">
+              <div className="setup__head">
+                <h1>How do people sign in?</h1>
+                <p>
+                  You are the operator. This is the only question — and it
+                  already has a working answer. Add as many ways in as you like;
+                  the sign-in screen offers exactly these.
+                </p>
+              </div>
+
+              <WaysIn />
+
+              {/* Not a second question — an offer with no wrong answer, below
+                  the one that matters and withheld entirely where the browser
+                  will not install. ADR 0086. */}
+              <KeepIt />
+            </main>
+
+            <div className="setup__foot">
+              <div className="go-row">
+                <button
+                  type="button"
+                  className="go"
+                  disabled={finishing}
+                  aria-busy={finishing}
+                  aria-label={verb}
+                  title={verb}
+                  onClick={finish}
+                >
+                  <IconCheck size={18} />
+                </button>
+                <span className="go-verb" aria-hidden="true">
+                  {verb}
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <main className="setup__body" id="main">
+            <div className="setup__head">
+              <h1>This device is empty</h1>
+              <p>
+                No session, no vault. Set it up as the operator, or join a
+                session you were invited to.
+              </p>
+            </div>
+
+            <div className="roads">
+              <button
+                type="button"
+                className="preset__opt"
+                onClick={() => setRoad("setup")}
+              >
+                <span className="preset__name">Set up this device</span>
+                <span className="preset__kind">
+                  You are the operator. Choose who signs people in.
+                </span>
+              </button>
+              <button
+                type="button"
+                className="preset__opt"
+                onClick={() => setRoad("join")}
+              >
+                <span className="preset__name">Join a session</span>
+                <span className="preset__kind">
+                  A link and a code, or a public session to ask into.
+                </span>
+              </button>
+            </div>
+          </main>
+        )}
       </div>
     </div>
   );

@@ -40,6 +40,36 @@
   color: var(--ink-2);
 }
 
+.setup__back {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.setup__back:hover,
+.setup__back:focus-visible {
+  color: var(--ink);
+}
+
+.roads {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.roads .preset__opt {
+  min-height: 4.25rem;
+}
+
 .setup__body {
   flex: 1;
   min-height: 0;
@@ -239,7 +269,8 @@
 @media (pointer: coarse) {
   .setup .btn,
   .setup .preset__opt,
-  .setup .ways__item {
+  .setup .ways__item,
+  .setup .setup__back {
     min-height: 2.75rem;
   }
 
