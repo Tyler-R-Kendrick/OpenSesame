@@ -321,6 +321,13 @@ describe("describeWebauthnError mapping", () => {
     expect(
       describeWebauthnError(new DOMException("nope", "NotSupportedError")),
     ).toMatch(/does not support/);
+    expect(
+      describeWebauthnError(
+        new Error(
+          "Could not establish connection. Receiving end does not exist.",
+        ),
+      ),
+    ).toMatch(/passkey extension disconnected.*Reload this page/i);
     expect(describeWebauthnError(new Error("  "))).toBe(
       "Passkey ceremony failed.",
     );

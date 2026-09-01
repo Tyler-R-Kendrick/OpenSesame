@@ -411,6 +411,9 @@ function describeWebauthnErrorDefault<Thrown>(error: Thrown): string {
   if (name === "NotSupportedError") {
     return "This browser or authenticator does not support the passkey features OpenSesame needs (WebAuthn PRF). Use Chrome/Edge on a supported OS, or enroll a PIN / password instead.";
   }
+  if (/receiving end does not exist/i.test(message)) {
+    return "Your browser's passkey extension disconnected. Reload this page after reconnecting or unlocking it, then try again.";
+  }
   return message || "Passkey ceremony failed.";
 }
 
