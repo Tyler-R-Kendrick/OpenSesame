@@ -220,6 +220,19 @@ live query). Pointer access remains complete: rows click, directories
 toggle, a `⋯` menu on the cursor or hovered row carries the verbs, and the
 `/` and `?` key chips in the path strip are buttons.
 
+The keyboard lands on arrival, every time. A page load, an unlock, a route
+change, a browser Back, a switched tab — each leaves focus on `<body>` unless
+the screen claims it, and from `<body>` the first Tab starts at the top of the
+document, the cursor has no home, and a phone shows no keyboard. So every
+screen owns its landing (`lib/focus.ts`): the unlock form's secret field (or
+its go control for passkey), the first road of setup, the first vault on the
+front door, the tree — or the "New item" link of an empty vault — in the
+vault, and the content of a framed section. A landing yields to a caret
+something else already placed (an editor's first field), and on a phone it
+follows the visible pane. Opening the item the cursor already previews
+replaces the history entry rather than pushing a second one, so Back always
+goes somewhere.
+
 ## Touch
 
 A finger is not a mouse pointer, and the phone is not a narrow desktop.
