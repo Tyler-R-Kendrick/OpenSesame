@@ -29,6 +29,8 @@ export type SupportMessageRole = "user" | "assistant";
 export type SupportMessage = {
   readonly role: SupportMessageRole;
   readonly text: string;
+  readonly thoughts?: string | null;
+  readonly computer?: readonly SupportComputerStep[];
 };
 
 export type SupportTargetRole =
@@ -94,11 +96,24 @@ export type SupportRequest = {
   readonly context: SupportPageContext;
 };
 
+/**
+ * One tool or step the agent reported while answering. Display only: the
+ * support port never executes a tool call, and the UI renders these as text.
+ */
+export type SupportComputerStep = {
+  readonly title: string;
+  readonly detail: string | null;
+};
+
 export type SupportTurn = {
   readonly answer: string;
   /** GuideLang source, still unparsed and still untrusted. */
   readonly guide: string | null;
   readonly suggestedQuestions: readonly string[];
+  /** Reasoning the transport surfaced. Collapsed in the UI; never HTML. */
+  readonly thoughts?: string | null;
+  /** Tool/step names the transport surfaced. Display only; never executed. */
+  readonly computer?: readonly SupportComputerStep[];
 };
 
 export type SupportRunOptions = {

@@ -14,6 +14,7 @@ import {
 } from "@opensesame/guide-runtime";
 import {
   type FakeSupportAgent,
+  createFakeSupportAgent,
   createSupportSession,
   fakeAgentAlwaysUnavailable,
   fakeAgentAnswering,
@@ -210,7 +211,7 @@ afterEach(() => {
 });
 
 describe("support panel", () => {
-  it("opens from the statusline, and closing it puts focus back", async () => {
+  it("opens from the overlay, and closing it puts focus back", async () => {
     const user = userEvent.setup();
     mount(fakeAgentAnswering("Anything."));
     const { affordance, panel } = await openPanel(user);
@@ -281,6 +282,46 @@ describe("support panel", () => {
     ).toBeTruthy();
   });
 
+  it("keeps agent thoughts and computer traces collapsed until opened", async () => {
+    const user = userEvent.setup();
+    mount(
+      createFakeSupportAgent({
+        fallback: {
+          match: /.*/,
+          answer: "Open Connections from the rail.",
+          thoughts: "The person asked about adding a provider.",
+          computer: [
+            { title: "compile walkthrough", detail: "named nav.connections" },
+          ],
+        },
+      }),
+    );
+    await openPanel(user);
+    await ask(user, "how do I add a connection");
+
+    expect(
+      await screen.findByText("Open Connections from the rail."),
+    ).toBeTruthy();
+    const thoughts = screen.getByText("Thoughts").closest("details");
+    const computer = screen.getByText("Computer").closest("details");
+    expect(thoughts?.open).toBe(false);
+    expect(computer?.open).toBe(false);
+    // Nested in the Conversation live region; without this, expanding dumps
+    // the trace into assistive technology as if it were a new answer.
+    expect(thoughts?.getAttribute("aria-live")).toBe("off");
+    expect(computer?.getAttribute("aria-live")).toBe("off");
+
+    await user.click(screen.getByText("Thoughts"));
+    expect(thoughts?.open).toBe(true);
+    expect(
+      screen.getByText("The person asked about adding a provider."),
+    ).toBeTruthy();
+    await user.click(screen.getByText("Computer"));
+    expect(computer?.open).toBe(true);
+    expect(screen.getByText("compile walkthrough")).toBeTruthy();
+    expect(screen.getByText("named nav.connections")).toBeTruthy();
+  });
+
   it("renders markup in an answer as literal text", async () => {
     const user = userEvent.setup();
     const payload = "<img src=x onerror=alert(1)>";
@@ -341,7 +382,7 @@ describe("support panel", () => {
         ),
       ).toBe(true);
     });
-    // The sheet steps aside for the walkthrough, and the statusline says one
+    // The sheet steps aside for the walkthrough, and the overlay says one
     // is live — reopening it is how the person pauses or stops.
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Support" })).toBeNull(),

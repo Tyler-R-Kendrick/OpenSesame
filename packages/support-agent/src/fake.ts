@@ -12,6 +12,7 @@
 import {
   type SupportAgentAvailability,
   type SupportAgentPort,
+  type SupportComputerStep,
   SupportError,
   type SupportErrorCode,
   type SupportPageContext,
@@ -30,6 +31,8 @@ export type FakeSupportRule = {
   /** GuideLang source, valid or not — invalid is the interesting case. */
   readonly guide?: string;
   readonly suggestedQuestions?: readonly string[];
+  readonly thoughts?: string | null;
+  readonly computer?: readonly SupportComputerStep[];
   /** Reject with this code instead of answering. */
   readonly error?: SupportErrorCode;
   /** Never settle until the run's signal aborts, then reject as aborted. */
@@ -75,6 +78,8 @@ function turnOf(rule: FakeSupportRule): SupportTurn {
     answer: rule.answer,
     guide: rule.guide ?? null,
     suggestedQuestions: rule.suggestedQuestions ?? [],
+    thoughts: rule.thoughts ?? null,
+    computer: rule.computer ?? [],
   };
 }
 

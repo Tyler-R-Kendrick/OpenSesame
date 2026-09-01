@@ -353,6 +353,34 @@ describe("hostile server events", () => {
     expect(turn.answer).not.toContain("vault.revealSecret");
     expect(turn.answer).not.toContain("hunter2");
     expect(turn.guide).toBeNull();
+    expect(turn.computer).toEqual([
+      { title: "vault.revealSecret", detail: null },
+    ]);
+    expect(JSON.stringify(turn.computer)).not.toContain("hunter2");
+    expect(JSON.stringify(turn.computer)).not.toContain("itemId");
+  });
+
+  it("surfaces reasoning as collapsed thoughts, not as the answer", async () => {
+    const agent = createAgUiSupportAgent({
+      endpoint: endpoint(),
+      online: () => true,
+      transport: recording([
+        { type: "RUN_STARTED" },
+        { type: "REASONING_MESSAGE_START", messageId: "r1" },
+        {
+          type: "REASONING_MESSAGE_CONTENT",
+          messageId: "r1",
+          delta: "They want Connections.",
+        },
+        textStart("m1"),
+        textContent("m1", "Open Connections from the rail."),
+        RUN_FINISHED,
+      ]).transport,
+    });
+
+    const turn = await agent.run(REQUEST, { signal: signal() });
+    expect(turn.answer).toBe("Open Connections from the rail.");
+    expect(turn.thoughts).toBe("They want Connections.");
   });
 
   it("ignores a state patch carrying a javascript: route", async () => {
