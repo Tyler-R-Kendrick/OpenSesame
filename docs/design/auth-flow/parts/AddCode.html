@@ -1,0 +1,165 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px; position: relative">
+  <div class="sheet-layer">
+    <button type="button" class="scrim" aria-label="Close"></button>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="{{title}}">
+      <div class="sheet__head">
+        <span class="sheet__mark">
+          <sc-if value="{{isEmail}}" hint-placeholder-val="{{true}}">@icon(mail,20)</sc-if>
+          <sc-if value="{{isSms}}" hint-placeholder-val="{{false}}">@icon(message,20)</sc-if>
+        </span>
+        <div class="sheet__grow">
+          <h2>{{title}}</h2>
+          <p>For a lost phone. Sent by the Identity API.</p>
+        </div>
+        <button type="button" class="icon-btn" aria-label="Close">@icon(x,18)</button>
+      </div>
+
+      <div class="sheet__body">
+        <div class="steps" aria-label="Enrollment steps">
+          <div class="{{segWhere}}"><span class="steps__bar"></span><span class="steps__label">1 · Where</span></div>
+          <div class="{{segConfirm}}"><span class="steps__bar"></span><span class="steps__label">2 · Confirm</span></div>
+        </div>
+
+        <sc-if value="{{isWhere}}" hint-placeholder-val="{{true}}">
+          <!-- The notice comes before the binding, as NIST 800-63B asks for a
+               restricted authenticator: said once, in two sentences. -->
+          <div class="note note--warn">
+            @icon(alert,18)
+            <span>{{notice}}</span>
+          </div>
+          <div class="found">
+            <p class="found__name">{{channelName}}</p>
+            <dl>
+              <dt>Sent by</dt><dd>id.example.dev, your Identity API</dd>
+              <dt>Asked</dt><dd>at unlock, when you pick {{tabName}} for step 2</dd>
+            </dl>
+            <div class="f">
+              <div class="f__labelrow"><label class="f__label" for="ac-to">{{fieldLabel}}</label></div>
+              <div class="f__shell">
+                <span class="f__lead" aria-hidden="true">
+                  <sc-if value="{{isEmail}}" hint-placeholder-val="{{true}}">@icon(mail)</sc-if>
+                  <sc-if value="{{isSms}}" hint-placeholder-val="{{false}}">@icon(message)</sc-if>
+                </span>
+                <input id="ac-to" class="f__input f__input--mono" type="{{fieldType}}" autocomplete="{{fieldAuto}}" inputmode="{{fieldMode}}" value="{{to}}" onChange="{{onTo}}" />
+              </div>
+              <!-- A value we already know is offered, not asked for again. -->
+              <div class="f__fills">
+                <span class="f__fills-label">from your account</span>
+                <button type="button" class="fill" onClick="{{fillTo}}">{{known}}</button>
+              </div>
+            </div>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary" disabled="{{sendDisabled}}" aria-busy="{{sending}}" onClick="{{send}}">
+                <sc-if value="{{sending}}" hint-placeholder-val="{{false}}"><span class="spin" aria-hidden="true"></span> Sending</sc-if>
+                <sc-if value="{{idle}}" hint-placeholder-val="{{true}}">Send a code</sc-if>
+              </button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isConfirm}}" hint-placeholder-val="{{false}}">
+          <div class="found">
+            <p class="found__top">@icon(check,15) Code sent</p>
+            <p class="found__name">{{to}}</p>
+            <dl>
+              <dt>Good for</dt><dd>10 minutes</dd>
+            </dl>
+            <div class="f">
+              <div class="f__labelrow">
+                <label class="f__label" for="ac-code">Code from the {{medium}}</label>
+                <sc-if value="{{codeBad}}" hint-placeholder-val="{{false}}"><span class="chip chip--err">Did not match</span></sc-if>
+              </div>
+              <div class="f__shell">
+                <span class="f__lead" aria-hidden="true">@icon(secret)</span>
+                <input id="ac-code" class="f__input f__input--mono" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000 000" value="{{code}}" onChange="{{onCode}}" />
+              </div>
+            </div>
+            <sc-if value="{{codeBad}}" hint-placeholder-val="{{false}}">
+              <p class="hint">Use the newest code you were sent; an older one no longer counts. Five wrong codes spend it, and a new one is sent.</p>
+            </sc-if>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary" disabled="{{codeDisabled}}" onClick="{{turnOn}}">Turn on</button>
+            </div>
+          </div>
+          <p class="or">or</p>
+          <div class="alt">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" disabled="{{cooling}}"><span class="alt__mark">@icon(refresh)</span><span class="alt__grow">{{resendLabel}}</span><span class="alt__chev">@icon(chevron)</span></button>
+            </div>
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{back}}"><span class="alt__mark">@icon(edit)</span><span class="alt__grow">{{changeLabel}}</span><span class="alt__chev">@icon(chevron)</span></button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isDone}}" hint-placeholder-val="{{false}}">
+          <div class="found">
+            <p class="found__top">@icon(check,15) {{tabName}} code on</p>
+            <p class="found__name">{{to}}</p>
+            <dl>
+              <dt>Asked</dt><dd>at unlock, when you pick {{tabName}} for step 2</dd>
+              <dt>First choice</dt><dd>stays the authenticator</dd>
+            </dl>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary">Done</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div class="sheet__foot">
+        <p class="hint">The Identity API sends the code. The vault key never leaves this device.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"},"channel":{"editor":"enum","options":["email","sms"],"default":"email","section":"Opened for"}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { step: 'where', to: '', code: '', sending: false, codeBad: false, cooling: true };
+  }
+  renderVals() {
+    const theme = this.props.theme ?? 'light';
+    const email = (this.props.channel ?? 'email') === 'email';
+    const { step, to, code, sending } = this.state;
+    const known = email ? 'tyler@example.com' : '+1 415 555 0142';
+    const digits = code.replace(/\s/g, '');
+    return {
+      theme, isEmail: email, isSms: !email,
+      title: email ? 'Email code' : 'Text message code',
+      segWhere: step === 'where' ? 'steps__seg is-now' : 'steps__seg is-done',
+      segConfirm: step === 'confirm' ? 'steps__seg is-now' : step === 'done' ? 'steps__seg is-done' : 'steps__seg',
+      isWhere: step === 'where', isConfirm: step === 'confirm', isDone: step === 'done',
+      notice: email
+        ? 'A code by email is a fallback, not a first second step: anyone who can read your inbox can read it. Keep an authenticator app or passkey enrolled too.'
+        : 'A code by text is a fallback, not a first second step: a number can be moved to another SIM without you. Keep an authenticator app or passkey enrolled too.',
+      channelName: email ? 'Email' : 'Text message',
+      tabName: email ? 'Email' : 'Text',
+      medium: email ? 'email' : 'text',
+      fieldLabel: email ? 'Email address' : 'Phone number',
+      fieldType: email ? 'email' : 'tel',
+      fieldAuto: email ? 'email' : 'tel',
+      fieldMode: email ? 'email' : 'tel',
+      known,
+      to, code, sending, idle: !sending,
+      onTo: (e) => this.setState({ to: e.target.value }),
+      fillTo: () => this.setState({ to: known }),
+      sendDisabled: sending || (email ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to) : to.replace(/\D/g, '').length < 10),
+      send: () => {
+        this.setState({ sending: true });
+        setTimeout(() => this.setState({ sending: false, step: 'confirm', code: '', cooling: true }), 900);
+        setTimeout(() => this.setState({ cooling: false }), 8000);
+      },
+      onCode: (e) => this.setState({ code: e.target.value, codeBad: false }),
+      codeDisabled: digits.length < 6,
+      codeBad: this.state.codeBad,
+      turnOn: () => (digits === '000000' ? this.setState({ codeBad: true }) : this.setState({ step: 'done' })),
+      back: () => this.setState({ step: 'where' }),
+      cooling: this.state.cooling,
+      resendLabel: this.state.cooling ? 'Send it again · wait a moment' : 'Send it again',
+      changeLabel: email ? 'Use a different address' : 'Use a different number',
+    };
+  }
+}
+</script>

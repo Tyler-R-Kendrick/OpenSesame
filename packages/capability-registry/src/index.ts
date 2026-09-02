@@ -1977,6 +1977,43 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
   {
+    id: "vault.second_step.code",
+    title:
+      "Add, use or remove a one-time code by email or text as the vault's second step",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vault/remote-code.ts:sendCode",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
+  },
+  {
+    id: "vault.recovery_codes",
+    title: "Make, view or redeem the vault's recovery codes",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/vault/unlock-methods.ts:randomRecoveryCodes",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: NEVER_AGENT_SECRET,
+      mcp_client: NEVER_AGENT_SECRET,
+      webmcp: NEVER_AGENT_SECRET,
+    },
+  },
+  {
     id: "vault.item_types.list",
     title: "List the item types registered on this device",
     plane: "client_local",

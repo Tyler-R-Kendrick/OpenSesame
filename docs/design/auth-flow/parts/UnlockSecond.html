@@ -1,0 +1,138 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px">
+  <div class="unlock">
+    <div class="unlock__card">
+      <div class="unlock__brand">
+        <p class="unlock__wordmark">
+          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
+            <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
+          </svg>
+          opensesame
+        </p>
+        <h1>Confirm it is you</h1>
+      </div>
+
+      <div class="who">
+        <span class="who__mark" aria-hidden="true">
+          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
+        </span>
+        <span class="who__body">
+          <span class="who__name">Google account</span>
+          <span class="who__sub">via shoo.dev · attached to this device</span>
+        </span>
+      </div>
+
+      <div class="unlock__form">
+        <div class="steps" aria-label="Unlock steps">
+          <div class="steps__seg is-done"><span class="steps__bar"></span><span class="steps__label">1 · Key</span></div>
+          <div class="steps__seg is-now"><span class="steps__bar"></span><span class="steps__label">2 · Code</span></div>
+        </div>
+
+        <!-- Exactly the second steps this vault enrolled, in the same tab
+             vocabulary step 1 uses for its keys. One enrolled: no tabs at all. -->
+        <sc-if value="{{hasTabs}}" hint-placeholder-val="{{true}}">
+          <div class="unlock__methods" role="tablist" aria-label="Second step">
+            <button type="button" role="tab" class="{{tabApp}}" onClick="{{pickApp}}">@icon(phone) Authenticator</button>
+            <sc-if value="{{hasEmail}}" hint-placeholder-val="{{true}}">
+              <button type="button" role="tab" class="{{tabEmail}}" onClick="{{pickEmail}}">@icon(mail) Email</button>
+            </sc-if>
+            <sc-if value="{{hasSms}}" hint-placeholder-val="{{true}}">
+              <button type="button" role="tab" class="{{tabSms}}" onClick="{{pickSms}}">@icon(message) Text</button>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isApp}}" hint-placeholder-val="{{true}}">
+          <div class="field">
+            <label for="u2-code">Code from your authenticator</label>
+            <input id="u2-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000 000" value="{{code}}" onChange="{{onCode}}" />
+            <sc-if value="{{refused}}" hint-placeholder-val="{{false}}">
+              <p class="note note--err" style="margin: 0">@icon(alert,16) That code did not match. Codes change every 30 seconds; enter the one showing now.</p>
+            </sc-if>
+            <sc-if value="{{fresh}}" hint-placeholder-val="{{true}}">
+              <p class="hint">The code your app shows for OpenSesame.</p>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isEmail}}" hint-placeholder-val="{{false}}">
+          <div class="note note--ok">
+            @icon(check,18)
+            <span>A code was sent to t•••@example.com. It is good for 10 minutes.</span>
+          </div>
+          <div class="field">
+            <label for="u2-email">Code from the email</label>
+            <input id="u2-email" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000 000" value="{{code}}" onChange="{{onCode}}" />
+            <sc-if value="{{refused}}" hint-placeholder-val="{{false}}">
+              <p class="note note--err" style="margin: 0">@icon(alert,16) That code did not match. Use the newest one you were sent.</p>
+            </sc-if>
+          </div>
+          <button type="button" class="unlock__switch" style="justify-self: start" disabled="{{cooling}}">{{resend}}</button>
+        </sc-if>
+
+        <sc-if value="{{isSms}}" hint-placeholder-val="{{false}}">
+          <div class="note note--ok">
+            @icon(check,18)
+            <span>A code was sent to +1 ••• ••• 0142. It is good for 10 minutes.</span>
+          </div>
+          <div class="field">
+            <label for="u2-sms">Code from the text</label>
+            <input id="u2-sms" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000 000" value="{{code}}" onChange="{{onCode}}" />
+            <sc-if value="{{refused}}" hint-placeholder-val="{{false}}">
+              <p class="note note--err" style="margin: 0">@icon(alert,16) That code did not match. Use the newest one you were sent.</p>
+            </sc-if>
+          </div>
+          <button type="button" class="unlock__switch" style="justify-self: start" disabled="{{cooling}}">{{resend}}</button>
+        </sc-if>
+
+        <div class="go-row">
+          <button type="button" class="go" aria-label="Confirm code" title="Confirm code" disabled="{{goDisabled}}" onClick="{{go}}">@icon(arrow,18)</button>
+          <span class="go-verb" aria-hidden="true">Confirm code</span>
+        </div>
+      </div>
+
+      <div class="unlock__foot">
+        <button type="button" class="unlock__switch">Use a recovery code</button>
+        <button type="button" class="unlock__switch">Forgotten how to unlock?</button>
+        <p class="unlock__deployment">
+          @icon(site,14)
+          <span class="unlock__deployment-name">Shoo</span>
+          <button type="button" class="unlock__switch">Deployment setup</button>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"},"email":{"editor":"boolean","default":true,"section":"This vault enrolled"},"sms":{"editor":"boolean","default":false,"section":"This vault enrolled"}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'app', code: '', refused: false, cooling: true };
+    setTimeout(() => this.setState({ cooling: false }), 8000);
+  }
+  renderVals() {
+    const theme = this.props.theme ?? 'light';
+    const hasEmail = this.props.email ?? true;
+    const hasSms = this.props.sms ?? false;
+    const tab = (this.state.tab === 'email' && !hasEmail) || (this.state.tab === 'sms' && !hasSms) ? 'app' : this.state.tab;
+    const cls = (t) => 'unlock__method' + (t === tab ? ' unlock__method--active' : '');
+    const digits = this.state.code.replace(/\s/g, '');
+    return {
+      theme, hasEmail, hasSms, hasTabs: hasEmail || hasSms,
+      tabApp: cls('app'), tabEmail: cls('email'), tabSms: cls('sms'),
+      isApp: tab === 'app', isEmail: tab === 'email', isSms: tab === 'sms',
+      pickApp: () => this.setState({ tab: 'app', code: '', refused: false }),
+      pickEmail: () => this.setState({ tab: 'email', code: '', refused: false }),
+      pickSms: () => this.setState({ tab: 'sms', code: '', refused: false }),
+      code: this.state.code,
+      onCode: (e) => this.setState({ code: e.target.value, refused: false }),
+      goDisabled: digits.length < 6,
+      // Type 000 000 to see the refusal; anything else is accepted here.
+      go: () => this.setState({ refused: digits === '000000', code: digits === '000000' ? this.state.code : '' }),
+      refused: this.state.refused, fresh: !this.state.refused,
+      cooling: this.state.cooling,
+      resend: this.state.cooling ? 'Send it again · wait a moment' : 'Send it again',
+    };
+  }
+}
+</script>

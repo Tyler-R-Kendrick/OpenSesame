@@ -197,7 +197,11 @@ export const SUPPORT_LIMITS = {
   maxHistoryMessageChars: 4000,
   maxTargets: 80,
   maxStateFacts: 40,
-  maxCapabilities: 60,
+  // 64, not a round 50: the ADR 0065 registry lists every PWA capability
+  // here, and the vault's second-step and recovery-code ceremonies (ADR 0091)
+  // took it past 60. Raised deliberately; `withinBudget` throws in
+  // development the next time it is outgrown.
+  maxCapabilities: 64,
   maxGoals: 40,
   maxRoutes: 32,
   maxHelpEntries: 6,

@@ -57,7 +57,7 @@ describe("PACT — Pages vault / queue / authz", () => {
 
   it("passkey host repair survives the cross-origin localhost hop", () => {
     const src = readFileSync(
-      join(here, "../sections/settings/UnlockMethodsPanel.tsx"),
+      join(here, "../sections/settings/security/KeyCeremony.tsx"),
       "utf8",
     );
     expect(src).toContain('searchParams.set(ENROLL_PASSKEY_PARAM, "1")');

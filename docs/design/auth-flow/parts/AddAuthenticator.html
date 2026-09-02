@@ -1,0 +1,235 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px; position: relative">
+  <div class="sheet-layer">
+    <button type="button" class="scrim" aria-label="Close"></button>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Authenticator app">
+      <div class="sheet__head">
+        <span class="sheet__mark">@icon(phone,20)</span>
+        <div class="sheet__grow">
+          <h2>Authenticator app</h2>
+          <p>Codes from an app on your phone. The seed is sealed under the vault key.</p>
+        </div>
+        <button type="button" class="icon-btn" aria-label="Close">@icon(x,18)</button>
+      </div>
+
+      <div class="sheet__body">
+        <!-- Opened from an enrolled row's Remove: the confirmation is the
+             first thing drawn, with what happens after in the facts. -->
+        <sc-if value="{{isOn}}" hint-placeholder-val="{{false}}">
+          <div class="found found--attn">
+            <p class="found__top">@icon(alert,15) Remove the authenticator?</p>
+            <p class="found__name">Authenticator app · on since 30 Aug</p>
+            <dl>
+              <dt>After</dt><dd>unlock stops asking for a code</dd>
+              <dt>Recovery</dt><dd>the 7 unused codes are discarded</dd>
+              <dt>Vault</dt><dd>untouched; your keys keep working</dd>
+            </dl>
+            <div class="found__do">
+              <button type="button" class="btn btn--danger">Remove authenticator</button>
+              <button type="button" class="btn">Keep it</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{notOn}}" hint-placeholder-val="{{true}}">
+        <!-- The rail is the whole ceremony, said before any step is taken. A
+             keyless vault earns one more segment: a code can only guard a key. -->
+        <div class="steps" aria-label="Enrollment steps">
+          <sc-if value="{{needsKey}}" hint-placeholder-val="{{false}}">
+            <div class="{{segKey}}"><span class="steps__bar"></span><span class="steps__label">{{nKey}} · Key</span></div>
+          </sc-if>
+          <div class="{{segScan}}"><span class="steps__bar"></span><span class="steps__label">{{nScan}} · Scan</span></div>
+          <div class="{{segConfirm}}"><span class="steps__bar"></span><span class="steps__label">{{nConfirm}} · Confirm</span></div>
+        </div>
+
+        <!-- Step: key. The same card the PIN sheet draws — one ceremony,
+             reused, not a second PIN form under the MFA row. -->
+        <sc-if value="{{isKey}}" hint-placeholder-val="{{false}}">
+          <div class="found">
+            <p class="found__name">A key first · PIN</p>
+            <dl>
+              <dt>Why</dt><dd>a code guards a key, and this vault has none yet</dd>
+              <dt>Asked</dt><dd>at unlock, as step 1; the code follows it</dd>
+            </dl>
+            <div class="f">
+              <div class="f__labelrow"><label class="f__label" for="aa-pin">PIN</label></div>
+              <div class="f__shell">
+                <span class="f__lead" aria-hidden="true">@icon(lock)</span>
+                <input id="aa-pin" class="f__input" type="password" inputmode="numeric" autocomplete="new-password" value="{{pin}}" onChange="{{onPin}}" />
+              </div>
+            </div>
+            <div class="f">
+              <div class="f__labelrow">
+                <label class="f__label" for="aa-pin2">Confirm PIN</label>
+                <sc-if value="{{pinMatch}}" hint-placeholder-val="{{false}}"><span class="chip chip--ok">Matches</span></sc-if>
+                <sc-if value="{{pinMismatch}}" hint-placeholder-val="{{false}}"><span class="chip chip--err">Does not match</span></sc-if>
+              </div>
+              <div class="f__shell">
+                <span class="f__lead" aria-hidden="true">@icon(lock)</span>
+                <input id="aa-pin2" class="f__input" type="password" inputmode="numeric" autocomplete="new-password" value="{{pin2}}" onChange="{{onPin2}}" />
+              </div>
+            </div>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary" disabled="{{pinDisabled}}" onClick="{{enrollPin}}">Set PIN</button>
+            </div>
+          </div>
+          <p class="or">or</p>
+          <div class="alt">
+            <div class="alt__item">
+              <button type="button" class="alt__btn"><span class="alt__mark">@icon(passkey)</span><span class="alt__grow">Use a passkey instead</span><span class="alt__chev">@icon(chevron)</span></button>
+            </div>
+            <div class="alt__item">
+              <button type="button" class="alt__btn"><span class="alt__mark">@icon(shield)</span><span class="alt__grow">Use a password instead</span><span class="alt__chev">@icon(chevron)</span></button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- Step: scan. -->
+        <sc-if value="{{isScan}}" hint-placeholder-val="{{true}}">
+          <div class="found">
+            <p class="found__name">OpenSesame · vault 4f2a</p>
+            <svg width="168" height="168" viewBox="0 0 21 21" shape-rendering="crispEdges" role="img" aria-label="QR code for the authenticator app" style="background: #fff; border-radius: 2px; justify-self: center">
+              <rect width="21" height="21" fill="#fff"></rect>
+              <path fill="#171717" d="M1 1h7v1H1zM1 2h1v5H1zM7 2h1v5H7zM3 3h3v3H3zM2 7h6v1H2zM13 1h7v1h-7zM13 2h1v5h-1zM19 2h1v5h-1zM15 3h3v3h-3zM13 7h7v1h-7zM1 13h7v1H1zM1 14h1v5H1zM7 14h1v5H7zM3 15h3v3H3zM1 19h7v1H1zM9 1h1v2H9zM11 2h1v1h-1zM9 4h3v1H9zM10 6h1v2h-1zM1 9h2v1H1zM4 9h1v2H4zM6 9h3v1H6zM10 9h1v1h-1zM12 9h2v1h-2zM15 9h1v2h-1zM17 9h3v1h-3zM2 11h2v1H2zM6 11h1v1H6zM8 11h3v1H8zM12 11h1v1h-1zM14 11h1v1h-1zM16 11h4v1h-4zM9 13h2v1H9zM12 13h1v2h-1zM14 13h3v1h-3zM18 13h2v1h-2zM9 15h1v2H9zM11 15h2v1h-2zM14 15h1v2h-1zM16 15h1v1h-1zM18 15h2v2h-2zM10 17h2v1h-2zM13 17h1v1h-1zM15 17h2v1h-2zM19 17h1v1h-1zM9 19h3v1H9zM13 19h2v1h-2zM16 19h1v1h-1zM18 19h2v1h-2z"></path>
+            </svg>
+            <dl>
+              <dt>Scan with</dt><dd>Google Authenticator, 1Password, Aegis, Authy</dd>
+              <dt>Codes</dt><dd>6 digits, every 30 s</dd>
+            </dl>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary" onClick="{{toConfirm}}">I scanned it</button>
+            </div>
+          </div>
+          <p class="or">or</p>
+          <div class="alt">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{toggleSecret}}">
+                <span class="alt__mark">@icon(secret)</span>
+                <span class="alt__grow">Can't scan? Type the key instead</span>
+                <span class="{{secretChev}}">@icon(chevron)</span>
+              </button>
+              <sc-if value="{{showSecret}}" hint-placeholder-val="{{false}}">
+                <div class="alt__body">
+                  <div class="f">
+                    <div class="f__labelrow"><span class="f__label">Setup key</span></div>
+                    <div class="f__shell">
+                      <input class="f__input f__input--mono" type="text" readonly value="JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP" aria-label="Setup key" />
+                      <span class="f__tail"><button type="button" class="icon-btn" aria-label="Copy setup key">@icon(copy,18)</button></span>
+                    </div>
+                  </div>
+                  <p class="hint">Time-based, SHA-1, 6 digits, 30 seconds. Account name: OpenSesame vault 4f2a.</p>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- Step: confirm. Nothing is written until this matches. -->
+        <sc-if value="{{isConfirm}}" hint-placeholder-val="{{false}}">
+          <div class="found">
+            <p class="found__name">Code from the app</p>
+            <div class="f">
+              <div class="f__labelrow">
+                <label class="f__label" for="aa-code">Six digits</label>
+                <sc-if value="{{codeBad}}" hint-placeholder-val="{{false}}"><span class="chip chip--err">Did not match</span></sc-if>
+              </div>
+              <div class="f__shell">
+                <span class="f__lead" aria-hidden="true">@icon(phone)</span>
+                <input id="aa-code" class="f__input f__input--mono" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000 000" value="{{code}}" onChange="{{onCode}}" />
+              </div>
+            </div>
+            <sc-if value="{{codeBad}}" hint-placeholder-val="{{false}}">
+              <p class="hint">Codes change every 30 seconds; enter the one showing now. If they never match, the phone's clock may be off.</p>
+            </sc-if>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary" disabled="{{codeDisabled}}" onClick="{{turnOn}}">Turn on</button>
+            </div>
+          </div>
+          <p class="or">or</p>
+          <div class="alt">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{toScan}}"><span class="alt__mark">@icon(refresh)</span><span class="alt__grow">Scan again</span><span class="alt__chev">@icon(chevron)</span></button>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- Done: the code matched, the seed is sealed, and the recovery codes
+             are shown once — the step every reference product makes mandatory. -->
+        <sc-if value="{{isDone}}" hint-placeholder-val="{{false}}">
+          <div class="found">
+            <p class="found__top">@icon(check,15) Authenticator on</p>
+            <p class="found__name">Recovery codes · shown once</p>
+            <dl>
+              <dt>Asked</dt><dd>after the key, every unlock</dd>
+              <dt>Each code</dt><dd>opens the vault once if the phone is gone</dd>
+            </dl>
+            <ol class="codes" aria-label="Recovery codes">
+              <li>ktr4-9wqm</li><li>p2xd-h7ne</li><li>c8vq-2mls</li><li>y6bn-k3wr</li><li>f9jt-4pzc</li>
+              <li>w3hs-n8dq</li><li>m5rk-7vtb</li><li>z1qp-6ghx</li><li>b4nw-3ykf</li><li>t7cm-5xjr</li>
+            </ol>
+            <div class="found__do">
+              <button type="button" class="btn">@icon(copy) Copy</button>
+              <button type="button" class="btn">@icon(download) Download</button>
+              <button type="button" class="btn btn--primary">I saved them</button>
+            </div>
+          </div>
+        </sc-if>
+        </sc-if>
+      </div>
+
+      <div class="sheet__foot">
+        <p class="hint">{{foot}}</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"},"keyed":{"editor":"boolean","default":true,"section":"This vault"},"on":{"editor":"boolean","default":false,"section":"Opened for"}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { step: null, pin: '', pin2: '', code: '', showSecret: false, codeBad: false };
+  }
+  renderVals() {
+    const theme = this.props.theme ?? 'light';
+    const keyed = this.props.keyed ?? true;
+    const on = (this.props.on ?? false) && this.state.step === null;
+    const step = this.state.step ?? (keyed ? 'scan' : 'key');
+    const order = keyed ? ['scan', 'confirm'] : ['key', 'scan', 'confirm'];
+    const idx = (s) => order.indexOf(s);
+    const at = idx(step === 'done' ? 'confirm' : step);
+    const seg = (s) => 'steps__seg' + (idx(s) < at || step === 'done' ? ' is-done' : idx(s) === at ? ' is-now' : '');
+    const { pin, pin2, code } = this.state;
+    const pinOk = /^\d{4,12}$/.test(pin);
+    const pinMatch = pinOk && pin2.length > 0 && pin === pin2;
+    const pinMismatch = pin2.length > 0 && pin !== pin2;
+    const digits = code.replace(/\s/g, '');
+    const foots = {
+      key: 'The code is asked for after this key. Nothing is written yet.',
+      scan: 'The seed lives only in memory until a code matches.',
+      confirm: 'Nothing is written until a code matches. A bad scan cannot lock you out.',
+      done: 'The codes are sealed under the vault key. Settings › Security › Recovery shows the ones left.',
+    };
+    return {
+      theme, needsKey: !keyed,
+      nKey: 1, nScan: keyed ? 1 : 2, nConfirm: keyed ? 2 : 3,
+      segKey: seg('key'), segScan: seg('scan'), segConfirm: seg('confirm'),
+      foot: on ? 'Nothing else changes. Your keys keep working.' : foots[step],
+      isOn: on, notOn: !on,
+      isKey: step === 'key', isScan: step === 'scan', isConfirm: step === 'confirm', isDone: step === 'done',
+      pin, pin2, code,
+      onPin: (e) => this.setState({ pin: e.target.value }),
+      onPin2: (e) => this.setState({ pin2: e.target.value }),
+      onCode: (e) => this.setState({ code: e.target.value, codeBad: false }),
+      pinMatch, pinMismatch, pinDisabled: !pinMatch,
+      enrollPin: () => this.setState({ step: 'scan', pin: '', pin2: '' }),
+      toConfirm: () => this.setState({ step: 'confirm', showSecret: false }),
+      toScan: () => this.setState({ step: 'scan', code: '' }),
+      toggleSecret: () => this.setState({ showSecret: !this.state.showSecret }),
+      showSecret: this.state.showSecret,
+      secretChev: this.state.showSecret ? 'alt__chev is-open' : 'alt__chev',
+      codeDisabled: digits.length < 6,
+      codeBad: this.state.codeBad,
+      turnOn: () => (digits === '000000' ? this.setState({ codeBad: true }) : this.setState({ step: 'done', code: '' })),
+    };
+  }
+}
+</script>

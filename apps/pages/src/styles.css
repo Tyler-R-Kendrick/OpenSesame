@@ -3268,3 +3268,46 @@ button.vault-row__body:hover:not(:disabled) {
   padding: 0.4rem 0.3rem 0;
   border-top: 1px solid var(--line);
 }
+
+/* ——— Step rails ————————————————————————————————————————————
+   A two-segment rail names the steps of a ceremony before the first is
+   taken: the unlock screen when a vault enrolled an authenticator code, and
+   Settings when MFA is enrolled on a vault that first needs a key. The same
+   segment setup uses, because it makes the same claim — how much is left. */
+.steps {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+}
+
+.steps__seg {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--ink-3);
+}
+
+.steps__bar {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+}
+
+.steps__seg.is-done .steps__bar,
+.steps__seg.is-now .steps__bar {
+  background: var(--ink);
+}
+
+.steps__seg.is-now {
+  color: var(--ink);
+}
+
+.steps__label {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

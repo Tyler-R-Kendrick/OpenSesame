@@ -362,10 +362,26 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.security",
     description:
-      "The Security settings category: enrolled unlock methods and the master password.",
+      "The Security settings category: the keys that open this vault, the second steps asked after one, and the recovery codes — each a row with one action that opens the one sheet.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: null,
+  },
+  {
+    id: "settings.second-step",
+    description:
+      "The Second step list under Security: the authenticator app, and the email and text codes the Identity API sends as fallbacks. Each row's Add opens the sheet; nothing turns on until a code from the new method matches.",
+    role: "action",
+    routes: ["/settings"],
+    capabilityId: "vault.second_step.code",
+  },
+  {
+    id: "settings.recovery",
+    description:
+      "The Recovery row under Security: ten one-time codes that stand in for the second step once each, made with the first second step and shown once; View shows the ones left.",
+    role: "action",
+    routes: ["/settings"],
+    capabilityId: "vault.recovery_codes",
   },
   {
     id: "settings.connectivity",

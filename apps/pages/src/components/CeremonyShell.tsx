@@ -39,6 +39,13 @@ export type CeremonyPrimary = {
   onClick: () => void;
   busy?: boolean;
   disabled?: boolean;
+  /**
+   * `danger` for the one irreversible act a ceremony can hold — removing a
+   * key or a second step — drawn in the error ink beside a plain "Keep it".
+   */
+  tone?: "danger";
+  /** Submit a surrounding form instead of clicking, so Enter in a field commits. */
+  submit?: boolean;
 };
 
 export function CeremonyShell({
@@ -53,7 +60,12 @@ export function CeremonyShell({
 }: {
   /** Drives the tick-vs-alert mark and the card's wash. */
   ok: boolean;
-  top: string;
+  /**
+   * The top line is a fact — "Enrolled 28 Aug", "Code sent", "7 of 10 left"
+   * — or nothing. A card for something that has not happened yet leaves it
+   * out rather than wearing a kicker.
+   */
+  top?: string;
   name: string;
   facts?: CeremonyFact[];
   primary?: CeremonyPrimary;
@@ -71,10 +83,12 @@ export function CeremonyShell({
   return (
     <>
       <div className={`found${ok ? "" : " found--attn"}`}>
-        <p className="found__top">
-          {ok ? <IconCheck size={15} /> : <IconAlert size={15} />}
-          {top}
-        </p>
+        {top ? (
+          <p className="found__top">
+            {ok ? <IconCheck size={15} /> : <IconAlert size={15} />}
+            {top}
+          </p>
+        ) : null}
         <p className="found__name">{name}</p>
         {facts && facts.length > 0 ? (
           <dl>
@@ -94,11 +108,15 @@ export function CeremonyShell({
           <div className="found__do">
             {primary ? (
               <button
-                type="button"
-                className="btn btn--primary"
+                type={primary.submit ? "submit" : "button"}
+                className={
+                  primary.tone === "danger"
+                    ? "btn btn--danger"
+                    : "btn btn--primary"
+                }
                 disabled={primary.disabled || primary.busy}
                 aria-busy={primary.busy}
-                onClick={primary.onClick}
+                onClick={primary.submit ? undefined : primary.onClick}
               >
                 {primary.label}
               </button>

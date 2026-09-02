@@ -1,0 +1,257 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px; position: relative">
+  <div class="sheet-layer">
+    <button type="button" class="scrim" aria-label="Close"></button>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="{{title}}">
+      <div class="sheet__head">
+        <span class="sheet__mark">
+          <sc-if value="{{isPin}}" hint-placeholder-val="{{true}}">@icon(lock,20)</sc-if>
+          <sc-if value="{{isPasskey}}" hint-placeholder-val="{{false}}">@icon(passkey,20)</sc-if>
+          <sc-if value="{{isPassword}}" hint-placeholder-val="{{false}}">@icon(shield,20)</sc-if>
+        </span>
+        <div class="sheet__grow">
+          <h2>{{title}}</h2>
+          <p>{{subtitle}}</p>
+        </div>
+        <button type="button" class="icon-btn" aria-label="Close">@icon(x,18)</button>
+      </div>
+
+      <div class="sheet__body">
+        <!-- One card per view (CeremonyShell): what is here, its facts, the
+             fields, the one action inside the card. The top line is a fact
+             or nothing — never a kicker. Alternatives under the rule swap the
+             card in place; a second form is never drawn. -->
+
+        <!-- Add / Change: the fields. -->
+        <sc-if value="{{isForm}}" hint-placeholder-val="{{true}}">
+          <sc-if value="{{isPin}}" hint-placeholder-val="{{true}}">
+            <div class="found">
+              <sc-if value="{{isChange}}" hint-placeholder-val="{{false}}"><p class="found__top">@icon(check,15) Enrolled 28 Aug</p></sc-if>
+              <p class="found__name">PIN · this device</p>
+              <dl>
+                <dt>Guards</dt><dd>the vault key on this device</dd>
+                <dt>Asked</dt><dd>at unlock, as step 1</dd>
+              </dl>
+              <div class="f">
+                <div class="f__labelrow"><label class="f__label" for="ak-pin">{{pinLabel}}</label></div>
+                <div class="f__shell">
+                  <span class="f__lead" aria-hidden="true">@icon(lock)</span>
+                  <input id="ak-pin" class="f__input" type="password" inputmode="numeric" autocomplete="new-password" value="{{pin}}" onChange="{{onPin}}" />
+                </div>
+              </div>
+              <div class="f">
+                <div class="f__labelrow">
+                  <label class="f__label" for="ak-pin2">{{pinLabel2}}</label>
+                  <sc-if value="{{pinMatch}}" hint-placeholder-val="{{false}}"><span class="chip chip--ok">Matches</span></sc-if>
+                  <sc-if value="{{pinMismatch}}" hint-placeholder-val="{{false}}"><span class="chip chip--err">Does not match</span></sc-if>
+                </div>
+                <div class="f__shell">
+                  <span class="f__lead" aria-hidden="true">@icon(lock)</span>
+                  <input id="ak-pin2" class="f__input" type="password" inputmode="numeric" autocomplete="new-password" value="{{pin2}}" onChange="{{onPin2}}" />
+                </div>
+              </div>
+              <div class="found__do">
+                <button type="button" class="btn btn--primary" disabled="{{pinDisabled}}">{{pinVerb}}</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{isPasskey}}" hint-placeholder-val="{{false}}">
+            <sc-if value="{{hostOk}}" hint-placeholder-val="{{true}}">
+              <div class="found">
+                <p class="found__name">Passkey · this browser</p>
+                <dl>
+                  <dt>Guards</dt><dd>the vault key, held by the authenticator</dd>
+                  <dt>Asked</dt><dd>at unlock, as step 1</dd>
+                  <dt>Where</dt><dd>vault.example.dev</dd>
+                </dl>
+                <p class="hint">The browser asks for your face, fingerprint or device PIN when you press Create. Nothing is typed here.</p>
+                <div class="found__do">
+                  <button type="button" class="btn btn--primary">Create passkey</button>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{hostBad}}" hint-placeholder-val="{{false}}">
+              <div class="found found--attn">
+                <p class="found__top">@icon(alert,15) Passkeys need a hostname</p>
+                <p class="found__name">127.0.0.1 is a raw IP</p>
+                <dl>
+                  <dt>Same vault</dt><dd>localhost:5180 reads the same data</dd>
+                  <dt>Then</dt><dd>creation resumes on its own</dd>
+                </dl>
+                <div class="found__do">
+                  <button type="button" class="btn btn--primary">Continue on localhost</button>
+                </div>
+              </div>
+            </sc-if>
+          </sc-if>
+
+          <sc-if value="{{isPassword}}" hint-placeholder-val="{{false}}">
+            <div class="found">
+              <sc-if value="{{isChange}}" hint-placeholder-val="{{false}}"><p class="found__top">@icon(check,15) Enrolled 28 Aug</p></sc-if>
+              <p class="found__name">Master password</p>
+              <dl>
+                <dt>Guards</dt><dd>the vault key on this device</dd>
+                <dt>Asked</dt><dd>at unlock, as step 1</dd>
+              </dl>
+              <div class="f">
+                <div class="f__labelrow">
+                  <label class="f__label" for="ak-pw">{{pwLabel}}</label>
+                  <sc-if value="{{pwTyped}}" hint-placeholder-val="{{false}}"><span class="{{pwChip}}">{{pwStrength}}</span></sc-if>
+                </div>
+                <div class="f__shell">
+                  <span class="f__lead" aria-hidden="true">@icon(shield)</span>
+                  <input id="ak-pw" class="f__input" type="password" autocomplete="new-password" value="{{pw}}" onChange="{{onPw}}" />
+                  <span class="f__tail"><button type="button" class="icon-btn" aria-label="Show password">@icon(eye,18)</button></span>
+                </div>
+              </div>
+              <div class="f">
+                <div class="f__labelrow">
+                  <label class="f__label" for="ak-pw2">{{pwLabel2}}</label>
+                  <sc-if value="{{pwMatch}}" hint-placeholder-val="{{false}}"><span class="chip chip--ok">Matches</span></sc-if>
+                  <sc-if value="{{pwMismatch}}" hint-placeholder-val="{{false}}"><span class="chip chip--err">Does not match</span></sc-if>
+                </div>
+                <div class="f__shell">
+                  <span class="f__lead" aria-hidden="true">@icon(shield)</span>
+                  <input id="ak-pw2" class="f__input" type="password" autocomplete="new-password" value="{{pw2}}" onChange="{{onPw2}}" />
+                </div>
+              </div>
+              <div class="found__do">
+                <button type="button" class="btn btn--primary" disabled="{{pwDisabled}}">{{pwVerb}}</button>
+              </div>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <!-- Remove: the one irreversible act, and it is confirmed in the same
+             card, with what happens after said in the facts. -->
+        <sc-if value="{{isRemove}}" hint-placeholder-val="{{false}}">
+          <div class="found found--attn">
+            <p class="found__top">@icon(alert,15) Remove this {{noun}}?</p>
+            <p class="found__name">{{removeName}}</p>
+            <dl>
+              <dt>After</dt><dd>{{after}}</dd>
+              <dt>Vault</dt><dd>untouched; nothing inside changes</dd>
+            </dl>
+            <div class="found__do">
+              <button type="button" class="btn btn--danger" disabled="{{lastKey}}">Remove {{noun}}</button>
+              <button type="button" class="btn">Keep it</button>
+            </div>
+            <sc-if value="{{lastKey}}" hint-placeholder-val="{{false}}">
+              <p class="hint">This is the only key. Add another below first; then this one can go.</p>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <p class="or">or</p>
+
+        <div class="alt">
+          <sc-if value="{{isChange}}" hint-placeholder-val="{{false}}">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{toRemove}}">
+                <span class="alt__mark">@icon(trash)</span>
+                <span class="alt__grow">Remove this {{noun}}</span>
+                <span class="alt__chev">@icon(chevron)</span>
+              </button>
+            </div>
+          </sc-if>
+          <sc-if value="{{notPasskey}}" hint-placeholder-val="{{true}}">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{pickPasskey}}">
+                <span class="alt__mark">@icon(passkey)</span>
+                <span class="alt__grow">{{altPasskey}}</span>
+                <span class="alt__chev">@icon(chevron)</span>
+              </button>
+            </div>
+          </sc-if>
+          <sc-if value="{{notPin}}" hint-placeholder-val="{{false}}">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{pickPin}}">
+                <span class="alt__mark">@icon(lock)</span>
+                <span class="alt__grow">{{altPin}}</span>
+                <span class="alt__chev">@icon(chevron)</span>
+              </button>
+            </div>
+          </sc-if>
+          <sc-if value="{{notPassword}}" hint-placeholder-val="{{true}}">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{pickPassword}}">
+                <span class="alt__mark">@icon(shield)</span>
+                <span class="alt__grow">{{altPassword}}</span>
+                <span class="alt__chev">@icon(chevron)</span>
+              </button>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div class="sheet__foot">
+        <p class="hint">{{foot}}</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"},"method":{"editor":"enum","options":["pin","passkey","password"],"default":"pin","section":"Opened for"},"view":{"editor":"enum","options":["add","change","remove"],"default":"add","section":"Opened for"},"host":{"editor":"enum","options":["hostname","raw-ip"],"default":"hostname","section":"This device"},"lastKey":{"editor":"boolean","default":false,"section":"Opened for"}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { method: null, view: null, pin: '', pin2: '', pw: '', pw2: '' };
+  }
+  renderVals() {
+    const theme = this.props.theme ?? 'light';
+    const method = this.state.method ?? this.props.method ?? 'pin';
+    const view = this.state.view ?? this.props.view ?? 'add';
+    const hostOk = (this.props.host ?? 'hostname') === 'hostname';
+    const lastKey = view === 'remove' && (this.props.lastKey ?? false);
+    const { pin, pin2, pw, pw2 } = this.state;
+    const pinOk = /^\d{4,12}$/.test(pin);
+    const pinMatch = pinOk && pin2.length > 0 && pin === pin2;
+    const pinMismatch = pin2.length > 0 && pin !== pin2;
+    const score = pw.length >= 16 ? 3 : pw.length >= 12 ? 2 : pw.length >= 8 ? 1 : 0;
+    const pwMatch = score >= 2 && pw2.length > 0 && pw === pw2;
+    const pwMismatch = pw2.length > 0 && pw !== pw2;
+    const titles = { pin: 'PIN', passkey: 'Passkey', password: 'Password' };
+    const nouns = { pin: 'PIN', passkey: 'passkey', password: 'password' };
+    const subtitles = {
+      pin: 'Four to twelve digits, held on this device.',
+      passkey: 'Face, fingerprint or the device PIN, through this browser.',
+      password: 'Twelve characters or more. The reminder you save shows at unlock.',
+    };
+    const removeNames = { pin: 'PIN · this device', passkey: 'Passkey · this browser', password: 'Master password' };
+    const isChange = view === 'change';
+    const isRemove = view === 'remove';
+    const foots = {
+      add: 'Nothing changes until you press the button in the card. The vault stays unlocked while you do this.',
+      change: 'The old one stops working the moment the new one is set.',
+      remove: 'Removing a key does not touch the vault; it only stops opening it. The other keys keep working.',
+    };
+    const others = ['passkey', 'pin', 'password'].filter((m) => m !== method);
+    const alt = (m) => (view === 'add' ? `Use a ${nouns[m]} instead` : `Add a ${nouns[m]}`);
+    const pick = (m) => () => this.setState({ method: m, view: 'add', pin: '', pin2: '', pw: '', pw2: '' });
+    return {
+      theme,
+      title: titles[method], subtitle: subtitles[method], foot: foots[view],
+      isPin: method === 'pin', isPasskey: method === 'passkey', isPassword: method === 'password',
+      notPin: others.includes('pin'), notPasskey: others.includes('passkey'), notPassword: others.includes('password'),
+      altPin: alt('pin'), altPasskey: alt('passkey'), altPassword: alt('password'),
+      isForm: !isRemove, isChange, isRemove, lastKey,
+      noun: nouns[method], removeName: removeNames[method],
+      after: lastKey ? 'nothing opens this vault' : method === 'passkey' ? 'unlock with the password only' : 'unlock with the passkey only',
+      hostOk, hostBad: !hostOk,
+      pin, pin2, pw, pw2,
+      onPin: (e) => this.setState({ pin: e.target.value }),
+      onPin2: (e) => this.setState({ pin2: e.target.value }),
+      onPw: (e) => this.setState({ pw: e.target.value }),
+      onPw2: (e) => this.setState({ pw2: e.target.value }),
+      pinMatch, pinMismatch, pinDisabled: !pinMatch,
+      pinLabel: isChange ? 'New PIN' : 'PIN', pinLabel2: isChange ? 'Confirm new PIN' : 'Confirm PIN', pinVerb: isChange ? 'Change PIN' : 'Set PIN',
+      pwTyped: pw.length > 0,
+      pwStrength: ['Too short', 'Weak', 'Fair', 'Strong'][score],
+      pwChip: score >= 2 ? 'chip chip--ok' : 'chip chip--warn',
+      pwMatch, pwMismatch, pwDisabled: !pwMatch,
+      pwLabel: isChange ? 'New password' : 'Password', pwLabel2: isChange ? 'Confirm new password' : 'Confirm password', pwVerb: isChange ? 'Change password' : 'Set password',
+      toRemove: () => this.setState({ view: 'remove' }),
+      pickPasskey: pick('passkey'), pickPin: pick('pin'), pickPassword: pick('password'),
+    };
+  }
+}
+</script>

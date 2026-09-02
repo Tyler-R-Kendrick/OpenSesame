@@ -46,7 +46,7 @@ function signOutDefault(intent: SignOutIntent = "leave"): void {
       : { kind: "signed_out" },
   );
   endSession();
-  if (vaultStore.isUnlocked() || vaultStore.getSnapshot().awaitingTotp) {
+  if (vaultStore.isUnlocked() || vaultStore.getSnapshot().awaitingSecondStep) {
     vaultStore.lock();
   }
 }

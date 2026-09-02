@@ -1,0 +1,151 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 960px">
+  <div style="height: 100%; overflow-y: auto; padding: 1rem 1.15rem 1.5rem; display: grid; gap: 1.35rem; align-content: start">
+    <p class="crumbs">settings / <span class="crumbs__here">security</span></p>
+
+    <nav class="set__nav" aria-label="Settings">
+      <a class="set__nav-link" href="#">Vaults</a>
+      <a class="set__nav-link" href="#" aria-current="page">Security</a>
+      <a class="set__nav-link" href="#">Connectivity</a>
+    </nav>
+
+    <sc-if value="{{guest}}" hint-placeholder-val="{{false}}">
+      <div class="note">
+        @icon(info,18)
+        <span>You are a guest. Until this vault has a key it is not kept on this device. Start with a passkey.</span>
+      </div>
+    </sc-if>
+
+    <!-- The list is read-only state. Every form lives inside the one sheet
+         a row's action opens; a row never holds an input, and its verb says
+         what the sheet will do: Add, Change, Remove. -->
+    <section class="panel">
+      <div class="panel__head">
+        <div>
+          <h2>Unlock methods</h2>
+          <p class="hint">Which key opens this vault on this device. Keep at least one.</p>
+        </div>
+      </div>
+      <div class="panel__body" style="gap: 0">
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(passkey) Passkey <span class="{{passkeyChip}}">{{passkeyState}}</span></div>
+            <p class="sw__sub">{{passkeySub}}</p>
+          </div>
+          <button type="button" class="{{passkeyBtn}}">{{passkeyVerb}}</button>
+        </div>
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(lock) PIN <span class="chip">Off</span></div>
+            <p class="sw__sub">Four to twelve digits, held on this device.</p>
+          </div>
+          <button type="button" class="btn btn--sm">Add</button>
+        </div>
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(shield) Password <span class="{{passwordChip}}">{{passwordState}}</span></div>
+            <p class="sw__sub">{{passwordSub}}</p>
+          </div>
+          <button type="button" class="btn btn--sm">{{passwordVerb}}</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div>
+          <h2>Second step</h2>
+          <p class="hint">Asked after the key, every unlock. Nothing turns on until a code from the new method matches.</p>
+        </div>
+      </div>
+      <div class="panel__body" style="gap: 0">
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(phone) Authenticator app <span class="{{totpChip}}">{{totpState}}</span></div>
+            <p class="sw__sub">{{totpSub}}</p>
+          </div>
+          <button type="button" class="btn btn--sm">{{totpVerb}}</button>
+        </div>
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(mail) Email code <span class="{{emailChip}}">{{emailState}}</span></div>
+            <p class="sw__sub">{{emailSub}}</p>
+          </div>
+          <button type="button" class="btn btn--sm">{{codeVerb}}</button>
+        </div>
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(message) Text message <span class="{{smsChip}}">{{smsState}}</span></div>
+            <p class="sw__sub">{{smsSub}}</p>
+          </div>
+          <button type="button" class="btn btn--sm">{{codeVerb}}</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div>
+          <h2>Recovery</h2>
+          <p class="hint">For the day the phone is gone.</p>
+        </div>
+      </div>
+      <div class="panel__body" style="gap: 0">
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(secret) Recovery codes <span class="{{codesChip}}">{{codesState}}</span></div>
+            <p class="sw__sub">{{codesSub}}</p>
+          </div>
+          <sc-if value="{{mfa}}" hint-placeholder-val="{{false}}">
+            <button type="button" class="btn btn--sm">View</button>
+          </sc-if>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"},"keyed":{"editor":"boolean","default":true,"section":"This vault"},"mfa":{"editor":"boolean","default":false,"section":"This vault"},"identity":{"editor":"boolean","default":true,"section":"This device"}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'light';
+    const keyed = this.props.keyed ?? true;
+    const mfa = keyed && (this.props.mfa ?? false);
+    const identity = this.props.identity ?? true;
+    const on = 'chip chip--ok';
+    const off = 'chip';
+    const codeSub = !identity
+      ? 'Needs an Identity API to send it.'
+      : !keyed
+        ? 'After a key.'
+        : 'For a lost phone. Sent by the Identity API to an address you confirm.';
+    return {
+      theme, guest: !keyed, identity, mfa,
+      passkeyChip: keyed ? on : off,
+      passkeyState: keyed ? 'Enrolled' : 'Off',
+      passkeySub: keyed ? 'This browser, 28 Aug. Face, fingerprint or the device PIN.' : 'Face, fingerprint or the device PIN, through this browser.',
+      passkeyVerb: keyed ? 'Remove' : 'Add',
+      // The one recommended start for a keyless vault carries the weight.
+      passkeyBtn: keyed ? 'btn btn--sm' : 'btn btn--primary btn--sm',
+      passwordChip: keyed ? on : off,
+      passwordState: keyed ? 'Enrolled' : 'Off',
+      passwordSub: keyed ? 'The reminder you saved shows at unlock.' : 'Twelve characters or more.',
+      passwordVerb: keyed ? 'Change' : 'Add',
+      totpChip: mfa ? on : off,
+      totpState: mfa ? 'On' : 'Off',
+      totpSub: !keyed
+        ? 'After a key. Add sets the key first, then scans.'
+        : mfa ? 'Codes from the app on your phone, since 30 Aug.' : 'Codes from an app on your phone.',
+      totpVerb: mfa ? 'Remove' : 'Add',
+      emailChip: identity ? off : 'chip',
+      emailState: identity ? 'Off' : 'Unavailable',
+      emailSub: codeSub,
+      smsChip: identity ? off : 'chip',
+      smsState: identity ? 'Off' : 'Unavailable',
+      smsSub: codeSub,
+      codeVerb: identity ? 'Add' : 'Connectivity',
+      codesChip: mfa ? on : off,
+      codesState: mfa ? '7 of 10 left' : 'None yet',
+      codesSub: mfa ? 'Each stands in for the second step once.' : 'Made with your first second step, and shown once.',
+    };
+  }
+}
+</script>

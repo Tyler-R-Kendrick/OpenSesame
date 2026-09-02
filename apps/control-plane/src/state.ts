@@ -47,6 +47,23 @@ export interface UsageSnapshot {
   claims: number;
 }
 
+/**
+ * A code sent out of band and not yet verified. Only its hash is held: the
+ * code itself left with the message, and a memory dump of this process must
+ * not be a second way to read it.
+ */
+export interface MfaCodeChallenge {
+  principalId: string;
+  channel: "email" | "sms";
+  /** Where it went, verbatim — returned masked, never whole. */
+  to: string;
+  /** sha256(challengeId ":" code), hex. */
+  codeHash: string;
+  createdAt: number;
+  expiresAt: number;
+  attempts: number;
+}
+
 export interface AppStores {
   provisionalSessions: Map<string, ProvisionalSession>;
   /** session token → session id */
@@ -113,6 +130,8 @@ export interface AppStores {
   claimApprovalAttempts: Map<string, number>;
   /** mfa subject → failed verification attempts (brute-force fence) */
   mfaFailures: Map<string, number>;
+  /** challengeId → a one-time code sent by email or text, until it is spent */
+  mfaCodes: Map<string, MfaCodeChallenge>;
   /** principalId → serialized quota mutations */
   principalMutations: Map<string, Promise<void>>;
   /** Idempotency-Key inflight locks */
@@ -174,6 +193,7 @@ export function createAppStores(options?: {
     totpSecrets: new Map(),
     claimApprovalAttempts: new Map(),
     mfaFailures: new Map(),
+    mfaCodes: new Map(),
     principalMutations: new Map(),
     idempotencyLocks: new Map(),
     provisionalMints: new Map(),

@@ -1,4 +1,4 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { isString, overlapCast } from "@opensesame/os-domain";
 /**
  * Additional vault unlock methods beyond the master password.
  *
@@ -57,11 +57,60 @@ export type TotpGateRecord = {
   period: 30;
 };
 
+/** Where a one-time code goes. The address itself is sealed, not the fact. */
+export type CodeChannel = "email" | "sms";
+
+/**
+ * A code sent by the Identity API — the fallback second step. The plaintext
+ * header says only that the channel is enrolled; the address is AES-GCM(VK),
+ * opened with the key the first step just produced, so a copy of the header
+ * discloses nothing to write to.
+ */
+export type RemoteCodeRecord = {
+  /** AES-GCM(VK) over the address or E.164 number. */
+  toWrap: SealedBlob;
+  /** ISO date the channel was confirmed with its first code. */
+  since: string;
+};
+
+/**
+ * Ten one-time codes that stand in for the second step once each. Sealed
+ * under the vault key, the same envelope as the authenticator seed: a header
+ * on disk discloses that codes exist, never what they are.
+ */
+export type RecoveryCodesRecord = {
+  /** AES-GCM(VK) over JSON `{ codes: string[], used: boolean[] }`. */
+  codesWrap: SealedBlob;
+  total: number;
+  since: string;
+};
+
 export type VaultUnlocks = {
   passkey?: PasskeyUnlockRecord;
   pin?: PinUnlockRecord;
   totp?: TotpGateRecord;
+  email?: RemoteCodeRecord;
+  sms?: RemoteCodeRecord;
+  recovery?: RecoveryCodesRecord;
 };
+
+/** A second step the vault asks for after the key. */
+export type SecondStepId = "totp" | CodeChannel;
+
+/** The second steps this vault enrolled, authenticator first. */
+export function listSecondSteps(
+  header: VaultHeader | null | undefined,
+): SecondStepId[] {
+  const steps: SecondStepId[] = [];
+  if (header?.unlocks?.totp) steps.push("totp");
+  if (header?.unlocks?.email) steps.push("email");
+  if (header?.unlocks?.sms) steps.push("sms");
+  return steps;
+}
+
+export function hasSecondStep(header: VaultHeader | null | undefined): boolean {
+  return listSecondSteps(header).length > 0;
+}
 
 export type UnlockMethodId = "password" | "passkey" | "pin";
 
@@ -671,4 +720,72 @@ export async function totpCodeMatches(
     }
   }
   return false;
+}
+
+/* ------------------------------------------------------------------ *
+ * Sealed text and recovery codes
+ * ------------------------------------------------------------------ */
+
+export async function sealText(
+  vaultKey: CryptoKey,
+  text: string,
+): Promise<SealedBlob> {
+  return encryptWithKey(vaultKey, new TextEncoder().encode(text));
+}
+
+export async function openText(
+  vaultKey: CryptoKey,
+  blob: SealedBlob,
+): Promise<string> {
+  return new TextDecoder().decode(await decryptWithKey(vaultKey, blob));
+}
+
+export const RECOVERY_CODE_COUNT = 10;
+/** Lowercase, no 0/1/l/o: a code is read off paper and typed, not pasted. */
+const RECOVERY_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+
+/** Ten codes shaped `xxxx-xxxx`, 155 bits of alphabet each. */
+export function randomRecoveryCodes(count = RECOVERY_CODE_COUNT): string[] {
+  const codes: string[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const bytes = randomBytes(8);
+    let code = "";
+    for (const [index, byte] of bytes.entries()) {
+      if (index === 4) code += "-";
+      code += RECOVERY_ALPHABET[byte % RECOVERY_ALPHABET.length];
+    }
+    codes.push(code);
+  }
+  return codes;
+}
+
+/** A typed code, forgiven its case, spaces and dashes. */
+export function normalizeRecoveryCode(code: string): string {
+  return code.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+export type RecoveryLedger = { codes: string[]; used: boolean[] };
+
+export async function sealRecoveryLedger(
+  vaultKey: CryptoKey,
+  ledger: RecoveryLedger,
+): Promise<SealedBlob> {
+  return sealText(vaultKey, JSON.stringify(ledger));
+}
+
+export async function openRecoveryLedger(
+  vaultKey: CryptoKey,
+  record: RecoveryCodesRecord,
+): Promise<RecoveryLedger> {
+  const parsed = overlapCast(
+    JSON.parse(await openText(vaultKey, record.codesWrap)),
+  );
+  const codes = Array.isArray(parsed.codes)
+    ? parsed.codes.filter(isString)
+    : [];
+  const usedRaw = parsed.used;
+  const used = Array.isArray(usedRaw)
+    ? codes.map((_, i) => usedRaw[i] === true)
+    : codes.map(() => false);
+  return { codes, used };
 }

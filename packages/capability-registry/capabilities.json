@@ -2107,6 +2107,60 @@
     }
   },
   {
+    "id": "vault.second_step.code",
+    "title": "Add, use or remove a one-time code by email or text as the vault's second step",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/remote-code.ts:sendCode",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "mcp_client": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      },
+      "webmcp": {
+        "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
+        "adr": "0023-mcp-bearer-vs-dpop.md"
+      }
+    }
+  },
+  {
+    "id": "vault.recovery_codes",
+    "title": "Make, view or redeem the vault's recovery codes",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/unlock-methods.ts:randomRecoveryCodes",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
     "id": "vault.item_types.list",
     "title": "List the item types registered on this device",
     "plane": "client_local",

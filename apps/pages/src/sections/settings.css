@@ -278,3 +278,65 @@
 .itype-row .hint {
   margin: 0.15rem 0 0;
 }
+
+/* ——— Security: the method list ————————————————————————————————
+   A row per unlock method or second step, in the switch row the rest of
+   Settings uses: a name with its glyph and state chip, one line under it,
+   and exactly one action. A row never holds an input; every form lives in
+   the sheet the action opens (docs/design/auth-flow). */
+.sw--method {
+  align-items: center;
+  padding: 0.7rem 0;
+}
+.sw--method .sw__name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+.sw--method .sw__name svg {
+  flex: none;
+  color: var(--ink-2);
+}
+.sw--method .sw__sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--font);
+  line-height: 1.45;
+}
+.sw--method .btn {
+  align-self: center;
+}
+.set__security .panel__body {
+  gap: 0;
+}
+
+/* Ten recovery codes: a two-column mono list, because they are data to be
+   copied down, not chrome. Used ones are struck through. */
+.codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.codes li {
+  padding: 0.3rem 0;
+  border-bottom: 1px dashed var(--line);
+}
+.codes li.is-used {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+/* On the accent wash `--ink-3` falls under 4.5:1; the card's secondary
+   text takes the darker step. */
+.found .f__fills-label,
+.found .hint {
+  color: var(--ink-2);
+}

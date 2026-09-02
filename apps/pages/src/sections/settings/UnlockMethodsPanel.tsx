@@ -1,64 +1,64 @@
-import { type FormEvent, useEffect, useState } from "react";
-import { IconAlert, IconPasskey, IconShield } from "../../components/Icons.js";
-import { QrCode } from "../../components/QrCode.js";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { StatusNote } from "../../components/StatusNote.js";
+import { loadSession } from "../../lib/federation.js";
+import { identityBase } from "../../lib/identity.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { estimateStrength } from "../../lib/vault/password.js";
+import { RemoteCodeError } from "../../lib/vault/remote-code.js";
 import {
-  MAX_PIN_LENGTH,
-  MIN_PIN_LENGTH,
+  type CodeChannel,
+  type UnlockMethodId,
   type WebauthnHostCheck,
   checkWebauthnHost,
   describeWebauthnError,
   listAvailableUnlockMethods,
-  pinPolicyProblems,
+  listSecondSteps,
 } from "../../lib/vault/unlock-methods.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { KEY_TITLE, type KeyKind } from "./security/KeyCeremony.js";
+import {
+  type MethodKind,
+  MethodSheet,
+  type SheetRequest,
+  methodIcon,
+} from "./security/MethodSheet.js";
+import type { Run } from "./security/run.js";
 
 const ENROLL_PASSKEY_PARAM = "enroll-passkey";
 
+/**
+ * Settings › Security. Three lists — the keys that open this vault, the
+ * second steps asked after one, and the recovery codes — each a row of
+ * read-only state with exactly one action. No row holds an input: every
+ * form lives in the one sheet a row's action opens, so the PIN form exists
+ * once, and the authenticator ceremony on a keyless vault reuses it as its
+ * step 1 rather than drawing a second one (docs/design/auth-flow, ADR 0091).
+ */
 export function UnlockMethodsPanel() {
   const { header, guest } = useVault();
   const store = useVaultStore();
-  const methods = listAvailableUnlockMethods(header);
-  const hasPasskey = Boolean(header?.unlocks?.passkey);
-  const hasPin = Boolean(header?.unlocks?.pin);
-  const hasPassword = Boolean(header?.wrap && header?.kdf);
-  const hasTotp = Boolean(header?.unlocks?.totp);
-  // A code can only guard a key. A guest session holds nothing wrapped to
-  // disk, and a vault with a code but no passkey, PIN or password is one
-  // nothing can open — so the row is withheld until a primary method exists.
-  const canEnrollTotp = !guest && methods.length > 0;
+  const enrolled = guest ? [] : listAvailableUnlockMethods(header);
+  const secondSteps = guest ? [] : listSecondSteps(header);
+  const hasRecovery = !guest && Boolean(header?.unlocks?.recovery);
+  const hasIdentity = identityBase().length > 0;
+  const accountEmail = loadSession()?.email ?? null;
 
   const [message, setMessage] = useState<{
     tone: "ok" | "err";
     text: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [pin, setPin] = useState("");
-  const [pinConfirm, setPinConfirm] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [totpUri, setTotpUri] = useState<string | null>(null);
-  const [totpCode, setTotpCode] = useState("");
+  const [sheet, setSheet] = useState<SheetRequest | null>(null);
   const [webauthnHost, setWebauthnHost] = useState<WebauthnHostCheck>(() =>
     checkWebauthnHost(),
   );
+  const secondStepRef = useGuideTarget<HTMLElement>("settings.second-step");
+  const recoveryRef = useGuideTarget<HTMLElement>("settings.recovery");
 
   useEffect(() => {
     setWebauthnHost(checkWebauthnHost());
   }, []);
 
-  useEffect(() => {
-    if (hasPasskey || busy) return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get(ENROLL_PASSKEY_PARAM) !== "1") return;
-    if (!checkWebauthnHost().ok) return;
-    url.searchParams.delete(ENROLL_PASSKEY_PARAM);
-    window.history.replaceState(null, "", url);
-    void run(() => store.enrollPasskey(), "Passkey unlock enrolled.");
-  }, [hasPasskey, busy, store]);
-
-  async function run(action: () => Promise<void>, ok: string) {
+  const run = useCallback<Run>(async (action, ok) => {
     setMessage(null);
     setBusy(true);
     try {
@@ -67,378 +67,273 @@ export function UnlockMethodsPanel() {
     } catch (caught) {
       setMessage({
         tone: "err",
-        text: describeWebauthnError(
-          caught instanceof Error ? caught : "Unknown WebAuthn error",
-        ),
+        text:
+          caught instanceof RemoteCodeError
+            ? caught.message
+            : describeWebauthnError(
+                caught instanceof Error ? caught : "Unknown WebAuthn error",
+              ),
       });
     } finally {
       setBusy(false);
     }
-  }
+  }, []);
 
-  function healPasskeyHost() {
-    const check = checkWebauthnHost();
-    if (!check.fixUrl) {
-      setMessage({ tone: "err", text: formatFallback(check) });
-      return;
-    }
-    const url = new URL(check.fixUrl);
-    url.searchParams.set(ENROLL_PASSKEY_PARAM, "1");
-    window.location.assign(url);
-  }
+  // Back from the localhost hop the passkey card offered: finish enrolling.
+  const hasPasskey = enrolled.includes("passkey");
+  useEffect(() => {
+    if (hasPasskey || busy) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get(ENROLL_PASSKEY_PARAM) !== "1") return;
+    if (!checkWebauthnHost().ok) return;
+    url.searchParams.delete(ENROLL_PASSKEY_PARAM);
+    window.history.replaceState(null, "", url);
+    void run(() => store.enrollPasskey(), "Passkey unlock enrolled.");
+  }, [hasPasskey, busy, store, run]);
 
-  function formatFallback(check: WebauthnHostCheck): string {
-    return check.fixUrl
-      ? check.reason
-      : `${check.reason} Open this app on a DNS hostname, then enroll again.`;
-  }
+  const open = (kind: MethodKind, view: SheetRequest["view"]) => () => {
+    setMessage(null);
+    setSheet({ kind, view });
+  };
 
-  function enrollPinForm(event: FormEvent) {
-    event.preventDefault();
-    if (pin !== pinConfirm) {
-      setMessage({ tone: "err", text: "The two PINs do not match." });
-      return;
-    }
-    void run(
-      async () => {
-        await store.enrollPin(pin);
-        setPin("");
-        setPinConfirm("");
-      },
-      hasPin
-        ? "PIN updated."
-        : "PIN unlock enrolled. You can unlock with this PIN next time.",
-    );
-  }
-
-  function enrollPasswordForm(event: FormEvent) {
-    event.preventDefault();
-    if (password !== passwordConfirm) {
-      setMessage({ tone: "err", text: "The two passwords do not match." });
-      return;
-    }
-    void run(async () => {
-      await store.enrollPassword(password);
-      setPassword("");
-      setPasswordConfirm("");
-    }, "Password unlock enrolled.");
-  }
-
-  const pinProblems = pinPolicyProblems(pin);
-  const pinProblem = pin.length > 0 ? (pinProblems[0] ?? null) : null;
-  const pinMismatch =
-    pinConfirm.length > 0 && pin !== pinConfirm
-      ? "The two PINs do not match."
-      : null;
-  const pinReady =
-    pin.length > 0 && pinProblems.length === 0 && pin === pinConfirm;
-  const passwordStrength = estimateStrength(password);
-  const passwordOk =
-    password.length >= 12 &&
-    passwordStrength.score >= 2 &&
-    password === passwordConfirm;
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Unlock methods</h2>
-        </div>
-      </div>
-      <div className="panel__body set__unlock">
-        <StatusNote message={message} />
-
-        <div className="set__unlock-row">
-          <div>
-            <h3>
-              <IconPasskey size={16} /> Passkey
-            </h3>
-            {hasPasskey ? <p className="hint">Enrolled.</p> : null}
-            {!hasPasskey && !webauthnHost.ok ? (
-              <output className="note note--warn">
-                <IconAlert size={18} />
-                <span>
-                  {webauthnHost.reason}
-                  {webauthnHost.fixUrl ? (
-                    <>
-                      {" "}
-                      Passkeys cannot use a raw IP. Continue on{" "}
-                      <code>localhost</code> — same vault data — then enrollment
-                      resumes automatically.
-                    </>
-                  ) : (
-                    <>
-                      {" "}
-                      Use a DNS hostname (Tailscale MagicDNS, or localhost for
-                      local dev).
-                    </>
-                  )}
-                </span>
-              </output>
-            ) : null}
-          </div>
-          <div className="actions">
-            {hasPasskey ? (
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                disabled={busy || methods.length < 2}
-                onClick={() =>
-                  void run(
-                    () => store.removePasskey(),
-                    "Passkey unlock removed.",
-                  )
-                }
-              >
-                Remove
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="btn btn--primary btn--sm"
-                  disabled={busy || !webauthnHost.ok}
-                  onClick={() =>
-                    void run(
-                      () => store.enrollPasskey(),
-                      "Passkey unlock enrolled.",
-                    )
-                  }
-                >
-                  Enroll passkey
-                </button>
-                {!webauthnHost.ok && webauthnHost.fixUrl ? (
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm"
-                    disabled={busy}
-                    onClick={healPasskeyHost}
-                  >
-                    Continue on localhost
-                  </button>
-                ) : null}
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="set__unlock-row">
-          <div>
-            <h3>
-              <IconShield size={16} /> PIN
-            </h3>
-            {hasPin ? <p className="hint">Enrolled.</p> : null}
-          </div>
-          <div className="set__unlock-actions">
-            <form className="set__unlock-form" onSubmit={enrollPinForm}>
-              <input
-                type="password"
-                inputMode="numeric"
-                autoComplete="new-password"
-                placeholder="PIN"
-                value={pin}
-                maxLength={MAX_PIN_LENGTH}
-                onChange={(e) => setPin(e.target.value)}
-                aria-label="New PIN"
-              />
-              <input
-                type="password"
-                inputMode="numeric"
-                autoComplete="new-password"
-                placeholder="Confirm"
-                value={pinConfirm}
-                maxLength={MAX_PIN_LENGTH}
-                onChange={(e) => setPinConfirm(e.target.value)}
-                aria-label="Confirm PIN"
-              />
-              <button
-                type="submit"
-                className="btn btn--primary btn--sm"
-                disabled={busy || !pinReady}
-              >
-                {hasPin ? "Change PIN" : "Enroll PIN"}
-              </button>
-            </form>
-            {pinProblem ? (
-              <p className="note note--err" aria-live="polite">
-                <IconAlert size={16} /> {pinProblem}
-              </p>
-            ) : pinMismatch ? (
-              <p className="note note--err" aria-live="polite">
-                <IconAlert size={16} /> {pinMismatch}
-              </p>
-            ) : null}
-            {hasPin ? (
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                disabled={busy || methods.length < 2}
-                onClick={() =>
-                  void run(() => store.removePin(), "PIN unlock removed.")
-                }
-              >
-                Remove
-              </button>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="set__unlock-row">
-          <div>
-            <h3>Password</h3>
-            <p className="hint">
-              {hasPassword
-                ? "Master-password wrap is available on the unlock screen."
-                : "Optional if you already have a passkey or PIN. Same strength rules as first-run."}
-            </p>
-          </div>
-          {hasPassword ? (
+  const keyRow = (kind: KeyKind, sub: string, enrolledSub: string) => {
+    const on = enrolled.includes(kind);
+    return (
+      <MethodRow
+        kind={kind}
+        label={KEY_TITLE[kind]}
+        state={on ? "Enrolled" : "Off"}
+        on={on}
+        sub={on ? enrolledSub : sub}
+        action={
+          on ? (
             <button
               type="button"
-              className="btn btn--ghost btn--sm"
-              disabled={busy || methods.length < 2}
-              onClick={() =>
-                void run(
-                  () => store.removePassword(),
-                  "Password unlock removed.",
-                )
-              }
+              className="btn btn--sm"
+              disabled={busy}
+              onClick={open(kind, kind === "passkey" ? "remove" : "change")}
             >
-              Remove
+              {kind === "passkey" ? "Remove" : "Change"}
             </button>
           ) : (
-            <form className="set__unlock-form" onSubmit={enrollPasswordForm}>
-              <input
-                type="password"
-                autoComplete="new-password"
-                placeholder="Master password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                aria-label="New master password"
-              />
-              <input
-                type="password"
-                autoComplete="new-password"
-                placeholder="Confirm"
-                value={passwordConfirm}
-                onChange={(e) => setPasswordConfirm(e.target.value)}
-                aria-label="Confirm master password"
-              />
-              <button
-                type="submit"
-                className="btn btn--primary btn--sm"
-                disabled={busy || !passwordOk}
-              >
-                Enroll password
-              </button>
-            </form>
-          )}
-        </div>
+            <button
+              type="button"
+              className={
+                // The one recommended start for a keyless vault carries the
+                // weight: a passkey where the host can do one, else a PIN.
+                enrolled.length === 0 &&
+                kind === (webauthnHost.ok ? "passkey" : "pin")
+                  ? "btn btn--primary btn--sm"
+                  : "btn btn--sm"
+              }
+              disabled={busy}
+              onClick={open(kind, "add")}
+            >
+              Add
+            </button>
+          )
+        }
+      />
+    );
+  };
 
-        <div className="set__unlock-row">
+  const codeRow = (channel: CodeChannel, label: string) => {
+    const on = secondSteps.includes(channel);
+    return (
+      <MethodRow
+        kind={channel}
+        label={label}
+        state={!hasIdentity ? "Unavailable" : on ? "On" : "Off"}
+        on={on}
+        sub={
+          !hasIdentity
+            ? "Needs an Identity API to send it."
+            : enrolled.length === 0
+              ? "After a key."
+              : on
+                ? "Offered at step 2. Sent by the Identity API."
+                : "For a lost phone. Sent by the Identity API to an address you confirm."
+        }
+        action={
+          !hasIdentity ? (
+            <a className="btn btn--sm" href="/settings/connectivity">
+              Connectivity
+            </a>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={busy || (!on && enrolled.length === 0)}
+              onClick={open(channel, on ? "remove" : "add")}
+            >
+              {on ? "Remove" : "Add"}
+            </button>
+          )
+        }
+      />
+    );
+  };
+
+  const totpOn = secondSteps.includes("totp");
+
+  return (
+    <>
+      <section className="panel set__security">
+        <div className="panel__head">
           <div>
-            <h3>Authenticator MFA</h3>
+            <h2>Unlock methods</h2>
             <p className="hint">
-              {hasTotp
-                ? "Required after every primary unlock on this device."
-                : "Optional second step after a passkey, PIN or password. The seed is sealed under the vault key, and MFA turns on only once a code from your app matches — a bad scan can never lock you out."}
+              Which key opens this vault on this device. Keep at least one.
             </p>
           </div>
-          {hasTotp ? (
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              disabled={busy}
-              onClick={() => {
-                setTotpUri(null);
-                void run(
-                  () => store.removeTotp(),
-                  "Authenticator MFA removed.",
-                );
-              }}
-            >
-              Remove MFA
-            </button>
-          ) : !canEnrollTotp ? (
-            <output className="note note--warn">
-              <IconAlert size={18} />
+        </div>
+        <div className="panel__body">
+          <StatusNote message={message} />
+          {guest ? (
+            <output className="note">
               <span>
-                Withheld until this vault has a key. A guest session holds
-                nothing wrapped to disk, so a code would guard nothing — enroll
-                a passkey, PIN or password first, and MFA follows.
+                You are a guest. Until this vault has a key it is not kept on
+                this device. Start with a {webauthnHost.ok ? "passkey" : "PIN"}.
               </span>
             </output>
-          ) : totpUri ? null : (
-            <button
-              type="button"
-              className="btn btn--primary btn--sm"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const uri = await store.beginTotpEnrollment();
-                  setTotpCode("");
-                  setTotpUri(uri);
-                }, "Scan the code with your authenticator, then enter the code it shows to turn MFA on.")
-              }
-            >
-              Enroll MFA
-            </button>
+          ) : null}
+          {keyRow(
+            "passkey",
+            "Face, fingerprint or the device PIN, through this browser.",
+            `This browser, ${webauthnHost.hostname}. Face, fingerprint or the device PIN.`,
+          )}
+          {keyRow(
+            "pin",
+            "Four to twelve digits, held on this device.",
+            "Four to twelve digits, held on this device.",
+          )}
+          {keyRow(
+            "password",
+            "Twelve characters or more.",
+            header?.hint
+              ? "The reminder you saved shows at unlock."
+              : "Master password.",
           )}
         </div>
+      </section>
 
-        {totpUri && !hasTotp ? (
-          <form
-            className="set__unlock-totp"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void run(async () => {
-                await store.confirmTotpEnrollment(totpCode);
-                setTotpCode("");
-                setTotpUri(null);
-              }, "Authenticator MFA is on. Every unlock now asks for a code.");
-            }}
-          >
-            <QrCode value={totpUri} label="Scan to add vault MFA" size={160} />
+      <section className="panel set__security" ref={secondStepRef}>
+        <div className="panel__head">
+          <div>
+            <h2>Second step</h2>
             <p className="hint">
-              Scan with your authenticator, then enter the code it shows.
-              Nothing is written until a code matches; the secret is not shown
-              again after you leave Settings.
+              Asked after the key, every unlock. Nothing turns on until a code
+              from the new method matches.
             </p>
-            <code className="set__unlock-secret">{totpUri}</code>
-            <div className="set__unlock-form">
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="6-digit code"
-                aria-label="Authenticator code"
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value)}
-              />
-              <button
-                type="submit"
-                className="btn btn--primary btn--sm"
-                disabled={busy || totpCode.replace(/\s/g, "").length < 6}
-              >
-                Turn on
-              </button>
+          </div>
+        </div>
+        <div className="panel__body">
+          <MethodRow
+            kind="totp"
+            label="Authenticator app"
+            state={totpOn ? "On" : "Off"}
+            on={totpOn}
+            sub={
+              enrolled.length === 0
+                ? "After a key. Add sets the key first, then scans."
+                : totpOn
+                  ? "Codes from the app on your phone."
+                  : "Codes from an app on your phone."
+            }
+            action={
               <button
                 type="button"
-                className="btn btn--ghost btn--sm"
+                className="btn btn--sm"
                 disabled={busy}
-                onClick={() => {
-                  store.cancelTotpEnrollment();
-                  setTotpCode("");
-                  setTotpUri(null);
-                  setMessage(null);
-                }}
+                onClick={open("totp", totpOn ? "remove" : "add")}
               >
-                Cancel
+                {totpOn ? "Remove" : "Add"}
               </button>
-            </div>
-          </form>
-        ) : null}
-      </div>
-    </section>
+            }
+          />
+          {codeRow("email", "Email code")}
+          {codeRow("sms", "Text message")}
+        </div>
+      </section>
+
+      <section className="panel set__security" ref={recoveryRef}>
+        <div className="panel__head">
+          <div>
+            <h2>Recovery</h2>
+            <p className="hint">For the day the phone is gone.</p>
+          </div>
+        </div>
+        <div className="panel__body">
+          <MethodRow
+            kind="recovery"
+            label="Recovery codes"
+            state={hasRecovery ? "Made" : "None yet"}
+            on={hasRecovery}
+            sub={
+              hasRecovery
+                ? "Each stands in for the second step once."
+                : "Made with your first second step, and shown once."
+            }
+            action={
+              hasRecovery ? (
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  disabled={busy}
+                  onClick={open("recovery", "add")}
+                >
+                  View
+                </button>
+              ) : null
+            }
+          />
+        </div>
+      </section>
+
+      {sheet ? (
+        <MethodSheet
+          request={sheet}
+          enrolled={enrolled}
+          host={webauthnHost}
+          busy={busy}
+          run={run}
+          accountEmail={accountEmail}
+          onClose={() => setSheet(null)}
+        />
+      ) : null}
+    </>
   );
 }
+
+/** One row: glyph, name, state chip, one line, one action. Never an input. */
+function MethodRow({
+  kind,
+  label,
+  state,
+  on,
+  sub,
+  action,
+}: {
+  kind: MethodKind;
+  label: string;
+  state: string;
+  on: boolean;
+  sub: string;
+  action: ReactNode;
+}) {
+  return (
+    <div className="sw sw--method">
+      <div>
+        <div className="sw__name">
+          {methodIcon(kind)}
+          {label}
+          <span className={on ? "chip chip--ok" : "chip"}>{state}</span>
+        </div>
+        <p className="sw__sub">{sub}</p>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+export type { UnlockMethodId };

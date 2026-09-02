@@ -1,0 +1,126 @@
+<div class="os" data-theme="{{theme}}" style="width: 1180px; height: 760px; position: relative; overflow: hidden">
+  <div style="height: 100%; overflow: hidden; padding: 1.25rem 2rem 2rem; display: grid; gap: 1.35rem; align-content: start; max-width: 44rem">
+    <p class="crumbs">settings / <span class="crumbs__here">security</span></p>
+    <nav class="set__nav" aria-label="Settings">
+      <a class="set__nav-link" href="#">Vaults</a>
+      <a class="set__nav-link" href="#" aria-current="page">Security</a>
+      <a class="set__nav-link" href="#">Connectivity</a>
+      <a class="set__nav-link" href="#">Notifications</a>
+      <a class="set__nav-link" href="#">Backup</a>
+    </nav>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div>
+          <h2>Unlock methods</h2>
+          <p class="hint">Which key opens this vault on this device. Keep at least one.</p>
+        </div>
+      </div>
+      <div class="panel__body" style="gap: 0">
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(passkey) Passkey <span class="chip chip--ok">Enrolled</span></div>
+            <p class="sw__sub">This browser, 28 Aug. Face, fingerprint or the device PIN.</p>
+          </div>
+          <button type="button" class="btn btn--sm">Remove</button>
+        </div>
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(lock) PIN <span class="chip">Off</span></div>
+            <p class="sw__sub">Four to twelve digits, held on this device.</p>
+          </div>
+          <button type="button" class="btn btn--sm">Add</button>
+        </div>
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(shield) Password <span class="chip chip--ok">Enrolled</span></div>
+            <p class="sw__sub">The reminder you saved shows at unlock.</p>
+          </div>
+          <button type="button" class="btn btn--sm">Change</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <div>
+          <h2>Second step</h2>
+          <p class="hint">Asked after the key, every unlock. Nothing turns on until a code from the new method matches.</p>
+        </div>
+      </div>
+      <div class="panel__body" style="gap: 0">
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(phone) Authenticator app <span class="chip">Off</span></div>
+            <p class="sw__sub">Codes from an app on your phone.</p>
+          </div>
+          <button type="button" class="btn btn--sm">Add</button>
+        </div>
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(mail) Email code <span class="chip">Off</span></div>
+            <p class="sw__sub">For a lost phone. Sent by the Identity API to an address you confirm.</p>
+          </div>
+          <button type="button" class="btn btn--sm">Add</button>
+        </div>
+        <div class="sw">
+          <div>
+            <div class="sw__name">@icon(message) Text message <span class="chip">Off</span></div>
+            <p class="sw__sub">For a lost phone. Sent by the Identity API to an address you confirm.</p>
+          </div>
+          <button type="button" class="btn btn--sm">Add</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Add opened the one sheet. On a desktop it slides in beside the list,
+       which stays readable and dimmed; on a phone it takes the width. -->
+  <div class="sheet-layer">
+    <button type="button" class="scrim" aria-label="Close"></button>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Add an authenticator app">
+      <div class="sheet__head">
+        <span class="sheet__mark">@icon(phone,20)</span>
+        <div class="sheet__grow">
+          <h2>Authenticator app</h2>
+          <p>Codes from an app on your phone. The seed is sealed under the vault key.</p>
+        </div>
+        <button type="button" class="icon-btn" aria-label="Close">@icon(x,18)</button>
+      </div>
+      <div class="sheet__body">
+        <div class="steps" aria-label="Enrollment steps">
+          <div class="steps__seg is-now"><span class="steps__bar"></span><span class="steps__label">1 · Scan</span></div>
+          <div class="steps__seg"><span class="steps__bar"></span><span class="steps__label">2 · Confirm</span></div>
+        </div>
+        <div class="found">
+          <p class="found__name">OpenSesame · vault 4f2a</p>
+          <svg width="168" height="168" viewBox="0 0 21 21" shape-rendering="crispEdges" role="img" aria-label="QR code for the authenticator app" style="background: #fff; border-radius: 2px; justify-self: center">
+            <rect width="21" height="21" fill="#fff"></rect>
+            <path fill="#171717" d="M1 1h7v1H1zM1 2h1v5H1zM7 2h1v5H7zM3 3h3v3H3zM2 7h6v1H2zM13 1h7v1h-7zM13 2h1v5h-1zM19 2h1v5h-1zM15 3h3v3h-3zM13 7h7v1h-7zM1 13h7v1H1zM1 14h1v5H1zM7 14h1v5H7zM3 15h3v3H3zM1 19h7v1H1zM9 1h1v2H9zM11 2h1v1h-1zM9 4h3v1H9zM10 6h1v2h-1zM1 9h2v1H1zM4 9h1v2H4zM6 9h3v1H6zM10 9h1v1h-1zM12 9h2v1h-2zM15 9h1v2h-1zM17 9h3v1h-3zM2 11h2v1H2zM6 11h1v1H6zM8 11h3v1H8zM12 11h1v1h-1zM14 11h1v1h-1zM16 11h4v1h-4zM9 13h2v1H9zM12 13h1v2h-1zM14 13h3v1h-3zM18 13h2v1h-2zM9 15h1v2H9zM11 15h2v1h-2zM14 15h1v2h-1zM16 15h1v1h-1zM18 15h2v2h-2zM10 17h2v1h-2zM13 17h1v1h-1zM15 17h2v1h-2zM19 17h1v1h-1zM9 19h3v1H9zM13 19h2v1h-2zM16 19h1v1h-1zM18 19h2v1h-2z"></path>
+          </svg>
+          <dl>
+            <dt>Scan with</dt><dd>Google Authenticator, 1Password, Aegis, Authy</dd>
+            <dt>Codes</dt><dd>6 digits, every 30 s</dd>
+          </dl>
+          <div class="found__do">
+            <button type="button" class="btn btn--primary">I scanned it</button>
+          </div>
+        </div>
+        <p class="or">or</p>
+        <div class="alt">
+          <div class="alt__item">
+            <button type="button" class="alt__btn"><span class="alt__mark">@icon(secret)</span><span class="alt__grow">Can't scan? Type the key instead</span><span class="alt__chev">@icon(chevron)</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="sheet__foot">
+        <p class="hint">The seed lives only in memory until a code matches.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'light' }; }
+}
+</script>

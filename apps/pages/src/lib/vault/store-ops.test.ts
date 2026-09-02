@@ -437,7 +437,7 @@ describe("VaultStore TOTP challenge flow", () => {
     const { store } = await totpVault();
     const reopened = new VaultStore();
     await reopened.unlock(PASSWORD);
-    expect(reopened.getSnapshot().awaitingTotp).toBe(true);
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
 
     await expect(reopened.confirmTotp("000000")).rejects.toBeInstanceOf(
       WrongPasswordError,
@@ -450,9 +450,9 @@ describe("VaultStore TOTP challenge flow", () => {
     await totpVault();
     const reopened = new VaultStore();
     await reopened.unlock(PASSWORD);
-    expect(reopened.getSnapshot().awaitingTotp).toBe(true);
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
     reopened.cancelTotpChallenge();
-    expect(reopened.getSnapshot().awaitingTotp).toBe(false);
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
     expect(reopened.getSnapshot().status).toBe("locked");
   });
 

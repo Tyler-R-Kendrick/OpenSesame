@@ -444,13 +444,13 @@ describe("VaultStore multi-method unlock", () => {
 
     const reopened = new VaultStore();
     await reopened.unlock(PASSWORD);
-    expect(reopened.getSnapshot().awaitingTotp).toBe(true);
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
     expect(reopened.getSnapshot().status).toBe("locked");
 
     const code = await totpCode(parseTotp(secret));
     await reopened.confirmTotp(code);
     expect(reopened.getSnapshot().status).toBe("unlocked");
-    expect(reopened.getSnapshot().awaitingTotp).toBe(false);
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
   });
 
   it("keeps at least one primary unlock method", async () => {

@@ -1,5 +1,12 @@
 import type { JsonObject } from "@opensesame/os-domain";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +27,13 @@ const store = vi.hoisted(() => ({
   confirmTotpEnrollment: vi.fn(),
   cancelTotpEnrollment: vi.fn(),
   removeTotp: vi.fn(),
+  beginCodeEnrollment: vi.fn(),
+  confirmCodeEnrollment: vi.fn(),
+  cancelCodeEnrollment: vi.fn(),
+  removeCode: vi.fn(),
+  describeCodeChannel: vi.fn(),
+  recoveryCodes: vi.fn(),
+  generateRecoveryCodes: vi.fn(),
 }));
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
@@ -59,6 +73,7 @@ const originalPasswordSeams = { ...passwordSeams };
 Object.assign(passwordSeams, {
   estimateStrength: (password: string) => ({
     score: password.length >= 12 ? 3 : 1,
+    label: password.length >= 12 ? "Strong" : "Weak",
   }),
 });
 
@@ -68,33 +83,55 @@ Object.assign(qrSeams, {
   QrCode: ({ value }: { value: string }) => <div data-testid="qr">{value}</div>,
 });
 
+const identityApi = vi.hoisted(() => ({ current: "http://127.0.0.1:8788" }));
+import { identitySeams } from "../../lib/identity.js";
+const originalIdentitySeams = { ...identitySeams };
+Object.assign(identitySeams, { identityBase: () => identityApi.current });
+
 import { UnlockMethodsPanel } from "./UnlockMethodsPanel.js";
 
-function pinHeader() {
+function passwordOnlyHeader() {
+  vault.current = { header: { wrap: {}, kdf: {}, unlocks: {} } };
+  listAvailableUnlockMethods.mockReturnValue(["password"]);
+}
+
+function pinAndPasswordHeader() {
   vault.current = {
     header: { wrap: {}, kdf: {}, unlocks: { pin: {} } },
   };
   listAvailableUnlockMethods.mockReturnValue(["password", "pin"]);
 }
 
-// Password enrolled, PIN not — renders the PIN enrollment form.
-function passwordOnlyHeader() {
-  vault.current = {
-    header: { wrap: {}, kdf: {}, unlocks: {} },
-  };
-  listAvailableUnlockMethods.mockReturnValue(["password"]);
+function guestHeader() {
+  vault.current = { header: null, guest: true };
+  listAvailableUnlockMethods.mockReturnValue([]);
+}
+
+/** The one row a method has, found by its name. */
+function row(name: string) {
+  const heading = screen.getByText(name, { selector: ".sw__name" });
+  const container = heading.closest(".sw");
+  if (!(container instanceof HTMLElement)) {
+    throw new Error(`no row for ${name}`);
+  }
+  return within(container);
+}
+
+function sheet() {
+  return within(screen.getByRole("dialog"));
 }
 
 describe("UnlockMethodsPanel", () => {
   beforeEach(() => {
-    vault.current = { header: { wrap: {}, kdf: {}, unlocks: {} } };
-    listAvailableUnlockMethods.mockReturnValue(["password"]);
+    passwordOnlyHeader();
+    identityApi.current = "http://127.0.0.1:8788";
     checkWebauthnHost.mockReturnValue({
       ok: true,
       hostname: "localhost",
       reason: "",
       fixUrl: null,
     });
+    for (const fn of Object.values(store)) fn.mockReset();
     store.enrollPasskey.mockResolvedValue(undefined);
     store.removePasskey.mockResolvedValue(undefined);
     store.enrollPin.mockResolvedValue(undefined);
@@ -102,10 +139,21 @@ describe("UnlockMethodsPanel", () => {
     store.enrollPassword.mockResolvedValue(undefined);
     store.removePassword.mockResolvedValue(undefined);
     store.beginTotpEnrollment.mockResolvedValue(
-      "otpauth://totp/vault?secret=ABC",
+      "otpauth://totp/vault?secret=ABCDEFGH",
     );
     store.confirmTotpEnrollment.mockResolvedValue(undefined);
     store.removeTotp.mockResolvedValue(undefined);
+    store.beginCodeEnrollment.mockResolvedValue({
+      challengeId: "mfc_1",
+      channel: "email",
+      to: "t•••@example.com",
+      expiresAt: "",
+    });
+    store.confirmCodeEnrollment.mockResolvedValue(undefined);
+    store.removeCode.mockResolvedValue(undefined);
+    store.describeCodeChannel.mockResolvedValue("t•••@example.com");
+    store.recoveryCodes.mockResolvedValue(null);
+    store.generateRecoveryCodes.mockResolvedValue(["aaaa-bbbb", "cccc-dddd"]);
     window.history.replaceState(null, "", "/settings");
   });
 
@@ -114,356 +162,383 @@ describe("UnlockMethodsPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("offers passkey, PIN, password, and MFA enrollment when none exist", () => {
-    vault.current = { header: null };
+  it("lists every method as read-only state with one action and no inputs", () => {
     render(<UnlockMethodsPanel />);
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(document.querySelectorAll("input")).toHaveLength(0);
+    expect(row("Passkey").getByRole("button", { name: "Add" })).toBeTruthy();
+    expect(row("PIN").getByRole("button", { name: "Add" })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: /Enroll passkey/i }),
+      row("Password").getByRole("button", { name: "Change" }),
     ).toBeTruthy();
-    expect(screen.getByLabelText("New PIN")).toBeTruthy();
-    expect(screen.getByLabelText("New master password")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Enroll MFA/i })).toBeTruthy();
+    expect(row("Password").getByText("Enrolled")).toBeTruthy();
+    expect(
+      row("Authenticator app").getByRole("button", { name: "Add" }),
+    ).toBeTruthy();
+    expect(row("Email code").getByRole("button", { name: "Add" })).toBeTruthy();
+    expect(
+      row("Text message").getByRole("button", { name: "Add" }),
+    ).toBeTruthy();
+    expect(row("Recovery codes").queryByRole("button")).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("enrolls a matching PIN and clears the form", async () => {
-    passwordOnlyHeader();
+  it("adds a PIN through the sheet: matching entries, then the row reports it", async () => {
     render(<UnlockMethodsPanel />);
-    await userEvent.type(screen.getByLabelText("New PIN"), "48291037");
-    await userEvent.type(screen.getByLabelText("Confirm PIN"), "48291037");
-    await userEvent.click(screen.getByRole("button", { name: /Enroll PIN/i }));
-    expect(store.enrollPin).toHaveBeenCalledWith("48291037");
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /PIN unlock enrolled/,
+    await userEvent.click(row("PIN").getByRole("button", { name: "Add" }));
+    const dialog = sheet();
+    expect(dialog.getByRole("heading", { name: "PIN" })).toBeTruthy();
+    const set = dialog.getByRole("button", { name: "Set PIN" });
+    expect(set).toHaveProperty("disabled", true);
+    await userEvent.type(dialog.getByLabelText("PIN"), "48291037");
+    await userEvent.type(dialog.getByLabelText("Confirm PIN"), "4829103");
+    expect(dialog.getByText("Does not match")).toBeTruthy();
+    await userEvent.type(dialog.getByLabelText("Confirm PIN"), "7");
+    expect(dialog.getByText("Matches")).toBeTruthy();
+    await userEvent.click(dialog.getByRole("button", { name: "Set PIN" }));
+    await waitFor(() =>
+      expect(store.enrollPin).toHaveBeenCalledWith("48291037"),
     );
-    expect(screen.getByLabelText<HTMLInputElement>("New PIN").value).toBe("");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByText(/PIN unlock enrolled/)).toBeTruthy();
   });
 
-  it("rejects mismatched PINs", async () => {
-    passwordOnlyHeader();
+  it("names the PIN rule live and keeps the button disabled until it holds", async () => {
     render(<UnlockMethodsPanel />);
-    await userEvent.type(screen.getByLabelText("New PIN"), "12345678");
-    await userEvent.type(screen.getByLabelText("Confirm PIN"), "87654321");
-    // The submit button is disabled on mismatch; submit the form directly.
-    const form = screen.getByLabelText("New PIN").closest("form");
-    expect(form).toBeTruthy();
-    if (!(form instanceof HTMLFormElement)) throw new Error("form not found");
-    fireEvent.submit(form);
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /PINs do not match/,
+    await userEvent.click(row("PIN").getByRole("button", { name: "Add" }));
+    const dialog = sheet();
+    await userEvent.type(dialog.getByLabelText("PIN"), "11111111");
+    expect(dialog.getByText(/repeated/i)).toBeTruthy();
+    await userEvent.type(dialog.getByLabelText("Confirm PIN"), "11111111");
+    expect(dialog.getByRole("button", { name: "Set PIN" })).toHaveProperty(
+      "disabled",
+      true,
     );
     expect(store.enrollPin).not.toHaveBeenCalled();
   });
 
-  it("keeps the PIN button disabled until the PIN is long enough", async () => {
-    passwordOnlyHeader();
+  it("offers the other keys as alternatives inside the same sheet, never a second form", async () => {
     render(<UnlockMethodsPanel />);
-    await userEvent.type(screen.getByLabelText("New PIN"), "1234");
-    await userEvent.type(screen.getByLabelText("Confirm PIN"), "1234");
-    expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: /Enroll PIN/i })
-        .disabled,
-    ).toBe(true);
-    // The requirement is named live, not discovered at submit.
-    expect(
-      await screen.findByText("PIN must be 8–12 characters."),
-    ).toBeTruthy();
-  });
-
-  it("blocks repeated and sequential PINs live, with the rule named", async () => {
-    passwordOnlyHeader();
-    render(<UnlockMethodsPanel />);
-    const pinField = screen.getByLabelText("New PIN");
-    await userEvent.type(pinField, "11111111");
-    expect(
-      await screen.findByText("PIN cannot be a repeated character."),
-    ).toBeTruthy();
-    await userEvent.clear(pinField);
-    await userEvent.type(pinField, "12345678");
-    expect(
-      await screen.findByText("PIN cannot be a sequential run of digits."),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole<HTMLButtonElement>("button", { name: /Enroll PIN/i })
-        .disabled,
-    ).toBe(true);
-    expect(store.enrollPin).not.toHaveBeenCalled();
-  });
-
-  it("changes an enrolled PIN from the same form", async () => {
-    vault.current = {
-      header: { wrap: {}, kdf: {}, unlocks: { pin: { kdf: {}, wrap: {} } } },
-    };
-    listAvailableUnlockMethods.mockReturnValue(["password", "pin"]);
-    render(<UnlockMethodsPanel />);
-    await userEvent.type(screen.getByLabelText("New PIN"), "48291037");
-    await userEvent.type(screen.getByLabelText("Confirm PIN"), "48291037");
-    await userEvent.click(screen.getByRole("button", { name: /Change PIN/i }));
-    expect(store.enrollPin).toHaveBeenCalledWith("48291037");
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /PIN updated/,
+    await userEvent.click(row("PIN").getByRole("button", { name: "Add" }));
+    const dialog = sheet();
+    expect(dialog.getAllByRole("form")).toHaveLength(1);
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Use a passkey instead" }),
     );
-  });
-
-  it("surfaces PIN enrollment failures", async () => {
-    passwordOnlyHeader();
-    store.enrollPin.mockRejectedValue(new Error("wrap failed"));
-    render(<UnlockMethodsPanel />);
-    await userEvent.type(screen.getByLabelText("New PIN"), "48291037");
-    await userEvent.type(screen.getByLabelText("Confirm PIN"), "48291037");
-    await userEvent.click(screen.getByRole("button", { name: /Enroll PIN/i }));
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /webauthn: wrap failed/,
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Create passkey" }),
     );
+    await waitFor(() => expect(store.enrollPasskey).toHaveBeenCalled());
+    expect(
+      dialog.queryByRole("button", { name: "Use a password instead" }),
+    ).toBeNull();
   });
 
-  it("enrolls a strong master password", async () => {
-    vault.current = { header: { unlocks: {} } };
+  it("changes a password from its row and closes when it lands", async () => {
     render(<UnlockMethodsPanel />);
+    await userEvent.click(
+      row("Password").getByRole("button", { name: "Change" }),
+    );
+    const dialog = sheet();
+    expect(dialog.getByText("Enrolled")).toBeTruthy();
     await userEvent.type(
-      screen.getByLabelText("New master password"),
+      dialog.getByLabelText("New password"),
       "correct horse battery",
     );
     await userEvent.type(
-      screen.getByLabelText("Confirm master password"),
+      dialog.getByLabelText("Confirm new password"),
       "correct horse battery",
     );
     await userEvent.click(
-      screen.getByRole("button", { name: /Enroll password/i }),
+      dialog.getByRole("button", { name: "Change password" }),
     );
-    expect(store.enrollPassword).toHaveBeenCalledWith("correct horse battery");
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Password unlock enrolled/,
+    await waitFor(() =>
+      expect(store.enrollPassword).toHaveBeenCalledWith(
+        "correct horse battery",
+      ),
     );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("rejects mismatched passwords", async () => {
-    vault.current = { header: { unlocks: {} } };
-    render(<UnlockMethodsPanel />);
-    await userEvent.type(
-      screen.getByLabelText("New master password"),
-      "correct horse battery",
-    );
-    await userEvent.type(
-      screen.getByLabelText("Confirm master password"),
-      "correct horse staples",
-    );
-    const form = screen.getByLabelText("New master password").closest("form");
-    if (!(form instanceof HTMLFormElement)) throw new Error("form not found");
-    fireEvent.submit(form);
-    expect((await screen.findByRole("alert")).textContent).toMatch(
-      /passwords do not match/,
-    );
-    expect(store.enrollPassword).not.toHaveBeenCalled();
-  });
-
-  it("keeps the password button disabled for weak passwords", async () => {
-    vault.current = { header: { unlocks: {} } };
-    render(<UnlockMethodsPanel />);
-    await userEvent.type(screen.getByLabelText("New master password"), "short");
-    await userEvent.type(
-      screen.getByLabelText("Confirm master password"),
-      "short",
-    );
-    expect(
-      screen.getByRole<HTMLButtonElement>("button", {
-        name: /Enroll password/i,
-      }).disabled,
-    ).toBe(true);
-  });
-
-  it("enrolls a passkey", async () => {
+  it("confirms a removal in the card and refuses to remove the last key", async () => {
     render(<UnlockMethodsPanel />);
     await userEvent.click(
-      screen.getByRole("button", { name: /Enroll passkey/i }),
+      row("Password").getByRole("button", { name: "Change" }),
     );
-    expect(store.enrollPasskey).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Passkey unlock enrolled/,
+    const dialog = sheet();
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Remove this password" }),
     );
-  });
-
-  it("shows the enrolled passkey state with a removable method", async () => {
-    vault.current = {
-      header: { wrap: {}, kdf: {}, unlocks: { passkey: {} } },
-    };
-    listAvailableUnlockMethods.mockReturnValue(["password", "passkey"]);
-    render(<UnlockMethodsPanel />);
-    expect(screen.getByText("Enrolled.")).toBeTruthy();
-    const remove = screen.getAllByRole<HTMLButtonElement>("button", {
-      name: /^Remove$/i,
-    })[0];
-    if (!remove) throw new Error("remove button not found");
-    await userEvent.click(remove);
-    expect(store.removePasskey).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Passkey unlock removed/,
-    );
-  });
-
-  it("disables removing the last remaining unlock method", () => {
-    vault.current = {
-      header: { unlocks: { passkey: {} } },
-    };
-    listAvailableUnlockMethods.mockReturnValue(["passkey"]);
-    render(<UnlockMethodsPanel />);
-    const remove = screen.getAllByRole<HTMLButtonElement>("button", {
-      name: /^Remove$/i,
-    })[0];
-    if (!remove) throw new Error("remove button not found");
-    expect(remove.disabled).toBe(true);
-  });
-
-  it("warns when the host cannot do WebAuthn and offers no fix", () => {
-    checkWebauthnHost.mockReturnValue({
-      ok: false,
-      hostname: "example.test",
-      reason: "WebAuthn is unavailable here.",
-      fixUrl: null,
-    });
-    render(<UnlockMethodsPanel />);
-    expect(screen.getByText(/WebAuthn is unavailable here/)).toBeTruthy();
-    expect(screen.getByText(/Use a DNS hostname/)).toBeTruthy();
+    expect(dialog.getByText("Remove this password?")).toBeTruthy();
     expect(
-      screen.getByRole<HTMLButtonElement>("button", {
-        name: /Enroll passkey/i,
-      }).disabled,
-    ).toBe(true);
+      dialog.getByRole("button", { name: "Remove password" }),
+    ).toHaveProperty("disabled", true);
+    expect(dialog.getByText(/only key/)).toBeTruthy();
+    expect(dialog.getByRole("button", { name: "Add a PIN" })).toBeTruthy();
+    await userEvent.click(dialog.getByRole("button", { name: "Keep it" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(store.removePassword).not.toHaveBeenCalled();
   });
 
-  it("offers a localhost fix when WebAuthn needs a DNS hostname", async () => {
+  it("removes a key once another exists, after the confirmation", async () => {
+    pinAndPasswordHeader();
+    render(<UnlockMethodsPanel />);
+    await userEvent.click(row("PIN").getByRole("button", { name: "Change" }));
+    const dialog = sheet();
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Remove this PIN" }),
+    );
+    expect(dialog.getByText(/unlock with the password only/)).toBeTruthy();
+    await userEvent.click(dialog.getByRole("button", { name: "Remove PIN" }));
+    await waitFor(() => expect(store.removePin).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("turns the passkey card attentive on a raw IP and offers the localhost road", async () => {
     checkWebauthnHost.mockReturnValue({
       ok: false,
       hostname: "127.0.0.1",
-      reason: "Passkeys need a secure DNS hostname.",
+      reason: "WebAuthn needs a hostname.",
       fixUrl: "http://localhost:5180/settings",
     });
-    render(<UnlockMethodsPanel />);
-    expect(screen.getByText(/Passkeys cannot use a raw IP/)).toBeTruthy();
-    const button = screen.getByRole("button", {
-      name: /Continue on localhost/i,
+    const assign = vi.fn();
+    const original = window.location;
+    Object.defineProperty(window, "location", {
+      value: { ...original, assign, href: "http://127.0.0.1:5180/settings" },
+      writable: true,
     });
-    // jsdom cannot navigate; assert the click path runs without throwing.
-    await userEvent.click(button);
-    expect(checkWebauthnHost).toHaveBeenCalled();
-  });
-
-  it("shows the fallback error when there is no fix URL", async () => {
-    checkWebauthnHost.mockReturnValue({
-      ok: false,
-      hostname: "example.test",
-      reason: "WebAuthn is unavailable here.",
-      fixUrl: null,
-    });
-    render(<UnlockMethodsPanel />);
-    // The heal path is only reachable with a fixUrl; when missing the enroll
-    // button is disabled, so the fallback shows via the inline warning.
-    expect(screen.getByText(/WebAuthn is unavailable here/)).toBeTruthy();
+    try {
+      render(<UnlockMethodsPanel />);
+      await userEvent.click(
+        row("Passkey").getByRole("button", { name: "Add" }),
+      );
+      const dialog = sheet();
+      expect(dialog.getByText("Passkeys need a hostname")).toBeTruthy();
+      await userEvent.click(
+        dialog.getByRole("button", { name: "Continue on localhost" }),
+      );
+      expect(assign).toHaveBeenCalledTimes(1);
+      expect(String(assign.mock.calls[0]?.[0])).toContain("enroll-passkey=1");
+    } finally {
+      Object.defineProperty(window, "location", {
+        value: original,
+        writable: true,
+      });
+    }
   });
 
   it("auto-enrolls a passkey when returning with ?enroll-passkey=1", async () => {
     window.history.replaceState(null, "", "/settings?enroll-passkey=1");
     render(<UnlockMethodsPanel />);
-    expect(await screen.findByRole("status")).toBeTruthy();
-    expect(store.enrollPasskey).toHaveBeenCalled();
-    // The param is consumed so a reload does not enroll again.
-    expect(window.location.search).not.toMatch(/enroll-passkey/);
+    await waitFor(() => expect(store.enrollPasskey).toHaveBeenCalled());
+    expect(window.location.search).toBe("");
   });
 
-  it("ignores the enroll-passkey param when the host cannot do WebAuthn", () => {
+  it("turns the authenticator on only once a code matches, then hands over recovery codes", async () => {
+    store.confirmTotpEnrollment
+      .mockRejectedValueOnce(new Error("That code did not match."))
+      .mockResolvedValueOnce(undefined);
+    render(<UnlockMethodsPanel />);
+    await userEvent.click(
+      row("Authenticator app").getByRole("button", { name: "Add" }),
+    );
+    const dialog = sheet();
+    await waitFor(() => expect(store.beginTotpEnrollment).toHaveBeenCalled());
+    expect(dialog.getByTestId("qr").textContent).toContain("ABCDEFGH");
+    // A keyed vault: the rail starts at Scan, no key step.
+    expect(dialog.getByText("1 · Scan")).toBeTruthy();
+    expect(dialog.queryByText(/Key/)).toBeNull();
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Can't scan? Type the key instead" }),
+    );
+    expect(dialog.getByLabelText("Setup key")).toHaveProperty(
+      "value",
+      "ABCD EFGH",
+    );
+    await userEvent.click(dialog.getByRole("button", { name: "I scanned it" }));
+    await userEvent.type(dialog.getByLabelText("Six digits"), "000000");
+    await userEvent.click(dialog.getByRole("button", { name: "Turn on" }));
+    await waitFor(() => expect(dialog.getByText("Did not match")).toBeTruthy());
+    expect(store.generateRecoveryCodes).not.toHaveBeenCalled();
+    await userEvent.clear(dialog.getByLabelText("Six digits"));
+    await userEvent.type(dialog.getByLabelText("Six digits"), "123456");
+    await userEvent.click(dialog.getByRole("button", { name: "Turn on" }));
+    await waitFor(() =>
+      expect(store.confirmTotpEnrollment).toHaveBeenLastCalledWith("123456"),
+    );
+    await waitFor(() => expect(dialog.getByText("aaaa-bbbb")).toBeTruthy());
+    expect(store.generateRecoveryCodes).toHaveBeenCalledTimes(1);
+    await userEvent.click(dialog.getByRole("button", { name: "I saved them" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("walks a keyless vault through the key first, in the same card the PIN sheet uses", async () => {
+    guestHeader();
     checkWebauthnHost.mockReturnValue({
       ok: false,
-      hostname: "example.test",
-      reason: "no webauthn",
+      hostname: "127.0.0.1",
+      reason: "no",
       fixUrl: null,
     });
-    window.history.replaceState(null, "", "/settings?enroll-passkey=1");
-    render(<UnlockMethodsPanel />);
-    expect(store.enrollPasskey).not.toHaveBeenCalled();
+    store.enrollPin.mockImplementation(async () => {
+      vault.current = { header: { unlocks: { pin: {} } } };
+      listAvailableUnlockMethods.mockReturnValue(["pin"]);
+    });
+    const view = render(<UnlockMethodsPanel />);
+    expect(screen.getByText(/You are a guest/)).toBeTruthy();
+    await userEvent.click(
+      row("Authenticator app").getByRole("button", { name: "Add" }),
+    );
+    const dialog = sheet();
+    expect(dialog.getByText("1 · Key")).toBeTruthy();
+    expect(dialog.getByText("3 · Confirm")).toBeTruthy();
+    expect(store.beginTotpEnrollment).not.toHaveBeenCalled();
+    await userEvent.type(dialog.getByLabelText("PIN"), "48291037");
+    await userEvent.type(dialog.getByLabelText("Confirm PIN"), "48291037");
+    await userEvent.click(dialog.getByRole("button", { name: "Set PIN" }));
+    await waitFor(() => expect(store.enrollPin).toHaveBeenCalled());
+    view.rerender(<UnlockMethodsPanel />);
+    await waitFor(() => expect(store.beginTotpEnrollment).toHaveBeenCalled());
+    expect(sheet().getByTestId("qr")).toBeTruthy();
   });
 
-  it("turns authenticator MFA on only once a code from the app matches", async () => {
+  it("drops an enrollment when the sheet closes before a code matched", async () => {
     render(<UnlockMethodsPanel />);
-    await userEvent.click(screen.getByRole("button", { name: /Enroll MFA/i }));
-    expect(store.beginTotpEnrollment).toHaveBeenCalled();
-    expect(store.confirmTotpEnrollment).not.toHaveBeenCalled();
-    expect(screen.getByTestId("qr").textContent).toBe(
-      "otpauth://totp/vault?secret=ABC",
+    await userEvent.click(
+      row("Authenticator app").getByRole("button", { name: "Add" }),
     );
-    const turnOn = screen.getByRole("button", { name: "Turn on" });
-    expect(turnOn.hasAttribute("disabled")).toBe(true);
-    await userEvent.type(
-      screen.getByRole("textbox", { name: "Authenticator code" }),
-      "123456",
-    );
-    expect(turnOn.hasAttribute("disabled")).toBe(false);
-    await userEvent.click(turnOn);
-    expect(store.confirmTotpEnrollment).toHaveBeenCalledWith("123456");
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Authenticator MFA is on/,
-    );
-    expect(screen.queryByTestId("qr")).toBeNull();
-  });
-
-  it("cancels an enrollment before any code matched", async () => {
-    render(<UnlockMethodsPanel />);
-    await userEvent.click(screen.getByRole("button", { name: /Enroll MFA/i }));
-    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(store.beginTotpEnrollment).toHaveBeenCalled());
+    await userEvent.click(sheet().getByRole("button", { name: "Close" }));
     expect(store.cancelTotpEnrollment).toHaveBeenCalled();
     expect(store.confirmTotpEnrollment).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("qr")).toBeNull();
-    expect(screen.getByRole("button", { name: /Enroll MFA/i })).toBeTruthy();
   });
 
-  it("withholds MFA beside a guest session — a code can only guard a key", () => {
-    vault.current = { header: { unlocks: {} }, guest: true };
-    listAvailableUnlockMethods.mockReturnValue([]);
-    render(<UnlockMethodsPanel />);
-    expect(screen.queryByRole("button", { name: /Enroll MFA/i })).toBeNull();
-    expect(
-      screen.getByText(/Withheld until this vault has a key/),
-    ).toBeTruthy();
-  });
-
-  it("removes authenticator MFA", async () => {
+  it("removes the authenticator only after the confirmation card", async () => {
     vault.current = {
-      header: { wrap: {}, kdf: {}, unlocks: { totp: {} } },
+      header: { wrap: {}, kdf: {}, unlocks: { totp: {}, recovery: {} } },
     };
+    store.recoveryCodes.mockResolvedValue({
+      codes: ["aaaa-bbbb", "cccc-dddd"],
+      used: [true, false],
+      since: "2026-08-30T00:00:00Z",
+    });
     render(<UnlockMethodsPanel />);
+    expect(row("Authenticator app").getByText("On")).toBeTruthy();
+    await userEvent.click(
+      row("Authenticator app").getByRole("button", { name: "Remove" }),
+    );
+    const dialog = sheet();
+    expect(dialog.getByText("Remove the authenticator?")).toBeTruthy();
+    await waitFor(() =>
+      expect(dialog.getByText(/1 unused codes are discarded/)).toBeTruthy(),
+    );
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Remove authenticator" }),
+    );
+    await waitFor(() => expect(store.removeTotp).toHaveBeenCalled());
+  });
+
+  it("adds an email code: notice first, the account address offered, the first code confirms", async () => {
+    render(<UnlockMethodsPanel />);
+    await userEvent.click(
+      row("Email code").getByRole("button", { name: "Add" }),
+    );
+    const dialog = sheet();
+    expect(dialog.getByText(/fallback, not a first second step/)).toBeTruthy();
+    expect(dialog.getByRole("button", { name: "Send a code" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    await userEvent.type(
+      dialog.getByLabelText("Email address"),
+      "tyler@example.com",
+    );
+    await userEvent.click(dialog.getByRole("button", { name: "Send a code" }));
+    await waitFor(() =>
+      expect(store.beginCodeEnrollment).toHaveBeenCalledWith(
+        "email",
+        "tyler@example.com",
+      ),
+    );
+    expect(dialog.getByText("Code sent")).toBeTruthy();
+    expect(dialog.getByText("t•••@example.com")).toBeTruthy();
+    await userEvent.type(
+      dialog.getByLabelText("Code from the email"),
+      "123456",
+    );
+    await userEvent.click(dialog.getByRole("button", { name: "Turn on" }));
+    await waitFor(() =>
+      expect(store.confirmCodeEnrollment).toHaveBeenCalledWith("123456"),
+    );
+    await waitFor(() => expect(dialog.getByText("aaaa-bbbb")).toBeTruthy());
+  });
+
+  it("says why email and text codes are unavailable without an Identity API", () => {
+    identityApi.current = "";
+    render(<UnlockMethodsPanel />);
+    expect(row("Email code").getByText("Unavailable")).toBeTruthy();
     expect(
-      screen.getByText(/Required after every primary unlock/),
+      row("Email code").getByRole("link", { name: "Connectivity" }),
     ).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: /Remove MFA/i }));
-    expect(store.removeTotp).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Authenticator MFA removed/,
-    );
+    expect(row("Text message").queryByRole("button")).toBeNull();
   });
 
-  it("removes an enrolled PIN", async () => {
-    pinHeader();
+  it("shows the recovery codes left and can make a new set", async () => {
+    vault.current = {
+      header: { wrap: {}, kdf: {}, unlocks: { totp: {}, recovery: {} } },
+    };
+    store.recoveryCodes.mockResolvedValue({
+      codes: ["aaaa-bbbb", "cccc-dddd"],
+      used: [true, false],
+      since: "2026-08-30T00:00:00Z",
+    });
+    store.generateRecoveryCodes.mockResolvedValue(["eeee-ffff", "gggg-hhhh"]);
     render(<UnlockMethodsPanel />);
-    const remove = screen.getAllByRole<HTMLButtonElement>("button", {
-      name: /^Remove$/i,
-    })[0];
-    if (!remove) throw new Error("remove button not found");
-    await userEvent.click(remove);
-    expect(store.removePin).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /PIN unlock removed/,
+    await userEvent.click(
+      row("Recovery codes").getByRole("button", { name: "View" }),
     );
+    const dialog = sheet();
+    await waitFor(() => expect(dialog.getByText("1 of 2 left")).toBeTruthy());
+    expect(dialog.getByText("aaaa-bbbb").className).toContain("is-used");
+    await userEvent.click(
+      dialog.getByRole("button", { name: "Make a new set" }),
+    );
+    // The alternative expanded in place: its own button, under the warning.
+    const buttons = dialog.getAllByRole("button", { name: "Make a new set" });
+    expect(buttons).toHaveLength(2);
+    const confirm = buttons[1];
+    if (!confirm) throw new Error("no confirmation button");
+    await userEvent.click(confirm);
+    await waitFor(() => expect(store.generateRecoveryCodes).toHaveBeenCalled());
+    await waitFor(() => expect(dialog.getByText("eeee-ffff")).toBeTruthy());
   });
+});
 
-  it("removes an enrolled password", async () => {
-    pinHeader();
-    render(<UnlockMethodsPanel />);
-    const remove = screen.getAllByRole<HTMLButtonElement>("button", {
-      name: /^Remove$/i,
-    })[1];
-    if (!remove) throw new Error("remove button not found");
-    await userEvent.click(remove);
-    expect(store.removePassword).toHaveBeenCalled();
-    expect((await screen.findByRole("status")).textContent).toMatch(
-      /Password unlock removed/,
-    );
+afterEach(() => {
+  Object.assign(vaultHooksSeams, originalVaultHooksSeams);
+  Object.assign(unlockMethodsSeams, originalUnlockMethodsSeams);
+  Object.assign(passwordSeams, originalPasswordSeams);
+  Object.assign(qrSeams, originalQrSeams);
+  Object.assign(identitySeams, originalIdentitySeams);
+  Object.assign(vaultHooksSeams, {
+    useVault: () => vault.current,
+    useVaultStore: () => store,
   });
+  Object.assign(unlockMethodsSeams, {
+    listAvailableUnlockMethods,
+    checkWebauthnHost,
+    describeWebauthnError,
+  });
+  Object.assign(passwordSeams, {
+    estimateStrength: (password: string) => ({
+      score: password.length >= 12 ? 3 : 1,
+      label: password.length >= 12 ? "Strong" : "Weak",
+    }),
+  });
+  Object.assign(qrSeams, {
+    QrCode: ({ value }: { value: string }) => (
+      <div data-testid="qr">{value}</div>
+    ),
+  });
+  Object.assign(identitySeams, { identityBase: () => identityApi.current });
 });

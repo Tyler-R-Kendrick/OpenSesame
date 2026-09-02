@@ -15,6 +15,7 @@ import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { MailerNotConfiguredError } from "../services/mailer.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 /** Minimal WebAuthn registration response shape (SimpleWebAuthn JSON). */
@@ -441,3 +442,232 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
 });
 
 export { totpCode };
+
+/* ------------------------------------------------------------------ *
+ * One-time codes by email or text — the fallback second step
+ * ------------------------------------------------------------------ */
+
+/**
+ * A code sent out of band is the weakest second step this service offers,
+ * and it is offered for one reason: the phone with the authenticator is
+ * gone. NIST SP 800-63B calls PSTN delivery *restricted* and rules email
+ * out for out-of-band authentication, so the client says that before
+ * binding either, and the authenticator stays the first choice at unlock.
+ * The service's part is narrow: send a six-digit code to an address the
+ * caller names, remember only its hash, and answer yes or no once.
+ */
+const CODE_TTL_MS = 10 * 60_000;
+const CODE_MAX_ATTEMPTS = 5;
+/** Live challenges one principal may hold at once — a send budget, not a fence. */
+const CODE_MAX_LIVE = 5;
+const CODE_DIGITS = 6;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const E164_RE = /^\+[1-9]\d{6,14}$/;
+
+type CodeChannel = "email" | "sms";
+
+function codeChannelOf(value: string): CodeChannel | null {
+  return value === "email" || value === "sms" ? value : null;
+}
+
+function codeHash(challengeId: string, code: string): string {
+  return createHash("sha256")
+    .update(challengeId)
+    .update(":")
+    .update(code)
+    .digest("hex");
+}
+
+function randomCode(): string {
+  // Rejection-sampled so every code is equally likely; a modulo over 2^32
+  // would favour the low end by a part in four thousand.
+  const max = 10 ** CODE_DIGITS;
+  const limit = Math.floor(0x1_0000_0000 / max) * max;
+  for (;;) {
+    const n = randomBytes(4).readUInt32BE(0);
+    if (n < limit) return String(n % max).padStart(CODE_DIGITS, "0");
+  }
+}
+
+/**
+ * What the client may show of an address: enough to recognise it, not
+ * enough to reach it. `t•••@example.com`; `+1 ••• ••• 0142`.
+ */
+export function maskDestination(channel: CodeChannel, to: string): string {
+  if (channel === "email") {
+    const at = to.indexOf("@");
+    return `${to.slice(0, 1)}•••${to.slice(at)}`;
+  }
+  const country = to.slice(0, to.length - 10 > 1 ? to.length - 10 : 2);
+  return `${country} ••• ••• ${to.slice(-4)}`;
+}
+
+function pruneCodes(
+  map: Map<string, import("../state.js").MfaCodeChallenge>,
+  now: number,
+): void {
+  for (const [id, challenge] of map) {
+    if (challenge.expiresAt <= now) map.delete(id);
+  }
+}
+
+mfaRoutes.post("/code/send", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const body = overlapCast(await c.req.json().catch(() => ({})));
+  const channel = codeChannelOf(isString(body.channel) ? body.channel : "");
+  const to = isString(body.to) ? body.to.trim() : "";
+  if (channel === null) {
+    return c.json(
+      {
+        ok: false,
+        error: "invalid_request",
+        hint: "channel must be email or sms",
+      },
+      400,
+    );
+  }
+  if (
+    channel === "email"
+      ? !EMAIL_RE.test(to) || to.length > 254
+      : !E164_RE.test(to)
+  ) {
+    return c.json(
+      {
+        ok: false,
+        error: "invalid_request",
+        hint:
+          channel === "email"
+            ? "to must be an email address"
+            : "to must be an E.164 number",
+      },
+      400,
+    );
+  }
+  const now = ctx.clock().getTime();
+  pruneCodes(ctx.stores.mfaCodes, now);
+  const live = [...ctx.stores.mfaCodes.values()].filter(
+    (entry) => entry.principalId === principalId,
+  );
+  if (live.length >= CODE_MAX_LIVE) {
+    await auditMfaDenial(ctx, {
+      eventType: "mfa.code.send",
+      reason: "too_many_codes",
+      principalId,
+      correlationId: c.get("correlationId"),
+    });
+    return c.json({ ok: false, error: "too_many_codes" }, 429);
+  }
+
+  const code = randomCode();
+  const text = `Your OpenSesame code is ${code}. It is good for 10 minutes. If you did not ask for it, someone has your key and is being asked for a second step; nothing opens without this code.`;
+  if (channel === "email") {
+    try {
+      await ctx.mailer.send({
+        to,
+        subject: `${code} is your OpenSesame code`,
+        text,
+      });
+    } catch (error) {
+      if (error instanceof MailerNotConfiguredError) {
+        return c.json({ ok: false, error: "mail_not_configured" }, 503);
+      }
+      throw error;
+    }
+  } else {
+    if (!ctx.sms.isConfigured()) {
+      return c.json({ ok: false, error: "sms_not_configured" }, 503);
+    }
+    // Hand-built rather than rendered: the adapter's `render` clamps every
+    // notification to a bodyless "something is waiting", which is right for
+    // an approval prompt and useless for a code. The code *is* the message;
+    // the client disclosed what a leased number means before binding it.
+    const outcome = await ctx.sms.deliver(
+      {
+        kind: "sms",
+        confidentiality: "minimal",
+        title: "OpenSesame",
+        body: text,
+      },
+      { channel: "sms", e164: to },
+    );
+    if (outcome.status !== "delivered") {
+      return c.json(
+        { ok: false, error: "sms_delivery_failed", status: outcome.status },
+        502,
+      );
+    }
+  }
+
+  const challengeId = `mfc_${randomBytes(12).toString("hex")}`;
+  ctx.stores.mfaCodes.set(challengeId, {
+    principalId,
+    channel,
+    to,
+    codeHash: codeHash(challengeId, code),
+    createdAt: now,
+    expiresAt: now + CODE_TTL_MS,
+    attempts: 0,
+  });
+  return c.json({
+    ok: true,
+    challengeId,
+    channel,
+    to: maskDestination(channel, to),
+    expiresAt: new Date(now + CODE_TTL_MS).toISOString(),
+  });
+});
+
+mfaRoutes.post("/code/verify", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const body = overlapCast(await c.req.json().catch(() => ({})));
+  const challengeId = isString(body.challengeId) ? body.challengeId : "";
+  const code = isString(body.code) ? body.code.replace(/\s/g, "") : "";
+  const now = ctx.clock().getTime();
+  pruneCodes(ctx.stores.mfaCodes, now);
+  const challenge = ctx.stores.mfaCodes.get(challengeId);
+  // An unknown, expired or foreign challenge answers exactly like a wrong
+  // code: the response must not say which challenges exist for whom.
+  if (!challenge || challenge.principalId !== principalId) {
+    await auditMfaDenial(ctx, {
+      eventType: "mfa.code.verify",
+      reason: "unknown_challenge",
+      principalId,
+      correlationId: c.get("correlationId"),
+    });
+    return c.json({ ok: false, error: "invalid_code" }, 401);
+  }
+  challenge.attempts += 1;
+  const expected = Buffer.from(challenge.codeHash, "hex");
+  const given = Buffer.from(codeHash(challengeId, code), "hex");
+  const matches =
+    code.length === CODE_DIGITS && timingSafeEqual(expected, given);
+  if (!matches) {
+    const spent = challenge.attempts >= CODE_MAX_ATTEMPTS;
+    if (spent) ctx.stores.mfaCodes.delete(challengeId);
+    await auditMfaDenial(ctx, {
+      eventType: "mfa.code.verify",
+      reason: spent ? "too_many_attempts" : "wrong_code",
+      principalId,
+      correlationId: c.get("correlationId"),
+    });
+    return c.json(
+      { ok: false, error: spent ? "challenge_spent" : "invalid_code" },
+      401,
+    );
+  }
+  ctx.stores.mfaCodes.delete(challengeId);
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "mfa.code.verify",
+    outcome: "succeeded",
+    principalId,
+    correlationId: c.get("correlationId"),
+    metadata: { action: "mfa.code.verify", channel: challenge.channel },
+  });
+  return c.json({
+    ok: true,
+    channel: challenge.channel,
+    to: maskDestination(challenge.channel, challenge.to),
+  });
+});

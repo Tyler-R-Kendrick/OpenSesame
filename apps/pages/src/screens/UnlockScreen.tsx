@@ -13,8 +13,11 @@ import {
   IconEye,
   IconEyeOff,
   IconLock,
+  IconMail,
   IconMark,
+  IconMessage,
   IconPasskey,
+  IconPhone,
   IconShield,
   IconUser,
 } from "../components/Icons.js";
@@ -42,12 +45,15 @@ import { unlockViable } from "../lib/setup.js";
 import { WrongPasswordError } from "../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
+import type { SentCode } from "../lib/vault/remote-code.js";
 import {
   MIN_PIN_LENGTH,
+  type SecondStepId,
   type UnlockMethodId,
   checkWebauthnHost,
   describeWebauthnError,
   listAvailableUnlockMethods,
+  listSecondSteps,
   pinPolicyProblems,
   preferredUnlockMethod,
 } from "../lib/vault/unlock-methods.js";
@@ -68,6 +74,15 @@ const METHOD_LABEL = {
   pin: "PIN",
   password: "Password",
 };
+
+const SECOND_STEP_LABEL = {
+  totp: "Authenticator",
+  email: "Email",
+  sms: "Text",
+} satisfies Record<SecondStepId, string>;
+
+/** A code by email or text may be asked for again after this long. */
+const RESEND_COOLDOWN_MS = 30_000;
 
 function StrengthMeter({ password }: { password: string }) {
   const strength = estimateStrength(password);
@@ -224,7 +239,7 @@ function UnlockForm({
     lockedOutUntil,
     failedAttempts,
     durable,
-    awaitingTotp,
+    awaitingSecondStep,
   } = useVault();
   const store = useVaultStore();
   const firstRun = status === "empty";
@@ -260,7 +275,7 @@ function UnlockForm({
   // disabled: a greyed tab still asserts the action exists and merely is not
   // available right now, which is a different claim, and an untrue one when
   // nothing has ever been sealed here.
-  const returningTabs = unlockViable(status) && !awaitingTotp;
+  const returningTabs = unlockViable(status) && !awaitingSecondStep;
   const signInTabActive = returningTabs && screenTab === "signin";
   // Not "no identity service" — the compiled-in broker and any provider the
   // operator brought run in this browser and need no service at all (ADR
@@ -305,7 +320,10 @@ function UnlockForm({
   // loud rather than drawn as three tabs that all fail.
   const noPrimary = !firstRun && methods.length === 0;
   // The second step, announced before the first is taken.
-  const hasTotpStep = !firstRun && !noPrimary && Boolean(header?.unlocks?.totp);
+  // Exactly the second steps this vault enrolled — authenticator, email,
+  // text — offered at step 2 in the same tab vocabulary step 1 uses for keys.
+  const secondSteps = firstRun ? [] : listSecondSteps(header);
+  const hasTotpStep = !firstRun && !noPrimary && secondSteps.length > 0;
   const [method, setMethod] = useState<UnlockMethodId | null>(null);
   const fallbackMethod: UnlockMethodId = firstRun
     ? passkeyHost.ok
@@ -314,11 +332,23 @@ function UnlockForm({
     : (preferredUnlockMethod(header) ?? "password");
   const activeMethod =
     method && methods.includes(method) ? method : fallbackMethod;
-  const showMethodTabs = !awaitingTotp && !noPrimary;
+  const showMethodTabs = !awaitingSecondStep && !noPrimary;
 
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
   const [totp, setTotp] = useState("");
+  const [secondStep, setSecondStep] = useState<SecondStepId | null>(null);
+  const activeSecondStep: SecondStepId =
+    secondStep && secondSteps.includes(secondStep)
+      ? secondStep
+      : (secondSteps[0] ?? "totp");
+  // A code by email or text is sent the moment that tab is picked, once;
+  // "Send it again" clears the mark and a fresh one goes out.
+  const [sent, setSent] = useState<SentCode | null>(null);
+  const [sentAt, setSentAt] = useState<number | null>(null);
+  const requestedFor = useRef<SecondStepId | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recovery, setRecovery] = useState("");
   const [confirm, setConfirm] = useState("");
   const [hint, setHint] = useState("");
   const [accepted, setAccepted] = useState(false);
@@ -357,7 +387,7 @@ function UnlockForm({
   // biome-ignore lint/correctness/useExhaustiveDependencies: status is a hydrate signal — "loading" becoming "locked" swaps the form under the same method, and the caret must follow
   useEffect(() => {
     if (signInStage || signInTabActive || formGated) return;
-    if (awaitingTotp) {
+    if (awaitingSecondStep) {
       landFocus(totpRef.current);
       return;
     }
@@ -371,12 +401,51 @@ function UnlockForm({
     }
   }, [
     activeMethod,
-    awaitingTotp,
+    awaitingSecondStep,
     signInStage,
     signInTabActive,
     formGated,
     status,
   ]);
+
+  const resendIn = useCountdown(
+    sentAt === null ? null : sentAt + RESEND_COOLDOWN_MS,
+  );
+
+  useEffect(() => {
+    if (!awaitingSecondStep) {
+      requestedFor.current = null;
+      setSent(null);
+      setSentAt(null);
+      setRecoveryMode(false);
+      setRecovery("");
+      return;
+    }
+    if (activeSecondStep === "totp" || recoveryMode) return;
+    if (requestedFor.current === activeSecondStep) return;
+    requestedFor.current = activeSecondStep;
+    let live = true;
+    setSent(null);
+    setBusy(true);
+    store.requestSecondStepCode(activeSecondStep).then(
+      (result) => {
+        if (!live) return;
+        setSent(result);
+        setSentAt(Date.now());
+        setBusy(false);
+      },
+      (caught) => {
+        if (!live) return;
+        setError(
+          caught instanceof Error ? caught.message : "The code was not sent.",
+        );
+        setBusy(false);
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [awaitingSecondStep, activeSecondStep, recoveryMode, store]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -405,8 +474,15 @@ function UnlockForm({
           }
           await store.create(password, hint.trim() || undefined);
         }
-      } else if (awaitingTotp) {
-        await store.confirmTotp(totp);
+      } else if (awaitingSecondStep) {
+        if (recoveryMode) {
+          await store.redeemRecoveryCode(recovery);
+          setRecovery("");
+        } else if (activeSecondStep === "totp") {
+          await store.confirmTotp(totp);
+        } else {
+          await store.confirmRemoteCode(totp);
+        }
         setTotp("");
       } else if (activeMethod === "passkey") {
         const controller = new AbortController();
@@ -436,7 +512,7 @@ function UnlockForm({
         // either.
         caught instanceof WrongPasswordError
           ? caught.message
-          : !awaitingTotp &&
+          : !awaitingSecondStep &&
               (activeMethod === "passkey" ||
                 (caught instanceof Error &&
                   /invalid domain|SecurityError/i.test(caught.message)))
@@ -448,7 +524,7 @@ function UnlockForm({
       setPassword("");
       setPin("");
       setTotp("");
-      if (awaitingTotp) totpRef.current?.focus();
+      if (awaitingSecondStep) totpRef.current?.focus();
       else if (activeMethod === "pin") pinRef.current?.focus();
       else passwordRef.current?.focus();
     } finally {
@@ -471,7 +547,10 @@ function UnlockForm({
 
   let unlockBlocked = true;
   if (noPrimary) unlockBlocked = true;
-  else if (awaitingTotp) unlockBlocked = totp.replace(/\s/g, "").length < 6;
+  else if (awaitingSecondStep)
+    unlockBlocked = recoveryMode
+      ? recovery.replace(/[^a-z0-9]/gi, "").length < 8
+      : totp.replace(/\s/g, "").length < 6;
   else if (activeMethod === "passkey") unlockBlocked = !passkeyHost.ok;
   else if (activeMethod === "pin") unlockBlocked = pin.length < 4;
   else unlockBlocked = !password;
@@ -493,7 +572,7 @@ function UnlockForm({
               ? "Sign in"
               : firstRun
                 ? "Seal this device"
-                : awaitingTotp
+                : awaitingSecondStep
                   ? "Confirm it is you"
                   : "Unlock"}
           </h1>
@@ -625,17 +704,25 @@ function UnlockForm({
               <div className="steps" aria-label="Unlock steps">
                 <div
                   className={
-                    awaitingTotp ? "steps__seg is-done" : "steps__seg is-now"
+                    awaitingSecondStep
+                      ? "steps__seg is-done"
+                      : "steps__seg is-now"
                   }
                 >
                   <span className="steps__bar" />
                   <span className="steps__label">1 · Key</span>
                 </div>
                 <div
-                  className={awaitingTotp ? "steps__seg is-now" : "steps__seg"}
+                  className={
+                    awaitingSecondStep ? "steps__seg is-now" : "steps__seg"
+                  }
                 >
                   <span className="steps__bar" />
-                  <span className="steps__label">2 · Authenticator code</span>
+                  <span className="steps__label">
+                    {secondSteps.length === 1 && secondSteps[0] === "totp"
+                      ? "2 · Authenticator code"
+                      : "2 · Code"}
+                  </span>
                 </div>
               </div>
             ) : null}
@@ -692,39 +779,164 @@ function UnlockForm({
               </div>
             ) : null}
 
-            {awaitingTotp ? (
-              <div className="field">
-                <label htmlFor="unlock-totp">Authenticator code</label>
-                <input
-                  id="unlock-totp"
-                  ref={totpRef}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={totp}
-                  disabled={busy || lockedFor > 0}
-                  onChange={(e) => setTotp(e.target.value)}
-                  placeholder="6-digit code"
-                />
-                <p className="hint">
-                  The key was right. This vault also asks for the code your
-                  authenticator app shows for OpenSesame.
-                </p>
+            {awaitingSecondStep ? (
+              <>
+                {secondSteps.length > 1 && !recoveryMode ? (
+                  <div
+                    className="unlock__methods"
+                    role="tablist"
+                    aria-label="Second step"
+                  >
+                    {secondSteps.map((id) => (
+                      <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeSecondStep === id}
+                        className={
+                          activeSecondStep === id
+                            ? "unlock__method unlock__method--active"
+                            : "unlock__method"
+                        }
+                        disabled={lockedFor > 0}
+                        onClick={() => {
+                          setSecondStep(id);
+                          setTotp("");
+                          setError(null);
+                        }}
+                      >
+                        {id === "totp" ? (
+                          <IconPhone size={16} />
+                        ) : id === "email" ? (
+                          <IconMail size={16} />
+                        ) : (
+                          <IconMessage size={16} />
+                        )}
+                        {SECOND_STEP_LABEL[id]}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {recoveryMode ? (
+                  <div className="field">
+                    <label htmlFor="unlock-recovery">Recovery code</label>
+                    <input
+                      id="unlock-recovery"
+                      ref={totpRef}
+                      type="text"
+                      autoComplete="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      value={recovery}
+                      disabled={busy || lockedFor > 0}
+                      onChange={(e) => setRecovery(e.target.value)}
+                      placeholder="xxxx-xxxx"
+                    />
+                    <p className="hint">
+                      One of the codes you saved. It opens the vault once, then
+                      it is spent.
+                    </p>
+                    <button
+                      type="button"
+                      className="unlock__switch"
+                      onClick={() => {
+                        setRecoveryMode(false);
+                        setRecovery("");
+                        setError(null);
+                      }}
+                    >
+                      Use the code instead
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {activeSecondStep !== "totp" ? (
+                      sent ? (
+                        <output className="note note--ok">
+                          <span>
+                            A code was sent to {sent.to}. It is good for 10
+                            minutes.
+                          </span>
+                        </output>
+                      ) : (
+                        <p className="hint">Sending a code…</p>
+                      )
+                    ) : null}
+                    <div className="field">
+                      <label htmlFor="unlock-totp">
+                        {activeSecondStep === "totp"
+                          ? "Authenticator code"
+                          : activeSecondStep === "email"
+                            ? "Code from the email"
+                            : "Code from the text"}
+                      </label>
+                      <input
+                        id="unlock-totp"
+                        ref={totpRef}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        value={totp}
+                        disabled={busy || lockedFor > 0}
+                        onChange={(e) => setTotp(e.target.value)}
+                        placeholder="6-digit code"
+                      />
+                      <p className="hint">
+                        {activeSecondStep === "totp"
+                          ? "The code your app shows for OpenSesame."
+                          : "Six digits. Use the newest one you were sent."}
+                      </p>
+                      {activeSecondStep !== "totp" ? (
+                        <button
+                          type="button"
+                          className="unlock__switch"
+                          disabled={busy || resendIn > 0}
+                          onClick={() => {
+                            requestedFor.current = null;
+                            setSent(null);
+                            setSentAt(null);
+                            setTotp("");
+                            setError(null);
+                          }}
+                        >
+                          {resendIn > 0
+                            ? `Send it again · in ${resendIn}s`
+                            : "Send it again"}
+                        </button>
+                      ) : null}
+                      {header?.unlocks?.recovery ? (
+                        <button
+                          type="button"
+                          className="unlock__switch"
+                          onClick={() => {
+                            setRecoveryMode(true);
+                            setError(null);
+                          }}
+                        >
+                          Use a recovery code
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                )}
                 <button
                   type="button"
                   className="unlock__switch"
                   onClick={() => {
                     store.cancelTotpChallenge();
                     setTotp("");
+                    setRecovery("");
+                    setRecoveryMode(false);
                     setError(null);
                   }}
                 >
-                  Use a different unlock method
+                  Start over
                 </button>
-              </div>
+              </>
             ) : null}
 
-            {(firstRun || !awaitingTotp) &&
+            {(firstRun || !awaitingSecondStep) &&
             activeMethod === "passkey" &&
             !passkeyHost.ok ? (
               <output className="note note--warn">
@@ -754,7 +966,7 @@ function UnlockForm({
               </output>
             ) : null}
 
-            {!awaitingTotp && activeMethod === "pin" ? (
+            {!awaitingSecondStep && activeMethod === "pin" ? (
               <div className="field">
                 <label htmlFor="unlock-pin">
                   {firstRun ? "Device PIN" : "PIN"}
@@ -786,7 +998,7 @@ function UnlockForm({
               </div>
             ) : null}
 
-            {!awaitingTotp && activeMethod === "password" && (
+            {!awaitingSecondStep && activeMethod === "password" && (
               <div className="field">
                 <label htmlFor="master">
                   {firstRun ? "Master password" : "Password"}
@@ -893,7 +1105,9 @@ function UnlockForm({
                   <span>I understand this vault cannot be recovered.</span>
                 </label>
               </div>
-            ) : header?.hint && activeMethod === "password" && !awaitingTotp ? (
+            ) : header?.hint &&
+              activeMethod === "password" &&
+              !awaitingSecondStep ? (
               <p className="unlock__hint">
                 <strong>Reminder:</strong> {header.hint}
               </p>
@@ -936,7 +1150,7 @@ function UnlockForm({
                         : activeMethod === "pin"
                           ? "Sealing…"
                           : "Deriving key…"
-                      : awaitingTotp
+                      : awaitingSecondStep
                         ? "Checking code…"
                         : activeMethod === "passkey"
                           ? "Waiting for passkey…"
@@ -947,7 +1161,7 @@ function UnlockForm({
                         : activeMethod === "pin"
                           ? "Seal with PIN"
                           : "Seal this device"
-                      : awaitingTotp
+                      : awaitingSecondStep
                         ? "Confirm MFA"
                         : activeMethod === "passkey"
                           ? "Unlock with passkey"
@@ -966,7 +1180,7 @@ function UnlockForm({
                         aria-label={verb}
                         title={verb}
                       >
-                        {activeMethod === "passkey" && !awaitingTotp ? (
+                        {activeMethod === "passkey" && !awaitingSecondStep ? (
                           <IconPasskey size={18} />
                         ) : (
                           <IconArrowRight size={18} />
