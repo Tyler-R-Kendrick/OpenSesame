@@ -150,7 +150,13 @@ function keymap() {
 
 function press(handler: (event: KeyboardEvent) => void, key: string) {
   act(() => {
-    handler(new KeyboardEvent("keydown", { key, cancelable: true }));
+    handler(
+      new KeyboardEvent("keydown", {
+        key,
+        cancelable: true,
+        shiftKey: key.length === 1 && key !== key.toLowerCase(),
+      }),
+    );
   });
 }
 

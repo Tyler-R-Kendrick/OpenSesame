@@ -70,7 +70,15 @@ describe("listing keymap session", () => {
       showHelp: () => tree.calls.push("help"),
     });
     const play = (key: string, init: KeyboardEventInit = {}) => {
-      handler(new KeyboardEvent("keydown", { key, cancelable: true, ...init }));
+      handler(
+        new KeyboardEvent("keydown", {
+          key,
+          cancelable: true,
+          shiftKey:
+            init.shiftKey ?? (key.length === 1 && key !== key.toLowerCase()),
+          ...init,
+        }),
+      );
     };
 
     play("j");

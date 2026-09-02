@@ -54,7 +54,10 @@ First-party, light-DOM, everything mono:
 
 - Global window listener (mounted in `AppShell`), ignored while typing in
   inputs/textareas/contenteditable or while a dialog owns the page.
-- Map (DESIGN.md is the source of truth): `j/k/↓/↑` move · `[count]` repeats
+- Map (DESIGN.md is the source of truth). Single keys and modifiers are a
+  `tinykeys` table (`Control+d`, `Shift+G`); vim counts (`5j`) and the `g`
+  leader (`gg`, `gv`) wrap it — tinykeys sequences cannot overlap prefixes.
+  `j/k/↓/↑` move · `[count]` repeats
   a motion · `Ctrl-d/u` half-page · `Ctrl-f/b` `PgUp/PgDn` page · `H/M/L`
   window edges · `l/→` open/dive · `h/←` `Backspace` collapse/climb ·
   `gg/0/Home` first · `G/$/End` last (`nG` the nth row) · `Tab` other
