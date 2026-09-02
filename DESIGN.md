@@ -208,17 +208,24 @@ top of the vault pane; the mobile tab bar keeps labeled icons.
 A visible cursor row owns focus — inverse video, always rendered — and
 moving it with the keyboard previews that item in the buffer, ranger's own
 reading: browsing is previewing. The pane has no header; new and import are
-icon keys in the path strip. `j`/`k`/arrows move it, `l`/`→` opens, `h`/`←` collapses or climbs,
-`gg`/`G` jump, and `Enter` activates. `/` opens a vim-style command line at
-the foot of the pane, backed by a real input so typed keys never leak into
-the keymap; matches highlight, non-matches hide, `Esc` closes it. Item verbs
-are single keys: `y` copies the secret, `u` the username, `e` edits, `x`
-trashes, `n` creates, `.` toggles favorite, and `s` shares a secret once.
-`g v/c/a/i/s` jumps between sections and `?` shows the keymap. A mono status
-line always shows the focused path, item count, and active filter (or the
-live query). Pointer access remains complete: rows click, directories
-toggle, a `⋯` menu on the cursor or hovered row carries the verbs, and the
-`/` and `?` key chips in the path strip are buttons.
+icon keys in the path strip. Motions are vim's: `j`/`k`/arrows move, a
+count prefix repeats them (`5j`), `Ctrl-d`/`u` half-page, `Ctrl-f`/`b` and
+`PgUp`/`PgDn` page, `H`/`M`/`L` jump to the high/mid/low of the window,
+`gg`/`0`/`Home` first, `G`/`$`/`End` last (`5G` the fifth row). `l`/`→`
+dives (and from the rail, into the vault listing), `h`/`←`/`Backspace`
+climbs (and from a vault root row, onto the rail). `Tab` switches the two
+listings when one of them holds the keyboard. `Enter` activates. `/` opens
+a vim-style command line at the foot of the pane, backed by a real input so
+typed keys never leak into the keymap; matches highlight, non-matches hide,
+`Esc` closes it and returns the keyboard to the tree. Item verbs are single
+keys: `y` copies the secret, `u` the username, `e` edits, `x` trashes, `n`
+creates, `.` toggles favorite, and `s` shares a secret once. `g v/c/a/i/s`
+jumps between sections (`g` times out like vim so a stray `g` does not
+swallow the next key) and `?` shows the keymap. A mono status line always
+shows the focused path, item count, and active filter (or the live query).
+Pointer access remains complete: rows click, directories toggle, a `⋯` menu
+on the cursor or hovered row carries the verbs, and the `/` and `?` key
+chips in the path strip are buttons.
 
 The keyboard lands on arrival, every time. A page load, an unlock, a route
 change, a browser Back, a switched tab — each leaves focus on `<body>` unless

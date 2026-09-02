@@ -178,6 +178,7 @@ function ImportButton({ verb = false }: { verb?: boolean }) {
         type="file"
         accept={IMPORT_ACCEPT}
         className="visually-hidden"
+        tabIndex={-1}
         aria-label="Choose a file to import"
         onChange={(event) => {
           const file = event.target.files?.[0];
