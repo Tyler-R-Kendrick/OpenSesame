@@ -3,6 +3,7 @@ export * from "./claims.js";
 export * from "./principals.js";
 export * from "./projects.js";
 export * from "./agents.js";
+export * from "./agent-auth.js";
 export * from "./organizations.js";
 export * from "./oauth-clients.js";
 export * from "./audit.js";

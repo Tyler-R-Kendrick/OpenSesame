@@ -12,6 +12,7 @@ export * as interactionMachine from "./machines/interaction.js";
 export * from "./machines/claim.js";
 export * from "./machines/device-auth.js";
 export * from "./machines/provisional-resource.js";
+export * from "./machines/agent-registration.js";
 export * from "./interaction-links.js";
 export * from "./interaction.js";
 export * from "./authorization-details.js";

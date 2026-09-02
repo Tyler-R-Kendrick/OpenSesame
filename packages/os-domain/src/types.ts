@@ -372,6 +372,90 @@ export interface AgentInstance {
   revokedAt?: Date;
 }
 
+/**
+ * Service-facing agent registration (ADR 0092). Distinct from {@link Agent}:
+ * an Agent is a product actor with a proof key; an AgentRegistration is the
+ * auth.md/AgentAuth delegated actor that may start anonymous and later be
+ * claimed by a verified principal without replacing that principal.
+ */
+export type AgentRegistrationId = string;
+
+export type AgentRegistrationKind =
+  | "anonymous"
+  | "service_auth"
+  | "provider_assertion";
+
+export type AgentRegistrationStatus =
+  | "unclaimed"
+  | "claim_pending"
+  | "claimed"
+  | "expired"
+  | "revoked";
+
+export interface AgentRegistration {
+  id: AgentRegistrationId;
+  kind: AgentRegistrationKind;
+  status: AgentRegistrationStatus;
+  /** Current owner. Starts as the provisional principal minted at register. */
+  principalId: PrincipalId;
+  claimedByPrincipalId?: PrincipalId;
+  createdAt: Date;
+  expiresAt: Date;
+  claimedAt?: Date;
+  revokedAt?: Date;
+  preClaimScopes: string[];
+  postClaimScopes: string[];
+  resource?: string;
+  audience?: string;
+  /** Normalized login hint. Never used to look up or merge a principal. */
+  claimEmailNormalized?: string;
+  claimTokenDigest?: Uint8Array;
+  /** Incremented when a new service assertion is minted; old versions fail. */
+  assertionVersion: number;
+  providerIssuer?: string;
+  providerSubject?: string;
+  providerClientId?: string;
+  version: number;
+}
+
+export interface AgentClaimAttempt {
+  id: string;
+  registrationId: AgentRegistrationId;
+  attemptTokenDigest: Uint8Array;
+  userCodeDigest: Uint8Array;
+  emailNormalized?: string;
+  createdAt: Date;
+  expiresAt: Date;
+  intervalSeconds: number;
+  slowdownUntil?: Date;
+  pollCount: number;
+  failedAttempts: number;
+  completedAt?: Date;
+}
+
+export interface AgentAccessTokenRecord {
+  id: string;
+  registrationId: AgentRegistrationId;
+  tokenDigest: Uint8Array;
+  scopes: string[];
+  /** Frozen at issuance. A pre-claim token never gains post-claim scopes. */
+  claimed: boolean;
+  assertionVersion: number;
+  resource?: string;
+  expiresAt: Date;
+  revokedAt?: Date;
+  createdAt: Date;
+}
+
+export interface AgentServiceAssertionRecord {
+  jti: string;
+  registrationId: AgentRegistrationId;
+  assertionVersion: number;
+  expiresAt: Date;
+  revokedAt?: Date;
+  createdAt: Date;
+}
+
 export type DelegationRelationship = "owns" | "operates" | "delegates_to";
 
 export interface Delegation {
