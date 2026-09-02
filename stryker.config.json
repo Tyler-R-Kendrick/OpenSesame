@@ -11,8 +11,6 @@
     "apps/control-plane/src/services/identity-link.ts",
     "packages/audit/src/redact.ts",
     "apps/pages/src/lib/certs.ts",
-    "apps/pages/src/lib/keymap.ts",
-    "apps/pages/src/lib/tree-motion.ts",
     "packages/audit/src/chain.ts"
   ],
   "ignorePatterns": [
