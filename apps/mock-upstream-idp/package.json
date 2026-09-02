@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
-    "@xmldom/xmldom": "0.8.13",
+    "@xmldom/xmldom": "0.8.15",
     "jose": "6.2.8",
     "selfsigned": "5.5.0",
     "xml-crypto": "6.1.2"
