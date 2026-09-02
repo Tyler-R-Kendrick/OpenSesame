@@ -1,0 +1,80 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`listing keymap copy > says exactly this on the ? sheet 1`] = `
+[
+  [
+    "j / k or arrows",
+    "Move",
+  ],
+  [
+    "3j  10k",
+    "Repeat a motion",
+  ],
+  [
+    "Ctrl-d / u",
+    "Half-page",
+  ],
+  [
+    "Ctrl-f / b or PgUp/Dn",
+    "Page",
+  ],
+  [
+    "H / M / L",
+    "High, mid, low",
+  ],
+  [
+    "gg / G  0 / $",
+    "First or last",
+  ],
+  [
+    "l / h  Enter  Backspace",
+    "Dive or climb",
+  ],
+  [
+    "Tab",
+    "Other listing",
+  ],
+  [
+    "/  Esc",
+    "Search or focus the tree",
+  ],
+  [
+    "y / u",
+    "Copy secret or username",
+  ],
+  [
+    "e / x",
+    "Edit or trash",
+  ],
+  [
+    "n / .",
+    "New or favorite",
+  ],
+  [
+    "s",
+    "Share once",
+  ],
+  [
+    "g v/c/a/i/s",
+    "Go to a section",
+  ],
+]
+`;
+
+exports[`listing keymap session > records this dispatch log for a vim-like pass 1`] = `
+{
+  "calls": [
+    "next:1",
+    "previous:5",
+    "first",
+    "last",
+    "toIndex:0",
+    "page:1,half",
+    "edge:high",
+    "help",
+  ],
+  "navigate": [
+    "/access",
+  ],
+}
+`;
