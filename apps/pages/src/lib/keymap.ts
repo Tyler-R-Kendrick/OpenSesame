@@ -112,6 +112,7 @@ function typing(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   );
 }
@@ -136,16 +137,9 @@ export const keymapSeams = {
  * Production keydowns always have one; tests often pass only `key`.
  */
 function ensureCode(event: KeyboardEvent): void {
-  if (event.code) return;
-  let code = event.key;
-  if (event.key === " ") code = "Space";
-  else if (event.key.length === 1 && /[a-z]/i.test(event.key)) {
-    code = `Key${event.key.toUpperCase()}`;
-  } else if (event.key.length === 1 && /[0-9]/.test(event.key)) {
-    code = `Digit${event.key}`;
-  }
+  const code = event.key === " " ? "Space" : event.key;
   try {
-    Object.defineProperty(event, "code", { configurable: true, value: code });
+    Object.defineProperty(event, "code", { value: code });
   } catch {
     // Some engines expose `code` as a readonly getter; matching still uses `key`.
   }
@@ -174,19 +168,16 @@ function times(n: number, run: () => void): void {
 export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
   let count = 0;
   let pendingGo = false;
-  let goTimer: ReturnType<typeof setTimeout> | null = null;
+  let goTimer: ReturnType<typeof setTimeout> | undefined;
 
   const clearGo = () => {
     pendingGo = false;
-    if (goTimer !== null) {
-      clearTimeout(goTimer);
-      goTimer = null;
-    }
+    clearTimeout(goTimer);
+    goTimer = undefined;
   };
 
   const armGo = () => {
     pendingGo = true;
-    if (goTimer !== null) clearTimeout(goTimer);
     goTimer = setTimeout(clearGo, keymapSeams.goTimeoutMs);
   };
 
@@ -290,8 +281,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
   };
 
   const dispatch = createKeybindingsHandler(bindings, {
-    timeout: keymapSeams.goTimeoutMs,
-    ignore: () => false,
+    ignore: (event) => event.isComposing,
   });
 
   return (event: KeyboardEvent) => {
