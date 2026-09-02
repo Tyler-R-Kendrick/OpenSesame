@@ -1,5 +1,5 @@
 import { assertNoSecretFields } from "@opensesame/testing";
-import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 import {
   issueServiceAgentIdentityAssertion,
