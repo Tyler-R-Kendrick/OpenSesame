@@ -27,6 +27,7 @@ import type {
   WebhookEndpoint,
 } from "@opensesame/os-domain";
 import { interactionMachine } from "@opensesame/os-domain";
+import { MemoryAgentAuthRepository } from "./agent-auth-repo.js";
 import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
@@ -72,7 +73,6 @@ import {
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
-import { MemoryAgentAuthRepository } from "./agent-auth-repo.js";
 
 function normalizeTenant(tenant?: string): string {
   return tenant ?? "";
