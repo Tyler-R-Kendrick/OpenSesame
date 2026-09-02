@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { fuzz as fuzzAgentAuthContracts } from "./agent_auth_contracts.js";
+import { fuzz as fuzzAgentAuthTokens } from "./agent_auth_tokens.js";
 import { fuzz as fuzzAuditRedact } from "./audit_redact.js";
 import { fuzz as fuzzClaimEngine } from "./claim_engine.js";
 import { fuzz as fuzzClientAdmission } from "./client_admission.js";
@@ -19,6 +21,50 @@ import { fuzz as fuzzWebauthnCeremony } from "./webauthn_ceremony.js";
 function word(n: number): number[] {
   return [(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff];
 }
+
+describe("agent_auth_tokens fuzz target", () => {
+  it("never throws on arbitrary bytes and rejects product prefixes", () => {
+    expect(() =>
+      fuzzAgentAuthTokens(Buffer.from("random fuzz bytes")),
+    ).not.toThrow();
+    expect(() => fuzzAgentAuthTokens(Buffer.alloc(0))).not.toThrow();
+    expect(() =>
+      fuzzAgentAuthTokens(Buffer.from("osc_clm_id.secret")),
+    ).not.toThrow();
+    expect(() =>
+      fuzzAgentAuthTokens(Buffer.from("clm_id.secret")),
+    ).not.toThrow();
+    expect(() =>
+      fuzzAgentAuthTokens(Buffer.from("clat_id.secret")),
+    ).not.toThrow();
+    expect(() =>
+      fuzzAgentAuthTokens(Buffer.from("aat_id.secret")),
+    ).not.toThrow();
+  });
+});
+
+describe("agent_auth_contracts fuzz target", () => {
+  it("accepts anonymous and rejects mixed-type bodies", () => {
+    expect(() =>
+      fuzzAgentAuthContracts(
+        Buffer.from(JSON.stringify({ type: "anonymous" })),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      fuzzAgentAuthContracts(
+        Buffer.from(
+          JSON.stringify({ type: "service_auth", login_hint: "a@b.c" }),
+        ),
+      ),
+    ).not.toThrow();
+    expect(() => fuzzAgentAuthContracts(Buffer.from("{nope"))).not.toThrow();
+    expect(() =>
+      fuzzAgentAuthContracts(
+        Buffer.from(JSON.stringify({ type: "service_auth", login_hint: "" })),
+      ),
+    ).not.toThrow();
+  });
+});
 
 describe("audit_redact fuzz target", () => {
   it("redacts static secret fields regardless of fuzzed action/reason", () => {

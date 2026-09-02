@@ -17,9 +17,25 @@ describe("renderAuthMd", () => {
     expect(md).not.toMatch(
       /\bsk_live\b|BEGIN PRIVATE KEY|Bearer [A-Za-z0-9\-_]{20,}/u,
     );
-    expect(md).toContain("/device");
+    expect(md).toContain("/agent/identity");
+    expect(md).toContain("/oauth2/token");
     expect(md).toContain("/claim");
+    expect(md).toContain("not advertised and not enabled");
     expect(md.toLowerCase()).toContain("never embed");
+  });
+
+  it("does not advertise disabled ID-JAG or events", () => {
+    const md = renderAuthMd({
+      ...authConfig,
+      capabilities: {
+        anonymous: true,
+        serviceAuth: true,
+        providerAssertion: false,
+        events: false,
+      },
+    });
+    expect(md).toContain("not advertised and not enabled");
+    expect(md).not.toMatch(/assertion_types_supported/u);
   });
 });
 

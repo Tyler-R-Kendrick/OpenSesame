@@ -8,6 +8,7 @@ exports[`renderAgentCard > matches snapshot without credentials 1`] = `
       "openid",
       "oauth2_device",
       "claim_session",
+      "agent_auth",
     ],
   },
   "capabilities": {
@@ -27,70 +28,148 @@ exports[`renderAgentCard > matches snapshot without credentials 1`] = `
 `;
 
 exports[`renderAuthMd > matches snapshot and omits secrets 1`] = `
-"# OpenSesame authentication
+"# auth.md
 
-This document is generated from live OpenSesame configuration.
+You are an agent. **OpenSesame** supports agentic registration:
+discover → register → (claim if needed) → exchange for an access_token → call API → handle revocation.
 
-## Protected resource
+Profile: \`workos-auth.md/v0.6.0\`. This is a WorkOS ecosystem protocol, not an IETF RFC.
+Runtime metadata at the Protected Resource Metadata and Authorization Server metadata URLs
+is authoritative if this file and those documents disagree.
 
-\`https://api.opensesame.test\`
+Resource: \`https://api.opensesame.test/\`
+Authorization server: \`http://127.0.0.1:8788\`
 
-## Authorization server
+## Step 1 — Discover
 
-\`http://127.0.0.1:8788\`
+A 401 from the resource includes:
 
-OIDC discovery: \`http://127.0.0.1:8788/.well-known/openid-configuration\`
+\`\`\`http
+WWW-Authenticate: Bearer resource_metadata="https://api.opensesame.test/.well-known/oauth-protected-resource"
+\`\`\`
 
-## Client registration modes
+### 1a. Protected Resource Metadata
 
-anonymous, pre_registered
+\`GET https://api.opensesame.test/.well-known/oauth-protected-resource\`
 
-## Guest (anonymous) session — humans and agents
+### 1b. Authorization Server metadata
 
-\`POST http://127.0.0.1:8788/v1/principals/provisional\`
+\`GET http://127.0.0.1:8788/.well-known/oauth-authorization-server\`
 
-No account is needed: the response is a provisional principal and a short-lived
-bearer. Claiming later — linking an upstream identity — keeps the same
-principal id, so nothing created as a guest is lost.
-Revoke: \`POST http://127.0.0.1:8788/v1/principals/provisional/revoke\`
+Read \`agent_auth\` in full. Identity types actually enabled: anonymous, service_auth.
+Provider ID-JAG (\`identity_assertion\`) is not advertised and not enabled.
+SET events are not advertised and not enabled.
 
-## Anonymous agent bootstrap
+## Step 2 — Pick a method
 
-\`POST http://127.0.0.1:8788/v1/agents\`
+1. No user identity → \`anonymous\` (if enabled).
+2. Email hint only → \`service_auth\` (if enabled).
+3. Provider ID-JAG → not accepted unless discovery lists \`identity_assertion\`.
 
-Registration authenticates as a principal, which may itself be provisional
-(guest). Agents register with a proof key (JWK thumbprint (publicKeyJkt)) and receive a claim
-session for a human to take ownership later.
-No long-lived secrets are returned in this document.
+## Step 3 — Register
 
-## Claim ceremony
+### anonymous
 
-Human claim UI: \`http://127.0.0.1:5173/claim\`
+\`\`\`http
+POST /agent/identity
+Content-Type: application/json
 
-Claim tokens use fragment transport (\`#token=\`) and must be POSTed — never logged.
+{ "type": "anonymous" }
+\`\`\`
 
-Claim TTL: 900s · recommended poll interval: 5s
+Response (200) includes a service-signed \`identity_assertion\` (JWT \`typ: os-sia+jwt\`),
+\`pre_claim_scopes\`, a one-time \`claim_token\` (\`clm_…\`), and \`post_claim_scopes\`.
+Exchange the assertion at \`/oauth2/token\` immediately. The claim ceremony is optional.
+### service_auth
 
-## Device / headless UX
+\`\`\`http
+POST /agent/identity
+Content-Type: application/json
 
-Device approval UI: \`http://127.0.0.1:5173/device\`
+{ "type": "service_auth", "login_hint": "<email>" }
+\`\`\`
 
-CLIs should use RFC 8628 device authorization or RFC 8252 loopback.
+\`login_hint\` is not proof of identity and is not used to look up or merge accounts.
+The response has a \`claim\` block (\`user_code\`, \`verification_uri\`, \`expires_in\`, \`interval\`)
+and **no** identity assertion until the user completes the ceremony.
+
+Do not send a product provisional bearer (\`pst_…\`) or a product claim token (\`osc_clm_…\`) here.
+
+## Step 4 — Claim ceremony
+
+For anonymous, start a ceremony:
+
+\`\`\`http
+POST /agent/identity/claim
+Content-Type: application/json
+
+{ "claim_token": "clm_…", "email": "user@example.com" }
+\`\`\`
+
+Surface \`verification_uri\` and \`user_code\` to the user. They sign in at OpenSesame
+and type the code on a page OpenSesame owns. Poll:
+
+\`\`\`http
+POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:workos:agent-auth:grant-type:claim&claim_token=clm_…
+\`\`\`
+
+Honor \`interval\` (5s). Outer claim window: 86400s.
+On success the pre-claim access token is revoked; use the returned post-claim token.
+
+## Step 5 — Exchange the assertion
+
+\`\`\`http
+POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=<identity_assertion>&resource=https://api.opensesame.test/
+\`\`\`
+
+There is no OAuth refresh_token in this flow. Re-exchange the still-valid service
+assertion. Service assertions use \`typ: os-sia+jwt\` and are not ID-JAGs.
+
+## Step 6 — Use the access_token
+
+\`Authorization: Bearer <aat_…>\` against \`https://api.opensesame.test/\`.
+
+## Revocation
+
+Credential: \`POST http://127.0.0.1:8788/oauth2/revoke\` (\`token\` + \`token_type_hint=access_token\`), RFC 7009.
+Registration: owner-initiated revoke or expiry. Provider SET delivery is not enabled.
+
+## Scopes
+
+- pre-claim: resource:read, resource:create:temporary
+- post-claim: resource:read, resource:create:temporary, project:create:temporary, claim:create
+- resource-supported: resource:read, resource:create:temporary, project:create:temporary, claim:create
+
+Effective scopes are the intersection of requested, registration-state, resource-supported,
+and domain policy. A signed assertion cannot grant a scope policy denies.
+
+## Errors
+
+| Code | Where | What to do |
+| --- | --- | --- |
+| anonymous_not_enabled | /agent/identity | Use another enabled type |
+| service_auth_not_enabled | /agent/identity | Use another enabled type |
+| identity_assertion_not_enabled | /agent/identity | ID-JAG is not enabled |
+| invalid_login_hint | /agent/identity | login_hint must be an email |
+| invalid_claim_token | /agent/identity/claim | Restart at Step 3 |
+| claimed_or_in_flight | /agent/identity/claim | Follow the Step 3 response |
+| claim_expired | /agent/identity/claim | Restart at Step 3 |
+| invalid_grant | /oauth2/token | Assertion expired/revoked; re-register |
+| authorization_pending | /oauth2/token | Wait \`interval\` |
+| expired_token | /oauth2/token | Re-init claim or re-register |
+| slow_down | /oauth2/token | Increase interval |
+
+Existing guest product APIs remain at \`POST http://127.0.0.1:8788/v1/principals/provisional\`
+(\`pst_…\` bearers). Those are not service identity assertions.
+
+Existing RFC 8628 device authorization remains at the authorization server's /device endpoint.
 Never print \`device_code\` values.
-
-## Pre-claim restrictions
-
-- short-lived credentials only
-- no durable ownership
-- resource-limited grants
-
-## Post-claim behavior
-
-Human principal owns or delegates to the agent actor; principal id stays distinct from agent id.
-
-## Token / resource audiences
-
-https://api.opensesame.test, rp-alpha
 
 ## Secrets policy
 

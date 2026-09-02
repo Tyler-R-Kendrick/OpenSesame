@@ -1,2 +1,16 @@
-# Generated at runtime from gateway `/auth.md`
-# Source of truth: apps/gateway protected-resource + typed config
+# auth.md template
+
+This file is **documentation**, not the runtime artifact.
+
+The Identity API generates `/auth.md` from typed capabilities via
+`renderAuthMd` in `packages/agent-protocols`. Runtime metadata at:
+
+- `/.well-known/oauth-protected-resource` (RFC 9728)
+- `/.well-known/oauth-authorization-server` (RFC 8414 + `agent_auth`)
+
+is authoritative if this document and those URLs disagree.
+
+Compatibility revision: WorkOS auth.md repository `AUTH.md` / CHANGELOG **v0.6.0 (2026-06-10)**.
+ID-JAG: `draft-ietf-oauth-identity-assertion-authz-grant-04` (disabled).
+
+See ADR 0092 and `docs/protocol-conformance.md`.
