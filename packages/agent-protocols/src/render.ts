@@ -1,9 +1,32 @@
 import { type JsonObject, isString } from "@opensesame/os-domain";
+import {
+  AGENT_CLAIM_GRANT,
+  AGENT_CLAIM_PATH,
+  AGENT_IDENTITY_PATH,
+  AGENT_REVOKE_PATH,
+  AGENT_TOKEN_PATH,
+  AUTH_MD_PROFILE,
+  JWT_BEARER_GRANT,
+} from "./constants.js";
+
+export interface AgentAuthCapability {
+  anonymous: boolean;
+  serviceAuth: boolean;
+  providerAssertion: boolean;
+  events: boolean;
+}
+
 export interface AuthMdConfig {
   serviceName: string;
   protectedResource: string;
   authorizationServer: string;
   consoleOrigin: string;
+  resourceName?: string;
+  resourceLogoUri?: string;
+  scopes?: readonly string[];
+  preClaimScopes?: readonly string[];
+  postClaimScopes?: readonly string[];
+  identityTypes?: readonly string[];
   agentRegisterPath?: string;
   provisionalPath?: string;
   claimPath?: string;
@@ -15,6 +38,10 @@ export interface AuthMdConfig {
   tokenAudiences?: string[];
   pollIntervalSeconds?: number;
   claimTtlSeconds?: number;
+  termsUrl?: string;
+  privacyUrl?: string;
+  contactUrl?: string;
+  capabilities?: AgentAuthCapability;
 }
 
 function assertSafeText(label: string, value: string): void {
@@ -43,99 +70,206 @@ function assertSafeConfig(
   assertSafeText(label, serialized);
 }
 
+function capabilitiesOf(config: AuthMdConfig): AgentAuthCapability {
+  return (
+    config.capabilities ?? {
+      anonymous: true,
+      serviceAuth: true,
+      providerAssertion: false,
+      events: false,
+    }
+  );
+}
+
+function identityTypesOf(config: AuthMdConfig): string[] {
+  const caps = capabilitiesOf(config);
+  if (config.identityTypes) return [...config.identityTypes];
+  const types: string[] = [];
+  if (caps.anonymous) types.push("anonymous");
+  if (caps.serviceAuth) types.push("service_auth");
+  if (caps.providerAssertion) types.push("identity_assertion");
+  return types;
+}
+
 export function renderAuthMd(config: AuthMdConfig): string {
   assertSafeConfig("authMd", config);
-  // Defaults must be paths the control plane actually mounts (/v1, app.ts) —
-  // a documented endpoint that 404s teaches every reader the wrong ceremony.
-  const registerPath = config.agentRegisterPath ?? "/v1/agents";
-  const provisionalPath =
-    config.provisionalPath ?? "/v1/principals/provisional";
-  const claimPath = config.claimPath ?? "/claim";
-  const devicePath = config.devicePath ?? "/device";
-  const modes = (
-    config.registrationModes ?? ["anonymous", "pre_registered"]
-  ).join(", ");
-  const proof = config.proofKeyMechanism ?? "JWK thumbprint (publicKeyJkt)";
-  const preClaim = (
-    config.preClaimRestrictions ?? [
-      "short-lived credentials only",
-      "no durable ownership",
-      "resource-limited grants",
-    ]
-  )
-    .map((x) => `- ${x}`)
-    .join("\n");
-  const postClaim =
-    config.postClaimBehavior ??
-    "Human principal owns or delegates to the agent actor; principal id stays distinct from agent id.";
-  const audiences = (config.tokenAudiences ?? [config.protectedResource]).join(
-    ", ",
-  );
+  const caps = capabilitiesOf(config);
+  const as = config.authorizationServer.replace(/\/+$/u, "");
+  const resource = `${config.protectedResource.replace(/\/+$/u, "")}/`;
+  const identityPath = config.agentRegisterPath ?? AGENT_IDENTITY_PATH;
+  const claimPath = AGENT_CLAIM_PATH;
+  const types = identityTypesOf(config);
+  const pre = config.preClaimScopes ?? [
+    "resource:read",
+    "resource:create:temporary",
+  ];
+  const post = config.postClaimScopes ?? [
+    "resource:read",
+    "resource:create:temporary",
+    "project:create:temporary",
+    "claim:create",
+  ];
+  const scopes = config.scopes ?? [...new Set([...pre, ...post])];
   const poll = config.pollIntervalSeconds ?? 5;
-  const ttl = config.claimTtlSeconds ?? 900;
+  const ttl = config.claimTtlSeconds ?? 86_400;
+  const links = [
+    config.termsUrl ? `- terms: ${config.termsUrl}` : "",
+    config.privacyUrl ? `- privacy: ${config.privacyUrl}` : "",
+    config.contactUrl ? `- contact: ${config.contactUrl}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-  const md = `# ${config.serviceName} authentication
+  const anonymousSection = caps.anonymous
+    ? `### anonymous
 
-This document is generated from live OpenSesame configuration.
+\`\`\`http
+POST ${identityPath}
+Content-Type: application/json
 
-## Protected resource
+{ "type": "anonymous" }
+\`\`\`
 
-\`${config.protectedResource}\`
+Response (200) includes a service-signed \`identity_assertion\` (JWT \`typ: os-sia+jwt\`),
+\`pre_claim_scopes\`, a one-time \`claim_token\` (\`clm_…\`), and \`post_claim_scopes\`.
+Exchange the assertion at \`${AGENT_TOKEN_PATH}\` immediately. The claim ceremony is optional.
+`
+    : "";
 
-## Authorization server
+  const serviceAuthSection = caps.serviceAuth
+    ? `### service_auth
 
-\`${config.authorizationServer}\`
+\`\`\`http
+POST ${identityPath}
+Content-Type: application/json
 
-OIDC discovery: \`${config.authorizationServer}/.well-known/openid-configuration\`
+{ "type": "service_auth", "login_hint": "<email>" }
+\`\`\`
 
-## Client registration modes
+\`login_hint\` is not proof of identity and is not used to look up or merge accounts.
+The response has a \`claim\` block (\`user_code\`, \`verification_uri\`, \`expires_in\`, \`interval\`)
+and **no** identity assertion until the user completes the ceremony.
+`
+    : "";
 
-${modes}
+  const md = `# auth.md
 
-## Guest (anonymous) session — humans and agents
+You are an agent. **${config.serviceName}** supports agentic registration:
+discover → register → (claim if needed) → exchange for an access_token → call API → handle revocation.
 
-\`POST ${config.authorizationServer}${provisionalPath}\`
+Profile: \`${AUTH_MD_PROFILE}\`. This is a WorkOS ecosystem protocol, not an IETF RFC.
+Runtime metadata at the Protected Resource Metadata and Authorization Server metadata URLs
+is authoritative if this file and those documents disagree.
 
-No account is needed: the response is a provisional principal and a short-lived
-bearer. Claiming later — linking an upstream identity — keeps the same
-principal id, so nothing created as a guest is lost.
-Revoke: \`POST ${config.authorizationServer}${provisionalPath}/revoke\`
+Resource: \`${resource}\`
+Authorization server: \`${as}\`
 
-## Anonymous agent bootstrap
+## Step 1 — Discover
 
-\`POST ${config.authorizationServer}${registerPath}\`
+A 401 from the resource includes:
 
-Registration authenticates as a principal, which may itself be provisional
-(guest). Agents register with a proof key (${proof}) and receive a claim
-session for a human to take ownership later.
-No long-lived secrets are returned in this document.
+\`\`\`http
+WWW-Authenticate: Bearer resource_metadata="${resource}.well-known/oauth-protected-resource"
+\`\`\`
 
-## Claim ceremony
+### 1a. Protected Resource Metadata
 
-Human claim UI: \`${config.consoleOrigin}${claimPath}\`
+\`GET ${resource}.well-known/oauth-protected-resource\`
 
-Claim tokens use fragment transport (\`#token=\`) and must be POSTed — never logged.
+### 1b. Authorization Server metadata
 
-Claim TTL: ${ttl}s · recommended poll interval: ${poll}s
+\`GET ${as}/.well-known/oauth-authorization-server\`
 
-## Device / headless UX
+Read \`agent_auth\` in full. Identity types actually enabled: ${types.join(", ") || "(none)"}.
+Provider ID-JAG (\`identity_assertion\`) is ${caps.providerAssertion ? "enabled" : "not advertised and not enabled"}.
+SET events are ${caps.events ? "enabled" : "not advertised and not enabled"}.
 
-Device approval UI: \`${config.consoleOrigin}${devicePath}\`
+## Step 2 — Pick a method
 
-CLIs should use RFC 8628 device authorization or RFC 8252 loopback.
+1. No user identity → \`anonymous\` (if enabled).
+2. Email hint only → \`service_auth\` (if enabled).
+3. Provider ID-JAG → not accepted unless discovery lists \`identity_assertion\`.
+
+## Step 3 — Register
+
+${anonymousSection}${serviceAuthSection}
+Do not send a product provisional bearer (\`pst_…\`) or a product claim token (\`osc_clm_…\`) here.
+
+## Step 4 — Claim ceremony
+
+For anonymous, start a ceremony:
+
+\`\`\`http
+POST ${claimPath}
+Content-Type: application/json
+
+{ "claim_token": "clm_…", "email": "user@example.com" }
+\`\`\`
+
+Surface \`verification_uri\` and \`user_code\` to the user. They sign in at OpenSesame
+and type the code on a page OpenSesame owns. Poll:
+
+\`\`\`http
+POST ${AGENT_TOKEN_PATH}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=${AGENT_CLAIM_GRANT}&claim_token=clm_…
+\`\`\`
+
+Honor \`interval\` (${poll}s). Outer claim window: ${ttl}s.
+On success the pre-claim access token is revoked; use the returned post-claim token.
+
+## Step 5 — Exchange the assertion
+
+\`\`\`http
+POST ${AGENT_TOKEN_PATH}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=${JWT_BEARER_GRANT}&assertion=<identity_assertion>&resource=${resource}
+\`\`\`
+
+There is no OAuth refresh_token in this flow. Re-exchange the still-valid service
+assertion. Service assertions use \`typ: os-sia+jwt\` and are not ID-JAGs.
+
+## Step 6 — Use the access_token
+
+\`Authorization: Bearer <aat_…>\` against \`${resource}\`.
+
+## Revocation
+
+Credential: \`POST ${as}${AGENT_REVOKE_PATH}\` (\`token\` + \`token_type_hint=access_token\`), RFC 7009.
+Registration: owner-initiated revoke or expiry. Provider SET delivery is ${caps.events ? "enabled" : "not enabled"}.
+
+## Scopes
+
+- pre-claim: ${pre.join(", ")}
+- post-claim: ${post.join(", ")}
+- resource-supported: ${scopes.join(", ")}
+
+Effective scopes are the intersection of requested, registration-state, resource-supported,
+and domain policy. A signed assertion cannot grant a scope policy denies.
+
+## Errors
+
+| Code | Where | What to do |
+| --- | --- | --- |
+| anonymous_not_enabled | ${identityPath} | Use another enabled type |
+| service_auth_not_enabled | ${identityPath} | Use another enabled type |
+| identity_assertion_not_enabled | ${identityPath} | ID-JAG is not enabled |
+| invalid_login_hint | ${identityPath} | login_hint must be an email |
+| invalid_claim_token | ${claimPath} | Restart at Step 3 |
+| claimed_or_in_flight | ${claimPath} | Follow the Step 3 response |
+| claim_expired | ${claimPath} | Restart at Step 3 |
+| invalid_grant | ${AGENT_TOKEN_PATH} | Assertion expired/revoked; re-register |
+| authorization_pending | ${AGENT_TOKEN_PATH} | Wait \`interval\` |
+| expired_token | ${AGENT_TOKEN_PATH} | Re-init claim or re-register |
+| slow_down | ${AGENT_TOKEN_PATH} | Increase interval |
+
+Existing guest product APIs remain at \`POST ${as}${config.provisionalPath ?? "/v1/principals/provisional"}\`
+(\`pst_…\` bearers). Those are not service identity assertions.
+
+${links ? `## Links\n\n${links}\n` : ""}Existing RFC 8628 device authorization remains at the authorization server's /device endpoint.
 Never print \`device_code\` values.
-
-## Pre-claim restrictions
-
-${preClaim}
-
-## Post-claim behavior
-
-${postClaim}
-
-## Token / resource audiences
-
-${audiences}
 
 ## Secrets policy
 
@@ -176,6 +310,7 @@ export function renderAgentCard(config: AgentCardConfig): JsonObject {
         "openid",
         "oauth2_device",
         "claim_session",
+        "agent_auth",
       ],
     },
     capabilities: {
@@ -184,12 +319,20 @@ export function renderAgentCard(config: AgentCardConfig): JsonObject {
         "anonymous_register",
         "claim_poll",
         "device_authorization",
+        "jwt_bearer_assertion_exchange",
       ],
     },
     documentationUrl:
       config.documentationUrl ?? `${config.url.replace(/\/+$/u, "")}/auth.md`,
-    // Explicitly absent: credentials, tokens, private endpoints
   };
   assertSafeConfig("agentCard.output", card);
   return card;
+}
+
+export function advertisedIdentityTypes(caps: AgentAuthCapability): string[] {
+  const types: string[] = [];
+  if (caps.anonymous) types.push("anonymous");
+  if (caps.serviceAuth) types.push("service_auth");
+  if (caps.providerAssertion) types.push("identity_assertion");
+  return types;
 }

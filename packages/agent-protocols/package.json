@@ -21,6 +21,7 @@
     "vitest": "4.1.10"
   },
   "dependencies": {
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/os-domain": "workspace:*",
+    "jose": "6.2.8"
   }
 }
