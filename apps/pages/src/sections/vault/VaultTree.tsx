@@ -7,8 +7,13 @@ import {
   IconStar,
 } from "../../components/Icons.js";
 import { longPress } from "../../lib/gestures.js";
-import { registerVaultKeymap, showKeymapHelp } from "../../lib/keymap.js";
+import {
+  focusRailListing,
+  registerVaultKeymap,
+  showKeymapHelp,
+} from "../../lib/keymap.js";
 import { activeProject } from "../../lib/projects.js";
+import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import type { Folder, VaultItem } from "../../lib/vault/model.js";
 import { itemExtension, pathSegment, tombPath } from "../../lib/vault/paths.js";
 import { readFile, writeFile } from "../../lib/vfs.js";
@@ -389,11 +394,32 @@ export function VaultTree({
       if (item) action(item);
     };
     const toggleDir = (row: DirRow) => toggleDirRef.current(row);
+    const goIndex = (index: number) => {
+      const list = rowsRef.current;
+      if (list.length === 0) return;
+      const at = list.findIndex((row) => row.key === cursorRef.current);
+      move(index - (at < 0 ? 0 : at));
+    };
     return registerVaultKeymap({
-      next: () => move(1),
-      previous: () => move(-1),
+      next: (n = 1) => move(n),
+      previous: (n = 1) => move(-n),
       first: () => move(Number.NEGATIVE_INFINITY),
       last: () => move(Number.POSITIVE_INFINITY),
+      page: (direction, size) => {
+        move(direction * pageSteps(treeRef.current, size === "half"));
+      },
+      edge: (where) => {
+        const nodes = [
+          ...(treeRef.current?.querySelectorAll<HTMLElement>(
+            "[role='treeitem']",
+          ) ?? []),
+        ];
+        goIndex(viewportIndex(treeRef.current, nodes, where));
+      },
+      focus: () => {
+        treeRef.current?.focus({ preventScroll: true });
+      },
+      toIndex: (index) => goIndex(index),
       enter: () => {
         const row = rowAt(cursorRef.current);
         if (!row) return;
@@ -408,7 +434,10 @@ export function VaultTree({
           if (row.expanded) toggleDir(row);
           return;
         }
-        if (!row.child) return;
+        if (!row.child) {
+          focusRailListing();
+          return;
+        }
         const list = rowsRef.current;
         for (let at = list.findIndex((r) => r.key === row.key); at >= 0; at--) {
           const candidate = list[at];

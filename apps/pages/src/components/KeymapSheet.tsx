@@ -1,19 +1,7 @@
 import { useRef } from "react";
+import { KEYMAP_HELP } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
-
-const KEYMAP = [
-  ["j / k or arrows", "Move cursor"],
-  ["l / h", "Open or climb"],
-  ["gg / G", "First or last item"],
-  ["Enter", "Open item"],
-  ["/ / Esc", "Search or close"],
-  ["y / u", "Copy secret or username"],
-  ["e / x", "Edit or trash"],
-  ["n / .", "New or favorite"],
-  ["s", "Share once"],
-  ["g v/c/a/i/s", "Go to a section"],
-] as const;
 
 export function KeymapSheet({
   open,
@@ -57,7 +45,7 @@ export function KeymapSheet({
         <div className="sheet__body">
           <table className="keymap__table">
             <tbody>
-              {KEYMAP.map(([keys, action]) => (
+              {KEYMAP_HELP.map(([keys, action]) => (
                 <tr key={keys}>
                   <th scope="row">
                     <kbd>{keys}</kbd>
