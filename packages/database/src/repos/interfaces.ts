@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 import {
+  type AgentAccessTokenRecord,
+  type AgentClaimAttempt,
+  type AgentRegistration,
+  type AgentServiceAssertionRecord,
   type ApprovalActivation,
   type ApprovalReceipt,
   type AuditEvent,
@@ -56,6 +60,11 @@ export type NewOutboxEvent = Omit<
 
 export interface UnitOfWork {
   appendOutbox(event: NewOutboxEvent): Promise<OutboxEvent>;
+  /**
+   * Memory-backed stores queue the mutation until commit. Postgres applies
+   * inside the SQL transaction and does not implement this.
+   */
+  defer?(op: () => void): void;
 }
 
 export type TransactionFn<T> = (uow: UnitOfWork) => Promise<T>;
@@ -771,6 +780,62 @@ export interface CallbackReplayRepository {
   purgeExpired(now: Date): Promise<number>;
 }
 
+export interface AgentAuthRepository {
+  createRegistration(
+    registration: AgentRegistration,
+    uow?: UnitOfWork,
+  ): Promise<AgentRegistration>;
+  getRegistrationById(id: string): Promise<AgentRegistration | null>;
+  getRegistrationByClaimTokenDigest(
+    digest: Uint8Array,
+  ): Promise<AgentRegistration | null>;
+  compareAndSetRegistration(
+    expectedVersion: number,
+    next: AgentRegistration,
+    uow?: UnitOfWork,
+  ): Promise<AgentRegistration>;
+  expireDue(now: Date): Promise<number>;
+  createClaimAttempt(
+    attempt: AgentClaimAttempt,
+    uow?: UnitOfWork,
+  ): Promise<AgentClaimAttempt>;
+  getClaimAttemptById(id: string): Promise<AgentClaimAttempt | null>;
+  getClaimAttemptByTokenDigest(
+    digest: Uint8Array,
+  ): Promise<AgentClaimAttempt | null>;
+  latestClaimAttempt(registrationId: string): Promise<AgentClaimAttempt | null>;
+  updateClaimAttempt(
+    attempt: AgentClaimAttempt,
+    uow?: UnitOfWork,
+  ): Promise<AgentClaimAttempt>;
+  createAccessToken(
+    record: AgentAccessTokenRecord,
+    uow?: UnitOfWork,
+  ): Promise<AgentAccessTokenRecord>;
+  getAccessTokenByDigest(
+    digest: Uint8Array,
+  ): Promise<AgentAccessTokenRecord | null>;
+  revokeAccessToken(id: string, at: Date, uow?: UnitOfWork): Promise<void>;
+  revokeAccessTokensForRegistration(
+    registrationId: string,
+    at: Date,
+    onlyUnclaimed: boolean,
+    uow?: UnitOfWork,
+  ): Promise<number>;
+  createAssertion(
+    record: AgentServiceAssertionRecord,
+    uow?: UnitOfWork,
+  ): Promise<AgentServiceAssertionRecord>;
+  getAssertionByJti(jti: string): Promise<AgentServiceAssertionRecord | null>;
+  revokeAssertionsForRegistration(
+    registrationId: string,
+    at: Date,
+    belowVersion?: number,
+    uow?: UnitOfWork,
+  ): Promise<number>;
+  countLiveRegistrations(): Promise<number>;
+}
+
 export interface Repositories {
   principals: PrincipalRepository;
   authorizationRequests: AuthorizationRequestRepository;
@@ -793,6 +858,7 @@ export interface Repositories {
   approvalReceipts: ApprovalReceiptRepository;
   pushSubscriptions: PushSubscriptionRepository;
   callbackReplays: CallbackReplayRepository;
+  agentAuth: AgentAuthRepository;
   /**
    * Run work in a single transaction. Domain writes + outbox append must share this boundary.
    */

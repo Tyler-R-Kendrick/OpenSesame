@@ -45,6 +45,7 @@ import {
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
 import * as schema from "../schema/index.js";
+import { createPostgresAgentAuthRepository } from "./agent-auth-repo.js";
 import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
@@ -592,7 +593,13 @@ function dbOf(uow: UnitOfWork | undefined, root: Database): TxDb {
 }
 
 export class PostgresRepositories implements Repositories {
-  constructor(private readonly db: Database) {}
+  readonly agentAuth: ReturnType<typeof createPostgresAgentAuthRepository>;
+
+  constructor(private readonly db: Database) {
+    this.agentAuth = createPostgresAgentAuthRepository(this.db, (uow) =>
+      dbOf(uow, this.db),
+    );
+  }
 
   readonly principals: PrincipalRepository = {
     create: async (principal, uow) => {

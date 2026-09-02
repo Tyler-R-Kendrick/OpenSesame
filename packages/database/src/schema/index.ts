@@ -2232,3 +2232,141 @@ export const interactions = pgTable(
     ),
   ],
 );
+
+export const agentRegistrations = pgTable(
+  "agent_registrations",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").notNull(),
+    status: text("status").notNull(),
+    principalId: text("principal_id")
+      .notNull()
+      .references(() => principals.id, { onDelete: "restrict" }),
+    claimedByPrincipalId: text("claimed_by_principal_id").references(
+      () => principals.id,
+      { onDelete: "set null" },
+    ),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    claimedAt: timestamp("claimed_at", { withTimezone: true, mode: "date" }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    preClaimScopes: jsonb("pre_claim_scopes").$type<string[]>().notNull(),
+    postClaimScopes: jsonb("post_claim_scopes").$type<string[]>().notNull(),
+    resource: text("resource"),
+    audience: text("audience"),
+    claimEmailNormalized: text("claim_email_normalized"),
+    claimTokenDigest: bytea("claim_token_digest"),
+    assertionVersion: integer("assertion_version").notNull().default(1),
+    providerIssuer: text("provider_issuer"),
+    providerSubject: text("provider_subject"),
+    providerClientId: text("provider_client_id"),
+    version: integer("version").notNull().default(1),
+    ...timestamps,
+  },
+  (t) => [
+    check(
+      "agent_registrations_kind_check",
+      sql`${t.kind} in ('anonymous','service_auth','provider_assertion')`,
+    ),
+    check(
+      "agent_registrations_status_check",
+      sql`${t.status} in ('unclaimed','claim_pending','claimed','expired','revoked')`,
+    ),
+    uniqueIndex("agent_registrations_claim_token_digest_uidx").on(
+      t.claimTokenDigest,
+    ),
+    index("agent_registrations_status_expires_idx").on(t.status, t.expiresAt),
+    index("agent_registrations_principal_id_idx").on(t.principalId),
+  ],
+);
+
+export const agentClaimAttempts = pgTable(
+  "agent_claim_attempts",
+  {
+    id: text("id").primaryKey(),
+    registrationId: text("registration_id")
+      .notNull()
+      .references(() => agentRegistrations.id, { onDelete: "cascade" }),
+    attemptTokenDigest: bytea("attempt_token_digest").notNull(),
+    userCodeDigest: bytea("user_code_digest").notNull(),
+    emailNormalized: text("email_normalized"),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    intervalSeconds: integer("interval_seconds").notNull(),
+    slowdownUntil: timestamp("slowdown_until", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    pollCount: integer("poll_count").notNull().default(0),
+    failedAttempts: integer("failed_attempts").notNull().default(0),
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("agent_claim_attempts_token_digest_uidx").on(
+      t.attemptTokenDigest,
+    ),
+    index("agent_claim_attempts_registration_id_idx").on(t.registrationId),
+  ],
+);
+
+export const agentAccessTokens = pgTable(
+  "agent_access_tokens",
+  {
+    id: text("id").primaryKey(),
+    registrationId: text("registration_id")
+      .notNull()
+      .references(() => agentRegistrations.id, { onDelete: "cascade" }),
+    tokenDigest: bytea("token_digest").notNull(),
+    scopes: jsonb("scopes").$type<string[]>().notNull(),
+    claimed: boolean("claimed").notNull(),
+    assertionVersion: integer("assertion_version").notNull(),
+    resource: text("resource"),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("agent_access_tokens_token_digest_uidx").on(t.tokenDigest),
+    index("agent_access_tokens_registration_id_idx").on(t.registrationId),
+  ],
+);
+
+export const agentServiceAssertions = pgTable(
+  "agent_service_assertions",
+  {
+    jti: text("jti").primaryKey(),
+    registrationId: text("registration_id")
+      .notNull()
+      .references(() => agentRegistrations.id, { onDelete: "cascade" }),
+    assertionVersion: integer("assertion_version").notNull(),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("agent_service_assertions_registration_idx").on(
+      t.registrationId,
+      t.assertionVersion,
+    ),
+  ],
+);

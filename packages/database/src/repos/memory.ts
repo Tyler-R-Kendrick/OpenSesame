@@ -72,6 +72,7 @@ import {
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
+import { MemoryAgentAuthRepository } from "./agent-auth-repo.js";
 
 function normalizeTenant(tenant?: string): string {
   return tenant ?? "";
@@ -325,6 +326,7 @@ function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void) {
 
 export class MemoryRepositories implements Repositories {
   readonly #store = new MemoryStore();
+  readonly agentAuth = new MemoryAgentAuthRepository();
 
   readonly principals: PrincipalRepository = {
     create: async (principal, uow) => {
