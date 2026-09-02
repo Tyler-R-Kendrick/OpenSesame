@@ -150,8 +150,7 @@ export async function startServer(
       path.startsWith("/introspect/") ||
       path === "/revocation" ||
       path.startsWith("/revocation/") ||
-      path === "/.well-known/openid-configuration" ||
-      path === "/.well-known/oauth-authorization-server";
+      path === "/.well-known/openid-configuration";
     if (!isOidcPath) {
       honoListener(req, res);
       return;
@@ -186,6 +185,18 @@ export async function startServer(
 
         if (req.method === "POST") {
           const body = await readBody(req);
+          const grantType = new URLSearchParams(body.toString("utf8")).get(
+            "grant_type",
+          );
+          if (
+            grantType === "urn:ietf:params:oauth:grant-type:jwt-bearer" ||
+            grantType === "urn:workos:agent-auth:grant-type:claim"
+          ) {
+            const forwarded = replayRequest(req, body);
+            forwarded.url = "/oauth2/token";
+            honoListener(forwarded, res);
+            return;
+          }
           const clientId = new URLSearchParams(body.toString("utf8")).get(
             "client_id",
           );

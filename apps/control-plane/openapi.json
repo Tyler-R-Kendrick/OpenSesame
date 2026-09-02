@@ -1338,6 +1338,112 @@
         }
       }
     },
+    "/agent/identity": {
+      "post": {
+        "summary": "Register an agent identity (auth.md AgentAuth)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["type"],
+                    "properties": {
+                      "type": {
+                        "const": "anonymous"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["type", "login_hint"],
+                    "properties": {
+                      "type": {
+                        "const": "service_auth"
+                      },
+                      "login_hint": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registration created"
+          },
+          "400": {
+            "description": "Protocol error"
+          },
+          "429": {
+            "description": "Rate fence"
+          }
+        }
+      }
+    },
+    "/agent/identity/claim": {
+      "post": {
+        "summary": "Start or restart an AgentAuth claim ceremony",
+        "responses": {
+          "200": {
+            "description": "Claim attempt minted"
+          },
+          "400": {
+            "description": "Invalid claim token"
+          },
+          "410": {
+            "description": "Claim expired"
+          }
+        }
+      }
+    },
+    "/oauth2/token": {
+      "post": {
+        "summary": "JWT-bearer assertion exchange or AgentAuth claim poll (RFC 7523 / auth.md)",
+        "responses": {
+          "200": {
+            "description": "Token issued"
+          },
+          "400": {
+            "description": "OAuth error"
+          }
+        }
+      }
+    },
+    "/oauth2/revoke": {
+      "post": {
+        "summary": "RFC 7009 revocation for AgentAuth access tokens",
+        "responses": {
+          "200": {
+            "description": "Revoked or already unknown"
+          },
+          "400": {
+            "description": "Malformed body"
+          }
+        }
+      }
+    },
+    "/v1/agent-resources/demo": {
+      "get": {
+        "summary": "Sample AgentAuth protected resource",
+        "responses": {
+          "200": {
+            "description": "Authorized"
+          },
+          "401": {
+            "description": "Missing/invalid agent access token"
+          },
+          "403": {
+            "description": "Insufficient scope"
+          }
+        }
+      }
+    },
     "/v1/agents": {
       "post": {
         "summary": "Register provisional agent",

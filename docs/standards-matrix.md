@@ -37,7 +37,9 @@
 | CloudEvents | Final | Lifecycle events | `api/events` |
 | WASI Component Model / WIT | Final | Connector boundary | `wit/` |
 | MCP authorization (2026-07-28) | Ecosystem | Adapter over PRM | gateway MCP surface |
-| auth.md | Ecosystem | Generated from typed config | gateway |
+| auth.md | Ecosystem | Generated from typed config; AgentAuth adapter (ADR 0092) | `apps/control-plane`, `packages/agent-protocols` |
+| RFC 7523 JWT bearer | Final | AgentAuth service-assertion exchange | `apps/control-plane` `/oauth2/token` |
+| draft-ietf-oauth-identity-assertion-authz-grant-04 | IETF draft | Sealed behind feature flag; not advertised | `packages/agent-protocols` |
 | A2A Agent Card | Ecosystem | Namespaced metadata | gateway |
 | AT Protocol OAuth / DID | Ecosystem | Connector + identity adapter | connectors/atproto |
 | Nostr NIP-46/47/98 | Ecosystem | Signer connector | connectors/nostr-signer |

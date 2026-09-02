@@ -1,0 +1,13 @@
+{
+  "resource": "http://127.0.0.1:4103/",
+  "resource_name": "OpenSesame static AgentAuth example",
+  "authorization_servers": ["http://127.0.0.1:8788"],
+  "scopes_supported": [
+    "resource:read",
+    "resource:create:temporary",
+    "project:create:temporary",
+    "claim:create"
+  ],
+  "bearer_methods_supported": ["header"],
+  "resource_documentation": "http://127.0.0.1:4103/auth.md"
+}

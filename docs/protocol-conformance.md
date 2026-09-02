@@ -18,6 +18,12 @@ Mandatory local suite does **not** require cloud IdP credentials.
 | CIMD | Draft | oidc-provider (gated) | SSRF fetcher; **disabled by default** |
 | DCR | RFC 7591 | oidc-provider (gated) | **Disabled by default** |
 | auth.md / Agent Card | Product profile | agent-protocols | Generated from config |
+| auth.md AgentAuth (WorkOS v0.6.0, 2026-06-10) | Ecosystem profile | `@opensesame/agent-protocols` + control-plane `/agent/identity` | Anonymous + `service_auth` enabled; ID-JAG/SET disabled |
+| RFC 7523 JWT bearer (AgentAuth) | Final | control-plane `/oauth2/token` | Service assertions only (`os-sia+jwt`) |
+| RFC 7009 revocation (AgentAuth access tokens) | Final | control-plane `/oauth2/revoke` | Opaque `aat_` tokens; unknown tokens return 200 |
+| RFC 8414 AS metadata `agent_auth` | Final + profile extension | control-plane discovery | Advertises only enabled identity types |
+| RFC 9728 PRM | Final | control-plane + static examples | `WWW-Authenticate` on the demo resource |
+| ID-JAG draft-04 | IETF draft | typed seam only | **Disabled by default; not advertised** |
 | OID4VP holder | OpenID4VP 1.0 + HAIP 1.0 | Multipaz 0.100.0 (native) | Vault selection, consent, verified invocation |
 | OID4VCI wallet | OpenID4VCI 1.0 + HAIP 1.0 | Multipaz 0.100.0 (native) | Issuer policy, encrypted custody, verified invocation |
 | OID4VP **verifier** | OpenID4VP 1.0 (Final, 2025-07-09) + RFC 9901 + draft-ietf-oauth-sd-jwt-vc-18 | `jose` | `packages/openid4vp` — request construction, DCQL, transaction-data binding, SD-JWT VC verification |

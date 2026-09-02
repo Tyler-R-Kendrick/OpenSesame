@@ -43,6 +43,7 @@ import { projectRoutes } from "./routes/projects.js";
 import { createSamlRoutes } from "./routes/saml.js";
 import { createScimRoutes } from "./routes/scim.js";
 import { webhookRoutes } from "./routes/webhooks.js";
+import { agentAuthRoutes } from "./routes/agent-auth.js";
 
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();
@@ -168,6 +169,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // camera, a wallet pass and a pasted link all arrive here with nothing;
   // it answers with an InteractionSummary, which authorizes nothing.
   app.route("/i", createInteractionLinkRoutes());
+  app.route("/", agentAuthRoutes);
   app.route("/", discoveryRoutes);
 
   app.onError((err, c) => {

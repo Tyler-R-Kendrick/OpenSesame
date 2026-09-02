@@ -1537,6 +1537,33 @@
     }
   },
   {
+    "id": "identity.agent_auth.register",
+    "title": "Register an agent via auth.md AgentAuth",
+    "plane": "identity",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "AgentAuth is an OAuth HTTP profile agents speak directly with the Identity API; wrapping anonymous registration as a host MCP tool would mint principals inside another agent's session",
+        "adr": "0092-auth-md-agent-registration.md"
+      },
+      "mcp_client": {
+        "reason": "AgentAuth is an OAuth HTTP profile agents speak directly with the Identity API; a client MCP tool is not the protocol surface",
+        "adr": "0092-auth-md-agent-registration.md"
+      },
+      "webmcp": {
+        "reason": "AgentAuth is an OAuth HTTP profile agents speak directly with the Identity API; WebMCP must not mint anonymous registrations from a page session",
+        "adr": "0092-auth-md-agent-registration.md"
+      }
+    }
+  },
+  {
     "id": "identity.claims.poll",
     "title": "Poll a claim session",
     "plane": "identity",

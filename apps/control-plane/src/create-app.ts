@@ -201,6 +201,8 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   );
   const repos: ControlPlaneRepositories = {
     ...baseRepos,
+    // Class methods are on the prototype; object spread would drop them.
+    transaction: (fn) => baseRepos.transaction(fn),
     auditEvents: {
       append: (event) => chainedAudit.append(event),
       list: (filter) => baseRepos.auditEvents.list(filter),
