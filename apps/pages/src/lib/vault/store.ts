@@ -76,6 +76,7 @@ import {
   mergeVaultBodies,
 } from "./model.js";
 import { estimateStrength } from "./password.js";
+import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import {
   discardTombCaches,
   hydrateAndMigrateTombOnUnlock,
@@ -83,14 +84,24 @@ import {
 } from "./tomb-migration.js";
 import { totpSetupUri } from "./totp.js";
 import {
+  type CodeChannel,
+  RECOVERY_CODE_COUNT,
+  type RecoveryLedger,
   type VaultUnlocks,
   assertKeepsPrimaryUnlock,
   assertPinPolicy,
   createPasskeyUnlockCeremony,
   getPasskeyUnlockCeremony,
+  hasSecondStep,
+  normalizeRecoveryCode,
+  openRecoveryLedger,
+  openText,
   openTotpSecret,
   primaryUnlockCount,
+  randomRecoveryCodes,
   randomTotpSecret,
+  sealRecoveryLedger,
+  sealText,
   sealTotpSecret,
   totpCodeMatches,
   unwrapVaultKeyWithPin,
@@ -269,10 +280,11 @@ export type VaultState = {
   lockedOutUntil: number | null;
   failedAttempts: number;
   /**
-   * True after a primary unlock (password / PIN / passkey) when MFA is enrolled
-   * and the authenticator code has not been confirmed yet.
+   * True after a primary unlock (password / PIN / passkey) when a second step
+   * (authenticator, email or text code) is enrolled and none has been
+   * confirmed yet. The key is parked in memory until one is.
    */
-  awaitingTotp: boolean;
+  awaitingSecondStep: boolean;
   /**
    * False when this browser gives the app no persistent storage, so the vault
    * lives only until the tab closes. Worth saying out loud before someone
@@ -319,6 +331,10 @@ export class VaultStore {
   #pendingVaultKey: CryptoKey | null = null;
   /** A seed offered for enrollment; discarded unless a code confirms it. */
   #pendingTotpSecret: string | null = null;
+  /** A code the Identity API sent and has not yet been asked about. */
+  #pendingCode: SentCode | null = null;
+  /** The address a code enrollment is confirming, until its first code matches. */
+  #pendingCodeAddress: { channel: CodeChannel; to: string } | null = null;
   #body: VaultBody = emptyBody();
   #header: VaultHeader | null = null;
   #prefs: VaultPrefs = defaultPrefs;
@@ -554,7 +570,8 @@ export class VaultStore {
       prefs: this.#prefs,
       lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
       failedAttempts: attempts.fails,
-      awaitingTotp: this.#pendingVaultKey !== null && this.#vaultKey === null,
+      awaitingSecondStep:
+        this.#pendingVaultKey !== null && this.#vaultKey === null,
       durable: kvDurability() !== "memory",
     };
   }
@@ -816,9 +833,9 @@ export class VaultStore {
     this.#emit();
   }
 
-  /** After primary unwrap: either activate or wait for TOTP MFA. */
+  /** After primary unwrap: either activate or park the key for a second step. */
   async #afterPrimaryUnwrap(vaultKey: CryptoKey): Promise<void> {
-    if (this.#header?.unlocks?.totp) {
+    if (hasSecondStep(this.#header)) {
       this.#pendingVaultKey = vaultKey;
       this.#emit();
       return;
@@ -926,7 +943,92 @@ export class VaultStore {
 
   cancelTotpChallenge(): void {
     this.#pendingVaultKey = null;
+    this.#pendingCode = null;
     this.#emit();
+  }
+
+  /**
+   * Step 2 by email or text: open the sealed address with the key step 1
+   * produced and ask the Identity API to send a code there. Returns the
+   * masked destination for the screen to name.
+   */
+  async requestSecondStepCode(channel: CodeChannel): Promise<SentCode> {
+    this.#assertNotLockedOut();
+    const pending = this.#pendingVaultKey;
+    const record = this.#header?.unlocks?.[channel];
+    if (!pending || !record) {
+      throw new Error("Enter a primary unlock method first.");
+    }
+    const to = await openText(pending, record.toWrap);
+    const sent = await sendCode(channel, to);
+    this.#pendingCode = sent;
+    this.#emit();
+    return sent;
+  }
+
+  /** The code the Identity API sent, if one is outstanding at unlock. */
+  pendingSecondStepCode(): SentCode | null {
+    return this.#pendingCode;
+  }
+
+  /**
+   * Confirm a code the Identity API sent. The service says yes or no; a no
+   * counts toward the lockout exactly as a wrong authenticator code does.
+   */
+  async confirmRemoteCode(code: string): Promise<void> {
+    this.#assertNotLockedOut();
+    const pending = this.#pendingVaultKey;
+    const sent = this.#pendingCode;
+    if (!pending || !sent) {
+      throw new Error("Ask for a code first.");
+    }
+    try {
+      await verifyCode(sent.challengeId, code);
+    } catch (error) {
+      this.#recordFailedUnlock();
+      throw error;
+    }
+    this.#pendingCode = null;
+    await this.#activateSession(pending);
+  }
+
+  /**
+   * A recovery code stands in for the second step once. Its hash is looked
+   * up in the ledger sealed under the parked key, marked used, and the ledger
+   * is written back before the session opens — a code spent twice is a code
+   * someone copied.
+   */
+  async redeemRecoveryCode(code: string): Promise<void> {
+    this.#assertNotLockedOut();
+    const pending = this.#pendingVaultKey;
+    const header = this.#header;
+    const record = header?.unlocks?.recovery;
+    if (!pending || !header || !record) {
+      throw new WrongPasswordError("That recovery code is not valid.");
+    }
+    const ledger = await openRecoveryLedger(pending, record);
+    const typed = normalizeRecoveryCode(code);
+    const index = ledger.codes.findIndex(
+      (candidate, i) =>
+        typed.length > 0 &&
+        normalizeRecoveryCode(candidate) === typed &&
+        !ledger.used[i],
+    );
+    if (index < 0) {
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError("That recovery code is not valid.");
+    }
+    const used = ledger.used.map((flag, i) => flag || i === index);
+    const codesWrap = await sealRecoveryLedger(pending, {
+      codes: ledger.codes,
+      used,
+    });
+    await this.#persistHeader({
+      ...header,
+      unlocks: { ...header.unlocks, recovery: { ...record, codesWrap } },
+    });
+    this.#pendingCode = null;
+    await this.#activateSession(pending);
   }
 
   async #persistHeader(next: VaultHeader): Promise<void> {
@@ -1091,12 +1193,145 @@ export class VaultStore {
   }
 
   async removeTotp(): Promise<void> {
-    if (!this.#header?.unlocks?.totp) return;
-    const { totp: _removed, ...rest } = this.#header.unlocks;
+    await this.#removeSecondStep("totp");
+  }
+
+  /**
+   * Drop one second step. When it was the last, the recovery codes go with
+   * it: they stand in for a second step, and there is none left to stand in
+   * for.
+   */
+  async #removeSecondStep(step: "totp" | CodeChannel): Promise<void> {
+    const header = this.#header;
+    if (!header?.unlocks?.[step]) return;
+    const { [step]: _removed, ...rest } = header.unlocks;
+    const unlocks: VaultUnlocks = { ...rest };
+    if (
+      !hasSecondStep({ ...header, unlocks }) &&
+      unlocks.recovery !== undefined
+    ) {
+      const { recovery: _codes, ...withoutCodes } = unlocks;
+      await this.#persistHeader({
+        ...header,
+        unlocks: Object.keys(withoutCodes).length ? withoutCodes : undefined,
+      });
+      return;
+    }
     await this.#persistHeader({
-      ...this.#header,
-      unlocks: Object.keys(rest).length ? rest : undefined,
+      ...header,
+      unlocks: Object.keys(unlocks).length ? unlocks : undefined,
     });
+  }
+
+  /**
+   * Start enrolling a code by email or text: the Identity API sends the
+   * first code to the address; nothing is written until it matches. Same
+   * rule as the authenticator — a code can only guard a key.
+   */
+  async beginCodeEnrollment(
+    channel: CodeChannel,
+    to: string,
+  ): Promise<SentCode> {
+    const { header } = this.#requireUnlocked();
+    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
+      throw new Error(
+        "Seal this vault with a passkey, PIN or password before adding a code by email or text — a code can only guard a key.",
+      );
+    }
+    const sent = await sendCode(channel, to.trim());
+    this.#pendingCode = sent;
+    this.#pendingCodeAddress = { channel, to: to.trim() };
+    return sent;
+  }
+
+  /** Prove the first code arrived, then seal the address and turn it on. */
+  async confirmCodeEnrollment(code: string): Promise<void> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    const sent = this.#pendingCode;
+    const address = this.#pendingCodeAddress;
+    if (!sent || !address) {
+      throw new Error("Send a code first.");
+    }
+    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
+      this.cancelCodeEnrollment();
+      throw new Error(
+        "Seal this vault with a passkey, PIN or password before adding a code by email or text — a code can only guard a key.",
+      );
+    }
+    await verifyCode(sent.challengeId, code);
+    const toWrap = await sealText(vaultKey, address.to);
+    const unlocks: VaultUnlocks = {
+      ...header.unlocks,
+      [address.channel]: { toWrap, since: new Date().toISOString() },
+    };
+    await this.#persistHeader({ ...header, unlocks });
+    this.#pendingCode = null;
+    this.#pendingCodeAddress = null;
+  }
+
+  /** Abandon a code enrollment whose first code never matched. */
+  cancelCodeEnrollment(): void {
+    this.#pendingCode = null;
+    this.#pendingCodeAddress = null;
+  }
+
+  async removeCode(channel: CodeChannel): Promise<void> {
+    await this.#removeSecondStep(channel);
+  }
+
+  /** The masked address a code channel sends to; needs the vault open. */
+  async describeCodeChannel(channel: CodeChannel): Promise<string | null> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    const record = header.unlocks?.[channel];
+    if (!record) return null;
+    const to = await openText(vaultKey, record.toWrap);
+    if (channel === "email") {
+      const at = to.indexOf("@");
+      return `${to.slice(0, 1)}•••${to.slice(at)}`;
+    }
+    return `${to.slice(0, Math.max(2, to.length - 10))} ••• ••• ${to.slice(-4)}`;
+  }
+
+  /**
+   * Make (or remake) the recovery codes. Sealed under the vault key, so
+   * Settings can show the ones left while the vault is open; a new set
+   * replaces the old one whole.
+   */
+  async generateRecoveryCodes(): Promise<string[]> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    if (!hasSecondStep(header)) {
+      throw new Error(
+        "Recovery codes stand in for a second step. Add an authenticator, email or text code first.",
+      );
+    }
+    const codes = randomRecoveryCodes(RECOVERY_CODE_COUNT);
+    const ledger: RecoveryLedger = { codes, used: codes.map(() => false) };
+    const codesWrap = await sealRecoveryLedger(vaultKey, ledger);
+    await this.#persistHeader({
+      ...header,
+      unlocks: {
+        ...header.unlocks,
+        recovery: {
+          codesWrap,
+          total: codes.length,
+          since: new Date().toISOString(),
+        },
+      },
+    });
+    return codes;
+  }
+
+  /** The recovery codes and which are spent, or null when none were made. */
+  async recoveryCodes(): Promise<{
+    codes: string[];
+    used: boolean[];
+    since: string;
+  } | null> {
+    const { vaultKey, header } = this.#requireUnlocked();
+    const record = header.unlocks?.recovery;
+    if (!record) return null;
+    const ledger = await openRecoveryLedger(vaultKey, record);
+    return { codes: ledger.codes, used: ledger.used, since: record.since };
   }
 
   /** Run on every lock — used to wipe secrets that left the vault (clipboard). */
@@ -1110,6 +1345,8 @@ export class VaultStore {
     this.#zeroRaw();
     this.#pendingVaultKey = null;
     this.#pendingTotpSecret = null;
+    this.#pendingCode = null;
+    this.#pendingCodeAddress = null;
     this.#body = emptyBody();
     // A guest that ran beside a sealed vault did so in the isolated guest
     // tomb; locking it hands the screen back to the real vault.

@@ -22,7 +22,7 @@ type TestVaultState = {
   lockedOutUntil: number | null;
   failedAttempts: number;
   durable: boolean;
-  awaitingTotp: boolean;
+  awaitingSecondStep: boolean;
 };
 
 type TestHostCheck = {
@@ -57,7 +57,7 @@ const v = vi.hoisted((): TestHarness => {
     lockedOutUntil: null,
     failedAttempts: 0,
     durable: true,
-    awaitingTotp: false,
+    awaitingSecondStep: false,
   };
   const methods: UnlockMethodId[] = ["password"];
   const preferred: UnlockMethodId = "password";
@@ -263,7 +263,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
   }
 
@@ -358,7 +358,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
     render(<UnlockScreen />);
     expect(screen.getByRole("tab", { name: "Unlock" })).toBeTruthy();
@@ -372,7 +372,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
     render(<UnlockScreen />);
     expect(screen.getByText("127.0.0.1:18788")).toBeTruthy();
@@ -432,7 +432,7 @@ describe("UnlockScreen — first run", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
     v.methods = ["password"];
     v.preferred = "password";
@@ -1092,7 +1092,7 @@ describe("UnlockScreen — password unlock", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
     v.methods = ["password"];
     v.preferred = "password";
@@ -1405,7 +1405,7 @@ describe("UnlockScreen — PIN unlock", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
     v.methods = ["password", "pin"];
     v.preferred = "password";
@@ -1457,7 +1457,7 @@ describe("UnlockScreen — passkey unlock", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
     v.methods = ["passkey", "password"];
     v.preferred = "passkey";
@@ -1604,7 +1604,7 @@ describe("UnlockScreen — TOTP step-up", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: true,
+      awaitingSecondStep: true,
     };
     v.methods = ["password"];
     v.preferred = "password";
@@ -1642,9 +1642,7 @@ describe("UnlockScreen — TOTP step-up", () => {
 
   it("can bail back to the primary unlock methods", () => {
     render(<UnlockScreen />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Use a different unlock method" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Start over" }));
     expect(v.store.cancelTotpChallenge).toHaveBeenCalledTimes(1);
   });
 
@@ -1700,7 +1698,7 @@ describe("UnlockScreen — several vaults on this device", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
     switchVault.mockReset().mockResolvedValue("locked");
     Object.assign(vaultsSeams, {
@@ -1765,7 +1763,7 @@ describe("UnlockScreen — where the keyboard lands", () => {
       lockedOutUntil: null,
       failedAttempts: 0,
       durable: true,
-      awaitingTotp: false,
+      awaitingSecondStep: false,
     };
     v.methods = ["passkey", "pin", "password"];
     v.preferred = "passkey";
@@ -1788,7 +1786,7 @@ describe("UnlockScreen — where the keyboard lands", () => {
   });
 
   it("lands on the code mid-MFA", () => {
-    v.state.awaitingTotp = true;
+    v.state.awaitingSecondStep = true;
     render(<UnlockScreen />);
     expect(document.activeElement).toBe(
       screen.getByLabelText("Authenticator code"),

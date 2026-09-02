@@ -9,7 +9,7 @@
 // Two people, two roads, one rule — an authenticator code guards a key:
 //
 //   1. GUEST → MFA. Continue as guest (no key on disk). Settings → Security →
-//      Enroll MFA asks for the key first (step 1: a PIN, set right there),
+//      Add (authenticator) asks for the key first (step 1: a PIN, set in the same sheet),
 //      then scans and confirms a code (step 2). Lock. The unlock screen
 //      offers exactly the PIN tab and announces the code as step 2 before
 //      the PIN is typed. PIN → code (computed here from the seed shown on
@@ -156,13 +156,35 @@ async function snap(page, name) {
 
 const text = (page) => page.evaluate(() => document.body.innerText);
 
-/** The otpauth URI the panel shows once, and the seed inside it. */
+/**
+ * The seed, read the way a person without a camera reads it: the "Can't
+ * scan?" alternative expands the setup key in place, inside the same sheet.
+ */
 async function readSeed(page) {
-  const uri = await page.locator(".set__unlock-secret").first().textContent();
-  const secret = new URL(uri ?? "").searchParams.get("secret") ?? "";
-  check(uri?.startsWith("otpauth://totp/"), "an otpauth URI is shown once");
-  check(secret.length >= 16, "the URI carries a base32 seed");
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "Can't scan? Type the key instead" })
+    .click();
+  await page.waitForTimeout(300);
+  const spaced = await dialog
+    .getByLabel("Setup key", { exact: true })
+    .inputValue();
+  const secret = spaced.replace(/\s/g, "");
+  check(/^[A-Z2-7]{16,}$/.test(secret), "the setup key is a base32 seed");
+  check(
+    (await dialog
+      .getByRole("img", { name: "Scan to add vault MFA" })
+      .count()) === 1,
+    "the QR code is on screen beside it",
+  );
   return secret;
+}
+
+/** Enter a code in the sheet's Confirm step and press Turn on. */
+async function enterEnrollmentCode(page, code) {
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Six digits", { exact: true }).fill(code);
+  await dialog.getByRole("button", { name: "Turn on" }).click();
 }
 
 async function openSecurity(page) {
@@ -243,57 +265,81 @@ const browser = await chromium.launch(launch);
   check(/guest\s*@/.test(await text(page)), "guest landed inside the app");
   await openSecurity(page);
   const security = await snap(page, "1-guest-security");
-  check(/Authenticator MFA/.test(security), "MFA row present for a guest");
   check(
-    (await page.getByRole("button", { name: "Enroll MFA" }).count()) === 1,
-    "Enroll MFA is offered to a guest (not withheld)",
+    /Authenticator app/.test(security),
+    "authenticator row present for a guest",
   );
-  await page.getByRole("button", { name: "Enroll MFA" }).click();
+  check(
+    (await page.locator(".sw--method input").count()) === 0,
+    "no row holds an input — the list is read-only state",
+  );
+  const totpRow = page.locator(".sw--method", { hasText: "Authenticator app" });
+  check(
+    (await totpRow.getByRole("button", { name: "Add" }).count()) === 1,
+    "Add is offered to a guest (not withheld)",
+  );
+  await totpRow.getByRole("button", { name: "Add" }).click();
   await page.waitForTimeout(500);
+  const dialog = page.getByRole("dialog");
   const stepOne = await snap(page, "1-guest-step1-key");
-  check(/1 · Set a key/.test(stepOne), "step 1 asks for a key");
+  check(/1 · Key/.test(stepOne), "the rail starts at Key for a keyless vault");
   check(
-    (await page.locator(".set__unlock-secret").count()) === 0,
-    "no seed is shown before a key exists",
+    /3 · Confirm/.test(stepOne),
+    "three steps announced before any is taken",
   );
-  await page.getByLabel("PIN for this vault", { exact: true }).fill(PIN);
-  await page
-    .getByLabel("Confirm PIN for this vault", { exact: true })
-    .fill(PIN);
-  await page.getByRole("button", { name: "Use a PIN" }).click();
+  check(
+    (await dialog
+      .getByRole("img", { name: "Scan to add vault MFA" })
+      .count()) === 0,
+    "no QR code before a key exists",
+  );
+  // The passkey card is offered first (localhost can do WebAuthn); a PIN is
+  // the alternative, expanded in the same sheet.
+  await dialog.getByRole("button", { name: "Use a PIN instead" }).click();
+  await page.waitForTimeout(300);
+  await dialog.getByLabel("PIN", { exact: true }).fill(PIN);
+  await dialog.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
+  await dialog.getByRole("button", { name: "Set PIN" }).click();
   await page.waitForTimeout(3500);
   const stepTwo = await snap(page, "1-guest-step2-scan");
+  check(/2 · Scan/.test(stepTwo), "scan follows the key on its own");
   check(
-    /2 · Scan and confirm/.test(stepTwo),
-    "step 2 follows the key on its own",
+    (await dialog.locator(".steps__seg.is-now .steps__label").textContent()) ===
+      "2 · Scan",
+    "the rail marks Scan as the current step",
   );
   const secret = await readSeed(page);
-  await page.getByLabel("Authenticator code", { exact: true }).fill("000000");
-  await page.getByRole("button", { name: "Turn on" }).click();
+  await dialog.getByRole("button", { name: "I scanned it" }).click();
+  await page.waitForTimeout(300);
+  await enterEnrollmentCode(page, "000000");
   await page.waitForTimeout(800);
   const refused = await snap(page, "1-guest-wrong-enroll-code");
-  check(/did not match/i.test(refused), "a wrong enrollment code is refused");
+  check(/Did not match/.test(refused), "a wrong enrollment code is refused");
   check(
-    (await page.locator(".set__unlock-secret").count()) === 1,
-    "the seed stays on screen after a wrong code",
+    /3 · Confirm/.test(refused) && (await dialog.count()) === 1,
+    "still in the sheet, on Confirm, after a wrong code",
   );
-  await page
-    .getByLabel("Authenticator code", { exact: true })
-    .fill(totp(secret));
-  await page.getByRole("button", { name: "Turn on" }).click();
-  await page.waitForTimeout(1200);
+  await enterEnrollmentCode(page, totp(secret));
+  await page.waitForTimeout(1500);
   const on = await snap(page, "1-guest-mfa-on");
+  check(/Authenticator on/.test(on), "authenticator on after a matching code");
   check(
-    /Authenticator MFA is on/.test(on),
-    "MFA turned on after a matching code",
+    /Recovery codes · shown once/.test(on) &&
+      (await dialog.locator(".codes li").count()) === 10,
+    "ten recovery codes are handed over once",
+  );
+  await dialog.getByRole("button", { name: "I saved them" }).click();
+  await page.waitForTimeout(500);
+  const listed = await snap(page, "1-guest-security-after");
+  check((await page.getByRole("dialog").count()) === 0, "the sheet closed");
+  check(
+    (await totpRow.getByRole("button", { name: "Remove" }).count()) === 1 &&
+      (await totpRow.locator(".chip", { hasText: /^On$/ }).count()) === 1,
+    "the row reports the authenticator on, with Remove as its one action",
   );
   check(
-    /Required after every primary unlock/.test(on),
-    "row reports MFA enrolled",
-  );
-  check(
-    (await page.getByRole("button", { name: "Remove MFA" }).count()) === 1,
-    "MFA can be removed",
+    /7 of 10 left|10 of 10 left|Made/.test(listed),
+    "the Recovery row reports codes",
   );
 
   await lock(page);
@@ -359,22 +405,30 @@ const browser = await chromium.launch(launch);
   await page.waitForTimeout(5000);
   check(/@/.test(await text(page)), "sealed device landed inside the app");
   await openSecurity(page);
-  await page.getByRole("button", { name: "Enroll MFA" }).click();
+  await page
+    .locator(".sw--method", { hasText: "Authenticator app" })
+    .getByRole("button", { name: "Add" })
+    .click();
   await page.waitForTimeout(2500);
+  const dialog = page.getByRole("dialog");
   const scan = await snap(page, "2-password-scan");
   check(
-    (await page.locator(".steps__seg.is-now .steps__label").textContent()) ===
-      "2 · Scan and confirm",
-    "straight to scan and confirm — no key step for a vault that has one",
+    (await dialog.locator(".steps__seg.is-now .steps__label").textContent()) ===
+      "1 · Scan",
+    "straight to Scan — no key step for a vault that has one",
   );
-  check(/2 · Scan and confirm/.test(scan), "step 2 on screen");
+  check(
+    /2 · Confirm/.test(scan) && !/Key/.test(scan),
+    "two steps, no key step",
+  );
   const secret = await readSeed(page);
-  await page
-    .getByLabel("Authenticator code", { exact: true })
-    .fill(totp(secret));
-  await page.getByRole("button", { name: "Turn on" }).click();
-  await page.waitForTimeout(1200);
-  check(/Authenticator MFA is on/.test(await text(page)), "MFA on");
+  await dialog.getByRole("button", { name: "I scanned it" }).click();
+  await page.waitForTimeout(300);
+  await enterEnrollmentCode(page, totp(secret));
+  await page.waitForTimeout(1500);
+  check(/Authenticator on/.test(await text(page)), "authenticator on");
+  await dialog.getByRole("button", { name: "I saved them" }).click();
+  await page.waitForTimeout(500);
   await lock(page);
   const locked = await snap(page, "2-password-locked");
   check(

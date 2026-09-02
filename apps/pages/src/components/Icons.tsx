@@ -512,6 +512,23 @@ export function IconBroadcast(props: IconProps) {
 }
 
 /** A phone, for the Mobile MFA hand-off. */
+export function IconMail(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+      <path d="M4.5 7.5l7.5 5.5 7.5-5.5" />
+    </Svg>
+  );
+}
+
+export function IconMessage(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.5 5.5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8.2L7.5 19.8v-3.3h-3a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z" />
+    </Svg>
+  );
+}
+
 export function IconPhone(props: IconProps) {
   return (
     <Svg {...props}>

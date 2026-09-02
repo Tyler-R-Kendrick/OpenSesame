@@ -1,0 +1,55 @@
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px; position: relative">
+  <div class="sheet-layer">
+    <button type="button" class="scrim" aria-label="Close"></button>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="Recovery codes">
+      <div class="sheet__head">
+        <span class="sheet__mark">@icon(secret,20)</span>
+        <div class="sheet__grow">
+          <h2>Recovery codes</h2>
+          <p>Each stands in for the second step once.</p>
+        </div>
+        <button type="button" class="icon-btn" aria-label="Close">@icon(x,18)</button>
+      </div>
+      <div class="sheet__body">
+        <div class="found">
+          <p class="found__top">@icon(check,15) 7 of 10 left</p>
+          <p class="found__name">Made 30 Aug</p>
+          <ol class="codes" aria-label="Recovery codes">
+            <li class="is-used">ktr4-9wqm</li>
+            <li>p2xd-h7ne</li>
+            <li class="is-used">c8vq-2mls</li>
+            <li>y6bn-k3wr</li>
+            <li>f9jt-4pzc</li>
+            <li class="is-used">w3hs-n8dq</li>
+            <li>m5rk-7vtb</li>
+            <li>z1qp-6ghx</li>
+            <li>b4nw-3ykf</li>
+            <li>t7cm-5xjr</li>
+          </ol>
+          <div class="found__do">
+            <button type="button" class="btn">@icon(copy) Copy</button>
+            <button type="button" class="btn">@icon(download) Download</button>
+          </div>
+        </div>
+        <p class="or">or</p>
+        <div class="alt">
+          <div class="alt__item">
+            <button type="button" class="alt__btn">
+              <span class="alt__mark">@icon(refresh)</span>
+              <span class="alt__grow">Make a new set</span>
+              <span class="alt__chev">@icon(chevron)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="sheet__foot">
+        <p class="hint">Sealed under the vault key. A used code is crossed out here and refused at unlock. A new set replaces this one whole.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"}}'>
+class Component extends DCLogic {
+  renderVals() { return { theme: this.props.theme ?? 'light' }; }
+}
+</script>

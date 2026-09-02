@@ -37,6 +37,10 @@ import {
   createPostgresScimStores,
   createRepositories,
 } from "@opensesame/database";
+// INTEGRATOR (S11): the mailer seam is the whole of this swarm's footprint in
+// this file — one import, one context field below. Email delivery for the
+// magic-link method (D16) lives in services/mailer.ts.
+import type { ChannelAdapter } from "@opensesame/notification-adapters";
 import {
   MemoryClientRecordStore,
   createOpenSesameProvider,
@@ -54,14 +58,12 @@ import {
 } from "./config.js";
 import type { AppContext, ControlPlaneRepositories } from "./context.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
-// INTEGRATOR (S11): the mailer seam is the whole of this swarm's footprint in
-// this file — one import, one context field below. Email delivery for the
-// magic-link method (D16) lives in services/mailer.ts.
 import { createMailer } from "./services/mailer.js";
 import {
   type NotificationCallbackAdapters,
   createNotificationCallbackAdapters,
 } from "./services/notification-callbacks.js";
+import { createSmsBridge } from "./services/sms-bridge.js";
 import { createAppStores } from "./state.js";
 
 export interface CreateControlPlaneOptions {
@@ -108,6 +110,8 @@ export interface CreateControlPlaneOptions {
    * configured is nothing at all.
    */
   notificationCallbackAdapters?: NotificationCallbackAdapters;
+  /** The SMS bridge adapter; tests hand in a recording one. */
+  sms?: ChannelAdapter;
 }
 
 /**
@@ -368,6 +372,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     authentication,
     authenticationStores,
     mailer: createMailer(processEnv, config),
+    sms: options.sms ?? createSmsBridge(processEnv),
     notificationCallbackAdapters:
       options.notificationCallbackAdapters ??
       createNotificationCallbackAdapters(config.notifications),

@@ -1942,221 +1942,168 @@
 }
   </style>
 </helmet>
-<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px">
-  <div class="unlock">
-    <div class="unlock__card">
-      <div class="unlock__brand">
-        <p class="unlock__wordmark">
-          <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor"></rect>
-            <rect x="18.2" y="3.5" width="2.3" height="17" fill="#0d7268"></rect>
-          </svg>
-          opensesame
-        </p>
-        <h1>{{title}}</h1>
+<div class="os" data-theme="{{theme}}" style="width: 390px; height: 844px; position: relative">
+  <div class="sheet-layer">
+    <button type="button" class="scrim" aria-label="Close"></button>
+    <div class="sheet" role="dialog" aria-modal="true" aria-label="{{title}}">
+      <div class="sheet__head">
+        <span class="sheet__mark">
+          <sc-if value="{{isEmail}}" hint-placeholder-val="{{true}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4.5 7.5l7.5 5.5 7.5-5.5"/></svg></sc-if>
+          <sc-if value="{{isSms}}" hint-placeholder-val="{{false}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 5.5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8.2L7.5 19.8v-3.3h-3a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/></svg></sc-if>
+        </span>
+        <div class="sheet__grow">
+          <h2>{{title}}</h2>
+          <p>For a lost phone. Sent by the Identity API.</p>
+        </div>
+        <button type="button" class="icon-btn" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
       </div>
 
-      <!-- Who is signed in on this device. A fact about the device, not
-           about the vault, so it sits above both tabs and survives them. -->
-      <sc-if value="{{signedIn}}" hint-placeholder-val="{{true}}">
-        <div class="who">
-          <span class="who__mark" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-          </span>
-          <span class="who__body">
-            <span class="who__name">Google account</span>
-            <span class="who__sub">via shoo.dev · attached to this device</span>
-          </span>
-          <span class="who__acts">
-            <button type="button" class="unlock__switch" onClick="{{switchAccount}}">Switch</button>
-            <button type="button" class="unlock__switch" onClick="{{signOut}}">Sign out</button>
-          </span>
+      <div class="sheet__body">
+        <div class="steps" aria-label="Enrollment steps">
+          <div class="{{segWhere}}"><span class="steps__bar"></span><span class="steps__label">1 · Where</span></div>
+          <div class="{{segConfirm}}"><span class="steps__bar"></span><span class="steps__label">2 · Confirm</span></div>
         </div>
-      </sc-if>
 
-      <sc-if value="{{exitNote}}" hint-placeholder-val="{{false}}">
-        <div class="note note--ok">
-          <span>{{exitText}}</span>
-        </div>
-      </sc-if>
-
-      <sc-if value="{{isKey}}" hint-placeholder-val="{{true}}">
-        <div class="unlock__methods" aria-label="Unlock or sign in">
-          <span class="unlock__method unlock__method--active">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
-            Unlock
-          </span>
-          <span class="unlock__method">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"></circle><path d="M5.2 19.2c1.1-3.2 3.5-4.8 6.8-4.8s5.7 1.6 6.8 4.8"></path></svg>
-            Sign in
-          </span>
-        </div>
-      </sc-if>
-
-      <sc-if value="{{isOpen}}" hint-placeholder-val="{{false}}">
-        <div class="note note--ok">
-          <span>Unlocked. The vault key is in memory until you lock.</span>
-        </div>
-        <button type="button" class="unlock__switch" onClick="{{relock}}">Lock again</button>
-      </sc-if>
-
-      <sc-if value="{{isForm}}" hint-placeholder-val="{{true}}">
-        <div class="unlock__form">
-          <!-- Only when the vault enrolled an authenticator code: the second
-               step is a fact about this vault, said before the first step. -->
-          <sc-if value="{{mfa}}" hint-placeholder-val="{{true}}">
-            <div class="steps" aria-label="Unlock steps">
-              <div class="{{seg1}}">
-                <span class="steps__bar"></span>
-                <span class="steps__label">1 · Key</span>
-              </div>
-              <div class="{{seg2}}">
-                <span class="steps__bar"></span>
-                <span class="steps__label">2 · Authenticator code</span>
-              </div>
-            </div>
-          </sc-if>
-
-          <sc-if value="{{isKey}}" hint-placeholder-val="{{true}}">
-            <!-- Exactly the challenges this vault enrolled, never a tab for
-                 one it did not. The header on disk already says which. -->
-            <div class="unlock__methods" role="tablist" aria-label="Unlock method">
-              <sc-for list="{{methods}}" as="mm" hint-placeholder-count="2">
-                <button type="button" role="tab" class="{{mm.cls}}" onClick="{{mm.pick}}">
-                  <sc-if value="{{mm.isPasskey}}" hint-placeholder-val="{{true}}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg>
-                  </sc-if>
-                  <sc-if value="{{mm.isPin}}" hint-placeholder-val="{{false}}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10.5" rx="2.2"></rect><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"></path></svg>
-                  </sc-if>
-                  <sc-if value="{{mm.isPassword}}" hint-placeholder-val="{{false}}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"></path></svg>
-                  </sc-if>
-                  {{mm.label}}
-                </button>
-              </sc-for>
-            </div>
-
-            <sc-if value="{{isPasskey}}" hint-placeholder-val="{{true}}">
-              <p class="hint">Your passkey opens this vault. The browser asks for it when you press the square.</p>
-            </sc-if>
-
-            <sc-if value="{{isPin}}" hint-placeholder-val="{{false}}">
-              <div class="field">
-                <label for="unlock-pin">PIN</label>
-                <input id="unlock-pin" type="password" inputmode="numeric" autocomplete="one-time-code" value="{{pin}}" onChange="{{onPin}}" />
-              </div>
-            </sc-if>
-
-            <sc-if value="{{isPassword}}" hint-placeholder-val="{{false}}">
-              <div class="field">
-                <label for="master">Password</label>
-                <div class="unlock__reveal">
-                  <input id="master" type="password" autocomplete="current-password" value="{{pw}}" onChange="{{onPw}}" />
-                  <button type="button" class="icon-btn" aria-label="Show password">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"></path><circle cx="12" cy="12" r="2.6"></circle></svg>
-                  </button>
-                </div>
-              </div>
-              <p class="unlock__hint"><strong>Reminder:</strong> [the hint you saved when sealing]</p>
-            </sc-if>
-          </sc-if>
-
-          <sc-if value="{{isCode}}" hint-placeholder-val="{{false}}">
-            <div class="field">
-              <label for="unlock-totp">Authenticator code</label>
-              <input id="unlock-totp" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" value="{{code}}" onChange="{{onCode}}" />
-              <p class="hint">The key was right. This vault also asks for the code your authenticator app shows for OpenSesame.</p>
-            </div>
-            <button type="button" class="unlock__switch" style="justify-self: start" onClick="{{back}}">Use a different unlock method</button>
-          </sc-if>
-
-          <div class="go-row">
-            <button type="button" class="go" aria-label="{{verb}}" title="{{verb}}" disabled="{{goDisabled}}" onClick="{{go}}">
-              <sc-if value="{{goIsPasskey}}" hint-placeholder-val="{{true}}">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="12" r="4"></circle><path d="M12.5 12H21M18 12v3M15 12v2.2"></path></svg>
-              </sc-if>
-              <sc-if value="{{goIsArrow}}" hint-placeholder-val="{{false}}">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
-              </sc-if>
-            </button>
-            <span class="go-verb" aria-hidden="true">{{verb}}</span>
+        <sc-if value="{{isWhere}}" hint-placeholder-val="{{true}}">
+          <!-- The notice comes before the binding, as NIST 800-63B asks for a
+               restricted authenticator: said once, in two sentences. -->
+          <div class="note note--warn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.8v4.7M12 16h.01"/></svg>
+            <span>{{notice}}</span>
           </div>
-        </div>
-      </sc-if>
-
-      <div class="unlock__foot">
-        <sc-if value="{{isKey}}" hint-placeholder-val="{{true}}">
-          <button type="button" class="unlock__switch">Continue as guest</button>
-          <button type="button" class="unlock__switch">Forgotten how to unlock?</button>
+          <div class="found">
+            <p class="found__name">{{channelName}}</p>
+            <dl>
+              <dt>Sent by</dt><dd>id.example.dev, your Identity API</dd>
+              <dt>Asked</dt><dd>at unlock, when you pick {{tabName}} for step 2</dd>
+            </dl>
+            <div class="f">
+              <div class="f__labelrow"><label class="f__label" for="ac-to">{{fieldLabel}}</label></div>
+              <div class="f__shell">
+                <span class="f__lead" aria-hidden="true">
+                  <sc-if value="{{isEmail}}" hint-placeholder-val="{{true}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4.5 7.5l7.5 5.5 7.5-5.5"/></svg></sc-if>
+                  <sc-if value="{{isSms}}" hint-placeholder-val="{{false}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 5.5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8.2L7.5 19.8v-3.3h-3a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/></svg></sc-if>
+                </span>
+                <input id="ac-to" class="f__input f__input--mono" type="{{fieldType}}" autocomplete="{{fieldAuto}}" inputmode="{{fieldMode}}" value="{{to}}" onChange="{{onTo}}" />
+              </div>
+              <!-- A value we already know is offered, not asked for again. -->
+              <div class="f__fills">
+                <span class="f__fills-label">from your account</span>
+                <button type="button" class="fill" onClick="{{fillTo}}">{{known}}</button>
+              </div>
+            </div>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary" disabled="{{sendDisabled}}" aria-busy="{{sending}}" onClick="{{send}}">
+                <sc-if value="{{sending}}" hint-placeholder-val="{{false}}"><span class="spin" aria-hidden="true"></span> Sending</sc-if>
+                <sc-if value="{{idle}}" hint-placeholder-val="{{true}}">Send a code</sc-if>
+              </button>
+            </div>
+          </div>
         </sc-if>
-        <p class="unlock__deployment">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="1.5"></rect><path d="M8 9h8M8 13h5"></path></svg>
-          <span class="unlock__deployment-name">Shoo</span>
-          <button type="button" class="unlock__switch">Deployment setup</button>
-        </p>
+
+        <sc-if value="{{isConfirm}}" hint-placeholder-val="{{false}}">
+          <div class="found">
+            <p class="found__top"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg> Code sent</p>
+            <p class="found__name">{{to}}</p>
+            <dl>
+              <dt>Good for</dt><dd>10 minutes</dd>
+            </dl>
+            <div class="f">
+              <div class="f__labelrow">
+                <label class="f__label" for="ac-code">Code from the {{medium}}</label>
+                <sc-if value="{{codeBad}}" hint-placeholder-val="{{false}}"><span class="chip chip--err">Did not match</span></sc-if>
+              </div>
+              <div class="f__shell">
+                <span class="f__lead" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M7.5 9.5l2.6 2.5-2.6 2.5M12.8 15h4"/></svg></span>
+                <input id="ac-code" class="f__input f__input--mono" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="000 000" value="{{code}}" onChange="{{onCode}}" />
+              </div>
+            </div>
+            <sc-if value="{{codeBad}}" hint-placeholder-val="{{false}}">
+              <p class="hint">Use the newest code you were sent; an older one no longer counts. Five wrong codes spend it, and a new one is sent.</p>
+            </sc-if>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary" disabled="{{codeDisabled}}" onClick="{{turnOn}}">Turn on</button>
+            </div>
+          </div>
+          <p class="or">or</p>
+          <div class="alt">
+            <div class="alt__item">
+              <button type="button" class="alt__btn" disabled="{{cooling}}"><span class="alt__mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11.5a8 8 0 1 0-.7 4.5"/><path d="M20 5.5v5h-5"/></svg></span><span class="alt__grow">{{resendLabel}}</span><span class="alt__chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></button>
+            </div>
+            <div class="alt__item">
+              <button type="button" class="alt__btn" onClick="{{back}}"><span class="alt__mark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 19.5l.9-3.6L16.6 4.7a1.9 1.9 0 0 1 2.7 2.7L8.1 18.6z"/><path d="M14.8 6.5l2.7 2.7"/></svg></span><span class="alt__grow">{{changeLabel}}</span><span class="alt__chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></svg></span></button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isDone}}" hint-placeholder-val="{{false}}">
+          <div class="found">
+            <p class="found__top"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg> {{tabName}} code on</p>
+            <p class="found__name">{{to}}</p>
+            <dl>
+              <dt>Asked</dt><dd>at unlock, when you pick {{tabName}} for step 2</dd>
+              <dt>First choice</dt><dd>stays the authenticator</dd>
+            </dl>
+            <div class="found__do">
+              <button type="button" class="btn btn--primary">Done</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div class="sheet__foot">
+        <p class="hint">The Identity API sends the code. The vault key never leaves this device.</p>
       </div>
     </div>
   </div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"},"mfa":{"editor":"boolean","default":true,"section":"This vault"},"pinEnrolled":{"editor":"boolean","default":false,"section":"This vault"},"signedIn":{"editor":"boolean","default":true,"section":"This device"}}'>
+<script data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","section":"Look"},"channel":{"editor":"enum","options":["email","sms"],"default":"email","section":"Opened for"}}'>
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { step: 'key', method: 'passkey', pw: '', pin: '', code: '', signedOut: false, exit: '' };
+    this.state = { step: 'where', to: '', code: '', sending: false, codeBad: false, cooling: true };
   }
   renderVals() {
     const theme = this.props.theme ?? 'light';
-    const mfa = this.props.mfa ?? true;
-    const pinEnrolled = this.props.pinEnrolled ?? false;
-    const signedIn = (this.props.signedIn ?? true) && !this.state.signedOut;
-    const step = this.state.step;
-    const method = this.state.method;
-    const isKey = step === 'key';
-    const isCode = step === 'code';
-    const isOpen = step === 'open';
-    const list = [{ id: 'passkey', label: 'Passkey' }];
-    if (pinEnrolled) list.push({ id: 'pin', label: 'PIN' });
-    list.push({ id: 'password', label: 'Password' });
-    const methods = list.map((m) => ({
-      id: m.id,
-      label: m.label,
-      cls: m.id === method ? 'unlock__method unlock__method--active' : 'unlock__method',
-      isPasskey: m.id === 'passkey',
-      isPin: m.id === 'pin',
-      isPassword: m.id === 'password',
-      pick: () => this.setState({ method: m.id, pw: '', pin: '' }),
-    }));
-    const isPasskey = isKey && method === 'passkey';
-    const isPin = isKey && method === 'pin';
-    const isPassword = isKey && method === 'password';
-    const filled = isPasskey || (isPin && this.state.pin.length >= 4) || (isPassword && this.state.pw.length > 0);
-    const goDisabled = isCode ? this.state.code.replace(/\s/g, '').length < 6 : !filled;
-    const verb = isCode ? 'Confirm code' : isPasskey ? 'Unlock with passkey' : 'Unlock';
-    const title = isCode ? 'Confirm it is you' : isOpen ? 'Unlocked' : 'Unlock';
+    const email = (this.props.channel ?? 'email') === 'email';
+    const { step, to, code, sending } = this.state;
+    const known = email ? 'tyler@example.com' : '+1 415 555 0142';
+    const digits = code.replace(/\s/g, '');
     return {
-      theme, mfa, signedIn, title, methods, isKey, isCode, isOpen, isForm: !isOpen,
-      isPasskey, isPin, isPassword,
-      seg1: isKey ? 'steps__seg is-now' : 'steps__seg is-done',
-      seg2: isCode ? 'steps__seg is-now' : 'steps__seg',
-      pw: this.state.pw, pin: this.state.pin, code: this.state.code,
-      onPw: (e) => this.setState({ pw: e.target.value }),
-      onPin: (e) => this.setState({ pin: e.target.value }),
-      onCode: (e) => this.setState({ code: e.target.value }),
-      verb, goDisabled,
-      goIsPasskey: isPasskey,
-      goIsArrow: !isPasskey,
-      go: () => {
-        if (isKey) this.setState({ step: mfa ? 'code' : 'open', pw: '', pin: '' });
-        else if (isCode) this.setState({ step: 'open', code: '' });
+      theme, isEmail: email, isSms: !email,
+      title: email ? 'Email code' : 'Text message code',
+      segWhere: step === 'where' ? 'steps__seg is-now' : 'steps__seg is-done',
+      segConfirm: step === 'confirm' ? 'steps__seg is-now' : step === 'done' ? 'steps__seg is-done' : 'steps__seg',
+      isWhere: step === 'where', isConfirm: step === 'confirm', isDone: step === 'done',
+      notice: email
+        ? 'A code by email is a fallback, not a first second step: anyone who can read your inbox can read it. Keep an authenticator app or passkey enrolled too.'
+        : 'A code by text is a fallback, not a first second step: a number can be moved to another SIM without you. Keep an authenticator app or passkey enrolled too.',
+      channelName: email ? 'Email' : 'Text message',
+      tabName: email ? 'Email' : 'Text',
+      medium: email ? 'email' : 'text',
+      fieldLabel: email ? 'Email address' : 'Phone number',
+      fieldType: email ? 'email' : 'tel',
+      fieldAuto: email ? 'email' : 'tel',
+      fieldMode: email ? 'email' : 'tel',
+      known,
+      to, code, sending, idle: !sending,
+      onTo: (e) => this.setState({ to: e.target.value }),
+      fillTo: () => this.setState({ to: known }),
+      sendDisabled: sending || (email ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to) : to.replace(/\D/g, '').length < 10),
+      send: () => {
+        this.setState({ sending: true });
+        setTimeout(() => this.setState({ sending: false, step: 'confirm', code: '', cooling: true }), 900);
+        setTimeout(() => this.setState({ cooling: false }), 8000);
       },
-      back: () => this.setState({ step: 'key', code: '' }),
-      relock: () => this.setState({ step: 'key' }),
-      exitNote: this.state.exit.length > 0,
-      exitText: this.state.exit,
-      signOut: () => this.setState({ signedOut: true, exit: 'Signed out of this device. shoo.dev still remembers your Google account; to use another one, sign out at shoo.dev/me first.' }),
-      switchAccount: () => this.setState({ signedOut: true, exit: 'Signed out. The Sign in tab starts a fresh sign-in; a different provider asks which account, shoo.dev answers with the Google account it remembers.' }),
+      onCode: (e) => this.setState({ code: e.target.value, codeBad: false }),
+      codeDisabled: digits.length < 6,
+      codeBad: this.state.codeBad,
+      turnOn: () => (digits === '000000' ? this.setState({ codeBad: true }) : this.setState({ step: 'done' })),
+      back: () => this.setState({ step: 'where' }),
+      cooling: this.state.cooling,
+      resendLabel: this.state.cooling ? 'Send it again · wait a moment' : 'Send it again',
+      changeLabel: email ? 'Use a different address' : 'Use a different number',
     };
   }
 }

@@ -8,6 +8,7 @@ import type {
 } from "@opensesame/auth-upstream";
 import type { ClaimEngine } from "@opensesame/claims";
 import type { Repositories } from "@opensesame/database";
+import type { ChannelAdapter } from "@opensesame/notification-adapters";
 import type { OpenSesameProviderBundle } from "@opensesame/oauth-provider";
 import type { Logger } from "@opensesame/observability";
 import type { Clock } from "@opensesame/os-domain";
@@ -52,6 +53,13 @@ export interface AppContext {
    * `jsonTransport` under `allowDevDefaults`.
    */
   mailer: Mailer;
+  /**
+   * Outbound text messages, through the operator-run bridge the notification
+   * adapters already speak (ADR 0084): `OPENSESAME_SMS_BRIDGE_URL` +
+   * `OPENSESAME_SMS_BRIDGE_SECRET`. Unconfigured, it reports so and sends
+   * nothing; the only sender today is the one-time code second step.
+   */
+  sms: ChannelAdapter;
   /**
    * Provider-callback adapters, keyed by the path segment they answer on.
    *

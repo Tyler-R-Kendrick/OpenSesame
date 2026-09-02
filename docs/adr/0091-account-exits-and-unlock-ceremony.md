@@ -74,13 +74,14 @@ Every OIDC issuer, by contrast, must honour `prompt=login` (Core §3.1.2.1).
    guest session or a header with no primary method; `confirmTotpEnrollment`
    writes the gate only once a code from the app matches;
    `cancelTotpEnrollment` and `lock` discard the offered seed. In Settings,
-   "Enroll MFA" is never withheld: on a keyless vault (a guest, or a
-   federated first sign-in) it opens step 1 — *set a key*, with a PIN,
-   password or passkey form right there — and step 2, *scan and confirm*,
-   begins on its own the moment the key exists. A person who came for a
-   second factor is walked into the first, not sent to find it. The whole
-   road — guest → key → code → lock → key → code → open — is driven in a real
-   browser by `pnpm --filter @opensesame/pages verify:auth`.
+   the authenticator's *Add* is never withheld: on a keyless vault (a guest,
+   or a federated first sign-in) the sheet's rail gains a first segment —
+   *1 · Key* — drawn with the same card the PIN sheet uses (passkey first
+   where the host can do one, PIN as the alternative), and *Scan* begins on
+   its own the moment the key exists. A person who came for a second factor
+   is walked into the first, not sent to find it. The whole road — guest →
+   key → scan → confirm → codes → lock → key → code → open — is driven in a
+   real browser by `pnpm --filter @opensesame/pages verify:auth`.
 
 4. **Sign out is one operation** (`lib/session-exit.ts`): forget the upstream
    assertion, drop any link waiting on an unlock, revoke the Identity session,
@@ -109,8 +110,64 @@ Every OIDC issuer, by contrast, must honour `prompt=login` (Core §3.1.2.1).
    in…* and *Sign out*). Every exit lands on the same Sign in tab, which is the
    one surface offering every configured way in.
 
+8. **Settings › Security is a read-only list and one sheet.** Three panels —
+   *Unlock methods*, *Second step*, *Recovery* — each a list of the Settings
+   switch row (`.sw`, `sections/settings/UnlockMethodsPanel.tsx`): glyph,
+   name, state chip, one line, and exactly one action whose verb says what
+   the sheet will do — *Add*, *Change*, *Remove*, *View*. No row holds an
+   input. Every form lives in the one side sheet
+   (`sections/settings/security/MethodSheet.tsx`, the sheet `ConnectivityBar`
+   already opens) as a `CeremonyShell` card — what is being added, its facts,
+   the fields, the one action inside the card — with the other keys as
+   alternatives that expand the same card in place. Removing anything is
+   confirmed in that card, with what stops named as a fact, and the last key
+   cannot be removed; the alternatives beside the refusal offer the other
+   keys. The first draft drew a form under every row and a second PIN form
+   under the MFA row; the design record under `docs/design/auth-flow` is the
+   second draft, and the reference products it was read against (Bitwarden,
+   1Password, Google, GitHub, Microsoft, Apple) agree on the shape: the list
+   is state, the form is the ceremony, one at a time.
+
+9. **A code by email or text is the fallback second step, and says so.**
+   The Identity API sends it (`POST /v1/mfa/code/send`, six digits, ten
+   minutes, five attempts, hash-only server state) and answers yes or no
+   once (`POST /v1/mfa/code/verify`); email goes through the mailer, a text
+   through the operator-run SMS bridge of ADR 0084
+   (`OPENSESAME_SMS_BRIDGE_URL` / `_SECRET`), and an unconfigured sender
+   refuses with 503 rather than pretending. On the device the channel is an
+   `unlocks.email` / `unlocks.sms` record whose address is sealed under the
+   vault key (`toWrap`), so the plaintext header says a channel exists and
+   never where it goes; at unlock the key step 1 produced opens it and a
+   code is requested, and a refused code counts toward the lockout like a
+   wrong authenticator code. The rows are offered only where an Identity API
+   is configured and only beside a key; the sheet states NIST SP 800-63B's
+   notice — PSTN codes are *restricted*, email is not an out-of-band
+   authenticator — before the address is asked for, offers the account's
+   address as a fill rather than pre-filling it, and turns the channel on
+   only once its first code matches. The authenticator stays the first tab
+   at step 2. The gate's strength is the Identity session's, not the vault
+   key's, which is the whole reason it is labelled a fallback.
+
+10. **Recovery codes belong to the vault.** Ten one-time codes are made when
+    the first second step turns on and handed over in the same sheet, with
+    *I saved them* the last button in the row; they are sealed whole under
+    the vault key (`unlocks.recovery`) so the Recovery row can show which
+    are left, and a used one is struck through there and refused at unlock.
+    At step 2, *Use a recovery code* redeems one in place of any second step
+    (`redeemRecoveryCode`), marking it spent before the session opens. A
+    new set replaces the old whole; removing the last second step discards
+    them. No hash trick stands in for sealing: the header on disk must not
+    be an offline guessing target for an eight-character code, and the
+    envelope the authenticator seed already uses is the answer.
+
 ## Consequences
 
+- Capabilities `vault.second_step.code` and `vault.recovery_codes` are
+  registered on the PWA and excluded from every agent surface — the first as
+  an authentication ceremony, the second as a secret an agent must never read.
+  The control plane gains `ctx.sms` (`services/sms-bridge.ts`) beside
+  `ctx.mailer`, and the `mfaCodes` store; both are covered by
+  `__tests__/mfa-code.test.ts`.
 - Capabilities `identity.signout` and `identity.switch_account` are registered
   on the PWA (and the CLI's `opensesame-id logout` for the first), excluded
   from every agent surface as authentication ceremonies (ADR 0023). Tutorial

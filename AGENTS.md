@@ -160,11 +160,13 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # missing asset, or on-screen "No Identity API" copy.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:auth
-# Same harness, the authentication flow (ADR 0091): a guest enrolls MFA and is
-# walked through setting a PIN first, then a code computed from the seed on
-# screen; lock → only the PIN tab, code announced as step 2 → PIN → code →
-# open, again after a reload; and a password-sealed vault the same way.
-# Run before touching unlock methods, MFA enrollment or the unlock screen.
+# Same harness, the authentication flow (ADR 0091): a guest presses Add on the
+# authenticator row and is walked through a key first (the PIN card, in the
+# same sheet), then scan, then a code computed from the setup key on screen,
+# then the recovery codes; lock → only the PIN tab, code announced as step 2 →
+# PIN → code → open, again after a reload; and a password-sealed vault the
+# same way. Run before touching unlock methods, second steps or the unlock
+# screen.
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -307,10 +309,19 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   is one operation in `apps/pages/src/lib/session-exit.ts` (forget the
   assertion, revoke Identity, lock, note it for the Sign in tab); "switch
   account" is that plus `prompt=login` on the next OIDC leg, and never on
-  Shoo's dialect, which ignores it. An authenticator code may be enrolled only
-  once a primary method exists and only after a code from the app matches — a
-  guest can never write a gate with no key behind it, and a guest who asks for
-  MFA is asked for the key in the same row (step 1) before the scan (step 2)
+  Shoo's dialect, which ignores it. A second step (authenticator, email or
+  text code) may be enrolled only once a primary method exists and only after
+  a code from it matches — a guest can never write a gate with no key behind
+  it, and a guest who asks for one is walked through the key first, in the
+  same sheet. Settings › Security is a read-only list — one row per method,
+  one action, never an input — and one sheet
+  (`apps/pages/src/sections/settings/security/`) built from `CeremonyShell`
+  and `FieldShell`; do not draw a form under a row, and do not draw a second
+  PIN or password form anywhere. Email and text codes are fallbacks the
+  Identity API sends (`/v1/mfa/code/send|verify`), offered only where one is
+  configured, with NIST 800-63B's notice before the address is asked for;
+  recovery codes are the vault's, sealed whole under its key, and stand in
+  for any second step once each
   ([ADR 0091](docs/adr/0091-account-exits-and-unlock-ceremony.md)).
 - A device holds several vaults (the personal tomb, one per project, the
   guest tomb), and there is exactly one list of them: `listDeviceVaults()` in

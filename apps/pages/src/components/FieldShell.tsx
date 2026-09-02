@@ -27,6 +27,7 @@ export function FieldShell({
   type = "text",
   placeholder,
   autoComplete,
+  inputMode,
   lead,
   tail,
   status,
@@ -45,6 +46,8 @@ export function FieldShell({
   type?: "text" | "url" | "password" | "email";
   placeholder?: string;
   autoComplete?: string;
+  /** A numeric or telephone keyboard on a phone, for codes and numbers. */
+  inputMode?: "numeric" | "tel" | "email";
   lead?: ReactNode;
   tail?: ReactNode;
   /** Rendered beside the label — a `.chip` saying Saved, Reachable, Not set. */
@@ -83,6 +86,7 @@ export function FieldShell({
           value={value}
           placeholder={placeholder}
           autoComplete={autoComplete}
+          inputMode={inputMode}
           disabled={disabled}
           readOnly={readOnly}
           aria-describedby={hintId}

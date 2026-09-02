@@ -23,6 +23,19 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const style = readFileSync(join(here, "_style.css"), "utf8").trimEnd();
 
+// `@icon(name, size)` in a part becomes the app's own glyph — the paths in
+// `icons.json` are lifted from `apps/pages/src/components/Icons.tsx` — so an
+// artboard never draws an icon the product does not have, and never draws the
+// same lock four slightly different ways.
+const icons = JSON.parse(readFileSync(join(here, "icons.json"), "utf8"));
+function withIcons(markup) {
+  return markup.replace(/@icon\((\w+)(?:,\s*(\d+))?\)/g, (_, name, size = "16") => {
+    const body = icons[name];
+    if (!body) throw new Error(`icons.json has no "${name}"`);
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+  });
+}
+
 const parts = readdirSync(join(here, "parts"))
   .filter((name) => name.endsWith(".html"))
   .sort();
@@ -47,7 +60,7 @@ for (const part of parts) {
 ${style}
   </style>
 </helmet>
-${markup.trim()}
+${withIcons(markup.trim())}
 </x-dc>${logic}
 </body>
 </html>

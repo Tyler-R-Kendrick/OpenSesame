@@ -1,21 +1,30 @@
 {
   "pages": [
-    { "id": "page-1", "name": "Screens" },
+    { "id": "page-1", "name": "Security settings" },
+    { "id": "page-3", "name": "Unlock and account" },
     { "id": "page-2", "name": "Flow" }
   ],
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Unlock, on a phone", "is_interactive": true },
-    { "file": "SignIn.dc.html", "x": 480, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "The Sign in tab, signed in" },
-    { "file": "AccountMenu.dc.html", "x": 960, "y": 0, "w": 460, "h": 640, "page": "page-1", "title": "Inside: the who@ menu" },
-    { "file": "EnrollMfa.dc.html", "x": 1510, "y": 0, "w": 390, "h": 1300, "page": "page-1", "title": "Settings: enrolling MFA" },
+    { "file": "Security.dc.html", "x": 0, "y": 0, "w": 390, "h": 960, "page": "page-1", "title": "Settings › Security: the list is state", "is_interactive": true },
+    { "file": "AddKey.dc.html", "x": 480, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Add a key: one sheet, three keys", "is_interactive": true },
+    { "file": "AddAuthenticator.dc.html", "x": 960, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Add an authenticator: key → scan → confirm", "is_interactive": true },
+    { "file": "AddCode.dc.html", "x": 1440, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Add an email or text code", "is_interactive": true },
+    { "file": "Recovery.dc.html", "x": 1920, "y": 0, "w": 390, "h": 844, "page": "page-1", "title": "Recovery codes" },
+    { "file": "Desktop.dc.html", "x": 0, "y": 1080, "w": 1180, "h": 760, "page": "page-1", "title": "Desktop: the sheet beside the list" },
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 844, "page": "page-3", "title": "Unlock, on a phone", "is_interactive": true },
+    { "file": "UnlockSecond.dc.html", "x": 480, "y": 0, "w": 390, "h": 844, "page": "page-3", "title": "Step 2: the second steps this vault enrolled", "is_interactive": true },
+    { "file": "SignIn.dc.html", "x": 960, "y": 0, "w": 390, "h": 844, "page": "page-3", "title": "The Sign in tab, signed in" },
+    { "file": "AccountMenu.dc.html", "x": 1440, "y": 0, "w": 460, "h": 640, "page": "page-3", "title": "Inside: the who@ menu" },
     { "file": "Flow.dc.html", "x": 0, "y": 0, "w": 1180, "h": 920, "page": "page-2", "title": "Two ledgers, one screen" },
     { "file": "Today.dc.html", "x": 0, "y": 1060, "w": 840, "h": 900, "page": "page-2", "title": "Unlock: today vs after" }
   ],
   "annotations": [
-    { "id": "start-here", "x": 0, "y": -200, "w": 470, "page": "page-1", "text": "Start here — this artboard is live.\n\nA vault with a passkey and a password enrolled, an authenticator code on top, and a Google account signed in through shoo.dev. Press the square to take step 1, then step 2. Toggle MFA off to see the rail disappear; toggle PIN on to see a third tab appear — tabs are exactly what the vault enrolled. Sign out to read what the device can and cannot end." },
-    { "id": "menu-note", "x": 960, "y": -200, "w": 470, "page": "page-1", "text": "The account menu gains its exits.\n\nThe who@ segment already switched org profiles. It now names the identity at the top and carries the three roads the shell never had: attach another account, switch to a different one, or sign out — which ends the Identity session, forgets the shoo assertion and locks." },
-    { "id": "mfa-note", "x": 1510, "y": -200, "w": 380, "page": "page-1", "text": "Enrolling MFA asks for a code first.\n\nToday the gate is written the moment Enroll is pressed, before anyone proved the scan worked — and a guest could enroll it with no key at all, sealing a vault nothing can open. Now a keyless vault gets step 1 — set the key, right there — and the scan begins on its own once it exists; the seed is written only once a code matches." },
-    { "id": "flow-note", "x": 0, "y": -200, "w": 520, "page": "page-2", "text": "The whole flow on one page.\n\nTwo ledgers: who (the account) and key (the vault). Each has its own exit. The unlock screen states both, and neither is ever allowed to stand in for the other. The bottom row is what changes for enrollment, and what the screen says about a vault that already got it wrong." }
+    { "id": "list-note", "x": 0, "y": -230, "w": 470, "page": "page-1", "text": "Start here — this artboard is live.\n\nThe list is read-only state: one row per method, the same row the Settings page already uses for its switches, with a state chip and exactly one action. No row holds an input. Add and Manage open the one sheet to the right. Toggle Keyed off to see a guest vault: every second step says it needs a key first, and Add walks through both. Toggle Identity off: email and text codes say what they need instead of pretending." },
+    { "id": "sheet-note", "x": 480, "y": -230, "w": 470, "page": "page-1", "text": "One ceremony, every method.\n\nThe side sheet the Connectivity bar already opens, the card CeremonyShell already draws — what is being added, its facts, the fields, the one action inside the card — and the other keys as alternatives under the rule. Picking an alternative swaps the card; it never opens a second form. Try it: type a PIN, then switch to a password." },
+    { "id": "totp-note", "x": 960, "y": -230, "w": 470, "page": "page-1", "text": "Verify before commit, then recovery codes.\n\nKey (only when the vault has none), scan, confirm. The seed is written only once a live code matches — type 000 000 to see the refusal — and the recovery codes are shown once, right there, the step every reference product makes mandatory." },
+    { "id": "code-note", "x": 1440, "y": -230, "w": 470, "page": "page-1", "text": "Email and text are fallbacks, and say so.\n\nNIST 800-63B calls PSTN codes restricted and rules email out for out-of-band; the products that keep them put them last with a notice. The address is offered from the account (a FieldShell fill), the Identity API sends the code, and the vault key never leaves the device." },
+    { "id": "unlock-note", "x": 0, "y": -200, "w": 470, "page": "page-3", "text": "Unlock states who and which key.\n\nThe account row above both tabs, tabs for exactly the enrolled keys, and the second step announced before the first is taken. Step 2 (next artboard) offers exactly the second steps this vault enrolled, in the same tab vocabulary, with a recovery code as the way out." },
+    { "id": "flow-note", "x": 0, "y": -200, "w": 520, "page": "page-2", "text": "The whole flow on one page.\n\nTwo ledgers: who (the account) and key (the vault). Each has its own exit. The unlock screen states both, and neither is ever allowed to stand in for the other." }
   ],
   "launch": { "view": "canvas", "page": "page-1" }
 }

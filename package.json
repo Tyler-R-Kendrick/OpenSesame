@@ -11,7 +11,7 @@
     "dev": "turbo run dev --parallel --filter=@opensesame/control-plane --filter=@opensesame/console --filter=@opensesame/ceremonies --filter=@opensesame/worker --filter=@opensesame/mock-upstream-idp --filter=@opensesame/example-rp-alpha --filter=@opensesame/example-rp-beta --filter=@opensesame/example-static-rp",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "biome check --changed --since=origin/main --no-errors-on-unmatched .",
+    "lint": "node scripts/lint-changed.mjs",
     "lint:all": "biome check . && pnpm lint:anti-slop",
     "lint:design": "node scripts/design-lint.mjs",
     "lint:anti-slop": "pnpm lint:anti-slop:files .",
