@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>OpenSesame static AgentAuth example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <main>
+      <h1>Static AgentAuth resource</h1>
+      <p>
+        This origin is static files only. OpenSesame Identity is the
+        authorization server. No client secret is present.
+      </p>
+      <p>
+        Discovery:
+        <a href="./auth.md">/auth.md</a>
+        ·
+        <a href="./.well-known/oauth-protected-resource">PRM</a>
+      </p>
+      <label>
+        Identity API
+        <input id="issuer" value="http://127.0.0.1:8788" />
+      </label>
+      <button id="register" type="button">Register anonymously</button>
+      <pre id="out"></pre>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

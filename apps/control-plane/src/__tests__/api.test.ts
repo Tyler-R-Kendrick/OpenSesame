@@ -348,7 +348,7 @@ describe("control-plane API", () => {
     });
     const authMd = await app.request("/auth.md");
     expect(authMd.status).toBe(200);
-    expect(await authMd.text()).toContain("OpenSesame Auth");
+    expect(await authMd.text()).toContain("# auth.md");
 
     const card = await app.request("/.well-known/agent-card.json");
     expect(card.status).toBe(200);
@@ -1972,7 +1972,7 @@ describe("control-plane API", () => {
     try {
       const res = await fetch(`http://127.0.0.1:${port}/auth.md`);
       expect(res.status).toBe(200);
-      expect(await res.text()).toContain("OpenSesame Auth");
+      expect(await res.text()).toContain("# auth.md");
     } finally {
       await new Promise<void>((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));

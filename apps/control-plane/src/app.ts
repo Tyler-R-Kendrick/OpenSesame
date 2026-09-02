@@ -6,6 +6,7 @@ import type { AppContext } from "./context.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";
 import { apiSecurityHeaders } from "./middleware/security-headers.js";
+import { agentAuthRoutes } from "./routes/agent-auth.js";
 import { agentRoutes } from "./routes/agents.js";
 import { appClaimRoutes } from "./routes/app-claims.js";
 import { auditRoutes } from "./routes/audit.js";
@@ -168,6 +169,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   // camera, a wallet pass and a pasted link all arrive here with nothing;
   // it answers with an InteractionSummary, which authorizes nothing.
   app.route("/i", createInteractionLinkRoutes());
+  app.route("/", agentAuthRoutes);
   app.route("/", discoveryRoutes);
 
   app.onError((err, c) => {

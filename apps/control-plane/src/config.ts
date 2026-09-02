@@ -136,6 +136,27 @@ export interface ControlPlaneConfig {
     tokenStatusList: boolean;
     presentationAgentIntents: boolean;
   };
+  /**
+   * auth.md AgentAuth profile (ADR 0092). Provider ID-JAG and SET events stay
+   * off until their trust path is complete; discovery must not advertise them.
+   */
+  agentAuth: {
+    enabled: boolean;
+    anonymousEnabled: boolean;
+    serviceAuthEnabled: boolean;
+    providerAssertionEnabled: boolean;
+    eventsEnabled: boolean;
+    registrationTtlMs: number;
+    claimAttemptTtlMs: number;
+    assertionTtlMs: number;
+    accessTokenTtlMs: number;
+    pollIntervalSeconds: number;
+    maxUserCodeAttempts: number;
+    maxLiveAnonymous: number;
+    preClaimScopes: string[];
+    postClaimScopes: string[];
+    resourceScopes: string[];
+  };
 }
 
 const DEV_CLAIM_PEPPER = "dev-claim-pepper-change-me";
@@ -351,6 +372,53 @@ export function loadConfig(
       presentationAgentIntents: truthy(
         env.OPENSESAME_PRESENTATION_AGENT_INTENTS_ENABLED,
       ),
+    },
+    agentAuth: {
+      enabled: truthyDefaultOn(env.OPENSESAME_AGENT_AUTH_ENABLED),
+      anonymousEnabled: truthyDefaultOn(
+        env.OPENSESAME_AGENT_AUTH_ANONYMOUS_ENABLED,
+      ),
+      serviceAuthEnabled: truthyDefaultOn(
+        env.OPENSESAME_AGENT_AUTH_SERVICE_AUTH_ENABLED,
+      ),
+      providerAssertionEnabled: truthy(
+        env.OPENSESAME_AGENT_AUTH_PROVIDER_ASSERTION_ENABLED,
+      ),
+      eventsEnabled: truthy(env.OPENSESAME_AGENT_AUTH_EVENTS_ENABLED),
+      registrationTtlMs: Number(
+        env.OPENSESAME_AGENT_AUTH_REGISTRATION_TTL_MS ?? String(86_400_000),
+      ),
+      claimAttemptTtlMs: Number(
+        env.OPENSESAME_AGENT_AUTH_CLAIM_ATTEMPT_TTL_MS ?? String(600_000),
+      ),
+      assertionTtlMs: Number(
+        env.OPENSESAME_AGENT_AUTH_ASSERTION_TTL_MS ?? String(3_600_000),
+      ),
+      accessTokenTtlMs: Number(
+        env.OPENSESAME_AGENT_AUTH_ACCESS_TOKEN_TTL_MS ?? String(3_600_000),
+      ),
+      pollIntervalSeconds: Number(
+        env.OPENSESAME_AGENT_AUTH_POLL_INTERVAL_SECONDS ?? "5",
+      ),
+      maxUserCodeAttempts: Number(
+        env.OPENSESAME_AGENT_AUTH_MAX_USER_CODE_ATTEMPTS ?? "5",
+      ),
+      maxLiveAnonymous: Number(
+        env.OPENSESAME_AGENT_AUTH_MAX_LIVE_ANONYMOUS ?? "1024",
+      ),
+      preClaimScopes: ["resource:read", "resource:create:temporary"],
+      postClaimScopes: [
+        "resource:read",
+        "resource:create:temporary",
+        "project:create:temporary",
+        "claim:create",
+      ],
+      resourceScopes: [
+        "resource:read",
+        "resource:create:temporary",
+        "project:create:temporary",
+        "claim:create",
+      ],
     },
   };
   if (env.DATABASE_URL) {

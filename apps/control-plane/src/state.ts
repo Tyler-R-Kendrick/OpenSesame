@@ -138,6 +138,8 @@ export interface AppStores {
   idempotencyLocks: Map<string, Promise<void>>;
   /** client fingerprint → provisional mint timestamps */
   provisionalMints: Map<string, number[]>;
+  /** client fingerprint → AgentAuth anonymous/service_auth mint timestamps */
+  agentAuthMints: Map<string, number[]>;
   /** unauthenticated MFA fingerprint → attempt timestamps */
   mfaAnon: Map<string, number[]>;
   /** authentication-service public ceremony fingerprint → request timestamps */
@@ -197,6 +199,7 @@ export function createAppStores(options?: {
     principalMutations: new Map(),
     idempotencyLocks: new Map(),
     provisionalMints: new Map(),
+    agentAuthMints: new Map(),
     mfaAnon: new Map(),
     authenticationAnon: new Map(),
     notificationCallbacks: new Map(),

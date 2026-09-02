@@ -8,6 +8,7 @@ packages:
   - "apps/example-rp-alpha"
   - "apps/example-rp-beta"
   - "apps/example-static-rp"
+  - "apps/example-static-agent"
   - "apps/example-headless"
   - "apps/example-agent"
   - "apps/mock-upstream-idp"
