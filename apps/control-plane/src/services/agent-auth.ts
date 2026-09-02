@@ -41,8 +41,6 @@ import {
   revokeAgentRegistration,
 } from "@opensesame/os-domain";
 import {
-  DEFAULT_POST_CLAIM_SCOPES,
-  DEFAULT_PRE_CLAIM_SCOPES,
   evaluateAgentAuthScopes,
   intersectAgentAuthScopes,
   scopesForRegistrationState,
@@ -193,6 +191,27 @@ async function mintAccessToken(
   if (registration.resource) record.resource = registration.resource;
   await ctx.repos.agentAuth.createAccessToken(record);
   return { token: generated.token, expiresAt, record };
+}
+
+async function expireAndLoadRegistration(
+  ctx: AppContext,
+  id: string,
+): Promise<AgentRegistration | null> {
+  const now = ctx.clock();
+  await ctx.repos.agentAuth.expireDue(now);
+  const registration = await ctx.repos.agentAuth.getRegistrationById(id);
+  if (!registration) return null;
+  if (registration.status === "revoked" || registration.status === "expired") {
+    return null;
+  }
+  if (
+    (registration.status === "unclaimed" ||
+      registration.status === "claim_pending") &&
+    now >= registration.expiresAt
+  ) {
+    return null;
+  }
+  return registration;
 }
 
 async function loadPrincipal(ctx: AppContext, id: string): Promise<Principal> {
@@ -497,12 +516,17 @@ export async function initClaim(
   if (!digest) {
     throw agentAuthError("invalid_claim_token", 400);
   }
-  const registration =
+  const found =
     await ctx.repos.agentAuth.getRegistrationByClaimTokenDigest(digest);
-  if (!registration) {
+  if (!found) {
     throw agentAuthError("invalid_claim_token", 400);
   }
   const now = ctx.clock();
+  await ctx.repos.agentAuth.expireDue(now);
+  const registration = await ctx.repos.agentAuth.getRegistrationById(found.id);
+  if (!registration) {
+    throw agentAuthError("invalid_claim_token", 400);
+  }
   if (now >= registration.expiresAt || registration.status === "expired") {
     throw agentAuthError("claim_expired", 410);
   }
@@ -679,17 +703,12 @@ export async function exchangeJwtBearer(
   if (!recorded || recorded.revokedAt) {
     throw agentAuthError("invalid_grant", 400, "assertion revoked");
   }
-  const registration = await ctx.repos.agentAuth.getRegistrationById(
-    claims.sub,
-  );
-  if (!registration || registration.status === "revoked") {
+  const registration = await expireAndLoadRegistration(ctx, claims.sub);
+  if (!registration) {
     throw agentAuthError("invalid_grant", 400, "registration invalid");
   }
   if (registration.assertionVersion !== claims.os_av) {
     throw agentAuthError("invalid_grant", 400, "assertion superseded");
-  }
-  if (registration.status === "expired") {
-    throw agentAuthError("invalid_grant", 400, "registration expired");
   }
   const claimed = registration.status === "claimed";
   if (claims.os_claimed !== claimed) {
@@ -729,8 +748,12 @@ export async function pollClaimGrant(
   if (!digest) {
     throw agentAuthError("expired_token", 400, "invalid claim token");
   }
-  const registration =
+  const found =
     await ctx.repos.agentAuth.getRegistrationByClaimTokenDigest(digest);
+  if (!found) {
+    throw agentAuthError("expired_token", 400);
+  }
+  const registration = await expireAndLoadRegistration(ctx, found.id);
   if (!registration) {
     throw agentAuthError("expired_token", 400);
   }
@@ -872,10 +895,11 @@ export async function resolveAgentAccessToken(
   if (!record || record.revokedAt || record.expiresAt <= ctx.clock()) {
     return null;
   }
-  const registration = await ctx.repos.agentAuth.getRegistrationById(
+  const registration = await expireAndLoadRegistration(
+    ctx,
     record.registrationId,
   );
-  if (!registration || registration.status === "revoked") return null;
+  if (!registration) return null;
   return {
     registration,
     scopes: record.scopes,

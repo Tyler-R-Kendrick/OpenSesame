@@ -1,6 +1,6 @@
+import { PROVIDER_ID_JAG_TYP } from "@opensesame/agent-protocols";
 import { overlapCast } from "@opensesame/os-domain";
 import { generateClaimToken } from "@opensesame/os-domain";
-import { PROVIDER_ID_JAG_TYP } from "@opensesame/agent-protocols";
 import { SignJWT, generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
@@ -344,5 +344,34 @@ describe("AgentAuth registration", () => {
       await hono.request("/.well-known/oauth-protected-resource"),
     );
     expect(prm.authorization_servers).toEqual(["http://127.0.0.1:8788"]);
+  });
+
+  it("refuses jwt-bearer exchange after the registration TTL", async () => {
+    let now = new Date("2026-09-02T12:00:00.000Z");
+    const hono = createControlPlane({
+      config: {
+        port: 0,
+        publicUrl: "http://127.0.0.1:8788",
+        issuer: "http://127.0.0.1:8788",
+      },
+      clock: () => now,
+    }).app;
+    const registered = await json(
+      await hono.request("/agent/identity", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "anonymous" }),
+      }),
+    );
+    now = new Date(now.getTime() + 86_400_001);
+    const stale = await hono.request("/oauth2/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+        assertion: String(registered.identity_assertion),
+      }),
+    });
+    expect(stale.status).toBe(400);
   });
 });

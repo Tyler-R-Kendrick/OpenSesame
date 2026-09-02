@@ -6,6 +6,7 @@ import type { AppContext } from "./context.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";
 import { apiSecurityHeaders } from "./middleware/security-headers.js";
+import { agentAuthRoutes } from "./routes/agent-auth.js";
 import { agentRoutes } from "./routes/agents.js";
 import { appClaimRoutes } from "./routes/app-claims.js";
 import { auditRoutes } from "./routes/audit.js";
@@ -43,7 +44,6 @@ import { projectRoutes } from "./routes/projects.js";
 import { createSamlRoutes } from "./routes/saml.js";
 import { createScimRoutes } from "./routes/scim.js";
 import { webhookRoutes } from "./routes/webhooks.js";
-import { agentAuthRoutes } from "./routes/agent-auth.js";
 
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();

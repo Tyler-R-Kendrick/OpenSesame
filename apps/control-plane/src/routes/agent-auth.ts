@@ -12,12 +12,6 @@ import { overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { Variables } from "../middleware/context.js";
 import {
-  AGENT_AUTH_CLAIM_CSP,
-  renderAgentAuthClaimPage,
-  renderAgentAuthLoginPage,
-  safeAgentAuthReturnTo,
-} from "../ui/agent-auth-pages.js";
-import {
   completeClaim,
   exchangeJwtBearer,
   initClaim,
@@ -28,6 +22,12 @@ import {
   revokeAccessToken,
   revokeRegistration,
 } from "../services/agent-auth.js";
+import {
+  AGENT_AUTH_CLAIM_CSP,
+  renderAgentAuthClaimPage,
+  renderAgentAuthLoginPage,
+  safeAgentAuthReturnTo,
+} from "../ui/agent-auth-pages.js";
 
 export const agentAuthRoutes = new Hono<{ Variables: Variables }>();
 

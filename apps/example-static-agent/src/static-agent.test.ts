@@ -21,9 +21,12 @@ describe("static AgentAuth example", () => {
     const files = walk(root);
     expect(files.some((f) => f.endsWith("auth.md"))).toBe(true);
     for (const file of files) {
-      if (!/\.(html|md|json)$/u.test(file) && !file.endsWith("main.ts")) continue;
+      if (!/\.(html|md|json)$/u.test(file) && !file.endsWith("main.ts"))
+        continue;
       const text = readFileSync(file, "utf8");
-      expect(text).not.toMatch(/sk_live|BEGIN PRIVATE KEY|client_secret\s*[:=]/u);
+      expect(text).not.toMatch(
+        /sk_live|BEGIN PRIVATE KEY|client_secret\s*[:=]/u,
+      );
     }
   });
 
