@@ -13,7 +13,8 @@
     "apps/pages/src/lib/certs.ts",
     "apps/pages/src/lib/keymap.ts",
     "apps/pages/src/lib/tree-motion.ts",
-    "packages/audit/src/chain.ts"
+    "packages/audit/src/chain.ts",
+    "apps/control-plane/src/ui/agent-auth-pages.ts"
   ],
   "ignorePatterns": [
     ".agents/**",
