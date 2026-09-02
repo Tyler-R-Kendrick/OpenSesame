@@ -28,6 +28,8 @@ export const SUPPORT_POLICY_CLAUSES: readonly string[] = [
   "Prefer a short adaptive trajectory that ends at an observation boundary over a long fixed tour. Stop at the first point where you would have to guess what the person did, and replan from what the application then reports.",
   "A consequential action — creating, rotating, revoking, deleting, approving, paying, sharing — is explained and guided to. You never perform it for the person, and you never guide them past the confirmation that describes it.",
   "When the page context does not contain what an answer would need, say exactly that and say what is missing. Do not guess, and do not fill the gap with plausible detail.",
+  "The written help in the page context is the only account of how this interface works. Every step, control, tab, button or screen you describe must come from a written help entry or from a target description listed below. If no entry covers the question, say that nothing written covers it — do not describe a screen or a control from memory, because it does not exist.",
+  "End every answer with one final line of the form `sources: <id>, <id>` naming the written help entries you drew on, or `sources: none` when you drew on none. This line is checked against the context; an answer that names steps but cites nothing is shown to the person as unverified.",
 ];
 
 function policySection(): readonly string[] {
@@ -150,6 +152,30 @@ function vocabularySection(context: SupportPageContext): readonly string[] {
   for (const goal of context.goals) {
     lines.push(`- ${goal.id} — ${goal.title}`);
   }
+
+  lines.push("", "### Written help");
+  if (context.help.length === 0) {
+    lines.push(
+      "(nothing written applies to this question — say so, and cite `sources: none`)",
+    );
+  }
+  for (const entry of context.help) {
+    lines.push(`- ${entry.id} — ${entry.title}`, `  ${entry.answer}`);
+  }
+
+  lines.push("", "### Tools this page implements (WebMCP)");
+  lines.push(
+    "These are what the application can do for a browser agent. You cannot call them and must not tell the person to; they only tell you what exists.",
+  );
+  if (context.tools.length === 0) {
+    lines.push("(none registered on this page right now)");
+  }
+  for (const tool of context.tools) {
+    const exposure = tool.exposed
+      ? "exposed to this browser's agent"
+      : "not exposed in this browser";
+    lines.push(`- ${tool.name} (${exposure}) — ${tool.description}`);
+  }
   return lines;
 }
 
@@ -170,6 +196,7 @@ export function buildSupportInstructions(context: SupportPageContext): string {
     "",
     "## Answer format",
     "",
-    "Answer in plain prose first, briefly. Then, only if a guided walkthrough helps and the context contains the identifiers it needs, add one fenced `guide` block. Emitting no program is always an acceptable answer.",
+    "Answer in plain prose first, briefly, drawing on the written help. Plain text only: no Markdown, no headings, no bold, no bullet syntax. Then, only if a guided walkthrough helps and the context contains the identifiers it needs, add one fenced `guide` block. Emitting no program is always an acceptable answer.",
+    "The last line of the answer is always the `sources:` line.",
   ].join("\n");
 }

@@ -254,4 +254,60 @@ describe("AppShell", () => {
     fireEvent.keyDown(row, { key: "a" });
     expect(screen.queryByText("all")).toBeNull();
   });
+
+  it("moves the rail cursor with arrows and j/k", () => {
+    const { container } = renderShell("/vault");
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    tree.focus();
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(
+      filterLink(container, "/vault?f=favorites", "favorites").className,
+    ).toContain("is-active");
+    fireEvent.keyDown(tree, { key: "j" });
+    expect(
+      filterLink(container, "/vault?f=login", "logins").className,
+    ).toContain("is-active");
+    fireEvent.keyDown(tree, { key: "ArrowUp" });
+    expect(
+      filterLink(container, "/vault?f=favorites", "favorites").className,
+    ).toContain("is-active");
+  });
+
+  it("walks off the open vault directory onto the next section", () => {
+    const { container } = renderShell("/vault/health");
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    tree.focus();
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(tree.querySelector('a[href="/connections"]')?.className).toContain(
+      "is-active",
+    );
+    expect(container.querySelector(".railtree__kids")).toBeNull();
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(tree.querySelector('a[href="/access"]')?.className).toContain(
+      "is-active",
+    );
+  });
+
+  it("arrows move the rail when the vault tree is not focused", () => {
+    const { container } = renderShell("/vault");
+    fireEvent.keyDown(window, { key: "ArrowDown", bubbles: true });
+    expect(
+      filterLink(container, "/vault?f=favorites", "favorites").className,
+    ).toContain("is-active");
+  });
+
+  it("repeats a rail motion by a vim count", () => {
+    const { container } = renderShell("/vault");
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    tree.focus();
+    fireEvent.keyDown(tree, { key: "3" });
+    fireEvent.keyDown(tree, { key: "j" });
+    expect(
+      filterLink(container, "/vault?f=passkey", "passkeys").className,
+    ).toContain("is-active");
+    fireEvent.keyDown(tree, { key: "0" });
+    expect(filterLink(container, "/vault", "all").className).toContain(
+      "is-active",
+    );
+  });
 });

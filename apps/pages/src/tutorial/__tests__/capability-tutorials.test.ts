@@ -77,6 +77,8 @@ describe("tutorial generation for every PWA capability", () => {
             },
           ],
           goals: [{ id: goal.id, title: goal.title }],
+          help: [],
+          tools: [],
         }),
       });
 

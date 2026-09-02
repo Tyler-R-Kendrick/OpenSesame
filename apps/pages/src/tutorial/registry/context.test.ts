@@ -1,6 +1,11 @@
 /** @vitest-environment jsdom */
 import { SUPPORT_LIMITS } from "@opensesame/support-agent";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  noteWebMcpFailure,
+  noteWebMcpRegistered,
+  resetWebMcpRegistrationForTests,
+} from "../../webmcp/registration.js";
 import { buildSupportPageContext } from "./context.js";
 import { GUIDE_PREDICATES } from "./predicates.js";
 import { GUIDE_ROUTES, guideRouteWithin } from "./routes.js";
@@ -115,5 +120,81 @@ describe("an authored list that outgrows its model budget", () => {
     expect(() =>
       buildSupportPageContext({ ...BASE, route: "/vault" }),
     ).not.toThrow();
+  });
+});
+
+describe("the written help a model is shown", () => {
+  it("is retrieved for the question, best match first, with its prose", () => {
+    const context = buildSupportPageContext({
+      ...BASE,
+      route: "/identity",
+      question: "how do I add a user?",
+    });
+    expect(context.help[0]?.id).toBe("help.identity.account.add");
+    expect(context.help[0]?.answer).toContain("Register an IdP");
+    expect(context.help[0]?.goal).toBe("identity.account.add");
+    expect(context.help.length).toBeLessThanOrEqual(
+      SUPPORT_LIMITS.maxHelpEntries,
+    );
+  });
+
+  it("is empty without a question, and says nothing about a blank one", () => {
+    expect(buildSupportPageContext({ ...BASE, route: "/vault" }).help).toEqual(
+      [],
+    );
+    expect(
+      buildSupportPageContext({ ...BASE, route: "/vault", question: "  " })
+        .help,
+    ).toEqual([]);
+  });
+});
+
+describe("the tools a model is told this page implements", () => {
+  afterEach(resetWebMcpRegistrationForTests);
+
+  it("come from the registration store, with whether the browser exposes them", () => {
+    expect(buildSupportPageContext({ ...BASE, route: "/vault" }).tools).toEqual(
+      [],
+    );
+    noteWebMcpRegistered("document", "boot", [
+      {
+        name: "opensesame_status",
+        description: "Vault status.",
+        scope: "boot",
+      },
+      {
+        name: "opensesame_health",
+        description: "Plane health.",
+        scope: "boot",
+      },
+    ]);
+    noteWebMcpFailure({ name: "opensesame_health", reason: "refused" });
+    expect(buildSupportPageContext({ ...BASE, route: "/vault" }).tools).toEqual(
+      [
+        {
+          name: "opensesame_status",
+          description: "Vault status.",
+          exposed: true,
+        },
+        {
+          name: "opensesame_health",
+          description: "Plane health.",
+          exposed: false,
+        },
+      ],
+    );
+  });
+
+  it("report a browser without a model context as implemented but unexposed", () => {
+    noteWebMcpRegistered(null, "boot", [
+      {
+        name: "opensesame_status",
+        description: "Vault status.",
+        scope: "boot",
+      },
+    ]);
+    expect(
+      buildSupportPageContext({ ...BASE, route: "/vault" }).tools[0]?.exposed,
+    ).toBe(false);
   });
 });

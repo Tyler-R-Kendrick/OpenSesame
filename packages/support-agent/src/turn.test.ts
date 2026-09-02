@@ -304,6 +304,82 @@ describe("runSupportTurn", () => {
     );
   });
 
+  it("reads the sources line and strips it from the answer", async () => {
+    const agent = fakeAgentReplanning([
+      {
+        answer: [
+          "Open Connections, then Add a connection.",
+          "",
+          "sources: help.connection.create",
+        ].join("\n"),
+      },
+    ]);
+    const outcome = await runSupportTurn(agent, request(), VOCABULARY, {
+      signal: new AbortController().signal,
+    });
+    expect(outcome.answer).toBe("Open Connections, then Add a connection.");
+    expect(outcome.grounding).toEqual({
+      kind: "cited",
+      help: [fakeSupportPageContext().help[0]],
+    });
+  });
+
+  it("keeps the sources line ahead of a guide block", async () => {
+    const agent = fakeAgentReplanning([
+      {
+        answer: [
+          "Open Connections.",
+          "Sources: `help.connection.create`, help.lock",
+          "",
+          fenced(VALID_GUIDE),
+        ].join("\n"),
+      },
+    ]);
+    const outcome = await runSupportTurn(agent, request(), VOCABULARY, {
+      signal: new AbortController().signal,
+    });
+    expect(outcome.answer).toBe("Open Connections.");
+    expect(outcome.program).not.toBeNull();
+    expect(outcome.grounding.kind).toBe("cited");
+    if (outcome.grounding.kind !== "cited") return;
+    expect(outcome.grounding.help.map((entry) => entry.id)).toEqual([
+      "help.connection.create",
+      "help.lock",
+    ]);
+  });
+
+  it("treats a citation the context never offered as no citation", async () => {
+    const agent = fakeAgentReplanning([
+      { answer: "Go to Identity.schema.\nsources: help.identity.schema" },
+    ]);
+    const outcome = await runSupportTurn(agent, request(), VOCABULARY, {
+      signal: new AbortController().signal,
+    });
+    expect(outcome.answer).toBe("Go to Identity.schema.");
+    expect(outcome.grounding).toEqual({ kind: "uncited" });
+  });
+
+  it("distinguishes an honest none from a missing line", async () => {
+    const honest = await runSupportTurn(
+      fakeAgentReplanning([
+        { answer: "Nothing written covers that.\nsources: none" },
+      ]),
+      request(),
+      VOCABULARY,
+      { signal: new AbortController().signal },
+    );
+    expect(honest.grounding).toEqual({ kind: "none" });
+    expect(honest.answer).toBe("Nothing written covers that.");
+    const silent = await runSupportTurn(
+      fakeAgentReplanning([{ answer: "Click the Add button." }]),
+      request(),
+      VOCABULARY,
+      { signal: new AbortController().signal },
+    );
+    expect(silent.grounding).toEqual({ kind: "uncited" });
+    expect(silent.answer).toBe("Click the Add button.");
+  });
+
   it("refuses to send a request that fails the egress boundary", async () => {
     const agent = fakeAgentReplanning([{ answer: "unused" }]);
     const hostile: SupportRequest = {
@@ -318,6 +394,8 @@ describe("runSupportTurn", () => {
         state: [],
         capabilities: [],
         goals: [],
+        help: [],
+        tools: [],
       },
     };
     const outcome = await runSupportTurn(agent, hostile, VOCABULARY, {

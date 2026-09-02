@@ -150,7 +150,13 @@ function keymap() {
 
 function press(handler: (event: KeyboardEvent) => void, key: string) {
   act(() => {
-    handler(new KeyboardEvent("keydown", { key, cancelable: true }));
+    handler(
+      new KeyboardEvent("keydown", {
+        key,
+        cancelable: true,
+        shiftKey: key.length === 1 && key !== key.toLowerCase(),
+      }),
+    );
   });
 }
 
@@ -242,6 +248,31 @@ describe("VaultSection", () => {
     press(handler, "g");
     press(handler, "g");
     expect(cursorRow().textContent).toBe("Scratch pad.note");
+  });
+
+  it("repeats j by a vim count", () => {
+    vault.current = {
+      items: [
+        makeNote({ id: "a", name: "A note" }),
+        makeLogin({ id: "b", name: "B mail" }),
+        makeNote({ id: "c", name: "C pad" }),
+        makeLogin({ id: "d", name: "D web" }),
+        makeNote({ id: "e", name: "E scratch" }),
+      ],
+      folders: [],
+      header: null,
+    };
+    renderSection();
+    const handler = keymap();
+    expect(cursorRow().textContent).toBe("A note.note");
+    press(handler, "3");
+    press(handler, "j");
+    expect(cursorRow().textContent).toBe("D web.login");
+    press(handler, "G");
+    expect(cursorRow().textContent).toBe("E scratch.note");
+    press(handler, "1");
+    press(handler, "G");
+    expect(cursorRow().textContent).toBe("A note.note");
   });
 
   it("shows a timer with the expiry on hover for items with temporality", () => {

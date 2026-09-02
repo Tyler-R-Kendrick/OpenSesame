@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -17,7 +18,13 @@ import {
   settingsCategoryFromLocation,
   settingsPath,
 } from "../lib/crumbs.js";
-import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
+import {
+  createKeymapHandler,
+  focusVaultListing,
+  registerKeymapHelp,
+  registerRailKeymap,
+} from "../lib/keymap.js";
+import { pageSteps, viewportIndex } from "../lib/tree-motion.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -92,6 +99,10 @@ const KIND_SEGMENTS: Array<{ id: ItemKind; segment: string }> = [
   { id: "certificate", segment: "certs" },
 ];
 
+function railRowId(to: string, child = false): string {
+  return `rail-${child ? "c" : "s"}-${to.replace(/[^\w]+/g, "-")}`;
+}
+
 function TreeRow({
   to,
   isActive,
@@ -100,6 +111,9 @@ function TreeRow({
   label,
   end,
   navRef,
+  move = true,
+  selected = false,
+  expanded,
 }: {
   to: string;
   isActive?: boolean;
@@ -109,14 +123,27 @@ function TreeRow({
   end?: boolean;
   /** Set only on rows the tutorial registry names, so a guide can point here. */
   navRef?: (element: HTMLAnchorElement | null) => void;
+  /** Closed directories and every leaf are in the arrow-key walk; an open
+   *  directory is not — its children are. */
+  move?: boolean;
+  selected?: boolean;
+  expanded?: boolean;
 }) {
   const fixed = isActive !== undefined;
   return (
     <NavLink
       ref={navRef}
+      id={railRowId(to, child)}
       to={to}
       end={end}
+      role="treeitem"
+      tabIndex={-1}
       aria-label={label}
+      aria-level={child ? 2 : 1}
+      aria-selected={selected}
+      aria-expanded={expanded}
+      data-rail-move={move ? "" : undefined}
+      data-rail-to={to}
       className={
         fixed
           ? `railtree__row${child ? " railtree__row--child" : ""}${isActive ? " is-active" : ""}`
@@ -140,14 +167,24 @@ function SectionRow({
   section,
   open,
   count,
+  branch = false,
 }: {
   section: (typeof SECTIONS)[number];
   open: boolean;
   count?: number;
+  /** True when this directory is open and its children are the walk. */
+  branch?: boolean;
 }) {
   const ref = useGuideTarget<HTMLAnchorElement>(section.guide);
   return (
-    <TreeRow to={section.to} label={section.label} navRef={ref}>
+    <TreeRow
+      to={section.to}
+      label={section.label}
+      navRef={ref}
+      move={!branch}
+      selected={!branch && open}
+      expanded={open}
+    >
       <IconChevronRight
         size={12}
         className={`railtree__caret${open ? " is-open" : ""}`}
@@ -196,8 +233,13 @@ function TabRow({ section }: { section: (typeof SECTIONS)[number] }) {
  */
 function NavTree() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const { items, folders } = useVault();
+  const treeRef = useRef<HTMLElement>(null);
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  const currentToRef = useRef("");
   const inVault = location.pathname.startsWith("/vault");
   const inSettings = location.pathname.startsWith("/settings");
   const activeFilter = params.get("f") ?? "all";
@@ -206,6 +248,26 @@ function NavTree() {
     location.pathname,
     location.hash,
   );
+  const selectedTo = inSettings
+    ? settingsPath(settingsCategory)
+    : location.pathname === "/vault/health"
+      ? "/vault/health"
+      : inVault
+        ? activeFolder
+          ? `/vault?folder=${encodeURIComponent(activeFolder)}`
+          : activeFilter === "all"
+            ? "/vault"
+            : `/vault?f=${activeFilter}`
+        : location.pathname.startsWith("/connections")
+          ? "/connections"
+          : location.pathname.startsWith("/access")
+            ? "/access"
+            : location.pathname.startsWith("/identity")
+              ? "/identity"
+              : location.pathname.startsWith("/settings")
+                ? "/settings"
+                : "/vault";
+  currentToRef.current = selectedTo;
 
   const counts = useMemo(() => {
     const live = items.filter((item) => item.deletedAt === null);
@@ -226,6 +288,115 @@ function NavTree() {
     };
   }, [items]);
 
+  useEffect(() => {
+    const tree = treeRef.current;
+    if (!tree) return;
+    const rows = () => [
+      ...tree.querySelectorAll<HTMLAnchorElement>("[data-rail-move]"),
+    ];
+    const allRows = () => [
+      ...tree.querySelectorAll<HTMLAnchorElement>("a.railtree__row"),
+    ];
+    const selectedIndex = (list: HTMLAnchorElement[]) => {
+      const to = currentToRef.current;
+      const byTo = list.findIndex((row) => row.dataset.railTo === to);
+      if (byTo >= 0) return byTo;
+      const selected = list.findIndex(
+        (row) => row.getAttribute("aria-selected") === "true",
+      );
+      return selected >= 0
+        ? selected
+        : list.findIndex((row) => row.classList.contains("is-active"));
+    };
+    const activate = (row: HTMLAnchorElement | undefined) => {
+      if (!row) return;
+      const to = row.dataset.railTo;
+      if (to) {
+        currentToRef.current = to;
+        navigateRef.current(to);
+      }
+      tree.focus({ preventScroll: true });
+      row.scrollIntoView?.({ block: "nearest" });
+    };
+    const move = (delta: number) => {
+      const list = rows();
+      if (list.length === 0) return;
+      const at = selectedIndex(list);
+      const next =
+        at < 0 ? 0 : Math.min(Math.max(at + delta, 0), list.length - 1);
+      activate(list[next]);
+    };
+    const dive = (row: HTMLAnchorElement) => {
+      activate(row);
+      if ((row.dataset.railTo ?? "").startsWith("/vault")) {
+        focusVaultListing();
+      }
+    };
+    return registerRailKeymap({
+      next: (n = 1) => move(n),
+      previous: (n = 1) => move(-n),
+      first: () => move(Number.NEGATIVE_INFINITY),
+      last: () => move(Number.POSITIVE_INFINITY),
+      page: (direction, size) => {
+        const scroller = tree.closest<HTMLElement>(".rail__scroll");
+        move(direction * pageSteps(scroller, size === "half"));
+      },
+      edge: (where) => {
+        const list = rows();
+        const scroller = tree.closest<HTMLElement>(".rail__scroll");
+        const index = viewportIndex(scroller, list, where);
+        if (index >= 0) activate(list[index]);
+      },
+      focus: () => {
+        tree.focus({ preventScroll: true });
+      },
+      toIndex: (index) => {
+        const list = rows();
+        if (list.length === 0) return;
+        const next = Math.min(Math.max(index, 0), list.length - 1);
+        activate(list[next]);
+      },
+      enter: () => {
+        const list = rows();
+        const at = selectedIndex(list);
+        const row = list[at];
+        if (!row) return;
+        const kids = row.nextElementSibling;
+        if (
+          kids instanceof HTMLElement &&
+          kids.classList.contains("railtree__kids")
+        ) {
+          const first =
+            kids.querySelector<HTMLAnchorElement>("a.railtree__row");
+          dive(first ?? row);
+          return;
+        }
+        dive(row);
+      },
+      parent: () => {
+        const movable = rows();
+        const current = movable[selectedIndex(movable)];
+        if (!current?.classList.contains("railtree__row--child")) return;
+        const all = allRows();
+        const from = all.indexOf(current);
+        for (let at = from - 1; at >= 0; at--) {
+          const candidate = all[at];
+          if (
+            candidate &&
+            !candidate.classList.contains("railtree__row--child")
+          ) {
+            activate(candidate);
+            return;
+          }
+        }
+      },
+      activate: () => {
+        const list = rows();
+        activate(list[selectedIndex(list)]);
+      },
+    });
+  }, []);
+
   const entry = (
     query: string,
     isActive: boolean,
@@ -237,6 +408,7 @@ function NavTree() {
       key={query || "all"}
       to={`/vault${query}`}
       isActive={isActive}
+      selected={`/vault${query}` === selectedTo}
       child
       end
     >
@@ -251,8 +423,21 @@ function NavTree() {
   );
 
   return (
-    <nav className="railtree" aria-label="Sections">
-      <SectionRow section={SECTIONS[0]} open={inVault} count={counts.all} />
+    <nav
+      ref={treeRef}
+      className="railtree"
+      aria-label="Sections"
+      role="tree"
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
+      tabIndex={0}
+      aria-activedescendant={railRowId(selectedTo, inVault || inSettings)}
+    >
+      <SectionRow
+        section={SECTIONS[0]}
+        open={inVault}
+        count={counts.all}
+        branch={inVault}
+      />
       {inVault ? (
         <div className="railtree__kids">
           {entry(
@@ -288,6 +473,7 @@ function NavTree() {
           <TreeRow
             to="/vault/health"
             isActive={location.pathname === "/vault/health"}
+            selected={selectedTo === "/vault/health"}
             child
           >
             <span className="railtree__name">health</span>
@@ -307,7 +493,7 @@ function NavTree() {
         section={SECTIONS[3]}
         open={location.pathname.startsWith("/identity")}
       />
-      <SectionRow section={SECTIONS[4]} open={inSettings} />
+      <SectionRow section={SECTIONS[4]} open={inSettings} branch={inSettings} />
       {inSettings ? (
         <div className="railtree__kids">
           {SETTINGS_CATEGORIES.map((category) => (
@@ -315,6 +501,7 @@ function NavTree() {
               key={category}
               to={settingsPath(category)}
               isActive={settingsCategory === category}
+              selected={settingsCategory === category}
               child
             >
               <span className="railtree__name">{category}</span>

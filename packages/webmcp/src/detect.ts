@@ -32,12 +32,31 @@ export type WebMcpToolResult = {
   isError?: boolean;
 };
 
+/**
+ * The draft's `ToolAnnotations`: hints a browser agent may read before it
+ * decides to call a tool. `readOnlyHint` is the one this package sets, and it
+ * is a declaration by the page — it grants nothing and withholds nothing.
+ */
+export type WebMcpToolAnnotations = {
+  readOnlyHint?: boolean;
+};
+
 export type WebMcpToolDescriptor = {
   name: string;
   description: string;
   /** JSON Schema for the tool's arguments. */
   inputSchema: JsonObject;
+  annotations?: WebMcpToolAnnotations;
   execute: (args: JsonObject) => Promise<WebMcpToolResult>;
+};
+
+/**
+ * The draft's `ModelContextRegisterToolOptions`. The current spec has no
+ * `unregisterTool` at all: aborting the signal handed to `registerTool` is the
+ * only way a registration ends, so the registrar always passes one.
+ */
+export type RegisterToolOptions = {
+  signal: AbortSignal;
 };
 
 export type Unregister = () => void;
@@ -70,8 +89,19 @@ const MODEL_CONTEXT_SOURCES: readonly ModelContextSource[] = [
  */
 export type ModelContextApi = {
   source?: ModelContextSource;
-  registerTool?: (tool: WebMcpToolDescriptor) => BoundaryValue;
+  /**
+   * Returns whatever the browser returns: `undefined` on the early builds, a
+   * promise on the current draft (which rejects for a duplicate name), or a
+   * handle on the polyfills. The registrar tolerates every one of them.
+   */
+  registerTool?: (
+    tool: WebMcpToolDescriptor,
+    options?: RegisterToolOptions,
+  ) => BoundaryValue;
+  /** Present on the early Chrome builds and the polyfills; absent in the draft. */
+  unregisterTool?: (name: string) => BoundaryValue;
   provideContext?: (context: ProvideContextInput) => BoundaryValue;
+  /** An array on the early builds, a promise of one on the current draft. */
   getTools?: () => BoundaryValue;
   executeTool?: (name: string, args: JsonObject) => BoundaryValue;
 };
@@ -105,9 +135,20 @@ function bind(
   const api: DetectedModelContext = { source };
   const registerToolValue = modelContext.registerTool;
   if (isFunction(registerToolValue)) {
-    const registerTool: (tool: WebMcpToolDescriptor) => BoundaryValue =
-      overlapCast(registerToolValue);
-    api.registerTool = (tool) => registerTool.call(modelContext, tool);
+    const registerTool: (
+      tool: WebMcpToolDescriptor,
+      options?: RegisterToolOptions,
+    ) => BoundaryValue = overlapCast(registerToolValue);
+    api.registerTool = (tool, options) =>
+      options === undefined
+        ? registerTool.call(modelContext, tool)
+        : registerTool.call(modelContext, tool, options);
+  }
+  const unregisterToolValue = modelContext.unregisterTool;
+  if (isFunction(unregisterToolValue)) {
+    const unregisterTool: (name: string) => BoundaryValue =
+      overlapCast(unregisterToolValue);
+    api.unregisterTool = (name) => unregisterTool.call(modelContext, name);
   }
   const provideContextValue = modelContext.provideContext;
   if (isFunction(provideContextValue)) {

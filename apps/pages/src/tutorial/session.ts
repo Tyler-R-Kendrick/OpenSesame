@@ -18,7 +18,7 @@
  * runtime, Driver.js and the capability registry all arrive on first open.
  */
 
-import type { GuideProgram } from "@opensesame/guide-lang";
+import type { GuideGoalId, GuideProgram } from "@opensesame/guide-lang";
 import type {
   GuideCancelReason,
   GuideOutcome,
@@ -30,6 +30,7 @@ import type {
   SupportComputerStep,
   SupportErrorCode,
   SupportSession,
+  SupportSessionSnapshot,
 } from "@opensesame/support-agent";
 import {
   type ReactElement,
@@ -45,7 +46,14 @@ import {
 import { useLocation, useNavigate } from "react-router";
 import { vaultStore } from "../lib/vault/store.js";
 import { webmcpSupportSeam } from "../webmcp/tools.js";
-import { HELP_TOPICS, guideGoal, guideGoalIds } from "./registry/goals.js";
+import type { PageContextInput } from "./registry/context.js";
+import {
+  HELP_TOPICS,
+  type HelpTopic,
+  guideGoal,
+  guideGoalIds,
+  rankHelpTopics,
+} from "./registry/goals.js";
 import {
   GUIDE_OVERLAY_ROUTES,
   GUIDE_ROUTES,
@@ -60,8 +68,12 @@ import {
 import {
   GUIDE_ERROR_TEXT,
   GUIDE_REFUSED_TEXT,
+  NOTHING_WRITTEN_TEXT,
   SUPPORT_ERROR_TEXT,
   UNEXPECTED_TEXT,
+  UNVERIFIED_TEXT,
+  citedHelpText,
+  writtenHelpSaysText,
 } from "./ui/messages.js";
 
 /**
@@ -75,6 +87,19 @@ export type SupportTransport = "none" | "on-device" | "remote";
 
 export type SupportEntryKind = "question" | "answer" | "note";
 
+/** An authored walkthrough offered beside a line, by registry id only. */
+export type SupportWalkthrough = {
+  readonly goal: GuideGoalId;
+  readonly title: string;
+};
+
+/** What an answer or note carries besides its text; every member optional. */
+export type SupportEntryExtras = {
+  readonly thoughts?: string | null;
+  readonly computer?: readonly SupportComputerStep[];
+  readonly walkthroughs?: readonly SupportWalkthrough[];
+};
+
 /**
  * One line of the conversation. Text only — the panel renders it as React text
  * nodes, so there is no markup path from a model into the document.
@@ -86,6 +111,8 @@ export type SupportEntry = {
   readonly suggestions: readonly string[];
   readonly thoughts: string | null;
   readonly computer: readonly SupportComputerStep[];
+  /** Checked-in walkthroughs that go with the written help this line rests on. */
+  readonly walkthroughs: readonly SupportWalkthrough[];
 };
 
 export type SupportView = {
@@ -238,10 +265,7 @@ export function createSupportController(
     kind: SupportEntryKind,
     text: string,
     suggestions: readonly string[],
-    traces?: {
-      readonly thoughts?: string | null;
-      readonly computer?: readonly SupportComputerStep[];
-    },
+    traces?: SupportEntryExtras,
   ): void {
     entries += 1;
     set({
@@ -254,9 +278,65 @@ export function createSupportController(
           suggestions,
           thoughts: traces?.thoughts ?? null,
           computer: traces?.computer ?? [],
+          walkthroughs: traces?.walkthroughs ?? [],
         },
       ],
     });
+  }
+
+  /** The authored walkthroughs behind a set of help topics, deduplicated. */
+  function walkthroughsFor(
+    topics: readonly { readonly goal: string | null }[],
+  ): readonly SupportWalkthrough[] {
+    const out: SupportWalkthrough[] = [];
+    for (const topic of topics) {
+      if (topic.goal === null) continue;
+      const named = guideGoal(topic.goal);
+      if (!named || out.some((held) => held.goal === named.id)) continue;
+      out.push({ goal: named.id, title: named.title });
+    }
+    return out;
+  }
+
+  /**
+   * What the person is told about where an answer came from — the one place
+   * the written help overrides a model rather than merely informing it.
+   *
+   * A reply that cites written help is labelled with what it cited, and the
+   * walkthroughs behind those entries are offered. A reply that cites nothing
+   * while the written help confidently covers the question gets the written
+   * answer put beside it, because a procedure the help graph does not contain
+   * is exactly the kind of answer ADR 0088 says the graph corrects. A reply
+   * that cites nothing and matches nothing is marked unverified rather than
+   * hidden: the person asked, and an honest label beats silence.
+   */
+  function noteGrounding(
+    question: string,
+    grounding: SupportSessionSnapshot["grounding"],
+  ): void {
+    if (grounding?.kind === "cited") {
+      push(
+        "note",
+        citedHelpText(grounding.help.map((entry) => entry.title)),
+        [],
+        { walkthroughs: walkthroughsFor(grounding.help) },
+      );
+      return;
+    }
+    const best: HelpTopic | null =
+      rankHelpTopics(question, state.route).find((entry) => entry.strong)
+        ?.topic ?? null;
+    if (best !== null) {
+      push("note", writtenHelpSaysText(best.title, best.answer), [], {
+        walkthroughs: walkthroughsFor([best]),
+      });
+      return;
+    }
+    push(
+      "note",
+      grounding?.kind === "none" ? NOTHING_WRITTEN_TEXT : UNVERIFIED_TEXT,
+      [],
+    );
   }
 
   const host: SupportHost = {
@@ -455,6 +535,9 @@ export function createSupportController(
       // A walkthrough the compiler rejected is reported as a walkthrough that
       // did not run — never as the codes it failed with, and never as the text.
       if (snapshot.guideError) push("note", GUIDE_REFUSED_TEXT, []);
+      if (last && last.role === "assistant") {
+        noteGrounding(text, snapshot.grounding);
+      }
       if (snapshot.program) await runProgram(snapshot.program);
     },
     cancel() {
@@ -482,7 +565,10 @@ export function createSupportController(
     },
     answerFromAuthoredHelp(question, answer) {
       push("question", question, []);
-      push("answer", answer, []);
+      const topic = HELP_TOPICS.find((entry) => entry.answer === answer);
+      push("answer", answer, [], {
+        walkthroughs: topic ? walkthroughsFor([topic]) : [],
+      });
     },
     startGuide(source, origin) {
       return startGuide(source, origin);
@@ -614,15 +700,16 @@ export async function loadBrowserEngine(
     absent,
   );
 
-  function readContext() {
-    return context.buildSupportPageContext({
+  function readContext(question?: string) {
+    const planes = connectivity.connectivitySnapshot();
+    const input: PageContextInput = {
       pageId: "pages",
       route: host.currentRoute(),
-      hostReachable:
-        connectivity.connectivitySnapshot().host.health === "reachable",
-      identityReachable:
-        connectivity.connectivitySnapshot().identity.health === "reachable",
-    });
+      hostReachable: planes.host.health === "reachable",
+      identityReachable: planes.identity.health === "reachable",
+    };
+    if (question === undefined) return context.buildSupportPageContext(input);
+    return context.buildSupportPageContext({ ...input, question });
   }
 
   /**

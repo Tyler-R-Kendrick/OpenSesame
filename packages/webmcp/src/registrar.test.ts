@@ -1,4 +1,8 @@
-import type { JsonObject } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type ModelContextApi,
@@ -6,15 +10,25 @@ import {
   detectModelContext,
 } from "./detect.js";
 import {
+  type WebMcpRegistrationFailure,
   type WebMcpToolSpec,
   createWebMcpRegistrar,
   listRegisteredTools,
+  liveWebMcpToolNames,
   toolDisposition,
 } from "./registrar.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+/** A promise crosses the browser boundary as an opaque value; type it so. */
+function settled<T>(value: Promise<T>): BoundaryValue {
+  // SAFETY: the registrar treats every return from the browser as opaque and
+  // detects a thenable structurally; the cast only names that contract.
+  const boundary: BoundaryValue = overlapCast(value);
+  return boundary;
+}
 
 function spec(overrides: Partial<WebMcpToolSpec> = {}): WebMcpToolSpec {
   return {
@@ -247,9 +261,9 @@ describe("listRegisteredTools", () => {
     };
   }
 
-  it("returns metadata for every tool the browser reports", () => {
+  it("returns metadata for every tool the browser reports", async () => {
     const executed: string[] = [];
-    const summaries = listRegisteredTools(platformApi(executed));
+    const summaries = await listRegisteredTools(platformApi(executed));
     expect(summaries).toEqual([
       {
         name: "opensesame_status",
@@ -262,13 +276,37 @@ describe("listRegisteredTools", () => {
     expect(executed).toEqual([]);
   });
 
-  it("returns an empty list without an api or without getTools", () => {
-    expect(listRegisteredTools(null)).toEqual([]);
-    expect(listRegisteredTools({ source: "navigator" })).toEqual([]);
-    expect(listRegisteredTools({ getTools: () => "unexpected" })).toEqual([]);
+  it("returns an empty list without an api or without getTools", async () => {
+    await expect(listRegisteredTools(null)).resolves.toEqual([]);
+    await expect(listRegisteredTools({ source: "navigator" })).resolves.toEqual(
+      [],
+    );
+    await expect(
+      listRegisteredTools({ getTools: () => "unexpected" }),
+    ).resolves.toEqual([]);
+    await expect(
+      listRegisteredTools({
+        getTools: () => settled(Promise.reject(new Error("not allowed"))),
+      }),
+    ).resolves.toEqual([]);
   });
 
-  it("reads through a detected document.modelContext", () => {
+  it("awaits the promise the current draft's getTools answers with", async () => {
+    const api: ModelContextApi = {
+      source: "document",
+      getTools: () =>
+        settled(
+          Promise.resolve([
+            { name: "opensesame_status", description: "status" },
+          ]),
+        ),
+    };
+    await expect(listRegisteredTools(api)).resolves.toEqual([
+      { name: "opensesame_status", description: "status", inputSchema: {} },
+    ]);
+  });
+
+  it("reads through a detected document.modelContext", async () => {
     vi.stubGlobal("document", {
       modelContext: {
         tools: [{ name: "opensesame_status", description: "status" }],
@@ -277,8 +315,161 @@ describe("listRegisteredTools", () => {
         },
       },
     });
-    expect(listRegisteredTools(detectModelContext())).toEqual([
+    await expect(listRegisteredTools(detectModelContext())).resolves.toEqual([
       { name: "opensesame_status", description: "status", inputSchema: {} },
     ]);
+  });
+});
+
+/**
+ * The current draft, as a stub: `registerTool` answers with a promise, rejects
+ * a name it already holds, offers no `unregisterTool`, and ends a registration
+ * only when the signal it was handed aborts.
+ */
+function draftModelContext() {
+  const tools = new Map<string, WebMcpToolDescriptor>();
+  const rejected: string[] = [];
+  const api: ModelContextApi = {
+    source: "document",
+    registerTool: (tool, options) => {
+      if (tools.has(tool.name)) {
+        rejected.push(tool.name);
+        return settled(
+          Promise.reject(
+            new Error(`InvalidStateError: ${tool.name} is already registered`),
+          ),
+        );
+      }
+      tools.set(tool.name, tool);
+      options?.signal.addEventListener("abort", () => {
+        tools.delete(tool.name);
+      });
+      return settled(Promise.resolve(undefined));
+    },
+    getTools: () => settled(Promise.resolve([...tools.values()])),
+  };
+  return { api, tools, rejected };
+}
+
+describe("createWebMcpRegistrar against the current draft", () => {
+  it("ends a registration through the abort signal it handed the browser", async () => {
+    const draft = draftModelContext();
+    const registrar = createWebMcpRegistrar(draft.api, { appId: "pages" });
+    const unregister = registrar.register([
+      spec(),
+      spec({ name: "opensesame_health" }),
+    ]);
+    expect([...draft.tools.keys()]).toEqual([
+      "opensesame_status",
+      "opensesame_health",
+    ]);
+    expect(liveWebMcpToolNames()).toEqual(
+      expect.arrayContaining(["opensesame_health", "opensesame_status"]),
+    );
+    unregister();
+    expect(draft.tools.size).toBe(0);
+    expect(liveWebMcpToolNames()).not.toContain("opensesame_status");
+    expect(liveWebMcpToolNames()).not.toContain("opensesame_health");
+    expect(draft.rejected).toEqual([]);
+  });
+
+  it("retires a live name before registering it again, so nothing is rejected", async () => {
+    const draft = draftModelContext();
+    const registrar = createWebMcpRegistrar(draft.api, { appId: "pages" });
+    const failures: WebMcpRegistrationFailure[] = [];
+    const again = createWebMcpRegistrar(draft.api, {
+      appId: "pages",
+      onFailure: (failure) => failures.push(failure),
+    });
+    const first = registrar.register([spec()]);
+    const second = again.register([spec({ execute: () => "second" })]);
+    await Promise.resolve();
+    expect(draft.rejected).toEqual([]);
+    expect(failures).toEqual([]);
+    const held = draft.tools.get("opensesame_status");
+    await expect(held?.execute({})).resolves.toEqual({
+      content: [{ type: "text", text: "second" }],
+    });
+    // The first registration is already gone; ending it again changes nothing.
+    first();
+    expect(draft.tools.has("opensesame_status")).toBe(true);
+    second();
+    expect(draft.tools.size).toBe(0);
+  });
+
+  it("reports a rejected registration instead of leaving it unhandled", async () => {
+    const draft = draftModelContext();
+    // A tool the page did not register through this package, so the draft
+    // holds the name and refuses ours.
+    draft.tools.set("opensesame_status", {
+      name: "opensesame_status",
+      description: "foreign",
+      inputSchema: {},
+      execute: () => Promise.resolve({ content: [] }),
+    });
+    const failures: WebMcpRegistrationFailure[] = [];
+    const registrar = createWebMcpRegistrar(draft.api, {
+      appId: "pages",
+      onFailure: (failure) => failures.push(failure),
+    });
+    const unregister = registrar.register([spec()]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(failures).toEqual([
+      {
+        name: "opensesame_status",
+        reason: "InvalidStateError: opensesame_status is already registered",
+      },
+    ]);
+    unregister();
+  });
+
+  it("reports a synchronous throw from an early build the same way", () => {
+    const failures: WebMcpRegistrationFailure[] = [];
+    const api: ModelContextApi = {
+      registerTool: () => {
+        throw new Error("Tool name must be unique\n    at registerTool");
+      },
+    };
+    const registrar = createWebMcpRegistrar(api, {
+      appId: "pages",
+      onFailure: (failure) => failures.push(failure),
+    });
+    registrar.register([spec()])();
+    expect(failures).toEqual([
+      { name: "opensesame_status", reason: "Tool name must be unique" },
+    ]);
+  });
+
+  it("calls an early build's unregisterTool by name", () => {
+    const released: string[] = [];
+    const api: ModelContextApi = {
+      registerTool: () => undefined,
+      unregisterTool: (name) => {
+        released.push(name);
+        return undefined;
+      },
+    };
+    const registrar = createWebMcpRegistrar(api, { appId: "pages" });
+    registrar.register([spec(), spec({ name: "opensesame_health" })])();
+    expect(released).toEqual(["opensesame_status", "opensesame_health"]);
+  });
+
+  it("sends readOnlyHint for a tool declared read-only, and nothing otherwise", () => {
+    const registered: WebMcpToolDescriptor[] = [];
+    const api: ModelContextApi = {
+      registerTool: (tool) => {
+        registered.push(tool);
+        return undefined;
+      },
+    };
+    const registrar = createWebMcpRegistrar(api, { appId: "pages" });
+    const unregister = registrar.register([
+      spec({ readOnly: true }),
+      spec({ name: "opensesame_navigate" }),
+    ]);
+    expect(registered[0]?.annotations).toEqual({ readOnlyHint: true });
+    expect(registered[1]).not.toHaveProperty("annotations");
+    unregister();
   });
 });

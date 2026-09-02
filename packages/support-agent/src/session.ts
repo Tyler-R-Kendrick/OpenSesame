@@ -16,6 +16,7 @@ import {
   type SupportComputerStep,
   SupportError,
   type SupportErrorCode,
+  type SupportGrounding,
   type SupportMessage,
   type SupportPageContext,
 } from "./contract.js";
@@ -33,6 +34,8 @@ export type SupportSessionSnapshot = {
   readonly messages: readonly SupportMessage[];
   readonly program: GuideProgram | null;
   readonly guideError: GuideCompileFailureSummary | null;
+  /** What the latest answer rests on; null until one has arrived. */
+  readonly grounding: SupportGrounding | null;
   readonly suggestedQuestions: readonly string[];
   readonly thoughts: string | null;
   readonly computer: readonly SupportComputerStep[];
@@ -44,8 +47,11 @@ export type SupportSessionSnapshot = {
 export type SupportSessionDeps = {
   readonly port: SupportAgentPort;
   readonly vocabulary: SupportGuideVocabulary;
-  /** Read fresh on every ask: the page the person is looking at moves. */
-  readonly readContext: () => SupportPageContext;
+  /**
+   * Read fresh on every ask: the page the person is looking at moves, and the
+   * written help worth showing depends on what was asked.
+   */
+  readonly readContext: (question: string) => SupportPageContext;
 };
 
 export interface SupportSession {
@@ -75,6 +81,7 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
   let transcript: SupportMessage[] = [];
   let program: GuideProgram | null = null;
   let guideError: GuideCompileFailureSummary | null = null;
+  let grounding: SupportGrounding | null = null;
   let suggestedQuestions: readonly string[] = [];
   let thoughts: string | null = null;
   let computer: readonly SupportComputerStep[] = [];
@@ -94,6 +101,7 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
       messages: transcript.slice(),
       program,
       guideError,
+      grounding,
       suggestedQuestions,
       thoughts,
       computer,
@@ -132,6 +140,7 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
     status = "asking";
     program = null;
     guideError = null;
+    grounding = null;
     suggestedQuestions = [];
     thoughts = null;
     computer = [];
@@ -152,7 +161,7 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
         {
           question: trimmed,
           history: transcript.slice(0, -1),
-          context: deps.readContext(),
+          context: deps.readContext(trimmed),
         },
         deps.vocabulary,
         { signal: controller.signal },
@@ -168,6 +177,7 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
       });
       program = outcome.program;
       guideError = outcome.guideError;
+      grounding = outcome.grounding;
       suggestedQuestions = outcome.suggestedQuestions;
       status = "idle";
       publish();
@@ -208,6 +218,7 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
       transcript = [];
       program = null;
       guideError = null;
+      grounding = null;
       suggestedQuestions = [];
       thoughts = null;
       computer = [];
@@ -221,6 +232,7 @@ export function createSupportSession(deps: SupportSessionDeps): SupportSession {
       transcript = [];
       program = null;
       guideError = null;
+      grounding = null;
       suggestedQuestions = [];
       thoughts = null;
       computer = [];

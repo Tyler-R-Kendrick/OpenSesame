@@ -54,13 +54,22 @@ First-party, light-DOM, everything mono:
 
 - Global window listener (mounted in `AppShell`), ignored while typing in
   inputs/textareas/contenteditable or while a dialog owns the page.
-- Map (DESIGN.md is the source of truth): `j/k/↓/↑` move · `l/→` open/dive ·
-  `h/←` collapse/climb · `gg/G` first/last · `Enter` activate · `/` search ·
-  `Esc` close · `y` copy secret · `u` copy username · `e` edit · `x` trash ·
-  `n` new · `.` favorite · `s` share once · `g v/c/a/i/s` section jumps ·
-  `?` keymap sheet.
-- `registerVaultKeymap(target)` binds the tree; `registerKeymapHelp(show)` /
-  `showKeymapHelp()` give pointer twins a way to open the `?` sheet.
+- Map (DESIGN.md is the source of truth). Single keys and modifiers are a
+  `tinykeys` table (`Control+d`, `Shift+G`); vim counts (`5j`) and the `g`
+  leader (`gg`, `gv`) wrap it — tinykeys sequences cannot overlap prefixes.
+  `j/k/↓/↑` move · `[count]` repeats
+  a motion · `Ctrl-d/u` half-page · `Ctrl-f/b` `PgUp/PgDn` page · `H/M/L`
+  window edges · `l/→` open/dive · `h/←` `Backspace` collapse/climb ·
+  `gg/0/Home` first · `G/$/End` last (`nG` the nth row) · `Tab` other
+  listing · `Enter` activate · `/` search · `Esc` close and focus the tree ·
+  `y` copy secret · `u` copy username · `e` edit · `x` trash · `n` new ·
+  `.` favorite · `s` share once · `g v/c/a/i/s` section jumps (`g` times
+  out) · `?` keymap sheet.
+- `registerVaultKeymap(target)` binds the vault listing;
+  `registerRailKeymap(target)` binds the rail; `registerKeymapHelp(show)` /
+  `showKeymapHelp()` give pointer twins a way to open the `?` sheet. The
+  motion target is whichever listing holds the keyboard, else the vault,
+  else the rail.
 
 ### 4. The rail — `components/AppShell.tsx` `NavTree`
 

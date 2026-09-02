@@ -4,8 +4,10 @@ export {
   type ModelContextApi,
   type ModelContextSource,
   type ProvideContextInput,
+  type RegisterToolOptions,
   type Unregister,
   type WebMcpTextContent,
+  type WebMcpToolAnnotations,
   type WebMcpToolDescriptor,
   type WebMcpToolResult,
 } from "./detect.js";
@@ -21,8 +23,11 @@ export {
 export {
   createWebMcpRegistrar,
   listRegisteredTools,
+  liveWebMcpToolNames,
   toolDisposition,
   type WebMcpRegistrar,
+  type WebMcpRegistrarOptions,
+  type WebMcpRegistrationFailure,
   type WebMcpToolDisposition,
   type WebMcpToolSpec,
   type WebMcpToolSummary,

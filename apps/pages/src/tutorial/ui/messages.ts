@@ -13,6 +13,7 @@ import type {
   SupportErrorCode,
   SupportUnavailableReason,
 } from "@opensesame/support-agent";
+import type { WebMcpRegistrationSnapshot } from "../../webmcp/registration.js";
 
 /** Why nothing can answer — said plainly, including when the answer is "we can't". */
 export const UNAVAILABLE_TEXT = {
@@ -60,6 +61,48 @@ export const GUIDE_ERROR_TEXT = {
  */
 export const GUIDE_REFUSED_TEXT =
   "The walkthrough that came with that answer was refused before anything ran. The answer above still stands.";
+
+/**
+ * Where an answer's procedure came from. The written help is the source of
+ * truth for how this interface works (ADR 0088 §10), so every model answer is
+ * labelled by whether it rested on it — and when a reply cited nothing while
+ * the written help plainly covers the question, the written answer is put
+ * beside it rather than left to a person to go and find.
+ */
+export function citedHelpText(titles: readonly string[]): string {
+  const quoted = titles.map((title) => `“${title}”`).join(", ");
+  return `Drawn from the written help: ${quoted}.`;
+}
+
+export function writtenHelpSaysText(title: string, answer: string): string {
+  return `That reply cited nothing from the written help, so here is what it says — “${title}”: ${answer}`;
+}
+
+export const NOTHING_WRITTEN_TEXT =
+  "Nothing written covers that yet, and the reply says so. Treat it as a starting point, not a procedure.";
+
+export const UNVERIFIED_TEXT =
+  "That reply did not cite the written help and nothing written matches the question, so it is unverified: a control it names may not exist.";
+
+/**
+ * What this page has told the browser's model context, in one line a person
+ * can check against the DevTools WebMCP panel. The number is the tools the
+ * page holds registered right now, not a static catalog: a locked vault
+ * reports its boot tools, an unlocked one its session tools as well.
+ */
+export function webmcpStatusText(snapshot: WebMcpRegistrationSnapshot): string {
+  const total = snapshot.implemented.length;
+  const refused = snapshot.failures.length;
+  const noun = (count: number) => (count === 1 ? "tool" : "tools");
+  if (snapshot.source === null) {
+    return `WebMCP: this browser exposes no model context, so its agent sees none of the ${total} ${noun(total)} this page has ready.`;
+  }
+  const exposed = Math.max(0, total - refused);
+  const where = `${snapshot.source}.modelContext`;
+  const base = `WebMCP: ${exposed} ${noun(exposed)} exposed to this browser's agent through ${where}`;
+  if (refused === 0) return `${base}.`;
+  return `${base}; ${refused} refused by the browser (${snapshot.failures.map((failure) => failure.name).join(", ")}).`;
+}
 
 /** The one sentence for a failure with no code at all. */
 export const UNEXPECTED_TEXT =
