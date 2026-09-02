@@ -27,6 +27,7 @@ import type {
   WebhookEndpoint,
 } from "@opensesame/os-domain";
 import { interactionMachine } from "@opensesame/os-domain";
+import { MemoryAgentAuthRepository } from "./agent-auth-repo.js";
 import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
@@ -325,6 +326,7 @@ function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void) {
 
 export class MemoryRepositories implements Repositories {
   readonly #store = new MemoryStore();
+  readonly agentAuth = new MemoryAgentAuthRepository();
 
   readonly principals: PrincipalRepository = {
     create: async (principal, uow) => {
