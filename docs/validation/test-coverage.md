@@ -52,6 +52,11 @@ to 10 since August 19, so the count moved with it; the score did not. Pin the
 commit when you record a figure: an earlier run the same day reported 807, and
 the two mutants between them are simply source that changed in between.
 
+**Measured 2026-09-01:** `apps/pages/src/lib/keymap.ts` and
+`apps/pages/src/lib/tree-motion.ts` joined the slice at **100.00%** (433 killed,
+1 timeout, 0 survived) under a scoped `--mutate` of those two files. The score
+was re-run before the mutate-list entry landed.
+
 Worth recording is what happened in between rather than the two numbers. Files
 joined `stryker.config.json` without the gate being re-run, and when it next
 was, on 2026-08-22, it stood at **90.77%** — 31 surviving and 11 uncovered

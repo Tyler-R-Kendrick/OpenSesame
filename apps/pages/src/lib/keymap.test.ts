@@ -32,12 +32,25 @@ function target(): VaultKeymapTarget {
   };
 }
 
+function shifted(key: string): boolean {
+  return key.length === 1 && key !== key.toLowerCase()
+    ? true
+    : key === "$" || key === "?";
+}
+
 function press(
   handler: (event: KeyboardEvent) => void,
   key: string,
   init: KeyboardEventInit = {},
 ) {
-  handler(new KeyboardEvent("keydown", { key, cancelable: true, ...init }));
+  handler(
+    new KeyboardEvent("keydown", {
+      key,
+      cancelable: true,
+      shiftKey: init.shiftKey ?? shifted(key),
+      ...init,
+    }),
+  );
 }
 
 afterEach(() => {
@@ -68,12 +81,12 @@ describe("application keymap", () => {
       ".",
       "s",
     ]) {
-      handler(new KeyboardEvent("keydown", { key, cancelable: true }));
+      press(handler, key);
     }
-    handler(new KeyboardEvent("keydown", { key: "g", cancelable: true }));
-    handler(new KeyboardEvent("keydown", { key: "g", cancelable: true }));
-    handler(new KeyboardEvent("keydown", { key: "g", cancelable: true }));
-    handler(new KeyboardEvent("keydown", { key: "a", cancelable: true }));
+    press(handler, "g");
+    press(handler, "g");
+    press(handler, "g");
+    press(handler, "a");
 
     expect(tree.next).toHaveBeenCalledOnce();
     expect(tree.previous).toHaveBeenCalledOnce();

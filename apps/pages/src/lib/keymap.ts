@@ -1,3 +1,5 @@
+import { type KeybindingsMap, createKeybindingsHandler } from "tinykeys";
+
 export type ListingMotion = {
   next: (count?: number) => void;
   previous: (count?: number) => void;
@@ -110,6 +112,7 @@ function typing(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
     (target instanceof HTMLElement && target.isContentEditable)
   );
 }
@@ -124,27 +127,57 @@ const SECTION_PATHS = new Map([
 
 const COUNT_MAX = 999;
 
-/** Vim `timeoutlen` for the `g` chord. Tests may shorten it. */
+/** Vim `timeoutlen` for `g` chords. Tests may shorten it. */
 export const keymapSeams = {
   goTimeoutMs: 600,
 };
 
+/**
+ * tinykeys refuses events with an empty `code` (jsdom / Testing Library).
+ * Production keydowns always have one; tests often pass only `key`.
+ */
+function ensureCode(event: KeyboardEvent): void {
+  const code = event.key === " " ? "Space" : event.key;
+  try {
+    Object.defineProperty(event, "code", { value: code });
+  } catch {
+    // Some engines expose `code` as a readonly getter; matching still uses `key`.
+  }
+}
+
+function goToCount(target: ListingMotion | null, n: number): void {
+  if (!target) return;
+  if (target.toIndex) {
+    target.toIndex(Math.max(0, n - 1));
+    return;
+  }
+  target.first();
+  if (n > 1) target.next(n - 1);
+}
+
+function times(n: number, run: () => void): void {
+  for (let i = 0; i < n; i++) run();
+}
+
+/**
+ * Bindings are a tinykeys map (`Control+d`, `Shift+G`, `ArrowDown`).
+ * Counts (`5j`) and the `g` leader (`gg`, `gv`) stay a thin wrapper:
+ * tinykeys sequences treat overlapping prefixes as first-complete-wins,
+ * so `gga` would never jump. Adding a motion is a row, not a ternary.
+ */
 export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
-  let pendingGo = false;
   let count = 0;
-  let goTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingGo = false;
+  let goTimer: ReturnType<typeof setTimeout> | undefined;
 
   const clearGo = () => {
     pendingGo = false;
-    if (goTimer !== null) {
-      clearTimeout(goTimer);
-      goTimer = null;
-    }
+    clearTimeout(goTimer);
+    goTimer = undefined;
   };
 
   const armGo = () => {
     pendingGo = true;
-    if (goTimer !== null) clearTimeout(goTimer);
     goTimer = setTimeout(clearGo, keymapSeams.goTimeoutMs);
   };
 
@@ -155,17 +188,104 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     return { steps, hadCount };
   };
 
-  const goToCount = (target: ListingMotion | null, n: number) => {
-    if (!target) return;
-    if (target.toIndex) {
-      target.toIndex(Math.max(0, n - 1));
-      return;
-    }
-    target.first();
-    if (n > 1) target.next(n - 1);
+  const run = (
+    fn: (
+      listing: ListingMotion | null,
+      steps: number,
+      hadCount: boolean,
+    ) => void,
+  ) => {
+    return (event: KeyboardEvent) => {
+      const listing = movementTarget(event);
+      const { steps, hadCount } = takeCount();
+      fn(listing, steps, hadCount);
+      event.preventDefault();
+    };
   };
 
+  const verb = (fn: () => void) => (event: KeyboardEvent) => {
+    count = 0;
+    fn();
+    event.preventDefault();
+  };
+
+  const bindings: KeybindingsMap = {
+    j: run((listing, steps) => listing?.next(steps)),
+    ArrowDown: run((listing, steps) => listing?.next(steps)),
+    k: run((listing, steps) => listing?.previous(steps)),
+    ArrowUp: run((listing, steps) => listing?.previous(steps)),
+    l: run((listing, steps) => times(steps, () => listing?.enter())),
+    ArrowRight: run((listing, steps) => times(steps, () => listing?.enter())),
+    h: run((listing, steps) => times(steps, () => listing?.parent())),
+    ArrowLeft: run((listing, steps) => times(steps, () => listing?.parent())),
+    Backspace: run((listing, steps) => times(steps, () => listing?.parent())),
+    "Shift+G": run((listing, steps, hadCount) =>
+      hadCount ? goToCount(listing, steps) : listing?.last(),
+    ),
+    "Shift+$": run((listing) => listing?.last()),
+    $: run((listing) => listing?.last()),
+    End: run((listing) => listing?.last()),
+    Home: run((listing) => listing?.first()),
+    "Shift+H": run((listing) => listing?.edge?.("high")),
+    "Shift+M": run((listing) => listing?.edge?.("mid")),
+    "Shift+L": run((listing) => listing?.edge?.("low")),
+    PageDown: run((listing, steps) =>
+      times(steps, () => listing?.page?.(1, "full")),
+    ),
+    PageUp: run((listing, steps) =>
+      times(steps, () => listing?.page?.(-1, "full")),
+    ),
+    "Control+d": run((listing, steps) =>
+      times(steps, () => listing?.page?.(1, "half")),
+    ),
+    "Control+u": run((listing, steps) =>
+      times(steps, () => listing?.page?.(-1, "half")),
+    ),
+    "Control+f": run((listing, steps) =>
+      times(steps, () => listing?.page?.(1, "full")),
+    ),
+    "Control+b": run((listing, steps) =>
+      times(steps, () => listing?.page?.(-1, "full")),
+    ),
+    "Control+n": run((listing, steps) => listing?.next(steps)),
+    "Control+p": run((listing, steps) => listing?.previous(steps)),
+    Enter: run((listing) => listing?.activate()),
+    "/": verb(() => vaultTarget?.search()),
+    Escape: (event) => {
+      count = 0;
+      vaultTarget?.closeSearch();
+      (movementTarget(event) ?? vaultTarget ?? railTarget)?.focus?.();
+      event.preventDefault();
+    },
+    y: verb(() => vaultTarget?.copySecret()),
+    u: verb(() => vaultTarget?.copyUsername()),
+    e: verb(() => vaultTarget?.edit()),
+    x: verb(() => vaultTarget?.trash()),
+    n: verb(() => vaultTarget?.create()),
+    ".": verb(() => vaultTarget?.favorite()),
+    s: verb(() => vaultTarget?.share()),
+    "Shift+?": verb(() => showHelp()),
+    "?": verb(() => showHelp()),
+    Tab: (event) => {
+      count = 0;
+      const listing = listingOf(event);
+      if (!listing) return;
+      const other = listing === "rail" ? vaultTarget : railTarget;
+      (other ?? (listing === "rail" ? railTarget : vaultTarget))?.focus?.();
+      event.preventDefault();
+    },
+    Space: (event) => {
+      count = 0;
+      if (listingOf(event)) event.preventDefault();
+    },
+  };
+
+  const dispatch = createKeybindingsHandler(bindings, {
+    ignore: (event) => event.isComposing,
+  });
+
   return (event: KeyboardEvent) => {
+    ensureCode(event);
     if (
       event.defaultPrevented ||
       event.metaKey ||
@@ -173,49 +293,16 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
       typing(event.target) ||
       document.querySelector('[role="dialog"][aria-modal="true"]')
     ) {
-      clearGo();
       count = 0;
       return;
     }
 
-    if (event.ctrlKey) {
-      const target = movementTarget(event);
-      const { steps } = takeCount();
-      const key = event.key.toLowerCase();
-      const repeat = (run: () => void) => {
-        for (let i = 0; i < steps; i++) run();
-      };
-      const ctrl =
-        key === "d"
-          ? () => repeat(() => target?.page?.(1, "half"))
-          : key === "u"
-            ? () => repeat(() => target?.page?.(-1, "half"))
-            : key === "f"
-              ? () => repeat(() => target?.page?.(1, "full"))
-              : key === "b"
-                ? () => repeat(() => target?.page?.(-1, "full"))
-                : key === "n"
-                  ? () => target?.next(steps)
-                  : key === "p"
-                    ? () => target?.previous(steps)
-                    : undefined;
-      if (!ctrl) {
-        clearGo();
-        count = 0;
-        return;
-      }
-      clearGo();
-      ctrl();
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key >= "1" && event.key <= "9") {
+    if (!event.ctrlKey && event.key >= "1" && event.key <= "9") {
       count = Math.min(count * 10 + Number(event.key), COUNT_MAX);
       event.preventDefault();
       return;
     }
-    if (event.key === "0") {
+    if (!event.ctrlKey && event.key === "0") {
       if (count > 0) {
         count = Math.min(count * 10, COUNT_MAX);
         event.preventDefault();
@@ -245,7 +332,6 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
         event.preventDefault();
         return;
       }
-      // Failed `g` chord: drop `g`, keep the count, and treat this key as itself.
       clearGo();
     }
 
@@ -255,86 +341,6 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
       return;
     }
 
-    if (event.key === "Tab") {
-      const listing = listingOf(event);
-      if (!listing) return;
-      const other = listing === "rail" ? vaultTarget : railTarget;
-      (other ?? (listing === "rail" ? railTarget : vaultTarget))?.focus?.();
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === " " && listingOf(event)) {
-      event.preventDefault();
-      return;
-    }
-
-    const target = movementTarget(event);
-    const { steps, hadCount } = takeCount();
-    const action =
-      event.key === "j" || event.key === "ArrowDown"
-        ? () => target?.next(steps)
-        : event.key === "k" || event.key === "ArrowUp"
-          ? () => target?.previous(steps)
-          : event.key === "l" || event.key === "ArrowRight"
-            ? () => {
-                for (let i = 0; i < steps; i++) target?.enter();
-              }
-            : event.key === "h" ||
-                event.key === "ArrowLeft" ||
-                event.key === "Backspace"
-              ? () => {
-                  for (let i = 0; i < steps; i++) target?.parent();
-                }
-              : event.key === "G"
-                ? () => (hadCount ? goToCount(target, steps) : target?.last())
-                : event.key === "$" || event.key === "End"
-                  ? () => target?.last()
-                  : event.key === "Home"
-                    ? () => target?.first()
-                    : event.key === "H"
-                      ? () => target?.edge?.("high")
-                      : event.key === "M"
-                        ? () => target?.edge?.("mid")
-                        : event.key === "L"
-                          ? () => target?.edge?.("low")
-                          : event.key === "PageDown"
-                            ? () => target?.page?.(1, "full")
-                            : event.key === "PageUp"
-                              ? () => target?.page?.(-1, "full")
-                              : event.key === "Enter"
-                                ? () => target?.activate()
-                                : event.key === "/"
-                                  ? () => vaultTarget?.search()
-                                  : event.key === "Escape"
-                                    ? () => {
-                                        vaultTarget?.closeSearch();
-                                        (
-                                          target ??
-                                          vaultTarget ??
-                                          railTarget
-                                        )?.focus?.();
-                                      }
-                                    : event.key === "y"
-                                      ? () => vaultTarget?.copySecret()
-                                      : event.key === "u"
-                                        ? () => vaultTarget?.copyUsername()
-                                        : event.key === "e"
-                                          ? () => vaultTarget?.edit()
-                                          : event.key === "x"
-                                            ? () => vaultTarget?.trash()
-                                            : event.key === "n"
-                                              ? () => vaultTarget?.create()
-                                              : event.key === "."
-                                                ? () => vaultTarget?.favorite()
-                                                : event.key === "s"
-                                                  ? () => vaultTarget?.share()
-                                                  : event.key === "?"
-                                                    ? showHelp
-                                                    : undefined;
-
-    if (!action) return;
-    action();
-    event.preventDefault();
+    dispatch(event);
   };
 }

@@ -4,10 +4,9 @@
  */
 
 export function stepIndex(at: number, delta: number, length: number): number {
-  if (length <= 0) return -1;
-  if (!Number.isFinite(delta)) return delta < 0 ? 0 : length - 1;
-  const from = at < 0 ? 0 : at;
-  return Math.min(Math.max(from + delta, 0), length - 1);
+  const last = length - 1;
+  if (last < 0) return -1;
+  return Math.min(last, Math.max(0, Math.max(0, at) + delta));
 }
 
 export function pageSteps(
@@ -15,10 +14,11 @@ export function pageSteps(
   half: boolean,
   fallback = half ? 5 : 10,
 ): number {
-  const height = scroller?.clientHeight ?? 0;
+  if (scroller === null) return fallback;
+  const height = scroller.clientHeight;
   const row = rowHeight(scroller);
-  if (height <= 0 || row <= 0) return fallback;
-  const visible = Math.max(1, Math.floor(height / row));
+  if (height < 1 || row < 1) return fallback;
+  const visible = Math.floor(height / row);
   return half ? Math.max(1, Math.floor(visible / 2)) : Math.max(1, visible - 1);
 }
 
@@ -28,35 +28,35 @@ export function viewportIndex(
   where: "high" | "mid" | "low",
 ): number {
   if (rows.length === 0) return -1;
-  const height = scroller?.clientHeight ?? 0;
-  if (!scroller || height <= 0) {
-    if (where === "high") return 0;
-    if (where === "low") return rows.length - 1;
-    return Math.floor((rows.length - 1) / 2);
+  if (scroller === null || scroller.clientHeight < 1) {
+    return wholeList(rows.length, where);
   }
   const top = scroller.scrollTop;
-  const bottom = top + height;
+  const bottom = top + scroller.clientHeight;
   const visible: number[] = [];
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row) continue;
+  rows.forEach((row, i) => {
+    if (row === null || row === undefined) return;
     const rowTop = row.offsetTop;
-    const rowBottom = rowTop + row.offsetHeight;
-    if (rowBottom > top && rowTop < bottom) visible.push(i);
-  }
-  if (visible.length === 0) {
-    if (where === "high") return 0;
-    if (where === "low") return rows.length - 1;
-    return Math.floor((rows.length - 1) / 2);
-  }
-  if (where === "high") return visible[0] ?? 0;
-  if (where === "low") return visible[visible.length - 1] ?? rows.length - 1;
-  return visible[Math.floor((visible.length - 1) / 2)] ?? 0;
+    if (rowTop + row.offsetHeight > top && rowTop < bottom) {
+      visible.push(i);
+    }
+  });
+  if (visible.length === 0) return wholeList(rows.length, where);
+  if (where === "high") return visible[0];
+  if (where === "low") return visible[visible.length - 1];
+  return visible[Math.floor((visible.length - 1) / 2)];
 }
 
-function rowHeight(scroller: HTMLElement | null): number {
-  const row = scroller?.querySelector<HTMLElement>(
+function wholeList(length: number, where: "high" | "mid" | "low"): number {
+  if (where === "high") return 0;
+  if (where === "low") return length - 1;
+  return Math.floor((length - 1) / 2);
+}
+
+function rowHeight(scroller: HTMLElement): number {
+  const row = scroller.querySelector<HTMLElement>(
     "[role='treeitem'], .railtree__row",
   );
-  return row?.offsetHeight ?? 0;
+  if (row === null) return 0;
+  return row.offsetHeight;
 }
