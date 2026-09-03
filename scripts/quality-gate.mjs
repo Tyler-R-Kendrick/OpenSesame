@@ -111,15 +111,25 @@ function measureTypeScript() {
   return counts;
 }
 
-/** @returns {Map<string, Map<string, number>>} file -> rule -> count */
+/**
+ * @returns {Map<string, Map<string, number>>} file -> rule -> count
+ *
+ * `--others --exclude-standard` alongside `--cached` is load-bearing: a plain
+ * `git ls-files` lists only TRACKED files, so a newly written module escaped
+ * the budget until the commit that added it and then failed the run after.
+ * That is exactly backwards -- new files are the ones that must meet the
+ * budget outright. Oxlint already walks the working tree for the TypeScript
+ * side; this makes Rust behave the same. `--exclude-standard` keeps
+ * .gitignore'd build output out.
+ */
 function measureRust() {
-  const listed = execFileSync("git", ["ls-files", "-z", "*.rs"], {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  const listed = execFileSync(
+    "git",
+    ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "*.rs"],
+    { cwd: root, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+  );
   const counts = new Map();
-  for (const file of listed.split("\0").filter(Boolean)) {
+  for (const file of new Set(listed.split("\0").filter(Boolean))) {
     if (isIgnored(file)) continue;
     let source;
     try {

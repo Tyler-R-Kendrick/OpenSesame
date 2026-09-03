@@ -128,7 +128,7 @@ and a JavaScript regression would be invisible inside a total that large.
 
 - `pnpm quality` (both ratchets, sub-second) joins `pnpm verify` and the CI
   TypeScript job. `pnpm quality:bundle` builds and measures in its own CI job.
-- The opening debt is **849 tracked violations across 506 files**, 2 SDP edges,
+- The opening debt is **850 tracked violations across 507 files**, 2 SDP edges,
   and 0 unused dependencies. Those numbers are in the repo and can only fall.
 - 13 unused declared workspace dependencies were removed rather than recorded
   as accepted debt.

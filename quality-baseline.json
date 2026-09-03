@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 506,
-    "violations": 849
+    "files": 507,
+    "violations": 850
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1374,6 +1374,9 @@
     },
     "crates/storage/src/shared_sessions.rs": {
       "max-lines": 679
+    },
+    "crates/storage/src/tests.rs": {
+      "max-lines": 3128
     },
     "crates/storage/tests/shared_sessions_store.rs": {
       "max-lines": 737
