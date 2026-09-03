@@ -55,6 +55,15 @@ in `ItemEditor.tsx` (then 884 lines) and `ItemDetail.tsx` (then 1,047 lines),
 so that "adding a bank account means editing five files in one app and shipping
 a build."
 
+And its Decision §1 did not hedge:
+
+> This is not a format for *community* types with the seven builtins carved
+> out beside it. **The seven builtins are manifests in this format**, in
+> `packages/vault-item-types/definitions/`, loaded through the same registry
+> as an installed one. [...] If the generic path is not good enough to render
+> `card` or `note`, it is not good enough to offer anyone, and we will find
+> that out first.
+
 The engine was built. The manifests were authored. And then:
 
 | ADR 0087 target | At acceptance | Today |
@@ -67,10 +76,12 @@ seven hand-written per-kind JSX arms — `login`, `passkey`, `card`, `secret`,
 `drop`, `note`, `certificate` — and an eighth arm, `case "typed"`, which
 delegates to the manifest renderer `TypedFields.tsx` (520 lines).
 
-That eighth arm is the whole problem in one line of code. `typed` was added as
-*a kind beside the seven*, rather than the seven being *expressed as manifests*.
-The manifest system was installed alongside the hardcoded union instead of
-underneath it. Four more consumers still switch by hand:
+That eighth arm is the whole problem in one line of code, and it is the exact
+shape Decision §1 rejected: in `model.ts:204` the union reads
+`LoginItem | PasskeyItem | CardItem | SecretItem | NoteItem | CertificateItem |
+DropItem | TypedItem` — `TypedItem` as a *peer* of the seven, which is
+"the seven builtins carved out beside it" in as many words. Four more consumers
+still switch by hand:
 `lib/vault/model.ts:467`, `lib/vault/export/cxf.ts:380`,
 `lib/vault/import/merge.ts:143`, and `webmcp/tools.ts:214`.
 
@@ -91,8 +102,9 @@ changes, and which nothing mechanically verifies against that contract.
 
 | # | Area | Hand-maintained | Pattern | Risk |
 |---|---|---:|---|---|
-| 1 | Vault item kinds (finish ADR 0087) | ~1,900 | Template/manifest | Low |
-| 2 | Repository layer double-implementation | 4,708 | Adapter + codegen | Medium |
+| 1a | Vault item **rendering** via manifests | ~1,900 | Template/manifest | Low |
+| 1b | Vault item **storage** convergence | — | Data migration | High |
+| 2 | Repository layer double-implementation | 4,708* | Conformance suite + engine | Medium |
 | 3 | MCP/WebMCP tool surfaces | 2,114 | Generative registry | Low |
 | 4 | Identity-plane OpenAPI document | 2,738 | Derived artifact | Low |
 | 5 | WIT contracts as documentation | 324 (+ drift) | Codegen (bindgen) | Medium |
@@ -101,6 +113,8 @@ changes, and which nothing mechanically verifies against that contract.
 | 8 | `crates/storage` god-struct | 10,601 | Bounded-context split | High |
 | 9 | Turbo cache correctness | — | Reproducibility | Low |
 
+\* Mechanical portion only — see §2.2; `memory.ts` is not pure CRUD.
+
 ### 2.1 Finish ADR 0087 — retire the seven hardcoded kinds
 
 **Now:** five consumer files switch on `item.kind` for seven kinds whose
@@ -108,18 +122,38 @@ manifests already exist. `ItemDetail.tsx` (1,056) and `ItemEditor.tsx` (921)
 carry per-kind JSX that `TypedFields.tsx` already knows how to render from a
 definition.
 
-**Move:** delete the seven case arms; let every kind take the `typed` path.
-Keep `kind` on the wire as a stable identifier — this is a rendering change,
-not a storage-format change, and the sealed-store/`pass` projection in
-`native.ts` is already manifest-driven.
+**The trap, and why this item is not the cheap one it looks like.** The seven
+are not merely rendered differently — they are *stored* differently.
+`LoginItem` is a flat, statically-typed record (`username`, `password`, `totp`,
+`uris: LoginUri[]`, `passwordChangedAt`, `reenrollState`), while `TypedItem` is
+`{ typeId, values: FieldValues }` — a dynamic bag. Converging them is a
+storage-model change, and because items live in E2EE vaults the host cannot
+perform it: the rewrite has to happen client-side, per device, on unlock. Some
+of those fields also carry behaviour rather than presentation —
+`passwordChangedAt` drives the health report, `reenrollState` drives passkey
+re-enrolment — so the union is buying static typing on domain state, not just
+form layout.
 
-**Payoff:** roughly 1,900 lines retired across two files, plus the four
-secondary switches. More importantly it makes the eighth arm unnecessary, which
-is what stops the pattern from regrowing.
+**Move, in two stages that should not be conflated:**
 
-**Guard:** a test asserting no `switch (item.kind)` survives outside
-`model.ts`'s storage-shape narrowing. Without that guard, the arm comes back —
-it already did once.
+*1a — unify rendering (low risk, most of the payoff).* Project each legacy item
+through its existing manifest and render every kind via `TypedFields.tsx`,
+leaving storage untouched. `native.ts` already projects items onto sealed-store
+trailers, so the projection direction is proven. This retires the duplicated
+per-kind JSX in `ItemDetail.tsx` and `ItemEditor.tsx` without migrating a
+single stored vault.
+
+*1b — converge storage (needs its own ADR).* Collapse the seven variants into
+`TypedItem`. This is what Decision §1 actually asks for, and it is a
+client-side data migration inside sealed vaults plus a deliberate trade of
+static typing for uniformity. It should be argued on its own merits, with a
+migration plan and a rollback story — not slipped in behind 1a.
+
+**Payoff:** 1a retires most of the ~1,900 duplicated lines. 1b is what closes
+ADR 0087, and is the expensive half.
+
+**Guard:** after 1a, a test asserting no per-kind `switch` survives in a
+rendering path. After 1b, none outside `model.ts`'s storage narrowing.
 
 ### 2.2 Repository layer — two hand-written implementations of 23 interfaces
 
@@ -140,17 +174,24 @@ test that passes in memory and fails in production.
 per-repo mapping manifest. Effective, but generated code of this volume is
 unpleasant to review and to debug.
 
-*Option B (generic engine — recommended):* keep one hand-written Postgres
-adapter, and replace `memory.ts` entirely with a **generic in-memory engine
-driven by the same table metadata Drizzle already holds**. The in-memory
-backend stops being 1,810 lines of bespoke logic and becomes one interpreter
-over declared keys, indexes and constraints. That retires ~1,800 lines outright
-rather than moving them into a generator, and it makes backend divergence
-structurally impossible for anything the metadata covers.
+*Option B (generic engine over the mechanical subset — recommended, with a
+limit):* keep one hand-written Postgres adapter, and drive the in-memory
+backend from the table metadata Drizzle already holds.
 
-**Guard:** a shared conformance suite run against every backend — the standard
-way to keep adapters honest, and the thing that makes a third backend cheap
-instead of a third rewrite.
+The limit matters and I got it wrong on the first pass: `memory.ts` is **not**
+pure CRUD. It carries 46 sites of domain logic — `interactionMachine.isTerminal`
+guards on status transitions, `OUTBOX_CLAIM_HOLD_MS` claim leases, version
+compare-and-set. None of that is derivable from schema metadata, because none of
+it is a schema fact. A generic engine can serve the mechanical majority; the
+invariant-bearing methods stay hand-written on both sides. So the realistic
+saving is well under the 1,810-line file, and the estimate in the table is the
+mechanical portion, not the file.
+
+**Guard — and this is the actual deliverable here, more than the engine:** a
+shared conformance suite run against every backend. It is the only thing that
+keeps two implementations of a state machine honest, it is what makes a third
+backend cheap instead of a third rewrite, and it is worth building even if the
+generic engine is never written.
 
 ### 2.3 MCP surfaces — the registry describes them but does not generate them
 
@@ -286,22 +327,27 @@ discovery, alerts, sync blobs and more. The `Store` trait at line 6,591 has
 exactly one method (`quorum_ok`) — a false seam that looks like an abstraction
 boundary and is not one.
 
-**Mitigating fact, which changes the priority:** only 15 files outside the
-crate reference `Db` at all, with 12 `Arc<Db>`/`&Db` sites. The blast radius is
-much smaller than the line count suggests. This is a *readability and
-ownership* problem more than a coupling one.
+**A correction worth recording, because it reverses the reasoning.** A first
+pass counted 15 files outside the crate referencing `Db` and concluded the blast
+radius was small. That measured the wrong thing. `AppState` holds `pub db: Db`
+(`apps/gateway/src/app_state.rs:64`), so consumers reach storage through the
+state handle: **134 call sites across 32 files in the gateway alone**. The
+coupling is wide, not narrow, and this is a genuine modularity problem rather
+than only a readability one.
 
 **Move:** split by bounded context — `storage::certificates`,
 `storage::approvals`, `storage::signers`, `storage::sync` — each with a real
 trait carrying its own methods. Compose them on `Db` so external call sites
 keep working, then migrate consumers to the narrow traits.
 
-**Priority: last.** It is the largest number in the table and the weakest
-case for acting now. It carries the highest merge-conflict cost against
-in-flight work, and the coupling data says it is not blocking modularity
-elsewhere. Do it after the items above have paid for themselves — and do it as
-a mechanical file split first, deferring trait design until the contexts are
-visible.
+**Priority: still last, for the opposite reason.** Not "harmless, so defer" but
+"expensive and wide, so sequence it deliberately". 134 call sites across a
+10,601-line file is the highest merge-conflict cost in the plan, and it wants
+the narrow traits designed against real bounded contexts rather than guessed.
+Do it after the cheaper items have paid for themselves, as a mechanical file
+split first, with trait design deferred until the contexts are legible. It is
+the biggest modularity win available — and the one most likely to go wrong if
+taken early.
 
 ### 2.9 Reproducibility — the cache is over-hashing
 
@@ -316,10 +362,13 @@ contents for every task, so a README edit invalidates `build`, `typecheck` and
 
 - **Cache misses that look like flakiness** — CI re-runs work it has already
   proven, and the cache appears unreliable rather than merely imprecise.
-- **Missing global invalidation** — changes to root `tsconfig`, Biome config or
-  the lockfile are not declared as global inputs, so a cached result can
-  outlive the config that produced it. That is the more serious of the two: it
-  is a correctness gap, not a speed one.
+- **Missing global invalidation** — `globalDependencies` is not declared at
+  all, while **51 packages extend a shared root config** (`tsconfig.base.json`,
+  `config/tsconfig.library.json`). Editing one of those changes how every
+  dependent package compiles, and Turbo has not been told, so a cached
+  `typecheck` can outlive the config that produced it. That is a correctness
+  gap, not a speed one. (Lockfile changes are excluded from this claim —
+  Turbo hashes lockfiles specially, so they do not need declaring.)
 
 **Move:** declare `inputs` per task (`src/**`, `package.json`, `tsconfig.json`)
 and `globalDependencies` (`pnpm-lock.yaml`, root configs). Small change,
@@ -359,7 +408,13 @@ reached for by default rather than reinvented:
 Codegen earns its place when a contract already exists in machine-readable form
 and code is being transcribed from it by hand. By that test:
 
-**Strong candidates** — the contract exists today:
+**Strong candidates.** Three of these have a machine-readable contract today.
+The MCP row does not, quite: `capability-registry` records *that* a capability
+maps to a surface, never *how* to call it — there is no method, path or schema
+column in it. So that row is "extend the registry by four columns, then
+generate", which is design work before transcription work, not transcription
+alone. It stays top of the list because the registry is already authoritative
+in intent; it is just not yet sufficient in content.
 
 | Target | Source of truth | Retires |
 |---|---|---:|
@@ -393,10 +448,16 @@ than silently omitting a capability.
 Ordered so each step is independently shippable and the early steps buy time
 for the later ones. Sizes are relative, not calendar estimates.
 
-**First — finish what is started.** §2.1 (retire the seven kinds) and §2.9
-(turbo `inputs`). Both are small, both are low-risk, and together they
-demonstrate the thesis: complexity comes out by *removing* the superseded path.
-§2.9 in particular pays back immediately in CI time.
+**First — finish what is started.** §2.1a (render the seven through their
+manifests) and §2.9 (turbo `inputs` and `globalDependencies`). Both are small
+and low-risk, and together they demonstrate the thesis: complexity comes out by
+*removing* the superseded path. §2.9 pays back immediately in CI time and
+closes a cache-correctness gap.
+
+Note what moved: §2.1**b** — converging storage onto `TypedItem` — is
+deliberately *not* here. It is the half that actually closes ADR 0087, and it is
+a client-side migration inside E2EE vaults. It belongs with the fourth group,
+behind its own ADR.
 
 **Second — make the registry generative.** §2.3, then §2.6. The MCP work turns
 ADR 0065's parity from checked to structural. The GuideLang visitor is small
@@ -407,10 +468,11 @@ because the line count is modest.
 bindgen, subject to the daemon dependency budget). These remove whole classes
 of drift rather than lines.
 
-**Fourth — the adapter work.** §2.2 (generic in-memory backend + shared
-conformance suite), then §2.7 (provider manifests over a closed vocabulary).
-Larger, and each wants its conformance suite in place before the old path is
-deleted.
+**Fourth — the adapter and migration work.** §2.2 (shared conformance suite
+first, generic backend second — in that order, since the suite is what makes the
+backend safe to write), then §2.7 (provider manifests over a closed vocabulary),
+then §2.1b behind its own ADR. Each wants its conformance suite in place before
+the old path is deleted.
 
 **Last — `crates/storage`.** §2.8. Mechanical file split first; trait design
 once the bounded contexts are legible.
@@ -463,6 +525,16 @@ Stated so the gaps are not mistaken for clean bills of health:
   *mechanical* versus *essential* are informed judgement and should be checked
   against a real diff before the larger items (§2.2, §2.7, §2.8) are committed
   to.
+
+  This caveat has already earned its place. An adversarial re-read of the first
+  draft found four errors of exactly this kind, all now corrected above:
+  §2.1 was described as a rendering change when it is a storage migration;
+  §2.2 assumed `memory.ts` was pure CRUD when it carries state-machine and
+  lease logic; §2.8's "low coupling" rested on a count that missed
+  `AppState.db` and was wrong by 8×; and §4 claimed a machine-readable contract
+  for MCP generation that does not yet exist. Three of the four were
+  *optimistic* — they made work look cheaper than it is. Treat every remaining
+  "Low risk" here as provisional until someone has tried it.
 - **The 703-vs-77 OpenAPI figure is a drift signal, not a route census.** The
   703 includes mounts and middleware. The gap warrants the guard in §2.4; it
   does not by itself quantify undocumented routes.
