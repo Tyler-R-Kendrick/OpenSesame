@@ -57,6 +57,13 @@ the two mutants between them are simply source that changed in between.
 1 timeout, 0 survived) under a scoped `--mutate` of those two files. The score
 was re-run before the mutate-list entry landed.
 
+**Measured 2026-09-02:** `apps/control-plane/src/ui/agent-auth-pages.ts` joined
+the slice at **100.00%** (31 killed, 0 timeout, 0 survived) under a scoped
+`--mutate` of that file. Adjacent AgentAuth files (`agent-auth-tokens.ts`,
+`agent-registration.ts`, `agent-auth-scopes.ts`) stay out of the list: they
+still have equivalent mutants in typed status tables and constant-to-constant
+assertions, and a mutate-list entry whose gate is not 100% is a false green.
+
 Worth recording is what happened in between rather than the two numbers. Files
 joined `stryker.config.json` without the gate being re-run, and when it next
 was, on 2026-08-22, it stood at **90.77%** — 31 surviving and 11 uncovered

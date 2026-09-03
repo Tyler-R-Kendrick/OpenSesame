@@ -1,0 +1,255 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AgentAuth characterization > pins /auth.md, PRM, and AS metadata for the default enabled set 1`] = `
+"# auth.md
+
+You are an agent. **OpenSesame** supports agentic registration:
+discover → register → (claim if needed) → exchange for an access_token → call API → handle revocation.
+
+Profile: \`workos-auth.md/v0.6.0\`. This is a WorkOS ecosystem protocol, not an IETF RFC.
+Runtime metadata at the Protected Resource Metadata and Authorization Server metadata URLs
+is authoritative if this file and those documents disagree.
+
+Resource: \`https://identity.example/\`
+Authorization server: \`https://identity.example\`
+
+## Step 1 — Discover
+
+A 401 from the resource includes:
+
+\`\`\`http
+WWW-Authenticate: Bearer resource_metadata="https://identity.example/.well-known/oauth-protected-resource"
+\`\`\`
+
+### 1a. Protected Resource Metadata
+
+\`GET https://identity.example/.well-known/oauth-protected-resource\`
+
+### 1b. Authorization Server metadata
+
+\`GET https://identity.example/.well-known/oauth-authorization-server\`
+
+Read \`agent_auth\` in full. Identity types actually enabled: anonymous, service_auth.
+Provider ID-JAG (\`identity_assertion\`) is not advertised and not enabled.
+SET events are not advertised and not enabled.
+
+## Step 2 — Pick a method
+
+1. No user identity → \`anonymous\` (if enabled).
+2. Email hint only → \`service_auth\` (if enabled).
+3. Provider ID-JAG → not accepted unless discovery lists \`identity_assertion\`.
+
+## Step 3 — Register
+
+### anonymous
+
+\`\`\`http
+POST /agent/identity
+Content-Type: application/json
+
+{ "type": "anonymous" }
+\`\`\`
+
+Response (200) includes a service-signed \`identity_assertion\` (JWT \`typ: os-sia+jwt\`),
+\`pre_claim_scopes\`, a one-time \`claim_token\` (\`clm_…\`), and \`post_claim_scopes\`.
+Exchange the assertion at \`/oauth2/token\` immediately. The claim ceremony is optional.
+### service_auth
+
+\`\`\`http
+POST /agent/identity
+Content-Type: application/json
+
+{ "type": "service_auth", "login_hint": "<email>" }
+\`\`\`
+
+\`login_hint\` is not proof of identity and is not used to look up or merge accounts.
+The response has a \`claim\` block (\`user_code\`, \`verification_uri\`, \`expires_in\`, \`interval\`)
+and **no** identity assertion until the user completes the ceremony.
+
+Do not send a product provisional bearer (\`pst_…\`) or a product claim token (\`osc_clm_…\`) here.
+
+## Step 4 — Claim ceremony
+
+For anonymous, start a ceremony:
+
+\`\`\`http
+POST /agent/identity/claim
+Content-Type: application/json
+
+{ "claim_token": "clm_…", "email": "user@example.com" }
+\`\`\`
+
+Surface \`verification_uri\` and \`user_code\` to the user. They sign in at OpenSesame
+and type the code on a page OpenSesame owns. Poll:
+
+\`\`\`http
+POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:workos:agent-auth:grant-type:claim&claim_token=clm_…
+\`\`\`
+
+Honor \`interval\` (5s). Outer claim window: 86400s.
+On success the pre-claim access token is revoked; use the returned post-claim token.
+
+## Step 5 — Exchange the assertion
+
+\`\`\`http
+POST /oauth2/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=<identity_assertion>&resource=https://identity.example/
+\`\`\`
+
+There is no OAuth refresh_token in this flow. Re-exchange the still-valid service
+assertion. Service assertions use \`typ: os-sia+jwt\` and are not ID-JAGs.
+
+## Step 6 — Use the access_token
+
+\`Authorization: Bearer <aat_…>\` against \`https://identity.example/\`.
+
+## Revocation
+
+Credential: \`POST https://identity.example/oauth2/revoke\` (\`token\` + \`token_type_hint=access_token\`), RFC 7009.
+Registration: owner-initiated revoke or expiry. Provider SET delivery is not enabled.
+
+## Scopes
+
+- pre-claim: resource:read, resource:create:temporary
+- post-claim: resource:read, resource:create:temporary, project:create:temporary, claim:create
+- resource-supported: resource:read, resource:create:temporary, project:create:temporary, claim:create
+
+Effective scopes are the intersection of requested, registration-state, resource-supported,
+and domain policy. A signed assertion cannot grant a scope policy denies.
+
+## Errors
+
+| Code | Where | What to do |
+| --- | --- | --- |
+| anonymous_not_enabled | /agent/identity | Use another enabled type |
+| service_auth_not_enabled | /agent/identity | Use another enabled type |
+| identity_assertion_not_enabled | /agent/identity | ID-JAG is not enabled |
+| invalid_login_hint | /agent/identity | login_hint must be an email |
+| invalid_claim_token | /agent/identity/claim | Restart at Step 3 |
+| claimed_or_in_flight | /agent/identity/claim | Follow the Step 3 response |
+| claim_expired | /agent/identity/claim | Restart at Step 3 |
+| invalid_grant | /oauth2/token | Assertion expired/revoked; re-register |
+| authorization_pending | /oauth2/token | Wait \`interval\` |
+| expired_token | /oauth2/token | Re-init claim or re-register |
+| slow_down | /oauth2/token | Increase interval |
+
+Existing guest product APIs remain at \`POST https://identity.example/v1/principals/provisional\`
+(\`pst_…\` bearers). Those are not service identity assertions.
+
+Existing RFC 8628 device authorization remains at the authorization server's /device endpoint.
+Never print \`device_code\` values.
+
+## Secrets policy
+
+This document must never embed client secrets, private keys, bearer tokens, or reusable credentials.
+"
+`;
+
+exports[`AgentAuth characterization > pins /auth.md, PRM, and AS metadata for the default enabled set 2`] = `
+{
+  "authorization_servers": [
+    "https://identity.example",
+  ],
+  "bearer_methods_supported": [
+    "header",
+  ],
+  "resource": "https://identity.example/",
+  "resource_documentation": "https://identity.example/auth.md",
+  "resource_name": "OpenSesame",
+  "scopes_supported": [
+    "resource:read",
+    "resource:create:temporary",
+    "project:create:temporary",
+    "claim:create",
+  ],
+}
+`;
+
+exports[`AgentAuth characterization > pins /auth.md, PRM, and AS metadata for the default enabled set 3`] = `
+{
+  "agent_auth": {
+    "claim_endpoint": "https://identity.example/agent/identity/claim",
+    "identity_endpoint": "https://identity.example/agent/identity",
+    "identity_types_supported": [
+      "anonymous",
+      "service_auth",
+    ],
+    "skill": "https://identity.example/auth.md",
+  },
+  "authorization_endpoint": "https://identity.example/auth",
+  "code_challenge_methods_supported": [
+    "S256",
+  ],
+  "device_authorization_endpoint": "https://identity.example/device/auth",
+  "grant_types_supported": [
+    "authorization_code",
+    "refresh_token",
+    "urn:ietf:params:oauth:grant-type:device_code",
+    "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    "urn:workos:agent-auth:grant-type:claim",
+  ],
+  "introspection_endpoint": "https://identity.example/introspect",
+  "issuer": "https://identity.example",
+  "jwks_uri": "https://identity.example/jwks",
+  "registration_endpoint": "https://identity.example/reg",
+  "revocation_endpoint": "https://identity.example/oauth2/revoke",
+  "scopes_supported": [
+    "resource:read",
+    "resource:create:temporary",
+    "project:create:temporary",
+    "claim:create",
+  ],
+  "token_endpoint": "https://identity.example/token",
+}
+`;
+
+exports[`AgentAuth characterization > pins CSP and refuses an off-site login return_to on the wire 1`] = `
+"<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sign in to claim</title>
+<meta name="robots" content="noindex">
+<style>body{font-family:sans-serif;margin:2rem;max-width:32rem}</style></head>
+<body>
+<h1>Sign in to continue</h1>
+<p>Claiming an agent requires an authenticated OpenSesame session at <code>https://identity.example</code>. Use your existing sign-in, then return here.</p>
+<p><a href="/auth">Open sign-in</a></p>
+<p>After signing in, continue to <a href="/claim">the claim page</a>.</p>
+</body></html>"
+`;
+
+exports[`AgentAuth characterization > pins the claim and login HTML a human is shown 1`] = `
+"<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Claim agent registration</title>
+<meta name="robots" content="noindex">
+<style>body{font-family:sans-serif;margin:2rem;max-width:32rem}label{display:block;margin:.5rem 0}input{font:inherit;padding:.4rem}</style>
+</head><body>
+<h1>Claim this agent</h1>
+<p>You are confirming that an agent may act with the scopes shown after you enter the code it gave you. OpenSesame will not merge accounts by email.</p>
+
+<form method="post" action="/agent/identity/claim/complete">
+<input type="hidden" name="claim_attempt_token" value="clat_fixed.secret">
+<label>User code <input name="user_code" inputmode="numeric" autocomplete="one-time-code" required pattern="[0-9]{6}"></label>
+<button type="submit">Confirm</button>
+</form>
+</body></html>"
+`;
+
+exports[`AgentAuth characterization > pins the claim and login HTML a human is shown 2`] = `
+"<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Claim complete</title>
+<meta name="robots" content="noindex"><style>body{font-family:sans-serif;margin:2rem;max-width:32rem}</style></head>
+<body><h1>Registration claimed</h1><p>You can close this window. The agent will pick up the new credential.</p></body></html>"
+`;
+
+exports[`AgentAuth characterization > pins the claim and login HTML a human is shown 3`] = `
+"<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Sign in to claim</title>
+<meta name="robots" content="noindex">
+<style>body{font-family:sans-serif;margin:2rem;max-width:32rem}</style></head>
+<body>
+<h1>Sign in to continue</h1>
+<p>Claiming an agent requires an authenticated OpenSesame session at <code>https://identity.example</code>. Use your existing sign-in, then return here.</p>
+<p><a href="/auth">Open sign-in</a></p>
+<p>After signing in, continue to <a href="/claim?claim_attempt_token=clat_fixed.secret">the claim page</a>.</p>
+</body></html>"
+`;
