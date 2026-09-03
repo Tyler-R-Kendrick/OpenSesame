@@ -55,6 +55,11 @@ pnpm lint                # Biome gate for files changed from origin/main
 pnpm lint:design         # control contract (docs/design/controls.md)
 pnpm lint:all            # full-repository Biome + anti-slop audit
 pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail
+pnpm quality             # structural + component-coupling gates (both ratchets)
+pnpm quality:gate        # module size (400) + TS complexity; ratchets quality-baseline.json
+pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
+pnpm quality:bundle      # build apps/pages|pwa|console, check bundle-budgets.json
+pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
 pnpm test:rust-lint      # contract test for rustfmt/Clippy hook + verify wiring
 pnpm lint:fix            # fix changed and staged files
@@ -187,6 +192,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/gateway` | Host API, `:8787` (`opensesame-gateway`) |
 | `apps/daemon` | Local host agent, `:18790` (`opensesame-daemon`) |
 | `apps/cli` | Host CLI, binary `opensesame` (`opensesame-cli`) — includes `pass` sealed-store verbs |
+| `crates/storage` | SQLite-backed host store; `impl Db` is split one module per responsibility (ADR 0093) |
 | `crates/sealed-store` | Git-native hierarchical sealed secret store (`pass` parity) |
 | `crates/lifecycle` | Expiry ladder, subjects, and frozen hook event names — pure, value-blind (ADR 0074) |
 | `crates/security-events` | Shared security-event envelope, severity ladder, and Alertmanager v2 / `PagerDuty` v2 / RFC 5424 renderers — pure, no I/O (ADR 0080) |
@@ -260,7 +266,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0091).
+  0001–0093).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
@@ -401,6 +407,18 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   entry with checked-in prose; a new authored guide is compiled by the same
   parser and validator model output goes through
   ([ADR 0088](docs/adr/0088-ai-native-contextual-support.md)).
+- **A source file stays under 400 lines and the debt ledger only falls**
+  ([ADR 0093](docs/adr/0093-structural-quality-gates.md)). `pnpm quality`
+  measures module size and TypeScript complexity against thresholds that mirror
+  `clippy.toml`, and scores every pnpm package and Cargo crate against Robert
+  C. Martin's component principles. A dependency cycle (ADP) and an import of
+  an undeclared workspace package are hard failures. Everything else ratchets
+  against `quality-baseline.json` and `package-metrics-baseline.json`: a file
+  may not exceed its recorded number, **and a file that improves must have its
+  baseline tightened in the same commit** (`pnpm quality:gate --update`). Never
+  raise a recorded number to make the gate pass — split the file. New files get
+  a recorded number of zero, so new code meets the budget outright.
+  `docs/validation/code-quality-gates.md` is the working guide.
 - A screen's terminal commit is the shared `.go` ink square with its verb
   beside it; `.btn--primary` with a text label is for actions *inside* a card.
   Both patterns are named in [`docs/design/controls.md`](docs/design/controls.md)
@@ -589,14 +607,14 @@ directly so their own updater can refresh them.
 Before pushing:
 
 ```bash
-pnpm lint && pnpm typecheck && pnpm test
+pnpm lint && pnpm quality && pnpm typecheck && pnpm test
 ```
 
 For the full local gate suite (what `pnpm verify` runs — required before
 anything security-sensitive lands):
 
 ```bash
-pnpm verify   # lint + rustfmt/full-feature Clippy + test:all
+pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
               #   + cargo +1.88.0 test --workspace --all-targets
               #   + ./scripts/battle-test.sh
 ```
@@ -604,10 +622,11 @@ pnpm verify   # lint + rustfmt/full-feature Clippy + test:all
 CI lives in `.github/workflows/`:
 
 - `ci.yml` — runs on `pull_request` and `merge_group`: TypeScript job
-  (`pnpm bootstrap` + `pnpm lint` + `pnpm typecheck` + `pnpm test`) and
-  Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0). Merges
-  to `main` go through the GitHub merge queue with these two checks
-  required.
+  (`pnpm bootstrap` + `pnpm lint` + `pnpm quality` + `pnpm typecheck` +
+  `pnpm test`) and
+  Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0), plus a
+  Bundle budgets job that builds `apps/pages`/`pwa`/`console` and checks
+  `bundle-budgets.json`. Merges to `main` go through the GitHub merge queue.
 - `deploy-pages.yml` — on every push to `main`, builds `apps/pages` and
   publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
   must be "GitHub Actions"). `scripts/deploy-pages.sh` remains as the

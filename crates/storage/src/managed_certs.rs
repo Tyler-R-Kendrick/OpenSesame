@@ -21,8 +21,9 @@ use anyhow::Context;
 use chrono::Utc;
 
 use crate::{
-    validate_certificate_status, validate_json_document, validate_san_json,
-    validate_sealed_material, Db, StoredManagedCertificate, StoredManagedCertificateKey,
+    stored_managed_certificate, stored_managed_certificate_key, validate_certificate_status,
+    validate_json_document, validate_san_json, validate_sealed_material, Db,
+    StoredManagedCertificate, StoredManagedCertificateKey,
 };
 
 // Custody is deliberately *not* recorded as a label on the certificate row.
@@ -183,5 +184,182 @@ impl Db {
         .await
         .context("mark certificate renewed")?;
         Ok(result.rows_affected() == 1)
+    }
+
+    /// Record a certificate in the managed inventory.
+    ///
+    /// The 0013 schema makes `authority_id` and `request_id` NOT NULL foreign
+    /// keys, so the caller records the issuance request first; migration 0016
+    /// deliberately does not rewrite those applied constraints.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the SAN or metadata documents are malformed, the
+    /// status is not a known value, or the insert violates a database
+    /// constraint.
+    pub async fn insert_managed_certificate(
+        &self,
+        certificate: &StoredManagedCertificate,
+    ) -> anyhow::Result<()> {
+        validate_san_json(&certificate.san_json)?;
+        validate_json_document(&certificate.metadata_json, "certificate metadata")?;
+        validate_certificate_status(&certificate.status)?;
+        sqlx::query(
+            "INSERT INTO issued_certificates (id, organization_id, authority_id, request_id, certificate_digest, serial_number, common_name, san_json, not_before, expires_at, status, application_id, profile_id, source, enrollment_method, metadata_json, key_algorithm, signature_algorithm, fingerprint_sha256, chain_pem, renewed_from_id, renewed_by_id, auto_renew_enabled, renew_before_seconds, revocation_reason, revoked_at, version, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&certificate.id)
+        .bind(&certificate.organization_id)
+        .bind(&certificate.authority_id)
+        .bind(&certificate.request_id)
+        .bind(&certificate.certificate_digest)
+        .bind(&certificate.serial_number)
+        .bind(&certificate.common_name)
+        .bind(&certificate.san_json)
+        .bind(&certificate.not_before)
+        .bind(&certificate.expires_at)
+        .bind(&certificate.status)
+        .bind(&certificate.application_id)
+        .bind(&certificate.profile_id)
+        .bind(&certificate.source)
+        .bind(&certificate.enrollment_method)
+        .bind(&certificate.metadata_json)
+        .bind(&certificate.key_algorithm)
+        .bind(&certificate.signature_algorithm)
+        .bind(&certificate.fingerprint_sha256)
+        .bind(&certificate.chain_pem)
+        .bind(&certificate.renewed_from_id)
+        .bind(&certificate.renewed_by_id)
+        .bind(i64::from(certificate.auto_renew_enabled))
+        .bind(certificate.renew_before_seconds)
+        .bind(certificate.revocation_reason)
+        .bind(&certificate.revoked_at)
+        .bind(certificate.version)
+        .bind(&certificate.created_at)
+        .bind(&certificate.updated_at)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Place a certificate's managed private key into sealed custody.
+    ///
+    /// Only the renewal and sync paths call this; no inventory read joins the
+    /// table it writes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the sealed material is incomplete, the
+    /// certificate is absent from the organization, or the upsert fails.
+    pub async fn insert_managed_certificate_key(
+        &self,
+        key: &StoredManagedCertificateKey,
+    ) -> anyhow::Result<()> {
+        validate_sealed_material(&key.sealed_key)?;
+        sqlx::query(
+            "INSERT INTO managed_certificate_keys (id, organization_id, certificate_id, sealed_key_key_id, sealed_key_ciphertext, sealed_key_nonce, sealed_key_aad_digest, version, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+             ON CONFLICT(organization_id, certificate_id) DO UPDATE SET \
+               sealed_key_key_id = excluded.sealed_key_key_id, sealed_key_ciphertext = excluded.sealed_key_ciphertext, \
+               sealed_key_nonce = excluded.sealed_key_nonce, sealed_key_aad_digest = excluded.sealed_key_aad_digest, \
+               version = managed_certificate_keys.version + 1, updated_at = excluded.updated_at",
+        )
+        .bind(&key.id)
+        .bind(&key.organization_id)
+        .bind(&key.certificate_id)
+        .bind(&key.sealed_key.key_id)
+        .bind(&key.sealed_key.ciphertext)
+        .bind(&key.sealed_key.nonce)
+        .bind(&key.sealed_key.aad_digest)
+        .bind(key.version)
+        .bind(&key.created_at)
+        .bind(&key.updated_at)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Read a certificate's sealed managed key.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the lookup fails.
+    pub async fn get_managed_certificate_key(
+        &self,
+        organization_id: &str,
+        certificate_id: &str,
+    ) -> anyhow::Result<Option<StoredManagedCertificateKey>> {
+        let row = sqlx::query(
+            "SELECT * FROM managed_certificate_keys WHERE organization_id = ? AND certificate_id = ?",
+        )
+        .bind(organization_id)
+        .bind(certificate_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.as_ref().map(stored_managed_certificate_key))
+    }
+
+    /// Drop the sealed managed key once it has been delivered or rotated away.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the deletion fails.
+    pub async fn delete_managed_certificate_key(
+        &self,
+        organization_id: &str,
+        certificate_id: &str,
+    ) -> anyhow::Result<bool> {
+        let result = sqlx::query(
+            "DELETE FROM managed_certificate_keys WHERE organization_id = ? AND certificate_id = ?",
+        )
+        .bind(organization_id)
+        .bind(certificate_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected() == 1)
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
+    pub async fn get_renewed_by(
+        &self,
+        organization_id: &str,
+        certificate_id: &str,
+    ) -> anyhow::Result<Option<StoredManagedCertificate>> {
+        let row = sqlx::query(
+            "SELECT successor.* FROM issued_certificates AS predecessor \
+             JOIN issued_certificates AS successor \
+               ON successor.organization_id = predecessor.organization_id \
+              AND successor.id = predecessor.renewed_by_id \
+             WHERE predecessor.organization_id = ? AND predecessor.id = ?",
+        )
+        .bind(organization_id)
+        .bind(certificate_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.as_ref().map(stored_managed_certificate))
+    }
+
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
+    pub async fn get_renewed_from(
+        &self,
+        organization_id: &str,
+        certificate_id: &str,
+    ) -> anyhow::Result<Option<StoredManagedCertificate>> {
+        let row = sqlx::query(
+            "SELECT predecessor.* FROM issued_certificates AS successor \
+             JOIN issued_certificates AS predecessor \
+               ON predecessor.organization_id = successor.organization_id \
+              AND predecessor.id = successor.renewed_from_id \
+             WHERE successor.organization_id = ? AND successor.id = ?",
+        )
+        .bind(organization_id)
+        .bind(certificate_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.as_ref().map(stored_managed_certificate))
     }
 }

@@ -1,0 +1,50 @@
+{
+  "$comment": [
+    "Shipped-bundle budgets in KiB -- see scripts/bundle-budget-gate.mjs.",
+    "Unlike quality-baseline.json these are NOT auto-recorded: a bundle may",
+    "legitimately grow when a feature lands, so raising a number must be a",
+    "deliberate line in a diff with a reason, not a regenerated file.",
+    "Seeded from the 2026-09-03 build with roughly 5% headroom."
+  ],
+  "apps": {
+    "apps/pages": {
+      "dist": "apps/pages/dist",
+      "note": [
+        "The installable offline PWA (ADR 0090). Its service worker precaches",
+        "every byte counted in `total`, so this is what a device downloads on",
+        "install, once, over whatever connection it has.",
+        "83% of that total is one file: the client-core Wasm sync engine at",
+        "~12.5 MiB. It dominates `total` and `largestAsset` while contributing",
+        "nothing to `javascriptGzip`, which is why both are budgeted -- a JS",
+        "regression would be invisible inside a 15 MiB total."
+      ],
+      "budgets": {
+        "total": 15500,
+        "javascript": 2500,
+        "javascriptGzip": 725,
+        "css": 130,
+        "largestAsset": 12800
+      }
+    },
+    "apps/pwa": {
+      "dist": "apps/pwa/dist",
+      "budgets": {
+        "total": 360,
+        "javascript": 350,
+        "javascriptGzip": 105,
+        "css": 16,
+        "largestAsset": 350
+      }
+    },
+    "apps/console": {
+      "dist": "apps/console/dist",
+      "budgets": {
+        "total": 410,
+        "javascript": 400,
+        "javascriptGzip": 120,
+        "css": 16,
+        "largestAsset": 400
+      }
+    }
+  }
+}

@@ -9,7 +9,6 @@
   "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": { "@opensesame/os-domain": "workspace:*" },
   "devDependencies": {
-    "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
     "vitest": "4.1.10"
