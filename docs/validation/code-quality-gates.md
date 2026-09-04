@@ -80,6 +80,20 @@ Split the file instead. If the debt is genuinely unavoidable, say so
 explicitly with `pnpm quality:gate --update --accept-new-debt` — which is
 greppable in CI logs, and shows up as a number going *up* in the diff.
 
+**Relocation needs the same override.** Splitting one oversized file into
+several removes its entry and adds one per piece, so the gate sees new
+entries even though nothing got worse. Tell the two apart with the totals
+block in the baseline diff:
+
+| total | meaning |
+| --- | --- |
+| `files` | how many files carry any recorded violation |
+| `violations` | one per oversized file, plus each occurrence of the other rules — this *rises* on a split, because one bad file becomes several smaller ones |
+| `oversizedLines` | every recorded line count added up — this is the one that falls when debt shrinks, and stays flat when it merely moves |
+
+A split should leave `oversizedLines` flat or lower. If it rose, something
+actually grew.
+
 For `max-lines` the recorded number is the file's line count, so partial
 progress counts. Every other rule records occurrences.
 

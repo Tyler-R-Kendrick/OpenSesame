@@ -17,20 +17,17 @@
       "default": "./src/ldap-server.ts"
     }
   },
-  "bin": {
-    "mock-upstream-idp": "./dist/cli.js"
-  },
   "files": ["dist", "src"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "node --import tsx src/cli.ts",
-    "start": "node dist/cli.js",
+    "start": "node --import tsx dist/cli.js",
     "test": "vitest run"
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
-    "@xmldom/xmldom": "0.8.13",
+    "@xmldom/xmldom": "0.8.15",
     "jose": "6.2.8",
     "selfsigned": "5.5.0",
     "xml-crypto": "6.1.2"

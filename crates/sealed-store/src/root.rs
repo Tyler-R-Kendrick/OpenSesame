@@ -49,14 +49,26 @@ impl StoreRoot {
 /// Resolve store directory: `OPENSESAME_STORE_DIR` → `PASSWORD_STORE_DIR` → `~/.password-store`.
 #[must_use]
 pub fn resolve_store_dir() -> PathBuf {
-    if let Ok(p) = std::env::var("OPENSESAME_STORE_DIR") {
-        if !p.is_empty() {
-            return PathBuf::from(p);
-        }
-    }
-    if let Ok(p) = std::env::var("PASSWORD_STORE_DIR") {
-        if !p.is_empty() {
-            return PathBuf::from(p);
+    resolve_from(
+        std::env::var("OPENSESAME_STORE_DIR").ok().as_deref(),
+        std::env::var("PASSWORD_STORE_DIR").ok().as_deref(),
+    )
+}
+
+/// The precedence rule itself, with the environment lifted out.
+///
+/// Reading the two variables is the only thing [`resolve_store_dir`] adds, and
+/// keeping the rule pure is what lets the tests below cover every branch
+/// without touching process-global state. The test this replaced set both
+/// variables directly: Rust runs tests as threads in one process, so that
+/// raced with anything else reading them; it cleared rather than restored
+/// them, so it deleted a developer's real `PASSWORD_STORE_DIR`; it left them
+/// set if an assert panicked; and it still only exercised one of the three
+/// branches.
+fn resolve_from(opensesame: Option<&str>, password_store: Option<&str>) -> PathBuf {
+    for candidate in [opensesame, password_store].into_iter().flatten() {
+        if !candidate.is_empty() {
+            return PathBuf::from(candidate);
         }
     }
     directories::UserDirs::new().map_or_else(
@@ -69,12 +81,40 @@ pub fn resolve_store_dir() -> PathBuf {
 mod tests {
     use super::*;
 
+    fn default_dir() -> PathBuf {
+        directories::UserDirs::new().map_or_else(
+            || PathBuf::from(".password-store"),
+            |u| u.home_dir().join(".password-store"),
+        )
+    }
+
     #[test]
-    fn resolve_prefers_opensesame_store_dir() {
-        std::env::set_var("OPENSESAME_STORE_DIR", "/tmp/os-store-test");
-        std::env::set_var("PASSWORD_STORE_DIR", "/tmp/pass-store-test");
-        assert_eq!(resolve_store_dir(), PathBuf::from("/tmp/os-store-test"));
-        std::env::remove_var("OPENSESAME_STORE_DIR");
-        std::env::remove_var("PASSWORD_STORE_DIR");
+    fn opensesame_store_dir_wins() {
+        assert_eq!(
+            resolve_from(Some("/srv/os-store"), Some("/srv/pass-store")),
+            PathBuf::from("/srv/os-store")
+        );
+    }
+
+    #[test]
+    fn falls_back_to_password_store_dir() {
+        assert_eq!(
+            resolve_from(None, Some("/srv/pass-store")),
+            PathBuf::from("/srv/pass-store")
+        );
+    }
+
+    #[test]
+    fn an_empty_value_does_not_count_as_set() {
+        assert_eq!(
+            resolve_from(Some(""), Some("/srv/pass-store")),
+            PathBuf::from("/srv/pass-store")
+        );
+        assert_eq!(resolve_from(Some(""), Some("")), default_dir());
+    }
+
+    #[test]
+    fn falls_back_to_the_home_store_when_neither_is_set() {
+        assert_eq!(resolve_from(None, None), default_dir());
     }
 }

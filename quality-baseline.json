@@ -16,8 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 507,
-    "violations": 850
+    "files": 511,
+    "violations": 854,
+    "oversizedLines": 298324
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1234,8 +1235,20 @@
     "crates/connection-broker/src/sync_target.rs": {
       "max-lines": 807
     },
-    "crates/connection-broker/src/tests.rs": {
-      "max-lines": 5022
+    "crates/connection-broker/src/tests/connection_lifecycle.rs": {
+      "max-lines": 878
+    },
+    "crates/connection-broker/src/tests/credential_minting.rs": {
+      "max-lines": 819
+    },
+    "crates/connection-broker/src/tests/org_integrations.rs": {
+      "max-lines": 480
+    },
+    "crates/connection-broker/src/tests/revocation_cleanup.rs": {
+      "max-lines": 641
+    },
+    "crates/connection-broker/src/tests/web_rotation.rs": {
+      "max-lines": 1152
     },
     "crates/connection-broker/src/token.rs": {
       "max-lines": 422
