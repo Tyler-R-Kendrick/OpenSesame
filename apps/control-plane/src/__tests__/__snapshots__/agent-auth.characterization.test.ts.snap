@@ -243,8 +243,12 @@ a.inline{color:var(--ink);text-underline-offset:0.18em}
 }
 @media (prefers-reduced-motion:reduce){.go{transition:none}}</style></head><body><main class="wrap"><p class="brand"><svg class="mark" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="2" width="8" height="14" fill="#171717"/><rect x="10" y="4" width="6" height="12" fill="#0d7268"/></svg> OpenSesame</p><h1>Sign in to continue</h1>
 <p class="lede">Claiming an agent needs an OpenSesame session. Sign in, then we bring you back to enter the agent&rsquo;s code.</p>
-<div class="go-row"><a class="go" href="/auth" aria-label="Sign in" title="Sign in"></a><span class="go-verb" aria-hidden="true">Sign in</span></div>
-<p class="mute">Issuer https://identity.example. After sign-in you return to <a class="inline" href="/claim">the claim page</a>.</p></main></body></html>"
+<form method="post" action="/login/start">
+<input type="hidden" name="return_to" value="/claim">
+<div class="go-row"><button class="go" type="submit" aria-label="Sign in" title="Sign in"></button><span class="go-verb" aria-hidden="true">Sign in</span></div>
+</form>
+<p class="mute">Issuer https://identity.example</p>
+<p class="mute">After sign-in you return to <a class="inline" href="/claim">the claim page</a>.</p></main></body></html>"
 `;
 
 exports[`AgentAuth characterization > pins the claim and login HTML a human is shown 1`] = `
@@ -364,6 +368,10 @@ a.inline{color:var(--ink);text-underline-offset:0.18em}
 }
 @media (prefers-reduced-motion:reduce){.go{transition:none}}</style></head><body><main class="wrap"><p class="brand"><svg class="mark" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="2" width="8" height="14" fill="#171717"/><rect x="10" y="4" width="6" height="12" fill="#0d7268"/></svg> OpenSesame</p><h1>Sign in to continue</h1>
 <p class="lede">Claiming an agent needs an OpenSesame session. Sign in, then we bring you back to enter the agent&rsquo;s code.</p>
-<div class="go-row"><a class="go" href="/auth" aria-label="Sign in" title="Sign in"></a><span class="go-verb" aria-hidden="true">Sign in</span></div>
-<p class="mute">Issuer https://identity.example. After sign-in you return to <a class="inline" href="/claim?claim_attempt_token=clat_fixed.secret">the claim page</a>.</p></main></body></html>"
+<form method="post" action="/login/start">
+<input type="hidden" name="return_to" value="/claim?claim_attempt_token=clat_fixed.secret">
+<div class="go-row"><button class="go" type="submit" aria-label="Sign in" title="Sign in"></button><span class="go-verb" aria-hidden="true">Sign in</span></div>
+</form>
+<p class="mute">Issuer https://identity.example</p>
+<p class="mute">After sign-in you return to <a class="inline" href="/claim?claim_attempt_token=clat_fixed.secret">the claim page</a>.</p></main></body></html>"
 `;

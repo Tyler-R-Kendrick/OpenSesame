@@ -3,6 +3,13 @@ import { escapeHtml } from "../middleware/security-headers.js";
 export const AGENT_AUTH_CLAIM_CSP =
   "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'";
 
+/** First-party public client for the claim-login authorize request. */
+export const AGENT_AUTH_OAUTH_CLIENT_ID = "opensesame-agent-auth";
+
+export function agentAuthClaimRedirectUri(issuer: string): string {
+  return `${issuer.replace(/\/+$/u, "")}/claim/resume`;
+}
+
 /**
  * Claim `return_to` is interpolated into an href. Only a same-origin path is
  * allowed: a scheme, a protocol-relative URL, or a backslash would send the
@@ -139,7 +146,10 @@ export function renderAgentAuthLoginPage(opts: {
     "Sign in to claim",
     `<h1>Sign in to continue</h1>
 <p class="lede">Claiming an agent needs an OpenSesame session. Sign in, then we bring you back to enter the agent&rsquo;s code.</p>
-<div class="go-row"><a class="go" href="/auth" aria-label="Sign in" title="Sign in"></a><span class="go-verb" aria-hidden="true">Sign in</span></div>
+<form method="post" action="/login/start">
+<input type="hidden" name="return_to" value="${returnTo}">
+<div class="go-row"><button class="go" type="submit" aria-label="Sign in" title="Sign in"></button><span class="go-verb" aria-hidden="true">Sign in</span></div>
+</form>
 <p class="mute">Issuer ${issuer}</p>
 <p class="mute">After sign-in you return to <a class="inline" href="${returnTo}">the claim page</a>.</p>`,
   );

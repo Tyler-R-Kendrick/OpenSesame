@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import {
   AGENT_CLAIM_GRANT,
   AgentAuthError,
@@ -13,6 +14,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { Hono } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Variables } from "../middleware/context.js";
 import {
   completeClaim,
@@ -29,10 +31,18 @@ import {
 } from "../services/agent-auth.js";
 import {
   AGENT_AUTH_CLAIM_CSP,
+  AGENT_AUTH_OAUTH_CLIENT_ID,
+  agentAuthClaimRedirectUri,
   renderAgentAuthClaimPage,
   renderAgentAuthLoginPage,
   safeAgentAuthReturnTo,
 } from "../ui/agent-auth-pages.js";
+
+const AGENT_AUTH_OIDC_COOKIE = "os_agent_auth_oidc";
+
+function pkceChallenge(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
 
 export const agentAuthRoutes = new Hono<{ Variables: Variables }>();
 
@@ -317,6 +327,154 @@ agentAuthRoutes.get("/claim", async (c) => {
         : {}),
     }),
   );
+});
+
+agentAuthRoutes.post("/login/start", async (c) => {
+  const ctx = c.get("ctx");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Content-Security-Policy", AGENT_AUTH_CLAIM_CSP);
+  const form = await c.req.parseBody();
+  const returnTo = safeAgentAuthReturnTo(
+    typeof form.return_to === "string" ? form.return_to : "/claim",
+  );
+  const principalId = c.get("principalId");
+  if (principalId) {
+    return c.redirect(returnTo, 303);
+  }
+  const issuer = ctx.config.issuer.replace(/\/+$/u, "");
+  const redirectUri = agentAuthClaimRedirectUri(issuer);
+  const verifier = randomBytes(32).toString("base64url");
+  const state = randomBytes(16).toString("base64url");
+  setCookie(
+    c,
+    AGENT_AUTH_OIDC_COOKIE,
+    JSON.stringify({ v: verifier, r: returnTo, s: state }),
+    {
+      httpOnly: true,
+      sameSite: "Lax",
+      path: "/",
+      maxAge: 600,
+      secure: ctx.config.publicUrl.startsWith("https://"),
+    },
+  );
+  const authorize = new URL(`${issuer}/auth`);
+  authorize.searchParams.set("client_id", AGENT_AUTH_OAUTH_CLIENT_ID);
+  authorize.searchParams.set("redirect_uri", redirectUri);
+  authorize.searchParams.set("response_type", "code");
+  authorize.searchParams.set("scope", "openid");
+  authorize.searchParams.set("code_challenge", pkceChallenge(verifier));
+  authorize.searchParams.set("code_challenge_method", "S256");
+  authorize.searchParams.set("state", state);
+  return c.redirect(authorize.toString(), 303);
+});
+
+agentAuthRoutes.get("/claim/resume", async (c) => {
+  const ctx = c.get("ctx");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Content-Security-Policy", AGENT_AUTH_CLAIM_CSP);
+  const raw = getCookie(c, AGENT_AUTH_OIDC_COOKIE);
+  deleteCookie(c, AGENT_AUTH_OIDC_COOKIE, { path: "/" });
+  let stored: { v?: string; r?: string; s?: string } = {};
+  try {
+    stored = raw ? overlapCast(JSON.parse(raw)) : {};
+  } catch {
+    stored = {};
+  }
+  const returnTo = safeAgentAuthReturnTo(
+    typeof stored.r === "string" ? stored.r : "/claim",
+  );
+  const oidcError = c.req.query("error");
+  if (oidcError || !stored.v || !stored.s) {
+    return c.html(
+      renderAgentAuthLoginPage({
+        returnTo,
+        publicUrl: ctx.config.publicUrl,
+      }),
+      400,
+    );
+  }
+  if (c.req.query("state") !== stored.s) {
+    return c.html(
+      renderAgentAuthLoginPage({
+        returnTo,
+        publicUrl: ctx.config.publicUrl,
+      }),
+      400,
+    );
+  }
+  const code = c.req.query("code");
+  if (!code) {
+    return c.redirect(returnTo, 303);
+  }
+  const issuer = ctx.config.issuer.replace(/\/+$/u, "");
+  const redirectUri = agentAuthClaimRedirectUri(issuer);
+  let accessToken: string | undefined;
+  try {
+    const tokenRes = await fetch(`${issuer}/token`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: AGENT_AUTH_OAUTH_CLIENT_ID,
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: stored.v,
+      }),
+    });
+    const body = overlapCast(await tokenRes.json());
+    if (typeof body.access_token === "string") accessToken = body.access_token;
+  } catch {
+    accessToken = undefined;
+  }
+  if (!accessToken) {
+    return c.html(
+      renderAgentAuthLoginPage({
+        returnTo,
+        publicUrl: ctx.config.publicUrl,
+      }),
+      400,
+    );
+  }
+  const provider: {
+    AccessToken: {
+      find: (value: string) => Promise<{ accountId?: string } | undefined>;
+    };
+  } = overlapCast(ctx.oauth.provider);
+  const token = await provider.AccessToken.find(accessToken);
+  const accountId = token?.accountId;
+  if (!accountId) {
+    return c.html(
+      renderAgentAuthLoginPage({
+        returnTo,
+        publicUrl: ctx.config.publicUrl,
+      }),
+      400,
+    );
+  }
+  const now = ctx.clock();
+  const sessionId = `ps_${randomBytes(16).toString("hex")}`;
+  ctx.stores.provisionalSessions.set(sessionId, {
+    id: sessionId,
+    principalId: accountId,
+    quotaProfile: "anonymous",
+    allowedActions: [
+      "claim.create",
+      "agent.register_ephemeral",
+      "session.continue_anonymous",
+    ],
+    createdAt: now,
+    expiresAt: new Date(now.getTime() + ctx.config.provisionalTtlMs),
+  });
+  const pst = `pst_${randomBytes(24).toString("base64url")}`;
+  ctx.stores.provisionalTokens.set(pst, sessionId);
+  setCookie(c, ctx.config.provisionalCookieName, pst, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: Math.floor(ctx.config.provisionalTtlMs / 1000),
+    secure: ctx.config.publicUrl.startsWith("https://"),
+  });
+  return c.redirect(returnTo, 303);
 });
 
 agentAuthRoutes.get("/login", async (c) => {
