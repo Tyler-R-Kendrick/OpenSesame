@@ -8,7 +8,10 @@ import {
   AgentClaimInitRequestSchema,
   AgentIdentityRequestSchema,
 } from "@opensesame/contracts";
-import { overlapCast } from "@opensesame/os-domain";
+import {
+  digestAgentClaimAttemptToken,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { Variables } from "../middleware/context.js";
 import {
@@ -178,6 +181,7 @@ agentAuthRoutes.post("/agent/identity/claim/complete", async (c) => {
       renderAgentAuthClaimPage({
         error: result.error,
         claimAttemptToken: parsed.data.claim_attempt_token,
+        principalId,
       }),
       overlapCast(result.status),
     );
@@ -293,7 +297,26 @@ agentAuthRoutes.get("/claim", async (c) => {
     const returnTo = `/claim?claim_attempt_token=${encodeURIComponent(token)}`;
     return c.redirect(`/login?return_to=${encodeURIComponent(returnTo)}`, 303);
   }
-  return c.html(renderAgentAuthClaimPage({ claimAttemptToken: token }));
+  const ctx = c.get("ctx");
+  const digest = digestAgentClaimAttemptToken(ctx.config.claimPepper, token);
+  const attempt = digest
+    ? await ctx.repos.agentAuth.getClaimAttemptByTokenDigest(digest)
+    : null;
+  const registration = attempt
+    ? await ctx.repos.agentAuth.getRegistrationById(attempt.registrationId)
+    : null;
+  return c.html(
+    renderAgentAuthClaimPage({
+      claimAttemptToken: token,
+      principalId,
+      ...(registration
+        ? {
+            registrationId: registration.id,
+            scopes: registration.postClaimScopes,
+          }
+        : {}),
+    }),
+  );
 });
 
 agentAuthRoutes.get("/login", async (c) => {

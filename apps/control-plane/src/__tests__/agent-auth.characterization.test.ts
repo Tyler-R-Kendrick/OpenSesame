@@ -66,9 +66,10 @@ describe("AgentAuth characterization", () => {
     });
     expect(html).not.toMatch(/<script/i);
     expect(html).toContain("&lt;script&gt;");
-    expect(html).toContain(
-      '<p role="alert">&lt;script&gt;alert(1)&lt;/script&gt;</p>',
-    );
+    expect(html).toMatch(/role="alert"/);
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).toContain('class="go"');
+    expect(html).not.toMatch(/<button[^>]*>Confirm</);
   });
 
   it("renders an empty hidden token when none is supplied", () => {
