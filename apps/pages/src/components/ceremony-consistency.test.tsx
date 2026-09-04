@@ -38,7 +38,6 @@ function status(id: ConnectorStatus["id"]): ConnectorStatus {
     name: id,
     tone: "attn",
     detail: "detail",
-    required: true,
     failure: null,
     lastCheckedAt: null,
     checking: false,

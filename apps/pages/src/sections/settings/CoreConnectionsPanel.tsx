@@ -77,11 +77,7 @@ export function CoreConnectionsPanel() {
                 <span className="conn__name">
                   {connector.name}
                   <span className="conn__req">
-                    {connector.required
-                      ? "Required"
-                      : connector.id === "keys"
-                        ? "Built in"
-                        : "Optional"}
+                    {connector.id === "keys" ? "Built in" : "Optional"}
                   </span>
                 </span>
                 <span className="conn__state">{connector.detail}</span>

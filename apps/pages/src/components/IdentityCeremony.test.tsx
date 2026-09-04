@@ -18,7 +18,6 @@ function connector(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
     name: "Identity",
     tone: "live",
     detail: "127.0.0.1:18788",
-    required: true,
     failure: null,
     lastCheckedAt: NOW,
     checking: false,

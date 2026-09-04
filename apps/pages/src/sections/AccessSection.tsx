@@ -25,6 +25,7 @@ import {
   IconSearch,
   IconTrash,
 } from "../components/Icons.js";
+import { NoHostNote } from "../components/NoHostNote.js";
 import {
   AccessError,
   type Delegation,
@@ -56,7 +57,6 @@ import {
 import {
   HostSessionError,
   IdentityError,
-  hostBase,
   identityBase,
   identityFetch,
   identityJson,
@@ -78,11 +78,16 @@ import {
   staticSiteExplicitSnippet,
   staticSiteSnippet,
 } from "../lib/site-broker.js";
+import {
+  useHostConfigured,
+  useIdentityConfigured,
+} from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
-import { useSettingsEpoch } from "../lib/use-settings.js";
 import { useVault } from "../lib/vault/hooks.js";
 import type { SecretItem, VaultItem } from "../lib/vault/model.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
+import { formatTime } from "./access/format.js";
+import { type AuditEvent, Receipts, outcomeChip } from "./access/receipts.js";
 import { BindingEditor } from "./connections/BindingEditor.js";
 import { ConnectorMark } from "./connections/ConnectorMark.js";
 import { PolicyEditor } from "./connections/PolicyEditor.js";
@@ -215,12 +220,19 @@ export function AccessSection() {
 
   const clearPolicyFocus = useCallback(() => setPolicyFocus(null), []);
 
-  // Everything on this screen — grants, requests, sessions, resources,
-  // policies — lives on a Host. A deployment with none connected is complete
-  // (ADR 0090): say so once, quietly, instead of asking five panels to fail
-  // with a red "No Identity API is configured" each.
-  useSettingsEpoch();
-  const hostConfigured = hostBase().trim().length > 0;
+  // Which tabs a Host actually serves. Grants, requests and policies are
+  // brokered authority and nothing else: with no Host they have nothing to
+  // show, and saying so is kinder than five panels failing in red.
+  //
+  // Sessions and Resources are NOT in that list, and the first cut of ADR 0090
+  // was wrong to gate them: Sessions carries the Identity-plane receipts trail
+  // beside its Host task list, and Resources is where the Sites live — OAuth
+  // clients (Identity), the vault's own secrets, and the static-site snippets,
+  // domain rules and consents, which are local to this browser and need no
+  // network at all. Hiding a snippet that advertises "no backend" behind a
+  // backend check is the bug this ADR exists to remove, so each of those two
+  // panels gates only its own Host half.
+  const hostConfigured = useHostConfigured();
 
   return (
     <div className="section__inner">
@@ -240,21 +252,10 @@ export function AccessSection() {
         ))}
       </div>
 
-      {hostConfigured ? null : (
-        <div className="empty">
-          <h3>No Host connected</h3>
-          <p className="hint">
-            Access is brokered by a Host: grants, requests, sessions, resources
-            and policies all live there. This deployment has none connected,
-            which is fine — connect one under{" "}
-            <Link to="/settings/connectivity">Settings → Connectivity</Link>{" "}
-            when agents should draw scoped authority from this vault.
-          </p>
-        </div>
-      )}
-
-      {!hostConfigured ? null : tab === "grants" ? (
-        ceremony === null ? (
+      {tab === "grants" ? (
+        !hostConfigured ? (
+          <NoHostNote what="A grant is authority an agent draws from a Host: it holds the connection and mints the offer." />
+        ) : ceremony === null ? (
           <GrantsPanel online={online} onGrantAccess={openGrant} />
         ) : (
           <GuideTarget id="access.grant-ceremony">
@@ -266,27 +267,33 @@ export function AccessSection() {
           </GuideTarget>
         )
       ) : null}
-      {!hostConfigured ? null : tab === "requests" ? (
-        <GuideTarget id="access.relay">
-          <RequestsPanel online={online} />
-        </GuideTarget>
+      {tab === "requests" ? (
+        !hostConfigured ? (
+          <NoHostNote what="Requests are agents asking a Host for authority it has not already granted." />
+        ) : (
+          <GuideTarget id="access.relay">
+            <RequestsPanel online={online} />
+          </GuideTarget>
+        )
       ) : null}
-      {!hostConfigured ? null : tab === "sessions" ? (
-        <SessionsPanel online={online} />
-      ) : null}
-      {!hostConfigured ? null : tab === "resources" ? (
+      {tab === "sessions" ? <SessionsPanel online={online} /> : null}
+      {tab === "resources" ? (
         <ResourcesPanel
           online={online}
           onGrant={openGrant}
           onPolicy={openPolicy}
         />
       ) : null}
-      {!hostConfigured ? null : tab === "policies" ? (
-        <PoliciesPanel
-          online={online}
-          focusId={policyFocus}
-          onFocusUsed={clearPolicyFocus}
-        />
+      {tab === "policies" ? (
+        !hostConfigured ? (
+          <NoHostNote what="A policy narrows what a Host will do with a connection, so it lives beside the connection." />
+        ) : (
+          <PoliciesPanel
+            online={online}
+            focusId={policyFocus}
+            onFocusUsed={clearPolicyFocus}
+          />
+        )
       ) : null}
     </div>
   );
@@ -1975,6 +1982,9 @@ function rowChip(state: RowState): string {
 
 function SessionsPanel({ online }: { online: boolean }) {
   const session = useIdentitySession();
+  // The task list is the Host's; the receipts trail below it is the Identity
+  // API's and renders on its own terms (ADR 0090).
+  const hostConfigured = useHostConfigured();
   const [tasks, setTasks] = useState<TaskRun[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
@@ -1996,9 +2006,9 @@ function SessionsPanel({ online }: { online: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (!online) return;
+    if (!online || !hostConfigured) return;
     void load();
-  }, [load, online]);
+  }, [load, online, hostConfigured]);
 
   async function terminate(task: TaskRun) {
     setBusyId(task.taskRunId);
@@ -2016,66 +2026,72 @@ function SessionsPanel({ online }: { online: boolean }) {
 
   return (
     <>
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Sessions</h2>
+      {hostConfigured ? null : (
+        <NoHostNote what="A session is an agent run a Host is carrying out on your behalf." />
+      )}
+
+      {!hostConfigured ? null : (
+        <section className="panel">
+          <div className="panel__head">
+            <div>
+              <h2>Sessions</h2>
+            </div>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => void load()}
+              disabled={!online}
+              title="Reload sessions"
+              aria-label="Reload sessions"
+            >
+              <IconRefresh />
+            </button>
           </div>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => void load()}
-            disabled={!online}
-            title="Reload sessions"
-            aria-label="Reload sessions"
-          >
-            <IconRefresh />
-          </button>
-        </div>
 
-        <div className="panel__body">
-          {!online ? (
-            <output className="note note--warn">
-              <IconAlert /> Offline.
-            </output>
-          ) : null}
+          <div className="panel__body">
+            {!online ? (
+              <output className="note note--warn">
+                <IconAlert /> Offline.
+              </output>
+            ) : null}
 
-          {error ? (
-            <p className="note note--err" role="alert">
-              <IconAlert /> {error}
-            </p>
-          ) : null}
+            {error ? (
+              <p className="note note--err" role="alert">
+                <IconAlert /> {error}
+              </p>
+            ) : null}
 
-          {online && tasks === null && !error ? (
-            <output className="note">Asking the Host…</output>
-          ) : null}
+            {online && tasks === null && !error ? (
+              <output className="note">Asking the Host…</output>
+            ) : null}
 
-          {tasks && tasks.length > 0 ? (
-            <ul className="access-runs">
-              {tasks.map((task) => (
-                <TaskRow
-                  key={task.taskRunId}
-                  task={task}
-                  online={online}
-                  busy={busyId === task.taskRunId}
-                  onTerminate={() => void terminate(task)}
-                />
-              ))}
-            </ul>
-          ) : null}
+            {tasks && tasks.length > 0 ? (
+              <ul className="access-runs">
+                {tasks.map((task) => (
+                  <TaskRow
+                    key={task.taskRunId}
+                    task={task}
+                    online={online}
+                    busy={busyId === task.taskRunId}
+                    onTerminate={() => void terminate(task)}
+                  />
+                ))}
+              </ul>
+            ) : null}
 
-          {tasks && tasks.length === 0 ? (
-            <p className="hint">No live sessions.</p>
-          ) : null}
+            {tasks && tasks.length === 0 ? (
+              <p className="hint">No live sessions.</p>
+            ) : null}
 
-          {flash ? (
-            <output className={`note note--${flash.tone}`}>
-              {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-              <p>{flash.text}</p>
-            </output>
-          ) : null}
-        </div>
-      </section>
+            {flash ? (
+              <output className={`note note--${flash.tone}`}>
+                {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
+                <p>{flash.text}</p>
+              </output>
+            ) : null}
+          </div>
+        </section>
+      )}
 
       {session ? (
         <Receipts online={online} sessionKey={session.principalId} />
@@ -2229,146 +2245,6 @@ function TaskCompare({ detail }: { detail: TaskDetail }) {
       )}
     </div>
   );
-}
-
-/* ---------------------------------------------------------------- receipts */
-
-type AuditEvent = {
-  id: string;
-  occurredAt: string;
-  eventType: string;
-  outcome: string;
-  actorType?: string;
-  clientId?: string;
-  metadata?: JsonObject;
-};
-
-function isReceiptEvent(event: AuditEvent): boolean {
-  if (
-    event.eventType.startsWith("agent.") ||
-    event.eventType.startsWith("connection.")
-  ) {
-    return true;
-  }
-  if (event.actorType === "agent") return true;
-  const instance = event.metadata?.agentInstanceId;
-  return isString(instance) && instance.length > 0;
-}
-
-function Receipts({
-  online,
-  sessionKey,
-}: {
-  online: boolean;
-  sessionKey: string;
-}) {
-  const [events, setEvents] = useState<AuditEvent[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  /** A trail read for one principal must never land under another. */
-  const run = useRef(0);
-  const shownFor = useRef<string | null>(null);
-
-  const load = useCallback(async () => {
-    const id = ++run.current;
-    const superseded = () => run.current !== id;
-    setBusy(true);
-    setError(null);
-    try {
-      const body = await identityJson<{ events: AuditEvent[] }>(
-        "/v1/audit/events?limit=50",
-      );
-      if (superseded()) return;
-      setEvents(body.events.filter(isReceiptEvent));
-    } catch (err) {
-      if (superseded()) return;
-      setEvents(null);
-      if (err instanceof IdentityError) {
-        setError(
-          err.status === 401
-            ? "Session rejected. Reconnect and retry."
-            : `Identity answered ${err.status} for the receipt trail.`,
-        );
-      } else {
-        setError(`Identity API unreachable at ${identityBase()}.`);
-      }
-    } finally {
-      if (!superseded()) setBusy(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (shownFor.current !== sessionKey) {
-      // The trail on screen belongs to another principal. Drop it rather than
-      // let it read as this one's while the new one loads.
-      shownFor.current = sessionKey;
-      run.current += 1;
-      setEvents(null);
-      setError(null);
-    }
-    if (!online) return;
-    void load();
-  }, [load, online, sessionKey]);
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Receipts</h2>
-        </div>
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => void load()}
-          disabled={busy || !online}
-          title="Reload receipts"
-          aria-label="Reload receipts"
-        >
-          <IconRefresh />
-        </button>
-      </div>
-
-      <div className="panel__body panel__body--tight">
-        {!online ? (
-          <output className="note note--warn">
-            <IconAlert /> Offline.
-          </output>
-        ) : error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : busy && events === null ? (
-          <output className="note">Asking Identity…</output>
-        ) : events && events.length > 0 ? (
-          <ul className="access-trail">
-            {events.map((event) => (
-              <li key={event.id}>
-                <span className="access-trail__when">
-                  <IconClock /> {formatTime(event.occurredAt)}
-                </span>
-                <span className="access-trail__type">{event.eventType}</span>
-                <span className={`chip ${outcomeChip(event.outcome)}`}>
-                  {event.outcome}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="hint">No receipts yet.</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-const OUTCOME_CHIP = new Map([
-  ["succeeded", "chip--ok"],
-  ["denied", "chip--warn"],
-  ["failed", "chip--err"],
-]);
-
-function outcomeChip(outcome: string): string {
-  return OUTCOME_CHIP.get(outcome) ?? "";
 }
 
 /* ------------------------------------------------------ sites: identity plane */
@@ -2670,6 +2546,15 @@ function ResourcesPanel({
   onPolicy: (connectionId: string) => void;
 }) {
   const vault = useVault();
+  // Only the Connections group here belongs to a Host. The Sites group is the
+  // Identity API's, and the snippets, domain rules and consents beneath it are
+  // this browser's alone — the group is simply absent where there is no Host,
+  // the same way a group with nothing in it is absent (ADR 0090).
+  const hostConfigured = useHostConfigured();
+  // And the Sites group is the Identity API's. Asked with none configured, it
+  // answered "that client no longer exists on the Identity plane" — a 404
+  // dressed as a revocation, about a plane that was never there.
+  const identityConfigured = useIdentityConfigured();
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [clients, setClients] = useState<OAuthClient[] | null>(null);
@@ -2711,9 +2596,9 @@ function ResourcesPanel({
   }, []);
 
   useEffect(() => {
-    void load();
-    void loadClients();
-  }, [load, loadClients]);
+    if (hostConfigured) void load();
+    if (identityConfigured) void loadClients();
+  }, [hostConfigured, identityConfigured, load, loadClients]);
 
   const secrets = useMemo(
     () =>
@@ -2735,9 +2620,11 @@ function ResourcesPanel({
   const shownSites = (clients ?? []).filter(
     (client) => !needle || siteMatches(client, needle),
   );
+  // A plane nobody configured contributes no rows and is not pending: without
+  // this, a deployment with neither never reached its own empty state.
   const nothingShown =
-    connections !== null &&
-    clients !== null &&
+    (!hostConfigured || connections !== null) &&
+    (!identityConfigured || clients !== null) &&
     shownConnections.length === 0 &&
     shownSecrets.length === 0 &&
     shownSites.length === 0;
@@ -2824,7 +2711,7 @@ function ResourcesPanel({
           </p>
         ) : null}
 
-        {connections === null && !loadError ? (
+        {hostConfigured && connections === null && !loadError ? (
           <output className="note">Asking the Host…</output>
         ) : null}
 
@@ -2880,20 +2767,22 @@ function ResourcesPanel({
           </>
         ) : null}
 
-        <div className="access-group__head">
-          <h3 className="access-group__label">Sites</h3>
-          <button
-            type="button"
-            className="btn btn--sm"
-            disabled={!online}
-            onClick={() => {
-              setFlash(null);
-              setView({ kind: "register" });
-            }}
-          >
-            <IconPlus /> Register a site
-          </button>
-        </div>
+        {!identityConfigured ? null : (
+          <div className="access-group__head">
+            <h3 className="access-group__label">Sites</h3>
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={!online}
+              onClick={() => {
+                setFlash(null);
+                setView({ kind: "register" });
+              }}
+            >
+              <IconPlus /> Register a site
+            </button>
+          </div>
+        )}
 
         {clientsError ? (
           <p className="note note--err" role="alert">
@@ -2908,11 +2797,14 @@ function ResourcesPanel({
           </p>
         ) : null}
 
-        {clients === null && !clientsError ? (
+        {identityConfigured && clients === null && !clientsError ? (
           <output className="note">Asking Identity…</output>
         ) : null}
 
-        {clients !== null && shownSites.length === 0 && !needle ? (
+        {identityConfigured &&
+        clients !== null &&
+        shownSites.length === 0 &&
+        !needle ? (
           <p className="hint">No sites registered.</p>
         ) : null}
 
@@ -4122,17 +4014,6 @@ function countdown(iso: string, now: number): string {
   const hours = Math.round(minutes / 60);
   if (hours < 24) return rtf.format(hours, "hour");
   return rtf.format(Math.round(hours / 24), "day");
-}
-
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function useCopy() {

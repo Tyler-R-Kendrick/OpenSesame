@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 511,
-    "violations": 854,
-    "oversizedLines": 298324
+    "files": 510,
+    "violations": 851,
+    "oversizedLines": 297712
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -589,10 +589,6 @@
     "apps/pages/scripts/verify-auth-flow.mjs": {
       "max-lines": 475
     },
-    "apps/pages/scripts/verify-static-origin.mjs": {
-      "complexity": 1,
-      "max-lines": 453
-    },
     "apps/pages/src/components/AccountSwitcher.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
@@ -610,7 +606,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/ConnectivityBar.test.tsx": {
-      "max-lines": 441
+      "max-lines": 438
     },
     "apps/pages/src/components/Crumbs.tsx": {
       "complexity": 1
@@ -674,7 +670,7 @@
       "max-lines": 478
     },
     "apps/pages/src/lib/connectors.test.ts": {
-      "max-lines": 508
+      "max-lines": 499
     },
     "apps/pages/src/lib/crumbs.ts": {
       "complexity": 1
@@ -898,13 +894,13 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/AccessSection.test.tsx": {
-      "max-lines": 1400
+      "max-lines": 1372
     },
     "apps/pages/src/sections/AccessSection.tsx": {
       "complexity": 5,
       "max-depth": 1,
-      "max-lines": 4161,
-      "max-lines-per-function": 15
+      "max-lines": 4042,
+      "max-lines-per-function": 14
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
       "max-lines": 1482

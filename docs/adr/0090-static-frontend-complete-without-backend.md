@@ -101,14 +101,16 @@ places, each fixed the same way — say once, quietly, what a Host would add,
 and ask nothing of a Host that is not there:
 
 - **Access** rendered a red "No Identity API is configured" alert on every
-  one of its five tabs. With no Host configured it now shows one empty state
-  (`No Host connected`) naming Settings → Connectivity, and never calls the
-  Host.
+  one of its five tabs. Each tab a Host actually serves — grants, requests,
+  policies — now shows the `No Host connected` note in place of its panel,
+  and asks the Host nothing. See §7: the first cut of this gated the whole
+  section, which was wrong.
 - **Settings → Connectivity** labelled Host, Identity and this machine
   `Required` and summarised a fresh deployment as `3 need setup`. All three
-  are `Optional`; `needsAttention` counts an endpoint that is *configured and
-  broken*, never one that is merely unconfigured, and the chip reads
-  `Nothing needs setup` (the connectivity bar likewise).
+  are `Optional`; `needsAttention` counts one thing only — an endpoint that is
+  *configured and not answering* — and the chip reads `Nothing needs setup`
+  (the connectivity bar likewise). A connector's `required` flag had no true
+  case left after that, so it is gone rather than left as a field that lies.
 - **Sync targets** tried to list targets from a Host that did not exist and
   reported the refusal in red. With no Host it explains and stops.
 - **The embedded catalog** started the turso wasm worker on a page that is
@@ -120,6 +122,37 @@ and ask nothing of a Host that is not there:
 And the shell prompt names the person the broker signed in
 (`Test Person@guest:/`), not `guest`, when there is no Identity API to mint a
 principal — the broker's assertion is the identity.
+
+### 7. A screen is gated on what it actually needs, never on "a backend"
+
+§6's first cut gated the whole Access section on a Host, and that reintroduced
+the bug this ADR exists to remove. Two of its five tabs are not the Host's:
+
+- **Resources** is where the Sites live. Its OAuth clients and their sign-in
+  events are **Identity-plane** (`/v1/oauth/clients`, `/v1/audit/events`); its
+  integration snippets, domain rules and consents are **local to the browser**
+  — `site-broker.ts` touches nothing but `localStorage`, and the static-site
+  snippet it writes carries the header `OpenSesame static-site auth
+  (declarative; no backend)`. The secrets group beside them is the local vault.
+  A Host gate hid a feature that advertises needing no backend.
+- **Sessions** carries the Identity-plane receipts trail below its Host task
+  list. Only the task list is the Host's.
+
+So the rule is not "does this deployment have a backend" but "what does this
+panel need, and is that here": `useHostConfigured()` is asked per panel, and
+the two mixed panels gate only their own Host half. A group with no Host is
+absent the way a group with nothing in it is absent — never a heading over an
+error.
+
+The note itself is one component, `NoHostNote`. The first cut wrote it twice
+by hand in two voices and left `ConnectedPanel` still saying "Connections could
+not be read." on a deployment that had asked nothing of anything — a report of
+a failure that never happened, which is the same lie in the opposite direction.
+
+`verify:static` walks every tab of a tabbed section, not only the one it opens
+on, and fails on failure-shaped copy (`could not be`, `failed to`, `went
+wrong`, `unreachable`) anywhere in the walk — not merely on `role="alert"`,
+which is how a quiet hint slipped past the first cut.
 
 ## Consequences
 

@@ -82,7 +82,6 @@ function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
     tone: "live",
     detail: "127.0.0.1:18787",
     rttMs: 12,
-    required: true,
     failure: null,
     // A probed connector has been checked; the freshness row only shows for
     // connectors that have a verdict to be stale.
@@ -110,7 +109,6 @@ const ALL: ConnectorStatus[] = [
     id: "keys",
     name: "Key vault",
     detail: "WebCrypto (this device)",
-    required: false,
   }),
 ];
 
@@ -143,7 +141,7 @@ describe("ConnectivityBar", () => {
     ).toBeTruthy();
   });
 
-  it("summarises how many required connectors are asking for something", () => {
+  it("summarises how many connectors are asking for something", () => {
     renderBar();
     expect(screen.getByRole("group", { name: /1 needs setup/ })).toBeTruthy();
   });
@@ -151,7 +149,7 @@ describe("ConnectivityBar", () => {
   it("does not count the optional key vault towards attention", () => {
     renderBar([
       status(),
-      status({ id: "keys", name: "Key vault", tone: "attn", required: false }),
+      status({ id: "keys", name: "Key vault", tone: "attn" }),
     ]);
     expect(
       screen.getByRole("group", { name: /nothing needs setup/i }),
@@ -400,7 +398,6 @@ describe("ConnectivityBar", () => {
         id: "keys",
         name: "Key vault",
         detail: "WebCrypto (this device)",
-        required: false,
         lastCheckedAt: null,
       }),
     ]);

@@ -279,7 +279,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
   offer, never something the app assumes. With no Identity API configured a
   guest or federated sign-in is complete, not pending — no notice may name a
-  service that is not there.
+  service that is not there. A screen is gated on what it actually needs, one
+  panel at a time (`useHostConfigured`, `NoHostNote`), never on "a backend":
+  Access › Resources is Identity-plane and local-only, Sessions' receipts are
+  Identity-plane, and gating those on a Host hid features that need none. A
+  deployment that asks nothing may never report that something failed.
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).

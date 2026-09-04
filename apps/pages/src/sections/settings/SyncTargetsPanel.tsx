@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { IconAlert, IconCheck } from "../../components/Icons.js";
+import { NoHostNote } from "../../components/NoHostNote.js";
 import {
   ensureHostSession,
-  hostBase,
   hostLocalSessionEligible,
   useIdentitySession,
 } from "../../lib/identity.js";
@@ -13,8 +13,8 @@ import {
   listSyncTargets,
   syncTarget,
 } from "../../lib/sync-targets.js";
+import { useHostConfigured } from "../../lib/use-configured.js";
 import { useOnline } from "../../lib/use-online.js";
-import { useSettingsEpoch } from "../../lib/use-settings.js";
 
 type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
@@ -27,8 +27,7 @@ export function SyncTargetsPanel() {
   const session = useIdentitySession();
   // Sync targets live on a Host. A deployment with none connected is complete
   // (ADR 0090): nothing is asked, and nothing is reported as failing.
-  useSettingsEpoch();
-  const hostConfigured = hostBase().trim().length > 0;
+  const hostConfigured = useHostConfigured();
   const [targets, setTargets] = useState<SyncTarget[]>([]);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -120,11 +119,13 @@ export function SyncTargetsPanel() {
         </button>
       </div>
 
+      {/* No road out: Core connections, which opens the ceremony, is on this
+          same page just above. */}
       {!hostConfigured ? (
-        <p className="hint">
-          Sync targets live on a Host, and none is connected — optional. Connect
-          one under Core connections to fan secrets out to Vercel or Railway.
-        </p>
+        <NoHostNote
+          road={false}
+          what="A sync target is a Host fanning secrets out to a deployment — Vercel or Railway."
+        />
       ) : null}
 
       {!online ? (
