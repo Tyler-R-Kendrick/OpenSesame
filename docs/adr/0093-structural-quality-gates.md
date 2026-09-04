@@ -85,6 +85,15 @@ number**; recording improvements stays a one-command operation, and accepting
 genuinely unavoidable new debt needs `--update --accept-new-debt`, which is
 greppable in CI logs and shows up as numbers going *up* in the baseline diff.
 
+The ledger is keyed by file path, so **relocation reads as new debt**: split an
+oversized file and its entry disappears while one appears per piece. That is
+the same override, which is correct — someone should say out loud that the
+pieces are still over budget — but it means `violations` alone is a misleading
+headline, since one bad file becoming five smaller ones counts as four more
+violations. The totals therefore also record `oversizedLines`, every recorded
+line count added up: it falls when debt shrinks and stays flat when debt merely
+moves, which is what distinguishes a split from a regression.
+
 For `max-lines` the recorded number is the file's **actual line count**, not a
 count of violations. A boolean "this file is too long" made the ratchet blind
 to the work that matters most: taking `lib.rs` from 10,601 lines to 2,275 left

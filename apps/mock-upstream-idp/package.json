@@ -17,9 +17,6 @@
       "default": "./src/ldap-server.ts"
     }
   },
-  "bin": {
-    "mock-upstream-idp": "./dist/cli.js"
-  },
   "files": ["dist", "src"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
