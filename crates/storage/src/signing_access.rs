@@ -170,4 +170,28 @@ impl Db {
         .await?;
         Ok(rows.iter().map(stored_signing_event).collect())
     }
+
+    /// Access records that are still usable for a signer right now.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the query fails.
+    pub async fn list_active_records(
+        &self,
+        organization_id: &str,
+        signer_id: &str,
+    ) -> anyhow::Result<Vec<StoredSigningAccessRecord>> {
+        let rows = sqlx::query(
+            "SELECT * FROM signing_access_records \
+             WHERE organization_id = ? AND signer_id = ? AND status = 'active' \
+               AND (window_expires_at IS NULL OR julianday(window_expires_at) > julianday(?)) \
+             ORDER BY created_at, id",
+        )
+        .bind(organization_id)
+        .bind(signer_id)
+        .bind(now_rfc3339())
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.iter().map(stored_signing_access_record).collect())
+    }
 }

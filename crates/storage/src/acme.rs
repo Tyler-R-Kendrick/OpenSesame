@@ -6,8 +6,8 @@
 //! signature, visibility or call site changes.
 
 use super::{
-    now_rfc3339, stored_acme_account, stored_acme_challenge, stored_acme_order,
-    validate_json_document, Db, StoredAcmeAccount, StoredAcmeChallenge, StoredAcmeOrder,
+    now_rfc3339, validate_json_document, Db, Row, SqliteRow, StoredAcmeAccount,
+    StoredAcmeChallenge, StoredAcmeOrder,
 };
 
 impl Db {
@@ -329,4 +329,53 @@ impl Db {
     }
 
     // —— EST and SCEP configuration ————————————————————————————————
+}
+
+// Row mappers for this module's tables. They lived at the crate root while
+// every `impl Db` method did; `acme.rs` is their only caller, so they belong
+// here and stay private to it.
+fn stored_acme_account(row: &SqliteRow) -> StoredAcmeAccount {
+    StoredAcmeAccount {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        profile_id: row.get("profile_id"),
+        jwk_thumbprint: row.get("jwk_thumbprint"),
+        eab_kid: row.get("eab_kid"),
+        status: row.get("status"),
+        contacts_json: row.get("contacts_json"),
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn stored_acme_order(row: &SqliteRow) -> StoredAcmeOrder {
+    StoredAcmeOrder {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        account_id: row.get("account_id"),
+        status: row.get("status"),
+        identifiers_json: row.get("identifiers_json"),
+        expires_at: row.get("expires_at"),
+        finalize_csr_pem: row.get("finalize_csr_pem"),
+        certificate_id: row.get("certificate_id"),
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn stored_acme_challenge(row: &SqliteRow) -> StoredAcmeChallenge {
+    StoredAcmeChallenge {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        order_id: row.get("order_id"),
+        authz_id: row.get("authz_id"),
+        challenge_type: row.get("type"),
+        token: row.get("token"),
+        status: row.get("status"),
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
 }

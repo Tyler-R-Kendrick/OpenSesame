@@ -67,6 +67,19 @@ pnpm quality:gate --update
 Commit the tightened baseline with the change that earned it. This is what
 makes the ledger a ratchet: recorded numbers only ever fall.
 
+`--update` **refuses to raise a recorded number**, so it cannot be used to make
+a regression disappear:
+
+```
+quality gate: refusing to update -- 1 recorded number(s) would go UP
+  crates/storage/src/lib.rs
+      max-lines: 2186 -> 2400
+```
+
+Split the file instead. If the debt is genuinely unavoidable, say so
+explicitly with `pnpm quality:gate --update --accept-new-debt` — which is
+greppable in CI logs, and shows up as a number going *up* in the diff.
+
 For `max-lines` the recorded number is the file's line count, so partial
 progress counts. Every other rule records occurrences.
 

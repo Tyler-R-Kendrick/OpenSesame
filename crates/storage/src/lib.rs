@@ -1684,6 +1684,7 @@ mod grants;
 mod host_kv;
 mod invocations;
 mod outbox;
+mod renewal;
 mod revocation;
 mod signing;
 mod signing_access;
@@ -2142,96 +2143,6 @@ fn stored_external_ca_config(row: &SqliteRow) -> StoredExternalCaConfig {
         trust_class: row.get("trust_class"),
         auto_renew: row.get::<i64, _>("auto_renew") != 0,
         renew_before_seconds: row.get("renew_before_seconds"),
-        version: row.get("version"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    }
-}
-
-fn stored_acme_account(row: &SqliteRow) -> StoredAcmeAccount {
-    StoredAcmeAccount {
-        id: row.get("id"),
-        organization_id: row.get("organization_id"),
-        profile_id: row.get("profile_id"),
-        jwk_thumbprint: row.get("jwk_thumbprint"),
-        eab_kid: row.get("eab_kid"),
-        status: row.get("status"),
-        contacts_json: row.get("contacts_json"),
-        version: row.get("version"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    }
-}
-
-fn stored_acme_order(row: &SqliteRow) -> StoredAcmeOrder {
-    StoredAcmeOrder {
-        id: row.get("id"),
-        organization_id: row.get("organization_id"),
-        account_id: row.get("account_id"),
-        status: row.get("status"),
-        identifiers_json: row.get("identifiers_json"),
-        expires_at: row.get("expires_at"),
-        finalize_csr_pem: row.get("finalize_csr_pem"),
-        certificate_id: row.get("certificate_id"),
-        version: row.get("version"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    }
-}
-
-fn stored_acme_challenge(row: &SqliteRow) -> StoredAcmeChallenge {
-    StoredAcmeChallenge {
-        id: row.get("id"),
-        organization_id: row.get("organization_id"),
-        order_id: row.get("order_id"),
-        authz_id: row.get("authz_id"),
-        challenge_type: row.get("type"),
-        token: row.get("token"),
-        status: row.get("status"),
-        version: row.get("version"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    }
-}
-
-fn stored_est_config(row: &SqliteRow) -> StoredEstConfig {
-    StoredEstConfig {
-        id: row.get("id"),
-        organization_id: row.get("organization_id"),
-        profile_id: row.get("profile_id"),
-        sealed_passphrase: optional_sealed_material!(row, "sealed_passphrase"),
-        bootstrap_chain_pem: row.get("bootstrap_chain_pem"),
-        require_bootstrap: row.get::<i64, _>("require_bootstrap") != 0,
-        version: row.get("version"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    }
-}
-
-fn stored_scep_config(row: &SqliteRow) -> StoredScepConfig {
-    StoredScepConfig {
-        id: row.get("id"),
-        organization_id: row.get("organization_id"),
-        profile_id: row.get("profile_id"),
-        challenge_mode: row.get("challenge_mode"),
-        sealed_static_secret: optional_sealed_material!(row, "sealed_static_secret"),
-        ra_signs_with_ca: row.get::<i64, _>("ra_signs_with_ca") != 0,
-        include_ca_cert: row.get::<i64, _>("include_ca_cert") != 0,
-        allow_cert_renewal: row.get::<i64, _>("allow_cert_renewal") != 0,
-        version: row.get("version"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
-    }
-}
-
-fn stored_scep_challenge(row: &SqliteRow) -> StoredScepChallenge {
-    StoredScepChallenge {
-        id: row.get("id"),
-        organization_id: row.get("organization_id"),
-        config_id: row.get("config_id"),
-        challenge_hash: row.get("challenge_hash"),
-        expires_at: row.get("expires_at"),
-        consumed_at: row.get("consumed_at"),
         version: row.get("version"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),

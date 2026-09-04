@@ -21,9 +21,9 @@ use anyhow::Context;
 use chrono::Utc;
 
 use crate::{
-    stored_managed_certificate, stored_managed_certificate_key, validate_certificate_status,
-    validate_json_document, validate_san_json, validate_sealed_material, Db,
-    StoredManagedCertificate, StoredManagedCertificateKey,
+    stored_managed_certificate_key, validate_certificate_status, validate_json_document,
+    validate_san_json, validate_sealed_material, Db, StoredManagedCertificate,
+    StoredManagedCertificateKey,
 };
 
 // Custody is deliberately *not* recorded as a label on the certificate row.
@@ -154,36 +154,6 @@ impl Db {
 
         transaction.commit().await?;
         Ok(true)
-    }
-
-    /// Retire a certificate its successor has replaced.
-    ///
-    /// Only an `active` row moves, so a revoked certificate is never quietly
-    /// relabelled as merely superseded — the two are different facts and a
-    /// reviewer needs them to stay different. The status change also removes
-    /// the row from [`Db::list_certificates_expiring_before`], which is what
-    /// stops the lifecycle scanner from continuing to warn about a deadline
-    /// that no longer matters.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the update fails.
-    pub async fn mark_certificate_renewed(
-        &self,
-        organization_id: &str,
-        certificate_id: &str,
-    ) -> anyhow::Result<bool> {
-        let result = sqlx::query(
-            "UPDATE issued_certificates SET status = 'renewed', version = version + 1, updated_at = ? \
-             WHERE organization_id = ? AND id = ? AND status = 'active'",
-        )
-        .bind(Utc::now().to_rfc3339())
-        .bind(organization_id)
-        .bind(certificate_id)
-        .execute(&self.pool)
-        .await
-        .context("mark certificate renewed")?;
-        Ok(result.rows_affected() == 1)
     }
 
     /// Record a certificate in the managed inventory.
@@ -317,49 +287,5 @@ impl Db {
         .execute(&self.pool)
         .await?;
         Ok(result.rows_affected() == 1)
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error when the query fails.
-    pub async fn get_renewed_by(
-        &self,
-        organization_id: &str,
-        certificate_id: &str,
-    ) -> anyhow::Result<Option<StoredManagedCertificate>> {
-        let row = sqlx::query(
-            "SELECT successor.* FROM issued_certificates AS predecessor \
-             JOIN issued_certificates AS successor \
-               ON successor.organization_id = predecessor.organization_id \
-              AND successor.id = predecessor.renewed_by_id \
-             WHERE predecessor.organization_id = ? AND predecessor.id = ?",
-        )
-        .bind(organization_id)
-        .bind(certificate_id)
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.as_ref().map(stored_managed_certificate))
-    }
-
-    /// # Errors
-    ///
-    /// Returns an error when the query fails.
-    pub async fn get_renewed_from(
-        &self,
-        organization_id: &str,
-        certificate_id: &str,
-    ) -> anyhow::Result<Option<StoredManagedCertificate>> {
-        let row = sqlx::query(
-            "SELECT predecessor.* FROM issued_certificates AS successor \
-             JOIN issued_certificates AS predecessor \
-               ON predecessor.organization_id = successor.organization_id \
-              AND predecessor.id = successor.renewed_from_id \
-             WHERE successor.organization_id = ? AND successor.id = ?",
-        )
-        .bind(organization_id)
-        .bind(certificate_id)
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.as_ref().map(stored_managed_certificate))
     }
 }

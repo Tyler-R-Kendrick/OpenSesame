@@ -79,6 +79,12 @@ The second rule is what makes it a ratchet and not a snapshot. The recorded
 numbers can only ever fall, so a baseline cannot silently rot, and touching a
 bad file leaves it better than it was found.
 
+`--update` is the only way to write the ledger, so it is also the only way to
+launder a regression into it. It therefore **refuses to raise any recorded
+number**; recording improvements stays a one-command operation, and accepting
+genuinely unavoidable new debt needs `--update --accept-new-debt`, which is
+greppable in CI logs and shows up as numbers going *up* in the baseline diff.
+
 For `max-lines` the recorded number is the file's **actual line count**, not a
 count of violations. A boolean "this file is too long" made the ratchet blind
 to the work that matters most: taking `lib.rs` from 10,601 lines to 2,275 left
@@ -132,16 +138,25 @@ and a JavaScript regression would be invisible inside a total that large.
   and 0 unused dependencies. Those numbers are in the repo and can only fall.
 - 13 unused declared workspace dependencies were removed rather than recorded
   as accepted debt.
-- `crates/storage/src/lib.rs` went from 10,601 lines to 2,275: the 215-method
-  `impl Db` is now 22 modules, each one responsibility, none over 400 lines,
+- `crates/storage/src/lib.rs` went from 10,601 lines to 2,186: the 215-method
+  `impl Db` is now 24 modules, each one responsibility, the largest 381 lines,
   and the test module is its own file. Rust spreads a type's inherent impl
   across modules of the same crate, so this was a pure move — no signature,
   no call site, and no behaviour changed.
-- The split exposed two genuine misplacements that the single block had hidden:
-  `count_expiring_within` sat with connections though only the certificate
-  dashboard calls it, and `ensure_organization_row` is shared by seven modules
-  and so belongs at the crate root. Both moved. Two methods went from private
-  to crate-root-private; nothing became public.
+- The split exposed misplacements the single block had hidden. Splitting by
+  method *name* is a heuristic, and it misfiled ten methods that the SQL they
+  run places elsewhere: five CA-hierarchy methods (`insert_ca_link`,
+  `get_ca_parent`, `complete_ca_import`, …) and `list_active_records` had
+  landed in `connections` because `_ca\b` does not match `insert_ca_link` and
+  the fall-through default was `connections`; `count_expiring_within` sat with
+  connections though only the certificate dashboard calls it. All were moved to
+  the module whose tables they touch. The lesson is worth recording: a name is
+  a hint, the query is the fact, so a name-driven split needs a read-through
+  afterwards.
+- Six row-mapper functions (`stored_acme_*`, `stored_est_config`,
+  `stored_scep_*`) moved from the crate root into their single calling module,
+  where they are now private to it.
+- Two methods went from private to crate-root-private; nothing became public.
 
 ## Alternatives considered
 
@@ -156,6 +171,16 @@ anything. Requiring the baseline to move with the code is what keeps it honest.
 learn, configure and keep current, for checks that `cargo metadata`, the
 workspace manifests and an already-installed Oxlint cover. Rejected on ADR
 0048's reasoning.
+
+**Use `betterer` instead of a bespoke ratchet.** This is the strongest "buy"
+alternative and the closest off-the-shelf fit: it exists precisely to hold a
+lint or type-error count and drive it down. It was rejected for three reasons.
+It is JavaScript-only, so the 470 Rust files — where the worst offender lived —
+would stay unmeasured. Its baseline is a serialized snapshot rather than a
+per-file ledger a reviewer can read in a diff, and the readability of
+`quality-baseline.json` is much of the point. And it would not have refused to
+launder a regression, which is the property that makes this gate a ratchet. The
+cost of building instead is ~340 lines to maintain; that is the trade accepted.
 
 **Gate SAP distance.** Abstractness cannot be measured honestly with a regex,
 and a gate people do not believe is a gate people route around.

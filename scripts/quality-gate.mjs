@@ -28,7 +28,9 @@
  *
  * Usage:
  *   node scripts/quality-gate.mjs            # check (CI / pnpm verify)
- *   node scripts/quality-gate.mjs --update   # re-record the baseline
+ *   node scripts/quality-gate.mjs --update   # record improvements
+ *   node scripts/quality-gate.mjs --update --accept-new-debt
+ *                                            # ... and let numbers rise
  *   node scripts/quality-gate.mjs --summary  # worst offenders, no exit code
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -64,6 +66,7 @@ const IGNORED_PREFIXES = [
 const args = new Set(process.argv.slice(2));
 const update = args.has("--update");
 const summaryOnly = args.has("--summary");
+const acceptNewDebt = args.has("--accept-new-debt");
 
 /** @returns {Map<string, Map<string, number>>} file -> rule -> count */
 function measureTypeScript() {
@@ -100,10 +103,23 @@ function measureTypeScript() {
     if (isIgnored(file)) continue;
     if (rule === FILE_SIZE_RULE) {
       // Record how long the file actually is, not that it is merely too long --
-      // see the note on FILE_SIZE_RULE.
+      // see the note on FILE_SIZE_RULE. The count is parsed out of Oxlint's
+      // prose ("File has too many lines (418)."), so a wording change upstream
+      // would silently yield 0 here: every oversized file would read as an
+      // improvement, the baseline would be tightened to 0, and the gate would
+      // then pass forever while measuring nothing. Fail loudly instead.
       const measured = /\((?<lines>\d+)\)/.exec(diagnostic.message)?.groups
         ?.lines;
-      set(counts, file, rule, Number(measured ?? 0));
+      if (measured === undefined) {
+        throw new Error(
+          [
+            `Cannot read a line count from Oxlint's ${FILE_SIZE_RULE} message: ${JSON.stringify(diagnostic.message)}`,
+            "Oxlint's wording probably changed. Fix the parser in scripts/quality-gate.mjs;",
+            "do not let this fall back to zero, which would blind the gate.",
+          ].join("\n"),
+        );
+      }
+      set(counts, file, rule, Number(measured));
       continue;
     }
     bump(counts, file, rule);
@@ -288,13 +304,38 @@ if (summaryOnly) {
 }
 
 if (update) {
-  writeFileSync(
-    baselinePath,
-    `${JSON.stringify(serializeBaseline(measured), null, 2)}\n`,
-  );
+  // `--update` is the ratchet's only escape hatch, so it must not be able to
+  // launder a regression into the ledger. Recording improvements -- the common
+  // case -- stays a one-command operation; writing a number UP takes a second,
+  // greppable flag, and the raised lines are visible in the baseline's diff.
+  if (regressions.length > 0 && !acceptNewDebt) {
+    console.error(
+      `\nquality gate: refusing to update -- ${regressions.length} recorded number(s) would go UP\n`,
+    );
+    console.error(
+      "The ledger is a ratchet; --update records improvements, it does not accept",
+      "\nregressions. Split the file or shrink the function. If the debt is genuinely",
+      "\nunavoidable, say so explicitly:\n\n  pnpm quality:gate --update --accept-new-debt\n",
+    );
+    for (const { file, rule, allowed, count } of regressions
+      .sort((a, b) => a.file.localeCompare(b.file))
+      .slice(0, 40)) {
+      console.error(`  ${file}\n      ${rule}: ${allowed} -> ${count}`);
+    }
+    if (regressions.length > 40) {
+      console.error(`  ... and ${regressions.length - 40} more`);
+    }
+    console.error("");
+    process.exit(1);
+  }
   const ledger = serializeBaseline(measured);
+  writeFileSync(baselinePath, `${JSON.stringify(ledger, null, 2)}\n`);
+  const accepted =
+    regressions.length > 0
+      ? ` (${regressions.length} new debt accepted via --accept-new-debt)`
+      : "";
   console.log(
-    `quality gate: baseline updated -- ${ledger.totals.violations} violations across ${ledger.totals.files} files`,
+    `quality gate: baseline updated -- ${ledger.totals.violations} violations across ${ledger.totals.files} files${accepted}`,
   );
   process.exit(0);
 }

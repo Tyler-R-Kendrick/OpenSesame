@@ -6,8 +6,8 @@
 //! signature, visibility or call site changes.
 
 use super::{
-    now_rfc3339, sealed_parts, stored_est_config, stored_scep_challenge, stored_scep_config,
-    validate_optional_sealed_material, Db, StoredEstConfig, StoredScepChallenge, StoredScepConfig,
+    now_rfc3339, sealed_parts, validate_optional_sealed_material, Db, Row,
+    SealedCertificateMaterial, SqliteRow, StoredEstConfig, StoredScepChallenge, StoredScepConfig,
 };
 
 impl Db {
@@ -301,5 +301,50 @@ impl Db {
             .fetch_optional(&self.pool)
             .await?;
         Ok(row.as_ref().map(stored_scep_challenge))
+    }
+}
+
+// Row mappers for this module's tables -- private to their only caller.
+fn stored_est_config(row: &SqliteRow) -> StoredEstConfig {
+    StoredEstConfig {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        profile_id: row.get("profile_id"),
+        sealed_passphrase: optional_sealed_material!(row, "sealed_passphrase"),
+        bootstrap_chain_pem: row.get("bootstrap_chain_pem"),
+        require_bootstrap: row.get::<i64, _>("require_bootstrap") != 0,
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn stored_scep_config(row: &SqliteRow) -> StoredScepConfig {
+    StoredScepConfig {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        profile_id: row.get("profile_id"),
+        challenge_mode: row.get("challenge_mode"),
+        sealed_static_secret: optional_sealed_material!(row, "sealed_static_secret"),
+        ra_signs_with_ca: row.get::<i64, _>("ra_signs_with_ca") != 0,
+        include_ca_cert: row.get::<i64, _>("include_ca_cert") != 0,
+        allow_cert_renewal: row.get::<i64, _>("allow_cert_renewal") != 0,
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+    }
+}
+
+fn stored_scep_challenge(row: &SqliteRow) -> StoredScepChallenge {
+    StoredScepChallenge {
+        id: row.get("id"),
+        organization_id: row.get("organization_id"),
+        config_id: row.get("config_id"),
+        challenge_hash: row.get("challenge_hash"),
+        expires_at: row.get("expires_at"),
+        consumed_at: row.get("consumed_at"),
+        version: row.get("version"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
     }
 }

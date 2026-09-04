@@ -63,13 +63,25 @@ function internalDeps(...groups) {
 
 /** @returns {Component[]} */
 export function rustComponents(root) {
-  const metadata = JSON.parse(
-    execFileSync(
+  let raw;
+  try {
+    raw = execFileSync(
       "cargo",
       ["metadata", "--no-deps", "--format-version", "1", "--offline"],
       { cwd: root, encoding: "utf8", maxBuffer: 128 * 1024 * 1024 },
-    ),
-  );
+    );
+  } catch (cause) {
+    // The gate deliberately does NOT skip the Rust plane when cargo is absent:
+    // a component graph measured over half the repo would report "0 cycles"
+    // while saying nothing about 55 crates. Fail, but say what to install.
+    throw new Error(
+      cause.code === "ENOENT"
+        ? "cargo not found. The component-coupling gate scores both planes, so it needs the Rust toolchain even for a TypeScript-only change.\nInstall it with rustup (https://rustup.rs), or run the TypeScript half alone with `pnpm quality:gate`."
+        : `cargo metadata failed: ${cause.message}`,
+      { cause },
+    );
+  }
+  const metadata = JSON.parse(raw);
   const members = new Set(metadata.packages.map((pkg) => pkg.name));
 
   return metadata.packages
