@@ -365,6 +365,12 @@ agentAuthRoutes.post("/login/start", async (c) => {
   authorize.searchParams.set("code_challenge", pkceChallenge(verifier));
   authorize.searchParams.set("code_challenge_method", "S256");
   authorize.searchParams.set("state", state);
+  const provider =
+    typeof form.provider === "string" ? form.provider.trim() : "";
+  if (/^[a-z0-9._-]{1,64}$/i.test(provider)) {
+    authorize.searchParams.set("login_hint_provider", provider);
+    authorize.searchParams.set("kc_idp_hint", provider);
+  }
   return c.redirect(authorize.toString(), 303);
 });
 
