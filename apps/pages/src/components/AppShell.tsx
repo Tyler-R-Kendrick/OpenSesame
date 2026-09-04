@@ -45,6 +45,7 @@ import {
 import { KeymapSheet } from "./KeymapSheet.js";
 import { NotificationsBar } from "./NotificationsBar.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
+import { Wordmark } from "./Wordmark.js";
 
 const SECTIONS = [
   {
@@ -567,8 +568,7 @@ function Shell({ children }: { children?: ReactNode }) {
       </a>
       <aside className="rail">
         <div className="rail__brand">
-          <IconMark size={16} />
-          <p className="rail__wordmark">opensesame</p>
+          <Wordmark className="rail__wordmark" />
         </div>
 
         <SessionPrompt />

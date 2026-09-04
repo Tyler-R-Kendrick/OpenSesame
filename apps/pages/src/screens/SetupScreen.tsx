@@ -19,7 +19,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { IconCheck, IconChevronLeft, IconMark } from "../components/Icons.js";
+import { IconCheck, IconChevronLeft } from "../components/Icons.js";
+import { Wordmark } from "../components/Wordmark.js";
 import { firstControl, landFocus } from "../lib/focus.js";
 import {
   type ParsedInvite,
@@ -113,10 +114,7 @@ export function SetupScreen({
     <div className="setup">
       <div className="setup__frame" ref={frameRef}>
         <div className="setup__bar">
-          <p className="setup__wordmark">
-            <IconMark size={16} />
-            opensesame
-          </p>
+          <Wordmark className="setup__wordmark" />
           {/* Backing out changes nothing: the ways-in list writes to settings
               as it is edited, and nothing here was ever required. */}
           <button type="button" className="setup__back" onClick={onDone}>
