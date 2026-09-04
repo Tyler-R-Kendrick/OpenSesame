@@ -848,6 +848,77 @@ input[type="radio"] {
   line-height: 1.2;
 }
 
+/* Brand decrypt: one 1ch terminal cell per letter. The inner reel steps
+   through hex ciphertext (Jhey / Craft of UI slot-track) and locks on the
+   plaintext. Transform + steps() stay composited. */
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.wordmark > svg {
+  flex: none;
+  animation: fade 400ms var(--ease) both;
+}
+
+.wordmark__slots {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0.08em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.wordmark__slot {
+  display: block;
+  width: 1ch;
+  height: 1em;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+  animation: wordmark-lock 520ms var(--ease) both;
+}
+
+.wordmark__reel {
+  display: flex;
+  flex-direction: column;
+  animation: wordmark-decrypt 520ms steps(7, end) both;
+  animation-delay: inherit;
+}
+
+.wordmark__glyph {
+  display: block;
+  height: 1em;
+  line-height: 1;
+}
+
+@keyframes wordmark-decrypt {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% + 1em));
+  }
+}
+
+@keyframes wordmark-lock {
+  0%,
+  72% {
+    color: var(--ink-3);
+    border-bottom-color: var(--line);
+  }
+  100% {
+    color: inherit;
+    border-bottom-color: var(--line-strong);
+  }
+}
+
 /* The session context as a shell prompt: who@tomb:/ — the root of the tree
    the rail renders. Each segment is a button that opens its switcher. */
 .rail__prompt {
@@ -1555,6 +1626,20 @@ body {
   /* pip-breathe is killed above, so an in-flight check needs a non-motion cue. */
   .cx__btn.is-checking .cx__pip {
     opacity: 0.5;
+  }
+
+  .wordmark > svg,
+  .wordmark__slot,
+  .wordmark__reel {
+    animation: none !important;
+  }
+
+  .wordmark__reel {
+    transform: translateY(calc(-100% + 1em));
+  }
+
+  .wordmark__slot {
+    color: inherit;
   }
 }
 
