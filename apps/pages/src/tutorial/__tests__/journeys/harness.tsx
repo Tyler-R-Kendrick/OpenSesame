@@ -75,7 +75,10 @@ import {
   type SupportTransport,
   supportSessionSeams,
 } from "../../session.js";
-import { SupportLauncher } from "../../ui/SupportLauncher.js";
+import {
+  SupportLauncher,
+  SupportSlotProvider,
+} from "../../ui/SupportLauncher.js";
 
 export type JourneyUser = ReturnType<typeof userEvent.setup>;
 
@@ -317,10 +320,12 @@ export function renderJourney(
   render(
     <MemoryRouter initialEntries={[options.at ?? "/vault"]}>
       <SupportProvider>
-        <AppShell>
-          <Screens />
-        </AppShell>
-        <SupportLauncher />
+        <SupportSlotProvider>
+          <AppShell>
+            <Screens />
+          </AppShell>
+          <SupportLauncher />
+        </SupportSlotProvider>
       </SupportProvider>
     </MemoryRouter>,
   );

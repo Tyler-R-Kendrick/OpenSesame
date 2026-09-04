@@ -28,6 +28,7 @@ import { pageSteps, viewportIndex } from "../lib/tree-motion.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { SupportSlot } from "../tutorial/ui/SupportLauncher.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
 import { ConnectivityBar } from "./ConnectivityBar.js";
 import { Crumbs } from "./Crumbs.js";
@@ -605,6 +606,7 @@ function Shell({ children }: { children?: ReactNode }) {
           the lock on the right — the one strip that is always telling the
           truth about Host and Identity. */}
       <footer className="statusline">
+        <SupportSlot />
         <div ref={connectivityRef}>
           <ConnectivityBar />
         </div>
