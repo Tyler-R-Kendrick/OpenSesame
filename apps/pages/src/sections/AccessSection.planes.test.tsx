@@ -90,7 +90,7 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
         <AccessSection />
       </MemoryRouter>,
     );
-    expect(await screen.findByText("No Host connected")).toBeTruthy();
+    expect(await screen.findByText(/No Host connected/)).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(/No Identity API is configured/)).toBeNull();
     // The road to a Host is named, not demanded.

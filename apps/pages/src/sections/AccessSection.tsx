@@ -14,18 +14,28 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   IconAlert,
   IconCheck,
   IconClock,
   IconCopy,
+  IconDownload,
   IconPlus,
   IconRefresh,
   IconSearch,
   IconTrash,
+  IconUpload,
+  IconX,
 } from "../components/Icons.js";
 import { NoHostNote } from "../components/NoHostNote.js";
+import {
+  addLocalGrant,
+  exportAccessBook,
+  importAccessBook,
+  listLocalGrants,
+  removeLocalGrant,
+} from "../lib/access-book.js";
 import {
   AccessError,
   type Delegation,
@@ -55,6 +65,15 @@ import {
   listConnections,
 } from "../lib/connections.js";
 import {
+  type AccessTab,
+  accessImportPath,
+  accessIsImportCeremony,
+  accessIsNewCeremony,
+  accessNewPath,
+  accessPath,
+  accessTabFromLocation,
+} from "../lib/crumbs.js";
+import {
   HostSessionError,
   IdentityError,
   identityBase,
@@ -62,6 +81,7 @@ import {
   identityJson,
   useIdentitySession,
 } from "../lib/identity.js";
+import { searchVaultListing } from "../lib/keymap.js";
 import {
   type BrokerPolicy,
   type DomainEffect,
@@ -95,8 +115,6 @@ import { type Flash, STATUS_CHIP, errorText } from "./connections/shared.js";
 import "./connections.css";
 import "./access.css";
 
-type AccessTab = "grants" | "requests" | "sessions" | "resources" | "policies";
-
 const TABS: Array<{ id: AccessTab; label: string; guideId: string }> = [
   { id: "grants", label: "Grants", guideId: "access.grants" },
   { id: "requests", label: "Requests", guideId: "access.requests" },
@@ -106,29 +124,29 @@ const TABS: Array<{ id: AccessTab; label: string; guideId: string }> = [
 ];
 
 /** One tab, named so a guide can point at it without knowing the markup. */
-function AccessTabButton({
+function AccessTabLink({
   guideId,
   label,
-  active,
-  onSelect,
+  to,
+  current,
 }: {
   guideId: string;
   label: string;
-  active: boolean;
-  onSelect: () => void;
+  to: string;
+  current: boolean;
 }) {
-  const ref = useGuideTarget<HTMLButtonElement>(guideId);
+  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
   return (
-    <button
+    <Link
       ref={ref}
-      type="button"
+      to={to}
       role="tab"
-      aria-selected={active}
-      className={`access-tab${active ? " is-active" : ""}`}
-      onClick={onSelect}
+      aria-selected={current}
+      className={`access-tab${current ? " is-active" : ""}`}
+      aria-current={current ? "page" : undefined}
     >
       {label}
-    </button>
+    </Link>
   );
 }
 
@@ -136,7 +154,14 @@ type GrantTarget =
   | { kind: "connection"; connection: Connection }
   | { kind: "secret"; secret: SecretItem };
 
-type CeremonyState = { target: GrantTarget | null } | null;
+function grantCeremonyPath(target: GrantTarget | null): string {
+  const base = accessNewPath("grants");
+  if (target === null) return base;
+  if (target.kind === "connection") {
+    return `${base}?connection=${encodeURIComponent(target.connection.connectionId)}`;
+  }
+  return `${base}?secret=${encodeURIComponent(target.secret.id)}`;
+}
 
 type CeremonyStep = "target" | "assign" | "scope" | "mint" | "code";
 
@@ -204,34 +229,53 @@ function formatDuration(seconds: number): string {
  */
 export function AccessSection() {
   const online = useOnline();
-  const [tab, setTab] = useState<AccessTab>("grants");
-  const [ceremony, setCeremony] = useState<CeremonyState>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const tab = accessTabFromLocation(location.pathname, location.search);
+  const adding = accessIsNewCeremony(location.pathname);
+  const importing = accessIsImportCeremony(location.pathname);
+  const grantQuery = new URLSearchParams(location.search);
+  const preselectConnection = grantQuery.get("connection");
+  const preselectSecret = grantQuery.get("secret");
   const [policyFocus, setPolicyFocus] = useState<string | null>(null);
+  const [bookEpoch, setBookEpoch] = useState(0);
+  const grantRef = useGuideTarget<HTMLAnchorElement>("access.grant-access");
 
-  const openGrant = useCallback((target: GrantTarget | null) => {
-    setCeremony({ target });
-    setTab("grants");
-  }, []);
+  const openGrant = useCallback(
+    (target: GrantTarget | null) => {
+      navigate(grantCeremonyPath(target));
+    },
+    [navigate],
+  );
 
-  const openPolicy = useCallback((connectionId: string) => {
-    setPolicyFocus(connectionId);
-    setTab("policies");
-  }, []);
+  const openPolicy = useCallback(
+    (connectionId: string) => {
+      setPolicyFocus(connectionId);
+      navigate(accessPath("policies"));
+    },
+    [navigate],
+  );
 
   const clearPolicyFocus = useCallback(() => setPolicyFocus(null), []);
 
-  // Which tabs a Host actually serves. Grants, requests and policies are
-  // brokered authority and nothing else: with no Host they have nothing to
-  // show, and saying so is kinder than five panels failing in red.
-  //
-  // Sessions and Resources are NOT in that list, and the first cut of ADR 0090
-  // was wrong to gate them: Sessions carries the Identity-plane receipts trail
-  // beside its Host task list, and Resources is where the Sites live — OAuth
-  // clients (Identity), the vault's own secrets, and the static-site snippets,
-  // domain rules and consents, which are local to this browser and need no
-  // network at all. Hiding a snippet that advertises "no backend" behind a
-  // backend check is the bug this ADR exists to remove, so each of those two
-  // panels gates only its own Host half.
+  useEffect(() => {
+    if (tab !== "policies") setPolicyFocus(null);
+  }, [tab]);
+
+  function exportBook() {
+    const url = URL.createObjectURL(
+      new Blob([exportAccessBook()], { type: "application/json" }),
+    );
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "access.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Requests and policies are Host-brokered. Grants still add, import and
+  // export a local book when there is no Host (ADR 0090). Sessions and
+  // Resources each gate only their Host half.
   const hostConfigured = useHostConfigured();
 
   return (
@@ -240,34 +284,114 @@ export function AccessSection() {
         <h1>Access</h1>
       </header>
 
-      <div className="access-tabs" role="tablist" aria-label="Access views">
+      <div className="access-pathbar">
+        <span className="access-pathbar__root">
+          <span className="access-pathbar__seg">access</span>
+          <span className="access-pathbar__sep">:/</span>
+          {importing ? (
+            <span className="access-pathbar__seg">import</span>
+          ) : adding ? (
+            <span className="access-pathbar__seg">new</span>
+          ) : tab !== "grants" ? (
+            <span className="access-pathbar__seg">{tab}</span>
+          ) : null}
+        </span>
+        <div
+          className="access-pathbar__keys"
+          role="toolbar"
+          aria-label="Access actions"
+        >
+          <Link
+            ref={grantRef}
+            className="icon-btn icon-btn--sm"
+            to={accessNewPath(tab)}
+            aria-label="Grant access"
+            title="Grant access"
+          >
+            <IconPlus size={15} />
+          </Link>
+          <Link
+            className="icon-btn icon-btn--sm"
+            to={accessImportPath()}
+            aria-label="Import grants"
+            title="Import grants"
+          >
+            <IconUpload size={15} />
+          </Link>
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Export grants"
+            title="Export grants"
+            onClick={exportBook}
+          >
+            <IconDownload size={15} />
+          </button>
+          <button
+            type="button"
+            className="access-pathbar__key"
+            aria-label="Search"
+            title="Search (/)"
+            aria-keyshortcuts="/"
+            onClick={() => searchVaultListing()}
+          >
+            /
+          </button>
+        </div>
+      </div>
+
+      <nav className="access-tabs" role="tablist" aria-label="Access views">
         {TABS.map(({ id, label, guideId }) => (
-          <AccessTabButton
+          <AccessTabLink
             key={id}
             guideId={guideId}
             label={label}
-            active={tab === id}
-            onSelect={() => setTab(id)}
+            to={accessPath(id)}
+            current={tab === id}
           />
         ))}
-      </div>
+      </nav>
 
-      {tab === "grants" ? (
-        !hostConfigured ? (
-          <NoHostNote what="A grant is authority an agent draws from a Host: it holds the connection and mints the offer." />
-        ) : ceremony === null ? (
-          <GrantsPanel online={online} onGrantAccess={openGrant} />
-        ) : (
-          <GuideTarget id="access.grant-ceremony">
-            <GrantCeremony
-              online={online}
-              initialTarget={ceremony.target}
-              onClose={() => setCeremony(null)}
-            />
-          </GuideTarget>
-        )
+      {importing ? (
+        <ImportAccessCeremony
+          onDone={() => {
+            setBookEpoch((value) => value + 1);
+            navigate(accessPath("grants"));
+          }}
+        />
       ) : null}
-      {tab === "requests" ? (
+      {adding ? (
+        <GuideTarget id="access.grant-ceremony">
+          <GrantCeremony
+            online={online}
+            hostConfigured={hostConfigured}
+            preselectConnection={preselectConnection}
+            preselectSecret={preselectSecret}
+            onClose={() => {
+              setBookEpoch((value) => value + 1);
+              navigate(accessPath("grants"));
+            }}
+          />
+        </GuideTarget>
+      ) : null}
+
+      {!adding && !importing && tab === "grants" ? (
+        <>
+          {hostConfigured ? null : (
+            <p className="hint">
+              No Host connected — grants on this device still add, import and
+              export from{" "}
+              <Link to="/settings/connectivity">Settings → Connectivity</Link>.
+            </p>
+          )}
+          <GrantsPanel
+            key={bookEpoch}
+            online={online}
+            hostConfigured={hostConfigured}
+          />
+        </>
+      ) : null}
+      {!adding && !importing && tab === "requests" ? (
         !hostConfigured ? (
           <NoHostNote what="Requests are agents asking a Host for authority it has not already granted." />
         ) : (
@@ -276,15 +400,17 @@ export function AccessSection() {
           </GuideTarget>
         )
       ) : null}
-      {tab === "sessions" ? <SessionsPanel online={online} /> : null}
-      {tab === "resources" ? (
+      {!adding && !importing && tab === "sessions" ? (
+        <SessionsPanel online={online} />
+      ) : null}
+      {!adding && !importing && tab === "resources" ? (
         <ResourcesPanel
           online={online}
           onGrant={openGrant}
           onPolicy={openPolicy}
         />
       ) : null}
-      {tab === "policies" ? (
+      {!adding && !importing && tab === "policies" ? (
         !hostConfigured ? (
           <NoHostNote what="A policy narrows what a Host will do with a connection, so it lives beside the connection." />
         ) : (
@@ -327,21 +453,27 @@ function parseCsv(text: string): string[] {
 
 function GrantsPanel({
   online,
-  onGrantAccess,
+  hostConfigured,
 }: {
   online: boolean;
-  onGrantAccess: (target: GrantTarget | null) => void;
+  hostConfigured?: boolean;
 }) {
   const [delegations, setDelegations] = useState<Delegation[] | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
+  const [localEpoch, setLocalEpoch] = useState(0);
   const run = useRef(0);
   const now = useNow(30_000);
-  const grantRef = useGuideTarget<HTMLButtonElement>("access.grant-access");
 
   const load = useCallback(async () => {
     const id = ++run.current;
+    if (!hostConfigured) {
+      setDelegations([]);
+      setConnections([]);
+      setError(null);
+      return;
+    }
     try {
       const [rows, conns] = await Promise.all([
         listDelegations(),
@@ -356,12 +488,14 @@ function GrantsPanel({
       setDelegations(null);
       setError(accessErrorText(caught));
     }
-  }, []);
+  }, [hostConfigured]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  void localEpoch;
+  const localGrants = listLocalGrants();
   const active = useMemo(
     () =>
       (delegations ?? []).filter((delegation) => delegation.revokedAt === null),
@@ -392,15 +526,6 @@ function GrantsPanel({
           >
             <IconRefresh />
           </button>
-          <button
-            ref={grantRef}
-            type="button"
-            className="btn btn--primary"
-            disabled={!online}
-            onClick={() => onGrantAccess(null)}
-          >
-            Grant access
-          </button>
         </div>
       </div>
 
@@ -415,8 +540,38 @@ function GrantsPanel({
           <output className="note">Asking the Host…</output>
         ) : null}
 
-        {delegations !== null && active.length === 0 ? (
+        {delegations !== null &&
+        active.length === 0 &&
+        localGrants.length === 0 ? (
           <p className="hint">No active grants.</p>
+        ) : null}
+        {localGrants.length > 0 ? (
+          <ul className="access-resources" aria-label="Local grants">
+            {localGrants.map((grant) => (
+              <li className="access-resource" key={grant.id}>
+                <div className="access-resource__main">
+                  <div className="access-resource__id">
+                    <h3>{grant.title}</h3>
+                    <code className="access-ref">{grant.resource}</code>
+                  </div>
+                  <span className="access-resource__meta">{grant.mode}</span>
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    aria-label={`Remove ${grant.title}`}
+                    title={`Remove ${grant.title}`}
+                    onClick={() => {
+                      removeLocalGrant(grant.id);
+                      setLocalEpoch((value) => value + 1);
+                      void load();
+                    }}
+                  >
+                    <IconTrash />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : null}
 
         {active.length > 0 ? (
@@ -690,20 +845,118 @@ function NarrowForm({
 
 /* ----------------------------------------------------- ceremony: grant access */
 
+function localDeviceConnection(): Connection {
+  return {
+    connectionId: "conn_local",
+    connectionRef: "local",
+    logicalName: "local",
+    displayName: "this device",
+    providerId: "local",
+    integrationId: null,
+    status: "active",
+    statusDetail: null,
+    organizationId: "",
+    projectId: null,
+    ownerKind: "device",
+    shareability: "private",
+    requestedScopes: [],
+    grantedScopes: [],
+    accountLabel: null,
+    expiresAt: null,
+    refreshable: false,
+    lastRefreshedAt: null,
+    maxInvokeLevel: 0,
+    egress: { scheme: "https", authorities: [], pathPrefixes: [] },
+    bindings: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function ImportAccessCeremony({ onDone }: { onDone: () => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function onFile(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const raw = isString(reader.result) ? reader.result : "";
+      try {
+        const { added } = importAccessBook(raw);
+        if (added === 0) {
+          setError("No new grants in that file.");
+          return;
+        }
+        onDone();
+      } catch (caught) {
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "That file is not an access book.",
+        );
+      }
+    };
+    reader.onerror = () => {
+      setError("Could not read that file.");
+    };
+    reader.readAsText(file);
+  }
+
+  return (
+    <section className="panel">
+      <div className="panel__head">
+        <div>
+          <h2>Import grants</h2>
+        </div>
+      </div>
+      <div className="panel__body access-add-kinds">
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Import from a file"
+          title="Import from a file"
+          onClick={() => inputRef.current?.click()}
+        >
+          <IconUpload size={16} />
+        </button>
+        <span className="go-verb">File</span>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(event) => {
+            onFile(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+      </div>
+      {error ? (
+        <p className="note note--err" role="alert">
+          <IconAlert /> {error}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
 function GrantCeremony({
   online,
-  initialTarget,
+  hostConfigured,
+  preselectConnection,
+  preselectSecret,
   onClose,
 }: {
   online: boolean;
-  initialTarget: GrantTarget | null;
+  hostConfigured: boolean;
+  preselectConnection: string | null;
+  preselectSecret: string | null;
   onClose: () => void;
 }) {
   const vault = useVault();
-  const [step, setStep] = useState<CeremonyStep>(
-    initialTarget === null ? "target" : "assign",
-  );
-  const [target, setTarget] = useState<GrantTarget | null>(initialTarget);
+  const [step, setStep] = useState<CeremonyStep>("target");
+  const [target, setTarget] = useState<GrantTarget | null>(null);
   const [assignment, setAssignment] = useState<Assignment>({ kind: "anyone" });
   const [scope, setScope] = useState<ScopeInput | null>(null);
   const [code, setCode] = useState<MintedCode | null>(null);
@@ -713,6 +966,11 @@ function GrantCeremony({
 
   const load = useCallback(async () => {
     const id = ++run.current;
+    if (!hostConfigured) {
+      setConnections([]);
+      setLoadError(null);
+      return;
+    }
     try {
       const rows = await listConnections();
       if (run.current !== id) return;
@@ -720,10 +978,10 @@ function GrantCeremony({
       setLoadError(null);
     } catch (caught) {
       if (run.current !== id) return;
-      setConnections(null);
+      setConnections([]);
       setLoadError(accessErrorText(caught));
     }
-  }, []);
+  }, [hostConfigured]);
 
   useEffect(() => {
     void load();
@@ -738,6 +996,27 @@ function GrantCeremony({
         : [],
     [vault.items, vault.status],
   );
+
+  useEffect(() => {
+    if (target !== null) return;
+    if (preselectConnection && connections) {
+      const found = connections.find(
+        (connection) => connection.connectionId === preselectConnection,
+      );
+      if (found) {
+        setTarget({ kind: "connection", connection: found });
+        setStep("assign");
+      }
+      return;
+    }
+    if (preselectSecret) {
+      const found = secrets.find((item) => item.id === preselectSecret);
+      if (found) {
+        setTarget({ kind: "secret", secret: found });
+        setStep("assign");
+      }
+    }
+  }, [connections, preselectConnection, preselectSecret, secrets, target]);
 
   // A secret grants through its ConnectionRef; the offer item needs the
   // connection's id, so the ref has to resolve against the Host's list.
@@ -760,10 +1039,12 @@ function GrantCeremony({
         </div>
         <button
           type="button"
-          className="btn btn--sm btn--ghost"
+          className="icon-btn"
+          aria-label="Cancel"
+          title="Cancel"
           onClick={onClose}
         >
-          Cancel
+          <IconX size={15} />
         </button>
       </div>
 
@@ -802,7 +1083,11 @@ function GrantCeremony({
           <AssignStep
             target={target}
             connection={resolved}
-            onBack={initialTarget === null ? () => setStep("target") : null}
+            onBack={
+              preselectConnection || preselectSecret
+                ? null
+                : () => setStep("target")
+            }
             onAssign={(next) => {
               setAssignment(next);
               setStep("scope");
@@ -920,7 +1205,27 @@ function TargetStep({
         <output className="note">Asking the Host…</output>
       ) : null}
 
-      {connections !== null ? (
+      <h3 className="access-group__label">This device</h3>
+      <ul className="access-targets">
+        <li>
+          <button
+            type="button"
+            className="access-target"
+            onClick={() =>
+              onPick({
+                kind: "connection",
+                connection: localDeviceConnection(),
+              })
+            }
+          >
+            <span className="access-target__name">this device</span>
+            <code className="access-ref">local</code>
+          </button>
+        </li>
+      </ul>
+
+      {connections !== null &&
+      (shownConnections.length > 0 || connections.length > 0 || needle) ? (
         <>
           <h3 className="access-group__label">Connections</h3>
           {shownConnections.length > 0 ? (
@@ -1432,10 +1737,36 @@ function MintStep({
   const [error, setError] = useState<string | null>(null);
 
   async function mint() {
-    if (connection === null) return;
     setBusy(true);
     setError(null);
+    const mintLocal = (bindWarning: string | null = null) => {
+      const record = addLocalGrant({
+        title: targetName(target),
+        claimant:
+          assignment.kind === "anyone" ? "anyone" : assignmentLabel(assignment),
+        resource: connection?.connectionRef ?? targetName(target),
+        actions: scope.actions,
+        mode: scope.executionMode,
+        expiresInSeconds: scope.expiresInSeconds,
+      });
+      const minted: MintedOffer = {
+        claimToken: record.id,
+        userCode: record.id.replace(/-/g, "").slice(-8).toUpperCase(),
+        offer: {
+          id: record.id,
+          state: "pending",
+          manifestDigest: record.id,
+          expiresAt: record.expiresAt,
+          items: [],
+        },
+      };
+      onMinted(minted, bindWarning);
+    };
     try {
+      if (connection === null || connection.connectionId === "conn_local") {
+        mintLocal();
+        return;
+      }
       const minted = await mintOffer({
         items: [
           {
@@ -1472,11 +1803,14 @@ function MintStep({
             );
           }
         }
-        if (failures.length > 0) bindWarning = failures.join("; ");
+        if (failures.length > 0) {
+          bindWarning = `Minted, but the identity could not be bound: ${failures.join("; ")}`;
+        }
       }
       onMinted(minted, bindWarning);
     } catch (caught) {
       setError(accessErrorText(caught));
+    } finally {
       setBusy(false);
     }
   }
@@ -1542,7 +1876,12 @@ function MintStep({
         <button
           type="button"
           className="btn btn--primary"
-          disabled={busy || !online || connection === null}
+          disabled={
+            busy ||
+            (connection !== null &&
+              connection.connectionId !== "conn_local" &&
+              !online)
+          }
           onClick={() => void mint()}
         >
           {busy ? "Minting…" : "Mint offer"}
@@ -1596,15 +1935,12 @@ function CodeCard({ code, onDone }: { code: MintedCode; onDone: () => void }) {
         </p>
       </div>
 
-      {code.assignment.kind !== "anyone" ? (
-        code.bindWarning ? (
-          <p className="note note--warn">
-            <IconAlert /> Minted, but the identity could not be bound:{" "}
-            {code.bindWarning}
-          </p>
-        ) : (
-          <p className="hint">Bound to the connection.</p>
-        )
+      {code.bindWarning ? (
+        <p className="note note--warn">
+          <IconAlert /> {code.bindWarning}
+        </p>
+      ) : code.assignment.kind !== "anyone" ? (
+        <p className="hint">Bound to the connection.</p>
       ) : null}
 
       <div className="actions actions--end">
