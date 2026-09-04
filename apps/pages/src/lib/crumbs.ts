@@ -12,6 +12,64 @@ export type Crumb = {
   to?: string;
 };
 
+export const ACCESS_TABS = [
+  "grants",
+  "requests",
+  "sessions",
+  "resources",
+  "policies",
+] as const;
+export type AccessTab = (typeof ACCESS_TABS)[number];
+
+const ACCESS_TAB_SET = new Set<string>(ACCESS_TABS);
+
+export function isAccessTab(value: string): value is AccessTab {
+  return ACCESS_TAB_SET.has(value);
+}
+
+/** Grants is the Access root, the way general is Settings. */
+export function accessPath(tab: AccessTab): string {
+  return tab === "grants" ? "/access" : `/access/${tab}`;
+}
+
+export function accessNewPath(tab: AccessTab): string {
+  return tab === "grants" ? "/access/new" : `/access/${tab}/new`;
+}
+
+export function accessImportPath(): string {
+  return "/access/import";
+}
+
+export function accessIsNewCeremony(pathname: string): boolean {
+  const parts = pathname.split("/").filter(Boolean);
+  if (parts[0] !== "access") return false;
+  if (parts[1] === "new") return parts.length === 2;
+  return parts[2] === "new";
+}
+
+export function accessIsImportCeremony(pathname: string): boolean {
+  const parts = pathname.split("/").filter(Boolean);
+  return parts[0] === "access" && parts[1] === "import" && parts.length === 2;
+}
+
+/** `/access/requests` or `/access?view=requests` → requests. */
+export function accessTabFromLocation(
+  pathname: string,
+  search = "",
+): AccessTab {
+  const parts = pathname.split("/").filter(Boolean);
+  const fromPath = parts[0] === "access" ? parts[1] : undefined;
+  if (fromPath === "new" || fromPath === "import") return "grants";
+  if (fromPath && isAccessTab(fromPath)) return fromPath;
+  const params = new URLSearchParams(
+    search.startsWith("?") ? search.slice(1) : search,
+  );
+  const view = params.get("view");
+  if (view && isAccessTab(view)) return view;
+  if (params.get("request")) return "requests";
+  return "grants";
+}
+
 export const SETTINGS_CATEGORIES = [
   "general",
   "security",
@@ -122,13 +180,34 @@ export function crumbsFor(
   if (parts[0] === "settings") {
     return settingsCrumbs(parts);
   }
-  if (parts[0] === "access") return current("Access");
+  if (parts[0] === "access") {
+    return accessCrumbs(parts);
+  }
   if (parts[0] === "identity") return current("Identity");
   return [];
 }
 
 function current(label: string): Crumb[] {
   return [{ label }];
+}
+
+function accessCrumbs(parts: string[]): Crumb[] {
+  if (parts[1] === "new") {
+    return [{ label: "Access", to: "/access" }, { label: "new" }];
+  }
+  if (parts[1] === "import") {
+    return [{ label: "Access", to: "/access" }, { label: "import" }];
+  }
+  const tab = parts[1];
+  if (!tab || !isAccessTab(tab) || tab === "grants") {
+    return [{ label: "Access" }];
+  }
+  const crumbs: Crumb[] = [{ label: "Access", to: "/access" }, { label: tab }];
+  if (parts[2] === "new") {
+    crumbs[1] = { label: tab, to: accessPath(tab) };
+    crumbs.push({ label: "new" });
+  }
+  return crumbs;
 }
 
 function vaultCrumbs(

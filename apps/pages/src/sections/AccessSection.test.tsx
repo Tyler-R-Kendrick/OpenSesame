@@ -72,6 +72,7 @@ const connections = vi.hoisted(() => ({
 import { connectionSeams } from "../lib/connections.js";
 Object.assign(connectionSeams, connections);
 
+import { addLocalGrant, exportAccessBook } from "../lib/access-book.js";
 import { AccessSection } from "./AccessSection.js";
 
 function makeSecret(overrides: Partial<SecretItem> = {}): SecretItem {
@@ -258,6 +259,7 @@ describe("AccessSection", () => {
     mockClients([]);
     kvDelete("site-broker.consents.v1");
     kvDelete("site-broker.policy.v1");
+    kvDelete("access.book.v1");
 
     access.listRelayRequests.mockResolvedValue([]);
     access.approveRelayRequest.mockResolvedValue({
@@ -405,9 +407,7 @@ describe("AccessSection", () => {
     connections.listConnections.mockResolvedValue([makeConnection()]);
     renderAccess();
     await screen.findByText("No active grants.");
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Grant access$/i }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Grant access" }));
 
     // Step 1: target picker, two groups.
     expect(
@@ -467,14 +467,34 @@ describe("AccessSection", () => {
     expect(await screen.findByText("No active grants.")).toBeTruthy();
   });
 
+  it("fails closed when the Host cannot mint, instead of writing a local grant", async () => {
+    connections.listConnections.mockResolvedValue([makeConnection()]);
+    access.mintOffer.mockRejectedValue(
+      new AccessError(503, "host_down", "host down"),
+    );
+    renderAccess();
+    await screen.findByText("No active grants.");
+    await userEvent.click(screen.getByRole("link", { name: "Grant access" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /GitHub PAT/ }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Mint offer/i }),
+    );
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.getByText(/host down/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Done$/i })).toBeNull();
+    expect(exportAccessBook()).not.toContain("GitHub PAT");
+  });
+
   it("assigns the grant to an agent and binds it on mint", async () => {
     connections.listConnections.mockResolvedValue([makeConnection()]);
     connections.bindConnection.mockResolvedValue(makeConnection());
     renderAccess();
     await screen.findByText("No active grants.");
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Grant access$/i }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Grant access" }));
     await userEvent.click(
       await screen.findByRole("button", { name: /GitHub PAT/ }),
     );
@@ -529,9 +549,7 @@ describe("AccessSection", () => {
     };
     renderAccess();
     await screen.findByText("No active grants.");
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Grant access$/i }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Grant access" }));
     await userEvent.click(
       await screen.findByRole("button", { name: /Deploy hook/ }),
     );
@@ -569,9 +587,7 @@ describe("AccessSection", () => {
     connections.bindConnection.mockResolvedValue(makeConnection());
     renderAccess();
     await screen.findByText("No active grants.");
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Grant access$/i }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Grant access" }));
     await userEvent.click(
       await screen.findByRole("button", { name: /GitHub PAT/ }),
     );
@@ -635,9 +651,7 @@ describe("AccessSection", () => {
     };
     renderAccess();
     await screen.findByText("No active grants.");
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Grant access$/i }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Grant access" }));
     await userEvent.click(
       await screen.findByRole("button", { name: /Deploy hook/ }),
     );
@@ -697,9 +711,7 @@ describe("AccessSection", () => {
     };
     renderAccess();
     await screen.findByText("No active grants.");
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Grant access$/i }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Grant access" }));
     await userEvent.click(
       await screen.findByRole("button", { name: /Orphan/ }),
     );
@@ -717,9 +729,7 @@ describe("AccessSection", () => {
     vault.current = { items: [], status: "locked" };
     renderAccess();
     await screen.findByText("No active grants.");
-    await userEvent.click(
-      screen.getByRole("button", { name: /^Grant access$/i }),
-    );
+    await userEvent.click(screen.getByRole("link", { name: "Grant access" }));
     expect(
       await screen.findByText("Unlock the vault to grant secrets."),
     ).toBeTruthy();
@@ -967,6 +977,7 @@ describe("AccessSection sites", () => {
     mockClients([]);
     kvDelete("site-broker.consents.v1");
     kvDelete("site-broker.policy.v1");
+    kvDelete("access.book.v1");
 
     access.listRelayRequests.mockResolvedValue([]);
     access.listTasks.mockResolvedValue([]);
@@ -1368,5 +1379,134 @@ describe("AccessSection sites", () => {
     expect(await screen.findByText("oauth_client.registered")).toBeTruthy();
     expect(screen.queryByText("oauth_client.rotated")).toBeNull();
     expect(screen.queryByText("session.created")).toBeNull();
+  });
+});
+
+describe("Access pathbar local book (ADR 0090)", () => {
+  const originalHostBase = identitySeams.hostBase;
+  beforeEach(() => {
+    identitySeams.hostBase = () => "";
+    connections.listConnections.mockClear();
+    kvDelete("access.book.v1");
+  });
+  afterEach(() => {
+    identitySeams.hostBase = originalHostBase;
+    kvDelete("access.book.v1");
+    cleanup();
+  });
+
+  it("adds a local grant from the plus key without a Host", async () => {
+    render(
+      <MemoryRouter>
+        <AccessSection />
+      </MemoryRouter>,
+    );
+    await userEvent.click(
+      within(screen.getByRole("toolbar", { name: "Access actions" })).getByRole(
+        "link",
+        { name: "Grant access" },
+      ),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Grant access" }),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: /this device/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    await userEvent.click(screen.getByRole("button", { name: "1h" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Continue$/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /Mint offer/i }),
+    );
+    expect(await screen.findByRole("button", { name: /^Done$/i })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: /^Done$/i }));
+    expect(await screen.findByText("this device")).toBeTruthy();
+    expect(connections.listConnections).not.toHaveBeenCalled();
+  });
+
+  it("imports a local book from the import ceremony", async () => {
+    render(
+      <MemoryRouter>
+        <AccessSection />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole("link", { name: "Import grants" }));
+    expect(
+      await screen.findByRole("heading", { name: "Import grants" }),
+    ).toBeTruthy();
+    const file = new File(
+      [
+        JSON.stringify({
+          version: 1,
+          grants: [
+            {
+              id: "gr_local_import",
+              title: "Nightly deploy",
+              claimant: "local",
+              resource: "local",
+              actions: [],
+              mode: "broker",
+              expiresAt: "2026-09-04T00:00:00Z",
+            },
+          ],
+        }),
+      ],
+      "access.json",
+      { type: "application/json" },
+    );
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement | null;
+    if (!input) throw new Error("expected a file input");
+    await userEvent.upload(input, file);
+    expect(
+      await screen.findByRole("heading", { name: "Nightly deploy" }),
+    ).toBeTruthy();
+  });
+
+  it("exports the local book from the pathbar", async () => {
+    addLocalGrant({ title: "Nightly deploy" });
+    render(
+      <MemoryRouter>
+        <AccessSection />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Nightly deploy" }),
+    ).toBeTruthy();
+    const createObjectURL = vi.fn(() => "blob:access");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal(
+      "URL",
+      Object.assign(URL, { createObjectURL, revokeObjectURL }),
+    );
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Export grants" }),
+    );
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(click).toHaveBeenCalled();
+    expect(exportAccessBook()).toContain("Nightly deploy");
+    click.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("removes a local grant from the list without a Host", async () => {
+    addLocalGrant({ title: "Nightly deploy" });
+    render(
+      <MemoryRouter>
+        <AccessSection />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Nightly deploy" }),
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Remove Nightly deploy" }),
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Nightly deploy" }),
+    ).toBeNull();
   });
 });

@@ -1,5 +1,59 @@
 /* Access section — prefixed .access-*; primitives and tokens do the rest. */
 
+.access-pathbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.3rem 0.75rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.access-pathbar__seg {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.access-pathbar__sep {
+  color: var(--ink-3);
+}
+
+.access-pathbar__keys {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.access-pathbar__key {
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--surface);
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.access-pathbar__key:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.access-add-kinds {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.85rem;
+}
+
 /* --- tabs ----------------------------------------------------------------- */
 
 .access-tabs {
@@ -22,6 +76,7 @@
   color: var(--ink-2);
   font: inherit;
   font-size: 0.875rem;
+  text-decoration: none;
   cursor: pointer;
 }
 
