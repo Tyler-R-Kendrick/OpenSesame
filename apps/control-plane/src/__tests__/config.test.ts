@@ -3,6 +3,7 @@ import {
   type ControlPlaneConfig,
   assertListenHostAllowed,
   assertSecureConfig,
+  loadConfig,
 } from "../config.js";
 
 function prodBase(): ControlPlaneConfig {
@@ -61,9 +62,35 @@ function prodBase(): ControlPlaneConfig {
       preClaimScopes: ["resource:read"],
       postClaimScopes: ["resource:read"],
       resourceScopes: ["resource:read"],
+      trustedProviders: [],
     },
   };
 }
+
+describe("loadConfig AgentAuth trusted providers", () => {
+  it("parses an explicit ID-JAG issuer list", () => {
+    const cfg = loadConfig({
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+      OPENSESAME_PUBLIC_URL: "https://id.example",
+      OPENSESAME_ISSUER: "https://id.example",
+      OPENSESAME_AGENT_AUTH_PROVIDER_ASSERTION_ENABLED: "true",
+      OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON: JSON.stringify([
+        {
+          issuer: "https://idp.example",
+          audiences: ["https://id.example"],
+          maxAuthAgeSeconds: 1800,
+        },
+      ]),
+    });
+    expect(cfg.agentAuth.trustedProviders).toEqual([
+      expect.objectContaining({
+        issuer: "https://idp.example",
+        enabled: true,
+        maxAuthAgeSeconds: 1800,
+      }),
+    ]);
+  });
+});
 
 describe("assertSecureConfig", () => {
   it("accepts a production config with explicit CORS origins", () => {

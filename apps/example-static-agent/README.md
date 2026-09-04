@@ -9,4 +9,9 @@ pnpm --filter @opensesame/example-static-agent dev
 ```
 
 Agents fetch `/auth.md` and `/.well-known/oauth-protected-resource`, then call
-the Identity API at `:8788`.
+the hosted Identity API (`:8788`). This origin is a public client: Authorization
+Code + PKCE for humans, AgentAuth registration for agents. No client secret is
+shipped in this bundle.
+
+Provider ID-JAG (`identity_assertion`) is accepted only when the Identity API
+has trusted agent providers configured (ADR 0093). SET events are not advertised.

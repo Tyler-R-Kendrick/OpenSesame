@@ -7,7 +7,10 @@ import {
 } from "@opensesame/agent-protocols";
 import { Hono } from "hono";
 import type { Variables } from "../middleware/context.js";
-import { agentAuthRuntime } from "../services/agent-auth.js";
+import {
+  agentAuthRuntime,
+  providerAssertionIsAdvertised,
+} from "../services/agent-auth.js";
 
 export const discoveryRoutes = new Hono<{ Variables: Variables }>();
 
@@ -22,8 +25,8 @@ discoveryRoutes.get("/auth.md", (c) => {
     capabilities: {
       anonymous: agentAuth.enabled && agentAuth.anonymousEnabled,
       serviceAuth: agentAuth.enabled && agentAuth.serviceAuthEnabled,
-      providerAssertion: agentAuth.providerAssertionEnabled,
-      events: agentAuth.eventsEnabled,
+      providerAssertion: providerAssertionIsAdvertised(agentAuth),
+      events: false,
     },
     preClaimScopes: agentAuth.preClaimScopes,
     postClaimScopes: agentAuth.postClaimScopes,
@@ -76,8 +79,8 @@ discoveryRoutes.get("/.well-known/oauth-authorization-server", (c) => {
       ctx.config.agentAuth.enabled && ctx.config.agentAuth.anonymousEnabled,
     serviceAuth:
       ctx.config.agentAuth.enabled && ctx.config.agentAuth.serviceAuthEnabled,
-    providerAssertion: ctx.config.agentAuth.providerAssertionEnabled,
-    events: ctx.config.agentAuth.eventsEnabled,
+    providerAssertion: providerAssertionIsAdvertised(ctx.config.agentAuth),
+    events: false,
   };
   const identityTypes = advertisedIdentityTypes(caps);
   const grants = [
