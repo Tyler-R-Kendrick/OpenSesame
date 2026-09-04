@@ -106,15 +106,16 @@
       "adm-zip": "0.6.0",
       "tmp": "0.2.7",
       "uuid": "14.0.1",
-      "typed-rest-client>qs": "6.15.3",
+      "qs": "6.16.0",
       "playwright": "1.55.1",
       "esbuild": ">=0.25.0",
+      "fast-uri": "3.1.6",
       "fx-runner>shell-quote": "1.10.0",
       "web-ext-run>tmp": "0.2.7",
       "firefox-profile>adm-zip": "0.6.0",
       "promptfoo>ai": "6.0.237",
       "promptfoo>@huggingface/transformers": "-",
-      "kdbxweb>@xmldom/xmldom": "0.8.13"
+      "@xmldom/xmldom": "0.8.15"
     }
   }
 }
