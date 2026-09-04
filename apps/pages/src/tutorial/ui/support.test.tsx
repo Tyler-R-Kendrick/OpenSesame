@@ -58,7 +58,11 @@ import {
   chooseSupportAgent,
   supportSessionSeams,
 } from "../session.js";
-import { SupportLauncher } from "./SupportLauncher.js";
+import {
+  SupportLauncher,
+  SupportSlot,
+  SupportSlotProvider,
+} from "./SupportLauncher.js";
 
 /**
  * The engine every test drives: the real support session, the real guide
@@ -224,6 +228,40 @@ afterEach(() => {
 });
 
 describe("support panel", () => {
+  it("sits in the statusline when the shell offers a seat", () => {
+    render(
+      <MemoryRouter>
+        <SupportProvider>
+          <SupportSlotProvider>
+            <footer className="statusline">
+              <SupportSlot />
+            </footer>
+            <SupportLauncher />
+          </SupportSlotProvider>
+        </SupportProvider>
+      </MemoryRouter>,
+    );
+    const chrome = screen.getByRole("button", { name: "Support" });
+    expect(chrome.closest(".statusline")).not.toBeNull();
+    expect(chrome.className).toContain("support-launch--chrome");
+    expect(screen.getAllByRole("button", { name: "Support" })).toHaveLength(1);
+  });
+
+  it("falls back to the overlay when the shell has no seat", () => {
+    render(
+      <MemoryRouter>
+        <SupportProvider>
+          <SupportSlotProvider>
+            <SupportLauncher />
+          </SupportSlotProvider>
+        </SupportProvider>
+      </MemoryRouter>,
+    );
+    const mark = screen.getByRole("button", { name: "Support" });
+    expect(mark.closest(".statusline")).toBeNull();
+    expect(mark.className).not.toContain("support-launch--chrome");
+  });
+
   it("opens from the overlay, and closing it puts focus back", async () => {
     const user = userEvent.setup();
     mount(fakeAgentAnswering("Anything."));
@@ -259,6 +297,8 @@ describe("support panel", () => {
       create: record("create"),
       favorite: record("favorite"),
       share: record("share"),
+      importItems: record("importItems"),
+      exportVault: record("exportVault"),
     };
     const stopVault = registerVaultKeymap(target);
     const keymap = createKeymapHandler({
