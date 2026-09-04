@@ -102,7 +102,7 @@ changes, and which nothing mechanically verifies against that contract.
 
 | # | Area | Hand-maintained | Pattern | Risk |
 |---|---|---:|---|---|
-| 1a | Vault item **rendering** via manifests | ~1,900 | Template/manifest | Low |
+| 1a | Vault item **rendering** via manifests | ~1,900 | Template/manifest | Medium |
 | 1b | Vault item **storage** convergence | — | Data migration | High |
 | 2 | Repository layer double-implementation | 4,708* | Conformance suite + engine | Medium |
 | 3 | MCP/WebMCP tool surfaces | 2,114 | Generative registry | Low |
@@ -112,6 +112,7 @@ changes, and which nothing mechanically verifies against that contract.
 | 7 | Connector provider dispatch | 1,832 | Strategy via manifest | Medium |
 | 8 | `crates/storage` god-struct | 10,601 | Bounded-context split | High |
 | 9 | Turbo cache correctness | — | Reproducibility | Low |
+| 10 | Field-type catalogue duplicated per plane | 375 | Shared corpus | Low |
 
 \* Mechanical portion only — see §2.2; `memory.ts` is not pure CRUD.
 
@@ -136,12 +137,56 @@ form layout.
 
 **Move, in two stages that should not be conflated:**
 
-*1a — unify rendering (low risk, most of the payoff).* Project each legacy item
-through its existing manifest and render every kind via `TypedFields.tsx`,
-leaving storage untouched. `native.ts` already projects items onto sealed-store
-trailers, so the projection direction is proven. This retires the duplicated
-per-kind JSX in `ItemDetail.tsx` and `ItemEditor.tsx` without migrating a
-single stored vault.
+*1a — unify rendering.* Project each legacy item through its existing manifest
+and render every kind via `TypedFields.tsx`, leaving storage untouched. This
+retires the duplicated per-kind JSX in `ItemDetail.tsx` and `ItemEditor.tsx`
+without migrating a single stored vault.
+
+**Corrected after implementation was attempted.** 1a was rated low-risk and
+mechanical on the strength of "the manifests already exist". Two thirds of the
+groundwork does exist and is better than expected: `definitionFor(item)`
+resolves *any* item through `itemTypeId`, and `readItemField` already reads both
+shapes because "the definitions name their fields to match" — so the projection
+this item seemed to need is already written. What is missing is the dispatch:
+
+- **ADR 0087 §6's handler registry was never built.** §6 is explicit that the
+  four builtins doing something no data description can — certificate issuance,
+  a drop's claim session, passkey custody, a secret's grant ceilings — keep
+  their ceremonies "as a `handler` named in the definition and resolved against
+  a platform registry of exactly those names, **not as a `switch (item.kind)`**".
+  Five definitions (`certificate`, `drop`, `login`, `passkey`, `secret`) already
+  declare `handler` in their spec. Nothing in the client reads the field: there
+  is no `handlerFor`, no handler registry, anywhere in `apps/pages`. The
+  manifests are carrying dead data, and the switch §6 forbids is what still
+  dispatches.
+- **The renderer would drop affordances the catalogue can already describe.**
+  The login arm renders a live rotating code (`<TotpCode secret={item.totp} />`)
+  and the card arm deliberately shows `•••• •••• •••• {last4}` while concealed,
+  so a card is identifiable without being revealed. `TypedFields.tsx` renders
+  every concealed field the same way — `ConcealedValue`, dots alone — so a naive
+  migration shows a TOTP *seed* where a code belongs and loses the card's last
+  four.
+
+  The vocabulary is not the problem, though, and it is worth being precise
+  because the first version of this paragraph got it wrong: `totp` and
+  `payment-card` are **already in the closed catalogue, in both planes**
+  (`catalogue.ts:53,99`; `catalogue.rs:152`). Nothing needs adding to the
+  catalogue, and this is not the two-plane change it first looked like. The gap
+  is entirely in the single-plane renderer, which does not yet branch on those
+  two types. (`card.json` also types its number as `concealed` rather than
+  `payment-card`, so the definition is not asking for the richer treatment
+  either — a one-line change to the manifest.)
+
+So 1a is not "delete the case arms". It is: build §6's handler registry, teach
+`TypedFields.tsx` the two field types the catalogue already defines, and only
+then migrate the JSX. Ordered that way it stays safe; done in the other order it
+silently degrades a TOTP field or a concealed card number, which is the one
+class of regression this vault cannot afford. Re-rated **Medium**, and sequenced
+behind the handler registry rather than in the first group.
+
+A partial migration is specifically the wrong answer here: leaving four kinds
+on the switch and three on the generic path is the ADR-0087 shape all over
+again, one level down.
 
 *1b — converge storage (needs its own ADR).* Collapse the seven variants into
 `TypedItem`. This is what Decision §1 actually asks for, and it is a
@@ -379,6 +424,28 @@ are not in `turbo.json` at all — they are shell scripts outside the graph. Tha
 is a defensible choice for gates that must not be cached, but it means the
 heavy suites get no dependency-aware scheduling. Not urgent; worth revisiting
 once `inputs` are correct.
+
+### 2.10 The field-type catalogue is written twice
+
+Found while scoping §2.1a, and it is the thesis in miniature. ADR 0087's closed
+field-type catalogue is one contract with two hand-written implementations:
+`packages/vault-item-types/src/catalogue.ts` (170 lines) and
+`crates/vault-item-types/src/catalogue.rs` (205). Both enumerate the same
+vocabulary — `concealed`, `password`, `key-material`, `month-year`,
+`person-name`, `host-port`, `payment-card`, `totp` — and both must agree, because
+the definitions corpus is embedded by both planes and a field type either plane
+does not know is a definition that plane cannot load.
+
+Unlike the definitions themselves, which are JSON generated into each plane and
+guarded by a drift test, the catalogue that *validates* those definitions is
+duplicated prose. The asymmetry is the interesting part: the data got the
+treatment, the schema describing the data did not.
+
+**Move:** the same one already applied to the definitions — author the catalogue
+once as data and generate both planes' constants from it, with the drift test
+`registry.test.ts:93` already models. Low risk and small; the vocabulary is
+closed and changes rarely, which is exactly why the duplication has survived
+unnoticed.
 
 ## 3. Composition patterns worth standardising
 
