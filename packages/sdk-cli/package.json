@@ -16,8 +16,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@opensesame/contracts": "workspace:*",
-    "@opensesame/device-auth": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^"
   },

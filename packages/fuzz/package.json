@@ -13,7 +13,6 @@
     "@env-spec/parser": "0.4.1",
     "@opensesame/audit": "workspace:*",
     "@opensesame/auth-upstream": "workspace:*",
-    "@opensesame/claims": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/oauth-provider": "workspace:*",
     "@opensesame/os-domain": "workspace:*"

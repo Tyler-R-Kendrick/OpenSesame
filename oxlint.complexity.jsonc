@@ -1,0 +1,88 @@
+// Structural-complexity budget for the TypeScript planes.
+//
+// This is deliberately a SECOND Oxlint config, separate from oxlint.config.ts:
+//   - oxlint.config.ts is the anti-slop gate. It is clean and must stay clean.
+//   - this config measures a debt the repo already carries, so it is consumed
+//     through scripts/quality-gate.mjs, which ratchets it down instead of
+//     failing the whole tree on day one.
+//
+// Thresholds mirror clippy.toml so one complexity contract covers both planes:
+//   max-lines-per-function 100 == too-many-lines-threshold
+//   max-params             7   == too-many-arguments-threshold
+//   max-depth              4   == excessive-nesting-threshold
+// max-lines (400) has no Clippy equivalent -- Clippy has no per-file lint --
+// so quality-gate.mjs applies the same 400-line budget to .rs files itself.
+{
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "ignorePatterns": [
+    ".agent/**",
+    ".agents/**",
+    ".claude/**",
+    ".codex/**",
+    ".continue/**",
+    ".cursor/**",
+    ".deepsec/**",
+    ".gemini/**",
+    ".impeccable/**",
+    ".opencode/**",
+    ".pi/**",
+    ".roo/**",
+    ".serena/**",
+    ".superpowers/**",
+    ".tools/**",
+    ".windsurf/**",
+    "**/dist/**",
+    "**/dev-dist/**",
+    "**/node_modules/**",
+    "**/target/**",
+    "**/.wxt/**",
+    "**/.output/**",
+    "coverage/**",
+    "artifacts/**",
+    "sbom/**",
+    "skills/install-anti-slop/**"
+  ],
+  "overrides": [
+    {
+      // A `describe()` body legitimately spans a whole suite, so per-function
+      // length and statement counts say nothing useful about a test file. The
+      // FILE budget still applies -- a 5,000-line test file is real debt --
+      // and so do complexity, nesting and parameter counts.
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/__tests__/**",
+        "**/tests/**"
+      ],
+      "rules": {
+        "max-lines-per-function": "off",
+        "max-statements": "off"
+      }
+    }
+  ],
+  "rules": {
+    "max-lines": [
+      "error",
+      { "max": 400, "skipBlankLines": false, "skipComments": false }
+    ],
+    "max-lines-per-function": [
+      "error",
+      { "max": 100, "skipBlankLines": false, "skipComments": false }
+    ],
+    "complexity": ["error", { "max": 15 }],
+    "max-params": ["error", 7],
+    "max-depth": ["error", 4],
+    "max-nested-callbacks": ["error", 4],
+    "max-statements": ["error", 40]
+  }
+}

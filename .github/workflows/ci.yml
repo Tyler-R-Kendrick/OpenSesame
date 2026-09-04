@@ -35,10 +35,32 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Lint (changed files)
         run: pnpm lint
+      - name: Quality gates (structure + component coupling)
+        # Ratchets against quality-baseline.json / package-metrics-baseline.json
+        # and hard-fails on dependency cycles and phantom deps. Sub-second.
+        run: pnpm quality
       - name: Typecheck
         run: pnpm typecheck
       - name: Test
         run: pnpm test
+
+  bundle:
+    name: Bundle budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build and measure shipped bundles
+        # apps/pages precaches its whole dist for offline use, so growth here is
+        # growth in what every installing device downloads.
+        run: pnpm quality:bundle
 
   rust:
     name: Rust

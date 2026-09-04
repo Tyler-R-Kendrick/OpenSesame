@@ -16,6 +16,12 @@
     "lint:design": "node scripts/design-lint.mjs",
     "lint:anti-slop": "pnpm lint:anti-slop:files .",
     "lint:anti-slop:files": "oxlint --config oxlint.config.ts --disable-nested-config --report-unused-disable-directives-severity=error --deny-warnings --no-error-on-unmatched-pattern",
+    "quality": "pnpm quality:test && pnpm quality:gate && pnpm quality:packages",
+    "quality:test": "vitest run scripts/lib",
+    "quality:gate": "node scripts/quality-gate.mjs",
+    "quality:packages": "node scripts/package-metrics-gate.mjs",
+    "quality:bundle": "turbo run build --filter=@opensesame/pages --filter=@opensesame/pwa --filter=@opensesame/console && node scripts/bundle-budget-gate.mjs",
+    "quality:report": "node scripts/quality-gate.mjs --summary && node scripts/package-metrics-gate.mjs --report && node scripts/bundle-budget-gate.mjs --report",
     "lint:fix": "biome check --write --changed --since=origin/main --no-errors-on-unmatched . && biome check --write --staged --no-errors-on-unmatched .",
     "setup:hooks": "bash scripts/setup-hooks.sh",
     "test": "turbo run test --concurrency=4",
@@ -58,7 +64,7 @@
     "db:reset": "pnpm --filter @opensesame/database db:reset",
     "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
     "generate:sbom": "mkdir -p sbom && pnpm --package @cyclonedx/cdxgen@12.8.4 dlx env -u NODE_PATH -u STARSHIP_SESSION_KEY cdxgen -o sbom/bom.json",
-    "verify": "pnpm lint && pnpm lint:anti-slop && pnpm test:anti-slop && pnpm test:rust-lint && pnpm audit:clippy && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/battle-test.sh"
+    "verify": "pnpm lint && pnpm lint:anti-slop && pnpm test:anti-slop && pnpm quality && pnpm test:rust-lint && pnpm audit:clippy && pnpm test:all && cargo +1.88.0 test --workspace --all-targets && ./scripts/battle-test.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

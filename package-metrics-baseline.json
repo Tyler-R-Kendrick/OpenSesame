@@ -1,0 +1,18 @@
+{
+  "$comment": [
+    "Accepted component-coupling debt -- see scripts/package-metrics-gate.mjs.",
+    "These lists may only ever SHRINK. Regenerate with:",
+    "  pnpm quality:packages --update",
+    "sdp:    edges that depend toward instability (Martin's SDP).",
+    "unused: declared workspace dependencies nothing imports (CRP/REP)."
+  ],
+  "totals": {
+    "sdp": 2,
+    "unused": 0
+  },
+  "sdp": [
+    "rust: opensesame-host-core -> opensesame-broker",
+    "typescript: @opensesame/sdk-browser -> @opensesame/oauth-provider"
+  ],
+  "unused": []
+}
