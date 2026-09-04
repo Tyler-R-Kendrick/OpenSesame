@@ -22,7 +22,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "node --import tsx src/cli.ts",
-    "start": "node dist/cli.js",
+    "start": "node --import tsx dist/cli.js",
     "test": "vitest run"
   },
   "dependencies": {
