@@ -28,6 +28,7 @@ import {
   useIdentitySession,
 } from "../lib/identity.js";
 import { shouldAutoConnect } from "../lib/settings.js";
+import { useHostConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { useStatusNotice } from "../lib/use-status-notice.js";
 import { noteGuideConnectionsPresent } from "../tutorial/registry/predicates.js";
@@ -49,6 +50,9 @@ import "./connections.css";
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
   const online = useOnline();
+  // Connections are the Host's to hold (ADR 0090). The connector catalog below
+  // is embedded in this build and stays browsable with no Host at all.
+  const hostConfigured = useHostConfigured();
   const session = useIdentitySession();
   const { connecting, error: connectError, connect } = useConnect();
 
@@ -319,6 +323,7 @@ export function ConnectionsSection() {
         onChanged={() => void loadConnections()}
         onRememberOffer={setRememberOffer}
         setupRequired={loadError?.setupRequired === true}
+        hostConfigured={hostConfigured}
       />
 
       <CatalogPanel providers={providers} connections={connections ?? []} />

@@ -28,7 +28,6 @@ function status(over: Partial<ConnectorStatus> = {}): ConnectorStatus {
     tone: "live",
     detail: "127.0.0.1:18787",
     rttMs: 12,
-    required: true,
     failure: null,
     lastCheckedAt: null,
     checking: false,
@@ -69,25 +68,24 @@ describe("CoreConnectionsPanel", () => {
     renderPanel([
       status(),
       status({ id: "machine", tone: "attn", name: "This machine" }),
-      status({ id: "keys", tone: "off", name: "Key vault", required: false }),
+      status({ id: "keys", tone: "off", name: "Key vault" }),
     ]);
     expect(screen.getByText("Connected")).toBeTruthy();
     expect(screen.getByText("Fix")).toBeTruthy();
     expect(screen.getByText("Set up")).toBeTruthy();
   });
 
-  it("marks the built-in key vault as such, not as required", () => {
-    renderPanel([status({ id: "keys", name: "Key vault", required: false })]);
+  it("marks the built-in key vault as such", () => {
+    renderPanel([status({ id: "keys", name: "Key vault" })]);
     expect(screen.getByText("Built in")).toBeTruthy();
     expect(screen.queryByText("Required")).toBeNull();
   });
 
-  it("marks git history as optional, not as a missing required connector", () => {
+  it("marks git history as optional", () => {
     renderPanel([
       status({
         id: "history",
         name: "Git history",
-        required: false,
         tone: "off",
         detail: "Not connected",
       }),
@@ -99,8 +97,10 @@ describe("CoreConnectionsPanel", () => {
   });
 
   it("summarises attention in the panel head", () => {
+    // Two configured endpoints that stopped answering. The optional git
+    // history binding is merely unconnected, which is not a fault.
     renderPanel([
-      status(),
+      status({ tone: "attn" }),
       status({ id: "machine", name: "This machine", tone: "attn" }),
       status({ id: "history", name: "Git history", tone: "off" }),
     ]);

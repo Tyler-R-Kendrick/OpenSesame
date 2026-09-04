@@ -1480,3 +1480,23 @@ describe("ConnectionsSection remaining branches", () => {
     expect(docs.getAttribute("href")).toMatch(/^https:/);
   });
 });
+
+describe("ConnectionsSection with no Host connected (ADR 0090)", () => {
+  const withHost = identitySeams.hostBase;
+  beforeEach(() => {
+    identitySeams.hostBase = () => "";
+  });
+  afterEach(() => {
+    identitySeams.hostBase = withHost;
+  });
+
+  it("says what a Host would hold rather than that a read failed", async () => {
+    // Nothing is asked of a Host that is not configured, so "Connections
+    // could not be read." reported a failure that never happened. The
+    // connector catalog is embedded in this build and stays browsable.
+    renderAt("/connections");
+    expect(await screen.findByText("No Host connected")).toBeTruthy();
+    expect(screen.queryByText("Connections could not be read.")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});

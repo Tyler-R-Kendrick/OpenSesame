@@ -213,6 +213,8 @@ describe("SyncTargetsPanel — no Host connected (ADR 0090)", () => {
     render(<SyncTargetsPanel />);
     expect(listSyncTargets).not.toHaveBeenCalled();
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByText(/none is connected — optional/)).toBeTruthy();
+    expect(screen.getByText("No Host connected")).toBeTruthy();
+    // The ceremony is on this same page, so the note does not link away.
+    expect(screen.queryByRole("link")).toBeNull();
   });
 });

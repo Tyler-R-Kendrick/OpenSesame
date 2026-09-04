@@ -65,7 +65,6 @@ export type ConnectorStatus = {
   /** One line of truth: an origin, a principal, or what is missing. */
   detail: string;
   /** Required connectors are the ones a ceremony can be blocked on. */
-  required: boolean;
   /** Why it is failing, when we can tell. Null for anything not probed. */
   failure: FailureClass | null;
   /** Epoch ms of the last completed probe; null for settings-derived state. */
@@ -128,9 +127,7 @@ export function classifyHostConnector(
   offline: boolean,
 ): ConnectorStatus {
   const base = briefOrigin(status.hostBase);
-  // Optional (ADR 0090): a Host is a capability somebody connects, never
-  // something this static app needs to run.
-  const shell = { id: "host", name: "Host", required: false } as const;
+  const shell = { id: "host", name: "Host" } as const;
   if (status.host === "unset") {
     return {
       ...shell,
@@ -169,8 +166,7 @@ export function classifyIdentityConnector(
   offline: boolean,
 ): ConnectorStatus {
   const base = briefOrigin(status.identityBase);
-  // Optional (ADR 0090): the compiled-in broker signs people in without one.
-  const shell = { id: "identity", name: "Identity", required: false } as const;
+  const shell = { id: "identity", name: "Identity" } as const;
   if (!base) {
     return {
       ...shell,
@@ -196,11 +192,9 @@ export function classifyMachineConnector(
   offline: boolean,
 ): ConnectorStatus {
   const base = briefOrigin(daemonApi);
-  // Optional (ADR 0090): pairing a daemon is a road, never a requirement.
   const shell = {
     id: "machine",
     name: "This machine",
-    required: false,
   } as const;
   if (!daemonApi.trim() || !daemonIsProbable(daemonApi, pageIsLoopback())) {
     return { ...shell, tone: "off", detail: "Not paired", ...probed(target) };
@@ -259,7 +253,6 @@ export function classifyHistoryConnector(
     name: "Git history",
     // The vault already lives on this device. Git is optional persistence,
     // so a missing remote is a connectable off state, not an amber error.
-    required: false,
     ...UNPROBED,
   } as const;
   const def = capabilityDef("history");
@@ -283,7 +276,6 @@ export function classifyKeysConnector(
     name: "Key vault",
     // WebCrypto on this device is the built-in default and always satisfies
     // the capability, so there is nothing here a ceremony must repair.
-    required: false,
     ...classifyCapability(
       "encryption",
       settings.capabilityConnectors?.encryption ?? { providerId: "webcrypto" },
@@ -320,7 +312,11 @@ export function useConnectors(): ConnectorStatus[] {
   return buildConnectors(plane, monitor, loadSettings());
 }
 
-/** The planes that are addresses: configured by somebody, so answerable. */
+/**
+ * The connectors that are an address somebody typed: a Host, an Identity API,
+ * a paired machine. Not the bindings (the built-in key vault, git history),
+ * whose own `attn` is an authorization to finish rather than a broken address.
+ */
 const ENDPOINT_CONNECTORS: ReadonlySet<ConnectorId> = new Set([
   "host",
   "identity",
@@ -330,18 +326,16 @@ const ENDPOINT_CONNECTORS: ReadonlySet<ConnectorId> = new Set([
 /**
  * How many connectors are asking for something.
  *
- * An endpoint that is configured and broken (`attn`) counts: somebody pointed
- * the app at an address and it is not answering. One that is simply not
- * configured (`off`) counts only when it is required — and since ADR 0090
- * none of the core planes is, "nothing connected" is a fact, not a fault.
- * Bindings (the key vault, git history) are never endpoints, so their own
- * `attn` — an authorization to finish — stays theirs to show.
+ * Exactly one thing counts: an endpoint that was configured and is not
+ * answering. Somebody typed that address, so its silence is a fault worth a
+ * number. An endpoint nobody configured is not a fault at all — every plane is
+ * optional (ADR 0090), so "nothing connected" is a description of a complete
+ * deployment, and the connectors carried a `required` flag that no longer had
+ * a true case until it was deleted.
  */
 export function needsAttention(connectors: ConnectorStatus[]): number {
   return connectors.filter(
-    (c) =>
-      (c.tone === "attn" && ENDPOINT_CONNECTORS.has(c.id)) ||
-      (c.required && c.tone !== "live"),
+    (c) => c.tone === "attn" && ENDPOINT_CONNECTORS.has(c.id),
   ).length;
 }
 

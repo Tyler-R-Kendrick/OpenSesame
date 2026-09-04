@@ -12,7 +12,8 @@
 // missing asset, or any failed check below.
 //
 //   A. first screen: sign-in with the compiled broker + guest, no setup wall
-//   B. guest → inside the app → every section by in-app navigation
+//   B. guest → inside the app → every section, and every tab within Access,
+//      by in-app navigation
 //   C. Google via Shoo: the authorize request, then the return leg against a
 //      mocked /token + /session/check, landing unlocked with the person named
 //   D. deep link: the icon resolves under the base, not under the route
@@ -69,6 +70,18 @@ function idToken() {
   };
   return `${b64url(JSON.stringify({ alg: "ES256", typ: "JWT", kid: "k1" }))}.${b64url(JSON.stringify(payload))}.${b64url("sig")}`;
 }
+
+/**
+ * Copy a deployment with no backend must never show.
+ *
+ * Two kinds. The first names something that is not there — a loopback address,
+ * an identity service. The second reports a failure: on a deployment that asks
+ * a Host nothing, "could not be read" describes a read that never happened.
+ * Counting `role="alert"` alone missed exactly that, because the sentence was
+ * a quiet hint rather than an alert, so the words themselves are the gate.
+ */
+const FORBIDDEN_COPY =
+  /127\.0\.0\.1|localhost|No Identity API|Sign-in didn.t finish|could not be|couldn.t be|failed to|went wrong|is unavailable|unreachable/i;
 
 const log = [];
 let step = "boot";
@@ -180,9 +193,7 @@ async function snap(page, name) {
     fullPage: true,
   });
   for (const line of text.split("\n")) {
-    if (
-      /127\.0\.0\.1|localhost|No Identity API|Sign-in didn.t finish/i.test(line)
-    ) {
+    if (FORBIDDEN_COPY.test(line)) {
       record("ON-SCREEN", line.trim().slice(0, 300));
     }
   }
@@ -287,6 +298,41 @@ const browser = await chromium.launch({
       (await page.locator('[role="alert"]').count()) === 0,
       `${name} shows no alert`,
     );
+
+    // Sections with tabs hide their regressions one click in: the whole of
+    // Access was once gated on a Host, which hid the Sites — Identity-plane
+    // clients plus wholly local snippets, domain rules and consents. A walk
+    // that only ever saw each section's first tab could not see it.
+    if (name === "B-access") {
+      for (const tab of [
+        "Grants",
+        "Requests",
+        "Sessions",
+        "Resources",
+        "Policies",
+      ]) {
+        step = `${name}-${tab}`;
+        await page.getByRole("tab", { name: tab }).click();
+        await page.waitForTimeout(700);
+        const tabText = await snap(page, `${name}-${tab}`);
+        check(
+          !/Something went wrong|Uncaught/i.test(tabText),
+          `Access › ${tab} rendered`,
+        );
+        check(
+          (await page.locator('[role="alert"]').count()) === 0,
+          `Access › ${tab} shows no alert`,
+        );
+      }
+      // Resources is served by the Identity API and this browser, never the
+      // Host, so it must render its own panel rather than a Host note.
+      await page.getByRole("tab", { name: "Resources" }).click();
+      await page.waitForTimeout(700);
+      check(
+        (await page.getByRole("heading", { name: "Resources" }).count()) > 0,
+        "Access › Resources renders without a Host",
+      );
+    }
   }
   for (const category of [
     "general",

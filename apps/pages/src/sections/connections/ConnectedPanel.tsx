@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { IconSettings } from "../../components/Icons.js";
+import { NoHostNote } from "../../components/NoHostNote.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { createConnection, revokeConnection } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
@@ -25,6 +26,7 @@ export function ConnectedPanel({
   onChanged,
   onRememberOffer,
   setupRequired,
+  hostConfigured,
 }: {
   connections: Connection[] | null;
   providers: Provider[];
@@ -37,6 +39,12 @@ export function ConnectedPanel({
     connection: Connection;
   }) => void;
   setupRequired: boolean;
+  /**
+   * Whether a Host is configured at all. Without one nothing is ever asked,
+   * so "could not be read" was a report of a failure that never happened
+   * (ADR 0090) — the panel says what a Host would hold instead.
+   */
+  hostConfigured: boolean;
 }) {
   const panelRef = useGuideTarget<HTMLElement>("connections.connected");
   const live = (connections ?? []).filter((c) => c.status !== "revoked");
@@ -52,7 +60,9 @@ export function ConnectedPanel({
         <h2>Connected</h2>
       </div>
       <div className="panel__body panel__body--tight">
-        {setupRequired ? (
+        {!hostConfigured ? (
+          <NoHostNote what="A connection is a credential a Host holds for you, so an agent can be sent through it without ever seeing it." />
+        ) : setupRequired ? (
           <div className="empty conn-gate">
             <h3>Choose an organization</h3>
           </div>

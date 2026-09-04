@@ -296,7 +296,6 @@ describe("capability connectors", () => {
   it("treats unauthorized git as optional and off, not as an error", () => {
     const status = classifyHistoryConnector(settings());
     expect(status.tone).toBe("off");
-    expect(status.required).toBe(false);
     expect(status.detail).toBe("Not connected");
   });
 
@@ -329,7 +328,6 @@ describe("capability connectors", () => {
       }),
     );
     expect(status.tone).toBe("live");
-    expect(status.required).toBe(false);
     expect(status.detail).toBe("GitHub · owner/store");
   });
 
@@ -346,10 +344,9 @@ describe("capability connectors", () => {
     expect(status.tone).toBe("live");
   });
 
-  it("counts the built-in key vault as satisfied and not required", () => {
+  it("counts the built-in key vault as satisfied", () => {
     const status = classifyKeysConnector(settings());
     expect(status.tone).toBe("live");
-    expect(status.required).toBe(false);
     expect(status.detail).toBe("WebCrypto (this device)");
   });
 
@@ -381,14 +378,13 @@ describe("needsAttention", () => {
     rttMs: null,
   } as const;
 
-  it("counts only required connectors that are not live", () => {
+  it("counts a configured endpoint that is not answering", () => {
     const list: ConnectorStatus[] = [
       {
         id: "host",
         name: "Host",
         tone: "attn",
         detail: "",
-        required: true,
         ...base,
       },
       {
@@ -396,7 +392,6 @@ describe("needsAttention", () => {
         name: "Key vault",
         tone: "off",
         detail: "",
-        required: false,
         ...base,
       },
       {
@@ -404,12 +399,44 @@ describe("needsAttention", () => {
         name: "Identity",
         tone: "live",
         detail: "",
-        required: true,
         ...base,
       },
     ];
     expect(needsAttention(list)).toBe(1);
     expect(isOfflineSet(list)).toBe(false);
+  });
+
+  it("never counts an endpoint nobody configured", () => {
+    // Every plane is optional (ADR 0090), so an address nobody typed is not a
+    // fault. `off` is the tone for "not configured"; only `attn` is a fault.
+    const list: ConnectorStatus[] = [
+      { id: "host", name: "Host", tone: "off", detail: "", ...base },
+      {
+        id: "identity",
+        name: "Identity",
+        tone: "off",
+        detail: "",
+        ...base,
+      },
+      {
+        id: "machine",
+        name: "This machine",
+        tone: "off",
+        detail: "",
+        ...base,
+      },
+    ];
+    expect(needsAttention(list)).toBe(0);
+  });
+
+  it("leaves a binding's own attention to the binding", () => {
+    // Git history waiting to be authorized is a thing to finish, not an
+    // address that stopped answering, so it never lands in this count.
+    const list: ConnectorStatus[] = [
+      { id: "history", name: "Git history", tone: "attn", detail: "", ...base },
+      { id: "keys", name: "Key vault", tone: "attn", detail: "", ...base },
+    ];
+    expect(needsAttention(list)).toBe(0);
   });
 
   it("recognises the offline set", () => {
@@ -419,7 +446,6 @@ describe("needsAttention", () => {
         name: "Host",
         tone: "offline",
         detail: "Offline",
-        required: true,
         ...base,
       },
     ];
@@ -483,10 +509,8 @@ describe("buildConnectors", () => {
     );
     // Host down and Identity sessionless are configured addresses that are
     // not answering — two. The unpaired machine, optional git history and
-    // the built-in key vault are not problems: none of the core planes is
-    // required (ADR 0090).
+    // the built-in key vault are not problems (ADR 0090).
     expect(needsAttention(built)).toBe(2);
-    for (const status of built) expect(status.required).toBe(false);
   });
 
   it("asks for nothing on a deployment with no backend at all", () => {

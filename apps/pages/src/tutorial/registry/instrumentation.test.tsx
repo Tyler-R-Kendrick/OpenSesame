@@ -88,7 +88,6 @@ function connectorStatus(
     name: "Host",
     tone: "live",
     detail: "127.0.0.1:18787",
-    required: true,
     failure: null,
     lastCheckedAt: null,
     checking: false,
@@ -195,6 +194,7 @@ describe("instrumented screens", () => {
           onChanged={() => undefined}
           onRememberOffer={() => undefined}
           setupRequired={false}
+          hostConfigured
         />
       </MemoryRouter>,
     );
@@ -233,7 +233,6 @@ describe("instrumented screens", () => {
         id: "keys",
         name: "Key vault",
         detail: "WebCrypto",
-        required: false,
       }),
     ];
     render(
