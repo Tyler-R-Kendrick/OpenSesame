@@ -16,7 +16,9 @@ import {
   exchangeJwtBearer,
   initClaim,
   pollClaimGrant,
+  providerAssertionIsAdvertised,
   registerAnonymous,
+  registerProviderAssertion,
   registerServiceAuth,
   resolveAgentAccessToken,
   revokeAccessToken,
@@ -31,7 +33,20 @@ import {
 
 export const agentAuthRoutes = new Hono<{ Variables: Variables }>();
 
+function isAgentAuthError(err: unknown): err is AgentAuthError {
+  if (err instanceof AgentAuthError) return true;
+  return (
+    err instanceof Error &&
+    err.name === "AgentAuthError" &&
+    typeof (err as AgentAuthError).status === "number" &&
+    typeof (err as AgentAuthError).error === "string" &&
+    typeof (err as AgentAuthError).toJSON === "function"
+  );
+}
+
 agentAuthRoutes.post("/agent/identity", async (c) => {
+  c.header("cache-control", "no-store");
+  c.header("pragma", "no-cache");
   const ctx = c.get("ctx");
   let body: unknown;
   try {
@@ -63,16 +78,39 @@ agentAuthRoutes.post("/agent/identity", async (c) => {
       );
       return c.json(result, 200);
     }
-    return c.json(
+    if (!providerAssertionIsAdvertised(ctx.config.agentAuth)) {
+      return c.json(
+        {
+          error: "identity_assertion_not_enabled",
+          error_description:
+            "Provider ID-JAG registration is disabled until issuer trust is configured.",
+        },
+        400,
+      );
+    }
+    const result = await registerProviderAssertion(
+      ctx,
       {
-        error: "identity_assertion_not_enabled",
-        error_description:
-          "Provider ID-JAG registration is disabled until issuer trust is configured.",
+        assertionType: parsed.data.assertion_type,
+        assertion: parsed.data.assertion,
       },
-      400,
+      headers,
+      correlationId,
     );
+    return c.json(result, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
+      if (err.status === 401) {
+        const maxAge = err.extras?.max_age;
+        const description = (err.errorDescription ?? err.error).replace(
+          /"/g,
+          "",
+        );
+        const parts = [`AgentAuth error="${err.error}"`];
+        if (typeof maxAge === "number") parts.push(`max_age="${maxAge}"`);
+        parts.push(`error_description="${description}"`);
+        c.header("WWW-Authenticate", parts.join(", "));
+      }
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -100,7 +138,7 @@ agentAuthRoutes.post("/agent/identity/claim", async (c) => {
     );
     return c.json(result, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -163,7 +201,7 @@ agentAuthRoutes.post("/agent/identity/:id/revoke", async (c) => {
     );
     return c.json({ status: "revoked" }, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -202,7 +240,7 @@ agentAuthRoutes.post("/oauth2/token", async (c) => {
     }
     return c.json({ error: "unsupported_grant_type" }, 400);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;

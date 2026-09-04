@@ -11,6 +11,7 @@ export {
   AGENT_CLAIM_GRANT,
   SERVICE_ASSERTION_TYP,
   PROVIDER_ID_JAG_TYP,
+  ID_JAG_ASSERTION_TYPE,
   AUTH_MD_PROFILE,
   ID_JAG_DRAFT,
   AGENT_IDENTITY_PATH,
@@ -30,6 +31,12 @@ export {
   type ServiceAssertionKey,
   type IssueServiceAssertionInput,
 } from "./assertion.js";
+export {
+  verifyProviderIdJag,
+  isIdJagAssertionType,
+  type VerifiedProviderIdentity,
+  type VerifyProviderIdJagInput,
+} from "./id-jag.js";
 export {
   createAgentAuthClient,
   type AgentAuthClientOptions,

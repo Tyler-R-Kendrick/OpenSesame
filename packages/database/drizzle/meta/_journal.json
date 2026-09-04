@@ -162,6 +162,13 @@
       "when": 1788340800000,
       "tag": "0022_agent_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788520000000,
+      "tag": "0023_agent_auth_idjag_replay",
+      "breakpoints": true
     }
   ]
 }

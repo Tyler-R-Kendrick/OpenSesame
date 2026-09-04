@@ -1,4 +1,5 @@
 import {
+  type JsonObject,
   NOTIFICATION_CHANNEL_KINDS,
   type NotificationChannelKind,
 } from "@opensesame/os-domain";
@@ -156,13 +157,92 @@ export interface ControlPlaneConfig {
     preClaimScopes: string[];
     postClaimScopes: string[];
     resourceScopes: string[];
+    /**
+     * Explicit ID-JAG issuers. Empty means identity_assertion stays
+     * unadvertised even if the env flag is on.
+     */
+    trustedProviders: AgentAuthTrustedProvider[];
   };
 }
+
+export type AgentAuthTrustedProvider = {
+  issuer: string;
+  enabled: boolean;
+  audiences: string[];
+  algorithms: string[];
+  maxAgeSeconds: number;
+  maxAuthAgeSeconds: number;
+  jwks?: { keys: JsonObject[] };
+  jwksUri?: string;
+};
 
 const DEV_CLAIM_PEPPER = "dev-claim-pepper-change-me";
 
 function truthy(v: string | undefined): boolean {
   return v === "true" || v === "1";
+}
+
+function parseTrustedAgentProviders(
+  raw: string | undefined,
+  defaultAudience: string,
+): AgentAuthTrustedProvider[] {
+  if (!raw || raw.trim() === "") return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      "OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON is not valid JSON",
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(
+      "OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON must be a JSON array",
+    );
+  }
+  const out: AgentAuthTrustedProvider[] = [];
+  for (const row of parsed) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    if (typeof rec.issuer !== "string" || rec.issuer.length === 0) continue;
+    const fallbackAudiences = [defaultAudience];
+    const slashed = defaultAudience.endsWith("/")
+      ? defaultAudience
+      : `${defaultAudience}/`;
+    if (!fallbackAudiences.includes(slashed)) fallbackAudiences.push(slashed);
+    const audiences = Array.isArray(rec.audiences)
+      ? rec.audiences.filter((item): item is string => typeof item === "string")
+      : fallbackAudiences;
+    const algorithms = Array.isArray(rec.algorithms)
+      ? rec.algorithms.filter(
+          (item): item is string => typeof item === "string",
+        )
+      : ["ES256", "RS256"];
+    const maxAuthAge =
+      typeof rec.maxAuthAgeSeconds === "number" && rec.maxAuthAgeSeconds > 0
+        ? rec.maxAuthAgeSeconds
+        : typeof rec.idJagMaxAuthAgeSeconds === "number" &&
+            rec.idJagMaxAuthAgeSeconds > 0
+          ? rec.idJagMaxAuthAgeSeconds
+          : 3600;
+    const provider: AgentAuthTrustedProvider = {
+      issuer: normalizeIssuer(rec.issuer),
+      enabled: rec.enabled !== false,
+      audiences: audiences.length > 0 ? audiences : fallbackAudiences,
+      algorithms: algorithms.length > 0 ? algorithms : ["ES256", "RS256"],
+      maxAgeSeconds:
+        typeof rec.maxAgeSeconds === "number" && rec.maxAgeSeconds > 0
+          ? rec.maxAgeSeconds
+          : 300,
+      maxAuthAgeSeconds: maxAuthAge,
+    };
+    if (rec.jwks && typeof rec.jwks === "object") {
+      provider.jwks = rec.jwks as { keys: JsonObject[] };
+    }
+    if (typeof rec.jwksUri === "string") provider.jwksUri = rec.jwksUri;
+    out.push(provider);
+  }
+  return out;
 }
 
 /** Like {@link truthy}, but an unset value means on. Only `false`/`0` opt out. */
@@ -419,6 +499,10 @@ export function loadConfig(
         "project:create:temporary",
         "claim:create",
       ],
+      trustedProviders: parseTrustedAgentProviders(
+        env.OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON,
+        issuer,
+      ),
     },
   };
   if (env.DATABASE_URL) {

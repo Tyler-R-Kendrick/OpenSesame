@@ -17,7 +17,7 @@ OpenSesame already has canonical principals, provisional identity, a claim engin
    - If Q is P after an in-place promotion, principal id is unchanged (existing OpenSesame property).
    - If Q is already a durable principal, the registration retargets to Q. Resources created under P are not copied and principals are not merged. Email is never a join key.
 
-3. **Enabled registration types:** `anonymous` and `service_auth`. Provider `identity_assertion` (ID-JAG) and SET events are implemented as disabled, unadvertised seams until issuer allowlisting, SSRF-safe JWKS, replay, first-link step-up, and event verification are complete.
+3. **Enabled registration types:** `anonymous` and `service_auth`. Provider `identity_assertion` (ID-JAG) is enabled only behind explicit agent-provider trust ([ADR 0093](0093-agent-auth-provider-id-jag.md)). SET events remain disabled and unadvertised.
 
 4. **Tokens.** Access tokens are opaque (ADR 0014) with RFC 7009 revocation. Service assertions are short-lived JWTs re-exchanged at `/oauth2/token` (RFC 7523). There is no OAuth refresh token in this flow. Claim completion revokes pre-claim access tokens and supersedes assertion version v1. Policy, not `act`, authorizes.
 
