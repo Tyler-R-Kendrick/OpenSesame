@@ -155,10 +155,14 @@ this item seemed to need is already written. What is missing is the dispatch:
   their ceremonies "as a `handler` named in the definition and resolved against
   a platform registry of exactly those names, **not as a `switch (item.kind)`**".
   Five definitions (`certificate`, `drop`, `login`, `passkey`, `secret`) already
-  declare `handler` in their spec. Nothing in the client reads the field: there
-  is no `handlerFor`, no handler registry, anywhere in `apps/pages`. The
-  manifests are carrying dead data, and the switch §6 forbids is what still
-  dispatches.
+  declare `handler` in their spec, and the guard rails around it are built in
+  both planes: `HANDLER_IDS` is the closed list of legal names, `validate.ts:682`
+  refuses an unknown one, and only a platform publisher may name a handler at
+  all (`validate.rs:498` mirrors it). What does not exist is the *resolution*
+  step — no `handlerFor`, no registry, nothing in `apps/pages` that reads
+  `spec.handler` and returns a ceremony. So the field is validated but never
+  dispatched, and the switch §6 forbids is what still decides. The fence was
+  built around an empty lot.
 - **The renderer would drop affordances the catalogue can already describe.**
   The login arm renders a live rotating code (`<TotpCode secret={item.totp} />`)
   and the card arm deliberately shows `•••• •••• •••• {last4}` while concealed,
@@ -436,10 +440,18 @@ vocabulary — `concealed`, `password`, `key-material`, `month-year`,
 the definitions corpus is embedded by both planes and a field type either plane
 does not know is a definition that plane cannot load.
 
-Unlike the definitions themselves, which are JSON generated into each plane and
-guarded by a drift test, the catalogue that *validates* those definitions is
-duplicated prose. The asymmetry is the interesting part: the data got the
-treatment, the schema describing the data did not.
+The asymmetry with the definitions is the interesting part, and it is sharper
+than "one got generated and the other did not". The corpus is safe in *both*
+planes, by two different mechanisms: Rust embeds the JSON directly with
+`include_str!` on `definitions/*.json`, so it cannot drift — the compiler reads
+the real file — while TypeScript, which has to bundle for a browser and cannot
+read files at runtime, generates `definitions.generated.ts` and guards it with
+the drift test in `registry.test.ts:93`. Two planes, two mechanisms, both sound.
+
+The catalogue that *validates* that corpus has neither. It is hand-written twice
+and kept in step by a comment: `catalogue.rs:68` says "Every catalogue entry, in
+the same order as the TypeScript table." Nothing tests that claim. The data got
+the treatment; the schema describing the data is on the honour system.
 
 **Move:** the same one already applied to the definitions — author the catalogue
 once as data and generate both planes' constants from it, with the drift test
