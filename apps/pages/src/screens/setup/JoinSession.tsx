@@ -70,7 +70,7 @@ function offerFromStash(
 
 type Mode = "invite" | "ask";
 
-function errorText(caught: unknown): string {
+function errorText<T>(caught: T): string {
   return caught instanceof Error ? caught.message : "That did not work.";
 }
 

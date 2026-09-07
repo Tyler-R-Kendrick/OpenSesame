@@ -31,6 +31,7 @@ describe("static AgentAuth example", () => {
   });
 
   it("publishes PRM pointing at the Identity API, not a local backend", () => {
+    // SAFETY: this checked-in PRM fixture's authorization server list is asserted below.
     const prm = JSON.parse(
       readFileSync(
         join(root, "public/.well-known/oauth-protected-resource"),

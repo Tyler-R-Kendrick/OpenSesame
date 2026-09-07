@@ -15,11 +15,15 @@ import {
  * the diff (`vitest -u`) after reading it.
  */
 
-function target(): VaultKeymapTarget {
+function target() {
   const calls: string[] = [];
   const record =
     (name: string) =>
-    (...args: unknown[]) => {
+    (
+      ...args: Parameters<
+        NonNullable<VaultKeymapTarget[keyof VaultKeymapTarget]>
+      >
+    ) => {
       calls.push(args.length ? `${name}:${args.join(",")}` : name);
     };
   const listing: VaultKeymapTarget = {
@@ -44,9 +48,7 @@ function target(): VaultKeymapTarget {
     favorite: record("favorite"),
     share: record("share"),
   };
-  return Object.assign(listing, { calls }) as VaultKeymapTarget & {
-    calls: string[];
-  };
+  return Object.assign(listing, { calls });
 }
 
 afterEach(() => {
@@ -62,7 +64,7 @@ describe("listing keymap copy", () => {
 
 describe("listing keymap session", () => {
   it("records this dispatch log for a vim-like pass", () => {
-    const tree = target() as VaultKeymapTarget & { calls: string[] };
+    const tree = target();
     const release = registerVaultKeymap(tree);
     const navigate: string[] = [];
     const handler = createKeymapHandler({

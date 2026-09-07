@@ -36,6 +36,7 @@ type JournalEntry = {
 function readJournal(): readonly JournalEntry[] {
   const raw = readFileSync(join(metaDir, "_journal.json"), "utf8");
   const parsed: unknown = JSON.parse(raw);
+  // SAFETY: Drizzle owns this checked-in journal shape; this suite validates its entries.
   const entries = (parsed as { entries?: readonly JournalEntry[] }).entries;
   if (!entries || entries.length === 0) {
     throw new Error("migration journal has no entries");
@@ -106,6 +107,7 @@ describe("drizzle migration journal", () => {
       const snapshot: unknown = JSON.parse(
         readFileSync(snapshotPath(entry.idx), "utf8"),
       );
+      // SAFETY: Drizzle owns these checked-in snapshots; both linkage fields are asserted below.
       const { id, prevId } = snapshot as {
         id?: string;
         prevId?: string;

@@ -1,5 +1,11 @@
-import { SignJWT, importJWK, jwtVerify } from "jose";
-import type { JWK, JWTPayload } from "jose";
+import {
+  type JsonObject,
+  isJsonObject,
+  isNumber,
+  readString,
+} from "@opensesame/os-domain";
+import { SignJWT, decodeProtectedHeader, importJWK, jwtVerify } from "jose";
+import type { JWK } from "jose";
 
 type SignKey = Parameters<InstanceType<typeof SignJWT>["sign"]>[0];
 type VerifyKey = CryptoKey | Uint8Array;
@@ -48,20 +54,9 @@ function randomJti(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-function decodeHeader(jwt: string): {
-  typ?: string;
-  alg?: string;
-  kid?: string;
-} {
-  const headerB64 = jwt.split(".")[0];
-  if (!headerB64)
-    throw agentAuthError("invalid_grant", 400, "assertion is not a JWT");
+function decodeHeader(jwt: string) {
   try {
-    return JSON.parse(Buffer.from(headerB64, "base64url").toString("utf8")) as {
-      typ?: string;
-      alg?: string;
-      kid?: string;
-    };
+    return decodeProtectedHeader(jwt);
   } catch {
     throw agentAuthError("invalid_grant", 400, "assertion is not a JWT");
   }
@@ -70,7 +65,7 @@ function decodeHeader(jwt: string): {
 export async function issueServiceAgentIdentityAssertion(
   key: ServiceAssertionKey,
   input: IssueServiceAssertionInput,
-): Promise<{ jwt: string; jti: string; claims: ServiceAssertionClaims }> {
+) {
   const now = input.now ?? new Date();
   const jti = input.jti ?? randomJti();
   const claims: ServiceAssertionClaims = {
@@ -126,32 +121,29 @@ export async function verifyServiceAgentIdentityAssertion(
     throw agentAuthError("invalid_grant", 400, "rejected assertion algorithm");
   }
 
-  const key = await expected.getKey({
-    ...(header.kid ? { kid: header.kid } : {}),
-    ...(header.alg ? { alg: header.alg } : {}),
-  });
-  let payload: JWTPayload;
-  try {
-    const verified = await jwtVerify(jwt, key, {
-      issuer: expected.issuer,
-      audience: expected.audience,
-      algorithms: ["ES256", "RS256"],
-      clockTolerance: 60,
-    });
-    payload = verified.payload;
-  } catch (err) {
+  const keyHeader: Parameters<typeof expected.getKey>[0] = { alg: header.alg };
+  if (header.kid) keyHeader.kid = header.kid;
+  const key = await expected.getKey(keyHeader);
+  const { payload } = await jwtVerify<JsonObject>(jwt, key, {
+    issuer: expected.issuer,
+    audience: expected.audience,
+    algorithms: ["ES256", "RS256"],
+    clockTolerance: 60,
+  }).catch((err) => {
     if (err instanceof Error && err.name === "AgentAuthError") throw err;
     throw agentAuthError("invalid_grant", 400, "assertion verification failed");
-  }
+  });
 
-  if (typeof payload.sub !== "string" || !payload.sub.startsWith("areg_")) {
+  const subject = readString(payload.sub);
+  if (!subject?.startsWith("areg_")) {
     throw agentAuthError(
       "invalid_grant",
       400,
       "assertion subject is not a registration",
     );
   }
-  if (typeof payload.jti !== "string") {
+  const jti = readString(payload.jti);
+  if (jti === undefined) {
     throw agentAuthError("invalid_grant", 400, "assertion missing jti");
   }
   if (payload.os_reg !== payload.sub) {
@@ -161,10 +153,11 @@ export async function verifyServiceAgentIdentityAssertion(
       "assertion registration mismatch",
     );
   }
+  const resource = readString(payload.resource);
   if (
     expected.resource &&
-    typeof payload.resource === "string" &&
-    payload.resource !== expected.resource
+    resource !== undefined &&
+    resource !== expected.resource
   ) {
     throw agentAuthError("invalid_grant", 400, "assertion resource mismatch");
   }
@@ -172,18 +165,19 @@ export async function verifyServiceAgentIdentityAssertion(
   const claims: ServiceAssertionClaims = {
     iss: String(payload.iss),
     aud: expected.audience,
-    sub: payload.sub,
-    jti: payload.jti,
-    iat: typeof payload.iat === "number" ? payload.iat : 0,
-    exp: typeof payload.exp === "number" ? payload.exp : 0,
+    sub: subject,
+    jti,
+    iat: payload.iat ?? 0,
+    exp: payload.exp ?? 0,
     os_reg: String(payload.os_reg),
     os_claimed: payload.os_claimed === true,
-    os_av: typeof payload.os_av === "number" ? payload.os_av : 0,
+    os_av: isNumber(payload.os_av) ? payload.os_av : 0,
   };
-  if (typeof payload.resource === "string") claims.resource = payload.resource;
-  if (typeof payload.scope === "string") claims.scope = payload.scope;
-  if (payload.act && typeof payload.act === "object" && "sub" in payload.act) {
-    claims.act = { sub: String((payload.act as { sub: unknown }).sub) };
+  if (resource !== undefined) claims.resource = resource;
+  const scope = readString(payload.scope);
+  if (scope !== undefined) claims.scope = scope;
+  if (isJsonObject(payload.act) && "sub" in payload.act) {
+    claims.act = { sub: String(payload.act.sub) };
   }
   return claims;
 }

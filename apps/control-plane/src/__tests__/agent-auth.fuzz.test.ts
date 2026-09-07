@@ -1,3 +1,4 @@
+import { isString } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { safeAgentAuthReturnTo } from "../ui/agent-auth-pages.js";
@@ -41,7 +42,7 @@ describe("AgentAuth fuzz", () => {
     });
     const rng = makeRng(0x51fed);
     for (let i = 0; i < 64; i++) {
-      const bodies: unknown[] = [
+      const bodies = [
         randomString(rng, 80),
         { type: randomString(rng, 12) },
         { type: "anonymous", extra: randomString(rng, 40) },
@@ -54,7 +55,7 @@ describe("AgentAuth fuzz", () => {
       const res = await app.request("/agent/identity", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: typeof body === "string" ? body : JSON.stringify(body),
+        body: isString(body) ? body : JSON.stringify(body),
       });
       expect(res.status).toBeGreaterThanOrEqual(200);
       expect(res.status).toBeLessThan(500);

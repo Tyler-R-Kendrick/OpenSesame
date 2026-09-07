@@ -14,7 +14,11 @@ import { ConnectedPanel } from "./ConnectedPanel.js";
  * that never happened (ADR 0090 §7).
  */
 
-function renderPanel(over: { hostConfigured: boolean; loading?: boolean }) {
+interface PanelOverrides {
+  hostConfigured: boolean;
+  loading?: boolean;
+}
+function renderPanel(over: PanelOverrides) {
   return render(
     <MemoryRouter>
       <ConnectedPanel

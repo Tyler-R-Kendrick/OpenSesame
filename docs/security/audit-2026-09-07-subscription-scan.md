@@ -115,11 +115,21 @@ cyber-access restriction. No attempt was made to bypass that restriction.
   run; focused successes are not a substitute for complete verification.
 - The refreshed full anti-slop run reports 104 errors after three fixture
   assertions were removed. No lint suppression or baseline increase was used.
+- Follow-up delivery repairs resolved all 104 errors, and the full strict
+  anti-slop gate passed. AgentAuth responses retain inferred concrete fields;
+  assertion headers use JOSE's decoder, with malformed-header regression tests.
+  Existing domain readers validate JSON fields. Unnecessary test casts were
+  removed; two database casts are justified by migration 0022's CHECK constraints.
+  The registration row mapper was extracted to keep structural debt decreasing.
+  Full verification is being rerun; this lint result alone is not that gate.
 - Independently, workspace typecheck passed 59/59 tasks after remediation.
   Workspace tests passed 63/63 tasks on an unchanged rerun after one vault
   cryptography test timed out in the first run. No timeout was increased.
   The subsequent malformed-status transport fix passed its package tests
   and typecheck separately.
+- After lint repairs, all 59 typecheck tasks passed and all 63 workspace test
+  tasks passed on rerun. A support-journey test timed out once under concurrent
+  validation load; no timeout or assertion was weakened.
 - Full-feature Clippy passed with disposable Cargo source and build directories.
   Earlier attempts failed on cached `const_oid` metadata and UniFFi template
   includes crossing the shared registry symlink; no Rust lint was suppressed

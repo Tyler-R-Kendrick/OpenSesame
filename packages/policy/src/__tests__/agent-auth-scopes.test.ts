@@ -130,7 +130,7 @@ describe("policy evaluation of protocol scopes", () => {
     const result = evaluateAgentAuthScopes(
       policy,
       fixtures.verifiedPrincipal(),
-      ["principal.merge" as never],
+      ["principal.merge"],
     );
     expect(result.allowed).toEqual([]);
     expect(result.denied).toEqual(["principal.merge"]);

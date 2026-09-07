@@ -132,7 +132,7 @@ async function mintAssertion(
   claimed: boolean,
   scopes: readonly string[],
   now: Date,
-): Promise<{ jwt: string; expiresAt: Date; jti: string }> {
+) {
   const { key } = await agentAuthRuntime();
   const expiresAt = new Date(
     now.getTime() + ctx.config.agentAuth.assertionTtlMs,
@@ -145,7 +145,7 @@ async function mintAssertion(
           registration.claimedByPrincipalId,
         )
       : undefined;
-  const issued = await issueServiceAgentIdentityAssertion(key, {
+  const input: Parameters<typeof issueServiceAgentIdentityAssertion>[1] = {
     issuer: ctx.config.issuer,
     audience: ctx.config.issuer,
     registrationId: registration.id,
@@ -154,9 +154,10 @@ async function mintAssertion(
     scopes,
     expiresAt,
     now,
-    ...(registration.resource ? { resource: registration.resource } : {}),
-    ...(actSub ? { actSub } : {}),
-  });
+  };
+  if (registration.resource) input.resource = registration.resource;
+  if (actSub) input.actSub = actSub;
+  const issued = await issueServiceAgentIdentityAssertion(key, input);
   await ctx.repos.agentAuth.createAssertion({
     jti: issued.jti,
     registrationId: registration.id,
@@ -173,7 +174,7 @@ async function mintAccessToken(
   scopes: readonly string[],
   claimed: boolean,
   now: Date,
-): Promise<{ token: string; expiresAt: Date; record: AgentAccessTokenRecord }> {
+) {
   const generated = generateAgentAccessToken(ctx.config.claimPepper);
   const expiresAt = new Date(
     now.getTime() + ctx.config.agentAuth.accessTokenTtlMs,
@@ -233,11 +234,12 @@ function effectiveScopes(
     preClaimScopes: registration.preClaimScopes,
     postClaimScopes: registration.postClaimScopes,
   });
-  const intersected = intersectAgentAuthScopes({
-    ...(requested ? { requested } : {}),
+  const parts: Parameters<typeof intersectAgentAuthScopes>[0] = {
     registration: stateScopes,
     resourceSupported: ctx.config.agentAuth.resourceScopes,
-  });
+  };
+  if (requested) parts.requested = requested;
+  const intersected = intersectAgentAuthScopes(parts);
   const { allowed } = evaluateAgentAuthScopes(
     ctx.policy,
     principal,
@@ -250,7 +252,7 @@ export async function registerAnonymous(
   ctx: AppContext,
   headers: { userAgent?: string; origin?: string },
   correlationId: string,
-): Promise<Record<string, unknown>> {
+) {
   const cfg = ctx.config.agentAuth;
   if (!cfg.enabled || !cfg.anonymousEnabled) {
     throw agentAuthError("anonymous_not_enabled", 400);
@@ -352,7 +354,7 @@ export async function registerServiceAuth(
   loginHint: string,
   headers: { userAgent?: string; origin?: string },
   correlationId: string,
-): Promise<Record<string, unknown>> {
+) {
   const cfg = ctx.config.agentAuth;
   if (!cfg.enabled || !cfg.serviceAuthEnabled) {
     throw agentAuthError("service_auth_not_enabled", 400);
@@ -442,16 +444,7 @@ async function startClaimAttempt(
   registration: AgentRegistration,
   email: string | undefined,
   correlationId: string,
-): Promise<{
-  claim: {
-    user_code: string;
-    expires_in: number;
-    verification_uri: string;
-    interval: number;
-  };
-  attemptId: string;
-  expiresAt: Date;
-}> {
+) {
   const now = ctx.clock();
   const cfg = ctx.config.agentAuth;
   const attemptToken = generateAgentClaimAttemptToken(ctx.config.claimPepper);
@@ -511,7 +504,7 @@ export async function initClaim(
   claimToken: string,
   email: string | undefined,
   correlationId: string,
-): Promise<Record<string, unknown>> {
+) {
   const digest = digestAgentClaimToken(ctx.config.claimPepper, claimToken);
   if (!digest) {
     throw agentAuthError("invalid_claim_token", 400);
@@ -691,14 +684,15 @@ export async function exchangeJwtBearer(
   resource: string | undefined,
   requestedScope: string | undefined,
   correlationId: string,
-): Promise<Record<string, unknown>> {
+) {
   const runtime = await agentAuthRuntime();
-  const claims = await verifyServiceAgentIdentityAssertion(assertion, {
+  const expected: Parameters<typeof verifyServiceAgentIdentityAssertion>[1] = {
     issuer: ctx.config.issuer,
     audience: ctx.config.issuer,
-    ...(resource ? { resource } : {}),
     getKey: async () => overlapCast(runtime.publicKey),
-  });
+  };
+  if (resource) expected.resource = resource;
+  const claims = await verifyServiceAgentIdentityAssertion(assertion, expected);
   const recorded = await ctx.repos.agentAuth.getAssertionByJti(claims.jti);
   if (!recorded || recorded.revokedAt) {
     throw agentAuthError("invalid_grant", 400, "assertion revoked");
@@ -743,7 +737,7 @@ export async function pollClaimGrant(
   ctx: AppContext,
   claimToken: string,
   correlationId: string,
-): Promise<Record<string, unknown>> {
+) {
   const digest = digestAgentClaimToken(ctx.config.claimPepper, claimToken);
   if (!digest) {
     throw agentAuthError("expired_token", 400, "invalid claim token");

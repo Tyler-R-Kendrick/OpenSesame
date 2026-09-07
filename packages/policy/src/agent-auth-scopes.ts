@@ -30,26 +30,22 @@ export const DEFAULT_POST_CLAIM_SCOPES: readonly AgentAuthScope[] = [
   "claim:create",
 ];
 
-export const AGENT_AUTH_SCOPE_ACTIONS: Readonly<
-  Record<AgentAuthScope, string>
-> = {
+export const AGENT_AUTH_SCOPE_ACTIONS = {
   "resource:read": "resource.read",
   "resource:create:temporary": "resource.create_temporary",
   "project:create:temporary": "project.create_temporary",
   "claim:create": "claim.create",
-};
+} satisfies Readonly<Record<AgentAuthScope, string>>;
 
-export const AGENT_AUTH_SCOPE_DESCRIPTIONS: Readonly<
-  Record<AgentAuthScope, string>
-> = {
+export const AGENT_AUTH_SCOPE_DESCRIPTIONS = {
   "resource:read": "Read resources the registration is allowed to see",
   "resource:create:temporary": "Create TTL-bound temporary resources",
   "project:create:temporary": "Create a TTL-bound temporary project",
   "claim:create": "Create a claim session for later human confirmation",
-};
+} satisfies Readonly<Record<AgentAuthScope, string>>;
 
 export function isAgentAuthScope(value: string): value is AgentAuthScope {
-  return (AGENT_AUTH_SCOPES as readonly string[]).includes(value);
+  return AGENT_AUTH_SCOPES.some((scope) => scope === value);
 }
 
 export function parseScopeParameter(
@@ -95,7 +91,7 @@ export function evaluateAgentAuthScopes(
   principal: Principal,
   scopes: readonly string[],
   usage?: ProvisionalUsage,
-): { allowed: string[]; denied: string[]; decisions: AuthorizationDecision[] } {
+) {
   const allowed: string[] = [];
   const denied: string[] = [];
   const decisions: AuthorizationDecision[] = [];

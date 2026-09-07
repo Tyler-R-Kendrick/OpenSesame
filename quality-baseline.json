@@ -18,7 +18,7 @@
   "totals": {
     "files": 510,
     "violations": 851,
-    "oversizedLines": 297581
+    "oversizedLines": 297543
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -341,7 +341,7 @@
     },
     "apps/control-plane/src/services/agent-auth.ts": {
       "complexity": 1,
-      "max-lines": 908
+      "max-lines": 902
     },
     "apps/control-plane/src/services/app-claim.ts": {
       "complexity": 1,
@@ -685,7 +685,7 @@
       "max-lines": 501
     },
     "apps/pages/src/lib/embedded-catalog.ts": {
-      "max-lines": 616
+      "max-lines": 615
     },
     "apps/pages/src/lib/federation.test.ts": {
       "max-lines": 1389
@@ -859,7 +859,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1841
+      "max-lines": 1840
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 2,
@@ -1108,7 +1108,7 @@
       "max-lines": 661
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
-      "max-lines": 1066
+      "max-lines": 1065
     },
     "apps/pages/src/tutorial/rendering/driver-renderer.ts": {
       "max-lines-per-function": 1
@@ -1504,7 +1504,7 @@
       "max-lines-per-function": 1
     },
     "packages/database/src/repos/agent-auth-repo.ts": {
-      "max-lines": 719,
+      "max-lines": 690,
       "max-lines-per-function": 1
     },
     "packages/database/src/repos/interfaces.ts": {

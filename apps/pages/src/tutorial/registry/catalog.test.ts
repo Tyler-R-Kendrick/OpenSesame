@@ -203,7 +203,9 @@ describe("the authored guides", () => {
     );
     expect(pwa.length).toBeGreaterThan(0);
     for (const capability of pwa) {
-      const goalId = CAPABILITY_TUTORIALS[capability.id];
+      const goalId = Object.entries(CAPABILITY_TUTORIALS).find(
+        ([id]) => id === capability.id,
+      )?.[1];
       expect(goalId, capability.id).toBeTruthy();
       const named = guideGoal(goalId ?? "");
       expect(named, `${capability.id} -> ${goalId}`).not.toBeNull();

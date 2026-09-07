@@ -62,7 +62,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
     landFocus(firstControl(listRef.current));
   }, [tab, naming]);
 
-  function run(task: () => Promise<unknown>): void {
+  function run<T>(task: () => Promise<T>): void {
     setError(null);
     setBusy(true);
     void task()

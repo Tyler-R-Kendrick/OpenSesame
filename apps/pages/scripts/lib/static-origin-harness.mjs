@@ -211,9 +211,7 @@ export function createHarness({ dist, origin, base, out }) {
     },
     launch: () =>
       chromium.launch({
-        ...(process.env.PLAYWRIGHT_CHROMIUM
-          ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM }
-          : {}),
+        executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
         headless: true,
       }),
     newPage: (browser, options = {}) =>

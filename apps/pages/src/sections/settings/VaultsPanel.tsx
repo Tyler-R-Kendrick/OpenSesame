@@ -36,7 +36,7 @@ export function VaultsPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function run(task: () => Promise<unknown>): void {
+  function run<T>(task: () => Promise<T>): void {
     setError(null);
     setBusy(true);
     void task()
