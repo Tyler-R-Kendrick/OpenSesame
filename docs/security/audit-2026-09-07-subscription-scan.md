@@ -122,6 +122,11 @@ cyber-access restriction. No attempt was made to bypass that restriction.
   removed; two database casts are justified by migration 0022's CHECK constraints.
   The registration row mapper was extracted to keep structural debt decreasing.
   Full verification is being rerun; this lint result alone is not that gate.
+- That rerun found three stale Stryker sandbox copies being rediscovered by
+  the root lint-plugin test command (1,452 tests instead of 363). The command
+  now uses the existing plugin-root configuration, and lint excludes generated
+  `.stryker-tmp` copies. All 363 canonical plugin tests passed in 3.8 seconds;
+  no test timeout was increased and no sandbox was deleted.
 - Independently, workspace typecheck passed 59/59 tasks after remediation.
   Workspace tests passed 63/63 tasks on an unchanged rerun after one vault
   cryptography test timed out in the first run. No timeout was increased.
