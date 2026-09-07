@@ -236,7 +236,7 @@
 .access-code__user {
   flex: 1 1 auto;
   font-family: var(--mono);
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   letter-spacing: 0.08em;
   font-weight: 600;
   overflow-wrap: anywhere;
@@ -726,20 +726,20 @@
   display: inline-flex;
   align-items: center;
   padding: 0.15rem 0.55rem;
-  border-radius: var(--radius, 6px);
+  border-radius: var(--radius);
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .access-policy-badge--public {
-  background: color-mix(in srgb, var(--ok, #2a7a4b) 16%, transparent);
-  color: var(--ok, #2a7a4b);
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
 }
 
 .access-policy-badge--restricted {
-  background: color-mix(in srgb, var(--warn, #a86b12) 18%, transparent);
-  color: var(--warn, #a86b12);
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  color: var(--warn);
 }
 
 .access-domain-group {
@@ -775,7 +775,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.45rem 0.6rem;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--line);
 }
