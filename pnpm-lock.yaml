@@ -45,8 +45,8 @@ importers:
         specifier: 1.55.1
         version: 1.55.1
       '@simplewebauthn/server':
-        specifier: 13.2.2
-        version: 13.2.2
+        specifier: 13.3.2
+        version: 13.3.2
       '@stryker-mutator/core':
         specifier: 10.0.0
         version: 10.0.0(@types/node@22.15.29)
@@ -948,8 +948,8 @@ importers:
         specifier: workspace:*
         version: link:../os-domain
       '@simplewebauthn/server':
-        specifier: 13.2.2
-        version: 13.2.2
+        specifier: 13.3.2
+        version: 13.3.2
       better-auth:
         specifier: 1.6.26
         version: 1.6.26(@opentelemetry/api@1.9.1)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.2.17)(@libsql/client@0.17.4)(@opentelemetry/api@1.9.1)(kysely@0.29.4)(pg@8.23.0)(postgres@3.4.7))(mongodb@7.5.0(socks@2.8.9))(pg@8.23.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.10)
@@ -4468,8 +4468,8 @@ packages:
   '@simple-git/argv-parser@1.1.1':
     resolution: {integrity: sha512-Q9lBcfQ+VQCpQqGJFHe5yooOS5hGdLFFbJ5R+R5aDsnkPCahtn1hSkMcORX65J2Z5lxSkD0lQorMsncuBQxYUw==}
 
-  '@simplewebauthn/server@13.2.2':
-    resolution: {integrity: sha512-HcWLW28yTMGXpwE9VLx9J+N2KEUaELadLrkPEEI9tpI5la70xNEVEsu/C+m3u7uoq4FulLqZQhgBCzR9IZhFpA==}
+  '@simplewebauthn/server@13.3.2':
+    resolution: {integrity: sha512-KEDhfcGP1PAKRVSDjA3npTQFqS2b/srm+ipoNBNHdkzrHAlaRQUTE+a5f4ywsx6thxAw1NU2rYcLEY1949RGbQ==}
     engines: {node: '>=20.0.0'}
 
   '@sindresorhus/merge-streams@4.0.0':
@@ -12310,7 +12310,7 @@ snapshots:
     dependencies:
       '@simple-git/args-pathspec': 1.0.3
 
-  '@simplewebauthn/server@13.2.2':
+  '@simplewebauthn/server@13.3.2':
     dependencies:
       '@hexagon/base64': 1.1.28
       '@levischuck/tiny-cbor': 0.2.11

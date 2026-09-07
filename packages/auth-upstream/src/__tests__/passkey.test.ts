@@ -10,6 +10,35 @@ const assertion: PasskeyAssertion = {
 };
 
 describe("passkey seam signature counter", () => {
+  it.each(["prn_owner", "prn_other"])(
+    "refuses credential replacement by %s without changing the original",
+    async (principalId) => {
+      const seam = createPasskeySeam({
+        verifyAssertion: async (_assertion, credential) => ({
+          ok: credential.publicKey[0] === 9,
+          newCounter: 5,
+        }),
+      });
+      await seam.register("prn_owner", {
+        credentialId: "cred1",
+        publicKey: new Uint8Array([9]),
+        counter: 4,
+      });
+      await expect(
+        seam.register(principalId, {
+          credentialId: "cred1",
+          publicKey: new Uint8Array([8]),
+          counter: 0,
+        }),
+      ).rejects.toThrow("Passkey credential already registered");
+      await expect(seam.verify(assertion)).resolves.toEqual({
+        ok: true,
+        principalId: "prn_owner",
+      });
+      await expect(seam.verify(assertion)).resolves.toEqual({ ok: false });
+    },
+  );
+
   it("persists an advancing counter across assertions", async () => {
     let counter = 5;
     const seam = createPasskeySeam({
@@ -46,6 +75,25 @@ describe("passkey seam signature counter", () => {
       counter: 10,
     });
     await expect(seam.verify(assertion)).resolves.toEqual({ ok: false });
+  });
+
+  it("spends an advancing counter only once across concurrent verifications", async () => {
+    const seam = createPasskeySeam({
+      verifyAssertion: async () => ({ ok: true, newCounter: 5 }),
+    });
+    await seam.register("prn_owner", {
+      credentialId: "cred1",
+      publicKey: new Uint8Array([9]),
+      counter: 4,
+    });
+    const results = await Promise.all([
+      seam.verify(assertion),
+      seam.verify(assertion),
+    ]);
+    expect(results).toEqual([
+      { ok: true, principalId: "prn_owner" },
+      { ok: false },
+    ]);
   });
 
   it("still accepts authenticators that do not implement a counter", async () => {

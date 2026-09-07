@@ -73,7 +73,7 @@
     "@modelcontextprotocol/sdk": "1.30.0",
     "@oxlint/plugins": "1.79.0",
     "@playwright/test": "1.55.1",
-    "@simplewebauthn/server": "13.2.2",
+    "@simplewebauthn/server": "13.3.2",
     "@stryker-mutator/core": "10.0.0",
     "@stryker-mutator/vitest-runner": "10.0.0",
     "@types/node": "22.15.29",
