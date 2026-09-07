@@ -90,6 +90,11 @@ export function focusVaultListing(): void {
   vaultTarget?.focus?.();
 }
 
+/** Pathbar `/` twin of the keymap slash — opens the vault listing search. */
+export function searchVaultListing(): void {
+  vaultTarget?.search();
+}
+
 /** In-app `?` sheet. Characterization snapshots this so copy drift is a diff. */
 export const KEYMAP_HELP = [
   ["j / k or arrows", "Move"],

@@ -162,15 +162,21 @@ function VaultApp() {
             <Route path=":itemId" element={<slots.ItemDetail />} />
           </Route>
           <Route
-            path="/access"
+            path="/access/:tab?/:rest?"
             element={
               <Framed>
                 <slots.AccessSection />
               </Framed>
             }
           />
-          <Route path="/agents" element={<Navigate to="/access" replace />} />
-          <Route path="/sites" element={<Navigate to="/access" replace />} />
+          <Route
+            path="/agents"
+            element={<Navigate to="/access/resources" replace />}
+          />
+          <Route
+            path="/sites"
+            element={<Navigate to="/access/resources" replace />}
+          />
           <Route
             path="/identity"
             element={

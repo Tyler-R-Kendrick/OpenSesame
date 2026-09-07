@@ -42,7 +42,10 @@ where the caller is owner):
 - **Narrow** — small form (actions, resources, shorter expiry) →
   `POST /api/v1/delegations/{id}/narrow`.
 - Empty state: `No active grants.`
-- Primary action, top right: **Grant access** → the ceremony below.
+- Pathbar keys, the same chrome as Vault / Connections / Identity: grant
+  (`+`), import, export, search (`/`). Grant and import are ceremonies at
+  `/access/new` and `/access/import`. With no Host (ADR 0090) those keys still
+  mint, import and export a local book on this device.
 
 ### Ceremony: Grant access (JIT)
 
