@@ -127,6 +127,12 @@ cyber-access restriction. No attempt was made to bypass that restriction.
   now uses the existing plugin-root configuration, and lint excludes generated
   `.stryker-tmp` copies. All 363 canonical plugin tests passed in 3.8 seconds;
   no test timeout was increased and no sandbox was deleted.
+- Integration verification then exposed a stale `Nothing here yet` visual
+  assertion and pre-ADR-0090/0091 screen baselines. The test now asserts the
+  current `Nothing here` heading. All six desktop/mobile captures were reviewed
+  against the shipped Google/guest, seal, and empty-vault screens, refreshed,
+  and passed a separate normal comparison run with the unchanged 1.5% budget.
+  No application UI or guest-access behavior was changed for this repair.
 - Independently, workspace typecheck passed 59/59 tasks after remediation.
   Workspace tests passed 63/63 tasks on an unchanged rerun after one vault
   cryptography test timed out in the first run. No timeout was increased.
