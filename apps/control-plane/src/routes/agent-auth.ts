@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import {
   AGENT_CLAIM_GRANT,
   AgentAuthError,
@@ -8,15 +9,21 @@ import {
   AgentClaimInitRequestSchema,
   AgentIdentityRequestSchema,
 } from "@opensesame/contracts";
-import { overlapCast } from "@opensesame/os-domain";
+import {
+  digestAgentClaimAttemptToken,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { Variables } from "../middleware/context.js";
 import {
   completeClaim,
   exchangeJwtBearer,
   initClaim,
   pollClaimGrant,
+  providerAssertionIsAdvertised,
   registerAnonymous,
+  registerProviderAssertion,
   registerServiceAuth,
   resolveAgentAccessToken,
   revokeAccessToken,
@@ -24,14 +31,35 @@ import {
 } from "../services/agent-auth.js";
 import {
   AGENT_AUTH_CLAIM_CSP,
+  AGENT_AUTH_OAUTH_CLIENT_ID,
+  agentAuthClaimRedirectUri,
   renderAgentAuthClaimPage,
   renderAgentAuthLoginPage,
   safeAgentAuthReturnTo,
 } from "../ui/agent-auth-pages.js";
 
+const AGENT_AUTH_OIDC_COOKIE = "os_agent_auth_oidc";
+
+function pkceChallenge(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
+}
+
 export const agentAuthRoutes = new Hono<{ Variables: Variables }>();
 
+function isAgentAuthError(err: unknown): err is AgentAuthError {
+  if (err instanceof AgentAuthError) return true;
+  return (
+    err instanceof Error &&
+    err.name === "AgentAuthError" &&
+    typeof (err as AgentAuthError).status === "number" &&
+    typeof (err as AgentAuthError).error === "string" &&
+    typeof (err as AgentAuthError).toJSON === "function"
+  );
+}
+
 agentAuthRoutes.post("/agent/identity", async (c) => {
+  c.header("cache-control", "no-store");
+  c.header("pragma", "no-cache");
   const ctx = c.get("ctx");
   let body: unknown;
   try {
@@ -63,16 +91,39 @@ agentAuthRoutes.post("/agent/identity", async (c) => {
       );
       return c.json(result, 200);
     }
-    return c.json(
+    if (!providerAssertionIsAdvertised(ctx.config.agentAuth)) {
+      return c.json(
+        {
+          error: "identity_assertion_not_enabled",
+          error_description:
+            "Provider ID-JAG registration is disabled until issuer trust is configured.",
+        },
+        400,
+      );
+    }
+    const result = await registerProviderAssertion(
+      ctx,
       {
-        error: "identity_assertion_not_enabled",
-        error_description:
-          "Provider ID-JAG registration is disabled until issuer trust is configured.",
+        assertionType: parsed.data.assertion_type,
+        assertion: parsed.data.assertion,
       },
-      400,
+      headers,
+      correlationId,
     );
+    return c.json(result, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
+      if (err.status === 401) {
+        const maxAge = err.extras?.max_age;
+        const description = (err.errorDescription ?? err.error).replace(
+          /"/g,
+          "",
+        );
+        const parts = [`AgentAuth error="${err.error}"`];
+        if (typeof maxAge === "number") parts.push(`max_age="${maxAge}"`);
+        parts.push(`error_description="${description}"`);
+        c.header("WWW-Authenticate", parts.join(", "));
+      }
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -100,7 +151,7 @@ agentAuthRoutes.post("/agent/identity/claim", async (c) => {
     );
     return c.json(result, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -140,6 +191,7 @@ agentAuthRoutes.post("/agent/identity/claim/complete", async (c) => {
       renderAgentAuthClaimPage({
         error: result.error,
         claimAttemptToken: parsed.data.claim_attempt_token,
+        principalId,
       }),
       overlapCast(result.status),
     );
@@ -163,7 +215,7 @@ agentAuthRoutes.post("/agent/identity/:id/revoke", async (c) => {
     );
     return c.json({ status: "revoked" }, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -202,7 +254,7 @@ agentAuthRoutes.post("/oauth2/token", async (c) => {
     }
     return c.json({ error: "unsupported_grant_type" }, 400);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -255,7 +307,180 @@ agentAuthRoutes.get("/claim", async (c) => {
     const returnTo = `/claim?claim_attempt_token=${encodeURIComponent(token)}`;
     return c.redirect(`/login?return_to=${encodeURIComponent(returnTo)}`, 303);
   }
-  return c.html(renderAgentAuthClaimPage({ claimAttemptToken: token }));
+  const ctx = c.get("ctx");
+  const digest = digestAgentClaimAttemptToken(ctx.config.claimPepper, token);
+  const attempt = digest
+    ? await ctx.repos.agentAuth.getClaimAttemptByTokenDigest(digest)
+    : null;
+  const registration = attempt
+    ? await ctx.repos.agentAuth.getRegistrationById(attempt.registrationId)
+    : null;
+  return c.html(
+    renderAgentAuthClaimPage({
+      claimAttemptToken: token,
+      principalId,
+      ...(registration
+        ? {
+            registrationId: registration.id,
+            scopes: registration.postClaimScopes,
+          }
+        : {}),
+    }),
+  );
+});
+
+agentAuthRoutes.post("/login/start", async (c) => {
+  const ctx = c.get("ctx");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Content-Security-Policy", AGENT_AUTH_CLAIM_CSP);
+  const form = await c.req.parseBody();
+  const returnTo = safeAgentAuthReturnTo(
+    typeof form.return_to === "string" ? form.return_to : "/claim",
+  );
+  const principalId = c.get("principalId");
+  if (principalId) {
+    return c.redirect(returnTo, 303);
+  }
+  const issuer = ctx.config.issuer.replace(/\/+$/u, "");
+  const redirectUri = agentAuthClaimRedirectUri(issuer);
+  const verifier = randomBytes(32).toString("base64url");
+  const state = randomBytes(16).toString("base64url");
+  setCookie(
+    c,
+    AGENT_AUTH_OIDC_COOKIE,
+    JSON.stringify({ v: verifier, r: returnTo, s: state }),
+    {
+      httpOnly: true,
+      sameSite: "Lax",
+      path: "/",
+      maxAge: 600,
+      secure: ctx.config.publicUrl.startsWith("https://"),
+    },
+  );
+  const authorize = new URL(`${issuer}/auth`);
+  authorize.searchParams.set("client_id", AGENT_AUTH_OAUTH_CLIENT_ID);
+  authorize.searchParams.set("redirect_uri", redirectUri);
+  authorize.searchParams.set("response_type", "code");
+  authorize.searchParams.set("scope", "openid");
+  authorize.searchParams.set("code_challenge", pkceChallenge(verifier));
+  authorize.searchParams.set("code_challenge_method", "S256");
+  authorize.searchParams.set("state", state);
+  const provider =
+    typeof form.provider === "string" ? form.provider.trim() : "";
+  if (/^[a-z0-9._-]{1,64}$/i.test(provider)) {
+    authorize.searchParams.set("login_hint_provider", provider);
+    authorize.searchParams.set("kc_idp_hint", provider);
+  }
+  return c.redirect(authorize.toString(), 303);
+});
+
+agentAuthRoutes.get("/claim/resume", async (c) => {
+  const ctx = c.get("ctx");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Content-Security-Policy", AGENT_AUTH_CLAIM_CSP);
+  const raw = getCookie(c, AGENT_AUTH_OIDC_COOKIE);
+  deleteCookie(c, AGENT_AUTH_OIDC_COOKIE, { path: "/" });
+  let stored: { v?: string; r?: string; s?: string } = {};
+  try {
+    stored = raw ? overlapCast(JSON.parse(raw)) : {};
+  } catch {
+    stored = {};
+  }
+  const returnTo = safeAgentAuthReturnTo(
+    typeof stored.r === "string" ? stored.r : "/claim",
+  );
+  const oidcError = c.req.query("error");
+  if (oidcError || !stored.v || !stored.s) {
+    return c.html(
+      renderAgentAuthLoginPage({
+        returnTo,
+        publicUrl: ctx.config.publicUrl,
+      }),
+      400,
+    );
+  }
+  if (c.req.query("state") !== stored.s) {
+    return c.html(
+      renderAgentAuthLoginPage({
+        returnTo,
+        publicUrl: ctx.config.publicUrl,
+      }),
+      400,
+    );
+  }
+  const code = c.req.query("code");
+  if (!code) {
+    return c.redirect(returnTo, 303);
+  }
+  const issuer = ctx.config.issuer.replace(/\/+$/u, "");
+  const redirectUri = agentAuthClaimRedirectUri(issuer);
+  let accessToken: string | undefined;
+  try {
+    const tokenRes = await fetch(`${issuer}/token`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "authorization_code",
+        client_id: AGENT_AUTH_OAUTH_CLIENT_ID,
+        code,
+        redirect_uri: redirectUri,
+        code_verifier: stored.v,
+      }),
+    });
+    const body = overlapCast(await tokenRes.json());
+    if (typeof body.access_token === "string") accessToken = body.access_token;
+  } catch {
+    accessToken = undefined;
+  }
+  if (!accessToken) {
+    return c.html(
+      renderAgentAuthLoginPage({
+        returnTo,
+        publicUrl: ctx.config.publicUrl,
+      }),
+      400,
+    );
+  }
+  const provider: {
+    AccessToken: {
+      find: (value: string) => Promise<{ accountId?: string } | undefined>;
+    };
+  } = overlapCast(ctx.oauth.provider);
+  const token = await provider.AccessToken.find(accessToken);
+  const accountId = token?.accountId;
+  if (!accountId) {
+    return c.html(
+      renderAgentAuthLoginPage({
+        returnTo,
+        publicUrl: ctx.config.publicUrl,
+      }),
+      400,
+    );
+  }
+  const now = ctx.clock();
+  const sessionId = `ps_${randomBytes(16).toString("hex")}`;
+  ctx.stores.provisionalSessions.set(sessionId, {
+    id: sessionId,
+    principalId: accountId,
+    quotaProfile: "anonymous",
+    allowedActions: [
+      "claim.create",
+      "agent.register_ephemeral",
+      "session.continue_anonymous",
+    ],
+    createdAt: now,
+    expiresAt: new Date(now.getTime() + ctx.config.provisionalTtlMs),
+  });
+  const pst = `pst_${randomBytes(24).toString("base64url")}`;
+  ctx.stores.provisionalTokens.set(pst, sessionId);
+  setCookie(c, ctx.config.provisionalCookieName, pst, {
+    httpOnly: true,
+    sameSite: "Lax",
+    path: "/",
+    maxAge: Math.floor(ctx.config.provisionalTtlMs / 1000),
+    secure: ctx.config.publicUrl.startsWith("https://"),
+  });
+  return c.redirect(returnTo, 303);
 });
 
 agentAuthRoutes.get("/login", async (c) => {

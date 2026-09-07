@@ -66,6 +66,17 @@ export type AgentServiceAuthRegistrationResponse = z.infer<
   typeof AgentServiceAuthRegistrationResponseSchema
 >;
 
+export const AgentProviderAssertionRegistrationResponseSchema = z.object({
+  registration_id: z.string(),
+  registration_type: z.literal("identity_assertion"),
+  identity_assertion: z.string(),
+  assertion_expires: z.string().datetime(),
+  scopes: z.array(z.string()),
+});
+export type AgentProviderAssertionRegistrationResponse = z.infer<
+  typeof AgentProviderAssertionRegistrationResponseSchema
+>;
+
 export const AgentIdentityErrorSchema = z.object({
   error: z.string(),
   error_description: z.string().optional(),

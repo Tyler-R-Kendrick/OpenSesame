@@ -46,6 +46,7 @@ const EXPECTED_TABLES = [
   "agent_claim_attempts",
   "agent_access_tokens",
   "agent_service_assertions",
+  "agent_provider_assertion_replays",
   "delegations",
   "oauth_clients",
   "client_origins",

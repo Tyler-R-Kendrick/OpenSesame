@@ -256,6 +256,9 @@ and domain policy. A signed assertion cannot grant a scope policy denies.
 | anonymous_not_enabled | ${identityPath} | Use another enabled type |
 | service_auth_not_enabled | ${identityPath} | Use another enabled type |
 | identity_assertion_not_enabled | ${identityPath} | ID-JAG is not enabled |
+| issuer_not_enabled | ${identityPath} | Provider is not on this service's trust list |
+| login_required | ${identityPath} | Re-authenticate at the provider; mint a fresh ID-JAG |
+| interaction_required | ${identityPath} | First-link step-up; surface the claim block |
 | invalid_login_hint | ${identityPath} | login_hint must be an email |
 | invalid_claim_token | ${claimPath} | Restart at Step 3 |
 | claimed_or_in_flight | ${claimPath} | Follow the Step 3 response |

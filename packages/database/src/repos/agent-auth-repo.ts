@@ -326,6 +326,23 @@ export class MemoryAgentAuthRepository implements AgentAuthRepository {
     }
     return n;
   };
+
+  readonly providerReplays = new Map<string, { expiresAt: Date }>();
+
+  consumeProviderAssertionReplay = async (
+    issuer: string,
+    jti: string,
+    expiresAt: Date,
+    uow?: UnitOfWork,
+  ): Promise<boolean> => {
+    const key = `${issuer}\0${jti}`;
+    const existing = this.providerReplays.get(key);
+    if (existing && existing.expiresAt.getTime() > Date.now()) return false;
+    applyNowOrDefer(uow, () => {
+      this.providerReplays.set(key, { expiresAt });
+    });
+    return true;
+  };
 }
 
 type Db = PostgresJsDatabase<typeof schema>;
@@ -714,6 +731,16 @@ export function createPostgresAgentAuthRepository(
           sql`${schema.agentRegistrations.status} in ('unclaimed','claim_pending')`,
         );
       return rows.length;
+    },
+
+    async consumeProviderAssertionReplay(issuer, jti, expiresAt, uow) {
+      const conn = resolveDb(uow);
+      const inserted = await conn
+        .insert(schema.agentProviderAssertionReplays)
+        .values({ issuer, jti, expiresAt })
+        .onConflictDoNothing()
+        .returning({ jti: schema.agentProviderAssertionReplays.jti });
+      return inserted.length === 1;
     },
   };
 }

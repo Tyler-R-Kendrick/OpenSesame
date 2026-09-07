@@ -118,4 +118,30 @@ describe("MemoryAgentAuthRepository", () => {
     expect(await repo.expireDue(now)).toBe(0);
     expect((await repo.getRegistrationById("areg_1"))?.status).toBe("claimed");
   });
+
+  it("consumes a provider assertion jti once", async () => {
+    const repo = new MemoryAgentAuthRepository();
+    const exp = new Date(Date.now() + 60_000);
+    expect(
+      await repo.consumeProviderAssertionReplay(
+        "https://idp.example",
+        "jti-1",
+        exp,
+      ),
+    ).toBe(true);
+    expect(
+      await repo.consumeProviderAssertionReplay(
+        "https://idp.example",
+        "jti-1",
+        exp,
+      ),
+    ).toBe(false);
+    expect(
+      await repo.consumeProviderAssertionReplay(
+        "https://idp.example",
+        "jti-2",
+        exp,
+      ),
+    ).toBe(true);
+  });
 });

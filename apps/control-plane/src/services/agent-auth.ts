@@ -1,24 +1,26 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   AGENT_CLAIM_GRANT,
+  ID_JAG_ASSERTION_TYPE,
   JWT_BEARER_GRANT,
-  SERVICE_ASSERTION_TYP,
   type ServiceAssertionKey,
   agentAuthError,
-  issueServiceAgentIdentityAssertion,
-  verifyServiceAgentIdentityAssertion,
-} from "@opensesame/agent-protocols";
-import {
   isEmailLoginHint,
+  issueServiceAgentIdentityAssertion,
   normalizeLoginHint,
+  verifyProviderIdJag,
+  verifyServiceAgentIdentityAssertion,
 } from "@opensesame/agent-protocols";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
-import { ConflictError } from "@opensesame/database";
+import { ConflictError, type UnitOfWork } from "@opensesame/database";
+import { assertSafeMetadataUrl } from "@opensesame/oauth-provider";
 import {
   type AgentAccessTokenRecord,
   type AgentClaimAttempt,
   type AgentRegistration,
+  type ExternalIdentity,
+  type JsonObject,
   type Principal,
   digestAgentAccessToken,
   digestAgentClaimAttemptToken,
@@ -45,7 +47,9 @@ import {
   intersectAgentAuthScopes,
   scopesForRegistrationState,
 } from "@opensesame/policy";
-import { exportJWK, generateKeyPair } from "jose";
+import { exportJWK, generateKeyPair, importJWK } from "jose";
+import type { JWK } from "jose";
+import type { AgentAuthTrustedProvider } from "../config.js";
 import type { AppContext } from "../context.js";
 
 export interface AgentAuthRuntime {
@@ -55,26 +59,93 @@ export interface AgentAuthRuntime {
 
 let runtimePromise: Promise<AgentAuthRuntime> | undefined;
 
-export async function agentAuthRuntime(): Promise<AgentAuthRuntime> {
-  runtimePromise ??= (async () => {
-    const { privateKey, publicKey } = await generateKeyPair("ES256", {
-      extractable: true,
-    });
-    const publicJwk = await exportJWK(publicKey);
-    publicJwk.kid = "os-sia-1";
-    publicJwk.alg = "ES256";
-    publicJwk.use = "sig";
-    return {
-      publicKey,
-      key: {
-        privateKey,
-        publicJwk,
-        kid: "os-sia-1",
-        alg: "ES256",
-      },
-    };
-  })();
+export async function agentAuthRuntime(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<AgentAuthRuntime> {
+  runtimePromise ??= loadAgentAuthRuntime(env);
   return runtimePromise;
+}
+
+export function resetAgentAuthRuntimeForTests(): void {
+  runtimePromise = undefined;
+}
+
+async function loadAgentAuthRuntime(
+  env: NodeJS.ProcessEnv,
+): Promise<AgentAuthRuntime> {
+  const fromEnv = await runtimeFromJwksEnv(env);
+  if (fromEnv) return fromEnv;
+  const isProduction =
+    env.NODE_ENV === "production" || env.OPENSESAME_ENV === "production";
+  if (isProduction) {
+    throw new Error(
+      "AgentAuth service assertion signing keys are required in production — set OPENSESAME_JWKS_JSON or OPENSESAME_AGENT_AUTH_SIA_JWK",
+    );
+  }
+  const { privateKey, publicKey } = await generateKeyPair("ES256", {
+    extractable: true,
+  });
+  const publicJwk = await exportJWK(publicKey);
+  publicJwk.kid = "os-sia-1";
+  publicJwk.alg = "ES256";
+  publicJwk.use = "sig";
+  return {
+    publicKey,
+    key: {
+      privateKey,
+      publicJwk,
+      kid: "os-sia-1",
+      alg: "ES256",
+    },
+  };
+}
+
+async function runtimeFromJwksEnv(
+  env: NodeJS.ProcessEnv,
+): Promise<AgentAuthRuntime | undefined> {
+  const single = env.OPENSESAME_AGENT_AUTH_SIA_JWK;
+  const set = env.OPENSESAME_JWKS_JSON;
+  const raw = single ?? set;
+  if (!raw) return undefined;
+  let keys: JWK[] = [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (single) {
+      keys = [parsed as JWK];
+    } else {
+      const obj = parsed as { keys?: JWK[] };
+      keys = Array.isArray(obj.keys) ? obj.keys : [];
+    }
+  } catch {
+    throw new Error("AgentAuth signing JWKS is not valid JSON");
+  }
+  const chosen =
+    keys.find((key) => key.kid === "os-sia-1" && key.d) ??
+    keys.find((key) => (key.alg === "ES256" || key.alg === "RS256") && key.d);
+  if (!chosen || !chosen.d) return undefined;
+  const alg = chosen.alg === "RS256" ? "RS256" : "ES256";
+  const privateKey = await importJWK(chosen, alg);
+  const {
+    d: _d,
+    p: _p,
+    q: _q,
+    dp: _dp,
+    dq: _dq,
+    qi: _qi,
+    ...publicJwk
+  } = chosen;
+  publicJwk.kid = chosen.kid ?? "os-sia-1";
+  publicJwk.alg = alg;
+  publicJwk.use = "sig";
+  return {
+    publicKey: privateKey,
+    key: {
+      privateKey,
+      publicJwk,
+      kid: String(publicJwk.kid),
+      alg,
+    },
+  };
 }
 
 function encodeActSubject(
@@ -437,6 +508,399 @@ export async function registerServiceAuth(
   };
 }
 
+export function providerAssertionIsAdvertised(
+  cfg: AppContext["config"]["agentAuth"],
+): boolean {
+  return (
+    cfg.enabled &&
+    cfg.providerAssertionEnabled &&
+    cfg.trustedProviders.some((provider) => provider.enabled)
+  );
+}
+
+const providerReplayFallback = new Map<string, number>();
+
+async function consumeProviderReplay(
+  ctx: AppContext,
+  issuer: string,
+  jti: string,
+  expiresAt: Date,
+  uow?: UnitOfWork,
+): Promise<boolean> {
+  const consume = ctx.repos.agentAuth.consumeProviderAssertionReplay;
+  if (typeof consume === "function") {
+    return consume(issuer, jti, expiresAt, uow);
+  }
+  const key = `${issuer}\0${jti}`;
+  const now = Date.now();
+  for (const [seen, exp] of providerReplayFallback) {
+    if (exp <= now) providerReplayFallback.delete(seen);
+  }
+  if (providerReplayFallback.has(key)) return false;
+  providerReplayFallback.set(key, expiresAt.getTime());
+  return true;
+}
+
+function trustedProviderFor(
+  cfg: AppContext["config"]["agentAuth"],
+  issuer: string,
+): AgentAuthTrustedProvider | undefined {
+  const normalized = issuer.replace(/\/+$/u, "");
+  return cfg.trustedProviders.find(
+    (provider) =>
+      provider.enabled && provider.issuer.replace(/\/+$/u, "") === normalized,
+  );
+}
+
+async function jwksForProvider(
+  provider: AgentAuthTrustedProvider,
+): Promise<{ keys: JsonObject[] }> {
+  if (provider.jwks?.keys && provider.jwks.keys.length > 0) {
+    return provider.jwks;
+  }
+  if (!provider.jwksUri) {
+    throw agentAuthError("invalid_request", 400, "provider keys unavailable");
+  }
+  try {
+    assertSafeMetadataUrl(provider.jwksUri);
+  } catch {
+    throw agentAuthError(
+      "invalid_request",
+      400,
+      "provider jwks_uri is not safe",
+    );
+  }
+  const response = await fetch(provider.jwksUri, {
+    redirect: "error",
+    signal: AbortSignal.timeout(5_000),
+  });
+  if (!response.ok) {
+    throw agentAuthError("invalid_request", 400, "provider JWKS fetch failed");
+  }
+  const body = await response.text();
+  if (body.length > 65_536) {
+    throw agentAuthError("invalid_request", 400, "provider JWKS too large");
+  }
+  let parsed: { keys?: JsonObject[] };
+  try {
+    parsed = overlapCast(JSON.parse(body));
+  } catch {
+    throw agentAuthError("invalid_request", 400, "provider JWKS is not JSON");
+  }
+  if (!Array.isArray(parsed.keys) || parsed.keys.length === 0) {
+    throw agentAuthError("invalid_request", 400, "provider JWKS has no keys");
+  }
+  return { keys: parsed.keys };
+}
+
+export async function registerProviderAssertion(
+  ctx: AppContext,
+  input: { assertionType: string; assertion: string },
+  headers: { userAgent?: string; origin?: string },
+  correlationId: string,
+): Promise<Record<string, unknown>> {
+  const cfg = ctx.config.agentAuth;
+  if (!providerAssertionIsAdvertised(cfg)) {
+    throw agentAuthError("identity_assertion_not_enabled", 400);
+  }
+  if (input.assertionType !== ID_JAG_ASSERTION_TYPE) {
+    throw agentAuthError("invalid_request", 400, "unsupported assertion_type");
+  }
+  const now = ctx.clock();
+  if (
+    !consumeAgentAuthMintBudget(
+      ctx.stores.agentAuthMints,
+      fingerprintOf(headers),
+      now.getTime(),
+    )
+  ) {
+    throw agentAuthError("rate_limited", 429);
+  }
+
+  let issuerHint = "";
+  try {
+    const payloadB64 = input.assertion.split(".")[1];
+    if (payloadB64) {
+      const payload = JSON.parse(
+        Buffer.from(payloadB64, "base64url").toString("utf8"),
+      ) as { iss?: unknown };
+      if (typeof payload.iss === "string") issuerHint = payload.iss;
+    }
+  } catch {
+    throw agentAuthError("invalid_grant", 400, "assertion is not a JWT");
+  }
+  const provider = trustedProviderFor(cfg, issuerHint);
+  if (!provider) {
+    throw agentAuthError(
+      "issuer_not_enabled",
+      400,
+      "untrusted assertion issuer",
+    );
+  }
+  const jwks = await jwksForProvider(provider);
+  const identity = await verifyProviderIdJag(input.assertion, {
+    issuer: provider.issuer,
+    audiences: provider.audiences,
+    algorithms: provider.algorithms,
+    maxAgeSeconds: provider.maxAgeSeconds,
+    maxAuthAgeSeconds: provider.maxAuthAgeSeconds,
+    now,
+    getKey: async (header) => {
+      const listed = jwks.keys;
+      const match = header.kid
+        ? listed.find((key) => key.kid === header.kid)
+        : listed[0];
+      if (!match) {
+        throw agentAuthError("invalid_request", 400, "unknown assertion kid");
+      }
+      try {
+        return await importJWK(overlapCast(match), header.alg ?? "ES256");
+      } catch {
+        throw agentAuthError(
+          "invalid_request",
+          400,
+          "assertion key import failed",
+        );
+      }
+    },
+  });
+
+  const existing = await ctx.repos.externalIdentities.findByTuple({
+    kind: "auth_md",
+    issuer: identity.issuer,
+    subject: identity.subject,
+  });
+
+  const verifiedEmail =
+    identity.emailVerified && identity.email
+      ? normalizeLoginHint(identity.email)
+      : undefined;
+  if (!existing && verifiedEmail) {
+    const peer =
+      await ctx.repos.externalIdentities.findVerifiedByEmail(verifiedEmail);
+    if (peer) {
+      return beginProviderFirstLink(
+        ctx,
+        identity,
+        verifiedEmail,
+        correlationId,
+      );
+    }
+  }
+
+  let principalId = existing?.principalId;
+  let principal: Principal | null = principalId
+    ? await ctx.repos.principals.getById(principalId)
+    : null;
+
+  const registration: AgentRegistration = {
+    id: generateAgentRegistrationId(),
+    kind: "provider_assertion",
+    status: "claimed",
+    principalId: principalId ?? `prn_${randomUUID()}`,
+    claimedByPrincipalId: principalId ?? undefined,
+    createdAt: now,
+    expiresAt: new Date(now.getTime() + cfg.registrationTtlMs),
+    claimedAt: now,
+    preClaimScopes: [],
+    postClaimScopes: [...cfg.postClaimScopes],
+    resource: ctx.config.publicUrl,
+    audience: ctx.config.issuer,
+    assertionVersion: 1,
+    providerIssuer: identity.issuer,
+    providerSubject: identity.subject,
+    providerClientId: identity.clientId,
+    version: 1,
+  };
+  if (!principalId) {
+    principalId = registration.principalId;
+    registration.claimedByPrincipalId = principalId;
+    principal = {
+      id: principalId,
+      state: "active",
+      assurance: "verified",
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+    };
+  } else if (principal) {
+    registration.principalId = principal.id;
+    registration.claimedByPrincipalId = principal.id;
+  }
+
+  if (!principal) {
+    throw agentAuthError("invalid_request", 400, "principal unavailable");
+  }
+
+  const identityRow: ExternalIdentity | null = existing
+    ? null
+    : {
+        id: `xid_${randomUUID()}`,
+        principalId: principal.id,
+        kind: "auth_md",
+        issuer: identity.issuer,
+        subject: identity.subject,
+        assurance: "verified",
+        linkedAt: now,
+        metadata: {},
+        ...(verifiedEmail ? { emailNormalized: verifiedEmail } : {}),
+        ...(identity.emailVerified ? { emailVerified: true } : {}),
+      };
+
+  try {
+    await ctx.repos.transaction(async (uow) => {
+      const won = await consumeProviderReplay(
+        ctx,
+        identity.issuer,
+        identity.assertionId,
+        identity.expiresAt,
+        uow,
+      );
+      if (!won) {
+        throw agentAuthError("invalid_request", 400, "assertion replayed");
+      }
+      if (!existing) {
+        await ctx.repos.principals.create(principal, uow);
+        if (identityRow) {
+          await ctx.repos.externalIdentities.create(identityRow, uow);
+        }
+      }
+      await ctx.repos.agentAuth.createRegistration(registration, uow);
+    });
+  } catch (error) {
+    if (error instanceof ConflictError) {
+      throw agentAuthError("invalid_request", 400, "registration conflict");
+    }
+    throw error;
+  }
+
+  const scopes = effectiveScopes(ctx, registration, principal);
+  const assertion = await mintAssertion(ctx, registration, true, scopes, now);
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "agent_auth.registration.created",
+    outcome: "succeeded",
+    principalId: principal.id,
+    correlationId,
+    actorType: "agent",
+    targetType: "agent_registration",
+    targetId: registration.id,
+    metadata: {
+      type: "identity_assertion",
+      action: "agent_auth.register",
+      issuer: identity.issuer,
+    },
+  });
+
+  return {
+    registration_id: registration.id,
+    registration_type: "identity_assertion",
+    identity_assertion: assertion.jwt,
+    assertion_expires: assertion.expiresAt.toISOString(),
+    scopes,
+  };
+}
+
+async function beginProviderFirstLink(
+  ctx: AppContext,
+  identity: {
+    issuer: string;
+    subject: string;
+    assertionId: string;
+    expiresAt: Date;
+    clientId?: string;
+  },
+  verifiedEmail: string,
+  correlationId: string,
+): Promise<never> {
+  const cfg = ctx.config.agentAuth;
+  const now = ctx.clock();
+  const { mapping } = await createProvisionalPrincipal(ctx.mappings, {
+    ttlMs: cfg.registrationTtlMs,
+  });
+  const principal: Principal = {
+    id: mapping.principalId,
+    state: "provisional",
+    assurance: "provisional",
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  };
+  const claim = generateAgentClaimToken(ctx.config.claimPepper);
+  const registration: AgentRegistration = {
+    id: generateAgentRegistrationId(),
+    kind: "provider_assertion",
+    status: "claim_pending",
+    principalId: principal.id,
+    createdAt: now,
+    expiresAt: new Date(now.getTime() + cfg.registrationTtlMs),
+    preClaimScopes: [],
+    postClaimScopes: [...cfg.postClaimScopes],
+    resource: ctx.config.publicUrl,
+    audience: ctx.config.issuer,
+    claimEmailNormalized: verifiedEmail,
+    claimTokenDigest: claim.digest,
+    assertionVersion: 0,
+    providerIssuer: identity.issuer,
+    providerSubject: identity.subject,
+    providerClientId: identity.clientId,
+    version: 1,
+  };
+  try {
+    await ctx.repos.transaction(async (uow) => {
+      const won = await consumeProviderReplay(
+        ctx,
+        identity.issuer,
+        identity.assertionId,
+        identity.expiresAt,
+        uow,
+      );
+      if (!won) {
+        throw agentAuthError("invalid_request", 400, "assertion replayed");
+      }
+      await ctx.repos.principals.create(principal, uow);
+      await ctx.repos.agentAuth.createRegistration(registration, uow);
+    });
+  } catch (error) {
+    await ctx.repos.principals.deleteUnlinkedProvisional(principal.id);
+    await ctx.mappings.deleteProvisional(principal.id);
+    throw error;
+  }
+  const ceremony = await startClaimAttempt(
+    ctx,
+    registration,
+    verifiedEmail,
+    correlationId,
+  );
+  await appendAuditEvent(ctx.repos.auditEvents, {
+    eventType: "agent_auth.registration.created",
+    outcome: "succeeded",
+    principalId: principal.id,
+    correlationId,
+    actorType: "agent",
+    targetType: "agent_registration",
+    targetId: registration.id,
+    metadata: {
+      type: "identity_assertion",
+      action: "agent_auth.first_link",
+      issuer: identity.issuer,
+    },
+  });
+  throw agentAuthError(
+    "interaction_required",
+    401,
+    "First-link step-up is required to bind this identity.",
+    {
+      registration_id: registration.id,
+      registration_type: "identity_assertion",
+      claim_url: `${ctx.config.publicUrl}/agent/identity/claim`,
+      claim_token: claim.token,
+      claim_token_expires: registration.expiresAt.toISOString(),
+      post_claim_scopes: [...registration.postClaimScopes],
+      claim: ceremony.claim,
+    },
+  );
+}
+
 async function startClaimAttempt(
   ctx: AppContext,
   registration: AgentRegistration,
@@ -664,6 +1128,37 @@ export async function completeClaim(
         claimed.assertionVersion,
         uow,
       );
+      if (
+        registration.kind === "provider_assertion" &&
+        registration.providerIssuer &&
+        registration.providerSubject
+      ) {
+        const linked = await ctx.repos.externalIdentities.findByTuple({
+          kind: "auth_md",
+          issuer: registration.providerIssuer,
+          subject: registration.providerSubject,
+        });
+        if (linked && linked.principalId !== principal.id) {
+          throw new ConflictError("provider identity already bound");
+        }
+        if (!linked) {
+          const row: ExternalIdentity = {
+            id: `xid_${randomUUID()}`,
+            principalId: principal.id,
+            kind: "auth_md",
+            issuer: registration.providerIssuer,
+            subject: registration.providerSubject,
+            assurance: "verified",
+            linkedAt: now,
+            metadata: {},
+          };
+          if (expectedEmail) {
+            row.emailNormalized = expectedEmail;
+            row.emailVerified = true;
+          }
+          await ctx.repos.externalIdentities.create(row, uow);
+        }
+      }
     });
   } catch (error) {
     if (error instanceof ConflictError) {

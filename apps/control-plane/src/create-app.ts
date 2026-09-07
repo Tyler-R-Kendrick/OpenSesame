@@ -65,6 +65,10 @@ import {
 } from "./services/notification-callbacks.js";
 import { createSmsBridge } from "./services/sms-bridge.js";
 import { createAppStores } from "./state.js";
+import {
+  AGENT_AUTH_OAUTH_CLIENT_ID,
+  agentAuthClaimRedirectUri,
+} from "./ui/agent-auth-pages.js";
 
 export interface CreateControlPlaneOptions {
   config?: Partial<ControlPlaneConfig>;
@@ -295,6 +299,16 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     processEnv: options.processEnv ?? process.env,
     clientStore,
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
+    clients: [
+      {
+        client_id: AGENT_AUTH_OAUTH_CLIENT_ID,
+        client_name: "OpenSesame agent claim",
+        token_endpoint_auth_method: "none",
+        grant_types: ["authorization_code"],
+        response_types: ["code"],
+        redirect_uris: [agentAuthClaimRedirectUri(config.issuer)],
+      },
+    ],
     // Durable consent reuse: the rows finishConsentAllow writes come back as
     // grants, so a decision already remembered is not asked again in a new
     // browser session. Conservative on purpose — a consent carrying resource

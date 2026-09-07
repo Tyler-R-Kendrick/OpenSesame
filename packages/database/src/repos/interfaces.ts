@@ -834,6 +834,15 @@ export interface AgentAuthRepository {
     uow?: UnitOfWork,
   ): Promise<number>;
   countLiveRegistrations(): Promise<number>;
+  /**
+   * Insert issuer+jti. Returns true if this replica won; false if already seen.
+   */
+  consumeProviderAssertionReplay(
+    issuer: string,
+    jti: string,
+    expiresAt: Date,
+    uow?: UnitOfWork,
+  ): Promise<boolean>;
 }
 
 export interface Repositories {
