@@ -54,7 +54,11 @@ export async function postWebhook(
           // No redirects, body buffering, or unbounded draining of hostile replies.
           const status = response.statusCode ?? 502;
           response.destroy();
-          resolve(new Response(null, { status }));
+          resolve(
+            new Response(null, {
+              status: status >= 200 && status <= 599 ? status : 502,
+            }),
+          );
         },
       );
       request.on("error", reject);

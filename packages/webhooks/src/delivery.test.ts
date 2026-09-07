@@ -49,7 +49,7 @@ describe("public-only webhook delivery", () => {
     expect(transport.request).not.toHaveBeenCalled();
   });
 
-  it.each([204, 302])(
+  it.each([204, 302, 999])(
     "pins DNS and does not follow redirects (HTTP %s)",
     async (status) => {
       let sent = "";
@@ -80,7 +80,7 @@ describe("public-only webhook delivery", () => {
         init,
         lookup,
       );
-      expect(response.status).toBe(status);
+      expect(response.status).toBe(status === 999 ? 502 : status);
       expect(sent).toBe(init.body);
       expect(lookup).toHaveBeenCalledExactlyOnceWith("public.example", {
         all: true,

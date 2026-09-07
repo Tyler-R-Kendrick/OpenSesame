@@ -93,7 +93,9 @@ cyber-access restriction. No attempt was made to bypass that restriction.
 ## Evidence and remaining work
 
 - Auth-upstream: 85 tests passed after both passkey fixes.
-- Webhooks: 18 tests; notification adapters: 137 tests; worker: 101 tests passed.
+- Webhooks: 19 tests; notification adapters: 137 tests; worker: 102 tests passed.
+  Self-review added malformed HTTP-status handling so a hostile response cannot
+  throw from the transport callback; its regression test passes.
 - Gateway: 11 mint-related tests passed, including member refusal through both
   routes and a successful administrator GitHub App mint.
 - Storage: 181 tests passed, including schema snapshots.
@@ -113,9 +115,11 @@ cyber-access restriction. No attempt was made to bypass that restriction.
   run; focused successes are not a substitute for complete verification.
 - The refreshed full anti-slop run reports 104 errors after three fixture
   assertions were removed. No lint suppression or baseline increase was used.
-- Independently, workspace typecheck passed 59/59 tasks and workspace tests
-  passed 63/63 tasks. Those runs started before the subsequent passkey fix;
-  the affected package was retested after that change.
+- Independently, workspace typecheck passed 59/59 tasks after remediation.
+  Workspace tests passed 63/63 tasks on an unchanged rerun after one vault
+  cryptography test timed out in the first run. No timeout was increased.
+  The subsequent malformed-status transport fix passed its package tests
+  and typecheck separately.
 - Full-feature Clippy passed with disposable Cargo source and build directories.
   Earlier attempts failed on cached `const_oid` metadata and UniFFi template
   includes crossing the shared registry symlink; no Rust lint was suppressed
