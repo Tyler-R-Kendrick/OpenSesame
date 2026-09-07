@@ -7,11 +7,18 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./delivery": {
+      "types": "./src/delivery.ts",
+      "default": "./src/delivery.ts"
     }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/oauth-provider": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

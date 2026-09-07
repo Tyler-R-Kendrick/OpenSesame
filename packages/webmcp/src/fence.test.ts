@@ -9,7 +9,7 @@ import {
 
 describe("scrubLocalSecrets", () => {
   it("replaces every occurrence of a configured secret", () => {
-    const env = { OPENSESAME_OPERATOR_TOKEN: "tok-abcdef123" };
+    const env = { OPENSESAME_OPERATOR_TOKEN: "tok-abcdef123" }; // gitleaks:allow -- synthetic security test vector
     expect(scrubLocalSecrets("a tok-abcdef123 b tok-abcdef123", env)).toBe(
       `a ${REDACTED} b ${REDACTED}`,
     );

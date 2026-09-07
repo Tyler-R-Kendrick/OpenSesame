@@ -1,7 +1,7 @@
 import { MemoryRepositories } from "@opensesame/database";
 import type { JsonObject, WebhookEndpoint } from "@opensesame/os-domain";
 import { generateWebhookSecret, verifyWebhook } from "@opensesame/webhooks";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   MAX_DELIVERY_ATTEMPTS,
   deliverWebhooks,
@@ -55,6 +55,28 @@ function fetchRecorder(status = 200) {
 }
 
 describe("webhook dispatch", () => {
+  it("refuses private destinations through the production transport", async () => {
+    const repos = new MemoryRepositories();
+    await repos.webhookEndpoints.create(
+      endpoint({ url: "https://127.0.0.1/hook" }),
+    );
+    const deps = { repos, clock: () => NOW };
+    await fanOutWebhooks(deps, inboxEvent());
+    const unsafeFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    try {
+      await expect(deliverWebhooks(deps)).resolves.toEqual({
+        delivered: 0,
+        failed: 1,
+        dead: 0,
+      });
+      expect(unsafeFetch).not.toHaveBeenCalled();
+    } finally {
+      unsafeFetch.mockRestore();
+    }
+  });
+
   it("contract: an inbox event fans out to every registered endpoint and delivers signed", async () => {
     const repos = new MemoryRepositories();
     const first = await repos.webhookEndpoints.create(endpoint());
@@ -75,6 +97,7 @@ describe("webhook dispatch", () => {
     for (const [index, secret] of [first.secret, second.secret].entries()) {
       const call = calls[index];
       if (!call) throw new Error("missing recorded call");
+      expect(call.init.redirect).toBe("error");
       // This reads back what the dispatcher wrote.
       // SAFETY: deliverWebhooks builds headers as a plain string record at the fetch boundary.
       const headers = call.init.headers as Record<string, string>;

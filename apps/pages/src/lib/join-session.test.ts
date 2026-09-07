@@ -46,7 +46,7 @@ describe("parseInviteInput", () => {
       parseInviteInput("https://host.example/c/osc_clm_7Q2K.secret"),
     ).toEqual({
       host: "https://host.example",
-      token: "osc_clm_7Q2K.secret",
+      token: "osc_clm_7Q2K.secret", // gitleaks:allow -- synthetic security test vector
     });
   });
 
@@ -193,12 +193,11 @@ describe("askToJoin", () => {
   });
 
   it("posts a join request once a session is live", async () => {
-    joinSessionSeams.currentSession = () =>
-      ({
-        principalId: "prn_1",
-        accessToken: "tok",
-        issuerOrigin: "http://127.0.0.1:18788",
-      }) as ReturnType<typeof original.currentSession>;
+    joinSessionSeams.currentSession = () => ({
+      principalId: "prn_1",
+      accessToken: "tok",
+      issuerOrigin: "http://127.0.0.1:18788",
+    });
     joinSessionSeams.hostBase = () => "https://host.example";
     identitySeams.hostFetch = vi.fn(async () => {
       return new Response(JSON.stringify({ id: "jr_1", decision: "pending" }), {
@@ -269,12 +268,11 @@ describe("join stash", () => {
       userCode: "FKM2RD",
       acceptedItemIds: ["item_1"],
     });
-    joinSessionSeams.currentSession = () =>
-      ({
-        principalId: "prn_1",
-        accessToken: "tok",
-        issuerOrigin: "http://127.0.0.1:18788",
-      }) as ReturnType<typeof original.currentSession>;
+    joinSessionSeams.currentSession = () => ({
+      principalId: "prn_1",
+      accessToken: "tok",
+      issuerOrigin: "http://127.0.0.1:18788",
+    });
     joinSessionSeams.acceptInvite = vi.fn().mockResolvedValue([]);
     expect(await resumeStashedJoin()).toBe(true);
     expect(joinSessionSeams.acceptInvite).toHaveBeenCalledWith({

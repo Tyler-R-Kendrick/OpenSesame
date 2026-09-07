@@ -26,6 +26,7 @@ import {
   channelCapabilities,
 } from "@opensesame/os-domain";
 import { SECRET_PREFIX, signWebhook } from "@opensesame/webhooks";
+import { postWebhook } from "@opensesame/webhooks/delivery";
 
 import type {
   ChannelAdapter,
@@ -77,7 +78,8 @@ export function webhookEventBody(
 export function createGenericWebhookAdapter(
   config: GenericWebhookConfig = {},
 ): ChannelAdapter {
-  const fetchImpl: FetchLike = config.fetchImpl ?? fetch;
+  const fetchImpl =
+    config.fetchImpl ?? (config.allowInsecureEndpoints ? fetch : postWebhook);
   const now: ClockLike = config.now ?? (() => new Date());
 
   // Nothing to configure: the secret and URL live on the endpoint row, so
@@ -127,6 +129,7 @@ export function createGenericWebhookAdapter(
     try {
       const response = await fetchImpl(dest.url, {
         method: "POST",
+        redirect: "error",
         headers: { "content-type": "application/json", ...headers },
         body: msg.body,
         signal: deliveryAbortSignal(),

@@ -8,6 +8,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./metadata/safe-fetcher": {
+      "types": "./src/metadata/safe-fetcher.ts",
+      "default": "./src/metadata/safe-fetcher.ts"
+    },
     "./origin/canonical": {
       "types": "./src/origin/canonical.ts",
       "default": "./src/origin/canonical.ts"

@@ -42,7 +42,7 @@ describe("AgentAuth chaos", () => {
         }),
       }),
     );
-    const userCode = overlapCast(started.claim_attempt).user_code as string;
+    const userCode = String(overlapCast(started.claim_attempt).user_code);
     const returnTo = new URL(
       String(overlapCast(started.claim_attempt).verification_uri),
     ).searchParams.get("return_to");
@@ -98,7 +98,7 @@ describe("AgentAuth chaos", () => {
       "",
       "not-a-jwt",
       "a.b.c",
-      "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhcmVnX3gifQ.",
+      "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhcmVnX3gifQ.", // gitleaks:allow -- synthetic security test vector
     ];
     for (const assertion of garbage) {
       const res = await hono.request("/oauth2/token", {

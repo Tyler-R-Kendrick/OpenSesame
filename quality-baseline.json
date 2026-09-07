@@ -18,7 +18,7 @@
   "totals": {
     "files": 510,
     "violations": 851,
-    "oversizedLines": 297712
+    "oversizedLines": 297581
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -447,7 +447,7 @@
       "max-lines": 1126
     },
     "apps/gateway/src/routes/connections/tests.rs": {
-      "max-lines": 1786
+      "max-lines": 1688
     },
     "apps/gateway/src/routes/device.rs": {
       "max-lines": 788
@@ -456,10 +456,10 @@
       "max-lines": 1000
     },
     "apps/gateway/src/routes/kv_facade.rs": {
-      "max-lines": 759
+      "max-lines": 758
     },
     "apps/gateway/src/routes/kv_facade/tests.rs": {
-      "max-lines": 823
+      "max-lines": 796
     },
     "apps/gateway/src/routes/lifecycle.rs": {
       "max-lines": 1691
@@ -1193,7 +1193,7 @@
       "max-lines": 629
     },
     "crates/ceremony/src/capture.rs": {
-      "max-lines": 507
+      "max-lines": 506
     },
     "crates/connection-broker/src/catalog.rs": {
       "max-lines": 1041
@@ -1379,13 +1379,13 @@
       "max-lines": 469
     },
     "crates/storage/src/security.rs": {
-      "max-lines": 1614
+      "max-lines": 1612
     },
     "crates/storage/src/shared_sessions.rs": {
       "max-lines": 679
     },
     "crates/storage/src/tests.rs": {
-      "max-lines": 3128
+      "max-lines": 3126
     },
     "crates/storage/tests/shared_sessions_store.rs": {
       "max-lines": 737

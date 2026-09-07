@@ -977,18 +977,16 @@ mod tests {
     #[tokio::test]
     async fn migration_creates_every_lifecycle_table() {
         let db = Db::connect_memory().await.unwrap();
-        assert!(db
-            .applied_migrations()
-            .await
-            .unwrap()
-            .contains(&"0017_lifecycle_hooks".to_string()));
+        let migrations = db.applied_migrations().await.unwrap();
+        assert!(migrations.contains(&"0017_lifecycle_hooks".to_string()));
         for table in [
             "security_hooks",
             "lifecycle_watermarks",
             "security_deliveries",
         ] {
-            sqlx::query(&format!("SELECT 1 FROM {table} LIMIT 0"))
-                .execute(db.pool())
+            sqlx::query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
+                .bind(table)
+                .fetch_one(db.pool())
                 .await
                 .unwrap_or_else(|error| panic!("{table} is missing: {error}"));
         }

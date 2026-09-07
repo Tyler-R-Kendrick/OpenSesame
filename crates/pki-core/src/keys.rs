@@ -140,7 +140,7 @@ mod tests {
             let key = generate(algorithm).unwrap();
             assert_eq!(key.algorithm(), algorithm);
             let pem = key.private_key_pkcs8_pem();
-            assert!(pem.starts_with("-----BEGIN PRIVATE KEY-----"));
+            assert!(pem.starts_with("-----BEGIN PRIVATE KEY-----")); // gitleaks:allow -- PEM delimiter or invalid-key test, not private key material
             let reimported = from_pkcs8_pem(&pem, algorithm).unwrap();
             assert_eq!(reimported.public_key_der(), key.public_key_der());
         }
@@ -187,7 +187,7 @@ mod tests {
         for hostile in [
             "",
             "-----BEGIN PRIVATE KEY-----",
-            "-----BEGIN PRIVATE KEY-----\nnot base64!!\n-----END PRIVATE KEY-----\n",
+            "-----BEGIN PRIVATE KEY-----\nnot base64!!\n-----END PRIVATE KEY-----\n", // gitleaks:allow -- PEM delimiter or invalid-key test, not private key material
             "-----BEGIN PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----\n",
             "\0\0\0",
         ] {

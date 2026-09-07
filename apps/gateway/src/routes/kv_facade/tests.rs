@@ -493,34 +493,7 @@ async fn materialize_is_refused_while_the_policy_says_deny() {
     assert_eq!(receipt_count(&state).await, before);
 }
 
-#[tokio::test]
-async fn materialize_refuses_a_provider_with_no_mint_path_without_dialling_it() {
-    let (router, state) = facade().await;
-    let organization_id = operator_org(&state).await;
-    let operator = state.operator_token.clone();
-    seed_connection(
-        &state,
-        &organization_id,
-        "aws-prod",
-        "aws",
-        None,
-        "derived_short_lived",
-    )
-    .await;
-
-    let (status, body, receipt) = call(
-        &router,
-        "GET",
-        "/v1/secret/data/materialize/aws-prod",
-        Some(&operator),
-    )
-    .await;
-    // 422 is the broker's own answer for "this provider cannot mint"; the
-    // refusal happens before any HTTP client is built, so the test is offline.
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
-    assert!(receipt.is_none());
-    assert!(!body.to_string().contains("derived_token"));
-}
+mod mint_security_tests;
 
 // ---- fail-closed accountability -------------------------------------------
 

@@ -5,7 +5,7 @@ import {
   signWebhook,
   verifyWebhook,
 } from "@opensesame/webhooks";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   createGenericWebhookAdapter,
@@ -42,6 +42,25 @@ function message() {
 }
 
 describe("generic webhook stays byte-identical to the worker dispatcher", () => {
+  it("does not send registered webhook events to private destinations by default", async () => {
+    const unsafeFetch = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    try {
+      const outcome = await createGenericWebhookAdapter().deliver(message(), {
+        channel: "webhook",
+        endpointId: "whep_1",
+        url: "https://127.0.0.1/hooks",
+        secret: SECRET,
+        deliveryId: DELIVERY_ID,
+      });
+      expect(outcome.status).not.toBe("delivered");
+      expect(unsafeFetch).not.toHaveBeenCalled();
+    } finally {
+      unsafeFetch.mockRestore();
+    }
+  });
+
   /**
    * `apps/worker/src/webhooks.ts` builds the body as
    * `JSON.stringify({ eventType, ...payload })` and signs that exact string.

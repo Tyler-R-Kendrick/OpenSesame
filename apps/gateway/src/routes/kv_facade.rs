@@ -418,12 +418,8 @@ fn reference_data(view: &ConnectionView) -> Map<String, Value> {
     data
 }
 
-/// `secret/materialize/{name}`: a provider-minted short-lived credential.
-///
-/// Gated exactly where `POST /api/v1/connections/{id}/mint` is gated — this is
-/// that route wearing a KV v2 costume, not a second policy. A `deny` connection
-/// (the default for every connection) answers `403`, and a provider with no
-/// mint path answers `403` too, both naming ADR 0049.
+/// KV materialization: same administrator and policy fences as connection mint.
+/// Member delegation requires installation/repository grants, not ownership.
 async fn materialized_data(
     st: &AppState,
     view: &ConnectionView,
@@ -431,13 +427,16 @@ async fn materialized_data(
     organization_id: &OrganizationId,
     query: &DataQuery,
 ) -> Result<Map<String, Value>, Response> {
+    if !caller.can_configure_integrations() {
+        return Err(vault_error(
+            StatusCode::FORBIDDEN,
+            &["owner or admin role required"],
+        ));
+    }
     if view.materialization != MaterializationPolicy::DerivedShortLived {
         return Err(vault_error(
             StatusCode::FORBIDDEN,
-            &[
-                "connection policy denies materialization (ADR 0049); set materialization to \
-                 derived_short_lived to mint a short-lived derived credential",
-            ],
+            &["connection policy denies materialization (ADR 0049)"],
         ));
     }
     let actor = match caller {
