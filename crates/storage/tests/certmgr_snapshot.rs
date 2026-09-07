@@ -38,7 +38,8 @@ async fn schema_objects(db: &Db, kind: &str) -> Vec<(String, String, String)> {
 }
 
 async fn columns(db: &Db, table: &str) -> Vec<Value> {
-    sqlx::query(&format!("PRAGMA table_info({table})"))
+    sqlx::query("SELECT * FROM pragma_table_info(?)")
+        .bind(table)
         .fetch_all(db.pool())
         .await
         .expect("table_info")

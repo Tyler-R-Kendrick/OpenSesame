@@ -40,10 +40,10 @@ describe("AgentAuth characterization", () => {
       await app.request("/.well-known/oauth-authorization-server")
     ).json();
     expect(as).toMatchSnapshot();
-    expect(
-      (as as { agent_auth: { identity_types_supported: string[] } }).agent_auth
-        .identity_types_supported,
-    ).toEqual(["anonymous", "service_auth"]);
+    expect(as.agent_auth.identity_types_supported).toEqual([
+      "anonymous",
+      "service_auth",
+    ]);
   });
 
   it("pins the claim and login HTML a human is shown", () => {

@@ -157,7 +157,7 @@ describe("registration identity", () => {
     const { focus: _vaultFocus, ...vaultRest } = items;
     const nav = rail();
     const { focus: _railFocus, ...railRest } = nav;
-    const stopVault = registerVaultKeymap(vaultRest as VaultKeymapTarget);
+    const stopVault = registerVaultKeymap(vaultRest);
     const stopRail = registerRailKeymap(railRest);
     expect(() => {
       focusRailListing();
@@ -321,7 +321,7 @@ describe("counts and the g leader", () => {
     releaseIndexed();
 
     const { toIndex: _omit, ...rest } = vault();
-    const plain = rest as VaultKeymapTarget;
+    const plain = rest;
     const releasePlain = registerVaultKeymap(plain);
     const handlerPlain = createKeymapHandler({
       navigate: vi.fn(),
@@ -740,7 +740,7 @@ describe("unbound and partial listings", () => {
       toIndex: _toIndex,
       ...rest
     } = vault();
-    const release = registerVaultKeymap(rest as VaultKeymapTarget);
+    const release = registerVaultKeymap(rest);
     const handler = createKeymapHandler({
       navigate: vi.fn(),
       showHelp: vi.fn(),

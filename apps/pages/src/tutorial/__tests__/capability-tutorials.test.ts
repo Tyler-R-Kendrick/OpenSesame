@@ -48,7 +48,9 @@ describe("tutorial generation for every PWA capability", () => {
 
   for (const capability of pwa) {
     it(`generates a compiling tutorial for ${capability.id}`, async () => {
-      const goalId = CAPABILITY_TUTORIALS[capability.id];
+      const goalId = Object.entries(CAPABILITY_TUTORIALS).find(
+        ([id]) => id === capability.id,
+      )?.[1];
       const goal = guideGoal(goalId ?? "");
       expect(goal, capability.id).not.toBeNull();
       if (!goal) return;

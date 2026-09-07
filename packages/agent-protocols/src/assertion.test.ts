@@ -9,6 +9,25 @@ import { PROVIDER_ID_JAG_TYP, SERVICE_ASSERTION_TYP } from "./constants.js";
 import { AgentAuthError } from "./errors.js";
 
 describe("service agent identity assertion", () => {
+  it.each(["", "not-a-jwt", "bnVsbA.e30.signature", "W10.e30.signature"])(
+    "rejects malformed headers before resolving a verification key: %s",
+    async (jwt) => {
+      let keyRequested = false;
+      await expect(
+        verifyServiceAgentIdentityAssertion(jwt, {
+          issuer: "https://issuer.example",
+          audience: "https://issuer.example",
+          getKey: async () => {
+            keyRequested = true;
+            throw new Error("unexpected key lookup");
+          },
+        }),
+      ).rejects.toBeInstanceOf(AgentAuthError);
+      expect(keyRequested).toBe(false);
+      expect(peekAssertionTyp(jwt)).toBeUndefined();
+    },
+  );
+
   it("round-trips os-sia+jwt and rejects an ID-JAG", async () => {
     const { privateKey, publicKey } = await generateKeyPair("ES256", {
       extractable: true,

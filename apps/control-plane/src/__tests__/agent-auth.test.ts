@@ -46,7 +46,7 @@ async function verifiedWithEmail(
     }),
   });
   expect(linked.status).toBe(201);
-  return { auth, principalId: body.principalId as string };
+  return { auth, principalId: String(body.principalId) };
 }
 
 describe("AgentAuth registration", () => {
@@ -118,7 +118,7 @@ describe("AgentAuth registration", () => {
       }),
     );
     expect(started.status ?? "initiated").toBeDefined();
-    const userCode = overlapCast(started.claim_attempt).user_code as string;
+    const userCode = String(overlapCast(started.claim_attempt).user_code);
     const verificationUri = new URL(
       String(overlapCast(started.claim_attempt).verification_uri),
     );

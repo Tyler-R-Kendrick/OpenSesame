@@ -182,7 +182,7 @@ async fn a_capture_round_trips_through_the_envelope() {
 async fn nothing_the_driver_sends_back_carries_the_value() {
     // The wire property, asserted on the serialized outcome rather than on the
     // type: a channel is exactly where a convenient extra field gets added.
-    let secret = "Iv1.a1b2c3d4e5f6";
+    let secret = "Iv1.a1b2c3d4e5f6"; // gitleaks:allow -- synthetic security test vector
     let outcome = StepOutcome::Captured {
         sealed: seal_to(HOST_KEY, secret),
     };
@@ -338,7 +338,7 @@ impl CaptureVault for LeakyVault {
 
 #[tokio::test]
 async fn a_marker_that_carries_the_value_is_refused_rather_than_handed_back() {
-    let driver = FakeDriver::yielding(&[(Slot::ClientSecret, "Iv1.a1b2c3d4e5f6")]);
+    let driver = FakeDriver::yielding(&[(Slot::ClientSecret, "Iv1.a1b2c3d4e5f6")]); // gitleaks:allow -- synthetic security test vector
     let vault = Arc::new(FakeVault::default());
     let transport = ExtensionTransport::new(driver, Vec::new()).capturing(
         Box::new(LeakyVault(Arc::clone(&vault))),

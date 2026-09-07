@@ -178,7 +178,7 @@ export function deviceHoldsSealedVault(): boolean {
  * prediction: opening the sealed body is the proof.
  */
 export function sharesWrapRecord(a: VaultHeader, b: VaultHeader): boolean {
-  const same = (x: unknown, y: unknown) =>
+  const same = <T>(x: T, y: T) =>
     x !== undefined &&
     y !== undefined &&
     x !== null &&

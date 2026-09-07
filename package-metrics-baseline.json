@@ -7,12 +7,9 @@
     "unused: declared workspace dependencies nothing imports (CRP/REP)."
   ],
   "totals": {
-    "sdp": 2,
+    "sdp": 1,
     "unused": 0
   },
-  "sdp": [
-    "rust: opensesame-host-core -> opensesame-broker",
-    "typescript: @opensesame/sdk-browser -> @opensesame/oauth-provider"
-  ],
+  "sdp": ["rust: opensesame-host-core -> opensesame-broker"],
   "unused": []
 }

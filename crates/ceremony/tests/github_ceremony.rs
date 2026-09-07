@@ -81,7 +81,7 @@ fn the_ceremony_captures_what_adr_0039_needs_and_refuses_what_it_did_not_declare
 
     assert_eq!(slots.admit(Slot::AppId, "48271"), Ok(()));
     assert_eq!(slots.admit(Slot::PrivateKey, PEM), Ok(()));
-    assert_eq!(slots.admit(Slot::WebhookSecret, "whsec_a1b2c3d4e5"), Ok(()));
+    assert_eq!(slots.admit(Slot::WebhookSecret, "whsec_a1b2c3d4e5"), Ok(())); // gitleaks:allow -- synthetic security test vector
 
     // Not yet installed, so the run is not finished and knows it.
     assert_eq!(slots.outstanding(), vec![Slot::InstallationId]);
@@ -208,7 +208,7 @@ fn a_finished_ceremony_hands_back_a_receipt_a_person_can_read() {
     slots.admit(Slot::AppId, "48271").unwrap();
     slots.admit(Slot::PrivateKey, PEM).unwrap();
     slots
-        .admit(Slot::WebhookSecret, "whsec_a1b2c3d4e5")
+        .admit(Slot::WebhookSecret, "whsec_a1b2c3d4e5") // gitleaks:allow -- synthetic security test vector
         .unwrap();
     slots.admit(Slot::InstallationId, "99001").unwrap();
 

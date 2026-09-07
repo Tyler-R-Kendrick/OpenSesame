@@ -192,7 +192,7 @@ describe("assertPassPayloadSafe — bearer shapes", () => {
 
   it("refuses a JWT", () => {
     const jwt =
-      "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJl";
+      "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJl"; // gitleaks:allow -- synthetic security test vector
     expect(rejection({ header: `session ${jwt}` }).rule).toBe("bearer_shape");
   });
 
@@ -238,7 +238,7 @@ describe("assertPassPayloadSafe — card data", () => {
 describe("assertPassPayloadSafe — labelled opaque runs", () => {
   it("refuses a near-miss field name holding an opaque run", () => {
     // `userToken` is not on the deny-list, but its words say what it holds.
-    const error = rejection({ userToken: "M2Y0YTk4YmMxZDdlNGYyMA" });
+    const error = rejection({ userToken: "M2Y0YTk4YmMxZDdlNGYyMA" }); // gitleaks:allow -- synthetic security test vector
     expect(error.rule).toBe("labelled_high_entropy");
   });
 
@@ -566,7 +566,7 @@ describe("assertPassPayloadSafe — the refusal is safe to log", () => {
   });
 
   it("elides a field name that is really a secret", () => {
-    const secret = "M2Y0YTk4YmMxZDdlNGYyMA";
+    const secret = "M2Y0YTk4YmMxZDdlNGYyMA"; // gitleaks:allow -- synthetic security test vector
     const error = rejection({ [secret]: JWT });
     expect(error.message).not.toContain(secret);
     expect(error.path).not.toContain(secret);

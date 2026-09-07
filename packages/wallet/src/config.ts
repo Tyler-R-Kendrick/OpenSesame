@@ -236,6 +236,7 @@ export function parseGoogleWalletConfig(
     read(env, GOOGLE_WALLET_ENV.serviceAccountKeyPem),
   );
   if (/-----BEGIN RSA PRIVATE KEY-----/u.test(serviceAccountKeyPem)) {
+    // gitleaks:allow -- PEM delimiter validation, not private key material
     // PKCS#1. Google's own service-account JSON ships PKCS#8, so seeing this
     // means the key was converted somewhere; say so instead of failing later
     // inside a JOSE import with a message about ASN.1.

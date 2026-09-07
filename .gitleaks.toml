@@ -18,6 +18,8 @@ paths = [
   '''(^|/)\.stryker-tmp(?:/|$)''',
   '''(^|/)\.deepsec/\.env[^/]*$''',
   '''(^|/)\.impeccable/live/sessions(?:/|$)''',
+  '''(^|/)\.impeccable/live/server\.json$''',
+  '''(^|/)\.serena/cache(?:/|$)''',
   '''(^|/)artifacts(?:/|$)''',
   '''(^|/)target(?:/|$)''',
   '''(^|/)node_modules(?:/|$)''',

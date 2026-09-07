@@ -89,7 +89,7 @@ The rail renders the same filesystem one level up, mono:
 ## Test plan (implemented)
 
 - `paths.test.ts`: mapping, escaping, tomb display.
-- `keymap.test.ts`: per-key dispatch, typing/ceremony guards, `g` chords.
+- `keymap.test.ts`: per-key dispatch, typing/ceremony guards, `g` chords. <!-- gitleaks:allow -- test filenames, not a credential -->
 - `VaultSection.test.tsx`: rows as files with extensions, visible cursor
   driven by `j/k/gg/G`, status-line path + counts, `/` command line filters
   and never leaks keys, `h`/`l` climb/dive, collapse persistence round-trip

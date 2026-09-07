@@ -39,7 +39,10 @@ const originalHooks = { ...vaultHooksSeams };
 const switchVault = vi.fn();
 const sealNewVault = vi.fn();
 const removeVault = vi.fn();
-const status = { current: "empty" as "empty" | "locked" | "unlocked" };
+interface StatusHolder {
+  current: "empty" | "locked" | "unlocked";
+}
+const status: StatusHolder = { current: "empty" };
 
 beforeEach(() => {
   Object.assign(projectSeams, {

@@ -457,8 +457,7 @@ function withTimeout<T>(
  * do not define the flag at all, and are left alone.
  */
 function workerIsolationBlocked(): boolean {
-  const isolated: unknown = Reflect.get(globalThis, "crossOriginIsolated");
-  return isolated === false;
+  return globalThis.crossOriginIsolated === false;
 }
 
 async function open(): Promise<TursoDb> {

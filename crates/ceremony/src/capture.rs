@@ -325,7 +325,7 @@ mod tests {
     use super::*;
 
     const PEM: &str =
-        "-----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJBAK\n-----END RSA PRIVATE KEY-----";
+        "-----BEGIN RSA PRIVATE KEY-----\nMIIBOgIBAAJBAK\n-----END RSA PRIVATE KEY-----"; // gitleaks:allow -- synthetic security test vector
 
     #[test]
     fn wire_names_are_frozen() {
@@ -401,15 +401,14 @@ mod tests {
     fn a_token_slot_refuses_a_page_fragment() {
         // Whitespace or control characters mean the selector matched a block of
         // markup rather than a field.
-        assert_eq!(
-            check_shape(Slot::ClientSecret, "abc123 def456"),
-            Err(CaptureRefusal::WrongShape)
-        );
-        assert_eq!(
-            check_shape(Slot::ClientSecret, "abc123\ndef456"),
-            Err(CaptureRefusal::WrongShape)
-        );
-        assert_eq!(check_shape(Slot::ClientSecret, "Iv1.a1b2c3d4e5f6"), Ok(()));
+        for token in ["abc123 def456", "abc123\ndef456"] {
+            assert_eq!(
+                check_shape(Slot::ClientSecret, token),
+                Err(CaptureRefusal::WrongShape)
+            );
+        }
+        let token = "Iv1.a1b2c3d4e5f6"; // gitleaks:allow -- synthetic security test vector
+        assert_eq!(check_shape(Slot::ClientSecret, token), Ok(()));
     }
 
     #[test]

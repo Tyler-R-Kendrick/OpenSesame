@@ -6,6 +6,7 @@ import type {
 import type { Logger } from "@opensesame/observability";
 import { type OutboxEvent, readString } from "@opensesame/os-domain";
 import { signWebhook } from "@opensesame/webhooks";
+import { postWebhook } from "@opensesame/webhooks/delivery";
 
 /**
  * Webhook dispatch for the authorization-request inbox (ADR 0046 decision 12).
@@ -60,7 +61,7 @@ export interface WebhookDispatchRepos {
 export interface WebhookDispatchDeps {
   repos: WebhookDispatchRepos;
   clock: () => Date;
-  /** Injected for tests; the worker passes global fetch. */
+  /** Trusted test transport override; production uses public-only pinned delivery. */
   fetchImpl?: typeof fetch;
   log?: Logger;
 }
@@ -121,7 +122,7 @@ export async function deliverWebhooks(
   limit = 50,
 ): Promise<WebhookDeliveryResult> {
   const now = deps.clock();
-  const fetchImpl = deps.fetchImpl ?? fetch;
+  const fetchImpl = deps.fetchImpl ?? postWebhook;
   const due = await deps.repos.webhookDeliveries.claimDue(limit, now);
   const result: WebhookDeliveryResult = { delivered: 0, failed: 0, dead: 0 };
   for (const delivery of due) {
@@ -152,6 +153,7 @@ export async function deliverWebhooks(
     try {
       const response = await fetchImpl(endpoint.url, {
         method: "POST",
+        redirect: "error",
         headers: { "content-type": "application/json", ...headers },
         body,
         signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),

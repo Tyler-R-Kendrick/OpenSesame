@@ -72,7 +72,7 @@ async function aHumanSignsInWithEmail(app: App, email: string) {
     }),
   });
   expect(linked.status).toBe(201);
-  return { auth, principalId: created.principalId as string };
+  return { auth, principalId: String(created.principalId) };
 }
 
 describe("AgentAuth journeys", () => {
@@ -109,7 +109,7 @@ describe("AgentAuth journeys", () => {
         }),
       }),
     );
-    const userCode = overlapCast(started.claim_attempt).user_code as string;
+    const userCode = String(overlapCast(started.claim_attempt).user_code);
     const returnTo = new URL(
       String(overlapCast(started.claim_attempt).verification_uri),
     ).searchParams.get("return_to");

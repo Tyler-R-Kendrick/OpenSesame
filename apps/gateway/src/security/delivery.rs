@@ -593,7 +593,7 @@ mod tests {
         // The same inputs `@opensesame/webhooks` signs, so the two
         // implementations cannot drift: a receiver verifying with any
         // off-the-shelf library must accept what we send.
-        let secret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
+        let secret = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"; // gitleaks:allow -- synthetic security test vector
         let signature = sign(
             secret,
             "msg_p5jXN8AQM9LWM0D4loKWxJek",

@@ -130,7 +130,7 @@ describe("drop acceptance", () => {
 
 describe("claim ceremony drop branch", () => {
   it("routes a link carrying token and key straight to the drop", () => {
-    window.location.hash = "#token=osc_clm_a.b&key=a2V5LW1hdGVyaWFs";
+    window.location.hash = "#token=osc_clm_a.b&key=a2V5LW1hdGVyaWFs"; // gitleaks:allow -- synthetic security test vector
     render(
       <MemoryRouter>
         <ClaimCeremony />

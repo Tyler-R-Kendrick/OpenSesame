@@ -1,3 +1,5 @@
+import { DomainError } from "@opensesame/os-domain";
+
 /**
  * Passkey / WebAuthn seam. Production wires Better Auth + SimpleWebAuthn;
  * tests inject `verifyAssertion`.
@@ -78,6 +80,13 @@ export function createPasskeySeam(options?: {
 
   return {
     async register(principalId, credential) {
+      // No await between ownership check and insertion: enrollment never replaces a key.
+      if (credentials.has(credential.credentialId)) {
+        throw new DomainError(
+          "CONFLICT",
+          "Passkey credential already registered",
+        );
+      }
       const record: PasskeyCredential = { ...credential, principalId };
       credentials.set(record.credentialId, record);
       return record;
@@ -95,7 +104,9 @@ export function createPasskeySeam(options?: {
       if (next !== undefined && next !== 0) {
         // A counter that fails to advance means the credential was cloned (or an
         // assertion is being replayed): refuse and keep the stored value.
-        if (next <= credential.counter) return { ok: false };
+        // The verifier awaited; another assertion may have advanced the counter.
+        const current = credentials.get(credential.credentialId);
+        if (!current || next <= current.counter) return { ok: false };
         credentials.set(credential.credentialId, {
           ...credential,
           counter: next,

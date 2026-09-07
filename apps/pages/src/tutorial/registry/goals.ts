@@ -832,11 +832,10 @@ export function guideGoal(id: GuideGoalId): GuideGoalDescriptor | null {
 }
 
 /**
- * Every PWA-surfaced capability names the authored walkthrough that covers it.
- * Several capabilities share a ceremony (listing connections and creating one
- * are the same screen); the map is many-to-one on purpose.
+ * Every PWA capability names its walkthrough. Several share a ceremony,
+ * so the map is many-to-one on purpose.
  */
-export const CAPABILITY_TUTORIALS: Readonly<Record<string, GuideGoalId>> = {
+export const CAPABILITY_TUTORIALS = {
   "vaults.switch": "vaults.switch",
   "host.health": "host.health.check",
   "host.health.pages": "host.health.check",
@@ -898,7 +897,7 @@ export const CAPABILITY_TUTORIALS: Readonly<Record<string, GuideGoalId>> = {
   "app.install": "app.install",
   "setup.first_run": "setup.first-run",
   "shared_sessions.join_request": "setup.join-session",
-};
+} satisfies Readonly<Record<string, GuideGoalId>>;
 
 /** Authored topics relevant to where the person currently is. */
 export function helpTopicsForRoute(route: GuideRouteId): readonly HelpTopic[] {

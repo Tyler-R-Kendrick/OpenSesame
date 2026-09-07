@@ -18,14 +18,14 @@ const session = {
 describe("claims contracts", () => {
   it("present accepts the original token-only shape", () => {
     const parsed = PresentClaimRequestSchema.parse({
-      token: "osc_clm_clm_1.secretpart",
+      token: "osc_clm_clm_1.secretpart", // gitleaks:allow -- synthetic security test vector
     });
     expect(parsed.userCode).toBeUndefined();
   });
 
   it("present accepts an optional user code within the consent-code bounds", () => {
     const parsed = PresentClaimRequestSchema.parse({
-      token: "osc_clm_clm_1.secretpart",
+      token: "osc_clm_clm_1.secretpart", // gitleaks:allow -- synthetic security test vector
       userCode: "ABCD-EFGH",
     });
     expect(parsed.userCode).toBe("ABCD-EFGH");
@@ -37,7 +37,7 @@ describe("claims contracts", () => {
     for (const userCode of ["abc", "x".repeat(65)]) {
       expect(
         PresentClaimRequestSchema.safeParse({
-          token: "osc_clm_clm_1.secretpart",
+          token: "osc_clm_clm_1.secretpart", // gitleaks:allow -- synthetic security test vector
           userCode,
         }).success,
       ).toBe(false);

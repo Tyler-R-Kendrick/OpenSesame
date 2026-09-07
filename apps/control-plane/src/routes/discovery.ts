@@ -11,6 +11,15 @@ import { agentAuthRuntime } from "../services/agent-auth.js";
 
 export const discoveryRoutes = new Hono<{ Variables: Variables }>();
 
+interface AgentAuthDiscovery {
+  skill: string;
+  identity_endpoint: string;
+  claim_endpoint: string;
+  identity_types_supported: ReturnType<typeof advertisedIdentityTypes>;
+  events_endpoint?: string;
+  identity_assertion?: { assertion_types_supported: string[] };
+}
+
 discoveryRoutes.get("/auth.md", (c) => {
   const ctx = c.get("ctx");
   const { publicUrl, issuer, agentAuth } = ctx.config;
@@ -87,7 +96,7 @@ discoveryRoutes.get("/.well-known/oauth-authorization-server", (c) => {
     JWT_BEARER_GRANT,
     AGENT_CLAIM_GRANT,
   ];
-  const agentAuth: Record<string, unknown> = {
+  const agentAuth: AgentAuthDiscovery = {
     skill: `${ctx.config.publicUrl}/auth.md`,
     identity_endpoint: `${issuer}/agent/identity`,
     claim_endpoint: `${issuer}/agent/identity/claim`,

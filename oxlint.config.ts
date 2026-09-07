@@ -26,6 +26,7 @@ export default defineConfig({
     ".pi/**",
     ".roo/**",
     ".serena/**",
+    ".stryker-tmp/**",
     ".superpowers/**",
     ".tools/**",
     ".windsurf/**",

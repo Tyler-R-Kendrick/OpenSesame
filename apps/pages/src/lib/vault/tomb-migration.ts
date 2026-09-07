@@ -65,7 +65,7 @@ import { PREFS_CONFIG_PATH } from "./store.js";
 export const LEGACY_HEADER_KEY = "vault.header.v1";
 export const LEGACY_BODY_KEY = "vault.body.v1";
 // gitleaks:allow -- storage key name, not a credential
-export const LEGACY_PREFS_KEY = "vault.prefs.v1";
+export const LEGACY_PREFS_KEY = "vault.prefs.v1"; // gitleaks:allow -- storage key name, not a credential
 
 type TombMigrationMarker = { v: 1; storage: boolean; config: boolean };
 

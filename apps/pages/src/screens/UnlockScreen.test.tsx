@@ -144,12 +144,11 @@ Object.assign(providersSeams, {
 import { setupScreenDependencies } from "./SetupScreen.js";
 import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
 
-// This file exercises the unlock form. Setup has a suite of its own and is
-// never a gate (ADR 0090); the few tests that reach it only assert the
-// handoff from the sign-in screen's foot, or from an invite in the URL.
-const inviteHolder: { current: { host: string; token: string } | null } = {
-  current: null,
+// Setup is never a gate (ADR 0090); this suite tests the unlock form and handoff.
+type InviteHolder = {
+  current: ReturnType<typeof setupScreenDependencies.readJoinFromLocation>;
 };
+const inviteHolder: InviteHolder = { current: null };
 const identityBaseHolder = { current: "http://127.0.0.1:18788" };
 /** What setup left as the ways in — the screen reads this, not the URL. */
 type WaysInHolder = { current: SignInMethods };

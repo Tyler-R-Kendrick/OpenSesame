@@ -1378,11 +1378,8 @@ fn certmgr_access_record(
 #[tokio::test]
 async fn certmgr_migration_applies_from_an_empty_database() {
     let db = Db::connect_memory().await.unwrap();
-    assert!(db
-        .applied_migrations()
-        .await
-        .unwrap()
-        .contains(&"0016_certificate_manager".to_string()));
+    let migrations = db.applied_migrations().await.unwrap();
+    assert!(migrations.contains(&"0016_certificate_manager".to_string()));
     for table in [
         "certificate_policies",
         "certificate_profiles",
@@ -1416,8 +1413,9 @@ async fn certmgr_migration_applies_from_an_empty_database() {
         "scep_configs",
         "scep_challenges",
     ] {
-        sqlx::query(&format!("SELECT 1 FROM {table} LIMIT 0"))
-            .execute(db.pool())
+        sqlx::query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
+            .bind(table)
+            .fetch_one(db.pool())
             .await
             .unwrap_or_else(|error| panic!("{table} is missing: {error}"));
     }

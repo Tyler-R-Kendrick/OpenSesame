@@ -10,6 +10,7 @@ import {
 } from "@opensesame/contracts";
 import { overlapCast } from "@opensesame/os-domain";
 import { Hono } from "hono";
+import { z } from "zod";
 import type { Variables } from "../middleware/context.js";
 import {
   completeClaim,
@@ -44,7 +45,7 @@ agentAuthRoutes.post("/agent/identity", async (c) => {
     return c.json({ error: "invalid_request" }, 400);
   }
   const correlationId = c.get("correlationId");
-  const headers: { userAgent?: string; origin?: string } = {};
+  const headers: Parameters<typeof registerAnonymous>[1] = {};
   const userAgent = c.req.header("user-agent");
   const origin = c.req.header("origin");
   if (userAgent) headers.userAgent = userAgent;
@@ -179,9 +180,8 @@ agentAuthRoutes.post("/oauth2/token", async (c) => {
   try {
     if (grantType === JWT_BEARER_GRANT) {
       const assertion = String(form.assertion ?? "");
-      const resource =
-        typeof form.resource === "string" ? form.resource : undefined;
-      const scope = typeof form.scope === "string" ? form.scope : undefined;
+      const resource = z.string().safeParse(form.resource).data;
+      const scope = z.string().safeParse(form.scope).data;
       const result = await exchangeJwtBearer(
         ctx,
         assertion,

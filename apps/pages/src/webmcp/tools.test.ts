@@ -42,7 +42,7 @@ import {
 } from "./tools.js";
 
 const SENTINELS = {
-  password: "PW-SENTINEL-9f1",
+  password: "PW-SENTINEL-9f1", // gitleaks:allow -- synthetic security test vector
   totpSeed: "JBSWY3DPEHPK3PXP",
   cardNumber: "4111-CARD-SENTINEL",
   cardCode: "CVC-SENTINEL",

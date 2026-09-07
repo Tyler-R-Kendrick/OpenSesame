@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn pkcs8_armour_stripping_rejects_an_empty_body() {
         assert_eq!(
-            pkcs8_pem_to_der("-----BEGIN PRIVATE KEY-----\n-----END PRIVATE KEY-----\n")
+            pkcs8_pem_to_der("-----BEGIN PRIVATE KEY-----\n-----END PRIVATE KEY-----\n") // gitleaks:allow -- PEM delimiter or invalid-key test, not private key material
                 .unwrap_err(),
             PkiError::InvalidPem
         );

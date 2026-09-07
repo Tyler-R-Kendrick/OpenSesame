@@ -590,16 +590,13 @@ pub async fn update_policy(
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct MintBody {
-    /// GitHub App installation to mint against (numeric id, as on the App's
-    /// installations page). Required for github connections.
+    /// Numeric GitHub App installation ID (required for GitHub).
     pub installation_id: Option<String>,
 }
 
-/// `POST /api/v1/connections/{id}/mint` (ADR 0049). The one route that returns
-/// token bytes, and only provider-minted derived ones: short-lived, attenuated,
-/// revocable. The ADR 0032 §2 ownership fence applies unchanged — only the
-/// creating caller or an operator may mint — and the connection's
-/// materialization policy must be `derived_short_lived` (default deny).
+/// `POST /api/v1/connections/{id}/mint`: administrator-only provider tokens.
+/// Connection ownership and `derived_short_lived` remain required. Member
+/// delegation is denied until installation/repository grants can attenuate tokens.
 pub async fn mint(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -612,6 +609,9 @@ pub async fn mint(
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
     if let Err(resp) = owned(&st, &who, &organization_id, &id).await {
+        return resp;
+    }
+    if let Err(resp) = require_integration_admin(&who) {
         return resp;
     }
     let body: MintBody = match parse_body(&body) {
