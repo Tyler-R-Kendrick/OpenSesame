@@ -151,7 +151,7 @@ mod tests {
     async fn publish_wake_lands_on_memory_bus() {
         let _guard = crate::app_state::test_env::lock();
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
-        let mut state = crate::app_state::build(crate::config::Args {
+        let mut state = crate::app_state::build_test(crate::config::Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),
@@ -177,7 +177,7 @@ mod tests {
         let _guard = crate::app_state::test_env::lock();
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
 
-        let mut state = crate::app_state::build(crate::config::Args {
+        let mut state = crate::app_state::build_test(crate::config::Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),

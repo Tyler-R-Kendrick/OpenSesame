@@ -410,7 +410,7 @@ pub async fn discover(State(st): State<AppState>, headers: axum::http::HeaderMap
         Err(resp) => return resp,
     };
     let organization = organization_or_return!(&st, &who, &headers);
-    if !may_discover(&who, crate::config::is_production_env())
+    if !may_discover(&who, st.deployment.production_safeguards())
         || !st
             .connection_broker
             .claim_discovery_organization(&organization)

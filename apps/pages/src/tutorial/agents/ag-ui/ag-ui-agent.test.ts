@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+/** @vitest-environment-options { "url": "https://support.example.com/app/" } */
 /**
  * Two boundaries, tested from both sides: nothing unexpected goes out, and
  * nothing a server sends back becomes an action.
@@ -141,6 +142,7 @@ describe("availability", () => {
   it("is unavailable, with no endpoint, and never opens a transport", async () => {
     const recorder = recording(answering("never sent"));
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: null,
       transport: recorder.transport,
     });
@@ -158,6 +160,7 @@ describe("availability", () => {
   it("is unavailable while the device reports no network", async () => {
     const recorder = recording(answering("never sent"));
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       transport: recorder.transport,
       online: () => false,
@@ -178,7 +181,10 @@ describe("availability", () => {
       configurable: true,
       get: () => false,
     });
-    const agent = createAgUiSupportAgent({ endpoint: endpoint() });
+    const agent = createAgUiSupportAgent({
+      approve: async () => true,
+      endpoint: endpoint(),
+    });
 
     expect(await agent.availability()).toEqual({
       kind: "unavailable",
@@ -188,6 +194,7 @@ describe("availability", () => {
 
   it("is ready with an endpoint and a network", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([]).transport,
@@ -228,6 +235,7 @@ describe("egress", () => {
     const hostile: SupportRequest = overlapCast(planted);
     const recorder = recording(answering("never sent"));
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recorder.transport,
@@ -249,6 +257,7 @@ describe("egress", () => {
     const hostile: SupportRequest = overlapCast(planted);
     const recorder = recording(answering("never sent"));
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recorder.transport,
@@ -273,6 +282,7 @@ describe("egress", () => {
     const hostile: SupportRequest = overlapCast(planted);
     const recorder = recording(answering("never sent"));
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recorder.transport,
@@ -286,6 +296,7 @@ describe("egress", () => {
   it("sends exactly the allow-listed structure and nothing else", async () => {
     const recorder = recording(answering("Open Connections."));
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recorder.transport,
@@ -299,52 +310,10 @@ describe("egress", () => {
     expect(sent?.endpoint.url).toBe("https://support.example.com/agui");
     const serialized: JsonValue = JSON.parse(JSON.stringify(sent?.body));
     expect(serialized).toStrictEqual({
-      version: 1,
-      instructions: buildSupportInstructions(CONTEXT),
-      context: {
-        version: 1,
-        pageId: "pages",
-        route: "connections",
-        targets: [
-          {
-            id: "nav.connections",
-            description: "Opens the Connections screen.",
-            role: "navigation",
-            mounted: true,
-          },
-        ],
-        routes: [{ id: "connections", title: "Connections" }],
-        state: [{ id: "vault.unlocked", value: true }],
-        capabilities: [
-          {
-            id: "connection.create",
-            title: "Create a connection",
-            available: true,
-          },
-        ],
-        goals: [
-          { id: "connection.create", title: "Add a provider connection" },
-        ],
-        help: [
-          {
-            id: "help.connection.create",
-            title: "How do I connect a provider?",
-            answer: "Connections, then Add a connection.",
-            goal: "connection.create",
-          },
-        ],
-        tools: [
-          {
-            name: "opensesame_connections_read",
-            description: "Read the Host connection plane.",
-            exposed: true,
-          },
-        ],
-      },
-      history: [
-        { role: "user", text: "hello" },
-        { role: "assistant", text: "hi" },
-      ],
+      version: 2,
+      pageId: "pages",
+      route: "connections",
+      featureIds: ["connection.create"],
       question: "How do I add a connection?",
     });
   });
@@ -353,6 +322,7 @@ describe("egress", () => {
 describe("hostile server events", () => {
   it("ignores a tool call and keeps only the assistant prose", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -394,6 +364,7 @@ describe("hostile server events", () => {
 
   it("surfaces reasoning as collapsed thoughts, not as the answer", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -417,6 +388,7 @@ describe("hostile server events", () => {
 
   it("ignores a state patch carrying a javascript: route", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -455,6 +427,7 @@ describe("hostile server events", () => {
 
   it("ignores a messages snapshot, which is a state replacement not a message", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -478,6 +451,7 @@ describe("hostile server events", () => {
 
   it("drops deltas for a message that declared a role other than assistant", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -496,6 +470,7 @@ describe("hostile server events", () => {
 
   it("caps an event carrying a huge payload", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -515,6 +490,7 @@ describe("hostile server events", () => {
 
   it("refuses a stream that ends without an assistant message", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -531,6 +507,7 @@ describe("hostile server events", () => {
 
   it("refuses an empty stream", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([]).transport,
@@ -543,6 +520,7 @@ describe("hostile server events", () => {
 
   it("survives malformed events that are not objects at all", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -565,6 +543,7 @@ describe("hostile server events", () => {
 
   it("does not surface a server-authored error message", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -582,6 +561,7 @@ describe("hostile server events", () => {
 
   it("reports a connection failure without repeating what the transport said", async () => {
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: () => {
@@ -608,6 +588,7 @@ describe("guides stay untrusted", () => {
       "```",
     ].join("\n");
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording([
@@ -619,9 +600,7 @@ describe("guides stay untrusted", () => {
 
     const turn = await agent.run(REQUEST, { signal: signal() });
 
-    expect(turn.guide).toContain('click "#x"');
-    const parsed = parseGuide(turn.guide ?? "");
-    expect(parsed.ok).toBe(false);
+    expect(turn.guide).toBeNull();
   });
 });
 
@@ -643,6 +622,7 @@ describe("abort", () => {
       yielded += 1;
     }
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: () => stalling(),
@@ -661,6 +641,7 @@ describe("abort", () => {
     const controller = new AbortController();
     controller.abort();
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: recording(answering("never read")).transport,
@@ -675,6 +656,7 @@ describe("abort", () => {
     const stall = new Promise<void>(() => undefined);
     let yielded = 0;
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: () => stallingUntilDestroy(),

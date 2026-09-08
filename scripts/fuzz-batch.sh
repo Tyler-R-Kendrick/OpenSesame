@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Long libFuzzer batch over every target. ClusterFuzzLite "batch/cron" analogue.
-# Persist corpus growth under fuzz/corpus/. Do not auto-commit it.
+# Persist corpus growth in the reported private audit directory.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+source "$ROOT/scripts/lib/fuzz-directory.sh"
 
 SECONDS_PER_TARGET="${FUZZ_SECONDS:-3600}"
 BUDGET="${FUZZ_BATCH_BUDGET:-}"
@@ -27,16 +28,14 @@ for f in fuzz/fuzz_targets/*.rs; do
       break
     fi
   fi
-  corpus="fuzz/corpus/$target"
-  mkdir -p "$corpus" fuzz/artifacts
+  opensesame_fuzz_corpus "$target"
   echo "==> $target (${SECONDS_PER_TARGET}s)"
-  if ! cargo +nightly fuzz run "$target" --fuzz-dir fuzz -- \
+  if ! cargo +nightly fuzz run "$target" --fuzz-dir fuzz "$corpus" -- \
       -max_total_time="$SECONDS_PER_TARGET" \
       -timeout=10 \
-      -artifact_prefix="$ROOT/fuzz/artifacts/" \
-      "$corpus"; then
-    echo "fuzz-batch: CRASH $target — copy a minimized input into fuzz/regressions/$target/" >&2
-    mkdir -p "fuzz/regressions/$target"
+      -artifact_prefix="$OPENSESAME_AUDIT_DIR/artifacts/" \
+      > "$OPENSESAME_AUDIT_DIR/$target.log" 2>&1; then
+    echo "fuzz-batch: CRASH $target — inspect private artifacts at $OPENSESAME_AUDIT_DIR" >&2
     fail=1
   fi
 done

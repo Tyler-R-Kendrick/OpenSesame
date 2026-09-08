@@ -37,13 +37,20 @@ pub fn access_token_hash(access_token: &str) -> String {
 /// Returns an error when validation or the underlying operation fails.
 pub fn normalize_htu(url: &str) -> Result<String, ProofError> {
     let parsed = url::Url::parse(url).map_err(|e| ProofError::InvalidProof(e.to_string()))?;
-    let host = parsed
-        .host_str()
-        .ok_or_else(|| ProofError::InvalidProof("htu missing host".into()))?;
-    Ok(match parsed.port() {
-        Some(port) => format!("{}://{}:{}{}", parsed.scheme(), host, port, parsed.path()),
-        None => format!("{}://{}{}", parsed.scheme(), host, parsed.path()),
-    })
+    if !matches!(parsed.scheme(), "http" | "https")
+        || parsed.host_str().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+    {
+        return Err(ProofError::InvalidProof(
+            "htu must be an HTTP(S) target without userinfo".into(),
+        ));
+    }
+    Ok(format!(
+        "{}{}",
+        parsed.origin().ascii_serialization(),
+        parsed.path()
+    ))
 }
 
 /// Smallest RSA modulus accepted for a proof key.
@@ -81,6 +88,17 @@ fn bit_length(bytes: &[u8]) -> usize {
 /// Returns an error when validation or the underlying operation fails.
 pub fn assert_proof_key_strength(jwk: &Jwk) -> Result<(), ProofError> {
     match &jwk.algorithm {
+        AlgorithmParameters::EllipticCurve(params) => {
+            if params.curve != EllipticCurve::P256
+                || decode_b64("ec x", &params.x)?.len() != 32
+                || decode_b64("ec y", &params.y)?.len() != 32
+            {
+                return Err(ProofError::WeakProofKey(
+                    "expected P-256 coordinates".into(),
+                ));
+            }
+            Ok(())
+        }
         AlgorithmParameters::OctetKeyPair(params) => {
             if params.curve != EllipticCurve::Ed25519 {
                 return Err(ProofError::UnsupportedAlgorithm(format!(
@@ -117,8 +135,8 @@ pub fn assert_proof_key_strength(jwk: &Jwk) -> Result<(), ProofError> {
             }
             Ok(())
         }
-        _ => Err(ProofError::UnsupportedAlgorithm(
-            "proof key must be OKP (Ed25519) or RSA".into(),
+        AlgorithmParameters::OctetKey(_) => Err(ProofError::UnsupportedAlgorithm(
+            "proof key must be EC (P-256), OKP (Ed25519) or RSA".into(),
         )),
     }
 }
@@ -130,6 +148,9 @@ pub fn assert_proof_key_strength(jwk: &Jwk) -> Result<(), ProofError> {
 /// Returns an error when validation or the underlying operation fails.
 pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
     let canonical = match &jwk.algorithm {
+        AlgorithmParameters::EllipticCurve(params) if params.curve == EllipticCurve::P256 => {
+            serde_json::json!({"crv":"P-256", "kty":"EC", "x":params.x, "y":params.y})
+        }
         AlgorithmParameters::OctetKeyPair(params) => {
             let crv = match params.curve {
                 EllipticCurve::Ed25519 => "Ed25519",
@@ -150,7 +171,7 @@ pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
                 "n": params.n,
             })
         }
-        _ => {
+        AlgorithmParameters::EllipticCurve(_) | AlgorithmParameters::OctetKey(_) => {
             return Err(ProofError::InvalidProof(
                 "unsupported JWK for thumbprint".into(),
             ));
@@ -164,6 +185,9 @@ pub fn jwk_thumbprint(jwk: &Jwk) -> Result<String, ProofError> {
 }
 
 fn decode_header(proof_jwt: &str) -> Result<Header, ProofError> {
+    if proof_jwt.len() > 8192 {
+        return Err(ProofError::InvalidProof("proof too large".into()));
+    }
     let encoded_header = proof_jwt
         .split('.')
         .next()
@@ -171,7 +195,28 @@ fn decode_header(proof_jwt: &str) -> Result<Header, ProofError> {
     let header_bytes = URL_SAFE_NO_PAD
         .decode(encoded_header)
         .map_err(|e| ProofError::InvalidProof(e.to_string()))?;
-    serde_json::from_slice(&header_bytes).map_err(|e| ProofError::InvalidProof(e.to_string()))
+    let value: serde_json::Value = serde_json::from_slice(&header_bytes)
+        .map_err(|_| ProofError::InvalidProof("malformed header".into()))?;
+    if ["crit", "b64", "jku", "x5u"]
+        .iter()
+        .any(|key| value.get(key).is_some())
+    {
+        return Err(ProofError::InvalidProof(
+            "unsupported proof header parameter".into(),
+        ));
+    }
+    let private_material = value.get("jwk").is_some_and(|jwk| {
+        ["d", "p", "q", "dp", "dq", "qi", "k", "oth"]
+            .iter()
+            .any(|key| jwk.get(key).is_some())
+    });
+    if private_material {
+        return Err(ProofError::InvalidProof("public proof key required".into()));
+    }
+    // Deserialize the original bytes so duplicate security fields are rejected
+    // rather than collapsed by the inspection Value above.
+    serde_json::from_slice(&header_bytes)
+        .map_err(|_| ProofError::InvalidProof("malformed header".into()))
 }
 
 ///
@@ -198,7 +243,10 @@ pub fn decode_dpop_proof(
         )));
     }
 
-    if header.alg != Algorithm::EdDSA && header.alg != Algorithm::RS256 {
+    if !matches!(
+        header.alg,
+        Algorithm::EdDSA | Algorithm::RS256 | Algorithm::ES256
+    ) {
         return Err(ProofError::UnsupportedAlgorithm(format!(
             "{:?}",
             header.alg
@@ -225,8 +273,22 @@ pub fn decode_dpop_proof(
         .map_err(|e| ProofError::InvalidProof(e.to_string()))?;
     let claims = token_data.claims;
 
-    if !claims.htm.eq_ignore_ascii_case(expected_method) {
+    if claims.jti.is_empty() || claims.jti.len() > crate::replay::MAX_JTI_LEN || max_age_secs < 0 {
+        return Err(ProofError::InvalidProof(
+            "invalid proof lifetime or identifier".into(),
+        ));
+    }
+
+    if claims.htm != expected_method {
         return Err(ProofError::InvalidProof("htm mismatch".into()));
+    }
+
+    let claimed_uri =
+        url::Url::parse(&claims.htu).map_err(|_| ProofError::InvalidProof("invalid htu".into()))?;
+    if claimed_uri.query().is_some() || claimed_uri.fragment().is_some() {
+        return Err(ProofError::InvalidProof(
+            "htu must omit query and fragment".into(),
+        ));
     }
 
     let normalized_htu = normalize_htu(&claims.htu)?;
@@ -235,10 +297,13 @@ pub fn decode_dpop_proof(
         return Err(ProofError::InvalidProof("htu mismatch".into()));
     }
 
-    if now - claims.iat > max_age_secs {
+    if now
+        .checked_sub(claims.iat)
+        .is_none_or(|age| age > max_age_secs)
+    {
         return Err(ProofError::InvalidProof("iat too old".into()));
     }
-    if claims.iat > now + 60 {
+    if now.checked_add(60).is_none_or(|latest| claims.iat > latest) {
         return Err(ProofError::InvalidProof("iat in future".into()));
     }
 
@@ -290,7 +355,18 @@ pub fn sign_dpop_proof(
     encoding_key: &EncodingKey,
     claims: &DpopClaims,
 ) -> Result<String, ProofError> {
-    let mut header = Header::new(Algorithm::EdDSA);
+    assert_proof_key_strength(jwk)?;
+    let algorithm = match &jwk.algorithm {
+        AlgorithmParameters::EllipticCurve(_) => Algorithm::ES256,
+        AlgorithmParameters::OctetKeyPair(_) => Algorithm::EdDSA,
+        AlgorithmParameters::RSA(_) => Algorithm::RS256,
+        AlgorithmParameters::OctetKey(_) => {
+            return Err(ProofError::UnsupportedAlgorithm(
+                "unsupported signing key".into(),
+            ))
+        }
+    };
+    let mut header = Header::new(algorithm);
     header.typ = Some(DPOP_TYP.to_string());
     header.jwk = Some(jwk.clone());
     jsonwebtoken::encode(&header, claims, encoding_key)

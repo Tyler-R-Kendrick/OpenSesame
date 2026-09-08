@@ -6,6 +6,8 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { decodeJwtEnvelope } from "@opensesame/sdk-browser";
+import { b64urlDecode, b64urlEncode } from "./federation-encoding.js";
 import {
   type IdentitySession,
   identityBase,
@@ -253,26 +255,11 @@ export class FederationError extends Error {
   }
 }
 
-function b64urlDecode(part: string): Uint8Array {
-  const padded = part.replace(/-/g, "+").replace(/_/g, "/");
-  const binary = atob(padded.padEnd(Math.ceil(padded.length / 4) * 4, "="));
-  return Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
-}
-
-function b64urlEncode(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
 export function decodeJwtClaims(token: string): JsonObject {
   const payload = token.split(".")[1];
   if (!payload) throw new FederationError("invalid_token", "Not a JWT.");
   try {
-    return JSON.parse(new TextDecoder().decode(b64urlDecode(payload)));
+    return decodeJwtEnvelope(token).claims;
   } catch {
     throw new FederationError("invalid_token", "Token payload is not JSON.");
   }

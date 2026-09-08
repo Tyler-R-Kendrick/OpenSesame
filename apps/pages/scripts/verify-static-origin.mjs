@@ -275,9 +275,31 @@ const browser = await launch();
 
 // ---- D: deep link asset resolution
 {
-  const { page, context } = await newPage(browser);
+  const deepLink = `${ORIGIN}${BASE}vault/health`;
+  const { page, context } = await newPage(browser, {
+    expectedFallbackUrl: deepLink,
+  });
   setStep("D-deeplink");
-  await page.goto(`${ORIGIN}${BASE}vault/health`, { waitUntil: "networkidle" });
+  const response = await page.goto(deepLink, { waitUntil: "networkidle" });
+  check(
+    response?.status() === 404,
+    "deep link uses the expected SPA fallback document",
+  );
+  await page
+    .getByRole("button", { name: "Continue as guest", exact: true })
+    .waitFor();
+  check(
+    (await page
+      .getByRole("heading", { name: "Sign in", exact: true })
+      .count()) === 1,
+    "deep link renders sign-in",
+  );
+  check(
+    (await page
+      .getByRole("button", { name: "Continue as guest", exact: true })
+      .count()) === 1,
+    "deep link retains guest access",
+  );
   await page.waitForTimeout(800);
   const missing = log.filter(
     (entry) => entry.kind === "MISSING-ASSET" && entry.step === "D-deeplink",
@@ -294,10 +316,8 @@ fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));
 
 const loopback = log.filter((entry) => entry.kind === "LOOPBACK-REQUEST");
 const pageErrors = log.filter((entry) => entry.kind === "PAGE-ERROR");
-const consoleErrors = log.filter(
-  (entry) =>
-    entry.kind === "console-error" && !/404 \(Not Found\)/.test(entry.detail),
-);
+const consoleErrors = log.filter((entry) => entry.kind === "console-error");
+const httpErrors = log.filter((entry) => entry.kind === "HTTP-ERROR");
 const onScreen = log.filter(
   (entry) =>
     entry.kind === "ON-SCREEN" && !/^Not connected$/.test(entry.detail),
@@ -307,6 +327,10 @@ for (const entry of log)
   if (entry.kind === "PASS" || entry.kind === "FAIL")
     console.log(`${entry.kind} [${entry.step}] ${entry.detail}`);
 console.log(`loopback requests: ${loopback.length}`);
+console.log(
+  "unexpected HTTP errors:",
+  httpErrors.map((entry) => entry.detail),
+);
 console.log(
   `page errors: ${pageErrors.length}`,
   pageErrors.map((e) => `[${e.step}] ${e.detail.slice(0, 200)}`),
@@ -325,6 +349,7 @@ console.log(
 );
 const hard =
   loopback.length +
+  httpErrors.length +
   pageErrors.length +
   consoleErrors.length +
   onScreen.length +

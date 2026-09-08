@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   OriginError,
   canonicalizeOrigin,
@@ -10,7 +10,18 @@ import {
 const PROD = { production: true } as const;
 const DEV_LOOPBACK = { allowLoopbackHttp: true, production: false } as const;
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("canonicalizeOrigin", () => {
+  it("preserves the server ambient production safeguard and explicit override", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(() =>
+      canonicalizeOrigin("http://localhost:4101", { allowLoopbackHttp: true }),
+    ).toThrow(OriginError);
+    expect(canonicalizeOrigin("http://localhost:4101", DEV_LOOPBACK)).toBe(
+      "http://localhost:4101",
+    );
+  });
   it("lowercases host and strips default https port", () => {
     expect(canonicalizeOrigin("https://App.Example.COM:443", PROD)).toBe(
       "https://app.example.com",

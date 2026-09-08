@@ -1,3 +1,6 @@
+import { loopbackProfileEligible } from "./__tests__/loopback-profile.js";
+import { browserPairingSeams } from "./browser-pairing.js";
+const originalPairingEligibility = browserPairingSeams.eligible;
 import {
   type BoundaryValue,
   type JsonObject,
@@ -21,16 +24,13 @@ import {
   connectProvisional,
   currentSession,
   identityFetch,
+  identitySeams,
 } from "./identity.js";
-import {
-  loadSettings,
-  saveSettings,
-  shippedHostApi,
-  shippedIdentityApi,
-} from "./settings.js";
+import { loadSettings, saveSettings, shippedHostApi } from "./settings.js";
 
 const HOST = shippedHostApi;
-const IDENTITY = shippedIdentityApi;
+const IDENTITY = "https://identity.example.test";
+const originalHostFetch = identitySeams.hostFetch;
 
 function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -48,25 +48,9 @@ function stubFetch(handler: (url: string, init?: RequestInit) => Response) {
 }
 
 function stubHostFetch(handler: (url: string, init?: RequestInit) => Response) {
-  return stubFetch((url, init) => {
-    if (url === `${HOST}/api/v1/session/local`) {
-      // Force Identity device-approval path in unit tests unless a test opts in.
-      return jsonResponse({ error: "demo_bootstrap_unavailable" }, 503);
-    }
-    if (url === `${HOST}/api/v1/device/authorize`) {
-      return jsonResponse({ device_code: "dc_pages", user_code: "ABCD-EFGH" });
-    }
-    if (url === `${IDENTITY}/v1/device/approve`) {
-      return jsonResponse({ ok: true });
-    }
-    if (url === `${HOST}/api/v1/device/token`) {
-      return jsonResponse({
-        access_token: "opaque-session:sess_pages",
-        expires_in: 28_800,
-      });
-    }
-    return handler(url, init);
-  });
+  const spy = stubFetch(handler);
+  identitySeams.hostFetch = (path, init) => spy(`${HOST}${path}`, init);
+  return spy;
 }
 
 function connectionWire(overrides: JsonObject = {}) {
@@ -105,6 +89,7 @@ function connectionWire(overrides: JsonObject = {}) {
 }
 
 beforeEach(async () => {
+  browserPairingSeams.eligible = loopbackProfileEligible;
   clearSession();
   clearHostSession();
   saveSettings({
@@ -134,6 +119,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  browserPairingSeams.eligible = originalPairingEligibility;
+  identitySeams.hostFetch = originalHostFetch;
   clearSession();
   clearHostSession();
   vi.unstubAllGlobals();
@@ -142,7 +129,10 @@ afterEach(() => {
 
 describe("Identity cookie resume", () => {
   it("drops a bearer before sending to a changed Identity origin", async () => {
-    saveSettings({ ...loadSettings(), identityApi: "http://127.0.0.1:19999" });
+    saveSettings({
+      ...loadSettings(),
+      identityApi: "https://other-identity.example.test",
+    });
     const fetch = stubFetch(() => jsonResponse({ error: "unauthorized" }, 401));
 
     await identityFetch("/v1/principals/me");
@@ -274,10 +264,9 @@ describe("reading connections", () => {
     const request = spy.mock.calls.find(
       ([url]) => String(url) === `${HOST}/api/v1/providers`,
     )?.[1];
-    expect(new Headers(request?.headers).get("authorization")).toBe(
-      "Bearer opaque-session:sess_pages",
-    );
-    expect(request?.credentials).toBe("omit");
+    // The mapping layer delegates authentication and never constructs a bearer.
+    expect(new Headers(request?.headers).get("authorization")).toBeNull();
+    expect(request?.credentials).toBeUndefined();
   });
 
   it("sends provider-defined fields as structured configuration", async () => {
@@ -324,148 +313,41 @@ describe("reading connections", () => {
 });
 
 describe("transport", () => {
-  it("mints and reuses a user-scoped Host session", async () => {
+  it("requires a new pairing after the configured Host changes", async () => {
+    saveSettings({
+      ...loadSettings(),
+      hostApi: "https://other-host.example.test",
+    });
+    const spy = stubFetch(() => jsonResponse({ access_token: "legacy-token" }));
+    await expect(listConnections()).rejects.toMatchObject({
+      code: "setup_required",
+    });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("uses the authenticated transport without performing any credential mint", async () => {
     const spy = stubHostFetch(() => jsonResponse({ connections: [] }));
-
     await listConnections();
     await listConnections();
-
-    const approve = spy.mock.calls.find(
-      ([url]) => String(url) === `${IDENTITY}/v1/device/approve`,
-    );
-    expect(new Headers(approve?.[1]?.headers).get("authorization")).toBe(
-      "Bearer identity_pages",
-    );
-    const requests = spy.mock.calls.filter(
-      ([url]) => String(url) === `${HOST}/api/v1/connections`,
-    );
-    expect(requests).toHaveLength(2);
-    const init = requests[0]?.[1];
-    expect(new Headers(init?.headers).get("authorization")).toBe(
-      "Bearer opaque-session:sess_pages",
-    );
-    // A cookie from the Identity plane must not answer for the Host plane.
-    expect(init?.credentials).toBe("omit");
-    expect(
-      spy.mock.calls.filter(
-        ([url]) => String(url) === `${HOST}/api/v1/device/authorize`,
-      ),
-    ).toHaveLength(1);
+    expect(spy.mock.calls.map(([url]) => url)).toEqual([
+      `${HOST}/api/v1/connections`,
+      `${HOST}/api/v1/connections`,
+    ]);
   });
 
-  it("mints an OpenSesame provisional session before Host access", async () => {
-    clearSession();
-    const spy = stubFetch((url) => {
-      if (url === `${IDENTITY}/v1/principals/me`) {
-        return jsonResponse({}, 401);
-      }
-      if (url === `${IDENTITY}/v1/principals/provisional`) {
-        return jsonResponse({
-          principalId: "principal_auto",
-          accessToken: "identity_auto",
-          expiresAt: "2099-01-01T00:00:00Z",
-        });
-      }
-      if (url === `${HOST}/api/v1/session/local`) {
-        return jsonResponse({ error: "demo_bootstrap_unavailable" }, 503);
-      }
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return jsonResponse({
-          device_code: "dc_auto",
-          user_code: "AUTO-CODE",
-        });
-      }
-      if (url === `${IDENTITY}/v1/device/approve`) {
-        return jsonResponse({ ok: true });
-      }
-      if (url === `${HOST}/api/v1/device/token`) {
-        return jsonResponse({
-          access_token: "opaque-session:sess_auto",
-          expires_in: 28_800,
-        });
-      }
-      if (url === `${HOST}/api/v1/connections`) {
-        return jsonResponse({ connections: [] });
-      }
-      return jsonResponse({ error: "unexpected" }, 500);
-    });
-
-    await listConnections();
-
-    expect(currentSession()?.accessToken).toBe("identity_auto");
-    expect(
-      spy.mock.calls.some(
-        ([url]) => String(url) === `${IDENTITY}/v1/principals/provisional`,
-      ),
-    ).toBe(true);
-    expect(
-      spy.mock.calls.some(
-        ([url]) => String(url) === `${HOST}/api/v1/connections`,
-      ),
-    ).toBe(true);
-  });
-
-  it("uses Host-local session without Identity when available", async () => {
-    clearSession();
-    clearHostSession();
-    const spy = stubFetch((url) => {
-      if (url === `${HOST}/api/v1/session/local`) {
-        return jsonResponse({
-          access_token: "opaque-session:sess_local",
-          expires_in: 28_800,
-          local_session: true,
-        });
-      }
-      if (url === `${HOST}/api/v1/connections`) {
-        return jsonResponse({ connections: [] });
-      }
-      return jsonResponse({ error: "unexpected" }, 500);
-    });
-
-    await listConnections();
-
-    expect(currentSession()).toBeNull();
-    expect(
-      spy.mock.calls.some(
-        ([url]) => String(url) === `${HOST}/api/v1/session/local`,
-      ),
-    ).toBe(true);
-    expect(
-      spy.mock.calls.some(
-        ([url]) => String(url) === `${IDENTITY}/v1/principals/provisional`,
-      ),
-    ).toBe(false);
-    const conn = spy.mock.calls.find(
-      ([url]) => String(url) === `${HOST}/api/v1/connections`,
-    );
-    expect(new Headers(conn?.[1]?.headers).get("authorization")).toBe(
-      "Bearer opaque-session:sess_local",
-    );
-  });
-
-  it("classifies an unfinished organization setup as a Host-session gate", async () => {
-    clearHostSession();
-    stubFetch((url) => {
-      if (url === `${HOST}/api/v1/session/local`) {
-        return jsonResponse({ error: "demo_bootstrap_unavailable" }, 503);
-      }
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return jsonResponse({
-          device_code: "dc_pages",
-          user_code: "ABCD-EFGH",
-        });
-      }
-      if (url === `${IDENTITY}/v1/device/approve`) {
-        return jsonResponse({ hint: "Select one of your organizations" }, 400);
-      }
-      return jsonResponse({}, 500);
-    });
-
-    const error = await listConnections().catch((caught) => caught);
-
-    expect(error).toBeInstanceOf(HostSessionError);
-    expect(overlapCast(error).code).toBe("setup_required");
-  });
+  it.each(["Identity session", "no Identity session"])(
+    "refuses unpaired Host access with %s",
+    async (session) => {
+      if (session === "no Identity session") clearSession();
+      const spy = stubFetch(() =>
+        jsonResponse({ access_token: "unacceptable-legacy-token" }),
+      );
+      await expect(listConnections()).rejects.toMatchObject({
+        code: "setup_required",
+      });
+      expect(spy).not.toHaveBeenCalled();
+    },
+  );
 
   it("surfaces the API error code and hint", async () => {
     stubHostFetch(() =>
@@ -488,10 +370,8 @@ describe("transport", () => {
   });
 
   it("reports an unreachable host rather than a bare network error", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(() => Promise.reject(new TypeError("failed"))),
-    );
+    identitySeams.hostFetch = () =>
+      Promise.reject(new TypeError("Failed to fetch"));
 
     const error = await listConnections().catch((caught) => caught);
 
@@ -557,36 +437,13 @@ describe("awaiting consent", () => {
 });
 
 describe("locking", () => {
-  it("forgets Host authority with the Identity session, then remints on next Host call", async () => {
-    const spy = stubHostFetch((url) => {
-      if (url === `${IDENTITY}/v1/principals/me`) {
-        return jsonResponse({}, 401);
-      }
-      if (url === `${IDENTITY}/v1/principals/provisional`) {
-        return jsonResponse({
-          principalId: "principal_remint",
-          accessToken: "identity_remint",
-          expiresAt: "2099-01-01T00:00:00Z",
-        });
-      }
-      return jsonResponse({ connections: [] });
-    });
-    await listConnections();
-
+  it("forgets Identity and never remints Host authority after locking", async () => {
     clearSession();
-    await listConnections();
-
-    expect(currentSession()?.accessToken).toBe("identity_remint");
-    expect(
-      spy.mock.calls.filter(
-        ([url]) => String(url) === `${HOST}/api/v1/connections`,
-      ),
-    ).toHaveLength(2);
-    expect(
-      spy.mock.calls.filter(
-        ([url]) => String(url) === `${HOST}/api/v1/device/authorize`,
-      ),
-    ).toHaveLength(2);
+    clearHostSession();
+    const spy = stubFetch(() => jsonResponse({ access_token: "legacy-token" }));
+    await expect(listConnections()).rejects.toBeInstanceOf(HostSessionError);
+    expect(currentSession()).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
   });
 });
 

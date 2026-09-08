@@ -126,7 +126,12 @@ mod tests {
     async fn fixture() -> (Router, HeaderMap) {
         let state = test_demo_state().await;
         let org = state.connection_organization;
-        let headers = test_session_headers(&state, "user:alice", org, OrganizationRole::Owner);
+        let headers = test_session_headers(
+            &state,
+            "principal:00000000-0000-4000-8000-000000000011",
+            org,
+            OrganizationRole::Owner,
+        );
         (crate::routes::router(state.clone()), headers)
     }
 

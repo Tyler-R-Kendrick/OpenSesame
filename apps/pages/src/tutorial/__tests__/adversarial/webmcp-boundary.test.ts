@@ -229,6 +229,7 @@ describe("a hostile AG-UI stream", () => {
     chain = active;
 
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: streamOf([
@@ -271,7 +272,7 @@ describe("a hostile AG-UI stream", () => {
 
     const split = parseSupportTurn(turn.answer);
     const source = turn.guide ?? split.guide;
-    expect(source).not.toBeNull();
+    expect(source).toBeNull();
     expect(active.compile(source ?? "")).toBeNull();
     expect(active.renderer.calls).toEqual([]);
     expect(active.routes.navigations()).toEqual([]);
@@ -282,6 +283,7 @@ describe("a hostile AG-UI stream", () => {
     chain = active;
     const bodies: JsonObject[] = [];
     const agent = createAgUiSupportAgent({
+      approve: async () => true,
       endpoint: endpoint(),
       online: () => true,
       transport: (outbound) => {

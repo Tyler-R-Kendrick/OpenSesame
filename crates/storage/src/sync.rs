@@ -6,9 +6,23 @@
 //! signature, visibility or call site changes.
 
 use super::{
-    append_outbox_tx, append_sync_blob_outbox, db_u64, Context, Db, EncryptedItemRevision, Row,
-    StoredSyncBlob, SyncWriteOutcome, Utc,
+    append_outbox_tx, db_u64, Context, Db, EncryptedItemRevision, Row, StoredSyncBlob,
+    SyncWriteOutcome, Utc,
 };
+
+#[path = "sync_pages.rs"]
+mod pages;
+#[path = "sync_rebind.rs"]
+mod rebind;
+#[path = "sync_write.rs"]
+mod write;
+
+/// Pagination sequence is independent from the ciphertext's original revision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncPageEntry {
+    pub sequence: u64,
+    pub blob: StoredSyncBlob,
+}
 
 impl Db {
     /// Atomically persist an encrypted item revision and its outbox event.
@@ -99,6 +113,22 @@ impl Db {
         store_limit: i64,
         owner_limit: i64,
     ) -> anyhow::Result<Vec<SyncWriteOutcome>> {
+        self.write_sync_blobs_scoped(owner_id, "", blobs, store_limit, owner_limit)
+            .await
+    }
+
+    /// Write ciphertext in one explicit organization, preserving owner isolation.
+    ///
+    /// # Errors
+    /// Returns an error for invalid epochs, quota checks or database failure.
+    pub async fn write_sync_blobs_scoped(
+        &self,
+        owner_id: &str,
+        organization_id: &str,
+        blobs: &[StoredSyncBlob],
+        store_limit: i64,
+        owner_limit: i64,
+    ) -> anyhow::Result<Vec<SyncWriteOutcome>> {
         if blobs.is_empty() {
             return Ok(Vec::new());
         }
@@ -112,8 +142,9 @@ impl Db {
             .await?
             .get("count");
         let owner_count: i64 =
-            sqlx::query("SELECT COUNT(*) AS count FROM encrypted_sync_blobs WHERE owner_id = ?")
+            sqlx::query("SELECT COUNT(*) AS count FROM encrypted_sync_blobs WHERE owner_id = ? AND organization_id = ?")
                 .bind(owner_id)
+                .bind(organization_id)
                 .fetch_one(&mut *transaction)
                 .await?
                 .get("count");
@@ -121,6 +152,7 @@ impl Db {
         let mut outcomes = Vec::with_capacity(blobs.len());
         let mut existing = Vec::with_capacity(blobs.len());
         let mut new_count = 0i64;
+        let mut unchanged = 0usize;
         for (index, blob) in blobs.iter().enumerate() {
             // ponytail: batches are capped at 64 by the route; a linear scan is
             // smaller than another set allocation. Replace if that cap grows.
@@ -129,13 +161,22 @@ impl Db {
                 existing.push(false);
                 continue;
             }
-            let row = sqlx::query("SELECT owner_id, epoch FROM encrypted_sync_blobs WHERE id = ?")
+            let row = sqlx::query("SELECT owner_id, epoch, ciphertext = ? AS same_ciphertext FROM encrypted_sync_blobs WHERE id = ? AND organization_id = ?")
+                .bind(&blob.ciphertext)
                 .bind(&blob.id)
+                .bind(organization_id)
                 .fetch_optional(&mut *transaction)
                 .await?;
             let outcome = match row {
                 Some(ref row) if row.get::<String, _>("owner_id") != owner_id => {
                     SyncWriteOutcome::ForeignOwner
+                }
+                Some(ref row)
+                    if row.get::<i64, _>("epoch") == epochs[index]
+                        && row.get::<bool, _>("same_ciphertext") =>
+                {
+                    unchanged += 1;
+                    SyncWriteOutcome::Accepted
                 }
                 Some(ref row) if row.get::<i64, _>("epoch") >= epochs[index] => {
                     SyncWriteOutcome::StaleEpoch
@@ -165,33 +206,19 @@ impl Db {
             return Ok(outcomes);
         }
 
-        let updated_at = Utc::now().to_rfc3339();
-        for ((blob, epoch), exists) in blobs.iter().zip(epochs).zip(existing) {
-            if exists {
-                sqlx::query(
-                    "UPDATE encrypted_sync_blobs SET epoch = ?, ciphertext = ?, updated_at = ? WHERE id = ? AND owner_id = ?",
-                )
-                .bind(epoch)
-                .bind(&blob.ciphertext)
-                .bind(&updated_at)
-                .bind(&blob.id)
-                .bind(owner_id)
-                .execute(&mut *transaction)
-                .await?;
-            } else {
-                sqlx::query(
-                    "INSERT INTO encrypted_sync_blobs (id, owner_id, epoch, ciphertext, updated_at) VALUES (?, ?, ?, ?, ?)",
-                )
-                .bind(&blob.id)
-                .bind(owner_id)
-                .bind(epoch)
-                .bind(&blob.ciphertext)
-                .bind(&updated_at)
-                .execute(&mut *transaction)
-                .await?;
-            }
-            append_sync_blob_outbox(&mut transaction, owner_id, &blob.id, epoch).await?;
+        if unchanged == blobs.len() {
+            return Ok(outcomes);
         }
+
+        write::persist_batch(
+            &mut transaction,
+            owner_id,
+            organization_id,
+            blobs,
+            &epochs,
+            &existing,
+        )
+        .await?;
         transaction.commit().await?;
         Ok(outcomes)
     }
@@ -206,25 +233,16 @@ impl Db {
         owner_id: &str,
         since_epoch: u64,
     ) -> anyhow::Result<Vec<StoredSyncBlob>> {
-        let Ok(since_epoch) = i64::try_from(since_epoch) else {
-            return Ok(vec![]);
-        };
-        let rows = sqlx::query(
-            "SELECT id, epoch, ciphertext FROM encrypted_sync_blobs WHERE owner_id = ? AND epoch > ? ORDER BY epoch, id",
-        )
-        .bind(owner_id)
-        .bind(since_epoch)
-        .fetch_all(&self.pool)
-        .await?;
-        rows.into_iter()
-            .map(|row| {
-                Ok(StoredSyncBlob {
-                    id: row.get("id"),
-                    epoch: db_u64(row.get("epoch"), "sync epoch")?,
-                    ciphertext: row.get("ciphertext"),
-                })
-            })
-            .collect()
+        anyhow::ensure!(
+            since_epoch == 0,
+            "legacy epoch cursors require migration to ingestion cursors"
+        );
+        let after = 0;
+        let (blobs, more) = self
+            .list_sync_blobs_page(owner_id, "", (after, ""), 64, true)
+            .await?;
+        anyhow::ensure!(!more, "legacy sync read requires pagination");
+        Ok(blobs.into_iter().map(|entry| entry.blob).collect())
     }
 
     /// Count all encrypted sync blobs.
@@ -305,9 +323,28 @@ impl Db {
     pub async fn list_encrypted_item_revisions(
         &self,
     ) -> anyhow::Result<Vec<EncryptedItemRevision>> {
+        self.list_encrypted_item_revisions_query(None).await
+    }
+
+    /// Read only revisions belonging to the selected backup organization.
+    /// # Errors
+    /// Returns database failures without changing stored ciphertext.
+    pub async fn list_encrypted_item_revisions_scoped(
+        &self,
+        organization: &str,
+    ) -> anyhow::Result<Vec<EncryptedItemRevision>> {
+        self.list_encrypted_item_revisions_query(Some(organization))
+            .await
+    }
+
+    async fn list_encrypted_item_revisions_query(
+        &self,
+        organization: Option<&str>,
+    ) -> anyhow::Result<Vec<EncryptedItemRevision>> {
         let rows = sqlx::query(
-            "SELECT vault_id, item_id, revision, ciphertext, wrapping_json, ad_digest FROM encrypted_item_revisions ORDER BY vault_id, item_id, revision",
+            "SELECT r.vault_id, r.item_id, r.revision, r.ciphertext, r.wrapping_json, r.ad_digest FROM encrypted_item_revisions r JOIN vaults v ON v.id = r.vault_id WHERE (? IS NULL OR v.organization_id = ?) ORDER BY r.vault_id, r.item_id, r.revision",
         )
+        .bind(organization).bind(organization)
         .fetch_all(&self.pool)
         .await?;
         Ok(rows
@@ -322,31 +359,4 @@ impl Db {
             })
             .collect())
     }
-
-    /// List every owner-scoped encrypted sync blob for snapshot backup.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the query fails or a stored epoch is negative.
-    pub async fn list_all_sync_blobs(&self) -> anyhow::Result<Vec<(String, StoredSyncBlob)>> {
-        let rows = sqlx::query(
-            "SELECT id, owner_id, epoch, ciphertext FROM encrypted_sync_blobs ORDER BY owner_id, epoch, id",
-        )
-        .fetch_all(&self.pool)
-        .await?;
-        rows.into_iter()
-            .map(|row| {
-                Ok((
-                    row.get("owner_id"),
-                    StoredSyncBlob {
-                        id: row.get("id"),
-                        epoch: db_u64(row.get("epoch"), "sync epoch")?,
-                        ciphertext: row.get("ciphertext"),
-                    },
-                ))
-            })
-            .collect()
-    }
-
-    // —— certificate manager: shared helpers ——————————————————————
 }

@@ -11,6 +11,11 @@ import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearNotices, listNotices } from "../lib/notices.js";
+import {
+  HEALTH,
+  mockLocalApproval,
+  typeDaemonUrl,
+} from "./PlaneNote.test-support.js";
 
 const env = vi.hoisted(() => ({
   plane: {
@@ -82,20 +87,6 @@ import { ConnectThisMachine } from "./PlaneNote.js";
 
 function withRouter(node: ReactNode) {
   return render(<MemoryRouter>{overlapCast(node)}</MemoryRouter>);
-}
-
-const HEALTH = {
-  status: "ok",
-  service: "opensesame-daemon",
-  hostApi: "https://host.example.com",
-  identityApi: "https://id.example.com",
-  tailscaleUrl: null,
-};
-
-function typeDaemonUrl(value: string) {
-  fireEvent.change(screen.getByLabelText("Daemon (Tailscale Serve URL)"), {
-    target: { value },
-  });
 }
 
 /** Reach the manual field from the ceremony's opening step. */
@@ -229,6 +220,7 @@ describe("ConnectThisMachine", () => {
   });
 
   it("pairs what it found and reports the endpoints it wrote", async () => {
+    mockLocalApproval();
     env.daemonApiSetting = "https://box.tailnet.ts.net";
     env.probeDaemon.mockResolvedValue(HEALTH);
     env.applyDaemonPairing.mockResolvedValue(undefined);
@@ -245,6 +237,10 @@ describe("ConnectThisMachine", () => {
         HEALTH,
       );
     });
+    expect(await screen.findByText("ABCD-1234")).toBeTruthy();
+    expect(onPaired).not.toHaveBeenCalled();
+    expect(env.connect).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Check approval" }));
     // The three endpoints pairing writes are shown, which is what makes the
     // Endpoints panel safe to keep collapsed.
     expect(await screen.findByText("Daemon")).toBeTruthy();
@@ -255,6 +251,7 @@ describe("ConnectThisMachine", () => {
   });
 
   it("keeps pairing even when the Identity connect fails afterwards", async () => {
+    mockLocalApproval();
     env.daemonApiSetting = "https://box.tailnet.ts.net";
     env.probeDaemon.mockResolvedValue(HEALTH);
     env.applyDaemonPairing.mockResolvedValue(undefined);
@@ -263,6 +260,8 @@ describe("ConnectThisMachine", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Pair this daemon" }),
     );
+    expect(await screen.findByText("ABCD-1234")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Check approval" }));
     expect(await screen.findByText("Daemon")).toBeTruthy();
   });
 

@@ -13,7 +13,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opensesame/sdk-browser": "workspace:*"
+    "@opensesame/sdk-browser": "workspace:*",
+    "@opensesame/static-auth": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "22.15.29",

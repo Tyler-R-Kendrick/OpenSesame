@@ -16,13 +16,12 @@
 
 use std::time::Duration;
 
+#[cfg(test)]
 use base64::Engine as _;
 use opensesame_connection_broker::installation::{
     mint_installation_token, GithubAppSigningMaterial, InstallationToken, MintError,
 };
-use opensesame_connection_broker::store as broker_store;
 use opensesame_storage::BackupTarget;
-use serde_json::json;
 
 use crate::app_state::AppState;
 
@@ -79,11 +78,39 @@ pub async fn pass(
     if events.is_empty() {
         return Ok(());
     }
+    let groups = routing::group_events(&state.db, events).await?;
+    for (organization, events) in groups {
+        // Installation tokens belong to one installation, never a process-wide
+        // cache that can cross the next organization's delivery boundary.
+        *token_cache = None;
+        if let Err(error) =
+            pass_organization(state, api_base, token_cache, &organization, &events).await
+        {
+            let ids: Vec<_> = events.iter().map(|event| event.id.clone()).collect();
+            state
+                .db
+                .park_outbox(&ids, "organization backup failed", 30)
+                .await?;
+            tracing::warn!(%error, "organization backup failed");
+        }
+    }
+    Ok(())
+}
+
+#[path = "backup_routing.rs"]
+mod routing;
+
+async fn pass_organization(
+    state: &AppState,
+    api_base: &str,
+    token_cache: &mut Option<InstallationToken>,
+    organization: &str,
+    events: &[opensesame_storage::OutboxEvent],
+) -> anyhow::Result<()> {
     let ids: Vec<String> = events.iter().map(|e| e.id.clone()).collect();
     let max_attempts = events.iter().map(|e| e.attempts).max().unwrap_or(0);
 
-    let organization = state.connection_organization.to_string();
-    let Some(target) = state.db.get_backup_target(&organization).await? else {
+    let Some(target) = state.db.get_backup_target(organization).await? else {
         // Nothing to persist into. Drain rather than queue forever: enabling a
         // target later triggers a full-snapshot resync that reconciles all of
         // this anyway.
@@ -104,7 +131,7 @@ pub async fn pass(
     // Connector-kind targets (ADR 0065 §6) deliver through the connection
     // broker's authorized egress — no GitHub App leg, same saga semantics.
     if target.kind == crate::backup_target::KIND_CONNECTOR {
-        return pass_connector_target(state, &target, &events, &ids, max_attempts, &organization)
+        return pass_connector_target(state, &target, events, &ids, max_attempts, organization)
             .await;
     }
 
@@ -112,7 +139,7 @@ pub async fn pass(
     let token = match installation_token(state, &target, api_base, token_cache).await {
         Ok(token) => token,
         Err(StepError::Suspend(reason)) => {
-            return compensate_suspend(state, &organization, &ids, &reason).await;
+            return compensate_suspend(state, organization, &ids, &reason).await;
         }
         Err(StepError::Retry(reason)) => {
             return compensate_retry(state, &ids, max_attempts, &reason).await;
@@ -122,8 +149,8 @@ pub async fn pass(
     // Step 2: build the ciphertext snapshot from current state. Events are
     // triggers, not sources of truth — this is what makes retries and
     // dead-letters convergent.
-    let files = snapshot(state).await?;
-    let event_summary = summarize(&events);
+    let mut files = snapshot(state, organization)?;
+    let event_summary = summarize(events);
 
     // Step 3: commit the snapshot. Orphaned objects from a lost ref race cost
     // nothing; the compensation is to rebuild against the new head next pass.
@@ -133,14 +160,14 @@ pub async fn pass(
         token: token.token.clone(),
     };
     match github
-        .commit_snapshot(&target, &files, &event_summary)
+        .commit_snapshot(&target, &mut files, &event_summary)
         .await
     {
         Ok(CommitOutcome::Committed(sha)) => {
             state.db.mark_outbox_published(&ids).await?;
             state
                 .db
-                .record_backup_outcome(&organization, "ok", Some(&sha), None)
+                .record_backup_outcome(organization, "ok", Some(&sha), None)
                 .await?;
             Ok(())
         }
@@ -148,13 +175,13 @@ pub async fn pass(
             state.db.mark_outbox_published(&ids).await?;
             state
                 .db
-                .record_backup_outcome(&organization, "ok", None, None)
+                .record_backup_outcome(organization, "ok", None, None)
                 .await?;
             Ok(())
         }
         Err(StepError::Suspend(reason)) => {
             *token_cache = None;
-            compensate_suspend(state, &organization, &ids, &reason).await
+            compensate_suspend(state, organization, &ids, &reason).await
         }
         Err(StepError::Retry(reason)) => compensate_retry(state, &ids, max_attempts, &reason).await,
     }
@@ -173,7 +200,7 @@ async fn pass_connector_target(
 ) -> anyhow::Result<()> {
     let connector_target = match crate::backup_target::ConnectorSnapshotTarget::from_row(
         state.connection_broker.clone(),
-        state.connection_organization,
+        opensesame_domain::OrganizationId::parse(&target.organization_id)?,
         target,
     ) {
         Ok(connector_target) => connector_target,
@@ -184,10 +211,10 @@ async fn pass_connector_target(
             return compensate_retry(state, ids, max_attempts, &reason).await;
         }
     };
-    let files = snapshot(state).await?;
+    let mut files = snapshot(state, organization)?;
     let event_summary = summarize(events);
     match connector_target
-        .commit_snapshot(&files, &event_summary)
+        .commit_snapshot(&mut files, &event_summary)
         .await
     {
         Ok(CommitOutcome::Committed(sha)) => {
@@ -272,9 +299,11 @@ async fn installation_token(
     if let Some(token) = cache.as_ref().filter(|token| token.usable()) {
         return Ok(token.clone());
     }
+    let organization = opensesame_domain::OrganizationId::parse(&target.organization_id)
+        .map_err(|_| StepError::Suspend("invalid backup organization".into()))?;
     let signing: GithubAppSigningMaterial = state
         .connection_broker
-        .github_app_signing_material(&state.connection_organization, &target.integration_id)
+        .github_app_signing_material(&organization, &target.integration_id)
         .await
         .map_err(|e| StepError::Retry(format!("loading signing material: {e}")))?
         .ok_or_else(|| {
@@ -308,81 +337,17 @@ pub struct SnapshotFile {
 /// Build the complete backup tree from current gateway state. Ciphertext only:
 /// broker credentials stay sealed under the deployment key, sync blobs and
 /// vault revisions are E2EE bytes the server never could read.
-pub async fn snapshot(state: &AppState) -> anyhow::Result<Vec<SnapshotFile>> {
-    let b64 = base64::engine::general_purpose::STANDARD;
-    let path_component =
-        |value: &str| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(value.as_bytes());
-    let mut files = vec![SnapshotFile {
-        path: "README.md".into(),
-        content: "# OpenSesame backup store\n\nCiphertext snapshots written by the OpenSesame \
-                  backup actor (ADR 0039). Every file is sealed; none of it can be read \
-                  without keys that never enter this repository.\n"
-            .into(),
-    }];
+#[path = "backup_sync.rs"]
+mod sync;
+pub(crate) use sync::InventoryBudget;
+pub use sync::SnapshotPlan;
 
-    let credentials = broker_store::list_sealed_credentials(state.db.pool()).await?;
-    for row in &credentials {
-        files.push(SnapshotFile {
-            path: format!("connections/{}.json", path_component(&row.connection_id)),
-            content: serde_json::to_string_pretty(&json!({
-                "connection_id": row.connection_id,
-                "version": row.version,
-                "sealed": {
-                    "ciphertext_b64": b64.encode(&row.sealed.ciphertext),
-                    "nonce_b64": b64.encode(&row.sealed.nonce),
-                    "aad_digest": row.sealed.aad_digest,
-                },
-                "token_type": row.token_type,
-                "expires_at": row.expires_at,
-                "refreshable": row.refreshable,
-            }))?,
-        });
-    }
-
-    for (owner_id, blob) in state.db.list_all_sync_blobs().await? {
-        files.push(SnapshotFile {
-            path: format!(
-                "sync/{}/{}.json",
-                path_component(&owner_id),
-                path_component(&blob.id)
-            ),
-            content: serde_json::to_string_pretty(&json!({
-                "owner_id": owner_id,
-                "blob_id": blob.id,
-                "epoch": blob.epoch,
-                "ciphertext_b64": b64.encode(&blob.ciphertext),
-            }))?,
-        });
-    }
-
-    for revision in state.db.list_encrypted_item_revisions().await? {
-        files.push(SnapshotFile {
-            path: format!(
-                "vault/{}/{}/{}.json",
-                path_component(&revision.vault_id),
-                path_component(&revision.item_id),
-                revision.revision
-            ),
-            content: serde_json::to_string_pretty(&json!({
-                "vault_id": revision.vault_id,
-                "item_id": revision.item_id,
-                "ciphertext_b64": b64.encode(&revision.ciphertext),
-                "wrapping": revision.wrapping_json,
-                "ad_digest": revision.ad_digest,
-            }))?,
-        });
-    }
-
-    files.push(SnapshotFile {
-        path: "manifest.json".into(),
-        content: serde_json::to_string_pretty(&json!({
-            "schema": 1,
-            "connections": credentials.len(),
-            "files": files.len(),
-        }))?,
-    });
-    files.sort_by(|a, b| a.path.cmp(&b.path));
-    Ok(files)
+pub fn snapshot(state: &AppState, organization: &str) -> anyhow::Result<SnapshotPlan> {
+    anyhow::ensure!(
+        !organization.is_empty() && organization.len() <= 128,
+        "invalid backup organization"
+    );
+    Ok(SnapshotPlan::new(state.db.clone(), organization.to_owned()))
 }
 
 fn summarize(events: &[opensesame_storage::OutboxEvent]) -> String {
@@ -402,176 +367,9 @@ pub enum CommitOutcome {
     NoChanges,
 }
 
-/// Git Data API client for atomic snapshot commits: one tree, one commit, one
-/// fast-forward ref update. Injecting `api_base` keeps it fully testable.
-pub struct GithubSnapshotClient {
-    pub http: reqwest::Client,
-    pub api_base: String,
-    pub token: String,
-}
-
-impl GithubSnapshotClient {
-    fn url(&self, path: &str) -> String {
-        format!("{}{path}", self.api_base.trim_end_matches('/'))
-    }
-
-    async fn get_json(&self, path: &str) -> Result<(u16, serde_json::Value), StepError> {
-        let response = self
-            .http
-            .get(self.url(path))
-            .bearer_auth(&self.token)
-            .header("accept", "application/vnd.github+json")
-            .header("user-agent", "opensesame-gateway")
-            .send()
-            .await
-            .map_err(|e| StepError::Retry(e.to_string()))?;
-        let status = response.status().as_u16();
-        let body = response.json().await.unwrap_or(serde_json::Value::Null);
-        Ok((status, body))
-    }
-
-    async fn send_json(
-        &self,
-        method: reqwest::Method,
-        path: &str,
-        body: &serde_json::Value,
-    ) -> Result<(u16, serde_json::Value), StepError> {
-        let response = self
-            .http
-            .request(method, self.url(path))
-            .bearer_auth(&self.token)
-            .header("accept", "application/vnd.github+json")
-            .header("user-agent", "opensesame-gateway")
-            .json(body)
-            .send()
-            .await
-            .map_err(|e| StepError::Retry(e.to_string()))?;
-        let status = response.status().as_u16();
-        let body = response.json().await.unwrap_or(serde_json::Value::Null);
-        Ok((status, body))
-    }
-
-    async fn commit_snapshot(
-        &self,
-        target: &BackupTarget,
-        files: &[SnapshotFile],
-        message: &str,
-    ) -> Result<CommitOutcome, StepError> {
-        let owner = &target.owner;
-        let repo = &target.repo;
-        let branch = &target.branch;
-
-        // Read the current head. 404 on the ref means an empty repository or a
-        // branch we have not created yet — both are first-commit cases.
-        let (status, head) = self
-            .get_json(&format!("/repos/{owner}/{repo}/git/ref/heads/{branch}"))
-            .await?;
-        let parent = match status {
-            200 => Some(
-                head["object"]["sha"]
-                    .as_str()
-                    .ok_or_else(|| StepError::Retry("ref response missing sha".into()))?
-                    .to_string(),
-            ),
-            404 => None,
-            401 | 403 => {
-                return Err(StepError::Suspend(format!(
-                    "backup repository unreachable as the app installation ({status})"
-                )))
-            }
-            other => return Err(StepError::Retry(format!("reading ref returned {other}"))),
-        };
-
-        // If the repository itself is gone, only a human can fix that.
-        if parent.is_none() {
-            let (repo_status, _) = self.get_json(&format!("/repos/{owner}/{repo}")).await?;
-            if repo_status == 404 {
-                return Err(StepError::Suspend(format!(
-                    "backup repository {owner}/{repo} does not exist or the app cannot see it"
-                )));
-            }
-        }
-
-        // Full tree, inline contents: complete snapshot, so deletions in the
-        // source are deletions in the repo without tracking them event by event.
-        let tree_entries: Vec<serde_json::Value> = files
-            .iter()
-            .map(|file| {
-                json!({"path": file.path, "mode": "100644", "type": "blob", "content": file.content})
-            })
-            .collect();
-        let (status, tree) = self
-            .send_json(
-                reqwest::Method::POST,
-                &format!("/repos/{owner}/{repo}/git/trees"),
-                &json!({"tree": tree_entries}),
-            )
-            .await?;
-        if status != 201 {
-            return Err(StepError::Retry(format!("creating tree returned {status}")));
-        }
-        let tree_sha = tree["sha"]
-            .as_str()
-            .ok_or_else(|| StepError::Retry("tree response missing sha".into()))?;
-
-        // Skip empty commits: identical snapshot means nothing changed.
-        if let Some(parent_sha) = &parent {
-            let (status, parent_commit) = self
-                .get_json(&format!("/repos/{owner}/{repo}/git/commits/{parent_sha}"))
-                .await?;
-            if status == 200 && parent_commit["tree"]["sha"].as_str() == Some(tree_sha) {
-                return Ok(CommitOutcome::NoChanges);
-            }
-        }
-
-        let parents = parent
-            .as_ref()
-            .map(|sha| vec![sha.clone()])
-            .unwrap_or_default();
-        let (status, commit) = self
-            .send_json(
-                reqwest::Method::POST,
-                &format!("/repos/{owner}/{repo}/git/commits"),
-                &json!({"message": message, "tree": tree_sha, "parents": parents}),
-            )
-            .await?;
-        if status != 201 {
-            return Err(StepError::Retry(format!(
-                "creating commit returned {status}"
-            )));
-        }
-        let commit_sha = commit["sha"]
-            .as_str()
-            .ok_or_else(|| StepError::Retry("commit response missing sha".into()))?
-            .to_string();
-
-        // Fast-forward-only ref update is the atomic step. Losing the race
-        // leaves only orphaned objects; the compensation is a rebuilt snapshot
-        // against the new head on the next pass.
-        let (status, _) = if parent.is_some() {
-            self.send_json(
-                reqwest::Method::PATCH,
-                &format!("/repos/{owner}/{repo}/git/refs/heads/{branch}"),
-                &json!({"sha": commit_sha, "force": false}),
-            )
-            .await?
-        } else {
-            self.send_json(
-                reqwest::Method::POST,
-                &format!("/repos/{owner}/{repo}/git/refs"),
-                &json!({"ref": format!("refs/heads/{branch}"), "sha": commit_sha}),
-            )
-            .await?
-        };
-        match status {
-            200 | 201 => Ok(CommitOutcome::Committed(commit_sha)),
-            409 | 422 => Err(StepError::Retry(
-                "ref moved during snapshot; rebuilding against new head".into(),
-            )),
-            other => Err(StepError::Retry(format!("updating ref returned {other}"))),
-        }
-    }
-}
+#[path = "backup_github.rs"]
+mod github;
+pub use github::GithubSnapshotClient;
 
 #[cfg(test)]
 mod tests {
@@ -588,12 +386,14 @@ mod tests {
     use opensesame_connection_broker::github_app::GithubAppCredentials;
     use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
     use opensesame_storage::StoredSyncBlob;
+    use serde_json::json;
     use std::sync::{Arc, Mutex};
 
     #[derive(Default)]
     struct MockGithub {
         head: Option<String>,
         trees: Vec<serde_json::Value>,
+        blobs: Vec<serde_json::Value>,
         commits: u32,
         mint_status: u16,
         ref_update_failures: u32,
@@ -639,12 +439,20 @@ mod tests {
                 get(|| async { Json(serde_json::json!({"default_branch": "main"})) }),
             )
             .route(
+                "/repos/{owner}/{repo}/git/blobs",
+                post(|AxumState(mock): AxumState<Shared>, Json(body): Json<serde_json::Value>| async move {
+                    let mut mock = mock.lock().unwrap();
+                    mock.blobs.push(body);
+                    (StatusCode::CREATED, Json(serde_json::json!({"sha":format!("{:040x}",mock.blobs.len())})))
+                }),
+            )
+            .route(
                 "/repos/{owner}/{repo}/git/trees",
                 post(
                     |AxumState(mock): AxumState<Shared>, Json(body): Json<serde_json::Value>| async move {
                         let mut mock = mock.lock().unwrap();
                         mock.trees.push(body);
-                        let sha = format!("tree-{}", mock.trees.len());
+                        let sha = format!("{:040x}", 1_000_000 + mock.trees.len());
                         (StatusCode::CREATED, Json(serde_json::json!({"sha": sha})))
                     },
                 ),
@@ -653,7 +461,7 @@ mod tests {
                 "/repos/{owner}/{repo}/git/commits/{sha}",
                 get(|Path((_, _, _sha)): Path<(String, String, String)>| async move {
                     // Parent tree never matches a fresh snapshot in these tests.
-                    Json(serde_json::json!({"tree": {"sha": "different"}}))
+                    Json(serde_json::json!({"tree": {"sha": "f".repeat(40)}}))
                 }),
             )
             .route(
@@ -661,7 +469,7 @@ mod tests {
                 post(|AxumState(mock): AxumState<Shared>| async move {
                     let mut mock = mock.lock().unwrap();
                     mock.commits += 1;
-                    let sha = format!("commit-{}", mock.commits);
+                    let sha = format!("{:040x}", 2_000_000 + mock.commits);
                     (StatusCode::CREATED, Json(serde_json::json!({"sha": sha})))
                 }),
             )
@@ -673,7 +481,7 @@ mod tests {
                         mock.ref_update_failures -= 1;
                         return StatusCode::UNPROCESSABLE_ENTITY.into_response();
                     }
-                    let sha = format!("commit-{}", mock.commits);
+                    let sha = format!("{:040x}", 2_000_000 + mock.commits);
                     mock.head = Some(sha.clone());
                     (StatusCode::CREATED, Json(serde_json::json!({"object": {"sha": sha}})))
                         .into_response()
@@ -700,7 +508,7 @@ mod tests {
     }
 
     async fn state_with_broker() -> AppState {
-        let mut state = app_state::build(Args {
+        let mut state = app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),
@@ -787,13 +595,14 @@ mod tests {
         // The mutation broadcasts its change event transactionally.
         state
             .db
-            .write_sync_blob(
+            .write_sync_blobs_scoped(
                 "owner-1",
-                &StoredSyncBlob {
+                &organization,
+                &[StoredSyncBlob {
                     id: "blob-1".into(),
                     epoch: 1,
                     ciphertext: vec![9, 9, 9],
-                },
+                }],
                 100,
                 100,
             )
@@ -812,7 +621,7 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(target.status, "ok");
-        assert_eq!(target.last_commit_sha.as_deref(), Some("commit-1"));
+        assert_eq!(target.last_commit_sha, Some(format!("{:040x}", 2_000_001)));
 
         // The pushed tree is a complete ciphertext snapshot.
         let trees = mock.lock().unwrap().trees.clone();
@@ -823,13 +632,20 @@ mod tests {
             .collect();
         assert!(paths.contains(&"README.md"));
         assert!(paths.contains(&"manifest.json"));
-        assert!(paths.contains(&"sync/b3duZXItMQ/YmxvYi0x.json"));
+        let sync_path = format!(
+            "sync/{}/b3duZXItMQ/YmxvYi0x.json",
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&organization)
+        );
+        assert!(paths.contains(&sync_path.as_str()));
         let blob_entry = entries
             .iter()
-            .find(|entry| entry["path"] == "sync/b3duZXItMQ/YmxvYi0x.json")
+            .find(|entry| entry["path"] == sync_path)
             .unwrap();
         // Ciphertext travels base64-wrapped; the raw bytes never appear.
-        assert!(blob_entry["content"]
+        assert!(blob_entry.get("content").is_none());
+        let sha = blob_entry["sha"].as_str().unwrap();
+        let index = usize::from_str_radix(sha, 16).unwrap();
+        assert!(mock.lock().unwrap().blobs[index - 1]["content"]
             .as_str()
             .unwrap()
             .contains("ciphertext_b64"));
@@ -847,7 +663,14 @@ mod tests {
         mock.lock().unwrap().mint_status = 404;
         let base = start_mock(mock.clone()).await;
 
-        state.db.append_outbox("backup.resync", "{}").await.unwrap();
+        state
+            .db
+            .append_outbox(
+                "backup.resync",
+                &json!({"organization_id":state.connection_organization.to_string()}).to_string(),
+            )
+            .await
+            .unwrap();
         let mut cache = None;
         pass(&state, &base, &mut cache).await.unwrap();
 
@@ -879,7 +702,14 @@ mod tests {
         }
         let base = start_mock(mock.clone()).await;
 
-        state.db.append_outbox("backup.resync", "{}").await.unwrap();
+        state
+            .db
+            .append_outbox(
+                "backup.resync",
+                &json!({"organization_id":state.connection_organization.to_string()}).to_string(),
+            )
+            .await
+            .unwrap();
         let mut cache = None;
         pass(&state, &base, &mut cache).await.unwrap();
 
@@ -901,13 +731,20 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(target.status, "ok");
-        assert_eq!(target.last_commit_sha.as_deref(), Some("commit-2"));
+        assert_eq!(target.last_commit_sha, Some(format!("{:040x}", 2_000_002)));
     }
 
     #[tokio::test]
     async fn events_without_a_target_are_drained_not_queued_forever() {
         let state = state_with_broker().await;
-        state.db.append_outbox("backup.resync", "{}").await.unwrap();
+        state
+            .db
+            .append_outbox(
+                "backup.resync",
+                &json!({"organization_id":state.connection_organization.to_string()}).to_string(),
+            )
+            .await
+            .unwrap();
         let mut cache = None;
         pass(&state, "http://127.0.0.1:1", &mut cache)
             .await

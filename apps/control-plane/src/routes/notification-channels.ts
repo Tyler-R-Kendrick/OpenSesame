@@ -73,13 +73,13 @@ const BINDING_CHALLENGE_TTL_SECONDS = 900;
 const BINDING_CHALLENGE_MAX_ATTEMPTS = 5;
 const MAX_BINDINGS_PER_PRINCIPAL = 20;
 
-function hasFreshAuthentication(
+async function hasFreshAuthentication(
   ctx: AppContext,
   c: Context<{ Variables: Variables }>,
-): boolean {
+): Promise<boolean> {
   const sessionId = c.get("provisionalSessionId");
   if (!sessionId) return false;
-  const session = ctx.stores.provisionalSessions.get(sessionId);
+  const session = await ctx.stores.provisionalSessions.get(sessionId);
   if (!session || session.revokedAt) return false;
   const age = ctx.clock().getTime() - session.createdAt.getTime();
   return age <= STEP_UP_MAX_AGE_SECONDS * 1000;
@@ -199,7 +199,7 @@ notificationChannelRoutes.get("/bindings", requirePrincipal(), async (c) => {
 notificationChannelRoutes.post("/bindings", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
   const principalId = authenticatedPrincipalId(c.get("principalId"));
-  if (!hasFreshAuthentication(ctx, c)) {
+  if (!(await hasFreshAuthentication(ctx, c))) {
     return c.json({ error: "step_up_required" }, 403);
   }
   const parsed = BeginChannelBindingSchema.safeParse(
@@ -326,7 +326,7 @@ notificationChannelRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    if (!hasFreshAuthentication(ctx, c)) {
+    if (!(await hasFreshAuthentication(ctx, c))) {
       return c.json({ error: "step_up_required" }, 403);
     }
     const parsed = CompleteChannelBindingSchema.safeParse(
@@ -468,7 +468,7 @@ notificationChannelRoutes.delete(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    if (!hasFreshAuthentication(ctx, c)) {
+    if (!(await hasFreshAuthentication(ctx, c))) {
       return c.json({ error: "step_up_required" }, 403);
     }
     const id = c.req.param("id") ?? "";

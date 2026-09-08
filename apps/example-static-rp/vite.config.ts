@@ -46,6 +46,15 @@ export default defineConfig({
   },
   build: {
     target: ["es2022", "chrome100", "firefox100", "safari15"],
+    rollupOptions: {
+      input: {
+        index: resolve(import.meta.dirname, "public/index.html"),
+        callback: resolve(
+          import.meta.dirname,
+          "public/opensesame/callback.html",
+        ),
+      },
+    },
   },
   server: {
     port: 4101,
@@ -58,6 +67,14 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@opensesame/static-auth": resolve(
+        repoRoot,
+        "packages/static-auth/src/index.ts",
+      ),
+      "@opensesame/os-domain": resolve(
+        repoRoot,
+        "packages/os-domain/src/browser.ts",
+      ),
       "@opensesame/sdk-browser": resolve(
         repoRoot,
         "packages/sdk-browser/src/index.ts",

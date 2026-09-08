@@ -1,7 +1,6 @@
 //! Server-blind E2EE human vault envelopes.
 //! Server stores ciphertext only; VRK never leaves the client.
 
-use argon2::{Algorithm, Argon2, Params, Version};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chacha20poly1305::{
     aead::{Aead, KeyInit, Payload},
@@ -16,6 +15,14 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(test)]
 mod chunk_tests;
+
+pub mod kdf_policy;
+mod password_wrap;
+#[cfg(not(target_arch = "wasm32"))]
+pub use password_wrap::migrate_password_wrapper_offline;
+pub use password_wrap::{
+    assert_argon_params_accepted, unwrap_vrk_with_password, wrap_vrk_with_password, PasswordWrapper,
+};
 
 pub const ENVELOPE_VERSION: u32 = 1;
 
@@ -49,10 +56,10 @@ pub enum VaultCryptoError {
 /// `wrap_vrk_with_password` uses; the upper bound keeps a hostile wrapper from
 /// asking the client for gigabytes.
 pub const MIN_ARGON_M_KIB: u32 = 64 * 1024;
-pub const MAX_ARGON_M_KIB: u32 = 1024 * 1024;
+pub const MAX_ARGON_M_KIB: u32 = kdf_policy::KdfPolicy::current_platform().ceilings().0;
 pub const MIN_ARGON_T: u32 = 3;
-pub const MAX_ARGON_T: u32 = 16;
-pub const MAX_ARGON_P: u32 = 4;
+pub const MAX_ARGON_T: u32 = kdf_policy::KdfPolicy::current_platform().ceilings().1;
+pub const MAX_ARGON_P: u32 = kdf_policy::KdfPolicy::current_platform().ceilings().2;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AssociatedData {
@@ -195,122 +202,6 @@ pub fn decrypt_item_with_ad(
         return Err(VaultCryptoError::AdMismatch);
     }
     decrypt_item(idk, envelope)
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct PasswordWrapper {
-    pub salt: String,
-    pub params_m_kib: u32,
-    pub params_t: u32,
-    pub params_p: u32,
-    pub wrapped_vrk: String,
-    pub nonce: String,
-}
-
-///
-/// # Errors
-///
-/// Returns an error when key derivation or authenticated encryption fails.
-pub fn wrap_vrk_with_password(
-    password: &[u8],
-    vrk: &VaultRootKey,
-) -> Result<PasswordWrapper, VaultCryptoError> {
-    let mut salt = [0u8; 16];
-    rand::thread_rng().fill_bytes(&mut salt);
-    let m_kib = 64 * 1024;
-    let t = 3;
-    let p = 1;
-    let params = Params::new(m_kib, t, p, Some(32)).map_err(|_| VaultCryptoError::Kdf)?;
-    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut ikm = [0u8; 32];
-    argon
-        .hash_password_into(password, &salt, &mut ikm)
-        .map_err(|_| VaultCryptoError::Kdf)?;
-    let mut kek = hkdf_expand(&ikm, b"opensesame/vault/vrk-wrap/v1")?;
-    ikm.zeroize();
-    let cipher = XChaCha20Poly1305::new_from_slice(&kek).map_err(|_| VaultCryptoError::Aead)?;
-    // The unwrap path already cleans both of these up; wrapping left the Argon2
-    // output and the KEK sitting in this frame for no reason.
-    kek.zeroize();
-    let mut nonce = [0u8; 24];
-    rand::thread_rng().fill_bytes(&mut nonce);
-    let wrapped = cipher
-        .encrypt(XNonce::from_slice(&nonce), vrk.0.as_ref())
-        .map_err(|_| VaultCryptoError::Aead)?;
-    Ok(PasswordWrapper {
-        salt: STANDARD.encode(salt),
-        params_m_kib: m_kib,
-        params_t: t,
-        params_p: p,
-        wrapped_vrk: STANDARD.encode(wrapped),
-        nonce: STANDARD.encode(nonce),
-    })
-}
-
-/// Refuse KDF parameters outside the accepted band.
-///
-/// # Errors
-///
-/// Returns `KdfParamsOutOfRange` when any parameter is outside the accepted
-/// work band.
-pub fn assert_argon_params_accepted(m_kib: u32, t: u32, p: u32) -> Result<(), VaultCryptoError> {
-    if !(MIN_ARGON_M_KIB..=MAX_ARGON_M_KIB).contains(&m_kib)
-        || !(MIN_ARGON_T..=MAX_ARGON_T).contains(&t)
-        || p == 0
-        || p > MAX_ARGON_P
-    {
-        return Err(VaultCryptoError::KdfParamsOutOfRange);
-    }
-    Ok(())
-}
-
-///
-/// # Errors
-///
-/// Returns an error for unsafe KDF parameters, malformed wrapper data,
-/// authentication failure, or an invalid root-key length.
-pub fn unwrap_vrk_with_password(
-    password: &[u8],
-    wrapper: &PasswordWrapper,
-) -> Result<VaultRootKey, VaultCryptoError> {
-    assert_argon_params_accepted(wrapper.params_m_kib, wrapper.params_t, wrapper.params_p)?;
-    let salt = STANDARD
-        .decode(&wrapper.salt)
-        .map_err(|_| VaultCryptoError::Kdf)?;
-    let params = Params::new(
-        wrapper.params_m_kib,
-        wrapper.params_t,
-        wrapper.params_p,
-        Some(32),
-    )
-    .map_err(|_| VaultCryptoError::Kdf)?;
-    let argon = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
-    let mut ikm = [0u8; 32];
-    argon
-        .hash_password_into(password, &salt, &mut ikm)
-        .map_err(|_| VaultCryptoError::Kdf)?;
-    let mut wrapping_key = hkdf_expand(&ikm, b"opensesame/vault/vrk-wrap/v1")?;
-    ikm.zeroize();
-    let cipher =
-        XChaCha20Poly1305::new_from_slice(&wrapping_key).map_err(|_| VaultCryptoError::Aead)?;
-    wrapping_key.zeroize();
-    let nonce = decode_nonce(&wrapper.nonce)?;
-    let wrapped_bytes = STANDARD
-        .decode(&wrapper.wrapped_vrk)
-        .map_err(|_| VaultCryptoError::Aead)?;
-    let mut plaintext_vrk = cipher
-        .decrypt(XNonce::from_slice(&nonce), wrapped_bytes.as_ref())
-        .map_err(|_| VaultCryptoError::Aead)?;
-    // Authentic but wrong-sized material must be an error, not a panic on
-    // `copy_from_slice`.
-    if plaintext_vrk.len() != 32 {
-        plaintext_vrk.zeroize();
-        return Err(VaultCryptoError::KeyLength);
-    }
-    let mut out = [0u8; 32];
-    out.copy_from_slice(&plaintext_vrk);
-    plaintext_vrk.zeroize();
-    Ok(VaultRootKey(out))
 }
 
 /// PRF output must never leave the client. Derive KEK with domain separation.

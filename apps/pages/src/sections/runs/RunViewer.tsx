@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { HostAuthorizationCeremony } from "../../components/HostAuthorizationCeremony.js";
 import {
   type AgentRun,
   type LogEntry,
@@ -7,6 +8,7 @@ import {
   canTakeControl,
   runSentence,
 } from "../../lib/agent-runs.js";
+import type { ControlTransition } from "../../lib/host-authorization.js";
 
 /** How often the viewer asks for new entries while a run is open. */
 const TAIL_MS = 1_000;
@@ -83,6 +85,7 @@ export function RunViewer({
   const [cursor, setCursor] = useState(-1);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [approval, setApproval] = useState<ControlTransition | null>(null);
 
   const refresh = useCallback(async () => {
     const [current, page] = await Promise.all([
@@ -133,6 +136,7 @@ export function RunViewer({
   }
 
   const thoughts = entries.filter((entry) => entry.lane === "thought").length;
+  const controlsDisabled = busy || approval !== null;
 
   return (
     <section className="run">
@@ -168,22 +172,36 @@ export function RunViewer({
 
       {notice !== null && <p className="note">{notice}</p>}
 
+      {approval ? (
+        <HostAuthorizationCeremony
+          request={{
+            operation: "agent.browser.control",
+            target_id: run.id,
+            transition: approval,
+          }}
+          onCancel={() => setApproval(null)}
+          onComplete={(elevation) => {
+            if (!elevation) return;
+            const transition = approval;
+            setApproval(null);
+            void guard(async () => {
+              if (transition === "handoff")
+                return agentRunSeams.requestHandoff(run.id, elevation);
+              if (transition === "take")
+                return agentRunSeams.takeControl(run.id, elevation);
+              return agentRunSeams.releaseControl(run.id, elevation);
+            }, "Control request applied.");
+          }}
+        />
+      ) : null}
+
       <div className="run__do">
         {canRequestHandoff(run) && (
           <button
             type="button"
             className="btn btn--primary"
-            disabled={busy || run.handoffQueued}
-            onClick={() =>
-              void guard(async () => {
-                const outcome = await agentRunSeams.requestHandoff(run.id);
-                setNotice(
-                  outcome === "queued"
-                    ? "Queued — it is mid-save and will hand over when that finishes."
-                    : "Asked. It will hand over at its next step.",
-                );
-              }, "Asked for the page.")
-            }
+            disabled={controlsDisabled || run.handoffQueued}
+            onClick={() => setApproval("handoff")}
           >
             Ask for the page
           </button>
@@ -192,13 +210,8 @@ export function RunViewer({
           <button
             type="button"
             className="btn btn--primary"
-            disabled={busy}
-            onClick={() =>
-              void guard(
-                () => agentRunSeams.takeControl(run.id),
-                "You have the page.",
-              )
-            }
+            disabled={controlsDisabled}
+            onClick={() => setApproval("take")}
           >
             Take the page
           </button>
@@ -207,13 +220,8 @@ export function RunViewer({
           <button
             type="button"
             className="btn"
-            disabled={busy}
-            onClick={() =>
-              void guard(
-                () => agentRunSeams.releaseControl(run.id),
-                "Handed back. It will check the page before carrying on.",
-              )
-            }
+            disabled={controlsDisabled}
+            onClick={() => setApproval("release")}
           >
             Hand it back
           </button>

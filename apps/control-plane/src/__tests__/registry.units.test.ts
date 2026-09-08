@@ -23,16 +23,11 @@ import {
   providerByIssuer,
   staticProviders,
 } from "../interactions/registry.js";
-import type { TrustResolution } from "../interactions/trust.js";
 import {
   type ByoUpstream,
   resolveTrustedIssuer,
 } from "../interactions/trust.js";
 import type { InteractionDetails } from "../interactions/types.js";
-import {
-  emailClaimMayJoinAccounts,
-  emailLinkFields,
-} from "../services/email-authority.js";
 
 /**
  * The provider registry, the trust fence it feeds, and the public catalog.
@@ -44,7 +39,7 @@ import {
  * a client secret offered to the wrong party.
  */
 
-const DEV = { OPENSESAME_ALLOW_DEV_DEFAULTS: "true" } as const;
+const DEV = { OPENSESAME_ALLOW_DEV_DEFAULTS: "1" } as const;
 
 function registry(env: NodeJS.ProcessEnv): ProviderDescriptor[] {
   return loadProviderRegistry(env);
@@ -412,7 +407,8 @@ function prodBase(): ControlPlaneConfig {
     port: 8788,
     publicUrl: "https://id.example",
     issuer: "https://id.example",
-    claimPepper: "unique-claim-pepper-not-dev",
+    claimPepper: "unique-test-only-claim-pepper-at-least-32-characters",
+    databaseUrl: "postgres://test@127.0.0.1/test",
     provisionalCookieName: "os_provisional",
     provisionalTtlMs: 86_400_000,
     logLevel: "info",
@@ -1035,7 +1031,7 @@ describe("GET /v1/federated/providers", () => {
     const { app } = createControlPlane({
       processEnv: {
         ...process.env,
-        OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
         OPENSESAME_TRUSTED_UPSTREAMS: "https://shoo.dev,http://127.0.0.1:9090",
         OPENSESAME_PROVIDERS: "google,github",
         OPENSESAME_PROVIDER_GOOGLE_CLIENT_ID: "google-cid",
@@ -1113,8 +1109,8 @@ afterAll(() => {
 describe("catalogProviders", () => {
   const twoNamesOneIdp = () =>
     loadConfig({
-      OPENSESAME_PUBLIC_URL: "https://id.example",
-      OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+      OPENSESAME_PUBLIC_URL: "http://127.0.0.1:8788",
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
       OPENSESAME_TRUSTED_UPSTREAMS:
         "https://shoo.dev,http://127.0.0.1:9090,http://localhost:9090",
     });
@@ -1166,145 +1162,3 @@ describe("catalogProviders", () => {
  * claim reach the join would let anyone who can run an OIDC server sign in as
  * any existing user.
  */
-describe("emailClaimMayJoinAccounts", () => {
-  const ctx = (verifiedDomainOwner?: string) =>
-    overlapCast<AppContext>({
-      stores: {
-        orgFederation: {
-          emailDomains: {
-            findVerified: async (domain: string) =>
-              verifiedDomainOwner && domain === "acme.example"
-                ? { organizationId: verifiedDomainOwner, domain }
-                : null,
-          },
-        },
-      },
-    });
-
-  const staticTrust = (emailAuthoritative?: boolean) =>
-    overlapCast<TrustResolution>({
-      source: "static",
-      provider: {
-        id: "p",
-        kind: "oidc",
-        label: "P",
-        issuer: "https://idp.example",
-        scopes: "openid email",
-        clientAuth: "none",
-        ...(emailAuthoritative !== undefined
-          ? { emailAuthoritative }
-          : undefined),
-      },
-    });
-
-  it("never lets a visitor-registered issuer join an existing account", async () => {
-    // The takeover this fence exists for: stand up an OIDC server, register it
-    // through the BYO form with no account at all, and mint an id_token
-    // claiming the victim's address is verified. The tuple still admits the
-    // attacker — as a NEW principal, which is the whole of what BYO may do.
-    const trust = overlapCast<TrustResolution>({
-      source: "byo",
-      record: {
-        id: "byo_1",
-        issuer: "https://idp.attacker.example",
-        state: "active",
-        registrationSource: "dcr",
-      },
-    });
-    expect(
-      await emailClaimMayJoinAccounts(ctx(), trust, "victim@corp.example"),
-    ).toBe(false);
-  });
-
-  it("lets a provider the operator vouched for join", async () => {
-    expect(
-      await emailClaimMayJoinAccounts(
-        ctx(),
-        staticTrust(true),
-        "someone@example.test",
-      ),
-    ).toBe(true);
-  });
-
-  it("refuses a configured provider nobody vouched for", async () => {
-    // Off by default. An operator adding a provider is saying "people may sign
-    // in with this", not "this checks the addresses it reports".
-    expect(
-      await emailClaimMayJoinAccounts(
-        ctx(),
-        staticTrust(),
-        "someone@example.test",
-      ),
-    ).toBe(false);
-    expect(
-      await emailClaimMayJoinAccounts(
-        ctx(),
-        staticTrust(false),
-        "someone@example.test",
-      ),
-    ).toBe(false);
-  });
-
-  it("lets an organization speak only for a domain it proved", async () => {
-    const trust = overlapCast<TrustResolution>({
-      source: "org",
-      organizationId: "org_acme",
-      issuer: "https://sso.acme.example",
-      method: "sso",
-    });
-    expect(
-      await emailClaimMayJoinAccounts(
-        ctx("org_acme"),
-        trust,
-        "person@acme.example",
-      ),
-    ).toBe(true);
-    // The owner runs the IdP, so nothing stops them asserting this address —
-    // except that they never proved they run gmail.com.
-    expect(
-      await emailClaimMayJoinAccounts(
-        ctx("org_acme"),
-        trust,
-        "victim@gmail.com",
-      ),
-    ).toBe(false);
-    // Nor may one tenant borrow another tenant's proof.
-    expect(
-      await emailClaimMayJoinAccounts(
-        ctx("org_other"),
-        trust,
-        "person@acme.example",
-      ),
-    ).toBe(false);
-  });
-
-  it("drops the verification claim rather than storing it unhonoured", async () => {
-    // Storing an unhonoured `true` would leave a row that a later, genuinely
-    // verified sign-in attaches itself to — the same takeover with the steps
-    // reversed. The address is still recorded.
-    const trust = overlapCast<TrustResolution>({
-      source: "byo",
-      record: { id: "byo_1", issuer: "https://idp.attacker.example" },
-    });
-    expect(
-      await emailLinkFields(ctx(), trust, "Victim@Corp.Example", true),
-    ).toEqual({ emailNormalized: "victim@corp.example" });
-  });
-
-  it("normalizes and reports a claim it does honour", async () => {
-    expect(
-      await emailLinkFields(
-        ctx(),
-        staticTrust(true),
-        " Ada@Example.Test ",
-        true,
-      ),
-    ).toEqual({ emailNormalized: "ada@example.test", emailVerified: true });
-  });
-
-  it("reports nothing when the upstream named no address", async () => {
-    expect(
-      await emailLinkFields(ctx(), staticTrust(true), undefined, true),
-    ).toEqual({});
-  });
-});

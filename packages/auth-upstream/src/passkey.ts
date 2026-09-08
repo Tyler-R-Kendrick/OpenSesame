@@ -66,10 +66,38 @@ export interface PasskeySeam {
   ): Promise<{ ok: true; principalId: string } | { ok: false }>;
 }
 
+export interface PasskeyCredentialStore {
+  get(id: string): Promise<PasskeyCredential | undefined>;
+  create(record: PasskeyCredential): Promise<boolean>;
+  advance(id: string, counter: number): Promise<boolean>;
+}
+
+export function createMemoryPasskeyCredentialStore(): PasskeyCredentialStore {
+  const credentials = new Map<string, PasskeyCredential>();
+  return {
+    get: async (id) => credentials.get(id),
+    create: async (record) => {
+      if (credentials.has(record.credentialId)) return false;
+      credentials.set(record.credentialId, record);
+      return true;
+    },
+    advance: async (id, counter) => {
+      const current = credentials.get(id);
+      if (!current) return false;
+      if (counter === 0) return current.counter === 0;
+      if (counter <= current.counter) return false;
+      credentials.set(id, { ...current, counter });
+      return true;
+    },
+  };
+}
+
 export function createPasskeySeam(options?: {
   verifyAssertion?: PasskeyVerifyFn;
+  credentialStore?: PasskeyCredentialStore;
 }): PasskeySeam {
-  const credentials = new Map<string, PasskeyCredential>();
+  const credentials =
+    options?.credentialStore ?? createMemoryPasskeyCredentialStore();
   const verifyAssertion: PasskeyVerifyFn =
     options?.verifyAssertion ??
     (async () => {
@@ -80,19 +108,17 @@ export function createPasskeySeam(options?: {
 
   return {
     async register(principalId, credential) {
-      // No await between ownership check and insertion: enrollment never replaces a key.
-      if (credentials.has(credential.credentialId)) {
+      const record: PasskeyCredential = { ...credential, principalId };
+      if (!(await credentials.create(record))) {
         throw new DomainError(
           "CONFLICT",
           "Passkey credential already registered",
         );
       }
-      const record: PasskeyCredential = { ...credential, principalId };
-      credentials.set(record.credentialId, record);
       return record;
     },
     async verify(assertion) {
-      const credential = credentials.get(assertion.credentialId);
+      const credential = await credentials.get(assertion.credentialId);
       if (!credential) return { ok: false };
       const outcome = await verifyAssertion(assertion, credential);
       const result: PasskeyVerifyResult =
@@ -101,16 +127,13 @@ export function createPasskeySeam(options?: {
       if (!result.ok) return { ok: false };
 
       const next = result.newCounter;
-      if (next !== undefined && next !== 0) {
+      if (next !== undefined) {
+        if (!Number.isSafeInteger(next) || next < 0) return { ok: false };
         // A counter that fails to advance means the credential was cloned (or an
         // assertion is being replayed): refuse and keep the stored value.
         // The verifier awaited; another assertion may have advanced the counter.
-        const current = credentials.get(credential.credentialId);
-        if (!current || next <= current.counter) return { ok: false };
-        credentials.set(credential.credentialId, {
-          ...credential,
-          counter: next,
-        });
+        if (!(await credentials.advance(credential.credentialId, next)))
+          return { ok: false };
       }
       return { ok: true, principalId: credential.principalId };
     },

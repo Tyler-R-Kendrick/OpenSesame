@@ -20,6 +20,7 @@ import {
   isWebMcpToolExposed,
   webmcpRegistrationSnapshot,
 } from "../../webmcp/registration.js";
+import { capabilitiesForContext } from "./capability-context.js";
 import { inDevelopment } from "./dev.js";
 import { describeGuideGoals, rankHelpTopics } from "./goals.js";
 import {
@@ -37,10 +38,16 @@ import { describeGuideTargets } from "./targets.js";
 function describeCapabilities(
   hostReachable: boolean,
   identityReachable: boolean,
+  route: string,
+  help: readonly SupportHelpEntry[],
 ): readonly SupportCapabilityDescription[] {
   const out: SupportCapabilityDescription[] = [];
-  for (const capability of CAPABILITIES) {
-    if (capability.surfaces.pwa === null) continue;
+  const helpGoals = help.flatMap((entry) => (entry.goal ? [entry.goal] : []));
+  for (const capability of capabilitiesForContext(
+    CAPABILITIES,
+    route,
+    helpGoals,
+  )) {
     const available =
       capability.plane === "host"
         ? hostReachable
@@ -147,6 +154,7 @@ export function buildSupportPageContext(
   input: PageContextInput,
 ): SupportPageContext {
   const route = knownRouteOrVault(input.route);
+  const help = describeHelp(input.question, route);
   return {
     version: 1,
     pageId: input.pageId,
@@ -169,13 +177,15 @@ export function buildSupportPageContext(
     capabilities: describeCapabilities(
       input.hostReachable,
       input.identityReachable,
+      route,
+      help,
     ),
     goals: withinBudget(
       describeGuideGoals(route),
       SUPPORT_LIMITS.maxGoals,
       "goals",
     ),
-    help: describeHelp(input.question, route),
+    help,
     tools: describeTools(),
   };
 }

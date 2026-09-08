@@ -792,16 +792,15 @@ export async function revokeSessionsForIdentity(
 
   const now = ctx.clock();
   let revoked = 0;
-  for (const [sessionId, session] of ctx.stores.provisionalSessions) {
+  const sessions = await ctx.stores.provisionalSessions.entries();
+  for (const [sessionId, session] of sessions) {
     if (!principalIds.has(session.principalId)) continue;
     if (session.revokedAt) continue;
-    ctx.stores.provisionalSessions.set(sessionId, {
+    await ctx.stores.provisionalSessions.set(sessionId, {
       ...session,
       revokedAt: now,
     });
-    for (const [token, id] of ctx.stores.provisionalTokens) {
-      if (id === sessionId) ctx.stores.provisionalTokens.delete(token);
-    }
+    await revokeSessionTokens(ctx.stores, sessionId);
     revoked += 1;
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "principal.provisional_revoked",
@@ -858,3 +857,4 @@ export function decodePending(
     return undefined;
   }
 }
+import { revokeSessionTokens } from "../repos/session-storage.js";

@@ -58,3 +58,10 @@ export {
   fakeAgentReplanning,
   fakeSupportPageContext,
 } from "./fake.js";
+export {
+  REMOTE_QUESTION_LIMIT,
+  REMOTE_PAYLOAD_BYTES,
+  redactSupportQuestion,
+  remoteSupportPayload,
+  type RemoteSupportPayload,
+} from "./remote-payload.js";

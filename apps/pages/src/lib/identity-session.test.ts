@@ -1,5 +1,15 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  HOST,
+  IDENTITY,
+  jsonResponse,
+  provisionalBody,
+  stubBasic,
+  stubFetch,
+} from "./__tests__/identity-session-support.js";
+import { loopbackProfileEligible } from "./__tests__/loopback-profile.js";
+import { browserPairingSeams } from "./browser-pairing.js";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   HostSessionError,
@@ -22,55 +32,12 @@ import {
   probeIdentity,
   probeOrphanSession,
 } from "./identity.js";
+import { localNetworkFetchSeams } from "./local-network-fetch.js";
 import { loadSettings, saveSettings } from "./settings.js";
-
-const HOST = "http://127.0.0.1:18787";
-const IDENTITY = "http://127.0.0.1:18788";
-
-function jsonResponse(body: BoundaryValue, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function stubFetch(
-  handler: (url: string, init?: RequestInit) => Response | Promise<Response>,
-) {
-  const spy = vi.fn((input: RequestInfo | URL, init?: RequestInit) =>
-    Promise.resolve(handler(String(input), init)),
-  );
-  vi.stubGlobal("fetch", spy);
-  return spy;
-}
-
-function provisionalBody(token = "identity_tok") {
-  return {
-    principalId: "principal_1",
-    accessToken: token,
-    expiresAt: "2099-01-01T00:00:00Z",
-  };
-}
-
-/** The default plumbing: no cookie, provisional mint works, revoke works. */
-function stubBasic(
-  handler?: (url: string, init?: RequestInit) => Response | undefined,
-) {
-  return stubFetch((url, init) => {
-    const override = handler?.(url, init);
-    if (override) return override;
-    if (url === `${IDENTITY}/v1/principals/me`) return jsonResponse({}, 401);
-    if (url === `${IDENTITY}/v1/principals/provisional`) {
-      return jsonResponse(provisionalBody());
-    }
-    if (url === `${IDENTITY}/v1/principals/provisional/revoke`) {
-      return jsonResponse({ ok: true });
-    }
-    return jsonResponse({ error: "unexpected" }, 500);
-  });
-}
+const networkEligible = localNetworkFetchSeams.eligible;
 
 beforeEach(() => {
+  localNetworkFetchSeams.eligible = loopbackProfileEligible;
   clearSession();
   clearHostSession();
   saveSettings({
@@ -88,6 +55,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  localNetworkFetchSeams.eligible = networkEligible;
   clearSession();
   clearHostSession();
   vi.unstubAllGlobals();
@@ -452,179 +420,21 @@ describe("missing configuration", () => {
   });
 });
 
-describe("Host session minting", () => {
-  it("skips the loopback-only local mint for a remote Host", async () => {
-    saveSettings({ ...loadSettings(), hostApi: "https://host.example" });
-    const spy = stubBasic((url) => {
-      if (url === "https://host.example/api/v1/device/authorize") {
-        return jsonResponse({ device_code: "dc", user_code: "UC" });
-      }
-      if (url === `${IDENTITY}/v1/device/approve`) {
-        return jsonResponse({ ok: true });
-      }
-      if (url === "https://host.example/api/v1/device/token") {
-        return jsonResponse({
-          access_token: "opaque-session:remote",
-          expires_in: 3600,
-        });
-      }
-      if (url === "https://host.example/api/v1/x") {
-        return jsonResponse({ ok: true });
-      }
-      return undefined;
-    });
-
-    const res = await hostFetch("/api/v1/x");
-    expect(res.ok).toBe(true);
-    expect(
-      spy.mock.calls.some(([url]) => String(url).includes("/session/local")),
-    ).toBe(false);
-    const call = spy.mock.calls.find(
-      ([url]) => url === "https://host.example/api/v1/x",
-    );
-    expect(new Headers(call?.[1]?.headers).get("authorization")).toBe(
-      "Bearer opaque-session:remote",
-    );
-    // Reused for the next call rather than reminted.
-    await hostFetch("/api/v1/x");
-    expect(
-      spy.mock.calls.filter(
-        ([url]) => url === "https://host.example/api/v1/device/token",
-      ),
-    ).toHaveLength(1);
+describe("Host session authority", () => {
+  it("requires explicit pairing and never calls a local or device mint endpoint", async () => {
+    const fetcher = stubFetch(() => jsonResponse({}));
+    await expect(ensureHostSession()).rejects.toBeInstanceOf(HostSessionError);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("rejects an invalid local-session answer", async () => {
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) {
-        return jsonResponse({ access_token: "wrong-prefix", expires_in: 10 });
-      }
-      return undefined;
+  it("does not exchange an Identity session for an unbound browser bearer", async () => {
+    stubBasic();
+    await connectProvisional();
+    const fetcher = stubFetch(() => jsonResponse({}));
+    await expect(hostFetch("/api/v1/sync/pull")).rejects.toMatchObject({
+      code: "setup_required",
     });
-    const error = await ensureHostSession().catch((caught) => caught);
-    expect(error).toBeInstanceOf(HostSessionError);
-    expect(overlapCast(error).code).toBe("invalid_host");
-    expect(overlapCast(error).message).toMatch(/invalid local session/);
-  });
-
-  it("rejects an invalid device grant", async () => {
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) return jsonResponse({}, 503);
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return jsonResponse({ device_code: 42 });
-      }
-      return undefined;
-    });
-    await expect(ensureHostSession()).rejects.toThrow(/invalid device grant/);
-  });
-
-  it("extracts nested error details from Host failures", async () => {
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) return jsonResponse({}, 503);
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return jsonResponse({ body: { hint: "finish setup first" } }, 409);
-      }
-      return undefined;
-    });
-    const error = await ensureHostSession().catch((caught) => caught);
-    expect(error).toBeInstanceOf(HostSessionError);
-    expect(overlapCast(error).code).toBe("setup_required");
-    expect(overlapCast(error).message).toContain("finish setup first");
-  });
-
-  it("falls back to status codes for detail-less and non-JSON failures", async () => {
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) return jsonResponse({}, 503);
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return jsonResponse({ error: 42 }, 500);
-      }
-      return undefined;
-    });
-    let error = await ensureHostSession().catch((caught) => caught);
-    expect(overlapCast(error).code).toBe("invalid_host");
-    expect(overlapCast(error).message).toMatch(/\(500\)/);
-
-    clearHostSession();
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) return jsonResponse({}, 503);
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return new Response("bad gateway", { status: 502 });
-      }
-      return undefined;
-    });
-    error = await ensureHostSession().catch((caught) => caught);
-    expect(overlapCast(error).message).toMatch(/\(502\)/);
-  });
-
-  it("surfaces approval and exchange failures", async () => {
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) return jsonResponse({}, 503);
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return jsonResponse({ device_code: "dc", user_code: "UC" });
-      }
-      if (url === `${IDENTITY}/v1/device/approve`) {
-        return jsonResponse({ hint: "unknown user code" }, 400);
-      }
-      return undefined;
-    });
-    let error = await ensureHostSession().catch((caught) => caught);
-    expect(overlapCast(error).message).toContain("unknown user code");
-
-    clearHostSession();
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) return jsonResponse({}, 503);
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return jsonResponse({ device_code: "dc", user_code: "UC" });
-      }
-      if (url === `${IDENTITY}/v1/device/approve`) return jsonResponse({});
-      if (url === `${HOST}/api/v1/device/token`) {
-        return jsonResponse({ error: "expired" }, 400);
-      }
-      return undefined;
-    });
-    error = await ensureHostSession().catch((caught) => caught);
-    expect(overlapCast(error).message).toMatch(/exchange failed/);
-
-    clearHostSession();
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) return jsonResponse({}, 503);
-      if (url === `${HOST}/api/v1/device/authorize`) {
-        return jsonResponse({ device_code: "dc", user_code: "UC" });
-      }
-      if (url === `${IDENTITY}/v1/device/approve`) return jsonResponse({});
-      if (url === `${HOST}/api/v1/device/token`) {
-        return jsonResponse({ access_token: "not-opaque", expires_in: 5 });
-      }
-      return undefined;
-    });
-    error = await ensureHostSession().catch((caught) => caught);
-    expect(overlapCast(error).message).toMatch(/invalid session/);
-  });
-
-  it("drops the Host session when the API answers 401", async () => {
-    let hostCalls = 0;
-    stubBasic((url) => {
-      if (url === `${HOST}/api/v1/session/local`) {
-        hostCalls += 1;
-        return jsonResponse({
-          access_token: `opaque-session:s${hostCalls}`,
-          expires_in: 3600,
-        });
-      }
-      if (url === `${HOST}/api/v1/data`) {
-        // First call unauthorized, second call (fresh session) fine.
-        return hostCalls === 1
-          ? jsonResponse({ error: "expired" }, 401)
-          : jsonResponse({ ok: true });
-      }
-      return undefined;
-    });
-
-    const first = await hostFetch("/api/v1/data");
-    expect(first.status).toBe(401);
-    const second = await hostFetch("/api/v1/data");
-    expect(second.ok).toBe(true);
-    expect(hostCalls).toBe(2);
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });
 
@@ -656,4 +466,13 @@ describe("plane probes", () => {
     vi.stubGlobal("fetch", spy);
     await expect(probeHost()).resolves.toBe("reachable");
   });
+});
+
+// Profile eligibility permits local health requests, never authenticated authority.
+const originalPairingEligibility = browserPairingSeams.eligible;
+beforeEach(() => {
+  browserPairingSeams.eligible = loopbackProfileEligible;
+});
+afterEach(() => {
+  browserPairingSeams.eligible = originalPairingEligibility;
 });

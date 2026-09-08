@@ -127,7 +127,7 @@ function resultText(result: ToolResultLike): string {
  * Classifies a successful (non-throwing) tool call. `"refused"` covers this
  * server's own deliberate "no" paths — `task_context_required`,
  * `secret_tools_forbidden`, `materialize_denied`, and similar wording from
- * `tools.ts`'s `toolError()` helper and `operator_invoke_l1`'s explicit
+ * `tools.ts`'s `toolError()` helper and `task_invoke_l1`'s explicit
  * denial check read as an authoritative refusal rather than an unexpected
  * failure. Anything else with `isError: true` is a generic `"error"`.
  *

@@ -21,8 +21,8 @@ The origin-profile issuer must be enabled on the control plane:
 
 | Path | Pattern |
 |------|---------|
-| `/` | ESM `createOpenSesame({ issuer })` — zero-config origin mode |
-| `/opensesame/callback` | Completes PKCE and returns to `returnTo` |
+| `/` | Canonical `createHostedClient` with explicit hosted Identity profile |
+| `/opensesame/callback` | Consumes the PKCE transaction, verifies issuer/nonce/RP audience and displays the subject |
 
 Default redirect URI: `{origin}/opensesame/callback`.
 
@@ -34,5 +34,9 @@ pnpm --filter @opensesame/example-static-rp dev:4101   # http://127.0.0.1:4101
 pnpm --filter @opensesame/example-static-rp dev:4102   # http://127.0.0.1:4102
 ```
 
-A hosted IIFE bundle is not part of this package; sdk-browser is consumed as
-an ESM module (slice 4 deferred the IIFE).
+The example consumes `@opensesame/static-auth` as ESM. Its immutable, SRI-pinned
+IIFE is also available from Pages; see `docs/operators/pages-origin.md`.
+No token is stored by this example or inserted into HTML. Reloading the page
+does not fabricate an authenticated session. The issuer must return an exact
+`iss` authorization response and expose its configured JWKS endpoint with
+exact-origin CORS.

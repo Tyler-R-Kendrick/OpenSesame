@@ -15,6 +15,7 @@ export {
   createPasskeySeam,
   type PasskeyAssertion,
   type PasskeyCredential,
+  type PasskeyCredentialStore,
   type PasskeySeam,
   type PasskeyVerifyFn,
   type PasskeyVerifyResult,
@@ -69,3 +70,4 @@ export {
   type UpstreamAuthDatabase,
   type UpstreamMagicLinkOptions,
 } from "./better-auth.js";
+export { createMemoryPasskeyCredentialStore } from "./passkey.js";

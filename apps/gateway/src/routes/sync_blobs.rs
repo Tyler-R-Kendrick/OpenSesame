@@ -16,7 +16,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::app_state::AppState;
-use crate::middleware::auth::{require_session, session_subject};
+use crate::middleware::auth::require_session;
 
 /// Wire view of a stored sync blob — ciphertext only.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -110,6 +110,10 @@ pub fn validate_opaque_blob(blob: &OpaqueSyncBlobDto) -> Result<(), &'static str
 #[derive(Deserialize)]
 pub struct SyncBlobsSnapshotQuery {
     #[serde(default)]
+    after: Option<super::sync_page::Cursor>,
+    #[serde(default)]
+    limit: Option<u32>,
+    #[serde(default)]
     since_epoch: u64,
     #[serde(default)]
     project_id: Option<String>,
@@ -121,40 +125,33 @@ pub async fn snapshot(
     headers: axum::http::HeaderMap,
     Json(body): Json<SyncBlobsSnapshotQuery>,
 ) -> Response {
-    let owner_id = match require_session(&st, &headers) {
-        Ok((_, meta)) => session_subject(&meta),
-        Err(resp) => return resp,
-    };
-    let blobs: Vec<OpaqueSyncBlobDto> =
-        match st.db.list_sync_blobs(&owner_id, body.since_epoch).await {
-            Ok(rows) => rows
-                .into_iter()
-                .map(OpaqueSyncBlobDto::from)
-                .filter(|blob| project_scoped(&blob.id, body.project_id.as_deref()))
-                .collect(),
-            Err(error) => {
-                tracing::error!(error = %error, "encrypted sync snapshot failed");
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": "sync_storage_failed"})),
-                )
-                    .into_response();
-            }
-        };
-    Json(json!({
-        "format": "opensesame-sync-blobs-snapshot",
-        "version": 1,
-        "project_id": body.project_id,
-        "blobs": blobs,
-        "plaintext": null,
-        "note": "ciphertext only — Host never decrypts; VRK stays on device",
-        "wrap_key": null,
-        "deployment_seal_used": false,
-    }))
-    .into_response()
+    if body.after.is_none() && body.since_epoch != 0 {
+        return (
+            StatusCode::CONFLICT,
+            Json(json!({"error":"sync_cursor_upgrade_required","restart_after":null})),
+        )
+            .into_response();
+    }
+    super::sync_page::serve_page(
+        &st,
+        &headers,
+        super::sync_page::PageQuery {
+            after: body.after.or_else(|| {
+                Some(super::sync_page::Cursor {
+                    epoch: body.since_epoch.saturating_add(1),
+                    id: String::new(),
+                })
+            }),
+            limit: body.limit,
+            device_id: None,
+        },
+        true,
+        body.project_id,
+    )
+    .await
 }
 
-fn project_scoped(blob_id: &str, project_id: Option<&str>) -> bool {
+pub(super) fn project_scoped(blob_id: &str, project_id: Option<&str>) -> bool {
     let Some(project_id) = project_id.filter(|p| !p.is_empty()) else {
         return true;
     };
@@ -264,6 +261,8 @@ mod tests {
             State(state),
             axum::http::HeaderMap::new(),
             Json(SyncBlobsSnapshotQuery {
+                after: None,
+                limit: None,
                 since_epoch: 0,
                 project_id: None,
             }),

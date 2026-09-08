@@ -48,6 +48,7 @@ function resumePath(request: BrokerRequest): string {
     origin: request.origin,
     state: request.state,
     scope: request.scope,
+    profile: "pages_passthrough_loopback",
   });
   return `/broker/authorize?${params.toString()}`;
 }
@@ -83,9 +84,7 @@ export function BrokerAuthorize() {
         via:
           via === "postMessage"
             ? "Sent to the site. You can close this window."
-            : via === "fragment"
-              ? "Redirecting back to the site…"
-              : "Could not reach the site window. Copy failed — close this tab and try again from the site.",
+            : "Could not reach the site window. Close this tab and try again from the site.",
       });
     },
     [searchParams],

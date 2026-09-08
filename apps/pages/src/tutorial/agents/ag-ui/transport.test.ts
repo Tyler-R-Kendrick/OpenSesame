@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+/** @vitest-environment-options { "url": "https://support.example.com/app/" } */
 /**
  * The default transport, driven through its two seams: the module loader and
  * `fetch`. `@ag-ui/client` is never imported here — the loader stands in for
@@ -24,28 +25,18 @@ function endpoint(): AgUiEndpoint {
 }
 
 const BODY: AgUiOutboundBody = {
-  version: 1,
-  instructions: "rules",
-  context: {
-    version: 1,
-    pageId: "pages",
-    route: "connections",
-    targets: [],
-    routes: [],
-    state: [],
-    capabilities: [],
-    goals: [],
-    help: [],
-    tools: [],
-  },
-  history: [],
+  version: 2,
+  pageId: "pages",
+  route: "connections",
+  featureIds: [],
   question: "How do I add a connection?",
 };
 
 function fakeResponse(status: number): Response {
-  // SAFETY: sendSupportRequest reads only `ok` and `status`; this fixture
-  // implements exactly that boundary contract and nothing else is touched.
-  return overlapCast({ ok: status >= 200 && status < 300, status });
+  return new Response(null, {
+    status,
+    headers: { "X-OpenSesame-Support-Session": "active" },
+  });
 }
 
 type Attempt = { readonly input: string; readonly init: RequestInit };
@@ -85,7 +76,31 @@ async function drain(stream: AsyncIterable<JsonValue>): Promise<JsonValue[]> {
 }
 
 describe("createAgUiTransport", () => {
-  it("posts the body with no ambient credentials and no redirect", async () => {
+  it.each([401, 204])(
+    "does not POST without an authenticated marker (%s)",
+    async (status) => {
+      const attempts: Attempt[] = [];
+      const transport = createAgUiTransport({
+        loadClient: fakeLoader([], []),
+        fetchImpl: async (input, init) => {
+          attempts.push({ input, init });
+          return new Response(null, { status });
+        },
+      });
+      await expect(
+        drain(
+          transport({
+            endpoint: endpoint(),
+            body: BODY,
+            signal: new AbortController().signal,
+          }),
+        ),
+      ).rejects.toThrow();
+      expect(attempts.map((attempt) => attempt.init.method)).toEqual(["HEAD"]);
+      expect(attempts[0]?.init.body).toBeUndefined();
+    },
+  );
+  it("checks a same-origin session before posting without redirects", async () => {
     const attempts: Attempt[] = [];
     const fetchImpl: AgUiFetch = async (input, init) => {
       attempts.push({ input, init });
@@ -104,11 +119,13 @@ describe("createAgUiTransport", () => {
       }),
     );
 
-    expect(attempts).toHaveLength(1);
-    const attempt = attempts[0];
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0]?.init.method).toBe("HEAD");
+    expect(attempts[0]?.init.body).toBeUndefined();
+    const attempt = attempts[1];
     expect(attempt?.input).toBe("https://support.example.com/agui");
     expect(attempt?.init.method).toBe("POST");
-    expect(attempt?.init.credentials).toBe("omit");
+    expect(attempt?.init.credentials).toBe("same-origin");
     expect(attempt?.init.redirect).toBe("error");
     expect(attempt?.init.referrerPolicy).toBe("no-referrer");
     expect(attempt?.init.cache).toBe("no-store");
@@ -150,7 +167,8 @@ describe("createAgUiTransport", () => {
   it("refuses a non-200 answer before any event is decoded", async () => {
     const transport = createAgUiTransport({
       loadClient: fakeLoader([{ type: "TEXT_MESSAGE_CHUNK", delta: "x" }], []),
-      fetchImpl: async () => fakeResponse(502),
+      fetchImpl: async (_input, init) =>
+        fakeResponse(init.method === "HEAD" ? 200 : 502),
     });
 
     const failure = await drain(

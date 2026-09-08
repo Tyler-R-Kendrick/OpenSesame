@@ -11,5 +11,6 @@ export {
   REDACTED,
   forAgent,
   looksLikeCredential,
+  registerAgentSecret,
   scrubLocalSecrets,
 } from "./agent-payload.js";

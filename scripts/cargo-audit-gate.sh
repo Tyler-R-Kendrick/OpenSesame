@@ -4,7 +4,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-mkdir -p artifacts/security
+source "$ROOT/scripts/lib/audit-directory.sh"
+opensesame_audit_directory
 
 TOOLCHAIN="${OPENSESAME_RUST_TOOLCHAIN:-1.88.0}"
 
@@ -15,16 +16,16 @@ fi
 
 echo "==> cargo +${TOOLCHAIN} audit"
 set +e
-cargo "+${TOOLCHAIN}" audit --json >artifacts/security/cargo-audit.json
-cargo "+${TOOLCHAIN}" audit 2>&1 | tee artifacts/security/cargo-audit.txt
+cargo "+${TOOLCHAIN}" audit --json >"$OPENSESAME_AUDIT_DIR/cargo-audit.json"
+cargo "+${TOOLCHAIN}" audit 2>&1 | tee "$OPENSESAME_AUDIT_DIR/cargo-audit.txt"
 set -e
 
 python3 - <<'PY'
-import json
+import json, os
 import sys
 from pathlib import Path
 
-path = Path("artifacts/security/cargo-audit.json")
+path = Path(os.environ["OPENSESAME_AUDIT_DIR"]) / "cargo-audit.json"
 if not path.exists() or path.stat().st_size == 0:
     print("cargo-audit gate: FAIL (missing JSON report)", file=sys.stderr)
     sys.exit(1)

@@ -1,0 +1,16 @@
+{
+  "version": "1.0.2",
+  "packageVersion": "1.0.2",
+  "sourceCommit": "6ba92e2a2ba701fc859b20646cf06d94809956fb",
+  "sri": "sha384-5qJEXhBSxA616rfDLO7qmrAKhzf6eIhizbRUsPeumqZa2G8Sj95enxl0OhSaKGCr",
+  "artifacts": [
+    {
+      "path": "apps/pages/public/static-auth/1.0.2/opensesame-auth.min.js",
+      "sri": "sha384-5qJEXhBSxA616rfDLO7qmrAKhzf6eIhizbRUsPeumqZa2G8Sj95enxl0OhSaKGCr"
+    },
+    {
+      "path": "apps/pages/public/auth.js",
+      "sri": "sha384-3ja8qPvrKWHcFXbLAgIeUQVb3yVQO2kDbnomLIY1Jq/GR+Gnmf7WoUcvmFIbM8aq"
+    }
+  ]
+}

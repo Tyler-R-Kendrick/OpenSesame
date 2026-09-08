@@ -3,16 +3,20 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-mkdir -p artifacts/security
-export SEMGREP_SETTINGS_FILE="${SEMGREP_SETTINGS_FILE:-$ROOT/artifacts/security/semgrep-settings.yml}"
-export SEMGREP_LOG_FILE="${SEMGREP_LOG_FILE:-$ROOT/artifacts/security/semgrep-user.log}"
+source "$ROOT/scripts/lib/audit-directory.sh"
+opensesame_audit_directory
+if [[ -n "${SEMGREP_SETTINGS_FILE:-}" && -f "$SEMGREP_SETTINGS_FILE" ]]; then
+  cp -- "$SEMGREP_SETTINGS_FILE" "$OPENSESAME_AUDIT_DIR/semgrep-settings.yml"
+fi
+export SEMGREP_SETTINGS_FILE="$OPENSESAME_AUDIT_DIR/semgrep-settings.yml"
+export SEMGREP_LOG_FILE="$OPENSESAME_AUDIT_DIR/semgrep-user.log"
 
 if ! command -v semgrep >/dev/null 2>&1; then
   echo "semgrep not installed" >&2
   exit 1
 fi
 
-REPORT="artifacts/security/semgrep.json"
+REPORT="$OPENSESAME_AUDIT_DIR/semgrep.json"
 # Keep rulesets small + scoped so the job completes without hanging agents.
 RULES=(--config=p/rust --config=p/typescript --config=p/javascript)
 PATHS=(apps crates packages)
@@ -33,14 +37,14 @@ semgrep scan \
   --json \
   --output="$REPORT" \
   "${PATHS[@]}" \
-  2>artifacts/security/semgrep.err
+  2>"$OPENSESAME_AUDIT_DIR/semgrep.err"
 status=$?
 set -e
 
 # Semgrep: 0 = clean, 1 = findings, 2 = fatal
 if [[ "$status" -eq 2 ]]; then
   echo "semgrep gate: FAIL (scanner error)" >&2
-  cat artifacts/security/semgrep.err >&2 || true
+  cat "$OPENSESAME_AUDIT_DIR/semgrep.err" >&2 || true
   exit 1
 fi
 if [[ "$status" -eq 1 ]]; then

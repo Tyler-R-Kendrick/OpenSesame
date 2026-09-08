@@ -18,7 +18,7 @@ use opensesame_storage::BackupTarget;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
-use crate::backup::{CommitOutcome, SnapshotFile, StepError};
+use crate::backup::{CommitOutcome, SnapshotPlan, StepError};
 
 pub const KIND_GITHUB_APP: &str = "github_app";
 pub const KIND_CONNECTOR: &str = "connector";
@@ -92,12 +92,20 @@ impl ConnectorSnapshotTarget {
     /// the connection); everything else retries with backoff.
     pub async fn commit_snapshot(
         &self,
-        files: &[SnapshotFile],
+        files: &mut SnapshotPlan,
         message: &str,
     ) -> Result<CommitOutcome, StepError> {
-        let mut manifest_entries = Vec::with_capacity(files.len());
-        for file in files {
+        let mut digests = std::collections::BTreeMap::new();
+        let mut budget = crate::backup::InventoryBudget::default();
+        while let Some(file) = files
+            .next_file()
+            .await
+            .map_err(|_| StepError::Retry("snapshot page unavailable".into()))?
+        {
             let url = self.file_url(&file.path);
+            budget
+                .reserve(&file.path, &"0".repeat(64))
+                .map_err(|_| StepError::Retry("backup inventory exceeds limit".into()))?;
             self.broker
                 .authorized_bytes(
                     &self.organization,
@@ -108,11 +116,15 @@ impl ConnectorSnapshotTarget {
                 )
                 .await
                 .map_err(|e| map_broker_error(&e))?;
-            manifest_entries.push(serde_json::json!({
-                "path": file.path,
-                "sha256": format!("{:x}", Sha256::digest(file.content.as_bytes())),
-            }));
+            digests.insert(
+                file.path,
+                format!("{:x}", Sha256::digest(file.content.as_bytes())),
+            );
         }
+        let manifest_entries: Vec<_> = digests
+            .into_iter()
+            .map(|(path, sha256)| serde_json::json!({"path":path,"sha256":sha256}))
+            .collect();
         let manifest = serde_json::json!({
             "message": message,
             "files": manifest_entries,

@@ -3,8 +3,8 @@
  *
  * The remote transport is off unless a deployment turns it on, and there is no
  * fallback destination to fall back to: `readAgUiEndpoint` returns `null` for
- * absent config, for malformed config, and for every URL that is not either
- * https or http on a development origin this page already trusts. A vault that
+ * absent config, for malformed config, and for every URL that is not HTTPS on
+ * this page's exact origin. A vault that
  * nobody configured therefore answers support questions on-device or not at
  * all.
  *
@@ -14,7 +14,7 @@
  * storage is readable by any script that reaches this origin. So this file
  * offers no place to put one: authenticate by putting the endpoint on this
  * deployment's own origin behind a reverse proxy that holds the credential
- * server-side, or run it unauthenticated on localhost. See README.md.
+ * server-side and validates the current Identity session. See README.md.
  */
 
 import {
@@ -23,7 +23,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { isLoopbackUrl, isSameOrigin } from "../../../lib/urls.js";
+import { isSameOrigin } from "../../../lib/urls.js";
 
 export type AgUiEndpoint = {
   readonly url: string;
@@ -69,18 +69,14 @@ function parseAbsoluteHttpUrl(raw: string): URL | null {
 /**
  * Validate one configured URL into an endpoint, or refuse it.
  *
- * https anywhere; http only where a development server legitimately lives —
- * loopback, or this page's own origin when the page itself is being served
- * over http. Cleartext to any other host would put the question and the page
- * vocabulary on the wire in the open.
+ * HTTPS on the exact deployment origin only. Authentication is checked before
+ * the payload is sent; configuring an endpoint does not grant a session.
  */
 export function readAgUiEndpointUrl(raw: string): AgUiEndpoint | null {
   const url = parseAbsoluteHttpUrl(raw);
   if (url === null) return null;
   const normalized = `${url.origin}${url.pathname.replace(/\/$/, "")}`;
-  if (url.protocol !== "https:") {
-    if (!isLoopbackUrl(normalized) && !isSameOrigin(normalized)) return null;
-  }
+  if (url.protocol !== "https:" || !isSameOrigin(normalized)) return null;
   return { url: normalized, headers: AG_UI_HEADERS };
 }
 

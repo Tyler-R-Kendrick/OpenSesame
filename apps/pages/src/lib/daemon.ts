@@ -1,4 +1,5 @@
-import { isString, overlapCast } from "@opensesame/os-domain";
+import { readBoundedObject } from "./bounded-response.js";
+import { BrowserPairingError, browserPairingSeams } from "./browser-pairing.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import {
   loadSettings,
@@ -12,14 +13,14 @@ import { isLoopbackUrl, normalizeTailnetBase } from "./urls.js";
 
 export type DaemonHealth = {
   status: string;
-  service: string;
+  /** Legacy fixture field, never accepted as service identity by the probe. */
+  service?: string;
   /**
    * The upstream planes, *if the daemon said*.
    *
-   * `/health` is deliberately opaque — it carries `status`, `service` and
-   * `tailscale_url` and nothing else, because node IPs, DNS and admin URLs
-   * belong on the operator-token-gated `/v1/toolbar/status`. So these are
-   * normally null, and null has to mean "not stated" rather than a guess:
+   * Public health carries only status. It cannot establish service identity
+   * or advertise trusted endpoints. These are always null in probe results;
+   * null means "not stated" rather than a guess:
    * inventing `127.0.0.1:8787` here made pairing overwrite a working Host.
    */
   hostApi: string | null;
@@ -32,6 +33,8 @@ const PROBE_MS = 4000;
 async function probeDaemonDefault(
   raw: string = loadSettings().daemonApi || shippedDaemonApi,
 ): Promise<DaemonHealth> {
+  if (!browserPairingSeams.eligible())
+    throw new BrowserPairingError("restricted_demo");
   const base = normalizeTailnetBase(raw);
   if (!base) {
     throw new Error("That daemon address is not one this page may call.");
@@ -43,22 +46,15 @@ async function probeDaemonDefault(
   if (!res.ok) {
     throw new Error(`Daemon ${res.status} at ${base}`);
   }
-  const body = overlapCast(await res.json());
-  if (body.service !== "opensesame-daemon") {
-    throw new Error("That URL answered, but it is not an OpenSesame daemon.");
+  const body = await readBoundedObject(res, 4096, PROBE_MS);
+  if (body.status !== "ok") {
+    throw new Error("That URL did not report healthy liveness.");
   }
   return {
-    status: isString(body.status) ? body.status : "ok",
-    service: "opensesame-daemon",
-    hostApi: isString(body.host_api) && body.host_api ? body.host_api : null,
-    identityApi:
-      isString(body.identity_api) && body.identity_api
-        ? body.identity_api
-        : null,
-    tailscaleUrl:
-      isString(body.tailscale_url) && body.tailscale_url
-        ? body.tailscale_url
-        : null,
+    status: "ok",
+    hostApi: null,
+    identityApi: null,
+    tailscaleUrl: null,
   };
 }
 
@@ -80,6 +76,8 @@ async function applyDaemonPairingDefault(
   daemonApi: string,
   health: DaemonHealth,
 ): Promise<void> {
+  if (!browserPairingSeams.eligible())
+    throw new BrowserPairingError("restricted_demo");
   const current = loadSettings();
   const publicBase =
     normalizeTailnetBase(health.tailscaleUrl || daemonApi) ||

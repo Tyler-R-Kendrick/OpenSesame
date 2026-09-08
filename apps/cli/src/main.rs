@@ -6,12 +6,20 @@ mod certs;
 mod configs;
 mod connect;
 mod github;
+mod init_schema;
 mod lifecycle;
+mod local_authority;
 mod providers_native;
 mod security;
 mod store;
+mod sync_commands;
+mod sync_export;
+mod sync_import;
+mod sync_migration;
+mod vault_migration;
 
 use clap::{Parser, Subcommand, ValueEnum};
+use init_schema::init_schema;
 use opensesame_authn::{
     detect_signals_from_env, resolve_login_flow, DevicePollState, DeviceServerStatus, LoginFlow,
     OpenBrowser, WhoAmI,
@@ -30,6 +38,7 @@ use std::{
     process::{Command as StdCommand, Stdio},
     time::Duration,
 };
+use sync_commands::{sync_cmd, SyncCmd};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -53,6 +62,27 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Inspect password-wrapper KDF metadata without deriving a key.
+    #[command(name = "vault-inspect")]
+    VaultInspect {
+        input: PathBuf,
+    },
+    /// Interactively rewrap a local password wrapper into the portable KDF policy.
+    #[command(name = "vault-migrate")]
+    VaultMigrate {
+        input: PathBuf,
+        output: PathBuf,
+        #[arg(long)]
+        memory_kib: u32,
+        #[arg(long)]
+        passes: u32,
+    },
+    /// Approve a paired browser or launch a narrowly scoped local agent.
+    #[command(name = "local-authority")]
+    LocalAuthority {
+        #[command(subcommand)]
+        cmd: local_authority::LocalAuthorityCommand,
+    },
     Login {
         #[arg(long, value_enum, default_value = "auto")]
         flow: FlowArg,
@@ -494,20 +524,6 @@ enum CryptoCmd {
         input: PathBuf,
         #[arg(long)]
         output: PathBuf,
-    },
-}
-
-#[derive(Subcommand, Debug)]
-enum SyncCmd {
-    /// Upload a JSON array of ciphertext blobs.
-    Push { input: PathBuf },
-    /// Download ciphertext blobs to a new JSON file.
-    Pull {
-        output: PathBuf,
-        #[arg(long, default_value_t = 0)]
-        since_epoch: u64,
-        #[arg(long)]
-        device: Option<String>,
     },
 }
 
@@ -1025,6 +1041,14 @@ async fn main() -> anyhow::Result<()> {
         .init();
     let cli = Cli::parse();
     match cli.command {
+        Commands::VaultInspect { input } => vault_migration::inspect(&input)?,
+        Commands::VaultMigrate {
+            input,
+            output,
+            memory_kib,
+            passes,
+        } => vault_migration::migrate(&input, &output, memory_kib, passes)?,
+        Commands::LocalAuthority { cmd } => local_authority::run(&cli.server, cmd).await?,
         Commands::Login {
             flow,
             no_browser,
@@ -1733,8 +1757,15 @@ pub(crate) fn load_access_token() -> anyhow::Result<String> {
 const DEVICE_CODE_TTL_SECS: i64 = 900;
 const MAX_DEVICE_CODE_TTL_SECS: i64 = 3600;
 
-fn operator_token() -> String {
-    env::var("OPENSESAME_OPERATOR_TOKEN").unwrap_or_else(|_| "opensesame-dev-operator".into())
+fn operator_token() -> anyhow::Result<String> {
+    let token = env::var("OPENSESAME_OPERATOR_TOKEN").map_err(|_| {
+        anyhow::anyhow!("OPENSESAME_OPERATOR_TOKEN is required for native administration")
+    })?;
+    anyhow::ensure!(
+        token.len() >= 32 && !token.chars().any(char::is_whitespace),
+        "invalid native operator credential"
+    );
+    Ok(token)
 }
 
 async fn login(
@@ -2255,52 +2286,6 @@ async fn crypto_cmd(server: &str, cmd: CryptoCmd) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn sync_cmd(server: &str, cmd: SyncCmd) -> anyhow::Result<()> {
-    let token = load_access_token()?;
-    let client = reqwest::Client::new();
-    let base = server.trim_end_matches('/');
-    match cmd {
-        SyncCmd::Push { input } => {
-            let value: serde_json::Value = serde_json::from_slice(&read_bounded(&input)?)?;
-            let blobs = value
-                .as_array()
-                .cloned()
-                .or_else(|| value.get("blobs").and_then(|v| v.as_array()).cloned())
-                .ok_or_else(|| {
-                    anyhow::anyhow!("sync input must be a JSON array of ciphertext blobs")
-                })?;
-            let response: serde_json::Value = client
-                .post(format!("{base}/api/v1/sync/push"))
-                .bearer_auth(token)
-                .json(&json!({"blobs": blobs}))
-                .send()
-                .await?
-                .error_for_status()?
-                .json()
-                .await?;
-            println!("{}", serde_json::to_string_pretty(&response)?);
-        }
-        SyncCmd::Pull {
-            output,
-            since_epoch,
-            device,
-        } => {
-            let response: serde_json::Value = client
-                .post(format!("{base}/api/v1/sync/pull"))
-                .bearer_auth(token)
-                .json(&json!({"since_epoch": since_epoch, "device_id": device}))
-                .send()
-                .await?
-                .error_for_status()?
-                .json()
-                .await?;
-            write_private_new(&output, serde_json::to_vec_pretty(&response)?.as_slice())?;
-            println!("{}", json!({"written": output, "plaintext": false}));
-        }
-    }
-    Ok(())
-}
-
 async fn export_connections(server: &str, output: Option<PathBuf>) -> anyhow::Result<()> {
     let token = load_access_token()?;
     let value: serde_json::Value = reqwest::Client::new()
@@ -2360,13 +2345,6 @@ async fn import_connections(server: &str, input: PathBuf) -> anyhow::Result<()> 
         "{}",
         json!({"imported": imported.len(), "connections": imported})
     );
-    Ok(())
-}
-
-fn init_schema(path: &std::path::Path) -> anyhow::Result<()> {
-    const TEMPLATE: &[u8] = b"# @defaultSensitive=true\n# Native OpenSesame project contract. Add public defaults explicitly.\n";
-    write_private_new(path, TEMPLATE)?;
-    println!("{}", json!({"initialized": path, "format": "env-spec"}));
     Ok(())
 }
 
@@ -2592,7 +2570,7 @@ fn parse_capability(raw: &str) -> anyhow::Result<serde_json::Value> {
 async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     let base = server.trim_end_matches('/');
-    let op = operator_token();
+    let op = operator_token()?;
     match cmd {
         TaskCmd::Start {
             principal,
@@ -2683,7 +2661,7 @@ async fn task_cmd(server: &str, output: &str, cmd: TaskCmd) -> anyhow::Result<()
 async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Result<()> {
     let client = reqwest::Client::new();
     let base = server.trim_end_matches('/');
-    let op = operator_token();
+    let op = operator_token()?;
     match cmd {
         IntentCmd::Create {
             task,

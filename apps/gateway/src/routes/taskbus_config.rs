@@ -202,7 +202,7 @@ pub async fn ping(State(st): State<AppState>, headers: axum::http::HeaderMap) ->
 #[cfg(test)]
 mod tests {
     use crate::app_state::{self, test_env, test_session_headers, AppState};
-    use crate::config::{Args, DEV_OPERATOR_TOKEN};
+    use crate::config::Args;
     use axum::body::{to_bytes, Body};
     use axum::http::{Request, StatusCode};
     use serde_json::{json, Value};
@@ -215,7 +215,7 @@ mod tests {
     async fn memory_state() -> AppState {
         std::env::remove_var("NATS_URL");
         std::env::remove_var("OPENSESAME_TASKBUS");
-        app_state::build(Args {
+        app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),
@@ -243,7 +243,7 @@ mod tests {
             None => {
                 request = request.header(
                     "authorization",
-                    format!("Bearer operator:{DEV_OPERATOR_TOKEN}"),
+                    format!("Bearer operator:{}", state.operator_token),
                 );
             }
         }
@@ -270,7 +270,7 @@ mod tests {
         let state = memory_state().await;
         let headers = test_session_headers(
             &state,
-            "prn_member",
+            "principal:00000000-0000-4000-8000-000000000002",
             state.connection_organization,
             opensesame_domain::OrganizationRole::Member,
         );
@@ -300,7 +300,7 @@ mod tests {
         let state = memory_state().await;
         let headers = test_session_headers(
             &state,
-            "prn_owner",
+            "principal:00000000-0000-4000-8000-000000000001",
             state.connection_organization,
             opensesame_domain::OrganizationRole::Owner,
         );
@@ -387,7 +387,7 @@ mod tests {
         let prev_nats = std::env::var_os("NATS_URL");
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
         std::env::remove_var("NATS_URL");
-        let state = app_state::build(Args {
+        let state = app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),

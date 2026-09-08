@@ -13,32 +13,7 @@ function clientData(challenge: string): string {
   ).toString("base64url");
 }
 
-async function verifiedPrincipal(
-  app: ReturnType<typeof createControlPlane>["app"],
-) {
-  const created = await app.request("/v1/principals/provisional", {
-    method: "POST",
-  });
-  const session = overlapCast(await created.json());
-  const auth = { authorization: `Bearer ${session.accessToken}` };
-  const linked = await app.request("/v1/principals/link-identities", {
-    method: "POST",
-    headers: {
-      ...auth,
-      "content-type": "application/json",
-      "idempotency-key": "authentication-service-principal",
-    },
-    body: JSON.stringify({
-      kind: "oidc",
-      issuer: "https://mock.example",
-      subject: "authentication-service-owner",
-      assurance: "verified",
-    }),
-  });
-  expect(linked.status).toBe(201);
-  const principalId: string = overlapCast(session.principalId);
-  return { auth, principalId };
-}
+import { verifiedPrincipal } from "./authentication-fixture.js";
 
 describe("authentication service API", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -148,7 +123,7 @@ describe("authentication service API", () => {
     );
 
     const optionsResponse = await app.request(
-      "/v1/authentication/public/register/options",
+      `/v1/authentication/public/applications/${applicationId}/register/options`,
       {
         method: "POST",
         headers: {
@@ -168,7 +143,7 @@ describe("authentication service API", () => {
       registrationOptions.challenge,
     );
     const registered = await app.request(
-      "/v1/authentication/public/register/verify",
+      `/v1/authentication/public/applications/${applicationId}/register/verify`,
       {
         method: "POST",
         headers: {
@@ -197,7 +172,7 @@ describe("authentication service API", () => {
     ).toBe(201);
 
     const signinOptionsResponse = await app.request(
-      "/v1/authentication/public/signin/options",
+      `/v1/authentication/public/applications/${applicationId}/signin/options`,
       {
         method: "POST",
         headers: {
@@ -215,7 +190,7 @@ describe("authentication service API", () => {
     const signinOptions = overlapCast(await signinOptionsResponse.json());
     const signinChallenge: string = overlapCast(signinOptions.challenge);
     const signedIn = await app.request(
-      "/v1/authentication/public/signin/verify",
+      `/v1/authentication/public/applications/${applicationId}/signin/verify`,
       {
         method: "POST",
         headers: {
@@ -480,23 +455,39 @@ describe("authentication service API", () => {
   });
 
   it("rate-limits unauthenticated public ceremonies", async () => {
-    const { app } = createControlPlane({
+    const { app, ctx } = createControlPlane({
       config: {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
       },
     });
+    const owner = await verifiedPrincipal(app);
+    const created = await app.request("/v1/authentication/applications", {
+      method: "POST",
+      headers: { ...owner.auth, "content-type": "application/json" },
+      body: JSON.stringify({
+        displayName: "Rate test",
+        rpId: "localhost",
+        origins: ["http://localhost:5180"],
+      }),
+    });
+    expect(created.status).toBe(201);
+    const applicationId = overlapCast(await created.json()).application.id;
+    expect(ctx.stores.authenticationAnon.size).toBe(0);
     const attempt = () =>
-      app.request("/v1/authentication/public/signin/options", {
-        method: "POST",
-        headers: {
-          origin: "http://localhost:5180",
-          "content-type": "application/json",
-          "user-agent": "authentication-rate-test",
+      app.request(
+        `/v1/authentication/public/applications/${applicationId}/signin/options`,
+        {
+          method: "POST",
+          headers: {
+            origin: "http://localhost:5180",
+            "content-type": "application/json",
+            "user-agent": "authentication-rate-test",
+          },
+          body: JSON.stringify({ applicationId }),
         },
-        body: "{}",
-      });
+      );
     for (let index = 0; index < 60; index += 1) {
       expect((await attempt()).status).toBe(400);
     }

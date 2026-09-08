@@ -34,6 +34,7 @@ import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import { agentBootstrap } from "./agent-bootstrap.js";
 import {
   type MockRoute,
   type MockUpstream,
@@ -56,17 +57,18 @@ interface ToolCallSpec {
 /**
  * The shape of `vars` this provider expects on every test case that targets
  * it. `calls` are made in order against the same live client/task context, so
- * a test can e.g. task_start then task_invoke then operator_invoke_l1 and
+ * a test can e.g. task_start then task_invoke then task_invoke_l1 and
  * observe how the frozen intent carries across calls.
  */
 export interface RedteamVars {
   calls: ToolCallSpec[];
   /** Canned Host API / daemon responses for this test's private stub. */
   mockRoutes?: MockRoute[];
-  /** Extra env vars for the spawned mcp-host process (e.g. a fixture operator token). */
+  /** Adversarial fixture env; never used as the bootstrap authority. */
   env?: Record<string, string>;
   /** Also return `tools/list` output, for schema-introspection assertions. */
   includeToolSchemas?: boolean;
+  wrongAgentAudience?: boolean;
 }
 
 interface ProviderResponse {
@@ -76,8 +78,10 @@ interface ProviderResponse {
 
 function processEnvStrings() {
   return Object.fromEntries(
-    Object.entries(process.env).filter((entry): entry is [string, string] =>
-      isString(entry[1]),
+    Object.entries(process.env).filter(
+      (entry): entry is [string, string] =>
+        ["PATH", "SYSTEMROOT", "WINDIR", "TMP", "TEMP"].includes(entry[0]) &&
+        isString(entry[1]),
     ),
   );
 }
@@ -127,23 +131,22 @@ export default class McpHostStructuralProvider {
     let mock: MockUpstream | undefined;
     let transport: StdioClientTransport | undefined;
     let client: Client | undefined;
+    let bootstrap: Awaited<ReturnType<typeof agentBootstrap>> | undefined;
 
     try {
-      if (vars.mockRoutes?.length) {
-        mock = await startMockUpstream(vars.mockRoutes);
-      }
+      bootstrap = await agentBootstrap(vars.wrongAgentAudience);
+      mock = await startMockUpstream(vars.mockRoutes ?? [], bootstrap.headers);
 
       const env = {
         ...processEnvStrings(),
         ...(vars.env ?? {}),
+        ...bootstrap.env,
+        NODE_OPTIONS: [vars.env?.NODE_OPTIONS, "--disable-warning=DEP0205"]
+          .filter(Boolean)
+          .join(" "),
+        OPENSESAME_SERVER: mock.url,
+        OPENSESAME_DAEMON_URL: mock.url,
       };
-      env.NODE_OPTIONS = [env.NODE_OPTIONS, "--disable-warning=DEP0205"]
-        .filter(Boolean)
-        .join(" ");
-      if (mock) {
-        env.OPENSESAME_SERVER = mock.url;
-        env.OPENSESAME_DAEMON_URL = mock.url;
-      }
 
       transport = new StdioClientTransport({
         command: process.execPath,
@@ -187,6 +190,7 @@ export default class McpHostStructuralProvider {
         calls,
         tools,
         upstreamRequests: mock?.requests,
+        bootstrapExchanges: bootstrap.exchanges(),
         // Included for debugging a failed run; empty on a healthy server.
         serverStderr: stderrChunks.length ? stderrChunks.join("") : undefined,
       };
@@ -210,6 +214,7 @@ export default class McpHostStructuralProvider {
       } catch {
         // best effort
       }
+      await bootstrap?.close();
     }
   }
 }

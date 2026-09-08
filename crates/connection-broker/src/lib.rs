@@ -10,6 +10,7 @@
 pub mod catalog;
 pub mod changelog_hook;
 pub mod config;
+pub mod config_access;
 pub mod configuration;
 pub mod crypto;
 pub mod custom_provider;
@@ -25,8 +26,10 @@ pub mod model;
 pub mod rotation;
 pub mod rotation_egress;
 pub mod rotation_verify;
+mod scope_ceiling;
 pub mod secret_config;
 pub mod store;
+use scope_ceiling::require_scope_subset;
 pub mod sync_target;
 pub mod token;
 
@@ -136,15 +139,6 @@ struct AuthorizationActivation<'a> {
     account_label: Option<&'a str>,
     expected_integration_updated_at: Option<&'a str>,
     expected_credential_version: ExplicitCredentialVersion<'a>,
-}
-
-fn require_scope_subset(requested: &[String], ceiling: &[String]) -> Result<()> {
-    if let Some(scope) = requested.iter().find(|scope| !ceiling.contains(scope)) {
-        return Err(BrokerError::Invalid(format!(
-            "scope `{scope}` exceeds the integration scope ceiling"
-        )));
-    }
-    Ok(())
 }
 
 fn sqlite_writer_race(error: &BrokerError) -> bool {
@@ -280,16 +274,11 @@ impl ConnectionBroker {
         catalog::load()?;
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(20))
+            .redirect(reqwest::redirect::Policy::none())
             .build()
-            .unwrap_or_default();
-        // Deliberately not `unwrap_or_default()` like the client above. The
-        // only reason this client exists is its redirect policy, and the
-        // default client follows up to ten. Falling back would not merely
-        // degrade it — reqwest would follow the redirect and hand back the
-        // final response, so the explicit 3xx check in `authorized_bytes`
-        // would never fire and the bearer token would already have been
-        // replayed at an origin the egress allowlist never vetted. A silent
-        // fallback here is a silent control failure, so it fails loudly.
+            .map_err(|_| BrokerError::Invalid("could not build credential transport".into()))?;
+        // Both credential transports fail closed; uploads get a longer timeout,
+        // never redirect permission or a permissive client fallback.
         let http_bytes = reqwest::Client::builder()
             .timeout(Duration::from_secs(60))
             .redirect(reqwest::redirect::Policy::none())

@@ -24,7 +24,7 @@ struct Actor {
 }
 
 async fn state() -> AppState {
-    app_state::build(Args {
+    app_state::build_test(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
@@ -46,13 +46,12 @@ fn actor(st: &AppState, organization: OrganizationId) -> Actor {
     let digest = opensesame_claims::hash_secret(&opaque);
     st.sessions.lock().unwrap().insert(
         digest,
-        json!({
-            "principal_id": principal.to_string(),
-            "approved_as": principal.to_string(),
-            "organization_id": organization.to_string(),
-            "organization_role": OrganizationRole::Member,
-            "expires_at": (Utc::now() + Duration::hours(1)).to_rfc3339(),
-        }),
+        crate::session_claims::fixture(
+            principal,
+            organization,
+            OrganizationRole::Member,
+            &st.resource,
+        ),
     );
     Actor {
         principal,

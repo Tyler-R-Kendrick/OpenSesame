@@ -23,8 +23,8 @@ describe("AgentAuth characterization", () => {
     const { app } = createControlPlane({
       config: {
         port: 0,
-        publicUrl: "https://identity.example",
-        issuer: "https://identity.example",
+        publicUrl: "https://127.0.0.1",
+        issuer: "https://127.0.0.1",
       },
     });
     const md = await (await app.request("/auth.md")).text();
@@ -54,7 +54,7 @@ describe("AgentAuth characterization", () => {
     expect(
       renderAgentAuthLoginPage({
         returnTo: "/claim?claim_attempt_token=clat_fixed.secret",
-        publicUrl: "https://identity.example",
+        publicUrl: "https://127.0.0.1",
       }),
     ).toMatchSnapshot();
   });
@@ -91,8 +91,8 @@ describe("AgentAuth characterization", () => {
     const { app } = createControlPlane({
       config: {
         port: 0,
-        publicUrl: "https://identity.example",
-        issuer: "https://identity.example",
+        publicUrl: "https://127.0.0.1",
+        issuer: "https://127.0.0.1",
       },
     });
     const claim = await app.request(

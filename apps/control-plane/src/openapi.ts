@@ -1,4 +1,5 @@
 import type { ControlPlaneConfig } from "./config.js";
+import { publicAuthenticationPaths } from "./openapi-public-authentication.js";
 
 const authenticationUnauthorizedResponse = {
   "401": { description: "Authentication required" },
@@ -1901,42 +1902,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           },
         },
       },
-      "/v1/authentication/public/register/options": {
-        post: {
-          summary: "Start a WebAuthn registration ceremony",
-          responses: {
-            "200": { description: "PublicKeyCredentialCreationOptionsJSON" },
-            "403": { description: "Origin or token denied" },
-          },
-        },
-      },
-      "/v1/authentication/public/register/verify": {
-        post: {
-          summary: "Verify and persist a WebAuthn registration",
-          responses: {
-            "201": { description: "Credential registered" },
-            "400": { description: "Invalid attestation" },
-          },
-        },
-      },
-      "/v1/authentication/public/signin/options": {
-        post: {
-          summary: "Start autofill, discoverable, alias, or user-ID sign-in",
-          responses: {
-            "200": { description: "PublicKeyCredentialRequestOptionsJSON" },
-            "404": { description: "User or policy not found" },
-          },
-        },
-      },
-      "/v1/authentication/public/signin/verify": {
-        post: {
-          summary: "Verify a WebAuthn assertion and mint a one-time result",
-          responses: {
-            "200": { description: "Authentication result token" },
-            "400": { description: "Invalid assertion" },
-          },
-        },
-      },
+      ...publicAuthenticationPaths,
       "/v1/authorization-requests/{id}/requirement": {
         get: {
           summary: "What this request will take to settle (ADR 0084)",

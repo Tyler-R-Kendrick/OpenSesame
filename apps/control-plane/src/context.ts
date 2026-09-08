@@ -1,9 +1,9 @@
 import type { AuditSink } from "@opensesame/audit";
 import type {
   AuthenticationService,
-  MemoryPrincipalMappingStore,
   PasskeyChallengeStore,
   PasskeySeam,
+  PrincipalMappingStore,
   UpstreamAuthDatabase,
 } from "@opensesame/auth-upstream";
 import type { ClaimEngine } from "@opensesame/claims";
@@ -16,6 +16,7 @@ import type { AuthenticationServiceStores } from "@opensesame/os-domain";
 import type { ProvisionalPolicy } from "@opensesame/policy";
 import type { ControlPlaneConfig } from "./config.js";
 import type { IndexedClaimStore } from "./repos/claim-store.js";
+import type { DurableClaimStore } from "./repos/durable-claim-store.js";
 import type { Mailer } from "./services/mailer.js";
 import type { NotificationCallbackAdapters } from "./services/notification-callbacks.js";
 import type { AppStores } from "./state.js";
@@ -25,13 +26,16 @@ export type ControlPlaneRepositories = Omit<Repositories, "auditEvents"> & {
 };
 
 export interface AppContext {
+  hostAuthorizationAudiences: string[];
+  hostAuthorizationPasskeys: PasskeySeam;
+  securityStateReady: () => Promise<boolean>;
   config: ControlPlaneConfig;
   log: Logger;
   repos: ControlPlaneRepositories;
-  claimStore: IndexedClaimStore;
+  claimStore: IndexedClaimStore | DurableClaimStore;
   claims: ClaimEngine;
   oauth: OpenSesameProviderBundle;
-  mappings: MemoryPrincipalMappingStore;
+  mappings: PrincipalMappingStore;
   /**
    * Durable storage for Better Auth's own tables (ADR 0057), when a database is
    * configured. Absent, the bridge builds Better Auth on its in-memory adapter

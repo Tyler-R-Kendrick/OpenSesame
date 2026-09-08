@@ -1,3 +1,6 @@
+import { SignJWT } from "jose";
+import { createTestSigningKey } from "./test/jwt-fixtures.js";
+const signingKeys = createTestSigningKey("ES256");
 import {
   type BoundaryValue,
   type JsonObject,
@@ -29,15 +32,13 @@ class MemStorage {
 
 const ISSUER = "http://127.0.0.1:8788";
 
-function b64url(value: string): string {
-  return btoa(value)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/u, "");
-}
-
-function idToken(claims: JsonObject): string {
-  return `${b64url(JSON.stringify({ alg: "none" }))}.${b64url(JSON.stringify(claims))}.`;
+async function idToken(claims: JsonObject): Promise<string> {
+  const keys = await signingKeys;
+  return new SignJWT(claims)
+    .setProtectedHeader({ alg: "ES256", kid: "test-signing-key" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(keys.privateKey);
 }
 
 function discoveryResponse(overrides: JsonObject = {}): Response {
@@ -261,7 +262,7 @@ describe("discovery", () => {
   it("fails when the discovery endpoint is unreachable", async () => {
     const fetchImpl = vi.fn(async () => new Response("oops", { status: 500 }));
     await expect(client(fetchImpl).signIn()).rejects.toThrow(
-      /OIDC discovery failed: 500/,
+      /OIDC response refused/,
     );
   });
 
@@ -390,16 +391,34 @@ describe("handleRedirectCallback", () => {
     const storage = new MemStorage();
     pkceStorage(
       storage,
-      JSON.stringify({ state: "st", nonce: "nn", codeVerifier: "cv" }),
+      JSON.stringify({
+        issuer: ISSUER,
+        redirectUri: "http://127.0.0.1:5174/callback",
+        createdAt: Date.now(),
+        state: "st",
+        nonce: "nn",
+        codeVerifier: "cv",
+      }),
     );
     const fetchImpl = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
+        if (url.endsWith("/jwks"))
+          return new Response(JSON.stringify((await signingKeys).jwks));
         if (url.includes("openid-configuration")) return discoveryResponse();
         if (url.endsWith("/token") && init?.method === "POST") {
           expect(String(init.body)).toContain("code_verifier=cv");
           return new Response(
-            JSON.stringify({ access_token: "at", token_type: "Bearer" }),
+            JSON.stringify({
+              access_token: "at",
+              token_type: "Bearer",
+              id_token: await idToken({
+                sub: "s1",
+                iss: ISSUER,
+                aud: "opensesame-browser",
+                nonce: "nn",
+              }),
+            }),
             { status: 200 },
           );
         }
@@ -418,8 +437,8 @@ describe("handleRedirectCallback", () => {
     });
     const session = await sesame.handleRedirectCallback();
     expect(session.accessToken).toBe("at");
-    expect(session.idToken).toBeUndefined();
-    expect(session.sub).toBeUndefined();
+    expect(session.idToken).toBeTruthy();
+    expect(session.sub).toBe("s1");
     expect(session.expiresAt).toBeUndefined();
   });
 
@@ -433,7 +452,16 @@ describe("handleRedirectCallback", () => {
       });
 
     const noCode = new MemStorage();
-    pkceStorage(noCode, JSON.stringify({ state: "st", codeVerifier: "cv" }));
+    pkceStorage(
+      noCode,
+      JSON.stringify({
+        issuer: ISSUER,
+        redirectUri: "http://127.0.0.1/callback",
+        createdAt: Date.now(),
+        state: "st",
+        codeVerifier: "cv",
+      }),
+    );
     await expect(
       sesame(noCode).handleRedirectCallback(
         "http://127.0.0.1/callback?state=st",
@@ -441,7 +469,16 @@ describe("handleRedirectCallback", () => {
     ).rejects.toThrow(/Missing authorization code or PKCE state/);
 
     const noState = new MemStorage();
-    pkceStorage(noState, JSON.stringify({ state: "st", codeVerifier: "cv" }));
+    pkceStorage(
+      noState,
+      JSON.stringify({
+        issuer: ISSUER,
+        redirectUri: "http://127.0.0.1/callback",
+        createdAt: Date.now(),
+        state: "st",
+        codeVerifier: "cv",
+      }),
+    );
     await expect(
       sesame(noState).handleRedirectCallback(
         "http://127.0.0.1/callback?code=abc",
@@ -475,9 +512,20 @@ describe("handleRedirectCallback", () => {
 
   it("surfaces token endpoint failures", async () => {
     const storage = new MemStorage();
-    pkceStorage(storage, JSON.stringify({ state: "st", codeVerifier: "cv" }));
+    pkceStorage(
+      storage,
+      JSON.stringify({
+        issuer: ISSUER,
+        redirectUri: "http://127.0.0.1/callback",
+        createdAt: Date.now(),
+        state: "st",
+        codeVerifier: "cv",
+      }),
+    );
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.endsWith("/jwks"))
+        return new Response(JSON.stringify((await signingKeys).jwks));
       if (url.includes("openid-configuration")) return discoveryResponse();
       return new Response("nope", { status: 400 });
     });
@@ -491,108 +539,7 @@ describe("handleRedirectCallback", () => {
       sesame.handleRedirectCallback(
         "http://127.0.0.1/callback?code=abc&state=st",
       ),
-    ).rejects.toThrow(/Token exchange failed: 400/);
-  });
-});
-
-describe("id_token handling", () => {
-  function tokenClient(
-    storage: MemStorage,
-    tokens: JsonObject,
-    pkce: JsonObject = {
-      state: "st",
-      nonce: "nn",
-      codeVerifier: "cv",
-    },
-  ) {
-    storage.setItem("opensesame:pkce", JSON.stringify(pkce));
-    const fetchImpl = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = String(input);
-        if (url.includes("openid-configuration")) return discoveryResponse();
-        if (url.endsWith("/token") && init?.method === "POST") {
-          return new Response(JSON.stringify(tokens), { status: 200 });
-        }
-        throw new Error(`unexpected ${url}`);
-      },
-    );
-    const sesame = createOpenSesame({
-      issuer: ISSUER,
-      clientId: "opensesame-browser",
-      storage,
-      fetchImpl: overlapCast(fetchImpl),
-    });
-    return sesame.handleRedirectCallback(
-      "http://127.0.0.1/callback?code=abc&state=st",
-    );
-  }
-
-  const baseTokens = { access_token: "at", token_type: "Bearer" };
-
-  it("tolerates an undecodable id_token and derives no sub", async () => {
-    for (const bad of ["garbage", "a.@@@.b"]) {
-      const session = await tokenClient(new MemStorage(), {
-        ...baseTokens,
-        id_token: bad,
-      });
-      expect(session.sub).toBeUndefined();
-      expect(session.idToken).toBe(bad);
-    }
-  });
-
-  it("accepts an id_token with no issuer, audience, or nonce claims", async () => {
-    const session = await tokenClient(new MemStorage(), {
-      ...baseTokens,
-      id_token: idToken({ sub: "s1", iss: 42, nonce: "nn" }),
-    });
-    expect(session.sub).toBe("s1");
-  });
-
-  it("accepts an audience list that includes this client", async () => {
-    const session = await tokenClient(new MemStorage(), {
-      ...baseTokens,
-      id_token: idToken({
-        sub: "s1",
-        iss: ISSUER,
-        aud: ["other", "opensesame-browser"],
-        nonce: "nn",
-      }),
-    });
-    expect(session.sub).toBe("s1");
-  });
-
-  it("rejects an audience list that excludes this client", async () => {
-    await expect(
-      tokenClient(new MemStorage(), {
-        ...baseTokens,
-        id_token: idToken({
-          sub: "s1",
-          iss: ISSUER,
-          aud: ["other"],
-          nonce: "nn",
-        }),
-      }),
-    ).rejects.toThrow(/different client/);
-  });
-
-  it("skips the nonce check when the ceremony stored none", async () => {
-    const session = await tokenClient(
-      new MemStorage(),
-      {
-        ...baseTokens,
-        id_token: idToken({ sub: "s1", iss: ISSUER, nonce: "anything" }),
-      },
-      { state: "st", codeVerifier: "cv" },
-    );
-    expect(session.sub).toBe("s1");
-  });
-
-  it("ignores a non-string sub", async () => {
-    const session = await tokenClient(new MemStorage(), {
-      ...baseTokens,
-      id_token: idToken({ sub: 42, iss: ISSUER, nonce: "nn" }),
-    });
-    expect(session.sub).toBeUndefined();
+    ).rejects.toThrow(/OIDC response refused/);
   });
 });
 
@@ -601,11 +548,20 @@ describe("session persistence", () => {
     const storage = new MemStorage();
     storage.setItem(
       "opensesame:pkce",
-      JSON.stringify({ state: "st", codeVerifier: "cv" }),
+      JSON.stringify({
+        issuer: ISSUER,
+        redirectUri: "http://127.0.0.1/callback",
+        createdAt: Date.now(),
+        nonce: "nn",
+        state: "st",
+        codeVerifier: "cv",
+      }),
     );
     const fetchImpl = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input);
+        if (url.endsWith("/jwks"))
+          return new Response(JSON.stringify((await signingKeys).jwks));
         if (url.includes("openid-configuration")) return discoveryResponse();
         if (url.endsWith("/token") && init?.method === "POST") {
           return new Response(
@@ -614,6 +570,12 @@ describe("session persistence", () => {
               token_type: "Bearer",
               expires_in: 3600,
               refresh_token: "rt-secret",
+              id_token: await idToken({
+                sub: "s1",
+                iss: ISSUER,
+                aud: "opensesame-browser",
+                nonce: "nn",
+              }),
             }),
             { status: 200 },
           );

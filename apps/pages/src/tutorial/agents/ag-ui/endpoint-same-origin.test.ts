@@ -10,10 +10,10 @@ import { describe, expect, it } from "vitest";
 import { readAgUiEndpointUrl } from "./endpoint.js";
 
 describe("readAgUiEndpointUrl on an http page", () => {
-  it("accepts an http endpoint on this page's own origin", () => {
-    expect(readAgUiEndpointUrl("http://pages.internal.example/agui")?.url).toBe(
-      "http://pages.internal.example/agui",
-    );
+  it("refuses even same-origin cleartext endpoints", () => {
+    expect(
+      readAgUiEndpointUrl("http://pages.internal.example/agui"),
+    ).toBeNull();
   });
 
   it("still refuses http on any other origin", () => {

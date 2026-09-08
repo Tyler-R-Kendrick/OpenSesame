@@ -8,11 +8,13 @@ mod backup_bus;
 mod backup_target;
 mod bootstrap;
 mod breach;
+mod browser_pairing_proof;
 pub use opensesame_gateway::cert_issuers;
 mod config;
 mod connector_egress;
 mod dev_pki;
 mod github_webhook;
+mod host_authorization;
 mod identity_mapping;
 mod lifecycle;
 mod managed_certs;
@@ -21,10 +23,13 @@ mod oci_component;
 mod routes;
 mod security;
 mod session_channel;
+mod session_claims;
 mod shared_session_fence;
 mod sync_actor;
 mod task_engine;
 mod taskbus_config;
+#[cfg(test)]
+mod test_principals;
 
 use clap::Parser;
 use config::Args;
@@ -206,7 +211,10 @@ mod pact_coverage {
         opensesame_host_core::pact::assert_source_order(
             include_str!("routes/changelog.rs"),
             &[
-                "caller.organization(st.connection_organization)",
+                "access::organization(&st, &caller, &headers)",
+                "access::project(",
+                "ResourcePermission::Keys",
+                "let organization_id = organization.to_string();",
                 ".list_changelog(&organization_id, &project_id, limit, query.before_seq)",
             ],
         );

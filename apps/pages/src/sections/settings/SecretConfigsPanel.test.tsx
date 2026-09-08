@@ -40,6 +40,9 @@ const listConfigSecretVersions = vi.hoisted(() => vi.fn());
 const rollbackConfigSecret = vi.hoisted(() => vi.fn());
 const compareConfigs = vi.hoisted(() => vi.fn());
 const branchConfig = vi.hoisted(() => vi.fn());
+const loadConfigAccess = vi.hoisted(() => vi.fn());
+import { configAccessSeams } from "../../lib/secret-config-access.js";
+Object.assign(configAccessSeams, { load: loadConfigAccess });
 
 import { secretConfigSeams } from "../../lib/secret-configs.js";
 Object.assign(secretConfigSeams, {
@@ -86,6 +89,11 @@ describe("SecretConfigsPanel", () => {
     activeProjectId.value = "project_1";
     session.current = { principalId: "prn_op" };
     listSecretConfigs.mockResolvedValue([]);
+    loadConfigAccess.mockResolvedValue({
+      metadata: true,
+      keys: true,
+      manage: true,
+    });
     listConfigKeys.mockResolvedValue([]);
     listHostChangelogPage.mockResolvedValue({
       events: [],
@@ -103,6 +111,41 @@ describe("SecretConfigsPanel", () => {
     render(<SecretConfigsPanel />);
     expect(screen.getByText(/Offline — configs require Host/i)).toBeTruthy();
     expect(listSecretConfigs).not.toHaveBeenCalled();
+  });
+
+  it("shows config metadata without requesting or displaying key-only capabilities", async () => {
+    loadConfigAccess.mockResolvedValue({
+      metadata: true,
+      keys: false,
+      manage: false,
+    });
+    listSecretConfigs.mockResolvedValue([makeConfig()]);
+    render(<SecretConfigsPanel />);
+    await screen.findByText(/Key names are not shared/);
+    expect(listConfigKeys).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Set secret" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Load change log" }),
+    ).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Config" })).toBeTruthy();
+  });
+
+  it("removes controls when refreshed server policy revokes access", async () => {
+    listSecretConfigs.mockResolvedValue([makeConfig()]);
+    render(<SecretConfigsPanel />);
+    await screen.findByRole("button", { name: "Set secret" });
+    loadConfigAccess.mockResolvedValue({
+      metadata: false,
+      keys: false,
+      manage: false,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Set secret" })).toBeNull(),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Load change log" }),
+    ).toBeNull();
   });
 
   it("hints when there is no active project", () => {

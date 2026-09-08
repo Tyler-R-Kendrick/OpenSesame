@@ -539,7 +539,7 @@ fn internal(error: &anyhow::Error) -> Response {
 )]
 mod tests {
     use crate::app_state::{self, test_session_headers, AppState};
-    use crate::config::{Args, DEV_OPERATOR_TOKEN};
+    use crate::config::Args;
     use axum::body::{to_bytes, Body};
     use axum::http::{Request, StatusCode};
     use opensesame_connection_broker::github_app::GithubAppCredentials;
@@ -549,7 +549,7 @@ mod tests {
     use tower::ServiceExt;
 
     async fn state() -> AppState {
-        let mut state = app_state::build(Args {
+        let mut state = app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),
@@ -581,7 +581,7 @@ mod tests {
             None => {
                 request = request.header(
                     "authorization",
-                    format!("Bearer operator:{DEV_OPERATOR_TOKEN}"),
+                    format!("Bearer operator:{}", state.operator_token),
                 );
             }
         }
@@ -639,7 +639,7 @@ mod tests {
         let state = state().await;
         let headers = test_session_headers(
             &state,
-            "prn_member",
+            "principal:00000000-0000-4000-8000-000000000002",
             state.connection_organization,
             opensesame_domain::OrganizationRole::Member,
         );
@@ -821,7 +821,7 @@ mod tests {
         let foreign = opensesame_domain::OrganizationId::new();
         let headers = test_session_headers(
             &state,
-            "prn_foreign",
+            "principal:00000000-0000-4000-8000-000000000003",
             foreign,
             opensesame_domain::OrganizationRole::Owner,
         );
@@ -881,7 +881,7 @@ mod tests {
             .unwrap();
         let headers = test_session_headers(
             &state,
-            "prn_owner",
+            "principal:00000000-0000-4000-8000-000000000001",
             state.connection_organization,
             opensesame_domain::OrganizationRole::Owner,
         );

@@ -1,4 +1,5 @@
 export { createOpenSesame } from "./client.js";
+export { decodeJwtEnvelope } from "./jwt-envelope.js";
 export { ClaimRequestError } from "./errors.js";
 export {
   createAuthenticationClient,

@@ -7,6 +7,364 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /host-authorizations:
+    post:
+      summary: Freeze an origin and proof-key bound human authorization request
+      security: [{HostDPoP: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [operation, target_id]
+              properties:
+                operation: {type: string, enum: [browser.authenticate, agent.browser.control]}
+                target_id: {type: string, maxLength: 128}
+                transition: {type: [string, 'null'], enum: [handoff, take, release, null]}
+      responses:
+        "200":
+          description: Immutable challenge for the configured Identity passkey ceremony
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HostAuthorizationChallenge'}
+        "401": {$ref: '#/components/responses/Error'}
+  /host-authorizations/verify:
+    post:
+      summary: Redeem verified Identity evidence for exactly the frozen request
+      description: Requires the same paired client, principal, organization, origin and DPoP key. Browser control additionally consumes the returned elevation atomically with the requested run transition.
+      security: [{HostDPoP: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [challenge_id, assertion]
+              properties:
+                challenge_id: {type: string, format: uuid}
+                assertion: {type: string, maxLength: 16384, writeOnly: true}
+      responses:
+        "200":
+          description: Authenticated client or one-use purpose-bound elevation; never operator authority
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, elevation, expires_at]
+                properties:
+                  status: {const: authorized}
+                  elevation: {type: [string, 'null'], writeOnly: true}
+                  expires_at: {type: integer}
+        "401": {$ref: '#/components/responses/Error'}
+  /agent-launches:
+    post:
+      summary: Native operator approves a one-use scoped agent launch
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [principal_id, organization_id, client_id, audience, capabilities]
+              properties:
+                principal_id: {type: string}
+                organization_id: {type: string}
+                client_id: {type: string, format: uuid}
+                audience: {$ref: '#/components/schemas/AgentAudience'}
+                capabilities:
+                  type: array
+                  minItems: 1
+                  maxItems: 6
+                  items: {type: string, enum: [host.tasks.read, host.tasks.create, host.tasks.invoke, host.tasks.terminate, host.sync.read, host.sync.write]}
+      responses:
+        "201": {description: One-use launch_handle, client_id, audience, scope and expires_in=300; Cache-Control no-store}
+        "401": {$ref: '#/components/responses/Error'}
+  /agent-launches/token:
+    post:
+      summary: Exchange one launch handle for its fixed audience and capability ceiling
+      description: Native transport only; any Origin header is refused. The result cannot authenticate as an operator, native session or browser grant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [launch_handle, client_id, audience]
+              properties:
+                launch_handle: {type: string, pattern: '^[0-9a-f]{64}$', writeOnly: true}
+                client_id: {type: string, format: uuid}
+                audience: {$ref: '#/components/schemas/AgentAudience'}
+      responses:
+        "200": {description: access_token returned once, token_type Bearer, expires_in=300, client_id, audience and scope; Cache-Control no-store}
+        "401": {$ref: '#/components/responses/Error'}
+  /agent-clients/{id}:
+    delete:
+      summary: Native operator revokes the exact principal's agent client
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [principal_id, organization_id]
+              properties:
+                principal_id: {type: string}
+                organization_id: {type: string}
+      responses:
+        "204": {description: Client launches and capabilities revoked}
+        "401": {$ref: '#/components/responses/Error'}
+  /sync/pull-page:
+    post:
+      summary: Read one owner and organization scoped encrypted sync page
+      description: Keyset order is server ingestion sequence and opaque id; ciphertext_epoch retains the original AEAD epoch. At most 64 items and 8 MiB serialized JSON. Continue next_after while has_more is true.
+      security: [{HostBearer: []}, {HostDPoP: []}, {AgentBearer: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                after: {$ref: '#/components/schemas/SyncCursor'}
+                limit: {type: integer, minimum: 1, maximum: 64, default: 32}
+                device_id: {type: string, minLength: 1, maxLength: 128}
+      responses:
+        "200":
+          description: Bounded ciphertext page, never plaintext
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [format, version, blobs, next_after, has_more, serialized_bytes, plaintext]
+                properties:
+                  format: {const: opensesame-sync-page}
+                  version: {const: 2}
+                  blobs:
+                    type: array
+                    maxItems: 64
+                    items:
+                      type: object
+                      required: [id, epoch, ciphertext_epoch, ciphertext_b64]
+                      properties:
+                        id: {type: string, maxLength: 128}
+                        epoch: {type: integer, minimum: 0}
+                        ciphertext_epoch: {type: integer, minimum: 0}
+                        ciphertext_b64: {type: string, contentEncoding: base64}
+                  next_after:
+                    oneOf: [{$ref: '#/components/schemas/SyncCursor'}, {type: 'null'}]
+                  has_more: {type: boolean}
+                  serialized_bytes: {type: integer, maximum: 8388608}
+                  plaintext: {type: 'null'}
+        "400": {$ref: '#/components/responses/Error'}
+        "401": {$ref: '#/components/responses/Error'}
+        "409": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/config-members/{principal}:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: principal, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, required: true, schema: {type: string}}
+    get:
+      summary: Inspect a durable Host metadata role ceiling and revision
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      responses:
+        "200": {description: Nullable role, revision and monotonic evidence_after fence}
+        "404": {$ref: '#/components/responses/Error'}
+    put:
+      summary: Explicitly provision, narrow or revoke a Host metadata role ceiling
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role, expected_revision]
+              properties:
+                role: {type: [string, 'null'], enum: [owner, admin, member, null]}
+                expected_revision: {type: integer, minimum: 0}
+      responses:
+        "200": {description: Updated policy revision; zero only creates an absent policy}
+        "404": {$ref: '#/components/responses/Error'}
+        "409": {$ref: '#/components/responses/Error'}
+  /projects/{project}/config-access:
+    get:
+      summary: Read the caller's current project metadata capabilities
+      security: [{HostBearer: []}, {HostDPoP: []}]
+      parameters:
+        - {in: path, name: project, required: true, schema: {type: string}}
+      responses:
+        "200": {description: Allowed config.metadata.read, config.keys.read and config.manage capabilities}
+        "404": {$ref: '#/components/responses/Error'}
+  /projects/{project}/config-access/{principal}:
+    put:
+      summary: Current owner or admin grants independent project metadata and key-name access
+      security: [{HostBearer: []}, {HostDPoP: []}]
+      parameters:
+        - {in: path, name: project, required: true, schema: {type: string}}
+        - {in: path, name: principal, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [metadata_read, keys_read]
+              properties:
+                metadata_read: {type: boolean}
+                keys_read: {type: boolean, description: Requires metadata_read; never grants secret values}
+      responses:
+        "204": {description: Current project policy recorded and audited}
+        "404": {$ref: '#/components/responses/Error'}
+  /browser-pairings:
+    post:
+      summary: Request an exact-origin, sender-bound ciphertext-sync pairing
+      description: Requires an eligible Origin and ES256 DPoP proof. Grants no authority before native operator approval. Browser operator credentials are refused.
+      parameters:
+        - {in: header, name: Origin, required: true, schema: {type: string, format: uri}}
+        - {in: header, name: DPoP, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [capabilities]
+              properties:
+                capabilities:
+                  type: array
+                  minItems: 1
+                  maxItems: 2
+                  items: {type: string, enum: [host.sync.read, host.sync.write]}
+      responses:
+        "200":
+          description: One-use device code and human verification code; expires after five minutes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pairing_id, device_code, user_code, verification_uri, expires_in, interval]
+                properties:
+                  pairing_id: {type: string}
+                  device_code: {type: string, writeOnly: true}
+                  user_code: {type: string, writeOnly: true}
+                  verification_uri: {type: string, format: uri}
+                  expires_in: {type: integer, const: 300}
+                  interval: {type: integer, const: 5}
+        "401": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+  /browser-pairings/token:
+    post:
+      summary: Consume an approved pairing bound to the original origin and proof key
+      parameters:
+        - {in: header, name: Origin, required: true, schema: {type: string, format: uri}}
+        - {in: header, name: DPoP, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [device_code]
+              properties:
+                device_code: {type: string, minLength: 64, maxLength: 64, writeOnly: true}
+      responses:
+        "200":
+          description: A five-minute DPoP credential, returned exactly once
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [access_token, token_type, expires_in, client_id, scope]
+                properties:
+                  access_token: {type: string, writeOnly: true}
+                  token_type: {type: string, const: DPoP}
+                  expires_in: {type: integer, const: 300}
+                  client_id: {type: string}
+                  scope: {type: string, description: Space-delimited capability ceiling}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
+  /browser-pairings/inspect:
+    post:
+      summary: Inspect the exact origin and capabilities before native approval
+      description: Operator-only, with no browser Origin header.
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_code]
+              properties:
+                user_code: {type: string, maxLength: 32, writeOnly: true}
+      responses:
+        "200": {description: Pending pairing public binding, without device code or token}
+        "401": {$ref: "#/components/responses/Error"}
+  /browser-pairings/decision:
+    post:
+      summary: Atomically approve or deny an inspected pairing
+      description: Native operator selects the canonical principal and organization. Approval establishes local_unverified assurance, not MFA.
+      security: [{HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [user_code, decision, principal_id, organization_id]
+              properties:
+                user_code: {type: string, maxLength: 32, writeOnly: true}
+                decision: {type: string, enum: [approve, deny]}
+                principal_id: {type: string}
+                organization_id: {type: string}
+      responses:
+        "204": {description: Decision recorded}
+        "401": {$ref: "#/components/responses/Error"}
+        "429": {$ref: "#/components/responses/Error"}
+  /browser-clients:
+    get:
+      summary: List only the authenticated principal's paired clients in its organization
+      security: [{HostBearer: []}]
+      responses:
+        "200": {description: Public client bindings; never tokens or proofs}
+        "401": {$ref: "#/components/responses/Error"}
+  /browser-clients/{id}:
+    delete:
+      summary: Revoke an owned browser client and every grant bound to it
+      security: [{HostBearer: []}]
+      parameters:
+        - {in: path, name: id, required: true, schema: {type: string}}
+      responses:
+        "204": {description: Revoked}
+        "401": {$ref: "#/components/responses/Error"}
+        "404": {$ref: "#/components/responses/Error"}
+  /pair:
+    servers: [{url: /}]
+    get:
+      summary: Display native pairing approval instructions
+      responses:
+        "200":
+          description: Inert instructions; this page cannot approve or acquire operator authority
+          content:
+            text/html:
+              schema: {type: string}
   /device/authorize:
     post:
       summary: Start a Host device authorization
@@ -2023,6 +2381,11 @@ paths:
         "404": { $ref: "#/components/responses/ContractError" }
   /agent/runs/{id}/handoff:
     post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrowserControlRequest'}
       summary: Ask the agent for the page
       description: >-
         Accepted at a quiescent point and **queued** inside the critical section
@@ -2030,8 +2393,8 @@ paths:
         rather than dropping the request (ADR 0081 §6). A request that vanishes
         teaches people to press the button again; that span is the one place a
         second actor would void the check standing between a rotation and a
-        lockout.
-      security: [{ HostBearer: [] }]
+        lockout. Requires a purpose-bound single-use passkey elevation.
+      security: [{ HostDPoP: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -2054,13 +2417,18 @@ paths:
               schema: { $ref: "#/components/schemas/AgentRunError" }
   /agent/runs/{id}/control:
     post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrowserControlRequest'}
       summary: Take the page
       description: >-
         Only from a parked run: there is no path that takes the page out from
         under the agent mid-step, which is what lets the receipt say who did
         what. Requires a fresh step-up, because decrypting frames and issuing
         input events are different capabilities (ADR 0081 §8).
-      security: [{ HostBearer: [] }]
+      security: [{ HostDPoP: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -2080,13 +2448,18 @@ paths:
               schema: { $ref: "#/components/schemas/AgentRunError" }
   /agent/runs/{id}/release:
     post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/BrowserControlRequest'}
       summary: Hand the page back
       description: >-
         Autonomy does not resume here. The run lands in `resume_requested`, and
         the runner re-asserts the run's preconditions against the page before
         driving again — what the assertion established was true of a page the
         agent controlled, and a person has been in it since (ADR 0081 §6).
-      security: [{ HostBearer: [] }]
+      security: [{ HostDPoP: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -2189,6 +2562,14 @@ paths:
               schema: { $ref: "#/components/schemas/AgentRunError" }
 components:
   securitySchemes:
+    HostDPoP:
+      type: http
+      scheme: DPoP
+      description: Five-minute sender-constrained browser credential. Every request also requires its exact Origin and a fresh ES256 DPoP proof binding method, canonical URL and token hash. Bearer presentation is refused.
+    AgentBearer:
+      type: http
+      scheme: bearer
+      description: Five-minute agent-capability credential with X-OpenSesame-Agent-Client and X-OpenSesame-Agent-Audience bindings. Only explicitly approved task and ciphertext sync operations are admitted.
     HostBearer:
       type: http
       scheme: bearer
@@ -2240,6 +2621,36 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/ContractError" }
   schemas:
+    AgentAudience:
+      type: string
+      enum: ['urn:opensesame:agent:mcp-host', 'urn:opensesame:agent:mcp-client']
+    SyncCursor:
+      type: object
+      additionalProperties: false
+      required: [epoch, id]
+      properties:
+        epoch: {type: integer, minimum: 0, maximum: 9223372036854775807}
+        id: {type: string, maxLength: 128}
+    HostAuthorizationChallenge:
+      type: object
+      required: [challenge_id, challenge_digest, host_audience, organization_id, operation, target_id, transition, origin, dpop_jkt, expires_at]
+      properties:
+        challenge_id: {type: string, format: uuid}
+        challenge_digest: {type: string}
+        host_audience: {type: string}
+        organization_id: {type: string}
+        operation: {type: string, enum: [browser.authenticate, agent.browser.control]}
+        target_id: {type: string}
+        transition: {type: [string, 'null'], enum: [handoff, take, release, null]}
+        origin: {type: string, format: uri}
+        dpop_jkt: {type: string}
+        expires_at: {type: integer}
+    BrowserControlRequest:
+      type: object
+      additionalProperties: false
+      required: [elevation]
+      properties:
+        elevation: {type: string, pattern: '^[0-9a-f]{64}$', writeOnly: true, description: One-use grant bound to this run version and transition after recent phishing-resistant verification}
     LifecycleEventType:
       type: string
       description: Frozen lifecycle event names. Additive only; never renamed.

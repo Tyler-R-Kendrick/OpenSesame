@@ -184,14 +184,14 @@ describe("wrapServerWithTelemetry", () => {
     const { telemetry, events } = capturingTelemetry();
     wrapServerWithTelemetry(server, telemetry);
 
-    register("operator_invoke_l1", "desc", {}, async () => ({
+    register("task_invoke_l1", "desc", {}, async () => ({
       content: [
         { type: "text", text: JSON.stringify({ error: "materialize_denied" }) },
       ],
       isError: true,
     }));
 
-    await registered.get("operator_invoke_l1")?.({});
+    await registered.get("task_invoke_l1")?.({});
     expect(events[0]?.props.outcome).toBe("refused");
   });
 
@@ -200,12 +200,12 @@ describe("wrapServerWithTelemetry", () => {
     const { telemetry, events } = capturingTelemetry();
     wrapServerWithTelemetry(server, telemetry);
 
-    register("daemon_status", "desc", {}, async () => ({
+    register("daemon_health", "desc", {}, async () => ({
       content: [{ type: "text", text: "daemon_unavailable: fetch failed" }],
       isError: true,
     }));
 
-    await registered.get("daemon_status")?.();
+    await registered.get("daemon_health")?.();
     expect(events[0]?.props.outcome).toBe("error");
   });
 

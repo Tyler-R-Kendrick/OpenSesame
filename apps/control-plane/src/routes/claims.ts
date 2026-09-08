@@ -35,8 +35,11 @@ import {
   claimPageSecurityHeaders,
   escapeHtml,
 } from "../middleware/security-headers.js";
+import { incrementSecurityCounter } from "../repos/durable-map.js";
+import { claimLegacyAgent } from "../repos/legacy-agent-store.js";
 import { serializeKeyed } from "../serialize.js";
 import { getUsage } from "../state.js";
+import { countLiveClaims } from "./claim-quota.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 /** Wrong user codes tolerated per claim before approval is refused outright. */
@@ -188,16 +191,7 @@ claimRoutes.post(
       principalId,
       async () => {
         const now = ctx.clock();
-        const liveClaims = ctx.claimStore.listSessions().filter((session) => {
-          if (session.creatorPrincipalId !== principalId) return false;
-          if (session.expiresAt <= now) return false;
-          return (
-            session.state !== "completed" &&
-            session.state !== "denied" &&
-            session.state !== "revoked" &&
-            session.state !== "expired"
-          );
-        }).length;
+        const liveClaims = await countLiveClaims(ctx, principalId, now);
         const decision = ctx.policy.evaluate(
           principal,
           {
@@ -295,9 +289,10 @@ claimRoutes.post("/present", async (c) => {
     if (parsed.data.userCode !== undefined) {
       const gated = await ctx.claims.get(parts.publicId);
       if (!gated) return c.json({ error: "not_found" }, 404);
-      const attempts =
-        (ctx.stores.claimApprovalAttempts.get(gated.id) ?? 0) + 1;
-      ctx.stores.claimApprovalAttempts.set(gated.id, attempts);
+      const attempts = await incrementSecurityCounter(
+        ctx.stores.claimApprovalAttempts,
+        gated.id,
+      );
       if (attempts > MAX_CLAIM_APPROVAL_ATTEMPTS) {
         await appendAuditEvent(ctx.repos.auditEvents, {
           eventType: "claim.presented",
@@ -332,7 +327,7 @@ claimRoutes.post("/present", async (c) => {
         });
         return c.json({ error: "invalid_user_code" }, 401);
       }
-      ctx.stores.claimApprovalAttempts.delete(gated.id);
+      await ctx.stores.claimApprovalAttempts.delete(gated.id);
     }
     const session = await ctx.claims.presentClaim(
       parts.publicId,
@@ -388,8 +383,10 @@ claimRoutes.post(
       // Approval is the human consent step. Being *some* authenticated principal
       // proves nothing about the device being claimed, so require the user code
       // it displayed, with a per-claim attempt fence behind it.
-      const attempts = (ctx.stores.claimApprovalAttempts.get(id) ?? 0) + 1;
-      ctx.stores.claimApprovalAttempts.set(id, attempts);
+      const attempts = await incrementSecurityCounter(
+        ctx.stores.claimApprovalAttempts,
+        id,
+      );
       if (attempts > MAX_CLAIM_APPROVAL_ATTEMPTS) {
         await auditClaimDenial(ctx, {
           claimId: id,
@@ -416,7 +413,7 @@ claimRoutes.post(
         });
         return c.json({ error: "invalid_user_code" }, 401);
       }
-      ctx.stores.claimApprovalAttempts.delete(id);
+      await ctx.stores.claimApprovalAttempts.delete(id);
       const claimToken =
         parsed.data.claimToken ?? extractClaimToken(c) ?? undefined;
       if (claimToken) {
@@ -439,7 +436,7 @@ claimRoutes.post(
           return c.json({ error: "invalid_claim_token" }, 401);
         }
       }
-      ctx.stores.claimApprovalAttempts.delete(id);
+      await ctx.stores.claimApprovalAttempts.delete(id);
 
       if (session.state === "pending") {
         return c.json(
@@ -507,14 +504,7 @@ claimRoutes.post(
       }
       const agentId = isString(manifest.agentId) ? manifest.agentId : undefined;
       if (agentId) {
-        const agent = ctx.stores.agents.get(agentId);
-        if (
-          agent &&
-          agent.state === "provisional" &&
-          agent.ownerPrincipalId === principalId
-        ) {
-          ctx.stores.agents.set(agentId, { ...agent, state: "claimed" });
-        }
+        await claimLegacyAgent(ctx.stores, agentId, principalId);
       }
 
       await appendAuditEvent(ctx.repos.auditEvents, {

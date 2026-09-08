@@ -156,12 +156,12 @@ choice to make.
 ```bash
 curl -X POST http://127.0.0.1:8787/api/v1/admin/authority \
   -H 'content-type: application/json' \
-  -H "x-opensesame-operator: ${OPENSESAME_OPERATOR_TOKEN:-opensesame-dev-operator}" \
+  -H "x-opensesame-operator: ${OPENSESAME_OPERATOR_TOKEN:?configure a generated operator secret}" \
   -d '{"quorum_ok":false}'
 # subsequent invokes return 403
 ```
 
-Device approve and claim complete also require the same operator header (or `Authorization: Bearer operator:<token>`). Set `OPENSESAME_OPERATOR_TOKEN` in production — the `opensesame-dev-operator` default is local-only.
+Device approval and claim completion require the native operator header (or `Authorization: Bearer operator:<token>`). Every deployment requires an explicitly generated operator secret. Browsers cannot present operator authority; use the native pairing ceremony instead.
 
 Set `OPENSESAME_CLAIM_PEPPER` in production too. User codes are eight characters
 from a twenty-letter alphabet — roughly 2^35 possibilities — so their stored

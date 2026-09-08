@@ -264,7 +264,7 @@ describe("principals routes edge cases", () => {
       },
       processEnv: {
         ...process.env,
-        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "0",
         OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
         NODE_ENV: "development",
       },

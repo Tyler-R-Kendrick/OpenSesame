@@ -564,7 +564,7 @@ export function sanitizeSupportRequest(
  */
 export function redactionWarning(): string {
   return (
-    "This question, and the names of the controls on this page, leave your device to be answered. " +
+    "Only the reviewed question and semantic feature IDs leave your device after you choose Send once. " +
     "Do not paste a password, recovery code, one-time code, card number or private key into it: " +
     "nothing here can tell that a secret is hidden inside a sentence you wrote, so keeping one out is yours to do."
   );

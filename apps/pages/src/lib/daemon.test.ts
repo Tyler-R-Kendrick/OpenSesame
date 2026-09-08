@@ -1,4 +1,16 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { browserPairingSeams } from "./browser-pairing.js";
+import { localNetworkFetchSeams } from "./local-network-fetch.js";
+const eligible = browserPairingSeams.eligible;
+const networkEligible = localNetworkFetchSeams.eligible;
+beforeEach(() => {
+  browserPairingSeams.eligible = () => true;
+  localNetworkFetchSeams.eligible = () => true;
+});
+afterEach(() => {
+  browserPairingSeams.eligible = eligible;
+  localNetworkFetchSeams.eligible = networkEligible;
+});
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import { applyDaemonPairing, probeDaemon } from "./daemon.js";
 import {
@@ -10,6 +22,15 @@ import {
 } from "./settings.js";
 
 describe("daemon pairing", () => {
+  it("refuses shared-origin demo discovery and configuration", async () => {
+    browserPairingSeams.eligible = () => false;
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    await expect(
+      probeDaemon("https://box.tail123.ts.net"),
+    ).rejects.toMatchObject({ code: "restricted_demo" });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -93,35 +114,27 @@ describe("daemon probing", () => {
   });
 
   it("does not invent upstreams the daemon did not state", async () => {
-    // `/health` is deliberately opaque: status, service, tailscale_url. It has
-    // never carried host_api or identity_api — those are on the
-    // operator-token-gated /v1/toolbar/status. Filling them in with
-    // 127.0.0.1:8787/:8788 made pairing look authoritative about ports the
-    // daemon never mentioned, and on a loopback page that overwrote a working
-    // :18787 Host with the legacy :8787.
+    // Minimal liveness is not authority or endpoint discovery.
     vi.stubGlobal(
       "fetch",
-      vi.fn(() =>
-        Promise.resolve(Response.json({ service: "opensesame-daemon" })),
-      ),
+      vi.fn(() => Promise.resolve(Response.json({ status: "ok" }))),
     );
     await expect(probeDaemon("http://127.0.0.1:18790")).resolves.toEqual({
       status: "ok",
-      service: "opensesame-daemon",
       hostApi: null,
       identityApi: null,
       tailscaleUrl: null,
     });
   });
 
-  it("still takes upstreams from a daemon that does state them", async () => {
-    // The shape is optional, not forbidden — a future /health may carry it.
+  it("ignores endpoint claims injected into unauthenticated health", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
         Promise.resolve(
           Response.json({
             service: "opensesame-daemon",
+            status: "ok",
             host_api: "https://box.tailnet.ts.net/host",
             identity_api: "https://box.tailnet.ts.net/identity",
           }),
@@ -129,8 +142,8 @@ describe("daemon probing", () => {
       ),
     );
     const health = await probeDaemon("http://127.0.0.1:18790");
-    expect(health.hostApi).toBe("https://box.tailnet.ts.net/host");
-    expect(health.identityApi).toBe("https://box.tailnet.ts.net/identity");
+    expect(health.hostApi).toBeNull();
+    expect(health.identityApi).toBeNull();
   });
 
   it("rejects a non-OK answer and a foreign service on the daemon port", async () => {
@@ -148,7 +161,7 @@ describe("daemon probing", () => {
       ),
     );
     await expect(probeDaemon("http://127.0.0.1:18790")).rejects.toThrow(
-      /not an OpenSesame daemon/,
+      /did not report healthy liveness/,
     );
   });
 });

@@ -2,6 +2,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { loopbackProfileEligible } from "../lib/__tests__/loopback-profile.js";
+import { browserPairingSeams } from "../lib/browser-pairing.js";
 import { connectionSeams } from "../lib/connections.js";
 import { CONNECTOR_IDS, type ConnectorStatus } from "../lib/connectors.js";
 import { daemonSeams } from "../lib/daemon.js";
@@ -9,6 +11,7 @@ import { planeSeams } from "../lib/planes.js";
 import { settingsSeams } from "../lib/settings.js";
 import { tailscaleSeams } from "../lib/tailscale.js";
 import { ConnectionCeremony } from "./ConnectivityBar.js";
+const originalEligibility = browserPairingSeams.eligible;
 
 /**
  * One shape, five ceremonies — enforced, not hoped for.
@@ -46,6 +49,7 @@ function status(id: ConnectorStatus["id"]): ConnectorStatus {
 }
 
 beforeEach(() => {
+  browserPairingSeams.eligible = loopbackProfileEligible;
   // Enough of the world that every real ceremony body renders quietly: no
   // plane answers, no connections load, discovery finds nothing.
   Object.assign(planeSeams, {
@@ -77,6 +81,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  browserPairingSeams.eligible = originalEligibility;
   cleanup();
   Object.assign(planeSeams, originalPlaneSeams);
   Object.assign(settingsSeams, originalSettingsSeams);

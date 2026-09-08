@@ -9,6 +9,10 @@ import { Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import {
+  releaseLegacyAgent,
+  reserveLegacyAgent,
+} from "../repos/legacy-agent-store.js";
 import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 import { resolveActiveProject, roleFor } from "./projects.js";
@@ -33,19 +37,22 @@ agentRoutes.post(
       );
     }
 
-    const decision = ctx.policy.evaluate(
-      principal,
-      {
-        subject: {
-          type: "principal",
-          id: principal.id,
-          assurance: principal.assurance,
+    const usage = await getUsage(ctx.stores, principalId, ctx.clock());
+    const evaluate = (agents: number) =>
+      ctx.policy.evaluate(
+        principal,
+        {
+          subject: {
+            type: "principal",
+            id: principal.id,
+            assurance: principal.assurance,
+          },
+          action: "agent.register_ephemeral",
+          resource: { type: "agent", id: "*" },
         },
-        action: "agent.register_ephemeral",
-        resource: { type: "agent", id: "*" },
-      },
-      await getUsage(ctx.stores, principalId, ctx.clock()),
-    );
+        { ...usage, agents },
+      );
+    const decision = evaluate(usage.agents);
     if (decision.effect === "deny") {
       return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
     }
@@ -93,8 +100,18 @@ agentRoutes.post(
         ? { attestationDigest: parsed.data.attestationDigest }
         : undefined),
     };
-    ctx.stores.agents.set(agentId, agent);
-    ctx.stores.agentInstances.set(instanceId, instance);
+    if (
+      !(await reserveLegacyAgent(
+        ctx.stores,
+        agent,
+        instance,
+        (count) => evaluate(count).effect !== "deny",
+      ))
+    )
+      return c.json(
+        { error: "forbidden", reasons: ["agent_quota_exceeded"] },
+        403,
+      );
 
     let claim: Awaited<ReturnType<typeof ctx.claims.createClaim>>;
     try {
@@ -112,8 +129,7 @@ agentRoutes.post(
         proofKeyJkt: parsed.data.publicKeyJkt,
       });
     } catch (error) {
-      ctx.stores.agents.delete(agentId);
-      ctx.stores.agentInstances.delete(instanceId);
+      await releaseLegacyAgent(ctx.stores, agent, instance);
       throw error;
     }
 
@@ -150,7 +166,7 @@ agentRoutes.post(
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
     const agentId = c.req.param("id");
-    const agent = ctx.stores.agents.get(agentId);
+    const agent = await ctx.stores.agents.get(agentId);
     // A claim asserts `ownerPrincipalId` in its manifest and flips the agent to
     // `claimed` on completion, so an unfenced claim would let any caller take
     // over someone else's agent. Foreign ids answer 404, not 403: the id space

@@ -1,10 +1,12 @@
 mod a2h;
 mod aauth;
 mod admin;
+pub(crate) mod agent_capabilities;
 mod agent_runs;
 mod agents;
 mod attachments;
 mod backup;
+pub(crate) mod browser_pairings;
 mod ceremonies;
 pub(crate) mod certmgr_ca;
 pub(crate) mod certmgr_policy;
@@ -19,20 +21,26 @@ mod delegations;
 mod device;
 pub(crate) mod github_app;
 mod health;
+mod host_authorizations;
 mod intents;
 mod kv_facade;
 mod lifecycle;
+mod local_authority_routes;
 mod nats_callout;
 mod protected_resource;
 mod receipts;
 mod relay;
 mod rotation;
+mod secret_config_policy;
+#[cfg(test)]
+mod secret_config_policy_tests;
 mod secret_configs;
 mod security;
 mod session;
 mod shared_sessions;
 mod sync;
 mod sync_blobs;
+mod sync_page;
 mod sync_targets;
 mod taskbus_config;
 mod tasks;
@@ -54,28 +62,8 @@ use crate::github_webhook;
 )]
 pub fn router(state: AppState) -> Router {
     let router = Router::new()
-        .route("/health/live", get(health::live))
-        .route("/health/ready", get(health::ready))
-        .route("/health/authority", get(health::authority))
-        .route("/health/degraded", get(health::degraded))
-        .route("/health/providers", get(health::providers))
-        .route("/api/v1/health", get(health::live))
-        .route(
-            "/.well-known/oauth-protected-resource",
-            get(protected_resource::metadata),
-        )
-        .route("/auth.md", get(protected_resource::auth_md))
-        .route(
-            "/.well-known/agent-card.json",
-            get(protected_resource::agent_card),
-        )
-        .route("/api/v1/device/authorize", post(device::authorize))
-        .route("/api/v1/device/token", post(device::token))
-        .route("/api/v1/device/approve", post(device::approve))
-        .route("/api/v1/session", get(session::status))
-        .route("/api/v1/session/local", post(session::local_mint))
-        .route("/api/v1/sessions/revoke", post(session::revoke))
-        .route("/api/v1/whoami", get(session::whoami))
+        .merge(local_authority_routes::router())
+        .merge(health::routes())
         .route("/api/v1/nats/auth/callout", post(nats_callout::callout))
         .route(
             "/api/v1/operator/taskbus",
@@ -352,17 +340,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/agent-claims/{id}/poll", post(agents::poll))
         .route("/api/v1/agent-claims/{id}/complete", post(agents::complete))
         .route("/api/v1/admin/authority", post(admin::set_authority))
-        .route("/api/v1/sync/push", post(sync::push))
-        .route("/api/v1/sync/pull", post(sync::pull))
-        // WP-F: opaque ciphertext snapshot + guarded push (never plaintext / deployment seal).
-        .route(
-            "/api/v1/sync/blobs/snapshot",
-            post(sync_blobs::snapshot).layer(DefaultBodyLimit::max(32 * 1024)),
-        )
-        .route(
-            "/api/v1/sync/blobs/push",
-            post(sync_blobs::push_opaque).layer(DefaultBodyLimit::max(1024 * 1024)),
-        )
+        .merge(sync_page::routes())
         // WP-D: project secret/config changelog (metadata only).
         .route(
             "/api/v1/projects/{project_id}/changelog",
@@ -474,7 +452,10 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/security/breach-check", post(security::check))
         // Unauthenticated by design: the A2H gateway holds no session, and the
         // request's HMAC is its authentication (see routes/a2h.rs).
-        .route("/api/v1/a2h/callback", post(a2h::callback))
+        .route(
+            "/api/v1/a2h/callback",
+            post(a2h::callback).layer(axum::extract::DefaultBodyLimit::max(65536)),
+        )
         .route("/api/v1/ceremonies", get(ceremonies::list_ceremonies))
         .route("/api/v1/agent/runs", get(agent_runs::list_runs))
         .route("/api/v1/agent/runs/{id}", get(agent_runs::get_run))
@@ -537,5 +518,10 @@ pub fn router(state: AppState) -> Router {
     } else {
         router
     };
-    router.with_state(state).layer(TraceLayer::new_for_http())
+    crate::middleware::guard_routes(
+        router
+            .with_state(state.clone())
+            .layer(TraceLayer::new_for_http()),
+        state,
+    )
 }

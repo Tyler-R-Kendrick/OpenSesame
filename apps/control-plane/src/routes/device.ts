@@ -98,6 +98,7 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
         redirect: "error",
         signal: AbortSignal.timeout(5_000),
       });
+      await res.body?.cancel();
       if (!res.ok) {
         ctx.log.warn(
           { status: res.status },
@@ -108,19 +109,9 @@ deviceRoutes.post("/approve", requirePrincipal(), async (c) => {
           res.status === 404 ? 404 : 502,
         );
       }
-      const text = await res.text();
-      let payload = text;
-      try {
-        payload = overlapCast(JSON.parse(text));
-      } catch {
-        /* keep text */
-      }
-      return c.json({ ok: true, status: res.status, body: payload });
-    } catch (err) {
-      ctx.log.warn(
-        { err: err instanceof Error ? err.message : String(err) },
-        "device approve proxy failed",
-      );
+      return c.json({ ok: true, status: res.status });
+    } catch {
+      ctx.log.warn("device approve proxy failed");
       return c.json(
         {
           error: "host_api_unreachable",

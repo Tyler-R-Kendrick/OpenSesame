@@ -11,6 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+import { observeHttpFailures } from "./http-failures.mjs";
 
 const MIME = {
   ".html": "text/html",
@@ -121,7 +122,10 @@ function answerShoo(route, url, { request, origin }) {
   return null;
 }
 
-async function newPage(browser, { shoo = false, dist, origin, base, record }) {
+async function newPage(
+  browser,
+  { shoo = false, dist, origin, base, record, expectedFallbackUrl },
+) {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
     serviceWorkers: "block",
@@ -156,10 +160,7 @@ async function newPage(browser, { shoo = false, dist, origin, base, record }) {
     return route.abort("connectionrefused");
   });
   const page = await context.newPage();
-  page.on("console", (message) => {
-    if (message.type() === "error")
-      record("console-error", message.text().slice(0, 400));
-  });
+  observeHttpFailures(page, record, expectedFallbackUrl);
   page.on("pageerror", (error) =>
     record("PAGE-ERROR", String(error?.stack ?? error).slice(0, 800)),
   );

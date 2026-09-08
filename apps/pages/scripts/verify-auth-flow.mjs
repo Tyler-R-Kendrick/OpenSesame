@@ -6,26 +6,18 @@
 //   PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 //     pnpm --filter @opensesame/pages verify:auth
 //
-// Two people, two roads, one rule — an authenticator code guards a key:
+// Guest enrollment walks through a PIN first; password enrollment starts at MFA.
+// Both unlock roads announce step 2, reject a wrong code, and accept the real code.
 //
-//   1. GUEST → MFA. Continue as guest (no key on disk). Settings → Security →
-//      Add (authenticator) asks for the key first (step 1: a PIN, set in the same sheet),
-//      then scans and confirms a code (step 2). Lock. The unlock screen
-//      offers exactly the PIN tab and announces the code as step 2 before
-//      the PIN is typed. PIN → code (computed here from the seed shown on
-//      screen, as an authenticator app would) → the vault is open.
-//   2. PASSWORD → MFA. Seal a fresh device with a master password, enroll
-//      MFA directly (step 2 only), lock, unlock with password → code.
-//   3. A wrong code after the right key is refused and stays on step 2.
-//
-// Fails on any page error, any console error other than the SPA-fallback
-// 404, any loopback request, or any failed check. Screenshots and the
+// Fails on any page error, console error, HTTP error (including 404),
+// loopback request, or failed check. Screenshots and the
 // on-screen text of every step land in artifacts/auth-flow/.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { observeHttpFailures } from "./lib/http-failures.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
@@ -131,10 +123,7 @@ async function newPage(browser) {
     return route.abort("connectionrefused");
   });
   const page = await context.newPage();
-  page.on("console", (message) => {
-    if (message.type() === "error")
-      record("console-error", message.text().slice(0, 400));
-  });
+  observeHttpFailures(page, record);
   page.on("pageerror", (error) =>
     record("PAGE-ERROR", String(error?.stack ?? error).slice(0, 800)),
   );
@@ -188,12 +177,16 @@ async function enterEnrollmentCode(page, code) {
 }
 
 async function openSecurity(page) {
-  await page
-    .getByRole("link", { name: /^settings/i })
-    .first()
-    .click();
+  try {
+    await page.getByRole("treeitem", { name: "Settings", exact: true }).click();
+  } catch (error) {
+    await snap(page, "settings-navigation-failed");
+    fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));
+    throw error;
+  }
   await page.waitForTimeout(600);
   await page
+    .getByRole("navigation", { name: "Settings sections", exact: true })
     .getByRole("link", { name: /^security/i })
     .first()
     .click();
@@ -449,23 +442,23 @@ fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));
 
 const loopback = log.filter((entry) => entry.kind === "LOOPBACK-REQUEST");
 const pageErrors = log.filter((entry) => entry.kind === "PAGE-ERROR");
-const consoleErrors = log.filter(
-  (entry) =>
-    entry.kind === "console-error" && !/404 \(Not Found\)/.test(entry.detail),
-);
+const consoleErrors = log.filter((entry) => entry.kind === "console-error");
+const httpErrors = log.filter((entry) => entry.kind === "HTTP-ERROR");
 for (const entry of log)
   if (entry.kind === "PASS" || entry.kind === "FAIL")
     console.log(`${entry.kind} [${entry.step}] ${entry.detail}`);
 console.log(`loopback requests: ${loopback.length}`);
-console.log(
-  `page errors: ${pageErrors.length}`,
-  pageErrors.map((e) => `[${e.step}] ${e.detail.slice(0, 200)}`),
-);
-console.log(
-  `console errors: ${consoleErrors.length}`,
-  consoleErrors.map((e) => `[${e.step}] ${e.detail.slice(0, 200)}`),
-);
-const hard = loopback.length + pageErrors.length + consoleErrors.length;
+for (const [name, errors] of [
+  ["HTTP", httpErrors],
+  ["page", pageErrors],
+  ["console", consoleErrors],
+]) {
+  console.log(
+    `${name} errors: ${errors.length}`,
+    errors.map((e) => `[${e.step}] ${e.detail.slice(0, 200)}`),
+  );
+}
+const hard = [loopback, pageErrors, consoleErrors, httpErrors].flat().length;
 if (failures.length || hard) {
   console.log(
     `\n${failures.length} failed checks, ${hard} hard errors — see ${OUT}`,

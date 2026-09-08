@@ -1,0 +1,16 @@
+# Review routing, not a claim of independent approval by the sole maintainer.
+/.github/ @Tyler-R-Kendrick
+/ops/github/ @Tyler-R-Kendrick
+/apps/pages/ @Tyler-R-Kendrick
+/apps/gateway/ @Tyler-R-Kendrick
+/apps/control-plane/ @Tyler-R-Kendrick
+/apps/daemon/ @Tyler-R-Kendrick
+/crates/ @Tyler-R-Kendrick
+/packages/ @Tyler-R-Kendrick
+/docs/security/ @Tyler-R-Kendrick
+/SECURITY.md @Tyler-R-Kendrick
+/AGENTS.md @Tyler-R-Kendrick
+/*.lock @Tyler-R-Kendrick
+/pnpm-lock.yaml @Tyler-R-Kendrick
+/package.json @Tyler-R-Kendrick
+/.env.schema @Tyler-R-Kendrick

@@ -33,6 +33,7 @@
     "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/policy": "workspace:*",
+    "@opensesame/support-agent": "workspace:*",
     "@opensesame/trust-broker": "workspace:*",
     "@opensesame/webhooks": "workspace:*",
     "drizzle-orm": "0.45.2",
@@ -46,6 +47,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "0.2.17",
     "@opensesame/mock-upstream-idp": "workspace:*",
+    "@opensesame/static-auth": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@playwright/test": "1.55.1",
     "@types/node": "22.15.29",

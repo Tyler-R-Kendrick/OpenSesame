@@ -1,9 +1,11 @@
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { assertSourceOrder } from "@opensesame/testing";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mockAgentHeaders } from "./agent-headers-fixture.js";
 import {
   AgentPayloadRefused,
   REDACTED,
@@ -40,6 +42,7 @@ describe("mcp-host tools", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     resetFetchForTests();
     setTaskContext(null);
   });
@@ -135,25 +138,32 @@ describe("mcp-host tools", () => {
       "task_status",
       "task_invoke",
       "task_terminate",
-      "daemon_status",
+      "daemon_health",
       "host_ready",
-      "operator_invoke_l1",
+      "task_invoke_l1",
     ]) {
       expect(hostTools).toContain(name);
     }
   });
 
-  it("operator_invoke_l1 rejects without task_run_id", async () => {
+  it("task_invoke_l1 rejects without task_run_id", async () => {
     setTaskContext(null);
     expect(() => requireTaskRunId()).toThrow("task_context_required");
   });
 
   it("task_start calls Host API when OPENSESAME_SERVER set", async () => {
     process.env.OPENSESAME_SERVER = "http://127.0.0.1:8787";
-    process.env.OPENSESAME_OPERATOR_TOKEN = "opensesame-dev-operator";
+    const token = `agent-capability:${randomBytes(32).toString("hex")}`;
+    mockAgentHeaders(token);
     const calls: Array<{ url: string; auth?: string | null }> = [];
     setFetchForTests(async (input, init) => {
       const headers = new Headers(init?.headers);
+      expect(headers.get("x-opensesame-agent-audience")).toBe(
+        "urn:opensesame:agent:mcp-host",
+      );
+      expect(headers.get("x-opensesame-agent-client")).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
       calls.push({
         url: String(input),
         auth: headers.get("authorization"),
@@ -184,7 +194,7 @@ describe("mcp-host tools", () => {
     const body = await res.json();
     expect(hostApiBase()).toBe("http://127.0.0.1:8787");
     expect(calls[0]?.url).toBe("http://127.0.0.1:8787/api/v1/tasks");
-    expect(calls[0]?.auth).toBe("Bearer operator:opensesame-dev-operator");
+    expect(calls[0]?.auth).toBe(`Bearer ${token}`);
     expect(body.task_run_id).toBe("task-1");
     Reflect.deleteProperty(process.env, "OPENSESAME_SERVER");
     Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
@@ -211,53 +221,49 @@ describe("mcp-host tools", () => {
     );
   });
 
-  it("never offers the local operator secret to a remote Host API", () => {
+  it("never derives agent authority from an inherited operator or native session", async () => {
     process.env.OPENSESAME_OPERATOR_TOKEN = "local-only-secret";
     process.env.OPENSESAME_ACCESS_TOKEN = "sess-1";
-    expect(hostAuthHeaders("http://127.0.0.1:8787").authorization).toBe(
-      "Bearer operator:local-only-secret",
+    await expect(hostAuthHeaders("http://127.0.0.1:8787")).rejects.toThrow(
+      "approved agent launch",
     );
-    // A remote Host API gets the session bearer instead — the operator token is a
-    // secret shared with this machine's own processes.
-    expect(hostAuthHeaders("https://api.example.test").authorization).toBe(
-      "Bearer opaque-session:sess-1",
+    await expect(hostAuthHeaders("https://api.example.test")).rejects.toThrow(
+      "approved agent launch",
     );
     Reflect.deleteProperty(process.env, "OPENSESAME_ACCESS_TOKEN");
-    expect(
-      hostAuthHeaders("https://api.example.test").authorization,
-    ).toBeUndefined();
     Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
-  it("refuses a session token aimed at a Host API outside OPENSESAME_HOST_AUDIENCE", () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "sess-1";
-    process.env.OPENSESAME_HOST_AUDIENCE = "https://host.example.test";
-    expect(() => hostAuthHeaders("https://evil.example.test")).toThrow(
-      /HOST_AUDIENCE/,
-    );
-    expect(hostAuthHeaders("https://host.example.test").authorization).toBe(
-      "Bearer opaque-session:sess-1",
-    );
-    Reflect.deleteProperty(process.env, "OPENSESAME_ACCESS_TOKEN");
-    Reflect.deleteProperty(process.env, "OPENSESAME_HOST_AUDIENCE");
+  it("rejects caller-supplied authority before making any request", async () => {
+    const fetcher = vi.fn();
+    setFetchForTests(fetcher);
+    await expect(
+      hostFetch("/api/v1/tasks", {
+        headers: { authorization: "Bearer operator:retired" },
+      }),
+    ).rejects.toThrow("cannot be overridden");
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("authenticates daemon calls and confines the daemon to loopback", async () => {
-    process.env.OPENSESAME_OPERATOR_TOKEN = "op-token";
+  it("keeps daemon operator APIs outside the agent surface", async () => {
     const calls: Array<{ url: string; auth: string | null }> = [];
     setFetchForTests(async (input, init) => {
-      const headers = new Headers(init?.headers);
-      calls.push({ url: String(input), auth: headers.get("authorization") });
+      calls.push({
+        url: String(input),
+        auth: new Headers(init?.headers).get("authorization"),
+      });
       return new Response("{}", { status: 200 });
     });
-    await daemonFetch("/v1/toolbar/status");
-    // Every daemon /v1/* route requires this bearer; without it the call 401s.
-    expect(calls[0]?.auth).toBe("Bearer operator:op-token");
-
+    await expect(daemonFetch("/v1/toolbar/status")).rejects.toThrow(
+      "not an agent surface",
+    );
+    await daemonFetch("/health/live");
+    expect(calls).toEqual([
+      { url: "http://127.0.0.1:18790/health/live", auth: null },
+    ]);
     process.env.OPENSESAME_DAEMON_URL = "https://daemon.example.test";
     expect(() => daemonBase()).toThrow("loopback");
     Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_URL");
-    Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
 
   it("task context tracks active run", () => {
@@ -308,8 +314,9 @@ describe("mcp-host tools", () => {
       "forAgent(`${label}: ${message}`)",
     ]);
     assertSourceOrder(readFileSync(join(here, "host-api.ts"), "utf8"), [
-      "OPENSESAME_HOST_AUDIENCE",
-      "does not match OPENSESAME_HOST_AUDIENCE",
+      "AgentClient",
+      "await hostAuthHeaders(base)",
+      'redirect: "error"',
     ]);
     expect(hostTools.join(" ")).not.toMatch(/secret|materialize/i);
   });

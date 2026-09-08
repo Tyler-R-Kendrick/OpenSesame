@@ -1,8 +1,9 @@
 use clap::Parser;
 use std::{env, net::SocketAddr};
 
-pub const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
-pub const DEV_CLAIM_PEPPER: &str = "opensesame-dev-claim-pepper";
+#[cfg(test)]
+pub use opensesame_host_core::deployment_mode::DeploymentMode;
+pub use opensesame_host_core::deployment_mode::{Deployment, ExposureClass};
 
 pub fn constant_time_eq(a: &str, b: &str) -> bool {
     use sha2::{Digest, Sha256};
@@ -40,8 +41,10 @@ pub struct Args {
 }
 
 pub fn is_production_env() -> bool {
-    env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
-        || env::var("NODE_ENV").ok().as_deref() == Some("production")
+    // Legacy call sites fail closed on invalid mode. Startup validates every
+    // effective endpoint through StartupSecurity before persistent state opens.
+    opensesame_host_core::deployment_mode::from_env(ExposureClass::LocalOnly)
+        .map_or(true, Deployment::production_safeguards)
 }
 
 /// Our A2H `agent_id` — the software identity a person sees attached to an
@@ -168,39 +171,141 @@ pub fn resolve_receipt_verifier(
 ///
 /// A user code is ~2^35 possibilities, so a keyless digest of one is recoverable
 /// by exhaustion; the pepper is what makes the stored digest worth storing.
-pub fn resolve_claim_pepper() -> String {
-    match env::var("OPENSESAME_CLAIM_PEPPER") {
-        Ok(p) if !p.is_empty() => p,
-        _ => {
-            if is_production_env() {
-                tracing::error!(
-                    "OPENSESAME_CLAIM_PEPPER unset in production — user codes would be \
-                     recoverable from their digests"
-                );
-                String::new()
-            } else {
-                tracing::warn!("OPENSESAME_CLAIM_PEPPER unset; using a dev pepper (dev only)");
-                DEV_CLAIM_PEPPER.into()
-            }
-        }
+pub fn resolve_claim_pepper() -> Result<String, String> {
+    required_secret(
+        "OPENSESAME_CLAIM_PEPPER",
+        env::var("OPENSESAME_CLAIM_PEPPER").ok().as_deref(),
+    )
+}
+
+pub fn resolve_operator_token() -> Result<String, String> {
+    required_secret(
+        "OPENSESAME_OPERATOR_TOKEN",
+        env::var("OPENSESAME_OPERATOR_TOKEN").ok().as_deref(),
+    )
+}
+
+fn required_secret(name: &str, value: Option<&str>) -> Result<String, String> {
+    match value {
+        Some(value) if value.len() >= 32 && value.trim() == value
+            && value.bytes().all(|byte| byte.is_ascii_graphic())
+            && value.bytes().collect::<std::collections::HashSet<_>>().len() >= 8 => Ok(value.into()),
+        _ => Err(format!("{name} must contain an explicitly provisioned high-entropy secret of at least 32 bytes")),
     }
 }
 
-pub fn resolve_operator_token() -> String {
-    match env::var("OPENSESAME_OPERATOR_TOKEN") {
-        Ok(t) if !t.is_empty() => t,
-        _ => {
-            if is_production_env() {
-                tracing::error!(
-                    "OPENSESAME_OPERATOR_TOKEN unset in production — operator routes will deny"
-                );
-                String::new()
-            } else {
-                tracing::warn!(
-                    "OPENSESAME_OPERATOR_TOKEN unset; using {DEV_OPERATOR_TOKEN} (dev only)"
-                );
-                DEV_OPERATOR_TOKEN.into()
+/// Validated once, before connecting or mutating any durable store.
+/// Deliberately no Debug/Serialize implementation: this carries secret material.
+pub struct StartupSecurity {
+    pub host_authorization: Option<crate::host_authorization::HostAuthorizationVerifier>,
+    pub deployment: Deployment,
+    pub identity_mapping: Option<crate::identity_mapping::IdentityMappingClient>,
+    pub operator_token: String,
+    pub claim_pepper: String,
+    pub receipt_signer: opensesame_audit::ReceiptSigner,
+}
+
+impl StartupSecurity {
+    pub fn load(args: &Args) -> Result<Self, String> {
+        use opensesame_host_core::deployment_mode::{classify, from_env};
+        crate::browser_pairing_proof::pairable_origins()?;
+        let mut endpoints = vec![args.resource.clone(), args.issuer.clone()];
+        for name in [
+            "OPENSESAME_PUBLIC_URL",
+            "OPENSESAME_HOST_API",
+            "OPENSESAME_IDENTITY_URL",
+            "OPENSESAME_API_URL",
+            "OPENSESAME_SERVER",
+            "OPENSESAME_CALLBACK_BASE",
+            "OPENSESAME_A2H_ATTACH_BASE",
+            "OPENSESAME_HOST_AUTHORIZATION_ISSUER",
+        ] {
+            if let Ok(value) = env::var(name) {
+                endpoints.push(value);
             }
         }
+        let endpoint_refs = endpoints.iter().map(String::as_str).collect::<Vec<_>>();
+        let exposure = classify(&[&args.listen.to_string()], &endpoint_refs)?;
+        let deployment = from_env(exposure)?;
+        if deployment.production_safeguards()
+            && endpoint_refs.iter().any(|endpoint| {
+                !endpoint.starts_with("https://")
+                    && opensesame_host_core::deployment_mode::endpoint_exposure(endpoint)
+                        != Ok(ExposureClass::LocalOnly)
+            })
+        {
+            return Err("networked deployment endpoints require HTTPS".into());
+        }
+        if deployment.production_safeguards() && dev_bootstrap_enabled() {
+            return Err(
+                "OPENSESAME_DEV_BOOTSTRAP requires local-only non-production deployment".into(),
+            );
+        }
+        assert_cors_origins()?;
+        let operator_token = resolve_operator_token()?;
+        let claim_pepper = resolve_claim_pepper()?;
+        if deployment.production_safeguards()
+            && env::var("OPENSESAME_RECEIPT_SIGNING_KEY")
+                .ok()
+                .is_none_or(|key| key.trim().is_empty())
+        {
+            return Err(
+                "OPENSESAME_RECEIPT_SIGNING_KEY is required for production or networked deployment"
+                    .into(),
+            );
+        }
+        let receipt_signer = resolve_receipt_signer()?;
+        let identity_mapping = if [
+            "OPENSESAME_NATS_CALLOUT_SECRET",
+            "OPENSESAME_MAPPING_RESOLVE_TOKEN",
+        ]
+        .iter()
+        .any(|name| env::var(name).is_ok_and(|value| !value.is_empty()))
+        {
+            Some(
+                crate::identity_mapping::IdentityMappingClient::from_env(deployment)
+                    .map_err(|error| error.to_string())?,
+            )
+        } else {
+            None
+        };
+        Ok(Self {
+            host_authorization: crate::host_authorization::HostAuthorizationVerifier::from_env()?,
+            deployment,
+            identity_mapping,
+            operator_token,
+            claim_pepper,
+            receipt_signer,
+        })
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::required_secret;
+
+    #[test]
+    fn missing_weak_or_published_development_secrets_fail_closed() {
+        for value in [
+            None,
+            Some(""),
+            Some("opensesame-dev-operator"),
+            Some("opensesame-dev-claim-pepper"),
+            Some("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+            Some(" abcdefghijklmnopqrstuvwxyz0123456789"),
+        ] {
+            assert!(required_secret("TEST_SECRET", value).is_err());
+        }
+        assert!(
+            required_secret("TEST_SECRET", Some("abcdefghijklmnopqrstuvwxyz0123456789")).is_ok()
+        );
+    }
+
+    #[test]
+    fn invalid_configuration_errors_never_echo_secret_material() {
+        let planted = "private-secret-sentinel";
+        let error = required_secret("TEST_SECRET", Some(planted)).unwrap_err();
+        assert!(!error.contains(planted));
+        assert!(error.contains("TEST_SECRET"));
     }
 }

@@ -68,3 +68,16 @@ same developer is a different person on every port, and re-consents to Google ev
 - ADR 0012 — client admission modes (origin profile)
 - ADR 0033 — federated identity admission
 - `docs/architecture/federated-signin.md` — the wire contract
+
+## Superseding security clarification — 2026-09-08
+
+[ADR 0096](0096-static-auth-profiles-and-immutable-distribution.md) supersedes
+the permissive portions of this historical decision. Passthrough is now the
+explicit `pages_passthrough_loopback` development profile and refuses remote
+RPs. There is no fragment fallback or unverified success event. Shoo browser
+validation uses pinned local claim checks plus its CORS-enabled active-session
+endpoint, not a browser fetch to its non-CORS JWKS endpoint. Remote static RPs
+use the hosted Identity authorization-code/PKCE profile with an RP-specific
+audience. Immutable SDK bytes and SRI constrain distribution but do not attest
+to the publisher's trustworthiness. The upstream bearer-audience limitation
+documented above remains true; consent and subject derivation do not remove it.

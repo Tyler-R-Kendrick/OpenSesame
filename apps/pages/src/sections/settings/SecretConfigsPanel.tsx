@@ -1,5 +1,10 @@
-import { type FormEvent, useCallback, useEffect, useState } from "react";
-import { IconAlert, IconCheck } from "../../components/Icons.js";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   type ChangelogEvent,
   formatChangelogSummary,
@@ -10,6 +15,11 @@ import {
   hostLocalSessionEligible,
   useIdentitySession,
 } from "../../lib/identity.js";
+import {
+  type ConfigAccess,
+  NO_CONFIG_ACCESS,
+  loadConfigAccess,
+} from "../../lib/secret-config-access.js";
 import {
   type ConfigCompare,
   type ConfigKeyMeta,
@@ -27,21 +37,22 @@ import {
 } from "../../lib/secret-configs.js";
 import { loadSettings } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
+import { SecretConfigHeading } from "./SecretConfigHeading.js";
+import {
+  SecretConfigBranchForm,
+  SecretConfigSetForm,
+} from "./SecretConfigWriteForms.js";
 
-type Flash = { tone: "ok" | "err" | "warn"; text: string };
+import { type Flash, SecretConfigFlash } from "./SecretConfigFlash.js";
 
 const CHANGELOG_PAGE_SIZE = 20;
 
-/**
- * Project-config secrets for the active project (ADR 0052 / WP-12).
- *
- * The set-input is write-only UI: the masked value goes up once and is
- * cleared on submit. Everything rendered here is metadata — config views,
- * key names, version numbers — because the Host never returns a value.
- */
+/** Project-config metadata and write-only intake (ADR 0052 / WP-12). */
 export function SecretConfigsPanel() {
   const online = useOnline();
   const session = useIdentitySession();
+  const [access, setAccess] = useState<ConfigAccess>(NO_CONFIG_ACCESS);
+  const generation = useRef(0);
   const [projectId, setProjectId] = useState(
     () => loadSettings().activeProjectId?.trim() ?? "",
   );
@@ -78,6 +89,13 @@ export function SecretConfigsPanel() {
 
   const refreshConfigs = useCallback(async () => {
     const project = projectId.trim();
+    const current = ++generation.current;
+    setAccess(NO_CONFIG_ACCESS);
+    setConfigs([]);
+    setKeys([]);
+    setEvents([]);
+    setVersionsFor(null);
+    setCompared(null);
     if (!online || !project) return;
     setLoading(true);
     setFlash(null);
@@ -85,7 +103,11 @@ export function SecretConfigsPanel() {
       if (hostLocalSessionEligible() || session) {
         await ensureHostSession().catch(() => undefined);
       }
-      const next = await listSecretConfigs(project);
+      const permitted = await loadConfigAccess(project);
+      if (generation.current !== current) return;
+      setAccess(permitted);
+      const next = permitted.metadata ? await listSecretConfigs(project) : [];
+      if (generation.current !== current) return;
       setConfigs(next);
       setSelectedId((prev) =>
         prev && next.some((row) => row.id === prev)
@@ -93,12 +115,13 @@ export function SecretConfigsPanel() {
           : (next[0]?.id ?? ""),
       );
     } catch (error) {
+      if (current !== generation.current) return;
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Could not load configs",
       });
     } finally {
-      setLoading(false);
+      if (current === generation.current) setLoading(false);
     }
   }, [online, projectId, session]);
 
@@ -107,20 +130,23 @@ export function SecretConfigsPanel() {
   }, [refreshConfigs]);
 
   const refreshKeys = useCallback(async () => {
-    if (!selectedId) {
+    const current = generation.current;
+    if (!selectedId || !access.keys) {
       setKeys([]);
       return;
     }
     try {
-      setKeys(await listConfigKeys(selectedId));
+      const next = await listConfigKeys(selectedId);
+      if (current === generation.current) setKeys(next);
     } catch (error) {
+      if (current !== generation.current) return;
       setKeys([]);
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Could not load keys",
       });
     }
-  }, [selectedId]);
+  }, [selectedId, access.keys]);
 
   useEffect(() => {
     setVersionsFor(null);
@@ -130,17 +156,20 @@ export function SecretConfigsPanel() {
   }, [refreshKeys]);
 
   async function onSetSecret(event: FormEvent) {
+    const current = generation.current;
     event.preventDefault();
     const keyName = newKeyName.trim();
-    if (!selectedId || !keyName || !newKeyValue) return;
+    if (!access.manage || !selectedId || !keyName || !newKeyValue) return;
     setBusy(true);
     setFlash(null);
     try {
       await putConfigSecrets(selectedId, { [keyName]: newKeyValue });
+      if (current !== generation.current) return;
       setFlash({ tone: "ok", text: `Set ${keyName} — value not shown again` });
       setNewKeyName("");
       await refreshKeys();
     } catch (error) {
+      if (current !== generation.current) return;
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Set failed",
@@ -153,15 +182,18 @@ export function SecretConfigsPanel() {
   }
 
   async function onUnset(keyName: string) {
-    if (!selectedId) return;
+    const current = generation.current;
+    if (!access.manage || !selectedId) return;
     setBusy(true);
     setFlash(null);
     try {
       await deleteConfigSecret(selectedId, keyName);
+      if (current !== generation.current) return;
       setFlash({ tone: "ok", text: `Unset ${keyName}` });
       if (versionsFor?.keyName === keyName) setVersionsFor(null);
       await refreshKeys();
     } catch (error) {
+      if (current !== generation.current) return;
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Unset failed",
@@ -172,14 +204,17 @@ export function SecretConfigsPanel() {
   }
 
   async function onShowVersions(keyName: string) {
-    if (!selectedId) return;
+    const current = generation.current;
+    if (!access.keys || !selectedId) return;
     setBusy(true);
     setFlash(null);
     try {
       const rows = await listConfigSecretVersions(selectedId, keyName);
+      if (current !== generation.current) return;
       setVersionsFor({ keyName, rows });
       setConfirmRollback(null);
     } catch (error) {
+      if (current !== generation.current) return;
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Versions failed",
@@ -190,19 +225,23 @@ export function SecretConfigsPanel() {
   }
 
   async function onRollback(keyName: string, version: number) {
-    if (!selectedId) return;
+    const current = generation.current;
+    if (!access.manage || !selectedId) return;
     setBusy(true);
     setFlash(null);
     try {
       const rolled = await rollbackConfigSecret(selectedId, keyName, version);
+      if (current !== generation.current) return;
       setConfirmRollback(null);
       await refreshKeys();
       await onShowVersions(keyName);
+      if (current !== generation.current) return;
       setFlash({
         tone: "ok",
         text: `Rolled ${rolled.keyName} back to v${version} as new v${rolled.version}`,
       });
     } catch (error) {
+      if (current !== generation.current) return;
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Rollback failed",
@@ -213,17 +252,20 @@ export function SecretConfigsPanel() {
   }
 
   async function onBranch(event: FormEvent) {
+    const current = generation.current;
     event.preventDefault();
     const slug = branchSlug.trim();
-    if (!selectedId || !slug) return;
+    if (!access.manage || !selectedId || !slug) return;
     setBusy(true);
     setFlash(null);
     try {
       const child = await branchConfig(selectedId, { slug });
+      if (current !== generation.current) return;
       setConfigs((prev) => [...prev, child]);
       setBranchSlug("");
       setFlash({ tone: "ok", text: `Branched into ${child.slug}` });
     } catch (error) {
+      if (current !== generation.current) return;
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Branch failed",
@@ -234,13 +276,16 @@ export function SecretConfigsPanel() {
   }
 
   async function onCompare() {
-    if (!selectedId || !compareWith) return;
+    const current = generation.current;
+    if (!access.keys || !selectedId || !compareWith) return;
     setBusy(true);
     setFlash(null);
     try {
       const diff = await compareConfigs(selectedId, compareWith);
+      if (current !== generation.current) return;
       setCompared({ a: selectedId, b: compareWith, diff });
     } catch (error) {
+      if (current !== generation.current) return;
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Compare failed",
@@ -251,8 +296,9 @@ export function SecretConfigsPanel() {
   }
 
   async function onLoadChangelog(beforeSeq?: number) {
+    const current = generation.current;
     const project = projectId.trim();
-    if (!project) return;
+    if (!access.keys || !project) return;
     setBusy(true);
     setFlash(null);
     try {
@@ -260,12 +306,14 @@ export function SecretConfigsPanel() {
         limit: CHANGELOG_PAGE_SIZE,
         ...(beforeSeq === undefined ? undefined : { beforeSeq }),
       });
+      if (current !== generation.current) return;
       setEvents((prev) =>
         beforeSeq === undefined ? page.events : [...prev, ...page.events],
       );
       setNextBeforeSeq(page.events.length === 0 ? null : page.nextBeforeSeq);
       setChangelogLoaded(true);
     } catch (error) {
+      if (current !== generation.current) return;
       setFlash({
         tone: "err",
         text: error instanceof Error ? error.message : "Changelog failed",
@@ -280,35 +328,14 @@ export function SecretConfigsPanel() {
 
   return (
     <section className="panel" aria-labelledby="secret-configs-heading">
-      <div className="panel__head">
-        <div>
-          <h2 id="secret-configs-heading">Project configs</h2>
-        </div>
-        <button
-          type="button"
-          className="btn"
-          disabled={!online || loading || !projectId.trim()}
-          onClick={() => void refreshConfigs()}
-        >
-          Refresh
-        </button>
-      </div>
+      <SecretConfigHeading
+        online={online}
+        loading={loading}
+        projectId={projectId}
+        onRefresh={() => void refreshConfigs()}
+      />
 
-      {!online ? (
-        <output className="note note--warn">
-          <IconAlert /> Offline — configs require Host.
-        </output>
-      ) : null}
-
-      {flash ? (
-        <p
-          className={`note note--${flash.tone === "ok" ? "ok" : flash.tone === "warn" ? "warn" : "err"}`}
-          role={flash.tone === "err" ? "alert" : "status"}
-        >
-          {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-          <span>{flash.text}</span>
-        </p>
-      ) : null}
+      <SecretConfigFlash flash={flash} />
 
       <div className="panel__body">
         <label className="field">
@@ -328,6 +355,8 @@ export function SecretConfigsPanel() {
             Set an active project (Connectivity → Active project) to manage its
             configs.
           </p>
+        ) : !access.metadata && !loading ? (
+          <p className="hint">Project configs are not shared with this role.</p>
         ) : configs.length === 0 && !loading ? (
           <p className="hint">
             No configs yet for this project. Create them via Host API (
@@ -352,8 +381,14 @@ export function SecretConfigsPanel() {
 
             {selected ? (
               <>
-                <h3>Keys</h3>
-                {keys.length === 0 ? (
+                {access.keys ? (
+                  <h3>Keys</h3>
+                ) : (
+                  <p className="hint">
+                    Key names are not shared with this project role.
+                  </p>
+                )}
+                {!access.keys ? null : keys.length === 0 ? (
                   <p className="hint">No secrets in this config yet.</p>
                 ) : (
                   <ul className="list">
@@ -377,21 +412,23 @@ export function SecretConfigsPanel() {
                           >
                             Versions
                           </button>
-                          <button
-                            type="button"
-                            className="btn"
-                            disabled={busy}
-                            onClick={() => void onUnset(key.keyName)}
-                          >
-                            Unset
-                          </button>
+                          {access.manage ? (
+                            <button
+                              type="button"
+                              className="btn"
+                              disabled={busy}
+                              onClick={() => void onUnset(key.keyName)}
+                            >
+                              Unset
+                            </button>
+                          ) : null}
                         </div>
                       </li>
                     ))}
                   </ul>
                 )}
 
-                {versionsFor ? (
+                {access.keys && versionsFor ? (
                   <>
                     <h3>
                       History of <code>{versionsFor.keyName}</code>
@@ -410,7 +447,7 @@ export function SecretConfigsPanel() {
                               {row.actorId ? ` · ${row.actorId}` : null}
                             </p>
                           </div>
-                          <div className="actions">
+                          <div className="actions" hidden={!access.manage}>
                             {confirmRollback &&
                             confirmRollback.keyName === versionsFor.keyName &&
                             confirmRollback.version === row.version ? (
@@ -458,69 +495,27 @@ export function SecretConfigsPanel() {
                   </>
                 ) : null}
 
-                <form
-                  className="set__inline"
-                  onSubmit={(event) => void onSetSecret(event)}
-                >
-                  <div className="field set__inline-grow">
-                    <label htmlFor="secret-config-key">Key name</label>
-                    <input
-                      id="secret-config-key"
-                      value={newKeyName}
-                      placeholder="DATABASE_URL"
-                      autoComplete="off"
-                      spellCheck={false}
-                      onChange={(event) => setNewKeyName(event.target.value)}
-                    />
-                  </div>
-                  <div className="field set__inline-grow">
-                    <label htmlFor="secret-config-value">
-                      Value (write-only)
-                    </label>
-                    <input
-                      id="secret-config-value"
-                      type="password"
-                      value={newKeyValue}
-                      autoComplete="off"
-                      onChange={(event) => setNewKeyValue(event.target.value)}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn btn--primary"
-                    disabled={busy || !newKeyName.trim() || !newKeyValue}
-                  >
-                    Set secret
-                  </button>
-                </form>
+                {access.manage ? (
+                  <SecretConfigSetForm
+                    busy={busy}
+                    newKeyName={newKeyName}
+                    newKeyValue={newKeyValue}
+                    setNewKeyName={setNewKeyName}
+                    setNewKeyValue={setNewKeyValue}
+                    onSetSecret={onSetSecret}
+                  />
+                ) : null}
 
-                <form
-                  className="set__inline"
-                  onSubmit={(event) => void onBranch(event)}
-                >
-                  <div className="field set__inline-grow">
-                    <label htmlFor="secret-config-branch">
-                      Branch into child config
-                    </label>
-                    <input
-                      id="secret-config-branch"
-                      value={branchSlug}
-                      placeholder="dev-yourname"
-                      autoComplete="off"
-                      spellCheck={false}
-                      onChange={(event) => setBranchSlug(event.target.value)}
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn"
-                    disabled={busy || !branchSlug.trim()}
-                  >
-                    Branch
-                  </button>
-                </form>
+                {access.manage ? (
+                  <SecretConfigBranchForm
+                    busy={busy}
+                    branchSlug={branchSlug}
+                    setBranchSlug={setBranchSlug}
+                    onBranch={onBranch}
+                  />
+                ) : null}
 
-                {others.length > 0 ? (
+                {access.keys && others.length > 0 ? (
                   <div className="set__inline">
                     <div className="field set__inline-grow">
                       <label htmlFor="secret-config-compare">
@@ -550,7 +545,7 @@ export function SecretConfigsPanel() {
                   </div>
                 ) : null}
 
-                {compared ? (
+                {access.keys && compared ? (
                   <div>
                     <h3>Compare (presence + versions only)</h3>
                     <p className="hint">
@@ -582,7 +577,7 @@ export function SecretConfigsPanel() {
           </>
         )}
 
-        {projectId.trim() ? (
+        {access.keys && projectId.trim() ? (
           <div>
             <h3>Change log</h3>
             {events.length > 0 ? (

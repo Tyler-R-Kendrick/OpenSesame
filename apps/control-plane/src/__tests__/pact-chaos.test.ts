@@ -78,7 +78,8 @@ describe("PACT — Identity plane mutation oracles", () => {
       "ctx.claims.createClaim",
     ]);
     assertSourceOrder(src("../routes/claims.ts"), [
-      "claimApprovalAttempts.set(id, attempts)",
+      "await incrementSecurityCounter(",
+      "ctx.stores.claimApprovalAttempts",
       "verifyUserCode",
     ]);
   });
@@ -86,7 +87,7 @@ describe("PACT — Identity plane mutation oracles", () => {
   it("MFA fingerprints and increments before verify", () => {
     assertSourceOrder(src("../routes/mfa.ts"), [
       "consumeAnonymousMfaBudget(ctx.stores.mfaAnon, fingerprint, now)",
-      "ctx.stores.mfaFailures.set(fenceKey, prior + 1)",
+      "incrementSecurityCounter(ctx.stores.mfaFailures, fenceKey)",
       "ctx.passkeys.verify",
     ]);
   });
@@ -288,7 +289,12 @@ describe("PACT — Identity plane property / chaos / authz", () => {
 describe("PACT — Identity plane contract / fail-closed", () => {
   it("documents fail-closed statuses on claims, me, MFA, and orgs", () => {
     const document = overlapCast(
-      buildOpenApiDocument(loadConfig({ OPENSESAME_ENV: "test" })),
+      buildOpenApiDocument(
+        loadConfig({
+          OPENSESAME_ENV: "test",
+          OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+        }),
+      ),
     );
     assertFailClosedStatuses(document.paths["/v1/claims"]?.post?.responses, [
       "401",

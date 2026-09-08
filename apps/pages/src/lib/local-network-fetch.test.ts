@@ -1,15 +1,49 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   localNetworkFetch,
+  localNetworkFetchSeams,
   targetAddressSpaceFor,
 } from "./local-network-fetch.js";
+const eligible = localNetworkFetchSeams.eligible;
+beforeEach(() => {
+  localNetworkFetchSeams.eligible = () => true;
+});
+afterEach(() => {
+  localNetworkFetchSeams.eligible = eligible;
+});
 
 type LocalRequestInit = RequestInit & {
   targetAddressSpace?: "local" | "loopback";
 };
 
 describe("local-network-fetch", () => {
+  it.each([
+    "http://127.0.0.2:8787",
+    "http://[fd00::1]:8787",
+    "http://[fe80::1]:8787",
+  ])(
+    "refuses local egress from a shared demo even without an address-space hint: %s",
+    async (url) => {
+      localNetworkFetchSeams.eligible = () => false;
+      const fetcher = vi.fn();
+      vi.stubGlobal("fetch", fetcher);
+      await expect(
+        localNetworkFetch(url, { skipAddressSpace: true }),
+      ).rejects.toMatchObject({ name: "SecurityError" });
+      expect(fetcher).not.toHaveBeenCalled();
+    },
+  );
+  it("never transmits an operator header even from an eligible deployment", async () => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    await expect(
+      localNetworkFetch("https://host.example", {
+        headers: { "X-OpenSesame-Operator": "test-only" },
+      }),
+    ).rejects.toMatchObject({ name: "SecurityError" });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();

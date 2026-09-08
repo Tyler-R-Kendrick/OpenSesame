@@ -17,7 +17,14 @@ use crate::app_state;
 use crate::config::Args;
 
 const SPEC: &str = include_str!("../../../../api/openapi/openapi.yaml");
-const ROUTES: &str = include_str!("mod.rs");
+const ROUTES: &str = concat!(
+    include_str!("mod.rs"),
+    include_str!("local_authority_routes.rs"),
+    include_str!("health.rs"),
+    include_str!("sync_page.rs"),
+    include_str!("browser_pairings.rs"),
+    include_str!("host_authorizations.rs")
+);
 
 /// Routes deliberately absent from the public `OpenAPI` spec, as
 /// (route path, method). A route added to `mod.rs` fails
@@ -186,6 +193,7 @@ fn documented_routes() -> RouteMap {
     let mut routes = RouteMap::new();
     let mut in_paths = false;
     let mut current: Option<String> = None;
+    let mut prefix = "/api/v1";
     for line in SPEC.lines() {
         if !line.is_empty() && !line.starts_with(' ') {
             in_paths = line == "paths:";
@@ -197,9 +205,12 @@ fn documented_routes() -> RouteMap {
         }
         if line.starts_with("  /") && line.ends_with(':') {
             current = Some(line.trim_end_matches(':').trim().to_string());
+            prefix = "/api/v1";
+        } else if line == "    servers: [{url: /}]" {
+            prefix = "";
         } else if let (Some(path), Some(method)) = (&current, documented_method(line)) {
             routes
-                .entry(format!("/api/v1{path}"))
+                .entry(format!("{prefix}{path}"))
                 .or_default()
                 .insert(method.to_uppercase());
         }
@@ -309,7 +320,7 @@ async fn documented_routes_respond_on_the_router() {
     let _guard = app_state::test_env::lock();
     // Force the in-memory bus so an ambient NATS_URL cannot open sockets.
     std::env::set_var("OPENSESAME_TASKBUS", "memory");
-    let state = app_state::build(Args {
+    let state = app_state::build_test(Args {
         listen: "127.0.0.1:0".parse().expect("listen"),
         resource: "https://opensesame.test".into(),
         issuer: "https://identity.test".into(),

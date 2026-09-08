@@ -99,6 +99,9 @@ describe("zero-config origin mode", () => {
     storage.setItem(
       "opensesame:pkce",
       JSON.stringify({
+        issuer: ISSUER,
+        redirectUri: `${PAGE}/opensesame/callback`,
+        createdAt: Date.now(),
         ...pkce,
         state: "st",
         nonce: "nn",
@@ -178,7 +181,14 @@ describe("zero-config origin mode", () => {
     const storage = new MemStorage();
     storage.setItem(
       "opensesame:pkce",
-      JSON.stringify({ state: "st", nonce: "nn", codeVerifier: "cv" }),
+      JSON.stringify({
+        issuer: ISSUER,
+        redirectUri: `${PAGE}/opensesame/callback`,
+        createdAt: Date.now(),
+        state: "st",
+        nonce: "nn",
+        codeVerifier: "cv",
+      }),
     );
     const fetchImpl = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {

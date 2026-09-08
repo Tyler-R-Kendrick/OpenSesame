@@ -724,7 +724,7 @@ pub(crate) mod tests {
     pub(crate) fn owner(state: &AppState) -> HeaderMap {
         test_session_headers(
             state,
-            "prn_policy_owner",
+            "principal:00000000-0000-4000-8000-000000000020",
             state.connection_organization,
             OrganizationRole::Owner,
         )
@@ -733,7 +733,7 @@ pub(crate) mod tests {
     pub(crate) fn member(state: &AppState) -> HeaderMap {
         test_session_headers(
             state,
-            "prn_policy_member",
+            "principal:00000000-0000-4000-8000-000000000021",
             state.connection_organization,
             OrganizationRole::Member,
         )
@@ -744,7 +744,7 @@ pub(crate) mod tests {
         (
             test_session_headers(
                 state,
-                "prn_foreign_owner",
+                "principal:00000000-0000-4000-8000-000000000004",
                 organization,
                 OrganizationRole::Owner,
             ),

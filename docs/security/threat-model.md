@@ -21,6 +21,42 @@ Human, device, workload, service, agent, agent instance, malicious connector, co
 5. Public callback edge (narrow)
 6. Mesh transport (not authorization)
 
+## Browser-to-Host authority lifecycle
+
+Assume a public origin, dependency, or other same-origin application can execute
+hostile JavaScript, a bearer can be copied, a local process can reach loopback,
+and authorization changes while a request or stream remains open. A URL path
+does not isolate projects sharing an origin. A trusted browser origin is not
+an operator, and a non-extractable DPoP key does not defeat same-origin XSS.
+
+Local browser pairing grants only a narrow origin/key/audience-bound sync
+capability. Explicit Identity evidence is required for the enumerated ordinary
+user ceiling; route-level ownership, organization and current project policy
+still apply. Native administration and materialization remain outside that
+ceiling. Recent verified WebAuthn evidence and a one-use frozen authorization
+are both required for browser-control transitions. Credential class, proof,
+principal, organization, exact origin, audience, operation and lifetime are
+independent checks, not interchangeable indications of trust.
+
+Membership narrowing and authentication issuance share the evidence-replay
+transaction. The native revocation floor must not become a last-login timestamp
+that rejects independent legitimate challenges. Control effects and elevation
+consumption commit together. Long-lived observation streams recheck browser
+grant validity, verified evidence, current membership and ownership before
+polling or releasing buffered ciphertext; already delivered bytes cannot be
+recalled. A concurrently revoked in-flight event is bounded, not magically
+retracted. Native session streams recheck their live session record.
+
+Strict deployment/exposure parsing and pre-startup secret validation keep an
+omitted or mistyped environment label from enabling ambient development authority.
+These controls do not make backend availability a condition for opening the
+offline Pages vault or choosing guest access, and Identity sign-in does not
+prove possession of the vault key.
+
+See [Host authority review](audit-2026-09-08-host-authority.md) for implementation
+anchors, focused results, remaining validation and residual trust. Its
+Host-specific passkey contract does not upgrade unrelated interaction approvals.
+
 ## High-risk abuse cases & mitigations
 
 | Threat | Mitigation | Test anchor |

@@ -1,19 +1,31 @@
-//! Narrow public callback edge — OAuth/webhook/ACME only.
+//! Narrow callback ingress. No callback can read a vault or start autonomy.
+mod signature;
+#[cfg(test)]
+mod tests;
+
 use axum::{
     body::Bytes,
-    extract::Path,
-    http::{HeaderMap, StatusCode},
+    extract::{DefaultBodyLimit, State},
+    http::{HeaderMap, Method, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use clap::Parser;
-use hmac::{Hmac, Mac};
-use serde_json::{json, Value};
-use sha2::Sha256;
-use std::net::SocketAddr;
+use opensesame_storage::{callback_replay::CallbackClaim, Db};
+use serde_json::json;
+use std::{
+    net::SocketAddr,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
+use zeroize::Zeroizing;
 
-type HmacSha256 = Hmac<Sha256>;
+struct EdgeState {
+    master: Zeroizing<[u8; 32]>,
+    db: Db,
+    routes: std::collections::BTreeSet<String>,
+}
 
 #[derive(Parser)]
 struct Args {
@@ -25,168 +37,131 @@ struct Args {
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().init();
     let args = Args::parse();
-    let app = opensesame_host_core::http_security::apply_security_headers(
-        Router::new()
-            .route(
-                "/health/live",
-                get(|| async { Json(json!({"status": "ok"})) }),
-            )
-            .route("/oauth/callback/{profile}", post(oauth_callback))
-            .route("/webhooks/{connection_public_id}/{route}", post(webhook)),
-        false,
-    );
     let listen = args.listen.to_string();
     opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
-    tracing::info!(%listen, "callback-edge listening (no vault read API)");
+    let public = std::env::var("OPENSESAME_CALLBACK_PUBLIC_URL").ok();
+    let endpoints: Vec<&str> = public.iter().map(String::as_str).collect();
+    let exposure = opensesame_host_core::deployment_mode::classify(&[&listen], &endpoints)
+        .map_err(anyhow::Error::msg)?;
+    opensesame_host_core::deployment_mode::from_env(exposure).map_err(anyhow::Error::msg)?;
+    anyhow::ensure!(
+        std::env::var("OPENSESAME_CALLBACK_FORWARDING").is_err(),
+        "callback forwarding is unavailable"
+    );
+    let raw = Zeroizing::new(
+        std::env::var("OPENSESAME_CALLBACK_MASTER_KEY")
+            .map_err(|_| anyhow::anyhow!("callback master key is required"))?,
+    );
+    let mut master = Zeroizing::new([0; 32]);
+    anyhow::ensure!(
+        raw.len() == 64,
+        "callback master key must be 32 hex-encoded bytes"
+    );
+    hex::decode_to_slice(raw.as_bytes(), &mut master[..])
+        .map_err(|_| anyhow::anyhow!("invalid callback master key"))?;
+    anyhow::ensure!(
+        master
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            >= 8,
+        "invalid callback master key"
+    );
+    let registered = std::env::var("OPENSESAME_CALLBACK_ROUTES")
+        .map_err(|_| anyhow::anyhow!("callback routes are required"))?;
+    anyhow::ensure!(registered.len() <= 16384, "too many callback routes");
+    let routes: std::collections::BTreeSet<String> =
+        registered.split(',').map(str::to_owned).collect();
+    anyhow::ensure!(
+        !routes.is_empty()
+            && routes.len() <= 128
+            && routes.iter().all(|r| signature::registered_route(r)),
+        "invalid callback routes"
+    );
+    let database = std::env::var("OPENSESAME_CALLBACK_DATABASE_URL")
+        .map_err(|_| anyhow::anyhow!("durable callback database is required"))?;
+    anyhow::ensure!(
+        database.starts_with("sqlite:")
+            && !database.contains("memory")
+            && !database.contains('?')
+            && database.len() > 7,
+        "durable callback database is required"
+    );
+    let db = Db::connect_sqlite(&database)
+        .await
+        .map_err(|_| anyhow::anyhow!("callback database unavailable"))?;
+    db.migrate()
+        .await
+        .map_err(|_| anyhow::anyhow!("callback database migration failed"))?;
     let listener = tokio::net::TcpListener::bind(args.listen).await?;
-    axum::serve(listener, app).await?;
+    axum::serve(listener, router(Arc::new(EdgeState { master, db, routes }))).await?;
     Ok(())
 }
 
-async fn oauth_callback(Path(profile): Path<String>, Json(body): Json<Value>) -> Json<Value> {
-    // Store codes only ephemerally in real deploy; here acknowledge without persisting secrets.
-    let _ = body.get("code");
-    Json(json!({"accepted": true, "profile": profile, "forward": "signed-one-time-event"}))
+fn router(state: Arc<EdgeState>) -> Router {
+    opensesame_host_core::http_security::apply_security_headers(
+        Router::new()
+            .route(
+                "/health/live",
+                get(|| async { Json(json!({"status":"ok"})) }),
+            )
+            .route("/webhooks/{connection}/{route}", post(webhook))
+            // No successful OAuth acknowledgement without an implemented single-use exchange.
+            .route(
+                "/oauth/callback/{profile}",
+                post(|| async { refused(StatusCode::SERVICE_UNAVAILABLE) }),
+            )
+            .fallback(|| async { refused(StatusCode::UNAUTHORIZED) })
+            .layer(DefaultBodyLimit::max(signature::MAX_BODY))
+            .with_state(state),
+        false,
+    )
 }
 
-fn verify_hub_signature(secret: &str, body: &[u8], signature_header: &str) -> bool {
-    let Some(hex) = signature_header
-        .strip_prefix("sha256=")
-        .or_else(|| signature_header.strip_prefix("SHA256="))
-    else {
-        return false;
-    };
-    let Ok(mut mac) = HmacSha256::new_from_slice(secret.as_bytes()) else {
-        return false;
-    };
-    mac.update(body);
-    let Ok(provided) = hex::decode(hex) else {
-        return false;
-    };
-    mac.verify_slice(&provided).is_ok()
-}
-
-fn is_safe_edge_segment(value: &str) -> bool {
-    !value.is_empty()
-        && value.len() <= 128
-        && !value.contains(['/', '?', '#', '\\'])
-        && !value.contains("..")
+fn refused(status: StatusCode) -> Response {
+    (status, Json(json!({"error":"callback_refused"}))).into_response()
 }
 
 async fn webhook(
-    Path((connection_public_id, route)): Path<(String, String)>,
+    State(state): State<Arc<EdgeState>>,
+    method: Method,
+    uri: Uri,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    if !is_safe_edge_segment(&connection_public_id) || !is_safe_edge_segment(&route) {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(json!({"error": "invalid_path"})),
+    let Ok(elapsed) = SystemTime::now().duration_since(UNIX_EPOCH) else {
+        return refused(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let Ok(now) = i64::try_from(elapsed.as_secs()) else {
+        return refused(StatusCode::SERVICE_UNAVAILABLE);
+    };
+    let Some(delivery) = signature::verify(&state.master, &method, &uri, &headers, &body, now)
+    else {
+        return refused(StatusCode::UNAUTHORIZED);
+    };
+    if !state
+        .routes
+        .contains(&format!("{}/{}", delivery.connection, delivery.route))
+    {
+        return refused(StatusCode::UNAUTHORIZED);
+    }
+    match state
+        .db
+        .claim_callback_delivery(
+            &delivery.connection,
+            &delivery.delivery,
+            &delivery.request_digest,
+            now,
         )
-            .into_response();
-    }
-    let secret = std::env::var("OPENSESAME_CALLBACK_WEBHOOK_SECRET").unwrap_or_default();
-    if secret.is_empty() {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({"error": "webhook_unconfigured"})),
-        )
-            .into_response();
-    }
-    let signature = headers
-        .get("x-hub-signature-256")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if !verify_hub_signature(&secret, &body, signature) {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(json!({"error": "invalid_signature"})),
-        )
-            .into_response();
-    }
-    Json(json!({
-        "accepted": true,
-        "connection_public_id": connection_public_id,
-        "route": route
-    }))
-    .into_response()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use hmac::Mac;
-
-    fn sign(secret: &str, body: &[u8]) -> String {
-        let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
-        mac.update(body);
-        format!("sha256={}", hex::encode(mac.finalize().into_bytes()))
-    }
-
-    #[test]
-    fn hmac_rejects_missing_and_wrong_signatures() {
-        let body = b"{\"ok\":true}";
-        assert!(!verify_hub_signature("whsec", body, ""));
-        assert!(!verify_hub_signature("whsec", body, "sha256=00"));
-        assert!(verify_hub_signature("whsec", body, &sign("whsec", body)));
-        assert!(!verify_hub_signature("whsec", body, &sign("other", body)));
-    }
-
-    #[test]
-    fn path_segments_reject_traversal() {
-        assert!(is_safe_edge_segment("conn_abc"));
-        assert!(!is_safe_edge_segment("../admin"));
-        assert!(!is_safe_edge_segment("a/b"));
-        assert!(!is_safe_edge_segment("x?y=1"));
-    }
-
-    #[test]
-    fn production_verifies_hmac_before_accepting() {
-        opensesame_host_core::pact::assert_source_order(
-            include_str!("main.rs"),
-            &[
-                "is_safe_edge_segment(&connection_public_id)",
-                "OPENSESAME_CALLBACK_WEBHOOK_SECRET",
-                "verify_hub_signature(&secret",
-                "invalid_signature",
-            ],
-        );
-    }
-
-    // The process-global environment must stay locked until the handler has read it.
-    #[allow(clippy::await_holding_lock)]
-    #[tokio::test]
-    async fn missing_secret_is_unconfigured_not_open() {
-        let _guard = env_lock();
-        std::env::remove_var("OPENSESAME_CALLBACK_WEBHOOK_SECRET");
-        let response = webhook(
-            Path(("conn_1".into(), "github".into())),
-            HeaderMap::new(),
-            Bytes::from_static(b"{}"),
-        )
-        .await;
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    }
-
-    // The process-global environment must stay locked until the handler has read it.
-    #[allow(clippy::await_holding_lock)]
-    #[tokio::test]
-    async fn valid_hmac_is_accepted() {
-        let _guard = env_lock();
-        std::env::set_var("OPENSESAME_CALLBACK_WEBHOOK_SECRET", "whsec_test");
-        let body = Bytes::from_static(b"{\"action\":\"ping\"}");
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "x-hub-signature-256",
-            sign("whsec_test", &body).parse().unwrap(),
-        );
-        let response = webhook(Path(("conn_1".into(), "github".into())), headers, body).await;
-        assert_eq!(response.status(), StatusCode::OK);
-    }
-
-    fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        LOCK.lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .await
+    {
+        Ok(CallbackClaim::New | CallbackClaim::Duplicate) => {
+            Json(json!({"accepted":true,"forwarded":false})).into_response()
+        }
+        Ok(CallbackClaim::Mismatch) => {
+            tracing::warn!("callback delivery binding mismatch");
+            refused(StatusCode::UNAUTHORIZED)
+        }
+        Ok(CallbackClaim::Capacity) | Err(_) => refused(StatusCode::SERVICE_UNAVAILABLE),
     }
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { endSession } from "../identity.js";
+import { clearHostSession, endSession } from "../identity.js";
 import { clearNotices } from "../notices.js";
 import { clearStagedClaimTokens } from "../queue.js";
 import { type VaultState, vaultStore } from "./store.js";
@@ -34,12 +34,13 @@ function useSessionGuardsDefault(): void {
   const { prefs, status } = useVault();
 
   // Locking drops in-memory vault keys and clears secrets that left the vault
-  // (clipboard, staged claim tokens). Identity/Host stay signed in unless the
+  // (clipboard, staged claim tokens, browser Host grant). Identity stays signed in unless the
   // operator opted into "sign out on lock" — idle vault lock must not kick
   // them out of every plane.
   useEffect(
     () =>
       vaultStore.onLock(() => {
+        clearHostSession();
         clearCopiedSecret();
         clearStagedClaimTokens();
         clearNotices();

@@ -1,22 +1,15 @@
 import { createChainedAuditSink } from "@opensesame/audit";
 import {
   MemoryPrincipalMappingStore,
-  type UpstreamAuthDatabase,
   createAuthenticationService,
-  createMemoryChallengeStore,
-  createPasskeySeam,
-  createSimpleWebAuthnVerifyFn,
 } from "@opensesame/auth-upstream";
 import { ClaimEngine } from "@opensesame/claims";
 import {
   ConflictError,
   type ConsentStore,
-  type OrgFederationStores,
-  type OrganizationStores,
-  type ProjectStores,
+  MemoryRepositories,
+  PostgresRepositories,
   type Repositories,
-  type SamlStores,
-  type ScimStores,
   betterAuthAccounts,
   betterAuthSessions,
   betterAuthUsers,
@@ -35,12 +28,11 @@ import {
   createPostgresProjectStores,
   createPostgresSamlStores,
   createPostgresScimStores,
-  createRepositories,
+  runMigrations,
 } from "@opensesame/database";
 // INTEGRATOR (S11): the mailer seam is the whole of this swarm's footprint in
 // this file — one import, one context field below. Email delivery for the
 // magic-link method (D16) lives in services/mailer.ts.
-import type { ChannelAdapter } from "@opensesame/notification-adapters";
 import {
   MemoryClientRecordStore,
   createOpenSesameProvider,
@@ -48,71 +40,24 @@ import {
 } from "@opensesame/oauth-provider";
 import { createLogger } from "@opensesame/observability";
 import type { Clock } from "@opensesame/os-domain";
-import type { AuthenticationServiceStores } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
 import { createHonoApp } from "./app.js";
-import {
-  type ControlPlaneConfig,
-  assertSecureConfig,
-  loadConfig,
-} from "./config.js";
 import type { AppContext, ControlPlaneRepositories } from "./context.js";
+import type { CreateControlPlaneOptions } from "./create-app-options.js";
+import { resolveControlPlaneConfig } from "./create-app-options.js";
+import { createPasskeys } from "./create-passkeys.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
+import { DurableClaimStore } from "./repos/durable-claim-store.js";
+import { DurablePrincipalMappingStore } from "./repos/durable-mapping-store.js";
+import { installDurableSecurityMaps } from "./repos/security-maps.js";
+import { verifySecurityDatabase } from "./repos/security-readiness.js";
+import { hostAuthorizationAudiences } from "./services/host-authorization.js";
 import { createMailer } from "./services/mailer.js";
-import {
-  type NotificationCallbackAdapters,
-  createNotificationCallbackAdapters,
-} from "./services/notification-callbacks.js";
+import { createNotificationCallbackAdapters } from "./services/notification-callbacks.js";
 import { createSmsBridge } from "./services/sms-bridge.js";
 import { createAppStores } from "./state.js";
 
-export interface CreateControlPlaneOptions {
-  config?: Partial<ControlPlaneConfig>;
-  clock?: Clock;
-  ready?: boolean;
-  processEnv?: NodeJS.ProcessEnv;
-  /**
-   * Test seam: inject repositories (e.g. an in-process PGlite-backed
-   * PostgresRepositories) instead of deriving them from `databaseUrl`.
-   */
-  repos?: Repositories;
-  /**
-   * Test seam: inject project stores. Defaults to the Postgres stores when a
-   * `databaseUrl` is configured, memory otherwise — this lets route suites run
-   * against the Postgres implementation without a server.
-   */
-  projectStores?: ProjectStores;
-  /**
-   * Test seam: inject organization stores. Defaults to the Postgres stores
-   * when a `databaseUrl` is configured, memory otherwise — the same shape the
-   * project stores use, so a route suite can run either implementation
-   * without a server.
-   */
-  organizationStores?: OrganizationStores;
-  /**
-   * Test seam: inject the Better Auth database. Defaults to the same Drizzle
-   * bundle everything else uses when a `databaseUrl` is configured, and to
-   * nothing (Better Auth's in-memory adapter) otherwise — so a suite can prove
-   * a magic link outlives the instance that minted it without a server.
-   */
-  betterAuthDatabase?: UpstreamAuthDatabase;
-  /** Test seam: inject SCIM stores (same defaulting rule as the org stores). */
-  scimStores?: ScimStores;
-  /** Test seam: inject the org email-domain + LDAP configuration stores. */
-  orgFederationStores?: OrgFederationStores;
-  /** Test seam: inject the SAML pending/replay stores. */
-  samlStores?: SamlStores;
-  /** Durable Passwordless/WebAuthn application, user, credential, and token stores. */
-  authenticationStores?: AuthenticationServiceStores;
-  /**
-   * Test seam: inject provider-callback adapters. Defaults to whatever this
-   * deployment holds signing material for, which in a stack with no secrets
-   * configured is nothing at all.
-   */
-  notificationCallbackAdapters?: NotificationCallbackAdapters;
-  /** The SMS bridge adapter; tests hand in a recording one. */
-  sms?: ChannelAdapter;
-}
+export type { CreateControlPlaneOptions } from "./create-app-options.js";
 
 /**
  * The deployment/system principal (ADR 0050 R-A). Auto-admitted origin
@@ -154,27 +99,27 @@ export async function ensureSystemOwnerPrincipal(
   }
 }
 
-function rpIdFromUrl(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return "localhost";
-  }
-}
-
 export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const processEnv = options.processEnv ?? process.env;
-  const base = loadConfig(processEnv);
-  const config: ControlPlaneConfig = { ...base, ...options.config };
-  assertSecureConfig(config, processEnv);
+  const config = resolveControlPlaneConfig(options, processEnv);
+  const hostAudiences = hostAuthorizationAudiences(
+    processEnv,
+    config.isProduction,
+    config.publicUrl,
+  );
   const clock: Clock = options.clock ?? (() => new Date());
   const log = createLogger({ name: "control-plane", level: config.logLevel });
+  const drizzleBundle = options.database
+    ? { db: options.database }
+    : config.databaseUrl
+      ? createDrizzle(config.databaseUrl)
+      : undefined;
 
   const baseRepos =
     options.repos ??
-    createRepositories(
-      config.databaseUrl ? { databaseUrl: config.databaseUrl } : undefined,
-    );
+    (drizzleBundle
+      ? new PostgresRepositories(drizzleBundle.db)
+      : new MemoryRepositories());
   // Every audit write goes through the chain, so a trail cannot be quietly
   // rewritten by anything that cannot recompute every later digest. The tip is
   // read from the store on the first append: starting each process at genesis
@@ -208,7 +153,9 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       list: (filter) => baseRepos.auditEvents.list(filter),
     },
   };
-  const claimStore = new IndexedClaimStore(clock);
+  const claimStore = drizzleBundle
+    ? new DurableClaimStore(drizzleBundle.db)
+    : new IndexedClaimStore(clock);
   const claims = new ClaimEngine({
     pepper: config.claimPepper,
     store: claimStore,
@@ -218,9 +165,6 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   // authorization codes, refresh tokens, device flows — in Postgres. On the
   // in-memory adapter every restart silently invalidates live sessions and a
   // consumed authorization code stops being remembered as consumed.
-  const drizzleBundle = config.databaseUrl
-    ? createDrizzle(config.databaseUrl)
-    : undefined;
   const oidcStore = drizzleBundle
     ? createPostgresOidcStore(drizzleBundle.db)
     : undefined;
@@ -283,15 +227,22 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   // writes owner_principal_id (a FK against Postgres). createControlPlane is
   // synchronous, so the promise travels on the context and the server awaits
   // it before accepting traffic.
-  const systemPrincipalReady = ensureSystemOwnerPrincipal(repos, clock);
-  systemPrincipalReady.catch((error) => {
-    log.error({ err: error }, "failed to ensure system owner principal");
+  const systemPrincipalReady = (async () => {
+    if (config.databaseUrl && drizzleBundle && !options.database) {
+      await runMigrations(config.databaseUrl);
+    }
+    if (drizzleBundle) await verifySecurityDatabase(drizzleBundle.db);
+    await ensureSystemOwnerPrincipal(repos, clock);
+  })();
+  systemPrincipalReady.catch(() => {
+    log.error("security_state_initialization_failed");
   });
   // Late-bound: `stores` is assembled after the provider, but the lookup only
   // runs per authorization request, long after both exist.
   const consentLookup: ConsentLookupSlot = {};
   const oauth = createOpenSesameProvider({
     issuer: config.issuer,
+    env: { isProduction: config.isProduction },
     processEnv: options.processEnv ?? process.env,
     clientStore,
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
@@ -312,7 +263,9 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
         }
       : undefined),
   });
-  const mappings = new MemoryPrincipalMappingStore();
+  const mappings = drizzleBundle
+    ? new DurablePrincipalMappingStore(drizzleBundle.db)
+    : new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();
   const stores = createAppStores({
     oauthClients: clientStore,
@@ -328,18 +281,13 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ...(samlStores ? { samlStores } : undefined),
   });
   consentLookup.store = stores.consents;
-  const passkeyChallenges = createMemoryChallengeStore();
-  const rp = {
-    rpID: rpIdFromUrl(config.publicUrl),
-    origin: config.publicUrl.replace(/\/$/, ""),
-  };
-
-  // Tests/dev: stub signature length check. Production: SimpleWebAuthn + challenge binding.
-  const passkeys = createPasskeySeam({
-    verifyAssertion: config.allowDevDefaults
-      ? async (assertion, _credential) => assertion.signature.byteLength > 0
-      : createSimpleWebAuthnVerifyFn(rp, passkeyChallenges),
-  });
+  if (drizzleBundle)
+    installDurableSecurityMaps(
+      stores,
+      drizzleBundle.db,
+      config.provisionalTtlMs,
+    );
+  const passkeyComponents = createPasskeys(config, drizzleBundle?.db);
 
   const betterAuthDatabase =
     options.betterAuthDatabase ??
@@ -358,6 +306,8 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       : undefined);
 
   const ctx: AppContext = {
+    hostAuthorizationAudiences: hostAudiences,
+    ...passkeyComponents,
     config,
     log,
     repos,
@@ -369,8 +319,6 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     stores,
     clock,
     ready: options.ready ?? true,
-    passkeys,
-    passkeyChallenges,
     authentication,
     authenticationStores,
     mailer: createMailer(processEnv, config),
@@ -383,6 +331,15 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ...(betterAuthDatabase ? { betterAuthDatabase } : undefined),
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
     systemPrincipalReady,
+    securityStateReady: async () => {
+      try {
+        await systemPrincipalReady;
+        if (drizzleBundle) await verifySecurityDatabase(drizzleBundle.db);
+        return true;
+      } catch {
+        return false;
+      }
+    },
   };
 
   const app = createHonoApp(ctx);

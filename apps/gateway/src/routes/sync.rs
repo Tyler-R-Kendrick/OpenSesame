@@ -5,7 +5,6 @@ use axum::{
     Json,
 };
 use opensesame_client_core::SyncBlob;
-use opensesame_host_core::daemon as host_daemon;
 use opensesame_storage::{StoredSyncBlob, SyncWriteOutcome};
 use serde::Deserialize;
 use serde_json::json;
@@ -21,6 +20,10 @@ pub(crate) struct SyncPushBody {
 #[derive(Deserialize)]
 pub struct SyncPullBody {
     #[serde(default)]
+    after: Option<super::sync_page::Cursor>,
+    #[serde(default)]
+    limit: Option<u32>,
+    #[serde(default)]
     since_epoch: u64,
     #[serde(default)]
     device_id: Option<String>,
@@ -35,18 +38,14 @@ const MAX_BLOBS_PER_OWNER: usize = 512;
 /// Per-blob ciphertext ceiling — vault sealed bodies can exceed small limits;
 /// still bounded so sync is not a file dump.
 const MAX_CIPHERTEXT_BYTES: usize = 2 * 1024 * 1024;
-/// Device id length cap (client-supplied keys).
-const MAX_DEVICE_ID_LEN: usize = 128;
-/// Global durable cursor ceiling; existing devices can always advance at quota.
-const MAX_DEVICE_CURSORS: usize = 4096;
 
 pub async fn push(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
     Json(body): Json<SyncPushBody>,
 ) -> Response {
-    let owner_id = match require_session(&st, &headers) {
-        Ok((_, meta)) => session_subject(&meta),
+    let (owner_id, organization_id) = match require_session(&st, &headers) {
+        Ok((_, meta)) => (session_subject(&meta), meta.organization_id.to_string()),
         Err(resp) => return resp,
     };
     if body.blobs.len() > MAX_BLOBS_PER_REQUEST {
@@ -63,7 +62,8 @@ pub async fn push(
     let mut rejected_stale_epoch = 0u32;
     let mut stored_blobs = Vec::new();
     for blob in body.blobs {
-        if blob.ciphertext.len() > MAX_CIPHERTEXT_BYTES {
+        if blob.ciphertext.len() > MAX_CIPHERTEXT_BYTES || blob.id.is_empty() || blob.id.len() > 128
+        {
             rejected_oversize += 1;
             continue;
         }
@@ -78,8 +78,9 @@ pub async fn push(
     } else {
         match st
             .db
-            .write_sync_blobs(
+            .write_sync_blobs_scoped(
                 &owner_id,
+                &organization_id,
                 &stored_blobs,
                 i64::try_from(MAX_SYNC_BLOBS).expect("sync blob limit fits i64"),
                 i64::try_from(MAX_BLOBS_PER_OWNER).expect("owner blob limit fits i64"),
@@ -132,66 +133,30 @@ pub async fn pull(
     headers: axum::http::HeaderMap,
     Json(body): Json<SyncPullBody>,
 ) -> Response {
-    let owner_id = match require_session(&st, &headers) {
-        Ok((_, meta)) => session_subject(&meta),
-        Err(resp) => return resp,
-    };
-    let since = body.since_epoch;
-    let blobs: Vec<SyncBlob> = match st.db.list_sync_blobs(&owner_id, since).await {
-        Ok(blobs) => blobs
-            .into_iter()
-            .map(|blob| SyncBlob {
-                id: blob.id,
-                epoch: blob.epoch,
-                ciphertext: blob.ciphertext,
-            })
-            .collect(),
-        Err(error) => {
-            tracing::error!(error = %error, "encrypted sync read failed");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": "sync_storage_failed"})),
-            )
-                .into_response();
-        }
-    };
-    let mut device_cursor = None;
-    if let Some(device_id) = body
-        .device_id
-        .as_ref()
-        .filter(|s| !s.is_empty() && s.len() <= MAX_DEVICE_ID_LEN)
-    {
-        let max_epoch = blobs.iter().map(|b| b.epoch).max().unwrap_or(since);
-        match st
-            .db
-            .advance_sync_cursor(
-                &owner_id,
-                device_id,
-                max_epoch,
-                i64::try_from(MAX_DEVICE_CURSORS).expect("device cursor limit fits i64"),
-            )
-            .await
-        {
-            Ok(cursor) => device_cursor = cursor,
-            Err(error) => {
-                tracing::error!(error = %error, "encrypted sync cursor write failed");
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({"error": "sync_storage_failed"})),
-                )
-                    .into_response();
-            }
-        }
+    if body.after.is_none() && body.since_epoch != 0 {
+        return (
+            StatusCode::CONFLICT,
+            Json(json!({"error":"sync_cursor_upgrade_required","restart_after":null})),
+        )
+            .into_response();
     }
-    let _ = host_daemon::DEFAULT_LISTEN;
-    Json(json!({
-        "blobs": blobs,
-        "plaintext": null,
-        "note": "ciphertext only",
-        "device_cursor": device_cursor,
-        "daemon_default_listen": host_daemon::DEFAULT_LISTEN,
-    }))
-    .into_response()
+    super::sync_page::serve_page(
+        &st,
+        &headers,
+        super::sync_page::PageQuery {
+            after: body.after.or_else(|| {
+                Some(super::sync_page::Cursor {
+                    epoch: body.since_epoch.saturating_add(1),
+                    id: String::new(),
+                })
+            }),
+            limit: body.limit,
+            device_id: body.device_id,
+        },
+        true,
+        None,
+    )
+    .await
 }
 
 #[cfg(test)]
@@ -303,8 +268,13 @@ mod tests {
 
     #[test]
     fn renewed_sessions_share_the_principals_ciphertext() {
-        let first = json!({"session_id": "first", "approved_as": "principal:alice"});
-        let renewed = json!({"session_id": "renewed", "approved_as": "principal:alice"});
+        let first = crate::session_claims::fixture(
+            opensesame_domain::PrincipalId::new(),
+            opensesame_domain::OrganizationId::new(),
+            opensesame_domain::OrganizationRole::Member,
+            "https://host.test",
+        );
+        let renewed = first.clone();
         assert_eq!(session_subject(&first), session_subject(&renewed));
     }
 }

@@ -1,5 +1,8 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loopbackProfileEligible } from "./__tests__/loopback-profile.js";
+import { browserPairingSeams } from "./browser-pairing.js";
+import { localNetworkFetchSeams } from "./local-network-fetch.js";
 import {
   TAILSCALE_CLIENT_URL,
   assertDaemonReachableFromPage,
@@ -175,8 +178,10 @@ describe("discoverTailscaleDaemon", () => {
     );
 
     const health = await discoverTailscaleDaemon("https://box.tail123.ts.net");
-    expect(health.service).toBe("opensesame-daemon");
-    expect(health.hostApi).toBe("https://box.tail123.ts.net/host");
+    expect(health.status).toBe("ok");
+    expect(health.service).toBeUndefined();
+    expect(health.hostApi).toBeNull();
+    expect(health.identityApi).toBeNull();
   });
 
   it("explains the failure with the first probe error when nothing answers", async () => {
@@ -236,4 +241,16 @@ describe("assertDaemonReachableFromPage", () => {
       assertDaemonReachableFromPage("http://100.64.1.8:18790"),
     ).not.toThrow();
   });
+});
+
+// Profile eligibility permits local health requests, never authenticated authority.
+const originalPairingEligibility = browserPairingSeams.eligible;
+const originalNetworkEligibility = localNetworkFetchSeams.eligible;
+beforeEach(() => {
+  browserPairingSeams.eligible = loopbackProfileEligible;
+  localNetworkFetchSeams.eligible = loopbackProfileEligible;
+});
+afterEach(() => {
+  browserPairingSeams.eligible = originalPairingEligibility;
+  localNetworkFetchSeams.eligible = originalNetworkEligibility;
 });

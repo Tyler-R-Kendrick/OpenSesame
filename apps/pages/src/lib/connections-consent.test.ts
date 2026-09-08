@@ -12,7 +12,7 @@ import {
   openConsentPopup,
   submitGithubAppManifest,
 } from "./connections.js";
-import { clearHostSession, clearSession } from "./identity.js";
+import { clearHostSession, clearSession, identitySeams } from "./identity.js";
 import {
   saveSettings,
   shippedHostApi,
@@ -20,6 +20,7 @@ import {
 } from "./settings.js";
 
 const HOST = shippedHostApi;
+const originalHostFetch = identitySeams.hostFetch;
 const IDENTITY = shippedIdentityApi;
 const HOST_ORIGIN = new URL(HOST).origin;
 
@@ -65,22 +66,14 @@ function connectionWire(overrides: JsonObject = {}) {
   };
 }
 
-/** Host-local session mint + the connection poll endpoint. */
+/** Consent polling uses the authenticated transport, not a local bearer bootstrap. */
 function stubHost(poll: (url: string) => Response) {
   const spy = vi.fn((input: RequestInfo | URL) => {
     const url = String(input);
-    if (url === `${HOST}/api/v1/session/local`) {
-      return Promise.resolve(
-        jsonResponse({
-          access_token: "opaque-session:sess_consent",
-          expires_in: 28_800,
-          local_session: true,
-        }),
-      );
-    }
     return Promise.resolve(poll(url));
   });
   vi.stubGlobal("fetch", spy);
+  identitySeams.hostFetch = (path) => spy(`${HOST}${path}`);
   return spy;
 }
 
@@ -102,6 +95,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  identitySeams.hostFetch = originalHostFetch;
   clearSession();
   clearHostSession();
   vi.unstubAllGlobals();

@@ -26,7 +26,8 @@ function prodBase(): ControlPlaneConfig {
     port: 8788,
     publicUrl: "https://id.example",
     issuer: "https://id.example",
-    claimPepper: "unique-claim-pepper-not-dev",
+    claimPepper: "unique-test-only-claim-pepper-at-least-32-characters",
+    databaseUrl: "postgres://test@127.0.0.1/test",
     provisionalCookieName: "os_provisional",
     provisionalTtlMs: 86_400_000,
     logLevel: "info",
@@ -85,7 +86,7 @@ describe("config hardening", () => {
         ...prodBase(),
         claimPepper: "dev-claim-pepper-change-me",
       }),
-    ).toThrow(/development default/);
+    ).toThrow(/CLAIM_PEPPER/);
     expect(() =>
       assertSecureConfig({ ...prodBase(), allowDevDefaults: true }),
     ).toThrow(/allowDevDefaults/);
@@ -120,6 +121,7 @@ describe("config hardening", () => {
     const config = loadConfig({
       OPENSESAME_ENV: "test",
       DATABASE_URL: "postgres://localhost:5432/opensesame",
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
     });
     expect(config.databaseUrl).toBe("postgres://localhost:5432/opensesame");
   });
@@ -295,14 +297,12 @@ describe("http surface", () => {
     expect(overlapCast(await res.json()).status).toBe("not_ready");
   });
 
-  it("allows private-network requests when asked in preflight", async () => {
+  it("does not grant private-network access globally", async () => {
     const { app } = createControlPlane({ config: testConfig() });
     const res = await app.request("/v1/health/live", {
       headers: { "access-control-request-private-network": "true" },
     });
-    expect(res.headers.get("access-control-allow-private-network")).toBe(
-      "true",
-    );
+    expect(res.headers.get("access-control-allow-private-network")).toBe(null);
   });
 
   it("turns an unhandled throw into a correlated 500, not a stack trace", async () => {
@@ -368,13 +368,12 @@ describe("http surface", () => {
 });
 
 describe("createControlPlane", () => {
-  it("falls back to a localhost rpID when publicUrl is not a URL", () => {
-    const { ctx } = createControlPlane({
-      config: { ...testConfig(), publicUrl: "not a url" },
-    });
-    expect(ctx.config.publicUrl).toBe("not a url");
-    // Construction succeeded: the passkey rp derivation degraded, not threw.
-    expect(ctx.passkeys).toBeDefined();
+  it("refuses malformed public URLs before constructing a verifier", () => {
+    expect(() =>
+      createControlPlane({
+        config: { ...testConfig(), publicUrl: "not a url" },
+      }),
+    ).toThrow(/Invalid deployment endpoint/);
   });
 });
 

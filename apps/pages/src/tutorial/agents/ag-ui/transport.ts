@@ -15,7 +15,7 @@
 
 import { type JsonValue, overlapCast } from "@opensesame/os-domain";
 import { SupportError } from "@opensesame/support-agent";
-import type { AgUiEndpoint } from "./endpoint.js";
+import { type AgUiEndpoint, readAgUiEndpointUrl } from "./endpoint.js";
 import type { AgUiOutboundBody } from "./outbound.js";
 
 export type AgUiTransportRequest = {
@@ -98,21 +98,42 @@ async function loadAgUiClientDefault(): Promise<AgUiClient> {
 }
 
 /**
- * One POST, with everything ambient switched off: no cookies, no referrer, no
- * cache entry, and no redirect. A redirect is the interesting one — following
- * it would replay this body at a host the endpoint check never saw.
+ * Check the same-origin session before sending the question. Cookies remain
+ * same-origin only; referrers, caching and redirects are disabled.
  */
 async function sendSupportRequest(
   request: AgUiTransportRequest,
   fetchImpl: AgUiFetch,
 ): Promise<Response> {
+  if (!readAgUiEndpointUrl(request.endpoint.url))
+    throw new SupportError(
+      "AGENT_UNAVAILABLE",
+      "Support requires a same-origin HTTPS proxy",
+    );
+  const session = await fetchImpl(request.endpoint.url, {
+    method: "HEAD",
+    credentials: "same-origin",
+    mode: "same-origin",
+    cache: "no-store",
+    redirect: "error",
+    referrerPolicy: "no-referrer",
+    signal: request.signal,
+  });
+  if (
+    !session.ok ||
+    session.headers.get("X-OpenSesame-Support-Session") !== "active"
+  )
+    throw new SupportError(
+      "AGENT_UNAVAILABLE",
+      "Sign in to this deployment before using remote support",
+    );
   const response = await fetchImpl(request.endpoint.url, {
     method: "POST",
     headers: Object.fromEntries(request.endpoint.headers),
     body: JSON.stringify(request.body),
     signal: request.signal,
-    credentials: "omit",
-    mode: "cors",
+    credentials: "same-origin",
+    mode: "same-origin",
     cache: "no-store",
     redirect: "error",
     referrerPolicy: "no-referrer",

@@ -1,11 +1,7 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultCapabilityConnectors } from "./capabilities.js";
-import {
-  clearHostSession,
-  clearSession,
-  connectProvisional,
-} from "./identity.js";
+import { clearHostSession, clearSession, identitySeams } from "./identity.js";
 import {
   type SecretConfig,
   branchConfig,
@@ -27,6 +23,7 @@ import {
 
 const HOST = shippedHostApi;
 const IDENTITY = shippedIdentityApi;
+const originalHostFetch = identitySeams.hostFetch;
 
 function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -54,32 +51,14 @@ function stubHostFetch(handler: (url: string, init?: RequestInit) => Response) {
   return spy;
 }
 
-/** Session + Identity plumbing shared by every Host call in these tests. */
+/** API mapping tests inject the authenticated transport; pairing has its own suite. */
 function withSession(handler: (url: string, init?: RequestInit) => Response) {
-  return stubHostFetch((url, init) => {
-    if (url === `${HOST}/api/v1/session/local`) {
-      return jsonResponse({ error: "demo_bootstrap_unavailable" }, 503);
-    }
-    if (url === `${HOST}/api/v1/device/authorize`) {
-      return jsonResponse({ device_code: "dc_sc", user_code: "ABCD-SCFG" });
-    }
-    if (url === `${IDENTITY}/v1/device/approve`) {
-      return jsonResponse({ ok: true });
-    }
-    if (url === `${HOST}/api/v1/device/token`) {
-      return jsonResponse({
-        access_token: "opaque-session:sess_sc",
-        expires_in: 28_800,
-      });
-    }
-    if (url === `${IDENTITY}/v1/principals/me`) {
-      return jsonResponse({}, 401);
-    }
-    return handler(url, init);
-  });
+  const spy = stubHostFetch(handler);
+  identitySeams.hostFetch = (path, init) => spy(`${HOST}${path}`, init);
+  return spy;
 }
 
-beforeEach(async () => {
+beforeEach(() => {
   clearSession();
   clearHostSession();
   saveSettings({
@@ -90,18 +69,10 @@ beforeEach(async () => {
     mfaAppUrl: "http://127.0.0.1:5177",
     capabilityConnectors: defaultCapabilityConnectors(),
   });
-  withSession(() =>
-    jsonResponse({
-      principalId: "principal_sc",
-      accessToken: "identity_sc",
-      expiresAt: "2099-01-01T00:00:00Z",
-    }),
-  );
-  await connectProvisional();
-  vi.unstubAllGlobals();
 });
 
 afterEach(() => {
+  identitySeams.hostFetch = originalHostFetch;
   vi.unstubAllGlobals();
 });
 

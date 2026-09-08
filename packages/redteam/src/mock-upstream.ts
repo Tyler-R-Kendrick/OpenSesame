@@ -68,6 +68,7 @@ function matchRoute(
 
 export async function startMockUpstream(
   routes: MockRoute[],
+  requiredHeaders?: Record<string, string>,
 ): Promise<MockUpstream> {
   const requests: CapturedRequest[] = [];
 
@@ -79,6 +80,18 @@ export async function startMockUpstream(
       const method = req.method ?? "GET";
       const url = req.url ?? "/";
       requests.push({ method, url, headers: req.headers, body });
+
+      if (
+        requiredHeaders &&
+        url.startsWith("/api/") &&
+        Object.entries(requiredHeaders).some(
+          ([name, value]) => req.headers[name] !== value,
+        )
+      ) {
+        res.writeHead(401, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "agent_binding_mismatch" }));
+        return;
+      }
 
       const match = matchRoute(routes, method, url);
       const status = match?.status ?? (match ? 200 : 404);

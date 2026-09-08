@@ -1,4 +1,7 @@
 import { overlapCast } from "@opensesame/os-domain";
+import { mayPairLocalAuthority } from "./deployment-profile.js";
+
+export const localNetworkFetchSeams = { eligible: mayPairLocalAuthority };
 /**
  * Chrome Local Network Access (LNA): github.io → Tailscale CGNAT / .ts.net /
  * loopback needs an explicit address-space hint and hard timeouts. Without a
@@ -22,7 +25,7 @@ export function targetAddressSpaceFor(
   }
   if (
     host === "localhost" ||
-    host === "127.0.0.1" ||
+    /^127\./.test(host) ||
     host === "[::1]" ||
     host === "::1" ||
     host.endsWith(".localhost")
@@ -32,10 +35,12 @@ export function targetAddressSpaceFor(
   if (
     host.endsWith(".ts.net") ||
     host.endsWith(".local") ||
-    host === "hello.ts.net" ||
     isRfc1918(host) ||
     isCgnat(host) ||
-    isLinkLocal(host)
+    isLinkLocal(host) ||
+    /^\[(?:f[cd][0-9a-f]{2}:|fe[89ab][0-9a-f]:|::ffff:)/i.test(host) ||
+    host === "[::]" ||
+    host === "0.0.0.0"
   ) {
     return "local";
   }
@@ -84,7 +89,17 @@ export async function localNetworkFetch(
     signal: outer,
     ...rest
   } = init;
-  const space = skipAddressSpace ? undefined : targetAddressSpaceFor(input);
+  const targetSpace = targetAddressSpaceFor(input);
+  if (
+    (targetSpace && !localNetworkFetchSeams.eligible()) ||
+    new Headers(init.headers).has("X-OpenSesame-Operator")
+  ) {
+    throw new DOMException(
+      "This browser deployment cannot use local operator authority.",
+      "SecurityError",
+    );
+  }
+  const space = skipAddressSpace ? undefined : targetSpace;
   const controller = new AbortController();
   const onOuterAbort = () => controller.abort(outer?.reason);
   if (outer) {

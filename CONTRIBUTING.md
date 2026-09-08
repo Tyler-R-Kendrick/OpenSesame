@@ -19,7 +19,11 @@ Identity CLI binary is `opensesame-id` (Rust authority CLI remains `opensesame`)
 ## Gates
 CI is deliberately thin: `.github/workflows/ci.yml` runs `pnpm lint`,
 `pnpm typecheck`, `pnpm test` and `cargo test --workspace --all-targets` on every
-pull request, and those two checks gate the merge queue into `main`. A merge to
+pull request. The default-branch policy requires up-to-date `TypeScript`,
+`Bundle budgets`, and `Rust` checks, resolved review threads, and a pull request.
+This personal-account repository does not support a merge queue; use squash
+auto-merge after review. Apply/verify protection using `ops/github/governance.mjs`.
+A merge to
 `main` then publishes `apps/pages` through `.github/workflows/deploy-pages.yml`.
 Everything heavier stays local:
 

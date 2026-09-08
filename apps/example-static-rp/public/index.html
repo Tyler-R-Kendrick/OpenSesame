@@ -85,49 +85,6 @@
       </div>
       <div class="status" id="status" role="status">Loading session…</div>
     </main>
-    <script type="module">
-      import { createOpenSesame } from "@opensesame/sdk-browser";
-
-      const issuer = __OPENSESAME_ISSUER__;
-      const origin = window.location.origin;
-
-      document.getElementById("origin").textContent = origin;
-      document.getElementById("issuer").textContent = issuer;
-
-      const sesame = createOpenSesame({ issuer });
-      const statusEl = document.getElementById("status");
-
-      function showSession(session) {
-        if (!session) {
-          statusEl.textContent = "Signed out.";
-          return;
-        }
-        const label = session.anonymous ? "Anonymous session" : "Signed in";
-        statusEl.innerHTML = session.sub
-          ? `${label} · sub=<code>${session.sub}</code>`
-          : label;
-      }
-
-      function showError(message) {
-        statusEl.innerHTML = `<span class="error">${message}</span>`;
-      }
-
-      document.getElementById("sign-in").addEventListener("click", () => {
-        void sesame.signIn({ returnTo: "/" }).catch((err) => {
-          showError(err instanceof Error ? err.message : "Sign-in failed");
-        });
-      });
-
-      document.getElementById("sign-out").addEventListener("click", () => {
-        void sesame.signOut().then(() => showSession(null));
-      });
-
-      void sesame
-        .getSession()
-        .then(showSession)
-        .catch((err) => {
-          showError(err instanceof Error ? err.message : "Session load failed");
-        });
-    </script>
+    <script type="module" src="/index.ts"></script>
   </body>
 </html>

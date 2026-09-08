@@ -813,7 +813,7 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert(
             "x-opensesame-operator",
-            crate::DEV_OPERATOR_TOKEN.parse().unwrap(),
+            crate::test_operator_token().parse().unwrap(),
         );
         let promotion_request = PromoteRequest {
             provider_id: "github".into(),
@@ -1265,7 +1265,7 @@ mod tests {
             let mut headers = HeaderMap::new();
             headers.insert(
                 "x-opensesame-operator",
-                crate::DEV_OPERATOR_TOKEN.parse().unwrap(),
+                crate::test_operator_token().parse().unwrap(),
             );
             let promotion_request = PromoteRequest {
                 provider_id: "github".into(),

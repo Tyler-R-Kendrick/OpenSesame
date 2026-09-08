@@ -29,6 +29,11 @@ import type {
   AgentInstance,
   ProvisionalSession,
 } from "@opensesame/os-domain";
+import type { SecurityMap } from "./repos/durable-map.js";
+import {
+  type PostgresAgentInstanceStore,
+  PostgresAgentStore,
+} from "./repos/legacy-agent-postgres.js";
 
 export interface IdempotencyRecord {
   status: number;
@@ -65,9 +70,12 @@ export interface MfaCodeChallenge {
 }
 
 export interface AppStores {
-  provisionalSessions: Map<string, ProvisionalSession>;
+  hostAuthorizations: SecurityMap<
+    import("./services/host-authorization.js").HostAuthorizationPending
+  >;
+  provisionalSessions: SecurityMap<ProvisionalSession>;
   /** session token → session id */
-  provisionalTokens: Map<string, string>;
+  provisionalTokens: SecurityMap<string>;
   /**
    * Durable project rows (WP-8). Memory-backed in tests/dev, Postgres when a
    * database is configured — same interface either way.
@@ -115,8 +123,8 @@ export interface AppStores {
    * the consent prompt re-appears; this store is the revocable record.
    */
   consents: ConsentStore;
-  agents: Map<string, Agent>;
-  agentInstances: Map<string, AgentInstance>;
+  agents: Map<string, Agent> | PostgresAgentStore;
+  agentInstances: Map<string, AgentInstance> | PostgresAgentInstanceStore;
   /** principalId → usage counters */
   usage: Map<
     string,
@@ -125,13 +133,13 @@ export interface AppStores {
   /** Idempotency-Key → response */
   idempotency: Map<string, IdempotencyRecord>;
   /** principalId → base64 TOTP secret */
-  totpSecrets: Map<string, string>;
+  totpSecrets: SecurityMap<string>;
   /** claimId → failed user-code approval attempts (brute-force fence) */
-  claimApprovalAttempts: Map<string, number>;
+  claimApprovalAttempts: SecurityMap<number>;
   /** mfa subject → failed verification attempts (brute-force fence) */
-  mfaFailures: Map<string, number>;
+  mfaFailures: SecurityMap<number>;
   /** challengeId → a one-time code sent by email or text, until it is spent */
-  mfaCodes: Map<string, MfaCodeChallenge>;
+  mfaCodes: SecurityMap<MfaCodeChallenge>;
   /** principalId → serialized quota mutations */
   principalMutations: Map<string, Promise<void>>;
   /** Idempotency-Key inflight locks */
@@ -196,6 +204,7 @@ export function createAppStores(options?: {
     claimApprovalAttempts: new Map(),
     mfaFailures: new Map(),
     mfaCodes: new Map(),
+    hostAuthorizations: new Map(),
     principalMutations: new Map(),
     idempotencyLocks: new Map(),
     provisionalMints: new Map(),
@@ -210,6 +219,19 @@ export function createAppStores(options?: {
 const LIVE_PROJECT_STATES = new Set(["provisional", "active"]);
 /** Agent states that still occupy a quota slot. */
 const LIVE_AGENT_STATES = new Set(["provisional", "claimed", "suspended"]);
+export async function getAgentUsage(
+  stores: Pick<AppStores, "agents">,
+  principalId: string,
+): Promise<number> {
+  if (stores.agents instanceof PostgresAgentStore)
+    return stores.agents.countLive(principalId);
+  const agents = await stores.agents.values();
+  return [...agents].filter(
+    (agent) =>
+      agent.ownerPrincipalId === principalId &&
+      LIVE_AGENT_STATES.has(agent.state),
+  ).length;
+}
 /** Organization states that still occupy a quota slot. */
 const LIVE_ORGANIZATION_STATES = new Set([
   "provisional",
@@ -244,12 +266,7 @@ export async function getUsage(
     else projects += 1;
   }
 
-  let agents = 0;
-  for (const agent of stores.agents.values()) {
-    if (agent.ownerPrincipalId !== principalId) continue;
-    if (!LIVE_AGENT_STATES.has(agent.state)) continue;
-    agents += 1;
-  }
+  const agents = await getAgentUsage(stores, principalId);
 
   let organizations = 0;
   for (const org of await stores.organizations.listByCreator(principalId)) {

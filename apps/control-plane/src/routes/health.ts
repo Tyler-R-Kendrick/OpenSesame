@@ -5,9 +5,9 @@ export const healthRoutes = new Hono<{ Variables: Variables }>();
 
 healthRoutes.get("/live", (c) => c.json({ status: "ok" }));
 
-healthRoutes.get("/ready", (c) => {
+healthRoutes.get("/ready", async (c) => {
   const ctx = c.get("ctx");
-  if (!ctx.ready) {
+  if (!ctx.ready || !(await ctx.securityStateReady())) {
     return c.json({ status: "not_ready" }, 503);
   }
   return c.json({ status: "ready" });

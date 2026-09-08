@@ -1,0 +1,173 @@
+[
+  {
+    "name": "missing",
+    "opensesame_env": null,
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "development",
+    "opensesame_env": "development",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": "development",
+    "production_safeguards": false
+  },
+  {
+    "name": "test",
+    "opensesame_env": "test",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": "test",
+    "production_safeguards": false
+  },
+  {
+    "name": "production",
+    "opensesame_env": "production",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": "production",
+    "production_safeguards": true
+  },
+  {
+    "name": "abbreviated",
+    "opensesame_env": "prod",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "case",
+    "opensesame_env": "Production",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "empty",
+    "opensesame_env": "",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "space",
+    "opensesame_env": " development",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "unknown",
+    "opensesame_env": "stage",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "conflicting",
+    "opensesame_env": "development",
+    "node_env": "production",
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "matching",
+    "opensesame_env": "production",
+    "node_env": "production",
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": "production",
+    "production_safeguards": true
+  },
+  {
+    "name": "node",
+    "opensesame_env": "",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "node-development",
+    "opensesame_env": null,
+    "node_env": "development",
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": "development",
+    "production_safeguards": false
+  },
+  {
+    "name": "node-invalid",
+    "opensesame_env": null,
+    "node_env": "prod",
+    "allow_dev_defaults": null,
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "networked-development",
+    "opensesame_env": "development",
+    "node_env": null,
+    "allow_dev_defaults": null,
+    "exposure": "networked",
+    "expected": "development",
+    "production_safeguards": true
+  },
+  {
+    "name": "local-opt-in",
+    "opensesame_env": null,
+    "node_env": null,
+    "allow_dev_defaults": "1",
+    "exposure": "local_only",
+    "expected": "development",
+    "production_safeguards": false
+  },
+  {
+    "name": "local-no-opt-in",
+    "opensesame_env": null,
+    "node_env": null,
+    "allow_dev_defaults": "0",
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "invalid-opt-in",
+    "opensesame_env": null,
+    "node_env": null,
+    "allow_dev_defaults": "true",
+    "exposure": "local_only",
+    "expected": null,
+    "production_safeguards": false
+  },
+  {
+    "name": "networked-opt-in",
+    "opensesame_env": "development",
+    "node_env": null,
+    "allow_dev_defaults": "1",
+    "exposure": "networked",
+    "expected": null,
+    "production_safeguards": false
+  }
+]

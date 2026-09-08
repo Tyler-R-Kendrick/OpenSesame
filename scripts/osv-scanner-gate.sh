@@ -4,7 +4,9 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-mkdir -p artifacts/security .tools/bin
+source "$ROOT/scripts/lib/audit-directory.sh"
+opensesame_audit_directory
+mkdir -p .tools/bin
 
 VERSION="${OPENSESAME_OSV_SCANNER_VERSION:-2.5.0}"
 BIN="$ROOT/.tools/bin/osv-scanner"
@@ -38,18 +40,18 @@ set +e
   --lockfile=pnpm-lock.yaml \
   --config="$ROOT/osv-scanner.toml" \
   --format json \
-  --output-file artifacts/security/osv-scanner.json \
-  2>artifacts/security/osv-scanner.err
+  --output-file "$OPENSESAME_AUDIT_DIR/osv-scanner.json" \
+  2>"$OPENSESAME_AUDIT_DIR/osv-scanner.err"
 status=$?
 set -e
 
 python3 - <<'PY'
-import json, sys
+import json, os, sys
 from pathlib import Path
 
-path = Path("artifacts/security/osv-scanner.json")
+path = Path(os.environ["OPENSESAME_AUDIT_DIR"]) / "osv-scanner.json"
 if not path.exists() or path.stat().st_size == 0:
-    err = Path("artifacts/security/osv-scanner.err").read_text(errors="replace")
+    err = (Path(os.environ["OPENSESAME_AUDIT_DIR"]) / "osv-scanner.err").read_text(errors="replace")
     print("osv-scanner gate: FAIL (no JSON output)", file=sys.stderr)
     print(err, file=sys.stderr)
     sys.exit(1)

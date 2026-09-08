@@ -1,0 +1,18 @@
+{
+  "name": "@opensesame/static-auth",
+  "version": "1.0.2",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/sdk-browser": "workspace:*",
+    "jose": "6.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}

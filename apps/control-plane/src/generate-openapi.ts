@@ -8,7 +8,7 @@ import { buildOpenApiDocument } from "./openapi.js";
 // not whatever PORT/PUBLIC_URL happens to be in the operator's shell.
 const config = loadConfig({
   OPENSESAME_ENV: "test",
-  OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+  OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
 });
 const doc = buildOpenApiDocument(config);
 const out = resolve(dirname(fileURLToPath(import.meta.url)), "../openapi.json");

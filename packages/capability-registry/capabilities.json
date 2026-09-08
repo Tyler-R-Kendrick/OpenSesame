@@ -86,7 +86,7 @@
     "surfaces": {
       "cli": "opensesame daemon status",
       "pwa": "pwa-app:daemon-probe",
-      "mcp_host": "daemon_status",
+      "mcp_host": "daemon_health",
       "mcp_client": null,
       "webmcp": "opensesame_pwa_health"
     }
@@ -123,8 +123,14 @@
       "cli": "opensesame invoke",
       "pwa": null,
       "mcp_host": null,
-      "mcp_client": "invoke_l1",
+      "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_client": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -200,7 +206,7 @@
     "surfaces": {
       "cli": "opensesame intent invoke",
       "pwa": null,
-      "mcp_host": "operator_invoke_l1",
+      "mcp_host": "task_invoke_l1",
       "mcp_client": null,
       "webmcp": null
     }
@@ -213,9 +219,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "route:/access",
-      "mcp_host": "receipt_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -226,9 +238,15 @@
     "surfaces": {
       "cli": "opensesame receipt verify",
       "pwa": null,
-      "mcp_host": "receipt_verify",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -458,9 +476,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "lib/access.ts:listDelegations",
-      "mcp_host": "delegation_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -471,9 +495,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "lib/access.ts:listMyOffers",
-      "mcp_host": "delegation_offer_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -484,9 +514,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "lib/access.ts:narrowDelegation",
-      "mcp_host": "delegation_narrow",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_delegation_narrow"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -497,9 +533,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "lib/access.ts:revokeDelegation",
-      "mcp_host": "delegation_revoke",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_delegation_revoke"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -510,9 +552,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "lib/access.ts:revokeOffer",
-      "mcp_host": "delegation_revoke",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_delegation_revoke"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -573,9 +621,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "lib/access.ts:listRelayRequests",
-      "mcp_host": "relay_request_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_access_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -632,9 +686,15 @@
     "surfaces": {
       "cli": "opensesame provider list",
       "pwa": "lib/connections.ts:listProviders",
-      "mcp_host": "provider_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_connections_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -645,9 +705,15 @@
     "surfaces": {
       "cli": "opensesame provider test",
       "pwa": null,
-      "mcp_host": "provider_test",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -658,9 +724,19 @@
     "surfaces": {
       "cli": "opensesame connect ls",
       "pwa": "lib/connections.ts:listConnections",
-      "mcp_host": "connection_read",
-      "mcp_client": "list_connections",
+      "mcp_host": null,
+      "mcp_client": null,
       "webmcp": "opensesame_connections_read"
+    },
+    "excluded": {
+      "mcp_client": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -671,9 +747,15 @@
     "surfaces": {
       "cli": "opensesame connect inspect",
       "pwa": "lib/connections.ts:getConnection",
-      "mcp_host": "connection_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_connections_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -780,9 +862,15 @@
     "surfaces": {
       "cli": "opensesame connect rotate",
       "pwa": null,
-      "mcp_host": "connection_rotate",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -793,11 +881,15 @@
     "surfaces": {
       "cli": "opensesame connect rm",
       "pwa": "lib/connections.ts:revokeConnection",
-      "mcp_host": "connection_remove",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
       "webmcp": {
         "reason": "destructive revocation confirmed by the human in the connections UI",
         "adr": "0065-agent-surface-parity.md"
@@ -859,8 +951,14 @@
       "cli": null,
       "pwa": "lib/connections.ts:listIntegrations",
       "mcp_host": null,
-      "mcp_client": "integration_read",
+      "mcp_client": null,
       "webmcp": "opensesame_connections_read"
+    },
+    "excluded": {
+      "mcp_client": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -871,9 +969,15 @@
     "surfaces": {
       "cli": "opensesame cert ls",
       "pwa": null,
-      "mcp_host": "cert_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -884,11 +988,15 @@
     "surfaces": {
       "cli": "opensesame cert issue",
       "pwa": "lib/certs.ts:issueCertificate",
-      "mcp_host": "cert_issue",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
       "webmcp": {
         "reason": "issuance delivers private key material to the device; the human runs it from the vault UI",
         "adr": "0065-agent-surface-parity.md"
@@ -926,9 +1034,19 @@
     "surfaces": {
       "cli": "opensesame config keys",
       "pwa": "route:/settings",
-      "mcp_host": "config_read",
-      "mcp_client": "config_metadata_read",
+      "mcp_host": null,
+      "mcp_client": null,
       "webmcp": "opensesame_settings_read"
+    },
+    "excluded": {
+      "mcp_client": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -939,9 +1057,15 @@
     "surfaces": {
       "cli": "opensesame config history",
       "pwa": null,
-      "mcp_host": "config_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -952,11 +1076,15 @@
     "surfaces": {
       "cli": "opensesame config set",
       "pwa": "route:/settings",
-      "mcp_host": "config_set",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
       "webmcp": {
         "reason": "secret value entry stays in the human settings UI",
         "adr": "0065-agent-surface-parity.md"
@@ -971,9 +1099,15 @@
     "surfaces": {
       "cli": "opensesame config rollback",
       "pwa": null,
-      "mcp_host": "config_rollback",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1037,9 +1171,19 @@
     "surfaces": {
       "cli": null,
       "pwa": "route:/settings",
-      "mcp_host": "sync_target_read",
-      "mcp_client": "sync_target_read",
+      "mcp_host": null,
+      "mcp_client": null,
       "webmcp": "opensesame_settings_read"
+    },
+    "excluded": {
+      "mcp_client": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1077,9 +1221,15 @@
     "surfaces": {
       "cli": null,
       "pwa": null,
-      "mcp_host": "rotation_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1090,9 +1240,15 @@
     "surfaces": {
       "cli": "opensesame connection rotate",
       "pwa": null,
-      "mcp_host": "rotation_trigger",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1149,9 +1305,15 @@
     "surfaces": {
       "cli": "opensesame lifecycle expiring",
       "pwa": null,
-      "mcp_host": "lifecycle_expiring_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1162,9 +1324,15 @@
     "surfaces": {
       "cli": "opensesame lifecycle hooks",
       "pwa": null,
-      "mcp_host": "lifecycle_hooks_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1221,9 +1389,15 @@
     "surfaces": {
       "cli": "opensesame lifecycle deliveries",
       "pwa": null,
-      "mcp_host": "lifecycle_deliveries_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1234,9 +1408,366 @@
     "surfaces": {
       "cli": "opensesame lifecycle scan",
       "pwa": null,
-      "mcp_host": "lifecycle_scan",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
+    }
+  },
+  {
+    "id": "browser.pairing.begin",
+    "title": "Request an origin and proof-key bound browser pairing",
+    "plane": "host",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/browser-pairing.ts:beginBrowserPairing",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "mcp_client": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "webmcp": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      }
+    }
+  },
+  {
+    "id": "browser.pairing.inspect",
+    "title": "Inspect the exact pending browser pairing in a native ceremony",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame local-authority pair",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "mcp_client": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "webmcp": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      }
+    }
+  },
+  {
+    "id": "browser.pairing.decide",
+    "title": "Approve or deny an origin-bound browser pairing",
+    "plane": "host",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame local-authority pair",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "mcp_client": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "webmcp": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      }
+    }
+  },
+  {
+    "id": "browser.identity.authenticate",
+    "title": "Bind verified Identity evidence to the paired browser",
+    "plane": "host",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/host-authorization.ts:authenticateBrowser",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "mcp_client": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "webmcp": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      }
+    }
+  },
+  {
+    "id": "browser.client.revoke",
+    "title": "Revoke a paired browser and its active grants",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/browser-pairing.ts:revokeBrowserPairing",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "mcp_client": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "webmcp": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      }
+    }
+  },
+  {
+    "id": "agent.launch.approve",
+    "title": "Approve and launch an audience-scoped local agent",
+    "plane": "host",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame local-authority launch",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Native approval and revocation define the agent ceiling; agents cannot mint or administer their own authority",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "mcp_client": {
+        "reason": "Native approval and revocation define the agent ceiling; agents cannot mint or administer their own authority",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "Native approval and revocation define the agent ceiling; agents cannot mint or administer their own authority",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
+    }
+  },
+  {
+    "id": "agent.capability.revoke",
+    "title": "Revoke scoped agent grants through native Host administration",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Native approval and revocation define the agent ceiling; agents cannot mint or administer their own authority",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "mcp_client": {
+        "reason": "Native approval and revocation define the agent ceiling; agents cannot mint or administer their own authority",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "Native approval and revocation define the agent ceiling; agents cannot mint or administer their own authority",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
+    }
+  },
+  {
+    "id": "vault.wrapper.inspect",
+    "title": "Inspect local password-wrapper parameters without deriving a key",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame vault-inspect",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Offline wrapper inspection and migration belong to the human device owner; migration handles vault keys and requires explicit confirmation",
+        "adr": "0097-bounded-kdf-policy.md"
+      },
+      "mcp_client": {
+        "reason": "Offline wrapper inspection and migration belong to the human device owner; migration handles vault keys and requires explicit confirmation",
+        "adr": "0097-bounded-kdf-policy.md"
+      },
+      "webmcp": {
+        "reason": "Offline wrapper inspection and migration belong to the human device owner; migration handles vault keys and requires explicit confirmation",
+        "adr": "0097-bounded-kdf-policy.md"
+      }
+    }
+  },
+  {
+    "id": "vault.wrapper.migrate",
+    "title": "Interactively migrate a local wrapper to the portable KDF policy",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame vault-migrate",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Offline wrapper inspection and migration belong to the human device owner; migration handles vault keys and requires explicit confirmation",
+        "adr": "0097-bounded-kdf-policy.md"
+      },
+      "mcp_client": {
+        "reason": "Offline wrapper inspection and migration belong to the human device owner; migration handles vault keys and requires explicit confirmation",
+        "adr": "0097-bounded-kdf-policy.md"
+      },
+      "webmcp": {
+        "reason": "Offline wrapper inspection and migration belong to the human device owner; migration handles vault keys and requires explicit confirmation",
+        "adr": "0097-bounded-kdf-policy.md"
+      }
+    }
+  },
+  {
+    "id": "sync.legacy.rebind",
+    "title": "Rebind explicitly selected legacy ciphertext with ownership evidence",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame sync rebind-legacy",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "mcp_client": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      },
+      "webmcp": {
+        "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
+        "adr": "0094-browser-local-authority.md"
+      }
+    }
+  },
+  {
+    "id": "configs.permissions.read",
+    "title": "Read effective project metadata and key-name permissions",
+    "plane": "host",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/secret-config-access.ts:loadConfigAccess",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      },
+      "mcp_client": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      },
+      "webmcp": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      }
+    }
+  },
+  {
+    "id": "configs.permissions.write",
+    "title": "Set project metadata permissions within the current Host ceiling",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      },
+      "mcp_client": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      },
+      "webmcp": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      }
+    }
+  },
+  {
+    "id": "configs.membership.manage",
+    "title": "Set or revoke native Host organization role ceilings",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      },
+      "mcp_client": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      },
+      "webmcp": {
+        "reason": "Project metadata policy and membership ceilings require the human role and resource authorization boundary, not an agent administration tool",
+        "adr": "0098-secret-metadata-authorization.md"
+      }
     }
   },
   {
@@ -1247,9 +1778,15 @@
     "surfaces": {
       "cli": "opensesame security findings",
       "pwa": null,
-      "mcp_host": "security_findings_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1260,9 +1797,15 @@
     "surfaces": {
       "cli": "opensesame security scan",
       "pwa": null,
-      "mcp_host": "security_breach_scan",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1296,11 +1839,15 @@
     "surfaces": {
       "cli": "opensesame ceremony list",
       "pwa": null,
-      "mcp_host": "ceremony_catalog_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
       "webmcp": {
         "reason": "the PWA has no ceremony surface yet; mapping a WebMCP tool onto a screen that does not exist would offer a road that dead-ends",
         "adr": "0082-agent-run-registration-ceremonies.md"
@@ -1314,10 +1861,20 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame rotate runs",
-      "pwa": null,
-      "mcp_host": "agent_runs_read",
+      "pwa": "lib/agent-runs.ts:listRuns",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      },
+      "webmcp": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1327,7 +1884,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame rotate watch",
-      "pwa": null,
+      "pwa": "lib/agent-runs.ts:readLog",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -1350,7 +1907,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": "opensesame rotate attach",
-      "pwa": null,
+      "pwa": "lib/agent-runs.ts:takeControl",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -1414,9 +1971,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "route:/settings",
-      "mcp_host": "changelog_read",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_settings_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1427,9 +1990,15 @@
     "surfaces": {
       "cli": null,
       "pwa": "route:/settings",
-      "mcp_host": "backup_status",
+      "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_settings_read"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {
@@ -1572,8 +2141,14 @@
       "cli": "opensesame-id claim poll",
       "pwa": null,
       "mcp_host": null,
-      "mcp_client": "present_claim",
+      "mcp_client": null,
       "webmcp": null
+    },
+    "excluded": {
+      "mcp_client": {
+        "reason": "Human Identity sessions and raw claim bearers are not agent capabilities or model arguments; use the human CLI or browser ceremony",
+        "adr": "0099-scoped-local-agent-authority.md"
+      }
     }
   },
   {

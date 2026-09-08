@@ -19,8 +19,10 @@
 //! an organization's secrets' *timing*, which is not something any session
 //! should be able to point at an endpoint of its choosing.
 
+#[cfg(test)]
+use crate::test_principals::{P01, P02, P03};
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Json,
@@ -29,9 +31,7 @@ use chrono::Utc;
 use opensesame_agent_events::AGENT_EVENT_TYPES;
 use opensesame_breach_intel::{BreachSubjectKind, BREACH_EVENT_TYPES};
 use opensesame_connection_broker::crypto::seal_scoped;
-use opensesame_lifecycle::{
-    ExpiryStage, ExpirySubject, SubjectKind, Track, LIFECYCLE_EVENT_TYPES, MAX_DETAIL_CHARS,
-};
+use opensesame_lifecycle::{ExpiryStage, ExpirySubject, SubjectKind, Track, LIFECYCLE_EVENT_TYPES};
 use opensesame_security_events::{filter, Delivery, Severity};
 use opensesame_storage::{
     SealedCertificateMaterial, StoredSecurityHook, SECURITY_HOOK_SECRET_SCOPE,
@@ -588,56 +588,9 @@ pub async fn delete_hook(
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct DeliveryQuery {
-    pub limit: Option<usize>,
-}
-
-/// `GET /api/v1/lifecycle/deliveries` — the outbound ledger.
-pub async fn list_deliveries(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Query(query): Query<DeliveryQuery>,
-) -> Response {
-    let who = match authorize_configure(&st, &headers) {
-        Ok(who) => who,
-        Err(response) => return response,
-    };
-    let organization_id = match resolve_caller_organization(&st, &who, &headers) {
-        Ok(id) => id,
-        Err(response) => return response,
-    };
-    let limit = query.limit.unwrap_or(DEFAULT_DELIVERY_LIMIT);
-    match st
-        .db
-        .list_security_deliveries(&organization_id.to_string(), limit)
-        .await
-    {
-        Ok(deliveries) => Json(json!({
-            "deliveries": deliveries
-                .iter()
-                .map(|row| json!({
-                    "id": row.id,
-                    "hook_id": row.hook_id,
-                    "event_type": row.event_type,
-                    "subject_kind": row.subject_kind,
-                    "subject_id": row.subject_id,
-                    "state": row.state,
-                    "attempts": row.attempts,
-                    "available_at": row.available_at,
-                    "last_error": row.last_error.as_deref()
-                        .map(|error| error.chars().take(MAX_DETAIL_CHARS).collect::<String>()),
-                    "delivered_at": row.delivered_at,
-                    "created_at": row.created_at,
-                }))
-                .collect::<Vec<_>>(),
-            "secrets_returned": false,
-        }))
-        .into_response(),
-        Err(error) => internal(&error, "list lifecycle deliveries"),
-    }
-}
+#[path = "lifecycle_deliveries.rs"]
+mod deliveries;
+pub use deliveries::list_deliveries;
 
 /// `POST /api/v1/lifecycle/scan` — run one pass now.
 ///
@@ -736,7 +689,7 @@ mod tests {
     async fn registering_reveals_the_signing_secret_exactly_once() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
 
         let (status, created) = send(
@@ -784,7 +737,7 @@ mod tests {
     async fn the_stored_secret_is_ciphertext_at_rest() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
 
         let (_, created) = send(
@@ -819,7 +772,7 @@ mod tests {
     async fn a_private_or_plaintext_endpoint_is_refused() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
 
         for endpoint in [
@@ -845,7 +798,7 @@ mod tests {
     async fn an_unknown_event_type_or_subject_kind_is_refused() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
 
         let mut unknown_event = registration();
@@ -886,7 +839,7 @@ mod tests {
     async fn a_member_may_read_the_inventory_but_not_configure_hooks() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let member = test_session_headers(&st, "principal:member", org, OrganizationRole::Member);
+        let member = test_session_headers(&st, P02, org, OrganizationRole::Member);
         let app = crate::routes::router(st.clone());
 
         let (status, _) = send(&app, &member, "GET", "/api/v1/lifecycle/expiring", None).await;
@@ -912,7 +865,7 @@ mod tests {
     async fn a_hook_from_another_organization_is_not_visible_or_deletable() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         let (_, created) = send(
             &app,
@@ -925,12 +878,7 @@ mod tests {
         let id = created["id"].as_str().unwrap().to_string();
 
         let other_org = opensesame_domain::OrganizationId::from_uuid(uuid::Uuid::new_v4());
-        let stranger = test_session_headers(
-            &st,
-            "principal:stranger",
-            other_org,
-            OrganizationRole::Admin,
-        );
+        let stranger = test_session_headers(&st, P03, other_org, OrganizationRole::Admin);
         let (status, listed) = send(&app, &stranger, "GET", "/api/v1/lifecycle/hooks", None).await;
         assert_eq!(status, StatusCode::OK);
         assert!(listed["hooks"].as_array().unwrap().is_empty());
@@ -950,7 +898,7 @@ mod tests {
     async fn deleting_a_hook_removes_it() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         let (_, created) = send(
             &app,
@@ -989,7 +937,7 @@ mod tests {
     async fn editing_a_hook_that_does_not_exist_is_a_404() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         let mut body = registration();
         body["id"] = json!("lch_nope");
@@ -1001,7 +949,7 @@ mod tests {
     async fn the_inventory_publishes_the_frozen_vocabulary_and_a_policys_ladder() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         st.connection_broker
             .upsert_rotation_policy(
                 &org.to_string(),
@@ -1054,7 +1002,7 @@ mod tests {
     async fn a_scan_publishes_to_a_matching_subscriber_and_skips_the_rest() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         st.connection_broker
             .upsert_rotation_policy(
                 &org.to_string(),
@@ -1135,7 +1083,7 @@ mod tests {
     async fn no_lifecycle_response_carries_a_secret_shaped_key() {
         let st = state_with_seal_key().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         send(
             &app,
@@ -1284,7 +1232,7 @@ mod custody_e2e {
     async fn a_managed_certificate_is_reissued_by_the_hook_and_the_operator_can_collect_it() {
         let st = custody_state().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         let (original_id, original_key) = issue_and_age_certificate(&st, &app, &admin).await;
 
@@ -1377,7 +1325,7 @@ mod custody_e2e {
     async fn a_second_scan_does_not_reissue_the_same_certificate_again() {
         let st = custody_state().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         issue_and_age_certificate(&st, &app, &admin).await;
 
@@ -1413,7 +1361,7 @@ mod custody_e2e {
     async fn concurrent_scans_reissue_a_certificate_once() {
         let st = custody_state().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         issue_and_age_certificate(&st, &app, &admin).await;
 
@@ -1452,7 +1400,7 @@ mod custody_e2e {
         // nobody will receive.
         let st = custody_state().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
 
         let (status, issued) = send(
@@ -1504,7 +1452,7 @@ mod custody_e2e {
         // instant it is signed — a responder loop, one reissue per tick.
         let st = custody_state().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         let (status, refused) = send(
             &app,
@@ -1526,7 +1474,7 @@ mod custody_e2e {
     async fn managed_custody_is_refused_for_an_external_issuer() {
         let st = custody_state().await;
         let org = st.connection_organization;
-        let admin = test_session_headers(&st, "principal:admin", org, OrganizationRole::Admin);
+        let admin = test_session_headers(&st, P01, org, OrganizationRole::Admin);
         let app = crate::routes::router(st.clone());
         let (status, refused) = send(
             &app,
