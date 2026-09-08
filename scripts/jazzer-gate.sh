@@ -15,18 +15,19 @@ if [[ ! -f package.json ]]; then
   exit 1
 fi
 
-if command -v jazzer >/dev/null 2>&1 && node -e 'import("@jazzer.js/core")' >/dev/null 2>&1; then
+if [[ -x node_modules/.bin/jazzer ]] && node -e 'import("@jazzer.js/core")' >/dev/null 2>&1; then
   echo "==> jazzer-gate: native Jazzer.js (${SECONDS_PER_TARGET}s/target)"
   fail=0
   mkdir -p artifacts
   for f in src/*.ts; do
     base="$(basename "$f")"
     case "$base" in
-      oracles.ts|oracles.test.ts|provider.ts|run.ts) continue ;;
+      *.test.ts|oracles.ts|provider.ts|run.ts) continue ;;
     esac
     name="${base%.ts}"
     echo "--> $name"
-    if ! FUZZ_SECONDS="$SECONDS_PER_TARGET" jazzer "$f" \
+    if ! NODE_OPTIONS="${NODE_OPTIONS:-} --import=tsx" \
+        FUZZ_SECONDS="$SECONDS_PER_TARGET" node_modules/.bin/jazzer "${f%.ts}" -- \
         -max_total_time="$SECONDS_PER_TARGET" \
         -artifact_prefix="$PWD/artifacts/${name}-"; then
       echo "jazzer-gate: FAIL $name" >&2
