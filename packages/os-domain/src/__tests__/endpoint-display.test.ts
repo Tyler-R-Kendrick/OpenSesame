@@ -33,6 +33,8 @@ describe("briefOrigin", () => {
   it("never grows what it was given", () => {
     for (const raw of [
       "http://a",
+      "http:0",
+      `https://a/${"ÿ".repeat(20)}`,
       'w:"quote"',
       "https://x/ÿ",
       "mailto:someone@example.com",
@@ -95,6 +97,8 @@ describe("repoHint", () => {
       "https://h/a/b.git",
       "w:x",
       "https://h/",
+      "/local/repo.git",
+      `https://a/${"ÿ".repeat(20)}`,
       "ÿ".repeat(40),
     ]) {
       const hint = repoHint(raw);

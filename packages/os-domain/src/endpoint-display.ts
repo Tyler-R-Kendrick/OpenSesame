@@ -35,7 +35,9 @@ export function briefOrigin(raw: string): string {
     // http(s) anyway; anything else is a typo, and showing a typo back
     // verbatim is how someone spots it.
     if (url.protocol !== "http:" && url.protocol !== "https:") return trimmed;
-    return `${url.host}${url.pathname.replace(/\/$/, "")}`;
+    const shortened = `${url.host}${url.pathname.replace(/\/$/, "")}`;
+    // URL normalization can expand abbreviated IPs or percent-encode paths.
+    return shortened.length <= trimmed.length ? shortened : trimmed;
   } catch {
     return trimmed;
   }
@@ -50,7 +52,7 @@ export function briefOrigin(raw: string): string {
  * through with only the `.git` suffix removed.
  */
 export function repoHint(remote: string): string {
-  const withoutSuffix = stripGitSuffix(remote.trim());
+  const withoutSuffix = stripLeadingSlashes(stripGitSuffix(remote.trim()));
   // Stryker disable next-line ConditionalExpression: equivalent — an empty
   // string falls through to `new URL("")`, which throws, and the catch returns
   // the same "". The guard is here to keep a common input off the throw path,
@@ -63,7 +65,8 @@ export function repoHint(remote: string): string {
     // taking its pathname would percent-encode whatever was typed into
     // something longer and stranger than the original.
     if (!url.host) return withoutSuffix;
-    return stripLeadingSlashes(url.pathname) || withoutSuffix;
+    const shortened = stripLeadingSlashes(url.pathname) || withoutSuffix;
+    return shortened.length <= withoutSuffix.length ? shortened : withoutSuffix;
   } catch {
     return withoutSuffix;
   }
