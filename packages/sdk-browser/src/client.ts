@@ -5,7 +5,8 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import { createLocalJWKSet, jwtVerify } from "jose";
+import { assertCallbackTransaction } from "./callback-transaction.js";
+import { fetchOidcJson, verifyBrowserIdToken } from "./oidc-validation.js";
 import {
   assertSafeReturnTo,
   defaultOriginCallback,
@@ -27,8 +28,6 @@ import type {
 const PKCE_KEY = "opensesame:pkce";
 const SESSION_KEY = "opensesame:session";
 const RETURN_TO_KEY = "opensesame:returnTo";
-
-const ID_TOKEN_ALGORITHMS = ["RS256", "ES256"] as const;
 
 class MemoryStorage implements StorageLike {
   readonly #map = new Map<string, string>();
@@ -145,6 +144,8 @@ export function assertSecureUrl(raw: string, what: string): string {
   } catch {
     throw new Error(`${what} must be an absolute URL`);
   }
+  if (url.username || url.password || url.hash)
+    throw new Error(`${what} contains forbidden URL components`);
   if (url.protocol === "https:") return raw;
   if (url.protocol === "http:" && isLoopbackHost(url.hostname)) return raw;
   throw new Error(`${what} must use https (http is allowed only on loopback)`);
@@ -199,71 +200,14 @@ export function assertDiscoveredUrl(
   return checked;
 }
 
-function decodeJwtPayload(token: string): JsonObject | undefined {
-  const part = token.split(".")[1];
-  if (!part) return undefined;
-  try {
-    const payload: JsonObject = overlapCast(
-      JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/"))),
-    );
-    return payload;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * What the client is required to check about an id_token it asked for.
- *
- * The browser cannot verify the signature, so the access token — not this — is
- * the authority. But an id_token whose audience, issuer, or nonce is not the one
- * this ceremony asked for is somebody else's token, and caching a `sub` from it
- * would hand the application the wrong identity.
- */
-interface IdTokenExpectation {
-  issuer: string;
-  clientId: string;
-  nonce?: string;
-}
-
-function assertIdTokenAddressedToUs(
-  idToken: string,
-  expect: IdTokenExpectation,
-): JsonObject | undefined {
-  const payload = decodeJwtPayload(idToken);
-  if (!payload) return undefined;
-  const iss = isString(payload.iss) ? trimSlash(payload.iss) : undefined;
-  if (iss !== undefined && iss !== expect.issuer) {
-    throw new Error("id_token issued by a different issuer");
-  }
-  const aud = payload.aud;
-  const audiences = Array.isArray(aud)
-    ? aud.map(String)
-    : isString(aud)
-      ? [aud]
-      : [];
-  if (audiences.length > 0 && !audiences.includes(expect.clientId)) {
-    throw new Error("id_token addressed to a different client");
-  }
-  if (expect.nonce !== undefined && payload.nonce !== expect.nonce) {
-    throw new Error("id_token nonce mismatch");
-  }
-  return payload;
-}
-
 function toSession(
   tokens: TokenResponse,
   anonymous: boolean,
-  expect: IdTokenExpectation,
+  sub: string,
 ): Session {
   const expiresAt = isNumber(tokens.expires_in)
     ? Date.now() + tokens.expires_in * 1000
     : undefined;
-  let sub: string | undefined;
-  if (tokens.id_token) {
-    const payload = assertIdTokenAddressedToUs(tokens.id_token, expect);
-    sub = isString(payload?.sub) ? payload.sub : undefined;
-  }
   const session: Session = {
     accessToken: tokens.access_token,
     anonymous,
@@ -280,7 +224,7 @@ function toSession(
 export function createOpenSesame(
   config: OpenSesameBrowserConfig,
 ): OpenSesameBrowserClient {
-  const issuer = trimSlash(config.issuer);
+  const issuer = config.issuer;
   assertSecureUrl(issuer, "issuer");
   const pageOrigin = resolvePageOrigin(config) ?? "http://127.0.0.1";
   const configuredClientId = config.clientId;
@@ -303,15 +247,16 @@ export function createOpenSesame(
 
   async function discovery(): Promise<OidcDiscoveryDocument> {
     if (discoveryCache) return discoveryCache;
-    const res = await fetchImpl(`${issuer}/.well-known/openid-configuration`);
-    if (!res.ok) {
-      throw new Error(`OIDC discovery failed: ${res.status}`);
-    }
-    const meta: OidcDiscoveryDocument = overlapCast(await res.json());
+    const meta: OidcDiscoveryDocument = overlapCast(
+      await fetchOidcJson(
+        fetchImpl,
+        `${trimSlash(issuer)}/.well-known/openid-configuration`,
+      ),
+    );
     // The discovery document decides where the code and the verifier are sent.
     // An issuer that does not name itself, or an endpoint reachable over
     // cleartext, is a document that hands the ceremony to whoever answered.
-    if (trimSlash(meta.issuer ?? "") !== issuer) {
+    if (meta.issuer !== issuer) {
       throw new Error(
         "OIDC discovery issuer does not match the configured issuer",
       );
@@ -322,6 +267,7 @@ export function createOpenSesame(
       issuer,
     );
     assertDiscoveredUrl(meta.token_endpoint, "token_endpoint", issuer);
+    assertDiscoveredUrl(meta.jwks_uri, "jwks_uri", issuer);
     if (meta.end_session_endpoint) {
       assertDiscoveredUrl(
         meta.end_session_endpoint,
@@ -364,27 +310,14 @@ export function createOpenSesame(
     jwksUri: string,
   ): Promise<string> {
     assertDiscoveredUrl(jwksUri, "jwks_uri", issuer);
-    const jwksRes = await fetchImpl(jwksUri);
-    if (!jwksRes.ok) {
-      throw new Error(`JWKS fetch failed: ${jwksRes.status}`);
-    }
-    const jwks: Parameters<typeof createLocalJWKSet>[0] = overlapCast(
-      await jwksRes.json(),
-    );
-    const getKey = createLocalJWKSet(jwks);
-    const { payload } = await jwtVerify(idToken, getKey, {
+    return verifyBrowserIdToken({
+      token: idToken,
+      nonce: expectedNonce,
       issuer,
-      audience: clientId,
-      algorithms: [...ID_TOKEN_ALGORITHMS],
-      clockTolerance: 5,
+      clientId,
+      jwksUri,
+      fetchImpl,
     });
-    if (payload.nonce !== expectedNonce) {
-      throw new Error("id_token nonce mismatch");
-    }
-    if (!isString(payload.sub) || payload.sub === "") {
-      throw new Error("id_token missing sub");
-    }
-    return payload.sub;
   }
 
   async function exchangeCode(
@@ -400,37 +333,23 @@ export function createOpenSesame(
       client_id: clientId,
       code_verifier: codeVerifier,
     });
-    const res = await fetchImpl(meta.token_endpoint, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body,
-    });
-    if (!res.ok) {
-      throw new Error(`Token exchange failed: ${res.status}`);
-    }
-    const tokens: TokenResponse = overlapCast(await res.json());
-    if (originProfile) {
-      if (!tokens.id_token) {
-        throw new Error("Token response missing id_token");
-      }
-      if (!nonce) {
-        throw new Error("PKCE state is missing nonce");
-      }
-      const sub = await validateIdToken(tokens.id_token, nonce, meta.jwks_uri);
-      const session = toSession(tokens, false, {
-        issuer,
-        clientId,
-        nonce,
-      });
-      session.sub = sub;
-      saveSession(session);
-      return session;
-    }
-    const session = toSession(tokens, false, {
-      issuer,
-      clientId,
-      ...(nonce ? { nonce } : undefined),
-    });
+    const tokens: TokenResponse = overlapCast(
+      await fetchOidcJson(fetchImpl, meta.token_endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body,
+      }),
+    );
+    if (
+      !isString(tokens.access_token) ||
+      !tokens.access_token ||
+      !isString(tokens.id_token) ||
+      !tokens.id_token
+    )
+      throw new Error("Token response missing id_token or access token");
+    if (!nonce) throw new Error("PKCE state is missing nonce");
+    const sub = await validateIdToken(tokens.id_token, nonce, meta.jwks_uri);
+    const session = toSession(tokens, false, sub);
     saveSession(session);
     return session;
   }
@@ -439,7 +358,10 @@ export function createOpenSesame(
     async signIn(options) {
       const meta = await discovery();
       const pkce = await createPkcePair();
-      storage.setItem(PKCE_KEY, JSON.stringify(pkce));
+      storage.setItem(
+        PKCE_KEY,
+        JSON.stringify({ ...pkce, issuer, redirectUri, createdAt: Date.now() }),
+      );
       if (options?.returnTo) {
         storage.setItem(RETURN_TO_KEY, assertSafeReturnTo(options.returnTo));
       } else {
@@ -489,7 +411,14 @@ export function createOpenSesame(
       if (!code || !state || !rawPkce) {
         throw new Error("Missing authorization code or PKCE state");
       }
-      let pkce: { state: string; codeVerifier: string; nonce?: string };
+      let pkce: {
+        state: string;
+        codeVerifier: string;
+        nonce?: string;
+        issuer?: string;
+        redirectUri?: string;
+        createdAt?: number;
+      };
       try {
         pkce = overlapCast(JSON.parse(rawPkce));
       } catch {
@@ -502,6 +431,7 @@ export function createOpenSesame(
       if (pkce.state !== state) {
         throw new Error("OAuth state mismatch");
       }
+      assertCallbackTransaction(pkce, url, issuer, redirectUri);
       const session = await exchangeCode(code, pkce.codeVerifier, pkce.nonce);
       scrubCallbackUrl(href);
       return session;

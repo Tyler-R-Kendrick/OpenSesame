@@ -1,7 +1,7 @@
 # Agent routines — standing automation outside CI
 
 CI is deliberately thin. `.github/workflows/ci.yml` runs lint, typecheck,
-`pnpm test` and `cargo test` as the merge-queue gate, and
+`pnpm test` and `cargo test` as required up-to-date pull-request checks, and
 `.github/workflows/deploy-pages.yml` publishes `apps/pages` from `main`;
 nothing else belongs in Actions. The deeper verification comes from three
 layers, described in `CONTRIBUTING.md` under "Gates":

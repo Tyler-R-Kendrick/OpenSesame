@@ -87,21 +87,20 @@ principalRoutes.post(
       "provisional-mint",
       async () => {
         // Expiry removes both the live lease and its unclaimed durable identity.
-        for (const [id, session] of ctx.stores.provisionalSessions) {
+        for (const [
+          id,
+          session,
+        ] of await ctx.stores.provisionalSessions.entries()) {
           if (session.expiresAt.getTime() > now.getTime()) continue;
-          ctx.stores.provisionalSessions.delete(id);
+          await ctx.stores.provisionalSessions.delete(id);
           const deleted = await ctx.repos.principals.deleteUnlinkedProvisional(
             session.principalId,
           );
           if (deleted)
             await ctx.mappings.deleteProvisional(session.principalId);
         }
-        for (const [token, sessionId] of ctx.stores.provisionalTokens) {
-          if (!ctx.stores.provisionalSessions.has(sessionId)) {
-            ctx.stores.provisionalTokens.delete(token);
-          }
-        }
-        if (ctx.stores.provisionalSessions.size >= MAX_PROVISIONAL) {
+        await removeOrphanTokens(ctx.stores);
+        if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL) {
           return c.json(
             {
               error: "provisional_capacity",
@@ -178,11 +177,7 @@ principalRoutes.post(
         }
 
         const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
-        ctx.stores.provisionalSessions.set(
-          provisionalSession.id,
-          provisionalSession,
-        );
-        ctx.stores.provisionalTokens.set(accessToken, provisionalSession.id);
+        await saveProvisional(ctx.stores, provisionalSession, accessToken);
 
         setCookie(c, ctx.config.provisionalCookieName, accessToken, {
           httpOnly: true,
@@ -242,21 +237,19 @@ principalRoutes.post("/provisional/revoke", async (c) => {
     if (!cookieAuthAllowed(ctx, c.req.method, c.req.header("origin"))) {
       return c.json({ error: "forbidden", hint: "origin required" }, 403);
     }
-    const fromCookie = ctx.stores.provisionalTokens.get(cookie);
+    const fromCookie = await ctx.stores.provisionalTokens.get(cookie);
     if (fromCookie) revoking.add(fromCookie);
   }
 
   for (const sessionId of revoking) {
-    const session = ctx.stores.provisionalSessions.get(sessionId);
+    const session = await ctx.stores.provisionalSessions.get(sessionId);
     if (session) {
-      ctx.stores.provisionalSessions.set(sessionId, {
+      await ctx.stores.provisionalSessions.set(sessionId, {
         ...session,
         revokedAt: ctx.clock(),
       });
     }
-    for (const [token, id] of ctx.stores.provisionalTokens) {
-      if (id === sessionId) ctx.stores.provisionalTokens.delete(token);
-    }
+    await revokeSessionTokens(ctx.stores, sessionId);
     // Attribute to whoever owned the session that ended, not to whichever
     // credential authenticated the request: with two sessions in play those are
     // different principals, and each trail should show its own session going.
@@ -755,3 +748,8 @@ function tokenEq(presented: string, expected: string): boolean {
   const right = createHash("sha256").update(expected).digest();
   return timingSafeEqual(left, right);
 }
+import {
+  removeOrphanTokens,
+  revokeSessionTokens,
+  saveProvisional,
+} from "../repos/session-storage.js";

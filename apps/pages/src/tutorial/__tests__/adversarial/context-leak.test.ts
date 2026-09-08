@@ -217,10 +217,7 @@ describe("what an AG-UI endpoint would receive", () => {
       context,
     };
     const sanitized = sanitizeSupportRequest(request);
-    const body = buildAgUiOutboundBody(
-      sanitized,
-      buildSupportInstructions(sanitized.context),
-    );
+    const body = buildAgUiOutboundBody(sanitized);
     expectNoSentinel(JSON.stringify(body), "the outbound body");
     for (const name of itemNames) {
       expect(JSON.stringify(body)).not.toContain(name);

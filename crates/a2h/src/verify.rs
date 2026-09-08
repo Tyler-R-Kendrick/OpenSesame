@@ -64,6 +64,9 @@ pub struct SignatureHeader {
 ///
 /// [`VerifyError::MalformedHeader`] when either part is missing or unparseable.
 pub fn parse_signature(header: &str) -> Result<SignatureHeader, VerifyError> {
+    if header.len() > 256 {
+        return Err(VerifyError::MalformedHeader);
+    }
     let mut timestamp = None;
     let mut value = None;
     for part in header.split(',') {
@@ -72,9 +75,14 @@ pub fn parse_signature(header: &str) -> Result<SignatureHeader, VerifyError> {
             .split_once('=')
             .ok_or(VerifyError::MalformedHeader)?;
         match key {
-            "t" => timestamp = raw.parse::<i64>().ok(),
-            SIGNATURE_VERSION => value = Some(raw.to_string()),
-            _ => {}
+            "t" if timestamp.is_none() => {
+                timestamp = Some(
+                    raw.parse::<i64>()
+                        .map_err(|_| VerifyError::MalformedHeader)?,
+                );
+            }
+            SIGNATURE_VERSION if value.is_none() => value = Some(raw.to_string()),
+            _ => return Err(VerifyError::MalformedHeader),
         }
     }
     match (timestamp, value) {
@@ -137,7 +145,7 @@ pub fn verify_callback(
     {
         return Err(VerifyError::BadSignature);
     }
-    if (expected.now_unix - parsed.timestamp).abs() > TIMESTAMP_TOLERANCE_SECONDS {
+    if expected.now_unix.abs_diff(parsed.timestamp) > TIMESTAMP_TOLERANCE_SECONDS.unsigned_abs() {
         return Err(VerifyError::StaleTimestamp);
     }
     if response.responds_to != expected.message_id {

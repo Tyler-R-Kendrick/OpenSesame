@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "bash ../../scripts/pages-dev.sh",
     "dev:web": "vite --port 5180 --strictPort --host localhost",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/security-profile.mjs && tsc --noEmit && vite build",
     "preview": "vite preview --port 5180",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --maxWorkers=4",
@@ -24,6 +24,7 @@
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",
+    "@opensesame/static-auth": "workspace:*",
     "@opensesame/support-agent": "workspace:*",
     "@opensesame/vault-item-types": "workspace:*",
     "@opensesame/webmcp": "workspace:*",

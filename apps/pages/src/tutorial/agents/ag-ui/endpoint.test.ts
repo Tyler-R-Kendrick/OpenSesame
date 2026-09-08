@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+/** @vitest-environment-options { "url": "https://support.example.com/app/" } */
 /**
  * The configuration boundary. Absence is the default, https is the only thing
  * allowed to leave a machine, and there is nowhere in here to put a key.
@@ -24,19 +25,16 @@ afterEach(() => {
 });
 
 describe("readAgUiEndpointUrl", () => {
-  it("accepts https anywhere", () => {
+  it("accepts only the same-origin HTTPS proxy", () => {
+    expect(readAgUiEndpointUrl("https://foreign.example/agui")).toBeNull();
     expect(readAgUiEndpointUrl("https://support.example.com/agui")?.url).toBe(
       "https://support.example.com/agui",
     );
   });
 
-  it("accepts http on loopback, where a development endpoint lives", () => {
-    expect(readAgUiEndpointUrl("http://localhost:8123/agui")?.url).toBe(
-      "http://localhost:8123/agui",
-    );
-    expect(readAgUiEndpointUrl("http://127.0.0.1:8123")?.url).toBe(
-      "http://127.0.0.1:8123",
-    );
+  it("refuses cleartext loopback endpoints", () => {
+    expect(readAgUiEndpointUrl("http://localhost:8123/agui")).toBeNull();
+    expect(readAgUiEndpointUrl("http://127.0.0.1:8123")).toBeNull();
   });
 
   it("refuses cleartext to a third party", () => {

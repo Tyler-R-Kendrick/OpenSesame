@@ -44,10 +44,10 @@ describe("main", () => {
     expect(TransportMock).not.toHaveBeenCalled();
   });
 
-  it("refuses to start when the Identity issuer URL is invalid", async () => {
+  it("does not read an inherited human Identity endpoint", async () => {
     stdioTransportSeams.StdioServerTransport = overlapCast(TransportMock);
     vi.stubEnv("OPENSESAME_ISSUER", "not a url");
-    await expect(main()).rejects.toThrow(/OPENSESAME_ISSUER must be an https/);
-    expect(TransportMock).not.toHaveBeenCalled();
+    await expect(main()).resolves.toBeUndefined();
+    expect(TransportMock).toHaveBeenCalledTimes(1);
   });
 });

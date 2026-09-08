@@ -190,8 +190,7 @@ describe("control-plane API", () => {
       body: JSON.stringify({ token: project.claimToken }),
     });
 
-    // Today the claim never outlives the project, so force the case directly:
-    // approval must not resurrect a project that is already past its own TTL.
+    // Approval must not resurrect an expired project; force that state directly.
     const stored = ctx.stores.projects.get(project.projectId);
     expect(stored).toBeDefined();
     if (!stored) throw new Error("project missing from store");
@@ -396,8 +395,8 @@ describe("control-plane API", () => {
     const { app } = createControlPlane({
       config: {
         port: 0,
-        publicUrl: "https://id.example",
-        issuer: "https://id.example",
+        publicUrl: "https://127.0.0.1",
+        issuer: "https://127.0.0.1",
       },
     });
     const live = await app.request("/v1/health/live");
@@ -571,7 +570,7 @@ describe("control-plane API", () => {
       },
       processEnv: {
         ...process.env,
-        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "0",
         OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
         NODE_ENV: "development",
       },
@@ -604,7 +603,7 @@ describe("control-plane API", () => {
       },
       processEnv: {
         ...process.env,
-        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "0",
         OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
         NODE_ENV: "development",
       },
@@ -670,7 +669,7 @@ describe("control-plane API", () => {
       },
       processEnv: {
         ...process.env,
-        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "0",
         OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
         NODE_ENV: "development",
       },
@@ -721,7 +720,6 @@ describe("control-plane API", () => {
       headers: { ...auth, "content-type": "application/json" },
       body: JSON.stringify({ user_code: "ABCD-EFGH" }),
     });
-    // Authentication reaches the handler, which requires organization selection.
     expect(res.status).toBe(400);
     const body = await res.text();
     expect(body).not.toContain(config.operatorToken);
@@ -1107,7 +1105,7 @@ describe("control-plane API", () => {
         port: 0,
         publicUrl: "http://127.0.0.1:8788",
         issuer: "http://127.0.0.1:8788",
-        hostApiUrl: "https://host.example/tenant",
+        hostApiUrl: "https://127.0.0.1/tenant",
       },
     });
     const owner = await verifiedPrincipal(app, "device-owner");
@@ -1226,6 +1224,8 @@ describe("control-plane API", () => {
       ]);
       expect(timeout).toHaveBeenCalledTimes(4);
       for (const call of timeout.mock.calls) expect(call).toEqual([5_000]);
+      for (const [, init] of host.mock.calls)
+        expect(init?.redirect).toBe("error");
     } finally {
       timeout.mockRestore();
       host.mockRestore();
@@ -1738,7 +1738,7 @@ describe("control-plane API", () => {
       },
       processEnv: {
         ...process.env,
-        OPENSESAME_ALLOW_DEV_DEFAULTS: "false",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "0",
         OPENSESAME_CLAIM_PEPPER: "prod-claim-pepper-for-test-only",
         NODE_ENV: "development",
       },

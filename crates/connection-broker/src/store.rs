@@ -3,6 +3,10 @@
 //! Everything here is row plumbing except `consume_authorization`, which enforces
 //! the single-use, TTL-bound `state` the whole flow rests on.
 
+#[path = "store_backup.rs"]
+mod backup;
+use backup::append_backup_outbox;
+
 use chrono::{DateTime, Utc};
 use opensesame_domain::EgressBinding;
 use sha2::{Digest, Sha256};
@@ -545,27 +549,6 @@ pub async fn activate_credential_unless_revoked(
     .await?;
     transaction.commit().await?;
     Ok(CredentialActivationOutcome::Activated)
-}
-
-/// Broadcast a secret-change event in the same transaction as the mutation it
-/// describes (transactional outbox, ADR 0039). The backup actor drains these;
-/// payloads carry references only, never material.
-async fn append_backup_outbox(
-    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    event_type: &str,
-    connection_id: &str,
-    detail: &str,
-) -> Result<()> {
-    sqlx::query(
-        "INSERT INTO outbox_events (id, event_type, payload_json, created_at) VALUES (?, ?, ?, ?)",
-    )
-    .bind(uuid::Uuid::now_v7().to_string())
-    .bind(event_type)
-    .bind(serde_json::json!({"connection_id": connection_id, "detail": detail}).to_string())
-    .bind(Utc::now().to_rfc3339())
-    .execute(&mut **transaction)
-    .await?;
-    Ok(())
 }
 
 /// Every sealed credential row, for backup snapshots. Ciphertext only — the

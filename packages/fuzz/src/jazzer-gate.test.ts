@@ -1,10 +1,12 @@
 import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -19,7 +21,13 @@ it.each([0, 1])(
     try {
       const pkg = join(root, "packages/fuzz");
       const bin = join(root, "bin");
-      mkdirSync(join(root, "scripts"), { recursive: true });
+      mkdirSync(join(root, "scripts/lib"), { recursive: true });
+      copyFileSync(
+        fileURLToPath(
+          new URL("../../../scripts/lib/audit-directory.sh", import.meta.url),
+        ),
+        join(root, "scripts/lib/audit-directory.sh"),
+      );
       mkdirSync(join(pkg, "src"), { recursive: true });
       mkdirSync(join(pkg, "node_modules/.bin"), { recursive: true });
       mkdirSync(bin);
@@ -60,13 +68,23 @@ it.each([0, 1])(
         },
       });
       expect(result.status, result.stderr).toBe(status);
+      const privateDirectory = result.stderr.match(
+        /Private audit artifacts: ([^\n]+)/,
+      )?.[1];
+      expect(privateDirectory).toBeTruthy();
+      if (!privateDirectory)
+        throw new Error("Missing private artifact location");
+      expect(privateDirectory.startsWith(root)).toBe(false);
+      expect(statSync(privateDirectory).mode & 0o777).toBe(0o700);
+      expect(existsSync(join(pkg, "artifacts"))).toBe(false);
       expect(readFileSync(calls, "utf8").trim().split("\n")).toEqual(
         ["alpha", "beta"].flatMap((name) => [
           "--no-warnings --import=tsx",
           `src/${name}`,
           "--",
           "-max_total_time=3",
-          `-artifact_prefix=${pkg}/artifacts/${name}-`,
+          `-artifact_prefix=${privateDirectory}/artifacts/${name}-`,
+          `${privateDirectory}/corpus/${name}`,
         ]),
       );
       expect(result.stdout.includes("jazzer-gate: CLEAN")).toBe(status === 0);

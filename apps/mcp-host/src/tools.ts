@@ -19,42 +19,12 @@ export const hostTools = [
   "task_status",
   "task_invoke",
   "task_terminate",
-  "daemon_status",
+  "daemon_health",
   "host_ready",
-  "operator_invoke_l1",
+  "task_invoke_l1",
   "task_list",
-  "receipt_read",
-  "receipt_verify",
-  "delegation_read",
-  "delegation_offer_read",
-  "relay_request_read",
-  "provider_read",
-  "connection_read",
-  "cert_read",
-  "config_read",
-  "sync_target_read",
-  "rotation_read",
-  "agent_runs_read",
-  "ceremony_catalog_read",
-  "lifecycle_expiring_read",
-  "lifecycle_hooks_read",
-  "lifecycle_deliveries_read",
-  "security_findings_read",
-  "changelog_read",
-  "backup_status",
-  "delegation_narrow",
-  "delegation_revoke",
-  "connection_rotate",
-  "connection_remove",
-  "provider_test",
-  "cert_issue",
-  "config_set",
-  "config_rollback",
   "sync_push",
   "sync_pull",
-  "rotation_trigger",
-  "lifecycle_scan",
-  "security_breach_scan",
 ] as const;
 
 export function assertsNoSecretTools(names: readonly string[]): void {
@@ -111,16 +81,7 @@ const intentAgentResponseSchema = intentResponseSchema.omit({
 });
 
 const daemonStatusResponseSchema = z.object({
-  daemon: z.literal("ok"),
-  uptime_s: z.number().nonnegative().optional(),
-  sessions: z.number().int().nonnegative().optional(),
-  capabilities: z.number().int().nonnegative().optional(),
-  materialize: z.literal("denied_by_default").optional(),
-  approvals: z
-    .array(z.enum(["approve_device", "approve_claim"]))
-    .max(2)
-    .optional(),
-  auth: z.literal("operator_token_required_for_mutations").optional(),
+  status: z.literal("ok"),
 });
 
 export const errorResponseSchema = z.object({ error: safeTokenSchema });
@@ -330,9 +291,9 @@ export function registerHostTools(server: McpServer): void {
     },
   );
 
-  server.tool("daemon_status", "Probe local host daemon", {}, async () => {
+  server.tool("daemon_health", "Probe local host daemon", {}, async () => {
     try {
-      const res = await daemonFetch("/v1/toolbar/status");
+      const res = await daemonFetch("/health/live");
       const body = await res.json();
       const result = {
         content: textContent(
@@ -369,19 +330,17 @@ export function registerHostTools(server: McpServer): void {
   });
 
   server.tool(
-    "operator_invoke_l1",
-    "Policy-gated L1 invoke via daemon — executes the frozen intent in task context, nothing else",
-    {
-      connection_ref: z.string(),
-    },
-    async ({ connection_ref }) => {
+    "task_invoke_l1",
+    "Execute the frozen task intent with the scoped agent capability; no operator authority",
+    {},
+    async () => {
       try {
         const taskRunId = requireTaskRunId();
         const intent = requireFrozenIntent();
         // Operation, resource, and arguments are whatever was frozen: letting the
         // model restate them here would execute one call while presenting another
         // call's digest.
-        const res = await daemonFetch("/v1/operator/invoke_l1", {
+        const res = await hostFetch("/api/v1/tasks/invoke", {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -389,9 +348,6 @@ export function registerHostTools(server: McpServer): void {
             "x-opensesame-intent-digest": intent.intentDigest,
           },
           body: JSON.stringify({
-            connection_ref,
-            invoke_level: 1,
-            task_run_id: taskRunId,
             intent_digest: intent.intentDigest,
           }),
         });

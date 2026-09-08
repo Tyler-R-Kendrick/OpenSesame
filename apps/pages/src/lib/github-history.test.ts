@@ -8,10 +8,11 @@ import {
   listGithubRepos,
   remoteFromRepo,
 } from "./github-history.js";
-import { clearHostSession, clearSession } from "./identity.js";
+import { clearHostSession, clearSession, identitySeams } from "./identity.js";
 import { saveSettings, shippedHostApi } from "./settings.js";
 
 const HOST = shippedHostApi;
+const originalHostFetch = identitySeams.hostFetch;
 
 function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -20,22 +21,14 @@ function jsonResponse(body: BoundaryValue, status = 200): Response {
   });
 }
 
-/** Host-local loopback session + handler for the GitHub capability endpoints. */
+/** Inject the authenticated transport; this suite tests repository wire policy. */
 function stubHost(handler: (url: string, init?: RequestInit) => Response) {
   const spy = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
-    if (url === `${HOST}/api/v1/session/local`) {
-      return Promise.resolve(
-        jsonResponse({
-          access_token: "opaque-session:sess_local",
-          expires_in: 28_800,
-          local_session: true,
-        }),
-      );
-    }
     return Promise.resolve(handler(url, init));
   });
   vi.stubGlobal("fetch", spy);
+  identitySeams.hostFetch = (path, init) => spy(`${HOST}${path}`, init);
   return spy;
 }
 
@@ -60,6 +53,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  identitySeams.hostFetch = originalHostFetch;
   clearSession();
   clearHostSession();
   vi.unstubAllGlobals();

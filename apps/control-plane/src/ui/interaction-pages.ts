@@ -138,7 +138,7 @@ export interface ConsentPageModel {
 
 /* The product's navy+teal tokens (apps/pages/src/styles.css) — the hosted
    pages are the same ceremony as the vault's, so they wear the same skin. */
-const sharedStyles = `
+export const sharedStyles = `
   :root {
     color-scheme: light dark;
     --bg: #101a2b;

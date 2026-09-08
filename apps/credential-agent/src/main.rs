@@ -105,20 +105,21 @@ async fn main() -> anyhow::Result<()> {
         );
     }
     let args = Args::parse();
-    let mut sessions = HashMap::new();
-    // Bootstrap demo host session (real login attaches via vault login on host).
-    sessions.insert(
-        "host-demo".into(),
-        HostSession {
-            id: "host-demo".into(),
-            principal: "user:demo".into(),
-            _refresh_sealed: true,
-        },
-    );
+    let exposure =
+        opensesame_host_core::deployment_mode::classify(&[&args.listen.to_string()], &[])
+            .map_err(anyhow::Error::msg)?;
+    opensesame_host_core::deployment_mode::from_env(exposure).map_err(anyhow::Error::msg)?;
+    let token = std::env::var("OPENSESAME_OPERATOR_TOKEN")
+        .map_err(|_| anyhow::anyhow!("OPENSESAME_OPERATOR_TOKEN is required"))?;
+    if token.len() < 32 || token.len() > 4096 || token.trim() != token {
+        anyhow::bail!(
+            "OPENSESAME_OPERATOR_TOKEN must be an explicitly generated high-entropy secret"
+        );
+    }
     let state = App {
-        sessions: Arc::new(Mutex::new(sessions)),
+        sessions: Arc::new(Mutex::new(HashMap::new())),
         capabilities: Arc::new(Mutex::new(HashMap::new())),
-        operator_token: std::env::var("OPENSESAME_OPERATOR_TOKEN").unwrap_or_default(),
+        operator_token: token,
     };
     let app = router(state);
     let listen = args.listen.to_string();
@@ -137,11 +138,7 @@ fn router(state: App) -> Router {
     let app = Router::new()
         .route(
             "/health",
-            get(|| async {
-                axum::Json(
-                    serde_json::json!({"status":"ok","deprecated":true,"use":"opensesame-daemon"}),
-                )
-            }),
+            get(|| async { axum::Json(serde_json::json!({"status":"ok"})) }),
         )
         .route("/v1/list_sessions", post(list_sessions))
         .route("/v1/get_access_token", post(get_access_token))
@@ -272,7 +269,12 @@ mod pact {
     use axum::http::{header, Request};
     use tower::ServiceExt;
 
-    const OP: &str = "test-operator-token";
+    fn operator_fixture() -> &'static str {
+        static TOKEN: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+        TOKEN
+            .get_or_init(|| format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple()))
+            .as_str()
+    }
 
     fn test_app() -> Router {
         let mut sessions = HashMap::new();
@@ -287,7 +289,7 @@ mod pact {
         router(App {
             sessions: Arc::new(Mutex::new(sessions)),
             capabilities: Arc::new(Mutex::new(HashMap::new())),
-            operator_token: OP.into(),
+            operator_token: operator_fixture().into(),
         })
     }
 
@@ -296,7 +298,7 @@ mod pact {
             .method(method)
             .uri(uri)
             .header(header::CONTENT_TYPE, "application/json")
-            .header("x-opensesame-operator", OP)
+            .header("x-opensesame-operator", operator_fixture())
             .body(Body::from(body.to_string()))
             .unwrap()
     }
@@ -318,7 +320,7 @@ mod pact {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["status"], "ok");
         let text = json.to_string();
-        assert!(!text.contains(OP));
+        assert!(!text.contains(operator_fixture()));
         assert!(!text.contains("refresh"));
     }
 

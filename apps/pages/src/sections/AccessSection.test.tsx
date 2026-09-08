@@ -1265,14 +1265,14 @@ describe("AccessSection sites", () => {
     ).toContain("handleRedirectCallback");
 
     await userEvent.click(screen.getByRole("tab", { name: /Declarative/i }));
-    expect(
-      screen.getByRole("tabpanel", { name: /Declarative/i }).textContent,
-    ).toContain("data-opensesame-signin");
+    const declarative = screen.getByRole("tabpanel", { name: /Declarative/i });
+    expect(declarative.textContent).toContain("OpenSesame.signIn(profile)");
+    expect(declarative.textContent).toContain('integrity="sha384-');
 
     await userEvent.click(screen.getByRole("tab", { name: /Explicit JS/i }));
     expect(
       screen.getByRole("tabpanel", { name: /Explicit JS/i }).textContent,
-    ).toContain("signInAndAccept");
+    ).toContain("OpenSesame.complete(profile)");
   });
 
   it("restricts and blocks domains from the drill-in", async () => {

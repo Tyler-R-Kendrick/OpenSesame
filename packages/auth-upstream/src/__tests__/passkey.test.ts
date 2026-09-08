@@ -10,6 +10,20 @@ const assertion: PasskeyAssertion = {
 };
 
 describe("passkey seam signature counter", () => {
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5])(
+    "refuses malformed counter %s",
+    async (counter) => {
+      const seam = createPasskeySeam({
+        verifyAssertion: async () => ({ ok: true, newCounter: counter }),
+      });
+      await seam.register("prn_owner", {
+        credentialId: "cred1",
+        publicKey: new Uint8Array([9]),
+        counter: 0,
+      });
+      expect(await seam.verify(assertion)).toEqual({ ok: false });
+    },
+  );
   it.each(["prn_owner", "prn_other"])(
     "refuses credential replacement by %s without changing the original",
     async (principalId) => {

@@ -1952,7 +1952,7 @@ mod tests {
     async fn sealed_state() -> AppState {
         std::env::set_var("OPENSESAME_CONNECTION_KEY", TEST_SEALING_KEY);
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
-        let state = app_state::build(Args {
+        let state = app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),
@@ -1968,7 +1968,7 @@ mod tests {
     fn owner(state: &AppState) -> axum::http::HeaderMap {
         test_session_headers(
             state,
-            "prn_owner",
+            "principal:00000000-0000-4000-8000-000000000001",
             state.connection_organization,
             OrganizationRole::Owner,
         )
@@ -1977,7 +1977,7 @@ mod tests {
     fn member(state: &AppState) -> axum::http::HeaderMap {
         test_session_headers(
             state,
-            "prn_member",
+            "principal:00000000-0000-4000-8000-000000000002",
             state.connection_organization,
             OrganizationRole::Member,
         )
@@ -1986,7 +1986,7 @@ mod tests {
     fn stranger(state: &AppState) -> axum::http::HeaderMap {
         test_session_headers(
             state,
-            "prn_stranger",
+            "principal:00000000-0000-4000-8000-000000000025",
             OrganizationId::new(),
             OrganizationRole::Owner,
         )
@@ -2267,7 +2267,7 @@ mod tests {
             authority_id: original_id.clone(),
             request_digest: "digest".into(),
             idempotency_key: "idem:under-old-ca".into(),
-            created_by: "prn_owner".into(),
+            created_by: "principal:00000000-0000-4000-8000-000000000001".into(),
             state: "created".into(),
             common_name: "app.example.com".into(),
             san_json: san_json.clone(),

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   type JsonObject,
@@ -171,6 +172,20 @@ async function keysFor(
 
 type VerifiedLogoutToken = { subject?: string; sessionId?: string };
 
+async function claimLogout(ctx: AppContext, token: string): Promise<boolean> {
+  const callbackDigest = createHash("sha256").update(token).digest("hex");
+  const seenAt = ctx.clock();
+  return ctx.repos.callbackReplays.claim({
+    id: `oidc-logout:${callbackDigest}`,
+    providerId: "oidc-logout",
+    callbackDigest,
+    seenAt,
+    expiresAt: new Date(
+      seenAt.getTime() + (LOGOUT_TOKEN_MAX_AGE_SECONDS + 10) * 1000,
+    ),
+  });
+}
+
 /**
  * Everything OIDC Back-Channel Logout 1.0 §2.6 requires of the token, after
  * the signature. `undefined` means "refuse"; the caller never says which rule
@@ -278,6 +293,7 @@ export function createBackchannelLogoutRoutes(): Hono<{
       return invalid();
     }
     if (!claims) return invalid();
+    if (!(await claimLogout(ctx, token))) return c.body(null, 200);
 
     // A `sid`-only token names an upstream session, and this service keeps no
     // record of upstream session ids — there is nothing it could revoke. It is

@@ -6,6 +6,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/scripts/lib/audit-directory.sh"
+opensesame_audit_directory
 cd "$ROOT/packages/fuzz"
 
 SECONDS_PER_TARGET="${FUZZ_SECONDS:-30}"
@@ -18,18 +20,21 @@ fi
 if [[ -x node_modules/.bin/jazzer ]] && node -e 'import("@jazzer.js/core")' >/dev/null 2>&1; then
   echo "==> jazzer-gate: native Jazzer.js (${SECONDS_PER_TARGET}s/target)"
   fail=0
-  mkdir -p artifacts
+  mkdir -p "$OPENSESAME_AUDIT_DIR/artifacts" "$OPENSESAME_AUDIT_DIR/corpus"
   for f in src/*.ts; do
     base="$(basename "$f")"
     case "$base" in
       *.test.ts|oracles.ts|provider.ts|run.ts) continue ;;
     esac
     name="${base%.ts}"
+    corpus="$OPENSESAME_AUDIT_DIR/corpus/$name"
+    mkdir -p "$corpus"
     echo "--> $name"
     if ! NODE_OPTIONS="${NODE_OPTIONS:-} --import=tsx" \
         FUZZ_SECONDS="$SECONDS_PER_TARGET" node_modules/.bin/jazzer "${f%.ts}" -- \
         -max_total_time="$SECONDS_PER_TARGET" \
-        -artifact_prefix="$PWD/artifacts/${name}-"; then
+        -artifact_prefix="$OPENSESAME_AUDIT_DIR/artifacts/${name}-" \
+        "$corpus" > "$OPENSESAME_AUDIT_DIR/$name.log" 2>&1; then
       echo "jazzer-gate: FAIL $name" >&2
       fail=1
     fi
@@ -51,5 +56,6 @@ if [[ "${JAZZER_ALLOW_FALLBACK:-0}" != "1" ]]; then
 fi
 
 echo "==> jazzer-gate: local runner (${SECONDS_PER_TARGET}s/target; native Jazzer.js addon not loaded)"
-FUZZ_SECONDS="$SECONDS_PER_TARGET" pnpm exec tsx src/run.ts
+FUZZ_SECONDS="$SECONDS_PER_TARGET" pnpm exec tsx src/run.ts \
+  > "$OPENSESAME_AUDIT_DIR/fallback.log" 2>&1
 echo "jazzer-gate: DEGRADED (uncoverage-guided fallback) — not a CLEAN coverage-guided pass"

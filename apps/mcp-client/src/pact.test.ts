@@ -23,19 +23,20 @@ describe("PACT — mcp-client tools", () => {
     }
   });
 
-  it("host and issuer URLs are pinned before any tool runs", () => {
+  it("Host URL is pinned before any tool runs", () => {
     assertSourceOrder(readFileSync(join(here, "server.ts"), "utf8"), [
       "function requireBase",
       "normalizeHttpBaseUrl(raw)",
       "throw new Error",
       "OPENSESAME_HOST_API",
-      "OPENSESAME_ISSUER",
     ]);
   });
 
-  it("uses a distinct Identity token and guards every model response", () => {
+  it("never acquires human Identity authority and guards every model response", () => {
     const source = readFileSync(join(here, "server.ts"), "utf8");
-    expect(source).toContain("OPENSESAME_IDENTITY_TOKEN");
+    expect(source).not.toContain("OPENSESAME_IDENTITY_TOKEN");
+    expect(source).not.toContain("present_claim");
+    expect(source).toContain("createAuthenticatedApiClient");
     expect(source).not.toContain(
       "accessToken ?? process.env.OPENSESAME_ACCESS_TOKEN",
     );

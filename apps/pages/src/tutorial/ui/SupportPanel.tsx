@@ -28,6 +28,7 @@ import { guideRouteWithin } from "../registry/routes.js";
 import type { SupportEntry } from "../session.js";
 import { useSupport } from "../session.js";
 import "../support.css";
+import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
 import { UNAVAILABLE_TEXT, webmcpStatusText } from "./messages.js";
 
 const SPEAKER = {
@@ -140,7 +141,7 @@ export function SupportPanel(): ReactElement {
         </div>
 
         <div className="sheet__body support__body">
-          <TransportNote warning={view.warning} />
+          <RemoteSupportPreview warning={view.warning} />
           <Availability
             availability={availability}
             ready={view.ready}
@@ -380,14 +381,6 @@ function WebMcpStatus(): ReactElement {
       {webmcpStatusText(snapshot)}
     </p>
   );
-}
-
-/** The one line that says an answer will leave this device. */
-function TransportNote({
-  warning,
-}: { warning: string | null }): ReactElement | null {
-  if (!warning) return null;
-  return <p className="note note--warn support__egress">{warning}</p>;
 }
 
 function Availability({

@@ -6,6 +6,8 @@
  * remote listener.
  */
 
+import { AgentClient } from "@opensesame/agent-client";
+
 const LOOPBACK_HOSTS = new Set([
   "localhost",
   "127.0.0.1",
@@ -79,6 +81,9 @@ export function daemonBase(): string {
 export type FetchFn = typeof fetch;
 
 let fetchImpl: FetchFn = globalThis.fetch.bind(globalThis);
+let agent = new AgentClient("urn:opensesame:agent:mcp-host", (input, init) =>
+  fetchImpl(input, init),
+);
 
 export function setFetchForTests(fn: FetchFn): void {
   fetchImpl = fn;
@@ -86,36 +91,16 @@ export function setFetchForTests(fn: FetchFn): void {
 
 export function resetFetchForTests(): void {
   fetchImpl = globalThis.fetch.bind(globalThis);
+  agent = new AgentClient("urn:opensesame:agent:mcp-host", (input, init) =>
+    fetchImpl(input, init),
+  );
 }
 
-/**
- * Operator or opaque-session bearer for Host API mutations (never a SecretRef).
- *
- * The operator token is a local shared secret, so it is only offered to a
- * loopback target: a remote Host API must be reached with a session token.
- */
-export function hostAuthHeaders(base = hostApiBase()) {
-  const operator = process.env.OPENSESAME_OPERATOR_TOKEN?.trim();
-  if (operator && isLoopbackBase(base)) {
-    return { authorization: `Bearer operator:${operator}` };
-  }
-  const session = process.env.OPENSESAME_ACCESS_TOKEN?.trim();
-  if (session) {
-    if (!isLoopbackBase(base) && new URL(base).protocol !== "https:") {
-      throw new Error("OPENSESAME_ACCESS_TOKEN requires https off loopback");
-    }
-    const allowed = process.env.OPENSESAME_HOST_AUDIENCE?.trim();
-    if (allowed && new URL(base).origin !== new URL(allowed).origin) {
-      throw new Error(
-        "OPENSESAME_SERVER does not match OPENSESAME_HOST_AUDIENCE",
-      );
-    }
-    const token = session.startsWith("opaque-session:")
-      ? session
-      : `opaque-session:${session}`;
-    return { authorization: `Bearer ${token}` };
-  }
-  return {};
+/** Only an explicitly approved short-lived agent capability can authenticate. */
+export function hostAuthHeaders(
+  base = hostApiBase(),
+): Promise<Record<string, string>> {
+  return agent.headers(base);
 }
 
 export async function hostFetch(
@@ -123,24 +108,33 @@ export async function hostFetch(
   init?: RequestInit,
 ): Promise<Response> {
   const base = hostApiBase();
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\"))
+    throw new Error("invalid Host request path");
   const headers = new Headers(init?.headers);
-  for (const [k, v] of Object.entries(hostAuthHeaders(base))) {
-    if (!headers.has(k)) headers.set(k, v);
+  if (headers.has("authorization") || headers.has("x-opensesame-operator"))
+    throw new Error("agent authority cannot be overridden");
+  if (path !== "/health/live" && path !== "/health/ready") {
+    for (const [key, value] of Object.entries(await hostAuthHeaders(base)))
+      headers.set(key, value);
   }
-  return fetchImpl(`${base}${path}`, { ...init, headers });
+  return fetchImpl(`${base}${path}`, {
+    ...init,
+    headers,
+    redirect: "error",
+    credentials: "omit",
+  });
 }
 
+/** The daemon exposes no operator route to model-driven clients. */
 export async function daemonFetch(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
-  const base = daemonBase();
-  const headers = new Headers(init?.headers);
-  // Every daemon /v1/* route requires the operator bearer; without it these calls
-  // could only ever answer 401.
-  const operator = process.env.OPENSESAME_OPERATOR_TOKEN?.trim();
-  if (operator && !headers.has("authorization")) {
-    headers.set("authorization", `Bearer operator:${operator}`);
-  }
-  return fetchImpl(`${base}${path}`, { ...init, headers });
+  if (path !== "/health/live" || (init?.method && init.method !== "GET"))
+    throw new Error("daemon operator APIs are not an agent surface");
+  return fetchImpl(`${daemonBase()}/health/live`, {
+    method: "GET",
+    redirect: "error",
+    credentials: "omit",
+  });
 }

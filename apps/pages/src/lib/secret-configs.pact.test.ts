@@ -37,8 +37,13 @@ describe("PACT — Pages secret configs never render a value", () => {
     assertSourceOrder(src, [
       "putConfigSecrets(selectedId",
       'setNewKeyValue("")',
-      'type="password"',
     ]);
+    const writeForms = readFileSync(
+      join(here, "../sections/settings/SecretConfigWriteForms.tsx"),
+      "utf8",
+    );
+    expect(writeForms).toContain('type="password"');
+    expect(src).toContain("SecretConfigWriteForms");
     // Nothing read from the Host is rendered as a value: the panel renders
     // key names, version numbers and timestamps only.
     expect(src).not.toMatch(/\{\s*\w+\.(value|plaintext|secret)\b/);

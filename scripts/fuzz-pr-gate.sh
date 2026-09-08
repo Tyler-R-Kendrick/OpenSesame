@@ -5,6 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+source "$ROOT/scripts/lib/fuzz-directory.sh"
 
 SECONDS_PER_TARGET="${FUZZ_SECONDS:-60}"
 BASE="${FUZZ_DIFF_BASE:-origin/main}"
@@ -93,21 +94,20 @@ targets="$(echo "$targets" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' '
 echo "==> fuzz-pr-gate: ${SECONDS_PER_TARGET}s each — $targets"
 fail=0
 for target in $targets; do
-  corpus="fuzz/corpus/$target"
-  mkdir -p "$corpus" fuzz/artifacts
+  opensesame_fuzz_corpus "$target"
   echo "--> cargo +nightly fuzz run $target -max_total_time=$SECONDS_PER_TARGET"
-  if ! cargo +nightly fuzz run "$target" --fuzz-dir fuzz -- \
+  if ! cargo +nightly fuzz run "$target" --fuzz-dir fuzz "$corpus" -- \
       -max_total_time="$SECONDS_PER_TARGET" \
       -timeout=10 \
-      -artifact_prefix="$ROOT/fuzz/artifacts/" \
-      "$corpus"; then
+      -artifact_prefix="$OPENSESAME_AUDIT_DIR/artifacts/" \
+      > "$OPENSESAME_AUDIT_DIR/$target.log" 2>&1; then
     echo "fuzz-pr-gate: FAIL $target" >&2
     fail=1
   fi
 done
 
 if [[ "$fail" -ne 0 ]]; then
-  echo "fuzz-pr-gate: FAIL (see fuzz/artifacts/)" >&2
+  echo "fuzz-pr-gate: FAIL (see $OPENSESAME_AUDIT_DIR)" >&2
   exit 1
 fi
 echo "fuzz-pr-gate: CLEAN"

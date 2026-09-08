@@ -18,9 +18,12 @@ pub struct BootstrapArtifacts {
     pub broker: Broker,
 }
 
-pub async fn maybe_demo_bootstrap(db: &Db) -> anyhow::Result<BootstrapArtifacts> {
-    let signer = config::resolve_receipt_signer().map_err(anyhow::Error::msg)?;
-    if !config::dev_bootstrap_enabled() || config::is_production_env() {
+pub async fn maybe_demo_bootstrap(
+    db: &Db,
+    deployment: config::Deployment,
+    signer: opensesame_audit::ReceiptSigner,
+) -> anyhow::Result<BootstrapArtifacts> {
+    if !config::dev_bootstrap_enabled() || deployment.production_safeguards() {
         tracing::info!("demo bootstrap skipped (set OPENSESAME_DEV_BOOTSTRAP=true in non-production to enable)");
         return Ok(BootstrapArtifacts {
             demo: None,
@@ -53,17 +56,19 @@ pub(crate) async fn create_demo_bootstrap(
     db.create_organization(&org, "demo").await?;
     db.create_project(&project, &org, "catalog").await?;
 
+    let subject = principal.to_string();
+
     policy
         .relationships
-        .write(&format!("organization:{org}"), "member", "user:demo");
+        .write(&format!("organization:{org}"), "member", &subject);
     policy
         .relationships
-        .write(&format!("project:{project}"), "developer", "user:demo");
+        .write(&format!("project:{project}"), "developer", &subject);
     // Policy engine connection checks use short ids in fixtures; use "demo-conn"
     policy
         .relationships
-        .write("connection:demo-conn", "user", "user:demo");
-    policy.assurance.insert("user:demo".into(), "mfa".into());
+        .write("connection:demo-conn", "user", &subject);
+    policy.assurance.insert(subject, "local_unverified".into());
 
     let now = Utc::now();
     db.insert_connection(&ConnectionRecord {

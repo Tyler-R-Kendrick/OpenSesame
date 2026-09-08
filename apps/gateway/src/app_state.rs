@@ -1,6 +1,7 @@
 use crate::bootstrap;
 use crate::config::{self, Args};
 use crate::session_channel::SessionChannel;
+use crate::session_claims::HostSessionClaims;
 use crate::task_engine::{new_task_engine, SharedTaskEngine};
 use opensesame_broker::Broker;
 use opensesame_connection_broker::{BrokerConfig, ConnectionBroker};
@@ -15,7 +16,6 @@ use opensesame_task_access::{
     distributed_task_authority_ok, is_postgres_database_url, PostgresTaskStore,
 };
 use opensesame_task_bus::TaskBus;
-use serde_json::Value;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -59,11 +59,14 @@ pub struct Bootstrap {
 
 #[derive(Clone)]
 pub struct AppState {
+    pub deployment: config::Deployment,
+    pub identity_mapping: Option<crate::identity_mapping::IdentityMappingClient>,
+    pub host_authorization: Option<crate::host_authorization::HostAuthorizationVerifier>,
     pub resource: String,
     pub issuer: String,
     pub db: Db,
     pub broker: Arc<Broker>,
-    pub sessions: Arc<Mutex<HashMap<String, Value>>>,
+    pub sessions: Arc<Mutex<HashMap<String, HostSessionClaims>>>,
     /// Live shared-session channels, one broadcast per session (ADR 0079).
     ///
     /// Bounded on both axes: [`SESSION_CHANNEL_CAPACITY`] events buffered per
@@ -128,25 +131,28 @@ impl AppState {
     }
 
     pub fn production_bootstrap_misconfigured(&self) -> bool {
-        config::is_production_env()
+        self.deployment.production_safeguards()
             && (config::dev_bootstrap_enabled() || self.demo_bootstrap_active())
     }
 }
 
 pub async fn build(args: Args) -> anyhow::Result<AppState> {
-    if config::is_production_env() && config::dev_bootstrap_enabled() {
-        anyhow::bail!(
-            "OPENSESAME_DEV_BOOTSTRAP must not be enabled when OPENSESAME_ENV or NODE_ENV is production"
-        );
-    }
+    let security = config::StartupSecurity::load(&args).map_err(anyhow::Error::msg)?;
+    build_with_security(args, security).await
+}
 
+async fn build_with_security(
+    args: Args,
+    security: config::StartupSecurity,
+) -> anyhow::Result<AppState> {
     let db = if args.database_url == "sqlite::memory:" {
         Db::connect_memory().await?
     } else {
         Db::connect_sqlite(&args.database_url).await?
     };
 
-    let mut boot = bootstrap::maybe_demo_bootstrap(&db).await?;
+    let mut boot =
+        bootstrap::maybe_demo_bootstrap(&db, security.deployment, security.receipt_signer).await?;
     let receipt_verifier =
         config::resolve_receipt_verifier(&boot.broker.signer).map_err(anyhow::Error::msg)?;
     let openfga = OpenFgaClient::from_env().ok().flatten();
@@ -182,6 +188,9 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
     };
 
     Ok(AppState {
+        deployment: security.deployment,
+        identity_mapping: security.identity_mapping,
+        host_authorization: security.host_authorization,
         resource: args.resource,
         issuer: args.issuer,
         db,
@@ -202,8 +211,8 @@ pub async fn build(args: Args) -> anyhow::Result<AppState> {
         relay_presence: Arc::new(Mutex::new(std::collections::HashMap::new())),
         ephemeral_certificate_ca: Arc::new(Mutex::new(None)),
         connection_organization,
-        operator_token: config::resolve_operator_token(),
-        claim_pepper: config::resolve_claim_pepper(),
+        operator_token: security.operator_token,
+        claim_pepper: security.claim_pepper,
         distributed_task_authority,
         task_engine: new_task_engine(),
         frozen_intents: Arc::new(Mutex::new(HashMap::new())),
@@ -244,11 +253,45 @@ pub mod test_env {
 }
 
 #[cfg(test)]
+pub async fn build_test(args: Args) -> anyhow::Result<AppState> {
+    let secret = || {
+        format!(
+            "{}{}",
+            uuid::Uuid::new_v4().simple(),
+            uuid::Uuid::new_v4().simple()
+        )
+    };
+    let mut state = build_with_security(
+        args,
+        config::StartupSecurity {
+            host_authorization: None,
+            identity_mapping: None,
+            deployment: config::Deployment {
+                mode: config::DeploymentMode::Test,
+                exposure: config::ExposureClass::LocalOnly,
+            },
+            operator_token: secret(),
+            claim_pepper: secret(),
+            receipt_signer: opensesame_audit::ReceiptSigner::generate(),
+        },
+    )
+    .await?;
+    if state.connection_organization.as_uuid().is_nil() {
+        state.connection_organization = OrganizationId::new();
+        state
+            .db
+            .create_organization(&state.connection_organization, "test organization")
+            .await?;
+    }
+    Ok(state)
+}
+
+#[cfg(test)]
 pub async fn test_demo_state() -> AppState {
     let _guard = test_env::lock();
     // Force memory bus before `build` so ambient NATS_URL cannot open sockets.
     std::env::set_var("OPENSESAME_TASKBUS", "memory");
-    let mut state = build(Args {
+    let mut state = build_test(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.test".into(),
         issuer: "https://identity.test".into(),
@@ -282,13 +325,13 @@ pub fn test_session_headers(
     let token = uuid::Uuid::new_v4().to_string();
     state.sessions.lock().unwrap().insert(
         opensesame_claims::hash_secret(&token),
-        serde_json::json!({
-            "principal_id": subject,
-            "approved_as": subject,
-            "organization_id": organization_id.to_string(),
-            "organization_role": organization_role,
-            "expires_at": (chrono::Utc::now() + chrono::Duration::minutes(5)).to_rfc3339(),
-        }),
+        crate::session_claims::fixture(
+            crate::session_claims::parse_principal(subject)
+                .expect("test session requires a typed principal"),
+            organization_id,
+            organization_role,
+            &state.resource,
+        ),
     );
     let mut headers = axum::http::HeaderMap::new();
     headers.insert(

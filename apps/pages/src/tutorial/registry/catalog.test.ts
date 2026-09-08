@@ -36,9 +36,8 @@ const CATALOG_SOURCE = readFileSync(
   "utf8",
 );
 
-const GOALS_SOURCE = readFileSync(
-  join(import.meta.dirname, "goals.ts"),
-  "utf8",
+const GOALS_SOURCES = ["goals.ts", "authority-help.ts"].map((file) =>
+  readFileSync(join(import.meta.dirname, file), "utf8"),
 );
 
 const CAPABILITY_IDS = new Set(CAPABILITIES.map((capability) => capability.id));
@@ -101,9 +100,9 @@ describe("the target catalog", () => {
   });
 
   it("carries no authored help answer that could interpolate one either", () => {
-    const literals = [
-      ...GOALS_SOURCE.matchAll(/\n\s*answer:\s*([\s\S]*?),\n\s*routes:/g),
-    ];
+    const literals = GOALS_SOURCES.flatMap((source) => [
+      ...source.matchAll(/\n\s*answer:\s*([\s\S]*?),\n\s*routes:/g),
+    ]);
     expect(literals.length).toBe(HELP_TOPICS.length);
 
     literals.forEach(([, raw], index) => {

@@ -909,7 +909,7 @@ authorizationRequestRoutes.post(
     // above already established the binding; the load-bearing one-time
     // consumption is the durable `approvalActivations.consume` CAS at
     // settlement, never this map.
-    const issued = ctx.passkeyChallenges.peek(challenge);
+    const issued = await ctx.passkeyChallenges.peek(challenge);
     if (
       issued &&
       (issued.purpose !== "transaction" ||

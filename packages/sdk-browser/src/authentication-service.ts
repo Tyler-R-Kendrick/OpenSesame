@@ -42,7 +42,7 @@ export function createAuthenticationClient(config: AuthenticationClientConfig) {
   const fetchImpl = config.fetchImpl ?? fetch;
   const credentials = config.credentials ?? navigator.credentials;
   const endpoint = (path: string) =>
-    `${config.apiBase.replace(/\/+$/, "")}/v1/authentication/public${path}`;
+    `${config.apiBase.replace(/\/+$/, "")}/v1/authentication/public/applications/${encodeURIComponent(config.applicationId)}${path}`;
   const post = <Body extends object>(path: string, body: Body) =>
     fetchImpl(endpoint(path), {
       method: "POST",

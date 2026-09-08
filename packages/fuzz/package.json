@@ -15,7 +15,8 @@
     "@opensesame/auth-upstream": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/oauth-provider": "workspace:*",
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/support-agent": "workspace:*"
   },
   "devDependencies": {
     "@jazzer.js/core": "4.0.0",

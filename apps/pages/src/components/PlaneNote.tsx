@@ -1,19 +1,14 @@
 import { briefOrigin } from "@opensesame/os-domain";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { browserPairingSeams } from "../lib/browser-pairing.js";
 import {
   type DaemonHealth,
   applyDaemonPairing,
   probeDaemon,
 } from "../lib/daemon.js";
 import { useConnect } from "../lib/identity.js";
-import {
-  hostStatusLabel,
-  identityStatusLabel,
-  needsHostPairing,
-  planeSeams,
-  usePlaneStatus,
-} from "../lib/planes.js";
+import { needsHostPairing, planeSeams } from "../lib/planes.js";
 import { loadSettings, settingsSeams } from "../lib/settings.js";
 import {
   assertDaemonReachableFromPage,
@@ -23,10 +18,13 @@ import {
   waitForTailnet,
 } from "../lib/tailscale.js";
 import { isLoopbackUrl } from "../lib/urls.js";
+import { BrowserPairingCeremony } from "./BrowserPairingCeremony.js";
 import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
-import { FieldShell } from "./FieldShell.js";
+import { BrowserIdentityAuthorization } from "./HostAuthorizationCeremony.js";
 import { IconAlert, IconCheck, IconTerminal } from "./Icons.js";
+import { ManualUrlField } from "./ManualUrlField.js";
 import { QrCode } from "./QrCode.js";
+import { RailPlaneStatusDefault } from "./RailPlaneStatus.js";
 
 /**
  * Pairing this machine, as a ceremony rather than a form.
@@ -38,28 +36,13 @@ import { QrCode } from "./QrCode.js";
  * FQDN by hand is the least likely path and the easiest to get wrong, so it
  * lives on the failure screen with the values we do know offered as fills.
  */
-type Phase = "idle" | "looking" | "found" | "paired" | "manual";
+type Phase = "idle" | "looking" | "found" | "approval" | "paired" | "manual";
 
 type Written = {
   daemonApi: string;
   hostApi: string;
   identityApi: string;
 };
-
-function RailPlaneStatusDefault() {
-  const status = usePlaneStatus();
-  return (
-    <p className="rail__status">
-      <span
-        className={`dot ${status.host === "live" || status.host === "pending" ? "dot--ok" : "dot--warn"}`}
-        aria-hidden="true"
-      />
-      <span>{hostStatusLabel(status.host)}</span>
-      <span aria-hidden="true">·</span>
-      <span>{identityStatusLabel(status.identity)}</span>
-    </p>
-  );
-}
 
 function ConnectThisMachineDefault({
   onPaired,
@@ -93,29 +76,23 @@ function ConnectThisMachineDefault({
     };
   }, []);
 
-  const finish = useCallback(
-    async (health: DaemonHealth, via: string) => {
-      await applyDaemonPairing(via, health);
-      const saved = loadSettings();
-      if (!live.current) return;
-      setWritten({
-        daemonApi: saved.daemonApi,
-        hostApi: saved.hostApi,
-        identityApi: saved.identityApi,
-      });
-      setPhase("paired");
-      setMessage(null);
-      onPaired?.();
-      // Never block pairing on Identity — cross-origin /v1/principals/me used
-      // to hang after the local-network permission grant with no AbortSignal.
-      void connect().catch(() => {
-        // Identity may still be down; daemon pairing is enough for Host plane.
-      });
-    },
-    [connect, onPaired],
-  );
+  const finish = useCallback(async (health: DaemonHealth, via: string) => {
+    await applyDaemonPairing(via, health);
+    const saved = loadSettings();
+    if (!live.current) return;
+    setWritten({
+      daemonApi: saved.daemonApi,
+      hostApi: saved.hostApi,
+      identityApi: saved.identityApi,
+    });
+    setPhase("approval");
+    setMessage(null);
+    // Never block pairing on Identity — cross-origin /v1/principals/me used
+    // to hang after the local-network permission grant with no AbortSignal.
+  }, []);
 
   const discover = useCallback(async () => {
+    if (!browserPairingSeams.eligible()) return;
     setPhase("looking");
     setMessage(null);
     const saved = loadSettings().daemonApi.trim();
@@ -205,6 +182,15 @@ function ConnectThisMachineDefault({
   const pairingUrl = manualUrl.trim();
   const savedDaemon = loadSettings().daemonApi.trim();
 
+  if (!browserPairingSeams.eligible())
+    return (
+      <p className="hint">
+        This shared-origin demo cannot pair with local authority. Use a
+        dedicated-origin or loopback deployment. Your offline vault remains
+        available.
+      </p>
+    );
+
   // The same alternatives on every step, as rows that expand in place. They
   // used to be a changing row of side-by-side buttons — "Enter it myself",
   // "Use a different address", "Show QR" — that renamed themselves per phase,
@@ -272,6 +258,17 @@ function ConnectThisMachineDefault({
     // The machine ceremony was the one of five that painted a second title
     // under the first.
     <div className="ceremony">
+      {phase === "approval" && written ? (
+        <BrowserPairingCeremony
+          hostApi={written.hostApi}
+          onComplete={() => {
+            setPhase("paired");
+            onPaired?.();
+            void connect().catch(() => undefined);
+          }}
+          onCancel={() => setPhase("idle")}
+        />
+      ) : null}
       {phase === "idle" ? (
         <CeremonyShell
           ok={false}
@@ -317,6 +314,7 @@ function ConnectThisMachineDefault({
             <IconCheck size={24} />
           </span>
           <p className="hint">Paired.</p>
+          {written.identityApi ? <BrowserIdentityAuthorization /> : null}
           <dl className="wrote">
             <div>
               <dt>Daemon</dt>
@@ -356,11 +354,8 @@ function ConnectThisMachineDefault({
         >
           <ManualUrlField value={manualUrl} onChange={setManualUrl} />
           <p className="hint">
-            On the daemon machine,{" "}
-            <code>curl -s http://127.0.0.1:18790/health</code> prints{" "}
-            <code>tailscale_url</code>. If Serve is off it prints{" "}
-            <code>tailscale_serve_enable_url</code> — open that, enable Serve,
-            restart the daemon.
+            Copy the exact Serve URL from your local daemon launcher or
+            authenticated operator status. Public health only reports liveness.
           </p>
         </CeremonyShell>
       ) : null}
@@ -377,69 +372,6 @@ function ConnectThisMachineDefault({
  * appears both as the manual card and inside an alternative row, and "it just
  * became visible" is the one moment a clipboard suggestion is worth offering.
  */
-function ManualUrlField({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-}) {
-  const [clipboardUrl, setClipboardUrl] = useState<string | null>(null);
-
-  // Offering the clipboard is only worth it when it holds something that
-  // parses as a URL — otherwise the chip is a dead end.
-  useEffect(() => {
-    if (!navigator.clipboard?.readText) return;
-    let cancelled = false;
-    void navigator.clipboard.readText().then(
-      (text) => {
-        const candidate = text.trim();
-        if (cancelled || !candidate) return;
-        try {
-          const url = new URL(candidate);
-          if (url.protocol === "http:" || url.protocol === "https:") {
-            setClipboardUrl(url.origin);
-          }
-        } catch {
-          // Not a URL — no chip.
-        }
-      },
-      () => {
-        // Permission denied or unavailable — no chip.
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const savedDaemon = loadSettings().daemonApi.trim();
-  const fills = [
-    savedDaemon && savedDaemon !== value ? savedDaemon : null,
-    settingsSeams.pageIsLoopback() && value !== settingsSeams.shippedDaemonApi
-      ? settingsSeams.shippedDaemonApi
-      : null,
-    clipboardUrl && clipboardUrl !== value ? clipboardUrl : null,
-  ].filter((entry): entry is string => entry !== null);
-
-  return (
-    <FieldShell
-      id="daemon-url"
-      label="Daemon (Tailscale Serve URL)"
-      type="url"
-      mono
-      lead={<IconTerminal size={17} />}
-      placeholder="https://your-machine.tailnet.ts.net"
-      value={value}
-      onValueChange={onChange}
-      fills={fills.map((entry) => ({
-        label: entry,
-        onPick: () => onChange(entry),
-      }))}
-    />
-  );
-}
-
 function errorText<Thrown>(error: Thrown): string {
   return error instanceof Error
     ? error.message

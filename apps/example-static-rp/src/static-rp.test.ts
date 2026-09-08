@@ -29,11 +29,19 @@ describe("example-static-rp", () => {
       join(publicDir, "opensesame/callback.html"),
       "utf8",
     );
-    expect(index).toContain("createOpenSesame({ issuer })");
+    const client = readFileSync(join(publicDir, "client.ts"), "utf8");
+    const callbackEntry = readFileSync(join(publicDir, "callback.ts"), "utf8");
+    expect(index).toContain('src="/index.ts"');
+    expect(callback).toContain('src="/callback.ts"');
+    expect(client).toContain('from "@opensesame/static-auth"');
+    expect(client).toContain("createHostedClient({");
+    expect(client).toContain('profile: "hosted_identity"');
     expect(index).toContain('id="sign-in"');
     expect(index).toContain('id="status"');
-    expect(callback).toContain("handleRedirectCallback");
-    expect(index).not.toContain("/token");
+    expect(callbackEntry).toContain("sesame.complete()");
+    expect(index).not.toContain("innerHTML");
     expect(callback).not.toContain("client_secret");
+    expect(callbackEntry).not.toContain("client_secret");
+    expect(client).not.toContain("client_secret");
   });
 });

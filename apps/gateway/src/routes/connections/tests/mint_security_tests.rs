@@ -1,7 +1,7 @@
 use super::*;
 
 async fn assert_member_cannot_mint(state: &AppState, id: &str) {
-    let member = session(state, "user:alice");
+    let member = session(state, "principal:00000000-0000-4000-8000-000000000001");
     let (status, denied) = as_session(
         state,
         &member,
@@ -24,7 +24,7 @@ async fn github_mint_returns_a_derived_token_never_the_sealed_material() {
     let state = github_harness(&api_base).await;
     let alice = session_for(
         &state,
-        "user:alice",
+        "principal:00000000-0000-4000-8000-000000000001",
         state.connection_organization,
         opensesame_domain::OrganizationRole::Admin,
     );
@@ -89,8 +89,14 @@ async fn github_mint_returns_a_derived_token_never_the_sealed_material() {
     assert_eq!(minted["provider_id"], "github");
     assert!(minted["expires_at"].is_string());
     // RFC 8693 mapping: subject = owning principal, actor = requesting caller.
-    assert_eq!(minted["subject"], "user:alice");
-    assert_eq!(minted["actor"], "user:alice");
+    assert_eq!(
+        minted["subject"],
+        "principal:00000000-0000-4000-8000-000000000001"
+    );
+    assert_eq!(
+        minted["actor"],
+        "principal:00000000-0000-4000-8000-000000000001"
+    );
 
     // The mint is on the connection's event trail.
     let (status, events) = as_session(
@@ -104,9 +110,19 @@ async fn github_mint_returns_a_derived_token_never_the_sealed_material() {
     assert_eq!(status, StatusCode::OK, "{events}");
     let rendered_events = events.to_string();
     assert!(rendered_events.contains("\"materialized\""), "{events}");
-    assert!(rendered_events.contains("sub=user:alice"), "{events}");
-    assert!(rendered_events.contains("act=user:alice"), "{events}");
+    assert!(
+        rendered_events.contains("sub=principal:00000000-0000-4000-8000-000000000001"),
+        "{events}"
+    );
+    assert!(
+        rendered_events.contains("act=principal:00000000-0000-4000-8000-000000000001"),
+        "{events}"
+    );
 
+    assert_mint_redaction(&pem, &minted, &rendered_events);
+}
+
+fn assert_mint_redaction(pem: &str, minted: &serde_json::Value, rendered_events: &str) {
     // Canary: nothing sealed (App private key, OAuth client secret) crosses in
     // the mint response or the event trail — only the provider-minted token.
     let pem_body = pem

@@ -173,10 +173,16 @@ export async function readLog(runId: string, after: number): Promise<LogPage> {
   };
 }
 
-async function act(runId: string, verb: string): Promise<JsonObject> {
+async function act(
+  runId: string,
+  verb: string,
+  elevation: string,
+): Promise<JsonObject> {
+  if (!/^[a-f0-9]{64}$/.test(elevation))
+    throw new Error("A fresh one-use approval is required.");
   const response = await hostFetch(
     `/api/v1/agent/runs/${encodeURIComponent(runId)}/${verb}`,
-    { method: "POST" },
+    { method: "POST", body: JSON.stringify({ elevation }) },
   );
   const body = asObject(await response.json().catch(() => ({})));
   if (!response.ok) {
@@ -197,20 +203,27 @@ async function act(runId: string, verb: string): Promise<JsonObject> {
  */
 export async function requestHandoff(
   runId: string,
+  elevation: string,
 ): Promise<"queued" | "accepted"> {
-  const body = await act(runId, "handoff");
+  const body = await act(runId, "handoff", elevation);
   return body.status === "queued" ? "queued" : "accepted";
 }
 
 /** Take the page. Only available once the run has parked. */
-export async function takeControl(runId: string): Promise<AgentRun | null> {
-  const body = await act(runId, "control");
+export async function takeControl(
+  runId: string,
+  elevation: string,
+): Promise<AgentRun | null> {
+  const body = await act(runId, "control", elevation);
   return toRun(body);
 }
 
 /** Hand the page back. Autonomy does not resume until the run re-asserts. */
-export async function releaseControl(runId: string): Promise<AgentRun | null> {
-  const body = await act(runId, "release");
+export async function releaseControl(
+  runId: string,
+  elevation: string,
+): Promise<AgentRun | null> {
+  const body = await act(runId, "release", elevation);
   return toRun(body);
 }
 

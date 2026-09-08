@@ -252,7 +252,6 @@ mod tests {
     use tower::ServiceExt;
 
     const CANARY: &str = "CANARY-TOKEN-never-in-response-surfaces";
-    const OPERATOR: &str = "opensesame-dev-operator";
 
     struct CanarySource;
 
@@ -341,7 +340,7 @@ mod tests {
             .uri("/v1/invoke_through")
             .header("content-type", "application/json");
         if with_token {
-            builder = builder.header("x-opensesame-operator", OPERATOR);
+            builder = builder.header("x-opensesame-operator", crate::test_operator_token());
         }
         builder.body(Body::from(body.to_string())).unwrap()
     }
@@ -592,9 +591,9 @@ mod tests {
                 .insert(ConnectInfo(UdsConnectInfo(cred)));
             req
         };
-        // Attested same-uid caller passes auth and reaches the confirm gate.
+        // Attestation identifies transport; it never grants operator authority.
         let res = app.clone().oneshot(build(Some(own))).await.unwrap();
-        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
         let res = app.oneshot(build(Some(own + 1))).await.unwrap();
         assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
     }

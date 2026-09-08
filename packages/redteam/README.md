@@ -3,8 +3,17 @@
 A [promptfoo](https://www.promptfoo.dev/) red-team corpus for the MCP surfaces
 exposed by [`apps/mcp-host`](../../apps/mcp-host) (`@opensesame/mcp-host`), the
 stdio MCP server that fronts the Host API / daemon with the tools
-`task_start`, `task_status`, `task_invoke`, `task_terminate`, `daemon_status`,
-`host_ready`, and `operator_invoke_l1`.
+`task_start`, `task_status`, `task_invoke`, `task_terminate`, `daemon_health`,
+`host_ready`, and `task_invoke_l1`, plus the current bounded sync/task catalog.
+
+The deterministic harness now acquires a random, one-use, client/audience-bound
+agent capability through an owner-only temporary Unix socket. The real MCP
+process uses its production acquisition client; the fixture Host checks the
+scoped authorization headers. An operator-token environment fixture is only an
+adversarial sentinel and must never authenticate an outbound call. Retired
+human-only tools are tested as unavailable, while response-minimization and
+prompt-injection tests exercise retained task tools. These local fixtures do
+not claim to validate a live deployment or constitute a model-backed scan.
 
 This package is part of the default `pnpm test` run (`vitest` covers the
 corpus PACT plus a live `apps/mcp-host` structural pass of confused-deputy,

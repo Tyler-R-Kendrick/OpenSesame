@@ -1,0 +1,19 @@
+{
+  "name": "@opensesame/agent-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" }
+  },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": {
+    "@opensesame/observability": "workspace:*",
+    "zod": "3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}

@@ -12,7 +12,7 @@ import {
 } from "./providers.js";
 
 const originalIdentityBase = identitySeams.identityBase;
-const BASE = "http://127.0.0.1:18788";
+const BASE = "https://identity.example.test";
 
 function jsonOnce(body: BoundaryValue, status = 200): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn(() =>

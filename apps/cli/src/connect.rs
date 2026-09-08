@@ -1258,12 +1258,6 @@ fn print_service_help(provider: &Value) {
     println!("    REF=$(opensesame connect token {id}/acme)");
 }
 
-fn operator_header() -> String {
-    let op =
-        env::var("OPENSESAME_OPERATOR_TOKEN").unwrap_or_else(|_| "opensesame-dev-operator".into());
-    format!("Bearer operator:{op}")
-}
-
 fn authorization_headers() -> Vec<String> {
     let mut headers = Vec::new();
     if let Ok(token) = crate::load_access_token() {
@@ -1271,9 +1265,11 @@ fn authorization_headers() -> Vec<String> {
             headers.push(format!("Bearer {token}"));
         }
     }
-    let operator = operator_header();
-    if !headers.iter().any(|header| header == &operator) {
-        headers.push(operator);
+    if let Ok(token) = crate::operator_token() {
+        let operator = format!("Bearer operator:{token}");
+        if !headers.iter().any(|header| header == &operator) {
+            headers.push(operator);
+        }
     }
     headers
 }
@@ -1285,7 +1281,10 @@ pub(crate) async fn api(
     body: Option<&Value>,
 ) -> anyhow::Result<Value> {
     let url = format!("{}{path}", server.trim_end_matches('/'));
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
     let mut last = json!({"error": "unauthorized"});
     let mut last_status = reqwest::StatusCode::UNAUTHORIZED;
     for auth in authorization_headers() {

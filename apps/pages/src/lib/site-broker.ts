@@ -4,6 +4,8 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { isLoopbackOrigin } from "@opensesame/static-auth";
+import staticAuthManifest from "../../public/static-auth/manifest.json";
 /**
  * Origin-brokered sign-in for static relying parties (ADR 0034).
  *
@@ -115,11 +117,15 @@ export function brokerAuthorizeUrl(
   url.searchParams.set("origin", params.origin);
   url.searchParams.set("state", params.state);
   url.searchParams.set("scope", params.scope ?? "openid");
+  url.searchParams.set("profile", "pages_passthrough_loopback");
   return url.toString();
 }
 
 export function scriptTagSrc(base: string = pagesPublicBase()): string {
-  return new URL("auth.js", base).toString();
+  return new URL(
+    `static-auth/${staticAuthManifest.version}/opensesame-auth.min.js`,
+    base,
+  ).toString();
 }
 
 /**
@@ -163,6 +169,18 @@ export function parseBrokerRequest(
       ok: false,
       error: "invalid_request",
       detail: "origin must be exactly scheme://host[:port] with no path.",
+    };
+  }
+
+  if (
+    params.get("profile") !== "pages_passthrough_loopback" ||
+    !isLoopbackOrigin(origin)
+  ) {
+    return {
+      ok: false,
+      error: "unsupported_profile",
+      detail:
+        "Token passthrough requires the explicit loopback development profile. Remote sites use hosted Identity with PKCE.",
     };
   }
 
@@ -462,12 +480,11 @@ export function removeDomainRule(domain: string): BrokerPolicy {
  * - Best matching blacklist → refuse
  * - Best matching whitelist → allow
  * - No match, but any whitelist exists → refuse (closed / restricted)
- * - No match, no whitelists → allow (public / open)
- *
- * Public until the first allowed (whitelist) domain is added. Optional blocked
- * domains apply in both modes.
+ * - No match, no whitelists → allow loopback only.
+ * Domain rules may narrow admission, never enable remote passthrough.
  */
 export function originMayUseBroker(origin: string): boolean {
+  if (!isLoopbackOrigin(origin)) return false;
   const { rules } = loadBrokerPolicy();
   const best = bestMatchingRule(origin, rules);
   if (best?.effect === "blacklist") return false;
@@ -490,13 +507,14 @@ export function domainFilterDenialMessage(
   if (best?.effect === "blacklist") {
     return `This origin matches a blocked domain (${best.domain}).`;
   }
-  return "This origin is not on the allow list. Add it under Sites → Domain access, or remove every allowed domain to make the broker public again.";
+  return "This origin is not on the allow list. Passthrough is restricted to loopback development sites; remote sites use hosted Identity with PKCE.";
 }
 
 export function buildSuccessMessage(
   request: BrokerRequest,
   identity: UpstreamIdentity,
 ): SignInSuccess {
+  if (!originMayUseBroker(request.origin)) throw new Error("loopback_only");
   return {
     type: "opensesame:signin",
     state: request.state,
@@ -522,14 +540,14 @@ export function buildErrorMessage(
 }
 
 /**
- * Deliver to the RP origin only. Prefer postMessage to opener; fall back to
- * fragment redirect when the RP provided redirect_uri and opener is gone.
+ * Deliver only to a loopback opener. Never transport tokens through a URL.
  */
 function deliverToRpDefault(
   message: SignInMessage,
   targetOrigin: string,
   options: DeliverToRpOptions = {},
-): "postMessage" | "fragment" | "none" {
+): "postMessage" | "none" {
+  if (!isLoopbackOrigin(targetOrigin)) return "none";
   try {
     if (window.opener && !window.opener.closed) {
       window.opener.postMessage(message, targetOrigin);
@@ -551,25 +569,6 @@ function deliverToRpDefault(
     }
   }
 
-  const redirectUri = options.redirectUri?.trim();
-  if (redirectUri) {
-    try {
-      const url = new URL(redirectUri);
-      if (url.origin !== targetOrigin) {
-        return "none";
-      }
-      const hash = new URLSearchParams();
-      for (const [key, value] of Object.entries(message)) {
-        if (isString(value)) hash.set(key, value);
-      }
-      url.hash = hash.toString();
-      location.assign(url.toString());
-      return "fragment";
-    } catch {
-      return "none";
-    }
-  }
-
   return "none";
 }
 
@@ -581,40 +580,32 @@ export function deliverToRp(
   message: SignInMessage,
   targetOrigin: string,
   options: DeliverToRpOptions = {},
-): "postMessage" | "fragment" | "none" {
+): "postMessage" | "none" {
   return siteBrokerSeams.deliverToRp(message, targetOrigin, options);
 }
 
-/** Primary snippet — declarative markup; auth.js wires the button. */
+/** Remote RPs must supply their own hosted Identity configuration. */
 export function staticSiteSnippet(opts: {
   brokerBase: string;
   siteOrigin: string;
 }): string {
   const script = scriptTagSrc(opts.brokerBase);
-  const authorize = brokerAuthorizeUrl(
-    {
-      origin: opts.siteOrigin,
-      state: "", // placeholder stripped below — link omits state so auto-links fill it
-      scope: "openid",
-    },
-    opts.brokerBase,
-  );
-  // brokerAuthorizeUrl always sets state; for the declarative link we want no state.
-  const authorizeLink = (() => {
-    const url = new URL(authorize);
-    url.searchParams.delete("state");
-    return url.toString();
-  })();
-
-  return `<!-- OpenSesame static-site auth (declarative; no backend) -->
-<script src="${script}" defer></script>
-<button type="button" data-opensesame-signin>Sign in</button>
-<!-- Or: <a href="${authorizeLink}">Sign in</a> -->
-<script>
-  window.addEventListener("opensesame:signed_in", function (event) {
-    console.log("signed in", event.detail);
-    // Optional: OpenSesame.acceptSession(event.detail.session).then(...)
-  });
+  const config = isLoopbackOrigin(opts.siteOrigin)
+    ? JSON.stringify({
+        profile: "pages_passthrough_loopback",
+        brokerBase: opts.brokerBase,
+        issuer: "https://shoo.dev",
+        audience: `origin:${new URL(opts.brokerBase).origin}`,
+      }).replace(/</g, "\\u003c")
+    : 'await fetch("/opensesame-auth-profile.json", { credentials: "omit", redirect: "error" }).then(response => { if (!response.ok) throw new Error("profile_unavailable"); return response.json(); })';
+  return `<!-- Hosted Identity + PKCE is required for remote sites. Self-hosting this SDK is supported. -->
+<script src="${script.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;")}" integrity="${staticAuthManifest.sri}" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<button type="button" id="opensesame-signin">Sign in</button>
+<script type="module">
+  const profile = ${config};
+  document.getElementById("opensesame-signin").addEventListener("click", () => OpenSesame.signIn(profile));
+  if (profile.profile === "hosted_identity") await OpenSesame.complete(profile);
+  // signed_in contains only a validated subject and expiry; never log credentials.
 </script>`;
 }
 
@@ -623,19 +614,5 @@ export function staticSiteExplicitSnippet(opts: {
   brokerBase: string;
   siteOrigin: string;
 }): string {
-  const script = scriptTagSrc(opts.brokerBase);
-  return `<!-- OpenSesame static-site auth (explicit JS control) -->
-<script src="${script}" defer></script>
-<button type="button" id="opensesame-signin">Sign in</button>
-<script>
-  document.getElementById("opensesame-signin").addEventListener("click", function () {
-    OpenSesame.signInAndAccept()
-      .then(function (result) {
-        console.log("subject", result.subject, result.claims);
-      })
-      .catch(function (err) {
-        console.error(err);
-      });
-  });
-</script>`;
+  return staticSiteSnippet(opts);
 }

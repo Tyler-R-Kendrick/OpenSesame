@@ -1,5 +1,12 @@
 import type { SyncBlob, SyncCursor } from "@opensesame/client-core";
 import {
+  type SyncPageCursor,
+  pullSyncPages,
+  pushSyncBlobs,
+  readSyncPage,
+} from "./sync-pages.js";
+export { pullSyncPages, readSyncPage } from "./sync-pages.js";
+import {
   type AuthorizeRequest,
   type AuthorizeResponse,
   AuthorizeResponseSchema,
@@ -70,8 +77,8 @@ export interface ApiClientOptions {
   baseUrl: string;
   /** Optional bearer / capability token */
   accessToken?: string;
-  /** When true, attach DPoP proofs (ES256) on mutating/authenticated calls */
-  dpop?: boolean;
+  /** Supply the key used when pairing a bound token; true generates a new key. */
+  dpop?: boolean | Awaited<ReturnType<typeof createDpopKeyPair>>;
   fetchImpl?: typeof fetch;
 }
 
@@ -168,7 +175,7 @@ export async function createDpopKeyPair() {
   const subtle = await getSubtle();
   const keyPair = await subtle.generateKey(
     { name: "ECDSA", namedCurve: "P-256" },
-    true,
+    false,
     ["sign", "verify"],
   );
   const jwk = overlapCast(await subtle.exportKey("jwk", keyPair.publicKey));
@@ -287,9 +294,7 @@ export function normalizeLoopbackBaseUrl(raw: string): string | null {
 
 export function createApiClient(options: ApiClientOptions) {
   const fetchFn = options.fetchImpl ?? fetch;
-  // This client sends a bearer with every call, so the destination is checked here
-  // rather than left to each caller to remember: http is confined to loopback, and
-  // credentials, queries and fragments in a base URL are refused.
+  // Validate every credential destination once; HTTP is loopback-only.
   const base = normalizeHttpBaseUrl(options.baseUrl);
   if (base === null) {
     throw new Error("baseUrl must be an https URL, or http on loopback");
@@ -301,14 +306,12 @@ export function createApiClient(options: ApiClientOptions) {
 
   async function ensureDpop() {
     if (!options.dpop) return null;
+    if (options.dpop !== true) return options.dpop;
     if (!dpopFactory) dpopFactory = await createDpopKeyPair();
     return dpopFactory;
   }
 
-  /**
-   * True when a response is refusing a proof only because it wants a nonce.
-   * Anything else is a real refusal and is handed back to the caller untouched.
-   */
+  /** Retry only an explicit nonce challenge, never another authentication failure. */
   function asksForNonce(res: Response): boolean {
     if (res.status !== 401) return false;
     const challenge = res.headers.get("www-authenticate") ?? "";
@@ -330,7 +333,10 @@ export function createApiClient(options: ApiClientOptions) {
       const headers = new Headers(init.headers);
       headers.set("accept", "application/json");
       if (options.accessToken) {
-        headers.set("authorization", `Bearer ${options.accessToken}`);
+        headers.set(
+          "authorization",
+          `${dpop ? "DPoP" : "Bearer"} ${options.accessToken}`,
+        );
       }
       if (init.body && !headers.has("content-type")) {
         headers.set("content-type", "application/json");
@@ -346,7 +352,7 @@ export function createApiClient(options: ApiClientOptions) {
           ),
         );
       }
-      const res = await fetchFn(url, { ...init, headers });
+      const res = await fetchFn(url, { ...init, headers, redirect: "error" });
       const issued = res.headers.get("dpop-nonce");
       if (issued) dpopNonce = issued;
       return res;
@@ -356,6 +362,7 @@ export function createApiClient(options: ApiClientOptions) {
     if (dpop && asksForNonce(first) && dpopNonce !== undefined) {
       // Once. A server that keeps asking will not be satisfied by asking again,
       // and a loop here is a loop against somebody else's endpoint.
+      await first.body?.cancel();
       return send();
     }
     return first;
@@ -789,32 +796,24 @@ export function createApiClient(options: ApiClientOptions) {
     },
 
     async syncPush(blobs: SyncBlob[]): Promise<BoundaryValue> {
-      const res = await request("/api/v1/sync/push", {
-        method: "POST",
-        body: JSON.stringify({
-          blobs: blobs.map((b) => ({
-            id: b.id,
-            epoch: b.epoch,
-            ciphertext: Array.from(
-              Uint8Array.from(atob(b.ciphertextB64), (c) => c.charCodeAt(0)),
-            ),
-          })),
-        }),
-      });
-      if (!res.ok) throw new Error(`sync_push_failed:${res.status}`);
-      return res.json();
+      return pushSyncBlobs(request, blobs);
+    },
+
+    syncPullPages(since: SyncCursor) {
+      return pullSyncPages(request, since.epoch, since.deviceId);
+    },
+
+    syncReadPage(after: SyncPageCursor, deviceId?: string) {
+      return readSyncPage(request, after, deviceId);
     },
 
     async syncPull(since: SyncCursor): Promise<BoundaryValue> {
-      const res = await request("/api/v1/sync/pull", {
-        method: "POST",
-        body: JSON.stringify({
-          since_epoch: since.epoch,
-          device_id: since.deviceId,
-        }),
-      });
-      if (!res.ok) throw new Error(`sync_pull_failed:${res.status}`);
-      return res.json();
+      const page = await readSyncPage(
+        request,
+        { epoch: since.epoch + 1, id: "" },
+        since.deviceId,
+      );
+      return { ...page, plaintext: null };
     },
 
     /** Optional local daemon discovery — degrades cleanly if absent. */

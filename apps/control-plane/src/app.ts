@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import type { AppContext } from "./context.js";
 import { authMiddleware } from "./middleware/auth.js";
 import { type Variables, withContext } from "./middleware/context.js";
+import { publicAuthenticationCors } from "./middleware/public-auth-cors.js";
 import { apiSecurityHeaders } from "./middleware/security-headers.js";
 import { agentAuthRoutes } from "./routes/agent-auth.js";
 import { agentRoutes } from "./routes/agents.js";
@@ -23,6 +24,7 @@ import { createFederatedCallbackRoutes } from "./routes/federated-callback.js";
 import { federatedProviderRoutes } from "./routes/federated-providers.js";
 import { createFederatedSessionRoutes } from "./routes/federated-session.js";
 import { healthRoutes } from "./routes/health.js";
+import { hostAuthorizationRoutes } from "./routes/host-authorizations.js";
 import {
   createInteractionHandoffRoutes,
   createInteractionLinkRoutes,
@@ -47,13 +49,17 @@ import { webhookRoutes } from "./routes/webhooks.js";
 
 export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();
-
   app.use("*", async (c, next) => {
-    await next();
-    if (c.req.header("Access-Control-Request-Private-Network") === "true") {
-      c.header("Access-Control-Allow-Private-Network", "true");
+    if (c.req.path !== "/v1/health/live") {
+      try {
+        await ctx.systemPrincipalReady;
+      } catch {
+        return c.json({ error: "security_state_unavailable" }, 503);
+      }
     }
+    return next();
   });
+
   app.use(
     "*",
     bodyLimit({
@@ -61,27 +67,29 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
       onError: (c) => c.json({ error: "request_too_large" }, 413),
     }),
   );
-  app.use(
-    "*",
-    cors({
-      origin: (origin, c) => {
-        if (c.req.path.startsWith("/v1/authentication/public/")) return origin;
-        if (!origin) return ctx.config.corsOrigins[0] ?? "";
-        return ctx.config.corsOrigins.includes(origin) ? origin : "";
-      },
-      credentials: true,
-      allowHeaders: [
-        "Content-Type",
-        "Authorization",
-        "X-Request-Id",
-        "Idempotency-Key",
-        // Reading and completing a claim carries its bearer here rather than in
-        // Authorization, which names the principal. Omitting it fails the
-        // preflight and takes the whole ceremony with it.
-        "X-Claim-Token",
-      ],
-      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    }),
+  app.use("*", publicAuthenticationCors(ctx));
+  const ordinaryCors = cors({
+    origin: (origin, c) => {
+      if (!origin || origin === "null" || origin === "*") return "";
+      return ctx.config.corsOrigins.includes(origin) ? origin : "";
+    },
+    credentials: true,
+    allowHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Request-Id",
+      "Idempotency-Key",
+      // Reading and completing a claim carries its bearer here rather than in
+      // Authorization, which names the principal. Omitting it fails the
+      // preflight and takes the whole ceremony with it.
+      "X-Claim-Token",
+    ],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  });
+  app.use("*", (c, next) =>
+    c.req.path.startsWith("/v1/authentication/public/")
+      ? next()
+      : ordinaryCors(c, next),
   );
   app.use("*", withContext(ctx));
   app.use("*", apiSecurityHeaders());
@@ -171,6 +179,8 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/i", createInteractionLinkRoutes());
   app.route("/", agentAuthRoutes);
   app.route("/", discoveryRoutes);
+  app.route("/v1/support", supportRoutes);
+  app.route("/v1/host-authorizations", hostAuthorizationRoutes);
 
   app.onError((err, c) => {
     ctx.log.error({ err }, "request failed");
@@ -192,3 +202,4 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
 
   return app;
 }
+import { supportRoutes } from "./routes/support.js";

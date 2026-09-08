@@ -3,7 +3,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-mkdir -p artifacts/security
+source "$ROOT/scripts/lib/audit-directory.sh"
+opensesame_audit_directory
 RULES="$ROOT/security/ast-grep-rules.yml"
 
 if ! command -v ast-grep >/dev/null 2>&1; then
@@ -16,22 +17,22 @@ set +e
 ast-grep scan --inline-rules "$(cat "$RULES")" \
   --globs '!**/*.test.*' --globs '!**/*.spec.*' --globs '!**/__snapshots__/**' \
   apps crates packages \
-  2>artifacts/security/ast-grep.err \
-  | tee artifacts/security/ast-grep.out
+  2>"$OPENSESAME_AUDIT_DIR/ast-grep.err" \
+  | tee "$OPENSESAME_AUDIT_DIR/ast-grep.out"
 status=${PIPESTATUS[0]}
 set -e
 
 # ast-grep exits non-zero when error findings exist; also treat any "error[" line as fail
-if rg -q '^error\[' artifacts/security/ast-grep.out artifacts/security/ast-grep.err 2>/dev/null; then
+if rg -q '^error\[' "$OPENSESAME_AUDIT_DIR/ast-grep.out" "$OPENSESAME_AUDIT_DIR/ast-grep.err" 2>/dev/null; then
   echo "ast-grep gate: FAIL (error-level findings)" >&2
-  rg '^error\[' artifacts/security/ast-grep.out artifacts/security/ast-grep.err || true
+  rg '^error\[' "$OPENSESAME_AUDIT_DIR/ast-grep.out" "$OPENSESAME_AUDIT_DIR/ast-grep.err" || true
   exit 1
 fi
 
 # Exit 2 from ast-grep can mean parse issues — surface them
 if [[ "$status" -gt 1 ]]; then
   echo "ast-grep gate: FAIL (scanner status $status)" >&2
-  cat artifacts/security/ast-grep.err >&2 || true
+  cat "$OPENSESAME_AUDIT_DIR/ast-grep.err" >&2 || true
   exit 1
 fi
 

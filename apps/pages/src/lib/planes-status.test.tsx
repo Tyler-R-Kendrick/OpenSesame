@@ -2,6 +2,8 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loopbackProfileEligible } from "./__tests__/loopback-profile.js";
+import { browserPairingSeams } from "./browser-pairing.js";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import { resetConnectivityMonitorForTests } from "./connectivity-monitor.js";
 import {
@@ -9,6 +11,7 @@ import {
   clearSession,
   resetHostHealthPathForTests,
 } from "./identity.js";
+import { localNetworkFetchSeams } from "./local-network-fetch.js";
 import { usePlaneStatus } from "./planes.js";
 import { saveSettings } from "./settings.js";
 
@@ -129,4 +132,16 @@ describe("usePlaneStatus", () => {
       expect(screen.getByText(/^live\|/)).toBeTruthy();
     });
   });
+});
+
+// Profile eligibility permits local health requests, never authenticated authority.
+const originalPairingEligibility = browserPairingSeams.eligible;
+const originalNetworkEligibility = localNetworkFetchSeams.eligible;
+beforeEach(() => {
+  browserPairingSeams.eligible = loopbackProfileEligible;
+  localNetworkFetchSeams.eligible = loopbackProfileEligible;
+});
+afterEach(() => {
+  browserPairingSeams.eligible = originalPairingEligibility;
+  localNetworkFetchSeams.eligible = originalNetworkEligibility;
 });

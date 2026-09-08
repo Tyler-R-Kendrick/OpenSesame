@@ -267,15 +267,15 @@ async function probeMachine(): Promise<MachineProbeResult> {
   }
   try {
     const health = await connectivityMonitorDependencies.probeDaemon(daemonApi);
-    return health.service === "opensesame-daemon"
+    // Public health proves liveness, not service identity or operator authority.
+    return health.status === "ok"
       ? { ok: true, failure: null }
       : { ok: false, failure: "not-opensesame" };
   } catch (error) {
-    // probeDaemon throws a plain Error for a wrong-service answer, which is a
-    // very different problem from nothing listening at all.
+    // A malformed liveness answer is distinct from nothing listening at all.
     if (
       error instanceof Error &&
-      /not an OpenSesame daemon/i.test(error.message)
+      error.message === "That URL did not report healthy liveness."
     ) {
       return { ok: false, failure: "not-opensesame" };
     }

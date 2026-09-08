@@ -73,6 +73,10 @@ impl Db {
         now: &str,
     ) -> anyhow::Result<()> {
         let mut tx = self.pool().begin().await?;
+        let active: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM observation_runs WHERE organization_id=? AND id=? AND closed_at IS NULL")
+            .bind(organization_id).bind(run_id).fetch_one(&mut *tx).await?;
+        anyhow::ensure!(active == 1, "run is closed or unavailable");
         let outstanding: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM runner_steps \
              WHERE organization_id = ? AND run_id = ? AND state <> 'settled'",
@@ -128,7 +132,9 @@ impl Db {
             "UPDATE runner_steps SET state = 'claimed', claimed_by = ?, claim_expires_at = ?, \
              updated_at = ? \
              WHERE organization_id = ? AND run_id = ? AND state <> 'settled' \
-             AND (state = 'pending' OR claim_expires_at <= ?)",
+             AND (state = 'pending' OR claim_expires_at <= ?) \
+             AND EXISTS (SELECT 1 FROM observation_runs WHERE observation_runs.id=runner_steps.run_id \
+                 AND observation_runs.organization_id=runner_steps.organization_id AND closed_at IS NULL)",
         )
         .bind(claimant)
         .bind(expires_at)

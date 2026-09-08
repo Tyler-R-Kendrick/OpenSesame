@@ -23,12 +23,13 @@ and this file disagree, one of them is a bug.
                                            ┌──────────────────────────┐
                                            │ static relying party     │
                                            │ http://localhost:5173    │
-                                           │ verifies vs broker JWKS  │
+                                           │ pinned active check      │
                                            └──────────────────────────┘
 ```
 
-Only the upstream leg mints anything. The PWA relays; it holds no signing key, because a
-static deployment cannot hold one that stays private.
+This diagram is the explicit loopback compatibility profile only. Remote relying
+parties use hosted Identity authorization code + PKCE with their own audience.
+The PWA holds no server signing key and cannot mint an RP-specific assertion.
 
 ## 0. A static site with no backend
 
@@ -69,8 +70,9 @@ Two more properties shape the client:
   OIDC Core §3.1.3.7 allows), claims are checked locally, and
   **`POST /session/check`** (CORS-enabled, id_token as bearer) is the
   signature- and revocation-backed answer to "is this user actually
-  authorized" — a 401 there refuses the sign-in. Relying parties receiving
-  the token second-hand still verify against the JWKS server-side (§3).
+  authorized" — anything other than an explicit active result refuses sign-in.
+  The loopback compatibility SDK uses that pinned active-session contract too;
+  it never tries a browser JWKS request or accepts response-supplied metadata.
 - **The round trip may finish in a different browsing context** than it
   started in (an installed PWA hands out-of-scope navigation to a browser
   tab). The PKCE record and the resulting session therefore live in
@@ -105,20 +107,20 @@ provider still gets the full page, because then there is a real choice to make.
 
 ### What a static site needs
 
-Nothing but a URL. `apps/example-static-rp` is the worked proof — two HTML files,
-no server, no build step for auth:
+An explicit hosted trust profile. `apps/example-static-rp` is the worked example:
+two HTML files and a bundled canonical SDK, with no RP server or client secret.
 
 ```js
-const sesame = createOpenSesame({ issuer: "https://<broker>" });
-await sesame.signIn({ returnTo: "/" });        // on the page
-await sesame.handleRedirectCallback();          // on /opensesame/callback
+const sesame = createHostedClient(configuredProfile);
+await sesame.begin();         // on the page
+await sesame.complete();      // on the exact registered callback
 ```
 
-The redirect URI is always `<origin>/opensesame/callback` (ADR 0050's canonical
-path); the broker admits the origin on first `/auth` and needs no registration.
-For the OpenSesame PWA the same URL arrives at runtime through
-`os-runtime-config.json`, so a deploy can be pointed at a broker without a
-rebuild.
+The profile pins issuer, client ID, exact redirect URI, authorization endpoint,
+token endpoint and CORS-capable JWKS endpoint. Hosted client admission remains
+the Identity operator's exact-origin policy. This SDK configuration is separate
+from the Pages first-run compiled Shoo provider and does not grant local Host
+authority or elevate a shared-origin deployment.
 
 ### What the broker operator must do
 
@@ -162,122 +164,76 @@ Configured entries:
 | `pairwise_sub` | The identity; per-origin and stable |
 | `email`, `name`, `picture` | Optional, only when the human consented to PII |
 
-## 2. Broker → relying party
+## 2. Static relying-party profiles
 
-### Request
+The canonical implementation is `packages/static-auth`. Remote static RPs use
+`hosted_identity`: authorization code + PKCE S256, an RP client ID and exact
+redirect URI, pinned issuer and same-issuer token/JWKS endpoints. The issuer must
+return RFC 9207 `iss`, honor nonce and PKCE, and provide exact-origin CORS for
+browser token and key requests. No client secret belongs in the browser.
 
-The relying party opens the broker in a popup:
+A transaction carries fresh random state and nonce, is consumed before code
+exchange, and expires after five minutes. Callback issuer, exact redirect path,
+state and duplicate parameters are checked before the verifier is sent. JOSE
+validates the configured issuer, RP audience, asymmetric signature, nonce,
+iat/exp/nbf, and authorized party where applicable. Callback parameters are
+removed even on refusal. Authenticated events contain only subject and expiry.
 
-```text
-https://<broker-origin>/OpenSesame/broker/authorize
-  ?client_id=origin:http://localhost:5173
-  &origin=http://localhost:5173
-  &state=<opaque, >=16 bytes of entropy>
-  &scope=openid                      # add profile/email to request PII passthrough
-```
+## 3. Explicit loopback compatibility
 
-The broker refuses the request unless `client_id` is exactly `origin:` followed by `origin`,
-and `origin` matches the opener's real origin as reported by the browser. A caller cannot
-name an origin it is not.
+`pages_passthrough_loopback` is development-only, not remote-RP authentication.
+The broker request must include `profile=pages_passthrough_loopback`, an exact
+canonical loopback `origin`, matching `client_id=origin:<origin>`, and random
+state. Domain rules can narrow admission but cannot enable remote origins.
+Each loopback port remains a different client.
 
-### Response
+The popup response is addressed to the exact RP origin, never wildcard.
+The SDK accepts it only from the exact opened WindowProxy, expected broker
+origin and single-use state, within five minutes. Popup reuse, closure,
+duplicate messages and stale transactions cannot produce authenticated success.
 
-Delivered by `postMessage` to the requesting origin — never `"*"`:
+Shoo issuer, broker audience and session-check endpoint are pinned in RP
+configuration. Response-supplied issuer/audience/JWKS fields confer no trust.
+The SDK checks JWT shape, ES256/JWT, issuer, audience, pairwise subject and times,
+then requires the pinned CORS-enabled `POST https://shoo.dev/session/check` to
+return `status: active`. Network errors, redirects, non-success status,
+oversized response and unavailable verification all refuse sign-in. Shoo's
+non-CORS JWKS endpoint is never fetched by this browser compatibility profile.
 
-```jsonc
-{
-  "type": "opensesame:signin",
-  "state": "<echoed verbatim>",
-  "id_token": "<the upstream token, unmodified>",
-  "issuer": "https://shoo.dev",
-  "audience": "origin:https://example.github.io",
-  "jwks_uri": "https://shoo.dev/.well-known/jwks.json",
-  "expires_at": "2026-08-09T12:00:00.000Z"
-}
-```
+Only after verification does the SDK derive a per-RP subject:
+`base64url(sha256(pairwise_sub + ":" + exactRpOrigin))`. Neither the bearer
+nor untrusted claims enter an authenticated event or durable SDK storage.
 
-`issuer`, `audience` and `jwks_uri` are conveniences for verification setup. They are not
-trusted input: an RP that hardcodes the broker it chose is strictly safer, and the example
-RP does exactly that.
+## 4. Limits and distribution
 
-### Errors
+The passthrough token is still audienced to the Pages broker, not the RP.
+It is transferable bearer material. Loopback-only compatibility does not
+change that property and cannot serve as production RP authentication.
+No token-bearing query/fragment fallback exists; a lost opener means failure.
 
-Same envelope with `error` instead of `id_token`:
-
-| `error` | Meaning |
-| --- | --- |
-| `origin_mismatch` | `client_id`/`origin` disagree with the real opener origin |
-| `consent_denied` | The human refused this origin |
-| `consent_required` | Interaction needed and the popup was closed first |
-| `upstream_unavailable` | The trusted broker could not be reached |
-| `not_signed_in` | Nobody is signed in at the broker origin and sign-in was abandoned |
-| `invalid_request` | Missing or malformed `state`, `client_id` or `origin` |
-
-### Fragment fallback
-
-Only when the popup is blocked. The broker redirects to a `redirect_uri` whose origin equals
-`origin`, returning the same fields in the **fragment**:
-
-```text
-http://localhost:5173/auth/callback#type=opensesame:signin&state=…&id_token=…
-```
-
-Weaker than `postMessage`: the assertion lands in the URL, where history and any
-`Referer`-leaking navigation can see it. The RP must strip the fragment immediately with
-`history.replaceState`.
-
-## 3. Verification, by the relying party
-
-Non-negotiable, in this order:
-
-1. `state` equals what the RP generated, and is then discarded (single use).
-2. Signature verifies against the **upstream** JWKS — `shoo.dev`, not OpenSesame.
-3. `iss` equals the expected upstream issuer.
-4. `aud` equals `origin:{broker origin}` — **the broker's origin, not the RP's**. This is the
-   step people get wrong in both directions: verifying against its own origin rejects every
-   valid token, and skipping it accepts tokens minted for anyone.
-5. `exp` is in the future.
-6. `pairwise_sub` is present and a string.
-
-Per-RP subject, derived locally so it rests only on what was just verified:
-
-```ts
-const subject = base64url(sha256(`${payload.pairwise_sub}:${location.origin}`));
-```
-
-## 4. What an RP may and may not conclude
-
-**May:** that the upstream authenticated this human, and that they approved this origin at
-the broker.
-
-**May not:** that the token was minted *for* it. The audience is the broker. Anything holding
-this token can act as this user at the broker origin, which is why the broker releases it
-only to origins the human approved by name, and why lifetimes are short. An RP that needs a
-token minted for itself needs an issuer with a private key, which needs a server — see
-ADR 0034 §6.
+Versioned `static-auth/<version>/opensesame-auth.min.js` artifacts are immutable.
+The manifest records SHA-384 SRI, package version and source commit. Generated
+snippets use the exact version, integrity, anonymous CORS and no-referrer.
+The root `auth.js` compatibility alias uses the same secure implementation;
+it no longer offers unverified sign-in or response-metadata verification.
+RPs may self-host those bytes or import the package. SRI pins bytes, not
+publisher honesty, release governance or freedom from vulnerabilities.
 
 ## 5. Consent
 
-Stored per broker origin, keyed by RP origin:
-
-| Field | Meaning |
-| --- | --- |
-| `origin` | Exact RP origin, scheme included |
-| `scopes` | What was approved; widening re-prompts |
-| `approved_at` | When |
-| `last_used_at` | Surfaced so a stale grant is visible |
-
-Consent is remembered until revoked, revocable individually from the PWA, and never inferred
-from a previous origin. `http://localhost:*` is not blanket-approved: each port is approved
-once, by name.
+Consent is scoped to exact RP origin and scopes, with approved/last-used times.
+Scope widening re-prompts. Revocation removes the stored consent. The SDK keeps
+no durable compatibility session: each new sign-in requires a fresh transaction
+and active upstream check. Consent never replaces origin eligibility or
+cryptographic/session validation.
 
 ## 6. Failure posture
 
-- No configured trusted broker: the deployment admits no durable users and says so. It does
-  not fall back to self-service.
-- Upstream unreachable: `upstream_unavailable`, and an already-signed-in human keeps their
-  session until the token expires.
-- Unlisted issuer: refused even if the signature verifies, per ADR 0033 §2.
+Static-auth failures are stable codes, not upstream response bodies or tokens.
+There is no success event, persistence or subject derivation before verification.
+A failed compatibility check cannot fall back to hosted mode or unverified mode.
+See [Pages origin and RP operations](../operators/pages-origin.md) for
+deployment profiles, exact configuration, migration and recovery.
 
 ## 7. Control-plane relying-party leg (server-side)
 

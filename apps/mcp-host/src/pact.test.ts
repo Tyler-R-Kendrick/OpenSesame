@@ -29,8 +29,9 @@ describe("PACT — mcp-host", () => {
       "forAgent(`${label}: ${message}`)",
     ]);
     assertSourceOrder(readFileSync(join(here, "host-api.ts"), "utf8"), [
-      "OPENSESAME_HOST_AUDIENCE",
-      "does not match OPENSESAME_HOST_AUDIENCE",
+      "AgentClient",
+      "await hostAuthHeaders(base)",
+      'redirect: "error"',
     ]);
     expect(() => forAgent(JSON.stringify({ refresh_token: "leak" }))).toThrow(
       AgentPayloadRefused,
@@ -58,32 +59,47 @@ describe("PACT — mcp-host", () => {
         "task_status",
         "task_invoke",
         "task_terminate",
-        "daemon_status",
+        "daemon_health",
         "host_ready",
-        "operator_invoke_l1",
+        "task_invoke_l1",
       ]),
     );
   });
 
-  it("adversarial: read tools project every response through agentJson", () => {
-    const readSrc = readFileSync(join(here, "tools-read.ts"), "utf8");
-    assertSourceOrder(readSrc, [
-      "registerReadTools",
-      'server.tool(\n    "receipt_read"',
-      "agentJson(body, res.ok, receiptResponseSchema)",
-    ]);
-    // config_read's projection has no branch that can carry a value.
-    expect(readSrc).not.toMatch(/value:|values:|secret:|ciphertext/);
-  });
-
-  it("adversarial: cert_issue is the only projection-first tool and never relays PEM fields", () => {
-    const actSrc = readFileSync(join(here, "tools-act.ts"), "utf8");
-    assertSourceOrder(actSrc, [
-      "certIssueResponseSchema",
-      'server.tool(\n    "cert_issue"',
-      "agentJsonProjected(body, res.ok, certIssueResponseSchema)",
-    ]);
-    expect(actSrc.match(/agentJsonProjected\(/g)).toHaveLength(1);
-    expect(actSrc).not.toMatch(/private_key|ca_certificate/);
+  it("human administration and unscoped metadata are absent from the catalog", () => {
+    for (const name of [
+      "receipt_read",
+      "receipt_verify",
+      "delegation_read",
+      "delegation_offer_read",
+      "relay_request_read",
+      "provider_read",
+      "connection_read",
+      "cert_read",
+      "config_read",
+      "sync_target_read",
+      "rotation_read",
+      "agent_runs_read",
+      "ceremony_catalog_read",
+      "lifecycle_expiring_read",
+      "lifecycle_hooks_read",
+      "lifecycle_deliveries_read",
+      "security_findings_read",
+      "changelog_read",
+      "backup_status",
+      "delegation_narrow",
+      "delegation_revoke",
+      "connection_rotate",
+      "connection_remove",
+      "provider_test",
+      "cert_issue",
+      "config_set",
+      "config_rollback",
+      "rotation_trigger",
+      "lifecycle_scan",
+      "security_breach_scan",
+    ]) {
+      expect(hostTools).not.toContain(name);
+    }
   });
 });

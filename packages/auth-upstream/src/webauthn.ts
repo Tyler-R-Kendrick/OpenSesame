@@ -190,21 +190,6 @@ export interface ChallengeMeta {
   transactionDigest?: string;
 }
 
-export interface PasskeyChallengeStore {
-  set(challenge: string, meta: ChallengeMeta): void;
-  consume(challenge: string): ChallengeMeta | undefined;
-  /**
-   * Read a challenge's metadata without spending it.
-   *
-   * The transaction-bound ceremony needs to check what a challenge was minted
-   * *for* before handing the assertion to the verifier that consumes it.
-   * Consuming it here instead would leave the verifier with nothing to check
-   * the assertion against, and re-inserting it afterwards would open a window
-   * where two callers hold the same one-time value.
-   */
-  peek(challenge: string): ChallengeMeta | undefined;
-}
-
 export interface AuthenticationChallengeResult {
   challenge: string;
   options: Awaited<ReturnType<typeof generateAuthenticationOptions>>;
@@ -305,7 +290,7 @@ export async function issueAuthenticationChallenge(
     }));
   }
   const options = await generateAuthenticationOptions(genArgs);
-  store.set(options.challenge, {
+  await store.set(options.challenge, {
     principalId: opts?.principalId ?? null,
     expiresAt: Date.now() + 5 * 60_000,
     purpose: "authentication",
@@ -348,7 +333,7 @@ export async function issueTransactionChallenge(
     }));
   }
   const options = await generateAuthenticationOptions(genArgs);
-  store.set(options.challenge, {
+  await store.set(options.challenge, {
     principalId: opts.principalId,
     expiresAt: Date.now() + (opts.ttlMs ?? 5 * 60_000),
     purpose: "transaction",
@@ -381,7 +366,7 @@ export async function issueRegistrationChallenge(
       userVerification: "required",
     },
   });
-  store.set(options.challenge, {
+  await store.set(options.challenge, {
     principalId: opts.principalId,
     expiresAt: Date.now() + 5 * 60_000,
     purpose: "registration",
@@ -417,7 +402,7 @@ export async function verifyRegistrationAttestation(
   }
   const challenge = clientData.challenge;
   if (!challenge || !isString(challenge)) return null;
-  const issued = store.consume(challenge);
+  const issued = await store.consume(challenge);
   if (!issued || issued.purpose !== "registration") return null;
   if (issued.principalId !== expectedPrincipalId) return null;
 
@@ -443,7 +428,7 @@ export function createSimpleWebAuthnVerifyFn(
     }
     const challenge = clientData.challenge;
     if (!challenge || !isString(challenge)) return false;
-    const issued = store.consume(challenge);
+    const issued = await store.consume(challenge);
     // The purpose the caller expected, and nothing else.
     //
     // Both purposes prove the same momentary fact — this person, this
@@ -491,3 +476,5 @@ export function createSimpleWebAuthnVerifyFn(
     }
   };
 }
+import type { PasskeyChallengeStore } from "./passkey-challenge-store.js";
+export type { PasskeyChallengeStore } from "./passkey-challenge-store.js";

@@ -11,6 +11,9 @@ rg -Fq -- '--workspace --all-targets --all-features' scripts/clippy-gate.sh
 rg -Fq -- '-D clippy::pedantic' scripts/clippy-gate.sh
 rg -Fq -- '-D clippy::cognitive_complexity' scripts/clippy-gate.sh
 rg -Fq -- '-D clippy::excessive_nesting' scripts/clippy-gate.sh
+rg -Fq 'opensesame_audit_directory' scripts/clippy-gate.sh
+rg -Fq 'exit "$clippy_status"' scripts/clippy-gate.sh
+! rg -Fq 'artifacts/security' scripts/clippy-gate.sh
 rg -Fxq 'cognitive-complexity-threshold = 25' clippy.toml
 rg -Fxq 'too-many-lines-threshold = 100' clippy.toml
 rg -Fxq 'too-many-arguments-threshold = 7' clippy.toml

@@ -60,8 +60,7 @@ Object.assign(connectivityMonitorDependencies, {
     env.counts.daemon += 1;
     if (env.daemonError) throw env.daemonError;
     return {
-      status: "ok",
-      service: env.daemonOk ? "opensesame-daemon" : "something-else",
+      status: env.daemonOk ? "ok" : "unavailable",
       hostApi: "",
       identityApi: "",
       tailscaleUrl: null,
@@ -337,9 +336,7 @@ describe("the machine target", () => {
     await settle();
     expect(connectivitySnapshot().machine.failure).toBe("not-opensesame");
 
-    env.daemonError = new Error(
-      "That URL answered, but it is not an OpenSesame daemon.",
-    );
+    env.daemonError = new Error("That URL did not report healthy liveness.");
     checkNow();
     await settle();
     expect(connectivitySnapshot().machine.failure).toBe("not-opensesame");

@@ -6,6 +6,7 @@
  * unlock keys never leave the device.
  */
 
+import { pullSyncPages } from "@opensesame/api-client";
 import {
   type BoundaryObject,
   type BoundaryValue,
@@ -241,43 +242,24 @@ async function readPushResult(res: Response): Promise<SyncPushResult> {
 async function mergeLatestHostVault(projectId: string): Promise<void> {
   const merge = hostBackupSeams.mergePulledVault;
   if (!merge) throw new Error("unlock the vault before merging");
-  const res = await hostFetch("/api/v1/sync/blobs/pull", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ since_epoch: 0 }),
-  });
-  if (!res.ok) throw new Error(`Host sync pull failed (${res.status})`);
-  const parsed: BoundaryValue = await res.json();
-  if (!isTypeofObject(parsed) || parsed === null || Array.isArray(parsed)) {
-    throw new Error("Host returned a malformed sync pull");
-  }
-  const blobs = overlapCast(parsed).blobs;
-  if (!Array.isArray(blobs)) throw new Error("Host returned no sync blobs");
   const headerId = vaultBlobId("header", projectId);
   const bodyId = vaultBlobId("body", projectId);
-  const candidates: Array<{
-    id: string;
-    epoch: number;
-    ciphertext: number[];
-  }> = [];
-  for (const blob of blobs) {
-    if (!isTypeofObject(blob) || blob === null || Array.isArray(blob)) continue;
-    const row: BoundaryObject = overlapCast(blob);
-    const ciphertext =
-      Array.isArray(row.ciphertext) && row.ciphertext.every(isNumber)
-        ? row.ciphertext.map(Number)
-        : null;
-    if (
-      (row.id === headerId || row.id === bodyId) &&
-      isString(row.id) &&
-      isNumber(row.epoch) &&
-      ciphertext
-    ) {
-      candidates.push({
-        id: row.id,
-        epoch: row.epoch,
-        ciphertext,
-      });
+  const candidates: Array<{ id: string; epoch: number; ciphertext: number[] }> =
+    [];
+  for await (const page of pullSyncPages(hostFetch)) {
+    for (const blob of page.blobs) {
+      if (blob.id !== headerId && blob.id !== bodyId) continue;
+      const candidate = {
+        id: blob.id,
+        epoch: blob.ciphertext_epoch,
+        ciphertext: Array.from(atob(blob.ciphertext_b64), (char) =>
+          char.charCodeAt(0),
+        ),
+      };
+      const existing = candidates.findIndex((item) => item.id === blob.id);
+      if (existing < 0) candidates.push(candidate);
+      else if (candidate.epoch >= (candidates[existing]?.epoch ?? 0))
+        candidates[existing] = candidate;
     }
   }
   const epochs = candidates

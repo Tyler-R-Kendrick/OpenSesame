@@ -22,6 +22,7 @@ import type {
 } from "@opensesame/os-domain";
 import { Hono } from "hono";
 import type { AppContext } from "../context.js";
+import { secureServiceEndpoint } from "../deployment-mode.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
@@ -94,14 +95,7 @@ export function hostApiEndpoint(
   path: string,
 ): URL | undefined {
   try {
-    const base = new URL(configuredUrl);
-    if (
-      (base.protocol !== "http:" && base.protocol !== "https:") ||
-      base.username ||
-      base.password
-    ) {
-      return undefined;
-    }
+    const base = secureServiceEndpoint(configuredUrl);
     if (!base.pathname.endsWith("/")) base.pathname += "/";
     return new URL(path.replace(/^\/+/, ""), base);
   } catch {
@@ -348,16 +342,12 @@ export async function revokeOrganizationMembership(
   );
 
   let sessionsRevoked = 0;
-  for (const [id, session] of ctx.stores.provisionalSessions) {
+  for (const [id, session] of await ctx.stores.provisionalSessions.entries()) {
     if (session.principalId !== input.principalId) continue;
-    ctx.stores.provisionalSessions.delete(id);
+    await ctx.stores.provisionalSessions.delete(id);
     sessionsRevoked += 1;
   }
-  for (const [token, sessionId] of ctx.stores.provisionalTokens) {
-    if (!ctx.stores.provisionalSessions.has(sessionId)) {
-      ctx.stores.provisionalTokens.delete(token);
-    }
-  }
+  await removeOrphanTokens(ctx.stores);
 
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "organization.member_revoked",
@@ -415,14 +405,13 @@ async function revokeHostSessions(
         organization_id: organizationId,
         principal_id: principalId,
       }),
+      redirect: "error",
       signal: AbortSignal.timeout(5_000),
     });
+    await response.body?.cancel();
     return response.ok;
-  } catch (error) {
-    ctx.log.warn(
-      { error: error instanceof Error ? error.message : String(error) },
-      "Host session revocation failed",
-    );
+  } catch {
+    ctx.log.warn("Host session revocation failed");
     return false;
   }
 }
@@ -983,3 +972,4 @@ organizationRoutes.get("/:id", requirePrincipal(), async (c) => {
   }
   return c.json(toResponse(org, membership.role));
 });
+import { removeOrphanTokens } from "../repos/session-storage.js";

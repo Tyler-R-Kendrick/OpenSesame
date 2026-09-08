@@ -9,6 +9,8 @@ name = "opensesame"
 path = "src/main.rs"
 
 [dependencies]
+opensesame-storage = { path = "../../crates/storage" }
+base64 = { workspace = true }
 opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
@@ -17,6 +19,7 @@ opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-kdbx-bridge = { path = "../../crates/kdbx-bridge" }
 opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
+opensesame-human-vault = { path = "../../crates/human-vault" }
 opensesame-pm-bridges = { path = "../pm-bridges" }
 anyhow = { workspace = true }
 clap = { workspace = true }
@@ -35,10 +38,9 @@ uuid = { workspace = true }
 directories = "6.0.0"
 qr2term = "0.3.3"
 regex = "1.11.1"
+tempfile = "3.20.0"
 
 [dev-dependencies]
-base64 = { workspace = true }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
-tempfile = "3.20.0"

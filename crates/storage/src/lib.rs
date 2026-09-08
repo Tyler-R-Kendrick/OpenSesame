@@ -911,110 +911,12 @@ fn decode_receipt_for_organization(
     })
 }
 
-/// Embedded schema versions, applied in order, once each. Appending is the only
-/// permitted edit: an applied version is never rewritten.
-const MIGRATIONS: &[(&str, &str)] = &[
-    (
-        "0001_init",
-        include_str!("../../../migrations/0001_init.sql"),
-    ),
-    (
-        "0002_connections",
-        include_str!("../../../migrations/0002_connections.sql"),
-    ),
-    (
-        "0003_connection_owner",
-        include_str!("../../../migrations/0003_connection_owner.sql"),
-    ),
-    (
-        "0004_integrations",
-        include_str!("../../../migrations/0004_integrations.sql"),
-    ),
-    (
-        "0005_credential_generation",
-        include_str!("../../../migrations/0005_credential_generation.sql"),
-    ),
-    (
-        "0006_provider_configuration",
-        include_str!("../../../migrations/0006_provider_configuration.sql"),
-    ),
-    (
-        "0007_provider_connections",
-        include_str!("../../../migrations/0007_provider_connections.sql"),
-    ),
-    (
-        "0008_backup_outbox",
-        include_str!("../../../migrations/0008_backup_outbox.sql"),
-    ),
-    (
-        "0009_host_kv",
-        include_str!("../../../migrations/0009_host_kv.sql"),
-    ),
-    (
-        "0010_connection_materialization",
-        include_str!("../../../migrations/0010_connection_materialization.sql"),
-    ),
-    (
-        "0011_attachment_targets",
-        include_str!("../../../migrations/0011_attachment_targets.sql"),
-    ),
-    (
-        "0012_connection_delegations",
-        include_str!("../../../migrations/0012_connection_delegations.sql"),
-    ),
-    (
-        "0013_certificate_issuance",
-        include_str!("../../../migrations/0013_certificate_issuance.sql"),
-    ),
-    (
-        "0014_custom_providers",
-        include_str!("../../../migrations/0014_custom_providers.sql"),
-    ),
-    (
-        "0015_backup_target_kinds",
-        include_str!("../../../migrations/0015_backup_target_kinds.sql"),
-    ),
-    (
-        "0016_certificate_manager",
-        include_str!("../../../migrations/0016_certificate_manager.sql"),
-    ),
-    (
-        "0017_lifecycle_hooks",
-        include_str!("../../../migrations/0017_lifecycle_hooks.sql"),
-    ),
-    (
-        "0018_rotation_leases",
-        include_str!("../../../migrations/0018_rotation_leases.sql"),
-    ),
-    (
-        "0019_shared_sessions",
-        include_str!("../../../migrations/0019_shared_sessions.sql"),
-    ),
-    (
-        "0020_security_events",
-        include_str!("../../../migrations/0020_security_events.sql"),
-    ),
-    (
-        "0021_web_login_observation",
-        include_str!("../../../migrations/0021_web_login_observation.sql"),
-    ),
-    (
-        "0022_rotation_policy_owner",
-        include_str!("../../../migrations/0022_rotation_policy_owner.sql"),
-    ),
-    (
-        "0023_a2h_delivery_and_web_login_watermarks",
-        include_str!("../../../migrations/0023_a2h_delivery_and_web_login_watermarks.sql"),
-    ),
-    (
-        "0024_session_grant_watermarks",
-        include_str!("../../../migrations/0024_session_grant_watermarks.sql"),
-    ),
-    (
-        "0025_runner_steps",
-        include_str!("../../../migrations/0025_runner_steps.sql"),
-    ),
-];
+pub mod a2h_replies;
+pub mod agent_capabilities;
+pub mod callback_replay;
+pub mod host_authorizations;
+mod migrations;
+use migrations::MIGRATIONS;
 
 /// Embedded migration versions in the order they are applied.
 ///
@@ -1646,9 +1548,7 @@ mod observation;
 
 mod runner_steps;
 
-/// Shared across the split `impl Db` modules, so it stays at the crate root:
-/// a private method is visible to descendant modules but not to sibling ones,
-/// and seven of them insert rows that need the organization to exist first.
+/// Root-owned tenant insertion is visible to every descendant `impl Db` module.
 impl Db {
     /// Materialize the tenant row so an org-scoped insert cannot trip the
     /// `organizations` foreign key on a freshly provisioned host.
@@ -1670,6 +1570,8 @@ impl Db {
 mod acme;
 mod approval_policies;
 mod approval_requests;
+pub mod backup_inventory;
+pub mod browser_pairing;
 mod cert_alerts;
 mod cert_authorities;
 mod cert_inventory;
@@ -1689,6 +1591,7 @@ mod revocation;
 mod signing;
 mod signing_access;
 mod sync;
+pub use sync::SyncPageEntry;
 mod tenancy;
 mod vault_backup;
 pub use runner_steps::{StoredRunnerStep, STEP_CLAIM_SECONDS};

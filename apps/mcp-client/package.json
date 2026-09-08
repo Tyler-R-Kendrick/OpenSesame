@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/agent-client": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@opensesame/api-client": "workspace:*",
     "@opensesame/observability": "workspace:*",

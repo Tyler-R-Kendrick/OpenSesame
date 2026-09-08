@@ -23,25 +23,6 @@
   </head>
   <body>
     <p id="message" role="status">Completing sign-in…</p>
-    <script type="module">
-      import { createOpenSesame } from "@opensesame/sdk-browser";
-
-      const issuer = __OPENSESAME_ISSUER__;
-      const sesame = createOpenSesame({ issuer });
-      const message = document.getElementById("message");
-
-      try {
-        const session = await sesame.handleRedirectCallback();
-        const returnTo = sesame.getReturnTo() ?? "/";
-        message.textContent = session.sub
-          ? `Signed in as ${session.sub}. Redirecting…`
-          : "Signed in. Redirecting…";
-        window.location.replace(returnTo);
-      } catch (err) {
-        message.className = "error";
-        message.textContent =
-          err instanceof Error ? err.message : "Callback handling failed";
-      }
-    </script>
+    <script type="module" src="/callback.ts"></script>
   </body>
 </html>

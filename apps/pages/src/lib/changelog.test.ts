@@ -11,15 +11,13 @@ import {
   clearHostSession,
   clearSession,
   connectProvisional,
+  identitySeams,
 } from "./identity.js";
-import {
-  saveSettings,
-  shippedHostApi,
-  shippedIdentityApi,
-} from "./settings.js";
+import { saveSettings, shippedHostApi } from "./settings.js";
 
 const HOST = shippedHostApi;
-const IDENTITY = shippedIdentityApi;
+const IDENTITY = "https://identity.example.test";
+const originalHostFetch = identitySeams.hostFetch;
 
 function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -37,24 +35,9 @@ function stubFetch(handler: (url: string, init?: RequestInit) => Response) {
 }
 
 function stubHostFetch(handler: (url: string, init?: RequestInit) => Response) {
-  return stubFetch((url, init) => {
-    if (url === `${HOST}/api/v1/session/local`) {
-      return jsonResponse({ error: "demo_bootstrap_unavailable" }, 503);
-    }
-    if (url === `${HOST}/api/v1/device/authorize`) {
-      return jsonResponse({ device_code: "dc_chg", user_code: "ABCD-EFGH" });
-    }
-    if (url === `${IDENTITY}/v1/device/approve`) {
-      return jsonResponse({ ok: true });
-    }
-    if (url === `${HOST}/api/v1/device/token`) {
-      return jsonResponse({
-        access_token: "opaque-session:sess_chg",
-        expires_in: 28_800,
-      });
-    }
-    return handler(url, init);
-  });
+  const spy = stubFetch(handler);
+  identitySeams.hostFetch = (path, init) => spy(`${HOST}${path}`, init);
+  return spy;
 }
 
 beforeEach(async () => {
@@ -83,6 +66,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  identitySeams.hostFetch = originalHostFetch;
   vi.unstubAllGlobals();
   clearSession();
   clearHostSession();

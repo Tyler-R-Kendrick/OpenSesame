@@ -3,7 +3,7 @@ import {
   canonicalizeOrigin,
   defaultCallbackUri,
   originClientId,
-} from "@opensesame/oauth-provider/origin/canonical";
+} from "@opensesame/os-domain";
 
 export { OriginError };
 

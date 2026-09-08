@@ -4,6 +4,8 @@
 //! rows, the mint path is exercised only through providers that refuse before
 //! any HTTP client is built, and no test reaches the network.
 
+#[cfg(test)]
+use crate::test_principals::{P01, P26, P27, P28};
 use axum::body::{to_bytes, Body};
 use axum::http::{Request, StatusCode};
 use axum::Router;
@@ -243,7 +245,7 @@ async fn an_invalid_vault_token_is_permission_denied() {
 async fn a_session_token_reads_the_kv_v2_envelope_and_gets_a_receipt() {
     let (router, state) = facade().await;
     let organization_id = boot_org(&state);
-    let subject = "prn_kv_reader";
+    let subject = P26;
     let token = session(&state, subject, organization_id);
     seed_connection(
         &state,
@@ -382,13 +384,13 @@ async fn metadata_reads_are_kv_v2_shaped_and_receipted() {
 async fn a_connection_owned_by_someone_else_reads_as_absent() {
     let (router, state) = facade().await;
     let organization_id = boot_org(&state);
-    let token = session(&state, "prn_intruder", organization_id);
+    let token = session(&state, P27, organization_id);
     seed_connection(
         &state,
         &organization_id,
         "gh-private",
         "github",
-        Some("prn_owner"),
+        Some(P01),
         "deny",
     )
     .await;
@@ -503,7 +505,7 @@ async fn a_read_whose_receipt_cannot_be_recorded_is_refused() {
     // An organization the Host has no row for: the receipt's intent cannot
     // reference it, so the read must fail closed rather than serve unrecorded.
     let orphan = OrganizationId::new();
-    let subject = "prn_orphan";
+    let subject = P28;
     let token = session(&state, subject, orphan);
     seed_connection(
         &state,
@@ -742,55 +744,4 @@ fn assert_accepted_path_is_confined(raw: &str) {
 
 // ---- structural pact -------------------------------------------------------
 
-#[test]
-fn pact_auth_precedes_storage_and_the_receipt_precedes_the_body() {
-    let source = include_str!("../kv_facade.rs");
-    // A read authenticates, resolves inside the caller's organization, and only
-    // then touches storage.
-    opensesame_host_core::pact::assert_source_order(
-        source,
-        &[
-            "async fn read_data",
-            "parse_kv_path(&mount, &raw_path)",
-            "vault_caller(&st, &headers)",
-            "caller.organization(st.connection_organization)",
-            "resolve_connection(&st, &caller, &organization_id",
-        ],
-    );
-    // The body is built, the receipt is emitted, and only a recorded receipt
-    // produces a 200.
-    opensesame_host_core::pact::assert_source_order(
-        source,
-        &[
-            "async fn respond_read",
-            "let body = data_envelope(",
-            "emit_receipt(",
-            "Ok(receipt_id) => with_receipt(receipt_id, body)",
-            "Err(response) => response",
-        ],
-    );
-    // Signing happens before persistence, and the leak check before both.
-    opensesame_host_core::pact::assert_source_order(
-        source,
-        &[
-            "async fn emit_receipt",
-            ".sign_receipt(receipt)",
-            "assert_no_secret_leak()",
-            "insert_intent(&intent)",
-            "insert_receipt(&receipt)",
-        ],
-    );
-    // Nothing on this surface materialises a secret outside the ADR 0049 gate.
-    assert!(!source.contains("get_secret"));
-    assert!(!source.contains("getSecret"));
-    let materialize = source
-        .find("async fn materialized_data")
-        .expect("materialized_data");
-    let gate = source[materialize..]
-        .find("MaterializationPolicy::DerivedShortLived")
-        .expect("policy gate");
-    let mint = source[materialize..]
-        .find("mint_derived_token")
-        .expect("mint call");
-    assert!(gate < mint, "the mint path must be policy-gated first");
-}
+mod structural;

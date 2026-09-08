@@ -15,8 +15,16 @@ import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import {
+  type SecurityMap,
+  incrementSecurityCounter,
+  takeSecurityMap,
+  updateSecurityMap,
+} from "../repos/durable-map.js";
 import { MailerNotConfiguredError } from "../services/mailer.js";
+import { base32Encode } from "./mfa-base32.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+export { base32Encode } from "./mfa-base32.js";
 
 /** Minimal WebAuthn registration response shape (SimpleWebAuthn JSON). */
 type RegistrationResponseBody = {
@@ -31,31 +39,6 @@ type RegistrationResponseBody = {
   clientExtensionResults: JsonObject;
   authenticatorAttachment?: string;
 };
-
-const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-
-/**
- * RFC 4648 base32, unpadded. The Key URI Format requires the `secret`
- * parameter in base32; authenticator apps base32-decode it verbatim, so any
- * other encoding silently derives a different key.
- */
-export function base32Encode(bytes: Uint8Array): string {
-  let bits = 0;
-  let value = 0;
-  let out = "";
-  for (const byte of bytes) {
-    value = (value << 8) | byte;
-    bits += 8;
-    while (bits >= 5) {
-      out += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
-      bits -= 5;
-    }
-  }
-  if (bits > 0) {
-    out += BASE32_ALPHABET[(value << (5 - bits)) & 31];
-  }
-  return out;
-}
 
 interface MfaDenial {
   eventType: string;
@@ -112,13 +95,6 @@ const MFA_ANON_MAX = 20;
 const MFA_ANON_GLOBAL_MAX = 200;
 const MFA_ANON_FENCE_ENTRIES = 4096;
 const MAX_PASSKEY_FIELD_LENGTH = 16 * 1024;
-
-function pruneMfaFailures(map: Map<string, number>): void {
-  if (map.size <= MAX_MFA_FENCE_ENTRIES) return;
-  const overflow = map.size - MAX_MFA_FENCE_ENTRIES;
-  const keys = [...map.keys()].slice(0, overflow);
-  for (const key of keys) map.delete(key);
-}
 
 function clientFingerprint(c: {
   req: { header: (name: string) => string | undefined };
@@ -326,13 +302,15 @@ mfaRoutes.post("/passkey/assert", async (c) => {
   ) {
     return c.json({ error: "invalid_request" }, 400);
   }
-  pruneMfaFailures(ctx.stores.mfaFailures);
+  if ((await ctx.stores.mfaFailures.size) > MAX_MFA_FENCE_ENTRIES)
+    return c.json({ error: "rate_limited" }, 429);
   const credentialDigest = createHash("sha256")
     .update(body.credentialId)
     .digest("hex")
     .slice(0, 32);
   const fenceKey = `passkey:${credentialDigest}`;
-  const prior = ctx.stores.mfaFailures.get(fenceKey) ?? 0;
+  const prior =
+    (await incrementSecurityCounter(ctx.stores.mfaFailures, fenceKey)) - 1;
   if (prior >= MAX_MFA_FAILURES) {
     if (shouldAuditAnonymousDenial(ctx.stores.mfaAnon, now)) {
       await auditMfaDenial(ctx, {
@@ -345,7 +323,6 @@ mfaRoutes.post("/passkey/assert", async (c) => {
     }
     return c.json({ ok: false, error: "too_many_attempts" }, 429);
   }
-  ctx.stores.mfaFailures.set(fenceKey, prior + 1);
   const result = await ctx.passkeys.verify({
     credentialId: body.credentialId,
     clientDataJSON: Buffer.from(body.clientDataJSON ?? "", "base64"),
@@ -364,7 +341,7 @@ mfaRoutes.post("/passkey/assert", async (c) => {
     }
     return c.json({ ok: false }, 401);
   }
-  ctx.stores.mfaFailures.delete(fenceKey);
+  await ctx.stores.mfaFailures.delete(fenceKey);
   return c.json({ ok: true, principalId: result.principalId });
 });
 
@@ -386,7 +363,7 @@ mfaRoutes.post("/totp/enroll", requirePrincipal(), async (c) => {
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   const secret = randomBytes(20);
   const secretB64 = secret.toString("base64");
-  ctx.stores.totpSecrets.set(principalId, secretB64);
+  await ctx.stores.totpSecrets.set(principalId, secretB64);
   const otpauthUrl = `otpauth://totp/OpenSesame:${encodeURIComponent(principalId)}?secret=${base32Encode(secret)}&issuer=OpenSesame`;
   return c.json({
     ok: true,
@@ -412,10 +389,11 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
   if (body.principalId && body.principalId !== principalId) {
     return c.json({ ok: false, error: "principal_mismatch" }, 403);
   }
-  const secret = ctx.stores.totpSecrets.get(principalId);
+  const secret = await ctx.stores.totpSecrets.get(principalId);
   if (!secret) return c.json({ ok: false, error: "not_enrolled" }, 404);
   const fenceKey = `totp:${principalId}`;
-  const prior = ctx.stores.mfaFailures.get(fenceKey) ?? 0;
+  const prior =
+    (await incrementSecurityCounter(ctx.stores.mfaFailures, fenceKey)) - 1;
   if (prior >= MAX_MFA_FAILURES) {
     await auditMfaDenial(ctx, {
       eventType: "mfa.totp.verify",
@@ -425,7 +403,6 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
     });
     return c.json({ ok: false, error: "too_many_attempts" }, 429);
   }
-  ctx.stores.mfaFailures.set(fenceKey, prior + 1);
   const expected = totpCode(secret);
   const ok = totpCodesEqual(body.code ?? "", expected);
   if (!ok) {
@@ -437,7 +414,7 @@ mfaRoutes.post("/totp/verify", requirePrincipal(), async (c) => {
     });
     return c.json({ ok }, 401);
   }
-  ctx.stores.mfaFailures.delete(fenceKey);
+  await ctx.stores.mfaFailures.delete(fenceKey);
   return c.json({ ok }, 200);
 });
 
@@ -502,12 +479,12 @@ export function maskDestination(channel: CodeChannel, to: string): string {
   return `${country} ••• ••• ${to.slice(-4)}`;
 }
 
-function pruneCodes(
-  map: Map<string, import("../state.js").MfaCodeChallenge>,
+async function pruneCodes(
+  map: SecurityMap<import("../state.js").MfaCodeChallenge>,
   now: number,
-): void {
-  for (const [id, challenge] of map) {
-    if (challenge.expiresAt <= now) map.delete(id);
+): Promise<void> {
+  for (const [id, challenge] of await map.entries()) {
+    if (challenge.expiresAt <= now) await map.delete(id);
   }
 }
 
@@ -545,8 +522,8 @@ mfaRoutes.post("/code/send", requirePrincipal(), async (c) => {
     );
   }
   const now = ctx.clock().getTime();
-  pruneCodes(ctx.stores.mfaCodes, now);
-  const live = [...ctx.stores.mfaCodes.values()].filter(
+  await pruneCodes(ctx.stores.mfaCodes, now);
+  const live = [...(await ctx.stores.mfaCodes.values())].filter(
     (entry) => entry.principalId === principalId,
   );
   if (live.length >= CODE_MAX_LIVE) {
@@ -600,7 +577,7 @@ mfaRoutes.post("/code/send", requirePrincipal(), async (c) => {
   }
 
   const challengeId = `mfc_${randomBytes(12).toString("hex")}`;
-  ctx.stores.mfaCodes.set(challengeId, {
+  await ctx.stores.mfaCodes.set(challengeId, {
     principalId,
     channel,
     to,
@@ -625,8 +602,15 @@ mfaRoutes.post("/code/verify", requirePrincipal(), async (c) => {
   const challengeId = isString(body.challengeId) ? body.challengeId : "";
   const code = isString(body.code) ? body.code.replace(/\s/g, "") : "";
   const now = ctx.clock().getTime();
-  pruneCodes(ctx.stores.mfaCodes, now);
-  const challenge = ctx.stores.mfaCodes.get(challengeId);
+  await pruneCodes(ctx.stores.mfaCodes, now);
+  const challenge = await updateSecurityMap(
+    ctx.stores.mfaCodes,
+    challengeId,
+    (current) =>
+      current && current.principalId === principalId
+        ? { ...current, attempts: current.attempts + 1 }
+        : current,
+  );
   // An unknown, expired or foreign challenge answers exactly like a wrong
   // code: the response must not say which challenges exist for whom.
   if (!challenge || challenge.principalId !== principalId) {
@@ -638,14 +622,15 @@ mfaRoutes.post("/code/verify", requirePrincipal(), async (c) => {
     });
     return c.json({ ok: false, error: "invalid_code" }, 401);
   }
-  challenge.attempts += 1;
   const expected = Buffer.from(challenge.codeHash, "hex");
   const given = Buffer.from(codeHash(challengeId, code), "hex");
   const matches =
-    code.length === CODE_DIGITS && timingSafeEqual(expected, given);
+    challenge.attempts <= CODE_MAX_ATTEMPTS &&
+    code.length === CODE_DIGITS &&
+    timingSafeEqual(expected, given);
   if (!matches) {
     const spent = challenge.attempts >= CODE_MAX_ATTEMPTS;
-    if (spent) ctx.stores.mfaCodes.delete(challengeId);
+    if (spent) await ctx.stores.mfaCodes.delete(challengeId);
     await auditMfaDenial(ctx, {
       eventType: "mfa.code.verify",
       reason: spent ? "too_many_attempts" : "wrong_code",
@@ -657,7 +642,8 @@ mfaRoutes.post("/code/verify", requirePrincipal(), async (c) => {
       401,
     );
   }
-  ctx.stores.mfaCodes.delete(challengeId);
+  if (!(await takeSecurityMap(ctx.stores.mfaCodes, challengeId)))
+    return c.json({ ok: false, error: "invalid_code" }, 401);
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "mfa.code.verify",
     outcome: "succeeded",

@@ -10,7 +10,9 @@
 
 import type { GuideGoalId } from "@opensesame/guide-lang";
 import type { SupportGoalDescription } from "@opensesame/support-agent";
+import { AUTHORITY_GOALS, AUTHORITY_HELP } from "./authority-help.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
+export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 
 export type GuideGoalDescriptor = {
   readonly id: GuideGoalId;
@@ -506,6 +508,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
+  ...AUTHORITY_GOALS,
 ];
 
 export const HELP_TOPICS: readonly HelpTopic[] = [
@@ -811,6 +814,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
       "enroll",
     ],
   },
+  ...AUTHORITY_HELP,
 ];
 
 export function describeGuideGoals(
@@ -830,74 +834,6 @@ export function guideGoalIds(): readonly GuideGoalId[] {
 export function guideGoal(id: GuideGoalId): GuideGoalDescriptor | null {
   return GUIDE_GOALS.find((goal) => goal.id === id) ?? null;
 }
-
-/**
- * Every PWA capability names its walkthrough. Several share a ceremony,
- * so the map is many-to-one on purpose.
- */
-export const CAPABILITY_TUTORIALS = {
-  "vaults.switch": "vaults.switch",
-  "host.health": "host.health.check",
-  "host.health.pages": "host.health.check",
-  "host.whoami": "identity.account.add",
-  "daemon.status": "host.health.check",
-  "tasks.list": "access.sessions.review",
-  "tasks.inspect": "access.sessions.review",
-  "tasks.terminate": "access.sessions.review",
-  "receipts.read": "access.sessions.review",
-  "delegations.list": "access.grant",
-  "delegations.offers.list": "access.grant",
-  "delegations.narrow": "access.grant",
-  "delegations.revoke": "access.grant",
-  "delegations.offers.revoke": "access.grant",
-  "delegations.offers.mint": "access.grant",
-  "delegations.claim": "access.claim",
-  "relay.inbox": "access.relay",
-  "relay.decide": "access.relay",
-  "agent_identities.read": "access.sessions.review",
-  "providers.list": "connection.create",
-  "connections.list": "connection.create",
-  "connections.inspect": "connection.create",
-  "connections.create": "connection.create",
-  "connections.credential.set": "connection.repair",
-  "connections.bindings": "connection.create",
-  "connections.remove": "connection.repair",
-  "integrations.read": "connection.create",
-  "certs.issue": "vault.item.create",
-  "configs.browse": "settings.secret-config",
-  "configs.set": "settings.secret-config",
-  "sync_targets.read": "settings.sync",
-  "sync_targets.trigger": "settings.sync",
-  "model_plane.read": "settings.model-provider",
-  "model_plane.choose": "settings.model-provider",
-  "changelog.read": "settings.changelog",
-  "backup.status": "settings.backup",
-  "backup.target.set": "settings.backup",
-  "identity.login": "identity.sign-in",
-  "identity.signout": "identity.sign-out",
-  "vault.second_step.code": "vault.second-step.code",
-  "vault.recovery_codes": "vault.recovery-codes",
-  "identity.switch_account": "identity.switch-account",
-  "identity.whoami": "identity.account.add",
-  "identity.admin": "identity.account.add",
-  "identity.device.approve": "identity.device.approve",
-  "vault.items.search": "vault.item.create",
-  "vault.items.read_meta": "vault.item.create",
-  "vault.items.write_meta": "vault.item.create",
-  "vault.items.reveal": "vault.item.create",
-  "vault.totp.code": "vault.item.create",
-  "vault.item_types.list": "vault.item-types.install",
-  "vault.item_types.install": "vault.item-types.install",
-  "vault.export": "vault.export",
-  "app.status": "host.health.check",
-  "app.navigate": "client.support",
-  "client.support": "client.support",
-  "client.tutorial": "client.support",
-  "pwa.status": "host.health.check",
-  "app.install": "app.install",
-  "setup.first_run": "setup.first-run",
-  "shared_sessions.join_request": "setup.join-session",
-} satisfies Readonly<Record<string, GuideGoalId>>;
 
 /** Authored topics relevant to where the person currently is. */
 export function helpTopicsForRoute(route: GuideRouteId): readonly HelpTopic[] {

@@ -14,7 +14,7 @@ import {
 } from "./identity.js";
 import { saveSettings } from "./settings.js";
 
-const IDENTITY = "http://127.0.0.1:18788";
+const IDENTITY = "https://identity.example.test";
 
 function jsonResponse(body: BoundaryValue, status = 200): Response {
   return new Response(JSON.stringify(body), {

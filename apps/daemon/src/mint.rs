@@ -111,15 +111,13 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use tower::ServiceExt;
 
-    const OPERATOR: &str = "opensesame-dev-operator";
-
     fn request(body: &str, with_token: bool) -> Request<Body> {
         let mut builder = Request::builder()
             .method("POST")
             .uri("/v1/mint")
             .header("content-type", "application/json");
         if with_token {
-            builder = builder.header("x-opensesame-operator", OPERATOR);
+            builder = builder.header("x-opensesame-operator", crate::test_operator_token());
         }
         builder.body(Body::from(body.to_string())).unwrap()
     }
@@ -282,7 +280,7 @@ mod tests {
             assert!(gateway.connections() >= 1, "the gateway was never dialed");
             // The operator token forwarded toward the gateway never echoes
             // back, and no mint-shaped material is invented on failure.
-            assert!(!text.contains(OPERATOR), "{text}");
+            assert!(!text.contains(crate::test_operator_token()), "{text}");
             assert!(!text.contains("derived_token"), "{text}");
         })
         .await
@@ -307,7 +305,7 @@ mod tests {
             let json: Value = serde_json::from_str(&text).unwrap();
             assert_eq!(json["error"], "host_api_unreachable");
             assert!(gateway.connections() >= 1, "the gateway was never dialed");
-            assert!(!text.contains(OPERATOR), "{text}");
+            assert!(!text.contains(crate::test_operator_token()), "{text}");
             assert!(!text.contains("derived_token"), "{text}");
         })
         .await

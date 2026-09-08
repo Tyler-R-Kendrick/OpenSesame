@@ -12,13 +12,21 @@ describe("organization OpenAPI authentication", () => {
       ),
     );
     expect(committed).toEqual(
-      buildOpenApiDocument(loadConfig({ OPENSESAME_ENV: "test" })),
+      buildOpenApiDocument(
+        loadConfig({
+          OPENSESAME_ENV: "test",
+          OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+        }),
+      ),
     );
   });
 
   it("documents cookie auth for browser membership and device mutations", () => {
     const document = buildOpenApiDocument(
-      loadConfig({ OPENSESAME_ENV: "test" }),
+      loadConfig({
+        OPENSESAME_ENV: "test",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      }),
     );
     const paths = overlapCast(document.paths);
 
@@ -42,7 +50,10 @@ describe("organization OpenAPI authentication", () => {
 
   it("publishes public tenant discovery without cookie auth", () => {
     const document = buildOpenApiDocument(
-      loadConfig({ OPENSESAME_ENV: "test" }),
+      loadConfig({
+        OPENSESAME_ENV: "test",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      }),
     );
     const paths = overlapCast(document.paths);
     expect(
@@ -55,7 +66,10 @@ describe("organization OpenAPI authentication", () => {
 
   it("publishes the organization and approval request/response schemas", () => {
     const document = buildOpenApiDocument(
-      loadConfig({ OPENSESAME_ENV: "test" }),
+      loadConfig({
+        OPENSESAME_ENV: "test",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      }),
     );
     expect(document).toMatchObject({
       paths: {

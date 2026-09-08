@@ -120,7 +120,7 @@ describe("mfa routes edge cases", () => {
     expect(overlapCast(await limited.json()).error).toBe("rate_limited");
   });
 
-  it("prunes the failure fence when it overflows", async () => {
+  it("refuses overflow without forgetting live failure fences", async () => {
     const { app, ctx } = createControlPlane({ config: testConfig() });
     for (let i = 0; i < 4097; i += 1) {
       ctx.stores.mfaFailures.set(`stale:${i}`, 1);
@@ -130,9 +130,8 @@ describe("mfa routes edge cases", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(assertBody("cred_prune")),
     });
-    expect(res.status).toBe(401);
-    // The oldest entry was evicted to make room before this attempt was counted.
-    expect(ctx.stores.mfaFailures.has("stale:0")).toBe(false);
+    expect(res.status).toBe(429);
+    expect(ctx.stores.mfaFailures.has("stale:0")).toBe(true);
     expect(ctx.stores.mfaFailures.has("stale:1")).toBe(true);
   });
 

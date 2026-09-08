@@ -1,5 +1,7 @@
+import { randomBytes } from "node:crypto";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { AgentClient } from "@opensesame/agent-client";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -8,15 +10,9 @@ import {
 } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { mockAgentHeaders } from "./agent-headers-fixture.js";
 import { apiClientSeams } from "./api-client.js";
-import {
-  buildServer,
-  modelError,
-  modelText,
-  requireAccessToken,
-  requireBase,
-  requireIdentityToken,
-} from "./server.js";
+import { buildServer, modelError, modelText, requireBase } from "./server.js";
 import { toolsManifest } from "./tools.js";
 
 const createApiClientMock = vi.fn();
@@ -35,7 +31,7 @@ type FakeClient = {
   listSecretConfigs: ReturnType<typeof vi.fn>;
   listConfigKeys: ReturnType<typeof vi.fn>;
   syncPush: ReturnType<typeof vi.fn>;
-  syncPull: ReturnType<typeof vi.fn>;
+  syncReadPage: ReturnType<typeof vi.fn>;
 };
 
 const secretConfigView = {
@@ -81,12 +77,15 @@ function fakeClient(overrides: Partial<FakeClient> = {}): FakeClient {
       ],
     }),
     syncPush: vi.fn().mockResolvedValue({ accepted: 1 }),
-    syncPull: vi.fn().mockResolvedValue({ blobs: [] }),
+    syncReadPage: vi
+      .fn()
+      .mockResolvedValue({ blobs: [], next_after: null, has_more: false }),
     ...overrides,
   };
 }
 
 function mockApiClient(client: FakeClient): void {
+  mockAgentHeaders();
   createApiClientMock.mockReturnValue(overlapCast(client));
 }
 
@@ -137,6 +136,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -159,22 +159,14 @@ describe("requireBase", () => {
   });
 });
 
-describe("token guards", () => {
-  it("requireAccessToken rejects missing and blank tokens", () => {
-    expect(() => requireAccessToken()).toThrow(/OPENSESAME_ACCESS_TOKEN/);
-    process.env.OPENSESAME_ACCESS_TOKEN = "   ";
-    expect(() => requireAccessToken()).toThrow(/OPENSESAME_ACCESS_TOKEN/);
-  });
-
-  it("requireAccessToken trims surrounding whitespace", () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "  opaque-session:abc  ";
-    expect(requireAccessToken()).toBe("opaque-session:abc");
-  });
-
-  it("requireIdentityToken rejects missing tokens and trims", () => {
-    expect(() => requireIdentityToken()).toThrow(/OPENSESAME_IDENTITY_TOKEN/);
-    process.env.OPENSESAME_IDENTITY_TOKEN = " id_tok_1 ";
-    expect(requireIdentityToken()).toBe("id_tok_1");
+describe("agent launch guards", () => {
+  it("rejects native-session and human Identity bearers as agent authority", async () => {
+    process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:retired";
+    process.env.OPENSESAME_IDENTITY_TOKEN = "retired-human-token";
+    const agent = new AgentClient("urn:opensesame:agent:mcp-client");
+    await expect(agent.headers("http://127.0.0.1:8787")).rejects.toThrow(
+      "approved agent launch",
+    );
   });
 });
 
@@ -238,6 +230,7 @@ describe("mcp-client server tools", () => {
       expect(result.isError).toBeFalsy();
       expect(createApiClientMock).toHaveBeenCalledWith({
         baseUrl: "http://127.0.0.1:8787",
+        fetchImpl: expect.any(Function),
       });
       expect(payload(result)).toEqual({
         health: { status: "ok" },
@@ -259,16 +252,17 @@ describe("mcp-client server tools", () => {
         }),
       );
       expect(result.isError).toBe(true);
-      // The guard's own message mentions "access_token", so forAgent refuses
-      // it and modelError falls back to the bare label (no message key).
-      expect(payload(result)).toEqual({ error: "whoami_failed" });
+      expect(payload(result)).toEqual({
+        error: "whoami_failed",
+        message: "an approved agent launch handle and client id are required",
+      });
       expect(createApiClientMock).not.toHaveBeenCalled();
     } finally {
       await close();
     }
   });
 
-  it("whoami passes the session token to the Host API client", async () => {
+  it("whoami uses the scoped transport instead of passing a native bearer", async () => {
     process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:whoami";
     const clientFake = fakeClient();
     mockApiClient(clientFake);
@@ -283,7 +277,7 @@ describe("mcp-client server tools", () => {
       expect(result.isError).toBeFalsy();
       expect(createApiClientMock).toHaveBeenCalledWith({
         baseUrl: "http://127.0.0.1:8787",
-        accessToken: "opaque-session:whoami",
+        fetchImpl: expect.any(Function),
       });
       expect(payload(result)).toEqual({ principal: "user_123" });
     } finally {
@@ -316,178 +310,24 @@ describe("mcp-client server tools", () => {
     }
   });
 
-  it("list_connections returns ConnectionRefs and reports failures", async () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:list";
-    const clientFake = fakeClient();
-    mockApiClient(clientFake);
+  it("does not register or execute a raw-claim-token agent tool", async () => {
+    const secret = randomBytes(32).toString("hex");
+    process.env.OPENSESAME_IDENTITY_TOKEN = secret;
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
     const { client, close } = await makeSession();
     try {
-      const ok = toolResult(
-        await client.callTool({
-          name: "list_connections",
-          arguments: {},
-        }),
+      const listed = await client.listTools();
+      expect(listed.tools.some((tool) => tool.name === "present_claim")).toBe(
+        false,
       );
-      expect(ok.isError).toBeFalsy();
-      expect(payload(ok)).toEqual({ connections: [{ ref: "cr_1" }] });
-
-      clientFake.listConnections.mockRejectedValueOnce(new Error("denied"));
-      const denied = toolResult(
-        await client.callTool({
-          name: "list_connections",
-          arguments: {},
-        }),
-      );
-      expect(denied.isError).toBe(true);
-      expect(payload(denied)).toEqual({
-        error: "list_connections_failed",
-        message: "denied",
+      const result = await client.callTool({
+        name: "present_claim",
+        arguments: { claimId: "claim-1", claimToken: secret },
       });
-    } finally {
-      await close();
-    }
-  });
-
-  it("invoke_l1 forwards a level-1 invoke and reports failures", async () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:invoke";
-    const clientFake = fakeClient();
-    mockApiClient(clientFake);
-    const { client, close } = await makeSession();
-    try {
-      const args = {
-        connectionRef: "cr_1",
-        operation: "repo.read",
-        resource: "opensesame",
-      };
-      const ok = toolResult(
-        await client.callTool({
-          name: "invoke_l1",
-          arguments: args,
-        }),
-      );
-      expect(ok.isError).toBeFalsy();
-      expect(clientFake.invoke).toHaveBeenCalledWith({
-        ...args,
-        invokeLevel: 1,
-      });
-      expect(payload(ok)).toEqual({ receipt: "rcpt_1" });
-
-      clientFake.invoke.mockRejectedValueOnce(new Error("policy denied"));
-      const denied = toolResult(
-        await client.callTool({
-          name: "invoke_l1",
-          arguments: args,
-        }),
-      );
-      expect(denied.isError).toBe(true);
-      expect(payload(denied)).toEqual({
-        error: "invoke_failed",
-        message: "policy denied",
-      });
-    } finally {
-      await close();
-    }
-  });
-
-  it("present_claim sends bearer and claim token to the Identity API", async () => {
-    process.env.OPENSESAME_IDENTITY_TOKEN = "id_tok_1";
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(new Response('{"state":"denied"}', { status: 403 }));
-    vi.stubGlobal("fetch", fetchMock);
-    const { client, close } = await makeSession("http://127.0.0.1:8788/");
-    try {
-      const result = toolResult(
-        await client.callTool({
-          name: "present_claim",
-          arguments: { claimId: "clm/abc", claimToken: "osc_clm_1" },
-        }),
-      );
-      expect(result.isError).toBe(true); // non-2xx surfaces as tool error
-      expect(fetchMock).toHaveBeenCalledWith(
-        "http://127.0.0.1:8788/v1/claims/clm%2Fabc",
-        {
-          headers: {
-            accept: "application/json",
-            "x-claim-token": "osc_clm_1",
-            authorization: "Bearer id_tok_1",
-          },
-        },
-      );
-      expect(payload(result)).toEqual({
-        status: 403,
-        body: '{"state":"denied"}',
-      });
-    } finally {
-      await close();
-    }
-  });
-
-  it("present_claim returns ok responses without an error flag", async () => {
-    process.env.OPENSESAME_IDENTITY_TOKEN = "id_tok_1";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response('{"state":"approved"}')),
-    );
-    const { client, close } = await makeSession();
-    try {
-      const result = toolResult(
-        await client.callTool({
-          name: "present_claim",
-          arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
-        }),
-      );
-      expect(result.isError).toBe(false);
-      expect(payload(result)).toEqual({
-        status: 200,
-        body: '{"state":"approved"}',
-      });
-    } finally {
-      await close();
-    }
-  });
-
-  it("present_claim fails closed without an identity token", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const { client, close } = await makeSession();
-    try {
-      const result = toolResult(
-        await client.callTool({
-          name: "present_claim",
-          arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
-        }),
-      );
       expect(result.isError).toBe(true);
-      expect(payload(result)).toMatchObject({
-        error: "present_claim_failed",
-        message: expect.stringContaining("OPENSESAME_IDENTITY_TOKEN"),
-      });
-      expect(fetchMock).not.toHaveBeenCalled();
-    } finally {
-      await close();
-    }
-  });
-
-  it("present_claim wraps network failures as tool errors", async () => {
-    process.env.OPENSESAME_IDENTITY_TOKEN = "id_tok_1";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("socket hangup")),
-    );
-    const { client, close } = await makeSession();
-    try {
-      const result = toolResult(
-        await client.callTool({
-          name: "present_claim",
-          arguments: { claimId: "clm1", claimToken: "osc_clm_1" },
-        }),
-      );
-      expect(result.isError).toBe(true);
-      expect(payload(result)).toEqual({
-        error: "present_claim_failed",
-        message: "socket hangup",
-      });
+      expect(JSON.stringify(result)).not.toContain(secret);
+      expect(fetcher).not.toHaveBeenCalled();
     } finally {
       await close();
     }
@@ -500,9 +340,6 @@ describe("mcp-client parity tools", () => {
     try {
       for (const [name, args] of [
         ["host_discover", {}],
-        ["integration_read", {}],
-        ["sync_target_read", {}],
-        ["config_metadata_read", { projectId: "project_01J" }],
         [
           "sync_push",
           { blobs: [{ id: "blob_01J", epoch: 1, ciphertextB64: "AA==" }] },
@@ -513,9 +350,10 @@ describe("mcp-client parity tools", () => {
           await client.callTool({ name, arguments: args }),
         );
         expect(result.isError, name).toBe(true);
-        // The guard's message names "access_token", so forAgent refuses it and
-        // modelError falls back to the bare label.
-        expect(payload(result)).toEqual({ error: `${name}_failed` });
+        expect(payload(result)).toEqual({
+          error: `${name}_failed`,
+          message: "an approved agent launch handle and client id are required",
+        });
       }
       expect(createApiClientMock).not.toHaveBeenCalled();
     } finally {
@@ -534,162 +372,6 @@ describe("mcp-client parity tools", () => {
       );
       expect(result.isError).toBeFalsy();
       expect(payload(result)).toEqual({ source: "prm", dpopBound: true });
-    } finally {
-      await close();
-    }
-  });
-
-  it("integration_read lists all or reads one by id", async () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:intread";
-    const clientFake = fakeClient();
-    mockApiClient(clientFake);
-    const { client, close } = await makeSession();
-    try {
-      const all = toolResult(
-        await client.callTool({ name: "integration_read", arguments: {} }),
-      );
-      expect(payload(all)).toEqual({
-        integrations: [{ id: "integration_01J" }],
-      });
-
-      const one = toolResult(
-        await client.callTool({
-          name: "integration_read",
-          arguments: { id: "integration_01J" },
-        }),
-      );
-      expect(clientFake.getIntegration).toHaveBeenCalledWith("integration_01J");
-      expect(payload(one)).toEqual({ id: "integration_01J" });
-
-      clientFake.listIntegrations.mockRejectedValueOnce(new Error("denied"));
-      const denied = toolResult(
-        await client.callTool({ name: "integration_read", arguments: {} }),
-      );
-      expect(denied.isError).toBe(true);
-      expect(payload(denied)).toEqual({
-        error: "integration_read_failed",
-        message: "denied",
-      });
-    } finally {
-      await close();
-    }
-  });
-
-  it("sync_target_read lists all or reads one by id", async () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:stread";
-    const clientFake = fakeClient();
-    mockApiClient(clientFake);
-    const { client, close } = await makeSession();
-    try {
-      const all = toolResult(
-        await client.callTool({ name: "sync_target_read", arguments: {} }),
-      );
-      expect(payload(all)).toEqual({
-        sync_targets: [{ id: "synctarget_01J" }],
-      });
-
-      const one = toolResult(
-        await client.callTool({
-          name: "sync_target_read",
-          arguments: { id: "synctarget_01J" },
-        }),
-      );
-      expect(clientFake.getSyncTarget).toHaveBeenCalledWith("synctarget_01J");
-      expect(payload(one)).toEqual({ id: "synctarget_01J" });
-    } finally {
-      await close();
-    }
-  });
-
-  it("config_metadata_read projects configs through the metadata allowlist", async () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:cfgread";
-    const clientFake = fakeClient();
-    mockApiClient(clientFake);
-    const { client, close } = await makeSession();
-    try {
-      const result = toolResult(
-        await client.callTool({
-          name: "config_metadata_read",
-          arguments: { projectId: "project_01J" },
-        }),
-      );
-      expect(result.isError).toBeFalsy();
-      expect(clientFake.listSecretConfigs).toHaveBeenCalledWith("project_01J");
-      // display_name (free text) and organization_id are stripped by design.
-      expect(payload(result)).toEqual({
-        configs: [
-          {
-            id: "config_01J",
-            project_id: "project_01J",
-            slug: "production",
-            environment: "production",
-            parent_config_id: null,
-            created_at: "2026-08-08T10:00:00.000Z",
-            updated_at: "2026-08-08T10:05:00.000Z",
-          },
-        ],
-      });
-    } finally {
-      await close();
-    }
-  });
-
-  it("config_metadata_read returns key metadata for a config, never values", async () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:cfgread";
-    const clientFake = fakeClient({
-      listConfigKeys: vi.fn().mockResolvedValue({
-        keys: [
-          {
-            key_name: "API_TOKEN",
-            version: 3,
-            updated_at: "2026-08-08T10:05:00.000Z",
-            value: "sneaky",
-          },
-        ],
-      }),
-    });
-    mockApiClient(clientFake);
-    const { client, close } = await makeSession();
-    try {
-      const result = toolResult(
-        await client.callTool({
-          name: "config_metadata_read",
-          arguments: { configId: "config_01J" },
-        }),
-      );
-      expect(result.isError).toBeFalsy();
-      expect(clientFake.listConfigKeys).toHaveBeenCalledWith("config_01J");
-      expect(payload(result)).toEqual({
-        keys: [
-          {
-            key_name: "API_TOKEN",
-            version: 3,
-            updated_at: "2026-08-08T10:05:00.000Z",
-          },
-        ],
-      });
-      expect(JSON.stringify(payload(result))).not.toContain("sneaky");
-    } finally {
-      await close();
-    }
-  });
-
-  it("config_metadata_read refuses a call naming neither project nor config", async () => {
-    process.env.OPENSESAME_ACCESS_TOKEN = "opaque-session:cfgread";
-    mockApiClient(fakeClient());
-    const { client, close } = await makeSession();
-    try {
-      const result = toolResult(
-        await client.callTool({
-          name: "config_metadata_read",
-          arguments: {},
-        }),
-      );
-      expect(result.isError).toBe(true);
-      expect(payload(result)).toEqual({
-        error: "config_metadata_read_failed",
-        message: "projectId or configId is required",
-      });
     } finally {
       await close();
     }
@@ -735,20 +417,32 @@ describe("mcp-client parity tools", () => {
         await client.callTool({ name: "sync_pull", arguments: {} }),
       );
       expect(defaulted.isError).toBeFalsy();
-      expect(clientFake.syncPull).toHaveBeenCalledWith({
-        epoch: 0,
-        deviceId: "mcp-client",
-      });
+      expect(clientFake.syncReadPage).toHaveBeenCalledWith(
+        { epoch: 1, id: "" },
+        "mcp-client",
+      );
 
       await client.callTool({
         name: "sync_pull",
         arguments: { since: 7, device: "device-a" },
       });
-      expect(clientFake.syncPull).toHaveBeenLastCalledWith({
-        epoch: 7,
-        deviceId: "device-a",
+      expect(clientFake.syncReadPage).toHaveBeenLastCalledWith(
+        { epoch: 8, id: "" },
+        "device-a",
+      );
+      await client.callTool({
+        name: "sync_pull",
+        arguments: { after: { epoch: 8, id: "blob-a" }, device: "device-a" },
       });
-      expect(payload(defaulted)).toEqual({ blobs: [] });
+      expect(clientFake.syncReadPage).toHaveBeenLastCalledWith(
+        { epoch: 8, id: "blob-a" },
+        "device-a",
+      );
+      expect(payload(defaulted)).toEqual({
+        blobs: [],
+        next_after: null,
+        has_more: false,
+      });
     } finally {
       await close();
     }

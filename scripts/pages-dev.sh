@@ -5,15 +5,33 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 export OPENSESAME_ENV="${OPENSESAME_ENV:-development}"
-export OPENSESAME_ALLOW_DEV_DEFAULTS="${OPENSESAME_ALLOW_DEV_DEFAULTS:-true}"
+export OPENSESAME_ALLOW_DEV_DEFAULTS="${OPENSESAME_ALLOW_DEV_DEFAULTS:-1}"
 # Prefer :18787/:18788 so a foreign process on the classic :8787/:8788 ports
 # cannot silently steal Authority / Connections auth (common on shared hosts).
 export OPENSESAME_LISTEN="${OPENSESAME_LISTEN:-127.0.0.1:18787}"
 export OPENSESAME_PUBLIC_URL="${OPENSESAME_PUBLIC_URL:-http://127.0.0.1:18787}"
 export VITE_HOST_API="${VITE_HOST_API:-$OPENSESAME_PUBLIC_URL}"
-export OPENSESAME_CORS_ORIGINS="${OPENSESAME_CORS_ORIGINS:-http://127.0.0.1:5180,http://localhost:5180,https://tyler-r-kendrick.github.io}"
-export OPENSESAME_DEV_BOOTSTRAP="${OPENSESAME_DEV_BOOTSTRAP:-true}"
-export OPENSESAME_CONNECTION_KEY="${OPENSESAME_CONNECTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=}"
+export OPENSESAME_RESOURCE="${OPENSESAME_RESOURCE:-$OPENSESAME_PUBLIC_URL}"
+export OPENSESAME_ISSUER="${OPENSESAME_ISSUER:-http://127.0.0.1:18788}"
+export OPENSESAME_CORS_ORIGINS="${OPENSESAME_CORS_ORIGINS:-http://127.0.0.1:5180,http://localhost:5180}"
+export OPENSESAME_DEV_BOOTSTRAP="${OPENSESAME_DEV_BOOTSTRAP:-false}"
+# Persist local keys across restarts without committing or printing them.
+umask 077
+dev_secret_dir="${OPENSESAME_DEV_SECRET_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/opensesame/development}"
+mkdir -p "$dev_secret_dir"
+chmod 700 "$dev_secret_dir"
+for secret_name in OPENSESAME_OPERATOR_TOKEN OPENSESAME_CLAIM_PEPPER OPENSESAME_CONNECTION_KEY OPENSESAME_RECEIPT_SIGNING_KEY; do
+  if [[ -z "${!secret_name:-}" ]]; then
+    secret_path="$dev_secret_dir/$secret_name"
+    if [[ ! -e "$secret_path" ]]; then
+      # noclobber preserves a concurrent launcher's already-created key.
+      (set -o noclobber; openssl rand -base64 32 > "$secret_path") || exit 1
+    fi
+    [[ -f "$secret_path" && ! -L "$secret_path" && -O "$secret_path" ]] || exit 1
+    chmod 600 "$secret_path"
+    export "$secret_name=$(<"$secret_path")"
+  fi
+done
 mkdir -p .tools/run
 export OPENSESAME_DB="${OPENSESAME_DB:-sqlite://$REPO_ROOT/.tools/run/opensesame.db?mode=rwc}"
 # Optional: seal GitHub history without an OAuth App (Settings PAT form also works).

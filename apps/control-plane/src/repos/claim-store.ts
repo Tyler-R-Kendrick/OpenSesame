@@ -53,8 +53,10 @@ export class IndexedClaimStore implements ClaimStore {
     return [...this.sessions.keys()];
   }
 
-  listSessions(): ClaimSession[] {
-    return [...this.sessions.values()].map((s) => structuredClone(s));
+  listSessions(principalId?: string): ClaimSession[] {
+    return [...this.sessions.values()]
+      .filter((s) => !principalId || s.creatorPrincipalId === principalId)
+      .map((s) => structuredClone(s));
   }
 
   async get(id: string): Promise<ClaimSession | undefined> {

@@ -177,21 +177,43 @@ describe("push failure modes", () => {
   it("pulls and merges a complete Host revision when the vault is unlocked", async () => {
     const merge = vi.fn().mockResolvedValue(undefined);
     hostBackupSeams.mergePulledVault = merge;
-    const encoded = (text: string) =>
-      Array.from(new TextEncoder().encode(text));
     hostFetch.mockResolvedValueOnce(
       ok({ accepted: 0, rejected_stale_epoch: 1, rejected_batch: 1 }),
     );
     hostFetch.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
+          format: "opensesame-sync-page",
+          version: 2,
+          next_after: { epoch: 8, id: "vault:body" },
+          has_more: true,
           blobs: [
-            { id: "vault:header", epoch: 8, ciphertext: encoded("header") },
-            { id: "vault:body", epoch: 8, ciphertext: encoded("body") },
+            {
+              id: "vault:body",
+              epoch: 8,
+              ciphertext_epoch: 8,
+              ciphertext_b64: btoa("body"),
+            },
           ],
         }),
         { status: 200 },
       ),
+    );
+    hostFetch.mockResolvedValueOnce(
+      Response.json({
+        format: "opensesame-sync-page",
+        version: 2,
+        next_after: { epoch: 8, id: "vault:header" },
+        has_more: false,
+        blobs: [
+          {
+            id: "vault:header",
+            epoch: 8,
+            ciphertext_epoch: 8,
+            ciphertext_b64: btoa("header"),
+          },
+        ],
+      }),
     );
     await pushSealedVaultToHost(INPUT);
     expect(merge).toHaveBeenCalledWith({

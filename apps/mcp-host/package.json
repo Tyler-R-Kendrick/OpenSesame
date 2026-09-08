@@ -13,6 +13,8 @@
     "test:integration": "vitest run src/pact.test.ts src/tools.test.ts"
   },
   "dependencies": {
+    "@opensesame/agent-client": "workspace:*",
+    "@opensesame/api-client": "workspace:*",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",

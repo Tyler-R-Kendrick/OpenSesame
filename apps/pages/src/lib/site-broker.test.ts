@@ -16,7 +16,7 @@ import {
   normalizeDomainEntry,
   originMatchesDomainEntry,
   originMayUseBroker,
-  parseBrokerRequest,
+  parseBrokerRequest as parseRequest,
   removeDomainRule,
   revokeConsent,
   scriptTagSrc,
@@ -25,12 +25,35 @@ import {
   staticSiteSnippet,
 } from "./site-broker.js";
 
+const parseBrokerRequest = (search: string) =>
+  parseRequest(`${search}&profile=pages_passthrough_loopback`);
+
 afterEach(() => {
   kvDelete(CONSENTS_KEY);
   kvDelete(POLICY_KEY);
 });
 
 describe("parseBrokerRequest", () => {
+  it("requires an explicit development profile and refuses remote RPs even when whitelisted", () => {
+    const query = new URLSearchParams({
+      origin: "http://localhost:5173",
+      client_id: "origin:http://localhost:5173",
+      state: "abcdefghijklmnopqrstuv",
+    });
+    expect(parseRequest(query.toString())).toMatchObject({
+      ok: false,
+      error: "unsupported_profile",
+    });
+    query.set("profile", "pages_passthrough_loopback");
+    query.set("origin", "https://rp.example");
+    query.set("client_id", "origin:https://rp.example");
+    addDomainRule("rp.example", "whitelist");
+    expect(parseRequest(query.toString())).toMatchObject({
+      ok: false,
+      error: "unsupported_profile",
+    });
+    expect(originMayUseBroker("https://rp.example")).toBe(false);
+  });
   it("accepts a well-formed origin-profile request", () => {
     const state = "abcdefghijklmnopqrstuv";
     const result = parseBrokerRequest(
@@ -95,14 +118,14 @@ describe("domain rules", () => {
   it("stays public with only blocked domains", () => {
     addDomainRule("evil.test", "blacklist");
     expect(isBrokerRestricted()).toBe(false);
-    expect(originMayUseBroker("https://ok.test")).toBe(true);
+    expect(originMayUseBroker("https://ok.test")).toBe(false);
     expect(originMayUseBroker("https://evil.test")).toBe(false);
   });
 
   it("becomes restricted when the first allowed domain is added", () => {
     addDomainRule("example.com", "whitelist");
     expect(isBrokerRestricted()).toBe(true);
-    expect(originMayUseBroker("https://app.example.com")).toBe(true);
+    expect(originMayUseBroker("https://app.example.com")).toBe(false);
     expect(originMayUseBroker("https://other.test")).toBe(false);
   });
 
@@ -124,12 +147,12 @@ describe("domain rules", () => {
 
   it("uses per-row allow and block effects", () => {
     addDomainRule("example.com", "whitelist");
-    expect(originMayUseBroker("https://app.example.com")).toBe(true);
+    expect(originMayUseBroker("https://app.example.com")).toBe(false);
     expect(originMayUseBroker("https://other.test")).toBe(false);
 
     addDomainRule("evil.example.com", "blacklist");
     expect(originMayUseBroker("https://evil.example.com")).toBe(false);
-    expect(originMayUseBroker("https://ok.example.com")).toBe(true);
+    expect(originMayUseBroker("https://ok.example.com")).toBe(false);
 
     setDomainRuleEffect("example.com", "blacklist");
     expect(originMayUseBroker("https://ok.example.com")).toBe(false);
@@ -137,7 +160,7 @@ describe("domain rules", () => {
 
     removeDomainRule("example.com");
     removeDomainRule("evil.example.com");
-    expect(originMayUseBroker("https://ok.example.com")).toBe(true);
+    expect(originMayUseBroker("https://ok.example.com")).toBe(false);
   });
 
   it("rejects bad domain entries on add", () => {
@@ -182,7 +205,7 @@ describe("messages and snippets", () => {
   it("emits a declarative snippet and an explicit escape hatch", () => {
     const base = "https://tyler-r-kendrick.github.io/OpenSesame/";
     expect(scriptTagSrc(base)).toBe(
-      "https://tyler-r-kendrick.github.io/OpenSesame/auth.js",
+      "https://tyler-r-kendrick.github.io/OpenSesame/static-auth/1.0.2/opensesame-auth.min.js",
     );
     expect(
       brokerAuthorizeUrl({ origin: "http://localhost:5173", state: "x" }, base),
@@ -191,16 +214,17 @@ describe("messages and snippets", () => {
       brokerBase: base,
       siteOrigin: "http://localhost:5173",
     });
-    expect(snippet).toContain("auth.js");
-    expect(snippet).toContain("data-opensesame-signin");
-    expect(snippet).toContain("opensesame:signed_in");
-    expect(snippet).not.toContain("getElementById");
+    expect(snippet).toContain("opensesame-auth.min.js");
+    expect(snippet).toContain('integrity="sha384-');
+    expect(snippet).toContain('crossorigin="anonymous"');
+    expect(snippet).not.toContain("console.log");
+    expect(snippet).toContain("pages_passthrough_loopback");
 
     const explicit = staticSiteExplicitSnippet({
       brokerBase: base,
       siteOrigin: "http://localhost:5173",
     });
-    expect(explicit).toContain("OpenSesame.signInAndAccept");
+    expect(explicit).toContain("OpenSesame.signIn(profile)");
     expect(explicit).toContain('id="opensesame-signin"');
   });
 });
@@ -440,90 +464,5 @@ describe("broker policy storage and normalization", () => {
     expect(domainFilterDenialMessage("https://other.test")).toMatch(
       /not on the allow list/,
     );
-  });
-});
-
-describe("deliverToRp fallbacks", () => {
-  const successMessage = {
-    type: "opensesame:signin" as const,
-    state: "s",
-    id_token: "t",
-    issuer: "https://shoo.dev",
-    audience: "origin:https://pages.example",
-    jwks_uri: "https://shoo.dev/.well-known/jwks.json",
-    expires_at: "2026-08-16T12:00:00.000Z",
-  };
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("skips window.close when asked not to", () => {
-    const postMessage = vi.fn();
-    const close = vi.fn();
-    vi.stubGlobal("window", {
-      opener: { closed: false, postMessage },
-      close,
-    });
-    const via = deliverToRp(successMessage, "http://localhost:5173", {
-      close: false,
-    });
-    expect(via).toBe("postMessage");
-    expect(close).not.toHaveBeenCalled();
-  });
-
-  it("retries postMessage when reading the opener throws", () => {
-    const postMessage = vi.fn();
-    let reads = 0;
-    const opener = {
-      postMessage,
-      get closed(): boolean {
-        reads += 1;
-        if (reads === 1) throw new Error("cross-origin");
-        return false;
-      },
-    };
-    vi.stubGlobal("window", { opener, close: vi.fn() });
-    const via = deliverToRp(successMessage, "http://localhost:5173");
-    expect(via).toBe("postMessage");
-    expect(postMessage).toHaveBeenCalledOnce();
-  });
-
-  it("falls back to a fragment redirect on the same origin", () => {
-    const assign = vi.fn();
-    vi.stubGlobal("window", { opener: null, close: vi.fn() });
-    vi.stubGlobal("location", { assign });
-
-    const via = deliverToRp(successMessage, "http://localhost:5173", {
-      redirectUri: "http://localhost:5173/callback",
-    });
-
-    expect(via).toBe("fragment");
-    const target = String(assign.mock.calls[0]?.[0]);
-    expect(target.startsWith("http://localhost:5173/callback#")).toBe(true);
-    expect(target).toContain("id_token=t");
-  });
-
-  it("refuses a fragment redirect to a different origin", () => {
-    vi.stubGlobal("window", { opener: null, close: vi.fn() });
-    const via = deliverToRp(successMessage, "http://localhost:5173", {
-      redirectUri: "https://evil.example/callback",
-    });
-    expect(via).toBe("none");
-  });
-
-  it("refuses an unparseable redirect URI", () => {
-    vi.stubGlobal("window", { opener: null, close: vi.fn() });
-    const via = deliverToRp(successMessage, "http://localhost:5173", {
-      redirectUri: "::nope::",
-    });
-    expect(via).toBe("none");
-  });
-
-  it("reports none when the opener is gone and no redirect was given", () => {
-    vi.stubGlobal("window", { opener: { closed: true }, close: vi.fn() });
-    expect(deliverToRp(successMessage, "http://localhost:5173")).toBe("none");
-    vi.stubGlobal("window", { opener: null, close: vi.fn() });
-    expect(deliverToRp(successMessage, "http://localhost:5173")).toBe("none");
   });
 });

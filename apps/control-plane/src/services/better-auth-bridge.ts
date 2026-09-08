@@ -282,8 +282,8 @@ async function issueProvisionalBearer(
     expiresAt: new Date(now.getTime() + ctx.config.provisionalTtlMs),
   };
   const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
-  ctx.stores.provisionalSessions.set(session.id, session);
-  ctx.stores.provisionalTokens.set(accessToken, session.id);
+  await ctx.stores.provisionalSessions.set(session.id, session);
+  await ctx.stores.provisionalTokens.set(accessToken, session.id);
   return accessToken;
 }
 

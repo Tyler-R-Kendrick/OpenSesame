@@ -15,7 +15,13 @@ import {
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { probeDaemon } from "./daemon.js";
+import {
+  type BrowserGrant,
+  BrowserPairingError,
+  clearBrowserPairing,
+  currentBrowserGrant,
+  pairedHostFetch,
+} from "./browser-pairing.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import {
   type FailureClass,
@@ -27,8 +33,6 @@ import { isLoopbackUrl } from "./urls.js";
 
 const IDENTITY_FETCH_MS = 8000;
 const PROBE_MS = 4000;
-/** Sentinel when Host minted the session without Identity (local authority). */
-const HOST_LOCAL_IDENTITY = "host-local";
 
 export type Principal = {
   id: string;
@@ -86,14 +90,7 @@ export class HostSessionError extends Error {
 }
 
 let session: IdentitySession | null = null;
-type HostSession = {
-  accessToken: string;
-  expiresAt: number;
-  hostApi: string;
-  identityAccessToken: string;
-};
-let hostSession: HostSession | null = null;
-let pendingHostSession: Promise<HostSession> | null = null;
+type HostSession = BrowserGrant;
 let pendingIdentitySession: Promise<IdentitySession> | null = null;
 /** In-flight revoke, so a reconnect cannot race its cookie teardown. */
 let pendingRevoke: Promise<void> | null = null;
@@ -245,210 +242,17 @@ function hostBaseDefault(): string {
 }
 
 export function clearHostSession(): void {
-  hostSession = null;
-  pendingHostSession = null;
+  clearBrowserPairing();
 }
 
-function currentHostSession(): HostSession | null {
-  if (
-    !hostSession ||
-    hostSession.hostApi !== hostBase() ||
-    hostSession.expiresAt <= Date.now()
-  ) {
-    hostSession = null;
-    return null;
-  }
-  // Host-local sessions do not bind to an Identity bearer.
-  if (hostSession.identityAccessToken === HOST_LOCAL_IDENTITY) {
-    return hostSession;
-  }
-  const identity = currentSession();
-  if (!identity || hostSession.identityAccessToken !== identity.accessToken) {
-    hostSession = null;
-    return null;
-  }
-  return hostSession;
-}
-
-async function hostSessionFailure(
-  response: Response,
-  fallback: string,
-): Promise<HostSessionError> {
-  const code = [400, 401, 403, 404, 409].includes(response.status)
-    ? "setup_required"
-    : "invalid_host";
-  try {
-    const payload: JsonObject = overlapCast(await response.json());
-    const nested = isJsonObject(payload.body) ? payload.body : undefined;
-    const detail =
-      nested?.hint ?? nested?.error ?? payload.hint ?? payload.error;
-    if (isString(detail)) {
-      return new HostSessionError(code, `${fallback}: ${detail}`);
-    }
-  } catch {
-    /* non-JSON error */
-  }
-  return new HostSessionError(code, `${fallback} (${response.status}).`);
-}
-
-/**
- * True when Pages may use Host as the local authority IdP (no Identity URL).
- * Host still enforces non-production + OPENSESAME_DEV_BOOTSTRAP server-side.
- */
+/** Eligibility means a live explicitly approved browser grant, never merely loopback. */
 function hostLocalSessionEligibleDefault(
   hostApi: string = hostBase(),
 ): boolean {
-  return Boolean(hostApi) && isLoopbackUrl(hostApi);
+  return Boolean(hostApi) && currentBrowserGrant(hostApi) !== null;
 }
 
-/**
- * Mint a Host session without Identity. Returns null when the Host refuses
- * (production, no demo bootstrap) so callers can fall back to Identity.
- */
-async function mintHostLocalSession(): Promise<HostSession | null> {
-  const hostApi = hostBase();
-  if (!hostLocalSessionEligible(hostApi)) return null;
-  const response = await localNetworkFetch(`${hostApi}/api/v1/session/local`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    credentials: "omit",
-    body: "{}",
-    timeoutMs: IDENTITY_FETCH_MS,
-  });
-  if (
-    response.status === 403 ||
-    response.status === 404 ||
-    response.status === 503
-  ) {
-    return null;
-  }
-  if (!response.ok) {
-    throw await hostSessionFailure(response, "Host-local session failed");
-  }
-  const issued = overlapCast(await response.json());
-  if (
-    !isString(issued.access_token) ||
-    !issued.access_token.startsWith("opaque-session:") ||
-    !isNumber(issued.expires_in) ||
-    issued.expires_in <= 0
-  ) {
-    throw new HostSessionError(
-      "invalid_host",
-      "Host returned an invalid local session.",
-    );
-  }
-  return {
-    accessToken: issued.access_token,
-    expiresAt: Date.now() + issued.expires_in * 1000,
-    hostApi,
-    identityAccessToken: HOST_LOCAL_IDENTITY,
-  };
-}
-
-async function mintHostSession(
-  identity: IdentitySession,
-): Promise<HostSession> {
-  const unchanged = () =>
-    currentSession()?.accessToken === identity.accessToken;
-  const hostApi = hostBase();
-  const authorize = await localNetworkFetch(
-    `${hostApi}/api/v1/device/authorize`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      credentials: "omit",
-      body: JSON.stringify({
-        client_id: "opensesame-pages",
-        scope: "opensesame.session",
-      }),
-      timeoutMs: IDENTITY_FETCH_MS,
-    },
-  );
-  if (!authorize.ok) {
-    throw await hostSessionFailure(authorize, "Host session request failed");
-  }
-  const grant = overlapCast(await authorize.json());
-  if (!isString(grant.device_code) || !isString(grant.user_code)) {
-    throw new HostSessionError(
-      "invalid_host",
-      "Host returned an invalid device grant.",
-    );
-  }
-  if (!unchanged()) {
-    throw new HostSessionError(
-      "identity_changed",
-      "Identity changed during Host sign-in.",
-    );
-  }
-
-  // The same route the human device ceremony uses, but this is a machine leg of
-  // Host session minting: nobody typed this code, so `@opensesame/ceremony-kit`'s
-  // `approveDevice` — worded for a person holding a device — would report an act
-  // the user never performed. Failure goes through `hostSessionFailure` like
-  // every other leg of this function, which preserves both the nested Host hint
-  // and the `setup_required` classification Connections renders on.
-  const approve = await identityFetch("/v1/device/approve", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ user_code: grant.user_code }),
-  });
-  if (!approve.ok) {
-    throw await hostSessionFailure(approve, "Host session approval failed");
-  }
-  if (!unchanged()) {
-    throw new HostSessionError(
-      "identity_changed",
-      "Identity changed during Host sign-in.",
-    );
-  }
-
-  const token = await localNetworkFetch(`${hostApi}/api/v1/device/token`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    credentials: "omit",
-    body: JSON.stringify({
-      device_code: grant.device_code,
-      client_id: "opensesame-pages",
-      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-    }),
-    timeoutMs: IDENTITY_FETCH_MS,
-  });
-  if (!token.ok) {
-    throw await hostSessionFailure(token, "Host session exchange failed");
-  }
-  const issued = overlapCast(await token.json());
-  if (
-    !isString(issued.access_token) ||
-    !issued.access_token.startsWith("opaque-session:") ||
-    !isNumber(issued.expires_in) ||
-    issued.expires_in <= 0
-  ) {
-    throw new HostSessionError(
-      "invalid_host",
-      "Host returned an invalid session.",
-    );
-  }
-  if (!unchanged()) {
-    throw new HostSessionError(
-      "identity_changed",
-      "Identity changed during Host sign-in.",
-    );
-  }
-  return {
-    accessToken: issued.access_token,
-    expiresAt: Date.now() + issued.expires_in * 1000,
-    hostApi,
-    identityAccessToken: identity.accessToken,
-  };
-}
-
-/**
- * Ensure an OpenSesame Identity principal for this tab.
- *
- * OpenSesame’s control plane is the IdP: a provisional principal is the default
- * on-ramp. Better Auth / upstream IdP linking is optional and does not gate
- * Host connector OAuth. Dedupes concurrent callers (Settings + Connections).
- */
+/** Ensure the optional Identity session without changing browser Host authority. */
 export async function ensureIdentitySession(): Promise<IdentitySession> {
   const existing = currentSession();
   if (existing) {
@@ -472,67 +276,32 @@ export async function ensureIdentitySession(): Promise<IdentitySession> {
 }
 
 /**
- * Mint (or reuse) a Host session.
- * Prefers Host-local authority on loopback (no Identity plane). Falls back to
- * Identity device approval when local mint is unavailable.
+ * Reuse an explicitly approved tab-owned Host grant. No request implicitly
+ * creates local authority or exchanges an Identity bearer for Host authority.
  */
 async function ensureHostSessionDefault(): Promise<HostSession> {
-  const existing = currentHostSession();
-  if (existing) {
-    return existing;
-  }
-
-  if (!pendingHostSession) {
-    pendingHostSession = (async () => {
-      const local = await mintHostLocalSession();
-      if (local) {
-        hostSession = local;
-        return local;
-      }
-      const identity = await ensureIdentitySession();
-      const issued = await mintHostSession(identity);
-      hostSession = issued;
-      return issued;
-    })();
-  }
-  const pending = pendingHostSession;
-  try {
-    return await pending;
-  } finally {
-    if (pendingHostSession === pending) pendingHostSession = null;
-  }
+  const active = hostBase() ? currentBrowserGrant(hostBase()) : null;
+  if (!active)
+    throw new HostSessionError(
+      "setup_required",
+      "Pair this browser with the Host using the local approval ceremony.",
+    );
+  return active;
 }
 
-/** Fetch against the Host as the connected principal, never as deployment operator. */
+/** Host requests use only the approved origin/key-bound DPoP grant. */
 async function hostFetchDefault(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
-  let active: HostSession;
+  await ensureHostSession();
   try {
-    active = await ensureHostSession();
+    return await pairedHostFetch(hostBase(), path, init);
   } catch (error) {
-    if (
-      !(error instanceof HostSessionError) ||
-      error.code !== "identity_changed"
-    ) {
-      throw error;
-    }
-    active = await ensureHostSession();
+    if (error instanceof BrowserPairingError)
+      throw new HostSessionError("setup_required", error.message);
+    throw error;
   }
-  const headers = new Headers(init.headers);
-  headers.set("authorization", `Bearer ${active.accessToken}`);
-  if (init.body && !headers.has("content-type")) {
-    headers.set("content-type", "application/json");
-  }
-  const response = await localNetworkFetch(`${hostBase()}${path}`, {
-    ...init,
-    headers,
-    credentials: "omit",
-    timeoutMs: IDENTITY_FETCH_MS,
-  });
-  if (response.status === 401) clearHostSession();
-  return response;
 }
 
 async function readError(res: Response): Promise<string> {
@@ -865,21 +634,8 @@ export async function probeHostDetailed(): Promise<ProbeResult> {
     };
   })();
 
-  const daemonOk = (async () => {
-    if (!viaDaemon || !daemon) return false;
-    try {
-      const health = await probeDaemon(daemon);
-      return health.service === "opensesame-daemon";
-    } catch {
-      return false;
-    }
-  })();
-
-  const [directResult, okDaemon] = await Promise.all([direct, daemonOk]);
-  if (directResult.health === "reachable" || okDaemon) {
-    return { health: "reachable", failure: null };
-  }
-  return directResult;
+  // Daemon liveness does not prove the proxied Host is reachable.
+  return direct;
 }
 
 async function probeHostDefault(): Promise<HealthState> {

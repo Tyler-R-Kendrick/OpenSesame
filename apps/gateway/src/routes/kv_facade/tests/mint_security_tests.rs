@@ -35,7 +35,7 @@ async fn members_cannot_materialize_organization_app_tokens() {
     let organization_id = boot_org(&state);
     let headers = app_state::test_session_headers(
         &state,
-        "user:member",
+        "principal:00000000-0000-4000-8000-000000000002",
         organization_id,
         OrganizationRole::Member,
     );
@@ -51,7 +51,7 @@ async fn members_cannot_materialize_organization_app_tokens() {
         &organization_id,
         "member-app",
         "github",
-        Some("user:member"),
+        Some("principal:00000000-0000-4000-8000-000000000002"),
         "derived_short_lived",
     )
     .await;

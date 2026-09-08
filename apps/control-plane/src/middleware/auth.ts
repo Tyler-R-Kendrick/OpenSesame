@@ -9,14 +9,14 @@ import type { Variables } from "./context.js";
  * `Authorization: Bearer prn_…` is opt-in for local tests only
  * (`OPENSESAME_ALLOW_PRINCIPAL_BEARER=true`, never in production).
  */
-function resolveProvisionalSession(
+async function resolveProvisionalSession(
   ctx: AppContext,
   token: string,
-): { principalId: string; sessionId: string } | undefined {
+): Promise<{ principalId: string; sessionId: string } | undefined> {
   if (!token.startsWith("pst_")) return undefined;
-  const sessionId = ctx.stores.provisionalTokens.get(token);
+  const sessionId = await ctx.stores.provisionalTokens.get(token);
   if (!sessionId) return undefined;
-  const session = ctx.stores.provisionalSessions.get(sessionId);
+  const session = await ctx.stores.provisionalSessions.get(sessionId);
   if (!session || session.expiresAt <= ctx.clock() || session.revokedAt) {
     return undefined;
   }
@@ -61,7 +61,7 @@ export function authMiddleware() {
     const auth = c.req.header("authorization");
     if (auth?.toLowerCase().startsWith("bearer ")) {
       const token = auth.slice(7).trim();
-      const resolved = resolveProvisionalSession(ctx, token);
+      const resolved = await resolveProvisionalSession(ctx, token);
       if (resolved) {
         c.set("principalId", resolved.principalId);
         c.set("provisionalSessionId", resolved.sessionId);
@@ -83,7 +83,7 @@ export function authMiddleware() {
       cookieVal &&
       cookieAuthAllowed(ctx, c.req.method, c.req.header("origin"))
     ) {
-      const resolved = resolveProvisionalSession(ctx, cookieVal);
+      const resolved = await resolveProvisionalSession(ctx, cookieVal);
       if (resolved) {
         c.set("principalId", resolved.principalId);
         c.set("provisionalSessionId", resolved.sessionId);

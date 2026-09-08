@@ -5,6 +5,27 @@ use serde_json::json;
 use crate::app_state::AppState;
 use crate::middleware::auth::require_operator;
 
+pub fn routes() -> axum::Router<AppState> {
+    use super::protected_resource;
+    use axum::{routing::get, Router};
+    Router::new()
+        .route("/health/live", get(live))
+        .route("/health/ready", get(ready))
+        .route("/health/authority", get(authority))
+        .route("/health/degraded", get(degraded))
+        .route("/health/providers", get(providers))
+        .route("/api/v1/health", get(live))
+        .route(
+            "/.well-known/oauth-protected-resource",
+            get(protected_resource::metadata),
+        )
+        .route("/auth.md", get(protected_resource::auth_md))
+        .route(
+            "/.well-known/agent-card.json",
+            get(protected_resource::agent_card),
+        )
+}
+
 pub async fn live() -> impl IntoResponse {
     "ok"
 }

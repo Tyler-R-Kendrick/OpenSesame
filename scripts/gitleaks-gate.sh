@@ -4,7 +4,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-mkdir -p artifacts/security
+source "$ROOT/scripts/lib/audit-directory.sh"
+opensesame_audit_directory
 
 if ! command -v gitleaks >/dev/null 2>&1; then
   echo "gitleaks not installed" >&2
@@ -12,8 +13,8 @@ if ! command -v gitleaks >/dev/null 2>&1; then
 fi
 
 CFG="$ROOT/.gitleaks.toml"
-REPORT_DIR="artifacts/security/gitleaks-dir.json"
-REPORT_GIT="artifacts/security/gitleaks-git.json"
+REPORT_DIR="$OPENSESAME_AUDIT_DIR/gitleaks-dir.json"
+REPORT_GIT="$OPENSESAME_AUDIT_DIR/gitleaks-git.json"
 
 # Working-tree scan is the primary gate (this is what hung without allowlists).
 echo "==> gitleaks detect --no-git (working tree, allowlisted dirs pruned)"

@@ -271,7 +271,7 @@ mod tests {
     async fn state_with_webhook_secret(secret: &str) -> AppState {
         let _guard = crate::app_state::test_env::lock();
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
-        let mut state = app_state::build(Args {
+        let mut state = app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),
@@ -395,7 +395,7 @@ mod tests {
     async fn missing_app_returns_not_found() {
         let _guard = crate::app_state::test_env::lock();
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
-        let state = app_state::build(Args {
+        let state = app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),
@@ -424,7 +424,7 @@ mod tests {
     async fn state_without_webhook_secret() -> AppState {
         let _guard = crate::app_state::test_env::lock();
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
-        let mut state = app_state::build(Args {
+        let mut state = app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),
@@ -627,7 +627,7 @@ mod tests {
     async fn malformed_signature_is_rejected_before_app_lookup() {
         let _guard = crate::app_state::test_env::lock();
         std::env::set_var("OPENSESAME_TASKBUS", "memory");
-        let state = app_state::build(Args {
+        let state = app_state::build_test(Args {
             listen: "127.0.0.1:0".parse().unwrap(),
             resource: "https://opensesame.local".into(),
             issuer: "https://issuer.local".into(),

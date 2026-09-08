@@ -28,9 +28,19 @@
       ".claude/skills/**",
       "skills-lock.json",
       "**/sbom/**",
-      "apps/pages/public/auth.js",
       "fixtures/kdbx/roundtrip.expected.json",
       "docs/design/**"
     ]
-  }
+  },
+  "overrides": [
+    {
+      "include": [
+        "apps/pages/public/static-auth/1.0.2/opensesame-auth.min.js",
+        "apps/pages/public/auth.js"
+      ],
+      "linter": { "enabled": false },
+      "formatter": { "enabled": false },
+      "organizeImports": { "enabled": false }
+    }
+  ]
 }

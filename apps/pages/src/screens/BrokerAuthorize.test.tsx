@@ -45,7 +45,7 @@ import { BrokerAuthorize } from "./BrokerAuthorize.js";
 
 const mockedDeliver = vi.mocked(siteBrokerSeams.deliverToRp);
 
-const ORIGIN = "https://rp.example.com";
+const ORIGIN = "http://localhost:5173";
 const STATE = "state-with-plenty-of-entropy-123456";
 
 const IDENTITY = {
@@ -73,6 +73,7 @@ function validSearch(scope = "openid profile"): string {
     origin: ORIGIN,
     state: STATE,
     scope,
+    profile: "pages_passthrough_loopback",
   });
   return `?${params.toString()}`;
 }
@@ -103,6 +104,7 @@ describe("BrokerAuthorize", () => {
   it("rejects a client_id that does not match the origin", async () => {
     const params = new URLSearchParams({
       client_id: "origin:https://other.example.com",
+      profile: "pages_passthrough_loopback",
       origin: ORIGIN,
       state: STATE,
     });
@@ -112,7 +114,7 @@ describe("BrokerAuthorize", () => {
   });
 
   it("blocks origins denied by the domain policy and informs the site", async () => {
-    addDomainRule("rp.example.com", "blacklist");
+    addDomainRule("localhost:5173", "blacklist");
     renderBroker(validSearch());
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Domain not allowed");
@@ -223,10 +225,10 @@ describe("BrokerAuthorize", () => {
   it("auto-releases without a consent prompt when a covering consent exists", async () => {
     approveConsent(ORIGIN, "openid profile");
     fed.loadSession.mockReturnValue(IDENTITY);
-    mockedDeliver.mockReturnValue("fragment");
+    mockedDeliver.mockReturnValue("postMessage");
     renderBroker(validSearch());
     expect(
-      await screen.findByText("Redirecting back to the site…"),
+      await screen.findByText("Sent to the site. You can close this window."),
     ).toBeTruthy();
     expect(screen.queryByText("Allow this site?")).toBeNull();
   });

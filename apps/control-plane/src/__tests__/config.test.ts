@@ -11,7 +11,8 @@ function prodBase(): ControlPlaneConfig {
     port: 8788,
     publicUrl: "https://id.example",
     issuer: "https://id.example",
-    claimPepper: "unique-claim-pepper-not-dev",
+    claimPepper: "unique-test-only-claim-pepper-at-least-32-characters",
+    databaseUrl: "postgres://test@127.0.0.1/test",
     provisionalCookieName: "os_provisional",
     provisionalTtlMs: 86_400_000,
     logLevel: "info",
@@ -76,10 +77,10 @@ describe("assertSecureConfig", () => {
     ).toThrow(/CORS_ORIGINS/);
   });
 
-  it("rejects empty CORS allowlist in production", () => {
+  it("permits an empty deny-all CORS allowlist in production", () => {
     expect(() =>
       assertSecureConfig({ ...prodBase(), corsOrigins: [] }),
-    ).toThrow(/CORS_ORIGINS/);
+    ).not.toThrow();
   });
 
   it("rejects non-loopback listen host without override", () => {
@@ -88,10 +89,10 @@ describe("assertSecureConfig", () => {
     ).toThrow(/not loopback/);
   });
 
-  it("rejects an empty trusted upstream allowlist in production", () => {
+  it("permits an explicit deny-all upstream trust set in production", () => {
     expect(() =>
       assertSecureConfig({ ...prodBase(), trustedUpstreamIssuers: [] }),
-    ).toThrow(/TRUSTED_UPSTREAMS/);
+    ).not.toThrow();
   });
 
   it("rejects a non-https trusted upstream issuer in production", () => {
@@ -107,6 +108,9 @@ describe("assertSecureConfig", () => {
     const dev: ControlPlaneConfig = {
       ...prodBase(),
       isProduction: false,
+      publicUrl: "http://127.0.0.1:8788",
+      issuer: "http://127.0.0.1:8788",
+      hostApiUrl: "http://127.0.0.1:8787",
       trustedUpstreamIssuers: [],
     };
     expect(() => assertSecureConfig(dev)).not.toThrow();
@@ -170,7 +174,7 @@ describe("loadConfig upstream client credentials", () => {
   it("is absent unless issuer, client id and secret are all present", async () => {
     const { loadConfig } = await import("../config.js");
     const base = {
-      OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
       OPENSESAME_UPSTREAM_ISSUER: "http://127.0.0.1:9090",
       OPENSESAME_UPSTREAM_CLIENT_ID: "cid",
     };
@@ -179,7 +183,7 @@ describe("loadConfig upstream client credentials", () => {
     // Secret but no client id.
     expect(
       loadConfig({
-        OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
         OPENSESAME_UPSTREAM_ISSUER: "http://127.0.0.1:9090",
         OPENSESAME_UPSTREAM_CLIENT_SECRET: "shh",
       }).upstreamClientCredentials,
@@ -219,7 +223,7 @@ describe("loadConfig personal workspace bootstrap", () => {
     const { loadConfig } = await import("../config.js");
     const config = loadConfig({
       OPENSESAME_ENV: "development",
-      OPENSESAME_ALLOW_DEV_DEFAULTS: "true",
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
     });
     expect(config.bootstrapPersonalOrganization).toBe(true);
     expect(config.allowDevDefaults).toBe(true);

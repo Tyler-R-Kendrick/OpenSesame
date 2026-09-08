@@ -20,13 +20,6 @@ export {
 } from "./endpoint.js";
 export {
   type AgUiOutboundBody,
-  type AgUiOutboundCapability,
-  type AgUiOutboundContext,
-  type AgUiOutboundGoal,
-  type AgUiOutboundMessage,
-  type AgUiOutboundRoute,
-  type AgUiOutboundState,
-  type AgUiOutboundTarget,
   buildAgUiOutboundBody,
 } from "./outbound.js";
 export {

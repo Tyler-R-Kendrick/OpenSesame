@@ -62,9 +62,14 @@ fn session_scope(
     headers: &axum::http::HeaderMap,
 ) -> Result<(OrganizationId, Option<ProjectId>, OrganizationRole), Response> {
     let (_, meta) = require_session(st, headers)?;
-    scope_from_meta(&meta).ok_or_else(unscoped_session)
+    Ok((
+        meta.organization_id,
+        meta.project_id,
+        meta.organization_role,
+    ))
 }
 
+#[cfg(test)]
 fn scope_from_meta(meta: &Value) -> Option<(OrganizationId, Option<ProjectId>, OrganizationRole)> {
     let organization = meta
         .get("organization_id")
@@ -280,14 +285,6 @@ fn invalid_id() -> Response {
         .into_response()
 }
 
-fn unscoped_session() -> Response {
-    (
-        StatusCode::FORBIDDEN,
-        Json(json!({"error": "session_scope_required"})),
-    )
-        .into_response()
-}
-
 fn server_error(error: &anyhow::Error) -> Response {
     tracing::error!(error = %error, "connection storage failed");
     (
@@ -329,13 +326,13 @@ mod tests {
         let organization = OrganizationId::new();
         let member = crate::app_state::test_session_headers(
             &state,
-            "prn_member",
+            "principal:00000000-0000-4000-8000-000000000002",
             organization,
             OrganizationRole::Member,
         );
         let admin = crate::app_state::test_session_headers(
             &state,
-            "prn_admin",
+            "principal:00000000-0000-4000-8000-000000000022",
             organization,
             OrganizationRole::Admin,
         );

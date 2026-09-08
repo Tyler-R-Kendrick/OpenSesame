@@ -20,21 +20,15 @@ use axum::{
 };
 use chrono::Utc;
 use opensesame_a2h::{
-    authority_for, verify_callback, A2hResponse, ExpectedReply, ResponseAuthority, VerifyError,
+    authority_for, verify_callback, A2hResponse, ExpectedReply, ResponseAuthority,
 };
+use opensesame_storage::a2h_replies::{ReplyDecision, ReplyOutcome};
 use serde_json::json;
 
 use crate::app_state::AppState;
 
 /// Header carrying `t=<unix>,v1=<base64>`.
 const SIGNATURE_HEADER: &str = "x-a2h-signature";
-/// Header carrying the gateway's per-attempt delivery id.
-///
-/// Logged for correlation with the gateway's own records during an incident,
-/// and deliberately *not* the idempotency key: it changes per attempt, while
-/// the thing that must be applied once is the interaction. `already_applied`
-/// keys on the delivery row's state instead, which is stable across retries.
-const DELIVERY_HEADER: &str = "x-a2h-delivery-id";
 
 /// `POST /api/v1/a2h/callback`
 ///
@@ -44,15 +38,15 @@ const DELIVERY_HEADER: &str = "x-a2h-delivery-id";
 /// shape of the response must not tell an unsigned caller whether a given
 /// interaction exists.
 pub async fn callback(State(st): State<AppState>, headers: HeaderMap, body: String) -> Response {
+    if body.len() > 65536 {
+        return refused();
+    }
     let Some(signature) = header(&headers, SIGNATURE_HEADER) else {
         return refused();
     };
-    let attempt = header(&headers, DELIVERY_HEADER).unwrap_or_default();
     let Ok(response) = serde_json::from_str::<A2hResponse>(&body) else {
         return refused();
     };
-    // The message id we minted is the delivery-ledger row id, so the reply
-    // names the row it answers and we do not need a second lookup table.
     let Ok(Some(delivery)) = st.db.get_security_delivery(&response.responds_to).await else {
         return refused();
     };
@@ -66,56 +60,63 @@ pub async fn callback(State(st): State<AppState>, headers: HeaderMap, body: Stri
     let Ok(secret) = crate::security::delivery::open_hook_secret(&st, &hook) else {
         return refused();
     };
-
     let expected = ExpectedReply {
         message_id: &delivery.id,
-        // A delivered row has already had its reply applied; the transport is
-        // at-least-once, so a redelivery is expected rather than suspicious.
-        already_applied: delivery.state == "delivered",
+        already_applied: false, // Outbound delivery status says nothing about a reply.
         now_unix: Utc::now().timestamp(),
     };
-    if let Err(error) = verify_callback(&secret, &signature, &body, &response, &expected) {
-        return match error {
-            // Idempotency is a success from the gateway's point of view: it did
-            // its job, and repeating the retry forever helps nobody.
-            VerifyError::Duplicate => accepted("already applied"),
-            _ => refused(),
-        };
+    if verify_callback(&secret, &signature, &body, &response, &expected).is_err() {
+        return refused();
     }
-
-    let Some(decision) = response.decision else {
-        return accepted("acknowledged");
-    };
-    let Ok(authority) = authority_for(delivery_intent(&delivery), decision) else {
-        return accepted("no decision to apply");
-    };
-
-    match authority {
-        ResponseAuthority::Acknowledge => {
-            tracing::info!(
-                delivery_id = %delivery.id,
-                attempt,
-                origin = %delivery.subject_id,
-                "a2h reply acknowledged; the run keeps waiting for a real attach",
-            );
-        }
+    let event =
+        serde_json::from_str::<opensesame_security_events::SecurityNotice>(&delivery.payload_json)
+            .ok()
+            .and_then(|notice| opensesame_agent_events::AgentEvent::from_payload(&notice.payload));
+    let authority = response
+        .decision
+        .and_then(|decision| authority_for(delivery_intent(&delivery), decision).ok())
+        .unwrap_or(ResponseAuthority::Acknowledge);
+    let decision = match authority {
+        ResponseAuthority::Acknowledge => ReplyDecision::Acknowledge,
         ResponseAuthority::Cancel => {
-            tracing::info!(
-                delivery_id = %delivery.id,
-                attempt,
-                origin = %delivery.subject_id,
-                "a2h reply cancelled the run",
-            );
+            let Some(event) = &event else {
+                return refused();
+            };
+            if event.run.organization_id != delivery.organization_id {
+                return refused();
+            }
+            ReplyDecision::Cancel {
+                run_id: &event.run.run_id,
+                owner: &event.run.owner_principal_id,
+                valid_until: event.responds_by.map_or(0, |deadline| deadline.timestamp()),
+            }
         }
-    }
-    if let Err(error) = st
+    };
+    let digest = opensesame_claims::hash_secret(&body);
+    match st
         .db
-        .mark_security_delivered(&delivery.id, Utc::now())
+        .apply_a2h_reply(
+            &delivery.id,
+            &delivery.organization_id,
+            &digest,
+            decision,
+            &Utc::now().to_rfc3339(),
+        )
         .await
     {
-        tracing::warn!(%error, delivery_id = %delivery.id, "a2h reply applied but not recorded");
+        Ok(ReplyOutcome::Applied) => accepted("applied"),
+        Ok(ReplyOutcome::Duplicate) => accepted("already_applied"),
+        Ok(ReplyOutcome::DeadLetter) => accepted("dead_letter"),
+        Ok(ReplyOutcome::Conflict) => {
+            tracing::warn!(delivery_id = %delivery.id, "a2h reply digest conflict");
+            refused()
+        }
+        Err(_) => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"reply_retry_required"})),
+        )
+            .into_response(),
     }
-    accepted("applied")
 }
 
 /// Which intent this delivery carried, so the reply is judged against what was
@@ -140,9 +141,13 @@ fn delivery_intent(
 }
 
 fn header(headers: &HeaderMap, name: &str) -> Option<String> {
+    if headers.get_all(name).iter().count() != 1 {
+        return None;
+    }
     headers
         .get(name)
         .and_then(|value| value.to_str().ok())
+        .filter(|value| value.len() <= 256)
         .map(str::to_string)
 }
 

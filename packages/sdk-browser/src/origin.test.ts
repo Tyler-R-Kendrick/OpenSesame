@@ -1,5 +1,5 @@
-import { canonicalizeOrigin } from "@opensesame/oauth-provider/origin/canonical";
-import { describe, expect, it } from "vitest";
+import { canonicalizeOrigin } from "@opensesame/os-domain";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BrowserOriginError,
   OriginError,
@@ -11,6 +11,8 @@ import {
 
 const PROD = { production: true } as const;
 const DEV_LOOPBACK = { allowLoopbackHttp: true, production: false } as const;
+
+afterEach(() => vi.unstubAllEnvs());
 
 /**
  * Symmetric with `packages/oauth-provider/src/__tests__/canonical.test.ts`
@@ -71,6 +73,12 @@ describe("canonicalizeOrigin symmetry", () => {
 });
 
 describe("canonicalizeBrowserOrigin", () => {
+  it("uses explicit browser policy independently of a build process environment", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(canonicalizeBrowserOrigin("http://localhost:4101")).toBe(
+      "http://localhost:4101",
+    );
+  });
   it("normalizes https origins", () => {
     expect(canonicalizeBrowserOrigin("https://Example.com:443/")).toBe(
       "https://example.com",

@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConnectivityBar } from "../../components/ConnectivityBar.js";
+import { browserPairingSeams } from "../browser-pairing.js";
 import { defaultCapabilityConnectors } from "../capabilities.js";
 import {
   DEGRADED_MS,
@@ -12,7 +13,12 @@ import {
   resetConnectivityMonitorForTests,
 } from "../connectivity-monitor.js";
 import { clearHostSession, clearSession } from "../identity.js";
+import { localNetworkFetchSeams } from "../local-network-fetch.js";
 import { saveSettings } from "../settings.js";
+import { loopbackProfileEligible } from "./loopback-profile.js";
+
+const originalEligibility = localNetworkFetchSeams.eligible;
+const originalBrowserEligibility = browserPairingSeams.eligible;
 
 /**
  * Chaos: break the network underneath a running bar and watch it converge.
@@ -63,8 +69,6 @@ function bodyFor(target: "host" | "identity" | "daemon") {
   if (target === "daemon") {
     return {
       status: "ok",
-      service: "opensesame-daemon",
-      tailscale_url: null,
     };
   }
   return { status: "ok" };
@@ -89,7 +93,9 @@ function chaosFetch(input: RequestInfo | URL, init?: RequestInit) {
       return Promise.resolve(Response.json({}, { status: 503 }));
     case "impostor":
       // Something is listening on the port; it is not us.
-      return Promise.resolve(Response.json({ status: "ok", service: "nginx" }));
+      return Promise.resolve(
+        Response.json({ status: "ready", service: "nginx" }),
+      );
     case "timeout":
       // Never settles. `localNetworkFetch`'s abort timer is what ends it, so
       // advancing fake timers produces a real TimeoutError.
@@ -162,6 +168,9 @@ function renderBar() {
 }
 
 beforeEach(() => {
+  // Exercise actual local-origin policy, without granting an authenticated session.
+  localNetworkFetchSeams.eligible = loopbackProfileEligible;
+  browserPairingSeams.eligible = loopbackProfileEligible;
   vi.useFakeTimers();
   net.host = "up";
   net.identity = "up";
@@ -187,6 +196,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  localNetworkFetchSeams.eligible = originalEligibility;
+  browserPairingSeams.eligible = originalBrowserEligibility;
   cleanup();
   resetConnectivityMonitorForTests();
   vi.useRealTimers();

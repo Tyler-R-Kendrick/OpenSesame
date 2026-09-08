@@ -279,12 +279,18 @@ describe("api-client", () => {
       baseUrl: "https://host.test:8787",
       fetchImpl: async (_input, init) => {
         body = String(init?.body ?? "");
-        return new Response("{}", { status: 200 });
+        return Response.json({
+          format: "opensesame-sync-page",
+          version: 2,
+          blobs: [],
+          next_after: null,
+          has_more: false,
+        });
       },
     });
     await client.syncPull({ deviceId: "dev-a", epoch: 3 });
     expect(body).toContain("dev-a");
-    expect(body).toContain('"since_epoch":3');
+    expect(body).toContain('"after":{"epoch":4,"id":""}');
   });
 });
 

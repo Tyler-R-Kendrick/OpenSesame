@@ -398,7 +398,7 @@ export async function mintProvisionalForInteraction(
 ): Promise<ProvisionalInteractionCredentials> {
   const now = ctx.clock();
 
-  if (ctx.stores.provisionalSessions.size >= MAX_PROVISIONAL) {
+  if ((await ctx.stores.provisionalSessions.size) >= MAX_PROVISIONAL) {
     throw new ProvisionalMintRefusedError("provisional_capacity");
   }
   if (
@@ -457,8 +457,7 @@ export async function mintProvisionalForInteraction(
   }
 
   const accessToken = `pst_${randomBytes(24).toString("base64url")}`;
-  ctx.stores.provisionalSessions.set(provisionalSession.id, provisionalSession);
-  ctx.stores.provisionalTokens.set(accessToken, provisionalSession.id);
+  await saveProvisional(ctx.stores, provisionalSession, accessToken);
 
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "principal.provisional_created",
@@ -605,3 +604,4 @@ export async function finishConsentAllow(
     { mergeWithLastSubmission: true },
   );
 }
+import { saveProvisional } from "../repos/session-storage.js";

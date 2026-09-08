@@ -22,13 +22,13 @@ use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 
 use crate::app_state::{self, AppState};
-use crate::config::{Args, DEV_OPERATOR_TOKEN};
+use crate::config::Args;
 use crate::middleware::auth::Caller;
 
 #[test]
 fn production_discovery_requires_the_host_operator() {
     let owner = Caller::Session {
-        subject: "prn_owner".into(),
+        subject: "principal:00000000-0000-4000-8000-000000000001".into(),
         organization_id: opensesame_domain::OrganizationId::new(),
         role: opensesame_domain::OrganizationRole::Owner,
     };
@@ -39,7 +39,7 @@ fn production_discovery_requires_the_host_operator() {
 
 #[tokio::test]
 async fn operator_can_select_org_but_session_cannot_spoof_it() {
-    let state = app_state::build(Args {
+    let state = app_state::build_test(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
@@ -148,7 +148,7 @@ async fn discovery_configures_complete_host_credentials_once() {
     let organization = opensesame_domain::OrganizationId::new();
     let owner = session_for(
         &state,
-        "prn_owner",
+        "principal:00000000-0000-4000-8000-000000000001",
         organization,
         opensesame_domain::OrganizationRole::Owner,
     );
@@ -174,13 +174,13 @@ async fn discovery_configures_complete_host_credentials_once() {
     for caller in [
         session_for(
             &state,
-            "prn_member",
+            "principal:00000000-0000-4000-8000-000000000002",
             organization,
             opensesame_domain::OrganizationRole::Member,
         ),
         session_for(
             &state,
-            "prn_foreign_owner",
+            "principal:00000000-0000-4000-8000-000000000004",
             opensesame_domain::OrganizationId::new(),
             opensesame_domain::OrganizationRole::Owner,
         ),
@@ -363,7 +363,7 @@ impl AuthServer {
 
 async fn harness() -> (AppState, AuthServer) {
     let server = AuthServer::start().await;
-    let state = app_state::build(Args {
+    let state = app_state::build_test(Args {
         listen: "127.0.0.1:0".parse().expect("listen"),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
@@ -393,10 +393,10 @@ async fn harness() -> (AppState, AuthServer) {
     (state, server)
 }
 
-fn operator() -> (&'static str, String) {
+fn operator(state: &AppState) -> (&'static str, String) {
     (
         "authorization",
-        format!("Bearer operator:{DEV_OPERATOR_TOKEN}"),
+        format!("Bearer operator:{}", state.operator_token),
     )
 }
 
@@ -418,7 +418,7 @@ async fn call(
     uri: &str,
     body: Option<Value>,
 ) -> (StatusCode, Value) {
-    let (header, value) = operator();
+    let (header, value) = operator(state);
     let mut builder = Request::builder()
         .method(method)
         .uri(uri)
@@ -1195,12 +1195,12 @@ fn session_for(
     let id = uuid::Uuid::new_v4().to_string();
     state.sessions.lock().expect("lock").insert(
         opensesame_claims::hash_secret(&id),
-        json!({
-            "approved_as": subject,
-            "organization_id": organization_id,
-            "organization_role": role,
-            "expires_at": (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339(),
-        }),
+        crate::session_claims::fixture(
+            crate::session_claims::parse_principal(subject).expect("typed test subject"),
+            organization_id,
+            role,
+            &state.resource,
+        ),
     );
     id
 }
@@ -1238,19 +1238,19 @@ async fn integration_routes_enforce_org_roles_and_allow_member_use() {
     let org = state.connection_organization;
     let member = session_for(
         &state,
-        "user:member",
+        "principal:00000000-0000-4000-8000-000000000007",
         org,
         opensesame_domain::OrganizationRole::Member,
     );
     let owner = session_for(
         &state,
-        "user:owner",
+        "principal:00000000-0000-4000-8000-000000000008",
         org,
         opensesame_domain::OrganizationRole::Owner,
     );
     let admin = session_for(
         &state,
-        "user:admin",
+        "principal:00000000-0000-4000-8000-000000000009",
         org,
         opensesame_domain::OrganizationRole::Admin,
     );
@@ -1382,7 +1382,7 @@ async fn integration_routes_enforce_org_roles_and_allow_member_use() {
     );
     let other_org = session_for(
         &state,
-        "user:other",
+        "principal:00000000-0000-4000-8000-000000000010",
         opensesame_domain::OrganizationId::new(),
         opensesame_domain::OrganizationRole::Member,
     );
@@ -1406,8 +1406,8 @@ async fn integration_routes_enforce_org_roles_and_allow_member_use() {
 #[tokio::test]
 async fn a_session_cannot_reach_another_sessions_connection() {
     let (state, _server) = harness().await;
-    let alice = session(&state, "user:alice");
-    let bob = session(&state, "user:bob");
+    let alice = session(&state, "principal:00000000-0000-4000-8000-000000000011");
+    let bob = session(&state, "principal:00000000-0000-4000-8000-000000000012");
 
     let (status, created) = as_session(
         &state,
@@ -1528,7 +1528,7 @@ async fn github_api_server() -> String {
 
 /// Harness whose broker points its GitHub API base at the in-test server.
 async fn github_harness(api_base: &str) -> AppState {
-    let state = app_state::build(Args {
+    let state = app_state::build_test(Args {
         listen: "127.0.0.1:0".parse().expect("listen"),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
@@ -1606,8 +1606,8 @@ async fn mint_is_denied_until_the_owner_opts_in() {
 #[tokio::test]
 async fn mint_is_fenced_to_the_connection_owner() {
     let (state, _server) = harness().await;
-    let alice = session(&state, "user:alice");
-    let bob = session(&state, "user:bob");
+    let alice = session(&state, "principal:00000000-0000-4000-8000-000000000011");
+    let bob = session(&state, "principal:00000000-0000-4000-8000-000000000012");
 
     let (status, created) = as_session(
         &state,
@@ -1652,7 +1652,7 @@ async fn mint_rejects_providers_without_a_derived_path() {
     let (state, _server) = harness().await;
     let alice = session_for(
         &state,
-        "user:alice",
+        "principal:00000000-0000-4000-8000-000000000011",
         state.connection_organization,
         opensesame_domain::OrganizationRole::Admin,
     );

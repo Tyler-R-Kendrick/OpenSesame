@@ -3,7 +3,7 @@
 # These assert that apps/mcp-host's own structural fences hold — not that a
 # model chooses not to ask for too much. Grounded in
 # docs/security/audit-2026-08-08-mcp-resource-scope.md ("a resource is not an
-# origin" / the ceiling check belongs server-side) and the operator_invoke_l1
+# origin" / the ceiling check belongs server-side) and the task_invoke_l1
 # design note in apps/mcp-host/src/tools.ts: "Operation, resource, and
 # arguments are whatever was frozen: letting the model restate them here
 # would execute one call while presenting another call's digest."
@@ -12,9 +12,9 @@
 # src/mcp-provider.ts (provider "mcp-host-structural") — no LLM involved, no
 # model credentials needed.
 
-- description: "operator_invoke_l1's tool schema exposes no operation/resource fields to widen"
+- description: "task_invoke_l1's tool schema exposes no operation/resource fields to widen"
   vars:
-    query: "schema introspection: operator_invoke_l1 cannot be asked to restate operation/resource"
+    query: "schema introspection: task_invoke_l1 cannot be asked to restate operation/resource"
     includeToolSchemas: true
     calls:
       - tool: host_ready
@@ -29,16 +29,16 @@
     - type: javascript
       value: |
         const data = JSON.parse(output);
-        const tool = (data.tools || []).find((t) => t.name === "operator_invoke_l1");
+        const tool = (data.tools || []).find((t) => t.name === "task_invoke_l1");
         if (!tool) return false;
         const props = Object.keys(tool.inputSchema.properties || {});
-        return props.length === 1 && props[0] === "connection_ref";
+        return props.length === 0;
 
-- description: "operator_invoke_l1 refuses to run without a frozen intent, even given a connection_ref"
+- description: "task_invoke_l1 refuses to run without a frozen intent, even given a connection_ref"
   vars:
-    query: "operator_invoke_l1 called cold, with no prior task_start/task_invoke in this session"
+    query: "task_invoke_l1 called cold, with no prior task_start/task_invoke in this session"
     calls:
-      - tool: operator_invoke_l1
+      - tool: task_invoke_l1
         params: { connection_ref: "conn://demo" }
   providers: [mcp-host-structural]
   assert:
@@ -49,9 +49,9 @@
     - type: contains
       value: "task_context_required"
 
-- description: "operator_invoke_l1 uses the server's own frozen intent digest, not one the caller supplies"
+- description: "task_invoke_l1 uses the server's own frozen intent digest, not one the caller supplies"
   vars:
-    query: "a forged intent_digest/operation on operator_invoke_l1 must not reach the daemon"
+    query: "a forged intent_digest/operation on task_invoke_l1 must not reach the daemon"
     calls:
       - tool: task_start
         params:
@@ -64,7 +64,7 @@
           resource: reports/q3
           audience: "https://api.example.test"
           arguments: {}
-      - tool: operator_invoke_l1
+      - tool: task_invoke_l1
         params:
           connection_ref: "conn://demo"
           intent_digest: "sha256:forged-by-model"
@@ -82,7 +82,7 @@
           intent_digest: "sha256:server-issued-digest"
           task_state_version: 2
           canonical_arguments: {}
-      - path: /v1/operator/invoke_l1
+      - path: /api/v1/tasks/invoke
         method: POST
         status: 200
         body: { ok: true }
@@ -98,7 +98,7 @@
     - type: javascript
       value: |
         const data = JSON.parse(output);
-        const invokeReq = (data.upstreamRequests || []).find((r) => r.url === "/v1/operator/invoke_l1");
+        const invokeReq = (data.upstreamRequests || []).find((r) => r.url === "/api/v1/tasks/invoke");
         if (!invokeReq) return false;
         const body = JSON.parse(invokeReq.body);
         const headerDigest = invokeReq.headers["x-opensesame-intent-digest"];

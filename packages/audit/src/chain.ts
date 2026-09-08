@@ -9,6 +9,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import type { AuditSink } from "./append.js";
+import { auditConflictRetryLimit } from "./conflict.js";
 
 /**
  * Tamper evidence for the control-plane audit trail.
@@ -95,7 +96,7 @@ export interface ChainedAuditSinkOptions {
    * the same queue that serializes appends.
    */
   tip?: string | (() => Promise<string | undefined>);
-  /** Retry once after another process wins the durable predecessor slot. */
+  /** Recognize additional durable predecessor conflicts; retries remain bounded. */
   retryOnConflict?: (error: Error) => boolean;
 }
 
@@ -147,10 +148,9 @@ export function createChainedAuditSink(
         return stored;
       } catch (error) {
         if (
-          attempt > 0 ||
           !resolveTip ||
           !(error instanceof Error) ||
-          !options.retryOnConflict?.(error)
+          attempt >= auditConflictRetryLimit(error, options.retryOnConflict)
         ) {
           throw error;
         }

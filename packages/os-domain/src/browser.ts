@@ -3,6 +3,7 @@
  * (`index.ts`) so Pages/PWA/extension never pull `node:crypto`.
  */
 export * from "./json.js";
+export * from "./canonical-origin.js";
 export * from "./types.js";
 export * from "./errors.js";
 export * from "./endpoint-display.js";

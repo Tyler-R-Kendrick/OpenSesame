@@ -25,6 +25,7 @@ use std::{
 };
 use uuid::Uuid;
 
+mod agent_capability;
 mod cli_probe;
 mod discovery;
 mod invoke_through;
@@ -34,10 +35,12 @@ mod peer_auth;
 mod promote;
 mod ratelimit;
 mod runner;
+mod startup;
 #[cfg(all(unix, feature = "tailscale"))]
 mod tailnet;
 mod tailscale;
 mod token_source;
+use startup::{build_state, secured_router};
 
 use peer_auth::UdsConnectInfo;
 use ratelimit::RateKey;
@@ -49,8 +52,6 @@ const MAX_DISCOVER_RESPONSE_BYTES: usize = 256 * 1024;
 /// How a request reached an operator route: over the Unix socket axum inserts
 /// `ConnectInfo<UdsConnectInfo>`; over TCP the extension is absent.
 type UdsPeer = Option<Extension<ConnectInfo<UdsConnectInfo>>>;
-
-const DEV_OPERATOR_TOKEN: &str = "opensesame-dev-operator";
 
 #[derive(Parser)]
 #[command(name = "opensesame-daemon", about = "OpenSesame host daemon")]
@@ -171,61 +172,20 @@ struct ApproveClaimReq {
     user_code: Option<String>,
 }
 
-fn resolve_operator_token() -> String {
-    match env::var("OPENSESAME_OPERATOR_TOKEN") {
-        Ok(t) if !t.is_empty() => t,
-        _ => {
-            let prod = env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
-                || env::var("NODE_ENV").ok().as_deref() == Some("production");
-            if prod {
-                tracing::error!(
-                    "OPENSESAME_OPERATOR_TOKEN unset in production — mutating routes will deny"
-                );
-                String::new()
-            } else {
-                tracing::warn!(
-                    "OPENSESAME_OPERATOR_TOKEN unset; using {DEV_OPERATOR_TOKEN} (dev only)"
-                );
-                DEV_OPERATOR_TOKEN.into()
-            }
-        }
-    }
-}
-
 /// Authorize an operator-route call.
 ///
 /// Over the Unix socket (`uds_peer` present — axum inserted the connect info)
-/// the kernel-attested peer UID is the credential and the bearer token is
-/// neither required nor accepted: identity from the platform, not from a
-/// presented secret (ADR 0048 §8). An unattested peer fails closed. Over TCP
-/// (`uds_peer` absent) the operator bearer token remains the break-glass path.
+/// the kernel-attested peer UID is an additional transport restriction, never
+/// operator authority. UDS and TCP operator routes require explicit operator
+/// credentials. Agents use a separate single-use launch exchange.
 #[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 fn require_operator(st: &App, headers: &HeaderMap, uds_peer: &UdsPeer) -> Result<(), Response> {
     use opensesame_host_core::operator::{check, OperatorDenial};
-    if let Some(Extension(ConnectInfo(info))) = uds_peer {
-        return match info.0 {
-            Some(cred) => match opensesame_uds_authn::authorize(&cred, &st.allowed_uids) {
-                Ok(()) => Ok(()),
-                Err(error) => Err((
-                    StatusCode::UNAUTHORIZED,
-                    Json(json!({
-                        "error": "uds_peer_unauthorized",
-                        "detail": error.to_string(),
-                        "hint": "the Unix socket authenticates by peer uid \
-                                 (OPENSESAME_DAEMON_ALLOWED_UIDS); \
-                                 the operator token is TCP-only"
-                    })),
-                )
-                    .into_response()),
-            },
-            // The kernel could not attest this caller; deny rather than fall
-            // back to a token path that was never meant for the socket.
-            None => Err((
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(json!({"error": "uds_peer_unattested"})),
-            )
-                .into_response()),
-        };
+    if headers.contains_key(header::ORIGIN) {
+        return Err(StatusCode::UNAUTHORIZED.into_response());
+    }
+    if uds_peer.is_some() {
+        agent_capability::require_peer(st, headers, uds_peer)?;
     }
     match check(&st.operator_token, headers) {
         Ok(()) => Ok(()),
@@ -347,6 +307,8 @@ async fn main() -> anyhow::Result<()> {
         .clone()
         .or_else(|| env::var("OPENSESAME_AGENT_SOCK").ok());
 
+    let mut args = args;
+    args.listen.clone_from(&listen);
     let (state, hsts) = build_state(&args)?;
     let app = secured_router(state.clone(), hsts)?;
 
@@ -408,18 +370,11 @@ async fn main() -> anyhow::Result<()> {
 
     // When Windows cannot reach WSL via 127.0.0.1, Serve targets the eth IP —
     // bind that address so the proxy has somewhere to dial.
-    spawn_wsl_bridge(&listen, &app).await;
-
-    let serve_listen = listen.clone();
-    tokio::task::spawn_blocking(move || match tailscale::enable_serve(&serve_listen) {
-        Ok(info) => tracing::info!(
-            dns = ?info.dns_name,
-            url = ?info.https_url,
-            cli = ?info.cli_path,
-            "tailscale serve passthrough enabled"
-        ),
-        Err(error) => tracing::warn!(%error, "tailscale serve not enabled"),
-    });
+    if env::var("OPENSESAME_DAEMON_NETWORK_BRIDGE").ok().as_deref() == Some("1") {
+        spawn_wsl_bridge(&listen, &app).await;
+        let serve_listen = listen.clone();
+        tokio::task::spawn_blocking(move || startup::enable_network_bridge(&serve_listen));
+    }
 
     // Read-only tailnet listener (ADR 0048 §8, D9): whois identity, no bearer.
     #[cfg(all(unix, feature = "tailscale"))]
@@ -427,55 +382,6 @@ async fn main() -> anyhow::Result<()> {
 
     tcp_handle.await?;
     Ok(())
-}
-
-fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
-    let mut sessions = HashMap::new();
-    sessions.insert(
-        "host-demo".into(),
-        HostSession {
-            id: "host-demo".into(),
-            principal: "user:demo".into(),
-            _refresh_sealed: true,
-        },
-    );
-    let host_api = args.host_api.trim_end_matches('/').to_string();
-    let hsts = host_api.starts_with("https://");
-    let http = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .connect_timeout(std::time::Duration::from_secs(2))
-        .build()?;
-    Ok((
-        App {
-            sessions: Arc::new(Mutex::new(sessions)),
-            capabilities: Arc::new(Mutex::new(HashMap::new())),
-            host_api,
-            identity_api: args.identity_api.trim_end_matches('/').to_string(),
-            http,
-            operator_token: resolve_operator_token(),
-            allowed_uids: peer_auth::allowed_uids(args.allowed_uids.as_deref()),
-            discover_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            invoke_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            mint_limiter: Arc::new(ratelimit::TokenBucket::new(4.0, 1.0)),
-            invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
-            token_source_factory: cli_token_source_factory(),
-        },
-        hsts,
-    ))
-}
-
-fn secured_router(state: App, hsts: bool) -> anyhow::Result<Router> {
-    let cors_origins = opensesame_host_core::http_security::cors_origins_from_env();
-    let is_production = std::env::var("OPENSESAME_ENV").ok().as_deref() == Some("production")
-        || std::env::var("NODE_ENV").ok().as_deref() == Some("production");
-    opensesame_host_core::http_security::assert_cors_origins_allowed(&cors_origins, is_production)
-        .map_err(anyhow::Error::msg)?;
-    Ok(opensesame_host_core::http_security::apply_http_security(
-        router(state),
-        &cors_origins,
-        hsts,
-    ))
 }
 
 #[cfg(unix)]
@@ -572,18 +478,7 @@ async fn spawn_tailnet(listen: &str, state: &App) {
 }
 
 async fn daemon_health() -> Json<Value> {
-    // Unauthenticated liveness. The public Serve URL is the pairing address;
-    // node IPs, DNS, CLI path, and admin enable URLs stay on /v1/toolbar/status.
-    let ts = tailscale::info();
-    let tailscale_url = ts.https_url.as_deref().and_then(|url| {
-        let trimmed = url.trim_end_matches('/');
-        (!trimmed.is_empty()).then_some(trimmed)
-    });
-    Json(json!({
-        "status": "ok",
-        "service": "opensesame-daemon",
-        "tailscale_url": tailscale_url,
-    }))
+    Json(json!({"status":"ok"}))
 }
 
 fn pairing_view(st: &App) -> Value {
@@ -640,6 +535,9 @@ fn is_local_session_path(path: &str) -> bool {
 }
 
 async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Response {
+    if !opensesame_host_core::daemon::base_url_is_local(base) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
     let path = req.uri().path();
     let rest = path.strip_prefix(prefix).unwrap_or(path);
     if prefix == "/host" && is_local_session_path(rest) {
@@ -664,7 +562,7 @@ async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Res
         &url,
     );
     for (name, value) in &headers {
-        if skip_hop_header(name) {
+        if skip_hop_header(name) || name == "x-opensesame-operator" {
             continue;
         }
         if let (Ok(n), Ok(v)) = (
@@ -715,7 +613,12 @@ async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Res
 fn router(state: App) -> Router {
     Router::new()
         .route("/health", get(daemon_health))
+        .route("/health/live", get(daemon_health))
         .route("/v1/list_sessions", post(list_sessions))
+        .route(
+            "/v1/agent-capabilities/token",
+            post(agent_capability::exchange).layer(DefaultBodyLimit::max(2048)),
+        )
         .route("/v1/get_access_token", post(get_access_token))
         .route("/v1/mint_capability", post(mint_capability))
         .route("/v1/introspect_capability", post(introspect_capability))
@@ -815,6 +718,13 @@ async fn approve_device(
     if let Err(resp) = require_operator(&st, &headers, &uds) {
         return resp;
     }
+    if req.principal.as_deref().is_none_or(str::is_empty) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "principal_required"})),
+        )
+            .into_response();
+    }
     let url = format!("{}/api/v1/device/approve", st.host_api);
     let forward = match operator_forward(&st, &url) {
         Ok(f) => f,
@@ -823,7 +733,7 @@ async fn approve_device(
     match forward
         .json(&json!({
             "user_code": req.user_code,
-            "principal": req.principal.unwrap_or_else(|| "user:demo".into()),
+            "principal": req.principal,
         }))
         .send()
         .await
@@ -1096,8 +1006,51 @@ async fn revoke(
 }
 
 #[cfg(test)]
+fn test_operator_token() -> &'static str {
+    static TOKEN: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
+    });
+    &TOKEN
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn browser_and_retired_token_requests_cannot_reach_operator_routes() {
+        use axum::{body::Body, http::Request};
+        use tower::ServiceExt;
+        for (origin, token) in [
+            (
+                Some("https://tyler-r-kendrick.github.io"),
+                test_operator_token(),
+            ),
+            (Some("http://localhost:5180"), test_operator_token()),
+            (None, "opensesame-dev-operator"),
+        ] {
+            let (app, _) = test_app("http://127.0.0.1:8787");
+            let mut request = Request::builder()
+                .uri("/v1/toolbar/status")
+                .header("x-opensesame-operator", token);
+            request = origin_request(request, origin);
+            let response = app
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
+    }
+
+    fn origin_request(
+        request: axum::http::request::Builder,
+        origin: Option<&str>,
+    ) -> axum::http::request::Builder {
+        match origin {
+            Some(origin) => request.header(header::ORIGIN, origin),
+            None => request,
+        }
+    }
 
     #[test]
     fn hop_headers_include_forwarding_spoof_set() {
@@ -1156,7 +1109,7 @@ mod tests {
             host_api: host_api.to_string(),
             identity_api: "http://127.0.0.1:1".into(),
             http,
-            operator_token: DEV_OPERATOR_TOKEN.into(),
+            operator_token: test_operator_token().into(),
             allowed_uids: opensesame_uds_authn::default_allowed_uids(),
             discover_limiter: Arc::new(ratelimit::TokenBucket::default()),
             promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
@@ -1325,19 +1278,14 @@ mod tests {
         let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(json["status"], "ok");
         let text = json.to_string();
-        assert!(!text.contains(DEV_OPERATOR_TOKEN));
+        assert!(!text.contains(test_operator_token()));
         assert!(!text.contains("access_token"));
 
-        // Contract with apps/pages: `probeDaemon` parses exactly these keys,
-        // and pairing writes settings from what it finds. Widening /health
-        // here without widening that parser is how the browser ended up
-        // asserting upstream ports the daemon never stated — see
-        // apps/pages/src/lib/__tests__/daemon-health.contract.test.ts.
+        // Public liveness does not disclose deployment or machine configuration.
         let obj = json.as_object().expect("health is an object");
         let mut keys: Vec<&str> = obj.keys().map(String::as_str).collect();
         keys.sort_unstable();
-        assert_eq!(keys, ["service", "status", "tailscale_url"]);
-        assert_eq!(json["service"], "opensesame-daemon");
+        assert_eq!(keys, ["status"]);
         // Upstream planes stay on the operator-token-gated toolbar status.
         assert!(obj.get("host_api").is_none());
         assert!(obj.get("identity_api").is_none());
@@ -1372,7 +1320,7 @@ mod tests {
         use axum::http::Request;
         let mut builder = Request::builder().method("POST").uri(uri);
         if with_token {
-            builder = builder.header("x-opensesame-operator", DEV_OPERATOR_TOKEN);
+            builder = builder.header("x-opensesame-operator", test_operator_token());
         }
         let mut req = builder.body(Body::empty()).unwrap();
         let cred = uid.map(|uid| opensesame_uds_authn::PeerCred {
@@ -1387,7 +1335,7 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn uds_same_uid_authorizes_without_a_token() {
+    async fn uds_same_uid_cannot_obtain_operator_authority_without_a_token() {
         use tower::ServiceExt;
 
         let (app, st) = test_app("http://127.0.0.1:8787");
@@ -1396,7 +1344,7 @@ mod tests {
             .oneshot(uds_peer_request(Some(own), "/v1/list_sessions", false))
             .await
             .unwrap();
-        assert_eq!(res.status(), StatusCode::OK);
+        assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
     }
 
     #[cfg(unix)]
@@ -1439,7 +1387,7 @@ mod tests {
         let request = Request::builder()
             .method("POST")
             .uri("/v1/list_sessions")
-            .header("x-opensesame-operator", DEV_OPERATOR_TOKEN)
+            .header("x-opensesame-operator", test_operator_token())
             .body(Body::empty())
             .unwrap();
         let res = app.oneshot(request).await.unwrap();
@@ -1457,7 +1405,7 @@ mod tests {
             Request::builder()
                 .method("POST")
                 .uri("/v1/discover")
-                .header("x-opensesame-operator", DEV_OPERATOR_TOKEN)
+                .header("x-opensesame-operator", test_operator_token())
                 .body(Body::empty())
                 .unwrap()
         };
@@ -1494,7 +1442,7 @@ mod tests {
             .method("POST")
             .uri("/v1/promote")
             .header("content-type", "application/json")
-            .header("x-opensesame-operator", DEV_OPERATOR_TOKEN)
+            .header("x-opensesame-operator", test_operator_token())
             .body(Body::from(
                 r#"{"provider_id":"github","source":{"kind":"env_var","name":"GITHUB_TOKEN"},"mode":"import","confirm":false}"#,
             ))
@@ -1549,6 +1497,7 @@ mod tests {
             let mut req = Request::builder()
                 .method("POST")
                 .uri("/v1/promote")
+                .header("x-opensesame-operator", test_operator_token())
                 .header("content-type", "application/json")
                 .body(Body::from(body))
                 .unwrap();
@@ -1656,11 +1605,7 @@ mod tests {
             assert_eq!(res.status(), StatusCode::UNAUTHORIZED);
             let bytes = to_bytes(res.into_body(), 4096).await.unwrap();
             let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-            // The detail names the peer's uid — machine-specific, so redact
-            // it; the class and hint are the stable contract.
-            insta::assert_json_snapshot!(body, {
-                ".detail" => "[uid detail]",
-            });
+            assert_eq!(body, json!({"error":"uds_peer_unauthorized"}));
         }
 
         #[cfg(unix)]

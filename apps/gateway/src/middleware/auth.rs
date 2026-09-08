@@ -1,12 +1,15 @@
 use crate::app_state::AppState;
-use crate::config;
+use crate::session_claims::HostSessionClaims;
 use axum::{
     http::{header, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
-use serde_json::{json, Value};
+use serde_json::json;
+#[cfg(test)]
+use serde_json::Value;
 
+#[cfg(test)]
 fn session_organization(
     meta: &Value,
 ) -> Option<(
@@ -24,7 +27,7 @@ fn session_organization(
 pub fn require_session(
     st: &AppState,
     headers: &axum::http::HeaderMap,
-) -> Result<(String, Value), Response> {
+) -> Result<(String, HostSessionClaims), Response> {
     let auth = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
@@ -32,6 +35,7 @@ pub fn require_session(
     let Some(token) = auth
         .strip_prefix("Bearer ")
         .or_else(|| auth.strip_prefix("bearer "))
+        .or_else(|| auth.strip_prefix("DPoP "))
     else {
         return Err((
             StatusCode::UNAUTHORIZED,
@@ -39,7 +43,10 @@ pub fn require_session(
         )
             .into_response());
     };
-    let Some(session_id) = token.strip_prefix("opaque-session:") else {
+    let Some(session_id) = token
+        .strip_prefix("opaque-session:")
+        .or_else(|| token.strip_prefix("agent-capability:"))
+    else {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({"error":"unauthorized","hint":"expected opaque-session token"})),
@@ -57,21 +64,23 @@ pub fn require_session(
         )
             .into_response());
     };
-    let expired = meta
-        .get("expires_at")
-        .and_then(|v| v.as_str())
-        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
-        .is_none_or(|dt| chrono::Utc::now() >= dt.with_timezone(&chrono::Utc));
-    if expired {
+    if !meta.valid_for(&st.resource, chrono::Utc::now()) {
         sessions.remove(&session_digest);
         return Err((
             StatusCode::UNAUTHORIZED,
-            Json(json!({"error":"session_expired"})),
+            Json(json!({"error":"invalid_session_claims"})),
         )
             .into_response());
     }
-    if session_organization(&meta).is_none() {
-        sessions.remove(&session_digest);
+    let origin = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok());
+    let bound = meta.dpop_jkt.is_some();
+    let agent = meta.credential_kind == crate::session_claims::CredentialKind::AgentCapability;
+    if agent != token.starts_with("agent-capability:")
+        || (agent && headers.contains_key("dpop"))
+        || bound != auth.starts_with("DPoP ")
+        || (bound && (origin != meta.origin.as_deref() || !headers.contains_key("dpop")))
+        || (!bound && headers.contains_key(header::ORIGIN))
+    {
         return Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({"error":"invalid_session_claims"})),
@@ -81,13 +90,8 @@ pub fn require_session(
     Ok((session_digest, meta))
 }
 
-pub fn session_subject(meta: &Value) -> String {
-    meta.get("approved_as")
-        .or_else(|| meta.get("principal_id"))
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-        .unwrap_or("user:demo")
-        .to_string()
+pub fn session_subject(meta: &HostSessionClaims) -> String {
+    meta.principal_id.to_string()
 }
 
 /// Human/operator mutations: `X-OpenSesame-Operator` or `Authorization: Bearer operator:<token>`.
@@ -100,21 +104,8 @@ pub fn require_operator(st: &AppState, headers: &axum::http::HeaderMap) -> Resul
         )
             .into_response());
     }
-    let from_header = headers
-        .get("x-opensesame-operator")
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-    let from_bearer = headers
-        .get(header::AUTHORIZATION)
-        .and_then(|v| v.to_str().ok())
-        .and_then(|a| {
-            a.strip_prefix("Bearer operator:")
-                .or_else(|| a.strip_prefix("bearer operator:"))
-                .map(str::to_string)
-        });
-    let provided = from_header.or(from_bearer);
-    match provided {
-        Some(t) if config::constant_time_eq(&t, &st.operator_token) => Ok(()),
+    match opensesame_host_core::operator::check(&st.operator_token, headers) {
+        Ok(()) => Ok(()),
         _ => Err((
             StatusCode::UNAUTHORIZED,
             Json(json!({
@@ -137,7 +128,7 @@ pub fn require_session_or_operator(
     require_operator(st, headers)
 }
 
-/// Session subject when present; operator falls back to seeded `user:demo` (policy bootstrap).
+/// A session has a typed subject. Local operator fixtures may select the explicitly created principal.
 #[allow(clippy::result_large_err)] // axum::Response is intentionally the Err payload
 pub fn resolve_caller_subject(
     st: &AppState,
@@ -147,15 +138,13 @@ pub fn resolve_caller_subject(
         return Ok(session_subject(&meta));
     }
     require_operator(st, headers)?;
-    Ok("user:demo".into())
+    Ok(require_demo_bootstrap(st)?.principal.to_string())
 }
 
 /// Which principal a request may act on behalf of.
 ///
-/// Operators are unfenced. A session is fenced to the principal it was approved
-/// as; a dev session that was never bound to a real principal id falls back to
-/// the bootstrap principal, which is exactly the principal its invocations are
-/// stamped with.
+/// Native operators select an organization explicitly. Every session carries
+/// a validated canonical principal and organization; no identity fallback exists.
 pub enum Caller {
     Operator,
     Session {
@@ -168,13 +157,7 @@ pub enum Caller {
 /// Parse the canonical Host principal spelling or Identity's public `prn_`
 /// spelling into the one typed principal used by authorization records.
 pub fn parse_principal(value: &str) -> Option<opensesame_domain::PrincipalId> {
-    opensesame_domain::PrincipalId::parse(value)
-        .ok()
-        .or_else(|| {
-            value
-                .strip_prefix("prn_")
-                .and_then(|id| opensesame_domain::PrincipalId::parse(id).ok())
-        })
+    crate::session_claims::parse_principal(value)
 }
 
 /// Compare principal subjects across the canonical Host spelling, Identity's
@@ -280,7 +263,7 @@ pub fn resolve_caller_organization(
 pub fn resolve_caller(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
     if let Ok((_, meta)) = require_session(st, headers) {
         let subject = session_subject(&meta);
-        let (organization_id, role) = session_organization(&meta).expect("require_session checked");
+        let (organization_id, role) = (meta.organization_id, meta.organization_role);
         return Ok(Caller::Session {
             subject,
             organization_id,

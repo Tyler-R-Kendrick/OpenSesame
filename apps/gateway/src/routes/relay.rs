@@ -666,8 +666,8 @@ mod tests {
     use opensesame_connection_broker::store as broker_store;
     use opensesame_domain::{ConnectionId, EgressBinding, OrganizationId, OrganizationRole};
 
-    const OWNER: &str = "user:holder";
-    const GUEST: &str = "user:delegate";
+    const OWNER: &str = "principal:00000000-0000-4000-8000-000000000015";
+    const GUEST: &str = "principal:00000000-0000-4000-8000-000000000016";
 
     async fn relay_delegation(
         state: &crate::app_state::AppState,
@@ -905,7 +905,7 @@ mod tests {
         assert_eq!(body_json(seen).await["outcome"], json!("succeeded"));
         let stranger = crate::app_state::test_session_headers(
             &state,
-            "user:stranger",
+            "principal:00000000-0000-4000-8000-000000000014",
             org,
             OrganizationRole::Member,
         );

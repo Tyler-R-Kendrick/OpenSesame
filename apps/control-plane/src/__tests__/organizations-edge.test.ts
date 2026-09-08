@@ -93,8 +93,7 @@ describe("organization helpers", () => {
     const first = await ensurePersonalOrganization(ctx, "prn_1");
     const second = await ensurePersonalOrganization(ctx, "prn_1");
     expect(second.organizationId).toBe(first.organizationId);
-    // Asserted through the store interface, not a Map: the same assertion has
-    // to hold against Postgres, where there is no `.size` to read.
+    // Use the store contract so this assertion also holds against Postgres.
     expect(await ctx.stores.organizations.listByCreator("prn_1")).toHaveLength(
       1,
     );
@@ -136,8 +135,7 @@ describe("organization helpers", () => {
     });
     expect(after.status).toBe(401);
 
-    // Revoking again is a no-op rather than an error — a directory sync may
-    // see the same departure twice.
+    // Directory sync may replay a departure; revocation is idempotent.
     const again = await revokeOrganizationMembership(ctx, {
       organizationId: membership.organizationId,
       principalId: member.principalId,
@@ -663,27 +661,20 @@ describe("device approve edge cases", () => {
       "host_api_unreachable",
     );
 
-    // A non-JSON Host answer is passed through as text.
-    fetchSpy.mockResolvedValue(new Response("approved-plain", { status: 200 }));
+    // Host bodies are never consumed or reflected, including secret-shaped text.
+    fetchSpy.mockResolvedValue(
+      new Response("secret-sentinel", { status: 200 }),
+    );
     const plain = await approve();
     expect(plain.status).toBe(200);
-    expect(overlapCast(await plain.json()).body).toBe("approved-plain");
+    expect(await plain.json()).toEqual({ ok: true, status: 200 });
   });
 
   it("fails closed when the Host API URL is not a plain HTTP(S) base", async () => {
-    const { app } = createControlPlane({
-      config: { ...testConfig(), hostApiUrl: "ftp://host.example" },
-    });
-    const owner = await provisional(app);
-    const res = await app.request("/v1/device/approve", {
-      method: "POST",
-      headers: {
-        ...auth(owner.accessToken),
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({ user_code: "ABCD-EFGH" }),
-    });
-    expect(res.status).toBe(500);
-    expect(overlapCast(await res.json()).error).toBe("invalid_host_api_url");
+    expect(() =>
+      createControlPlane({
+        config: { ...testConfig(), hostApiUrl: "ftp://host.example" },
+      }),
+    ).toThrow(/Invalid deployment endpoint/);
   });
 });

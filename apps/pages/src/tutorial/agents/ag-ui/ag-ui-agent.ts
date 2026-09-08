@@ -36,12 +36,14 @@ import {
   type SupportRunOptions,
   type SupportTurn,
   assertNoStructuralLeak,
-  buildSupportInstructions,
   parseSupportTurn,
   sanitizeSupportRequest,
 } from "@opensesame/support-agent";
+import { abortPromise, aborted, isOnlineDefault } from "./cancellation.js";
+import { requestRemoteConsent } from "./consent.js";
 import { type AgUiEndpoint, currentAgUiEndpoint } from "./endpoint.js";
 import { buildAgUiOutboundBody } from "./outbound.js";
+import type { AgUiOutboundBody } from "./outbound.js";
 import {
   type AgUiTransport,
   type AgUiTransportOptions,
@@ -55,6 +57,11 @@ export type AgUiSupportAgentOptions = {
   readonly transport?: AgUiTransport;
   readonly transportOptions?: AgUiTransportOptions;
   readonly online?: () => boolean;
+  readonly approve?: (
+    destination: string,
+    body: AgUiOutboundBody,
+    signal: AbortSignal,
+  ) => Promise<boolean>;
 };
 
 /**
@@ -69,10 +76,6 @@ const MAX_STREAM_EVENTS = 4096;
 
 /** Enough to track the open messages of a real run, not enough to be a leak. */
 const MAX_TRACKED_MESSAGES = 256;
-
-function isOnlineDefault(): boolean {
-  return globalThis.navigator?.onLine !== false;
-}
 
 type TextAccumulator = {
   readonly chunks: string[];
@@ -232,20 +235,6 @@ function consumeEvent(
   }
 }
 
-function abortPromise(signal: AbortSignal): Promise<null> {
-  return new Promise((settle) => {
-    if (signal.aborted) {
-      settle(null);
-      return;
-    }
-    signal.addEventListener("abort", () => settle(null), { once: true });
-  });
-}
-
-function aborted(): SupportError {
-  return new SupportError("AGENT_ABORTED", "the support request was cancelled");
-}
-
 /**
  * Drain the stream into assistant text.
  *
@@ -346,10 +335,7 @@ export function createAgUiSupportAgent(
       }
 
       const sanitized = sanitizeSupportRequest(request);
-      const body = buildAgUiOutboundBody(
-        sanitized,
-        buildSupportInstructions(sanitized.context),
-      );
+      const body = buildAgUiOutboundBody(sanitized);
       // SAFETY: the body was rebuilt field by field from validated primitives
       // immediately above, so it already is the JSON structure BoundaryValue
       // names; the scan below is what proves it before anything is sent.
@@ -363,6 +349,18 @@ export function createAgUiSupportAgent(
       else runOptions.signal.addEventListener("abort", forward, { once: true });
 
       try {
+        const approved = await (options.approve ?? requestRemoteConsent)(
+          endpoint.url,
+          body,
+          controller.signal,
+        );
+        if (!approved || controller.signal.aborted) throw aborted();
+        const deadline = setTimeout(() => controller.abort(), 30_000);
+        controller.signal.addEventListener(
+          "abort",
+          () => clearTimeout(deadline),
+          { once: true },
+        );
         const raw = await collectAssistantText(
           transport({ endpoint, body, signal: controller.signal }),
           controller.signal,
@@ -371,6 +369,7 @@ export function createAgUiSupportAgent(
         const parsed = parseSupportTurn(raw.text);
         return {
           ...parsed,
+          guide: null,
           thoughts: raw.thoughts,
           computer: raw.computer,
         };

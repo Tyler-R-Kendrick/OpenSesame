@@ -46,12 +46,22 @@ describe("PACT — Pages vault / queue / authz", () => {
     clearStagedClaimTokens();
   });
 
-  it("auth.js origin-binds postMessage and checks iss then aud", () => {
-    const src = readFileSync(join(here, "../../public/auth.js"), "utf8");
+  it("canonical static auth consumes popup state before validating or returning identity", () => {
+    const src = readFileSync(
+      join(here, "../../../../packages/static-auth/src/passthrough.ts"),
+      "utf8",
+    );
     assertSourceOrder(src, [
       "event.origin !== brokerOrigin",
+      "event.source !== popup",
+      "consumed = true",
+      "validateLoopbackToken(data.id_token",
+    ]);
+    assertSourceOrder(src, [
       "claims.iss",
       "claims.aud",
+      "checked.status",
+      "subject: await sha256Base64Url",
     ]);
   });
 

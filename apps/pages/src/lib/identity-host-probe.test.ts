@@ -1,6 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loopbackProfileEligible } from "./__tests__/loopback-profile.js";
+import { browserPairingSeams } from "./browser-pairing.js";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import { hostRoutedViaDaemon, probeHost, probeIdentity } from "./identity.js";
+import { localNetworkFetchSeams } from "./local-network-fetch.js";
 import { saveSettings } from "./settings.js";
 
 describe("host plane probe", () => {
@@ -27,7 +30,7 @@ describe("host plane probe", () => {
     ).toBe(false);
   });
 
-  it("treats a live paired daemon as Host reachable when gateway health fails", async () => {
+  it("does not treat daemon liveness as Host reachability when gateway health fails", async () => {
     saveSettings({
       hostApi: "https://box.tail123.ts.net/host",
       identityApi: "https://box.tail123.ts.net/identity",
@@ -59,7 +62,7 @@ describe("host plane probe", () => {
         return new Response("nope", { status: 500 });
       }),
     );
-    await expect(probeHost()).resolves.toBe("reachable");
+    await expect(probeHost()).resolves.toBe("unreachable");
   });
 
   it("stays unreachable when neither gateway nor daemon answers", async () => {
@@ -135,4 +138,16 @@ describe("identity plane probe", () => {
     );
     await expect(probeIdentity()).resolves.toBe("reachable");
   });
+});
+
+// Profile eligibility permits local health requests, never authenticated authority.
+const originalPairingEligibility = browserPairingSeams.eligible;
+const originalNetworkEligibility = localNetworkFetchSeams.eligible;
+beforeEach(() => {
+  browserPairingSeams.eligible = loopbackProfileEligible;
+  localNetworkFetchSeams.eligible = loopbackProfileEligible;
+});
+afterEach(() => {
+  browserPairingSeams.eligible = originalPairingEligibility;
+  localNetworkFetchSeams.eligible = originalNetworkEligibility;
 });

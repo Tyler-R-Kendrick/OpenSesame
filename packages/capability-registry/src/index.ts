@@ -19,6 +19,13 @@
  *           surface is "pwa-app:*").
  */
 
+import { SCOPED_AGENT_ONLY, lifecycleCapabilities } from "./lifecycle.js";
+import { securityAuthorityCapabilities } from "./security-authority.js";
+export {
+  AGENT_SECRET_NAME_PATTERN,
+  assertsNoSecretNames,
+} from "./secret-names.js";
+
 export type Surface = "cli" | "pwa" | "mcp_host" | "mcp_client" | "webmcp";
 export type AgentSurface = "mcp_host" | "mcp_client" | "webmcp";
 
@@ -55,7 +62,6 @@ const ADR_AUTHORITY_HANDLE = "0005-authority-handle-connectionref.md";
 const ADR_MCP_BEARER = "0023-mcp-bearer-vs-dpop.md";
 const ADR_PM_BRIDGING = "0052-password-manager-ecosystem-bridging.md";
 const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
-const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
 const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
 const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
 const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
@@ -127,12 +133,6 @@ const PM_PLANE: CapabilityExclusion = {
   reason:
     "password-manager ecosystem surface is human/device/ops plane only, never agent-facing",
   adr: ADR_PM_BRIDGING,
-};
-
-const HOOK_SECRET_ISSUANCE: CapabilityExclusion = {
-  reason:
-    "registering a lifecycle hook mints and returns a whsec_ signing secret once; an agent surface must never be the thing that receives it",
-  adr: ADR_LIFECYCLE_HOOKS,
 };
 
 const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
@@ -283,7 +283,7 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame daemon status",
       pwa: "pwa-app:daemon-probe",
-      mcp_host: "daemon_status",
+      mcp_host: "daemon_health",
       mcp_client: null,
       webmcp: "opensesame_pwa_health",
     },
@@ -313,9 +313,10 @@ export const CAPABILITIES: readonly Capability[] = [
       cli: "opensesame invoke",
       pwa: null,
       mcp_host: null,
-      mcp_client: "invoke_l1",
+      mcp_client: null,
       webmcp: null,
     },
+    excluded: { mcp_client: SCOPED_AGENT_ONLY },
   },
   {
     id: "tasks.start",
@@ -390,7 +391,7 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame intent invoke",
       pwa: null,
-      mcp_host: "operator_invoke_l1",
+      mcp_host: "task_invoke_l1",
       mcp_client: null,
       webmcp: null,
     },
@@ -403,9 +404,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "route:/access",
-      mcp_host: "receipt_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_access_read",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -416,9 +420,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame receipt verify",
       pwa: null,
-      mcp_host: "receipt_verify",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
 
@@ -589,9 +596,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "lib/access.ts:listDelegations",
-      mcp_host: "delegation_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_access_read",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -602,9 +612,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "lib/access.ts:listMyOffers",
-      mcp_host: "delegation_offer_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_access_read",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -615,9 +628,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "lib/access.ts:narrowDelegation",
-      mcp_host: "delegation_narrow",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_delegation_narrow",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -628,9 +644,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "lib/access.ts:revokeDelegation",
-      mcp_host: "delegation_revoke",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_delegation_revoke",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -641,9 +660,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "lib/access.ts:revokeOffer",
-      mcp_host: "delegation_revoke",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_delegation_revoke",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -686,9 +708,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "lib/access.ts:listRelayRequests",
-      mcp_host: "relay_request_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_access_read",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -732,9 +757,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame provider list",
       pwa: "lib/connections.ts:listProviders",
-      mcp_host: "provider_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_connections_read",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -745,9 +773,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame provider test",
       pwa: null,
-      mcp_host: "provider_test",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -758,10 +789,11 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame connect ls",
       pwa: "lib/connections.ts:listConnections",
-      mcp_host: "connection_read",
-      mcp_client: "list_connections",
+      mcp_host: null,
+      mcp_client: null,
       webmcp: "opensesame_connections_read",
     },
+    excluded: { mcp_client: SCOPED_AGENT_ONLY, mcp_host: SCOPED_AGENT_ONLY },
   },
   {
     id: "connections.inspect",
@@ -771,9 +803,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame connect inspect",
       pwa: "lib/connections.ts:getConnection",
-      mcp_host: "connection_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_connections_read",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -858,9 +893,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame connect rotate",
       pwa: null,
-      mcp_host: "connection_rotate",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -871,11 +909,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame connect rm",
       pwa: "lib/connections.ts:revokeConnection",
-      mcp_host: "connection_remove",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
       webmcp: {
         reason:
           "destructive revocation confirmed by the human in the connections UI",
@@ -920,9 +959,10 @@ export const CAPABILITIES: readonly Capability[] = [
       cli: null,
       pwa: "lib/connections.ts:listIntegrations",
       mcp_host: null,
-      mcp_client: "integration_read",
+      mcp_client: null,
       webmcp: "opensesame_connections_read",
     },
+    excluded: { mcp_client: SCOPED_AGENT_ONLY },
   },
 
   // ── Host plane: certs, configs, sync, rotation, backup ────────────────
@@ -934,9 +974,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame cert ls",
       pwa: null,
-      mcp_host: "cert_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -947,11 +990,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame cert issue",
       pwa: "lib/certs.ts:issueCertificate",
-      mcp_host: "cert_issue",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
       webmcp: {
         reason:
           "issuance delivers private key material to the device; the human runs it from the vault UI",
@@ -981,10 +1025,11 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame config keys",
       pwa: "route:/settings",
-      mcp_host: "config_read",
-      mcp_client: "config_metadata_read",
+      mcp_host: null,
+      mcp_client: null,
       webmcp: "opensesame_settings_read",
     },
+    excluded: { mcp_client: SCOPED_AGENT_ONLY, mcp_host: SCOPED_AGENT_ONLY },
   },
   {
     id: "configs.audit",
@@ -994,9 +1039,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame config history",
       pwa: null,
-      mcp_host: "config_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1007,11 +1055,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame config set",
       pwa: "route:/settings",
-      mcp_host: "config_set",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
       webmcp: {
         reason: "secret value entry stays in the human settings UI",
         adr: ADR_AGENT_SURFACE_PARITY,
@@ -1026,9 +1075,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame config rollback",
       pwa: null,
-      mcp_host: "config_rollback",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1083,10 +1135,11 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "route:/settings",
-      mcp_host: "sync_target_read",
-      mcp_client: "sync_target_read",
+      mcp_host: null,
+      mcp_client: null,
       webmcp: "opensesame_settings_read",
     },
+    excluded: { mcp_client: SCOPED_AGENT_ONLY, mcp_host: SCOPED_AGENT_ONLY },
   },
   {
     id: "sync_targets.trigger",
@@ -1114,9 +1167,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: null,
-      mcp_host: "rotation_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1127,9 +1183,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame connection rotate",
       pwa: null,
-      mcp_host: "rotation_trigger",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1166,101 +1225,8 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: CUSTODY_KEY_MATERIAL,
     },
   },
-  // ── Host plane: expiry lifecycle hooks (ADR 0074) ─────────────────────
-  {
-    id: "lifecycle.expiring.read",
-    title: "Read tracked expiry deadlines and their ladders",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: "opensesame lifecycle expiring",
-      pwa: null,
-      mcp_host: "lifecycle_expiring_read",
-      mcp_client: null,
-      webmcp: null,
-    },
-  },
-  {
-    id: "lifecycle.hooks.read",
-    title: "Read registered expiry hook subscriptions",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: "opensesame lifecycle hooks",
-      pwa: null,
-      mcp_host: "lifecycle_hooks_read",
-      mcp_client: null,
-      webmcp: null,
-    },
-  },
-  {
-    id: "lifecycle.hooks.register",
-    title: "Register an expiry hook subscription",
-    plane: "host",
-    kind: "admin",
-    surfaces: {
-      cli: "opensesame lifecycle hook add",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: HOOK_SECRET_ISSUANCE,
-      webmcp: HOOK_SECRET_ISSUANCE,
-    },
-  },
-  {
-    id: "lifecycle.hooks.remove",
-    title: "Remove an expiry hook subscription",
-    plane: "host",
-    kind: "admin",
-    surfaces: {
-      cli: "opensesame lifecycle hook rm",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: {
-        reason:
-          "silently deleting a subscription blinds whoever depended on it; removal stays a deliberate human action alongside registration",
-        adr: ADR_LIFECYCLE_HOOKS,
-      },
-      webmcp: {
-        reason:
-          "silently deleting a subscription blinds whoever depended on it; removal stays a deliberate human action alongside registration",
-        adr: ADR_LIFECYCLE_HOOKS,
-      },
-    },
-  },
-  {
-    id: "lifecycle.deliveries.read",
-    title: "Read the outbound lifecycle delivery ledger",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: "opensesame lifecycle deliveries",
-      pwa: null,
-      mcp_host: "lifecycle_deliveries_read",
-      mcp_client: null,
-      webmcp: null,
-    },
-  },
-  {
-    id: "lifecycle.scan.trigger",
-    title: "Run one expiry scan now",
-    plane: "host",
-    kind: "act",
-    surfaces: {
-      cli: "opensesame lifecycle scan",
-      pwa: null,
-      mcp_host: "lifecycle_scan",
-      mcp_client: null,
-      webmcp: null,
-    },
-  },
+  ...lifecycleCapabilities,
+  ...securityAuthorityCapabilities,
   // ── Host plane: breach exposure (ADR 0080) ────────────────────────────
   {
     id: "security.findings.read",
@@ -1270,9 +1236,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame security findings",
       pwa: null,
-      mcp_host: "security_findings_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1283,9 +1252,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame security scan",
       pwa: null,
-      mcp_host: "security_breach_scan",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1313,11 +1285,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: "opensesame ceremony list",
       pwa: null,
-      mcp_host: "ceremony_catalog_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
       // Not a secret and not tenant data: the catalog is compiled in from
       // crates/ceremony/catalog.json and reads the same on every Host. The
       // WebMCP surface is pending rather than refused — apps/pages has no
@@ -1337,10 +1310,14 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame rotate runs",
-      pwa: null,
-      mcp_host: "agent_runs_read",
+      pwa: "lib/agent-runs.ts:listRuns",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
+      webmcp: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1350,7 +1327,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame rotate watch",
-      pwa: null,
+      pwa: "lib/agent-runs.ts:readLog",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1375,7 +1352,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: "opensesame rotate attach",
-      pwa: null,
+      pwa: "lib/agent-runs.ts:takeControl",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1432,9 +1409,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "route:/settings",
-      mcp_host: "changelog_read",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_settings_read",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1445,9 +1425,12 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "route:/settings",
-      mcp_host: "backup_status",
+      mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_settings_read",
+    },
+    excluded: {
+      mcp_host: SCOPED_AGENT_ONLY,
     },
   },
   {
@@ -1561,8 +1544,15 @@ export const CAPABILITIES: readonly Capability[] = [
       cli: "opensesame-id claim poll",
       pwa: null,
       mcp_host: null,
-      mcp_client: "present_claim",
+      mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      mcp_client: {
+        reason:
+          "Human Identity sessions and raw claim bearers are not agent capabilities or model arguments; use the human CLI or browser ceremony",
+        adr: "0099-scoped-local-agent-authority.md",
+      },
     },
   },
   // ── Identity plane: cross-device interactions (ADR 0086) ───────────────
@@ -2194,20 +2184,6 @@ export const CAPABILITIES: readonly Capability[] = [
     excluded: { webmcp: FIRST_RUN_CEREMONY },
   },
 ] as const;
-
-/**
- * Union of the per-app secret-name denylists
- * (apps/mcp-host assertsNoSecretTools + apps/mcp-client
- * assertsNoMaterializeTool), applied to every agent catalog including WebMCP.
- */
-export const AGENT_SECRET_NAME_PATTERN =
-  /secret|materialize|get_secret|pass_show|sealed_store_show|password_store_read|^show$/i;
-
-export function assertsNoSecretNames(names: readonly string[]): void {
-  if (names.some((n) => AGENT_SECRET_NAME_PATTERN.test(n))) {
-    throw new Error("secret_tools_forbidden");
-  }
-}
 
 function surfaceNames(surface: AgentSurface): readonly string[] {
   const names = new Set<string>();

@@ -27,7 +27,11 @@ rm -f "$DB"
 export OPENSESAME_LISTEN=127.0.0.1:18787
 export OPENSESAME_DB="$DB"
 export OPENSESAME_RESOURCE=http://127.0.0.1:18787
-export OPENSESAME_OPERATOR_TOKEN="${OPENSESAME_OPERATOR_TOKEN:-opensesame-dev-operator}"
+export OPENSESAME_ENV=development
+export NODE_ENV=development
+export OPENSESAME_ALLOW_DEV_DEFAULTS=1
+export OPENSESAME_OPERATOR_TOKEN="${OPENSESAME_OPERATOR_TOKEN:-$(openssl rand -hex 32)}"
+export OPENSESAME_CLAIM_PEPPER="${OPENSESAME_CLAIM_PEPPER:-$(openssl rand -hex 32)}"
 OP_HDR=(-H "x-opensesame-operator: ${OPENSESAME_OPERATOR_TOKEN}")
 nohup "$ROOT/target/debug/opensesame-gateway" >"$ROOT/.tools/logs/gateway.log" 2>&1 &
 echo $! >"$ROOT/.tools/run/gateway.pid"

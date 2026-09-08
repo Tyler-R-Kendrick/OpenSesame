@@ -389,6 +389,6 @@ describe("claims routes edge cases", () => {
     expect(complete.status).toBe(200);
     const body = overlapCast(await complete.json());
     expect(body.preserved.agentId).toBe(agent.agentId);
-    expect(ctx.stores.agents.get(agent.agentId)?.state).toBe("claimed");
+    expect((await ctx.stores.agents.get(agent.agentId))?.state).toBe("claimed");
   });
 });

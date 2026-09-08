@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { appendAuditEvent, redactAuditMetadata } from "@opensesame/audit";
 import {
   AuthenticationServiceError,
@@ -32,49 +32,10 @@ import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { consumePublicBudget } from "./authentication-budget.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 export const authenticationServiceRoutes = new Hono<{ Variables: Variables }>();
-
-const PUBLIC_WINDOW_MS = 60_000;
-const PUBLIC_CLIENT_BUDGET = 60;
-const PUBLIC_GLOBAL_BUDGET = 1_000;
-const PUBLIC_FENCE_ENTRIES = 4_096;
-
-function consumePublicBudget(c: {
-  req: { header: (name: string) => string | undefined };
-  get: (name: "ctx") => AppContext;
-}): boolean {
-  const now = Date.now();
-  const map = c.get("ctx").stores.authenticationAnon;
-  for (const [key, values] of map) {
-    const live = values.filter((at) => now - at < PUBLIC_WINDOW_MS);
-    if (live.length === 0) map.delete(key);
-    else if (live.length !== values.length) map.set(key, live);
-  }
-  while (map.size > PUBLIC_FENCE_ENTRIES) {
-    const oldest = map.keys().next().value;
-    if (oldest === undefined) break;
-    map.delete(oldest);
-  }
-  const fingerprint = createHash("sha256")
-    .update(c.req.header("user-agent") ?? "")
-    .update("|")
-    .update(c.req.header("origin") ?? c.req.header("x-forwarded-for") ?? "")
-    .digest("hex")
-    .slice(0, 16);
-  const global = map.get("__global__") ?? [];
-  const client = map.get(fingerprint) ?? [];
-  if (
-    global.length >= PUBLIC_GLOBAL_BUDGET ||
-    client.length >= PUBLIC_CLIENT_BUDGET
-  ) {
-    return false;
-  }
-  map.set("__global__", [...global, now]);
-  map.set(fingerprint, [...client, now]);
-  return true;
-}
 
 function applicationResponse(application: AuthenticationApplication) {
   return {
@@ -837,144 +798,156 @@ authenticationServiceRoutes.delete(
   },
 );
 
-authenticationServiceRoutes.post("/public/register/options", async (c) => {
-  if (!consumePublicBudget(c)) return c.json({ error: "rate_limited" }, 429);
-  const parsed = AuthenticationRegistrationOptionsRequestSchema.safeParse(
-    await c.req.json(),
-  );
-  if (!parsed.success) return c.json({ error: "validation_error" }, 400);
-  const origin = c.req.header("origin");
-  if (!origin) return c.json({ error: "origin_required" }, 400);
-  try {
-    return c.json(
-      await c
-        .get("ctx")
-        .authentication.registrationOptions({ ...parsed.data, origin }),
+authenticationServiceRoutes.post(
+  "/public/applications/:applicationId/register/options",
+  async (c) => {
+    if (!consumePublicBudget(c)) return c.json({ error: "rate_limited" }, 429);
+    const parsed = AuthenticationRegistrationOptionsRequestSchema.safeParse(
+      await c.req.json(),
     );
-  } catch (error) {
-    if (!(error instanceof AuthenticationServiceError)) throw error;
-    return serviceError(error);
-  }
-});
+    if (!parsed.success) return c.json({ error: "validation_error" }, 400);
+    const origin = c.req.header("origin");
+    if (!origin) return c.json({ error: "origin_required" }, 400);
+    try {
+      return c.json(
+        await c
+          .get("ctx")
+          .authentication.registrationOptions({ ...parsed.data, origin }),
+      );
+    } catch (error) {
+      if (!(error instanceof AuthenticationServiceError)) throw error;
+      return serviceError(error);
+    }
+  },
+);
 
-authenticationServiceRoutes.post("/public/register/verify", async (c) => {
-  if (!consumePublicBudget(c)) return c.json({ error: "rate_limited" }, 429);
-  const parsed = AuthenticationRegistrationVerifyRequestSchema.safeParse(
-    await c.req.json(),
-  );
-  if (!parsed.success) return c.json({ error: "validation_error" }, 400);
-  const ctx = c.get("ctx");
-  try {
-    const result = await ctx.authentication.verifyRegistration({
-      applicationId: parsed.data.applicationId,
-      response: overlapCast(parsed.data.response),
-      ...(parsed.data.name ? { name: parsed.data.name } : undefined),
-    });
-    const application = await ctx.authenticationStores.applications.get(
-      parsed.data.applicationId,
+authenticationServiceRoutes.post(
+  "/public/applications/:applicationId/register/verify",
+  async (c) => {
+    if (!consumePublicBudget(c)) return c.json({ error: "rate_limited" }, 429);
+    const parsed = AuthenticationRegistrationVerifyRequestSchema.safeParse(
+      await c.req.json(),
     );
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "authentication.credential.registered",
-      outcome: "succeeded",
-      clientId: parsed.data.applicationId,
-      ...(application?.organizationId
-        ? { organizationId: application.organizationId }
-        : undefined),
-      correlationId: c.get("correlationId"),
-      targetType: "authentication_user",
-      targetId: result.userId,
-      metadata: { credentialId: result.credentialId },
-    });
-    return c.json({ ok: true, ...result }, 201);
-  } catch (error) {
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "authentication.credential.registration_failed",
-      outcome: "failed",
-      clientId: parsed.data.applicationId,
-      correlationId: c.get("correlationId"),
-      metadata: {
-        reason:
-          error instanceof AuthenticationServiceError
-            ? error.code
-            : "internal_error",
-      },
-    });
-    if (!(error instanceof AuthenticationServiceError)) throw error;
-    return serviceError(error);
-  }
-});
-
-authenticationServiceRoutes.post("/public/signin/options", async (c) => {
-  if (!consumePublicBudget(c)) return c.json({ error: "rate_limited" }, 429);
-  const parsed = AuthenticationOptionsRequestSchema.safeParse(
-    await c.req.json(),
-  );
-  if (!parsed.success) return c.json({ error: "validation_error" }, 400);
-  const origin = c.req.header("origin");
-  if (!origin) return c.json({ error: "origin_required" }, 400);
-  try {
-    return c.json(
-      await c.get("ctx").authentication.authenticationOptions({
+    if (!parsed.success) return c.json({ error: "validation_error" }, 400);
+    const ctx = c.get("ctx");
+    try {
+      const result = await ctx.authentication.verifyRegistration({
         applicationId: parsed.data.applicationId,
-        mode: parsed.data.mode,
-        origin,
-        ...(parsed.data.alias ? { alias: parsed.data.alias } : undefined),
-        ...(parsed.data.userId ? { userId: parsed.data.userId } : undefined),
-        purpose: parsed.data.purpose,
-      }),
-    );
-  } catch (error) {
-    if (!(error instanceof AuthenticationServiceError)) throw error;
-    return serviceError(error);
-  }
-});
+        response: overlapCast(parsed.data.response),
+        ...(parsed.data.name ? { name: parsed.data.name } : undefined),
+      });
+      const application = await ctx.authenticationStores.applications.get(
+        parsed.data.applicationId,
+      );
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "authentication.credential.registered",
+        outcome: "succeeded",
+        clientId: parsed.data.applicationId,
+        ...(application?.organizationId
+          ? { organizationId: application.organizationId }
+          : undefined),
+        correlationId: c.get("correlationId"),
+        targetType: "authentication_user",
+        targetId: result.userId,
+        metadata: { credentialId: result.credentialId },
+      });
+      return c.json({ ok: true, ...result }, 201);
+    } catch (error) {
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "authentication.credential.registration_failed",
+        outcome: "failed",
+        clientId: parsed.data.applicationId,
+        correlationId: c.get("correlationId"),
+        metadata: {
+          reason:
+            error instanceof AuthenticationServiceError
+              ? error.code
+              : "internal_error",
+        },
+      });
+      if (!(error instanceof AuthenticationServiceError)) throw error;
+      return serviceError(error);
+    }
+  },
+);
 
-authenticationServiceRoutes.post("/public/signin/verify", async (c) => {
-  if (!consumePublicBudget(c)) return c.json({ error: "rate_limited" }, 429);
-  const parsed = AuthenticationVerifyRequestSchema.safeParse(
-    await c.req.json(),
-  );
-  if (!parsed.success) return c.json({ error: "validation_error" }, 400);
-  const ctx = c.get("ctx");
-  try {
-    const result = await ctx.authentication.verifyAuthentication({
-      applicationId: parsed.data.applicationId,
-      response: overlapCast(parsed.data.response),
-    });
-    const application = await ctx.authenticationStores.applications.get(
-      parsed.data.applicationId,
+authenticationServiceRoutes.post(
+  "/public/applications/:applicationId/signin/options",
+  async (c) => {
+    if (!consumePublicBudget(c)) return c.json({ error: "rate_limited" }, 429);
+    const parsed = AuthenticationOptionsRequestSchema.safeParse(
+      await c.req.json(),
     );
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "authentication.signin.succeeded",
-      outcome: "succeeded",
-      clientId: parsed.data.applicationId,
-      ...(application?.organizationId
-        ? { organizationId: application.organizationId }
-        : undefined),
-      correlationId: c.get("correlationId"),
-      metadata: {},
-    });
-    return c.json({
-      token: result.token,
-      expiresAt: result.expiresAt.toISOString(),
-    });
-  } catch (error) {
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "authentication.signin.failed",
-      outcome: "failed",
-      clientId: parsed.data.applicationId,
-      correlationId: c.get("correlationId"),
-      metadata: {
-        reason:
-          error instanceof AuthenticationServiceError
-            ? error.code
-            : "internal_error",
-      },
-    });
-    if (!(error instanceof AuthenticationServiceError)) throw error;
-    return serviceError(error);
-  }
-});
+    if (!parsed.success) return c.json({ error: "validation_error" }, 400);
+    const origin = c.req.header("origin");
+    if (!origin) return c.json({ error: "origin_required" }, 400);
+    try {
+      return c.json(
+        await c.get("ctx").authentication.authenticationOptions({
+          applicationId: parsed.data.applicationId,
+          mode: parsed.data.mode,
+          origin,
+          ...(parsed.data.alias ? { alias: parsed.data.alias } : undefined),
+          ...(parsed.data.userId ? { userId: parsed.data.userId } : undefined),
+          purpose: parsed.data.purpose,
+        }),
+      );
+    } catch (error) {
+      if (!(error instanceof AuthenticationServiceError)) throw error;
+      return serviceError(error);
+    }
+  },
+);
+
+authenticationServiceRoutes.post(
+  "/public/applications/:applicationId/signin/verify",
+  async (c) => {
+    if (!consumePublicBudget(c)) return c.json({ error: "rate_limited" }, 429);
+    const parsed = AuthenticationVerifyRequestSchema.safeParse(
+      await c.req.json(),
+    );
+    if (!parsed.success) return c.json({ error: "validation_error" }, 400);
+    const ctx = c.get("ctx");
+    try {
+      const result = await ctx.authentication.verifyAuthentication({
+        applicationId: parsed.data.applicationId,
+        response: overlapCast(parsed.data.response),
+      });
+      const application = await ctx.authenticationStores.applications.get(
+        parsed.data.applicationId,
+      );
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "authentication.signin.succeeded",
+        outcome: "succeeded",
+        clientId: parsed.data.applicationId,
+        ...(application?.organizationId
+          ? { organizationId: application.organizationId }
+          : undefined),
+        correlationId: c.get("correlationId"),
+        metadata: {},
+      });
+      return c.json({
+        token: result.token,
+        expiresAt: result.expiresAt.toISOString(),
+      });
+    } catch (error) {
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "authentication.signin.failed",
+        outcome: "failed",
+        clientId: parsed.data.applicationId,
+        correlationId: c.get("correlationId"),
+        metadata: {
+          reason:
+            error instanceof AuthenticationServiceError
+              ? error.code
+              : "internal_error",
+        },
+      });
+      if (!(error instanceof AuthenticationServiceError)) throw error;
+      return serviceError(error);
+    }
+  },
+);
 
 authenticationServiceRoutes.post("/backend/signin/verify-token", async (c) => {
   const ctx = c.get("ctx");

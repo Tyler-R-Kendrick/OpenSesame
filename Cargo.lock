@@ -3575,15 +3575,21 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "clap",
  "hex",
+ "hkdf",
  "hmac 0.12.1",
  "opensesame-host-core",
+ "opensesame-storage",
  "serde_json",
  "sha2 0.10.9",
  "tokio",
+ "tower",
  "tracing",
  "tracing-subscriber",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -3627,10 +3633,12 @@ dependencies = [
  "opensesame-connector-host",
  "opensesame-domain",
  "opensesame-env-spec",
+ "opensesame-human-vault",
  "opensesame-kdbx-bridge",
  "opensesame-pm-bridges",
  "opensesame-provider-bitwarden",
  "opensesame-sealed-store",
+ "opensesame-storage",
  "qr2term",
  "ratatui",
  "regex",
@@ -3857,6 +3865,7 @@ dependencies = [
  "http-body-util",
  "insta",
  "instant-acme",
+ "jsonwebtoken",
  "opensesame-a2h",
  "opensesame-agent-events",
  "opensesame-audit",
@@ -3935,6 +3944,7 @@ dependencies = [
  "tokio",
  "tower",
  "tower-http",
+ "url",
 ]
 
 [[package]]

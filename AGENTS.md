@@ -625,12 +625,15 @@ pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
 
 CI lives in `.github/workflows/`:
 
-- `ci.yml` — runs on `pull_request` and `merge_group`: TypeScript job
+- `ci.yml` — runs on `pull_request`: TypeScript job
   (`pnpm bootstrap` + `pnpm lint` + `pnpm quality` + `pnpm typecheck` +
   `pnpm test`) and
   Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0), plus a
   Bundle budgets job that builds `apps/pages`/`pwa`/`console` and checks
-  `bundle-budgets.json`. Merges to `main` go through the GitHub merge queue.
+  `bundle-budgets.json`. The default-branch ruleset requires all three checks
+  and an up-to-date PR, with squash auto-merge; this personal-account repository
+  does not support merge queues. Verify actual settings with
+  `node ops/github/governance.mjs --verify`.
 - `deploy-pages.yml` — on every push to `main`, builds `apps/pages` and
   publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
   must be "GitHub Actions"). `scripts/deploy-pages.sh` remains as the
