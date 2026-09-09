@@ -99,7 +99,7 @@ describe("AppShell", () => {
 
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");
-    expect(screen.getAllByText("opensesame").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("open-sesame").length).toBeGreaterThan(0);
     // The rail reads sections as directories; the mobile tab bar keeps labels.
     for (const segment of ["connections", "access", "identity", "settings"]) {
       expect(screen.getAllByText(segment).length).toBe(1);
