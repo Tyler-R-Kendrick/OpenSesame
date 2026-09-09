@@ -7,17 +7,14 @@ import {
   IconStar,
 } from "../../components/Icons.js";
 import { longPress } from "../../lib/gestures.js";
-import {
-  focusRailListing,
-  registerVaultKeymap,
-  showKeymapHelp,
-} from "../../lib/keymap.js";
+import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { activeProject } from "../../lib/projects.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import type { Folder, VaultItem } from "../../lib/vault/model.js";
 import { itemExtension, pathSegment, tombPath } from "../../lib/vault/paths.js";
 import { readFile, writeFile } from "../../lib/vfs.js";
 import { formatExpiry } from "./DropCeremony.js";
+import { VaultPathbar } from "./VaultPathbar.js";
 
 const COLLAPSED_PATH = "config/tree-collapsed";
 const encoder = new TextEncoder();
@@ -43,6 +40,7 @@ type VaultTreeProps = {
   total: number;
   actions: VaultTreeActions;
   verbs?: ReactNode;
+  emptyMessage: string;
 };
 
 type DirRow = {
@@ -264,6 +262,7 @@ export function VaultTree({
   total,
   actions,
   verbs,
+  emptyMessage,
 }: VaultTreeProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState<string | null>(null);
@@ -476,34 +475,20 @@ export function VaultTree({
 
   return (
     <div className="vtree">
-      <div className="vtree__pathbar">
-        <span className="vtree__root">
-          <span className="vtree__tomb">{tomb}</span>
-          <span className="vtree__sep">:/</span>
-        </span>
-        <span className="vtree__keys">
-          {verbs}
-          <button
-            type="button"
-            className="vtree__key"
-            title="Search (/)"
-            onClick={() => setQuery((current) => current ?? "")}
-          >
-            /
-          </button>
-          <button
-            type="button"
-            className="vtree__key vtree__key--help"
-            title="Keyboard shortcuts (?)"
-            onClick={showKeymapHelp}
-          >
-            ?
-          </button>
-        </span>
-      </div>
+      <VaultPathbar
+        tomb={tomb}
+        verbs={verbs}
+        search={() => setQuery((current) => current ?? "")}
+      />
+      {items.length === 0 ? (
+        <div className="empty">
+          <h2>{emptyMessage}</h2>
+        </div>
+      ) : null}
 
       <div
         ref={treeRef}
+        hidden={items.length === 0}
         className="vtree__rows"
         role="tree"
         aria-label="Vault items"

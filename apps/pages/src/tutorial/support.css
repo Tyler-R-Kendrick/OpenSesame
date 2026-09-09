@@ -44,10 +44,27 @@
 }
 
 @media (pointer: coarse), (max-width: 900px) {
-  .support-launch {
+  .support-launch:not(.support-launch--chrome) {
     width: 2.75rem;
     height: 2.75rem;
   }
+}
+
+/* In the statusline the mark is a key, not a floating square. */
+.support-launch--chrome {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  width: auto;
+  height: auto;
+  box-shadow: none;
+}
+
+/* Overlay only. Once a statusline exists the chrome mark in that strip is
+   the launcher — hide the first-paint overlay so it cannot sit under the
+   footer. Anchored on `.support-launch` (stylesheet contract). */
+.support-launch:not(.support-launch--chrome):is(body:has(.statusline) *) {
+  display: none;
 }
 
 .sheet.support {

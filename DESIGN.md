@@ -114,8 +114,16 @@ light where it opened — Open Sesame's own story, drawn as two sharp
 rectangles. The slab is ink, the light is the accent teal; this is the one
 place teal means identity rather than state. In the chrome the mark is
 bare — no tile, no circle, no badge — beside the lowercase mono wordmark
-`opensesame`. Only the OS app icon puts it on a dark tile with the
+`open-sesame`. Only the OS app icon puts it on a dark tile with the
 platform's mask. The old padlock-in-a-teal-tile is retired everywhere.
+
+The wordmark reveals through eleven character-sized background slots. Each slot
+steps through hexadecimal ciphertext and locks to its letter before the next
+begins: randomly 6–12 glyph cycles at 35ms each, once on entry, without delaying
+interaction. Counts stay fixed through re-renders; the full reveal takes 2.31–4.62s.
+The reels are decorative; assistive technology reads `open-sesame` once.
+Reduced motion shows the completed word immediately. All front doors and the
+desktop rail use the same `Wordmark` component.
 
 ## Colors
 
@@ -200,10 +208,12 @@ webhook.secret`), and the vault list renders as a compact first-party mono
 file tree (ADR 0073), never as a card wall. The navigation rail is the same
 tree one level up: sections are directories off the tomb root (`vault/`,
 `connections/`, `access/`, `identity/`, `settings/`), each advertising its
-`g`-jump key; the active section is the open directory, with the vault's
-filter views, folders, and `health` — and the settings categories — hanging
-under it as entries with live counts. A path strip pins the tomb root at the
-top of the vault pane; the mobile tab bar keeps labeled icons.
+`g`-jump key; the active section starts open but its parent row toggles
+expand/collapse without changing the selected child. Arrow Left/Right use the
+same behavior. Rows without children remain navigation links. The vault's
+filter views, folders, and `health` — and the settings categories — appear
+under their parent as entries with live counts. A path strip pins the tomb
+root at the top of the vault pane; the mobile tab bar keeps labeled icons.
 
 A visible cursor row owns focus — inverse video, always rendered — and
 moving it with the keyboard previews that item in the buffer, ranger's own
@@ -297,6 +307,12 @@ button only where it is the object of a choice (a provider, a mode, a
 navigation target) or where a destructive ceremony must be spelled out.
 Never a text verb stretched across a grid row.
 
+The vault pane always retains its top path-strip command group: **+**, import,
+export, each an icon key with an accessible name and tooltip. Empty, filtered,
+and trash views use the same group. Replacing it with text-labelled New item,
+Import, or Export buttons in an empty state is a hard design violation,
+enforced by `pnpm lint:design` and the vault render tests.
+
 ### Buttons
 Ink fill for the primary action (inverting to paper-on-ink in dark mode),
 surface fill with a hairline for secondary, ghost for tertiary, and a
@@ -308,8 +324,34 @@ A form is a record being filled in, not a wall of boxes: each field is a
 row — mono label column on the left, value on the right — and inputs are
 ruled underlines on the paper (focus thickens the rule to ink). The vault
 editor goes further: the item is a file, so its name is the document title,
-its kind the extension beside it, and save/cancel are keys in the title
-row. Repeatable groups grow with a `+` key beside their label.
+its kind the extension beside it, and save/cancel follow all fields in both
+visual and natural keyboard order. Repeatable groups grow with a `+` key beside their label.
+An explicit `/vault/new/:kind` fixes the type as an extension label; only
+`/vault/new` offers a type picker. Unknown types are refused with a link to
+choose an installed type, never silently replaced with a login.
+The title reads folder / name / type, with one folder selector before the name.
+On name blur, slash paths resolve relative to the selected folder (`/` starts
+at the vault root, `..` moves up), select their folder and leave only the leaf
+name. New folders remain drafts until the item is saved; escaping the root or
+omitting the leaf is an error, not a guessed item name.
+Login Websites precedes Username. Wildcard (`*.example.com`) and regex
+(`(.*\.)?example\.com`, without delimiters/flags) are explicit match modes,
+applied case-insensitively to the entire hostname, never a URL path or query.
+`*.example.com` excludes the apex; add `example.com` separately when needed.
+The local Test match control evaluates a pattern in a disposable worker with
+a one-second timeout and a 256-character pattern limit. Invalid patterns cannot
+be saved; patterns are not clickable links, authorization rules or autofill.
+Sealed-store manifests retain the selected mode across export/import.
+Across vault item forms, optional metadata, notes, custom fields and pinning start
+as explicit Add/Pin commands, not empty inputs. Commands reveal and focus the
+field; existing values are always visible when editing. Clearing a revealed
+field does not collapse it or discard other values. Note items keep their
+primary Notes editor visible. Manifest-defined forms honor required fields;
+empty optional fields use Add commands, including repeating and composite fields.
+Certificate alternative DNS/IP names are opt-in, never silently prefilled.
+Every type uses the shared folder/name title and native document tab order,
+with Save and Cancel after the fields. Drop retention stays an explicit,
+unchecked custody choice; payload and expiry remain visible.
 
 ### Field rows
 The vault's atom: a small sentence-case label, value, and right-aligned
@@ -321,6 +363,7 @@ The rail renders as a mono filesystem tree (see "VFS interaction model")
 rooted at the prompt line `guest@personal:/`: directory rows with counts
 and g-jump key chips. Selection is inverse video (see "Selection"). The
 mobile tab bar mirrors the five sections and nothing else.
+Password health is a notifications-only review, never a tree entry or vault filter chip.
 
 ### Tabs
 Flat underline tabs on a hairline: text with a 2px accent underline for the
@@ -334,7 +377,8 @@ role comes from the element rather than an attribute.
 ### Empty states
 An empty state must say what would be here and why it is not — offline,
 unauthenticated, or genuinely empty — and offer the action that fills it, as
-plain text with no icon tile. The vault's unselected buffer is two mono
+plain text with no icon tile. Vault commands stay in the top path strip, not
+in a second empty-state button row. The vault's unselected buffer is two mono
 lines: what is sealed, and the keys — because moving the cursor previews
 items, there is nothing else for it to say. Password-health warnings live in
 the global notifications panel so they remain visible from every section.

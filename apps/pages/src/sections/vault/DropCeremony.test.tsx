@@ -62,11 +62,8 @@ Object.assign(vaultHooksSeams, {
 Object.assign(dropSeams, { createClaim, pollClaim });
 
 import { VaultSection } from "../VaultSection.js";
-import {
-  DropRecordFields,
-  NewDropCeremony,
-  ShareSecretDrop,
-} from "./DropCeremony.js";
+import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
+import { NewDropCeremony } from "./NewDropCeremony.js";
 
 function sessionFor(claimId = "clm_test") {
   return {

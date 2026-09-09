@@ -3,11 +3,8 @@ import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
-  IconCheck,
-  IconChevronLeft,
   IconEye,
   IconEyeOff,
-  IconPlus,
   IconRefresh,
   IconX,
 } from "../../components/Icons.js";
@@ -17,28 +14,32 @@ import {
   issueCertificate,
 } from "../../lib/certs.js";
 import { compileSecretToHost } from "../../lib/connections.js";
-import { isTouchPointer } from "../../lib/gestures.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import {
   definitionFor,
   itemTypeId,
   itemTypeRegistry,
   newValues,
-  typeExtension,
 } from "../../lib/vault/item-types.js";
 import {
-  type CustomField,
+  type Folder,
   type LegacyItemKind,
-  type UriMatch,
   type VaultItem,
   createItem,
   createTypedItem,
   newGrant,
-  newId,
   newUri,
 } from "../../lib/vault/model.js";
-import { NewDropCeremony } from "./DropCeremony.js";
+import { validateWebsitePatterns } from "../../lib/vault/website-pattern.js";
+import { EditorActions } from "./EditorActions.js";
+import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";
+import { EditorTitle } from "./EditorTitle.js";
+import { UnknownItemType } from "./EditorType.js";
+import { LoginWebsites } from "./LoginWebsites.js";
+import { NativeItemFields } from "./NativeItemFields.js";
+import { NewDropCeremony } from "./NewDropCeremony.js";
 import { TypedFieldInputs } from "./TypedFields.js";
+import { useEditorPath } from "./useEditorPath.js";
 
 /** The kinds with a bespoke ceremony; every other type is drawn from its
     definition by `TypedFieldInputs` (ADR 0087 §6). */
@@ -51,7 +52,6 @@ const LEGACY_KINDS: LegacyItemKind[] = [
   "certificate",
   "drop",
 ];
-const MATCHES: UriMatch[] = ["domain", "host", "exact", "never"];
 
 /**
  * Build a draft of any registered type. A legacy kind keeps its own shape;
@@ -59,43 +59,25 @@ const MATCHES: UriMatch[] = ["domain", "host", "exact", "never"];
  */
 function draftOfType(typeId: string, name: string): VaultItem {
   const legacy = LEGACY_KINDS.find((kind) => kind === typeId);
+  if (legacy === "certificate")
+    return { ...createItem("certificate", name), dnsNames: "", ipAddrs: "" };
   if (legacy !== undefined) return createItem(legacy, name);
   const definition = itemTypeRegistry().get(typeId);
-  if (definition === undefined) return createItem("login", name);
+  if (definition === undefined) throw new Error("Unknown vault item type");
   return createTypedItem(definition, newValues(definition), name);
 }
 
-/** Group heading with its one action beside it: a label and a + key. */
-function GroupAdd({
-  label,
-  action,
-  onAdd,
-}: {
-  label: string;
-  action: string;
-  onAdd: () => void;
-}) {
+export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
+  const { kind, itemId } = useParams();
+  if (mode === "new" && kind !== undefined && !itemTypeRegistry().has(kind)) {
+    return <UnknownItemType />;
+  }
   return (
-    <span className="label editor__grouplabel">
-      {label}
-      <button
-        type="button"
-        className="icon-btn icon-btn--sm"
-        aria-label={action}
-        title={action}
-        onClick={onAdd}
-      >
-        <IconPlus size={15} />
-      </button>
-    </span>
+    <EditorForm key={`${mode}:${kind ?? ""}:${itemId ?? ""}`} mode={mode} />
   );
 }
 
-function isRegisteredType(value: string | undefined): value is string {
-  return value !== undefined && itemTypeRegistry().has(value);
-}
-
-export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
+function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const { kind: kindParam, itemId } = useParams();
   const [search] = useSearchParams();
   const navigate = useNavigate();
@@ -105,10 +87,8 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   const existing = items.find((candidate) => candidate.id === itemId);
   const initial = useMemo<VaultItem | null>(() => {
     if (mode === "edit") return existing ?? null;
-    const draft = draftOfType(
-      isRegisteredType(kindParam) ? kindParam : "login",
-      "",
-    );
+    const draft = draftOfType(kindParam ?? "login", "");
+    draft.folderId = search.get("folder");
     const name = search.get("name")?.trim();
     const uri = search.get("uri")?.trim();
     const ref = search.get("ref")?.trim();
@@ -145,6 +125,17 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
     setIssuanceKey(crypto.randomUUID());
   }, [initial]);
 
+  const patch = (changes: Partial<VaultItem>) =>
+    setDraft((current) =>
+      current ? overlapCast({ ...current, ...changes }) : current,
+    );
+  const path = useEditorPath(
+    draft ?? { name: "", folderId: null },
+    folders,
+    patch,
+    setError,
+  );
+
   if (!draft) {
     return (
       <div className="detail">
@@ -158,10 +149,38 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
     );
   }
 
+  const selectedFolder = path.choices.find(
+    (entry) => entry.id === draft.folderId,
+  );
+  const changeType = (
+    typeId: string,
+    name = draft.name,
+    folder: Folder | null = selectedFolder ?? null,
+  ) => {
+    path.stage(folder ?? undefined);
+    setDraft({
+      ...draftOfType(typeId, name),
+      folderId: folder?.id ?? null,
+      notes: draft.notes,
+    });
+    setError(null);
+    setShowGenerator(false);
+    setReveal(false);
+  };
+  const onTypeChange =
+    mode === "new" && kindParam === undefined ? changeType : undefined;
+
   // A drop is a one-time share in flight, not an editable item: +new gets its
   // own ceremony, and an existing record has nothing an editor could change.
   if (draft.kind === "drop") {
-    if (mode === "new") return <NewDropCeremony />;
+    if (mode === "new")
+      return (
+        <NewDropCeremony
+          initialName={draft.name}
+          initialFolder={selectedFolder}
+          onTypeChange={onTypeChange}
+        />
+      );
     return (
       <div className="detail">
         <div className="empty">
@@ -173,11 +192,6 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
       </div>
     );
   }
-
-  const patch = (changes: Partial<VaultItem>) =>
-    setDraft((current) =>
-      current ? overlapCast({ ...current, ...changes }) : current,
-    );
 
   const draftTypeId = itemTypeId(draft);
   const typedDefinition =
@@ -212,7 +226,9 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
     setError(null);
     let deliveryId = pendingDeliveryId;
     try {
-      let next = draft;
+      const location = path.resolve();
+      if (draft.kind === "login") await validateWebsitePatterns(draft.uris);
+      let next = { ...draft, name: location.name, folderId: location.folderId };
       if (next.kind === "certificate" && !next.certificatePem) {
         const issued = await issueCertificate({
           commonName: next.commonName.trim() || "localhost",
@@ -251,7 +267,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
       ) {
         next = { ...next, passwordChangedAt: new Date().toISOString() };
       }
-      await store.saveItem(next);
+      await store.saveItem(next, location.folder);
       if (deliveryId) {
         await acknowledgeCertificateDelivery(deliveryId);
         setPendingDeliveryId(undefined);
@@ -275,17 +291,6 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
     }
   }
 
-  function setField(id: string, changes: Partial<CustomField>) {
-    if (!draft) return;
-    patch(
-      overlapCast({
-        fields: draft.fields.map((field) =>
-          field.id === id ? { ...field, ...changes } : field,
-        ),
-      }),
-    );
-  }
-
   const closeTo = mode === "edit" ? `/vault/${draft.id}` : "/vault";
   const saveVerb = saving
     ? draft.kind === "certificate" && !draft.certificatePem
@@ -300,79 +305,22 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   return (
     <div className="detail">
       <form className="editor" onSubmit={(event) => void onSubmit(event)}>
-        {/* The editor edits a file: its name is the title, its kind the
-            extension, and save/cancel are keys in the title row. */}
-        <div className="editor__titlerow">
-          <Link
-            className="icon-btn editor__backbtn"
-            aria-label="Back"
-            title="Back"
-            to={closeTo}
-          >
-            <IconChevronLeft size={17} />
-          </Link>
-          <input
-            className="editor__name"
-            aria-label="Name"
-            placeholder="Untitled"
-            value={draft.name}
-            // biome-ignore lint/a11y/noAutofocus: reached only by an explicit "new item" or "edit" action, where the name is the first thing to type — but never on a phone, where it would throw the keyboard over the record before it can be read
-            autoFocus={!isTouchPointer()}
-            onChange={(event) => patch({ name: event.target.value })}
-          />
-          {mode === "new" ? (
-            <select
-              className="editor__ext"
-              aria-label="Type"
-              value={draftTypeId}
-              onChange={(event) => {
-                const next = draftOfType(event.target.value, draft.name);
-                setDraft({
-                  ...next,
-                  folderId: draft.folderId,
-                  notes: draft.notes,
-                });
-              }}
-            >
-              {/* Every type in the registry, built-in and installed alike —
-                  there is no separate list of "ours" (ADR 0087 §1). */}
-              {itemTypeRegistry()
-                .list()
-                .map(({ definition }) => (
-                  <option
-                    key={definition.metadata.id}
-                    value={definition.metadata.id}
-                  >
-                    {definition.spec.extension}
-                  </option>
-                ))}
-            </select>
-          ) : (
-            <span className="editor__ext" aria-hidden="true">
-              {typeExtension(draftTypeId)}
-            </span>
-          )}
-          <button
-            type="submit"
-            className="icon-btn editor__save"
-            disabled={saving}
-            aria-busy={saving}
-            aria-label={saveVerb}
-            title={saveVerb}
-          >
-            <IconCheck size={17} />
-          </button>
-          <Link
-            className="icon-btn"
-            aria-label="Cancel"
-            title="Cancel"
-            to={closeTo}
-          >
-            <IconX size={17} />
-          </Link>
-        </div>
+        <EditorTitle
+          value={draft}
+          folders={path.choices}
+          onName={(name) => patch({ name })}
+          onFolder={(folderId) => patch({ folderId })}
+          onBlur={path.blur}
+          typeId={draftTypeId}
+          onTypeChange={onTypeChange}
+          focusName
+        />
         {draft.kind === "login" ? (
           <div className="editor__grid">
+            <LoginWebsites
+              uris={draft.uris}
+              onChange={(uris) => patch({ uris })}
+            />
             <div className="field">
               <label htmlFor="username">Username</label>
               <input
@@ -425,212 +373,23 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
               />
             ) : null}
 
-            <div className="field">
-              <label htmlFor="totp">Authenticator secret</label>
-              <input
-                id="totp"
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="Base32 seed or otpauth:// URI"
-                value={draft.totp}
-                onChange={(event) => patch({ totp: event.target.value })}
-              />
-            </div>
-
-            <div className="field">
-              <GroupAdd
-                label="Websites"
-                action="Add address"
-                onAdd={() => patch({ uris: [...draft.uris, newUri()] })}
-              />
-              {draft.uris.map((uri, index) => (
-                <div className="editor__uri" key={uri.id}>
-                  <input
-                    value={uri.uri}
-                    placeholder="https://example.com"
-                    aria-label={`Address ${index + 1}`}
-                    onChange={(event) =>
-                      patch({
-                        uris: draft.uris.map((candidate) =>
-                          candidate.id === uri.id
-                            ? { ...candidate, uri: event.target.value }
-                            : candidate,
-                        ),
-                      })
-                    }
-                  />
-                  <select
-                    value={uri.match}
-                    aria-label={`Match rule ${index + 1}`}
-                    onChange={(event) =>
-                      patch({
-                        uris: draft.uris.map((candidate) =>
-                          candidate.id === uri.id
-                            ? {
-                                ...candidate,
-                                match: overlapCast(event.target.value),
-                              }
-                            : candidate,
-                        ),
-                      })
-                    }
-                  >
-                    {MATCHES.map((match) => (
-                      <option key={match} value={match}>
-                        {match}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={`Remove address ${index + 1}`}
-                    onClick={() =>
-                      patch({
-                        uris: draft.uris.filter(
-                          (candidate) => candidate.id !== uri.id,
-                        ),
-                      })
-                    }
-                  >
-                    <IconX size={17} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {draft.kind === "passkey" ? (
-          <div className="editor__grid">
-            <div className="editor__row">
+            <OptionalField
+              key={draft.id}
+              present={Boolean(draft.totp)}
+              command="Add authenticator secret"
+            >
               <div className="field">
-                <label htmlFor="rpid">Relying party</label>
+                <label htmlFor="totp">Authenticator secret</label>
                 <input
-                  id="rpid"
-                  placeholder="example.com"
-                  value={draft.rpId}
-                  onChange={(event) => patch({ rpId: event.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="pk-user">Account</label>
-                <input
-                  id="pk-user"
-                  value={draft.username}
-                  onChange={(event) => patch({ username: event.target.value })}
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="authenticator">Authenticator</label>
-              <select
-                id="authenticator"
-                value={draft.authenticator}
-                onChange={(event) =>
-                  patch({
-                    authenticator: overlapCast(event.target.value),
-                  })
-                }
-              >
-                <option value="platform">This device</option>
-                <option value="cross-platform">
-                  Security key or another device
-                </option>
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="credid">Credential id</label>
-              <input
-                id="credid"
-                spellCheck={false}
-                value={draft.credentialIdB64}
-                onChange={(event) =>
-                  patch({ credentialIdB64: event.target.value })
-                }
-              />
-            </div>
-            <p className="note">
-              <span>
-                This records a credential; it does not create one. The private
-                key stays in the authenticator and never enters the vault.
-              </span>
-            </p>
-          </div>
-        ) : null}
-
-        {draft.kind === "card" ? (
-          <div className="editor__grid">
-            <div className="editor__row">
-              <div className="field">
-                <label htmlFor="cardholder">Cardholder</label>
-                <input
-                  id="cardholder"
+                  id="totp"
                   autoComplete="off"
-                  value={draft.cardholder}
-                  onChange={(event) =>
-                    patch({ cardholder: event.target.value })
-                  }
+                  spellCheck={false}
+                  placeholder="Base32 seed or otpauth:// URI"
+                  value={draft.totp}
+                  onChange={(event) => patch({ totp: event.target.value })}
                 />
               </div>
-              <div className="field">
-                <label htmlFor="brand">Brand</label>
-                <input
-                  id="brand"
-                  autoComplete="off"
-                  value={draft.brand}
-                  onChange={(event) => patch({ brand: event.target.value })}
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="number">Number</label>
-              <input
-                id="number"
-                inputMode="numeric"
-                autoComplete="off"
-                value={draft.number}
-                onChange={(event) =>
-                  patch({ number: event.target.value.replace(/[^\d]/g, "") })
-                }
-              />
-            </div>
-            <div className="editor__row">
-              <div className="field">
-                <label htmlFor="exp">Expires</label>
-                <div className="editor__inline">
-                  <input
-                    id="exp"
-                    inputMode="numeric"
-                    placeholder="MM"
-                    maxLength={2}
-                    value={draft.expMonth}
-                    onChange={(event) =>
-                      patch({ expMonth: event.target.value })
-                    }
-                  />
-                  <input
-                    inputMode="numeric"
-                    placeholder="YYYY"
-                    maxLength={4}
-                    aria-label="Expiry year"
-                    value={draft.expYear}
-                    onChange={(event) => patch({ expYear: event.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="field">
-                <label htmlFor="cvc">Security code</label>
-                <input
-                  id="cvc"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  maxLength={4}
-                  value={draft.code}
-                  onChange={(event) => patch({ code: event.target.value })}
-                />
-              </div>
-            </div>
+            </OptionalField>
           </div>
         ) : null}
 
@@ -657,35 +416,23 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
                 </button>
               </div>
             </div>
-            <div className="field">
-              <label htmlFor="connref">Connection reference</label>
-              <input
-                id="connref"
-                spellCheck={false}
-                placeholder="conn_…"
-                value={draft.connectionRef}
-                onChange={(event) =>
-                  patch({ connectionRef: event.target.value })
-                }
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="grantees">Grantees (agent ids)</label>
-              <input
-                id="grantees"
-                spellCheck={false}
-                placeholder="agt_release_bot, agt_indexer"
-                value={draft.grantees.join(", ")}
-                onChange={(event) =>
-                  patch({
-                    grantees: event.target.value
-                      .split(",")
-                      .map((value) => value.trim())
-                      .filter(Boolean),
-                  })
-                }
-              />
-            </div>
+            <OptionalField
+              present={Boolean(draft.connectionRef)}
+              command="Add connection reference"
+            >
+              <div className="field">
+                <label htmlFor="connref">Connection reference</label>
+                <input
+                  id="connref"
+                  spellCheck={false}
+                  placeholder="conn_…"
+                  value={draft.connectionRef}
+                  onChange={(event) =>
+                    patch({ connectionRef: event.target.value })
+                  }
+                />
+              </div>
+            </OptionalField>
             <div className="field">
               <GroupAdd
                 label="Capability ceiling"
@@ -742,51 +489,11 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
           </div>
         ) : null}
 
-        {draft.kind === "certificate" ? (
-          <div className="editor__grid">
-            <div className="field">
-              <label htmlFor="cert-cn">Common name</label>
-              <input
-                id="cert-cn"
-                value={draft.commonName}
-                readOnly={Boolean(draft.certificatePem)}
-                onChange={(event) => patch({ commonName: event.target.value })}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="cert-dns">DNS names</label>
-              <input
-                id="cert-dns"
-                value={draft.dnsNames}
-                placeholder="localhost, *.local"
-                readOnly={Boolean(draft.certificatePem)}
-                onChange={(event) => patch({ dnsNames: event.target.value })}
-              />
-            </div>
-            <div className="editor__row">
-              <div className="field">
-                <label htmlFor="cert-ip">IP addresses</label>
-                <input
-                  id="cert-ip"
-                  value={draft.ipAddrs}
-                  placeholder="127.0.0.1"
-                  readOnly={Boolean(draft.certificatePem)}
-                  onChange={(event) => patch({ ipAddrs: event.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="cert-ttl">TTL (hours)</label>
-                <input
-                  id="cert-ttl"
-                  inputMode="numeric"
-                  value={draft.ttlHours}
-                  readOnly={Boolean(draft.certificatePem)}
-                  onChange={(event) => patch({ ttlHours: event.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <NativeItemFields
+          key={`native:${draft.id}`}
+          draft={draft}
+          onChange={patch}
+        />
 
         {typedDefinition !== undefined && draft.kind === "typed" ? (
           <TypedFieldInputs
@@ -804,117 +511,14 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
           </p>
         ) : null}
 
-        <div className="field">
-          <label htmlFor="notes">Notes</label>
-          <textarea
-            id="notes"
-            value={draft.notes}
-            rows={draft.kind === "note" ? 12 : 4}
-            onChange={(event) => patch({ notes: event.target.value })}
-          />
-        </div>
-
-        <div className="field">
-          <GroupAdd
-            label="Custom fields"
-            action="Add field"
-            onAdd={() =>
-              patch({
-                fields: [
-                  ...draft.fields,
-                  { id: newId(), name: "", value: "", hidden: false },
-                ],
-              })
-            }
-          />
-          {draft.fields.map((field) => (
-            <div className="editor__uri" key={field.id}>
-              <input
-                value={field.name}
-                placeholder="Field name"
-                aria-label="Field name"
-                onChange={(event) =>
-                  setField(field.id, { name: event.target.value })
-                }
-              />
-              <input
-                type={field.hidden ? "password" : "text"}
-                value={field.value}
-                placeholder="Value"
-                aria-label="Field value"
-                onChange={(event) =>
-                  setField(field.id, { value: event.target.value })
-                }
-              />
-              <div className="editor__inline">
-                <button
-                  type="button"
-                  className={`icon-btn${field.hidden ? " is-on" : ""}`}
-                  aria-pressed={field.hidden}
-                  aria-label="Conceal this field"
-                  title="Conceal this field"
-                  onClick={() => setField(field.id, { hidden: !field.hidden })}
-                >
-                  {field.hidden ? (
-                    <IconEyeOff size={17} />
-                  ) : (
-                    <IconEye size={17} />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={`Remove ${field.name || "field"}`}
-                  onClick={() =>
-                    patch({
-                      fields: draft.fields.filter(
-                        (candidate) => candidate.id !== field.id,
-                      ),
-                    })
-                  }
-                >
-                  <IconX size={17} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="editor__row">
-          <div className="field">
-            <label htmlFor="folder">Folder</label>
-            <select
-              id="folder"
-              value={draft.folderId ?? ""}
-              onChange={(event) =>
-                patch({ folderId: event.target.value || null })
-              }
-            >
-              <option value="">No folder</option>
-              {folders.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={draft.favorite}
-                onChange={(event) => patch({ favorite: event.target.checked })}
-              />
-              <span>Pin to the top of the list</span>
-            </label>
-          </div>
-        </div>
+        <EditorExtras key={draft.id} draft={draft} onChange={patch} />
 
         {error ? (
           <p className="note note--err" role="alert">
             <span>{error}</span>
           </p>
         ) : null}
+        <EditorActions busy={saving} label={saveVerb} closeTo={closeTo} />
       </form>
     </div>
   );

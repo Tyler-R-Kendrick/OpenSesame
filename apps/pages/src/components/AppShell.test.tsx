@@ -141,6 +141,39 @@ describe("AppShell", () => {
     ).toBe("data");
   });
 
+  it.each([
+    ["/vault?f=favorites", "Vault", "favorites"],
+    ["/settings/security", "Settings", "security"],
+  ])(
+    "toggles the %s branch without losing the selected child",
+    (route, label, child) => {
+      const { container } = renderShell(route);
+      const row = screen.getByRole("treeitem", { name: label });
+      const tree = screen.getByRole("tree", { name: "Sections" });
+      expect(row.getAttribute("aria-expanded")).toBe("true");
+      fireEvent.click(row);
+      expect(row.getAttribute("aria-expanded")).toBe("false");
+      expect(container.querySelector(".railtree__kids")).toBeNull();
+      expect(tree.getAttribute("aria-activedescendant")).toBe(row.id);
+      fireEvent.click(row);
+      expect(row.getAttribute("aria-expanded")).toBe("true");
+      expect(
+        container.querySelector(".railtree__kids .is-active")?.textContent,
+      ).toContain(child);
+    },
+  );
+
+  it("collapses and reopens a section with the arrow keys", () => {
+    renderShell("/vault?f=favorites");
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    const row = screen.getByRole("treeitem", { name: "Vault" });
+    tree.focus();
+    fireEvent.keyDown(tree, { key: "ArrowLeft" });
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.keyDown(tree, { key: "ArrowRight" });
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("counts live items, favourites, trash, and kinds in the vault filters", () => {
     const { container } = renderShell("/vault");
 
@@ -210,11 +243,19 @@ describe("AppShell", () => {
     expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
   });
 
-  it("offers the password-health review entry", () => {
-    const { container } = renderShell("/vault");
-    const health = container.querySelector('a[href="/vault/health"]');
-    expect(health?.textContent).toContain("health");
-  });
+  it.each(["/vault", "/vault/health"])(
+    "keeps health out of the tree on %s",
+    (path) => {
+      renderShell(path);
+      const tree = screen.getByRole("tree", { name: "Sections" });
+      expect(tree.querySelector('a[href="/vault/health"]')).toBeNull();
+      expect(
+        document.getElementById(
+          tree.getAttribute("aria-activedescendant") ?? "",
+        ),
+      ).not.toBeNull();
+    },
+  );
 
   it("both lock buttons call the store lock", () => {
     renderShell("/vault");
@@ -274,7 +315,7 @@ describe("AppShell", () => {
   });
 
   it("walks off the open vault directory onto the next section", () => {
-    const { container } = renderShell("/vault/health");
+    const { container } = renderShell("/vault?folder=f1");
     const tree = screen.getByRole("tree", { name: "Sections" });
     tree.focus();
     fireEvent.keyDown(tree, { key: "ArrowDown" });

@@ -8,7 +8,7 @@
  * bar, which is neither — it read as a banner and looked nothing like the
  * unlock screen it sits next to. Review caught it; nothing else would have.
  *
- * So these four checks. They are deliberately mechanical: a lint that tried to
+ * These checks are deliberately mechanical: a lint that tried to
  * decide *in general* whether a button should have been an icon would be wrong
  * constantly. These catch the specific things that actually went wrong.
  *
@@ -111,6 +111,18 @@ function blockAfter(source, from) {
 }
 
 function checkTsx(file, source) {
+  // Vault pane commands never become text CTAs when the list is empty.
+  const path = relative(root, file).replaceAll("\\", "/");
+  if (/\/sections\/(VaultSection|vault\/VaultPathbar)\.tsx$/.test(path)) {
+    for (const match of source.matchAll(/["']btn(?:\s|["']|--)/g)) {
+      report(
+        file,
+        lineOf(source, match.index),
+        "vault-commands-use-icons",
+        "Vault commands belong in the persistent top path strip as named icon keys, never text-button empty-state actions.",
+      );
+    }
+  }
   // 1. No text-labelled primary in a screen's commit bar.
   const isScreen = SCREEN_DIR.test(relative(root, file).replaceAll("\\", "/"));
   for (const match of isScreen ? source.matchAll(COMMIT_BAR) : []) {

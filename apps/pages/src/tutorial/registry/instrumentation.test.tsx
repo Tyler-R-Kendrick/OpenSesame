@@ -147,7 +147,6 @@ describe("instrumented screens", () => {
     expect(isMountedGuideTarget("vault.create")).toBe(true);
     expect(isMountedGuideTarget("vault.import")).toBe(true);
     expect(isMountedGuideTarget("vault.filter.favorites")).toBe(true);
-    expect(isMountedGuideTarget("vault.health")).toBe(true);
     // Nothing to filter to yet.
     expect(isMountedGuideTarget("vault.filter.logins")).toBe(false);
     empty.unmount();
@@ -159,7 +158,7 @@ describe("instrumented screens", () => {
     expect(isMountedGuideTarget("vault.filter.logins")).toBe(true);
     expect(
       resolveGuideTargetElement("vault.create")?.getAttribute("href"),
-    ).toBe("/vault/new/login");
+    ).toBe("/vault/new");
   });
 
   it("binds the connector catalog, its search field and the custom-connector link", () => {

@@ -33,7 +33,6 @@ import {
 import {
   type ItemKind,
   type VaultItem,
-  browsableUrl,
   hostOf,
   isVaultCustodied,
 } from "../../lib/vault/model.js";
@@ -609,7 +608,7 @@ function ItemFields({
             <section className="detail__group">
               <h2 className="detail__grouphead">Websites</h2>
               {item.uris.map((uri) => {
-                const href = browsableUrl(uri.uri);
+                const href = loginWebsiteLink(uri);
                 return (
                   <FieldRow
                     key={uri.id}
@@ -1054,3 +1053,4 @@ function LastReceipt({ connectionRef }: { connectionRef: string }) {
 
   return <p className="frow__notes">{line}</p>;
 }
+import { loginWebsiteLink } from "../../lib/vault/website-pattern.js";

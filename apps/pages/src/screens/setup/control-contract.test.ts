@@ -71,6 +71,17 @@ describe("the shipped screens satisfy the control contract", () => {
 });
 
 describe("the lint fails on the code that actually got through", () => {
+  it("rejects the vault text-button empty state", () => {
+    const result = runLint(
+      ...brokenTree(
+        "../sections/VaultSection.tsx",
+        '<Link className="btn btn--primary btn--sm">New item</Link>',
+      ),
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("vault-commands-use-icons");
+  });
+
   it("rejects a text button in a screen's commit bar", () => {
     // Verbatim the shape that shipped: a wide `btn--primary` in `setup__foot`.
     const broken = withEdit(

@@ -30,7 +30,10 @@ import { HealthPanel as DefaultHealthPanel } from "./sections/vault/HealthPanel.
 import { ItemDetail as DefaultItemDetail } from "./sections/vault/ItemDetail.js";
 import { ItemEditor as DefaultItemEditor } from "./sections/vault/ItemEditor.js";
 import { SupportProvider } from "./tutorial/session.js";
-import { SupportLauncher } from "./tutorial/ui/SupportLauncher.js";
+import {
+  SupportLauncher,
+  SupportSlotProvider,
+} from "./tutorial/ui/SupportLauncher.js";
 import { useWebMcp } from "./webmcp/lifecycle.js";
 
 // Route-level code splitting: the four big sections load on first visit.
@@ -154,7 +157,10 @@ function VaultApp() {
           <Route path="/vault" element={<slots.VaultSection />}>
             <Route index element={<slots.VaultWelcome />} />
             <Route path="health" element={<slots.HealthPanel />} />
-            <Route path="new/:kind" element={<slots.ItemEditor mode="new" />} />
+            <Route
+              path="new/:kind?"
+              element={<slots.ItemEditor mode="new" />}
+            />
             <Route
               path=":itemId/edit"
               element={<slots.ItemEditor mode="edit" />}
@@ -222,8 +228,10 @@ export function App({ slots }: { slots?: Partial<AppSlots> } = {}) {
   return (
     <AppSlotsContext.Provider value={resolved}>
       <SupportProvider>
-        {body}
-        <SupportLauncher />
+        <SupportSlotProvider>
+          {body}
+          <SupportLauncher />
+        </SupportSlotProvider>
       </SupportProvider>
     </AppSlotsContext.Provider>
   );

@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 495,
-    "violations": 825,
-    "oversizedLines": 283633
+    "files": 494,
+    "violations": 822,
+    "oversizedLines": 281900
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -555,7 +555,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/AppShell.tsx": {
-      "max-lines": 640,
+      "max-lines": 478,
       "max-lines-per-function": 2
     },
     "apps/pages/src/components/CeremonyShell.tsx": {
@@ -772,7 +772,7 @@
     },
     "apps/pages/src/lib/vault/model.ts": {
       "complexity": 1,
-      "max-lines": 561
+      "max-lines": 549
     },
     "apps/pages/src/lib/vault/offline-backup.ts": {
       "complexity": 1
@@ -789,13 +789,13 @@
     },
     "apps/pages/src/lib/vault/store-sync.ts": {
       "complexity": 2,
-      "max-lines": 410
+      "max-lines": 407
     },
     "apps/pages/src/lib/vault/store.test.ts": {
       "max-lines": 528
     },
     "apps/pages/src/lib/vault/store.ts": {
-      "max-lines": 1854
+      "max-lines": 1850
     },
     "apps/pages/src/lib/vault/unlock-methods-extra.test.ts": {
       "max-lines": 534
@@ -821,7 +821,7 @@
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 2,
       "max-depth": 1,
-      "max-lines": 1309,
+      "max-lines": 1306,
       "max-lines-per-function": 1,
       "max-statements": 2
     },
@@ -883,10 +883,10 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 765
+      "max-lines": 763
     },
     "apps/pages/src/sections/VaultSection.tsx": {
-      "max-lines": 487,
+      "max-lines": 466,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/BindingEditor.tsx": {
@@ -1012,8 +1012,7 @@
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/DropCeremony.tsx": {
-      "max-lines": 577,
-      "max-lines-per-function": 2
+      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/HealthPanel.tsx": {
       "max-lines-per-function": 1
@@ -1027,19 +1026,16 @@
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 710
+      "max-lines": 700
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 3,
-      "max-lines": 921,
+      "max-lines": 525,
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/vault/TypedFields.tsx": {
-      "max-lines": 520
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
       "complexity": 1,
-      "max-lines": 620,
+      "max-lines": 605,
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/__tests__/a11y/harness.tsx": {
@@ -1062,7 +1058,7 @@
       "max-lines": 442
     },
     "apps/pages/src/tutorial/registry/catalog.ts": {
-      "max-lines": 661
+      "max-lines": 653
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
       "max-lines": 1001

@@ -1,0 +1,97 @@
+/* Accepted compact strip: equal key boxes and one shared vertical axis. */
+.statusline {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.statusline__support,
+.statusline__planes,
+.statusline__tools,
+.statusline__tools > div {
+  display: flex;
+  align-items: center;
+}
+
+.statusline__tools,
+.statusline .cx {
+  gap: 2px;
+}
+
+.statusline .icon-btn,
+.statusline .cx__btn {
+  appearance: none;
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: 0;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+
+.statusline .cx__pip {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+}
+
+.statusline .icon-btn:hover:not(:disabled),
+.statusline .cx__btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
+.statusline .cx__btn--attn {
+  color: var(--warn);
+}
+.statusline .support-launch--live {
+  color: var(--accent);
+}
+
+.statusline .icon-btn > svg,
+.statusline .cx__btn > svg {
+  width: 17px;
+  height: 17px;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .statusline {
+    padding-inline: 4px;
+  }
+  .statusline .icon-btn,
+  .statusline .cx__btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .statusline .cx,
+  .statusline__tools {
+    gap: 0;
+  }
+}
+
+@media (max-width: 440px) {
+  .statusline {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+}

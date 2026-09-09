@@ -14,8 +14,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { IconMark, IconPlus } from "../components/Icons.js";
+import { IconPlus } from "../components/Icons.js";
 import { VaultList } from "../components/VaultList.js";
+import { Wordmark } from "../components/Wordmark.js";
 import { firstControl, landFocus } from "../lib/focus.js";
 import type { FederatedProviderSummary } from "../lib/providers.js";
 import { signOut, switchAccount } from "../lib/session-exit.js";
@@ -86,10 +87,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
     <div className="unlock">
       <div className="unlock__card">
         <div className="unlock__brand">
-          <p className="unlock__wordmark">
-            <IconMark size={16} />
-            opensesame
-          </p>
+          <Wordmark className="unlock__wordmark" />
           <h1>Vaults</h1>
           <p>
             Everything sealed on this device, and the two roads that need no

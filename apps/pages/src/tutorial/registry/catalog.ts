@@ -136,14 +136,6 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.items.search",
   },
   {
-    id: "vault.health",
-    description:
-      "Opens the password health report, which scores the stored passwords for strength, reuse and age entirely on this device.",
-    role: "navigation",
-    routes: ["/vault"],
-    capabilityId: null,
-  },
-  {
     id: "vault.health.summary",
     description:
       "The one-line verdict of the health report: how many passwords were reviewed, how many are clean, and how many are weak, reused or old.",

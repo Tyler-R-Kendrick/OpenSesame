@@ -20,7 +20,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkEditorPaths } from "./lib/editor-path-contract.mjs";
+import { checkEditorRoutes } from "./lib/editor-routes-contract.mjs";
+import { checkEditorTabOrder } from "./lib/editor-tab-order-contract.mjs";
+import { checkLoginWebsites } from "./lib/login-websites-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { checkStatusline } from "./lib/statusline-contract.mjs";
+import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
+import { checkWordmark } from "./lib/wordmark-contract.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
@@ -90,6 +97,7 @@ const browser = await launch();
     document.querySelector('link[rel="icon"]')?.getAttribute("href"),
   );
   check(icon === `${BASE}icon.svg`, `icon href is base-rooted (${icon})`);
+  await checkWordmark(page, check);
 
   await page.getByRole("button", { name: "Deployment setup" }).click();
   await snap(page, "A2-setup");
@@ -113,6 +121,12 @@ const browser = await launch();
   const inApp = await snap(page, "B-guest-in-app");
   check(/guest\s*@\s*guest/.test(inApp), "guest landed inside the app");
   check(!/Claim this guest session/.test(inApp), "no claim notice");
+  await checkStatusline(page, check);
+  await checkVaultPane(page, check);
+  await checkEditorTabOrder(page, check);
+  await checkEditorRoutes(page, check);
+  await checkEditorPaths(page, check);
+  await checkLoginWebsites(page, check);
 
   for (const [label, name] of [
     ["connections/", "B-connections"],
