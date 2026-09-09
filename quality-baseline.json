@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 494,
-    "violations": 822,
-    "oversizedLines": 281900
+    "violations": 821,
+    "oversizedLines": 281702
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -555,7 +555,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/AppShell.tsx": {
-      "max-lines": 478,
+      "max-lines": 477,
       "max-lines-per-function": 2
     },
     "apps/pages/src/components/CeremonyShell.tsx": {
@@ -856,7 +856,7 @@
     "apps/pages/src/sections/AccessSection.tsx": {
       "complexity": 5,
       "max-depth": 1,
-      "max-lines": 4042,
+      "max-lines": 4039,
       "max-lines-per-function": 14
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
@@ -871,7 +871,7 @@
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2884,
+      "max-lines": 2880,
       "max-lines-per-function": 13
     },
     "apps/pages/src/sections/SettingsSection.test.tsx": {
@@ -1026,11 +1026,11 @@
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 700
+      "max-lines": 689
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
-      "complexity": 3,
-      "max-lines": 525,
+      "complexity": 2,
+      "max-lines": 515,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
@@ -1075,13 +1075,13 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/support.test.tsx": {
-      "max-lines": 819
+      "max-lines": 706
     },
     "apps/pages/src/webmcp/tools.test.ts": {
       "max-lines": 646
     },
     "apps/pages/src/webmcp/tools.ts": {
-      "max-lines": 932
+      "max-lines": 877
     },
     "apps/pm-bridges/src/keepassxc/actions.rs": {
       "max-lines": 649
@@ -1684,7 +1684,7 @@
       "max-lines": 897
     },
     "packages/webmcp/src/registrar.test.ts": {
-      "max-lines": 475
+      "max-lines": 474
     },
     "tools/oxlint/anti-slop/rules/no-known-value-widening.ts": {
       "complexity": 1,

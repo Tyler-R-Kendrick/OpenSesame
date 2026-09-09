@@ -19,18 +19,19 @@ import {
   definitionFor,
   itemTypeId,
   itemTypeRegistry,
-  newValues,
 } from "../../lib/vault/item-types.js";
 import {
   type Folder,
-  type LegacyItemKind,
   type VaultItem,
-  createItem,
-  createTypedItem,
   newGrant,
-  newUri,
 } from "../../lib/vault/model.js";
+import {
+  acceptsDraftUsername,
+  newItemDraft,
+  prefillNewDraft,
+} from "../../lib/vault/new-draft.js";
 import { validateWebsitePatterns } from "../../lib/vault/website-pattern.js";
+import { DraftSuggestions } from "./DraftSuggestions.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";
 import { EditorTitle } from "./EditorTitle.js";
@@ -40,32 +41,6 @@ import { NativeItemFields } from "./NativeItemFields.js";
 import { NewDropCeremony } from "./NewDropCeremony.js";
 import { TypedFieldInputs } from "./TypedFields.js";
 import { useEditorPath } from "./useEditorPath.js";
-
-/** The kinds with a bespoke ceremony; every other type is drawn from its
-    definition by `TypedFieldInputs` (ADR 0087 §6). */
-const LEGACY_KINDS: LegacyItemKind[] = [
-  "login",
-  "passkey",
-  "card",
-  "secret",
-  "note",
-  "certificate",
-  "drop",
-];
-
-/**
- * Build a draft of any registered type. A legacy kind keeps its own shape;
- * everything else is a `TypedItem` whose values come from its definition.
- */
-function draftOfType(typeId: string, name: string): VaultItem {
-  const legacy = LEGACY_KINDS.find((kind) => kind === typeId);
-  if (legacy === "certificate")
-    return { ...createItem("certificate", name), dnsNames: "", ipAddrs: "" };
-  if (legacy !== undefined) return createItem(legacy, name);
-  const definition = itemTypeRegistry().get(typeId);
-  if (definition === undefined) throw new Error("Unknown vault item type");
-  return createTypedItem(definition, newValues(definition), name);
-}
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
   const { kind, itemId } = useParams();
@@ -85,40 +60,33 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const store = useVaultStore();
 
   const existing = items.find((candidate) => candidate.id === itemId);
-  const initial = useMemo<VaultItem | null>(() => {
-    if (mode === "edit") return existing ?? null;
-    const draft = draftOfType(kindParam ?? "login", "");
-    draft.folderId = search.get("folder");
-    const name = search.get("name")?.trim();
-    const uri = search.get("uri")?.trim();
-    const ref = search.get("ref")?.trim();
-    if (name) draft.name = name;
-    if (draft.kind === "login" && uri) {
-      draft.uris = [newUri(uri)];
+  const initial = useMemo(() => {
+    if (mode === "edit") return { item: existing ?? null, error: null };
+    try {
+      return {
+        item: prefillNewDraft(kindParam ?? "login", search),
+        error: null,
+      };
+    } catch {
+      return {
+        item: newItemDraft(kindParam ?? "login"),
+        error:
+          "Link values were refused. Use public metadata parameters or supported field.<id> values; never put secrets in links.",
+      };
     }
-    if (draft.kind === "secret" && ref) {
-      draft.connectionRef = ref;
-    }
-    if (draft.kind === "passkey" && uri) {
-      try {
-        draft.rpId = new URL(uri.includes("://") ? uri : `https://${uri}`).host;
-      } catch {
-        draft.rpId = uri;
-      }
-    }
-    return draft;
   }, [mode, existing, kindParam, search]);
 
-  const [draft, setDraft] = useState<VaultItem | null>(initial);
+  const [draft, setDraft] = useState<VaultItem | null>(initial.item);
   const [showGenerator, setShowGenerator] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initial.error);
   const [pendingDeliveryId, setPendingDeliveryId] = useState<string>();
   const [issuanceKey, setIssuanceKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
-    setDraft(initial);
+    setDraft(initial.item);
+    setError(initial.error);
     setShowGenerator(false);
     setReveal(false);
     setPendingDeliveryId(undefined);
@@ -159,7 +127,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   ) => {
     path.stage(folder ?? undefined);
     setDraft({
-      ...draftOfType(typeId, name),
+      ...newItemDraft(typeId, name),
       folderId: folder?.id ?? null,
       notes: draft.notes,
     });
@@ -211,6 +179,14 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       setError("Give this item a name so you can find it again.");
       return;
     }
+    if (
+      draft.kind === "certificate" &&
+      !draft.certificatePem &&
+      !draft.commonName.trim()
+    ) {
+      setError("Enter the certificate's common name before issuing it.");
+      return;
+    }
     // The editor marks a required field with a star. Saying so and then
     // saving anyway is worse than not marking it at all.
     if (draft.kind === "typed" && typedDefinition !== undefined) {
@@ -231,7 +207,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       let next = { ...draft, name: location.name, folderId: location.folderId };
       if (next.kind === "certificate" && !next.certificatePem) {
         const issued = await issueCertificate({
-          commonName: next.commonName.trim() || "localhost",
+          commonName: next.commonName.trim(),
           dnsNames: next.dnsNames
             .split(/[,\s]+/)
             .map((name) => name.trim())
@@ -315,6 +291,20 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           onTypeChange={onTypeChange}
           focusName
         />
+        {mode === "new" ? (
+          <DraftSuggestions
+            key={`${draftTypeId}:${draft.kind === "login" ? draft.uris[0]?.uri : ""}`}
+            typeId={draftTypeId}
+            website={draft.kind === "login" ? draft.uris[0]?.uri : undefined}
+            onApply={(labels) => {
+              patch({ name: labels.name });
+              if (draft.kind === "login" || draft.kind === "passkey")
+                patch({ username: labels.username });
+              if (draft.kind === "typed" && acceptsDraftUsername(draftTypeId))
+                patchValue("username", labels.username);
+            }}
+          />
+        ) : null}
         {draft.kind === "login" ? (
           <div className="editor__grid">
             <LoginWebsites

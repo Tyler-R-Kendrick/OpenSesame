@@ -95,9 +95,9 @@ export function webmcpStatusText(snapshot: WebMcpRegistrationSnapshot): string {
   const refused = snapshot.failures.length;
   const noun = (count: number) => (count === 1 ? "tool" : "tools");
   if (snapshot.source === null) {
-    return `WebMCP: this browser exposes no model context, so its agent sees none of the ${total} ${noun(total)} this page has ready.`;
+    return `WebMCP: this browser exposes no model context, so its agent sees none of the ${total} ${noun(total)} this page has ready. In Chrome, enable Experimental Web Platform features at chrome://flags/#enable-experimental-web-platform-features, relaunch, and reload this page. The app cannot enable a browser API itself.`;
   }
-  const exposed = Math.max(0, total - refused);
+  const exposed = snapshot.accepted.length;
   const where = `${snapshot.source}.modelContext`;
   const base = `WebMCP: ${exposed} ${noun(exposed)} exposed to this browser's agent through ${where}`;
   if (refused === 0) return `${base}.`;

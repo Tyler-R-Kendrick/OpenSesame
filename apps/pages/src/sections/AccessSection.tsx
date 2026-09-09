@@ -94,16 +94,13 @@ import { PolicyEditor } from "./connections/PolicyEditor.js";
 import { type Flash, STATUS_CHIP, errorText } from "./connections/shared.js";
 import "./connections.css";
 import "./access.css";
+import { ACCESS_VIEWS, useSectionView } from "../lib/section-views.js";
 
-type AccessTab = "grants" | "requests" | "sessions" | "resources" | "policies";
-
-const TABS: Array<{ id: AccessTab; label: string; guideId: string }> = [
-  { id: "grants", label: "Grants", guideId: "access.grants" },
-  { id: "requests", label: "Requests", guideId: "access.requests" },
-  { id: "sessions", label: "Sessions", guideId: "access.sessions" },
-  { id: "resources", label: "Resources", guideId: "access.resources" },
-  { id: "policies", label: "Policies", guideId: "access.policies" },
-];
+const TABS = ACCESS_VIEWS.map((id) => ({
+  id,
+  label: id.charAt(0).toUpperCase() + id.slice(1),
+  guideId: `access.${id}`,
+}));
 
 /** One tab, named so a guide can point at it without knowing the markup. */
 function AccessTabButton({
@@ -204,19 +201,19 @@ function formatDuration(seconds: number): string {
  */
 export function AccessSection() {
   const online = useOnline();
-  const [tab, setTab] = useState<AccessTab>("grants");
+  const [tab, setTab] = useSectionView(ACCESS_VIEWS, "grants");
   const [ceremony, setCeremony] = useState<CeremonyState>(null);
   const [policyFocus, setPolicyFocus] = useState<string | null>(null);
 
-  const openGrant = useCallback((target: GrantTarget | null) => {
+  function openGrant(target: GrantTarget | null) {
     setCeremony({ target });
     setTab("grants");
-  }, []);
+  }
 
-  const openPolicy = useCallback((connectionId: string) => {
+  function openPolicy(connectionId: string) {
     setPolicyFocus(connectionId);
     setTab("policies");
-  }, []);
+  }
 
   const clearPolicyFocus = useCallback(() => setPolicyFocus(null), []);
 

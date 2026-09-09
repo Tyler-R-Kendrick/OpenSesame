@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --maxWorkers=4",
     "verify:static": "node scripts/verify-static-origin.mjs",
-    "verify:auth": "node scripts/verify-auth-flow.mjs"
+    "verify:auth": "node scripts/verify-auth-flow.mjs",
+    "verify:webmcp": "node scripts/verify-webmcp.mjs"
   },
   "dependencies": {
     "@ag-ui/client": "0.0.59",

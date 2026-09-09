@@ -2,6 +2,7 @@
 import { SUPPORT_LIMITS } from "@opensesame/support-agent";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  noteWebMcpAccepted,
   noteWebMcpFailure,
   noteWebMcpRegistered,
   resetWebMcpRegistrationForTests,
@@ -169,6 +170,7 @@ describe("the tools a model is told this page implements", () => {
       },
     ]);
     noteWebMcpFailure({ name: "opensesame_health", reason: "refused" });
+    noteWebMcpAccepted("opensesame_status");
     expect(buildSupportPageContext({ ...BASE, route: "/vault" }).tools).toEqual(
       [
         {

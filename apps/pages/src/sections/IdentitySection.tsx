@@ -86,6 +86,7 @@ import {
   brokeredUpstream,
   listFederatedProviders,
 } from "../lib/providers.js";
+import { IDENTITY_VIEWS, useSectionView } from "../lib/section-views.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -96,12 +97,7 @@ import type { Flash } from "./connections/shared.js";
 import "../screens/unlock.css";
 import "./identity.css";
 
-type IdentityTab =
-  | "people"
-  | "providers"
-  | "devices"
-  | "service-accounts"
-  | "organization";
+type IdentityTab = (typeof IDENTITY_VIEWS)[number];
 
 const TABS: Array<{ id: IdentityTab; label: string; guideId: string }> = [
   { id: "people", label: "People", guideId: "identity.people" },
@@ -157,7 +153,7 @@ function IdentityTabButton({
 export function IdentitySection() {
   const online = useOnline();
   const session = useIdentitySession();
-  const [tab, setTab] = useState<IdentityTab>("people");
+  const [tab, setTab] = useSectionView(IDENTITY_VIEWS, "people");
   const [providers, setProviders] = useState<IdpRecord[]>(() =>
     listIdpRegistrations(),
   );

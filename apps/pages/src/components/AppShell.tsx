@@ -382,11 +382,11 @@ function NavTree() {
 }
 
 /**
- * The session context, as a shell prompt: who@tomb:/ — each segment opens
- * its own switcher. A div, not a paragraph: the switchers render divs, and
- * a <p> may not contain them.
+ * Account, vault switcher, and lock share one session prompt at every width.
  */
 function SessionPrompt() {
+  const store = useVaultStore();
+  const lockRef = useGuideTarget<HTMLButtonElement>("shell.lock");
   return (
     <div className="rail__prompt">
       <AccountSwitcher />
@@ -397,13 +397,22 @@ function SessionPrompt() {
       <span className="prompt__dim" aria-hidden="true">
         :/
       </span>
+      <button
+        ref={lockRef}
+        type="button"
+        className="icon-btn"
+        onClick={store.lock}
+        aria-label="Lock vault"
+        title="Lock vault"
+      >
+        <IconLock size={17} />
+      </button>
     </div>
   );
 }
 
 function Shell({ children }: { children?: ReactNode }) {
   const navigate = useNavigate();
-  const store = useVaultStore();
   const [keymapOpen, setKeymapOpen] = useState(false);
   const showKeymap = useCallback(() => setKeymapOpen(true), []);
   const closeKeymap = useCallback(() => setKeymapOpen(false), []);
@@ -443,16 +452,6 @@ function Shell({ children }: { children?: ReactNode }) {
         <header className="topbar">
           <IconMark size={16} />
           <SessionPrompt />
-          <span className="topbar__spacer" />
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={store.lock}
-            aria-label="Lock vault"
-            title="Lock vault"
-          >
-            <IconLock size={17} />
-          </button>
         </header>
 
         <Crumbs />

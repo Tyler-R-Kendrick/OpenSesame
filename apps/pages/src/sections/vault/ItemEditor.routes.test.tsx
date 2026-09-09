@@ -54,6 +54,7 @@ describe("vault editor route types", () => {
     async (kind) => {
       const { container } = open(`/vault/new/${kind}`);
       const name = screen.getByLabelText("Name");
+      await userEvent.clear(name);
       await userEvent.type(name, "./Work/Example");
       await userEvent.tab();
       expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
@@ -198,6 +199,7 @@ describe("vault editor route types", () => {
     const { container } = open("/vault/new/login?folder=work");
     const title = container.querySelector(".editor__titlerow");
     expect(title?.firstElementChild?.getAttribute("aria-label")).toBe("Folder");
+    await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "./test/login");
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
       "./test/login",
@@ -220,6 +222,7 @@ describe("vault editor route types", () => {
 
   it("normalizes on submit without needing a prior blur", async () => {
     const { container } = open("/vault/new/note");
+    await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "/Work/entry");
     const form = container.querySelector("form.editor");
     if (!form) throw new Error("Missing item editor");
@@ -233,6 +236,7 @@ describe("vault editor route types", () => {
 
   it("keeps an invalid path visible and refuses to save it", async () => {
     open("/vault/new/note");
+    await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "../entry");
     await userEvent.tab();
     expect(screen.getByRole("alert").textContent).toContain("vault root");
@@ -245,6 +249,7 @@ describe("vault editor route types", () => {
 
   it("preserves a staged folder when switching through Drop", async () => {
     open("/vault/new");
+    await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "./test/item");
     await userEvent.tab();
     await userEvent.selectOptions(screen.getByLabelText("Type"), "drop");
@@ -293,6 +298,7 @@ describe("vault editor route types", () => {
 
   it("keeps an untyped drop selectable and preserves its name across type changes", async () => {
     open("/vault/new");
+    await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Draft name");
     await userEvent.selectOptions(screen.getByLabelText("Type"), "drop");
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
@@ -313,7 +319,9 @@ describe("vault editor route types", () => {
     await userEvent.click(screen.getByRole("link", { name: "New card" }));
     expect(screen.queryByLabelText("Username")).toBeNull();
     expect(screen.getByLabelText("Cardholder")).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("");
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toMatch(
+      /^Card /,
+    );
     expect(screen.queryByLabelText("Type")).toBeNull();
     await userEvent.click(screen.getByRole("link", { name: "New any type" }));
     expect(screen.getByLabelText("Type")).toBeTruthy();

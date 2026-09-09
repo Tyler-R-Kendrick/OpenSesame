@@ -69,6 +69,15 @@ jobs:
         # apps/pages precaches its whole dist for offline use, so growth here is
         # growth in what every installing device downloads.
         run: pnpm quality:bundle
+      - name: Native Chrome WebMCP discovery and control
+        # Chrome's WebMCP CDP domain backs the Application pane. No polyfill;
+        # unavailable native support or zero tools must fail this required job.
+        env:
+          PLAYWRIGHT_CHROME_CHANNEL: chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          google-chrome --version
+          pnpm --filter @opensesame/pages verify:webmcp
 
   rust:
     name: Rust

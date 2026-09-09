@@ -32,6 +32,8 @@ export type WebMcpRegistrationSnapshot = {
   readonly source: ModelContextSource | null;
   /** Every tool the page holds registered right now, by scope. */
   readonly implemented: readonly WebMcpImplementedTool[];
+  /** Only registrations acknowledged by the browser, never pending attempts. */
+  readonly accepted: readonly string[];
   /** Registrations the browser refused, with the one-line reason it gave. */
   readonly failures: readonly WebMcpRegistrationFailure[];
 };
@@ -39,6 +41,7 @@ export type WebMcpRegistrationSnapshot = {
 const EMPTY: WebMcpRegistrationSnapshot = {
   source: null,
   implemented: [],
+  accepted: [],
   failures: [],
 };
 
@@ -69,6 +72,12 @@ export function noteWebMcpRegistered(
 ): void {
   publish({
     source,
+    accepted: snapshot.accepted.filter(
+      (name) =>
+        !snapshot.implemented.some(
+          (tool) => tool.scope === scope && tool.name === name,
+        ),
+    ),
     implemented: [
       ...snapshot.implemented.filter((tool) => tool.scope !== scope),
       ...tools,
@@ -82,6 +91,12 @@ export function noteWebMcpRegistered(
 export function noteWebMcpUnregistered(scope: "boot" | "session"): void {
   publish({
     source: snapshot.source,
+    accepted: snapshot.accepted.filter(
+      (name) =>
+        !snapshot.implemented.some(
+          (tool) => tool.scope === scope && tool.name === name,
+        ),
+    ),
     implemented: snapshot.implemented.filter((tool) => tool.scope !== scope),
     failures: snapshot.failures,
   });
@@ -94,6 +109,7 @@ export function noteWebMcpUnregistered(scope: "boot" | "session"): void {
 export function noteWebMcpFailure(failure: WebMcpRegistrationFailure): void {
   publish({
     source: snapshot.source,
+    accepted: snapshot.accepted.filter((name) => name !== failure.name),
     implemented: snapshot.implemented,
     failures: [
       ...snapshot.failures.filter((held) => held.name !== failure.name),
@@ -102,10 +118,20 @@ export function noteWebMcpFailure(failure: WebMcpRegistrationFailure): void {
   });
 }
 
+export function noteWebMcpAccepted(name: string): void {
+  if (!snapshot.implemented.some((tool) => tool.name === name)) return;
+  publish({
+    ...snapshot,
+    accepted: [...snapshot.accepted.filter((held) => held !== name), name],
+    failures: snapshot.failures.filter((failure) => failure.name !== name),
+  });
+}
+
 /** True when the browser accepted the tool, so an agent there can see it. */
 export function isWebMcpToolExposed(name: string): boolean {
   return (
     snapshot.source !== null &&
+    snapshot.accepted.includes(name) &&
     snapshot.implemented.some((tool) => tool.name === name) &&
     !snapshot.failures.some((failure) => failure.name === name)
   );

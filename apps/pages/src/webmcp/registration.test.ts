@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   isWebMcpToolExposed,
+  noteWebMcpAccepted,
   noteWebMcpFailure,
   noteWebMcpRegistered,
   noteWebMcpUnregistered,
@@ -28,6 +29,7 @@ describe("the WebMCP registration store", () => {
     expect(webmcpRegistrationSnapshot()).toEqual({
       source: null,
       implemented: [],
+      accepted: [],
       failures: [],
     });
     expect(isWebMcpToolExposed("opensesame_status")).toBe(false);
@@ -54,6 +56,8 @@ describe("the WebMCP registration store", () => {
     expect(isWebMcpToolExposed("opensesame_status")).toBe(false);
 
     noteWebMcpRegistered("navigator", "boot", BOOT);
+    expect(isWebMcpToolExposed("opensesame_status")).toBe(false);
+    for (const tool of BOOT) noteWebMcpAccepted(tool.name);
     expect(isWebMcpToolExposed("opensesame_status")).toBe(true);
 
     noteWebMcpFailure({ name: "opensesame_status", reason: "duplicate" });
@@ -65,6 +69,7 @@ describe("the WebMCP registration store", () => {
 
     // A later successful registration of the same scope clears the failure.
     noteWebMcpRegistered("navigator", "boot", BOOT);
+    noteWebMcpAccepted("opensesame_status");
     expect(webmcpRegistrationSnapshot().failures).toEqual([]);
     expect(isWebMcpToolExposed("opensesame_status")).toBe(true);
   });

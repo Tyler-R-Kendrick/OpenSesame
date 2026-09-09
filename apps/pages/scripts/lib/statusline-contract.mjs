@@ -6,6 +6,23 @@ export async function checkStatusline(page, check) {
     { width: 390, height: 844 },
   ]) {
     await page.setViewportSize(viewport);
+    const prompt = page.locator(
+      viewport.width > 900 ? ".rail .rail__prompt" : ".topbar .rail__prompt",
+    );
+    const lock = prompt.getByRole("button", { name: "Lock vault" });
+    const lockBox = await lock.boundingBox();
+    const vaultBox = await prompt.locator(".project-switcher").boundingBox();
+    check(
+      (await page.getByRole("button", { name: "Lock vault" }).count()) === 1 &&
+        lockBox &&
+        vaultBox &&
+        lockBox.x >= vaultBox.x + vaultBox.width &&
+        lockBox.x - vaultBox.x - vaultBox.width <= 24 &&
+        Math.abs(
+          lockBox.y + lockBox.height / 2 - vaultBox.y - vaultBox.height / 2,
+        ) < 1,
+      `one visible lock beside the vault switcher at ${viewport.width}px`,
+    );
     const geometry = await page
       .locator("footer.statusline")
       .evaluate((footer) => {
@@ -39,8 +56,8 @@ export async function checkStatusline(page, check) {
       });
     const size = viewport.width < 900 ? 44 : 28;
     check(
-      geometry.buttons.length === 8,
-      `footer has eight controls at ${viewport.width}px`,
+      geometry.buttons.length === 7,
+      `footer has seven controls at ${viewport.width}px; lock belongs with the profile`,
     );
     check(
       geometry.buttons.every(

@@ -119,7 +119,9 @@ describe("registerBootTools / registerSessionTools", () => {
 
     unregister();
     expect(tools).toHaveLength(0);
-    webmcpNavigationSeam.navigate("/vault");
+    expect(() => webmcpNavigationSeam.navigate("/vault")).toThrow(
+      "router_unavailable",
+    );
     expect(navigate).toHaveBeenCalledTimes(1);
     restore();
   });

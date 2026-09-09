@@ -85,20 +85,12 @@ function renderNew(path = "/vault/new/login") {
 
 function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
   return {
+    ...createItem("login", "Webmail"),
     id: "itm_1",
-    kind: "login",
-    name: "Webmail",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
     username: "me@example.com",
     password: "old-password",
-    totp: "",
-    uris: [],
     passwordChangedAt: "2026-08-01T00:00:00Z",
     ...overrides,
   };
@@ -108,25 +100,11 @@ function makeCertificate(
   overrides: Partial<CertificateItem> = {},
 ): CertificateItem {
   return {
+    ...createItem("certificate", "Local TLS"),
     id: "itm_cert",
-    kind: "certificate",
-    name: "Local TLS",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
     commonName: "localhost",
-    dnsNames: "localhost",
-    ipAddrs: "127.0.0.1",
-    ttlHours: "24",
-    certificatePem: "",
-    privateKeyPem: "",
-    caPem: "",
-    serial: "",
-    notAfter: "",
     ...overrides,
   };
 }
@@ -173,6 +151,7 @@ describe("ItemEditor", () => {
 
   it("requires a name before saving", async () => {
     renderNew();
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByText(/Give this item a name/)).toBeTruthy();
@@ -183,11 +162,14 @@ describe("ItemEditor", () => {
     renderNew();
     expect(screen.queryByLabelText(/^Type$/i)).toBeNull();
     expect(screen.getByText(".login")).toBeTruthy();
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Webmail");
+    await userEvent.clear(screen.getByLabelText(/^Username$/i));
     await userEvent.type(
       screen.getByLabelText(/^Username$/i),
       "me@example.com",
     );
+    await userEvent.clear(screen.getByLabelText(/^Password$/i));
     await userEvent.type(screen.getByLabelText(/^Password$/i), "s3cret-s3cret");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
@@ -201,6 +183,7 @@ describe("ItemEditor", () => {
 
   it("behavior: issues and seals a new certificate in one submit", async () => {
     renderNew("/vault/new/certificate");
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.clear(screen.getByLabelText(/Common name/i));
     await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
     await userEvent.click(
@@ -258,6 +241,7 @@ describe("ItemEditor", () => {
       ),
     }).toEqual({
       actions: [
+        "Suggest names on device",
         "Add DNS names",
         "Add IP addresses",
         "Add notes",
@@ -265,7 +249,9 @@ describe("ItemEditor", () => {
         "Pin item",
         "Create certificate",
       ],
-      guidance: [],
+      guidance: [
+        "Uses only the item type. No vault contents. Your browser may download its model.",
+      ],
       labels: ["Common name", "TTL (hours)"],
     });
   });
@@ -273,6 +259,7 @@ describe("ItemEditor", () => {
   it("adversarial: does not save when Host issuance fails", async () => {
     issueCertificateFromHost.mockRejectedValueOnce(new Error("issuer offline"));
     renderNew("/vault/new/certificate");
+    await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
     await userEvent.click(
       screen.getByRole("button", { name: /Create certificate/i }),
     );
@@ -288,6 +275,7 @@ describe("ItemEditor", () => {
       .mockRejectedValueOnce(new Error("vault temporarily locked"))
       .mockResolvedValueOnce(undefined);
     renderNew("/vault/new/certificate");
+    await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
     await userEvent.click(
       screen.getByRole("button", { name: /Create certificate/i }),
     );
@@ -374,6 +362,7 @@ describe("ItemEditor", () => {
 
   it("switches item kind and keeps the name", async () => {
     renderNew("/vault/new");
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
     await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
     expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();

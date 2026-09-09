@@ -257,12 +257,23 @@ describe("AppShell", () => {
     },
   );
 
-  it("both lock buttons call the store lock", () => {
-    renderShell("/vault");
-    // One in the phone top bar, one in the desktop statusline.
+  it("groups lock with account and vault switching on desktop and phone", () => {
+    const { container } = renderShell("/vault");
     const locks = screen.getAllByRole("button", { name: "Lock vault" });
     expect(locks).toHaveLength(2);
-    for (const lock of locks) fireEvent.click(lock);
+    expect(
+      container.querySelector('.statusline [aria-label="Lock vault"]'),
+    ).toBeNull();
+    for (const lock of locks) {
+      const prompt = lock.closest(".rail__prompt");
+      expect(
+        prompt?.querySelector('[data-testid="account-switcher"]'),
+      ).toBeTruthy();
+      expect(
+        prompt?.querySelector('[data-testid="project-switcher"]'),
+      ).toBeTruthy();
+      fireEvent.click(lock);
+    }
     expect(vault.lock).toHaveBeenCalledTimes(2);
   });
 
