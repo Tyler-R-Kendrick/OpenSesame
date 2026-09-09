@@ -31,10 +31,14 @@ export async function checkWordmark(page, check) {
         (timing, index) =>
           timing.duration >= 210 &&
           timing.duration <= 420 &&
-          timing.delay ===
-            timeline.timings
-              .slice(0, index)
-              .reduce((sum, entry) => sum + entry.duration, 0),
+          // CSS seconds round-trip through binary floats (1015ms can become
+          // 1014.9999999999999). Keep the sequence exact to a nanosecond.
+          Math.abs(
+            timing.delay -
+              timeline.timings
+                .slice(0, index)
+                .reduce((sum, entry) => sum + entry.duration, 0),
+          ) < 0.000001,
       ),
     "wordmark decrypts eleven slots with bounded variable durations strictly in sequence",
   );
