@@ -516,7 +516,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.lock",
     title: "Where do I lock the vault?",
     answer:
-      "The lock sits on the right of the statusline, and on the top bar on a phone. Locking drops the vault keys held in memory; your master password opens it again. Settings → Security can also lock automatically after a period of inactivity.",
+      "The lock sits beside your profile and vault switcher, in the sidebar or the phone header. Locking drops the vault keys held in memory; your enrolled unlock method opens it again. Settings → Security can also lock automatically after a period of inactivity.",
     routes: [],
     goal: "vault.lock",
     keywords: [

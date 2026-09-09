@@ -91,7 +91,7 @@ describe("asking where the lock is", () => {
   it("highlights the lock and leaves it alone", async () => {
     const journey = renderJourney(
       fakeAgentAnswering(
-        "It sits on the right of the statusline.",
+        "It sits beside your profile and vault switcher.",
         authored("vault.lock"),
       ),
     );
@@ -104,7 +104,8 @@ describe("asking where the lock is", () => {
     const lock = resolveGuideTargetElement("shell.lock");
     if (!lock) throw new Error("the guide pointed at nothing on screen");
     expect(lock.getAttribute("aria-label")).toBe("Lock vault");
-    expect(lock.closest(".statusline")).not.toBeNull();
+    expect(lock.closest(".rail__prompt")).not.toBeNull();
+    expect(lock.closest(".statusline")).toBeNull();
     const pressesOnTheLock = countClicks(lock);
 
     // The trajectory is parked on `wait target "shell.lock" event=activate`,
@@ -126,7 +127,9 @@ describe("asking where the lock is", () => {
 
     const panel = await reopenSupport(user);
     expect(
-      within(panel).getByText("It sits on the right of the statusline."),
+      within(panel).getByText(
+        "It sits beside your profile and vault switcher.",
+      ),
     ).toBeTruthy();
     const status = within(panel).getByRole("region", {
       name: "Walkthrough in progress",
