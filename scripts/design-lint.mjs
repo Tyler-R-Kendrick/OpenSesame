@@ -163,6 +163,7 @@ function checkTsx(file, source) {
 }
 
 function checkCss(file, source) {
+  checkDropdowns(file, source);
   // 2. `.go` is defined once, in styles.css.
   if (relative(root, file) === CONTROL_HOME) return;
   for (const match of source.matchAll(/^\.go(-row|-verb)?\b[^{]*\{/gm)) {
@@ -172,6 +173,56 @@ function checkCss(file, source) {
       "go-defined-once",
       `The commit control is defined in ${CONTROL_HOME}. A second copy here is how two screens drift into two different squares.`,
     );
+  }
+}
+
+function checkDropdowns(file, source) {
+  const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  if (
+    relative(root, file) === CONTROL_HOME &&
+    !css.includes('@import "./native-controls.css";')
+  ) {
+    report(
+      file,
+      1,
+      "dropdown-popup-theme",
+      "Load the shared native dropdown theme.",
+    );
+  }
+  for (const block of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/\b(select|option|optgroup)\b/.test(block[1])) continue;
+    for (const declaration of block[2].matchAll(
+      /(?:^|;)\s*(color|background(?:-color)?)\s*:\s*([^;]+)/g,
+    )) {
+      const value = declaration[2].trim();
+      if (
+        /^(var\(--[\w-]+\)|inherit)$/.test(value) ||
+        (value === "transparent" && !/\b(option|optgroup)\b/.test(block[1]))
+      )
+        continue;
+      report(
+        file,
+        lineOf(css, block.index),
+        "dropdown-theme-colors",
+        "Dropdown colors must use theme tokens, not fixed colors.",
+      );
+    }
+  }
+  if (relative(root, file) !== "apps/pages/src/native-controls.css") return;
+  for (const selector of ["select option", "select optgroup"]) {
+    const themed = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].some(
+      (block) =>
+        block[1].split(",").some((part) => part.trim() === selector) &&
+        /background-color:\s*var\(--surface\)\s*;/.test(block[2]) &&
+        /(?:^|;)\s*color:\s*var\(--ink\)\s*;/.test(block[2]),
+    );
+    if (!themed)
+      report(
+        file,
+        1,
+        "dropdown-popup-theme",
+        `${selector} must pair opaque --surface with --ink.`,
+      );
   }
 }
 

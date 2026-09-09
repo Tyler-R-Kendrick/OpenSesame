@@ -429,8 +429,8 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
         if (item.kind !== "login") {
           throw new Error("url_requires_login_item");
         }
-        const [first, ...rest] = item.uris;
-        item.uris = first ? [{ ...first, uri: url }, ...rest] : [newUri(url)];
+        const [first = newUri(), ...rest] = item.uris;
+        item.uris = [{ ...first, uri: url, match: "domain" }, ...rest];
       }
       await vaultStore.saveItem(item);
       return projectVaultItemMeta(findItem(item.id));

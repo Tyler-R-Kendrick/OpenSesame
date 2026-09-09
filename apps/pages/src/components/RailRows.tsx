@@ -181,7 +181,7 @@ export function SectionRow({
         <span className="railtree__dim">/</span>
       </span>
       {count !== undefined ? (
-        <span className="railtree__count">{count}</span>
+        <span className="railtree__count">{count || "-"}</span>
       ) : null}
       <kbd className="railtree__jump" title={`Press g then ${section.jump}`}>
         g{section.jump}

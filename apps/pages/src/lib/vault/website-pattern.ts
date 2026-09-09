@@ -50,6 +50,7 @@ export async function testWebsitePattern(
   }
   if (rule.uri.length > 256 || !rule.uri.trim() || hostname.length > 253)
     return "invalid";
+  if (rule.match === "wildcard" && rule.uri.trim() === "*") return "match";
   return new Promise((resolve) => {
     let worker: Worker;
     try {

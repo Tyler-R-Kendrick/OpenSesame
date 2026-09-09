@@ -80,6 +80,7 @@ export function newItemDraft(typeId: string, name?: string): VaultItem {
 function newNativeDraft(kind: LegacyItemKind, labels: DraftLabels): VaultItem {
   const item = createItem(kind, labels.name);
   if (item.kind === "login") {
+    item.uris = [newUri("*", "wildcard")];
     item.username = labels.username;
     item.password = generateCharacters(defaultCharOptions);
   }

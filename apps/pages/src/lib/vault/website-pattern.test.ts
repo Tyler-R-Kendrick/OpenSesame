@@ -23,6 +23,21 @@ type WorkerTestScope = {
 };
 
 describe("hostname patterns", () => {
+  it("matches all HTTP(S) domains explicitly without depending on a worker", async () => {
+    vi.stubGlobal("Worker", undefined);
+    const rule = newUri("*", "wildcard");
+    for (const site of [
+      "https://example.com",
+      "https://other.test",
+      "http://sub.example.org",
+    ])
+      expect(await testWebsitePattern(rule, site)).toBe("match");
+    expect(await testWebsitePattern(rule, "file:///etc/passwd")).toBe(
+      "invalid",
+    );
+    await expect(validateWebsitePatterns([rule])).resolves.toBeUndefined();
+    expect(loginWebsiteLink(rule)).toBeNull();
+  });
   it("never turns wildcard or regex rules into external links", () => {
     expect(loginWebsiteLink(newUri("*.example.com", "wildcard"))).toBeNull();
     expect(loginWebsiteLink(newUri("https://example.com", "regex"))).toBeNull();
@@ -36,6 +51,8 @@ describe("hostname patterns", () => {
     vi.stubGlobal("self", scope);
     await import("./website-pattern.worker.js");
     for (const [kind, pattern, hostname, expected] of [
+      ["wildcard", "*", "example.com", "match"],
+      ["wildcard", "*", "other.test", "match"],
       ["wildcard", "*.example.com", "app.example.com", "match"],
       ["wildcard", "*.example.com", "example.com", "no-match"],
       ["wildcard", "*.example.com", "app.example.com.evil.test", "no-match"],

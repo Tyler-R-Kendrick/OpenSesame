@@ -470,8 +470,8 @@ export function VaultTree({
   const statusPath = tombPath(tomb, cursorRow?.path ?? null);
   const statusMeta =
     query !== null && needle !== ""
-      ? `${matchCount}/${total} · /${needle}`
-      : `${items.length}/${total} · ${title}`;
+      ? `${matchCount || "-"}/${total || "-"} · /${needle}`
+      : `${items.length || "-"}/${total || "-"} · ${title}`;
 
   return (
     <div className="vtree">

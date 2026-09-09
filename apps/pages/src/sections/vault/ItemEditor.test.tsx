@@ -382,33 +382,32 @@ describe("ItemEditor", () => {
   });
 
   it("adds, edits, and removes website addresses", async () => {
-    renderNew();
+    renderNew("/vault/new/login?uri=https://old.example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
-    const address = screen.getByLabelText("Address 1");
+    const address = screen.getByLabelText("Address 2");
     await userEvent.type(address, "https://mail.example.com");
     await userEvent.selectOptions(
-      screen.getByLabelText("Match rule 1"),
+      screen.getByLabelText("Match rule 2"),
       "exact",
     );
+    await userEvent.click(screen.getByLabelText("Remove address 1"));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Mail");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.uris).toHaveLength(1);
-    expect(saved.uris[0]).toMatchObject({
-      uri: "https://mail.example.com",
-      match: "exact",
+    expect(savedItem()).toMatchObject({
+      kind: "login",
+      uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
 
-  it("removes website addresses", async () => {
-    renderNew("/vault/new/login?uri=https://mail.example.com");
-    expect(screen.getByLabelText("Address 1")).toBeTruthy();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Remove address 1/i }),
-    );
+  it("starts with an explicit all-domains rule and saves its removal without restoring it", async () => {
+    renderNew();
+    expect(inputByLabel("Address 1").value).toBe("*");
+    await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(savedItem()).toMatchObject({ kind: "login", uris: [] });
   });
 
   it("reveals the password field and uses the generator", async () => {

@@ -188,7 +188,7 @@ describe("AppShell", () => {
 
     // The deleted card does not count towards the live kind count.
     const cards = filterLink(container, "/vault?f=card", "cards");
-    expect(cards.textContent).toContain("0");
+    expect(cards.textContent).toContain("-");
 
     const trash = filterLink(container, "/vault?f=trash", "trash");
     expect(trash.textContent).toContain("1");
@@ -290,7 +290,7 @@ describe("AppShell", () => {
     vault.items = [];
     vault.folders = [];
     const { container } = renderShell("/vault");
-    expect(filterLink(container, "/vault", "all").textContent).toContain("0");
+    expect(filterLink(container, "/vault", "all").textContent).toContain("-");
   });
 
   it("captures section shortcuts before the tree can stop propagation", () => {

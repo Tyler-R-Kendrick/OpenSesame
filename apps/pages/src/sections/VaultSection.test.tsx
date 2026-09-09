@@ -340,7 +340,7 @@ describe("VaultSection", () => {
       target: { value: "zzzzzz" },
     });
     expect(screen.queryAllByRole("treeitem")).toHaveLength(0);
-    expect(screen.getByText(/0\/1 · \/zzzzzz/)).toBeTruthy();
+    expect(screen.getByText(/-\/1 · \/zzzzzz/)).toBeTruthy();
   });
 
   it("filters to favorites", () => {

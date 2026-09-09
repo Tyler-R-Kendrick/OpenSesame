@@ -71,6 +71,41 @@ describe("the shipped screens satisfy the control contract", () => {
 });
 
 describe("the lint fails on the code that actually got through", () => {
+  it.each([
+    "color: white",
+    "background: #fff",
+    "background-color: rgb(255,255,255)",
+    "background: transparent",
+  ])("rejects fixed dropdown %s", (declaration) => {
+    const result = runLint(
+      ...brokenTree("drift.css", `select option { ${declaration}; }`),
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("dropdown-theme-colors");
+  });
+
+  it.each(["background-color: var(--surface);", "color: var(--ink);"])(
+    "rejects missing popup color pair: %s",
+    (declaration) => {
+      const result = runLint(
+        ...brokenTree(
+          "../native-controls.css",
+          `select option, select optgroup { ${declaration} }`,
+        ),
+      );
+      expect(result.code).toBe(1);
+      expect(result.output).toContain("dropdown-popup-theme");
+    },
+  );
+
+  it("rejects a disconnected dropdown theme", () => {
+    const result = runLint(
+      ...brokenTree("../styles.css", "select { color: var(--ink); }"),
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("dropdown-popup-theme");
+  });
+
   it("rejects the vault text-button empty state", () => {
     const result = runLint(
       ...brokenTree(

@@ -20,6 +20,7 @@ export function EditorActions({
         <IconCheck size={17} />
       </button>
       <Link
+        data-pane-close={busy ? undefined : ""}
         className="icon-btn"
         aria-label="Cancel"
         title="Cancel"

@@ -86,7 +86,6 @@ export function ItemDetail() {
 
   const item = items.find((candidate) => candidate.id === itemId);
 
-  // Re-conceal every value when the selected item changes.
   // biome-ignore lint/correctness/useExhaustiveDependencies: itemId is the trigger, not an input — a revealed secret must not survive a move to another item
   useEffect(() => {
     setRevealed(new Set());
@@ -116,16 +115,17 @@ export function ItemDetail() {
 
   const folder = folders.find((candidate) => candidate.id === item.folderId);
   const inTrash = item.deletedAt !== null;
+  const backLabel =
+    listPath === "/vault" ? "Back to all items" : "Back to list";
 
   return (
     <div className="detail">
       <div className="detail__head">
         <Link
+          data-pane-close=""
           className="icon-btn detail__backbtn"
-          aria-label={
-            listPath === "/vault" ? "Back to all items" : "Back to list"
-          }
-          title={listPath === "/vault" ? "Back to all items" : "Back to list"}
+          aria-label={backLabel}
+          title={backLabel}
           to={listPath}
         >
           <IconChevronLeft size={17} />

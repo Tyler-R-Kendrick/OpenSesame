@@ -14,6 +14,7 @@ import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
 import { recoverPendingFederatedLink } from "./lib/guest-auth.js";
 import { resumeStashedJoin } from "./lib/join-session.js";
+import { usePaneEscape } from "./lib/pane-escape.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
@@ -214,6 +215,7 @@ function VaultApp() {
  * the overlay is on every screen, including unlock, setup and ceremonies.
  */
 export function App({ slots }: { slots?: Partial<AppSlots> } = {}) {
+  usePaneEscape();
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
 

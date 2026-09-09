@@ -85,6 +85,11 @@ describe("new vault draft defaults", () => {
     expect(first.username).toMatch(/^user_[a-f0-9]+$/);
     expect(first.username).not.toBe(second.username);
     expect(first.totp).toBe("");
+    expect(first.uris).toEqual([
+      { id: expect.any(String), uri: "*", match: "wildcard" },
+    ]);
+    expect(first.uris[0]?.id).not.toBe(second.uris[0]?.id);
+    expect(createItem("login").uris).toEqual([]);
     const secret = newItemDraft("secret");
     if (secret.kind !== "secret") throw new Error("fixture");
     expect(secret.value).toHaveLength(20);

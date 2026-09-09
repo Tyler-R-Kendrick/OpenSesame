@@ -1,4 +1,5 @@
 import { type KeybindingsMap, createKeybindingsHandler } from "tinykeys";
+import { handlePaneEscape } from "./pane-escape.js";
 
 export type ListingMotion = {
   next: (count?: number) => void;
@@ -287,6 +288,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
   return (event: KeyboardEvent) => {
     ensureCode(event);
     if (
+      handlePaneEscape(event) ||
       event.defaultPrevented ||
       event.metaKey ||
       event.altKey ||
@@ -294,6 +296,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
       document.querySelector('[role="dialog"][aria-modal="true"]')
     ) {
       count = 0;
+      clearGo();
       return;
     }
 

@@ -282,7 +282,7 @@ function NavTree() {
         {dir ? <span className="railtree__dim">/</span> : null}
       </span>
       {count !== undefined ? (
-        <span className="railtree__count">{count}</span>
+        <span className="railtree__count">{count || "-"}</span>
       ) : null}
     </TreeRow>
   );

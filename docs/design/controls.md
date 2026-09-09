@@ -5,6 +5,14 @@ wrong one is how a screen stops looking like the rest of the app. This page
 names both so the choice is a lookup rather than a judgement call, and
 `scripts/design-lint.mjs` (`pnpm lint:design`) holds new code to it.
 
+## Native dropdowns
+
+Keep native selection and keyboard behavior. Popup options and groups pair
+opaque `--surface` backgrounds with `--ink` text in `native-controls.css`;
+the root color scheme follows the selected theme, including system mode.
+Never hard-code white/black dropdown colors. `pnpm lint:design` checks both
+the shared popup pair and component overrides; browser checks cover contrast.
+
 ## 1. The terminal commit — `.go`
 
 **The one action that ends the screen you are on.** Unlocking a vault. Sealing
