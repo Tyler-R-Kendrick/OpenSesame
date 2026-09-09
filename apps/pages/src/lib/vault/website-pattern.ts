@@ -1,3 +1,4 @@
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { browsableUrl } from "./model.js";
 
 export type UriMatch =
@@ -67,7 +68,7 @@ export async function testWebsitePattern(
     };
     const timer = setTimeout(() => finish("timeout"), 1000);
     worker.onerror = () => finish("unavailable");
-    worker.onmessage = (event: MessageEvent<unknown>) =>
+    worker.onmessage = (event: MessageEvent<BoundaryValue>) =>
       finish(
         event.data === "match" || event.data === "no-match"
           ? event.data

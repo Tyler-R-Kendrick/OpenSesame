@@ -13,6 +13,15 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+type WorkerTestScope = {
+  onmessage:
+    | ((event: {
+        data: { pattern: string; kind: string; hostname: string };
+      }) => void)
+    | null;
+  postMessage: ReturnType<typeof vi.fn>;
+};
+
 describe("hostname patterns", () => {
   it("never turns wildcard or regex rules into external links", () => {
     expect(loginWebsiteLink(newUri("*.example.com", "wildcard"))).toBeNull();
@@ -23,14 +32,7 @@ describe("hostname patterns", () => {
   });
   it("matches full hostnames with wildcard and regex semantics", async () => {
     const postMessage = vi.fn();
-    const scope: {
-      onmessage:
-        | ((event: {
-            data: { pattern: string; kind: string; hostname: string };
-          }) => void)
-        | null;
-      postMessage: typeof postMessage;
-    } = { onmessage: null, postMessage };
+    const scope: WorkerTestScope = { onmessage: null, postMessage };
     vi.stubGlobal("self", scope);
     await import("./website-pattern.worker.js");
     for (const [kind, pattern, hostname, expected] of [

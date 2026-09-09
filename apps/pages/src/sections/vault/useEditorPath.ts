@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { resolveItemPath } from "../../lib/vault/item-path.js";
-import type { Folder } from "../../lib/vault/model.js";
+import type { Folder, VaultItem } from "../../lib/vault/model.js";
+
+type EditorPathValue = Pick<VaultItem, "name" | "folderId">;
 
 export function useEditorPath(
-  value: { name: string; folderId: string | null },
+  value: EditorPathValue,
   folders: Folder[],
-  change: (value: { name: string; folderId: string | null }) => void,
+  change: (value: EditorPathValue) => void,
   report: (error: string | null) => void,
   initialFolder?: Folder,
 ) {
