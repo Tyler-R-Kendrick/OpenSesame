@@ -16,12 +16,15 @@
         "83% of that total is one file: the client-core Wasm sync engine at",
         "~12.5 MiB. It dominates `total` and `largestAsset` while contributing",
         "nothing to `javascriptGzip`, which is why both are budgeted -- a JS",
-        "regression would be invisible inside a 15 MiB total."
+        "regression would be invisible inside a 15 MiB total.",
+        "2026-09-10: javascript 2500->2750 and javascriptGzip 725->790 because",
+        "browser-local IAM precaches passkey/WebAuthn and the local issuer. The",
+        "PWA still precaches every JS byte; measured 2616/748 KiB plus ~5% headroom."
       ],
       "budgets": {
         "total": 15500,
-        "javascript": 2500,
-        "javascriptGzip": 725,
+        "javascript": 2750,
+        "javascriptGzip": 790,
         "css": 130,
         "largestAsset": 12800
       }
