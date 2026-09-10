@@ -380,8 +380,7 @@ export function VaultTree({
         at < 0 ? 0 : Math.min(Math.max(at + delta, 0), list.length - 1);
       const row = list[next];
       setCursor(row?.key ?? null);
-      // ranger's reading: browsing IS previewing. Only explicit keyboard
-      // movement previews, so the initial cursor never yanks the pane.
+      // Only explicit keyboard movement previews; the initial cursor never yanks the pane.
       if (row?.type === "item") actionsRef.current.preview(row.item);
     };
     const focusedItem = () => {
@@ -400,6 +399,7 @@ export function VaultTree({
       move(index - (at < 0 ? 0 : at));
     };
     return registerVaultKeymap({
+      hasRows: () => rowsRef.current.length > 0,
       next: (n = 1) => move(n),
       previous: (n = 1) => move(-n),
       first: () => move(Number.NEGATIVE_INFINITY),

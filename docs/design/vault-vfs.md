@@ -60,8 +60,9 @@ First-party, light-DOM, everything mono:
   `j/k/↓/↑` move · `[count]` repeats
   a motion · `Ctrl-d/u` half-page · `Ctrl-f/b` `PgUp/PgDn` page · `H/M/L`
   window edges · `l/→` open/dive · `h/←` `Backspace` collapse/climb ·
-  `gg/0/Home` first · `G/$/End` last (`nG` the nth row) · `Tab` other
-  listing · `Enter` activate · `/` search · `Esc` close and focus the tree ·
+  `gg/0/Home` first · `G/$/End` last (`nG` the nth row) · `F6` other
+  listing · `Tab`/`Shift-Tab` native control order (never trapped) ·
+  `Enter` activate the focused control · `/` search · `Esc` close and focus the tree ·
   `y` copy secret · `u` copy username · `e` edit · `x` trash · `n` new ·
   `.` favorite · `s` share once · `g v/c/a/i/s` section jumps (`g` times
   out) · `?` keymap sheet.

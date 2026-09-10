@@ -23,7 +23,15 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const KNOWN_ROUTES = new Set<string>(["/", ...SECTION_PATHS]);
+const appSource = readFileSync(join(here, "..", "App.tsx"), "utf8");
+const KNOWN_ROUTES = new Set<string>([
+  "/",
+  ...SECTION_PATHS,
+  ...Array.from(
+    appSource.matchAll(/\bpath="(\/[^"?:*]+)"/g),
+    (match) => match[1],
+  ),
+]);
 
 const LIB_SURFACE = /^lib\/(.+\.ts):(\w+)$/;
 

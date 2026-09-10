@@ -630,18 +630,14 @@ export function chooseSupportAgent(
   return { port: absent, transport: "none" };
 }
 
-/* ——— The browser wiring ————————————————————————————————————————
-   The one place this app names anything in `@opensesame/support-agent`,
-   `@opensesame/guide-runtime`, the agent transports or the renderer. Every
-   import is dynamic, so none of it is in the boot bundle. */
-
+// Lazy browser wiring: narrow imports keep test fakes out of the offline bundle.
 export async function loadBrowserEngine(
   host: SupportHost,
 ): Promise<SupportEngine> {
   const [
-    agent,
-    guideLang,
-    guideRuntime,
+    { SupportError, createSupportSession, redactionWarning },
+    { compileGuide },
+    { createGuideRuntime, systemGuideClock },
     context,
     targets,
     routes,
@@ -652,9 +648,22 @@ export async function loadBrowserEngine(
     predicates,
     connectivity,
   ] = await Promise.all([
-    import("@opensesame/support-agent"),
-    import("@opensesame/guide-lang"),
-    import("@opensesame/guide-runtime"),
+    import("@opensesame/support-agent").then(
+      ({ SupportError, createSupportSession, redactionWarning }) => ({
+        SupportError,
+        createSupportSession,
+        redactionWarning,
+      }),
+    ),
+    import("@opensesame/guide-lang").then(({ compileGuide }) => ({
+      compileGuide,
+    })),
+    import("@opensesame/guide-runtime").then(
+      ({ createGuideRuntime, systemGuideClock }) => ({
+        createGuideRuntime,
+        systemGuideClock,
+      }),
+    ),
     import("./registry/context.js"),
     import("./registry/targets.js"),
     import("./registry/routes.js"),
@@ -668,7 +677,6 @@ export async function loadBrowserEngine(
 
   predicates.registerGuidePredicates();
 
-  /** A local model that cannot report is treated as one that cannot answer. */
   async function localAvailability(
     port: SupportAgentPort,
   ): Promise<SupportAgentAvailability> {
@@ -685,7 +693,7 @@ export async function loadBrowserEngine(
       Promise.resolve({ kind: "unavailable", reason: "no_local_model" }),
     run: () =>
       Promise.reject(
-        new agent.SupportError(
+        new SupportError(
           "AGENT_UNAVAILABLE",
           "no support agent is available in this browser",
         ),
@@ -712,17 +720,7 @@ export async function loadBrowserEngine(
     return context.buildSupportPageContext({ ...input, question });
   }
 
-  /**
-   * Read through on every compile rather than snapshotted at session creation:
-   * the page the person is looking at moves, and the vocabulary a program is
-   * checked against has to be the one they were shown, not the one they were
-   * shown when the panel opened.
-   */
-  /**
-   * The whole registry, for checked-in walkthroughs. A cross-route guide names
-   * a control on the screen it is about to navigate to, which the route-scoped
-   * vocabulary above cannot contain by construction.
-   */
+  // Authored walkthroughs can name controls on their next destination.
   const authoredVocabulary = {
     goals: guideGoalIds(),
     targets: guideTargetIds(),
@@ -730,6 +728,7 @@ export async function loadBrowserEngine(
     predicates: guidePredicateIds(),
   };
 
+  // Model vocabulary follows the current page on every compile, not a snapshot.
   const vocabulary = {
     get goals() {
       return readContext().goals.map((goal) => goal.id);
@@ -745,7 +744,7 @@ export async function loadBrowserEngine(
     },
   };
 
-  const session = agent.createSupportSession({ port, vocabulary, readContext });
+  const session = createSupportSession({ port, vocabulary, readContext });
 
   const renderer = await rendering.loadDriverRenderer({
     resolveElement: targets.resolveGuideTargetElement,
@@ -754,7 +753,7 @@ export async function loadBrowserEngine(
       false,
   });
 
-  const runtime = guideRuntime.createGuideRuntime({
+  const runtime = createGuideRuntime({
     renderer,
     targets: {
       isMounted: targets.isMountedGuideTarget,
@@ -772,19 +771,19 @@ export async function loadBrowserEngine(
       read: predicateState.readGuidePredicate,
       observe: predicateState.observeGuidePredicate,
     },
-    clock: guideRuntime.systemGuideClock(),
+    clock: systemGuideClock(),
   });
 
   return {
     transport,
-    warning: transport === "remote" ? agent.redactionWarning() : null,
+    warning: transport === "remote" ? redactionWarning() : null,
     session,
     compile(source) {
-      const result = guideLang.compileGuide(source, vocabulary);
+      const result = compileGuide(source, vocabulary);
       return result.ok ? result.program : null;
     },
     compileAuthored(source) {
-      const result = guideLang.compileGuide(source, authoredVocabulary);
+      const result = compileGuide(source, authoredVocabulary);
       return result.ok ? result.program : null;
     },
     runGuide(program) {
@@ -804,7 +803,7 @@ export async function loadBrowserEngine(
         await promptApi.acquirePromptApiModel(onProgress);
         return { kind: "acquired" };
       } catch (cause) {
-        if (cause instanceof agent.SupportError) {
+        if (cause instanceof SupportError) {
           return { kind: "failed", code: cause.code };
         }
         return { kind: "failed", code: "AGENT_UNAVAILABLE" };

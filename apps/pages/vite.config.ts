@@ -25,7 +25,6 @@ export default defineConfig({
   server: {
     headers: {
       "Cross-Origin-Embedder-Policy": "require-corp",
-      "Cross-Origin-Opener-Policy": "same-origin",
     },
   },
   build: {
@@ -46,6 +45,14 @@ export default defineConfig({
       name: "origin-profile-canonical-callback",
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
+          // Only the local sign-in popup retains its cross-origin opener.
+          // The vault and every other route retain the isolation default.
+          res.setHeader(
+            "Cross-Origin-Opener-Policy",
+            req.url?.split("?")[0] === `${base}identity/authorize`
+              ? "unsafe-none"
+              : "same-origin",
+          );
           if (req.url?.startsWith("/opensesame/callback")) {
             const query = req.url.slice("/opensesame/callback".length);
             res.statusCode = 302;
