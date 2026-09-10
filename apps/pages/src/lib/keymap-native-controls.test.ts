@@ -20,7 +20,7 @@ it("leaves searchable rail tab stops and native button activation to the browser
     [more, "Tab"],
   ] as const) {
     const event = new KeyboardEvent("keydown", { key, cancelable: true });
-    target.addEventListener("keydown", handler, { once: true });
+    window.addEventListener("keydown", handler, { capture: true, once: true });
     target.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(false);
   }
