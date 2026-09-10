@@ -333,7 +333,7 @@ describe("AccessSection", () => {
 
     await openTab("Sessions");
     expect(
-      await screen.findByRole("heading", { name: "Sessions" }),
+      await screen.findByRole("heading", { name: "Host task sessions" }),
     ).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Requests" })).toBeNull();
 

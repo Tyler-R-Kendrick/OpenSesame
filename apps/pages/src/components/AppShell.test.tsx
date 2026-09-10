@@ -144,6 +144,7 @@ describe("AppShell", () => {
   it.each([
     ["/vault?f=favorites", "Vault", "favorites"],
     ["/settings/security", "Settings", "security"],
+    ["/identity?view=agents", "Identity", "Agents"],
   ])(
     "toggles the %s branch without losing the selected child",
     (route, label, child) => {

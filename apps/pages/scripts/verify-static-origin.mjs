@@ -284,6 +284,22 @@ const browser = await launch();
     Boolean(session?.includes("pw_verify")),
     "federation session saved on device",
   );
+  setStep("C-provider-registration");
+  await page.getByText("identity/", { exact: true }).first().click();
+  await page.getByRole("tab", { name: "Providers", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Register an IdP", exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Continue with Shoo", exact: true })
+    .click();
+  await page.waitForURL("https://shoo.dev/authorize?**");
+  const registered = new URL(page.url());
+  check(
+    registered.searchParams.get("code_challenge_method") === "S256",
+    "provider registration starts browser-direct PKCE without an Identity backend",
+  );
   await context.close();
 }
 

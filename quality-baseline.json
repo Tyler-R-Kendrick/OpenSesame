@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 494,
-    "violations": 818,
-    "oversizedLines": 280450
+    "violations": 817,
+    "oversizedLines": 280200
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -748,7 +748,7 @@
     },
     "apps/pages/src/lib/vault/import/formats/kdbx.ts": {
       "complexity": 3,
-      "max-lines": 450,
+      "max-lines": 448,
       "max-lines-per-function": 1,
       "max-params": 1
     },
@@ -846,7 +846,7 @@
     },
     "apps/pages/src/screens/unlock/SignInPanel.tsx": {
       "complexity": 1,
-      "max-lines": 619,
+      "max-lines": 611,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/AccessSection.test.tsx": {
@@ -855,8 +855,8 @@
     "apps/pages/src/sections/AccessSection.tsx": {
       "complexity": 5,
       "max-depth": 1,
-      "max-lines": 3688,
-      "max-lines-per-function": 14
+      "max-lines": 3671,
+      "max-lines-per-function": 13
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
       "max-lines": 1482
@@ -866,11 +866,11 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 1072
+      "max-lines": 1066
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2660,
+      "max-lines": 2502,
       "max-lines-per-function": 12
     },
     "apps/pages/src/sections/SettingsSection.test.tsx": {
@@ -1066,7 +1066,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/session.ts": {
-      "max-lines": 927,
+      "max-lines": 926,
       "max-lines-per-function": 2
     },
     "apps/pages/src/tutorial/ui/SupportPanel.tsx": {
@@ -1395,7 +1395,7 @@
       "max-lines-per-function": 1
     },
     "packages/auth-upstream/src/webauthn.ts": {
-      "max-lines": 480
+      "max-lines": 422
     },
     "packages/capability-registry/src/index.ts": {
       "max-lines": 2218

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useLocation, useNavigate } from "react-router";
 import type { Provider } from "../lib/connections.js";
 import { canConfigureAutomatically } from "../lib/connector-guidance.js";
@@ -77,18 +77,12 @@ export function ConnectionsTree({
                   connection.connectionId,
                 );
                 return (
-                  <TreeRow
+                  <ConnectorRow
                     key={connection.connectionId}
-                    child
-                    level={3}
                     to={to}
-                    selected={pathname === to}
-                    isActive={pathname === to}
-                  >
-                    <span className="railtree__name">
-                      {connection.displayName}
-                    </span>
-                  </TreeRow>
+                    anchor={`connected-${encodeURIComponent(connection.connectionId)}`}
+                    label={connection.displayName}
+                  />
                 );
               })}
               {live.length === 0 ? (
@@ -106,7 +100,7 @@ export function ConnectionsTree({
             ).length,
           )}
           {!closed.has("catalog") ? (
-            <CatalogEntries providers={providers} pathname={pathname} />
+            <CatalogEntries providers={providers} />
           ) : null}
         </div>
       ) : null}
@@ -114,12 +108,33 @@ export function ConnectionsTree({
   );
 }
 
-function CatalogEntries({
-  providers,
-  pathname,
-}: { providers: Provider[] | null; pathname: string }) {
+function ConnectorRow({
+  to,
+  anchor,
+  label,
+}: { to: string; anchor: string; label: string }) {
+  const { pathname, hash } = useLocation();
+  const selected = pathname === to || hash === `#${anchor}`;
+  return (
+    <TreeRow
+      child
+      level={3}
+      to={to}
+      selectTo={`/connections#${anchor}`}
+      selected={selected}
+      isActive={selected}
+    >
+      <span className="railtree__name">{label}</span>
+    </TreeRow>
+  );
+}
+
+function CatalogEntries({ providers }: { providers: Provider[] | null }) {
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE_SIZE);
+  const [pending, startTransition] = useTransition();
+  const { hash } = useLocation();
+  const navigate = useNavigate();
   const matches = (providers ?? [])
     .filter(
       (provider) =>
@@ -142,31 +157,42 @@ function CatalogEntries({
         onChange={(event) => {
           setQuery(event.target.value);
           setLimit(PAGE_SIZE);
+          navigate("/connections#catalog", { replace: true });
         }}
       />
       {matches.slice(0, limit).map((provider) => {
         const to = connectorPath(provider.id);
         return (
-          <TreeRow
+          <ConnectorRow
             key={provider.id}
-            child
-            level={3}
             to={to}
-            selected={pathname === to}
-            isActive={pathname === to}
-          >
-            <span className="railtree__name">{provider.displayName}</span>
-          </TreeRow>
+            anchor={`catalog-${encodeURIComponent(provider.id)}`}
+            label={provider.displayName}
+          />
         );
       })}
       {more > 0 ? (
-        <button
-          type="button"
-          className="railtree__row connections-tree__more"
-          onClick={() => setLimit((previous) => previous + PAGE_SIZE)}
+        <TreeRow
+          child
+          level={3}
+          to="/connections#catalog-more"
+          selected={hash === "#catalog-more"}
+          isActive={hash === "#catalog-more"}
+          busy={pending}
+          onToggle={() => {
+            if (!pending)
+              startTransition(() => {
+                setLimit((previous) => previous + PAGE_SIZE);
+                const first = matches[limit];
+                if (first)
+                  navigate(
+                    `/connections#catalog-${encodeURIComponent(first.id)}`,
+                  );
+              });
+          }}
         >
-          Load {more} more
-        </button>
+          {pending ? "Loading connectors…" : `Load ${more} more`}
+        </TreeRow>
       ) : null}
       {matches.length === 0 ? (
         <output className="connections-tree__note">

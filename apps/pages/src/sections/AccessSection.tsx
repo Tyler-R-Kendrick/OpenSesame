@@ -25,7 +25,6 @@ import {
   IconSearch,
   IconTrash,
 } from "../components/Icons.js";
-import { NoHostNote } from "../components/NoHostNote.js";
 import {
   AccessError,
   type Delegation,
@@ -78,12 +77,14 @@ import {
   useIdentityConfigured,
 } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
-import { useVault } from "../lib/vault/hooks.js";
+import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { SecretItem, VaultItem } from "../lib/vault/model.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccessAuthority } from "./access/AccessAuthority.js";
 import { ApprovalInbox } from "./access/ApprovalInbox.js";
 import { ClaimAccessCeremony } from "./access/ClaimAccessCeremony.js";
+import { LocalAuthorityPanel } from "./access/LocalAuthorityPanel.js";
+import { LocalPoliciesPanel } from "./access/LocalPoliciesPanel.js";
 import { SessionsPanel } from "./access/SessionsPanel.js";
 import { formatTime } from "./access/format.js";
 import { type AuditEvent, outcomeChip } from "./access/receipts.js";
@@ -200,6 +201,7 @@ function formatDuration(seconds: number): string {
  */
 export function AccessSection() {
   const online = useOnline();
+  const tomb = useVaultStore().activeTomb();
   const [tab, setTab] = useSectionView(ACCESS_VIEWS, "grants");
   const [ceremony, setCeremony] = useState<CeremonyState>(null);
   const [policyFocus, setPolicyFocus] = useState<string | null>(null);
@@ -217,18 +219,7 @@ export function AccessSection() {
 
   const clearPolicyFocus = useCallback(() => setPolicyFocus(null), []);
 
-  // Which tabs a Host actually serves. Grants, requests and policies are
-  // brokered authority and nothing else: with no Host they have nothing to
-  // show, and saying so is kinder than five panels failing in red.
-  //
-  // Sessions and Resources are NOT in that list, and the first cut of ADR 0090
-  // was wrong to gate them: Sessions carries the Identity-plane receipts trail
-  // beside its Host task list, and Resources is where the Sites live — OAuth
-  // clients (Identity), the vault's own secrets, and the static-site snippets,
-  // domain rules and consents, which are local to this browser and need no
-  // network at all. Hiding a snippet that advertises "no backend" behind a
-  // backend check is the bug this ADR exists to remove, so each of those two
-  // panels gates only its own Host half.
+  // Each view exposes local authority independently of optional Host controls.
   const hostConfigured = useHostConfigured();
 
   return (
@@ -253,26 +244,24 @@ export function AccessSection() {
       </div>
 
       {tab === "grants" ? (
-        !hostConfigured ? (
-          <NoHostNote
-            road={false}
-            what="Connect and verify a Host above to issue scoped grants."
-          />
-        ) : ceremony === null ? (
-          <GrantsPanel
-            key={authorityRevision}
-            online={online}
-            onGrantAccess={openGrant}
-          />
-        ) : (
-          <GuideTarget id="access.grant-ceremony">
-            <GrantCeremony
+        <>
+          <LocalAuthorityPanel key={tomb} tomb={tomb} grantsOnly />
+          {!hostConfigured ? null : ceremony === null ? (
+            <GrantsPanel
+              key={authorityRevision}
               online={online}
-              initialTarget={ceremony.target}
-              onClose={() => setCeremony(null)}
+              onGrantAccess={openGrant}
             />
-          </GuideTarget>
-        )
+          ) : (
+            <GuideTarget id="access.grant-ceremony">
+              <GrantCeremony
+                online={online}
+                initialTarget={ceremony.target}
+                onClose={() => setCeremony(null)}
+              />
+            </GuideTarget>
+          )}
+        </>
       ) : null}
       {tab === "requests" ? (
         <>
@@ -295,19 +284,17 @@ export function AccessSection() {
         />
       ) : null}
       {tab === "policies" ? (
-        !hostConfigured ? (
-          <NoHostNote
-            road={false}
-            what="Connect and verify a Host above to manage resource policies."
-          />
-        ) : (
-          <PoliciesPanel
-            key={authorityRevision}
-            online={online}
-            focusId={policyFocus}
-            onFocusUsed={clearPolicyFocus}
-          />
-        )
+        <>
+          <LocalPoliciesPanel />
+          {hostConfigured ? (
+            <PoliciesPanel
+              key={authorityRevision}
+              online={online}
+              focusId={policyFocus}
+              onFocusUsed={clearPolicyFocus}
+            />
+          ) : null}
+        </>
       ) : null}
     </div>
   );
@@ -2192,14 +2179,8 @@ function ResourcesPanel({
   onPolicy: (connectionId: string) => void;
 }) {
   const vault = useVault();
-  // Only the Connections group here belongs to a Host. The Sites group is the
-  // Identity API's, and the snippets, domain rules and consents beneath it are
-  // this browser's alone — the group is simply absent where there is no Host,
-  // the same way a group with nothing in it is absent (ADR 0090).
+  // Local resources need neither service; only query explicitly configured planes.
   const hostConfigured = useHostConfigured();
-  // And the Sites group is the Identity API's. Asked with none configured, it
-  // answered "that client no longer exists on the Identity plane" — a 404
-  // dressed as a revocation, about a plane that was never there.
   const identityConfigured = useIdentityConfigured();
   const [connections, setConnections] = useState<Connection[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -2212,6 +2193,7 @@ function ResourcesPanel({
   const clientsRun = useRef(0);
 
   const load = useCallback(async () => {
+    if (!hostConfigured) return;
     const id = ++run.current;
     try {
       const rows = await listConnections();
@@ -2223,9 +2205,10 @@ function ResourcesPanel({
       setConnections(null);
       setLoadError(accessErrorText(caught));
     }
-  }, []);
+  }, [hostConfigured]);
 
   const loadClients = useCallback(async () => {
+    if (!identityConfigured) return;
     const id = ++clientsRun.current;
     try {
       const data = await callIdentity<{ clients: OAuthClient[] }>(
@@ -2239,7 +2222,7 @@ function ResourcesPanel({
       setClients(null);
       setClientsError(accessErrorText(caught));
     }
-  }, []);
+  }, [identityConfigured]);
 
   useEffect(() => {
     if (hostConfigured) void load();

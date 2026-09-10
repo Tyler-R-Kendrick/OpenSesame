@@ -247,7 +247,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.grants",
     description:
-      "The Grants tab: delegations already handed out, what each one may do, and when it lapses.",
+      "The Grants tab: local application grants and optional Host delegations, their scope and expiry, with confirmed revocation.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "delegations.list",

@@ -7,6 +7,7 @@ import {
   brokeredRealmUpstream,
   brokeredUpstream,
   listFederatedProviders,
+  providerUpstream,
   requestEmailMagicLink,
   workEmailDomain,
 } from "./providers.js";
@@ -100,6 +101,37 @@ describe("listFederatedProviders", () => {
 });
 
 describe("brokered upstreams", () => {
+  it.each([BASE, ""])(
+    "uses compiled browser trust independently of Identity at %s",
+    (base) => {
+      identitySeams.identityBase = () => base;
+      expect(
+        providerUpstream({
+          id: "shoo",
+          label: "Google",
+          kind: "oidc",
+          browserCapable: true,
+        }),
+      ).toMatchObject({
+        id: "shoo",
+        issuer: "https://shoo.dev",
+        protocol: "shoo",
+      });
+    },
+  );
+
+  it.each([
+    { id: "shoo", browserCapable: false },
+    { id: "untrusted", browserCapable: true },
+  ])(
+    "does not infer browser trust for $id with browserCapable=$browserCapable",
+    (provider) => {
+      expect(
+        providerUpstream({ ...provider, label: "Provider", kind: "oidc" }),
+      ).toMatchObject({ id: `broker:${provider.id}`, issuer: BASE });
+    },
+  );
+
   it("points a brokered provider at the Identity API, not the provider", () => {
     expect(
       brokeredUpstream({

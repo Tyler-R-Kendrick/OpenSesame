@@ -5,6 +5,7 @@ import {
   kvDurability,
   kvGet,
   kvHydrate,
+  kvRefresh,
   kvSet,
   kvSetDurable,
 } from "./kv.js";
@@ -26,6 +27,7 @@ function makeOpfsRoot(options: FakeOpfsOptions = {}) {
       return {
         async getFile() {
           return {
+            size: new TextEncoder().encode(files.get(name) ?? "").length,
             async text() {
               return files.get(name) ?? "";
             },
@@ -67,6 +69,59 @@ afterEach(() => {
 });
 
 describe("kv with OPFS backing", () => {
+  it("refreshes changed records and clears records deleted by another tab", async () => {
+    const root = makeOpfsRoot();
+    stubOpfs(root);
+    await kvSetDurable("authority", "old");
+    root.files.set("opensesame-pages-authority.json", "revoked");
+    await kvRefresh("authority", 1024);
+    expect(kvGet("authority")).toBe("revoked");
+    root.files.delete("opensesame-pages-authority.json");
+    await kvRefresh("authority", 1024);
+    expect(kvGet("authority")).toBeNull();
+  });
+
+  it("does not reuse authority after storage access fails", async () => {
+    stubOpfs(makeOpfsRoot());
+    await kvSetDurable("authority", "old");
+    vi.stubGlobal("navigator", {
+      storage: { getDirectory: () => Promise.reject(new Error("unavailable")) },
+    });
+    await expect(kvRefresh("authority", 1024)).rejects.toThrow("unavailable");
+    expect(kvGet("authority")).toBeNull();
+  });
+
+  it("does not acknowledge a durable write when OPFS access fails", async () => {
+    stubOpfs(makeOpfsRoot());
+    await kvSetDurable("authority", "before");
+    vi.stubGlobal("navigator", {
+      storage: { getDirectory: () => Promise.reject(new Error("unavailable")) },
+    });
+    await expect(kvSetDurable("authority", "after")).rejects.toThrow(
+      "unavailable",
+    );
+    expect(kvGet("authority")).toBe("before");
+  });
+
+  it("rejects oversized records before reading their text", async () => {
+    const root = makeOpfsRoot();
+    stubOpfs(root);
+    await kvSetDurable("authority", "oversized");
+    await expect(kvRefresh("authority", 2)).rejects.toThrow("read limit");
+    expect(kvGet("authority")).toBeNull();
+    await expect(kvRefresh("authority", Number.NaN)).rejects.toThrow(
+      "read limit",
+    );
+  });
+
+  it("preserves explicitly session-only records without OPFS", async () => {
+    stubOpfs(null);
+    await kvSetDurable("authority", "session-only");
+    await kvRefresh("authority", 1024);
+    expect(kvGet("authority")).toBe("session-only");
+    expect(kvDurability()).toBe("memory");
+  });
+
   it("persists writes into OPFS under sanitized file names", async () => {
     const root = makeOpfsRoot();
     stubOpfs(root);

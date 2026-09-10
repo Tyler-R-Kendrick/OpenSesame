@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { crossOriginOpenerPolicy } from "./src/lib/opener-policy.ts";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const osDomainBrowser = fileURLToPath(
@@ -25,7 +26,6 @@ export default defineConfig({
   server: {
     headers: {
       "Cross-Origin-Embedder-Policy": "require-corp",
-      "Cross-Origin-Opener-Policy": "same-origin",
     },
   },
   build: {
@@ -46,6 +46,12 @@ export default defineConfig({
       name: "origin-profile-canonical-callback",
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
+          // Only the local sign-in popup retains its cross-origin opener.
+          // The vault and every other route retain the isolation default.
+          res.setHeader(
+            "Cross-Origin-Opener-Policy",
+            crossOriginOpenerPolicy(req.url?.split("?")[0] ?? "", base),
+          );
           if (req.url?.startsWith("/opensesame/callback")) {
             const query = req.url.slice("/opensesame/callback".length);
             res.statusCode = 302;

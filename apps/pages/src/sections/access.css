@@ -67,6 +67,10 @@
   color: var(--ink-2);
 }
 
+.local-policy-intro {
+  max-width: 62ch;
+}
+
 .access-ref {
   font-family: var(--mono);
   font-size: 0.75rem;

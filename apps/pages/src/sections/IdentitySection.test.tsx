@@ -274,9 +274,7 @@ describe("IdentitySection", () => {
       expect.objectContaining({ id: "google", kind: "first-class" }),
     ]);
     // The gate lifts onto the Providers tab with the success line.
-    expect(
-      await screen.findByText(/Google now vouches for sign-ins on this device/),
-    ).toBeTruthy();
+    expect(await screen.findByText(/Sign-in started with Google/)).toBeTruthy();
   });
 
   it("runs the custom OIDC card two-step on registration_unsupported", async () => {
@@ -1018,9 +1016,7 @@ describe("IdentitySection", () => {
       await screen.findByRole("button", { name: "Continue with Google" }),
     );
     await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(1));
-    expect(
-      await screen.findByText(/Google now vouches for sign-ins on this device/),
-    ).toBeTruthy();
+    expect(await screen.findByText(/Sign-in started with Google/)).toBeTruthy();
     expect(listIdpRegistrations()).toHaveLength(2);
 
     // Third: same path, registry still appends, and the tabs never re-gate.
@@ -1030,9 +1026,7 @@ describe("IdentitySection", () => {
       screen.getByRole("button", { name: "Continue with GitHub" }),
     );
     await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(2));
-    expect(
-      await screen.findByText(/GitHub now vouches for sign-ins on this device/),
-    ).toBeTruthy();
+    expect(await screen.findByText(/Sign-in started with GitHub/)).toBeTruthy();
     expect(listIdpRegistrations()).toHaveLength(3);
     expect(screen.getByRole("tab", { name: "Providers" })).toBeTruthy();
     expect(screen.queryByText("Connect your identity provider")).toBeNull();

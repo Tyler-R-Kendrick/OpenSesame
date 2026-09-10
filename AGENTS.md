@@ -256,6 +256,35 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 
 ## 5. Design rules that gate merges
 
+- **Keyboard access is a core product contract, not optional polish.** Every
+  arrival (cold load, reload, guest/unlock, deep link, route change and modal
+  close) must leave visible, useful focus. Never steal focus from an active
+  user. Native links/buttons retain Enter/Space behavior; form controls,
+  tabs and menus retain their own keys. Global shortcuts must not swallow
+  native activation. Tab/Shift-Tab must reach and leave both trees and every
+  visible enabled control; only an active modal may contain focus. F6 is the
+  listing-switch shortcut, never a replacement for native Tab navigation.
+  Escape leaves a text field for its parent pane before closing a closable
+  pane. Preserve vim/tree arrows, counts, section chords and guest access.
+  Changes to boot, routing, shell, controls or focus require
+  `pnpm --filter @opensesame/pages verify:keyboard` against a fresh Pages
+  build, at desktop and mobile widths. This keyboard-only browser journey
+  must start at page load without clicks, injected focus, synthetic keydown
+  events or mocked keymap registrations. Handler spies and snapshots alone
+  are not regression proof. Include saved-vault reload/unlock and immediate
+  movement from empty and populated vaults; guest entry alone is insufficient.
+  Keep this gate in the required Bundle budgets
+  job; demonstrate failure before fixing a regression and success afterward.
+- **Browser-local IAM must prove an actual application sign-in.** Changes to
+  local identity sessions, application grants, popup transport or consent
+  require `pnpm --filter @opensesame/pages verify:local-iam` against a fresh
+  Pages build, alongside the focused IAM tests. This required Bundle budgets
+  check uses separate browser origins, real encrypted storage and virtual
+  WebAuthn, with keyboard-only explicit consent, session check, revocation
+  and denial at desktop/mobile widths. A registration form or mocked success
+  is not authentication evidence. Keep exact-origin/source binding, PKCE,
+  human-only consent and scoped opener headers; never widen model authority
+  to make the flow pass. Browser-local identity is not a hosted OIDC service.
 - `@opensesame/os-domain` **must not** import Better Auth, oidc-provider,
   Hono, Drizzle, or React (see CONTRIBUTING.md).
 - Prefer mature libraries over NIH protocol code —

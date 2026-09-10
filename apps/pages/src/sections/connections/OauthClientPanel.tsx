@@ -1,14 +1,10 @@
 import { type FormEvent, useCallback, useEffect, useId, useState } from "react";
 import { IconCheck, IconExternal } from "../../components/Icons.js";
 import type { Integration, Provider } from "../../lib/connections.js";
-import {
-  createIntegration,
-  listIntegrations,
-  startGithubAppRegistration,
-  submitGithubAppManifest,
-} from "../../lib/connections.js";
+import { createIntegration, listIntegrations } from "../../lib/connections.js";
 import { hostBase } from "../../lib/identity.js";
 import { type Flash, errorText } from "./shared.js";
+import { useGithubAppRegistration } from "./useGithubAppRegistration.js";
 
 function usableFor(provider: Provider) {
   return (row: Integration) =>
@@ -46,6 +42,7 @@ export function OauthClientPanel({
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const fieldId = useId();
+  const deployGithubApp = useGithubAppRegistration(provider, onFlash, setBusy);
 
   const refresh = useCallback(async () => {
     const rows = await listIntegrations().catch((): Integration[] => []);
@@ -83,28 +80,6 @@ export function OauthClientPanel({
     const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
     window.history.replaceState({}, "", next);
   }, [provider.id, onFlash, refresh]);
-
-  async function deployGithubApp() {
-    setBusy("app");
-    try {
-      const registration = await startGithubAppRegistration({
-        returnTo: `${window.location.origin}${window.location.pathname}`,
-        displayName: `OpenSesame ${provider.displayName}`,
-      });
-      onFlash({ tone: "ok", text: "Sending you to GitHub to create the app…" });
-      submitGithubAppManifest(registration);
-      window.setTimeout(() => {
-        setBusy(null);
-        onFlash({
-          tone: "err",
-          text: "GitHub did not open. Hard-refresh so CSP allows form posts to github.com, then try again.",
-        });
-      }, 2500);
-    } catch (error) {
-      onFlash({ tone: "err", text: errorText(error) });
-      setBusy(null);
-    }
-  }
 
   async function saveClient(event: FormEvent) {
     event.preventDefault();

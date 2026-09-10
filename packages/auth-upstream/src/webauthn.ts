@@ -13,12 +13,25 @@ import type {
   AuthenticationResponseJSON,
   RegistrationResponseJSON,
 } from "@simplewebauthn/server";
+import {
+  type VerifiedRegistration,
+  type WebAuthnRpConfig,
+  verifyPasskeyAuthentication,
+  verifyPasskeyRegistration,
+} from "./passkey-verification.js";
 import type {
   PasskeyAssertion,
   PasskeyCredential,
   PasskeyVerifyFn,
 } from "./passkey.js";
-import { simpleWebAuthnSeams } from "./simplewebauthn.js";
+export {
+  type VerifiedRegistration,
+  type WebAuthnRpConfig,
+  type VerifyPasskeyAuthenticationInput,
+  type VerifyPasskeyRegistrationInput,
+  verifyPasskeyAuthentication,
+  verifyPasskeyRegistration,
+} from "./passkey-verification.js";
 
 function toBase64Url(bytes: Uint8Array): string {
   return Buffer.from(bytes)
@@ -26,11 +39,6 @@ function toBase64Url(bytes: Uint8Array): string {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
-}
-
-export interface WebAuthnRpConfig {
-  rpID: string;
-  origin: string;
 }
 
 const AUTHENTICATOR_TRANSPORTS: AuthenticatorTransportFuture[] = [
@@ -100,66 +108,6 @@ export async function generatePasskeyAuthenticationOptions(
       : undefined),
     ...(allowCredentials ? { allowCredentials } : undefined),
   });
-}
-
-export interface VerifyPasskeyRegistrationInput {
-  rp: WebAuthnRpConfig;
-  challenge: string;
-  response: RegistrationResponseJSON;
-  requireUserVerification?: boolean;
-}
-
-export async function verifyPasskeyRegistration(
-  input: VerifyPasskeyRegistrationInput,
-): Promise<VerifiedRegistration | null> {
-  try {
-    const result = await simpleWebAuthnSeams.verifyRegistrationResponse({
-      response: input.response,
-      expectedChallenge: input.challenge,
-      expectedOrigin: input.rp.origin,
-      expectedRPID: input.rp.rpID,
-      requireUserVerification: input.requireUserVerification ?? true,
-    });
-    if (!result.verified || !result.registrationInfo) return null;
-    const { credential } = result.registrationInfo;
-    return {
-      credentialId: credential.id,
-      publicKey: credential.publicKey,
-      counter: credential.counter,
-    };
-  } catch {
-    return null;
-  }
-}
-
-export interface VerifyPasskeyAuthenticationInput {
-  rp: WebAuthnRpConfig;
-  challenge: string;
-  response: AuthenticationResponseJSON;
-  credential: Pick<PasskeyCredential, "credentialId" | "publicKey" | "counter">;
-  requireUserVerification?: boolean;
-}
-
-export async function verifyPasskeyAuthentication(
-  input: VerifyPasskeyAuthenticationInput,
-): Promise<number | null | undefined> {
-  try {
-    const result = await simpleWebAuthnSeams.verifyAuthenticationResponse({
-      response: input.response,
-      expectedChallenge: input.challenge,
-      expectedOrigin: input.rp.origin,
-      expectedRPID: input.rp.rpID,
-      credential: {
-        id: input.credential.credentialId,
-        publicKey: input.credential.publicKey,
-        counter: input.credential.counter,
-      },
-      requireUserVerification: input.requireUserVerification ?? true,
-    });
-    return result.verified ? result.authenticationInfo?.newCounter : null;
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -373,12 +321,6 @@ export async function issueRegistrationChallenge(
   });
   return { challenge: options.challenge, options };
 }
-
-export type VerifiedRegistration = {
-  credentialId: string;
-  publicKey: Uint8Array;
-  counter: number;
-};
 
 /**
  * Verify a registration response against a stored challenge.

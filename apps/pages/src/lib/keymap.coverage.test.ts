@@ -483,7 +483,7 @@ describe("bindings", () => {
 });
 
 describe("listing focus", () => {
-  it("Tab on the vault listing focuses the rail, and the reverse", () => {
+  it("F6 on the vault listing focuses the rail, and the reverse", () => {
     const items = vault();
     const nav = rail();
     const stopVault = registerVaultKeymap(items);
@@ -503,7 +503,7 @@ describe("listing focus", () => {
     document.body.append(railEl, vaultEl);
 
     const fromRail = new KeyboardEvent("keydown", {
-      key: "Tab",
+      key: "F6",
       cancelable: true,
     });
     Object.defineProperty(fromRail, "target", { value: railRow });
@@ -512,7 +512,7 @@ describe("listing focus", () => {
     expect(nav.focus).not.toHaveBeenCalled();
 
     const fromVault = new KeyboardEvent("keydown", {
-      key: "Tab",
+      key: "F6",
       cancelable: true,
     });
     Object.defineProperty(fromVault, "target", { value: vaultRow });
@@ -522,7 +522,7 @@ describe("listing focus", () => {
     stopRail();
   });
 
-  it("Tab on the rail with no vault listing focuses the rail itself", () => {
+  it("Tab leaves the rail when no vault listing exists", () => {
     const nav = rail();
     const stopRail = registerRailKeymap(nav);
     const handler = createKeymapHandler({
@@ -540,8 +540,8 @@ describe("listing focus", () => {
     });
     Object.defineProperty(event, "target", { value: railRow });
     handler(event);
-    expect(nav.focus).toHaveBeenCalledOnce();
-    expect(event.defaultPrevented).toBe(true);
+    expect(nav.focus).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
     stopRail();
   });
 
@@ -597,7 +597,7 @@ describe("listing focus", () => {
     stopRail();
   });
 
-  it("Tab on the vault with no rail listing focuses the vault itself", () => {
+  it("Tab leaves the vault when no rail listing exists", () => {
     const items = vault();
     const stopVault = registerVaultKeymap(items);
     const handler = createKeymapHandler({
@@ -615,8 +615,8 @@ describe("listing focus", () => {
     });
     Object.defineProperty(event, "target", { value: vaultRow });
     handler(event);
-    expect(items.focus).toHaveBeenCalledOnce();
-    expect(event.defaultPrevented).toBe(true);
+    expect(items.focus).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
     stopVault();
   });
 

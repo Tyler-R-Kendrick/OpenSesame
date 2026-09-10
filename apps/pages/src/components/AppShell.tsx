@@ -19,6 +19,7 @@ import {
   settingsPath,
 } from "../lib/crumbs.js";
 import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
+import { IDENTITY_VIEWS } from "../lib/section-views.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -27,6 +28,7 @@ import { ConnectionsNavigation } from "./ConnectionsNavigation.js";
 import { ConnectionsTree } from "./ConnectionsTree.js";
 import { Crumbs } from "./Crumbs.js";
 import { IconLock, IconMark } from "./Icons.js";
+import { IdentityTree } from "./IdentityTree.js";
 import { KeymapSheet } from "./KeymapSheet.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import {
@@ -94,10 +96,16 @@ function NavTree() {
   const inVault = location.pathname.startsWith("/vault");
   const inSettings = location.pathname.startsWith("/settings");
   const inConnections = location.pathname.startsWith("/connections");
+  const inIdentity = location.pathname.startsWith("/identity");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
-  const vaultOpen = inVault && !collapsed.has("/vault");
-  const settingsOpen = inSettings && !collapsed.has("/settings");
-  const connectionsOpen = inConnections && !collapsed.has("/connections");
+  const vaultOpen = sectionOpen("/vault", location.pathname, collapsed);
+  const settingsOpen = sectionOpen("/settings", location.pathname, collapsed);
+  const connectionsOpen = sectionOpen(
+    "/connections",
+    location.pathname,
+    collapsed,
+  );
+  const identityOpen = sectionOpen("/identity", location.pathname, collapsed);
   const toggleSection = (to: string, active: boolean) => {
     setCollapsed((previous) => {
       const next = new Set(previous);
@@ -113,16 +121,18 @@ function NavTree() {
     location.pathname,
     location.hash,
   );
-  const selectedTo = inConnections
-    ? location.pathname +
-      (location.hash ||
-        (location.pathname === "/connections" ? "#connected" : ""))
-    : selectedRailPath(
-        location.pathname,
-        activeFilter,
-        activeFolder,
-        settingsCategory,
-      );
+  const selectedTo = inIdentity
+    ? `/identity?view=${IDENTITY_VIEWS.find((id) => id === params.get("view")) ?? "people"}`
+    : inConnections
+      ? location.pathname +
+        (location.hash ||
+          (location.pathname === "/connections" ? "#connected" : ""))
+      : selectedRailPath(
+          location.pathname,
+          activeFilter,
+          activeFolder,
+          settingsCategory,
+        );
   const section = SECTIONS.find(({ to }) => location.pathname.startsWith(to));
   currentToRef.current =
     section && collapsed.has(section.to) ? section.to : selectedTo;
@@ -183,7 +193,7 @@ function NavTree() {
       tabIndex={0}
       aria-activedescendant={railRowId(
         currentToRef.current,
-        vaultOpen || settingsOpen || connectionsOpen,
+        vaultOpen || settingsOpen || connectionsOpen || identityOpen,
       )}
     >
       <SectionRow
@@ -237,9 +247,10 @@ function NavTree() {
         section={SECTIONS[2]}
         open={location.pathname.startsWith("/access")}
       />
-      <SectionRow
-        section={SECTIONS[3]}
-        open={location.pathname.startsWith("/identity")}
+      <IdentityTree
+        open={identityOpen}
+        active={inIdentity}
+        onToggle={() => toggleSection("/identity", inIdentity)}
       />
       <SectionRow
         section={SECTIONS[4]}
@@ -265,6 +276,14 @@ function NavTree() {
       ) : null}
     </nav>
   );
+}
+
+function sectionOpen(
+  to: string,
+  pathname: string,
+  collapsed: ReadonlySet<string>,
+) {
+  return pathname.startsWith(to) && !collapsed.has(to);
 }
 
 /**

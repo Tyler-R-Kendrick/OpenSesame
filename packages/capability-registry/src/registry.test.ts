@@ -162,12 +162,31 @@ describe("agent-surface parity rules", () => {
         expect(cli).toMatch(/^opensesame(-id)? [a-z]/);
       }
       if (pwa !== null) {
-        expect(pwa).toMatch(
-          /^(lib\/[\w/.-]+\.ts:\w+|route:\/[\w-]*|pwa-app:[\w-]+)$/,
-        );
+        expect(pwa).toMatch(PWA_SURFACE);
       }
     }
   });
+});
+
+const PWA_SURFACE =
+  /^(lib\/[\w/.-]+\.ts:\w+|route:\/(?:[\w-]+(?:\/[\w-]+)*)?|pwa-app:[\w-]+)$/;
+it("admits exact nested routes without URL or path ambiguity", () => {
+  for (const route of [
+    "route:/",
+    "route:/identity",
+    "route:/identity/authorize",
+  ])
+    expect(route).toMatch(PWA_SURFACE);
+  for (const route of [
+    "route://identity",
+    "route:/identity/",
+    "route:/identity/../vault",
+    "route:/identity?x=1",
+    "route:/identity#x",
+    "route:https://example.test",
+    "route:/identity%2fauthorize",
+  ])
+    expect(route).not.toMatch(PWA_SURFACE);
 });
 
 describe("capabilities.json mirror", () => {

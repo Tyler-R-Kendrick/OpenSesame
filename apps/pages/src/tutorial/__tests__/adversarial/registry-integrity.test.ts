@@ -14,6 +14,7 @@ import { compileGuide } from "@opensesame/guide-lang";
 import fc from "fast-check";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  GUIDE_OVERLAY_ROUTES,
   GUIDE_ROUTES,
   guideRouteForPath,
   isKnownGuideRoute,
@@ -90,6 +91,13 @@ describe("an identifier this build does not declare", () => {
 });
 
 describe("a route that is well-formed but nobody registered", () => {
+  it("identifies local consent as a ceremony, not a navigable directory view", () => {
+    expect(guideRouteForPath("/identity/authorize")).toBe(
+      "/identity/authorize",
+    );
+    expect(GUIDE_OVERLAY_ROUTES.has("/identity/authorize")).toBe(true);
+    expect(guideRouteForPath("/identity/authorize-extra")).toBe("/identity");
+  });
   it("is refused by the registry, the compiler and the runtime alike", async () => {
     const active = open();
     expect(isKnownGuideRoute("/admin/secrets")).toBe(false);

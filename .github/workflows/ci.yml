@@ -78,6 +78,17 @@ jobs:
         run: |
           google-chrome --version
           pnpm --filter @opensesame/pages verify:webmcp
+      - name: Keyboard-only first-load and navigation contract
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Browser-local application sign-in contract
+        # Real cross-origin popup and virtual WebAuthn, no Identity/Host backend.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:local-iam
 
   rust:
     name: Rust

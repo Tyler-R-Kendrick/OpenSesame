@@ -6,9 +6,11 @@ import {
   getInboxRef,
   listAccessRequests,
 } from "../../lib/access-requests.js";
-import { useIdentitySession } from "../../lib/identity.js";
+import { identityBase, useIdentitySession } from "../../lib/identity.js";
+import { useVaultStore } from "../../lib/vault/hooks.js";
 import { ConnectIdentityNote } from "../identity/ConnectIdentityNote.js";
 import { ApprovalReview } from "./ApprovalReview.js";
+import { LocalRequestsPanel } from "./LocalRequestsPanel.js";
 import { RequestForm } from "./RequestForm.js";
 import { SentRequest } from "./SentRequest.js";
 
@@ -40,10 +42,16 @@ function useInbox(online: boolean) {
 
 export function ApprovalInbox({ online }: { online: boolean }) {
   const session = useIdentitySession();
-  return session ? (
-    <ConnectedInbox key={session.principalId} online={online} />
-  ) : (
-    <ConnectIdentityNote online={online} what="approval requests" />
+  const tomb = useVaultStore().activeTomb();
+  return (
+    <>
+      <LocalRequestsPanel key={tomb} tomb={tomb} />
+      {session ? (
+        <ConnectedInbox key={session.principalId} online={online} />
+      ) : identityBase() ? (
+        <ConnectIdentityNote online={online} what="approval requests" />
+      ) : null}
+    </>
   );
 }
 

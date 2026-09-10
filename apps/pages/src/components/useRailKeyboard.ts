@@ -12,9 +12,9 @@ export function useRailKeyboard(
     const tree = treeRef.current;
     if (!tree) return;
     const rows = () => [
-      ...tree.querySelectorAll<HTMLAnchorElement>("[data-rail-move]"),
+      ...tree.querySelectorAll<HTMLElement>("[data-rail-move]"),
     ];
-    const selectedIndex = (list: HTMLAnchorElement[]) => {
+    const selectedIndex = (list: HTMLElement[]) => {
       const to = currentToRef.current;
       const byTo = list.findIndex((row) => row.dataset.railTo === to);
       if (byTo >= 0) return byTo;
@@ -25,7 +25,7 @@ export function useRailKeyboard(
         ? selected
         : list.findIndex((row) => row.classList.contains("is-active"));
     };
-    const activate = (row: HTMLAnchorElement | undefined) => {
+    const activate = (row: HTMLElement | undefined) => {
       if (!row) return;
       const to = row.dataset.railTo;
       if (to) {
@@ -43,7 +43,8 @@ export function useRailKeyboard(
         at < 0 ? 0 : Math.min(Math.max(at + delta, 0), list.length - 1);
       activate(list[next]);
     };
-    const dive = (row: HTMLAnchorElement) => {
+    const dive = (row: HTMLElement) => {
+      if (row.hasAttribute("data-rail-preview")) return;
       activate(row);
       if ((row.dataset.railTo ?? "").startsWith("/vault")) {
         focusVaultListing();
@@ -74,20 +75,15 @@ export function useRailKeyboard(
         activate(list[next]);
       },
       ...branchActions(tree, () => rows()[selectedIndex(rows())], dive),
-      activate: () => {
-        const list = rows();
-        const row = list[selectedIndex(list)];
-        if (row?.hasAttribute("aria-expanded")) row.click();
-        else activate(row);
-      },
+      activate: () => rows()[selectedIndex(rows())]?.click(),
     });
   }, [treeRef, navigateRef, currentToRef]);
 }
 
 function branchActions(
   tree: HTMLElement,
-  current: () => HTMLAnchorElement | undefined,
-  dive: (row: HTMLAnchorElement) => void,
+  current: () => HTMLElement | undefined,
+  dive: (row: HTMLElement) => void,
 ) {
   return {
     enter: () => {
@@ -112,7 +108,9 @@ function branchActions(
       const selected = current();
       if (!selected?.classList.contains("railtree__row--child")) return;
       const all = [
-        ...tree.querySelectorAll<HTMLAnchorElement>("a.railtree__row"),
+        ...tree.querySelectorAll<HTMLElement>(
+          "[data-rail-move], a.railtree__row",
+        ),
       ];
       const from = all.indexOf(selected);
       for (let at = from - 1; at >= 0; at--) {

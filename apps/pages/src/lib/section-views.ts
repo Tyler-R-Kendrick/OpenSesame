@@ -16,6 +16,14 @@ export const IDENTITY_VIEWS = [
   "service-accounts",
   "organization",
 ] as const;
+export const IDENTITY_LABELS = {
+  people: "People",
+  agents: "Agents",
+  providers: "Providers",
+  devices: "Devices",
+  "service-accounts": "Applications",
+  organization: "Organization",
+} satisfies Record<(typeof IDENTITY_VIEWS)[number], string>;
 
 /** One URL-backed selection for human tabs, deep links, and browser tools. */
 export function useSectionView<T extends string>(

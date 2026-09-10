@@ -51,13 +51,6 @@ import "./connections.css";
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
   const { hash } = useLocation();
-  useEffect(() => {
-    if (!providerId && (hash === "#connected" || hash === "#catalog")) {
-      document
-        .getElementById(hash.slice(1))
-        ?.scrollIntoView?.({ block: "start" });
-    }
-  }, [hash, providerId]);
   const online = useOnline();
   // Connections are the Host's to hold (ADR 0090). The connector catalog below
   // is embedded in this build and stays browsable with no Host at all.
@@ -67,6 +60,16 @@ export function ConnectionsSection() {
 
   const [providers, setProviders] = useState<Provider[] | null>(null);
   const [connections, setConnections] = useState<Connection[] | null>(null);
+  useEffect(() => {
+    const ready = hash.startsWith("#connected-")
+      ? connections !== null
+      : providers !== null;
+    if (ready && !providerId && /^#(?:connected|catalog)(?:-|$)/.test(hash)) {
+      document
+        .getElementById(hash === "#catalog-more" ? "catalog" : hash.slice(1))
+        ?.scrollIntoView?.({ block: "start" });
+    }
+  }, [hash, providerId, providers, connections]);
   usePublishConnections(providers, connections);
   const [catalogError, setCatalogError] = useState<LoadFailure | null>(null);
   const [loadError, setLoadError] = useState<LoadFailure | null>(null);
