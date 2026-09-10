@@ -59,6 +59,30 @@ afterEach(() => {
 });
 
 describe("application keymap", () => {
+  it("moves to the rail from an empty vault toolbar and keeps New available", () => {
+    const vault = { ...target(), hasRows: () => false };
+    const rail = target();
+    const stopVault = registerVaultKeymap(vault);
+    const stopRail = registerRailKeymap(rail);
+    try {
+      const handler = createKeymapHandler({
+        navigate: vi.fn(),
+        showHelp: vi.fn(),
+      });
+      press(handler, "ArrowDown");
+      expect(rail.focus).toHaveBeenCalledOnce();
+      expect(rail.next).toHaveBeenCalledOnce();
+      expect(vault.next).not.toHaveBeenCalled();
+      press(handler, "F6");
+      expect(rail.focus).toHaveBeenCalledTimes(2);
+      press(handler, "n");
+      expect(vault.create).toHaveBeenCalledOnce();
+    } finally {
+      stopVault();
+      stopRail();
+    }
+  });
+
   it("drives the active vault tree and section jumps", () => {
     const tree = target();
     const release = registerVaultKeymap(tree);
@@ -239,7 +263,7 @@ describe("application keymap", () => {
     release();
   });
 
-  it("Tab switches listings when a tree holds the keyboard", () => {
+  it("F6 switches listings when a tree holds the keyboard", () => {
     const vault = target();
     const rail = {
       next: vi.fn(),
@@ -265,7 +289,7 @@ describe("application keymap", () => {
     window.addEventListener("keydown", handler);
     row.dispatchEvent(
       new KeyboardEvent("keydown", {
-        key: "Tab",
+        key: "F6",
         bubbles: true,
         cancelable: true,
       }),

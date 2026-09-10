@@ -17,6 +17,7 @@ export type ListingMotion = {
 };
 
 export type VaultKeymapTarget = ListingMotion & {
+  hasRows?: () => boolean;
   search: () => void;
   closeSearch: () => void;
   copySecret: () => void;
@@ -66,7 +67,9 @@ function movementTarget(event: KeyboardEvent): ListingMotion | null {
   const listing = listingOf(event);
   if (listing === "rail") return railTarget;
   if (listing === "vault") return vaultTarget;
-  return vaultTarget ?? railTarget;
+  return vaultTarget?.hasRows?.() === false
+    ? railTarget
+    : (vaultTarget ?? railTarget);
 }
 
 let helpTarget: (() => void) | null = null;
@@ -100,7 +103,8 @@ export const KEYMAP_HELP = [
   ["H / M / L", "High, mid, low"],
   ["gg / G  0 / $", "First or last"],
   ["l / h  Enter  Backspace", "Dive or climb"],
-  ["Tab", "Other listing"],
+  ["Tab / Shift-Tab", "Next or previous control"],
+  ["F6", "Other listing"],
   ["/  Esc", "Search or focus the tree"],
   ["y / u", "Copy secret or username"],
   ["e / x", "Edit or trash"],
@@ -198,6 +202,7 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
   ) => {
     return (event: KeyboardEvent) => {
       const listing = movementTarget(event);
+      if (!listingOf(event)) listing?.focus?.();
       const { steps, hadCount } = takeCount();
       fn(listing, steps, hadCount);
       event.preventDefault();
@@ -267,18 +272,12 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     s: verb(() => vaultTarget?.share()),
     "Shift+?": verb(() => showHelp()),
     "?": verb(() => showHelp()),
-    Tab: (event) => {
+    F6: (event) => {
       count = 0;
       const listing = listingOf(event);
-      if (!listing) return;
-      // A searchable tree has native tab stops; do not trap them behind pane switching.
-      if (
-        event.target instanceof HTMLElement &&
-        event.target.closest(".railtree")?.querySelector("input")
-      )
-        return;
       const other = listing === "rail" ? vaultTarget : railTarget;
-      (other ?? (listing === "rail" ? railTarget : vaultTarget))?.focus?.();
+      if (!other?.focus) return;
+      other.focus();
       event.preventDefault();
     },
     Space: (event) => {
@@ -298,9 +297,25 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
       event.defaultPrevented ||
       event.metaKey ||
       event.altKey ||
+      event.key === "Tab" ||
       typing(event.target) ||
-      (event.target instanceof HTMLButtonElement &&
-        ["Enter", " ", "Tab"].includes(event.key)) ||
+      (event.target instanceof Element &&
+        event.target.closest('a[href], button, summary, [role="button"]') &&
+        ["Enter", " "].includes(event.key)) ||
+      (event.target instanceof Element &&
+        event.target.closest(
+          '[role="tab"], [role="menuitem"], [role="slider"], [role="radio"]',
+        ) &&
+        [
+          "Enter",
+          " ",
+          "ArrowUp",
+          "ArrowDown",
+          "ArrowLeft",
+          "ArrowRight",
+          "Home",
+          "End",
+        ].includes(event.key)) ||
       document.querySelector('[role="dialog"][aria-modal="true"]')
     ) {
       count = 0;

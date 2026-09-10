@@ -28,12 +28,15 @@ export function kvDurability(): KvDurability {
   return durability;
 }
 
-async function opfsRoot(): Promise<FileSystemDirectoryHandle | null> {
+async function opfsRoot(
+  strict = false,
+): Promise<FileSystemDirectoryHandle | null> {
   try {
     const root = (await navigator.storage?.getDirectory?.()) ?? null;
     durability = root ? "persistent" : "memory";
     return root;
-  } catch {
+  } catch (error) {
+    if (strict) throw error;
     durability = "memory";
     return null;
   }
@@ -56,7 +59,7 @@ async function opfsRead(key: string): Promise<string | null> {
 }
 
 async function opfsWrite(key: string, value: string): Promise<void> {
-  const root = await opfsRoot();
+  const root = await opfsRoot(true);
   if (!root) return;
   const handle = await root.getFileHandle(fileName(key), { create: true });
   const writable = await handle.createWritable();
@@ -91,15 +94,8 @@ export function kvSet(key: string, value: string): void {
  * the vault says so on screen.
  */
 async function kvSetDurableDefault(key: string, value: string): Promise<void> {
-  const previous = memory.get(key);
+  await opfsWrite(key, value);
   memory.set(key, value);
-  try {
-    await opfsWrite(key, value);
-  } catch (error) {
-    if (previous === undefined) memory.delete(key);
-    else memory.set(key, previous);
-    throw error;
-  }
 }
 
 export const kvSeams = {
@@ -156,4 +152,39 @@ export async function kvHydrate(keys: string[]): Promise<void> {
       if (value != null) memory.set(key, value);
     }),
   );
+}
+
+/** Refresh a security record without treating storage failure as absence.
+ * Call under the record's Web Lock before evaluating or changing authority.
+ * Browsers without OPFS retain explicitly session-only storage.
+ */
+export async function kvRefresh(key: string, maxBytes: number): Promise<void> {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)
+    throw new Error("Invalid storage read limit");
+  if (!navigator.storage?.getDirectory) {
+    durability = "memory";
+    return;
+  }
+  try {
+    const root = await navigator.storage.getDirectory();
+    durability = "persistent";
+    let handle: FileSystemFileHandle;
+    try {
+      handle = await root.getFileHandle(fileName(key));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "NotFoundError") {
+        memory.delete(key);
+        return;
+      }
+      throw error;
+    }
+    const file = await handle.getFile();
+    if (file.size > maxBytes)
+      throw new Error("Storage record exceeds read limit");
+    memory.set(key, await file.text());
+  } catch (error) {
+    // No later sync reader may consume an authority snapshot we failed to refresh.
+    memory.delete(key);
+    throw error;
+  }
 }

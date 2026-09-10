@@ -75,7 +75,7 @@ afterEach(() => {
 });
 
 describe("listing keymap journey", () => {
-  it("Given both listings, When the rail holds the keyboard and they press Tab, Then the vault listing is focused", () => {
+  it("Given both listings, When the rail holds the keyboard and they press F6, Then the vault listing is focused", () => {
     const items = vault();
     const nav = rail();
     const stopVault = registerVaultKeymap(items);
@@ -92,7 +92,7 @@ describe("listing keymap journey", () => {
     window.addEventListener("keydown", handler);
     row.dispatchEvent(
       new KeyboardEvent("keydown", {
-        key: "Tab",
+        key: "F6",
         bubbles: true,
         cancelable: true,
       }),

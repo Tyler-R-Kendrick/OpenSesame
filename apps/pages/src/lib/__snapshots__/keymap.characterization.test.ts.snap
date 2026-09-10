@@ -31,7 +31,11 @@ exports[`listing keymap copy > says exactly this on the ? sheet 1`] = `
     "Dive or climb",
   ],
   [
-    "Tab",
+    "Tab / Shift-Tab",
+    "Next or previous control",
+  ],
+  [
+    "F6",
     "Other listing",
   ],
   [
@@ -64,12 +68,18 @@ exports[`listing keymap copy > says exactly this on the ? sheet 1`] = `
 exports[`listing keymap session > records this dispatch log for a vim-like pass 1`] = `
 {
   "calls": [
+    "focus",
     "next:1",
+    "focus",
     "previous:5",
     "first",
+    "focus",
     "last",
+    "focus",
     "toIndex:0",
+    "focus",
     "page:1,half",
+    "focus",
     "edge:high",
     "help",
   ],
