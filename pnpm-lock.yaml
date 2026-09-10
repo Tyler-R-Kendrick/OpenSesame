@@ -701,6 +701,9 @@ importers:
       '@opensesame/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@opensesame/auth-upstream':
+        specifier: workspace:*
+        version: link:../../packages/auth-upstream
       '@opensesame/capability-registry':
         specifier: workspace:*
         version: link:../../packages/capability-registry

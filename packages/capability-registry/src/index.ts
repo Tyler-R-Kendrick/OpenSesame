@@ -17,7 +17,7 @@ import { identityManagementCapabilities } from "./identity-management.js";
  *           "opensesame-id claim poll"); apps/cli and packages/cli parity
  *           tests assert the tokens exist in the clap/arg-parser sources.
  * - pwa:    "lib/<file>.ts:<export>" for an apps/pages seam the pages sweep
- *           import-checks, "route:/section" for a pages route, or
+ *           import-checks, "route:/section[/subroute]" for a pages route, or
  *           "pwa-app:<surface>" for the thin apps/pwa shell.
  * - mcp_host / mcp_client: the MCP tool name on that server.
  * - webmcp: the document.modelContext tool name (pages unless the pwa
