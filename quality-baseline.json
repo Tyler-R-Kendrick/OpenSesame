@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 494,
-    "violations": 821,
-    "oversizedLines": 281701
+    "violations": 818,
+    "oversizedLines": 280450
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -231,7 +231,7 @@
       "max-statements": 1
     },
     "apps/control-plane/src/openapi.ts": {
-      "max-lines": 2704,
+      "max-lines": 2677,
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/routes/agents.ts": {
@@ -331,7 +331,7 @@
     },
     "apps/control-plane/src/routes/scim.ts": {
       "complexity": 1,
-      "max-lines": 854,
+      "max-lines": 820,
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/server.ts": {
@@ -555,8 +555,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/AppShell.tsx": {
-      "max-lines": 477,
-      "max-lines-per-function": 2
+      "max-lines-per-function": 1
     },
     "apps/pages/src/components/CeremonyShell.tsx": {
       "complexity": 1
@@ -856,7 +855,7 @@
     "apps/pages/src/sections/AccessSection.tsx": {
       "complexity": 5,
       "max-depth": 1,
-      "max-lines": 4039,
+      "max-lines": 3688,
       "max-lines-per-function": 14
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
@@ -867,12 +866,12 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 1083
+      "max-lines": 1072
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2880,
-      "max-lines-per-function": 13
+      "max-lines": 2660,
+      "max-lines-per-function": 12
     },
     "apps/pages/src/sections/SettingsSection.test.tsx": {
       "max-lines": 563
@@ -938,7 +937,7 @@
     },
     "apps/pages/src/sections/settings/CapabilityConnectorsPanel.tsx": {
       "complexity": 2,
-      "max-lines": 771,
+      "max-lines": 738,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/settings/ChangelogPanel.tsx": {
@@ -1058,10 +1057,10 @@
       "max-lines": 442
     },
     "apps/pages/src/tutorial/registry/catalog.ts": {
-      "max-lines": 653
+      "max-lines": 606
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
-      "max-lines": 1001
+      "max-lines": 985
     },
     "apps/pages/src/tutorial/rendering/driver-renderer.ts": {
       "max-lines-per-function": 1
@@ -1399,7 +1398,7 @@
       "max-lines": 480
     },
     "packages/capability-registry/src/index.ts": {
-      "max-lines": 2253
+      "max-lines": 2218
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
       "max-lines": 425,

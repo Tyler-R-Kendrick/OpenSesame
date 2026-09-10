@@ -8,6 +8,8 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "vaults.switch": ["/vault", "/unlock", "/settings"],
     "host.health.check": [],
     "identity.account.add": ["/identity"],
+    "identity.users.manage": ["/identity"],
+    "identity.agents.manage": ["/identity"],
     "access.sessions.review": ["/access"],
     "access.grant": ["/access"],
     "access.claim": ["/access"],

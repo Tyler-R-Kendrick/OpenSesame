@@ -20,6 +20,12 @@ import {
   revokeOrganizationMembership,
   serializeMembershipMutation,
 } from "./organizations.js";
+import {
+  scimAuditActor,
+  scimBody,
+  scimError,
+  scimUserUpdateAudit,
+} from "./scim-protocol.js";
 
 /**
  * SCIM 2.0 directory provisioning, per organization (C15, D11, ADR 0056).
@@ -50,8 +56,6 @@ import {
 const USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User";
 const GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group";
 const LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse";
-const ERROR_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:Error";
-const SCIM_CONTENT_TYPE = "application/scim+json";
 
 /** Provisioning-token prefix. Shown once, at mint; only the hash is stored. */
 export const SCIM_TOKEN_PREFIX = "sct_";
@@ -74,36 +78,6 @@ const ORG_IDENTITY_KINDS = ["oidc", "oauth2", "saml", "ldap", "email"] as const;
 const MAX_USER_NAME_LENGTH = 320;
 const MAX_DISPLAY_LENGTH = 512;
 
-type ScimStatus = 400 | 401 | 403 | 404 | 409;
-
-function scimBody(
-  c: Context<{ Variables: Variables }>,
-  status: ScimStatus | 200 | 201,
-  payload: JsonObject,
-): Response {
-  return c.body(JSON.stringify(payload), status, {
-    "content-type": SCIM_CONTENT_TYPE,
-  });
-}
-
-/**
- * A SCIM-shaped error. Directory clients parse this envelope; a bare
- * `{ error: ... }` is reported by Okta as an unknown failure with no detail.
- */
-function scimError(
-  c: Context<{ Variables: Variables }>,
-  status: ScimStatus,
-  detail: string,
-  scimType?: string,
-): Response {
-  return scimBody(c, status, {
-    schemas: [ERROR_SCHEMA],
-    ...(scimType !== undefined ? { scimType } : undefined),
-    detail,
-    status: String(status),
-  });
-}
-
 function scimTokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
@@ -124,12 +98,7 @@ function roleOf(user: ScimUserRecord): OrganizationRole | undefined {
  * The role a directory-provisioned subject should join at, or `undefined` when
  * no Groups push has said otherwise.
  *
- * INTEGRATOR: the JIT-join callsites (`routes/organizations.ts`,
- * `routes/interactions.ts` — both owned by other swarms this cycle) can pass
- * this as `jitJoinOrganization`'s optional `role`, so a subject the directory
- * put in the owners group arrives as one on its first sign-in. Without that
- * line the mapping still applies to everyone who already has a membership,
- * which is the case Groups PATCH is actually pushed for.
+ * Sign-in and group updates consume the same directory role mapping.
  */
 export async function provisionedRoleForSubject(
   ctx: AppContext,
@@ -214,6 +183,11 @@ async function authenticate(
   };
 
   const header = c.req.header("authorization") ?? "";
+  // The first-party directory uses the authenticated owner session, never a
+  // provisioning secret copied into a browser. SCIM tokens keep their own path.
+  if (c.get("principalId") && !header.slice(7).startsWith(SCIM_TOKEN_PREFIX)) {
+    return requireOwner(c);
+  }
   if (!header.toLowerCase().startsWith("bearer ")) return unauthorized();
   const presented = header.slice(7).trim();
   if (!presented.startsWith(SCIM_TOKEN_PREFIX)) return unauthorized();
@@ -253,7 +227,7 @@ async function requireOwner(
       organization.id,
       principalId,
     ));
-  if (!organization || organization.state === "deleted" || !membership) {
+  if (!organization || organization.state !== "active" || !membership) {
     return c.json({ error: "not_found" }, 404);
   }
   if (membership.role !== "owner") {
@@ -612,8 +586,7 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
       outcome: "succeeded",
       organizationId: organization.id,
       correlationId: c.get("correlationId"),
-      actorType: "system",
-      actorId: "scim",
+      ...scimAuditActor(c),
       targetType: "scim_user",
       targetId: created.id,
       metadata: { action: "organization.scim_user.create", state: "active" },
@@ -719,21 +692,16 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
 
     if (user.active && !updated.active) {
       await deprovision(ctx, organization, updated, c.get("correlationId"));
-      await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "organization.scim_user_deactivated",
-        outcome: "succeeded",
-        organizationId: organization.id,
-        correlationId: c.get("correlationId"),
-        actorType: "system",
-        actorId: "scim",
-        targetType: "scim_user",
-        targetId: updated.id,
-        metadata: {
-          action: "organization.scim_user.deactivate",
-          state: "inactive",
-        },
-      });
     }
+    await appendAuditEvent(ctx.repos.auditEvents, {
+      ...scimUserUpdateAudit(user.active, updated.active),
+      outcome: "succeeded",
+      organizationId: organization.id,
+      correlationId: c.get("correlationId"),
+      ...scimAuditActor(c),
+      targetType: "scim_user",
+      targetId: updated.id,
+    });
     return scimBody(c, 200, userResource(ctx, updated));
   });
 
@@ -765,8 +733,7 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
         outcome: "succeeded",
         organizationId: organization.id,
         correlationId: c.get("correlationId"),
-        actorType: "system",
-        actorId: "scim",
+        ...scimAuditActor(c),
         targetType: "scim_user",
         targetId: updated.id,
         metadata: {
@@ -830,8 +797,7 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
             outcome: "succeeded",
             organizationId: organization.id,
             correlationId: c.get("correlationId"),
-            actorType: "system",
-            actorId: "scim",
+            ...scimAuditActor(c),
             targetType: "scim_user",
             targetId: member.id,
             metadata: {

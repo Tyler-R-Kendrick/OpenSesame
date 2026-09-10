@@ -130,7 +130,7 @@ function plainWords(status: number, detail: string | null): string {
   return `Identity answered ${status}. Check the Identity logs at ${identityBase()}.`;
 }
 
-async function call<T>(
+export async function call<T>(
   path: string,
   init: RequestInit,
   map: (body: BoundaryValue) => T,

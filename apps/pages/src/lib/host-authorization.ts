@@ -220,7 +220,7 @@ function validAssertion(value: BoundaryValue | undefined): value is string {
   return isString(value) && value.length > 0 && value.length <= 16000;
 }
 
-function validateIdentityUrl(identity: URL) {
+export function validateIdentityUrl(identity: URL) {
   if (
     (identity.protocol !== "https:" && !isLoopbackOrigin(identity.origin)) ||
     identity.username ||

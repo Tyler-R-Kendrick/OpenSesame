@@ -74,6 +74,7 @@ export function TreeRow({
   to,
   isActive,
   child,
+  level,
   children,
   label,
   end,
@@ -86,6 +87,7 @@ export function TreeRow({
   to: string;
   isActive?: boolean;
   child?: boolean;
+  level?: number;
   children: ReactNode;
   label?: string;
   end?: boolean;
@@ -108,7 +110,7 @@ export function TreeRow({
       role="treeitem"
       tabIndex={-1}
       aria-label={label}
-      aria-level={child ? 2 : 1}
+      aria-level={level ?? (child ? 2 : 1)}
       aria-selected={selected}
       aria-expanded={expanded}
       onClick={(event) => {

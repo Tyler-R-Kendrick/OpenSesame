@@ -19,12 +19,37 @@ pub const CAPABILITIES: &[&str] = &[
     "host.rotations.read",
     "host.rotations.write",
     "host.ceremonies.read",
+    "host.delegations.read",
+    "host.delegations.write",
+    "host.relay.read",
+    "host.relay.decide",
+    "host.tasks.read",
+    "host.tasks.write",
 ];
 
 // Entire route shapes, not prefix grants. {id} is an opaque canonical segment;
 // {key} additionally admits the dot used in configuration key names. Percent
 // encoding is refused before matching so decoding cannot introduce aliases.
 const ROUTES: &[(&str, &str, &str)] = &[
+    ("GET", "delegations", "host.delegations.read"),
+    ("GET", "delegations/offers", "host.delegations.read"),
+    ("POST", "delegations", "host.delegations.write"),
+    ("POST", "delegations/present", "host.delegations.write"),
+    ("POST", "delegations/claim", "host.delegations.write"),
+    ("DELETE", "delegations/{id}", "host.delegations.write"),
+    (
+        "DELETE",
+        "delegations/offers/{id}",
+        "host.delegations.write",
+    ),
+    ("POST", "delegations/{id}/narrow", "host.delegations.write"),
+    ("GET", "relay/requests/pending", "host.relay.read"),
+    ("POST", "relay/requests/{id}/approve", "host.relay.decide"),
+    ("POST", "relay/requests/{id}/deny", "host.relay.decide"),
+    ("GET", "tasks", "host.tasks.read"),
+    ("GET", "tasks/{id}", "host.tasks.read"),
+    ("POST", "tasks", "host.tasks.write"),
+    ("POST", "tasks/{id}/terminate", "host.tasks.write"),
     ("GET", "providers", "host.integrations.read"),
     ("GET", "integrations", "host.integrations.read"),
     ("GET", "integrations/{id}", "host.integrations.read"),
@@ -143,6 +168,7 @@ pub fn required_capability(method: &str, path: &str) -> Option<&'static str> {
     }
     let tail = path.strip_prefix("/api/v1/")?;
     if tail == "connections/discover"
+        || matches!(tail, "tasks/intents" | "tasks/invoke")
         || (tail == "sync-targets/sync-all" && method != "POST")
         || (tail == "receipts/keys" && method != "GET")
     {
@@ -205,6 +231,9 @@ mod tests {
             "/api/v1/invoke",
             "/api/v1/agent/runs/id/control",
             "/api/v1/agent/runs/id/steps/claim",
+            "/api/v1/tasks/intents",
+            "/api/v1/tasks/invoke",
+            "/api/v1/relay/requests/id/result",
         ] {
             for method in ["GET", "POST", "PUT", "PATCH", "DELETE"] {
                 assert_eq!(required_capability(method, path), None, "{method} {path}");

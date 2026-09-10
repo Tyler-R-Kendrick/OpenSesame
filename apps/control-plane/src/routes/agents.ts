@@ -6,18 +6,73 @@ import {
 } from "@opensesame/contracts";
 import type { Agent, AgentInstance } from "@opensesame/os-domain";
 import { Hono } from "hono";
+import { z } from "zod";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { PostgresAgentStore } from "../repos/legacy-agent-postgres.js";
 import {
   releaseLegacyAgent,
   reserveLegacyAgent,
+  transaction,
 } from "../repos/legacy-agent-store.js";
 import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 import { resolveActiveProject, roleFor } from "./projects.js";
 
 export const agentRoutes = new Hono<{ Variables: Variables }>();
+
+agentRoutes.get("/", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principal = authenticatedPrincipalId(c.get("principalId"));
+  const agents =
+    ctx.stores.agents instanceof PostgresAgentStore
+      ? await ctx.stores.agents.listByOwner(principal)
+      : [...ctx.stores.agents.values()].filter(
+          (agent) => agent.ownerPrincipalId === principal,
+        );
+  return c.json({ agents });
+});
+
+const UpdateAgent = z
+  .object({
+    displayName: z.string().trim().min(1).max(128).optional(),
+    state: z.literal("revoked").optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.displayName !== undefined || value.state !== undefined,
+  );
+
+agentRoutes.patch("/:id", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principal = authenticatedPrincipalId(c.get("principalId"));
+  const parsed = UpdateAgent.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: "validation_error" }, 400);
+  return transaction(ctx.stores, principal, async (registry) => {
+    const agent = await registry.agents.get(c.req.param("id"));
+    if (!agent || agent.ownerPrincipalId !== principal)
+      return c.json({ error: "not_found" }, 404);
+    if (agent.state === "revoked")
+      return c.json({ error: "agent_revoked" }, 409);
+    const updated: Agent = {
+      ...agent,
+      displayName: parsed.data.displayName ?? agent.displayName,
+      state: parsed.data.state ?? agent.state,
+    };
+    await registry.agents.set(agent.id, updated);
+    await appendAuditEvent(ctx.repos.auditEvents, {
+      eventType: "agent.updated",
+      outcome: "succeeded",
+      principalId: principal,
+      correlationId: c.get("correlationId"),
+      targetType: "agent",
+      targetId: agent.id,
+      metadata: { action: "agent.manage", state: updated.state },
+    });
+    return c.json(updated);
+  });
+});
 
 agentRoutes.post(
   "/",
@@ -173,6 +228,9 @@ agentRoutes.post(
     // must not be enumerable either.
     if (!agent || agent.ownerPrincipalId !== principalId) {
       return c.json({ error: "not_found" }, 404);
+    }
+    if (agent.state === "revoked" || agent.state === "suspended") {
+      return c.json({ error: "agent_unavailable" }, 409);
     }
 
     const claim = await ctx.claims.createClaim({

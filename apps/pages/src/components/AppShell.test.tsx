@@ -333,7 +333,16 @@ describe("AppShell", () => {
     expect(tree.querySelector('a[href="/connections"]')?.className).toContain(
       "is-active",
     );
-    expect(container.querySelector(".railtree__kids")).toBeNull();
+    expect(
+      container.querySelector('a[href="/vault"] + .railtree__kids'),
+    ).toBeNull();
+    expect(document.getElementById("connections-tree")).toBeTruthy();
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(
+      screen
+        .getByRole("treeitem", { name: "Add a Connection" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
     fireEvent.keyDown(tree, { key: "ArrowDown" });
     expect(tree.querySelector('a[href="/access"]')?.className).toContain(
       "is-active",

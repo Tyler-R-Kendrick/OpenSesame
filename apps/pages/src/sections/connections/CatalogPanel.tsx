@@ -68,7 +68,7 @@ export function CatalogPanel({
   );
 
   return (
-    <section className="panel" ref={panelRef}>
+    <section id="catalog" className="panel" ref={panelRef}>
       <div className="panel__head conn-catalog__head">
         <h2>Add a connection</h2>
         <Link ref={customRef} className="btn btn--sm" to="/connections/new">

@@ -85,6 +85,16 @@ export class PostgresAgentStore {
       );
     return row?.count ?? 0;
   }
+  async listByOwner(principal: string): Promise<Agent[]> {
+    const rows = await this.db
+      .select()
+      .from(agents)
+      .where(eq(agents.ownerPrincipalId, principal))
+      .limit(CAPACITY + 1);
+    if (rows.length > CAPACITY)
+      throw new Error("Agent registry capacity exceeded");
+    return rows.map(agentRow);
+  }
   get size(): Promise<number> {
     return this.db
       .select({ count: sql<number>`count(*)::integer` })

@@ -30,8 +30,6 @@ import {
   listProviders,
   openConsentPopup,
   setConnectionCredential,
-  startGithubAppRegistration,
-  submitGithubAppManifest,
 } from "../../lib/connections.js";
 import {
   ensureHostSession,
@@ -48,12 +46,14 @@ import {
 import { useOnline } from "../../lib/use-online.js";
 import { useStatusNotice } from "../../lib/use-status-notice.js";
 import { GithubHistoryRemotePicker as GithubHistoryRemotePickerDefault } from "./GithubHistoryRemotePicker.js";
+import {
+  type ConnectorFlash,
+  useGithubAppDeployment,
+} from "./useGithubAppDeployment.js";
 
 export const capabilityConnectorsSeams = {
   GithubHistoryRemotePicker: GithubHistoryRemotePickerDefault,
 };
-
-type Flash = { tone: "ok" | "err" | "warn"; text: string };
 
 function githubAppFailureReason(raw: string | null): string {
   switch ((raw ?? "").trim()) {
@@ -166,7 +166,8 @@ export function CapabilityConnectorsPanel() {
     string | null
   >(null);
   const [busy, setBusy] = useState<CapabilityId | null>(null);
-  const [flash, setFlash] = useState<Flash | null>(null);
+  const [flash, setFlash] = useState<ConnectorFlash | null>(null);
+  const deployGithubApp = useGithubAppDeployment(setBusy, setFlash);
   const [patByCapability, setPatByCapability] = useState<
     Partial<Record<CapabilityId, string>>
   >({});
@@ -278,40 +279,6 @@ export function CapabilityConnectorsPanel() {
     }${window.location.hash}`;
     window.history.replaceState({}, "", next);
   }, []);
-
-  async function deployGithubApp(id: CapabilityId) {
-    setBusy(id);
-    setFlash(null);
-    try {
-      await ensureHostSession();
-      const registration = await startGithubAppRegistration({
-        returnTo: `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/?$/, "/")}settings`,
-        displayName: "OpenSesame History",
-      });
-      setFlash({
-        tone: "ok",
-        text: "Sending you to GitHub to create the app…",
-      });
-      submitGithubAppManifest(registration);
-      // Same-tab navigation. If CSP blocks form-action, we stay here — recover.
-      window.setTimeout(() => {
-        setBusy((current) => (current === id ? null : current));
-        setFlash({
-          tone: "err",
-          text: "GitHub did not open. This page must allow form posts to github.com (CSP form-action). Hard-refresh and try again.",
-        });
-      }, 2500);
-    } catch (error) {
-      setFlash({
-        tone: "err",
-        text:
-          error instanceof Error
-            ? error.message
-            : "Could not start GitHub App registration.",
-      });
-      setBusy(null);
-    }
-  }
 
   async function authorizeCapability(id: CapabilityId) {
     const def = CAPABILITIES.find((c) => c.id === id);

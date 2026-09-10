@@ -1,3 +1,8 @@
+import {
+  APPROVAL_CEREMONY,
+  accessPortalCapabilities,
+} from "./access-portal.js";
+import { identityManagementCapabilities } from "./identity-management.js";
 /**
  * Agent-surface capability registry (ADR 0065).
  *
@@ -123,12 +128,6 @@ const APPROVAL_ROUTING: CapabilityExclusion = {
   adr: ADR_NOTIFICATION_CEREMONIES,
 };
 
-const APPROVAL_CEREMONY: CapabilityExclusion = {
-  reason:
-    "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
-  adr: ADR_NOTIFICATION_CEREMONIES,
-};
-
 const PM_PLANE: CapabilityExclusion = {
   reason:
     "password-manager ecosystem surface is human/device/ops plane only, never agent-facing",
@@ -204,6 +203,7 @@ const DEVICE_VAULT_CEREMONY: CapabilityExclusion = {
 };
 
 export const CAPABILITIES: readonly Capability[] = [
+  ...accessPortalCapabilities,
   // ── Host plane: health, discovery, session ────────────────────────────
   {
     id: "host.health",
@@ -317,19 +317,6 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: null,
     },
     excluded: { mcp_client: SCOPED_AGENT_ONLY },
-  },
-  {
-    id: "tasks.start",
-    title: "Start a task-scoped authority run",
-    plane: "host",
-    kind: "act",
-    surfaces: {
-      cli: "opensesame task start",
-      pwa: null,
-      mcp_host: "task_start",
-      mcp_client: null,
-      webmcp: null,
-    },
   },
   {
     id: "tasks.list",
@@ -1683,31 +1670,7 @@ export const CAPABILITIES: readonly Capability[] = [
     },
     excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
   },
-  {
-    id: "identity.agent.register",
-    title: "Register a provisional agent identity",
-    plane: "identity",
-    kind: "ceremony",
-    surfaces: {
-      cli: "opensesame-id agent init",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: {
-        reason:
-          "agent bootstrap is an operator ceremony; an agent must not mint sibling agents",
-        adr: ADR_AGENT_SURFACE_PARITY,
-      },
-      mcp_client: {
-        reason:
-          "agent bootstrap is an operator ceremony; an agent must not mint sibling agents",
-        adr: ADR_AGENT_SURFACE_PARITY,
-      },
-    },
-  },
+  ...identityManagementCapabilities,
   {
     id: "identity.project.temporary",
     title: "Create a temporary project",
@@ -1824,7 +1787,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "lib/access-requests.ts:decideAccessRequest",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1832,6 +1795,7 @@ export const CAPABILITIES: readonly Capability[] = [
     excluded: {
       mcp_host: APPROVAL_CEREMONY,
       mcp_client: APPROVAL_CEREMONY,
+      webmcp: APPROVAL_CEREMONY,
     },
   },
   {
@@ -1841,7 +1805,7 @@ export const CAPABILITIES: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: null,
+      pwa: "lib/access-requests.ts:getRequestComparison",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
@@ -1849,6 +1813,7 @@ export const CAPABILITIES: readonly Capability[] = [
     excluded: {
       mcp_host: APPROVAL_CEREMONY,
       mcp_client: APPROVAL_CEREMONY,
+      webmcp: APPROVAL_CEREMONY,
     },
   },
   {

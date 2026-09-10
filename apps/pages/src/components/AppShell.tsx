@@ -18,17 +18,13 @@ import {
   settingsCategoryFromLocation,
   settingsPath,
 } from "../lib/crumbs.js";
-import {
-  createKeymapHandler,
-  focusVaultListing,
-  registerKeymapHelp,
-  registerRailKeymap,
-} from "../lib/keymap.js";
-import { pageSteps, viewportIndex } from "../lib/tree-motion.js";
+import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccountSwitcher } from "./AccountSwitcher.js";
+import { ConnectionsNavigation } from "./ConnectionsNavigation.js";
+import { ConnectionsTree } from "./ConnectionsTree.js";
 import { Crumbs } from "./Crumbs.js";
 import { IconLock, IconMark } from "./Icons.js";
 import { KeymapSheet } from "./KeymapSheet.js";
@@ -42,6 +38,7 @@ import {
 } from "./RailRows.js";
 import { Statusline } from "./Statusline.js";
 import { Wordmark } from "./Wordmark.js";
+import { useRailKeyboard } from "./useRailKeyboard.js";
 
 /**
  * The same destination as its rail row, and bound to the same semantic target.
@@ -96,9 +93,11 @@ function NavTree() {
   const currentToRef = useRef("");
   const inVault = location.pathname.startsWith("/vault");
   const inSettings = location.pathname.startsWith("/settings");
+  const inConnections = location.pathname.startsWith("/connections");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const vaultOpen = inVault && !collapsed.has("/vault");
   const settingsOpen = inSettings && !collapsed.has("/settings");
+  const connectionsOpen = inConnections && !collapsed.has("/connections");
   const toggleSection = (to: string, active: boolean) => {
     setCollapsed((previous) => {
       const next = new Set(previous);
@@ -114,18 +113,19 @@ function NavTree() {
     location.pathname,
     location.hash,
   );
-  const selectedTo = selectedRailPath(
-    location.pathname,
-    activeFilter,
-    activeFolder,
-    settingsCategory,
-  );
+  const selectedTo = inConnections
+    ? location.pathname +
+      (location.hash ||
+        (location.pathname === "/connections" ? "#connected" : ""))
+    : selectedRailPath(
+        location.pathname,
+        activeFilter,
+        activeFolder,
+        settingsCategory,
+      );
+  const section = SECTIONS.find(({ to }) => location.pathname.startsWith(to));
   currentToRef.current =
-    inVault && !vaultOpen
-      ? "/vault"
-      : inSettings && !settingsOpen
-        ? "/settings"
-        : selectedTo;
+    section && collapsed.has(section.to) ? section.to : selectedTo;
 
   const counts = useMemo(() => {
     const live = items.filter((item) => item.deletedAt === null);
@@ -146,121 +146,7 @@ function NavTree() {
     };
   }, [items]);
 
-  useEffect(() => {
-    const tree = treeRef.current;
-    if (!tree) return;
-    const rows = () => [
-      ...tree.querySelectorAll<HTMLAnchorElement>("[data-rail-move]"),
-    ];
-    const allRows = () => [
-      ...tree.querySelectorAll<HTMLAnchorElement>("a.railtree__row"),
-    ];
-    const selectedIndex = (list: HTMLAnchorElement[]) => {
-      const to = currentToRef.current;
-      const byTo = list.findIndex((row) => row.dataset.railTo === to);
-      if (byTo >= 0) return byTo;
-      const selected = list.findIndex(
-        (row) => row.getAttribute("aria-selected") === "true",
-      );
-      return selected >= 0
-        ? selected
-        : list.findIndex((row) => row.classList.contains("is-active"));
-    };
-    const activate = (row: HTMLAnchorElement | undefined) => {
-      if (!row) return;
-      const to = row.dataset.railTo;
-      if (to) {
-        currentToRef.current = to;
-        navigateRef.current(to);
-      }
-      tree.focus({ preventScroll: true });
-      row.scrollIntoView?.({ block: "nearest" });
-    };
-    const move = (delta: number) => {
-      const list = rows();
-      if (list.length === 0) return;
-      const at = selectedIndex(list);
-      const next =
-        at < 0 ? 0 : Math.min(Math.max(at + delta, 0), list.length - 1);
-      activate(list[next]);
-    };
-    const dive = (row: HTMLAnchorElement) => {
-      activate(row);
-      if ((row.dataset.railTo ?? "").startsWith("/vault")) {
-        focusVaultListing();
-      }
-    };
-    return registerRailKeymap({
-      next: (n = 1) => move(n),
-      previous: (n = 1) => move(-n),
-      first: () => move(Number.NEGATIVE_INFINITY),
-      last: () => move(Number.POSITIVE_INFINITY),
-      page: (direction, size) => {
-        const scroller = tree.closest<HTMLElement>(".rail__scroll");
-        move(direction * pageSteps(scroller, size === "half"));
-      },
-      edge: (where) => {
-        const list = rows();
-        const scroller = tree.closest<HTMLElement>(".rail__scroll");
-        const index = viewportIndex(scroller, list, where);
-        if (index >= 0) activate(list[index]);
-      },
-      focus: () => {
-        tree.focus({ preventScroll: true });
-      },
-      toIndex: (index) => {
-        const list = rows();
-        if (list.length === 0) return;
-        const next = Math.min(Math.max(index, 0), list.length - 1);
-        activate(list[next]);
-      },
-      enter: () => {
-        const list = rows();
-        const at = selectedIndex(list);
-        const row = list[at];
-        if (!row) return;
-        if (row.getAttribute("aria-expanded") === "false") {
-          row.click();
-          return;
-        }
-        const kids = row.nextElementSibling;
-        if (
-          kids instanceof HTMLElement &&
-          kids.classList.contains("railtree__kids")
-        ) {
-          const first =
-            kids.querySelector<HTMLAnchorElement>("a.railtree__row");
-          dive(first ?? row);
-          return;
-        }
-        dive(row);
-      },
-      parent: () => {
-        const movable = rows();
-        const current = movable[selectedIndex(movable)];
-        if (!current?.classList.contains("railtree__row--child")) return;
-        const all = allRows();
-        const from = all.indexOf(current);
-        for (let at = from - 1; at >= 0; at--) {
-          const candidate = all[at];
-          if (
-            candidate &&
-            !candidate.classList.contains("railtree__row--child")
-          ) {
-            candidate.click();
-            tree.focus({ preventScroll: true });
-            return;
-          }
-        }
-      },
-      activate: () => {
-        const list = rows();
-        const row = list[selectedIndex(list)];
-        if (row?.hasAttribute("aria-expanded")) row.click();
-        else activate(row);
-      },
-    });
-  }, []);
+  useRailKeyboard(treeRef, navigateRef, currentToRef);
 
   const entry = (
     query: string,
@@ -297,7 +183,7 @@ function NavTree() {
       tabIndex={0}
       aria-activedescendant={railRowId(
         currentToRef.current,
-        vaultOpen || settingsOpen,
+        vaultOpen || settingsOpen || connectionsOpen,
       )}
     >
       <SectionRow
@@ -343,9 +229,9 @@ function NavTree() {
         </div>
       ) : null}
 
-      <SectionRow
-        section={SECTIONS[1]}
-        open={location.pathname.startsWith("/connections")}
+      <ConnectionsTree
+        open={connectionsOpen}
+        onToggle={() => toggleSection("/connections", inConnections)}
       />
       <SectionRow
         section={SECTIONS[2]}
@@ -473,5 +359,9 @@ function Shell({ children }: { children?: ReactNode }) {
 
 /** Unlocked chrome. Support is mounted at the app root, not here. */
 export function AppShell({ children }: { children?: ReactNode }) {
-  return <Shell>{children}</Shell>;
+  return (
+    <ConnectionsNavigation>
+      <Shell>{children}</Shell>
+    </ConnectionsNavigation>
+  );
 }

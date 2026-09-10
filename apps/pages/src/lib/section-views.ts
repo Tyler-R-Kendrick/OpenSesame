@@ -10,6 +10,7 @@ export const ACCESS_VIEWS = [
 ] as const;
 export const IDENTITY_VIEWS = [
   "people",
+  "agents",
   "providers",
   "devices",
   "service-accounts",

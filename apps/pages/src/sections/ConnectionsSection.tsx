@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
+import { usePublishConnections } from "../components/ConnectionsNavigation.js";
 import {
   IconAlert,
   IconCheck,
@@ -49,6 +50,14 @@ import "./connections.css";
 
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!providerId && (hash === "#connected" || hash === "#catalog")) {
+      document
+        .getElementById(hash.slice(1))
+        ?.scrollIntoView?.({ block: "start" });
+    }
+  }, [hash, providerId]);
   const online = useOnline();
   // Connections are the Host's to hold (ADR 0090). The connector catalog below
   // is embedded in this build and stays browsable with no Host at all.
@@ -58,6 +67,7 @@ export function ConnectionsSection() {
 
   const [providers, setProviders] = useState<Provider[] | null>(null);
   const [connections, setConnections] = useState<Connection[] | null>(null);
+  usePublishConnections(providers, connections);
   const [catalogError, setCatalogError] = useState<LoadFailure | null>(null);
   const [loadError, setLoadError] = useState<LoadFailure | null>(null);
   const [loading, setLoading] = useState(false);

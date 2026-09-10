@@ -33,20 +33,15 @@ import {
   type MintedOffer,
   type NarrowInput,
   type RelayRequest,
-  type TaskDetail,
-  type TaskRun,
   approveRelayRequest,
   denyRelayRequest,
-  getTask,
   listDelegations,
   listMyOffers,
   listRelayRequests,
-  listTasks,
   mintOffer,
   narrowDelegation,
   revokeDelegation,
   revokeOffer,
-  terminateTask,
 } from "../lib/access.js";
 import {
   type BindingTargetKind,
@@ -86,8 +81,12 @@ import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
 import type { SecretItem, VaultItem } from "../lib/vault/model.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
+import { AccessAuthority } from "./access/AccessAuthority.js";
+import { ApprovalInbox } from "./access/ApprovalInbox.js";
+import { ClaimAccessCeremony } from "./access/ClaimAccessCeremony.js";
+import { SessionsPanel } from "./access/SessionsPanel.js";
 import { formatTime } from "./access/format.js";
-import { type AuditEvent, Receipts, outcomeChip } from "./access/receipts.js";
+import { type AuditEvent, outcomeChip } from "./access/receipts.js";
 import { BindingEditor } from "./connections/BindingEditor.js";
 import { ConnectorMark } from "./connections/ConnectorMark.js";
 import { PolicyEditor } from "./connections/PolicyEditor.js";
@@ -204,6 +203,7 @@ export function AccessSection() {
   const [tab, setTab] = useSectionView(ACCESS_VIEWS, "grants");
   const [ceremony, setCeremony] = useState<CeremonyState>(null);
   const [policyFocus, setPolicyFocus] = useState<string | null>(null);
+  const [authorityRevision, setAuthorityRevision] = useState(0);
 
   function openGrant(target: GrantTarget | null) {
     setCeremony({ target });
@@ -236,6 +236,9 @@ export function AccessSection() {
       <header className="section__head">
         <h1>Access</h1>
       </header>
+      <AccessAuthority
+        onChanged={() => setAuthorityRevision((value) => value + 1)}
+      />
 
       <div className="access-tabs" role="tablist" aria-label="Access views">
         {TABS.map(({ id, label, guideId }) => (
@@ -251,9 +254,16 @@ export function AccessSection() {
 
       {tab === "grants" ? (
         !hostConfigured ? (
-          <NoHostNote what="A grant is authority an agent draws from a Host: it holds the connection and mints the offer." />
+          <NoHostNote
+            road={false}
+            what="Connect and verify a Host above to issue scoped grants."
+          />
         ) : ceremony === null ? (
-          <GrantsPanel online={online} onGrantAccess={openGrant} />
+          <GrantsPanel
+            key={authorityRevision}
+            online={online}
+            onGrantAccess={openGrant}
+          />
         ) : (
           <GuideTarget id="access.grant-ceremony">
             <GrantCeremony
@@ -265,15 +275,18 @@ export function AccessSection() {
         )
       ) : null}
       {tab === "requests" ? (
-        !hostConfigured ? (
-          <NoHostNote what="Requests are agents asking a Host for authority it has not already granted." />
-        ) : (
-          <GuideTarget id="access.relay">
-            <RequestsPanel online={online} />
-          </GuideTarget>
-        )
+        <>
+          <ApprovalInbox online={online} />
+          {!hostConfigured ? null : (
+            <GuideTarget id="access.relay">
+              <RequestsPanel key={authorityRevision} online={online} />
+            </GuideTarget>
+          )}
+        </>
       ) : null}
-      {tab === "sessions" ? <SessionsPanel online={online} /> : null}
+      {tab === "sessions" ? (
+        <SessionsPanel key={authorityRevision} online={online} />
+      ) : null}
       {tab === "resources" ? (
         <ResourcesPanel
           online={online}
@@ -283,9 +296,13 @@ export function AccessSection() {
       ) : null}
       {tab === "policies" ? (
         !hostConfigured ? (
-          <NoHostNote what="A policy narrows what a Host will do with a connection, so it lives beside the connection." />
+          <NoHostNote
+            road={false}
+            what="Connect and verify a Host above to manage resource policies."
+          />
         ) : (
           <PoliciesPanel
+            key={authorityRevision}
             online={online}
             focusId={policyFocus}
             onFocusUsed={clearPolicyFocus}
@@ -329,6 +346,7 @@ function GrantsPanel({
   online: boolean;
   onGrantAccess: (target: GrantTarget | null) => void;
 }) {
+  const [claiming, setClaiming] = useState(false);
   const [delegations, setDelegations] = useState<Delegation[] | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -372,6 +390,16 @@ function GrantsPanel({
     [connections],
   );
 
+  if (claiming)
+    return (
+      <ClaimAccessCeremony
+        online={online}
+        onDone={() => {
+          setClaiming(false);
+          void load();
+        }}
+      />
+    );
   return (
     <section className="panel">
       <div className="panel__head">
@@ -397,6 +425,14 @@ function GrantsPanel({
             onClick={() => onGrantAccess(null)}
           >
             Grant access
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!online}
+            onClick={() => setClaiming(true)}
+          >
+            Claim access
           </button>
         </div>
       </div>
@@ -1854,393 +1890,6 @@ function RequestsPanel({ online }: { online: boolean }) {
         ) : null}
       </div>
     </section>
-  );
-}
-
-/* ---------------------------------------------------------------- sessions */
-
-/* --------------------------------------------------------- capability math */
-
-type Cap = { action: string; resource: string; values: string[] };
-
-/** Host serialises a Rust `CapabilitySet`; older shapes send a flat array. */
-function readCap(raw: BoundaryValue): Cap | null {
-  if (!raw || !isTypeofObject(raw)) return null;
-  const obj = overlapCast(raw);
-  const action = isString(obj.action) ? obj.action : "";
-  if (!action) return null;
-  const resource = obj.resource;
-  if (isString(resource)) {
-    return { action, resource, values: [resource] };
-  }
-  if (resource && isTypeofObject(resource)) {
-    const sel = overlapCast(resource);
-    if (isString(sel.value)) {
-      return { action, resource: sel.value, values: [sel.value] };
-    }
-    if (Array.isArray(sel.values)) {
-      const values = sel.values.filter((v): v is string => isString(v));
-      if (values.length > 0) {
-        return { action, resource: values.join(", "), values };
-      }
-    }
-  }
-  return null;
-}
-
-function readCaps(raw: BoundaryValue): Cap[] {
-  let list: BoundaryValue[] = [];
-  if (Array.isArray(raw)) {
-    list = raw;
-  } else if (raw && isTypeofObject(raw)) {
-    const inner = overlapCast(raw).capabilities;
-    if (Array.isArray(inner)) list = inner;
-  }
-  return list.map(readCap).filter((c): c is Cap => c !== null);
-}
-
-type RowState = "held" | "narrowed" | "released" | "outside";
-type CompareRow = {
-  key: string;
-  action: string;
-  resource: string;
-  state: RowState;
-  detail: string;
-};
-
-function compareCeiling(ceiling: Cap[], current: Cap[]): CompareRow[] {
-  const rows: CompareRow[] = ceiling.map((cap, i) => {
-    const at = { key: `ceil-${i}`, action: cap.action, resource: cap.resource };
-    const match = current.find(
-      (held) =>
-        held.action === cap.action &&
-        held.values.some((v) => cap.values.includes(v)),
-    );
-    if (!match) {
-      return {
-        ...at,
-        state: "released",
-        detail: "Released — not held in this task",
-      };
-    }
-    const kept = match.values.filter((v) => cap.values.includes(v));
-    if (kept.length === cap.values.length) {
-      return { ...at, state: "held", detail: "Held in full" };
-    }
-    return {
-      ...at,
-      state: "narrowed",
-      detail: `Narrowed to ${kept.join(", ")}`,
-    };
-  });
-
-  current.forEach((held, i) => {
-    const covered = ceiling.some(
-      (cap) =>
-        cap.action === held.action &&
-        held.values.every((v) => cap.values.includes(v)),
-    );
-    if (!covered) {
-      rows.push({
-        key: `extra-${i}`,
-        action: held.action,
-        resource: held.resource,
-        state: "outside",
-        detail: "Held but outside the ceiling — report this Host",
-      });
-    }
-  });
-
-  return rows;
-}
-
-const STATUS_TONE = new Map([
-  ["active", "chip--ok"],
-  ["failed", "chip--err"],
-  ["cancelled", "chip--err"],
-  ["restricting", "chip--warn"],
-  ["pending", "chip--warn"],
-]);
-
-const ROW_CHIP = {
-  held: "chip--ok",
-  narrowed: "chip--accent",
-  outside: "chip--err",
-  released: "chip--warn",
-};
-
-function statusTone(status: string): string {
-  return STATUS_TONE.get(status) ?? "";
-}
-
-function rowChip(state: RowState): string {
-  return ROW_CHIP[state];
-}
-
-function SessionsPanel({ online }: { online: boolean }) {
-  const session = useIdentitySession();
-  // The task list is the Host's; the receipts trail below it is the Identity
-  // API's and renders on its own terms (ADR 0090).
-  const hostConfigured = useHostConfigured();
-  const [tasks, setTasks] = useState<TaskRun[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [flash, setFlash] = useState<Flash | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const run = useRef(0);
-
-  const load = useCallback(async () => {
-    const id = ++run.current;
-    try {
-      const rows = await listTasks();
-      if (run.current !== id) return;
-      setTasks(rows);
-      setError(null);
-    } catch (caught) {
-      if (run.current !== id) return;
-      setTasks(null);
-      setError(accessErrorText(caught));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!online || !hostConfigured) return;
-    void load();
-  }, [load, online, hostConfigured]);
-
-  async function terminate(task: TaskRun) {
-    setBusyId(task.taskRunId);
-    setFlash(null);
-    try {
-      await terminateTask(task.taskRunId, task.stateVersion);
-      setFlash({ tone: "ok", text: `Task ${task.taskRunId} was terminated.` });
-      void load();
-    } catch (caught) {
-      setFlash({ tone: "err", text: accessErrorText(caught) });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  return (
-    <>
-      {hostConfigured ? null : (
-        <NoHostNote what="A session is an agent run a Host is carrying out on your behalf." />
-      )}
-
-      {!hostConfigured ? null : (
-        <section className="panel">
-          <div className="panel__head">
-            <div>
-              <h2>Sessions</h2>
-            </div>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => void load()}
-              disabled={!online}
-              title="Reload sessions"
-              aria-label="Reload sessions"
-            >
-              <IconRefresh />
-            </button>
-          </div>
-
-          <div className="panel__body">
-            {!online ? (
-              <output className="note note--warn">
-                <IconAlert /> Offline.
-              </output>
-            ) : null}
-
-            {error ? (
-              <p className="note note--err" role="alert">
-                <IconAlert /> {error}
-              </p>
-            ) : null}
-
-            {online && tasks === null && !error ? (
-              <output className="note">Asking the Host…</output>
-            ) : null}
-
-            {tasks && tasks.length > 0 ? (
-              <ul className="access-runs">
-                {tasks.map((task) => (
-                  <TaskRow
-                    key={task.taskRunId}
-                    task={task}
-                    online={online}
-                    busy={busyId === task.taskRunId}
-                    onTerminate={() => void terminate(task)}
-                  />
-                ))}
-              </ul>
-            ) : null}
-
-            {tasks && tasks.length === 0 ? (
-              <p className="hint">No live sessions.</p>
-            ) : null}
-
-            {flash ? (
-              <output className={`note note--${flash.tone}`}>
-                {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
-                <p>{flash.text}</p>
-              </output>
-            ) : null}
-          </div>
-        </section>
-      )}
-
-      {session ? (
-        <Receipts online={online} sessionKey={session.principalId} />
-      ) : null}
-    </>
-  );
-}
-
-function TaskRow({
-  task,
-  online,
-  busy,
-  onTerminate,
-}: {
-  task: TaskRun;
-  online: boolean;
-  busy: boolean;
-  onTerminate: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [detail, setDetail] = useState<TaskDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function toggle() {
-    if (open) {
-      setOpen(false);
-      return;
-    }
-    setOpen(true);
-    if (detail) return;
-    setLoading(true);
-    try {
-      setDetail(await getTask(task.taskRunId));
-      setError(null);
-    } catch (caught) {
-      setError(accessErrorText(caught));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <li className="access-run">
-      <div className="access-run__main">
-        <code className="access-run__id">{task.taskRunId}</code>
-        <span className={`chip ${statusTone(task.status)}`}>{task.status}</span>
-        <span className="access-run__version">v{task.stateVersion}</span>
-        <div className="actions">
-          <button
-            type="button"
-            className="btn btn--sm btn--ghost"
-            aria-expanded={open}
-            onClick={() => void toggle()}
-          >
-            {open ? "Hide" : "Inspect"}
-          </button>
-          <button
-            type="button"
-            className="btn btn--sm btn--danger"
-            disabled={busy || !online || task.status === "cancelled"}
-            onClick={onTerminate}
-          >
-            {busy ? "Terminating…" : "Terminate"}
-          </button>
-        </div>
-      </div>
-
-      {open ? (
-        <div className="access-run__detail">
-          {loading ? <output className="note">Asking the Host…</output> : null}
-          {error ? (
-            <p className="note note--err" role="alert">
-              <IconAlert /> {error}
-            </p>
-          ) : null}
-          {detail ? <TaskCompare detail={detail} /> : null}
-        </div>
-      ) : null}
-    </li>
-  );
-}
-
-function TaskCompare({ detail }: { detail: TaskDetail }) {
-  const rows = compareCeiling(
-    readCaps(detail.capabilityCeiling),
-    readCaps(detail.currentCapabilities),
-  );
-
-  return (
-    <div className="access-task">
-      <dl className="kv">
-        <div>
-          <dt>Task run</dt>
-          <dd>
-            <code>{detail.taskRunId}</code>
-          </dd>
-        </div>
-        <div>
-          <dt>State version</dt>
-          <dd>{detail.stateVersion}</dd>
-        </div>
-        <div>
-          <dt>Status</dt>
-          <dd>
-            <span className={`chip ${statusTone(detail.status)}`}>
-              {detail.status}
-            </span>
-          </dd>
-        </div>
-      </dl>
-
-      {rows.length > 0 ? (
-        <div className="scroll-x">
-          <table className="table access-compare">
-            <thead>
-              <tr>
-                <th scope="col">Ceiling — action</th>
-                <th scope="col">Ceiling — resource</th>
-                <th scope="col">In this task</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.key}>
-                  <td>
-                    <span className="access-cap__action">
-                      {row.state === "outside" ? "—" : row.action}
-                    </span>
-                  </td>
-                  <td className="access-compare__res">
-                    {row.state === "outside" ? "—" : row.resource}
-                  </td>
-                  <td>
-                    <span className={`chip ${rowChip(row.state)}`}>
-                      {row.state === "outside"
-                        ? `${row.action} → ${row.resource}`
-                        : row.detail}
-                    </span>
-                    {row.state === "outside" ? (
-                      <span className="access-compare__warn">{row.detail}</span>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <output className="note">No capabilities.</output>
-      )}
-    </div>
   );
 }
 

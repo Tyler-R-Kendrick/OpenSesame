@@ -55,7 +55,7 @@ export function ConnectedPanel({
   );
 
   return (
-    <section className="panel" ref={panelRef}>
+    <section id="connected" className="panel" ref={panelRef}>
       <div className="panel__head">
         <h2>Connected</h2>
       </div>
