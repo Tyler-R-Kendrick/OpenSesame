@@ -5,6 +5,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { crossOriginOpenerPolicy } from "./lib/opener-policy.js";
 import { pushNotificationBody, reviewUrlFromPayload } from "./lib/push.js";
 
 // SAFETY: this file is a service worker; globalThis is ServiceWorkerGlobalScope
@@ -37,7 +38,13 @@ function isolated(response: Response, requestUrl: URL): Response {
   }
   const headers = new Headers(response.headers);
   headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-  headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  headers.set(
+    "Cross-Origin-Opener-Policy",
+    crossOriginOpenerPolicy(
+      requestUrl.pathname,
+      new URL(".", sw.registration.scope).pathname,
+    ),
+  );
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

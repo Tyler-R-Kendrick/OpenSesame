@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { crossOriginOpenerPolicy } from "./src/lib/opener-policy.ts";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const osDomainBrowser = fileURLToPath(
@@ -49,9 +50,7 @@ export default defineConfig({
           // The vault and every other route retain the isolation default.
           res.setHeader(
             "Cross-Origin-Opener-Policy",
-            req.url?.split("?")[0] === `${base}identity/authorize`
-              ? "unsafe-none"
-              : "same-origin",
+            crossOriginOpenerPolicy(req.url?.split("?")[0] ?? "", base),
           );
           if (req.url?.startsWith("/opensesame/callback")) {
             const query = req.url.slice("/opensesame/callback".length);
