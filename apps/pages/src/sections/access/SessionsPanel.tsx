@@ -5,7 +5,6 @@ import {
   IconPlus,
   IconRefresh,
 } from "../../components/Icons.js";
-import { NoHostNote } from "../../components/NoHostNote.js";
 import {
   type TaskDetail,
   type TaskRun,
@@ -15,10 +14,12 @@ import {
 } from "../../lib/access.js";
 import { useIdentitySession } from "../../lib/identity.js";
 import { useHostConfigured } from "../../lib/use-configured.js";
+import { useVaultStore } from "../../lib/vault/hooks.js";
 import {
   type Flash,
   errorText as accessErrorText,
 } from "../connections/shared.js";
+import { LocalAuthorityPanel } from "./LocalAuthorityPanel.js";
 import { NewSession } from "./NewSession.js";
 import { TaskCompare, statusTone } from "./TaskCompare.js";
 import { Receipts } from "./receipts.js";
@@ -84,16 +85,13 @@ function useSessions(online: boolean) {
 
 export function SessionsPanel({ online }: { online: boolean }) {
   const state = useSessions(online);
+  const tomb = useVaultStore().activeTomb();
   return (
     <>
+      <LocalAuthorityPanel key={tomb} tomb={tomb} />
       {state.hostConfigured ? (
         <SessionList online={online} state={state} />
-      ) : (
-        <NoHostNote
-          road={false}
-          what="Connect and verify a Host above to start scoped sessions."
-        />
-      )}
+      ) : null}
       {state.session ? (
         <Receipts online={online} sessionKey={state.session.principalId} />
       ) : null}
@@ -111,7 +109,7 @@ function SessionList({
       <section className="panel">
         <div className="panel__head">
           <div>
-            <h2>Sessions</h2>
+            <h2>Host task sessions</h2>
           </div>
           <button
             type="button"

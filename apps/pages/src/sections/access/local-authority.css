@@ -1,0 +1,28 @@
+.access-local-request-intro,
+.access-local-authority-intro {
+  max-width: 62ch;
+}
+
+.access-local-records {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.access-local-records li {
+  padding-block: 0.9rem;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+
+.access-local-confirmation {
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  margin-block: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.access-local-confirmation p {
+  margin-block: 0.4rem;
+}

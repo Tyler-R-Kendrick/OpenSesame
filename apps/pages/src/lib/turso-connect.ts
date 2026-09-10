@@ -6,8 +6,8 @@ export type TursoConnectOptions = {
 };
 
 async function connectDefault(options: TursoConnectOptions) {
-  const module = await import("@tursodatabase/sync-wasm/vite");
-  return module.connect(options);
+  const { connect } = await import("@tursodatabase/sync-wasm/vite");
+  return connect(options);
 }
 
 export const tursoConnectSeams = {

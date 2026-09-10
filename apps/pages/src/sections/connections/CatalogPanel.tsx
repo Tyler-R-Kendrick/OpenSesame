@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router";
 import { IconInfo, IconSearch } from "../../components/Icons.js";
 import type {
   Connection,
@@ -32,6 +32,10 @@ export function CatalogPanel({
   connections?: Connection[];
 }) {
   const [query, setQuery] = useState("");
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash.startsWith("#catalog-")) setQuery("");
+  }, [hash]);
   const panelRef = useGuideTarget<HTMLElement>("connections.catalog");
   const searchRef = useGuideTarget<HTMLInputElement>(
     "connections.provider-picker",
@@ -152,8 +156,12 @@ function ProviderTile({
   connection: Connection | null;
 }) {
   const verb = providerVerb(provider, connection);
+  const { hash } = useLocation();
   return (
-    <li className="conn-tile">
+    <li
+      className={`conn-tile${hash === `#catalog-${encodeURIComponent(provider.id)}` ? " is-selected" : ""}`}
+      id={`catalog-${encodeURIComponent(provider.id)}`}
+    >
       <Link className="conn-tile__link" to={connectorPath(provider.id)}>
         <ConnectorMark
           providerId={provider.id}

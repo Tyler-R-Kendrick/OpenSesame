@@ -9,9 +9,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  *
  * Its own suite because the answer is different per panel and per plane, and
  * because the first cut of ADR 0090 got it wrong in a way a single "no Host"
- * assertion could not see: grants, requests and policies are the Host's, while
- * Resources is Identity-plane and local-only, and the receipts trail under
- * Sessions is Identity-plane too.
+ * assertion could not see. Local IAM remains usable independently of Host
+ * delegation and Identity-plane receipts.
  */
 
 const online = vi.hoisted(() => ({ value: true }));
@@ -20,6 +19,9 @@ const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
 }));
 const identityJson = vi.hoisted(() => vi.fn());
 const identityFetch = vi.hoisted(() => vi.fn());
+import * as localDirectory from "../lib/local-directory.js";
+import * as localGrants from "../lib/local-grant-admin.js";
+import * as localSessions from "../lib/local-sessions.js";
 
 import { identitySeams } from "../lib/identity.js";
 Object.assign(identitySeams, {
@@ -61,6 +63,14 @@ async function openTab(name: string) {
 }
 
 beforeEach(() => {
+  vi.spyOn(localDirectory, "readLocalDirectory").mockResolvedValue({
+    version: 2,
+    revision: 0,
+    entries: [],
+    memberships: [],
+  });
+  vi.spyOn(localGrants, "listRecordedLocalGrants").mockResolvedValue([]);
+  vi.spyOn(localSessions, "listLocalIdentitySessions").mockResolvedValue([]);
   online.value = true;
   session.current = { principalId: "prn_op" };
   identityJson.mockResolvedValue({ events: [] });
@@ -82,15 +92,22 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
   afterEach(() => {
     identitySeams.hostBase = originalHostBase;
     cleanup();
+    vi.restoreAllMocks();
   });
 
-  it("says so on a Host-brokered tab, quietly, instead of failing in red", async () => {
+  it("exposes local grants on load without a Host and retains optional connection setup", async () => {
     render(
       <MemoryRouter>
         <AccessSection />
       </MemoryRouter>,
     );
-    expect(await screen.findByText("No Host connected")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Local application grants" }),
+    ).toBeTruthy();
+    expect(
+      await screen.findByText("No unexpired local application grants."),
+    ).toBeTruthy();
+    expect(screen.queryByText("No Host connected")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(/No Identity API is configured/)).toBeNull();
     // Setup stays in Access rather than redirecting to an unrelated screen.
@@ -131,6 +148,12 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
     expect(connections.listConnections).not.toHaveBeenCalled();
     expect(screen.queryByText("Asking the Host…")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
+    identityFetch.mockClear();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Reload resources" }),
+    );
+    expect(identityFetch).toHaveBeenCalledOnce();
+    expect(connections.listConnections).not.toHaveBeenCalled();
   });
 
   it("omits the Sites group when there is no Identity API either", async () => {
@@ -151,6 +174,12 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
       expect(screen.queryByText("Asking Identity…")).toBeNull();
       expect(screen.queryByRole("alert")).toBeNull();
       expect(identityFetch).not.toHaveBeenCalled();
+      await userEvent.click(
+        screen.getByRole("button", { name: "Reload resources" }),
+      );
+      expect(connections.listConnections).not.toHaveBeenCalled();
+      expect(identityFetch).not.toHaveBeenCalled();
+      expect(screen.queryByRole("alert")).toBeNull();
     } finally {
       identitySeams.identityBase = withIdentity;
     }
@@ -161,10 +190,25 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
     // a tab the first cut gated on a Host they never used.
     renderAccess();
     await openTab("Sessions");
-    expect(await screen.findByText("No Host connected")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Local sessions & grants" }),
+    ).toBeTruthy();
+    expect(screen.queryByText("No Host connected")).toBeNull();
     expect(
       await screen.findByRole("heading", { name: "Receipts" }),
     ).toBeTruthy();
     expect(access.listTasks).not.toHaveBeenCalled();
+  });
+
+  it("exposes local application policies without a Host", async () => {
+    renderAccess();
+    await openTab("Policies");
+    expect(
+      await screen.findByRole("heading", {
+        name: "Local application policies",
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByText("No Host connected")).toBeNull();
+    expect(connections.listConnections).not.toHaveBeenCalled();
   });
 });

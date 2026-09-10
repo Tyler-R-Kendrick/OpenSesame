@@ -115,18 +115,16 @@ type ProtectedValue = import("kdbxweb").ProtectedValue;
 
 let codec: Promise<KdbxwebModule> | null = null;
 
-/**
- * kdbxweb ships no Argon2 of its own, so one is handed to it. hash-wasm's is
- * WebAssembly, which is why this whole function sits behind `import()`.
- */
+/** Lazily supply kdbxweb's missing Argon2 implementation, without other hashes. */
 async function loadCodec(): Promise<KdbxwebModule> {
   codec ??= (async () => {
-    const [imported, hashWasm] = await Promise.all([
+    const [module, hashWasm] = await Promise.all([
       import("kdbxweb"),
-      import("hash-wasm"),
+      import("hash-wasm").then(({ argon2d, argon2id }) => ({
+        argon2d,
+        argon2id,
+      })),
     ]);
-    const module = imported;
-
     module.CryptoEngine.setArgon2Impl(
       async (
         password,

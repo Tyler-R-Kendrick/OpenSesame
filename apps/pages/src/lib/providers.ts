@@ -27,7 +27,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import type { TrustedUpstream } from "./federation.js";
+import { TRUSTED_UPSTREAMS, type TrustedUpstream } from "./federation.js";
 import { identityBase } from "./identity.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 
@@ -100,6 +100,16 @@ export function brokeredUpstream(
     displayName: provider.label,
     accountKind: provider.label,
   };
+}
+
+/** Catalog metadata selects a route, never introduces a browser trust anchor. */
+export function providerUpstream(
+  provider: FederatedProviderSummary,
+): TrustedUpstream {
+  const direct = provider.browserCapable
+    ? TRUSTED_UPSTREAMS.find((upstream) => upstream.id === provider.id)
+    : undefined;
+  return direct ?? brokeredUpstream(provider);
 }
 
 /**

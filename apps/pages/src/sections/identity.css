@@ -173,6 +173,17 @@
   background: var(--surface-2);
 }
 
+.identity-passkeys {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.identity-passkeys > li {
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 0;
+}
+
 .identity-row__main {
   display: flex;
   flex-wrap: wrap;
@@ -264,4 +275,10 @@
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid var(--line);
+}
+.identity-session {
+  margin-block-start: 0.75rem;
+}
+.identity-authenticator-intro {
+  max-inline-size: 65ch;
 }

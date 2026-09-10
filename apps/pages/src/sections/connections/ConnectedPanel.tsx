@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { IconSettings } from "../../components/Icons.js";
 import { NoHostNote } from "../../components/NoHostNote.js";
 import type { Connection, Provider } from "../../lib/connections.js";
@@ -119,8 +119,12 @@ function AuthorizedConnection({
   provider: Provider | null;
 }) {
   const chip = STATUS_CHIP[connection.status];
+  const { hash } = useLocation();
   return (
-    <li className="conn-service">
+    <li
+      className={`conn-service${hash === `#connected-${encodeURIComponent(connection.connectionId)}` ? " is-selected" : ""}`}
+      id={`connected-${encodeURIComponent(connection.connectionId)}`}
+    >
       <ConnectorMark
         providerId={connection.providerId}
         displayName={connection.displayName}
@@ -164,6 +168,7 @@ export function AutomaticService({
   settings?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const { hash } = useLocation();
   const enabled = connection !== null;
 
   async function toggle(next: boolean) {
@@ -191,7 +196,14 @@ export function AutomaticService({
   }
 
   return (
-    <li className="conn-service">
+    <li
+      className={`conn-service${connection && hash === `#connected-${encodeURIComponent(connection.connectionId)}` ? " is-selected" : ""}`}
+      id={
+        connection
+          ? `connected-${encodeURIComponent(connection.connectionId)}`
+          : undefined
+      }
+    >
       <ConnectorMark
         providerId={provider.id}
         displayName={provider.displayName}

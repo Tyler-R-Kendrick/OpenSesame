@@ -36,7 +36,6 @@ import {
   type OAuthClient,
   type OrgMember,
   addOrgMember,
-  approveDevice,
   createOAuthClient,
   createOrganization,
   getMe,
@@ -48,7 +47,11 @@ import {
   rotateOAuthClient,
   unlinkIdentity,
 } from "../lib/directory.js";
-import { beginSignIn, defaultUpstream } from "../lib/federation.js";
+import {
+  beginSignIn,
+  defaultUpstream,
+  upstreamByIssuer,
+} from "../lib/federation.js";
 import {
   type IdentitySession,
   identityBase,
@@ -78,10 +81,11 @@ import {
 import {
   type FederatedProviderSummary,
   brokeredByoUpstream,
-  brokeredUpstream,
   listFederatedProviders,
+  providerUpstream,
 } from "../lib/providers.js";
 import { IDENTITY_VIEWS, useSectionView } from "../lib/section-views.js";
+import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -90,69 +94,23 @@ import { monogram } from "./connections/connector-marks.js";
 import type { Flash } from "./connections/shared.js";
 import { AgentsPanel } from "./identity/AgentsPanel.js";
 import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
+import { DevicesPanel } from "./identity/DevicesPanel.js";
 import { EditApplication } from "./identity/EditApplication.js";
+import { IdentityTabs } from "./identity/IdentityTabs.js";
+import { LocalDirectoryPanel } from "./identity/LocalDirectoryPanel.js";
 import { UsersPanel } from "./identity/UsersPanel.js";
 // The brand button treatments (.signin__social, .signin__provider--*) live in
 // the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
 import "./identity.css";
 
-type IdentityTab = (typeof IDENTITY_VIEWS)[number];
-
-const TABS: Array<{ id: IdentityTab; label: string; guideId: string }> = [
-  { id: "people", label: "People", guideId: "identity.people" },
-  { id: "agents", label: "Agents", guideId: "identity.agents" },
-  { id: "providers", label: "Providers", guideId: "identity.providers" },
-  { id: "devices", label: "Devices", guideId: "identity.devices" },
-  {
-    id: "service-accounts",
-    label: "Applications",
-    guideId: "identity.service-accounts",
-  },
-  {
-    id: "organization",
-    label: "Organization",
-    guideId: "identity.organization",
-  },
-];
-
-/** One tab, named so a guide can point at it without knowing the markup. */
-function IdentityTabButton({
-  guideId,
-  label,
-  active,
-  onSelect,
-}: {
-  guideId: string;
-  label: string;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const ref = useGuideTarget<HTMLButtonElement>(guideId);
-  return (
-    <button
-      ref={ref}
-      type="button"
-      role="tab"
-      aria-selected={active}
-      className={`identity-tab${active ? " is-active" : ""}`}
-      onClick={onSelect}
-    >
-      {label}
-    </button>
-  );
-}
-
 /**
- * Identity — the person plane (ADR 0060, ADR 0061). Tailscale's identity IA
- * as the parity target: a first-navigation ceremony that binds an IdP, then
- * five tabs, one visible at a time — people (with the requester side of JIT),
- * providers, devices (approve-a-device), service accounts, organization.
- * Every tab binds APIs the Identity and Host services already serve; loads
- * are best-effort and independent, so a down plane degrades tabs individually.
+ * Browser-local identity management, with optional hosted Identity and Host
+ * surfaces. Provider registration is an explicit ceremony, not an entry gate.
  */
 export function IdentitySection() {
   const online = useOnline();
+  const configured = useIdentityConfigured();
   const session = useIdentitySession();
   const [tab, setTab] = useSectionView(IDENTITY_VIEWS, "people");
   const [providers, setProviders] = useState<IdpRecord[]>(() =>
@@ -199,21 +157,7 @@ export function IdentitySection() {
         />
       ) : (
         <>
-          <div
-            className="identity-tabs"
-            role="tablist"
-            aria-label="Identity views"
-          >
-            {TABS.map(({ id, label, guideId }) => (
-              <IdentityTabButton
-                key={id}
-                guideId={guideId}
-                label={label}
-                active={tab === id}
-                onSelect={() => setTab(id)}
-              />
-            ))}
-          </div>
+          <IdentityTabs selected={tab} onSelect={setTab} />
 
           {flash ? (
             <output className={`note note--${flash.tone}`}>
@@ -223,11 +167,15 @@ export function IdentitySection() {
           ) : null}
 
           {tab === "people" ? (
-            <PeoplePanel
-              online={online}
-              session={session}
-              onOpenCeremony={openCeremony}
-            />
+            !configured ? (
+              <LocalDirectoryPanel kind="person" />
+            ) : (
+              <PeoplePanel
+                online={online}
+                session={session}
+                onOpenCeremony={openCeremony}
+              />
+            )
           ) : null}
           {tab === "providers" ? (
             <ProvidersPanel
@@ -241,21 +189,31 @@ export function IdentitySection() {
             <DevicesPanel online={online} session={session} />
           ) : null}
           {tab === "agents" ? (
-            session ? (
+            !configured ? (
+              <LocalDirectoryPanel kind="agent" />
+            ) : session ? (
               <AgentsPanel online={online} />
             ) : (
               <ConnectIdentityNote online={online} what="agent identities" />
             )
           ) : null}
           {tab === "service-accounts" ? (
-            <ServiceAccountsPanel online={online} session={session} />
+            !configured ? (
+              <LocalDirectoryPanel kind="application" />
+            ) : (
+              <ServiceAccountsPanel online={online} session={session} />
+            )
           ) : null}
           {tab === "organization" ? (
-            <OrganizationPanel
-              online={online}
-              session={session}
-              onOpenPeople={() => setTab("people")}
-            />
+            !configured ? (
+              <LocalDirectoryPanel kind="organization" />
+            ) : (
+              <OrganizationPanel
+                online={online}
+                session={session}
+                onOpenPeople={() => setTab("people")}
+              />
+            )
           ) : null}
         </>
       )}
@@ -321,7 +279,7 @@ function IdpCeremony({
         id: fallback.id,
         label: fallback.displayName,
         kind: "oidc",
-        browserCapable: false,
+        browserCapable: true,
       },
     ];
   }, [catalog]);
@@ -337,28 +295,26 @@ function IdpCeremony({
   async function choose(provider: FederatedProviderSummary) {
     setBusy(provider.id);
     setError(null);
+    const upstream = providerUpstream(provider);
     const record: IdpRecord = {
       id: provider.id,
-      // A first-class leg is brokered: the issuer this device speaks is the
-      // Identity API, with the provider carried as the hint.
-      issuer: identityBase(),
+      issuer: upstream.issuer,
       label: provider.label,
       kind: "first-class",
       registeredAt: new Date().toISOString(),
     };
+    const previous = listIdpRegistrations().find(
+      (entry) => entry.id === record.id,
+    );
     registerIdp(record);
     try {
-      await beginSignIn(brokeredUpstream(provider), {
+      await beginSignIn(upstream, {
         providerHint: provider.id,
       });
-      onRegistered(
-        record,
-        `${provider.label} now vouches for sign-ins on this device.`,
-      );
+      onRegistered(record, `Sign-in started with ${provider.label}.`);
     } catch (caught) {
-      // The leg could not start, so the binding is unproven — drop the record
-      // again and say why, instead of lifting the gate on a broken binding.
-      removeIdpRegistration(record.id);
+      if (previous) registerIdp(previous);
+      else removeIdpRegistration(record.id);
       setError(identityErrorText(caught));
       setBusy(null);
     }
@@ -1615,120 +1571,6 @@ function OrgMembersCard({ online }: { online: boolean }) {
   );
 }
 
-/* ----------------------------------------------------------------- devices */
-
-/**
- * Devices — the browser-reachable device act (ADR 0061): approving the user
- * code a device or CLI shows. Enumeration stays with the operator; there is
- * no browser-reachable list route, so the tab says so instead of faking one.
- */
-function DevicesPanel({
-  online,
-  session,
-}: {
-  online: boolean;
-  session: IdentitySession | null;
-}) {
-  if (!session) {
-    return (
-      <ConnectIdentityNote
-        online={online}
-        what="Approving the devices that sign in"
-      />
-    );
-  }
-  return <ApproveDeviceCard online={online} />;
-}
-
-function ApproveDeviceCard({ online }: { online: boolean }) {
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Flash | null>(null);
-  const codeRef = useRef<HTMLInputElement | null>(null);
-
-  // The user code is the whole ceremony, so it leads the form.
-  useEffect(() => {
-    codeRef.current?.focus();
-  }, []);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const userCode = code.trim();
-    if (!userCode) return;
-    setBusy(true);
-    setResult(null);
-    try {
-      await approveDevice(userCode);
-      setResult({ tone: "ok", text: "Device approved." });
-      setCode("");
-      codeRef.current?.focus();
-    } catch (caught) {
-      setResult({ tone: "err", text: identityErrorText(caught) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Approve a device</h2>
-        </div>
-      </div>
-
-      <div className="panel__body">
-        <form
-          className="identity-claim"
-          onSubmit={(event) => void submit(event)}
-          noValidate
-        >
-          <div className="field">
-            <label className="label" htmlFor="identity-device-code">
-              User code
-            </label>
-            <input
-              id="identity-device-code"
-              ref={codeRef}
-              type="text"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="WORD-WORD"
-              value={code}
-              disabled={busy}
-              onChange={(event) => {
-                setCode(event.target.value);
-                setResult(null);
-              }}
-            />
-          </div>
-
-          {result ? (
-            <p
-              className={`note note--${result.tone}`}
-              role={result.tone === "err" ? "alert" : undefined}
-            >
-              {result.tone === "ok" ? <IconCheck /> : <IconAlert />}
-              {result.text}
-            </p>
-          ) : null}
-
-          <div className="actions actions--end">
-            <button
-              type="submit"
-              className="btn btn--primary"
-              disabled={busy || !online || !code.trim()}
-              aria-busy={busy || undefined}
-            >
-              {busy ? "Approving…" : "Approve device"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </section>
-  );
-}
-
 /* --------------------------------------------------------------- providers */
 
 /**
@@ -1852,9 +1694,9 @@ function ProviderRow({
           id: record.id,
           label: record.label,
           kind: "oidc",
-          browserCapable: false,
+          browserCapable: upstreamByIssuer(record.issuer)?.id === record.id,
         };
-        await beginSignIn(brokeredUpstream(summary), {
+        await beginSignIn(providerUpstream(summary), {
           providerHint: record.id,
         });
       }

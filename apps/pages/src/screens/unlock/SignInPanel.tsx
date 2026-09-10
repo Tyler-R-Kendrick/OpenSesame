@@ -51,7 +51,6 @@ import type { ByoRegistration } from "../../lib/byo.js";
 import { describeFederationError } from "../../lib/federation-copy.js";
 import {
   type BeginSignInOptions,
-  TRUSTED_UPSTREAMS,
   type TrustedUpstream,
   beginSignIn as beginFederatedSignIn,
   defaultUpstream,
@@ -71,7 +70,7 @@ import {
   brokeredByoUpstream,
   brokeredOrgUpstream,
   brokeredRealmUpstream,
-  brokeredUpstream,
+  providerUpstream,
   requestEmailMagicLink,
 } from "../../lib/providers.js";
 import { signInMethods } from "../../lib/settings.js";
@@ -232,21 +231,14 @@ export function SignInPanel(props: Props) {
   }
 
   function startProvider(provider: FederatedProviderSummary): void {
-    // A browser-capable provider is one this tab can talk to directly — and it
-    // still has to be in the compiled trust list to be started that way. The
-    // catalog decides which buttons exist, never which issuers are trusted.
-    const direct = provider.browserCapable
-      ? TRUSTED_UPSTREAMS.find(
-          (upstreamEntry) => upstreamEntry.id === provider.id,
-        )
-      : undefined;
+    const upstream = providerUpstream(provider);
     // No returnTo: the return screen already lands on the app root, and an
     // explicit one would read as "resume a task", which would skip opening
     // the vault for a first-run sign-in.
     startFederated(() =>
-      direct
-        ? beginSignIn(direct)
-        : beginSignIn(brokeredUpstream(provider), {
+      upstream.id === provider.id
+        ? beginSignIn(upstream)
+        : beginSignIn(upstream, {
             providerHint: provider.id,
           }),
     );
