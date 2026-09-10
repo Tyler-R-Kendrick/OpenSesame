@@ -77,6 +77,7 @@ export type WebMcpRegistrationFailure = {
 
 export type WebMcpRegistrarOptions = {
   appId: string;
+  onRegistered?: (name: string) => void;
   onFailure?: (failure: WebMcpRegistrationFailure) => void;
 };
 
@@ -96,10 +97,11 @@ const TOOL_PREFIX = "opensesame_";
  * what makes that true across every registrar a page creates.
  */
 const live = new Map<string, Unregister>();
+const acknowledged = new Set<string>();
 
 /** The names currently registered through this package, sorted. */
 export function liveWebMcpToolNames(): readonly string[] {
-  return [...live.keys()].sort();
+  return [...acknowledged].sort();
 }
 
 function textResult(text: string, isError = false): WebMcpToolResult {
@@ -186,12 +188,21 @@ function registerOne(
   registerTool: NonNullable<ModelContextApi["registerTool"]>,
   descriptor: WebMcpToolDescriptor,
   onFailure: (failure: WebMcpRegistrationFailure) => void,
+  onRegistered: (name: string) => void,
 ): Unregister {
   const { name } = descriptor;
   retire(name);
   const controller = new AbortController();
   let handle: Unregister | null = null;
+  let accepted = false;
+  const accept = () => {
+    if (controller.signal.aborted) return;
+    accepted = true;
+    acknowledged.add(name);
+    onRegistered(name);
+  };
   const fail = (cause: BoundaryValue) => {
+    if (controller.signal.aborted) return;
     onFailure({
       name,
       reason: safeLine(messageOf(cause), "registration_failed"),
@@ -202,8 +213,8 @@ function registerOne(
     handle = toUnregister(returned);
     if (isThenable(returned)) {
       const pending: Promise<BoundaryValue> = overlapCast(returned);
-      pending.then(undefined, (cause: BoundaryValue) => fail(cause));
-    }
+      pending.then(accept, (cause: BoundaryValue) => fail(cause));
+    } else accept();
   } catch (cause) {
     fail(cause instanceof Error ? cause : null);
   }
@@ -211,13 +222,16 @@ function registerOne(
   const unregister: Unregister = () => {
     if (done) return;
     done = true;
-    if (live.get(name) === unregister) live.delete(name);
+    if (live.get(name) === unregister) {
+      live.delete(name);
+      acknowledged.delete(name);
+    }
     // Every way a browser has offered to end a registration, in case this one
     // offers several: the draft's abort signal, the early builds' method, and
     // the polyfills' returned handle. None of them minds being redundant.
     controller.abort();
     const unregisterTool = api.unregisterTool;
-    if (unregisterTool) {
+    if (unregisterTool && accepted) {
       try {
         unregisterTool(name);
       } catch {
@@ -241,6 +255,7 @@ export function createWebMcpRegistrar(
 ): WebMcpRegistrar {
   const { appId } = options;
   const onFailure = options.onFailure ?? (() => {});
+  const onRegistered = options.onRegistered ?? (() => {});
   return {
     register(tools) {
       const names = tools.map((tool) => tool.name);
@@ -257,7 +272,9 @@ export function createWebMcpRegistrar(
       const registerTool = api.registerTool;
       if (registerTool) {
         for (const descriptor of descriptors) {
-          handles.push(registerOne(api, registerTool, descriptor, onFailure));
+          handles.push(
+            registerOne(api, registerTool, descriptor, onFailure, onRegistered),
+          );
         }
       } else if (api.provideContext) {
         for (const name of names) retire(name);
@@ -266,14 +283,34 @@ export function createWebMcpRegistrar(
           if (cleared) return;
           cleared = true;
           for (const name of names) {
-            if (live.get(name) === clear) live.delete(name);
+            if (live.get(name) === clear) {
+              live.delete(name);
+              acknowledged.delete(name);
+            }
           }
           api.provideContext?.({ description: appId, tools: [] });
         };
         try {
-          api.provideContext({ description: appId, tools: descriptors });
+          const returned = api.provideContext({
+            description: appId,
+            tools: descriptors,
+          });
           for (const name of names) live.set(name, clear);
           handles.push(clear);
+          Promise.resolve(returned).then(
+            () => {
+              if (!cleared)
+                for (const name of names) {
+                  acknowledged.add(name);
+                  onRegistered(name);
+                }
+            },
+            () => {
+              if (!cleared)
+                for (const name of names)
+                  onFailure({ name, reason: "registration_failed" });
+            },
+          );
         } catch (cause) {
           const reason = safeLine(
             cause instanceof Error ? cause.message : "",

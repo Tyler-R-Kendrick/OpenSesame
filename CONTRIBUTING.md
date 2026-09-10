@@ -25,6 +25,20 @@ This personal-account repository does not support a merge queue; use squash
 auto-merge after review. Apply/verify protection using `ops/github/governance.mjs`.
 A merge to
 `main` then publishes `apps/pages` through `.github/workflows/deploy-pages.yml`.
+The existing TypeScript job checks introduced commit signatures first: unsigned
+commits cannot satisfy the default-branch ruleset, even if compilation passes.
+Use `git commit -S` with a signing key already registered to your GitHub account;
+do not disable the signature rule to unblock a release.
+
+Publication is complete only when the Deploy Pages workflow's live check passes.
+It stamps `release.json` with the exact source SHA and hashes of the HTML and
+runtime configuration, then verifies those bytes over HTTPS after deployment.
+Check a release explicitly with
+`node scripts/pages-release.mjs verify https://tyler-r-kendrick.github.io/OpenSesame/ FULL_SHA`.
+A stale/missing marker, stale HTML/configuration, or HTTP failure fails publication
+after bounded propagation retries. This checks deployment freshness, not code
+security or the state of an already-open browser's service-worker cache.
+
 Everything heavier stays local:
 
 - Local git hooks (below), run on every commit and push.

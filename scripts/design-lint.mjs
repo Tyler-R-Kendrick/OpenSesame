@@ -8,7 +8,7 @@
  * bar, which is neither — it read as a banner and looked nothing like the
  * unlock screen it sits next to. Review caught it; nothing else would have.
  *
- * So these four checks. They are deliberately mechanical: a lint that tried to
+ * These checks are deliberately mechanical: a lint that tried to
  * decide *in general* whether a button should have been an icon would be wrong
  * constantly. These catch the specific things that actually went wrong.
  *
@@ -111,6 +111,18 @@ function blockAfter(source, from) {
 }
 
 function checkTsx(file, source) {
+  // Vault pane commands never become text CTAs when the list is empty.
+  const path = relative(root, file).replaceAll("\\", "/");
+  if (/\/sections\/(VaultSection|vault\/VaultPathbar)\.tsx$/.test(path)) {
+    for (const match of source.matchAll(/["']btn(?:\s|["']|--)/g)) {
+      report(
+        file,
+        lineOf(source, match.index),
+        "vault-commands-use-icons",
+        "Vault commands belong in the persistent top path strip as named icon keys, never text-button empty-state actions.",
+      );
+    }
+  }
   // 1. No text-labelled primary in a screen's commit bar.
   const isScreen = SCREEN_DIR.test(relative(root, file).replaceAll("\\", "/"));
   for (const match of isScreen ? source.matchAll(COMMIT_BAR) : []) {
@@ -151,6 +163,7 @@ function checkTsx(file, source) {
 }
 
 function checkCss(file, source) {
+  checkDropdowns(file, source);
   // 2. `.go` is defined once, in styles.css.
   if (relative(root, file) === CONTROL_HOME) return;
   for (const match of source.matchAll(/^\.go(-row|-verb)?\b[^{]*\{/gm)) {
@@ -160,6 +173,56 @@ function checkCss(file, source) {
       "go-defined-once",
       `The commit control is defined in ${CONTROL_HOME}. A second copy here is how two screens drift into two different squares.`,
     );
+  }
+}
+
+function checkDropdowns(file, source) {
+  const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  if (
+    relative(root, file) === CONTROL_HOME &&
+    !css.includes('@import "./native-controls.css";')
+  ) {
+    report(
+      file,
+      1,
+      "dropdown-popup-theme",
+      "Load the shared native dropdown theme.",
+    );
+  }
+  for (const block of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (!/\b(select|option|optgroup)\b/.test(block[1])) continue;
+    for (const declaration of block[2].matchAll(
+      /(?:^|;)\s*(color|background(?:-color)?)\s*:\s*([^;]+)/g,
+    )) {
+      const value = declaration[2].trim();
+      if (
+        /^(var\(--[\w-]+\)|inherit)$/.test(value) ||
+        (value === "transparent" && !/\b(option|optgroup)\b/.test(block[1]))
+      )
+        continue;
+      report(
+        file,
+        lineOf(css, block.index),
+        "dropdown-theme-colors",
+        "Dropdown colors must use theme tokens, not fixed colors.",
+      );
+    }
+  }
+  if (relative(root, file) !== "apps/pages/src/native-controls.css") return;
+  for (const selector of ["select option", "select optgroup"]) {
+    const themed = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].some(
+      (block) =>
+        block[1].split(",").some((part) => part.trim() === selector) &&
+        /background-color:\s*var\(--surface\)\s*;/.test(block[2]) &&
+        /(?:^|;)\s*color:\s*var\(--ink\)\s*;/.test(block[2]),
+    );
+    if (!themed)
+      report(
+        file,
+        1,
+        "dropdown-popup-theme",
+        `${selector} must pair opaque --surface with --ink.`,
+      );
   }
 }
 

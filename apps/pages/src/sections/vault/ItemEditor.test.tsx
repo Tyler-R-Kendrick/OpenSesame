@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IssuedCertificate } from "../../lib/certs.js";
+import { createItem } from "../../lib/vault/model.js";
 import type {
   CertificateItem,
   Folder,
@@ -71,7 +72,7 @@ function renderNew(path = "/vault/new/login") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/vault/new/:kind" element={<ItemEditor mode="new" />} />
+        <Route path="/vault/new/:kind?" element={<ItemEditor mode="new" />} />
         <Route
           path="/vault/:itemId/edit"
           element={<ItemEditor mode="edit" />}
@@ -84,20 +85,12 @@ function renderNew(path = "/vault/new/login") {
 
 function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
   return {
+    ...createItem("login", "Webmail"),
     id: "itm_1",
-    kind: "login",
-    name: "Webmail",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
     username: "me@example.com",
     password: "old-password",
-    totp: "",
-    uris: [],
     passwordChangedAt: "2026-08-01T00:00:00Z",
     ...overrides,
   };
@@ -107,25 +100,11 @@ function makeCertificate(
   overrides: Partial<CertificateItem> = {},
 ): CertificateItem {
   return {
+    ...createItem("certificate", "Local TLS"),
     id: "itm_cert",
-    kind: "certificate",
-    name: "Local TLS",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
     createdAt: "2026-08-01T00:00:00Z",
     updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
     commonName: "localhost",
-    dnsNames: "localhost",
-    ipAddrs: "127.0.0.1",
-    ttlHours: "24",
-    certificatePem: "",
-    privateKeyPem: "",
-    caPem: "",
-    serial: "",
-    notAfter: "",
     ...overrides,
   };
 }
@@ -172,6 +151,7 @@ describe("ItemEditor", () => {
 
   it("requires a name before saving", async () => {
     renderNew();
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     expect(await screen.findByRole("alert")).toBeTruthy();
     expect(screen.getByText(/Give this item a name/)).toBeTruthy();
@@ -180,20 +160,21 @@ describe("ItemEditor", () => {
 
   it("creates a new login and navigates to its detail", async () => {
     renderNew();
-    expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
-      "login",
-    );
+    expect(screen.queryByLabelText(/^Type$/i)).toBeNull();
+    expect(screen.getByText(".login")).toBeTruthy();
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Webmail");
+    await userEvent.clear(screen.getByLabelText(/^Username$/i));
     await userEvent.type(
       screen.getByLabelText(/^Username$/i),
       "me@example.com",
     );
+    await userEvent.clear(screen.getByLabelText(/^Password$/i));
     await userEvent.type(screen.getByLabelText(/^Password$/i), "s3cret-s3cret");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     const saved = savedItem();
     if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.kind).toBe("login");
     expect(saved.name).toBe("Webmail");
     expect(saved.username).toBe("me@example.com");
     expect(saved.password).toBe("s3cret-s3cret");
@@ -202,9 +183,12 @@ describe("ItemEditor", () => {
 
   it("behavior: issues and seals a new certificate in one submit", async () => {
     renderNew("/vault/new/certificate");
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.clear(screen.getByLabelText(/Common name/i));
     await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
-    await userEvent.clear(screen.getByLabelText(/DNS names/i));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add DNS names" }),
+    );
     await userEvent.type(
       screen.getByLabelText(/DNS names/i),
       "barber.local, www.barber.local",
@@ -223,7 +207,7 @@ describe("ItemEditor", () => {
     expect(issueCertificateFromHost).toHaveBeenCalledWith({
       commonName: "barber.local",
       dnsNames: ["barber.local", "www.barber.local"],
-      ipAddrs: ["127.0.0.1"],
+      ipAddrs: [],
       ttlHours: 24,
       idempotencyKey: expect.any(String),
     });
@@ -255,29 +239,27 @@ describe("ItemEditor", () => {
       guidance: Array.from(container.querySelectorAll("p.hint"), (hint) =>
         hint.textContent?.trim(),
       ),
-    }).toMatchInlineSnapshot(`
-      {
-        "actions": [
-          "Create certificate",
-          "Add field",
-        ],
-        "guidance": [],
-        "labels": [
-          "Common name",
-          "DNS names",
-          "IP addresses",
-          "TTL (hours)",
-          "Notes",
-          "Folder",
-          "Pin to the top of the list",
-        ],
-      }
-    `);
+    }).toEqual({
+      actions: [
+        "Suggest names on device",
+        "Add DNS names",
+        "Add IP addresses",
+        "Add notes",
+        "Add custom field",
+        "Pin item",
+        "Create certificate",
+      ],
+      guidance: [
+        "Uses only the item type. No vault contents. Your browser may download its model.",
+      ],
+      labels: ["Common name", "TTL (hours)"],
+    });
   });
 
   it("adversarial: does not save when Host issuance fails", async () => {
     issueCertificateFromHost.mockRejectedValueOnce(new Error("issuer offline"));
     renderNew("/vault/new/certificate");
+    await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
     await userEvent.click(
       screen.getByRole("button", { name: /Create certificate/i }),
     );
@@ -293,6 +275,7 @@ describe("ItemEditor", () => {
       .mockRejectedValueOnce(new Error("vault temporarily locked"))
       .mockResolvedValueOnce(undefined);
     renderNew("/vault/new/certificate");
+    await userEvent.type(screen.getByLabelText(/Common name/i), "barber.local");
     await userEvent.click(
       screen.getByRole("button", { name: /Create certificate/i }),
     );
@@ -377,15 +360,9 @@ describe("ItemEditor", () => {
     expect(inputByLabel(/Relying party/i).value).toBe("example.com");
   });
 
-  it("falls back to a login when the kind param is unknown", () => {
-    renderNew("/vault/new/widget");
-    expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
-      "login",
-    );
-  });
-
   it("switches item kind and keeps the name", async () => {
-    renderNew();
+    renderNew("/vault/new");
+    await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
     await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
     expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();
@@ -405,33 +382,32 @@ describe("ItemEditor", () => {
   });
 
   it("adds, edits, and removes website addresses", async () => {
-    renderNew();
+    renderNew("/vault/new/login?uri=https://old.example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
-    const address = screen.getByLabelText("Address 1");
+    const address = screen.getByLabelText("Address 2");
     await userEvent.type(address, "https://mail.example.com");
     await userEvent.selectOptions(
-      screen.getByLabelText("Match rule 1"),
+      screen.getByLabelText("Match rule 2"),
       "exact",
     );
+    await userEvent.click(screen.getByLabelText("Remove address 1"));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Mail");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.uris).toHaveLength(1);
-    expect(saved.uris[0]).toMatchObject({
-      uri: "https://mail.example.com",
-      match: "exact",
+    expect(savedItem()).toMatchObject({
+      kind: "login",
+      uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
 
-  it("removes website addresses", async () => {
-    renderNew("/vault/new/login?uri=https://mail.example.com");
-    expect(screen.getByLabelText("Address 1")).toBeTruthy();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Remove address 1/i }),
-    );
+  it("starts with an explicit all-domains rule and saves its removal without restoring it", async () => {
+    renderNew();
+    expect(inputByLabel("Address 1").value).toBe("*");
+    await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(savedItem()).toMatchObject({ kind: "login", uris: [] });
   });
 
   it("reveals the password field and uses the generator", async () => {
@@ -453,7 +429,6 @@ describe("ItemEditor", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: /Use this password/i }),
     );
-    // Generator applies the value and reveals it.
     expect(password.value.length).toBeGreaterThan(0);
     expect(password.type).toBe("text");
   });
@@ -498,7 +473,6 @@ describe("ItemEditor", () => {
         </Routes>
       </MemoryRouter>,
     );
-    // Edit mode fixes the kind: the extension is stated, not selectable.
     expect(screen.queryByLabelText(/^Type$/i)).toBeNull();
     const password = screen.getByLabelText(/^Password$/i);
     await userEvent.clear(password);
@@ -536,6 +510,9 @@ describe("ItemEditor", () => {
 
   it("compiles secret grants to the Host after saving", async () => {
     renderNew("/vault/new/secret");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add connection reference" }),
+    );
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Deploy hook");
     await userEvent.type(screen.getByLabelText(/Secret value/i), "whsec_1");
     await userEvent.type(
@@ -550,31 +527,33 @@ describe("ItemEditor", () => {
   it("warns but still saves when the Host grant compile fails", async () => {
     compileSecretToHost.mockRejectedValue(new Error("host down"));
     renderNew("/vault/new/secret");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add connection reference" }),
+    );
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Deploy hook");
     await userEvent.type(
       screen.getByLabelText(/Connection reference/i),
       "conn/github/pat",
     );
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    // The save itself succeeds; navigation to the detail still happens.
     await waitFor(() => expect(compileSecretToHost).toHaveBeenCalled());
     expect(await screen.findByText("navigated away")).toBeTruthy();
     expect(saveItem).toHaveBeenCalled();
   });
 
-  it("parses the grantee list from a comma-separated field", async () => {
+  it("keeps grantee editing out of secret ceremonies and preserves grants", async () => {
     renderNew("/vault/new/secret");
-    // The controlled input re-joins on every keystroke, so paste-style change
-    // is how a comma-separated list actually lands.
-    fireEvent.change(screen.getByLabelText(/Grantees \(agent ids\)/i), {
-      target: { value: "agt_one, agt_two,,  " },
-    });
+    expect(screen.queryByLabelText(/Grantees/i)).toBeNull();
+    cleanup();
+    const secret = createItem("secret");
+    secret.grantees = ["agt_one", "agt_two"];
+    vault.current.items = [secret];
+    renderNew(`/vault/${secret.id}/edit`);
+    expect(screen.queryByLabelText(/Grantees/i)).toBeNull();
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Token");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    if (saved.kind !== "secret") throw new Error("expected saved secret");
-    expect(saved.grantees).toEqual(["agt_one", "agt_two"]);
+    expect(savedItem()).toHaveProperty("grantees", secret.grantees);
   });
 
   it("adds, edits, and removes capability ceiling grants", async () => {
@@ -613,7 +592,7 @@ describe("ItemEditor", () => {
 
   it("manages custom fields with conceal toggles", async () => {
     renderNew();
-    await userEvent.click(screen.getByRole("button", { name: /Add field/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Add custom/ }));
     const name = screen.getByLabelText("Field name");
     await userEvent.type(name, "API key");
     const value = inputByLabel("Field value");
@@ -638,7 +617,7 @@ describe("ItemEditor", () => {
 
   it("removes custom fields", async () => {
     renderNew();
-    await userEvent.click(screen.getByRole("button", { name: /Add field/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Add custom/ }));
     await userEvent.type(screen.getByLabelText("Field name"), "API key");
     await userEvent.click(
       screen.getByRole("button", { name: /Remove API key/i }),
@@ -653,13 +632,12 @@ describe("ItemEditor", () => {
     };
     renderNew();
     await userEvent.selectOptions(screen.getByLabelText(/^Folder$/i), "fld_1");
-    await userEvent.click(screen.getByLabelText(/Pin to the top of the list/i));
+    await userEvent.click(screen.getByRole("button", { name: "Pin item" }));
+    expect(inputByLabel(/Pin to the top/).checked).toBe(true);
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Filed");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    expect(saved.folderId).toBe("fld_1");
-    expect(saved.favorite).toBe(true);
+    expect(savedItem()).toMatchObject({ folderId: "fld_1", favorite: true });
   });
 
   it("edits passkey and note fields", async () => {

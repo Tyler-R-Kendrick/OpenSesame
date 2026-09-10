@@ -75,9 +75,9 @@ describe("WebMCP registry parity (ADR 0065)", () => {
     }
   });
 
-  it("SECTION_PATHS mirrors the AppShell SECTIONS const", () => {
+  it("SECTION_PATHS mirrors the rail SECTIONS const", () => {
     const source = readFileSync(
-      join(here, "..", "components", "AppShell.tsx"),
+      join(here, "..", "components", "RailRows.tsx"),
       "utf8",
     );
     for (const path of SECTION_PATHS) {

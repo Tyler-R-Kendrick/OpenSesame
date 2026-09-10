@@ -93,10 +93,12 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
     expect(await screen.findByText("No Host connected")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(/No Identity API is configured/)).toBeNull();
-    // The road to a Host is named, not demanded.
+    // Setup stays in Access rather than redirecting to an unrelated screen.
     expect(
-      screen.getByRole("link", { name: "Settings → Connectivity" }),
-    ).toBeTruthy();
+      screen.queryByRole("link", { name: "Settings → Connectivity" }),
+    ).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Connect Host" }));
+    expect(screen.getByLabelText("Host API")).toBeTruthy();
     // Nothing was asked of a Host that is not there.
     expect(connections.listConnections).not.toHaveBeenCalled();
   });

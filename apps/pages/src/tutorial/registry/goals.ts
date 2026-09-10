@@ -11,6 +11,7 @@
 import type { GuideGoalId } from "@opensesame/guide-lang";
 import type { SupportGoalDescription } from "@opensesame/support-agent";
 import { AUTHORITY_GOALS, AUTHORITY_HELP } from "./authority-help.js";
+import { IDENTITY_GOALS } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 
@@ -130,20 +131,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
-  {
-    id: "identity.account.add",
-    title: "Add an account to this deployment",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "identity.account.add"',
-      'say "Accounts are vouched for by an identity provider, so a provider is registered before anyone signs in through it."',
-      'navigate "/identity"',
-      'wait route "/identity" timeout=15000',
-      'focus "identity.providers" "Providers lists whoever may vouch for people here." side=bottom',
-      'wait target "identity.register-idp" event=activate timeout=60000',
-    ].join("\n"),
-  },
+  ...IDENTITY_GOALS,
   {
     id: "settings.security.review",
     title: "Review the security settings",
@@ -274,29 +262,25 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "access.claim"',
-      'say "A claim code is spent once. Claiming it happens under Identity, not Access."',
+      'say "In Access → Grants, choose Claim access. Enter the token and code, review the offered scope, then accept. Presentation is single-use."',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/identity"',
-      'wait route "/identity" timeout=15000',
-      'wait state "identity.connected" is=true timeout=60000',
-      'focus "identity.people" "People is where a grant minted for you is claimed." side=bottom',
-      'wait target "identity.claim-access" event=appear timeout=60000',
+      'navigate "/access"',
+      'wait route "/access" timeout=15000',
+      "end",
     ].join("\n"),
   },
   {
     id: "access.relay",
-    title: "Approve a relay request",
+    title: "Create and review access requests",
     routes: [],
     guide: [
       "guide/1",
       'goal "access.relay"',
-      'say "A running agent that needs a person stops here. Approving continues it; denying ends it."',
+      'say "Requests contains your Identity approval inbox and Host relay asks. New requests need an approver inbox address and an exact action. Review the digest and complete any required passkey or comparison ceremony. Consent alone does not mint a Host grant."',
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/access"',
       'wait route "/access" timeout=15000',
-      'focus "access.requests" "Pending relay asks are on Requests." side=bottom',
-      'wait target "access.relay" event=appear timeout=60000',
-      'hint "access.relay" "Each request is its own decision. Nothing is auto-approved." side=top',
+      'focus "access.requests" "Create, approve or deny on Requests. Each request is its own decision; nothing is auto-approved." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -310,7 +294,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/access"',
       'wait route "/access" timeout=15000',
-      'focus "access.sessions" "Sessions lists task runs against this Host, and the way to terminate one." side=bottom',
+      'focus "access.sessions" "Sessions starts task runs with an explicit action, resource and deadline. Inspect the ceiling or terminate a run here; its ceiling does not grant resource access." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -516,7 +500,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.lock",
     title: "Where do I lock the vault?",
     answer:
-      "The lock sits on the right of the statusline, and on the top bar on a phone. Locking drops the vault keys held in memory; your master password opens it again. Settings → Security can also lock automatically after a period of inactivity.",
+      "The lock sits beside your profile and vault switcher, in the sidebar or the phone header. Locking drops the vault keys held in memory; your enrolled unlock method opens it again. Settings → Security can also lock automatically after a period of inactivity.",
     routes: [],
     goal: "vault.lock",
     keywords: [

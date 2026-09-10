@@ -14,19 +14,19 @@
     "categories": ["access"],
     "sections": [
       {
+        "id": "sites",
+        "title": "Websites",
+        "fields": [
+          { "id": "uris", "type": "url", "label": "Website", "multiple": true }
+        ]
+      },
+      {
         "id": "credentials",
         "title": "Credentials",
         "fields": [
           { "id": "username", "type": "string", "label": "Username" },
           { "id": "password", "type": "password", "label": "Password" },
           { "id": "totp", "type": "totp", "label": "Authenticator code" }
-        ]
-      },
-      {
-        "id": "sites",
-        "title": "Websites",
-        "fields": [
-          { "id": "uris", "type": "url", "label": "Website", "multiple": true }
         ]
       }
     ],

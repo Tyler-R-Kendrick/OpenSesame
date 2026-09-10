@@ -10,6 +10,7 @@ import { apiSecurityHeaders } from "./middleware/security-headers.js";
 import { agentAuthRoutes } from "./routes/agent-auth.js";
 import { agentRoutes } from "./routes/agents.js";
 import { appClaimRoutes } from "./routes/app-claims.js";
+import { approvalPageRoutes } from "./routes/approval-page.js";
 import { auditRoutes } from "./routes/audit.js";
 import { createUpstreamAuthRoutes } from "./routes/auth-upstream.js";
 import { authenticationServiceRoutes } from "./routes/authentication-service.js";
@@ -100,6 +101,7 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/v1/projects", projectRoutes);
   app.route("/v1/claims", claimRoutes);
   app.route("/v1/authorization-requests", authorizationRequestRoutes);
+  app.route("/v1/approval", approvalPageRoutes);
   // The cross-device interaction layer (ADR 0086). Versioned prefix, and
   // deliberately plural: `/interaction` below is the oidc-provider
   // login/consent slot and a different thing entirely.

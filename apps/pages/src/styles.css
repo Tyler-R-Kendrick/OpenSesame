@@ -1,3 +1,5 @@
+@import "./native-controls.css";
+
 /* OpenSesame vault — design system.
    Password-manager canon at the Bitwarden/1Password craft bar, in OpenSesame navy + teal. */
 
@@ -520,10 +522,6 @@ textarea:focus-visible {
   border-radius: 0;
 }
 
-select {
-  cursor: pointer;
-}
-
 textarea {
   min-height: 6rem;
   padding: 0.45rem 0.6rem;
@@ -775,47 +773,6 @@ input[type="radio"] {
 
 .main {
   grid-area: main;
-}
-
-/* The workspace statusline: one mono strip of plane truth. */
-.statusline {
-  grid-area: status;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.25rem 0.85rem 0.25rem 3.6rem;
-  border-top: 1px solid var(--line);
-  background: var(--surface-2);
-  color: var(--ink-2);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-}
-
-.statusline__spacer {
-  margin-left: auto;
-}
-
-/* The statusline is a strip, not a toolbar: its chips stay slim — for a
-   mouse. A finger gets the full target instead (see the coarse block). */
-@media (pointer: fine) {
-  .statusline .cx__btn,
-  .statusline .icon-btn {
-    min-width: 0;
-    min-height: 0;
-    padding: 0.15rem 0.3rem 0.1rem;
-  }
-}
-
-@media (pointer: coarse) {
-  .statusline {
-    gap: 0.15rem;
-  }
-
-  .statusline .cx__btn,
-  .statusline .icon-btn {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-  }
 }
 
 .rail {
@@ -1594,7 +1551,7 @@ body {
     grid-auto-columns: 1fr;
     gap: 0.1rem;
     padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom));
-    padding-left: calc(3.6rem + env(safe-area-inset-left));
+    padding-left: calc(0.35rem + env(safe-area-inset-left));
     padding-right: calc(0.35rem + env(safe-area-inset-right));
     background: var(--surface);
     border-top: 1px solid var(--line);

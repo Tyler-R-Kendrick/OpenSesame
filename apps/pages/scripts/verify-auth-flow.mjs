@@ -194,7 +194,7 @@ async function openSecurity(page) {
 }
 
 async function lock(page) {
-  // Two lock buttons exist (phone top bar, desktop statusline); only one is
+  // Two profile lock buttons exist (phone header, desktop rail); only one is
   // visible at any width.
   await page
     .getByRole("button", { name: "Lock vault" })

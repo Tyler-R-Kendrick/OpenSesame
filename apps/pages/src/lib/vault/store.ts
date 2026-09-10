@@ -1,4 +1,5 @@
 import { isBoolean, isNumber, overlapCast } from "@opensesame/os-domain";
+import { writeItem } from "./item-path.js";
 /**
  * Vault session store. Holds the unlocked collection in memory, seals every
  * mutation straight back to OPFS, and drops the key on lock.
@@ -1570,14 +1571,9 @@ export class VaultStore {
 
   // —— items ————————————————————————————————————————————————
 
-  async saveItem(item: VaultItem): Promise<void> {
+  async saveItem(item: VaultItem, folder?: Folder): Promise<void> {
     await this.#mutate((body) => {
-      const next = { ...item, updatedAt: new Date().toISOString() };
-      const index = body.items.findIndex(
-        (candidate) => candidate.id === item.id,
-      );
-      if (index === -1) body.items = [...body.items, next];
-      else body.items = body.items.map((c, i) => (i === index ? next : c));
+      writeItem(body, item, folder);
     });
   }
 

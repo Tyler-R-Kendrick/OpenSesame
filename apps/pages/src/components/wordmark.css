@@ -1,0 +1,85 @@
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: var(--mono);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.wordmark > svg {
+  flex: none;
+}
+
+.wordmark__slots {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The global reduced-motion duration must not create color transitions in
+   the reel: this sequence owns its motion and settles immediately. */
+.wordmark__slot,
+.wordmark__reel,
+.wordmark__glyph {
+  transition-property: none;
+}
+
+.wordmark__slot {
+  display: block;
+  width: 1ch;
+  height: 1em;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--surface-3);
+  color: inherit;
+  animation-name: wordmark-lock;
+  animation-timing-function: steps(1, end);
+}
+
+.wordmark__reel {
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(-100% + 1em));
+  animation-name: wordmark-decrypt;
+  animation-duration: inherit;
+  animation-delay: inherit;
+  animation-fill-mode: backwards;
+}
+
+.wordmark__glyph {
+  display: block;
+  flex: none;
+  height: 1em;
+  line-height: 1;
+}
+
+@keyframes wordmark-decrypt {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(calc(-100% + 1em));
+  }
+}
+
+@keyframes wordmark-lock {
+  from {
+    background: var(--ink);
+    color: var(--canvas);
+  }
+  to {
+    background: var(--surface-3);
+    color: inherit;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wordmark__slot,
+  .wordmark__reel {
+    animation-name: none;
+  }
+}

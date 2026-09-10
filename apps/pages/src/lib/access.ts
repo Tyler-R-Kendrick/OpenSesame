@@ -145,7 +145,7 @@ function plainWords(status: number, detail: string | null): string {
   return `The Host answered ${status}. Check the Host logs at ${base()}.`;
 }
 
-async function call<T>(
+export async function call<T>(
   path: string,
   init: RequestInit,
   map: (body: BoundaryValue) => T,

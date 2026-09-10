@@ -6,15 +6,12 @@ import type {
 } from "@opensesame/vault-item-types";
 // Type-only in the other direction, so this stays a leaf at runtime.
 import { typedSearchText, typedSubtitle } from "./item-types.js";
+import type { LoginUri, UriMatch } from "./website-pattern.js";
+export type { LoginUri, UriMatch } from "./website-pattern.js";
 
 /**
- * The kinds that predate ADR 0087, each stored as named properties on the
- * item, plus `typed` — every plugin-defined type, which carries its type id in
- * `typeId` and its fields in `values`.
- *
- * `kind` stayed a closed union rather than becoming the type id outright so
- * that no item already in a vault has to be rewritten. `itemTypeId()` in
- * `item-types.ts` is the one accessor that hides the difference.
+ * Legacy kinds retain named fields; plugins use `typed`, `typeId` and `values`.
+ * `itemTypeId()` bridges both shapes without rewriting existing vaults (ADR 0087).
  */
 export type ItemKind =
   | "login"
@@ -28,15 +25,6 @@ export type ItemKind =
 
 /** Every kind whose fields are named properties on the item. */
 export type LegacyItemKind = Exclude<ItemKind, "typed">;
-
-export type UriMatch = "domain" | "host" | "exact" | "never";
-
-export type LoginUri = {
-  /** Stable across edits so the editor can key rows by identity, not position. */
-  id: string;
-  uri: string;
-  match: UriMatch;
-};
 
 export type CustomField = {
   id: string;

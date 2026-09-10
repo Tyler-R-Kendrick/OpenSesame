@@ -475,9 +475,14 @@ function** and keeps `executeTool` unreachable even when the browser implements
 it. The capability-registry self-tests hold the ADR 0065 invariants that the
 new `client.support` and `client.tutorial` capabilities now participate in.
 
-**Residual gap.** No browser in CI implements `modelContext`, so every WebMCP
-assertion is against a stand-in object of our own construction. If the draft
-moves again, these tests keep passing against the shape we already support.
+**Native browser gate.** `pnpm --filter @opensesame/pages verify:webmcp`
+uses Chrome's `WebMCP` DevTools Protocol domain against the built PWA.
+The existing required Bundle budgets job runs it with the runner's Chrome
+and experimental Web Platform features enabled. It fails if the native API
+or protocol is absent, registration is empty, navigation does not change the
+rendered tab, or session tools survive locking. It does not install a polyfill.
+The mock suites remain useful for rejected promises and cleanup races; they
+are no longer the only registration evidence.
 
 ## The lint, typecheck and build gates
 

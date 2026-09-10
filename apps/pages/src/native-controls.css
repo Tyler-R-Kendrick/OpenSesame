@@ -1,0 +1,11 @@
+/* Native popup rows need opaque colors; they do not paint on the form paper. */
+select {
+  cursor: pointer;
+  color-scheme: inherit;
+}
+
+select option,
+select optgroup {
+  background-color: var(--surface);
+  color: var(--ink);
+}

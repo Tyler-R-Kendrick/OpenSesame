@@ -626,7 +626,7 @@ pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
 CI lives in `.github/workflows/`:
 
 - `ci.yml` — runs on `pull_request`: TypeScript job
-  (`pnpm bootstrap` + `pnpm lint` + `pnpm quality` + `pnpm typecheck` +
+  (verified-commit signature preflight + frozen install + `pnpm lint` + `pnpm quality` + `pnpm typecheck` +
   `pnpm test`) and
   Rust job (`cargo test --workspace --all-targets`, Rust 1.88.0), plus a
   Bundle budgets job that builds `apps/pages`/`pwa`/`console` and checks
@@ -636,7 +636,9 @@ CI lives in `.github/workflows/`:
   `node ops/github/governance.mjs --verify`.
 - `deploy-pages.yml` — on every push to `main`, builds `apps/pages` and
   publishes it to GitHub Pages via `actions/deploy-pages` (Pages source
-  must be "GitHub Actions"). `scripts/deploy-pages.sh` remains as the
+  must be "GitHub Actions"). A release marker and post-deploy HTTPS digest check
+  prove the live HTML/runtime configuration matches the exact source SHA.
+  `scripts/deploy-pages.sh` remains as the
   manual/local fallback publisher.
 
 CI is the merge gate, not the whole story: the heavier suites

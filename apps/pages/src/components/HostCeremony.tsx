@@ -93,7 +93,7 @@ export function HostCeremony({
 }
 
 /** The endpoint field, in the sheet, committing on blur like the panel does. */
-function HostAddress() {
+export function HostAddress() {
   const [value, setValue] = useState(
     () => hostCeremonyDependencies.loadSettings().hostApi,
   );
