@@ -19,15 +19,34 @@
   font: inherit;
 }
 
-.connections-tree__more {
-  border: 0;
-  background: transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
 .connections-tree__note {
   padding: 0.25rem 0.55rem;
   color: var(--rail-muted);
+}
+
+.conn-tile.is-selected,
+.conn-service.is-selected {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  scroll-margin-block: 1rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #catalog-tree > [role="treeitem"] {
+    animation: connector-row-arrival 180ms ease-out;
+  }
+  #catalog-tree > [aria-busy="true"] {
+    animation: connector-row-arrival 600ms ease-in-out infinite alternate;
+  }
+}
+
+@keyframes connector-row-arrival {
+  from {
+    opacity: 0.55;
+    transform: translateY(0.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

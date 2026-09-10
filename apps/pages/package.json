@@ -13,11 +13,14 @@
     "test": "vitest run --maxWorkers=4",
     "verify:static": "node scripts/verify-static-origin.mjs",
     "verify:auth": "node scripts/verify-auth-flow.mjs",
+    "verify:keyboard": "node scripts/verify-keyboard.mjs",
+    "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
     "verify:webmcp": "node scripts/verify-webmcp.mjs"
   },
   "dependencies": {
     "@ag-ui/client": "0.0.59",
     "@opensesame/api-client": "workspace:*",
+    "@opensesame/auth-upstream": "workspace:*",
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/guide-lang": "workspace:*",

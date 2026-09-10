@@ -55,6 +55,11 @@ const DefaultIdentitySection = lazy(() =>
     default: m.IdentitySection,
   })),
 );
+const LocalAuthorize = lazy(() =>
+  import("./screens/LocalAuthorize.js").then((m) => ({
+    default: m.LocalAuthorize,
+  })),
+);
 const DefaultSettingsSection = lazy(() =>
   import("./sections/SettingsSection.js").then((m) => ({
     default: m.SettingsSection,
@@ -183,6 +188,14 @@ function VaultApp() {
             element={
               <Framed>
                 <slots.IdentitySection />
+              </Framed>
+            }
+          />
+          <Route
+            path="/identity/authorize"
+            element={
+              <Framed>
+                <LocalAuthorize />
               </Framed>
             }
           />

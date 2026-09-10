@@ -223,8 +223,10 @@ count prefix repeats them (`5j`), `Ctrl-d`/`u` half-page, `Ctrl-f`/`b` and
 `PgUp`/`PgDn` page, `H`/`M`/`L` jump to the high/mid/low of the window,
 `gg`/`0`/`Home` first, `G`/`$`/`End` last (`5G` the fifth row). `l`/`→`
 dives (and from the rail, into the vault listing), `h`/`←`/`Backspace`
-climbs (and from a vault root row, onto the rail). `Tab` switches the two
-listings when one of them holds the keyboard. `Enter` activates. `/` opens
+climbs (and from a vault root row, onto the rail). `F6` switches the two
+listings when one of them holds the keyboard. `Tab`/`Shift-Tab` always follow
+native control order and can leave either listing. `Enter` activates the
+focused control; the tree keymap must never swallow a link or button. `/` opens
 a vim-style command line at the foot of the pane, backed by a real input so
 typed keys never leak into the keymap; matches highlight, non-matches hide,
 `Esc` closes it and returns the keyboard to the tree. Item verbs are single
@@ -365,9 +367,208 @@ and g-jump key chips. Selection is inverse video (see "Selection"). The
 mobile tab bar mirrors the five sections and nothing else.
 Password health is a notifications-only review, never a tree entry or vault filter chip.
 
+Identity's children and its content tabs share the URL's `view` selection;
+the rail and tabs always name the same view. Connections has separate
+Connected and Add a Connection branches. Moving the connector cursor previews
+the corresponding service or catalog entry in the buffer, scrolls it into view,
+and outlines it in teal; the rail cursor remains inverse video. Enter or a
+click opens the connector. Directional movement never starts its ceremony.
+The searchable catalog grows twelve entries at a time. Load more is the final
+indexed tree row, reachable by the same motions as a connector; activation
+selects the first newly added entry. New rows enter over 180ms with a small
+upward settle; reduced motion removes the animation.
+
 ### Tabs
 Flat underline tabs on a hairline: text with a 2px accent underline for the
 selected view — never boxed segmented controls.
+
+### Local directory records
+People, agents, applications, and organizations use the existing bordered
+panel, identity rows, status chips, and record form. The name and stable
+reference lead each row; editing opens one Name field with Save and Cancel
+after it. While a draft is open, New and other row mutations are disabled.
+Failed saves retain the draft and return focus to its field; closing the
+form restores its initiating control when focus has not moved elsewhere.
+Deletion requires an explicit confirmation. The panel states that these
+records are local to the encrypted vault; creating a record alone grants
+no resource access. Broader identity and access management remains incomplete.
+
+### Local identity passkeys
+Each People row has a native Passkeys disclosure. Opening it loads that
+person's credentials; Enroll passkey and Sign in locally load the human
+ceremony only when pressed. Credential rows stay flat inside the person row,
+separated by hairlines, with a short credential suffix and enrollment date.
+Pending results use inline outputs and errors use alerts. Disabled people
+cannot enroll or sign in, but their credentials can still be revoked.
+
+Revoke passkey becomes Confirm revocation beside Keep passkey. Keeping it
+returns focus to Revoke passkey; successful removal returns focus to the
+Passkeys summary only when the removed control held focus and focus has fallen
+to the document body. Focus elsewhere is preserved.
+
+Sign in locally verifies a passkey and shows the active local session and its
+expiry; Sign out locally revokes it. Closing the disclosure or navigating away
+does not sign out: reopening validates the stored session. Directory changes
+(including disabling and re-enabling a person or changing a role), expiry, or
+revoking its passkey require a fresh sign-in. Inline status explicitly reports
+that no application access was granted; local authentication is not a claim
+that broader IAM is complete.
+
+### Local agent keys
+Each Agents row has a native Agent keys disclosure. Public ES256 credentials
+appear as flat, hairline-separated rows with a key suffix and enrollment date.
+Enroll public key reveals and focuses a labeled Public key JWK textarea;
+Save public key and Cancel enrollment follow it. Failed saves retain the draft.
+Private keys are never requested. Disabled agents cannot enroll or authenticate,
+but their keys remain revocable.
+
+Authenticate agent opens a read-only, one-use challenge followed by a Signed
+challenge textarea and Verify agent / Close challenge actions. The challenge
+expires after two minutes; a failed verification requires a new challenge.
+Its arrival focuses the challenge only if focus remains at the initiator or
+has fallen to the body. Native fields scroll internally and record/action rows
+wrap at narrow widths, retaining the existing typography and focus treatment.
+
+Status distinguishes machine authentication from human approval and application
+access; neither is granted by this session. Sign out agent revokes the session.
+A read failure reports Local session unavailable, never an absent-session claim.
+Revoke agent key requires Confirm key revocation or Keep agent key. Keeping it
+restores the revoke control; closing a form or removing a key restores the
+connected initiating control, or the disclosure summary if it was removed,
+only when focus fell to the body. Focus moved elsewhere is preserved. This
+pattern documents local agent authentication, not local application delegation
+or completion of browser IAM; it introduces no raster imagery or new tokens.
+
+### Local authenticators in Devices
+Without a configured Identity API, Identity → Devices presents Authenticators
+with the existing Reload directory icon. A short scope notice explains that
+synced passkeys may span devices; the list describes this vault's sign-in keys,
+not physical hardware. People and agents retain their name, wrapped public
+reference and enabled state in the incumbent bordered identity rows. Their
+native Passkeys and Agent keys disclosures reuse the enrollment, local sign-in
+and confirmed revocation controls documented above. Credential rows remain
+hairline-separated; actions wrap on mobile with visible teal keyboard focus.
+
+Loading and read errors remain distinct from emptiness; an empty directory
+links to Create a person. A failed directory read disables credential mutations
+until recovery. Directory changes refresh the list. If a whole principal is
+removed, Reload receives focus only when the previously focused control was
+disconnected and focus fell to the body; deliberate focus elsewhere survives.
+This extension introduces no tokens or imagery and does not establish completion
+of broader browser IAM.
+
+### Local organization members
+Each organization row has a native Members disclosure. Existing members appear
+as flat, hairline-separated rows with their names, role chips, and confirmed
+removal. Keep member restores the removal button; confirming removal moves
+focus to Members before the row changes. Errors remain in the directory panel.
+
+The custodian assigns membership with labeled native Person or agent and
+Organization role selects. Selecting an existing member loads its role and
+changes Add member to Save role. People may be members, admins, or owners;
+agents remain members. Empty organizations ask for an enabled person as the
+first owner; removing, demoting, or disabling the last enabled owner is refused.
+Role changes require local sessions to sign in again. These controls retain
+the incumbent row wrapping, typography, hairlines, and focus treatment.
+
+### Local application registration
+Access → Policies reuses this same registration disclosure from Identity →
+Applications, backed by the same encrypted store and role evaluator. Each
+application keeps its name and stable public identifier together; the identifier
+wraps beneath the name using the existing muted reference treatment. The panel
+introduction keeps the established readable prose measure. Local policies work
+without Host, with Host policies presented independently.
+
+Each Applications row has a native Application registration disclosure. Its
+record form uses a labeled Organization select, a bordered, vertically
+resizable Redirect URIs textarea (one exact callback per line), and an
+Allowed scopes input (space separated, including `openid`). Organizations
+must be enabled and have an owner; when none qualify, the hint directs the
+custodian to create an organization and assign its first owner. The controls
+reuse the existing mono labels, ruled fields, hairlines, and focus treatment.
+
+Roles allowed per scope follows the scope names, before Save registration.
+Each scope groups native owner, admin, and member checkboxes; unchecked roles
+are denied, including owners. New custom scopes start entirely unchecked.
+Tab and Space retain native behavior, and role rows wrap on narrow screens.
+Role choices share the retained draft and encrypted save/reload behavior;
+selecting a role never replaces explicit sign-in consent.
+Saving a changed policy invalidates existing application grants and requires
+a new sign-in and explicit consent. Disabled applications remain visible with
+their editor disabled; loading, safe read failures, and no applications are
+distinct states. A failed directory refresh disables editing until recovery.
+
+Save registration persists the encrypted configuration; Reload registration
+reads it again. Loading and read errors never become a not-registered claim.
+Failed saves retain the draft for correction or retry. Remove registration
+becomes Confirm removal beside Keep registration; keeping it returns focus
+to Remove registration. After a save, focus returns to the initiating control
+only if it is still connected and focus fell to the document body; after
+removal, the disclosure summary provides that fallback. Focus moved elsewhere
+is preserved.
+
+Inline status distinguishes registration from authorization. Exact HTTPS
+callbacks (or loopback HTTP for development) and allowed scopes configure
+admission; they do not issue tokens, grant sign-in or resource access, or
+establish completion of browser IAM (ADR 0106).
+
+### Local application consent
+The consent panel leads with the application name and requesting origin; a
+native disclosure reveals the exact callback. Agent requests also name the
+agent and disclose its identity and enrolled public key reference, followed
+by requested scopes. The native Approving person selector lists enabled owners
+and admins in the application's organization. Verify with passkey precedes a
+separate Allow agent access action beside Deny. Person requests retain Person
+and Allow application. Inline outputs report connection state, alerts carry
+failures, and active connections offer End application session. Controls reuse
+the existing record layout, ink action and teal focus; long references wrap.
+This pattern records the consent surface, not completion of broader browser IAM.
+
+### Local requests
+Access → Requests uses the existing panel with New and Reload icon commands,
+flat ruled rows, a truthful count, and wrapped public request references.
+One inline fieldset opens at a time. Creation reuses local person/agent
+authentication and labeled native fields for application, exact registered
+callback, scopes and reason; failures retain the draft. Status is an inline
+output and read failures remain alerts, distinct from an empty list.
+
+Review names the requester, application, organization, reason, scopes and
+callback. Only pending requests offer an authorized-person selector and
+request-bound Approve with passkey / Deny with passkey actions. The open review
+resolves its record by ID against current data: expiry and external decisions
+remove obsolete approval controls. Active focus is preserved; disappearing
+controls or records restore useful focus within the review or to the connected
+initiator, falling back to Reload. Withdrawal and settled-history removal each
+require confirmation. Native controls, ink actions, teal focus and wrapping
+action rows retain the incumbent desktop/mobile treatment.
+
+Requests expire after five minutes. Creation grants no access; approval never
+bypasses application policy. Popup application consent now creates a transaction-
+bound request, obtains a fresh request-bound passkey decision, consumes approval
+once, then issues through the existing PKCE code flow. The binding covers the
+client, callback, scopes, state, nonce, PKCE and agent. An organization member
+may consent only to their own bound sign-in; manual and agent requests require
+an owner or admin. The same role-eligibility rule drives review controls and
+enforcement. This describes the connected popup flow, not completion of broader
+IAM or its full validation gates.
+
+### Local sessions and grants
+Access → Grants reuses this panel in a grant-only variant, showing encrypted
+application grants without requiring Host. Access → Sessions retains the combined
+sessions-and-grants ledger. Host delegation controls remain independently
+available when configured. Flat, hairline-separated rows name the principal and application, with
+scope, expiry and exact public record references. Counts describe recorded,
+unexpired sessions and grants, never live connections; empty counts use a dash.
+Loading and read failures remain distinct from an empty ledger.
+
+Both variants use the same confirmed revocation. An inline fieldset names the exact record and consequence,
+with Confirm revocation and Cancel revocation. Cancel receives initial focus;
+closing returns focus to the source control, or Reload if the row was removed,
+only when focus is idle. Moved focus is preserved. Success uses inline output;
+failures remain alerts with reload/retry recovery. Long references and mobile
+action rows wrap within the existing panel, using the incumbent ink buttons,
+hairlines and teal focus treatment. Native focus scrolling brings confirmation
+and restored controls into view; introductory prose keeps the readable measure.
 
 ### Callouts
 `note` with `--ok`, `--warn`, `--err` variants for a stated condition. Live

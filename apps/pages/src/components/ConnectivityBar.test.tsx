@@ -122,6 +122,7 @@ function renderBar(connectors = ALL) {
 }
 
 afterEach(cleanup);
+afterEach(() => vi.restoreAllMocks());
 
 describe("ConnectivityBar", () => {
   it("renders one glyph per connector, toned by state", () => {
@@ -236,10 +237,8 @@ describe("ConnectivityBar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check now" }));
     expect(checkNow).toHaveBeenCalledTimes(2);
 
-    // The Host endpoint is edited *here*, inline. This used to be a link to
-    // Settings, which meant a route change, a disclosure and a scroll to reach
-    // a text box — from a sheet whose whole premise is putting you back where
-    // you were. Nothing in a ceremony may navigate.
+    // Edit the Host endpoint in this sheet, without navigating to Settings
+    // and losing the person's place.
     expect(screen.queryByRole("link")).toBeNull();
     fireEvent.click(
       screen.getByRole("button", {
@@ -284,13 +283,14 @@ describe("ConnectivityBar", () => {
   });
 
   it("says how old the verdict is and when the next one is due", () => {
-    renderBar();
+    vi.spyOn(Date, "now").mockReturnValue(1_800_000_000_000);
+    renderBar([status()]);
     fireEvent.click(
       screen.getByRole("button", { name: "Host — 127.0.0.1:18787" }),
     );
-    const read = screen.getByRole("status");
-    expect(read.textContent).toMatch(/Checked \d+s ago/);
-    expect(read.textContent).toMatch(/next in \d+s/);
+    expect(screen.getByRole("status").textContent).toBe(
+      "Checked 4s ago · next in 30s",
+    );
   });
 
   it("explains a classified failure in a sentence", () => {

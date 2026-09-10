@@ -83,6 +83,8 @@ export function TreeRow({
   selected = false,
   expanded,
   onToggle,
+  selectTo,
+  busy,
 }: {
   to: string;
   isActive?: boolean;
@@ -99,12 +101,15 @@ export function TreeRow({
   selected?: boolean;
   expanded?: boolean;
   onToggle?: () => void;
+  /** Keyboard selection previews this destination; activation follows `to`. */
+  selectTo?: string;
+  busy?: boolean;
 }) {
   const fixed = isActive !== undefined;
   return (
     <NavLink
       ref={navRef}
-      id={railRowId(to, child)}
+      id={railRowId(selectTo ?? to, child)}
       to={to}
       end={end}
       role="treeitem"
@@ -113,6 +118,7 @@ export function TreeRow({
       aria-level={level ?? (child ? 2 : 1)}
       aria-selected={selected}
       aria-expanded={expanded}
+      aria-busy={busy}
       onClick={(event) => {
         if (
           !onToggle ||
@@ -127,7 +133,8 @@ export function TreeRow({
         onToggle();
       }}
       data-rail-move={move ? "" : undefined}
-      data-rail-to={to}
+      data-rail-to={selectTo ?? to}
+      data-rail-preview={selectTo ? "" : undefined}
       className={
         fixed
           ? `railtree__row${child ? " railtree__row--child" : ""}${isActive ? " is-active" : ""}`

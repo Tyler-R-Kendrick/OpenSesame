@@ -91,12 +91,12 @@ afterEach(cleanup);
 
 it("lists 12 at a time, searches the full catalog, and resets pagination", () => {
   setup();
-  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(12);
-  fireEvent.click(screen.getByRole("button", { name: "Load 12 more" }));
-  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(24);
-  fireEvent.click(screen.getByRole("button", { name: "Load 5 more" }));
+  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(13);
+  fireEvent.click(screen.getByRole("treeitem", { name: "Load 12 more" }));
+  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(25);
+  fireEvent.click(screen.getByRole("treeitem", { name: "Load 5 more" }));
   expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(29);
-  expect(screen.queryByRole("button", { name: /Load .* more/ })).toBeNull();
+  expect(screen.queryByRole("treeitem", { name: /Load .* more/ })).toBeNull();
   const search = screen.getByRole("searchbox");
   fireEvent.change(search, { target: { value: " CONNECTOR 28 " } });
   expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(1);
@@ -109,7 +109,7 @@ it("lists 12 at a time, searches the full catalog, and resets pagination", () =>
   fireEvent.change(search, { target: { value: "no-match" } });
   expect(screen.getByText("No matching connectors")).toBeTruthy();
   fireEvent.change(search, { target: { value: "" } });
-  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(12);
+  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(13);
 });
 
 it("keeps each connected instance addressable and excludes revoked connections", () => {
