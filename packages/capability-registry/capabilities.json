@@ -1,5 +1,51 @@
 [
   {
+    "id": "tasks.start",
+    "title": "Start a task-scoped authority run",
+    "plane": "host",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame task start",
+      "pwa": "lib/access-sessions.ts:createAccessSession",
+      "mcp_host": "task_start",
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "The browser opens a human-confirmed ceiling form; programmatic task creation uses the scoped MCP Host task_start capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "identity.approval.requests",
+    "title": "Create and review addressed authorization requests",
+    "plane": "identity",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/access-requests.ts:createAccessRequest",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Access opens the human review ceremony; an agent cannot read another person's inbox or settle its decisions",
+        "adr": "0084-external-authorization-notifications.md"
+      },
+      "mcp_client": {
+        "reason": "Access opens the human review ceremony; an agent cannot read another person's inbox or settle its decisions",
+        "adr": "0084-external-authorization-notifications.md"
+      },
+      "webmcp": {
+        "reason": "Access opens the human review ceremony; an agent cannot read another person's inbox or settle its decisions",
+        "adr": "0084-external-authorization-notifications.md"
+      }
+    }
+  },
+  {
     "id": "host.health",
     "title": "Host API and daemon health/readiness",
     "plane": "host",
@@ -131,19 +177,6 @@
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
       }
-    }
-  },
-  {
-    "id": "tasks.start",
-    "title": "Start a task-scoped authority run",
-    "plane": "host",
-    "kind": "act",
-    "surfaces": {
-      "cli": "opensesame task start",
-      "pwa": null,
-      "mcp_host": "task_start",
-      "mcp_client": null,
-      "webmcp": null
     }
   },
   {
@@ -2339,18 +2372,76 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": "opensesame-id agent init",
-      "pwa": null,
+      "pwa": "route:/identity",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "webmcp": {
+        "reason": "Navigation opens Identity; directory and lifecycle changes require a human decision",
+        "adr": "0065-agent-surface-parity.md"
+      },
       "mcp_host": {
         "reason": "agent bootstrap is an operator ceremony; an agent must not mint sibling agents",
         "adr": "0065-agent-surface-parity.md"
       },
       "mcp_client": {
         "reason": "agent bootstrap is an operator ceremony; an agent must not mint sibling agents",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "identity.agent.manage",
+    "title": "List, rename and revoke owned agent registrations",
+    "plane": "identity",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "Navigation opens Identity; directory and lifecycle changes require a human decision",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_host": {
+        "reason": "Agent lifecycle changes are human administration",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "Agent lifecycle changes are human administration",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
+    "id": "identity.users.manage",
+    "title": "Provision and manage organization directory users",
+    "plane": "identity",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "Navigation opens Identity; directory and lifecycle changes require a human decision",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_host": {
+        "reason": "Directory provisioning requires the organization owner",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "Directory provisioning requires the organization owner",
         "adr": "0065-agent-surface-parity.md"
       }
     }
@@ -2504,7 +2595,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "lib/access-requests.ts:decideAccessRequest",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -2515,6 +2606,10 @@
         "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
+        "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
+        "adr": "0084-external-authorization-notifications.md"
+      },
+      "webmcp": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
         "adr": "0084-external-authorization-notifications.md"
       }
@@ -2527,7 +2622,7 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": null,
+      "pwa": "lib/access-requests.ts:getRequestComparison",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
@@ -2538,6 +2633,10 @@
         "adr": "0084-external-authorization-notifications.md"
       },
       "mcp_client": {
+        "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
+        "adr": "0084-external-authorization-notifications.md"
+      },
+      "webmcp": {
         "reason": "a transaction-bound authenticator ceremony is what distinguishes a human approval from an agent asking for one; no agent surface may run or stand in for it",
         "adr": "0084-external-authorization-notifications.md"
       }

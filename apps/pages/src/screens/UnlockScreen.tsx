@@ -14,13 +14,13 @@ import {
   IconEyeOff,
   IconLock,
   IconMail,
-  IconMark,
   IconMessage,
   IconPasskey,
   IconPhone,
   IconShield,
   IconUser,
 } from "../components/Icons.js";
+import { Wordmark } from "../components/Wordmark.js";
 import { outcomeWantsSignIn, readAuthOutcome } from "../lib/auth-outcome.js";
 import { defaultUpstream } from "../lib/federation.js";
 import { firstControl, landFocus } from "../lib/focus.js";
@@ -563,10 +563,7 @@ function UnlockForm({
       <div className="unlock__card">
         <PendingLinkBanner />
         <div className="unlock__brand">
-          <p className="unlock__wordmark">
-            <IconMark size={16} />
-            opensesame
-          </p>
+          <Wordmark className="unlock__wordmark" />
           <h1>
             {signInStage
               ? "Sign in"

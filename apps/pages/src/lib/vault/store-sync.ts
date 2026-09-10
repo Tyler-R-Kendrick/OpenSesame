@@ -10,6 +10,7 @@ import {
   type Folder,
   type SecretItem,
   type TypedItem,
+  type UriMatch,
   type VaultItem,
   createItem,
   newId,
@@ -26,17 +27,12 @@ export type OsMeta = {
   username?: string;
   totp?: string;
   uris?: string[];
+  uriMatches?: UriMatch[];
   notes?: string;
   connectionRef?: string;
   /**
-   * A plugin-defined item's type id and its declared values (ADR 0087).
-   *
-   * This seam has always carried its own JSON metadata rather than the
-   * pass-style trailer — `username`, `uris` and `connectionRef` above are the
-   * same idea. A typed item's values ride here for the same reason: nothing a
-   * definition declared may be dropped on the way through the store, because a
-   * device that reads the entry back would otherwise reconstruct an empty item
-   * and the whole-vault merge would carry that emptiness everywhere.
+   * Preserve all plugin values in JSON metadata (ADR 0087). Omitting them
+   * reconstructs an empty item, which a whole-vault merge would propagate.
    */
   typeId?: string;
   values?: FieldValues;
@@ -148,10 +144,10 @@ export function entryToVaultItem(
     item.username = meta.username ?? "";
     item.totp = otpauth ?? meta.totp ?? "";
     item.notes = meta.notes ?? "";
-    item.uris = (meta.uris ?? []).map((uri) => ({
+    item.uris = (meta.uris ?? []).map((uri, index) => ({
       id: newId(),
       uri,
-      match: "domain" as const,
+      match: meta.uriMatches?.[index] ?? "domain",
     }));
   }
   return item;
@@ -192,6 +188,7 @@ function vaultItemToEntryDefault(
       }
     }
     meta.uris = item.uris.map((u) => u.uri).filter(Boolean);
+    meta.uriMatches = item.uris.filter((u) => u.uri).map((u) => u.match);
   } else if (item.kind === "secret") {
     secret = item.value;
     meta.connectionRef = item.connectionRef || undefined;

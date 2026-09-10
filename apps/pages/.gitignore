@@ -3,7 +3,6 @@
 .impeccable/hook.pending.json
 .impeccable/config.local.json
 .impeccable/live/server.json
-.impeccable/live/config.json
 .impeccable/live/roots.json
 .impeccable/live/app-root.json
 .impeccable/live/inject-journal.json
@@ -30,5 +29,5 @@ src/lib/impeccable/[0-9a-f]*/
 plugins/impeccable-live.client.ts
 app/plugins/impeccable-live.client.ts
 src/plugins/impeccable-live.client.ts
-dev-dist/
 # impeccable-live-ignore-end
+dev-dist/

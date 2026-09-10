@@ -1,4 +1,5 @@
 import type { ControlPlaneConfig } from "./config.js";
+import { agentManagementPaths } from "./openapi-agents.js";
 import { publicAuthenticationPaths } from "./openapi-public-authentication.js";
 
 const authenticationUnauthorizedResponse = {
@@ -997,35 +998,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           },
         },
       },
-      "/v1/agents": {
-        post: {
-          summary: "Register provisional agent",
-          security: [{ bearerAuth: [] }],
-          responses: {
-            "201": { description: "Created" },
-            "401": { description: "Missing principal bearer" },
-            "403": { description: "Quota exceeded" },
-          },
-        },
-      },
-      "/v1/agents/{id}/claim": {
-        post: {
-          summary: "Start claim for agent",
-          security: [{ bearerAuth: [] }],
-          parameters: [
-            {
-              name: "id",
-              in: "path",
-              required: true,
-              schema: { type: "string" },
-            },
-          ],
-          responses: {
-            "201": { description: "Claim started" },
-            "401": { description: "Missing principal bearer" },
-          },
-        },
-      },
+      ...agentManagementPaths,
       "/auth.md": {
         get: {
           summary: "Generated auth surface markdown",

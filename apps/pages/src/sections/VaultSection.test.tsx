@@ -17,6 +17,7 @@ import {
   useNavigationType,
 } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectVaultCommands } from "./vault/commands.test-support.js";
 
 import { createKeymapHandler } from "../lib/keymap.js";
 import type {
@@ -186,11 +187,8 @@ describe("VaultSection", () => {
     expect(screen.getByText("Nothing here")).toBeTruthy();
     expect(
       screen.getByRole("link", { name: /New item/i }).getAttribute("href"),
-    ).toBe("/vault/new/login");
-    // The empty state opens the import picker directly.
-    expect(screen.getAllByRole("button", { name: /^Import$/i })).toHaveLength(
-      1,
-    );
+    ).toBe("/vault/new");
+    expectVaultCommands();
   });
 
   it("picking a file from Import hands it to the settings import panel", () => {
@@ -201,7 +199,7 @@ describe("VaultSection", () => {
     };
     renderSection();
     // Import sits beside new in the path strip even when the vault has items.
-    expect(screen.getByRole("button", { name: "Import items" })).toBeTruthy();
+    expectVaultCommands();
     const file = new File(["KEY=value"], "app.env", { type: "text/plain" });
     fireEvent.change(screen.getByLabelText("Choose a file to import"), {
       target: { files: [file] },
@@ -342,7 +340,7 @@ describe("VaultSection", () => {
       target: { value: "zzzzzz" },
     });
     expect(screen.queryAllByRole("treeitem")).toHaveLength(0);
-    expect(screen.getByText(/0\/1 · \/zzzzzz/)).toBeTruthy();
+    expect(screen.getByText(/-\/1 · \/zzzzzz/)).toBeTruthy();
   });
 
   it("filters to favorites", () => {
@@ -599,7 +597,7 @@ describe("VaultSection", () => {
     expect(chips.textContent).not.toContain("Passkeys");
     expect(chips.textContent).toContain("Work");
     expect(chips.textContent).toContain("Trash");
-    expect(chips.textContent).toContain("Health");
+    expect(chips.querySelector('a[href="/vault/health"]')).toBeNull();
   });
 });
 

@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.event_name }}-${{ github.ref }}
@@ -28,6 +29,12 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Verify merge-required commit signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/check-pr-signatures.mjs "$GITHUB_REPOSITORY" "$PR_NUMBER" "$PR_HEAD"
       - name: Install
         # Not `pnpm bootstrap`: that also runs db:migrate (needs a live
         # DATABASE_URL) and installs git hooks, neither of which belongs in CI.
@@ -62,6 +69,15 @@ jobs:
         # apps/pages precaches its whole dist for offline use, so growth here is
         # growth in what every installing device downloads.
         run: pnpm quality:bundle
+      - name: Native Chrome WebMCP discovery and control
+        # Chrome's WebMCP CDP domain backs the Application pane. No polyfill;
+        # unavailable native support or zero tools must fail this required job.
+        env:
+          PLAYWRIGHT_CHROME_CHANNEL: chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          google-chrome --version
+          pnpm --filter @opensesame/pages verify:webmcp
 
   rust:
     name: Rust

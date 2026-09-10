@@ -99,7 +99,7 @@ describe("AppShell", () => {
 
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");
-    expect(screen.getAllByText("opensesame").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("open-sesame").length).toBeGreaterThan(0);
     // The rail reads sections as directories; the mobile tab bar keeps labels.
     for (const segment of ["connections", "access", "identity", "settings"]) {
       expect(screen.getAllByText(segment).length).toBe(1);
@@ -141,6 +141,39 @@ describe("AppShell", () => {
     ).toBe("data");
   });
 
+  it.each([
+    ["/vault?f=favorites", "Vault", "favorites"],
+    ["/settings/security", "Settings", "security"],
+  ])(
+    "toggles the %s branch without losing the selected child",
+    (route, label, child) => {
+      const { container } = renderShell(route);
+      const row = screen.getByRole("treeitem", { name: label });
+      const tree = screen.getByRole("tree", { name: "Sections" });
+      expect(row.getAttribute("aria-expanded")).toBe("true");
+      fireEvent.click(row);
+      expect(row.getAttribute("aria-expanded")).toBe("false");
+      expect(container.querySelector(".railtree__kids")).toBeNull();
+      expect(tree.getAttribute("aria-activedescendant")).toBe(row.id);
+      fireEvent.click(row);
+      expect(row.getAttribute("aria-expanded")).toBe("true");
+      expect(
+        container.querySelector(".railtree__kids .is-active")?.textContent,
+      ).toContain(child);
+    },
+  );
+
+  it("collapses and reopens a section with the arrow keys", () => {
+    renderShell("/vault?f=favorites");
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    const row = screen.getByRole("treeitem", { name: "Vault" });
+    tree.focus();
+    fireEvent.keyDown(tree, { key: "ArrowLeft" });
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.keyDown(tree, { key: "ArrowRight" });
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("counts live items, favourites, trash, and kinds in the vault filters", () => {
     const { container } = renderShell("/vault");
 
@@ -155,7 +188,7 @@ describe("AppShell", () => {
 
     // The deleted card does not count towards the live kind count.
     const cards = filterLink(container, "/vault?f=card", "cards");
-    expect(cards.textContent).toContain("0");
+    expect(cards.textContent).toContain("-");
 
     const trash = filterLink(container, "/vault?f=trash", "trash");
     expect(trash.textContent).toContain("1");
@@ -210,18 +243,37 @@ describe("AppShell", () => {
     expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
   });
 
-  it("offers the password-health review entry", () => {
-    const { container } = renderShell("/vault");
-    const health = container.querySelector('a[href="/vault/health"]');
-    expect(health?.textContent).toContain("health");
-  });
+  it.each(["/vault", "/vault/health"])(
+    "keeps health out of the tree on %s",
+    (path) => {
+      renderShell(path);
+      const tree = screen.getByRole("tree", { name: "Sections" });
+      expect(tree.querySelector('a[href="/vault/health"]')).toBeNull();
+      expect(
+        document.getElementById(
+          tree.getAttribute("aria-activedescendant") ?? "",
+        ),
+      ).not.toBeNull();
+    },
+  );
 
-  it("both lock buttons call the store lock", () => {
-    renderShell("/vault");
-    // One in the phone top bar, one in the desktop statusline.
+  it("groups lock with account and vault switching on desktop and phone", () => {
+    const { container } = renderShell("/vault");
     const locks = screen.getAllByRole("button", { name: "Lock vault" });
     expect(locks).toHaveLength(2);
-    for (const lock of locks) fireEvent.click(lock);
+    expect(
+      container.querySelector('.statusline [aria-label="Lock vault"]'),
+    ).toBeNull();
+    for (const lock of locks) {
+      const prompt = lock.closest(".rail__prompt");
+      expect(
+        prompt?.querySelector('[data-testid="account-switcher"]'),
+      ).toBeTruthy();
+      expect(
+        prompt?.querySelector('[data-testid="project-switcher"]'),
+      ).toBeTruthy();
+      fireEvent.click(lock);
+    }
     expect(vault.lock).toHaveBeenCalledTimes(2);
   });
 
@@ -238,7 +290,7 @@ describe("AppShell", () => {
     vault.items = [];
     vault.folders = [];
     const { container } = renderShell("/vault");
-    expect(filterLink(container, "/vault", "all").textContent).toContain("0");
+    expect(filterLink(container, "/vault", "all").textContent).toContain("-");
   });
 
   it("captures section shortcuts before the tree can stop propagation", () => {
@@ -274,14 +326,23 @@ describe("AppShell", () => {
   });
 
   it("walks off the open vault directory onto the next section", () => {
-    const { container } = renderShell("/vault/health");
+    const { container } = renderShell("/vault?folder=f1");
     const tree = screen.getByRole("tree", { name: "Sections" });
     tree.focus();
     fireEvent.keyDown(tree, { key: "ArrowDown" });
     expect(tree.querySelector('a[href="/connections"]')?.className).toContain(
       "is-active",
     );
-    expect(container.querySelector(".railtree__kids")).toBeNull();
+    expect(
+      container.querySelector('a[href="/vault"] + .railtree__kids'),
+    ).toBeNull();
+    expect(document.getElementById("connections-tree")).toBeTruthy();
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(
+      screen
+        .getByRole("treeitem", { name: "Add a Connection" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
     fireEvent.keyDown(tree, { key: "ArrowDown" });
     expect(tree.querySelector('a[href="/access"]')?.className).toContain(
       "is-active",

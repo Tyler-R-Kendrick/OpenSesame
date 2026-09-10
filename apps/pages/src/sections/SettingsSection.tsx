@@ -830,7 +830,7 @@ export function SettingsSection({
 
       {category !== "data" ? null : (
         <GuideTarget id="vault.export">
-          <section className="panel">
+          <section className="panel" id="export">
             <div className="panel__head">
               <div>
                 <h2>Backup and move to another device</h2>

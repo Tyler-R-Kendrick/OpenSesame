@@ -21,8 +21,6 @@ import {
 } from "../components/Icons.js";
 import {
   type Delegation,
-  type DelegationOffer,
-  claimDelegation,
   listDelegations,
   revokeDelegation,
 } from "../lib/access.js";
@@ -31,7 +29,6 @@ import {
   type ByoProviderInput,
   registerByoProvider,
 } from "../lib/byo.js";
-import { presentOffer } from "../lib/claim.js";
 import {
   DirectoryError,
   type DirectoryPrincipal,
@@ -55,7 +52,6 @@ import { beginSignIn, defaultUpstream } from "../lib/federation.js";
 import {
   type IdentitySession,
   identityBase,
-  useConnect,
   useIdentitySession,
 } from "../lib/identity.js";
 import {
@@ -67,7 +63,6 @@ import {
 import {
   type IdpProviderType,
   type IdpRecord,
-  ceremonyDismissed,
   dismissIdpCeremony,
   listIdpRegistrations,
   registerIdp,
@@ -86,30 +81,32 @@ import {
   brokeredUpstream,
   listFederatedProviders,
 } from "../lib/providers.js";
+import { IDENTITY_VIEWS, useSectionView } from "../lib/section-views.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { ClaimAccessCeremony } from "./access/ClaimAccessCeremony.js";
 import { monogram } from "./connections/connector-marks.js";
 import type { Flash } from "./connections/shared.js";
+import { AgentsPanel } from "./identity/AgentsPanel.js";
+import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
+import { EditApplication } from "./identity/EditApplication.js";
+import { UsersPanel } from "./identity/UsersPanel.js";
 // The brand button treatments (.signin__social, .signin__provider--*) live in
 // the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
 import "./identity.css";
 
-type IdentityTab =
-  | "people"
-  | "providers"
-  | "devices"
-  | "service-accounts"
-  | "organization";
+type IdentityTab = (typeof IDENTITY_VIEWS)[number];
 
 const TABS: Array<{ id: IdentityTab; label: string; guideId: string }> = [
   { id: "people", label: "People", guideId: "identity.people" },
+  { id: "agents", label: "Agents", guideId: "identity.agents" },
   { id: "providers", label: "Providers", guideId: "identity.providers" },
   { id: "devices", label: "Devices", guideId: "identity.devices" },
   {
     id: "service-accounts",
-    label: "Service accounts",
+    label: "Applications",
     guideId: "identity.service-accounts",
   },
   {
@@ -157,18 +154,12 @@ function IdentityTabButton({
 export function IdentitySection() {
   const online = useOnline();
   const session = useIdentitySession();
-  const [tab, setTab] = useState<IdentityTab>("people");
+  const [tab, setTab] = useSectionView(IDENTITY_VIEWS, "people");
   const [providers, setProviders] = useState<IdpRecord[]>(() =>
     listIdpRegistrations(),
   );
-  const [dismissed, setDismissed] = useState(() => ceremonyDismissed());
   const [ceremonyOpen, setCeremonyOpen] = useState(false);
   const [flash, setFlash] = useState<Flash | null>(null);
-
-  // The gate: no binding recorded and no explicit deferral. Re-opening the
-  // ceremony from a tab is always possible and lifts nothing permanently.
-  const gated = providers.length === 0 && !dismissed;
-  const showCeremony = ceremonyOpen || gated;
 
   function openCeremony() {
     setCeremonyOpen(true);
@@ -178,16 +169,12 @@ export function IdentitySection() {
     if (providers.length === 0) {
       // "Set up later" is the guest-primacy escape, and it is sticky.
       dismissIdpCeremony();
-      setDismissed(true);
     }
     setCeremonyOpen(false);
   }
 
   function registered(record: IdpRecord, message: string) {
     setProviders(listIdpRegistrations());
-    // Registering lifts the gate permanently — the store says so, and the
-    // local gate state must agree before the mirror can empty again.
-    setDismissed(true);
     setCeremonyOpen(false);
     setTab("providers");
     setFlash({ tone: "ok", text: message });
@@ -195,7 +182,6 @@ export function IdentitySection() {
 
   function providersChanged(next: IdpRecord[]) {
     setProviders(next);
-    setDismissed(ceremonyDismissed());
   }
 
   return (
@@ -204,10 +190,10 @@ export function IdentitySection() {
         <h1>Identity</h1>
       </header>
 
-      {showCeremony ? (
+      {ceremonyOpen ? (
         <IdpCeremony
           online={online}
-          gated={gated}
+          gated={false}
           onRegistered={registered}
           onDismiss={closeCeremony}
         />
@@ -253,6 +239,13 @@ export function IdentitySection() {
           ) : null}
           {tab === "devices" ? (
             <DevicesPanel online={online} session={session} />
+          ) : null}
+          {tab === "agents" ? (
+            session ? (
+              <AgentsPanel online={online} />
+            ) : (
+              <ConnectIdentityNote online={online} what="agent identities" />
+            )
           ) : null}
           {tab === "service-accounts" ? (
             <ServiceAccountsPanel online={online} session={session} />
@@ -899,6 +892,7 @@ function PeoplePanel({
 
   return (
     <>
+      <UsersPanel online={online} />
       <MeCard online={online} onOpenCeremony={onOpenCeremony} />
       <LinkedIdentitiesCard online={online} />
       {/* Remount on a fresh claim so the new grant is simply there. */}
@@ -1092,203 +1086,6 @@ function MyAccessCard({
             {flash.tone === "ok" ? <IconCheck /> : <IconAlert />}
             <p>{flash.text}</p>
           </output>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-type ClaimStep = "enter" | "review";
-
-/**
- * Claim access — paste the claim token and user code an owner handed over,
- * review the offered scope, accept. Present spends the offer's one
- * presentation (ADR 0044), so the review is the decision point: accept posts
- * every offered item id, back leaves the grant unclaimed.
- */
-function ClaimAccessCeremony({
-  online,
-  onDone,
-}: {
-  online: boolean;
-  onDone: (claimed: boolean) => void;
-}) {
-  const [step, setStep] = useState<ClaimStep>("enter");
-  const [claimToken, setClaimToken] = useState("");
-  const [userCode, setUserCode] = useState("");
-  const [offer, setOffer] = useState<DelegationOffer | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const tokenRef = useRef<HTMLInputElement | null>(null);
-
-  // The token leads the ceremony, so it leads the form.
-  useEffect(() => {
-    tokenRef.current?.focus();
-  }, []);
-
-  async function present(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setBusy(true);
-    try {
-      const found = await presentOffer(claimToken.trim());
-      setOffer(found);
-      setStep("review");
-    } catch (caught) {
-      setError(identityErrorText(caught));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function accept() {
-    if (!offer) return;
-    setError(null);
-    setBusy(true);
-    try {
-      await claimDelegation({
-        claimToken: claimToken.trim(),
-        userCode: userCode.trim(),
-        acceptedItemIds: offer.items.map((item) => item.id),
-      });
-      onDone(true);
-    } catch (caught) {
-      setError(identityErrorText(caught));
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="panel identity-ceremony">
-      <div className="panel__head">
-        <div>
-          <h2>Claim access</h2>
-        </div>
-      </div>
-
-      <div className="panel__body">
-        {step === "enter" ? (
-          <form
-            className="identity-claim"
-            onSubmit={(event) => void present(event)}
-            noValidate
-          >
-            <div className="field">
-              <label className="label" htmlFor="identity-claim-token">
-                Claim token
-              </label>
-              <input
-                id="identity-claim-token"
-                ref={tokenRef}
-                type="text"
-                autoComplete="off"
-                spellCheck={false}
-                value={claimToken}
-                disabled={busy}
-                onChange={(event) => {
-                  setClaimToken(event.target.value);
-                  setError(null);
-                }}
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="identity-claim-code">
-                User code
-              </label>
-              <input
-                id="identity-claim-code"
-                type="text"
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="WORD-WORD"
-                value={userCode}
-                disabled={busy}
-                onChange={(event) => {
-                  setUserCode(event.target.value);
-                  setError(null);
-                }}
-              />
-            </div>
-
-            {error ? (
-              <p className="note note--err" role="alert">
-                <IconAlert /> {error}
-              </p>
-            ) : null}
-
-            <div className="actions actions--end">
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => onDone(false)}
-              >
-                Back
-              </button>
-              <button
-                type="submit"
-                className="btn btn--primary"
-                disabled={
-                  busy || !online || !claimToken.trim() || !userCode.trim()
-                }
-                aria-busy={busy || undefined}
-              >
-                {busy ? "Asking…" : "Review offer"}
-              </button>
-            </div>
-          </form>
-        ) : null}
-
-        {step === "review" && offer ? (
-          <>
-            <ul className="identity-rows">
-              {offer.items.map((item) => (
-                <li className="identity-row" key={item.id}>
-                  <div className="identity-row__main">
-                    <div className="identity-row__id">
-                      <h3>{item.displayName}</h3>
-                      <code className="identity-ref">{item.connectionId}</code>
-                    </div>
-                    {item.actions.map((action) => (
-                      <span className="chip" key={action}>
-                        {action}
-                      </span>
-                    ))}
-                    <span className="chip">{item.executionMode}</span>
-                  </div>
-                  {item.resources.length > 0 ? (
-                    <p className="hint">{item.resources.join(", ")}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-
-            {error ? (
-              <p className="note note--err" role="alert">
-                <IconAlert /> {error}
-              </p>
-            ) : null}
-
-            <div className="actions actions--end">
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => onDone(false)}
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy || !online}
-                aria-busy={busy || undefined}
-                onClick={() => void accept()}
-              >
-                {busy ? "Claiming…" : "Accept"}
-              </button>
-            </div>
-          </>
         ) : null}
       </div>
     </section>
@@ -2154,11 +1951,7 @@ function ProviderRow({
 
 /* -------------------------------------------------------- service accounts */
 
-/**
- * Identities that aren't people: the owner-fenced OAuth clients. Host-plane
- * service accounts (agents) deliberately live on the Access screen — this tab
- * cross-links rather than duplicating them.
- */
+/** Registered relying parties on the OpenSesame OIDC issuer. */
 function ServiceAccountsPanel({
   online,
   session,
@@ -2167,6 +1960,7 @@ function ServiceAccountsPanel({
   session: IdentitySession | null;
 }) {
   const [clients, setClients] = useState<OAuthClient[] | null>(null);
+  const [editing, setEditing] = useState<OAuthClient | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<Flash | null>(null);
   const [rotated, setRotated] = useState<OAuthClient | null>(null);
@@ -2244,7 +2038,7 @@ function ServiceAccountsPanel({
       <section className="panel">
         <div className="panel__head">
           <div>
-            <h2>OAuth clients</h2>
+            <h2>OIDC applications</h2>
           </div>
           <button
             type="button"
@@ -2275,7 +2069,7 @@ function ServiceAccountsPanel({
                 <li className="identity-row" key={client.id}>
                   <div className="identity-row__main">
                     <span className="identity-row__mark">
-                      <IconAgent size={18} />
+                      <IconSite size={18} />
                     </span>
                     <div className="identity-row__id">
                       <h3>{client.displayName}</h3>
@@ -2296,10 +2090,24 @@ function ServiceAccountsPanel({
                       <button
                         type="button"
                         className="btn btn--sm"
+                        disabled={
+                          busyId !== null ||
+                          !online ||
+                          client.state === "revoked"
+                        }
+                        onClick={() => setEditing(client)}
+                      >
+                        Edit application
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--sm"
                         disabled={busyId !== null || !online}
                         onClick={() => void rotate(client)}
                       >
-                        {busyId === client.id ? "Rotating…" : "Rotate secret"}
+                        {busyId === client.id
+                          ? "Rotating…"
+                          : "Rotate client ID"}
                       </button>
                       {confirmId === client.id ? (
                         <>
@@ -2333,8 +2141,8 @@ function ServiceAccountsPanel({
                   </div>
                   {confirmId === client.id ? (
                     <p className="hint">
-                      Revoking is immediate: every token this client minted is
-                      refused from that moment.
+                      Revoking disables this client registration. Previously
+                      issued identity assertions retain their stated expiry.
                     </p>
                   ) : null}
                 </li>
@@ -2344,7 +2152,7 @@ function ServiceAccountsPanel({
 
           {clients && clients.length === 0 ? (
             <div className="empty">
-              <h3>No service identities.</h3>
+              <h3>No applications registered.</h3>
             </div>
           ) : null}
 
@@ -2352,8 +2160,7 @@ function ServiceAccountsPanel({
             <output className="note note--ok">
               <IconCheck />
               <p>
-                Rotated — the new client id is shown once:{" "}
-                <code>{rotated.id}</code>{" "}
+                Rotated — the new client id: <code>{rotated.id}</code>{" "}
                 <button
                   type="button"
                   className="icon-btn"
@@ -2377,26 +2184,38 @@ function ServiceAccountsPanel({
         </div>
       </section>
 
+      {editing ? (
+        <section className="panel">
+          <div className="panel__body">
+            <EditApplication
+              key={editing.id}
+              client={editing}
+              online={online}
+              onSaved={() => {
+                setEditing(null);
+                void load();
+              }}
+              onCancel={() => setEditing(null)}
+            />
+          </div>
+        </section>
+      ) : null}
       <CreateClientForm
         online={online}
         onCreated={() => void load()}
         onFlash={setFlash}
       />
 
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Agents</h2>
-          </div>
-        </div>
-        <div className="panel__body">
-          <div className="actions">
-            <Link className="btn" to="/access">
-              Open Access → Resources
-            </Link>
-          </div>
-        </div>
-      </section>
+      <p className="hint">
+        <a
+          href={`${identityBase()}/.well-known/openid-configuration`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Open OIDC discovery
+        </a>{" "}
+        to configure this issuer in your application.
+      </p>
     </>
   );
 }
@@ -2454,7 +2273,7 @@ function CreateClientForm({
     <section className="panel">
       <div className="panel__head">
         <div>
-          <h2>Register a service identity</h2>
+          <h2>Register an application</h2>
         </div>
       </div>
 
@@ -2777,49 +2596,6 @@ function CreateOrgForm({
 }
 
 /* ------------------------------------------------------------ no principal */
-
-function ConnectIdentityNote({
-  online,
-  what,
-}: {
-  online: boolean;
-  what: string;
-}) {
-  const { connecting, error, connect } = useConnect();
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Sign in to see this</h2>
-        </div>
-      </div>
-      <div className="panel__body">
-        <div className="actions">
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={connecting || !online}
-            onClick={() => void connect()}
-          >
-            {connecting ? "Connecting…" : "Connect to Identity"}
-          </button>
-        </div>
-        {!online ? (
-          <output className="note note--warn">
-            <IconAlert /> Offline — connecting needs the Identity service to
-            answer.
-          </output>
-        ) : null}
-        {error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
-          </p>
-        ) : null}
-      </div>
-    </section>
-  );
-}
 
 /* ----------------------------------------------------------------- helpers */
 

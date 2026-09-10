@@ -1,4 +1,5 @@
 import { type KeybindingsMap, createKeybindingsHandler } from "tinykeys";
+import { handlePaneEscape } from "./pane-escape.js";
 
 export type ListingMotion = {
   next: (count?: number) => void;
@@ -270,6 +271,12 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
       count = 0;
       const listing = listingOf(event);
       if (!listing) return;
+      // A searchable tree has native tab stops; do not trap them behind pane switching.
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest(".railtree")?.querySelector("input")
+      )
+        return;
       const other = listing === "rail" ? vaultTarget : railTarget;
       (other ?? (listing === "rail" ? railTarget : vaultTarget))?.focus?.();
       event.preventDefault();
@@ -287,13 +294,17 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
   return (event: KeyboardEvent) => {
     ensureCode(event);
     if (
+      handlePaneEscape(event) ||
       event.defaultPrevented ||
       event.metaKey ||
       event.altKey ||
       typing(event.target) ||
+      (event.target instanceof HTMLButtonElement &&
+        ["Enter", " ", "Tab"].includes(event.key)) ||
       document.querySelector('[role="dialog"][aria-modal="true"]')
     ) {
       count = 0;
+      clearGo();
       return;
     }
 

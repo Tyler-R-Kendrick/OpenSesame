@@ -86,9 +86,11 @@ describe("App", () => {
     expect(screen.getByText("health panel")).toBeTruthy();
     unmount();
 
-    const second = renderApp("/vault/new/login");
-    expect(screen.getByText("item editor new")).toBeTruthy();
-    second.unmount();
+    for (const path of ["/vault/new", "/vault/new/login"]) {
+      const second = renderApp(path);
+      expect(screen.getByText("item editor new")).toBeTruthy();
+      second.unmount();
+    }
 
     const third = renderApp("/vault/item_1/edit");
     expect(screen.getByText("item editor edit")).toBeTruthy();

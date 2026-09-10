@@ -77,6 +77,8 @@ const BANK_LOCKER = JSON.stringify({
           { id: "branch", type: "string", label: "Branch", required: true },
           { id: "boxNumber", type: "string", label: "Box number" },
           { id: "keyCode", type: "concealed", label: "Key code" },
+          { id: "aliases", type: "string", label: "Alias", multiple: true },
+          { id: "host", type: "host-port", label: "Endpoint" },
         ],
       },
     ],
@@ -116,7 +118,7 @@ function renderEditor(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/vault/new/:kind" element={<ItemEditor mode="new" />} />
+        <Route path="/vault/new/:kind?" element={<ItemEditor mode="new" />} />
         <Route
           path="/vault/:itemId/edit"
           element={<ItemEditor mode="edit" />}
@@ -156,7 +158,7 @@ afterAll(() => {
 
 describe("the editor for a type installed at runtime", () => {
   it("offers the type in the picker beside the built-in ones", () => {
-    renderEditor("/vault/new/login");
+    renderEditor("/vault/new");
     const picker = screen.getByLabelText("Type");
     const options = [...picker.querySelectorAll("option")].map(
       (option) => option.value,
@@ -167,18 +169,54 @@ describe("the editor for a type installed at runtime", () => {
 
   it("draws the fields the definition declares, with no per-type code", () => {
     renderEditor("/vault/new/safe-deposit");
+    expect(screen.queryByLabelText("Type")).toBeNull();
     expect(screen.getByText("Box")).toBeTruthy();
     expect(screen.getByLabelText("Branch *")).toBeTruthy();
-    expect(screen.getByLabelText("Box number")).toBeTruthy();
-    expect(screen.getByLabelText("Key code")).toBeTruthy();
+    expect(screen.queryByLabelText("Box number")).toBeNull();
+    expect(screen.queryByLabelText("Key code")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Add box number" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Box number"));
   });
 
   it("conceals a concealed field until it is revealed", () => {
     renderEditor("/vault/new/safe-deposit");
+    fireEvent.click(screen.getByRole("button", { name: "Add key code" }));
     const keyCode = screen.getByLabelText("Key code");
     expect(keyCode.getAttribute("type")).toBe("password");
     fireEvent.click(screen.getByRole("button", { name: "Reveal key code" }));
     expect(screen.getByLabelText("Key code").getAttribute("type")).toBe("text");
+  });
+
+  it("opens saved optional values and preserves them during unrelated edits", async () => {
+    const item = makeBoxItem();
+    vault.current.items = [item];
+    renderEditor(`/vault/${item.id}/edit`);
+    expect(screen.getByLabelText<HTMLInputElement>("Key code").value).toBe(
+      "8891",
+    );
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Renamed" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save item" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(saveItem.mock.calls[0]?.[0]).toMatchObject({
+      name: "Renamed",
+      values: { keyCode: "8891", boxNumber: "114" },
+    });
+  });
+
+  it("reveals and focuses repeating and composite optional inputs", () => {
+    renderEditor("/vault/new/safe-deposit");
+    fireEvent.click(screen.getByRole("button", { name: "Add alias" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Alias 1"));
+    fireEvent.change(screen.getByLabelText("Alias 1"), {
+      target: { value: "Spare" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add endpoint" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Host"));
+    expect(screen.getByLabelText<HTMLInputElement>("Alias 1").value).toBe(
+      "Spare",
+    );
   });
 
   it("refuses to save with a required field empty, as the star promises", async () => {
@@ -195,6 +233,7 @@ describe("the editor for a type installed at runtime", () => {
 
   it("saves the values under the type id", async () => {
     renderEditor("/vault/new/safe-deposit");
+    fireEvent.click(screen.getByRole("button", { name: "Add key code" }));
     fireEvent.change(screen.getByLabelText("Name"), {
       target: { value: "Deposit box" },
     });

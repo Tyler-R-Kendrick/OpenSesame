@@ -5,6 +5,14 @@ wrong one is how a screen stops looking like the rest of the app. This page
 names both so the choice is a lookup rather than a judgement call, and
 `scripts/design-lint.mjs` (`pnpm lint:design`) holds new code to it.
 
+## Native dropdowns
+
+Keep native selection and keyboard behavior. Popup options and groups pair
+opaque `--surface` backgrounds with `--ink` text in `native-controls.css`;
+the root color scheme follows the selected theme, including system mode.
+Never hard-code white/black dropdown colors. `pnpm lint:design` checks both
+the shared popup pair and component overrides; browser checks cover contrast.
+
 ## 1. The terminal commit — `.go`
 
 **The one action that ends the screen you are on.** Unlocking a vault. Sealing
@@ -66,7 +74,23 @@ and a Claude Code `PostToolUse` hook:
 3. **Every `.go` carries an accessible name.** The glyph is not a label.
 4. **Every `.go` has a `.go-verb` beside it.** An unlabelled ink square is a
    mystery-meat control.
+5. **Vault commands are persistent icon keys.** The top path strip retains
+   New item (`+`), Import, and Export in empty, filtered, trash, and populated
+   views. Each has an accessible name and tooltip. Text-button styles in
+   `VaultSection` or `VaultPathbar` are a hard lint failure; render tests pin
+   all three commands and their location. Import opens the file picker;
+   Export opens the existing encrypted-backup panel, never a plaintext dump.
+   The path/count status row stays at the pane bottom in empty and populated
+   views; only the item area scrolls, never the command or status strip.
+
+The workspace statusline also uses one control geometry: 28px keys with 17px
+glyphs and 8px between groups, growing to 44px touch targets on small/coarse
+screens. Support, connection indicators, notifications, and lock share borders,
+surfaces, and hover treatment. Status dots are positioned badges, never a
+second layout row that shifts one icon above another. All controls form one
+left-aligned strip; no utility group is pushed to the opposite edge. Static-origin
+browser checks compare actual hit areas, glyph centers, group gaps, and surface styles.
 
 The rules are deliberately narrow. A lint that tried to guess *in general*
-whether a button should have been an icon would be wrong constantly; these four
+whether a button should have been an icon would be wrong constantly; these
 check the specific, mechanical things that went wrong the first time.

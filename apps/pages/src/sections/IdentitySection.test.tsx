@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IdentitySession } from "../lib/identity.js";
 import type { IdpRecord } from "../lib/idp-registry.js";
+import { expectProseBudget, makeClient } from "./identity/test-fixtures.js";
 
 const online = vi.hoisted(() => ({ value: true }));
 const session: { current: IdentitySession | null } = vi.hoisted(() => ({
@@ -123,44 +124,17 @@ function makeDelegation(overrides: Partial<Delegation> = {}): Delegation {
   };
 }
 
-/** The hard rule from the design contract: no multi-sentence paragraphs. */
-function expectProseBudget(container: HTMLElement) {
-  for (const p of container.querySelectorAll("p")) {
-    const text = p.textContent ?? "";
-    const sentences = text
-      .split(/(?<=[.!?])\s+/)
-      .filter((sentence) => sentence.trim().length > 0);
-    expect(
-      sentences.length,
-      `multi-sentence paragraph: ${text}`,
-    ).toBeLessThanOrEqual(1);
-  }
-}
-
-type ClientOverrides = { id?: string; state?: string };
-
-function makeClient(overrides: ClientOverrides = {}) {
-  return {
-    id: "cli_1",
-    displayName: "Release pipeline",
-    admissionMode: "pre_registered",
-    state: "active",
-    redirectUris: ["https://ci.example.com/callback"],
-    sectorIdentifier: "https://ci.example.com",
-    tokenEndpointAuthMethod: "none",
-    allowedScopes: ["openid"],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    ...overrides,
-  };
-}
-
 function renderIdentity() {
   return render(
     <MemoryRouter>
       <IdentitySection />
     </MemoryRouter>,
   );
+}
+
+async function openProviderCeremony() {
+  await openTab("Providers");
+  await userEvent.click(firstButton("Register an IdP"));
 }
 
 async function openTab(name: string) {
@@ -253,8 +227,13 @@ describe("IdentitySection", () => {
     vi.clearAllMocks();
   });
 
-  it("gates on the ceremony while the registry is empty", async () => {
+  it("opens administration without an upstream binding and offers an explicit provider ceremony", async () => {
     renderIdentity();
+    expect(screen.getByRole("tab", { name: "People" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Applications" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Agents" })).toBeTruthy();
+    expect(screen.queryByText("Connect your identity provider")).toBeNull();
+    await openProviderCeremony();
     expect(
       await screen.findByText("Connect your identity provider"),
     ).toBeTruthy();
@@ -280,6 +259,7 @@ describe("IdentitySection", () => {
 
   it("records a first-class provider and starts the brokered leg in one gesture", async () => {
     renderIdentity();
+    await openProviderCeremony();
     await screen.findByText("Connect your identity provider");
     await userEvent.click(
       await screen.findByRole("button", { name: "Continue with Google" }),
@@ -307,6 +287,7 @@ describe("IdentitySection", () => {
       ),
     );
     renderIdentity();
+    await openProviderCeremony();
     await screen.findByText("Connect your identity provider");
 
     await userEvent.type(
@@ -362,6 +343,7 @@ describe("IdentitySection", () => {
 
   it("registers an Okta preset through the BYO path with providerType set", async () => {
     renderIdentity();
+    await openProviderCeremony();
     await screen.findByText("Connect your identity provider");
 
     await userEvent.click(screen.getByRole("button", { name: "Okta" }));
@@ -400,6 +382,7 @@ describe("IdentitySection", () => {
       ),
     );
     renderIdentity();
+    await openProviderCeremony();
     await screen.findByText("Connect your identity provider");
 
     await userEvent.click(screen.getByRole("button", { name: "WorkOS" }));
@@ -433,6 +416,7 @@ describe("IdentitySection", () => {
 
   it("validates the Better Auth URL client-side before registering", async () => {
     renderIdentity();
+    await openProviderCeremony();
     await screen.findByText("Connect your identity provider");
 
     await userEvent.click(screen.getByRole("button", { name: "Better Auth" }));
@@ -467,6 +451,7 @@ describe("IdentitySection", () => {
 
   it("returns from a preset form to the preset tiles on Back", async () => {
     renderIdentity();
+    await openProviderCeremony();
     await screen.findByText("Connect your identity provider");
 
     await userEvent.click(screen.getByRole("button", { name: "Auth0" }));
@@ -488,7 +473,7 @@ describe("IdentitySection", () => {
       "People",
       "Providers",
       "Devices",
-      "Service accounts",
+      "Applications",
       "Organization",
     ]) {
       expect(screen.getByRole("tab", { name })).toBeTruthy();
@@ -518,7 +503,9 @@ describe("IdentitySection", () => {
     session.current = null;
     registerIdp(makeRecord());
     renderIdentity();
-    expect(await screen.findByText("Sign in to see this")).toBeTruthy();
+    expect(
+      await screen.findByText("Connect to manage identities"),
+    ).toBeTruthy();
     expect(directory.getMe).not.toHaveBeenCalled();
     await userEvent.click(
       screen.getByRole("button", { name: /Connect to Identity/i }),
@@ -661,11 +648,11 @@ describe("IdentitySection", () => {
     expect(monograms).toEqual(["W"]);
   });
 
-  it("creates, rotates, and revokes OAuth clients in Service accounts", async () => {
+  it("creates, rotates, and revokes OAuth clients in Applications", async () => {
     directory.listOAuthClients.mockResolvedValue([makeClient()]);
     registerIdp(makeRecord());
     renderIdentity();
-    await openTab("Service accounts");
+    await openTab("Applications");
 
     expect(await screen.findByText("Release pipeline")).toBeTruthy();
     expect(screen.getByText("cli_1")).toBeTruthy();
@@ -695,16 +682,14 @@ describe("IdentitySection", () => {
       }),
     );
 
-    // Rotate: the new client id is shown once, with copy.
+    // Rotate: the new client id is displayed with copy.
     await userEvent.click(
-      screen.getByRole("button", { name: /Rotate secret/i }),
+      screen.getByRole("button", { name: /Rotate client ID/i }),
     );
     await waitFor(() =>
       expect(directory.rotateOAuthClient).toHaveBeenCalledWith("cli_1"),
     );
-    expect(
-      await screen.findByText(/the new client id is shown once/),
-    ).toBeTruthy();
+    expect(await screen.findByText(/the new client id:/)).toBeTruthy();
     expect(screen.getByText("cli_3")).toBeTruthy();
 
     // Revoke, after confirmation.
@@ -722,8 +707,8 @@ describe("IdentitySection", () => {
   it("shows the empty service-identities state", async () => {
     registerIdp(makeRecord());
     renderIdentity();
-    await openTab("Service accounts");
-    expect(await screen.findByText("No service identities.")).toBeTruthy();
+    await openTab("Applications");
+    expect(await screen.findByText("No applications registered.")).toBeTruthy();
   });
 
   it("validates the org slug client-side before calling the API", async () => {
@@ -757,6 +742,7 @@ describe("IdentitySection", () => {
 
   it("dismisses the ceremony into the banner posture, and re-opens it", async () => {
     renderIdentity();
+    await openProviderCeremony();
     await screen.findByText("Connect your identity provider");
 
     await userEvent.click(screen.getByText("Set up later"));
@@ -857,7 +843,9 @@ describe("IdentitySection", () => {
     registerIdp(makeRecord());
     renderIdentity();
     await openTab("Devices");
-    expect(await screen.findByText("Sign in to see this")).toBeTruthy();
+    expect(
+      await screen.findByText("Connect to manage identities"),
+    ).toBeTruthy();
     expect(directory.approveDevice).not.toHaveBeenCalled();
   });
 
@@ -1066,8 +1054,8 @@ describe("IdentitySection", () => {
     await screen.findByLabelText(/User code/i);
     expectProseBudget(container);
 
-    await openTab("Service accounts");
-    await screen.findByText("No service identities.");
+    await openTab("Applications");
+    await screen.findByText("No applications registered.");
     expectProseBudget(container);
 
     await openTab("Organization");
@@ -1077,6 +1065,7 @@ describe("IdentitySection", () => {
 
   it("keeps the ceremony within the one-sentence prose budget", async () => {
     const { container } = renderIdentity();
+    await openProviderCeremony();
     await screen.findByText("Connect your identity provider");
     expectProseBudget(container);
   });

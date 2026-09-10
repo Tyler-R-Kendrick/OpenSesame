@@ -5,7 +5,7 @@ import { PostgresAgentStore } from "./legacy-agent-postgres.js";
 
 type Registry = Pick<AppStores, "agents" | "agentInstances">;
 
-function transaction<R>(
+export function transaction<R>(
   stores: AppStores,
   principal: string,
   work: (registry: Registry) => Promise<R>,

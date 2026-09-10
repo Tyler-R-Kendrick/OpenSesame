@@ -105,6 +105,32 @@ function scrim(sheet: HTMLElement): HTMLElement {
 afterEach(disposeSupport);
 
 describe("support panel focus", () => {
+  it("Escape leaves a text field, keeps Tab inside the pane, then closes on a separate press", async () => {
+    const user = userEvent.setup();
+    mountSupport({ agent: fakeAgentAnswering("Anything.") });
+    const trigger = launcher();
+    const sheet = await openPanel(user);
+    const field = await screen.findByLabelText<HTMLInputElement>(
+      "Ask about this screen",
+    );
+    await waitFor(() => expect(field.disabled).toBe(false));
+    await user.type(field, "keep this draft");
+    await user.keyboard("{Escape}");
+    expect(document.activeElement).toBe(sheet);
+    expect(field.value).toBe("keep this draft");
+    expect(sheet.isConnected).toBe(true);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(reachable(sheet).at(-1));
+    field.focus();
+    await user.keyboard("{Escape}");
+    await user.tab();
+    expect(document.activeElement).toBe(closeInside(sheet));
+    field.focus();
+    await user.keyboard("{Escape}{Escape}");
+    await waitFor(() => expect(sheet.isConnected).toBe(false));
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("lands the caret on the dialog's own close control, not merely inside it", async () => {
     const user = userEvent.setup();
     mountSupport({ agent: fakeAgentAnswering("Anything.") });

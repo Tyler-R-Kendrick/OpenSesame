@@ -6,6 +6,7 @@ import {
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import {
+  noteWebMcpAccepted,
   noteWebMcpFailure,
   noteWebMcpRegistered,
   noteWebMcpUnregistered,
@@ -25,10 +26,10 @@ function registerScope(scope: "boot" | "session"): Unregister {
   const api = detectModelContext();
   const registrar = createWebMcpRegistrar(api, {
     appId: APP_ID,
+    onRegistered: noteWebMcpAccepted,
     onFailure: noteWebMcpFailure,
   });
   const tools = WEBMCP_TOOLS.filter((t) => t.scope === scope);
-  const unregister = registrar.register(tools);
   noteWebMcpRegistered(
     api?.source ?? null,
     scope,
@@ -38,6 +39,7 @@ function registerScope(scope: "boot" | "session"): Unregister {
       scope,
     })),
   );
+  const unregister = registrar.register(tools);
   return () => {
     unregister();
     noteWebMcpUnregistered(scope);

@@ -51,37 +51,24 @@ import {
   type UriMatch,
   type VaultItem,
   activeItems,
-  createItem,
   newUri,
   searchMatches,
 } from "../lib/vault/model.js";
+import { newItemDraft } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
 import { parseTotp, secondsRemaining, totpCode } from "../lib/vault/totp.js";
 import { HELP_TOPICS, guideGoalIds } from "../tutorial/registry/goals.js";
-
-/** Mirror of AppShell's SECTIONS paths; the parity test pins them together. */
-export const SECTION_PATHS = [
-  "/vault",
-  "/connections",
-  "/access",
-  "/identity",
-  "/settings",
-] as const;
-
-type NavigateFn = (to: string) => void;
-
-const noopNavigate: NavigateFn = () => {};
-
-export type WebMcpNavigationSeam = { navigate: NavigateFn };
-
-/**
- * Router seam: the lifecycle hook binds the live react-router navigate here
- * while the app is mounted. The default is a silent no-op so tools stay
- * callable (and honest about `location`) in environments without the router.
- */
-export const webmcpNavigationSeam: WebMcpNavigationSeam = {
-  navigate: noopNavigate,
-};
+import {
+  assertMetadataOnlyWrite,
+  suggestItemMetadata,
+} from "./draft-suggestions.js";
+import {
+  SECTION_PATHS,
+  navigationPaths,
+  navigationTool,
+  webmcpNavigationSeam,
+} from "./navigation.js";
+export { SECTION_PATHS, webmcpNavigationSeam } from "./navigation.js";
 
 export type WebMcpSupportSeam = {
   openSupport: (topic: string | null) => void;
@@ -122,10 +109,6 @@ const ITEM_KINDS: readonly LegacyItemKind[] = [
  */
 function isItemKind(value: string): value is LegacyItemKind {
   return ITEM_KINDS.some((kind) => kind === value);
-}
-
-function isSectionPath(value: string): boolean {
-  return SECTION_PATHS.some((path) => path === value);
 }
 
 /** Authored help topic ids — checked-in prose keys, never a person's words. */
@@ -251,24 +234,6 @@ function healthIssuesById(): Map<string, string[]> {
   );
 }
 
-const WRITE_KEYS = new Set([
-  "itemId",
-  "kind",
-  "name",
-  "folderId",
-  "favorite",
-  "url",
-]);
-
-function assertMetadataOnlyWrite(args: JsonObject): void {
-  const rejected = Object.keys(args).filter((key) => !WRITE_KEYS.has(key));
-  if (rejected.length > 0) {
-    throw new Error(
-      `non_metadata_fields_rejected:${rejected.sort().join(",")} — WebMCP writes carry title, folder, favorite and url only; secret fields stay in the vault UI`,
-    );
-  }
-}
-
 export const TOTP_RATE_LIMIT_MS = 2000;
 const totpLastIssuedAt = new Map<string, number>();
 
@@ -313,38 +278,14 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
         folders: snapshot.folders.length,
         identitySignedIn: currentSession() !== null,
         sections: [...SECTION_PATHS],
+        destinations: navigationPaths(),
       };
     },
   },
   {
-    name: "opensesame_navigate",
+    ...navigationTool,
     capabilityIds: ["app.navigate"],
     scope: "boot",
-    description:
-      "Navigate the vault app to a section: /vault, /connections, /access, /identity or /settings.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        section: {
-          type: "string",
-          enum: [...SECTION_PATHS],
-          description: "Section path to open.",
-        },
-      },
-      required: ["section"],
-      additionalProperties: false,
-    },
-    execute: (args) => {
-      const raw = str(args, "section");
-      const section = raw.startsWith("/") ? raw : `/${raw}`;
-      if (!isSectionPath(section)) {
-        throw new Error(
-          `unknown_section:${section} — sections are ${SECTION_PATHS.join(", ")}`,
-        );
-      }
-      webmcpNavigationSeam.navigate(section);
-      return { status: "navigated", location: section };
-    },
   },
   {
     name: "opensesame_health",
@@ -437,18 +378,25 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     capabilityIds: ["vault.items.write_meta"],
     scope: "session",
     description:
-      "Create a vault item or edit non-secret metadata (name, folder, favorite, url) on an existing one. Any attempt to write secret fields is rejected — credential entry stays in the vault UI.",
+      "Create a vault item with local generated defaults, or edit non-secret metadata. With action=suggest, return only a name and fictional username (source=random or browser for the ready on-device model); nothing is saved. Secret input/output is forbidden.",
     inputSchema: {
       type: "object",
       properties: {
+        action: { type: "string", enum: ["suggest"] },
+        source: {
+          type: "string",
+          enum: ["random", "browser"],
+          description:
+            "Only with action=suggest. No remote model fallback or downloads.",
+        },
         itemId: {
           type: "string",
           description: "Existing item to edit; omit to create.",
         },
         kind: {
           type: "string",
-          enum: [...ITEM_KINDS],
-          description: "Required when creating.",
+          description:
+            "Installed item type ID; required when creating or suggesting.",
         },
         name: { type: "string" },
         folderId: { type: "string" },
@@ -459,6 +407,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     },
     execute: async (args) => {
       requireUnlocked();
+      if (args.action === "suggest") return suggestItemMetadata(args);
       assertMetadataOnlyWrite(args);
       const itemId = optStr(args, "itemId");
       const name = optStr(args, "name");
@@ -471,11 +420,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
         item = { ...findItem(itemId) };
       } else {
         const kind = str(args, "kind");
-        if (!isItemKind(kind)) {
-          throw new Error(`unknown_kind:${kind}`);
-        }
-        if (!name) throw new Error("missing_argument:name");
-        item = createItem(kind, name);
+        item = newItemDraft(kind, name ?? undefined);
       }
       if (name) item.name = name;
       if (folderId !== null) item.folderId = folderId;
@@ -484,8 +429,8 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
         if (item.kind !== "login") {
           throw new Error("url_requires_login_item");
         }
-        const [first, ...rest] = item.uris;
-        item.uris = first ? [{ ...first, uri: url }, ...rest] : [newUri(url)];
+        const [first = newUri(), ...rest] = item.uris;
+        item.uris = [{ ...first, uri: url, match: "domain" }, ...rest];
       }
       await vaultStore.saveItem(item);
       return projectVaultItemMeta(findItem(item.id));

@@ -75,7 +75,10 @@ import {
   type SupportTransport,
   supportSessionSeams,
 } from "../../session.js";
-import { SupportLauncher } from "../../ui/SupportLauncher.js";
+import {
+  SupportLauncher,
+  SupportSlotProvider,
+} from "../../ui/SupportLauncher.js";
 
 export type JourneyUser = ReturnType<typeof userEvent.setup>;
 
@@ -84,14 +87,14 @@ let lockPresses = 0;
 let targetsCleared = 0;
 
 /**
- * The vault locks. However it was asked for — the statusline button, the idle
+ * The vault locks. However it was asked for — the profile button, the idle
  * timer, another tab — support only ever hears the event.
  */
 export function lockTheVault(): void {
   for (const handler of [...lockHandlers]) handler();
 }
 
-/** The statusline lock, as the shell reaches it through the vault store. */
+/** The profile lock, as the shell reaches it through the vault store. */
 function pressLock(): void {
   lockPresses += 1;
   lockTheVault();
@@ -281,7 +284,7 @@ export type Journey = {
   focused(): readonly string[];
   outcomes(): readonly GuideOutcome[];
   navigations(): readonly string[];
-  /** Presses of the statusline lock, by whoever made them. */
+  /** Presses of the profile lock, by whoever made them. */
   lockPresses(): number;
   targetsCleared(): number;
   engineDestroyed(): boolean;
@@ -317,10 +320,12 @@ export function renderJourney(
   render(
     <MemoryRouter initialEntries={[options.at ?? "/vault"]}>
       <SupportProvider>
-        <AppShell>
-          <Screens />
-        </AppShell>
-        <SupportLauncher />
+        <SupportSlotProvider>
+          <AppShell>
+            <Screens />
+          </AppShell>
+          <SupportLauncher />
+        </SupportSlotProvider>
       </SupportProvider>
     </MemoryRouter>,
   );

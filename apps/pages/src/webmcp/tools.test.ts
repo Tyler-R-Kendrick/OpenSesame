@@ -262,7 +262,7 @@ describe("opensesame_vault_item_write", () => {
       { uri: "https://forge.example", match: "domain" },
     ]);
     const stored = requireLogin(created.id);
-    expect(stored.password).toBe("");
+    expect(stored.password).toHaveLength(20);
     await vaultStore.purgeItem(stored.id);
   });
 

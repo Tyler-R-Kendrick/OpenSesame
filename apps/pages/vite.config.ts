@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const osDomainBrowser = fileURLToPath(
@@ -63,10 +64,15 @@ export default defineConfig({
       transformIndexHtml: {
         order: "pre",
         handler(html, ctx) {
-          if (!ctx.server) return html;
-          return html.replace(
-            "script-src 'self' 'wasm-unsafe-eval'",
-            "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+          const liveHtml = impeccableDevHtml(
+            html,
+            Boolean(ctx.server),
+            process.env.OPENSESAME_IMPECCABLE_LIVE === "1",
+          );
+          if (!ctx.server) return liveHtml;
+          return liveHtml.replace(
+            "script-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
           );
         },
       },

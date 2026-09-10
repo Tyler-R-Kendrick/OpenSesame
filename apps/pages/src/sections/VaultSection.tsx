@@ -9,12 +9,13 @@ import {
 } from "react-router";
 
 import { isString } from "@opensesame/os-domain";
-import { IconDownload, IconPlus } from "../components/Icons.js";
+import { IconDownload, IconPlus, IconUpload } from "../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { swipeBack } from "../lib/gestures.js";
 import { sweepDrops } from "../lib/vault/drop.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { stashImportFile } from "../lib/vault/import/handoff.js";
+import { itemCreatePath } from "../lib/vault/item-path.js";
 import {
   definitionFor,
   itemTypeId,
@@ -99,7 +100,6 @@ function MobileFilters({
   folderId: string | null;
 }) {
   const live = items.filter((item) => item.deletedAt === null);
-  const healthRef = useGuideTarget<HTMLAnchorElement>("vault.health");
   const chip = (query: string, isActive: boolean, label: string) => (
     <Link
       key={query || "all"}
@@ -142,9 +142,6 @@ function MobileFilters({
         ),
       )}
       {chip("?f=trash", filter === "trash", "Trash")}
-      <Link ref={healthRef} className="vault__chip" to="/vault/health">
-        Health
-      </Link>
     </fieldset>
   );
 }
@@ -157,7 +154,7 @@ const IMPORT_ACCEPT =
  * file is handed to the Settings import panel through `stashImportFile` so
  * clicking Import here is the only click before the file dialog opens.
  */
-function ImportButton({ verb = false }: { verb?: boolean }) {
+function ImportButton() {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const guideRef = useGuideTarget<HTMLButtonElement>("vault.import");
@@ -166,12 +163,12 @@ function ImportButton({ verb = false }: { verb?: boolean }) {
       <button
         ref={guideRef}
         type="button"
-        className={verb ? "icon-btn icon-btn--sm" : "btn btn--sm"}
-        aria-label={verb ? "Import items" : undefined}
-        title={verb ? "Import items" : undefined}
+        className="icon-btn icon-btn--sm"
+        aria-label="Import items"
+        title="Import items"
         onClick={() => fileRef.current?.click()}
       >
-        {verb ? <IconDownload size={15} /> : "Import"}
+        <IconDownload size={15} />
       </button>
       <input
         ref={fileRef}
@@ -192,10 +189,6 @@ function ImportButton({ verb = false }: { verb?: boolean }) {
 }
 
 /** Any registered type may be the one a filtered "+ new" creates. */
-function isRegisteredType(value: string): boolean {
-  return itemTypeRegistry().has(value);
-}
-
 function concealedValue(item: VaultItem): string | null {
   if (item.kind === "login") return item.password;
   if (item.kind === "secret") return item.value;
@@ -269,7 +262,10 @@ export function VaultSection() {
 
   const detailOpen = location.pathname !== "/vault";
   const title = folderId ? "Folder" : (FILTER_TITLE.get(filter) ?? "All items");
-  const createKind = isRegisteredType(filter) ? filter : "login";
+  const createPath = itemCreatePath(
+    itemTypeRegistry().has(filter) ? filter : undefined,
+    folderId,
+  );
   const treeFolders = useMemo(() => {
     if (folderId) return [];
     if (
@@ -317,11 +313,11 @@ export function VaultSection() {
       share: (item: VaultItem) => {
         if (item.kind === "secret") navigate(`/vault/${item.id}?share=drop`);
       },
-      create: () => navigate(`/vault/new/${createKind}`),
+      create: () => navigate(createPath),
     }),
     [
       copySecret,
-      createKind,
+      createPath,
       itemId,
       location.pathname,
       location.search,
@@ -337,8 +333,6 @@ export function VaultSection() {
   const detailRef = useRef<HTMLDivElement>(null);
   const listPaneRef = useRef<HTMLDivElement>(null);
   const newItemRef = useRef<HTMLAnchorElement>(null);
-  // Exactly one of the two "new item" affordances is on screen at a time —
-  // the empty state or the list header — so one binding covers both.
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = `/vault${location.search}`;
@@ -363,7 +357,7 @@ export function VaultSection() {
       const strandedInDetail =
         hidden(detail) && active !== null && detail.contains(active);
       if (idle || strandedInDetail) {
-        if (!landFocus(list.querySelector('[role="tree"]'))) {
+        if (!landFocus(list.querySelector('[role="tree"]:not([hidden])'))) {
           landFocus(newItemRef.current);
         }
       }
@@ -395,55 +389,40 @@ export function VaultSection() {
           folderId={folderId}
         />
 
-        {visible.length === 0 ? (
-          <div className="empty">
-            <h2>{filter === "trash" ? "Trash is empty" : "Nothing here"}</h2>
-            {filter !== "trash" ? (
-              // On narrow screens the detail pane is not rendered, so this is
-              // the only empty state a new arrival sees. It has to offer the
-              // import, not just mention it.
-              <div className="actions">
-                <Link
-                  ref={(element) => {
-                    newItemRef.current = element;
-                    createRef(element);
-                  }}
-                  className="btn btn--primary btn--sm"
-                  to={`/vault/new/${createKind}`}
-                >
-                  New item
-                </Link>
-                <ImportButton />
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <VaultTree
-            items={visible}
-            folders={treeFolders}
-            activeItemId={itemId}
-            actions={actions}
-            title={title}
-            total={total}
-            verbs={
-              <>
-                {/* Import sits beside new even with items present — arriving
-                    from another manager should not require an empty vault or
-                    a hunt through Settings to find it. */}
-                <Link
-                  ref={createRef}
-                  className="icon-btn icon-btn--sm"
-                  aria-label="New item"
-                  title="New item (n)"
-                  to={`/vault/new/${createKind}`}
-                >
-                  <IconPlus size={15} />
-                </Link>
-                <ImportButton verb />
-              </>
-            }
-          />
-        )}
+        <VaultTree
+          items={visible}
+          folders={treeFolders}
+          activeItemId={itemId}
+          actions={actions}
+          title={title}
+          total={total}
+          emptyMessage={filter === "trash" ? "Trash is empty" : "Nothing here"}
+          verbs={
+            <>
+              <Link
+                ref={(element) => {
+                  newItemRef.current = element;
+                  createRef(element);
+                }}
+                className="icon-btn icon-btn--sm"
+                aria-label="New item"
+                title="New item (n)"
+                to={createPath}
+              >
+                <IconPlus size={15} />
+              </Link>
+              <ImportButton />
+              <Link
+                className="icon-btn icon-btn--sm"
+                aria-label="Export items"
+                title="Export encrypted vault"
+                to="/settings/data#export"
+              >
+                <IconUpload size={15} />
+              </Link>
+            </>
+          }
+        />
       </div>
 
       {/* Dragging the buffer rightwards goes back to the list — the

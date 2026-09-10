@@ -363,9 +363,8 @@ describe("createWebMcpRegistrar against the current draft", () => {
       "opensesame_status",
       "opensesame_health",
     ]);
-    expect(liveWebMcpToolNames()).toEqual(
-      expect.arrayContaining(["opensesame_health", "opensesame_status"]),
-    );
+    await expect.poll(liveWebMcpToolNames).toContain("opensesame_health");
+    expect(liveWebMcpToolNames()).toContain("opensesame_status");
     unregister();
     expect(draft.tools.size).toBe(0);
     expect(liveWebMcpToolNames()).not.toContain("opensesame_status");

@@ -30,12 +30,22 @@ struct Client {
 
 impl Client {
     async fn get(&self, app: &Router, path: &str) -> (StatusCode, Value) {
+        self.request(app, "GET", path, Value::Null).await
+    }
+
+    async fn request(
+        &self,
+        app: &Router,
+        method: &str,
+        path: &str,
+        body: Value,
+    ) -> (StatusCode, Value) {
         let proof = opensesame_proof::sign_dpop_proof(
             &self.jwk,
             &self.key,
             &opensesame_proof::DpopClaims {
                 jti: uuid::Uuid::new_v4().to_string(),
-                htm: "GET".into(),
+                htm: method.into(),
                 htu: format!("{}{path}", self.resource),
                 iat: chrono::Utc::now().timestamp(),
                 ath: Some(opensesame_proof::access_token_hash(&self.token)),
@@ -46,12 +56,17 @@ impl Client {
             .clone()
             .oneshot(
                 Request::builder()
-                    .method("GET")
+                    .method(method)
                     .uri(path)
                     .header(header::ORIGIN, ORIGIN)
                     .header(header::AUTHORIZATION, format!("DPoP {}", self.token))
                     .header("dpop", proof)
-                    .body(Body::empty())
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(if body.is_null() {
+                        Body::empty()
+                    } else {
+                        Body::from(body.to_string())
+                    })
                     .unwrap(),
             )
             .await
@@ -63,6 +78,9 @@ impl Client {
         (status, serde_json::from_slice(&body).unwrap_or(Value::Null))
     }
 }
+
+#[path = "browser_pam_tests.rs"]
+mod pam;
 
 #[tokio::test]
 async fn paired_metadata_requires_verified_identity_and_current_project_permissions() {
