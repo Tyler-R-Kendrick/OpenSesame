@@ -66,7 +66,7 @@ try {
     if (url.pathname.endsWith("/identity") && view) {
       const later = page.getByRole("button", { name: /set up later/i });
       if (await later.isVisible()) await later.click();
-      const label = view === "service-accounts" ? "Service accounts" : view;
+      const label = view === "service-accounts" ? "Applications" : view;
       await page
         .getByRole("tab", { selected: true })
         .filter({ hasText: new RegExp(label, "i") })
