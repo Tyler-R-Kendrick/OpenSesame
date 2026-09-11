@@ -1,4 +1,4 @@
-/** Sample the real CSS timeline; only one character reel may move at a time. */
+/** Sample the real CSS timeline; only one character lock may move at a time. */
 export async function checkWordmark(page, check) {
   const wordmark = page.locator(".wordmark:visible").first();
   // Earlier first-load checks may outlast the reveal; restart its CSS timeline.
@@ -6,8 +6,8 @@ export async function checkWordmark(page, check) {
   await wordmark.evaluate((mark) => getComputedStyle(mark).display);
   await page.emulateMedia({ reducedMotion: "no-preference" });
   const timeline = await wordmark.evaluate((mark) => {
-    const reels = [...mark.querySelectorAll(".wordmark__reel")];
-    const animations = reels.map((reel) => reel.getAnimations()[0]);
+    const slots = [...mark.querySelectorAll(".wordmark__slot")];
+    const animations = slots.map((slot) => slot.getAnimations()[0]);
     for (const animation of mark.getAnimations({ subtree: true })) {
       animation.pause();
       animation.currentTime =
@@ -19,7 +19,7 @@ export async function checkWordmark(page, check) {
         const progress = animation?.effect.getComputedTiming().progress;
         return progress > 0 && progress < 1;
       }).length,
-      slots: [...mark.querySelectorAll(".wordmark__slot")].map((slot) => ({
+      slots: slots.map((slot) => ({
         width: slot.getBoundingClientRect().width,
         background: getComputedStyle(slot).backgroundColor,
       })),

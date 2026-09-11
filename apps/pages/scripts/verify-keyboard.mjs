@@ -147,6 +147,9 @@ try {
       await expect(items).toBeFocused();
       await tabTo(page, rail, "Shift+Tab");
       const before = page.url();
+      // The section arrives open: the first stop is its own listing (the page
+      // already shown), the second previews the favorites filter.
+      await page.keyboard.press("ArrowDown");
       await page.keyboard.press("ArrowDown");
       await expect(page).not.toHaveURL(before);
       await expect(rail).toBeFocused();
