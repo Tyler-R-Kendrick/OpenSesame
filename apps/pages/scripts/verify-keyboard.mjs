@@ -104,6 +104,8 @@ try {
       await expect(page).not.toHaveURL(before);
       await page.keyboard.press("g");
       await page.keyboard.press("v");
+      await expect(page).toHaveURL(/\/vault\/?(\?|$)/);
+      await expect(create).toBeVisible();
       await tabTo(page, create);
     }
     await page.keyboard.press("Enter");

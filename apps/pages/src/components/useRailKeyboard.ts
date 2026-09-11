@@ -123,7 +123,11 @@ export function useRailKeyboard(
           list.find((item) => item.dataset.railTo === path) ??
           list.find((item) => (item.dataset.railTo ?? "").startsWith(path));
         if (row) activate(row);
-        else navigateRef.current(path);
+        const here = (currentToRef.current || locationHere()).replace(
+          /[?#].*$/,
+          "",
+        );
+        if (here !== path) navigateRef.current(path);
       },
       ...branchActions(tree, () => rows()[selectedIndex(rows())], dive),
       activate: () => rows()[selectedIndex(rows())]?.click(),
