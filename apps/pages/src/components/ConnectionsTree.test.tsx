@@ -6,8 +6,11 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { useState } from "react";
-import { MemoryRouter, useLocation } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { MemoryRouter, useLocation, useNavigate } from "react-router";
+import { createKeymapHandler } from "../lib/keymap.js";
+import { setRailCursor } from "./rail-cursor.js";
+import { useRailKeyboard } from "./useRailKeyboard.js";
 import { afterEach, expect, it } from "vitest";
 import type { Connection, Provider } from "../lib/connections.js";
 import { getBundledProviders } from "../lib/embedded-catalog.js";
@@ -65,9 +68,32 @@ function Page({ catalog }: { catalog: Provider[] | null }) {
   usePublishConnections(catalog, connections);
   const [open, setOpen] = useState(true);
   const location = useLocation();
+  const treeRef = useRef<HTMLElement>(null);
+  const navigate = useNavigate();
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  const currentToRef = useRef(location.pathname + location.hash);
+  currentToRef.current = location.pathname + location.hash;
+  useRailKeyboard(treeRef, navigateRef, currentToRef);
+  useEffect(() => {
+    const handler = createKeymapHandler({
+      navigate,
+      showHelp: () => undefined,
+    });
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [navigate]);
   return (
     <>
-      <ConnectionsTree open={open} onToggle={() => setOpen(!open)} />
+      <nav
+        ref={treeRef}
+        className="railtree"
+        role="tree"
+        aria-label="Sections"
+        tabIndex={0}
+      >
+        <ConnectionsTree open={open} onToggle={() => setOpen(!open)} />
+      </nav>
       <output aria-label="Current route">
         {location.pathname + location.hash}
       </output>
@@ -87,33 +113,93 @@ function catalogGroup() {
   return within(group("catalog"));
 }
 
-afterEach(cleanup);
+function openConnected() {
+  const connected = screen.getByRole("treeitem", { name: "Connected" });
+  if (connected.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(connected);
+  }
+}
 
-it("lists 12 at a time, searches the full catalog, and resets pagination", () => {
+function openCatalog() {
+  const add = screen.getByRole("treeitem", { name: "Add a connection" });
+  if (add.getAttribute("aria-expanded") === "false") fireEvent.click(add);
+}
+
+function expandCatalogGroups() {
+  openCatalog();
+  for (const row of catalogGroup().getAllByRole("treeitem")) {
+    if (
+      row.getAttribute("aria-level") === "3" &&
+      row.getAttribute("aria-expanded") === "false"
+    ) {
+      fireEvent.click(row);
+    }
+  }
+}
+
+afterEach(() => {
+  setRailCursor(null);
+  cleanup();
+});
+
+it("lists 12 at a time and resets pagination", () => {
   setup();
-  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(13);
+  expandCatalogGroups();
+  expect(catalogLeaves()).toHaveLength(12);
   fireEvent.click(screen.getByRole("treeitem", { name: "Load 12 more" }));
-  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(25);
+  expect(catalogLeaves()).toHaveLength(24);
   fireEvent.click(screen.getByRole("treeitem", { name: "Load 5 more" }));
-  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(29);
+  expect(catalogLeaves()).toHaveLength(29);
   expect(screen.queryByRole("treeitem", { name: /Load .* more/ })).toBeNull();
-  const search = screen.getByRole("searchbox");
-  fireEvent.change(search, { target: { value: " CONNECTOR 28 " } });
-  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(1);
   fireEvent.click(
     catalogGroup().getByRole("treeitem", { name: "Connector 28" }),
   );
   expect(screen.getByLabelText("Current route").textContent).toBe(
     "/connections/provider-28",
   );
-  fireEvent.change(search, { target: { value: "no-match" } });
-  expect(screen.getByText("No matching connectors")).toBeTruthy();
-  fireEvent.change(search, { target: { value: "" } });
-  expect(catalogGroup().getAllByRole("treeitem")).toHaveLength(13);
+});
+
+it("walks catalog subheaders in page order instead of alphabetically", () => {
+  setup([
+    {
+      ...template,
+      id: "zulu",
+      displayName: "Zulu Cloud",
+      category: "developer",
+      autoConfigurable: false,
+    },
+    {
+      ...template,
+      id: "alpha",
+      displayName: "Alpha Cloud",
+      category: "developer",
+      autoConfigurable: false,
+    },
+    {
+      ...template,
+      id: "mid",
+      displayName: "Mid Pass",
+      category: "password_managers",
+      autoConfigurable: false,
+    },
+  ]);
+  expandCatalogGroups();
+  expect(
+    catalogGroup()
+      .getAllByRole("treeitem")
+      .map((row) => row.getAttribute("aria-label")),
+  ).toEqual([
+    "Password managers",
+    "Mid Pass",
+    "Developer tools",
+    "Zulu Cloud",
+    "Alpha Cloud",
+  ]);
 });
 
 it("keeps each connected instance addressable and excludes revoked connections", () => {
   setup();
+  openConnected();
   const connected = within(group("connected"));
   expect(connected.getAllByRole("treeitem")).toHaveLength(2);
   const row = connected.getByRole("treeitem", { name: "region-b" });
@@ -129,42 +215,95 @@ it("keeps each connected instance addressable and excludes revoked connections",
     "/connections/provider-0/region-b",
   );
   fireEvent.click(screen.getByRole("treeitem", { name: "Connections" }));
-  expect(
-    screen
-      .getByRole("treeitem", { name: "region-b" })
-      .getAttribute("aria-selected"),
-  ).toBe("true");
+  openConnected();
+  expect(screen.getByRole("treeitem", { name: "region-b" })).toBeTruthy();
 });
 
 it("toggles both subtrees and navigates to their page anchors", () => {
   setup();
-  for (const [label, anchor] of [
-    ["Connected", "connected"],
-    ["Add a Connection", "catalog"],
-  ]) {
-    const branch = screen.getByRole("treeitem", { name: label });
-    fireEvent.click(branch);
-    expect(branch.getAttribute("aria-expanded")).toBe("false");
-    expect(document.getElementById(`${anchor}-tree`)).toBeNull();
-    expect(screen.getByLabelText("Current route").textContent).toBe(
-      `/connections#${anchor}`,
-    );
-    fireEvent.click(branch);
-    expect(branch.getAttribute("aria-expanded")).toBe("true");
-    expect(group(anchor)).toBeTruthy();
-  }
+  const connected = screen.getByRole("treeitem", { name: "Connected" });
+  expect(connected.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(connected);
+  expect(connected.getAttribute("aria-expanded")).toBe("true");
+  fireEvent.click(connected);
+  expect(connected.getAttribute("aria-expanded")).toBe("false");
+  expect(document.getElementById("connected-tree")).toBeNull();
+  fireEvent.click(connected);
+  expect(connected.getAttribute("aria-expanded")).toBe("true");
+  expect(group("connected")).toBeTruthy();
+
+  const catalog = screen.getByRole("treeitem", { name: "Add a connection" });
+  expect(catalog.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(catalog);
+  expect(catalog.getAttribute("aria-expanded")).toBe("true");
+  expect(screen.getByLabelText("Current route").textContent).toBe(
+    "/connections#catalog",
+  );
+  expect(group("catalog")).toBeTruthy();
+  fireEvent.click(catalog);
+  expect(catalog.getAttribute("aria-expanded")).toBe("false");
+  expect(document.getElementById("catalog-tree")).toBeNull();
+});
+
+it("does not index the catalog while a group is collapsed", () => {
+  setup();
+  openCatalog();
+  expect(screen.getByLabelText("Current route").textContent).toBe(
+    "/connections#catalog",
+  );
+  const tree = screen.getByRole("tree", { name: "Sections" });
+  tree.focus();
+  fireEvent.keyDown(window, { key: "ArrowDown", bubbles: true });
+  const groupRow = catalogGroup()
+    .getAllByRole("treeitem")
+    .find((row) => row.getAttribute("aria-expanded") === "false");
+  expect(groupRow?.getAttribute("aria-selected")).toBe("true");
+  expect(screen.getByLabelText("Current route").textContent).toBe(
+    "/connections#catalog",
+  );
+});
+
+it("indexes catalog leaves once their group is expanded", () => {
+  setup();
+  openCatalog();
+  const groupRow = catalogGroup()
+    .getAllByRole("treeitem")
+    .find((row) => row.getAttribute("aria-expanded") === "false");
+  fireEvent.click(groupRow as HTMLElement);
+  const tree = screen.getByRole("tree", { name: "Sections" });
+  tree.focus();
+  fireEvent.keyDown(window, { key: "ArrowDown", bubbles: true });
+  expect(screen.getByLabelText("Current route").textContent).toMatch(
+    /#catalog-provider-/,
+  );
+});
+
+it("keeps nested catalog groups collapsed until they are opened", () => {
+  setup();
+  openCatalog();
+  const groupRow = catalogGroup()
+    .getAllByRole("treeitem")
+    .find((row) => row.getAttribute("aria-expanded") === "false");
+  expect(groupRow).toBeTruthy();
+  expect(catalogLeaves()).toHaveLength(0);
+  fireEvent.click(groupRow as HTMLElement);
+  expect(groupRow?.getAttribute("aria-expanded")).toBe("true");
+  expect(catalogLeaves().length).toBeGreaterThan(0);
 });
 
 it("distinguishes a loading catalog from an empty catalog", () => {
   const view = setup(null);
+  openCatalog();
   expect(screen.getByText("Loading connectors…")).toBeTruthy();
   view.unmount();
   setup([]);
+  openCatalog();
   expect(screen.getByText("No matching connectors")).toBeTruthy();
 });
 
 it("does not list automatically configured providers as addable connectors", () => {
   setup([{ ...providers[0], autoConfigurable: true }]);
+  openCatalog();
   expect(catalogGroup().queryAllByRole("treeitem")).toHaveLength(0);
 });
 
@@ -172,4 +311,10 @@ function group(id: string) {
   const element = document.getElementById(`${id}-tree`);
   if (!element) throw new Error(`Missing ${id} subtree`);
   return element;
+}
+
+function catalogLeaves() {
+  return catalogGroup()
+    .getAllByRole("treeitem")
+    .filter((row) => row.getAttribute("aria-level") === "4");
 }

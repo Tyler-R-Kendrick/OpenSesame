@@ -45,8 +45,7 @@
   flex-direction: column;
   transform: translateY(calc(-100% + 1em));
   animation-name: wordmark-decrypt;
-  animation-duration: inherit;
-  animation-delay: inherit;
+  animation-delay: 0s;
   animation-fill-mode: backwards;
 }
 

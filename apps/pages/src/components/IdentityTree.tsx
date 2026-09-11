@@ -1,6 +1,9 @@
-import { useSearchParams } from "react-router";
-import { IDENTITY_LABELS, IDENTITY_VIEWS } from "../lib/section-views.js";
-import { SECTIONS, SectionRow, TreeRow } from "./RailRows.js";
+import { useLocation, useSearchParams } from "react-router";
+import { IDENTITY_VIEWS } from "../lib/section-views.js";
+import { identityPageTree } from "../sections/identity/page-tree.js";
+import { useIdentityRailSnapshot } from "../sections/identity/use-local-directory.js";
+import { PageTreeBranch } from "./PageTreeBranch.js";
+import { SECTIONS, SectionRow } from "./RailRows.js";
 
 export function IdentityTree({
   open,
@@ -12,8 +15,11 @@ export function IdentityTree({
   onToggle: () => void;
 }) {
   const [params] = useSearchParams();
+  const { hash } = useLocation();
   const view =
     IDENTITY_VIEWS.find((id) => id === params.get("view")) ?? "people";
+  const current = `/identity?view=${view}${hash}`;
+  const tabs = identityPageTree(useIdentityRailSnapshot());
   return (
     <>
       <SectionRow
@@ -24,17 +30,14 @@ export function IdentityTree({
         onToggle={onToggle}
       />
       {open ? (
-        <div className="railtree__kids">
-          {IDENTITY_VIEWS.map((id) => (
-            <TreeRow
-              key={id}
-              child
-              to={`/identity?view=${id}`}
-              selected={view === id}
-              isActive={view === id}
-            >
-              <span className="railtree__name">{IDENTITY_LABELS[id]}</span>
-            </TreeRow>
+        <div className="railtree__kids" id="identity-tree">
+          {tabs.map((node) => (
+            <PageTreeBranch
+              key={node.id}
+              node={node}
+              level={2}
+              current={current}
+            />
           ))}
         </div>
       ) : null}

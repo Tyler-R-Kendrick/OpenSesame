@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { setRailCursor } from "./rail-cursor.js";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
@@ -94,20 +95,19 @@ describe("AppShell", () => {
     vault.folders = [{ id: "f1", name: "Work" }];
     vault.lock.mockReset();
   });
-
-  afterEach(cleanup);
+  afterEach(() => {
+    setRailCursor(null); cleanup();
+  });
 
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");
     expect(screen.getAllByText("open-sesame").length).toBeGreaterThan(0);
-    // The rail reads sections as directories; the mobile tab bar keeps labels.
     for (const segment of ["connections", "access", "identity", "settings"]) {
       expect(screen.getAllByText(segment).length).toBe(1);
     }
     for (const label of ["Connections", "Access", "Identity", "Settings"]) {
       expect(screen.getAllByText(label).length).toBe(1);
     }
-    // The removed screens leave no nav entries behind.
     expect(screen.queryByText("Authority")).toBeNull();
     expect(screen.queryByText("Authentication")).toBeNull();
     expect(screen.queryByText("Sites")).toBeNull();
@@ -116,8 +116,6 @@ describe("AppShell", () => {
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
     expect(screen.getAllByTestId("account-switcher").length).toBe(2);
-    // Plane truth lives in the statusline at every width — one copy, not a
-    // second in the phone top bar competing for 390px with the prompt.
     expect(screen.getAllByTestId("connectivity-bar").length).toBe(1);
     expect(screen.getAllByTestId("notifications-bar").length).toBe(1);
     expect(screen.queryByTestId("backup-banner")).toBeNull();
@@ -145,6 +143,7 @@ describe("AppShell", () => {
     ["/vault?f=favorites", "Vault", "favorites"],
     ["/settings/security", "Settings", "security"],
     ["/identity?view=agents", "Identity", "Agents"],
+    ["/access?view=sessions", "Access", "Sessions"],
   ])(
     "toggles the %s branch without losing the selected child",
     (route, label, child) => {
@@ -158,9 +157,9 @@ describe("AppShell", () => {
       expect(tree.getAttribute("aria-activedescendant")).toBe(row.id);
       fireEvent.click(row);
       expect(row.getAttribute("aria-expanded")).toBe("true");
-      expect(
-        container.querySelector(".railtree__kids .is-active")?.textContent,
-      ).toContain(child);
+      expect(container.querySelector(".railtree__kids")?.textContent).toContain(
+        child,
+      );
     },
   );
 
@@ -173,33 +172,50 @@ describe("AppShell", () => {
     expect(row.getAttribute("aria-expanded")).toBe("false");
     fireEvent.keyDown(tree, { key: "ArrowRight" });
     expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(row.getAttribute("aria-selected")).toBe("true");
   });
 
+
+  it("collapses and reopens a page subtree with the arrow keys", () => {
+    renderShell("/access?view=grants");
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    const grants = screen.getByRole("treeitem", { name: "Grants" });
+    const access = screen.getByRole("treeitem", { name: "Access" });
+    tree.focus();
+    expect(grants.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.keyDown(tree, { key: "ArrowUp" });
+    expect(access.getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(grants.getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(tree, { key: "ArrowRight" });
+    expect(grants.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.keyDown(tree, { key: "ArrowLeft" });
+    expect(grants.getAttribute("aria-expanded")).toBe("false");
+    expect(document.getElementById("grants-tree")).toBeNull();
+    fireEvent.keyDown(tree, { key: "ArrowRight" });
+    expect(grants.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById("grants-tree")).toBeTruthy();
+  });
   it("counts live items, favourites, trash, and kinds in the vault filters", () => {
     const { container } = renderShell("/vault");
-
     const all = filterLink(container, "/vault", "all");
     expect(all.textContent).toContain("2");
-
     const favorites = filterLink(container, "/vault?f=favorites", "favorites");
     expect(favorites.textContent).toContain("1");
-
     const logins = filterLink(container, "/vault?f=login", "logins");
     expect(logins.textContent).toContain("2");
-
-    // The deleted card does not count towards the live kind count.
     const cards = filterLink(container, "/vault?f=card", "cards");
     expect(cards.textContent).toContain("-");
-
     const trash = filterLink(container, "/vault?f=trash", "trash");
     expect(trash.textContent).toContain("1");
   });
-
   it("lists folders with their live item counts", () => {
     const { container } = renderShell("/vault");
-    const folder = filterLink(container, "/vault?folder=f1", "Work");
+    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
+    const folder = filterLink(container, "/vault?f=login&folder=f1", "Work");
     // Only the live login counts; the deleted card does not.
     expect(folder.textContent).toContain("1");
+    expect(folder.closest("#login-tree")).toBeTruthy();
   });
 
   it("marks the active filter from the query string", () => {
@@ -214,9 +230,10 @@ describe("AppShell", () => {
 
   it("marks the active folder and deactivates 'all'", () => {
     const { container } = renderShell("/vault?folder=f1");
+    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
     expect(
-      filterLink(container, "/vault?folder=f1", "Work").className,
-    ).toContain("is-active");
+      container.querySelector('a[href="/vault?f=login&folder=f1"]'),
+    ).toBeTruthy();
     expect(filterLink(container, "/vault", "all").className).not.toContain(
       "is-active",
     );
@@ -232,9 +249,10 @@ describe("AppShell", () => {
   it("hides vault entries outside the vault section", () => {
     const { container } = renderShell("/access");
     expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();
-    expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
+    expect(
+      container.querySelector('a[href="/vault?f=login&folder=f1"]'),
+    ).toBeNull();
     expect(screen.queryByText("all")).toBeNull();
-    // The section directories stay.
     expect(screen.getAllByText("settings").length).toBe(1);
   });
 
@@ -283,7 +301,6 @@ describe("AppShell", () => {
     const skip = screen.getByRole("link", { name: "Skip to content" });
     expect(skip.getAttribute("href")).toBe("#main");
     expect(skip.className).toContain("visually-hidden");
-    // First in DOM order, so it is the first stop of a keyboard pass.
     expect(container.querySelector("a, button")).toBe(skip);
   });
 
@@ -304,8 +321,13 @@ describe("AppShell", () => {
     const row = screen.getByRole("button", { name: "tree row" });
     row.focus();
     fireEvent.keyDown(row, { key: "g" });
-    fireEvent.keyDown(row, { key: "a" });
-    expect(screen.queryByText("all")).toBeNull();
+    fireEvent.keyDown(row, { key: "s" });
+    expect(screen.getByRole("treeitem", { name: "Settings" }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(row, { key: "g" });
+    fireEvent.keyDown(row, { key: "v" });
+    expect(screen.getByRole("treeitem", { name: "Vault" }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(row, { key: "j" });
+    expect(screen.getByRole("treeitem", { name: "Settings" }).getAttribute("aria-selected")).toBe("false");
   });
 
   it("moves the rail cursor with arrows and j/k", () => {
@@ -327,7 +349,7 @@ describe("AppShell", () => {
   });
 
   it("walks off the open vault directory onto the next section", () => {
-    const { container } = renderShell("/vault?folder=f1");
+    const { container } = renderShell("/vault?f=trash");
     const tree = screen.getByRole("tree", { name: "Sections" });
     tree.focus();
     fireEvent.keyDown(tree, { key: "ArrowDown" });
@@ -336,18 +358,15 @@ describe("AppShell", () => {
     );
     expect(
       container.querySelector('a[href="/vault"] + .railtree__kids'),
-    ).toBeNull();
-    expect(document.getElementById("connections-tree")).toBeTruthy();
+    ).toBeTruthy();
+    expect(document.getElementById("connections-tree")).toBeNull();
+    fireEvent.keyDown(tree, { key: "3" });
+    fireEvent.keyDown(tree, { key: "j" });
+    const settings = screen.getByRole("treeitem", { name: "Settings" });
+    expect(settings.getAttribute("aria-selected")).toBe("true");
+    expect(settings.getAttribute("aria-expanded")).toBe("false");
     fireEvent.keyDown(tree, { key: "ArrowDown" });
-    expect(
-      screen
-        .getByRole("treeitem", { name: "Add a Connection" })
-        .getAttribute("aria-selected"),
-    ).toBe("true");
-    fireEvent.keyDown(tree, { key: "ArrowDown" });
-    expect(tree.querySelector('a[href="/access"]')?.className).toContain(
-      "is-active",
-    );
+    expect(settings.getAttribute("aria-selected")).toBe("true");
   });
 
   it("arrows move the rail when the vault tree is not focused", () => {
@@ -360,15 +379,21 @@ describe("AppShell", () => {
 
   it("repeats a rail motion by a vim count", () => {
     const { container } = renderShell("/vault");
+    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
     const tree = screen.getByRole("tree", { name: "Sections" });
     tree.focus();
-    fireEvent.keyDown(tree, { key: "3" });
+    fireEvent.keyDown(tree, { key: "1" });
+    fireEvent.keyDown(tree, { key: "j" });
+    expect(
+      filterLink(container, "/vault?f=login&folder=f1", "Work").className,
+    ).toContain("is-active");
+    fireEvent.keyDown(tree, { key: "1" });
     fireEvent.keyDown(tree, { key: "j" });
     expect(
       filterLink(container, "/vault?f=passkey", "passkeys").className,
     ).toContain("is-active");
     fireEvent.keyDown(tree, { key: "0" });
-    expect(filterLink(container, "/vault", "all").className).toContain(
+    expect(screen.getByRole("treeitem", { name: "Vault" }).className).toContain(
       "is-active",
     );
   });

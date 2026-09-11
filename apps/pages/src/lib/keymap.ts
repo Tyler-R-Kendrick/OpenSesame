@@ -14,6 +14,8 @@ export type ListingMotion = {
   focus?: () => void;
   /** 0-based. `5G` lands here instead of first()+next(4), which reshapes the rail. */
   toIndex?: (index: number) => void;
+  /** `gv` / `gs` — move the rail index to that section, not only the page. */
+  goTo?: (path: string) => void;
 };
 
 export type VaultKeymapTarget = ListingMotion & {
@@ -30,6 +32,11 @@ export type VaultKeymapTarget = ListingMotion & {
 };
 
 export type RailKeymapTarget = ListingMotion;
+
+export type SearchKeymapTarget = {
+  search: () => void;
+  closeSearch: () => void;
+};
 
 type KeymapOptions = {
   navigate: (path: string) => void;
@@ -51,6 +58,15 @@ export function registerRailKeymap(target: RailKeymapTarget): () => void {
   railTarget = target;
   return () => {
     if (railTarget === target) railTarget = null;
+  };
+}
+
+let searchTarget: SearchKeymapTarget | null = null;
+
+export function registerSearchKeymap(target: SearchKeymapTarget): () => void {
+  searchTarget = target;
+  return () => {
+    if (searchTarget === target) searchTarget = null;
   };
 }
 
@@ -160,6 +176,27 @@ function goToCount(target: ListingMotion | null, n: number): void {
   if (n > 1) target.next(n - 1);
 }
 
+function applyGoChord(
+  event: KeyboardEvent,
+  count: number,
+  navigate: (path: string) => void,
+): boolean {
+  if (event.key === "g") {
+    if (count > 0) goToCount(movementTarget(event), count);
+    else movementTarget(event)?.first();
+    event.preventDefault();
+    return true;
+  }
+  const path = SECTION_PATHS.get(event.key.toLowerCase());
+  if (!path) return false;
+  if (railTarget?.goTo) {
+    railTarget.goTo(path);
+    railTarget.focus?.();
+  } else navigate(path);
+  event.preventDefault();
+  return true;
+}
+
 function times(n: number, run: () => void): void {
   for (let i = 0; i < n; i++) run();
 }
@@ -256,9 +293,10 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     "Control+n": run((listing, steps) => listing?.next(steps)),
     "Control+p": run((listing, steps) => listing?.previous(steps)),
     Enter: run((listing) => listing?.activate()),
-    "/": verb(() => vaultTarget?.search()),
+    "/": verb(() => (searchTarget ?? vaultTarget)?.search()),
     Escape: (event) => {
       count = 0;
+      searchTarget?.closeSearch();
       vaultTarget?.closeSearch();
       (movementTarget(event) ?? vaultTarget ?? railTarget)?.focus?.();
       event.preventDefault();
@@ -341,21 +379,9 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     }
 
     if (pendingGo) {
-      if (event.key === "g") {
-        const n = count;
+      if (applyGoChord(event, count, navigate)) {
         count = 0;
         clearGo();
-        if (n > 0) goToCount(movementTarget(event), n);
-        else movementTarget(event)?.first();
-        event.preventDefault();
-        return;
-      }
-      const path = SECTION_PATHS.get(event.key.toLowerCase());
-      if (path) {
-        count = 0;
-        clearGo();
-        navigate(path);
-        event.preventDefault();
         return;
       }
       clearGo();

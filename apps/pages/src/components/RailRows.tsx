@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { setRailCursor, useRailCursor } from "./rail-cursor.js";
 import {
   IconAuthority,
   IconChevronRight,
@@ -95,8 +96,8 @@ export function TreeRow({
   end?: boolean;
   /** Set only on rows the tutorial registry names, so a guide can point here. */
   navRef?: (element: HTMLAnchorElement | null) => void;
-  /** Closed directories and every leaf are in the arrow-key walk; an open
-   *  directory is not — its children are. */
+  /** Every row is in the arrow-key walk, including an open directory, so up
+   *  from its first child selects the parent instead of a sibling subtree. */
   move?: boolean;
   selected?: boolean;
   expanded?: boolean;
@@ -106,17 +107,23 @@ export function TreeRow({
   busy?: boolean;
 }) {
   const fixed = isActive !== undefined;
+  const id = railRowId(selectTo ?? to, child);
+  const cursor = useRailCursor();
+  const onCursor = cursor !== null && cursor === id;
+  const shownSelected = cursor !== null ? onCursor : selected;
+  const shownActive = (routeActive: boolean) =>
+    cursor !== null ? onCursor : fixed ? Boolean(isActive) : routeActive;
   return (
     <NavLink
       ref={navRef}
-      id={railRowId(selectTo ?? to, child)}
+      id={id}
       to={to}
       end={end}
       role="treeitem"
       tabIndex={-1}
       aria-label={label}
       aria-level={level ?? (child ? 2 : 1)}
-      aria-selected={selected}
+      aria-selected={shownSelected}
       aria-expanded={expanded}
       aria-busy={busy}
       onClick={(event) => {
@@ -127,8 +134,11 @@ export function TreeRow({
           event.ctrlKey ||
           event.shiftKey ||
           event.altKey
-        )
+        ) {
+          setRailCursor(null);
           return;
+        }
+        setRailCursor(event.currentTarget.id);
         event.preventDefault();
         onToggle();
       }}
@@ -137,9 +147,9 @@ export function TreeRow({
       data-rail-preview={selectTo ? "" : undefined}
       className={
         fixed
-          ? `railtree__row${child ? " railtree__row--child" : ""}${isActive ? " is-active" : ""}`
+          ? `railtree__row${child ? " railtree__row--child" : ""}${shownActive(Boolean(isActive)) ? " is-active" : ""}`
           : ({ isActive: routeActive }) =>
-              `railtree__row${child ? " railtree__row--child" : ""}${routeActive ? " is-active" : ""}`
+              `railtree__row${child ? " railtree__row--child" : ""}${shownActive(routeActive) ? " is-active" : ""}`
       }
     >
       {/* react-router NavLink children typing vs React 19 ReactNode */}
@@ -165,7 +175,7 @@ export function SectionRow({
   section: (typeof SECTIONS)[number];
   open: boolean;
   count?: number;
-  /** True when this directory is open and its children are the walk. */
+  /** True when this directory is open. */
   branch?: boolean;
   active?: boolean;
   onToggle?: () => void;
@@ -176,8 +186,8 @@ export function SectionRow({
       to={section.to}
       label={section.label}
       navRef={ref}
-      move={!branch}
       selected={!branch && active}
+      isActive={active}
       expanded={onToggle ? open : undefined}
       onToggle={onToggle}
     >

@@ -147,9 +147,17 @@ cargo build -p opensesame-gateway -p opensesame-cli -p opensesame-daemon
 # (GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH) → `gh auth token`
 ```
 
-**Pages (offline PWA) dev server:**
+**Pages (offline PWA) — local debug (attached HMR):**
+When the human says run the app locally, attach a live debug session. Do
+not hand off a URL, a `preview` of `dist/`, or a headless `verify:*` run.
+
 ```bash
-pnpm --filter @opensesame/pages dev   # vite --port 5180 --strictPort
+pnpm --filter @opensesame/pages dev:web   # vite --port 5180 --strictPort --host localhost
+# Keep this process attached. Open http://localhost:5180 (localhost, not
+# 127.0.0.1, for passkeys). Watch console, pageerror, and failed requests.
+# Patch source so Vite HMR updates the same session; do not restart from
+# dist/ unless a merge-gate build was requested.
+pnpm --filter @opensesame/pages dev       # full stack: gateway + Identity + mock IdPs + Vite
 ```
 
 **Pages as a static front end, no backend (ADR 0090) — run before touching
@@ -256,6 +264,15 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 
 ## 5. Design rules that gate merges
 
+- **Local app runs are attached HMR debug sessions.** "Run it locally",
+  "start the app", or "let me test" means: keep the Vite (or other) dev
+  server as a long-lived attached process, open that origin in a
+  browser/debug session, and watch console errors, page errors, and failed
+  requests with full stacks. Fix against the hot-reloaded session; do not
+  kill it to run a production `dist/` or a headless `verify:*` harness
+  unless that gate was the request. Pages UI without a backend is
+  `pnpm --filter @opensesame/pages dev:web` on `:5180`. Procedure:
+  `skills/local-debug-session/SKILL.md`.
 - **Keyboard access is a core product contract, not optional polish.** Every
   arrival (cold load, reload, guest/unlock, deep link, route change and modal
   close) must leave visible, useful focus. Never steal focus from an active
@@ -320,9 +337,10 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   sign-in and unlock screens. It lives in three places and all three are
   required: the "Continue as guest" button in
   `apps/pages/src/screens/unlock/SignInPanel.tsx` on **both** placements
-  (first run *and* the "Sign in" tab beside an existing vault), the "Skip"
-  corner link on first run, and the "Continue as guest" link in the Unlock
-  tab's footer in `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
+  (first run *and* the sign-in panel opened from the user menu beside an
+  existing vault), the "Skip" corner link on first run, and the "Continue as
+  guest" link in the unlock form's footer in
+  `apps/pages/src/screens/UnlockScreen.tsx`. This flow has
   been removed by accident repeatedly — by gating it on Identity API
   availability, and by withholding it beside an existing vault. Neither is
   legitimate. `continueAsGuest` (`apps/pages/src/lib/guest-auth.ts`) seals a
@@ -346,7 +364,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   are exactly the enrolled methods, never a uniform three; an enrolled
   authenticator code is announced as step 2 before step 1 is taken. Sign out
   is one operation in `apps/pages/src/lib/session-exit.ts` (forget the
-  assertion, revoke Identity, lock, note it for the Sign in tab); "switch
+  assertion, revoke Identity, lock, note it for the sign-in panel); "switch
   account" is that plus `prompt=login` on the next OIDC leg, and never on
   Shoo's dialect, which ignores it. A second step (authenticator, email or
   text code) may be enrolled only once a primary method exists and only after
@@ -628,6 +646,7 @@ directly so their own updater can refresh them.
 | `opensesame-mcps` | `skills/opensesame-mcps/SKILL.md` | Install, configure, initialize, and use OpenSesame MCP servers |
 | `install-anti-slop` | `skills/install-anti-slop/SKILL.md` | Install and configure the vendored Oxlint anti-slop plugin |
 | `security-review` | `skills/security-review/SKILL.md` | Run repository security gates and targeted Codex Security reviews |
+| `local-debug-session` | `skills/local-debug-session/SKILL.md` | Attach a live HMR debug session when asked to run the app locally; watch real console/page/network errors and patch the hot-reloaded process |
 | `impeccable` | `.agents/skills/impeccable/SKILL.md` | Third-party frontend design skill ([pbakaus/impeccable](https://github.com/pbakaus/impeccable), Apache 2.0), installed via `npx impeccable install` — lives in `.agents/skills/` (not `skills/`) so `npx impeccable update` can refresh it; design detector hook in `.codex/hooks.json` + `.claude/settings.local.json` |
 | `scandinavian-design` | `.claude/skills/scandinavian-design/SKILL.md` | Third-party ([ericzakariasson/scandinavian-design](https://github.com/ericzakariasson/scandinavian-design)), installed via `npx skills add ericzakariasson/scandinavian-design` — the visual-restraint contract behind the Scandinavian retoken; its `scripts/*.js` verifiers are patched to launch the container's pinned Chromium (`/opt/pw-browsers/chromium`) instead of a system Chrome |
 | `minimalist-ui` | `.claude/skills/minimalist-ui/SKILL.md` | Third-party ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT), installed via `npx skills add Leonxlnx/taste-skill -s minimalist-ui` |
@@ -636,6 +655,9 @@ directly so their own updater can refresh them.
 | `design-system` | `.claude/skills/design-system/SKILL.md` | TypeUI `minimal` registry spec ([typeui.sh](https://www.typeui.sh/design-skills)), pulled via `npx typeui.sh pull minimal -f skill -p claude-code`; also mirrored at `.agents/skills/design-system/` |
 
 ## 8. Verification expectations
+
+A local debug session (`dev:web` / attached browser) is how the human
+watches the app. It does not replace the merge gates below.
 
 Before pushing:
 

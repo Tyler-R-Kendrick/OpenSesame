@@ -1,0 +1,20 @@
+---
+description: Local app runs are attached HMR debug sessions the agent watches
+alwaysApply: true
+---
+
+# Local debug session
+
+When the human says run the app locally, start the server, attach a browser
+debug session, and keep watching. Do not hand off a URL.
+
+- Pages UI without a backend: `pnpm --filter @opensesame/pages dev:web` on
+  `http://localhost:5180` (localhost, not 127.0.0.1, for passkeys).
+- Full stack: `pnpm --filter @opensesame/pages dev`.
+- Keep the Vite process attached. Open the origin. Watch console, pageerror,
+  and failed requests with full stacks.
+- Patch source so HMR updates the same session. Do not kill it to run
+  `dist/` or a headless `verify:*` gate unless that gate was requested.
+- Stop the session only when the human says stop.
+
+Procedure: `skills/local-debug-session/SKILL.md`. Canonical rule: `AGENTS.md` §5.

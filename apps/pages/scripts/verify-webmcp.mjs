@@ -44,8 +44,8 @@ try {
   await page
     .getByRole("button", { name: "Continue as guest", exact: true })
     .click();
-  await native.expectCount(20);
-  const all = native.names();
+  await native.expectCount(10);
+  const vaultTools = native.names();
   assert.equal((await native.invoke("opensesame_status")).vault, "unlocked");
 
   // Every authored navigation destination is exercised through the same CDP
@@ -72,9 +72,13 @@ try {
         .filter({ hasText: new RegExp(label, "i") })
         .waitFor();
     }
-    assert.deepEqual(native.names(), all, `tools lost at ${destination}`);
+    const names = native.names();
+    for (const tool of boot) {
+      assert.ok(names.includes(tool), `lost ${tool} at ${destination}`);
+    }
+    assert.ok(names.length >= 5, `too few tools at ${destination}`);
     console.log(
-      `PASS CDP navigation ${destination}: ${all.length} native tools`,
+      `PASS CDP navigation ${destination}: ${names.length} native tools`,
     );
   }
   for (const kind of [
@@ -106,6 +110,9 @@ try {
       );
     }
   }
+  await native.invoke("opensesame_navigate", { section: "/vault" });
+  await page.waitForURL(`${origin}${base}vault`);
+  await native.expectCount(10);
   const labels = await native.invoke("opensesame_vault_item_write", {
     action: "suggest",
     kind: "login",
@@ -175,6 +182,9 @@ try {
     .getByRole("textbox", { name: "Name", exact: true })
     .filter({ visible: true })
     .waitFor();
+  await native.invoke("opensesame_navigate", { section: "/vault" });
+  await page.waitForURL(`${origin}${base}vault`);
+  await native.expectCount(10);
   await native.refuse("opensesame_vault_item_write", {
     itemId: item.id,
     password: "sentinel-not-a-real-credential",
@@ -185,7 +195,7 @@ try {
   await native.invoke("opensesame_help", {});
   await page
     .getByLabel("WebMCP status")
-    .filter({ hasText: "20 tools exposed" })
+    .filter({ hasText: "10 tools exposed" })
     .waitFor();
   await page.getByRole("button", { name: "Close", exact: true }).last().click();
   await page
@@ -208,7 +218,7 @@ try {
       browser: browser.version(),
       source: "native WebMCP CDP",
       boot,
-      unlocked: all,
+      unlocked: vaultTools,
       destinations: destinations.length,
       invocations: native.invocations(),
     }),

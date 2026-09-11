@@ -1,0 +1,60 @@
+.vtree__key {
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--surface);
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vtree__key:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+
+.vtree__cmd {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.vtree__prompt {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.vtree__cmd input {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  caret-color: var(--accent);
+}
+
+.vtree__cmd input:focus {
+  outline: none;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .vtree__key {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .vtree__cmd input {
+    min-height: 2.75rem;
+  }
+}

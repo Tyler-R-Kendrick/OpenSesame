@@ -33,29 +33,34 @@ describe("cipherReel", () => {
 });
 
 describe("Wordmark", () => {
-  it("decrypts one isolated slot at a time without overlapping delays", () => {
+  it("scrambles every unread slot until the cursor locks it", () => {
     vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValue(0.999);
     const { container, rerender } = render(<Wordmark />);
     const slots = [
       ...container.querySelectorAll<HTMLElement>(".wordmark__slot"),
     ];
     expect(slots).toHaveLength(WORDMARK.length);
-    let elapsed = 0;
+    let locked = 0;
     for (const [index, slot] of slots.entries()) {
-      const steps = index === 0 ? WORDMARK_MIN_STEPS : WORDMARK_MAX_STEPS;
+      const advance = index === 0 ? WORDMARK_MIN_STEPS : WORDMARK_MAX_STEPS;
+      const steps = locked + advance;
+      const reel = slot.querySelector<HTMLElement>(".wordmark__reel");
       expect(slot.querySelectorAll(".wordmark__glyph")).toHaveLength(steps + 1);
-      expect(slot.style.animationDelay).toBe(`${elapsed}ms`);
+      expect(slot.style.animationDelay).toBe(`${locked * WORDMARK_FRAME_MS}ms`);
       expect(slot.style.animationDuration).toBe(
+        `${advance * WORDMARK_FRAME_MS}ms`,
+      );
+      expect(reel?.style.animationDuration).toBe(
         `${steps * WORDMARK_FRAME_MS}ms`,
       );
-      elapsed += steps * WORDMARK_FRAME_MS;
       expect(
         slot.querySelector(".wordmark__glyph:last-child")?.textContent,
       ).toBe(WORDMARK[index]);
+      locked += advance;
     }
     expect(WORDMARK).toBe("open-sesame");
-    expect(elapsed).toBeGreaterThan(2300);
-    expect(elapsed).toBeLessThan(5000);
+    expect(locked * WORDMARK_FRAME_MS).toBeGreaterThan(2300);
+    expect(locked * WORDMARK_FRAME_MS).toBeLessThan(5000);
     const original = container.innerHTML;
     rerender(<Wordmark />);
     expect(container.innerHTML).toBe(original);
