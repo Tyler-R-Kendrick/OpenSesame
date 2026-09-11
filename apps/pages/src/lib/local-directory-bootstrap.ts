@@ -1,13 +1,18 @@
 /**
- * Default owner person, organization, and on-page OpenSesame agent.
+ * Default owner person, organization, OpenSesame agent, and this app.
  *
  * The organization owns this instance's projects/vaults. The OpenSesame
  * agent is the in-product helper (ADR 0088); it is a member, never an owner.
- * A guest's person is the same identity the prompt shows (`guest@guest`).
+ * The OpenSesame application is this origin as a relying party, so grants
+ * and policies apply to Pages itself. A guest's person is the same identity
+ * the prompt shows (`guest@guest`).
  */
 
 export const SUPPORT_AGENT_ID = "local_00000000-0000-4000-8000-000000000001";
 export const SUPPORT_AGENT_NAME = "open-sesame";
+export const PAGES_APPLICATION_ID =
+  "local_00000000-0000-4000-8000-000000000002";
+export const PAGES_APPLICATION_NAME = "OpenSesame";
 export const GUEST_PERSON_NAME = "guest@guest";
 
 import { describeAccount } from "./account.js";
@@ -105,12 +110,30 @@ async function ensureAgent(
   return current;
 }
 
+async function ensurePagesApplication(
+  tomb: string,
+  current: LocalDirectory,
+): Promise<LocalDirectory> {
+  const existing = current.entries.find(
+    (entry) => entry.id === PAGES_APPLICATION_ID,
+  );
+  if (!existing) {
+    return commitLocalDirectoryUnderLock(tomb, current.revision, {
+      action: "create",
+      kind: "application",
+      name: PAGES_APPLICATION_NAME,
+      id: PAGES_APPLICATION_ID,
+    });
+  }
+  return current;
+}
+
 export async function ensureOwnerPerson(
   tomb: string,
   name = "Owner",
 ): Promise<LocalDirectory> {
   const label = name.trim() || "Owner";
-  return withLocalDirectoryLock(tomb, async () => {
+  const directory = await withLocalDirectoryLock(tomb, async () => {
     let current = await ensurePerson(
       tomb,
       await readLocalDirectory(tomb),
@@ -154,6 +177,17 @@ export async function ensureOwnerPerson(
         role: "member",
       });
     }
-    return current;
+    return ensurePagesApplication(tomb, current);
   });
+  const org = directory.entries.find((entry) => entry.kind === "organization");
+  const app = directory.entries.find(
+    (entry) => entry.id === PAGES_APPLICATION_ID && entry.enabled,
+  );
+  if (org && app) {
+    const { ensurePagesApplicationRegistration } = await import(
+      "./local-applications.js"
+    );
+    await ensurePagesApplicationRegistration(tomb, app.id, org.id);
+  }
+  return directory;
 }

@@ -4,6 +4,7 @@ import type { Provider } from "../lib/connections.js";
 import {
   limitPageTree,
   pageToTree,
+  pageTreeItemTotal,
   pageTreeLeaves,
 } from "../lib/page-to-tree.js";
 import {
@@ -64,8 +65,7 @@ export function ConnectionsTree({
                 href: catalog.href,
                 children: [],
                 branch: true,
-                count: pageTreeLeaves(pageToTree(catalog.sections ?? []))
-                  .length,
+                count: pageTreeItemTotal(pageToTree(catalog.sections ?? [])),
               }}
               level={2}
               current={current}

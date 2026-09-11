@@ -231,6 +231,54 @@ export async function configureLocalApplication(
   });
 }
 
+export function pagesApplicationRedirect(): string | null {
+  try {
+    const origin = globalThis.location?.origin;
+    if (!origin) return null;
+    const href = new URL(import.meta.env.BASE_URL || "/", origin).href;
+    return validRedirect(href) ? href : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function ensurePagesApplicationRegistration(
+  tomb: string,
+  applicationId: string,
+  organizationId: string,
+): Promise<void> {
+  const redirect = pagesApplicationRedirect();
+  if (!redirect) return;
+  const current = await readLocalApplications(tomb);
+  const existing = current.applications.find(
+    (row) => row.applicationId === applicationId,
+  );
+  if (existing && existing.organizationId !== organizationId) return;
+  if (existing?.redirectUris.includes(redirect)) return;
+  if (existing && existing.redirectUris.length >= 16) return;
+  const registration: LocalApplicationRegistration = existing
+    ? {
+        applicationId: existing.applicationId,
+        organizationId: existing.organizationId,
+        redirectUris: [...existing.redirectUris, redirect],
+        scopes: existing.scopes,
+        scopeRoles: existing.scopeRoles,
+      }
+    : {
+        applicationId,
+        organizationId,
+        redirectUris: [redirect],
+        scopes: ["openid"],
+        scopeRoles: defaultScopeRoles(["openid"]),
+      };
+  await configureLocalApplication(
+    tomb,
+    current.revision,
+    applicationId,
+    registration,
+  );
+}
+
 /** Admission preview only: no token, consent, grant, or protected action is produced. */
 export async function inspectLocalApplicationRequest(
   tomb: string,

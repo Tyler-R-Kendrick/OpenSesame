@@ -56,6 +56,9 @@ export function pageToTree(
       id: section.id,
       label: section.label,
       href: section.href,
+      selectTo: section.selectTo,
+      dir: section.dir,
+      count: section.count,
       children,
       branch: true,
     });
@@ -85,6 +88,21 @@ export function pageTreeLeaves(nodes: readonly PageTreeNode[]): PageTreeNode[] {
     else leaves.push(node);
   }
   return leaves;
+}
+
+/** Count item rows. Folders (tabs, headings) are not counted unless `count` says otherwise. */
+export function pageTreeItemCount(node: PageTreeNode): number {
+  if (node.count !== undefined) return node.count;
+  if (!node.branch) return 1;
+  let total = 0;
+  for (const child of node.children) total += pageTreeItemCount(child);
+  return total;
+}
+
+export function pageTreeItemTotal(nodes: readonly PageTreeNode[]): number {
+  let total = 0;
+  for (const node of nodes) total += pageTreeItemCount(node);
+  return total;
 }
 
 /** Keep the first `limit` leaves in page order, dropping empty subheaders. */
