@@ -123,18 +123,6 @@
   color: var(--ink-3);
 }
 
-.vtree__keys {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-/* new/import in the path strip are compact icon keys */
-.icon-btn--sm {
-  width: 1.5rem;
-  height: 1.5rem;
-}
-
 .vtree__key {
   min-width: 1.15rem;
   height: 1.15rem;

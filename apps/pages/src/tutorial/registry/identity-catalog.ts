@@ -28,7 +28,7 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "identity.devices",
     description:
-      "The Devices tab: device sign-ins waiting for approval, and the devices already trusted.",
+      "The Devices tab: browsers and installs that have unlocked this vault, named like a Tailscale node or Entra device.",
     role: "navigation",
     routes: ["/identity"],
     capabilityId: "identity.device.approve",

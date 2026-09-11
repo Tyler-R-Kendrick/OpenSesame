@@ -173,7 +173,7 @@ describe("instrumented screens", () => {
     expect(isMountedGuideTarget("connections.custom")).toBe(true);
 
     expect(resolveGuideTargetElement("connections.provider-picker")).toBe(
-      container.querySelector("input[type=search]"),
+      container.querySelector('button[title="Search (/)"]'),
     );
     expect(resolveGuideTargetElement("connections.custom")?.textContent).toBe(
       "Custom connector",

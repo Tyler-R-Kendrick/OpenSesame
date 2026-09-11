@@ -3,6 +3,7 @@ import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sessionToolsFor, setWebMcpEditorKind } from "./context.js";
 import {
   bindWebMcpSupport,
   registerBootTools,
@@ -47,7 +48,11 @@ function stubModelContext() {
 const BOOT_NAMES = WEBMCP_TOOLS.filter((t) => t.scope === "boot").map(
   (t) => t.name,
 );
-const SESSION_NAMES = WEBMCP_TOOLS.filter((t) => t.scope === "session").map(
+const SESSION_NAMES = sessionToolsFor(WEBMCP_TOOLS, "vault").map((t) => t.name);
+const SETTINGS_SESSION_NAMES = sessionToolsFor(WEBMCP_TOOLS, "settings").map(
+  (t) => t.name,
+);
+const LOGIN_SESSION_NAMES = sessionToolsFor(WEBMCP_TOOLS, "login_form").map(
   (t) => t.name,
 );
 
@@ -96,6 +101,7 @@ afterEach(() => {
   dropModelContext();
   Reflect.deleteProperty(overlapCast(document), "modelContext");
   resetWebMcpRegistrationForTests();
+  setWebMcpEditorKind(null);
 });
 
 describe("registerBootTools / registerSessionTools", () => {
@@ -126,11 +132,11 @@ describe("registerBootTools / registerSessionTools", () => {
     restore();
   });
 
-  it("registers the seventeen session tools and unregisters them", () => {
+  it("registers only the session tools for the current surface", () => {
     const { tools, restore } = stubModelContext();
-    const unregister = registerSessionTools();
+    const unregister = registerSessionTools("vault");
     expect(tools.map((t) => t.name)).toEqual(SESSION_NAMES);
-    expect(tools).toHaveLength(17);
+    expect(tools.map((t) => t.name)).not.toContain("opensesame_settings_read");
     unregister();
     expect(tools).toHaveLength(0);
     restore();
@@ -276,6 +282,9 @@ describe("useWebMcp", () => {
     expect(snapshot.implemented).toHaveLength(
       BOOT_NAMES.length + SESSION_NAMES.length,
     );
+    expect(snapshot.implemented.map((tool) => tool.name)).not.toContain(
+      "opensesame_settings_read",
+    );
     view.unmount();
   });
 
@@ -297,6 +306,47 @@ describe("useWebMcp", () => {
     ]);
     view.unmount();
     draft.restore();
+  });
+
+  it("swaps session tools when the route is settings", () => {
+    const { tools, restore } = stubModelContext();
+    const unregister = registerSessionTools("settings");
+    expect(tools.map((t) => t.name)).toEqual(SETTINGS_SESSION_NAMES);
+    expect(tools.map((t) => t.name)).toContain("opensesame_settings_read");
+    expect(tools.map((t) => t.name)).not.toContain("opensesame_vault_search");
+    unregister();
+    restore();
+  });
+
+  it("exposes login-draft tools on the login form instead of settings", () => {
+    const draft = stubDraftModelContext();
+    const view = render(
+      <MemoryRouter initialEntries={["/vault/new/login"]}>
+        <Probe status="unlocked" />
+      </MemoryRouter>,
+    );
+    expect([...draft.tools.keys()]).toEqual([
+      ...BOOT_NAMES,
+      ...LOGIN_SESSION_NAMES,
+    ]);
+    expect(draft.tools.has("opensesame_settings_read")).toBe(false);
+    expect(draft.tools.has("opensesame_login_draft")).toBe(true);
+    view.unmount();
+    draft.restore();
+  });
+
+  it("restores vault write tools after a login editor kind is left behind", () => {
+    const { tools, restore } = stubModelContext();
+    setWebMcpEditorKind("login");
+    const view = render(
+      <MemoryRouter initialEntries={["/vault"]}>
+        <Probe status="unlocked" />
+      </MemoryRouter>,
+    );
+    expect(tools.map((t) => t.name)).toContain("opensesame_vault_item_write");
+    expect(tools.map((t) => t.name)).not.toContain("opensesame_login_draft");
+    view.unmount();
+    restore();
   });
 
   it("renders without WebMCP support present", () => {

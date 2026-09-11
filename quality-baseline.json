@@ -18,7 +18,7 @@
   "totals": {
     "files": 494,
     "violations": 817,
-    "oversizedLines": 280200
+    "oversizedLines": 280004
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -815,12 +815,12 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1840
+      "max-lines": 1835
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 2,
       "max-depth": 1,
-      "max-lines": 1306,
+      "max-lines": 1269,
       "max-lines-per-function": 1,
       "max-statements": 2
     },
@@ -846,7 +846,7 @@
     },
     "apps/pages/src/screens/unlock/SignInPanel.tsx": {
       "complexity": 1,
-      "max-lines": 611,
+      "max-lines": 475,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/AccessSection.test.tsx": {
@@ -859,7 +859,7 @@
       "max-lines-per-function": 13
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 1482
+      "max-lines": 1480
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
@@ -870,7 +870,7 @@
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2502,
+      "max-lines": 2498,
       "max-lines-per-function": 12
     },
     "apps/pages/src/sections/SettingsSection.test.tsx": {
@@ -1034,7 +1034,7 @@
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
       "complexity": 1,
-      "max-lines": 605,
+      "max-lines": 595,
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/__tests__/a11y/harness.tsx": {
@@ -1080,7 +1080,7 @@
       "max-lines": 646
     },
     "apps/pages/src/webmcp/tools.ts": {
-      "max-lines": 877
+      "max-lines": 875
     },
     "apps/pm-bridges/src/keepassxc/actions.rs": {
       "max-lines": 649

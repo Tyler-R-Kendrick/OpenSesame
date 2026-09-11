@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SlashSearchKey } from "../../components/SlashSearch.js";
 import { showKeymapHelp } from "../../lib/keymap.js";
 
 export function VaultPathbar({
@@ -18,14 +19,7 @@ export function VaultPathbar({
       </span>
       <fieldset className="vtree__keys" aria-label="Vault commands">
         {verbs}
-        <button
-          type="button"
-          className="vtree__key"
-          title="Search (/)"
-          onClick={search}
-        >
-          /
-        </button>
+        <SlashSearchKey onOpen={search} />
         <button
           type="button"
           className="vtree__key vtree__key--help"

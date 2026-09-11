@@ -190,20 +190,20 @@ Local people, agents, applications and passkeys do not require an upstream IdP.
 
 ### Local authenticator management
 
-Without an Identity endpoint, **Identity → Devices** collects the existing
-**Passkeys** and **Agent keys** controls for this vault's people and agents.
-Enroll, authenticate, sign out and confirm key revocation there or from the
-corresponding identity row. Revoking a key invalidates sessions authenticated by
-that enrollment and their dependent application access; it does not erase other
-enrolled keys. Disabled identities cannot enroll or authenticate but their keys
-remain revocable. An open passkey list refreshes after local changes or when the
-tab regains focus, and read failures disable stale controls.
+Without an Identity endpoint, **Identity → People** and **Identity → Agents**
+hold **Passkeys** and **Agent keys**. Enroll, authenticate, sign out and confirm
+key revocation on the identity row. Revoking a key invalidates sessions
+authenticated by that enrollment and their dependent application access; it does
+not erase other enrolled keys. Disabled identities cannot enroll or authenticate
+but their keys remain revocable. An open passkey list refreshes after local
+changes or when the tab regains focus, and read failures disable stale controls.
 
-The list describes authenticator enrollments, not physical-device inventory:
-synced passkeys may exist on multiple devices. It neither enrolls nor approves
-Host/daemon devices. Configured hosted Identity deployments retain their existing
-device-code approval ceremony. Agent-facing navigation may open Devices, but key
-enrollment and revocation remain human-custodian operations under ADR 0103/0109.
+**Identity → Devices** is machine inventory (this browser and other installs
+that have unlocked the vault), not authenticators. Synced passkeys may exist on
+multiple devices and are not listed there. Configured hosted Identity
+deployments retain their existing device-code approval ceremony beneath the
+inventory. Agent-facing navigation may open Devices; key enrollment and
+revocation remain human-custodian operations under ADR 0103/0109.
 
 ### Application origin
 

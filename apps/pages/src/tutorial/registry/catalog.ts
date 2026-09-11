@@ -189,7 +189,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "connections.provider-picker",
     description:
-      "Search field over the provider catalog. Matches a provider name, a category or a connector identifier.",
+      "The / search command over the provider catalog. Matches a provider name, a category or a connector identifier.",
     role: "filter",
     routes: ["/connections"],
     capabilityId: "providers.list",
@@ -430,7 +430,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.account",
     description:
-      "Names the account this device is signed in as, above the Unlock and Sign in tabs, with Switch and Sign out beside it. Absent when nobody is signed in.",
+      "The user menu on the right of the unlock screen: who locked this vault, the other vaults on this device, Sign in to swap identity, and Sign out.",
     role: "status",
     routes: ["/unlock"],
     capabilityId: "identity.signout",

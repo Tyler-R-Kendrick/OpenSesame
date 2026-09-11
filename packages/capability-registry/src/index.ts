@@ -25,6 +25,7 @@ import { identityManagementCapabilities } from "./identity-management.js";
  */
 
 import { SCOPED_AGENT_ONLY, lifecycleCapabilities } from "./lifecycle.js";
+import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
 import { securityAuthorityCapabilities } from "./security-authority.js";
 export {
   AGENT_SECRET_NAME_PATTERN,
@@ -195,13 +196,11 @@ const FIRST_RUN_CEREMONY: CapabilityExclusion = {
     "the anonymous first visitor is the deployment's operator; letting an agent answer who this app trusts for identity would let it choose the issuer that authenticates every later human",
   adr: ADR_FIRST_RUN_SETUP,
 };
-
 const DEVICE_VAULT_CEREMONY: CapabilityExclusion = {
   reason:
     "picking, sealing or deleting a vault on a device is a human ceremony at the unlock boundary; an agent holds a ConnectionRef into one open vault and never chooses which tomb is open",
   adr: ADR_DEVICE_VAULTS,
 };
-
 export const CAPABILITIES: readonly Capability[] = [
   ...accessPortalCapabilities,
   // ── Host plane: health, discovery, session ────────────────────────────
@@ -1899,6 +1898,7 @@ export const CAPABILITIES: readonly Capability[] = [
       webmcp: "opensesame_vault_item_write",
     },
   },
+  ...vaultLoginDraftCapabilities,
   {
     id: "vault.items.reveal",
     title: "Reveal a vault item secret",
