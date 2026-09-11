@@ -52,6 +52,25 @@ function isolated(response: Response, requestUrl: URL): Response {
   });
 }
 
+/** Fetch the current shell and refresh the cache; null when offline. */
+async function freshShell(url: URL): Promise<Response | null> {
+  try {
+    const response = await fetch(fallback);
+    if (!response.ok) return null;
+    const cache = await caches.open(CACHE);
+    await cache.put(fallback, response.clone());
+    return isolated(response, url);
+  } catch {
+    return null;
+  }
+}
+
+async function cachedShell(url: URL): Promise<Response> {
+  const cached = await caches.match(fallback);
+  if (cached) return isolated(cached, url);
+  throw new Error("offline shell unavailable");
+}
+
 sw.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -93,20 +112,15 @@ sw.addEventListener("fetch", (event) => {
       if (request.mode === "navigate") {
         try {
           const response = await fetch(request);
-          // GitHub Pages has no SPA rewrite: deep links 404. Serve the shell.
-          if (!response.ok) {
-            const cached = await caches.match(fallback);
-            if (cached) return isolated(cached, url);
-            const shellResponse = await fetch(fallback);
-            return isolated(shellResponse, url);
-          }
+          // GitHub Pages has no SPA rewrite: deep links 404. Serve the shell —
+          // from the network first, because a cached shell points at hashed
+          // assets the last deploy deleted, which renders a blank page.
+          if (!response.ok) return (await freshShell(url)) ?? cachedShell(url);
           const cache = await caches.open(CACHE);
           await cache.put(fallback, response.clone());
           return isolated(response, url);
         } catch {
-          const cached = await caches.match(fallback);
-          if (cached) return isolated(cached, url);
-          throw new Error("offline shell unavailable");
+          return cachedShell(url);
         }
       }
       const cached = await caches.match(request);
