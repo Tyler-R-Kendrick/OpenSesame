@@ -27,6 +27,8 @@ export async function localDevicesJourney({
   await rename.focus();
   await management.keyboard.press("Enter");
   const name = management.getByLabel("Name", { exact: true });
+  await expect(name).toBeVisible();
+  await name.focus();
   await expect(name).toBeFocused();
   await management.keyboard.press("ControlOrMeta+A");
   await management.keyboard.insertText("Desk laptop");
