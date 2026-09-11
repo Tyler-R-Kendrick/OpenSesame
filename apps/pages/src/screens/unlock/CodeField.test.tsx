@@ -26,9 +26,7 @@ afterEach(cleanup);
 describe("CodeField", () => {
   it("draws one decorative slot per digit", () => {
     renderField();
-    expect(document.querySelectorAll(".codefield__slots span")).toHaveLength(
-      6,
-    );
+    expect(document.querySelectorAll(".codefield__slots span")).toHaveLength(6);
     expect(
       document.querySelector(".codefield__slots")?.getAttribute("aria-hidden"),
     ).toBe("true");
