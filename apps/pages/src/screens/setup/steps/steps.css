@@ -1,0 +1,117 @@
+/* The setup steps' shared vocabulary (ADR 0114): the tab strip (screen-level,
+   pinned outside the scrollport so every tab is always reachable) and the
+   connector card — a provider you can take to a configured state in place. */
+
+.setup__tabs {
+  display: flex;
+  gap: 1.1rem;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  flex: none;
+}
+
+.setup__tab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0 0.5rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.setup__tab--active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+/* The connector card. The pick (name + kind) is the whole left side, the
+   state or action sits at the right edge, and a note spans the row when the
+   road has something to say. */
+.xcards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.xcard {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.xcard.is-on {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.xcard__pick {
+  appearance: none;
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.xcard__name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.xcard__kind {
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
+.xcard.is-on .xcard__kind {
+  color: var(--accent);
+}
+
+.xcard__side {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.xcard__note {
+  grid-column: 1 / -1;
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+/* A finger is not a pointer — the same 44px floor the rest of the ceremony
+   gets. Scoped to .setup so other card users are untouched. */
+@media (pointer: coarse) {
+  .setup .setup__tab,
+  .setup .xcard__pick,
+  .setup .xcard__side .btn {
+    min-height: 2.75rem;
+  }
+}

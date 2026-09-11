@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvHydrate, kvSet } from "../kv.js";
+import { MODEL_PROVIDER_KEY } from "../model-provider.js";
 import {
   PROJECTS_KEY,
   activeProject,
@@ -90,6 +91,7 @@ async function boot(): Promise<void> {
     "settings.v1",
     "outbox.v1",
     "connections.firstRun.v1",
+    MODEL_PROVIDER_KEY,
   ]);
   rehydrateProjects();
   const tomb = activeProject().id;

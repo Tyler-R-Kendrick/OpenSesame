@@ -45,20 +45,34 @@ plain `role="tab"` buttons in Tab order, one panel per tab, and the shared
 5. **sync** — the `cloud_secrets` and `password_managers` capability
    bindings (1Password, Azure Key Vault, …).
 
-Three rules keep the ceremony honest:
+Rules that keep the ceremony honest:
 
 - **Every answer writes `settings.v1` as it is made**, exactly as the
   equivalent Settings panel would write it — the ceremony asks, the setting
   keeps. There is no staged state, so there is nothing to undo.
-- **Every tab is skippable, and "Skip all" finishes the tour.** Skips are
-  recorded on the `SetupRecord` (`skipped?: string[]`), so "looked and
-  passed" stays distinct from "never looked" — the same distinction the
-  record has always made for the ways-in list.
-- **A tab may not pretend to configure what it cannot.** Pre-vault, mfa
-  enrollment is impossible and connector OAuth needs a Host; those tabs say
-  where the road completes instead of drawing dead controls. A road that
-  knows its concern (the unlock screen's no-way-in notice) lands on its tab
-  directly via `SetupScreen`'s `step` prop.
+- **A connector is configured in place, Nango-style.** Clicking Connect on a
+  card opens the provider's ceremony in a **new tab**; the Host's callback
+  page posts the `opensesame:connection` event notification back to the
+  opener and closes itself, and the card observes that notification (and
+  polls, in case the message is lost) through the same `awaitConsent` the
+  Connections page uses — flipping to Connected once the connection is
+  established. Nobody is told to "go finish this in Settings".
+- **Every tab is skippable, and "Skip all" finishes the tour.** The foot is
+  three honest actions: **Skip** (records the tab as skipped and advances),
+  **Next** (just browses forward — the record hears nothing), and the `.go`
+  **Finish setup** commit. Skips are recorded on the `SetupRecord`
+  (`skipped?: string[]`), so "looked and passed" stays distinct from "never
+  looked".
+- **A tab may not pretend to configure what it cannot.** Where no Host
+  answers, the card says *Needs a Host* and withholds Connect, because a
+  button that can only fail is a lie about the road; mfa enrollment needs a
+  sealed vault, so that tab tours the roads instead. A road that knows its
+  concern (the unlock screen's no-way-in notice) lands on its tab directly
+  via `SetupScreen`'s `step` prop.
+
+The rail and the tab strip pin to the frame above the scrollport — the first
+render put them inside the scrolling body, which stranded the later tabs on a
+phone.
 
 The join road is untouched. `KeepIt` rides beneath the active step — not a
 sixth tab, because installing has no wrong answer and never gates the commit.

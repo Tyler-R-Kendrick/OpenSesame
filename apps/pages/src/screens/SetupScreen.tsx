@@ -182,7 +182,10 @@ export function SetupScreen({
           <JoinSession initial={invite} onDone={onDone} />
         ) : (
           <>
-            <main className="setup__body" id="main">
+            {/* The rail and the tabs pin to the frame, above the scrollport —
+                a step the body scrolled past would otherwise take its tab
+                with it, stranding the later steps on a phone. */}
+            <div className="setup__chrome">
               <div className="steps" aria-label="Setup steps">
                 {STEPS.map((entry, at) => (
                   <div
@@ -217,7 +220,9 @@ export function SetupScreen({
                   </button>
                 ))}
               </div>
+            </div>
 
+            <main className="setup__body" id="main">
               <current.Panel />
 
               {/* Not a question — an offer with no wrong answer, below the
@@ -233,10 +238,21 @@ export function SetupScreen({
                 type="button"
                 className="setup__back"
                 disabled={finishing}
+                aria-label="Skip this step"
                 onClick={skipStep}
               >
-                Skip this step
+                Skip
               </button>
+              {index + 1 < STEPS.length ? (
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={finishing}
+                  onClick={() => setIndex(index + 1)}
+                >
+                  Next
+                </button>
+              ) : null}
               <div className="go-row">
                 <button
                   ref={finishRef}

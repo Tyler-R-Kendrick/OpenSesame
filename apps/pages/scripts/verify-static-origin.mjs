@@ -106,6 +106,9 @@ const browser = await launch();
       /Where do backups live\?/.test(onSetup),
     "setup opens on the backups tab of five (ADR 0114)",
   );
+  await page.getByRole("button", { name: "Next" }).click();
+  const ai = await snap(page, "A2-setup-ai");
+  check(/Who runs the model\?/.test(ai), "next browses to ai");
   await page.getByRole("tab", { name: "identity" }).click();
   const identity = await snap(page, "A2-setup-identity");
   check(

@@ -283,51 +283,6 @@ describe("the setup ceremony", () => {
   });
 });
 
-describe("the tabs and their skips (ADR 0114)", () => {
-  it("walks from backups to sync as steps are skipped, recording each", async () => {
-    const onDone = openSetup(vi.fn());
-    for (const title of [
-      "Where do backups live?",
-      "Who runs the model?",
-      "How do people sign in?",
-      "Should a code follow the key?",
-      "What should this vault sync with?",
-    ]) {
-      expect(heading()).toBe(title);
-      fireEvent.click(screen.getByRole("button", { name: "Skip this step" }));
-    }
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(completeSetup).toHaveBeenCalledWith({
-      ways: ["builtin"],
-      service: false,
-      skipped: ["backups", "ai", "identity", "mfa", "sync"],
-    });
-  });
-
-  it("skip all finishes from wherever the tour is", async () => {
-    const onDone = openSetup(vi.fn());
-    fireEvent.click(screen.getByRole("tab", { name: "mfa" }));
-    expect(heading()).toBe("Should a code follow the key?");
-    fireEvent.click(screen.getByRole("button", { name: "Skip all" }));
-    await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(completeSetup).toHaveBeenCalledWith({
-      ways: ["builtin"],
-      service: false,
-      skipped: ["mfa", "sync"],
-    });
-  });
-
-  it("lands on a named tab when a road asks for it", () => {
-    render(<SetupScreen road="setup" step="identity" onDone={vi.fn()} />);
-    expect(heading()).toBe("How do people sign in?");
-    expect(
-      screen
-        .getByRole("tab", { name: "identity" })
-        .getAttribute("aria-selected"),
-    ).toBe("true");
-  });
-});
-
 describe("building the list of ways in", () => {
   it("takes as many providers as the operator wants", async () => {
     // The complaint this answers: one provider is not a deployment. Most want

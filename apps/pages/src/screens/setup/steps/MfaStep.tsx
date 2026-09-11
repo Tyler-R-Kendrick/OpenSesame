@@ -9,7 +9,7 @@ import { StepHead } from "./shared.js";
 const ROADS: readonly { name: string; note: string }[] = [
   {
     name: "Authenticator app",
-    note: "A six-digit code after the key. This vault can hold its own entry and supply the code itself (ADR 0113); anything else asks.",
+    note: "A six-digit code after the key. This vault can hold its own entry and supply the code itself; anything else asks.",
   },
   {
     name: "Email code",
@@ -30,13 +30,16 @@ export function MfaStep() {
         recovery codes are handed over there too.
       </StepHead>
 
-      <ul className="list">
+      <ul className="xcards" aria-label="Second steps">
         {ROADS.map((road) => (
-          <li key={road.name}>
-            <div>
-              <strong>{road.name}</strong>
-              <div className="muted">{road.note}</div>
-            </div>
+          <li key={road.name} className="xcard">
+            <span className="xcard__pick">
+              <span className="xcard__name">{road.name}</span>
+              <span className="xcard__kind">{road.note}</span>
+            </span>
+            <span className="xcard__side">
+              <span className="chip">after sealing</span>
+            </span>
           </li>
         ))}
       </ul>

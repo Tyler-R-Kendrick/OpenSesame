@@ -1,13 +1,14 @@
 /**
  * Step 1 — backups. Where ciphertext (never plaintext) should persist
  * beyond this device: an encrypted git history, the local daemon, or an
- * exported file. The choice is the `history` capability binding; the GitHub
- * App ceremony itself needs a sealed vault and stays in Settings › Backup.
+ * exported file. Git connectors authorize in place — Connect opens the
+ * ceremony in a new tab and the card reports when it lands (ADR 0114).
  */
 
 import { useState } from "react";
 import { loadSettings, saveSettings } from "../../../lib/settings.js";
-import { CapabilityChoices, StepHead } from "./shared.js";
+import { ConnectorCards } from "./ConnectorCards.js";
+import { StepHead } from "./shared.js";
 
 /**
  * The daemon's address. A loopback suggestion the person confirms, never a
@@ -46,10 +47,11 @@ export function BackupsStep() {
 
       <section className="setup__stack" aria-label="Encrypted git history">
         <h2 className="ways__head">Encrypted git history</h2>
-        <CapabilityChoices id="history" />
+        <ConnectorCards id="history" />
         <p className="hint">
-          GitHub finishes its App ceremony from Settings › Backup once a vault
-          is sealed; a local password-store needs no account at all.
+          Connect opens the provider in a new tab; pick or create the repo from
+          Settings › Backup once it lands. A local password-store needs no
+          account at all.
         </p>
       </section>
 
