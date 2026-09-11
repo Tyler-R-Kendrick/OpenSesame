@@ -6,12 +6,13 @@ unlock screen with a **setup ceremony** that treats the anonymous first visitor
 as the deployment's operator, and withhold the Unlock tab while there is nothing
 on the device to unlock.
 
-The ceremony is now **one screen asking one question**, and its answer is a
-**list**: the operator adds as many ways in as the deployment wants, and the
-sign-in screen offers exactly those and nothing else. An external IdP configured
-here *is* the identity service (ADR 0078), so there is no OpenSesame address to
-type on the way to one. Two earlier shapes are still on the canvas as the models
-they were.
+The ceremony grew into **a tab per concern** (ADR 0114: backups, ai, identity,
+mfa, sync — each skippable, with a skip-all). The identity tab is the question
+this canvas settled, and its answer is a **list**: the operator adds as many
+ways in as the deployment wants, and the sign-in screen offers exactly those
+and nothing else. An external IdP configured here *is* the identity service
+(ADR 0078), so there is no OpenSesame address to type on the way to one. Two
+earlier shapes are still on the canvas as the models they were.
 
 Published canvas:
 <https://claude.ai/code/artifact/09666cf7-8624-4d49-bca6-345d0810da5a>
@@ -74,10 +75,11 @@ constraints of its own.
   an error to report, it is a deployment nobody has set up yet. The first
   visitor is the operator by default, so the screen asks them the questions
   instead of telling them to go and find someone.
-- **One question, so no stepper.** A Host API and a daemon pairing were setup
-  questions in earlier shapes; neither is one a first-time visitor has, and both
-  live in Settings → Endpoints. With them gone there is one question left, and a
-  progress rail over a single step is furniture.
+- **One question became one tab.** A Host API and a daemon pairing were setup
+  questions in earlier shapes, and for a while there was exactly one question
+  left, so a rail was furniture. ADR 0114 gives the ceremony one tab per
+  concern — the rail returns, honestly, because there is more than one step
+  again; every tab stays skippable, and this question is the identity tab.
 - **A local-only vault is a legitimate outcome of setup**, not a failure of it.
 - **The commitment lives at the bottom of the phone.** That is the whole of the
   mobile-navigation fix.

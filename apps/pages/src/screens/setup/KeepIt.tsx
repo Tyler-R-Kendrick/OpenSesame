@@ -1,13 +1,10 @@
 /**
- * The last section of first-run setup: keep it on this device.
+ * The offer beneath the active setup step: keep it on this device.
  *
- * Not a step. The ceremony is deliberately one screen and one question —
- * *who signs people in* — with no stepper, no counter, no skip and no back
- * (ADR 0078). Installing is not a second question: it has no wrong answer, it
- * is not asked before the one that matters, and it does not gate the commit.
- * So it is a section beneath the allowlist, in the same `ways__head` voice as
- * "Add a provider" and "Or an OpenSesame identity service", above the same
- * terminal `.go`.
+ * Not a step. The ceremony is a tab per concern (ADR 0114), and installing
+ * is not one of them: it has no wrong answer, it is not asked before the
+ * steps that matter, and it does not gate the commit. So it rides beneath
+ * whichever step is on screen, above the same terminal `.go`.
  *
  * It earns its place there for a reason particular to a vault: the items are
  * stored on this device, and a browser is entitled to clear a tab's storage

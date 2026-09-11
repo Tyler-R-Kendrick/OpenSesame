@@ -60,6 +60,13 @@ export type SetupRecord = {
    * does not treat the visitor as a first operator again.
    */
   joined: boolean;
+  /**
+   * Tabs of the ceremony the operator stepped past without answering (ADR
+   * 0114) — `"backups"`, `"ai"`, `"identity"`, `"mfa"`, `"sync"`. Skipping is
+   * a decision too; recording it keeps "looked and passed" distinct from
+   * "never looked".
+   */
+  skipped?: string[];
 };
 
 function readWays(value: BoundaryValue | undefined): string[] {
@@ -81,6 +88,7 @@ function loadSetupDefault(): SetupRecord | null {
       ways: readWays(parsed.ways),
       service: parsed.service === true,
       joined: parsed.joined === true,
+      skipped: readWays(parsed.skipped),
     };
   } catch {
     // A corrupt record is the same as no record: the ceremony runs again,

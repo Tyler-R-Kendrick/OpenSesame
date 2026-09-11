@@ -63,7 +63,7 @@ import {
 } from "../lib/vaults.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
-import { type SetupRoad, SetupScreen } from "./SetupScreen.js";
+import { type SetupRoad, SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { CodeField } from "./unlock/CodeField.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
@@ -161,12 +161,13 @@ export const unlockScreenDependencies = {
 export function UnlockScreen() {
   const { status } = useVault();
   const session = useIdentitySession();
-  const [ceremony, setCeremony] = useState<SetupRoad | null>(() =>
-    unlockScreenDependencies.readJoinFromLocation() ? "join" : null,
+  const [ceremony, setCeremony] = useState<{
+    road: SetupRoad;
+    step?: SetupStep;
+  } | null>(() =>
+    unlockScreenDependencies.readJoinFromLocation() ? { road: "join" } : null,
   );
-  // A device holding more than one vault opens on the choice, not on
-  // whichever tomb the boot pointer named (ADR 0089). One vault, no choice:
-  // straight to its unlock form, as before.
+  // Several vaults open on the choice (ADR 0089); one goes straight to it.
   const [vaultsOpen, setVaultsOpen] = useState(() =>
     unlockScreenDependencies.deviceHasSeveralVaults(),
   );
@@ -197,7 +198,13 @@ export function UnlockScreen() {
   }, [ceremony, session]);
 
   if (ceremony) {
-    return <SetupScreen road={ceremony} onDone={() => setCeremony(null)} />;
+    return (
+      <SetupScreen
+        road={ceremony.road}
+        step={ceremony.step}
+        onDone={() => setCeremony(null)}
+      />
+    );
   }
   if (vaultsOpen) {
     return (
@@ -210,8 +217,8 @@ export function UnlockScreen() {
   return (
     <UnlockForm
       providers={providers}
-      onOpenSetup={() => setCeremony("setup")}
-      onOpenJoin={() => setCeremony("join")}
+      onOpenSetup={(step) => setCeremony({ road: "setup", step })}
+      onOpenJoin={() => setCeremony({ road: "join" })}
       onOpenVaults={() => setVaultsOpen(true)}
     />
   );
@@ -224,7 +231,7 @@ function UnlockForm({
   onOpenVaults,
 }: {
   providers: FederatedProviderSummary[];
-  onOpenSetup: () => void;
+  onOpenSetup: (step?: SetupStep) => void;
   /** Join a session somebody invited this device to (ADR 0079 §7). */
   onOpenJoin: () => void;
   /** Back to the front door: every vault on this device (ADR 0089). */
@@ -247,9 +254,7 @@ function UnlockForm({
   } = useVault();
   const store = useVaultStore();
   const firstRun = status === "empty";
-  // Which vault this key opens, said in the prompt voice the rail uses once
-  // inside — shown whenever there is a choice to go back to, or this is not
-  // the personal vault (a project sealed a moment ago from the front door).
+  // Which vault this key opens — shown whenever there is a choice to go back to, or this is not the personal vault.
   const activeTomb = tomb ?? PERSONAL_PROJECT_ID;
   const vaultCrumb =
     unlockScreenDependencies.deviceHasSeveralVaults() ||
@@ -259,22 +264,16 @@ function UnlockForm({
           .find((vault) => vault.id === activeTomb)?.label ?? activeTomb)
       : null;
   const passkeyHost = checkWebauthnHost();
-  // First run leads with identity (ADR 0033 §4): sign-in is the default
-  // stage, and the local seal form is the explicit "use without an account"
-  // road — not a wall of fields competing with it.
+  // First run leads with identity (ADR 0033 §4): sign-in is the default stage, the local seal form the explicit road.
   const [localOnly, setLocalOnly] = useState(false);
   const signInStage = firstRun && !localOnly;
-  // A returning vault shows the key ceremony. Sign-in lives in the user
-  // menu on the right — a sign-out, a switch or "attach an account" opens
-  // it on purpose. Mid-MFA there is no choice: the code field is the screen.
+  // A returning vault shows the key ceremony; sign-in lives in the user menu. Mid-MFA the code field is the screen.
   const [signingIn, setSigningIn] = useState(() =>
     outcomeWantsSignIn(readAuthOutcome()),
   );
   const returning = unlockViable(status) && !awaitingSecondStep;
   const showSignIn = returning && signingIn;
-  // Not "no identity service" — the compiled-in broker and any provider the
-  // operator brought run in this browser and need no service at all (ADR
-  // 0078). This is the narrower and truer claim: setup left no way in.
+  // Not "no identity service" (ADR 0078) — the narrower and truer claim: setup left no way in.
   const nothingSignsIn = unlockScreenDependencies.noWayIn();
   /**
    * What this app is pointed at, said as the operator would say it: the
@@ -623,10 +622,8 @@ function UnlockForm({
           ) : null}
         </div>
 
-        {/* Setup left no way in at all: no broker, no provider, no identity
-            service. The old screen reported a near-miss of this in a block of
-            amber above every sign-in button, all of which still redirected
-            into nothing. One sentence and the road that fixes it. */}
+        {/* Setup left no way in at all. One sentence and the road that fixes
+            it — landing on the identity tab, where the fix lives. */}
         {nothingSignsIn && (signInStage || showSignIn) ? (
           <div className="note unlock__unset">
             <span>
@@ -637,7 +634,7 @@ function UnlockForm({
               ref={setupRef}
               type="button"
               className="btn btn--sm"
-              onClick={onOpenSetup}
+              onClick={() => onOpenSetup("identity")}
             >
               Set it up
             </button>
@@ -1248,7 +1245,7 @@ function UnlockForm({
             <button
               type="button"
               className="unlock__switch"
-              onClick={onOpenSetup}
+              onClick={() => onOpenSetup()}
             >
               Deployment setup
             </button>

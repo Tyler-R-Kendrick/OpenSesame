@@ -8,53 +8,15 @@ import {
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { PagesSettings, SignInMethods } from "../lib/settings.js";
-import { defaultSignInMethods, settingsSeams } from "../lib/settings.js";
-
-type Written = Pick<PagesSettings, "identityApi" | "hostApi" | "daemonApi"> & {
-  signIn: SignInMethods;
-};
-
-const written: Written = {
-  identityApi: "",
-  hostApi: "",
-  daemonApi: "",
-  signIn: defaultSignInMethods(),
-};
-
-const originalSettingsSeams = { ...settingsSeams };
-
-function currentSettings(): PagesSettings {
-  return { ...originalSettingsSeams.loadSettings(), ...written };
-}
-
-Object.assign(settingsSeams, {
-  loadSettings: () => currentSettings(),
-  saveSettings: (next: PagesSettings) => {
-    written.identityApi = next.identityApi;
-    written.hostApi = next.hostApi;
-    written.daemonApi = next.daemonApi;
-    written.signIn = next.signIn ?? defaultSignInMethods();
-  },
-  pageIsLoopback: () => false,
-});
-
-import type { OidcDiscovery } from "../lib/federation.js";
-import { federationSeams } from "../lib/federation.js";
-Object.assign(federationSeams, {
-  defaultUpstream: () => ({
-    id: "shoo",
-    displayName: "Shoo",
-    issuer: "https://shoo.dev",
-    accountKind: "Google",
-  }),
-});
-
 import type { InstallOutcome, InstallState } from "../lib/install.js";
+import type { PagesSettings } from "../lib/settings.js";
 import { installViewSeams } from "../lib/use-install.js";
 import { SetupScreen, setupScreenDependencies } from "./SetupScreen.js";
 import { joinSessionDependencies } from "./setup/JoinSession.js";
-import { waysInDependencies } from "./setup/WaysIn.js";
+import { createSetupSeams } from "./setup/test-seams.js";
+
+const seams = createSetupSeams();
+const { written, currentSettings, discover, completeSetup } = seams;
 
 /**
  * What the browser is offering, for the ceremony's benefit. jsdom offers
@@ -66,9 +28,6 @@ function offering(state: InstallState): void {
 }
 const installNow = vi.fn<() => Promise<InstallOutcome>>(async () => "accepted");
 
-/** The one network call the ceremony makes: the provider's discovery doc. */
-const discover = vi.fn<(issuer: string) => Promise<OidcDiscovery>>();
-
 /** What `addProvider` needs to fill one preset's form. */
 type ProviderFields = {
   /** `[field label, value]` for the presets whose issuer is typed. */
@@ -76,38 +35,8 @@ type ProviderFields = {
   clientId: string;
 };
 
-const completeSetup =
-  vi.fn<
-    (outcome: {
-      ways: string[];
-      service: boolean;
-      joined?: boolean;
-    }) => Promise<void>
-  >();
-
 beforeEach(() => {
-  written.identityApi = "";
-  written.hostApi = "";
-  written.daemonApi = "";
-  written.signIn = defaultSignInMethods();
-  discover.mockReset();
-  discover.mockResolvedValue({
-    issuer: "https://acme.okta.com",
-    authorization_endpoint: "https://acme.okta.com/authorize",
-    token_endpoint: "https://acme.okta.com/token",
-    jwks_uri: "https://acme.okta.com/keys",
-  });
-  completeSetup.mockReset();
-  completeSetup.mockResolvedValue(undefined);
-  Object.assign(waysInDependencies, {
-    discover,
-    redirectUri: () => "https://tyler-r-kendrick.github.io/OpenSesame/",
-  });
-  Object.assign(setupScreenDependencies, {
-    completeSetup,
-    loadSettings: () => currentSettings(),
-    readJoinFromLocation: () => null,
-  });
+  seams.reset();
   installViewSeams.state = "unavailable";
   installNow.mockClear();
   installViewSeams.install = installNow;
@@ -152,6 +81,13 @@ function openSetup(onDone: () => void = vi.fn()): () => void {
   return onDone;
 }
 
+/** Setup opened on the identity tab, where the ways-in allowlist lives (ADR 0114). */
+function openWaysIn(onDone: () => void = vi.fn()): () => void {
+  const done = openSetup(onDone);
+  fireEvent.click(screen.getByRole("tab", { name: "identity" }));
+  return done;
+}
+
 /** The ways-in list, as it reads on screen. */
 function ways(): string[] {
   return [...document.querySelectorAll(".ways__name")].map(
@@ -189,9 +125,10 @@ async function addProvider(
 }
 
 describe("two optional ceremonies, never a fork (ADR 0090)", () => {
-  it("opens the operator question when asked for", () => {
+  it("opens the operator ceremony on its first tab when asked for", () => {
     openSetup();
-    expect(heading()).toBe("How do people sign in?");
+    expect(heading()).toBe("Where do backups live?");
+    expect(screen.getAllByRole("tab")).toHaveLength(5);
     expect(screen.queryByText("This device is empty")).toBeNull();
   });
 
@@ -210,9 +147,9 @@ describe("two optional ceremonies, never a fork (ADR 0090)", () => {
     expect(screen.getByLabelText("Host")).toBeTruthy();
   });
 
-  it("defaults to the operator question with no invite in the address bar", () => {
+  it("defaults to the operator ceremony with no invite in the address bar", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    expect(heading()).toBe("How do people sign in?");
+    expect(heading()).toBe("Where do backups live?");
   });
 
   it("opens join directly when the visit is an invite", () => {
@@ -294,33 +231,33 @@ describe("two optional ceremonies, never a fork (ADR 0090)", () => {
 });
 
 describe("the setup ceremony", () => {
-  it("is one screen asking one question", () => {
+  it("is a tab per concern, each skippable, with a skip-all (ADR 0114)", () => {
     openSetup();
-    expect(heading()).toBe("How do people sign in?");
-    // No stepper, no counter, no skip. Back returns to the setup-or-join
-    // fork — it is not a previous *step* of this question.
-    expect(screen.queryByRole("button", { name: "Previous step" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Skip" })).toBeNull();
-    expect(document.querySelector(".setup__rail")).toBeNull();
-    expect(document.querySelector(".setup__count")).toBeNull();
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "backups",
+      "ai",
+      "identity",
+      "mfa",
+      "sync",
+    ]);
+    expect(document.querySelectorAll(".steps__seg")).toHaveLength(5);
+    expect(screen.getByRole("button", { name: "Skip this step" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Skip all" })).toBeTruthy();
   });
 
-  it("never asks for a Host API or for pairing this machine", () => {
-    // Both were setup questions in earlier shapes of this screen, and neither
-    // is one a first-time visitor has. A Host is optional infrastructure that
-    // gates nothing the vault does on its own; the daemon pairing is for a
-    // machine you already run OpenSesame on. Settings → Endpoints owns them.
+  it("never asks for a Host API or a mobile MFA app", () => {
+    // Both were setup questions in earlier shapes of this screen; neither is
+    // one a first-time visitor has. Settings → Endpoints owns them. The
+    // daemon address on the backups tab is a suggestion, not a pairing.
     openSetup();
     expect(screen.queryByLabelText("Host API")).toBeNull();
     expect(screen.queryByLabelText("Mobile MFA app")).toBeNull();
-    expect(screen.queryByText(/This machine/)).toBeNull();
-    expect(screen.queryByText(/not paired/)).toBeNull();
   });
 
   it("arrives with the compiled-in broker already a way in", () => {
     // The whole point: a deployment nobody has configured is already usable,
     // so setup can be one tap.
-    openSetup();
+    openWaysIn();
     expect(ways()).toEqual(["Google"]);
   });
 
@@ -332,6 +269,7 @@ describe("the setup ceremony", () => {
     expect(completeSetup).toHaveBeenCalledWith({
       ways: ["builtin"],
       service: false,
+      skipped: [],
     });
     expect(written.identityApi).toBe("");
   });
@@ -345,11 +283,56 @@ describe("the setup ceremony", () => {
   });
 });
 
+describe("the tabs and their skips (ADR 0114)", () => {
+  it("walks from backups to sync as steps are skipped, recording each", async () => {
+    const onDone = openSetup(vi.fn());
+    for (const title of [
+      "Where do backups live?",
+      "Who runs the model?",
+      "How do people sign in?",
+      "Should a code follow the key?",
+      "What should this vault sync with?",
+    ]) {
+      expect(heading()).toBe(title);
+      fireEvent.click(screen.getByRole("button", { name: "Skip this step" }));
+    }
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(completeSetup).toHaveBeenCalledWith({
+      ways: ["builtin"],
+      service: false,
+      skipped: ["backups", "ai", "identity", "mfa", "sync"],
+    });
+  });
+
+  it("skip all finishes from wherever the tour is", async () => {
+    const onDone = openSetup(vi.fn());
+    fireEvent.click(screen.getByRole("tab", { name: "mfa" }));
+    expect(heading()).toBe("Should a code follow the key?");
+    fireEvent.click(screen.getByRole("button", { name: "Skip all" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(completeSetup).toHaveBeenCalledWith({
+      ways: ["builtin"],
+      service: false,
+      skipped: ["mfa", "sync"],
+    });
+  });
+
+  it("lands on a named tab when a road asks for it", () => {
+    render(<SetupScreen road="setup" step="identity" onDone={vi.fn()} />);
+    expect(heading()).toBe("How do people sign in?");
+    expect(
+      screen
+        .getByRole("tab", { name: "identity" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
+  });
+});
+
 describe("building the list of ways in", () => {
   it("takes as many providers as the operator wants", async () => {
     // The complaint this answers: one provider is not a deployment. Most want
     // Google for everybody and an org's own IdP for staff.
-    openSetup();
+    openWaysIn();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
     await addProvider(/^Okta/, {
       issuer: ["Okta domain", "acme.okta.com"],
@@ -372,13 +355,13 @@ describe("building the list of ways in", () => {
   });
 
   it("brands each provider with the mark it will wear at sign-in", async () => {
-    openSetup();
+    openWaysIn();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
     expect(written.signIn.providers[0]?.providerId).toBe("google");
   });
 
   it("refuses the same issuer twice", async () => {
-    openSetup();
+    openWaysIn();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
     discover.mockClear();
 
@@ -392,7 +375,7 @@ describe("building the list of ways in", () => {
   });
 
   it("takes a way back out again", async () => {
-    openSetup();
+    openWaysIn();
     await addProvider(/^Google/, { clientId: "google-client.apps" });
 
     const removeGoogle = () =>
@@ -406,7 +389,7 @@ describe("building the list of ways in", () => {
   });
 
   it("says plainly what removing everything means", async () => {
-    const onDone = openSetup(vi.fn());
+    const onDone = openWaysIn(vi.fn());
     fireEvent.click(screen.getByRole("button", { name: "Remove Google" }));
 
     expect(ways()).toEqual([]);
@@ -415,11 +398,15 @@ describe("building the list of ways in", () => {
     fireEvent.click(commit());
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     // A deployment with no accounts is a decision, recorded as one.
-    expect(completeSetup).toHaveBeenCalledWith({ ways: [], service: false });
+    expect(completeSetup).toHaveBeenCalledWith({
+      ways: [],
+      service: false,
+      skipped: [],
+    });
   });
 
   it("shows the redirect URI the operator has to register", () => {
-    openSetup();
+    openWaysIn();
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     expect(fieldNamed("Redirect URI to register").value).toBe(
       "https://tyler-r-kendrick.github.io/OpenSesame/",
@@ -427,7 +414,7 @@ describe("building the list of ways in", () => {
   });
 
   it("asks each preset for the field its issuer is built from", () => {
-    openSetup();
+    openWaysIn();
 
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     expect(fieldNamed("Okta domain").placeholder).toBe("dev-123456.okta.com");
@@ -452,7 +439,7 @@ describe("building the list of ways in", () => {
   });
 
   it("refuses a malformed domain before it reaches the network", () => {
-    openSetup();
+    openWaysIn();
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     fireEvent.change(fieldNamed("Okta domain"), {
       target: { value: "not-an-okta-domain" },
@@ -467,7 +454,7 @@ describe("building the list of ways in", () => {
   });
 
   it("holds a bare issuer to https off loopback", () => {
-    openSetup();
+    openWaysIn();
     fireEvent.click(screen.getByRole("button", { name: /Other OIDC/ }));
     fireEvent.change(fieldNamed("Issuer URL"), {
       target: { value: "http://idp.acme.com" },
@@ -488,7 +475,7 @@ describe("building the list of ways in", () => {
     discover.mockRejectedValue(
       new Error("Could not reach https://acme.okta.com."),
     );
-    openSetup();
+    openWaysIn();
     fireEvent.click(screen.getByRole("button", { name: /^Okta/ }));
     fireEvent.change(fieldNamed("Okta domain"), {
       target: { value: "acme.okta.com" },
@@ -503,7 +490,7 @@ describe("building the list of ways in", () => {
 
 describe("an OpenSesame identity service", () => {
   it("is a peer way in, and joins the list when it is named", async () => {
-    const onDone = openSetup(vi.fn());
+    const onDone = openWaysIn(vi.fn());
     type("Identity service", "https://id.acme.com/");
 
     expect(written.identityApi).toBe("https://id.acme.com");
@@ -514,11 +501,12 @@ describe("an OpenSesame identity service", () => {
     expect(completeSetup).toHaveBeenCalledWith({
       ways: ["builtin"],
       service: true,
+      skipped: [],
     });
   });
 
   it("is never a prerequisite for bringing a provider", async () => {
-    openSetup();
+    openWaysIn();
     // Every preset is live with no identity service typed at all.
     for (const name of [/^Google/, /^Okta/, /^Auth0/, /^WorkOS/, /Entra/]) {
       expect(
@@ -544,23 +532,16 @@ describe("keeping it on this device", () => {
     ).toBeNull();
   });
 
-  it("is a section under the one question, never a second one", () => {
-    // The ceremony stays one screen with one heading (ADR 0078): no stepper,
-    // no counter, and the install offer does not become a step.
+  it("rides beneath the active step, never a tab of its own", () => {
+    // The ceremony is a tab per concern (ADR 0114), and installing is not one
+    // of them: no wrong answer, no gate on the commit, no sixth tab.
     offering("prompt");
     openSetup();
 
-    expect(heading()).toBe("How do people sign in?");
-    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getAllByRole("tab")).toHaveLength(5);
     expect(screen.getByText("Keep it on this device")).toBeDefined();
-  });
-
-  it("sits below the allowlist, not above the question", () => {
-    offering("prompt");
-    openSetup();
-    const body = document.querySelector(".setup__body");
-    const text = body?.textContent ?? "";
-    expect(text.indexOf("How do people sign in?")).toBeLessThan(
+    const text = document.querySelector(".setup__body")?.textContent ?? "";
+    expect(text.indexOf("Where do backups live?")).toBeLessThan(
       text.indexOf("Keep it on this device"),
     );
   });
@@ -585,10 +566,11 @@ describe("keeping it on this device", () => {
     fireEvent.click(commit());
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(installNow).not.toHaveBeenCalled();
-    // And it leaves no mark on the record: the ceremony answers one question.
+    // And it leaves no mark on the record: installing is not a concern tab.
     expect(completeSetup).toHaveBeenCalledWith({
       ways: ["builtin"],
       service: false,
+      skipped: [],
     });
   });
 

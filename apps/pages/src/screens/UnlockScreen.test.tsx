@@ -299,7 +299,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     render(<UnlockScreen />);
     fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
+      "Where do backups live?",
     );
     // One tap after that: the brokered road needs nothing typed.
     fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
@@ -388,7 +388,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
+      "Where do backups live?",
     );
   });
 
