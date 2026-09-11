@@ -65,6 +65,7 @@ import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { type SetupRoad, SetupScreen } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
+import { CodeField } from "./unlock/CodeField.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
@@ -443,6 +444,7 @@ function UnlockForm({
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (busy) return;
     setError(null);
     setBusy(true);
     try {
@@ -831,16 +833,13 @@ function UnlockForm({
                             ? "Code from the email"
                             : "Code from the text"}
                       </label>
-                      <input
+                      <CodeField
                         id="unlock-totp"
-                        ref={totpRef}
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
+                        inputRef={totpRef}
                         value={totp}
                         disabled={busy || lockedFor > 0}
-                        onChange={(e) => setTotp(e.target.value)}
-                        placeholder="6-digit code"
+                        onChange={setTotp}
+                        onComplete={() => formRef.current?.requestSubmit()}
                       />
                       <p className="hint">
                         {activeSecondStep === "totp"

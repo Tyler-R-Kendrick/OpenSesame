@@ -18,7 +18,7 @@
   "totals": {
     "files": 494,
     "violations": 817,
-    "oversizedLines": 280004
+    "oversizedLines": 280000
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -548,7 +548,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/scripts/verify-auth-flow.mjs": {
-      "max-lines": 468
+      "max-lines": 467
     },
     "apps/pages/src/components/AccountSwitcher.tsx": {
       "complexity": 1,
@@ -815,12 +815,12 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1835
+      "max-lines": 1833
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 2,
       "max-depth": 1,
-      "max-lines": 1269,
+      "max-lines": 1268,
       "max-lines-per-function": 1,
       "max-statements": 2
     },
