@@ -81,8 +81,7 @@ describe("VaultStore unlock lockout", () => {
 
   it("does not count a vault no password can open", async () => {
     const { header } = await createVault(PASSWORD);
-    // An unsupported format fails for every password, so a lockout here would
-    // punish the user for a broken file.
+    // An unsupported format fails for every password — a lockout here would punish a broken file.
     kvSet(HEADER_KEY, JSON.stringify({ ...header, v: 2 }));
     const store = new VaultStore();
 
@@ -92,8 +91,7 @@ describe("VaultStore unlock lockout", () => {
     expect(kvGet(ATTEMPTS_KEY)).toBeNull();
   });
 
-  // The wrap is made under these parameters, so altered ones cannot open it
-  // anyway. Saying the file was tampered with beats blaming the password.
+  // The wrap is made under these parameters, so altered ones cannot open it anyway.
   it("refuses a header whose derivation parameters were altered", async () => {
     const { header } = await createVault(PASSWORD);
     kvSet(
@@ -122,8 +120,7 @@ describe("VaultStore rollback detection", () => {
     kvDelete(tombFileKey(PERSONAL_TOMB, INDEX_PATH));
   });
 
-  // A restored backup or a synced-over write puts back a body the vault has moved
-  // past. Opening it silently would return deleted items and stale passwords.
+  // A restored backup puts back a body the vault has moved past; opening it silently would return stale items.
   it("refuses a body older than the last write recorded here", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
@@ -440,6 +437,9 @@ describe("VaultStore multi-method unlock", () => {
     const secret = new URL(uri).searchParams.get("secret");
     expect(secret).toBeTruthy();
     if (!secret) throw new Error("expected totp secret in otpauth URI");
+    // Withdraw the vault's own authenticator (ADR 0113) so the code is asked.
+    const selfId = store.getSnapshot().header?.unlocks?.totp?.selfItemId ?? "";
+    await store.trashItem(selfId);
     store.lock();
 
     const reopened = new VaultStore();

@@ -7,17 +7,19 @@
 //     pnpm --filter @opensesame/pages verify:auth
 //
 // Guest enrollment walks through a PIN first; password enrollment starts at MFA.
-// Both unlock roads announce step 2, reject a wrong code, and accept the real code.
+// The vault is its own authenticator (ADR 0113): the guest road opens with the
+// code supplied in memory — never shown — while the password road trashes the
+// registered entry first and walks the manual code road it leaves behind.
 //
 // Fails on any page error, console error, HTTP error (including 404),
 // loopback request, or failed check. Screenshots and the
 // on-screen text of every step land in artifacts/auth-flow/.
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
+import { totp } from "./lib/totp.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
@@ -46,37 +48,6 @@ if (!fs.existsSync(path.join(DIST, "index.html"))) {
 }
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
-
-/** RFC 6238 with the vault's parameters (SHA-1, 6 digits, 30 s), from the base32 seed. */
-function totp(secret, at = Date.now()) {
-  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let bits = 0;
-  let value = 0;
-  const bytes = [];
-  for (const ch of secret.replace(/=+$/, "").toUpperCase()) {
-    const index = alphabet.indexOf(ch);
-    if (index < 0) continue;
-    value = (value << 5) | index;
-    bits += 5;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((value >>> bits) & 0xff);
-    }
-  }
-  const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(at / 1000 / 30)));
-  const mac = crypto
-    .createHmac("sha1", Buffer.from(bytes))
-    .update(counter)
-    .digest();
-  const offset = mac[mac.length - 1] & 0x0f;
-  const code =
-    ((mac[offset] & 0x7f) << 24) |
-    ((mac[offset + 1] & 0xff) << 16) |
-    ((mac[offset + 2] & 0xff) << 8) |
-    (mac[offset + 3] & 0xff);
-  return String(code % 1_000_000).padStart(6, "0");
-}
 
 const log = [];
 let step = "boot";
@@ -238,6 +209,30 @@ async function finishUnlockWithCode(page, secret, name) {
   );
 }
 
+/** With the vault as its own authenticator, a right key opens it — no code asked. */
+async function finishUnlockSelfSupplied(page, name) {
+  const open = await snap(page, `${name}-self-supplied`);
+  check(!/Confirm it is you/.test(open), "no code is asked — it is supplied");
+  check(
+    (await page.getByRole("button", { name: "Lock vault" }).count()) > 0,
+    "the vault is open",
+  );
+}
+
+/** Trash the vault's own authenticator entry, withdrawing the registration. */
+async function withdrawSelfAuthenticator(page) {
+  await page.getByRole("treeitem", { name: "Vault", exact: true }).click();
+  await page.waitForTimeout(1000);
+  const entry = page.getByRole("treeitem", {
+    name: /OpenSesame \(this vault\)/,
+  });
+  check((await entry.count()) === 1, "the vault registered its own entry");
+  await entry.first().click();
+  await page.waitForTimeout(1000);
+  await page.getByRole("button", { name: "Move to trash" }).click();
+  await page.waitForTimeout(1000);
+}
+
 process.on("unhandledRejection", () => undefined);
 const launch = { headless: true };
 if (process.env.PLAYWRIGHT_CHROMIUM) {
@@ -358,7 +353,7 @@ const browser = await chromium.launch(launch);
   await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await page.waitForTimeout(2500);
-  await finishUnlockWithCode(page, secret, "1-guest");
+  await finishUnlockSelfSupplied(page, "1-guest");
 
   // Reload: the header on disk still carries the gate — the whole ceremony
   // again, from a fresh page load, without anything held in memory.
@@ -374,7 +369,7 @@ const browser = await chromium.launch(launch);
   await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await page.waitForTimeout(2500);
-  await finishUnlockWithCode(page, secret, "1-guest-reload");
+  await finishUnlockSelfSupplied(page, "1-guest-reload");
   await context.close();
 }
 
@@ -421,6 +416,9 @@ const browser = await chromium.launch(launch);
   check(/Authenticator on/.test(await text(page)), "authenticator on");
   await dialog.getByRole("button", { name: "I saved them" }).click();
   await page.waitForTimeout(500);
+  // Withdraw the vault's own authenticator (ADR 0113): this road walks the
+  // code by hand — the road a person gets once they trash the entry.
+  await withdrawSelfAuthenticator(page);
   await lock(page);
   const locked = await snap(page, "2-password-locked");
   check(

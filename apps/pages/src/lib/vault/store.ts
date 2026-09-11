@@ -77,17 +77,25 @@ import {
   mergeVaultBodies,
 } from "./model.js";
 import { estimateStrength } from "./password.js";
+import { spendRecoveryCode } from "./recovery-codes.js";
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
+import {
+  UnguardedTotpEnrollment,
+  heldTotpCode,
+  proveTotpEnrollment,
+  startTotpEnrollment,
+  withSelfAuthenticatorRegistration,
+} from "./self-authenticator.js";
 import {
   discardTombCaches,
   hydrateAndMigrateTombOnUnlock,
   wipeTombOnDestroy,
 } from "./tomb-migration.js";
-import { totpSetupUri } from "./totp.js";
 import {
   type CodeChannel,
   RECOVERY_CODE_COUNT,
   type RecoveryLedger,
+  type TotpGateRecord,
   type VaultUnlocks,
   assertKeepsPrimaryUnlock,
   assertPinPolicy,
@@ -100,10 +108,8 @@ import {
   openTotpSecret,
   primaryUnlockCount,
   randomRecoveryCodes,
-  randomTotpSecret,
   sealRecoveryLedger,
   sealText,
-  sealTotpSecret,
   totpCodeMatches,
   unwrapVaultKeyWithPin,
   unwrapVaultKeyWithPrf,
@@ -838,6 +844,21 @@ export class VaultStore {
   async #afterPrimaryUnwrap(vaultKey: CryptoKey): Promise<void> {
     if (hasSecondStep(this.#header)) {
       this.#pendingVaultKey = vaultKey;
+      const gate = this.#header?.unlocks?.totp;
+      // The vault is its own registered authenticator: supply the code from
+      // the sealed seed instead of asking (ADR 0113); on anything unusual,
+      // fall back to asking.
+      if (gate?.selfItemId) {
+        const code = await heldTotpCode(gate, await this.#loadBody(vaultKey));
+        if (code !== null) {
+          try {
+            await this.confirmTotp(code);
+            return;
+          } catch {
+            // A code that fails anyway (skewed clock) falls back to asking.
+          }
+        }
+      }
       this.#emit();
       return;
     }
@@ -940,6 +961,8 @@ export class VaultStore {
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
     await this.#activateSession(pending);
+    // A gate with no registration yet gets one now (ADR 0113).
+    if (!gate.selfItemId) await this.#registerSelfAuthenticator(gate);
   }
 
   cancelTotpChallenge(): void {
@@ -993,12 +1016,7 @@ export class VaultStore {
     await this.#activateSession(pending);
   }
 
-  /**
-   * A recovery code stands in for the second step once. Its hash is looked
-   * up in the ledger sealed under the parked key, marked used, and the ledger
-   * is written back before the session opens — a code spent twice is a code
-   * someone copied.
-   */
+  /** Spend a recovery code as the second step (see `recovery-codes.ts`). */
   async redeemRecoveryCode(code: string): Promise<void> {
     this.#assertNotLockedOut();
     const pending = this.#pendingVaultKey;
@@ -1007,23 +1025,9 @@ export class VaultStore {
     if (!pending || !header || !record) {
       throw new WrongPasswordError("That recovery code is not valid.");
     }
-    const ledger = await openRecoveryLedger(pending, record);
-    const typed = normalizeRecoveryCode(code);
-    const index = ledger.codes.findIndex(
-      (candidate, i) =>
-        typed.length > 0 &&
-        normalizeRecoveryCode(candidate) === typed &&
-        !ledger.used[i],
+    const codesWrap = await spendRecoveryCode(pending, record, code, () =>
+      this.#recordFailedUnlock(),
     );
-    if (index < 0) {
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError("That recovery code is not valid.");
-    }
-    const used = ledger.used.map((flag, i) => flag || i === index);
-    const codesWrap = await sealRecoveryLedger(pending, {
-      codes: ledger.codes,
-      used,
-    });
     await this.#persistHeader({
       ...header,
       unlocks: { ...header.unlocks, recovery: { ...record, codesWrap } },
@@ -1128,63 +1132,44 @@ export class VaultStore {
   }
 
   /**
-   * Start enrolling an authenticator code as the second step after any
-   * primary unlock. Returns an otpauth URI for the QR / authenticator app.
-   *
-   * Nothing is written yet. The gate lands on disk only once
-   * `confirmTotpEnrollment` sees a code from the app that matches — an
-   * unscanned or mis-scanned seed used to become a gate the moment Enroll was
-   * pressed, and the next unlock then asked for a code nobody could produce.
-   *
-   * It also needs a key to guard: a guest session holds nothing wrapped to
-   * disk, and writing `unlocks.totp` alone would seal a vault no passkey, PIN
-   * or password can ever open (that is exactly how one got bricked). So the
-   * ceremony is refused until a primary method exists.
+   * Start enrolling an authenticator code as the second step. Returns an
+   * otpauth URI; the gate is written only once a code matches.
    */
   async beginTotpEnrollment(): Promise<string> {
     const { header } = this.#requireUnlocked();
-    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
-      throw new Error(
-        "Seal this vault with a passkey, PIN or password before adding an authenticator code — a code can only guard a key.",
-      );
-    }
-    const secret = randomTotpSecret();
-    this.#pendingTotpSecret = secret;
-    return totpSetupUri(secret, {
-      label: "OpenSesame vault",
-      issuer: "OpenSesame",
-    });
+    const started = startTotpEnrollment(
+      this.#ephemeral,
+      primaryUnlockCount(header),
+    );
+    this.#pendingTotpSecret = started.secret;
+    return started.uri;
   }
 
   /**
-   * Prove the authenticator was set up, then turn the gate on. A wrong code
-   * leaves everything as it was — this is enrollment, not an unlock, so it
-   * counts toward no lockout.
+   * Prove the authenticator was set up, turn the gate on, and register the
+   * vault as its own authenticator (ADR 0113).
    */
   async confirmTotpEnrollment(code: string): Promise<void> {
     const { vaultKey, header } = this.#requireUnlocked();
-    const secret = this.#pendingTotpSecret;
-    if (!secret) {
-      throw new Error("Start authenticator enrollment first.");
+    try {
+      const gate = await proveTotpEnrollment({
+        ephemeral: this.#ephemeral,
+        primaryCount: primaryUnlockCount(header),
+        secret: this.#pendingTotpSecret,
+        code,
+        vaultKey,
+      });
+      await this.#persistHeader({
+        ...header,
+        unlocks: { ...header.unlocks, totp: gate },
+      });
+      await this.#registerSelfAuthenticator(gate);
+    } catch (error) {
+      if (error instanceof UnguardedTotpEnrollment) {
+        this.#pendingTotpSecret = null;
+      }
+      throw error;
     }
-    if (this.#ephemeral || primaryUnlockCount(header) === 0) {
-      this.#pendingTotpSecret = null;
-      throw new Error(
-        "Seal this vault with a passkey, PIN or password before adding an authenticator code — a code can only guard a key.",
-      );
-    }
-    const ok = await totpCodeMatches(secret, code);
-    if (!ok) {
-      throw new WrongPasswordError(
-        "That code did not match. Check the time on your authenticator and try again.",
-      );
-    }
-    const gate = await sealTotpSecret(vaultKey, secret);
-    const unlocks: VaultUnlocks = {
-      ...header.unlocks,
-      totp: gate,
-    };
-    await this.#persistHeader({ ...header, unlocks });
     this.#pendingTotpSecret = null;
   }
 
@@ -1193,18 +1178,32 @@ export class VaultStore {
     this.#pendingTotpSecret = null;
   }
 
+  /** Point a gate at its self-authenticator registration (ADR 0113). */
+  async #registerSelfAuthenticator(gate: TotpGateRecord): Promise<void> {
+    if (!this.#header || !this.#vaultKey) return;
+    const next = await withSelfAuthenticatorRegistration(
+      this.#vaultKey,
+      gate,
+      this.#header,
+      this.#body,
+    );
+    if (next.item) await this.saveItem(next.item);
+    await this.#persistHeader(next.header);
+  }
+
   async removeTotp(): Promise<void> {
     await this.#removeSecondStep("totp");
   }
 
-  /**
-   * Drop one second step. When it was the last, the recovery codes go with
-   * it: they stand in for a second step, and there is none left to stand in
-   * for.
-   */
+  /** Drop one second step; the last one takes the recovery codes with it. */
   async #removeSecondStep(step: "totp" | CodeChannel): Promise<void> {
     const header = this.#header;
     if (!header?.unlocks?.[step]) return;
+    // The authenticator's registration goes with its gate.
+    if (step === "totp") {
+      const selfId = header.unlocks.totp?.selfItemId;
+      if (selfId) await this.trashItem(selfId);
+    }
     const { [step]: _removed, ...rest } = header.unlocks;
     const unlocks: VaultUnlocks = { ...rest };
     if (

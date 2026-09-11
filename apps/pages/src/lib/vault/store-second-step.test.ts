@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { kvDelete } from "../kv.js";
+import { kvDelete, kvGet, kvSet } from "../kv.js";
 import {
   BODY_PATH,
   HEADER_PATH,
@@ -11,6 +11,7 @@ import {
 } from "../vfs.js";
 import { WrongPasswordError } from "./crypto.js";
 import { type SentCode, remoteCodeSeams } from "./remote-code.js";
+import { SELF_AUTHENTICATOR_TITLE } from "./self-authenticator.js";
 import { ATTEMPTS_KEY, VaultStore } from "./store.js";
 
 const PASSWORD = "correct horse battery staple";
@@ -152,6 +153,9 @@ describe("second steps by email or text, and recovery codes", () => {
     const ledger = await store.recoveryCodes();
     expect(ledger?.codes).toEqual(codes);
     expect(ledger?.used.every((flag) => !flag)).toBe(true);
+    // Withdraw the vault's own authenticator (ADR 0113) so the code is asked.
+    const selfId = store.getSnapshot().header?.unlocks?.totp?.selfItemId ?? "";
+    await store.trashItem(selfId);
     store.lock();
 
     const reopened = new VaultStore();
@@ -197,5 +201,129 @@ describe("second steps by email or text, and recovery codes", () => {
     await reopened.unlock(PASSWORD);
     expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
     expect(reopened.getSnapshot().status).toBe("unlocked");
+  });
+});
+
+describe("the vault as its own authenticator (ADR 0113)", () => {
+  beforeEach(async () => {
+    await vfsFlush();
+    kvDelete(ATTEMPTS_KEY);
+    kvDelete(tombFileKey(PERSONAL_TOMB, HEADER_PATH));
+    kvDelete(tombFileKey(PERSONAL_TOMB, BODY_PATH));
+    kvDelete(tombFileKey(PERSONAL_TOMB, MIGRATION_MARKER_PATH));
+    kvDelete(tombFileKey(PERSONAL_TOMB, INDEX_PATH));
+  });
+
+  function selfItem(store: VaultStore) {
+    const item = store
+      .getSnapshot()
+      .items.find((candidate) => candidate.name === SELF_AUTHENTICATOR_TITLE);
+    return item?.kind === "login" ? item : undefined;
+  }
+
+  function selfItemId(store: VaultStore): string {
+    const id = store.getSnapshot().header?.unlocks?.totp?.selfItemId;
+    if (!id) throw new Error("expected a self-authenticator marker");
+    return id;
+  }
+
+  it("registers a login entry for itself when the gate is enrolled", async () => {
+    const { totpCode, parseTotp } = await import("./totp.js");
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    const secret = await enrollTotp(store);
+    const item = selfItem(store);
+    expect(selfItemId(store)).toBe(item?.id);
+    expect(item?.deletedAt).toBeNull();
+    // The entry is a working authenticator: its seed makes the gate's code.
+    await expect(totpCode(parseTotp(item?.totp ?? ""))).resolves.toBe(
+      await totpCode(parseTotp(secret)),
+    );
+  });
+
+  it("supplies the code itself at unlock, asking nothing", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await enrollTotp(store);
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlock(PASSWORD);
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
+    expect(selfItem(reopened)).toBeDefined();
+  });
+
+  it("asks for the code once the entry is trashed, and does not resurrect it", async () => {
+    const { totpCode, parseTotp } = await import("./totp.js");
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    const secret = await enrollTotp(store);
+    const selfId = selfItemId(store);
+    await store.trashItem(selfId);
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlock(PASSWORD);
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
+    await reopened.confirmTotp(await totpCode(parseTotp(secret)));
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    // The trashed entry is left alone: the withdrawal survives a manual code.
+    expect(selfItem(reopened)?.id).toBe(selfId);
+    expect(selfItem(reopened)?.deletedAt).not.toBeNull();
+  });
+
+  it("supplies the code again once the entry is restored", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await enrollTotp(store);
+    const selfId = selfItemId(store);
+    await store.trashItem(selfId);
+    await store.restoreItem(selfId);
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlock(PASSWORD);
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(false);
+  });
+
+  it("registers itself for a gate sealed before the marker existed", async () => {
+    const { totpCode, parseTotp } = await import("./totp.js");
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    const secret = await enrollTotp(store);
+    await store.trashItem(selfItemId(store));
+    store.lock();
+
+    // A header from before ADR 0113: a gate with no registration marker.
+    await vfsFlush();
+    const stored = kvGet(tombFileKey(PERSONAL_TOMB, HEADER_PATH));
+    if (!stored) throw new Error("expected a sealed header");
+    const header = JSON.parse(stored);
+    header.unlocks.totp.selfItemId = undefined;
+    kvSet(tombFileKey(PERSONAL_TOMB, HEADER_PATH), JSON.stringify(header));
+
+    const reopened = new VaultStore();
+    await reopened.unlock(PASSWORD);
+    expect(reopened.getSnapshot().awaitingSecondStep).toBe(true);
+    await reopened.confirmTotp(await totpCode(parseTotp(secret)));
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    // The marker now points at a live entry — a fresh one beside the trashed.
+    const marker = reopened.getSnapshot().header?.unlocks?.totp?.selfItemId;
+    const item = reopened.getSnapshot().items.find((c) => c.id === marker);
+    expect(item?.name).toBe(SELF_AUTHENTICATOR_TITLE);
+    expect(item?.deletedAt).toBeNull();
+  });
+
+  it("trashes the entry when the gate is removed", async () => {
+    const store = new VaultStore();
+    await store.create(PASSWORD);
+    await enrollTotp(store);
+    const selfId = selfItemId(store);
+    await store.removeTotp();
+    expect(store.getSnapshot().header?.unlocks?.totp).toBeUndefined();
+    expect(selfItem(store)?.id).toBe(selfId);
+    expect(selfItem(store)?.deletedAt).not.toBeNull();
   });
 });

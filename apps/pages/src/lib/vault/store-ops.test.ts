@@ -59,8 +59,7 @@ async function unlockedStore(): Promise<VaultStore> {
 }
 
 beforeEach(async () => {
-  // Let any fire-and-forget sealed write from the last test land before
-  // clearing, so it cannot reappear mid-test under a retired vault key.
+  // Let any fire-and-forget sealed write from the last test land before clearing.
   await vfsFlush();
   clearVault();
 });
@@ -402,8 +401,7 @@ describe("VaultStore session lifecycle", () => {
   });
 
   it("persists migrated prefs once for old installs", async () => {
-    // Legacy plaintext prefs seal into the tomb config on unlock, then the
-    // legacy key is gone and the stored revision is current.
+    // Legacy plaintext prefs seal into the tomb config on unlock; the legacy key is then gone.
     kvSet(
       LEGACY_PREFS_KEY,
       JSON.stringify({ autoLockMinutes: 15, theme: "dark" }),
@@ -429,6 +427,9 @@ describe("VaultStore TOTP challenge flow", () => {
     const uri = await enrollTotp(store);
     const secret = new URL(uri).searchParams.get("secret");
     if (!secret) throw new Error("expected totp secret");
+    // Withdraw the vault's own authenticator (ADR 0113) so the code is asked.
+    const selfId = store.getSnapshot().header?.unlocks?.totp?.selfItemId ?? "";
+    await store.trashItem(selfId);
     store.lock();
     return { store, code: () => totpCode(parseTotp(secret)) };
   }
@@ -573,8 +574,7 @@ describe("VaultStore prefs and idle auto-lock", () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
     store.setPrefs({ theme: "dark", lockOnHide: true });
-    // setPrefs writes through fire-and-forget (session memory is the source
-    // of truth); a reload boundary is where the write must have landed.
+    // setPrefs writes through fire-and-forget; a reload boundary is where the write must have landed.
     await vfsFlush();
     store.lock();
 

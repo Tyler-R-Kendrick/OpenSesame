@@ -516,7 +516,7 @@ export function AuthenticatorCeremony({
         const existing = await store.recoveryCodes();
         setCodes(existing ? null : await store.generateRecoveryCodes());
         setStage("done");
-      }, "Authenticator on. Every unlock now asks for a code.");
+      }, "Authenticator on. This vault supplies the code itself from now on.");
     };
     const alts: CeremonyAlt[] = [
       {
@@ -595,7 +595,7 @@ export function AuthenticatorCeremony({
     <CeremonyShell
       ok
       top="Authenticator on"
-      name="Every unlock now asks for a code after the key"
+      name="This vault supplies the code itself after the key"
       facts={[
         { key: "Recovery", value: "the codes you already have still stand" },
       ]}
