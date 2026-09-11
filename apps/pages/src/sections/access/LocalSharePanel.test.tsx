@@ -20,7 +20,9 @@ afterEach(() => {
 it("shares a vault with a person from the grants command", async () => {
   const fixture = await localRequestFixture();
   render(<LocalSharePanel tomb={fixture.tomb} />);
-  await userEvent.click(screen.getByRole("button", { name: "Grant access" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Grant identity share" }),
+  );
   await waitFor(() => screen.getByLabelText("Identity"));
   await userEvent.selectOptions(screen.getByLabelText("Resource"), "Vault");
   await userEvent.selectOptions(screen.getByLabelText("Policy"), "Open");

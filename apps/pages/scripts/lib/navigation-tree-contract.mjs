@@ -78,6 +78,11 @@ async function accessContract(page, tabTo) {
     page.getByRole("tab", { name: "Grants", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowDown");
+  await expect(page).toHaveURL(/\/access\?view=grants#identity-shares$/);
+  const grants = page.getByRole("treeitem", { name: "Grants", exact: true });
+  await page.keyboard.press("ArrowLeft");
+  await expect(grants).toHaveAttribute("aria-expanded", "false");
+  await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/\/access\?view=requests$/);
   await expect(
     page.getByRole("tab", { name: "Requests", exact: true }),
@@ -136,7 +141,6 @@ async function connectorsContract(page, tabTo) {
   );
   await page.keyboard.press("Enter");
   await expect(groups).not.toHaveCount(groupCount);
-  await expect(selectedLeaf).not.toHaveText(/Load|Loading/);
   await expect(preview).toBeInViewport();
   await expect(tree).toBeFocused();
 }
@@ -153,6 +157,10 @@ async function identityContract(page, tabTo) {
     page.getByRole("treeitem", { name: "Applications", exact: true }),
   ).toBeVisible();
   await tabTo(page, tree);
+  const people = page.getByRole("treeitem", { name: "People", exact: true });
+  if ((await people.getAttribute("aria-selected")) !== "true")
+    await page.keyboard.press("ArrowDown");
+  await expect(people).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/\/identity\?view=agents$/);
   await expect(

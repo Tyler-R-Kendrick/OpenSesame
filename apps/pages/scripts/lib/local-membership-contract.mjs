@@ -33,9 +33,12 @@ export async function localMembershipContract(page, tabTo) {
     exact: true,
   });
   await create(panel, "organization", "Keyboard organization");
+  const org = panel
+    .getByRole("listitem")
+    .filter({ hasText: "Keyboard organization" });
   const { person, role, rows, disclosure } = await assignOwner(
     page,
-    panel,
+    org,
     tabTo,
   );
   await tabTo(page, person);
@@ -43,7 +46,7 @@ export async function localMembershipContract(page, tabTo) {
   await expect(role).toHaveValue("member");
   await tabTo(
     page,
-    panel.getByRole("button", { name: "Add member", exact: true }),
+    org.getByRole("button", { name: "Add member", exact: true }),
   );
   await page.keyboard.press("Enter");
   const member = rows.filter({ hasText: "Membership member" });
@@ -54,7 +57,7 @@ export async function localMembershipContract(page, tabTo) {
   await expect(role).toHaveValue("admin");
   await tabTo(
     page,
-    panel.getByRole("button", { name: "Save role", exact: true }),
+    org.getByRole("button", { name: "Save role", exact: true }),
   );
   await page.keyboard.press("Enter");
   await expect(member.getByText("admin", { exact: true })).toBeVisible();
@@ -83,7 +86,14 @@ async function assignOwner(page, panel, tabTo) {
   const role = panel.getByRole("combobox", { name: "Organization role" });
   await tabTo(page, person);
   await page.keyboard.press("Home");
-  await page.keyboard.press("ArrowDown");
+  for (let step = 0; step < 24; step++) {
+    const label = await person.evaluate(
+      (node) => node.options[node.selectedIndex]?.text ?? "",
+    );
+    if (label.startsWith("Membership owner")) break;
+    await page.keyboard.press("ArrowDown");
+  }
+  await expect(person.locator("option:checked")).toHaveText(/Membership owner/);
   await expect(role).toHaveValue("owner");
   await tabTo(
     page,
@@ -102,7 +112,7 @@ async function assignOwner(page, panel, tabTo) {
     owner.getByRole("button", { name: "Confirm removal", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(panel.getByRole("alert")).toContainText("organization owner");
+  await expect(page.getByRole("alert")).toContainText("organization owner");
   await expect(owner).toBeVisible();
   return { person, role, rows, disclosure };
 }

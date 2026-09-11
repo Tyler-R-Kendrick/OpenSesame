@@ -40,8 +40,8 @@ function ShareCommands({
       <button
         type="button"
         className="icon-btn icon-btn--sm"
-        aria-label="Grant access"
-        title="Grant access"
+        aria-label="Grant identity share"
+        title="Grant identity share"
         disabled={busy}
         onClick={onGrant}
       >
