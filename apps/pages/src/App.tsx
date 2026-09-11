@@ -135,6 +135,7 @@ function Framed({ children }: { children: ReactNode }) {
 function VaultApp() {
   const slots = useContext(AppSlotsContext);
   const { status } = slots.useVault();
+  const location = useLocation();
   slots.useTheme();
   slots.useSessionGuards();
   useWebMcp(status);
@@ -153,6 +154,13 @@ function VaultApp() {
 
   if (status !== "unlocked") {
     return <slots.UnlockScreen />;
+  }
+
+  // Land on the vault before the shell mounts: the rail's sections open from
+  // the route they first render under, and mounting on "/" would leave every
+  // one of them closed.
+  if (location.pathname === "/") {
+    return <Navigate to="/vault" replace />;
   }
 
   return (
