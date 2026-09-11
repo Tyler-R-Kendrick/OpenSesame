@@ -18,23 +18,26 @@ export async function localPolicyJourney({
   const panel = management.getByRole("region", {
     name: "Local application policies",
   });
-  await expect(
-    panel.getByRole("heading", { name: "Test application", exact: true }),
-  ).toBeVisible();
-  await panel.getByText("Application registration", { exact: true }).click();
-  const owner = panel.getByRole("checkbox", { name: "records:read: owner" });
+  const heading = panel.getByRole("heading", {
+    name: "Test application",
+    exact: true,
+  });
+  await expect(heading).toBeVisible();
+  const row = heading.locator("..");
+  await row.getByText("Application registration", { exact: true }).click();
+  const owner = row.getByRole("checkbox", { name: "records:read: owner" });
   await expect(owner).toBeChecked();
   await owner.focus();
   await management.keyboard.press("Space");
   await expect(owner).not.toBeChecked();
   await capturePolicy(management, width, captures);
-  const save = panel.getByRole("button", { name: "Save registration" });
+  const save = row.getByRole("button", { name: "Save registration" });
   await save.focus();
   await management.keyboard.press("Enter");
   await expect(save).toBeEnabled();
-  await panel.getByRole("button", { name: "Reload registration" }).click();
+  await row.getByRole("button", { name: "Reload registration" }).click();
   await expect(
-    panel.getByRole("checkbox", { name: "records:read: owner" }),
+    row.getByRole("checkbox", { name: "records:read: owner" }),
   ).not.toBeChecked();
   await page.getByRole("button", { name: "Check session" }).click();
   await expect(page.locator("output")).toHaveText("Session refused");
