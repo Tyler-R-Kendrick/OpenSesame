@@ -73,6 +73,23 @@ describe("the setup record", () => {
     expect(record?.joined).toBe(true);
   });
 
+  it("records the tabs that were skipped, and reads older records without them", async () => {
+    await completeSetup({
+      ways: ["builtin"],
+      service: false,
+      skipped: ["mfa", "sync"],
+    });
+    expect(loadSetup()?.skipped).toEqual(["mfa", "sync"]);
+    store.set(
+      SETUP_KEY,
+      JSON.stringify({
+        completedAt: "2026-08-31T00:00:00Z",
+        ways: ["builtin"],
+      }),
+    );
+    expect(loadSetup()?.skipped).toEqual([]);
+  });
+
   it("reads a corrupt or truncated record as no record", () => {
     for (const raw of ["{", "null", "[]", "{}", '{"completedAt":""}']) {
       store.set(SETUP_KEY, raw);

@@ -16,7 +16,7 @@ import {
 
 type Flash = { tone: "ok" | "err"; text: string };
 
-type Preset = {
+export type ModelProviderPreset = {
   readonly id: string;
   readonly kind: ModelPlaneKind;
   readonly name: string;
@@ -28,9 +28,9 @@ type Preset = {
 /**
  * The sheet's list, as data. Local first, because the ordering is the argument:
  * the arrangements where nothing leaves the machine come before the ones where
- * something does.
+ * something does. The setup ceremony's ai step offers the same list (ADR 0114).
  */
-const PRESETS: readonly Preset[] = [
+export const MODEL_PROVIDER_PRESETS: readonly ModelProviderPreset[] = [
   {
     id: "ollama",
     kind: "local",
@@ -227,7 +227,7 @@ export function ModelProviderPanel() {
         ) : null}
 
         <ul className="list">
-          {PRESETS.map((preset) => (
+          {MODEL_PROVIDER_PRESETS.map((preset) => (
             <li key={preset.id}>
               <div>
                 <strong>{preset.name}</strong>

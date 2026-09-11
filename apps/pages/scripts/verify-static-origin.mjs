@@ -100,19 +100,21 @@ const browser = await launch();
   await checkWordmark(page, check);
 
   await page.getByRole("button", { name: "Deployment setup" }).click();
-  await snap(page, "A2-setup");
+  const onSetup = await snap(page, "A2-setup");
   check(
-    /How do people sign in\?/.test(
-      await page.evaluate(() => document.body.innerText),
-    ),
-    "setup opens on purpose",
+    (await page.getByRole("tab").count()) === 5 &&
+      /Where do backups live\?/.test(onSetup),
+    "setup opens on the backups tab of five (ADR 0114)",
   );
-  await page.getByRole("button", { name: "Back" }).click();
-  await page.waitForTimeout(300);
+  await page.getByRole("tab", { name: "identity" }).click();
+  const identity = await snap(page, "A2-setup-identity");
   check(
-    /^Sign in$/m.test(await page.evaluate(() => document.body.innerText)),
-    "back returns to sign-in",
+    /How do people sign in\?/.test(identity),
+    "the identity tab keeps the one question",
   );
+  await page.getByRole("button", { name: "Skip all" }).click();
+  const back = await snap(page, "A2-back");
+  check(/^Sign in$/m.test(back), "skip all returns to sign-in");
 
   await page
     .getByRole("button", { name: "Continue as guest", exact: true })

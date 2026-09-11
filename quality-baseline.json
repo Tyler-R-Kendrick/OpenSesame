@@ -18,7 +18,7 @@
   "totals": {
     "files": 494,
     "violations": 817,
-    "oversizedLines": 279997
+    "oversizedLines": 279976
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -809,7 +809,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/SetupScreen.test.tsx": {
-      "max-lines": 629
+      "max-lines": 611
     },
     "apps/pages/src/screens/SetupScreen.tsx": {
       "max-lines-per-function": 1
@@ -820,7 +820,7 @@
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 2,
       "max-depth": 1,
-      "max-lines": 1268,
+      "max-lines": 1265,
       "max-lines-per-function": 1,
       "max-statements": 2
     },
