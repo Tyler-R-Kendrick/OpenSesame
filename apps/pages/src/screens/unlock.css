@@ -125,6 +125,65 @@
   right: 0.2rem;
 }
 
+/* The second-step code: one monospace slot per digit. A single input keeps
+   one Tab stop, native paste and one-time-code autofill; the track behind it
+   only draws the boxes. Each slot is sized by a hidden "0" in the same font,
+   so the track — not the unreliable `ch` unit — sets the geometry and every
+   digit lands centered on its slot on any platform. */
+.codefield {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.codefield input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 2.2;
+  letter-spacing: 0.55rem;
+}
+
+.codefield input:focus,
+.codefield input:focus-visible {
+  outline: none;
+  border-bottom: 0;
+  box-shadow: none;
+}
+
+.codefield input:disabled {
+  color: var(--ink-3);
+}
+
+.codefield__slots {
+  display: flex;
+  gap: 0.55rem;
+  font-family: var(--mono);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 2.2;
+  pointer-events: none;
+}
+
+.codefield__slots span {
+  border-bottom: 2px solid var(--line-strong);
+}
+
+.codefield__slots span::before {
+  content: "0";
+  visibility: hidden;
+}
+
+.codefield:focus-within .codefield__slots span {
+  border-bottom-color: var(--accent);
+}
+
 .unlock__meter {
   display: grid;
   gap: 0.35rem;

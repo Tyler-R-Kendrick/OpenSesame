@@ -1614,10 +1614,9 @@ describe("UnlockScreen — TOTP step-up", () => {
     const input = screen.getByLabelText("Authenticator code");
     expect(submitButton().disabled).toBe(true);
     fireEvent.change(input, { target: { value: "123 456" } });
-    expect(submitButton().disabled).toBe(false);
-    fireEvent.click(submitButton());
+    expect(input).toHaveProperty("value", "123456");
     await waitFor(() =>
-      expect(v.store.confirmTotp).toHaveBeenCalledWith("123 456"),
+      expect(v.store.confirmTotp).toHaveBeenCalledWith("123456"),
     );
   });
 
@@ -1627,7 +1626,6 @@ describe("UnlockScreen — TOTP step-up", () => {
     fireEvent.change(screen.getByLabelText("Authenticator code"), {
       target: { value: "123456" },
     });
-    fireEvent.click(submitButton());
     expect(await screen.findByText("code expired")).toBeTruthy();
   });
 

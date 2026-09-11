@@ -214,8 +214,8 @@ async function finishUnlockWithCode(page, secret, name) {
       "2 · Authenticator code",
     "the rail marks step 2 as the current step",
   );
+  // A full code submits itself; the wrong one is refused without a click.
   await page.getByLabel("Authenticator code", { exact: true }).fill("000000");
-  await page.getByRole("button", { name: "Confirm MFA" }).click();
   await page.waitForTimeout(800);
   const refused = await snap(page, `${name}-wrong-code`);
   check(/not valid/i.test(refused), "a wrong code is refused in plain words");
@@ -226,7 +226,6 @@ async function finishUnlockWithCode(page, secret, name) {
   await page
     .getByLabel("Authenticator code", { exact: true })
     .fill(totp(secret));
-  await page.getByRole("button", { name: "Confirm MFA" }).click();
   await page.waitForTimeout(1500);
   const open = await snap(page, `${name}-open`);
   check(
