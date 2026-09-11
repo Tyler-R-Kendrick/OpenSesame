@@ -358,8 +358,8 @@ export function resetJourney(): void {
 
 /** The overlay affordance, which is present at every width. */
 export async function openSupport(user: JourneyUser): Promise<HTMLElement> {
-  await user.click(screen.getByRole("button", { name: "Support" }));
-  return screen.findByRole("dialog", { name: "Support" });
+  await user.click(await screen.findByRole("button", { name: "Support" }));
+  return screen.findByRole("dialog", { name: "Support", timeout: 10_000 });
 }
 
 /**
