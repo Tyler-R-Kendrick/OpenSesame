@@ -55,16 +55,16 @@ export type TotpGateRecord = {
   secretWrap: SealedBlob;
   digits: 6;
   period: 30;
+  /** The vault's own authenticator entry, when registered (ADR 0113). An item ID is plaintext, not a secret. */
+  selfItemId?: string;
 };
 
 /** Where a one-time code goes. The address itself is sealed, not the fact. */
 export type CodeChannel = "email" | "sms";
 
 /**
- * A code sent by the Identity API — the fallback second step. The plaintext
- * header says only that the channel is enrolled; the address is AES-GCM(VK),
- * opened with the key the first step just produced, so a copy of the header
- * discloses nothing to write to.
+ * A code sent by the Identity API — the fallback second step. The header
+ * says only that the channel is enrolled; the address is AES-GCM(VK).
  */
 export type RemoteCodeRecord = {
   /** AES-GCM(VK) over the address or E.164 number. */
