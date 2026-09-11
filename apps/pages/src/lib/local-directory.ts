@@ -345,6 +345,8 @@ export async function withLocalDirectoryLock<T>(
 
 export {
   GUEST_PERSON_NAME,
+  PAGES_APPLICATION_ID,
+  PAGES_APPLICATION_NAME,
   SUPPORT_AGENT_ID,
   SUPPORT_AGENT_NAME,
   currentOwnerPersonName,

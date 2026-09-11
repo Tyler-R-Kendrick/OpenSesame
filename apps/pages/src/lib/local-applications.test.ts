@@ -2,12 +2,16 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   configureLocalApplication,
   inspectLocalApplicationRequest,
+  pagesApplicationRedirect,
   readLocalApplications,
+  requireLocalApplicationAdmission,
 } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import {
   type LocalDirectoryChange,
+  PAGES_APPLICATION_ID,
   changeLocalDirectory,
+  ensureOwnerPerson,
   readLocalDirectory,
 } from "./local-directory.js";
 import { enrollLocalPasskey } from "./local-passkeys.js";
@@ -132,6 +136,40 @@ it("requires registration, exact redirects, allowed scopes and a real member ses
   await expect(
     inspectLocalApplicationRequest(tomb, session, app, redirect, ["openid"]),
   ).rejects.toThrow("unavailable");
+});
+
+it("registers this origin as the default OpenSesame relying party", async () => {
+  await ensureOwnerPerson(tomb, "Owner");
+  const redirectUri = pagesApplicationRedirect();
+  expect(redirectUri).toBeTruthy();
+  const apps = await readLocalApplications(tomb);
+  const pages = apps.applications.find(
+    (row) => row.applicationId === PAGES_APPLICATION_ID,
+  );
+  expect(pages).toMatchObject({
+    applicationId: PAGES_APPLICATION_ID,
+    organizationId: org,
+    scopes: ["openid"],
+  });
+  expect(pages?.redirectUris).toContain(redirectUri);
+  const revision = apps.revision;
+  await ensureOwnerPerson(tomb, "Owner");
+  expect((await readLocalApplications(tomb)).revision).toBe(revision);
+  const session = await signInLocalIdentity(tomb, person);
+  await expect(
+    requireLocalApplicationAdmission(
+      tomb,
+      session.principalId,
+      PAGES_APPLICATION_ID,
+      redirectUri ?? "",
+      ["openid"],
+    ),
+  ).resolves.toMatchObject({
+    applicationId: PAGES_APPLICATION_ID,
+    organizationId: org,
+    redirectUri,
+    scopes: ["openid"],
+  });
 });
 
 it.each([

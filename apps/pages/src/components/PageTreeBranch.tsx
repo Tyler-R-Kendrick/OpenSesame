@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import type { PageTreeNode } from "../lib/page-to-tree.js";
+import { type PageTreeNode, pageTreeItemCount } from "../lib/page-to-tree.js";
 import { IconChevronRight } from "./Icons.js";
 import { TreeRow } from "./RailRows.js";
 
@@ -100,7 +100,7 @@ export function PageTreeBranch({
   const navigate = useNavigate();
   const { expanded, toggle } = useBranchExpand();
   const selected = rowSelected(current, node);
-  const shown = node.count ?? (node.children.length || "-");
+  const shown = pageTreeItemCount(node) || "-";
   return (
     <>
       <TreeRow

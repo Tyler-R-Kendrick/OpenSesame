@@ -5,6 +5,7 @@ import {
   pageTabTree,
   pageToTree,
   pageTreeContains,
+  pageTreeItemCount,
   pageTreeLeaves,
 } from "./page-to-tree.js";
 
@@ -82,6 +83,67 @@ describe("pageTabTree", () => {
       "Local application grants",
     ]);
     expect(tree[1]?.children).toEqual([]);
+  });
+});
+
+describe("pageTreeItemCount", () => {
+  it("counts items, not tab or heading folders", () => {
+    const tree = pageTabTree([
+      {
+        id: "people",
+        label: "People",
+        href: "/identity?view=people",
+        items: [
+          { id: "alice", label: "Alice", href: "/identity?view=people#alice" },
+          { id: "bob", label: "Bob", href: "/identity?view=people#bob" },
+        ],
+      },
+      {
+        id: "grants",
+        label: "Grants",
+        href: "/access?view=grants",
+        sections: [
+          {
+            id: "local-grants",
+            label: "Local application grants",
+            href: "/access?view=grants#local-grants",
+            keepEmpty: true,
+          },
+          {
+            id: "identity-shares",
+            label: "Identity shares",
+            href: "/access?view=grants#identity-shares",
+            keepEmpty: true,
+            items: [
+              {
+                id: "share-1",
+                label: "vault: Budget",
+                href: "/access?view=grants#share-1",
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+    const people = tree.find((node) => node.id === "people");
+    const grants = tree.find((node) => node.id === "grants");
+    expect(people && pageTreeItemCount(people)).toBe(2);
+    expect(grants && pageTreeItemCount(grants)).toBe(1);
+    expect(grants?.children.every((node) => node.branch)).toBe(true);
+  });
+
+  it("lets a tree override the count", () => {
+    const tree = pageToTree([
+      {
+        id: "connected",
+        label: "Connected",
+        href: "/connections#connected",
+        keepEmpty: true,
+        count: 4,
+        items: [{ id: "one", label: "One", href: "/connections/one" }],
+      },
+    ]);
+    expect(tree[0] && pageTreeItemCount(tree[0])).toBe(4);
   });
 });
 

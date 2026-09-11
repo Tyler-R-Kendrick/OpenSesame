@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LocalIdentity } from "../../lib/local-directory.js";
+import { pageTreeItemCount } from "../../lib/page-to-tree.js";
 import { IDENTITY_LABELS, IDENTITY_VIEWS } from "../../lib/section-views.js";
 import { identityPageTree } from "./page-tree.js";
 
@@ -49,7 +50,11 @@ describe("identity page tree", () => {
     const leaves = (id: string) =>
       tree.find((node) => node.id === id)?.children.map((node) => node.label);
     expect(leaves("people")).toEqual(["Alice"]);
+    const people = tree.find((node) => node.id === "people");
+    const agents = tree.find((node) => node.id === "agents");
+    expect(people && pageTreeItemCount(people)).toBe(1);
     expect(leaves("agents")).toEqual(["Deploy"]);
+    expect(agents && pageTreeItemCount(agents)).toBe(1);
     expect(leaves("service-accounts")).toEqual(["Wiki"]);
     expect(leaves("organization")).toEqual(["Acme"]);
     expect(leaves("providers")).toEqual(["Google"]);

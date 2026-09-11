@@ -11,19 +11,35 @@ export type AccessPlanes = {
   shares?: readonly { id: string; label: string }[];
 };
 
-function panel(view: string, id: string, label: string): PageTreeLeaf {
+function leaf(view: string, id: string, label: string): PageTreeLeaf {
   return { id, label, href: `/access?view=${view}#${id}` };
+}
+
+function panel(
+  view: string,
+  id: string,
+  label: string,
+  items: PageTreeLeaf[] = [],
+): PageTreeSource {
+  return {
+    id,
+    label,
+    href: `/access?view=${view}#${id}`,
+    keepEmpty: true,
+    items,
+  };
 }
 
 function tab(
   id: (typeof ACCESS_VIEWS)[number],
-  items: PageTreeLeaf[],
+  sections: PageTreeSource[],
 ): PageTreeSource {
   return {
     id,
     label: ACCESS_LABELS[id],
     href: `/access?view=${id}`,
-    items,
+    keepEmpty: true,
+    sections,
   };
 }
 
@@ -36,9 +52,11 @@ export function accessPageSources({
   return [
     tab("grants", [
       panel("grants", "local-grants", "Local application grants"),
-      panel("grants", "identity-shares", "Identity shares"),
-      ...shares.map((share) =>
-        panel("grants", `share-${share.id}`, share.label),
+      panel(
+        "grants",
+        "identity-shares",
+        "Identity shares",
+        shares.map((share) => leaf("grants", `share-${share.id}`, share.label)),
       ),
       ...(host ? [panel("grants", "host-grants", "Grants")] : []),
     ]),

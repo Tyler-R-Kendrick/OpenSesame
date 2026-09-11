@@ -4,6 +4,8 @@ import {
   GUEST_PERSON_NAME,
   LOCAL_DIRECTORY_PATH,
   type LocalDirectory,
+  PAGES_APPLICATION_ID,
+  PAGES_APPLICATION_NAME,
   SUPPORT_AGENT_ID,
   SUPPORT_AGENT_NAME,
   changeLocalDirectory,
@@ -194,6 +196,11 @@ describe("local encrypted directory", () => {
         name: SUPPORT_AGENT_NAME,
         id: "local_00000000-0000-4000-8000-000000000001",
       }),
+      expect.objectContaining({
+        kind: "application",
+        name: PAGES_APPLICATION_NAME,
+        id: PAGES_APPLICATION_ID,
+      }),
     ]);
     const person = first.entries.find((entry) => entry.kind === "person");
     const org = first.entries.find((entry) => entry.kind === "organization");
@@ -220,6 +227,10 @@ describe("local encrypted directory", () => {
       expect.objectContaining({ kind: "person", name: "Owner" }),
       expect.objectContaining({ kind: "organization", name: "Personal" }),
       expect.objectContaining({ kind: "agent", name: SUPPORT_AGENT_NAME }),
+      expect.objectContaining({
+        kind: "application",
+        name: PAGES_APPLICATION_NAME,
+      }),
     ]);
   });
 
@@ -233,6 +244,10 @@ describe("local encrypted directory", () => {
       expect.objectContaining({ kind: "person", name: GUEST_PERSON_NAME }),
       expect.objectContaining({ kind: "organization", name: "Personal" }),
       expect.objectContaining({ kind: "agent", name: SUPPORT_AGENT_NAME }),
+      expect.objectContaining({
+        kind: "application",
+        name: PAGES_APPLICATION_NAME,
+      }),
     ]);
   });
 

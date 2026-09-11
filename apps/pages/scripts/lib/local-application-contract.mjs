@@ -18,42 +18,44 @@ export async function localApplicationContract(page, tabTo) {
   ).toBeFocused();
   await page.keyboard.type("Keyboard relying party");
   await page.keyboard.press("Enter");
-  const disclosure = panel.locator("summary", {
+  const row = panel
+    .getByRole("listitem")
+    .filter({ hasText: "Keyboard relying party" });
+  const disclosure = row.locator("summary", {
     hasText: "Application registration",
   });
   await activate(disclosure);
-  const organization = panel.getByRole("combobox", {
+  const organization = row.getByRole("combobox", {
     name: "Organization",
     exact: true,
   });
   await tabTo(page, organization);
   await page.keyboard.press("Home");
   await page.keyboard.press("ArrowDown");
-  const redirects = panel.getByRole("textbox", {
+  const redirects = row.getByRole("textbox", {
     name: "Redirect URIs (one per line)",
     exact: true,
   });
   await tabTo(page, redirects);
   await page.keyboard.type("https://rp.example.test/callback#unsafe");
-  const save = panel.getByRole("button", {
+  const save = row.getByRole("button", {
     name: "Save registration",
     exact: true,
   });
   await activate(save);
-  await expect(panel.getByRole("alert")).toContainText("exact HTTPS");
+  await expect(row.getByRole("alert")).toContainText("exact HTTPS");
   await expect(redirects).toHaveValue(
     "https://rp.example.test/callback#unsafe",
   );
   await tabTo(page, redirects);
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.type("https://rp.example.test/callback");
-  const ownerRead = await configureScopeRoles(page, panel, tabTo);
+  const ownerRead = await configureScopeRoles(page, row, tabTo);
   await activate(save);
   await expect(
-    panel.getByText(
-      "Registered locally. Access still requires authorization.",
-      { exact: true },
-    ),
+    row.getByText("Registered locally. Access still requires authorization.", {
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(save).toBeFocused();
   await activate(disclosure);
@@ -61,13 +63,13 @@ export async function localApplicationContract(page, tabTo) {
   await expect(redirects).toHaveValue("https://rp.example.test/callback");
   await expect(ownerRead).toBeChecked();
   await expect(
-    panel.getByRole("checkbox", { name: "records:read: member", exact: true }),
+    row.getByRole("checkbox", { name: "records:read: member", exact: true }),
   ).not.toBeChecked();
   await ownerRead.scrollIntoViewIfNeeded();
   await page.screenshot({
     path: `/tmp/opensesame-local-applications-${page.viewportSize().width}.png`,
   });
-  await removeRegistration(page, panel, tabTo);
+  await removeRegistration(page, row, tabTo);
   await expect(disclosure).toBeFocused();
   console.log(
     "PASS keyboard-only application registration, invalid callback refusal, scope policy persistence and confirmed removal",
