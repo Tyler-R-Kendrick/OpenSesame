@@ -20,9 +20,10 @@ export async function localDevicesJourney({
   );
   const panel = management.getByRole("region", { name: "Devices" });
   await expect(panel).toBeVisible();
-  await expect(panel.getByText("This device", { exact: true })).toBeVisible();
+  const mine = panel.getByRole("listitem").filter({ hasText: "This device" });
+  await expect(mine).toBeVisible();
   await expect(panel.getByText("Passkeys", { exact: true })).toHaveCount(0);
-  const rename = panel.getByRole("button", { name: /^Rename / });
+  const rename = mine.getByRole("button", { name: /^Rename / });
   await rename.focus();
   await management.keyboard.press("Enter");
   const name = management.getByLabel("Name", { exact: true });
