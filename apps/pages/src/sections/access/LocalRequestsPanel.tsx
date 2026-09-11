@@ -65,7 +65,12 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
   } = useRequestSelection(model.data?.requests);
   const disabled = model.busy || Boolean(model.error);
   return (
-    <section className="panel" aria-label="Local requests" ref={root}>
+    <section
+      className="panel"
+      id="local-requests"
+      aria-label="Local requests"
+      ref={root}
+    >
       <div className="panel__head">
         <h2>Local requests</h2>
         <div className="actions">

@@ -17,16 +17,18 @@ export function DevicesPanel({
 }) {
   const configured = useIdentityConfigured();
   const tomb = useVaultStore().activeTomb();
-  if (!configured) return <LocalDevicesPanel key={tomb} tomb={tomb} />;
-  if (!session) {
-    return (
-      <ConnectIdentityNote
-        online={online}
-        what="Approving the devices that sign in"
-      />
-    );
-  }
-  return <ApproveDeviceCard online={online} />;
+  return (
+    <>
+      <LocalDevicesPanel key={tomb} tomb={tomb} />
+      {configured && session ? <ApproveDeviceCard online={online} /> : null}
+      {configured && !session ? (
+        <ConnectIdentityNote
+          online={online}
+          what="Approving the devices that sign in"
+        />
+      ) : null}
+    </>
+  );
 }
 
 function ApproveDeviceCard({ online }: { online: boolean }) {

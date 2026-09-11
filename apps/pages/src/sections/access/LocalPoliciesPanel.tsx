@@ -51,7 +51,11 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
     (entry) => entry.kind === "application",
   );
   return (
-    <section className="panel" aria-label="Local application policies">
+    <section
+      className="panel"
+      id="local-policies"
+      aria-label="Local application policies"
+    >
       <div className="panel__head">
         <h2>Local application policies</h2>
         <button

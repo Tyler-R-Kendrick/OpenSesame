@@ -12,9 +12,9 @@
  * reading of "sign out" under which the vault should stay open for whoever
  * is at the keyboard next. `switchAccount` is the same exit with the next
  * sign-in armed to ask the issuer afresh; `attachAccount` keeps the session
- * and asks the Sign in tab for another identity to link to it.
+ * and asks the unlock screen's sign-in panel for another identity to link to it.
  *
- * Every one of these lands on the unlock screen's Sign in tab, which reads
+ * Every one of these lands on the unlock screen's sign-in panel, which reads
  * the stored outcome and says what just happened (`PendingLinkBanner`).
  */
 
@@ -62,7 +62,7 @@ function switchAccountDefault(): void {
 
 /**
  * Attach another identity to the account this device already has. The
- * session stays; the vault locks, because the Sign in tab — the one surface
+ * session stays; the vault locks, because the sign-in panel — the one surface
  * that offers every configured way in — lives on the unlock screen, and the
  * returning leg links the new identity to the principal that is still signed
  * in (`adoptFederatedIdentity`).

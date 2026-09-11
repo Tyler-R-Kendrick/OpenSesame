@@ -31,6 +31,7 @@ export function LocalAuthorityPanel({
   return (
     <section
       className="panel"
+      id={grantsOnly ? "local-grants" : "local-sessions"}
       aria-label="Local access records"
       aria-busy={state.busy}
     >

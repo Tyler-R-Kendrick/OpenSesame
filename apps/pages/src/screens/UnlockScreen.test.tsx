@@ -209,6 +209,15 @@ function goLocalOnly(): void {
   );
 }
 
+function userMenuTrigger(): HTMLElement {
+  return screen.getByRole("button", { name: /Signed in as / });
+}
+
+function openSignIn(): void {
+  fireEvent.click(userMenuTrigger());
+  fireEvent.click(screen.getByRole("menuitem", { name: "Sign in" }));
+}
+
 function identifierInput(): HTMLInputElement {
   return overlapCast(screen.getByLabelText("Email or organization"));
 }
@@ -223,7 +232,7 @@ function submitIdentifier(value: string): void {
 // this file rather than inside the one block that used to be the sole caller.
 beforeEach(() => {
   // A sign-out or a switch leaves a one-shot note for the next unlock screen;
-  // one test's note must never open another's on the Sign in tab.
+  // one test's note must never open another's sign-in panel.
   sessionStorage.clear();
   localStorage.clear();
   continueAsGuest.mockReset();
@@ -341,16 +350,15 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     }
   });
 
-  it("withholds the Unlock tab while nothing is sealed on this device", () => {
-    // Not disabled: a greyed tab still asserts the action exists and merely is
-    // unavailable right now, which is a different and untrue claim.
+  it("withholds the user menu while nothing is sealed on this device", () => {
     fresh();
     render(<UnlockScreen />);
+    expect(screen.queryByRole("button", { name: /Signed in as / })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
     expect(screen.queryByRole("tab", { name: "Sign in" })).toBeNull();
   });
 
-  it("offers the Unlock tab as soon as there is a vault to open", () => {
+  it("names who locked the vault in a dropdown, with no Sign in tab", () => {
     v.state = {
       status: "locked",
       header: null,
@@ -360,8 +368,10 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
       awaitingSecondStep: false,
     };
     render(<UnlockScreen />);
-    expect(screen.getByRole("tab", { name: "Unlock" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Sign in" })).toBeTruthy();
+    expect(userMenuTrigger()).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Sign in" })).toBeNull();
+    expect(submitButton()).toBeTruthy();
   });
 
   it("names the deployment it is pointed at, and the road back into setup", () => {
@@ -665,7 +675,7 @@ describe("UnlockScreen — first run", () => {
     cleanup();
     v.state.status = "locked";
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
+    openSignIn();
     expect(
       screen.queryByRole("button", {
         name: "Skip sign-in and continue as guest",
@@ -1009,9 +1019,9 @@ describe("UnlockScreen — first run", () => {
   it("offers the sign-in entries on an existing vault too, guest included", async () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
-    // Sign-in is its own tab beside Unlock — nothing of it crowds the form.
+    // Sign-in lives in the user menu — nothing of it crowds the form.
     expect(screen.queryByLabelText("Email or organization")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
+    openSignIn();
     expect(screen.getByLabelText("Email or organization")).toBeTruthy();
     expect(
       screen.getByRole("button", { name: /Continue with your IdP/ }),
@@ -1033,7 +1043,7 @@ describe("UnlockScreen — first run", () => {
     await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
   });
 
-  it("offers guest on the Unlock tab of an existing vault (AGENTS.md §5)", async () => {
+  it("offers guest on the unlock form of an existing vault (AGENTS.md §5)", async () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
     // Whoever holds the device without its key still gets in as a guest; the
@@ -1102,54 +1112,46 @@ describe("UnlockScreen — password unlock", () => {
 
   afterEach(cleanup);
 
-  it("separates unlock and sign-in into tabs, never one stacked form", () => {
+  it("keeps unlock as the default and opens sign-in from the user menu", () => {
     render(<UnlockScreen />);
-    // Unlock is the default ceremony: the challenge form is on screen, the
-    // federated panel is not.
     expect(submitButton()).toBeTruthy();
     expect(screen.queryByRole("button", { name: FEDERATED_BUTTON })).toBeNull();
-    // The Sign in tab is its own ceremony — and its copy never promises that
-    // signing in opens the vault.
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
+    openSignIn();
     expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();
     expect(document.querySelector(".unlock__form")).toBeNull();
-    // …and back.
-    fireEvent.click(screen.getByRole("tab", { name: "Unlock" }));
-    expect(submitButton()).toBeTruthy();
-    expect(screen.queryByRole("button", { name: FEDERATED_BUTTON })).toBeNull();
   });
 
-  it("starts the leg from the sign-in tab", async () => {
+  it("starts the leg from the sign-in panel", async () => {
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
+    openSignIn();
     fireEvent.click(screen.getByRole("button", { name: FEDERATED_BUTTON }));
     await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(1));
     expect(beginSignIn.mock.calls[0]?.[0]).toEqual(UPSTREAM);
   });
 
-  it("focuses the identifier field when the Sign in tab opens", () => {
+  it("focuses the identifier field when sign-in opens", () => {
     render(<UnlockScreen />);
     expect(screen.queryByLabelText("Email or organization")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
+    openSignIn();
     expect(document.activeElement).toBe(identifierInput());
   });
 
-  it("offers sign-out on the Sign in tab when the device already holds a session", () => {
+  it("offers sign-out in the user menu when the device already holds a session", () => {
     sessionHolder.current = {
       principalId: "prn_1",
       accessToken: "pst_1",
       issuerOrigin: "http://127.0.0.1:18788",
     };
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
-    fireEvent.click(screen.getByRole("button", { name: /sign out/i }));
+    fireEvent.click(userMenuTrigger());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(endSession).toHaveBeenCalledTimes(1);
   });
 
   it("omits sign-out when there is no session to end", () => {
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
-    expect(screen.queryByRole("button", { name: "sign out" })).toBeNull();
+    fireEvent.click(userMenuTrigger());
+    expect(screen.queryByRole("menuitem", { name: "Sign out" })).toBeNull();
   });
 
   it("renders the deployment's catalog on an existing vault", async () => {
@@ -1157,7 +1159,7 @@ describe("UnlockScreen — password unlock", () => {
       { id: "google", label: "Google", kind: "oidc", browserCapable: false },
     ]);
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
+    openSignIn();
     expect(
       await screen.findByRole("button", { name: "Continue with Google" }),
     ).toBeTruthy();
@@ -1177,7 +1179,7 @@ describe("UnlockScreen — password unlock", () => {
       { id: "github", label: "GitHub", kind: "oauth2", browserCapable: false },
     ]);
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("tab", { name: "Sign in" }));
+    openSignIn();
     const google = await screen.findByRole("button", {
       name: "Continue with Google",
     });
@@ -1227,34 +1229,29 @@ describe("UnlockScreen — password unlock", () => {
     ).toBeTruthy();
   });
 
-  it("names the signed-in account above both tabs and signs out from there", () => {
+  it("names the signed-in account in a dropdown and signs out from there", () => {
     sessionHolder.current = {
       principalId: "prn_8f3c",
       accessToken: "pst_1",
       issuerOrigin: "http://127.0.0.1:18788",
     };
     render(<UnlockScreen />);
-    // On the Unlock tab, not only the Sign in tab: the account is a fact
-    // about the device, and the way out of it must not hide behind a tab.
-    expect(screen.getByTestId("account-row").textContent).toContain("guest");
-    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(userMenuTrigger().textContent).toContain("guest");
+    fireEvent.click(userMenuTrigger());
+    fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
     expect(endSession).toHaveBeenCalledTimes(1);
-    expect(
-      screen
-        .getByRole("tab", { name: "Sign in" })
-        .getAttribute("aria-selected"),
-    ).toBe("true");
+    expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();
     expect(screen.getByText("Signed out of this device.")).toBeTruthy();
   });
 
-  it("switching signs out and arms the next sign-in to ask the issuer afresh", () => {
+  it("sign-in from the menu swaps the user and asks the issuer afresh", () => {
     sessionHolder.current = {
       principalId: "prn_8f3c",
       accessToken: "pst_1",
       issuerOrigin: "http://127.0.0.1:18788",
     };
     render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Switch" }));
+    openSignIn();
     expect(endSession).toHaveBeenCalledTimes(1);
     expect(
       screen.getByText("Signed out. Choose the account to sign in with."),
@@ -1263,21 +1260,17 @@ describe("UnlockScreen — password unlock", () => {
     expect(beginSignIn).toHaveBeenCalledWith(UPSTREAM, { prompt: "login" });
   });
 
-  it("opens on the Sign in tab after a sign-out from inside the app", () => {
+  it("opens on sign-in after a sign-out from inside the app", () => {
     sessionStorage.setItem(
       "opensesame:federation:outcome",
       JSON.stringify({ kind: "signed_out" }),
     );
     render(<UnlockScreen />);
-    expect(
-      screen
-        .getByRole("tab", { name: "Sign in" })
-        .getAttribute("aria-selected"),
-    ).toBe("true");
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeTruthy();
     expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();
   });
 
-  it("opens on the Sign in tab to attach an account, keeping the session", () => {
+  it("opens on sign-in to attach an account, keeping the session", () => {
     sessionStorage.setItem(
       "opensesame:federation:outcome",
       JSON.stringify({ kind: "attach" }),
@@ -1386,9 +1379,8 @@ describe("UnlockScreen — password unlock", () => {
       screen.getByText(/3 failed attempts\. Try again in 4[45]s\./),
     ).toBeTruthy();
     expect(submitButton().disabled).toBe(true);
-    // Method switching is frozen for the countdown too (the screen-level
-    // Unlock/Sign in tabs are not — leaving for the other ceremony is always
-    // allowed).
+    // Method switching is frozen for the countdown too. The user menu stays
+    // live so you can still sign in as somebody else.
     for (const name of ["Passkey", "PIN", "Password"]) {
       const tab = screen.getByRole("tab", { name });
       expect(overlapCast<unknown, HTMLButtonElement>(tab).disabled).toBe(true);
@@ -1731,6 +1723,9 @@ describe("UnlockScreen — several vaults on this device", () => {
     // Picked: its unlock form is next, with the way back beside the heading.
     expect(await screen.findByRole("heading", { name: "Unlock" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "‹ Vaults" })).toBeTruthy();
+    fireEvent.click(userMenuTrigger());
+    expect(screen.getByRole("menuitem", { name: "personal" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Sign in" })).toBeTruthy();
   });
 
   it("the crumb leads back to the front door", async () => {

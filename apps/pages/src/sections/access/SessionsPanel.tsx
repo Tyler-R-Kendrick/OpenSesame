@@ -106,7 +106,7 @@ function SessionList({
   const { creating, setCreating, load } = state;
   return (
     <>
-      <section className="panel">
+      <section className="panel" id="host-sessions">
         <div className="panel__head">
           <div>
             <h2>Host task sessions</h2>

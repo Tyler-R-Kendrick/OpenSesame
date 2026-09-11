@@ -36,10 +36,19 @@
 }
 
 .unlock__brand {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.unlock__brand-copy {
   display: grid;
   justify-items: start;
   gap: 0.6rem;
-  text-align: left;
+  min-width: 0;
+  flex: 1;
 }
 
 .unlock__wordmark {
@@ -278,6 +287,22 @@
 
 .signin__social svg {
   flex: none;
+}
+
+.signin__social.is-last {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.signin__last-note {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-align: center;
+}
+
+.signin__menu-item.is-last {
+  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 /* The ⋯ overflow: remaining providers and the rarer roads, on demand. */
@@ -619,8 +644,76 @@
   text-overflow: ellipsis;
 }
 
-/* Who this device is signed in as — above both tabs, because the account is
-   a fact about the device rather than the vault. Name, way in, two roads out. */
+/* Who locked this screen — a compact trigger on the right of the brand row.
+   The menu itself reuses `.account-switcher__*` so the unlock card and the
+   in-app prompt name people the same way. */
+.unlock-user {
+  position: relative;
+  flex: none;
+}
+
+.unlock-user__trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 12rem;
+  padding: 0.28rem 0.45rem 0.28rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.unlock-user__trigger:hover,
+.unlock-user__trigger[aria-expanded="true"] {
+  border-color: var(--line-strong);
+}
+
+.unlock-user__trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.unlock-user__mark {
+  display: grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.unlock-user__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unlock-user__caret {
+  flex: none;
+  opacity: 0.7;
+  transform: rotate(90deg);
+  transition: transform 160ms var(--ease);
+}
+
+.unlock-user__trigger[aria-expanded="true"] .unlock-user__caret {
+  transform: rotate(-90deg);
+}
+
+.unlock-user .account-switcher__menu {
+  left: auto;
+  right: 0;
+}
+
+/* Who this device is signed in as — VaultsScreen still uses the full row. */
 .who {
   display: flex;
   align-items: center;

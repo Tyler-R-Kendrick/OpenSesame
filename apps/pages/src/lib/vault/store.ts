@@ -1351,19 +1351,19 @@ export class VaultStore {
     this.#body = emptyBody();
     // A guest that ran beside a sealed vault did so in the isolated guest
     // tomb; locking it hands the screen back to the real vault.
-    const guestBesideVault = this.#ephemeral && this.#scope.tomb === GUEST_TOMB;
+    const ephemeralTomb = this.#ephemeral ? this.#scope.tomb : null;
+    const guestBesideVault = ephemeralTomb === GUEST_TOMB;
     if (this.#ephemeral) {
       this.#header = null;
       this.#ephemeral = false;
     }
-    // The tomb locks with the vault: sealed config (prefs, the IdP registry,
-    // the projects view, the org profile) is unreadable until the next unlock.
     lockTomb(this.#scope.tomb);
     discardTombCaches();
     if (guestBesideVault) {
       this.#scope = scopedVaultScope();
       this.#header = this.#readHeader();
     }
+    if (ephemeralTomb) void wipeTombOnDestroy(ephemeralTomb);
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
     for (const handler of this.#lockHandlers) handler();

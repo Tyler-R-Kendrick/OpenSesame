@@ -105,15 +105,28 @@ export function tombStorageKeys(tomb: string): string[] {
   ];
 }
 
-/** Tomb paths hydrate-on-unlock: the sealed index and every config file. */
+/**
+ * Tomb paths hydrate-on-unlock and wipe-on-destroy: the sealed index and
+ * every config file. New identity/access files must be listed here or a
+ * guest session leaves ciphertext the next key cannot open.
+ */
 function tombSessionKeys(tomb: string): string[] {
   return [
-    tombFileKey(tomb, INDEX_PATH),
-    tombFileKey(tomb, PREFS_CONFIG_PATH),
-    tombFileKey(tomb, IDP_REGISTRY_CONFIG_PATH),
-    tombFileKey(tomb, PROJECTS_CONFIG_PATH),
-    tombFileKey(tomb, ORG_PROFILE_CONFIG_PATH),
-  ];
+    INDEX_PATH,
+    PREFS_CONFIG_PATH,
+    IDP_REGISTRY_CONFIG_PATH,
+    PROJECTS_CONFIG_PATH,
+    ORG_PROFILE_CONFIG_PATH,
+    "config/identity-directory",
+    "config/identity-devices",
+    "config/identity-shares",
+    "config/identity-grants",
+    "config/identity-sessions",
+    "config/identity-credentials",
+    "config/identity-agent-keys",
+    "config/identity-applications",
+    "config/identity-requests",
+  ].map((path) => tombFileKey(tomb, path));
 }
 
 /**

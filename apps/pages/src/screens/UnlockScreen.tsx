@@ -18,7 +18,6 @@ import {
   IconPasskey,
   IconPhone,
   IconShield,
-  IconUser,
 } from "../components/Icons.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { outcomeWantsSignIn, readAuthOutcome } from "../lib/auth-outcome.js";
@@ -39,7 +38,6 @@ import {
   type FederatedProviderSummary,
   listFederatedProviders,
 } from "../lib/providers.js";
-import { signOut, switchAccount } from "../lib/session-exit.js";
 import { noWayIn, signInMethods } from "../lib/settings.js";
 import { unlockViable } from "../lib/setup.js";
 import { WrongPasswordError } from "../lib/vault/crypto.js";
@@ -57,14 +55,19 @@ import {
   pinPolicyProblems,
   preferredUnlockMethod,
 } from "../lib/vault/unlock-methods.js";
-import { deviceHasSeveralVaults, listDeviceVaults } from "../lib/vaults.js";
+import {
+  type DeviceVault,
+  deviceHasSeveralVaults,
+  listDeviceVaults,
+  switchVault,
+} from "../lib/vaults.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { type SetupRoad, SetupScreen } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
-import { AccountRow } from "./unlock/AccountRow.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
+import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
 import "./unlock.css";
 
 const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
@@ -260,23 +263,14 @@ function UnlockForm({
   // road — not a wall of fields competing with it.
   const [localOnly, setLocalOnly] = useState(false);
   const signInStage = firstRun && !localOnly;
-  // A device that already has a vault gets two separate ceremonies behind
-  // tabs — never one stacked form: "Unlock" is the simple
-  // passkey/PIN/password challenge, "Sign in" is the federated ceremony
-  // (a different user, or attaching an account). Only one is on screen at a
-  // time. Mid-MFA there is no choice to offer: the code field is the screen.
-  // A sign-out, a switch or an "attach an account" from inside the app lands
-  // here on purpose, so the tab it wanted is the one that opens.
-  const [screenTab, setScreenTab] = useState<"unlock" | "signin">(() =>
-    outcomeWantsSignIn(readAuthOutcome()) ? "signin" : "unlock",
+  // A returning vault shows the key ceremony. Sign-in lives in the user
+  // menu on the right — a sign-out, a switch or "attach an account" opens
+  // it on purpose. Mid-MFA there is no choice: the code field is the screen.
+  const [signingIn, setSigningIn] = useState(() =>
+    outcomeWantsSignIn(readAuthOutcome()),
   );
-  // The Unlock tab is offered only where unlocking is an action this device
-  // can actually perform — a sealed vault to open. It is withheld rather than
-  // disabled: a greyed tab still asserts the action exists and merely is not
-  // available right now, which is a different claim, and an untrue one when
-  // nothing has ever been sealed here.
-  const returningTabs = unlockViable(status) && !awaitingSecondStep;
-  const signInTabActive = returningTabs && screenTab === "signin";
+  const returning = unlockViable(status) && !awaitingSecondStep;
+  const showSignIn = returning && signingIn;
   // Not "no identity service" — the compiled-in broker and any provider the
   // operator brought run in this browser and need no service at all (ADR
   // 0078). This is the narrower and truer claim: setup left no way in.
@@ -386,7 +380,7 @@ function UnlockForm({
   const formGated = lockedFor > 0;
   // biome-ignore lint/correctness/useExhaustiveDependencies: status is a hydrate signal — "loading" becoming "locked" swaps the form under the same method, and the caret must follow
   useEffect(() => {
-    if (signInStage || signInTabActive || formGated) return;
+    if (signInStage || showSignIn || formGated) return;
     if (awaitingSecondStep) {
       landFocus(totpRef.current);
       return;
@@ -403,7 +397,7 @@ function UnlockForm({
     activeMethod,
     awaitingSecondStep,
     signInStage,
-    signInTabActive,
+    showSignIn,
     formGated,
     status,
   ]);
@@ -563,106 +557,75 @@ function UnlockForm({
       <div className="unlock__card">
         <PendingLinkBanner />
         <div className="unlock__brand">
-          <Wordmark className="unlock__wordmark" />
-          <h1>
-            {signInStage
-              ? "Sign in"
-              : firstRun
-                ? "Seal this device"
-                : awaitingSecondStep
-                  ? "Confirm it is you"
-                  : "Unlock"}
-          </h1>
-          {vaultCrumb ? (
-            <p className="unlock__crumb">
-              <button
-                type="button"
-                className="unlock__switch"
-                onClick={onOpenVaults}
-              >
-                ‹ Vaults
-              </button>
-              <span className="prompt__dim" aria-hidden="true">
-                /
-              </span>
-              <span className="unlock__crumb-tomb">{vaultCrumb}</span>
-              <span className="prompt__dim" aria-hidden="true">
-                :/
-              </span>
-            </p>
+          <div className="unlock__brand-copy">
+            <Wordmark className="unlock__wordmark" />
+            <h1>
+              {signInStage || showSignIn
+                ? "Sign in"
+                : firstRun
+                  ? "Seal this device"
+                  : awaitingSecondStep
+                    ? "Confirm it is you"
+                    : "Unlock"}
+            </h1>
+            {vaultCrumb && !showSignIn ? (
+              <p className="unlock__crumb">
+                <button
+                  type="button"
+                  className="unlock__switch"
+                  onClick={onOpenVaults}
+                >
+                  ‹ Vaults
+                </button>
+                <span className="prompt__dim" aria-hidden="true">
+                  /
+                </span>
+                <span className="unlock__crumb-tomb">{vaultCrumb}</span>
+                <span className="prompt__dim" aria-hidden="true">
+                  :/
+                </span>
+              </p>
+            ) : null}
+          </div>
+          {!firstRun ? (
+            <UnlockUserMenu
+              disabled={busy}
+              currentVaultId={activeTomb}
+              signingIn={showSignIn}
+              onSignIn={() => {
+                cancelPasskeyCeremony();
+                if (awaitingSecondStep) store.cancelTotpChallenge();
+                setError(null);
+                setSigningIn(true);
+              }}
+              onUnlock={() => {
+                setError(null);
+                setSigningIn(false);
+              }}
+              onPickVault={(vault: DeviceVault) => {
+                cancelPasskeyCeremony();
+                setError(null);
+                setBusy(true);
+                void switchVault(vault.id)
+                  .then(() => setSigningIn(false))
+                  .catch((caught) => {
+                    setError(
+                      caught instanceof Error
+                        ? caught.message
+                        : "Could not switch vault.",
+                    );
+                  })
+                  .finally(() => setBusy(false));
+              }}
+            />
           ) : null}
         </div>
-
-        {/* Who this device is signed in as, above both tabs: the account is a
-            fact about the device, not the vault. Switch ends the session and
-            arms a fresh sign-in; Sign out ends it and says so. */}
-        <AccountRow
-          disabled={busy}
-          onSwitch={() => {
-            cancelPasskeyCeremony();
-            switchAccount();
-            setError(null);
-            setScreenTab("signin");
-          }}
-          onSignOut={() => {
-            cancelPasskeyCeremony();
-            signOut();
-            setError(null);
-            setScreenTab("signin");
-          }}
-        />
-
-        {returningTabs ? (
-          <div
-            className="unlock__methods"
-            role="tablist"
-            aria-label="Unlock or sign in"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={screenTab === "unlock"}
-              className={
-                screenTab === "unlock"
-                  ? "unlock__method unlock__method--active"
-                  : "unlock__method"
-              }
-              onClick={() => {
-                setScreenTab("unlock");
-                setError(null);
-              }}
-            >
-              <IconLock size={16} />
-              Unlock
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={screenTab === "signin"}
-              className={
-                screenTab === "signin"
-                  ? "unlock__method unlock__method--active"
-                  : "unlock__method"
-              }
-              onClick={() => {
-                // Leaving the unlock form must drop any pending platform
-                // passkey prompt — one ceremony at a time.
-                cancelPasskeyCeremony();
-                setScreenTab("signin");
-                setError(null);
-              }}
-            >
-              <IconUser size={16} />
-              Sign in
-            </button>
-          </div>
-        ) : null}
 
         {/* Setup left no way in at all: no broker, no provider, no identity
             service. The old screen reported a near-miss of this in a block of
             amber above every sign-in button, all of which still redirected
             into nothing. One sentence and the road that fixes it. */}
-        {nothingSignsIn && (signInStage || signInTabActive) ? (
+        {nothingSignsIn && (signInStage || showSignIn) ? (
           <div className="note unlock__unset">
             <span>
               No way in is configured for this deployment yet, so sign-in has
@@ -687,7 +650,7 @@ function UnlockForm({
               onUseLocalOnly={() => setLocalOnly(true)}
             />
           </GuideTarget>
-        ) : signInTabActive ? (
+        ) : showSignIn ? (
           <GuideTarget id="unlock.signin">
             <SignInPanel placement="secondary" providers={providers} />
           </GuideTarget>
@@ -1212,11 +1175,11 @@ function UnlockForm({
               Sign in instead
             </button>
           ) : null}
-          {/* The guest road on the Unlock tab itself: whoever holds this
+          {/* The guest road on the unlock form itself: whoever holds this
               device without its key still gets in, as a guest in an isolated
               tomb, and the sealed vault stays exactly as it is. Never removed,
               never gated (AGENTS.md §5). */}
-          {!firstRun && !signInTabActive && !showReset ? (
+          {!firstRun && !showSignIn && !showReset ? (
             <button
               type="button"
               className="unlock__switch"
@@ -1238,7 +1201,7 @@ function UnlockForm({
               Continue as guest
             </button>
           ) : null}
-          {!firstRun && !signInTabActive ? (
+          {!firstRun && !showSignIn ? (
             showReset ? (
               <div className="unlock__danger">
                 <p>
