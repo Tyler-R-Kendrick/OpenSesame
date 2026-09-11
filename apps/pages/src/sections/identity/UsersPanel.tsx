@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import {
   type DirectoryUser,
   createDirectoryUser,
@@ -95,6 +96,7 @@ export function UsersPanel({ online }: { online: boolean }) {
     users,
     loading,
     error,
+    draft,
     setDraft,
     busy,
     load,
@@ -103,14 +105,35 @@ export function UsersPanel({ online }: { online: boolean }) {
     <section className="panel">
       <div className="panel__head">
         <h2>Users</h2>
-        <button
-          type="button"
-          className="btn btn--sm"
-          disabled={!online || busy}
-          onClick={() => void load()}
-        >
-          Reload users
-        </button>
+        <fieldset className="vtree__keys" aria-label="User commands">
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            disabled={!online || busy || !organization || draft !== null}
+            title="New user"
+            aria-label="New user"
+            onClick={() =>
+              setDraft({
+                id: "",
+                userName: "",
+                displayName: "",
+                active: true,
+              })
+            }
+          >
+            <IconPlus size={15} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            disabled={!online || busy}
+            title="Reload users"
+            aria-label="Reload users"
+            onClick={() => void load()}
+          >
+            <IconRefresh size={15} />
+          </button>
+        </fieldset>
       </div>
       <div className="panel__body">
         <p className="hint">
@@ -152,21 +175,6 @@ export function UsersPanel({ online }: { online: boolean }) {
         </div>
         {organization ? (
           <>
-            <button
-              type="button"
-              className="btn btn--sm"
-              disabled={!online || busy || loading}
-              onClick={() =>
-                setDraft({
-                  id: "",
-                  userName: "",
-                  displayName: "",
-                  active: true,
-                })
-              }
-            >
-              New user
-            </button>
             {!loading && !error && users.length === 0 ? (
               <p className="hint">No directory users yet.</p>
             ) : null}

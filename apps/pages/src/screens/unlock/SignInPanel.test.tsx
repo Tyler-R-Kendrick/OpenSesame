@@ -68,6 +68,7 @@ beforeEach(() => {
   state.identityApi = "";
   state.signIn = defaultSignInMethods();
   beginSignIn.mockClear();
+  localStorage.clear();
 });
 
 afterEach(cleanup);
@@ -220,5 +221,48 @@ describe("SignInPanel — where the keyboard lands", () => {
     expect(document.activeElement).toBe(
       screen.getByLabelText(/Email or organization/i),
     );
+  });
+});
+
+describe("SignInPanel — last used 3P method", () => {
+  it("rings the last-used provider and names it under the bar", () => {
+    localStorage.setItem("opensesame:federation:last-method", "google");
+    renderPanel();
+    const google = screen.getByRole("button", {
+      name: "Continue with Google · last used",
+    });
+    expect(google.getAttribute("aria-current")).toBe("true");
+    expect(google.className).toContain("is-last");
+    expect(screen.getByText("Last used · Google")).toBeTruthy();
+  });
+
+  it("promotes a last-used catalog provider in front of the others", () => {
+    localStorage.setItem("opensesame:federation:last-method", "github");
+    render(
+      <SignInPanel
+        placement="primary"
+        providers={[
+          {
+            id: "google",
+            label: "Google",
+            kind: "oidc",
+            browserCapable: true,
+          },
+          {
+            id: "github",
+            label: "GitHub",
+            kind: "oauth2",
+            browserCapable: false,
+          },
+        ]}
+        onUseLocalOnly={vi.fn()}
+      />,
+    );
+    const bar = document.querySelector(".signin__bar");
+    const labels = [...(bar?.querySelectorAll("button") ?? [])].map((button) =>
+      button.getAttribute("aria-label"),
+    );
+    expect(labels[0]).toBe("Continue with GitHub · last used");
+    expect(labels[1]).toBe("Continue with Google");
   });
 });

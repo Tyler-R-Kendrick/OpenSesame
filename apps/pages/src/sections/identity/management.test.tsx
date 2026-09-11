@@ -135,7 +135,14 @@ it("registers, edits and confirms revocation without showing the claim bearer", 
   const user = userEvent.setup();
   render(<AgentsPanel online />);
   await screen.findByText("No agents registered.");
-  await user.click(screen.getByRole("button", { name: "New agent" }));
+  const create = screen.getByRole("button", { name: "New agent" });
+  expect(create.textContent).toBe("");
+  expect(create.querySelector("svg")).not.toBeNull();
+  expect(create.className).toContain("icon-btn--sm");
+  expect(
+    screen.getByRole("group", { name: "Agent commands" }).contains(create),
+  ).toBe(true);
+  await user.click(create);
   await user.type(screen.getByLabelText("Agent name"), "Deploy");
   await user.type(
     screen.getByLabelText("Agent public-key thumbprint"),

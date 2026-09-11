@@ -1,5 +1,6 @@
 import type { AgentResponse } from "@opensesame/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import {
   listManagedAgents,
   registerManagedAgent,
@@ -96,24 +97,28 @@ export function AgentsPanel({ online }: { online: boolean }) {
     <section className="panel">
       <div className="panel__head">
         <h2>Agents</h2>
-        <div className="actions">
+        <fieldset className="vtree__keys" aria-label="Agent commands">
           <button
             type="button"
-            className="btn btn--sm"
+            className="icon-btn icon-btn--sm"
             disabled={!online || busy}
-            onClick={() => void load()}
-          >
-            Reload agents
-          </button>
-          <button
-            type="button"
-            className="btn btn--sm"
-            disabled={!online || busy}
+            title="New agent"
+            aria-label="New agent"
             onClick={() => setDraft({ id: "", name: "", jkt: "" })}
           >
-            New agent
+            <IconPlus size={15} />
           </button>
-        </div>
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            disabled={!online || busy}
+            title="Reload agents"
+            aria-label="Reload agents"
+            onClick={() => void load()}
+          >
+            <IconRefresh size={15} />
+          </button>
+        </fieldset>
       </div>
       <div className="panel__body">
         <p className="hint">

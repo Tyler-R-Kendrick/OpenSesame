@@ -31,6 +31,7 @@ import {
   prefillNewDraft,
 } from "../../lib/vault/new-draft.js";
 import { validateWebsitePatterns } from "../../lib/vault/website-pattern.js";
+import { useWebMcpLoginDraft } from "../../webmcp/login-draft.js";
 import { DraftSuggestions } from "./DraftSuggestions.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";
@@ -58,7 +59,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const navigate = useNavigate();
   const { items, folders } = useVault();
   const store = useVaultStore();
-
   const existing = items.find((candidate) => candidate.id === itemId);
   const initial = useMemo(() => {
     if (mode === "edit") return { item: existing ?? null, error: null };
@@ -103,6 +103,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     patch,
     setError,
   );
+  useWebMcpLoginDraft(draft, folders, patch);
 
   if (!draft) {
     return (
@@ -138,8 +139,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const onTypeChange =
     mode === "new" && kindParam === undefined ? changeType : undefined;
 
-  // A drop is a one-time share in flight, not an editable item: +new gets its
-  // own ceremony, and an existing record has nothing an editor could change.
+  // A drop is a one-time share, not an editable item.
   if (draft.kind === "drop") {
     if (mode === "new")
       return (

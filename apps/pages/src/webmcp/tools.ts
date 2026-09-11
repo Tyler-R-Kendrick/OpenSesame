@@ -62,6 +62,7 @@ import {
   assertMetadataOnlyWrite,
   suggestItemMetadata,
 } from "./draft-suggestions.js";
+import { LOGIN_DRAFT_TOOLS } from "./login-tools.js";
 import {
   SECTION_PATHS,
   navigationPaths,
@@ -102,11 +103,7 @@ const ITEM_KINDS: readonly LegacyItemKind[] = [
   "drop",
 ];
 
-/**
- * WebMCP writes only the kinds that predate the item-type registry. Creating a
- * plugin-defined item means choosing a type, and choosing a type is a human
- * decision about the shape a person is then asked to fill in (ADR 0087).
- */
+/** WebMCP writes only kinds that predate the item-type registry (ADR 0087). */
 function isItemKind(value: string): value is LegacyItemKind {
   return ITEM_KINDS.some((kind) => kind === value);
 }
@@ -874,4 +871,5 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       return { status: "guide_started", goal };
     },
   },
+  ...LOGIN_DRAFT_TOOLS,
 ];

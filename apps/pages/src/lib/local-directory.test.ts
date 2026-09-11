@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvGet } from "./kv.js";
 import {
+  GUEST_PERSON_NAME,
   LOCAL_DIRECTORY_PATH,
   type LocalDirectory,
+  SUPPORT_AGENT_ID,
+  SUPPORT_AGENT_NAME,
   changeLocalDirectory,
+  ensureOwnerPerson,
+  ownerPersonName,
   readLocalDirectory,
 } from "./local-directory.js";
 import { mintVaultKey } from "./vault/crypto.js";
@@ -178,6 +183,101 @@ describe("local encrypted directory", () => {
       expect((await readLocalDirectory(tomb)).entries).toEqual([]);
     },
   );
+
+  it("registers an owner person and default organization when the directory has none", async () => {
+    const first = await ensureOwnerPerson(tomb, "Ada Lovelace");
+    expect(first.entries).toEqual([
+      expect.objectContaining({ kind: "person", name: "Ada Lovelace" }),
+      expect.objectContaining({ kind: "organization", name: "Ada Lovelace" }),
+      expect.objectContaining({
+        kind: "agent",
+        name: SUPPORT_AGENT_NAME,
+        id: "local_00000000-0000-4000-8000-000000000001",
+      }),
+    ]);
+    const person = first.entries.find((entry) => entry.kind === "person");
+    const org = first.entries.find((entry) => entry.kind === "organization");
+    expect(first.memberships).toEqual([
+      {
+        organizationId: org?.id,
+        principalId: person?.id,
+        role: "owner",
+      },
+      {
+        organizationId: org?.id,
+        principalId: "local_00000000-0000-4000-8000-000000000001",
+        role: "member",
+      },
+    ]);
+    const second = await ensureOwnerPerson(tomb, "Someone else");
+    expect(second.entries).toEqual(first.entries);
+    expect(second.memberships).toEqual(first.memberships);
+  });
+
+  it("names the default organization Personal for a local-only owner", async () => {
+    const directory = await ensureOwnerPerson(tomb, "Owner");
+    expect(directory.entries).toEqual([
+      expect.objectContaining({ kind: "person", name: "Owner" }),
+      expect.objectContaining({ kind: "organization", name: "Personal" }),
+      expect.objectContaining({ kind: "agent", name: SUPPORT_AGENT_NAME }),
+    ]);
+  });
+
+  it("names a guest person the same identity the prompt shows", async () => {
+    expect(ownerPersonName(true)).toBe(GUEST_PERSON_NAME);
+    expect(ownerPersonName(false, "guest", true)).toBe(GUEST_PERSON_NAME);
+    expect(ownerPersonName(false, "Ada")).toBe("Ada");
+    expect(ownerPersonName(false, null)).toBe("Owner");
+    const directory = await ensureOwnerPerson(tomb, GUEST_PERSON_NAME);
+    expect(directory.entries).toEqual([
+      expect.objectContaining({ kind: "person", name: GUEST_PERSON_NAME }),
+      expect.objectContaining({ kind: "organization", name: "Personal" }),
+      expect.objectContaining({ kind: "agent", name: SUPPORT_AGENT_NAME }),
+    ]);
+  });
+
+  it("renames a placeholder Owner person to the guest identity", async () => {
+    await ensureOwnerPerson(tomb, "Owner");
+    const directory = await ensureOwnerPerson(tomb, GUEST_PERSON_NAME);
+    expect(
+      directory.entries.find((entry) => entry.kind === "person")?.name,
+    ).toBe(GUEST_PERSON_NAME);
+    expect(
+      directory.entries.find((entry) => entry.kind === "organization")?.name,
+    ).toBe("Personal");
+  });
+
+  it("renames the placeholder Support agent to open-sesame", async () => {
+    await changeLocalDirectory(tomb, 0, {
+      action: "create",
+      kind: "agent",
+      name: "Support",
+      id: SUPPORT_AGENT_ID,
+    });
+    const directory = await ensureOwnerPerson(tomb, "Ada");
+    expect(
+      directory.entries.find((entry) => entry.id === SUPPORT_AGENT_ID)?.name,
+    ).toBe(SUPPORT_AGENT_NAME);
+  });
+
+  it("treats ciphertext from a destroyed guest key as an empty directory", async () => {
+    await changeLocalDirectory(tomb, 0, {
+      action: "create",
+      kind: "person",
+      name: "Ada",
+    });
+    const leftover = kvGet(tombFileKey(tomb, LOCAL_DIRECTORY_PATH));
+    expect(leftover).toBeTruthy();
+    lockAllTombs();
+    const { vaultKey } = await mintVaultKey();
+    unlockTomb(tomb, vaultKey);
+    expect(await readLocalDirectory(tomb)).toEqual({
+      version: 2,
+      revision: 0,
+      entries: [],
+      memberships: [],
+    });
+  });
 
   it("never replaces a corrupt directory with an empty one", async () => {
     await writeFile(

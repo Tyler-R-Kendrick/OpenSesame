@@ -36,40 +36,42 @@ type Slot = {
   id: string;
   delay: string;
   duration: string;
+  reelDuration: string;
   steps: number;
   glyphs: Array<{ id: string; glyph: string }>;
 };
 
 function createSlots(): Slot[] {
-  let elapsed = 0;
+  let locked = 0;
   return [...WORDMARK].map((letter, index) => {
-    const steps =
+    const advance =
       WORDMARK_MIN_STEPS +
       Math.floor(Math.random() * (WORDMARK_MAX_STEPS - WORDMARK_MIN_STEPS + 1));
-    const duration = steps * WORDMARK_FRAME_MS;
-    const delay = elapsed;
-    elapsed += duration;
+    const steps = locked + advance;
     const reel = cipherReel(index, letter, steps);
-    return {
+    const slot = {
       id: `${index}:${letter}`,
-      delay: `${delay}ms`,
-      duration: `${duration}ms`,
+      delay: `${locked * WORDMARK_FRAME_MS}ms`,
+      duration: `${advance * WORDMARK_FRAME_MS}ms`,
+      reelDuration: `${steps * WORDMARK_FRAME_MS}ms`,
       steps,
       glyphs: [...reel].map((glyph, glyphIndex) => ({
         id: `${index}:${glyphIndex}`,
         glyph,
       })),
     };
+    locked += advance;
+    return slot;
   });
 }
 
 /**
  * Brand wordmark. Jhey Tompkins' composited slot-reel (Craft of UI, 2024):
- * each letter is a 1ch terminal cell whose inner track steps through hex
- * ciphertext and locks on the plaintext. Glyphs are stacked in the DOM so
- * wrap cannot fail on a font where `1ch` is not a full cell. `steps()` +
- * transform stay on the compositor. The readable name is visually hidden;
- * the reels are decorative.
+ * every unread cell scrambles from t=0; a cursor locks one plaintext letter
+ * at a time. Only the cursor's advance is randomized. Glyphs are stacked in
+ * the DOM so wrap cannot fail on a font where `1ch` is not a full cell.
+ * `steps()` + transform stay on the compositor. The readable name is
+ * visually hidden; the reels are decorative.
  */
 export function Wordmark({
   className,
@@ -95,7 +97,10 @@ export function Wordmark({
           >
             <span
               className="wordmark__reel"
-              style={{ animationTimingFunction: `steps(${slot.steps}, end)` }}
+              style={{
+                animationDuration: slot.reelDuration,
+                animationTimingFunction: `steps(${slot.steps}, end)`,
+              }}
             >
               {slot.glyphs.map((cell) => (
                 <span className="wordmark__glyph" key={cell.id}>

@@ -13,6 +13,7 @@ import {
   identityBase,
   restoreSession,
 } from "./identity.js";
+import { rememberLastSignIn } from "./last-sign-in.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import { type OperatorIdp, signInMethods } from "./settings.js";
 /**
@@ -21,14 +22,12 @@ import { type OperatorIdp, signInMethods } from "./settings.js";
  * This app is a static deployment: it has no server, so it holds no client
  * secret and mints nothing. It is a public OAuth client whose `client_id` is
  * derived from its own origin, and the identity it ends up with was signed by
- * the upstream, not here.
- *
- * The wire contract is docs/architecture/federated-signin.md §1.
+ * the upstream, not here. The wire contract is
+ * docs/architecture/federated-signin.md §1.
  */
 
 const PKCE_KEY = "opensesame:federation:pkce";
 const SESSION_KEY = "opensesame:federation:session";
-
 export type TrustedUpstream = {
   id: string;
   displayName: string;
@@ -934,6 +933,7 @@ export function clearAuthResponseFromUrl(): void {
 export function saveSession(identity: UpstreamIdentity): void {
   // ast-grep-ignore: ts-localstorage-set
   localStorage.setItem(SESSION_KEY, JSON.stringify(identity));
+  rememberLastSignIn(identity.upstreamId);
 }
 
 function loadSessionDefault(): UpstreamIdentity | null {

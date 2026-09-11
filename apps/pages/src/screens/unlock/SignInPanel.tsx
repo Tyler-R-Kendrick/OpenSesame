@@ -16,14 +16,14 @@
  *    this panel *is* the screen, and it owns the two roads out of it: sign in,
  *    or seal a local-only vault instead.
  *  - `secondary` — a vault already exists on this device, and this panel is
- *    the Unlock screen's "Sign in" tab. The vault key still comes from the
- *    passkey, PIN, or password on the Unlock tab, so signing in here attaches
- *    an account rather than opening anything — `adoptFederatedIdentity` says
- *    exactly that when it comes back to a locked vault. "Use without an
- *    account" is not offered (it would seal a second vault in place); guest
- *    IS — the store runs it in an isolated tomb beside the sealed vault, which
- *    stays untouched and comes back on lock. Who is signed in, and the way
- *    out of it, is the `AccountRow` above both tabs — not this panel's.
+ *    opened from the user menu's Sign in item. The vault key still comes from
+ *    the passkey, PIN, or password on the unlock form, so signing in here
+ *    attaches an account rather than opening anything —
+ *    `adoptFederatedIdentity` says exactly that when it comes back to a locked
+ *    vault. "Use without an account" is not offered (it would seal a second
+ *    vault in place); guest IS — the store runs it in an isolated tomb beside
+ *    the sealed vault, which stays untouched and comes back on lock. Who is
+ *    signed in, and the way out of it, is the user menu — not this panel's.
  *
  * Every federated entry ends in a navigation, so success never returns here —
  * only a failure gets to clear `busy` and say why, in plain words.
@@ -36,12 +36,7 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  IconDots,
-  IconLogin,
-  IconSite,
-  IconUser,
-} from "../../components/Icons.js";
+import { IconUser } from "../../components/Icons.js";
 import {
   clearAuthOutcome,
   outcomeForcesLogin,
@@ -59,6 +54,7 @@ import {
 import { landFocus } from "../../lib/focus.js";
 import { continueAsGuest } from "../../lib/guest-auth.js";
 import { identityBase } from "../../lib/identity.js";
+import { readLastSignIn } from "../../lib/last-sign-in.js";
 import {
   type OrgAuthMethod,
   type OrgTenant,
@@ -77,6 +73,7 @@ import { signInMethods } from "../../lib/settings.js";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
 import { brandFor } from "./ProviderBrand.js";
+import { SignInSocialBar } from "./SignInSocialBar.js";
 
 type Props =
   | {
@@ -95,18 +92,6 @@ type Props =
 
 /** Which single step of the ceremony is on screen. */
 type Stage = "hub" | "magic-link" | "byo";
-
-/**
- * How many providers get an icon button in the social bar before the rest
- * move into the ⋯ menu. The bar holds this many plus the BYO globe and the ⋯
- * itself, in one row, at the card's narrowest width.
- */
-const VISIBLE_PROVIDERS = 4;
-
-/** What a provider's button announces — bar buttons are icon-only. */
-function providerLabel(provider: FederatedProviderSummary): string {
-  return `Continue with ${brandFor(provider.id)?.label ?? provider.label}`;
-}
 
 export function SignInPanel(props: Props) {
   const { placement, providers } = props;
@@ -140,9 +125,7 @@ export function SignInPanel(props: Props) {
   const catalogProviders = providers.filter(
     (provider) => provider.id !== "mock",
   );
-  const visibleProviders = catalogProviders.slice(0, VISIBLE_PROVIDERS);
-  const overflowProviders = catalogProviders.slice(VISIBLE_PROVIDERS);
-  const upstreamBrand = brandFor(upstream.id);
+  const lastMethod = readLastSignIn();
   /**
    * What first-run setup allowed, and nothing else (ADR 0078 §3).
    *
@@ -405,148 +388,29 @@ export function SignInPanel(props: Props) {
             </button>
           ) : null}
           <div className="signin__providers">
-            {/* Social sign-in is the default road: one row of official brand
-                marks, no text — the accessible name still says which is which.
-                An existing upstream session (a Google profile already
-                authorized in this browser) is detected by the provider itself
-                once the leg starts. */}
-            <div className="signin__bar">
-              {/* The operator's own providers, in the order they added them,
-                  wearing their own marks where an official one exists. */}
-              {methods.providers.map((idp) => {
-                const brand = brandFor(idp.providerId);
-                return (
-                  <button
-                    key={idp.issuer}
-                    type="button"
-                    className={`btn signin__social${
-                      brand ? ` ${brand.className}` : ""
-                    }`}
-                    aria-label={`Continue with ${idp.label}`}
-                    title={`Continue with ${idp.label}`}
-                    disabled={busy}
-                    onClick={() =>
-                      startFederated(() => beginSignIn(operatorUpstream(idp)))
-                    }
-                  >
-                    {brand ? <brand.Icon size={20} /> : <IconSite size={20} />}
-                  </button>
-                );
-              })}
-              {catalogProviders.length > 0 ? (
-                visibleProviders.map((provider) => {
-                  const brand = brandFor(provider.id);
-                  return (
-                    <button
-                      key={provider.id}
-                      type="button"
-                      className={`btn signin__social${
-                        brand ? ` ${brand.className}` : ""
-                      }`}
-                      aria-label={providerLabel(provider)}
-                      title={providerLabel(provider)}
-                      disabled={busy}
-                      onClick={() => startProvider(provider)}
-                    >
-                      {brand ? (
-                        <brand.Icon size={20} />
-                      ) : (
-                        <IconLogin size={20} />
-                      )}
-                    </button>
-                  );
-                })
-              ) : fallbackUpstream ? (
-                <button
-                  type="button"
-                  className={`btn signin__social${
-                    upstreamBrand ? ` ${upstreamBrand.className}` : ""
-                  }`}
-                  aria-label={`Continue with ${upstreamBrand?.label ?? fallbackUpstream.accountKind}`}
-                  title={`Continue with ${upstreamBrand?.label ?? fallbackUpstream.accountKind}`}
-                  disabled={busy}
-                  onClick={() =>
-                    startFederated(() => beginSignIn(fallbackUpstream))
-                  }
-                >
-                  {upstreamBrand ? (
-                    <upstreamBrand.Icon size={20} />
-                  ) : (
-                    <IconLogin size={20} />
-                  )}
-                </button>
-              ) : null}
-              {/* BYO OIDC as an icon in the same row: the globe is the
-                  conventional mark for "my own identity provider". It
-                  registers through an identity service, so it appears only
-                  where there is one — a globe that can only fail is exactly
-                  the dead end setup exists to remove. */}
-              {hasIdentityService ? (
-                <button
-                  type="button"
-                  className="btn signin__social"
-                  aria-label="Continue with your IdP"
-                  title="Continue with your IdP"
-                  disabled={busy}
-                  onClick={() => setStage("byo")}
-                >
-                  <IconSite size={20} />
-                </button>
-              ) : null}
-              {overflowProviders.length > 0 || hasIdentityService ? (
-                <div className="signin__menuwrap" ref={menuRef}>
-                  <button
-                    type="button"
-                    className="btn signin__social"
-                    aria-label="More sign-in options"
-                    title="More sign-in options"
-                    aria-expanded={menuOpen}
-                    disabled={busy}
-                    onClick={() => setMenuOpen((open) => !open)}
-                  >
-                    <IconDots size={20} />
-                  </button>
-                  {menuOpen ? (
-                    <div className="signin__menu">
-                      {overflowProviders.map((provider) => {
-                        const brand = brandFor(provider.id);
-                        return (
-                          <button
-                            key={provider.id}
-                            type="button"
-                            className="signin__menu-item"
-                            disabled={busy}
-                            onClick={() => {
-                              setMenuOpen(false);
-                              startProvider(provider);
-                            }}
-                          >
-                            {brand ? (
-                              <brand.Icon size={18} />
-                            ) : (
-                              <IconLogin size={18} />
-                            )}
-                            {providerLabel(provider)}
-                          </button>
-                        );
-                      })}
-                      <button
-                        type="button"
-                        className="signin__menu-item"
-                        disabled={busy}
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setStage("magic-link");
-                        }}
-                      >
-                        <IconLogin size={18} />
-                        Email me a sign-in link
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
+            <SignInSocialBar
+              busy={busy}
+              lastMethod={lastMethod}
+              methods={methods}
+              catalogProviders={catalogProviders}
+              fallbackUpstream={fallbackUpstream}
+              hasIdentityService={hasIdentityService}
+              menuOpen={menuOpen}
+              menuRef={menuRef}
+              onToggleMenu={() => setMenuOpen((open) => !open)}
+              onCloseMenu={() => setMenuOpen(false)}
+              onOperator={(idp) =>
+                startFederated(() => beginSignIn(operatorUpstream(idp)))
+              }
+              onProvider={startProvider}
+              onFallback={() => {
+                if (fallbackUpstream) {
+                  startFederated(() => beginSignIn(fallbackUpstream));
+                }
+              }}
+              onByo={() => setStage("byo")}
+              onMagicLink={() => setStage("magic-link")}
+            />
             {/* Guest is the most common road in, so it is a full-size button
                 beside the social bar — never a footnote, on BOTH placements.
                 Never gated on an Identity API (`continueAsGuest` seals a local

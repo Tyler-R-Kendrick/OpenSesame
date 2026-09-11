@@ -6,7 +6,6 @@ export async function localDevicesJourney({
   seedJourney,
   openConsent,
   approveConsent,
-  authenticator,
   captures,
 }) {
   const { page, context, credentials } = await seedJourney(false);
@@ -19,35 +18,27 @@ export async function localDevicesJourney({
     "devices",
     "identity",
   );
-  await authenticator(management);
-  const panel = management.getByRole("region", {
-    name: "Local authenticators",
-  });
-  const disclosure = panel.getByText("Passkeys", { exact: true });
-  await disclosure.focus();
+  const panel = management.getByRole("region", { name: "Devices" });
+  await expect(panel).toBeVisible();
+  const mine = panel.getByRole("listitem").filter({ hasText: "This device" });
+  await expect(mine).toBeVisible();
+  await expect(panel.getByText("Passkeys", { exact: true })).toHaveCount(0);
+  const rename = mine.getByRole("button", { name: /^Rename / });
+  await rename.focus();
   await management.keyboard.press("Enter");
-  const enroll = panel.getByRole("button", {
-    name: "Enroll passkey",
-    exact: true,
-  });
-  await expect(enroll).toBeEnabled();
-  await enroll.focus();
+  const name = management.getByLabel("Name", { exact: true });
+  await expect(name).toBeVisible();
+  await name.focus();
+  await expect(name).toBeFocused();
+  await management.keyboard.press("ControlOrMeta+A");
+  await management.keyboard.insertText("Desk laptop");
+  await management
+    .getByRole("button", { name: "Save name", exact: true })
+    .focus();
   await management.keyboard.press("Enter");
-  await expect(panel.getByLabel("Passkey status")).toHaveText(
-    "Passkey enrolled.",
-  );
-  const revoke = panel.getByRole("button", {
-    name: "Revoke passkey",
-    exact: true,
-  });
-  await expect(revoke).toHaveCount(2);
-  await revoke.first().focus();
-  await management.keyboard.press("Enter");
-  const keep = panel.getByRole("button", { name: "Keep passkey", exact: true });
-  await keep.focus();
-  await management.keyboard.press("Enter");
-  await expect(revoke.first()).toBeFocused();
-  await management.keyboard.press("Enter");
+  await expect(
+    panel.getByRole("heading", { name: "Desk laptop", exact: true }),
+  ).toBeVisible();
   await management.locator(".wordmark").evaluateAll(async (nodes) => {
     await Promise.all(
       nodes.flatMap((node) =>
@@ -69,19 +60,8 @@ export async function localDevicesJourney({
     path: `${captures}/local-devices-${width}.png`,
     fullPage: true,
   });
-  const confirm = panel.getByRole("button", {
-    name: "Confirm revocation",
-    exact: true,
-  });
-  await confirm.focus();
-  await management.keyboard.press("Enter");
-  await expect(panel.getByLabel("Passkey status")).toHaveText(
-    "Passkey revoked.",
-  );
-  await expect(revoke).toHaveCount(1);
-  await expect(disclosure).toBeFocused();
   await page.getByRole("button", { name: "Check session" }).click();
-  await expect(page.locator("output")).toHaveText("Session refused");
+  await expect(page.locator("output")).toHaveText(/^Signed in locally: local_/);
   expect(
     await management.evaluate(
       () => document.documentElement.scrollWidth > innerWidth,
@@ -89,6 +69,6 @@ export async function localDevicesJourney({
   ).toBe(false);
   await context.close();
   console.log(
-    `PASS ${width}px local devices: keyboard passkey enrollment, confirmed revocation, retained second key, real RP session refused without a backend`,
+    `PASS ${width}px local devices: this browser is listed and renamed, session still valid without a backend`,
   );
 }

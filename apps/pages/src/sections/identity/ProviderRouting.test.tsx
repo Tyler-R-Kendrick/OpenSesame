@@ -45,9 +45,10 @@ function renderProviders() {
 
 async function chooseDefault() {
   renderProviders();
-  await userEvent.click(
-    screen.getAllByRole("button", { name: "Register an IdP" })[0],
-  );
+  const add = screen.getByRole("button", { name: "Register an IdP" });
+  expect(add.textContent).toBe("");
+  expect(add.className).toContain("icon-btn--sm");
+  await userEvent.click(add);
   await userEvent.click(
     await screen.findByRole("button", { name: "Continue with Shoo" }),
   );

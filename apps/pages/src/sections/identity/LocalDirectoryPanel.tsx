@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import { kvDurability } from "../../lib/kv.js";
 import {
   type LocalDirectory,
@@ -7,8 +8,10 @@ import {
   type LocalIdentity,
   type LocalIdentityKind,
   changeLocalDirectory,
-  readLocalDirectory,
+  currentOwnerPersonName,
+  ensureOwnerPerson,
 } from "../../lib/local-directory.js";
+import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { LocalAgentKeys } from "./LocalAgentKeys.js";
 import { LocalApplicationSettings } from "./LocalApplicationSettings.js";
@@ -36,10 +39,9 @@ function useDirectory(tomb: string) {
   const generation = useRef(0);
   const load = useCallback(async () => {
     const current = ++generation.current;
-    setDirectory(null);
     setError("");
     try {
-      const next = await readLocalDirectory(tomb);
+      const next = await ensureOwnerPerson(tomb, currentOwnerPersonName());
       if (current === generation.current) setDirectory(next);
     } catch (error) {
       if (current === generation.current)
@@ -52,8 +54,10 @@ function useDirectory(tomb: string) {
   }, [tomb]);
   useEffect(() => {
     void load();
+    const off = subscribeLocalIamChanges(() => void load());
     return () => {
       generation.current += 1;
+      off();
     };
   }, [load]);
 
@@ -106,24 +110,31 @@ function DirectoryEditor({
     >
       <div className="panel__head">
         <h2>{label.heading}</h2>
-        <div className="actions">
+        <fieldset
+          className="vtree__keys"
+          aria-label={`${label.heading} commands`}
+        >
           <button
             type="button"
-            className="btn btn--sm"
-            disabled={busy}
-            onClick={() => void load()}
-          >
-            Reload directory
-          </button>
-          <button
-            type="button"
-            className="btn btn--sm"
+            className="icon-btn icon-btn--sm"
             disabled={busy || !directory || draft !== null}
+            title={`New ${label.singular}`}
+            aria-label={`New ${label.singular}`}
             onClick={() => setDraft({ id: "", kind, name: "", enabled: true })}
           >
-            New {label.singular}
+            <IconPlus size={15} />
           </button>
-        </div>
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            disabled={busy}
+            title="Reload directory"
+            aria-label="Reload directory"
+            onClick={() => void load()}
+          >
+            <IconRefresh size={15} />
+          </button>
+        </fieldset>
       </div>
       <div className="panel__body">
         <p className="hint">
@@ -173,7 +184,7 @@ function DirectoryRows({
       {directory?.entries
         .filter((entry) => entry.kind === kind)
         .map((entry) => (
-          <li key={entry.id} className="identity-row">
+          <li key={entry.id} className="identity-row" id={entry.id}>
             <div className="identity-row__main">
               <div className="identity-row__id">
                 <h3>{entry.name}</h3>

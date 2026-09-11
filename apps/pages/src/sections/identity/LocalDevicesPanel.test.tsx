@@ -1,12 +1,5 @@
 /** @vitest-environment jsdom */
-import {
-  act,
-  cleanup,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -16,15 +9,20 @@ import {
 } from "../../lib/local-credentials.js";
 import { localRequestFixture } from "../../lib/local-request.fixture.js";
 import { currentLocalIdentitySession } from "../../lib/local-sessions.js";
-import { mintVaultKey } from "../../lib/vault/crypto.js";
-import { lockAllTombs, unlockTomb } from "../../lib/vfs.js";
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { lockAllTombs } from "../../lib/vfs.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
+import { LocalDirectoryPanel } from "./LocalDirectoryPanel.js";
 
+const originalVault = { ...vaultHooksSeams };
 let fixture: Awaited<ReturnType<typeof localRequestFixture>>;
 beforeEach(async () => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
   fixture = await localRequestFixture();
+  Object.assign(vaultHooksSeams, {
+    useVaultStore: () => ({ activeTomb: () => fixture.tomb }),
+  });
   vi.spyOn(globalThis, "fetch").mockRejectedValue(
     new Error("No network permitted"),
   );
@@ -32,20 +30,29 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   lockAllTombs();
+  Object.assign(vaultHooksSeams, originalVault);
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-function open(tomb = fixture.tomb) {
+function openPeople() {
   return render(
     <MemoryRouter>
-      <LocalDevicesPanel tomb={tomb} />
+      <LocalDirectoryPanel kind="person" />
       <button type="button">Another control</button>
     </MemoryRouter>,
   );
 }
 
+function openDevices(tomb = fixture.tomb) {
+  return render(
+    <MemoryRouter>
+      <LocalDevicesPanel tomb={tomb} />
+    </MemoryRouter>,
+  );
+}
+
 it("revokes a real enrolled passkey and its authentication from Devices without a backend", async () => {
-  open();
+  openPeople();
   await screen.findByRole("heading", { name: "Test person" });
   await userEvent.click(screen.getByText("Passkeys", { exact: true }));
   const revoke = await screen.findByRole("button", { name: "Revoke passkey" });
@@ -66,7 +73,7 @@ it("revokes a real enrolled passkey and its authentication from Devices without 
 });
 
 it("refreshes an open passkey disclosure after another surface revokes its credential", async () => {
-  open();
+  openPeople();
   await userEvent.click(await screen.findByText("Passkeys", { exact: true }));
   await screen.findByRole("button", { name: "Revoke passkey" });
   screen.getByRole("button", { name: "Revoke passkey" }).focus();
@@ -83,7 +90,7 @@ it("refreshes an open passkey disclosure after another surface revokes its crede
 });
 
 it("distinguishes unreadable credentials from an empty directory and refuses stale controls", async () => {
-  open();
+  openPeople();
   await userEvent.click(await screen.findByText("Passkeys", { exact: true }));
   await screen.findByRole("button", { name: "Enroll passkey" });
   lockAllTombs();
@@ -101,50 +108,16 @@ it("distinguishes unreadable credentials from an empty directory and refuses sta
   expect(screen.queryByRole("link", { name: "Create a person" })).toBeNull();
 });
 
-it("offers an actionable empty state in a fresh encrypted vault", async () => {
-  const tomb = `empty-devices-${crypto.randomUUID()}`;
-  unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  open(tomb);
-  const link = await screen.findByRole("link", { name: "Create a person" });
-  expect(link.getAttribute("href")).toBe("/identity?view=people");
-  expect(screen.queryByRole("alert")).toBeNull();
-  expect(globalThis.fetch).not.toHaveBeenCalled();
+it("lists this browser as a device, not people or passkeys", async () => {
+  openDevices();
+  expect(await screen.findByText("This device")).toBeTruthy();
+  expect(screen.queryByText("Passkeys", { exact: true })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Test person" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: /Rename / }));
+  await userEvent.clear(screen.getByLabelText("Name"));
+  await userEvent.type(screen.getByLabelText("Name"), "Desk laptop");
+  await userEvent.click(screen.getByRole("button", { name: "Save name" }));
+  expect(
+    await screen.findByRole("heading", { name: "Desk laptop" }),
+  ).toBeTruthy();
 });
-
-it.each(["removed row", "another control"] as const)(
-  "preserves useful focus after external principal deletion from %s",
-  async (location) => {
-    const next = await fixture.change({
-      action: "create",
-      kind: "person",
-      name: "Removable person",
-    });
-    const person = next.entries.find(
-      (entry) => entry.name === "Removable person",
-    );
-    if (!person) throw new Error("Missing removable person");
-    open();
-    const heading = await screen.findByRole("heading", {
-      name: "Removable person",
-    });
-    const row = heading.closest("li");
-    if (!row) throw new Error("Missing identity row");
-    const outside = screen.getByRole("button", { name: "Another control" });
-    const target =
-      location === "removed row"
-        ? within(row).getByText("Passkeys", { exact: true })
-        : outside;
-    target.focus();
-    await act(() => fixture.change({ action: "delete", id: person.id }));
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("heading", { name: "Removable person" }),
-      ).toBeNull(),
-    );
-    expect(document.activeElement).toBe(
-      location === "removed row"
-        ? screen.getByRole("button", { name: "Reload directory" })
-        : outside,
-    );
-  },
-);

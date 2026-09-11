@@ -85,6 +85,7 @@ import { ApprovalInbox } from "./access/ApprovalInbox.js";
 import { ClaimAccessCeremony } from "./access/ClaimAccessCeremony.js";
 import { LocalAuthorityPanel } from "./access/LocalAuthorityPanel.js";
 import { LocalPoliciesPanel } from "./access/LocalPoliciesPanel.js";
+import { LocalSharePanel } from "./access/LocalSharePanel.js";
 import { SessionsPanel } from "./access/SessionsPanel.js";
 import { formatTime } from "./access/format.js";
 import { type AuditEvent, outcomeChip } from "./access/receipts.js";
@@ -206,12 +207,10 @@ export function AccessSection() {
   const [ceremony, setCeremony] = useState<CeremonyState>(null);
   const [policyFocus, setPolicyFocus] = useState<string | null>(null);
   const [authorityRevision, setAuthorityRevision] = useState(0);
-
   function openGrant(target: GrantTarget | null) {
     setCeremony({ target });
     setTab("grants");
   }
-
   function openPolicy(connectionId: string) {
     setPolicyFocus(connectionId);
     setTab("policies");
@@ -246,6 +245,7 @@ export function AccessSection() {
       {tab === "grants" ? (
         <>
           <LocalAuthorityPanel key={tomb} tomb={tomb} grantsOnly />
+          <LocalSharePanel key={`${tomb}-shares`} tomb={tomb} />
           {!hostConfigured ? null : ceremony === null ? (
             <GrantsPanel
               key={authorityRevision}
@@ -388,7 +388,7 @@ function GrantsPanel({
       />
     );
   return (
-    <section className="panel">
+    <section className="panel" id="host-grants">
       <div className="panel__head">
         <div>
           <h2>Grants</h2>
@@ -1725,7 +1725,7 @@ function RequestsPanel({ online }: { online: boolean }) {
   const emptyOffers = offers !== null && offers.length === 0;
 
   return (
-    <section className="panel">
+    <section className="panel" id="host-requests">
       <div className="panel__head">
         <div>
           <h2>Requests</h2>
@@ -2397,7 +2397,7 @@ function ResourcesPanel({
         ) : null}
 
         {!identityConfigured ? null : (
-          <div className="access-group__head">
+          <div className="access-group__head" id="resource-sites">
             <h3 className="access-group__label">Sites</h3>
             <button
               type="button"
@@ -3536,7 +3536,7 @@ function PoliciesPanel({
     live.find((connection) => connection.connectionId === selectedId) ?? null;
 
   return (
-    <section className="panel">
+    <section className="panel" id="host-policies">
       <div className="panel__head">
         <div>
           <h2>Policies</h2>

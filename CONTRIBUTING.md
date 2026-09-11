@@ -16,6 +16,11 @@ cargo +1.88.0 test --workspace --lib
 
 Identity CLI binary is `opensesame-id` (Rust authority CLI remains `opensesame`).
 
+Agents asked to run the app locally must attach a Vite HMR debug session and
+watch real console/page/network errors (`AGENTS.md` §5,
+`skills/local-debug-session/SKILL.md`). `pnpm --filter @opensesame/pages dev:web`
+serves Pages on `http://localhost:5180`.
+
 ## Gates
 CI is deliberately thin: `.github/workflows/ci.yml` runs `pnpm lint`,
 `pnpm typecheck`, `pnpm test` and `cargo test --workspace --all-targets` on every

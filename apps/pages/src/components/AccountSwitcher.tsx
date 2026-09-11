@@ -6,7 +6,7 @@
  * the way the unlock screen does (`lib/account.ts`); in the middle are the
  * profiles it always had; at the bottom the three exits the shell never
  * offered: attach another account, switch to a different one, sign out. All
- * three land on the unlock screen's Sign in tab, the one surface that offers
+ * three land on the unlock screen's sign-in panel, the one surface that offers
  * every configured way in (`lib/session-exit.ts`).
  *
  * Adding an organization looks up the tenant slug, then starts the method it

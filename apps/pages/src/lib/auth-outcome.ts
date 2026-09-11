@@ -104,7 +104,7 @@ export function clearAuthOutcome(): void {
 }
 
 /**
- * True when the last thing that happened asks for the Sign in tab: a sign-out
+ * True when the last thing that happened asks for the sign-in panel: a sign-out
  * (plain or the first half of a switch), or a request to attach an account.
  */
 export function outcomeWantsSignIn(outcome: AuthOutcome | null): boolean {

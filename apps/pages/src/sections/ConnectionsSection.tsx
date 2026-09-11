@@ -64,7 +64,11 @@ export function ConnectionsSection() {
     const ready = hash.startsWith("#connected-")
       ? connections !== null
       : providers !== null;
-    if (ready && !providerId && /^#(?:connected|catalog)(?:-|$)/.test(hash)) {
+    if (
+      ready &&
+      !providerId &&
+      /^#(?:attention|connected|catalog)(?:-|$)/.test(hash)
+    ) {
       document
         .getElementById(hash === "#catalog-more" ? "catalog" : hash.slice(1))
         ?.scrollIntoView?.({ block: "start" });

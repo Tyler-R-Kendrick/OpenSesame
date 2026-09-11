@@ -26,6 +26,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VfsError, readFile, writeFile } from "./vfs.js";
 
 /** Legacy localStorage key — migrated into the tomb on unlock, then deleted. */
@@ -124,6 +125,7 @@ function saveRegistry(registry: StoredRegistry): void {
       ceremonyDismissed: registry.ceremonyDismissed,
     }),
   );
+  notifyLocalIamChange();
 }
 
 /* ------------------------------------------------------------- transport */

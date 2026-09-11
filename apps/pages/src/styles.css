@@ -461,6 +461,21 @@ kbd {
   background: var(--ink);
 }
 
+/* Vault path-strip command keys. Identity and other listings reuse these. */
+.icon-btn--sm {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.vtree__keys {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
 .field {
   display: grid;
   grid-template-columns: minmax(7rem, 9rem) minmax(0, 1fr);
@@ -895,30 +910,29 @@ input[type="radio"] {
   opacity: 1;
 }
 
-.railtree__row.is-active {
+.railtree__row.is-active,
+.railtree__row[aria-selected="true"] {
   opacity: 1;
 }
 
-.railtree__row.is-active .railtree__name {
+.railtree__row.is-active .railtree__name,
+.railtree__row[aria-selected="true"] .railtree__name {
   font-weight: 600;
 }
 
-/* Inverse video marks the one place you are — leaf rows, not the open
-   directory above them. A childless active section is its own leaf. */
-.railtree__row--child.is-active,
-.railtree__row.is-active:not(:has(+ .railtree__kids)) {
+/* The keyboard index is aria-selected, including an open directory. */
+.railtree__row[aria-selected="true"] {
   background: var(--ink);
   color: var(--canvas);
 }
 
-.railtree__row--child.is-active .railtree__dim,
-.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__dim,
-.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__count,
-.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__caret {
+.railtree__row[aria-selected="true"] .railtree__dim,
+.railtree__row[aria-selected="true"] .railtree__count,
+.railtree__row[aria-selected="true"] .railtree__caret {
   color: color-mix(in srgb, var(--canvas) 62%, var(--ink));
 }
 
-.railtree__row.is-active:not(:has(+ .railtree__kids)) .railtree__jump {
+.railtree__row[aria-selected="true"] .railtree__jump {
   border-color: color-mix(in srgb, var(--canvas) 30%, var(--ink));
   color: color-mix(in srgb, var(--canvas) 62%, var(--ink));
 }

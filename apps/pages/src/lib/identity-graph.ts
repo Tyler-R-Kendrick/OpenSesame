@@ -28,7 +28,9 @@ export function isUnfinished(connection: Connection): boolean {
   return UNFINISHED_STATUSES.includes(connection.status);
 }
 
-export function unfinishedConnections(connections: Connection[]): Connection[] {
+export function unfinishedConnections(
+  connections: readonly Connection[],
+): Connection[] {
   return connections.filter(
     (connection) => connection.status !== "revoked" && isUnfinished(connection),
   );

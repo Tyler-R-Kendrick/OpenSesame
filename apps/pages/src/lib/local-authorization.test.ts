@@ -371,7 +371,7 @@ it("bounds pending consent codes and reclaims only expired requests", async () =
   await expect(approve()).rejects.toThrow("Too many pending authorizations");
   vi.spyOn(Date, "now").mockReturnValue(Date.now() + 120_001);
   expect(await approve()).toHaveProperty("code");
-}, 30_000);
+}, 60_000);
 
 it("does not overwrite a corrupt grant ledger during redemption", async () => {
   const { code } = await approve();

@@ -3,8 +3,14 @@ import {
   createWebMcpRegistrar,
   detectModelContext,
 } from "@opensesame/webmcp";
-import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useLocation, useNavigate } from "react-router";
+import {
+  getWebMcpEditorKind,
+  sessionToolsFor,
+  subscribeWebMcpEditorKind,
+  webmcpContext,
+} from "./context.js";
 import {
   noteWebMcpAccepted,
   noteWebMcpFailure,
@@ -22,14 +28,16 @@ const APP_ID = "opensesame-pages";
 
 export type WebMcpRouter = { navigate: (to: string) => void };
 
-function registerScope(scope: "boot" | "session"): Unregister {
+function registerScope(
+  scope: "boot" | "session",
+  tools = WEBMCP_TOOLS.filter((tool) => tool.scope === scope),
+): Unregister {
   const api = detectModelContext();
   const registrar = createWebMcpRegistrar(api, {
     appId: APP_ID,
     onRegistered: noteWebMcpAccepted,
     onFailure: noteWebMcpFailure,
   });
-  const tools = WEBMCP_TOOLS.filter((t) => t.scope === scope);
   noteWebMcpRegistered(
     api?.source ?? null,
     scope,
@@ -61,8 +69,10 @@ export function registerBootTools(router: WebMcpRouter): Unregister {
 }
 
 /** Session tools exist only between vault unlock and lock/sign-out. */
-export function registerSessionTools(): Unregister {
-  return registerScope("session");
+export function registerSessionTools(
+  context: ReturnType<typeof webmcpContext> = "vault",
+): Unregister {
+  return registerScope("session", sessionToolsFor(WEBMCP_TOOLS, context));
 }
 
 /**
@@ -97,6 +107,11 @@ export function bindWebMcpSupport(support: WebMcpSupportSeam): Unregister {
  */
 export function useWebMcp(vaultStatus: string): void {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const editorKind = useSyncExternalStore(
+    subscribeWebMcpEditorKind,
+    getWebMcpEditorKind,
+  );
   const router = useRef(navigate);
   router.current = navigate;
 
@@ -110,8 +125,9 @@ export function useWebMcp(vaultStatus: string): void {
     [],
   );
 
+  const context = webmcpContext(pathname, editorKind);
   useEffect(() => {
     if (vaultStatus !== "unlocked") return;
-    return registerSessionTools();
-  }, [vaultStatus]);
+    return registerSessionTools(context);
+  }, [vaultStatus, context]);
 }

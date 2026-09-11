@@ -72,6 +72,7 @@ export const CAPABILITY_TUTORIALS = {
   "vault.items.write_meta": "vault.item.create",
   "vault.items.reveal": "vault.item.create",
   "vault.totp.code": "vault.item.create",
+  "vault.login_draft": "vault.item.create",
   "vault.item_types.list": "vault.item-types.install",
   "vault.item_types.install": "vault.item-types.install",
   "vault.export": "vault.export",

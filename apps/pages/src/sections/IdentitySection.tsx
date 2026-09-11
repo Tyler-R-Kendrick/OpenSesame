@@ -14,6 +14,7 @@ import {
   IconCopy,
   IconLogin,
   IconPasskey,
+  IconPlus,
   IconRefresh,
   IconShield,
   IconSite,
@@ -1622,29 +1623,24 @@ function ProvidersPanel({
         <div>
           <h2>Who vouches for them</h2>
         </div>
-        <div className="actions">
+        <fieldset className="vtree__keys" aria-label="Provider commands">
           <button
             ref={registerRef}
             type="button"
-            className="btn btn--sm btn--primary"
+            className="icon-btn icon-btn--sm"
+            aria-label="Register an IdP"
+            title="Register an IdP"
             onClick={onOpenCeremony}
           >
-            Register an IdP
+            <IconPlus size={15} />
           </button>
-        </div>
+        </fieldset>
       </div>
 
       <div className="panel__body">
         {providers.length === 0 ? (
           <div className="empty">
             <h3>No identity provider registered.</h3>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={onOpenCeremony}
-            >
-              Register an IdP
-            </button>
           </div>
         ) : (
           <ul className="identity-rows">
@@ -1713,7 +1709,7 @@ function ProviderRow({
   }
 
   return (
-    <li className="identity-row">
+    <li className="identity-row" id={record.id}>
       <div className="identity-row__main">
         <span className="identity-row__mark">
           {brand ? (

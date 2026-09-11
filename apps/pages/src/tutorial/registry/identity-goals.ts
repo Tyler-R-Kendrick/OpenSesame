@@ -74,7 +74,7 @@ export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "identity.local.passkeys.manage"',
       'navigate "/identity"',
       'wait route "/identity" timeout=15000',
-      'focus "identity.people" "Without an Identity endpoint, open a person’s Passkeys disclosure in People or Devices. Enroll a passkey, sign in locally, sign out or confirm revocation. Devices also collects agent key controls; synced passkeys are not a physical-device inventory. Sign-in requires authenticator user verification and does not grant application access." side=bottom',
+      'focus "identity.people" "Without an Identity endpoint, open a person’s Passkeys disclosure in People. Enroll a passkey, sign in locally, sign out or confirm revocation. Devices is machine inventory, not authenticators. Sign-in requires authenticator user verification and does not grant application access." side=bottom',
       'wait target "identity.people" event=activate timeout=60000',
     ].join("\n"),
   },

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useLocation } from "react-router";
-import { IconInfo, IconSearch } from "../../components/Icons.js";
-import type {
-  Connection,
-  Provider,
-  ProviderCategory,
-} from "../../lib/connections.js";
+import { IconInfo } from "../../components/Icons.js";
+import {
+  SlashSearchField,
+  SlashSearchKey,
+  useListingSearch,
+} from "../../components/SlashSearch.js";
+import type { Connection, Provider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
 import {
   VERB_CHIP,
@@ -14,7 +15,8 @@ import {
 } from "../../lib/identity-graph.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
-import { CATEGORY_LABELS, CATEGORY_ORDER, connectorPath } from "./shared.js";
+import { catalogPageSections } from "./page-tree.js";
+import { connectorPath } from "./shared.js";
 
 export function authKindLabel(provider: Provider): string {
   if (provider.id === "openrouter") return "Delegated sign-in";
@@ -31,41 +33,21 @@ export function CatalogPanel({
   providers: Provider[] | null;
   connections?: Connection[];
 }) {
-  const [query, setQuery] = useState("");
+  const search = useListingSearch();
   const { hash } = useLocation();
   useEffect(() => {
-    if (hash.startsWith("#catalog-")) setQuery("");
-  }, [hash]);
+    if (hash.startsWith("#catalog-")) search.close();
+  }, [hash, search.close]);
   const panelRef = useGuideTarget<HTMLElement>("connections.catalog");
-  const searchRef = useGuideTarget<HTMLInputElement>(
+  const searchKeyRef = useGuideTarget<HTMLButtonElement>(
     "connections.provider-picker",
   );
   const customRef = useGuideTarget<HTMLAnchorElement>("connections.custom");
-  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const normalizedQuery = (search.query ?? "").trim().toLocaleLowerCase();
   const catalogProviders = (providers ?? []).filter(
     (provider) => !canConfigureAutomatically(provider),
   );
-  const visibleProviders = catalogProviders.filter((provider) =>
-    `${provider.displayName} ${provider.id} ${CATEGORY_LABELS[provider.category]}`
-      .toLocaleLowerCase()
-      .includes(normalizedQuery),
-  );
-
-  const byCategory = new Map<ProviderCategory, Provider[]>();
-  for (const provider of visibleProviders) {
-    const list = byCategory.get(provider.category) ?? [];
-    list.push(provider);
-    byCategory.set(provider.category, list);
-  }
-  for (const list of byCategory.values()) {
-    list.sort((a, b) => a.displayName.localeCompare(b.displayName));
-  }
-  const grouped = CATEGORY_ORDER.filter((category) =>
-    byCategory.has(category),
-  ).map((category) => ({
-    category,
-    items: byCategory.get(category) ?? [],
-  }));
+  const grouped = catalogPageSections(providers ?? [], normalizedQuery);
 
   const sealKeyMissing = (providers ?? []).some((provider) =>
     provider.missingConfig.some((name) => name.includes("CONNECTION_KEY")),
@@ -75,22 +57,18 @@ export function CatalogPanel({
     <section id="catalog" className="panel" ref={panelRef}>
       <div className="panel__head conn-catalog__head">
         <h2>Add a connection</h2>
-        <Link ref={customRef} className="btn btn--sm" to="/connections/new">
-          Custom connector
-        </Link>
-      </div>
-      <div className="conn-catalog__search">
-        <label className="conn-search">
-          <span className="visually-hidden">Search connectors</span>
-          <IconSearch size={16} />
-          <input
-            ref={searchRef}
-            type="search"
-            placeholder={`Search ${catalogProviders.length} connectors`}
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-          />
-        </label>
+        <div className="conn-catalog__tools">
+          <div className="vtree__keys">
+            <SlashSearchKey
+              navRef={searchKeyRef}
+              onOpen={search.open}
+              label="Search connectors"
+            />
+          </div>
+          <Link ref={customRef} className="btn btn--sm" to="/connections/new">
+            Custom connector
+          </Link>
+        </div>
       </div>
 
       <div className="panel__body">
@@ -106,36 +84,42 @@ export function CatalogPanel({
               </p>
             ) : null}
 
-            {grouped.map(({ category, items }) => (
-              <div className="conn-group" key={category}>
-                <h3 className="conn-group__label">
-                  {CATEGORY_LABELS[category]}
+            {grouped.map((group) => (
+              <div className="conn-group" key={group.id}>
+                <h3 className="conn-group__label" id={`catalog-${group.id}`}>
+                  {group.label}
                 </h3>
                 <ul className="conn-grid">
-                  {items.map((provider) => (
-                    <ProviderTile
-                      key={provider.id}
-                      provider={provider}
-                      connection={
-                        connections.find(
-                          (item) =>
-                            item.providerId === provider.id &&
-                            item.status !== "revoked",
-                        ) ?? null
-                      }
-                    />
-                  ))}
+                  {(group.items ?? []).map((item) => {
+                    const provider = catalogProviders.find(
+                      (entry) => entry.id === item.id,
+                    );
+                    if (!provider) return null;
+                    return (
+                      <ProviderTile
+                        key={provider.id}
+                        provider={provider}
+                        connection={
+                          connections.find(
+                            (row) =>
+                              row.providerId === provider.id &&
+                              row.status !== "revoked",
+                          ) ?? null
+                        }
+                      />
+                    );
+                  })}
                 </ul>
               </div>
             ))}
-            {visibleProviders.length === 0 ? (
+            {grouped.length === 0 ? (
               <div className="empty conn-marketplace-empty">
                 <h3>No matching connectors</h3>
                 <p>Try a provider name, category, or connector ID.</p>
                 <button
                   type="button"
                   className="btn btn--sm"
-                  onClick={() => setQuery("")}
+                  onClick={search.close}
                 >
                   Clear search
                 </button>
@@ -144,6 +128,15 @@ export function CatalogPanel({
           </>
         )}
       </div>
+      {search.query !== null ? (
+        <SlashSearchField
+          query={search.query}
+          onChange={(value) => search.setQuery(value)}
+          onClose={search.close}
+          inputRef={search.inputRef}
+          label="Search connectors"
+        />
+      ) : null}
     </section>
   );
 }

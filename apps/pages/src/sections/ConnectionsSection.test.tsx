@@ -382,14 +382,14 @@ describe("ConnectionsSection gallery", () => {
   it("filters the catalog by search and clears it", async () => {
     const { container } = renderAt("/connections");
     await screen.findByText("Vaultwarden");
-    const grid = () => {
-      const element = container.querySelector(".conn-grid");
-      if (!(element instanceof HTMLElement)) throw new Error("grid not found");
-      return element;
-    };
-    const search = () => screen.getByPlaceholderText(/Search \d+ connectors/);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Search connectors" }),
+    );
+    const search = () =>
+      screen.getByRole("textbox", { name: "Search connectors" });
     await userEvent.type(search(), "linear");
-    expect(within(grid()).getByText("Linear")).toBeTruthy();
+    const grid = container.querySelector(".conn-grid") as HTMLElement;
+    expect(within(grid).getByText("Linear")).toBeTruthy();
     expect(container.querySelectorAll(".conn-tile").length).toBe(1);
     await userEvent.clear(search());
     await userEvent.type(search(), "zzzz");
@@ -399,7 +399,6 @@ describe("ConnectionsSection gallery", () => {
     );
     expect(container.querySelectorAll(".conn-tile").length).toBe(5);
   });
-
   it("reports the unreachable Host as a notification, not a banner", async () => {
     listConnections.mockRejectedValue(
       new ConnectionsError(0, "unreachable", "fetch failed"),
@@ -1472,7 +1471,6 @@ describe("ConnectionsSection remaining branches", () => {
       expect(notice?.title).toBe("Starting your OpenSesame session");
     });
   });
-
   it("links the provider docs from the connector page", async () => {
     renderAt("/connections/github");
     await screen.findByText(/Create GitHub App for this organization/);

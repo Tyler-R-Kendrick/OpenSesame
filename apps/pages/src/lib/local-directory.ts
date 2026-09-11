@@ -8,7 +8,8 @@ import {
 } from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
-import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
+import { VaultCorruptError } from "./vault/crypto.js";
+import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";
 
 export const LOCAL_DIRECTORY_PATH = "config/identity-directory";
 export class LocalDirectoryError extends Error {
@@ -181,12 +182,20 @@ export async function readLocalDirectory(
     if (error instanceof VfsError && error.code === "not-found") {
       return { version: 2, revision: 0, entries: [], memberships: [] };
     }
+    // Ciphertext sealed under a destroyed guest key, not a parse failure.
+    if (
+      error instanceof VaultCorruptError ||
+      (error instanceof VfsError && error.code === "corrupt")
+    ) {
+      await vfsSeams.deleteRaw(tombFileKey(tomb, LOCAL_DIRECTORY_PATH));
+      return { version: 2, revision: 0, entries: [], memberships: [] };
+    }
     throw error;
   }
 }
 
 export type LocalDirectoryChange =
-  | { action: "create"; kind: LocalIdentityKind; name: string }
+  | { action: "create"; kind: LocalIdentityKind; name: string; id?: string }
   | { action: "update"; id: string; name: string; enabled: boolean }
   | { action: "delete"; id: string }
   | {
@@ -211,10 +220,18 @@ function changedEntries(
       throw new LocalDirectoryError(
         "The directory is limited to 1,000 records. Remove an unused record before creating another.",
       );
+    const id = change.id ?? `local_${crypto.randomUUID()}`;
+    if (
+      (change.id !== undefined && !/^local_[0-9a-f-]{36}$/.test(change.id)) ||
+      entries.some((entry) => entry.id === id)
+    )
+      throw new LocalDirectoryError(
+        "This identity already exists. Reload the directory.",
+      );
     return [
       ...entries,
       {
-        id: `local_${crypto.randomUUID()}`,
+        id,
         kind: change.kind,
         name: change.name,
         enabled: true,
@@ -325,3 +342,12 @@ export async function withLocalDirectoryLock<T>(
     );
   return navigator.locks.request(`opensesame-directory-${tomb}`, action);
 }
+
+export {
+  GUEST_PERSON_NAME,
+  SUPPORT_AGENT_ID,
+  SUPPORT_AGENT_NAME,
+  currentOwnerPersonName,
+  ensureOwnerPerson,
+  ownerPersonName,
+} from "./local-directory-bootstrap.js";

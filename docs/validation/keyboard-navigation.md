@@ -34,10 +34,17 @@ Enter, then checks immediate navigation without preparatory Tab or focus calls.
   static-origin load. It covers saved password-vault unlock, guest entry, empty-vault New, editing and
   cancellation, saving an item, populated-tree navigation, section chords,
   footer reachability, modal return, lock and reload at 1280px and 390px.
-- Identity tree children and tabs share the same URL-backed view. Connector
-  movement previews the selected tile with a border and scroll position;
+- Access and Identity tree children and page tabs share the same URL-backed
+  view, built by `pageTabTree` in page order. Each Access tab is a subtree of
+  the panels that tab shows. Subtrees start closed; Right/l expands, Left/h
+  collapses. After Grants is expanded, arrows walk Grants → its local grants
+  panel → Requests, matching the page.
+  Connector
+  movement follows page order: section subheaders are subtrees, catalog
+  groups match on-page headings, and item index is document order rather
+  than alphabetical. Previewing a tile uses a border and scroll position;
   Enter activates it. Right/l must not open a preview leaf. Load more is the
-  last indexed row, and activation retains tree focus on the first new row.
+  last indexed catalog row, and activation retains tree focus on the first new row.
 - The local-directory journey creates, renames, disables, reloads and deletes
   all four record kinds using only the keyboard at both widths. Invalid names
   retain the draft and focus; competing row mutations are disabled during an

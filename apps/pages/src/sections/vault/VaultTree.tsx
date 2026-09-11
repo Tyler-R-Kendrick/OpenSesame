@@ -6,6 +6,7 @@ import {
   IconDots,
   IconStar,
 } from "../../components/Icons.js";
+import { SlashSearchField } from "../../components/SlashSearch.js";
 import { longPress } from "../../lib/gestures.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { activeProject } from "../../lib/projects.js";
@@ -572,28 +573,17 @@ export function VaultTree({
       </div>
 
       {query !== null ? (
-        <div className="vtree__cmd">
-          <span className="vtree__prompt" aria-hidden="true">
-            /
-          </span>
-          <input
-            ref={searchRef}
-            value={query}
-            aria-label="Search items"
-            spellCheck={false}
-            autoComplete="off"
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.stopPropagation();
-                setQuery(null);
-                treeRef.current?.focus();
-              } else if (event.key === "Enter") {
-                treeRef.current?.focus();
-              }
-            }}
-          />
-        </div>
+        <SlashSearchField
+          query={query}
+          onChange={(value) => setQuery(value)}
+          onClose={() => {
+            setQuery(null);
+            treeRef.current?.focus();
+          }}
+          onCommit={() => treeRef.current?.focus()}
+          inputRef={searchRef}
+          label="Search items"
+        />
       ) : null}
 
       <output className="vault__status" aria-live="polite">

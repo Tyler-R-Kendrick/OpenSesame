@@ -14,15 +14,14 @@ import {
 } from "react-router";
 import {
   SETTINGS_CATEGORIES,
-  type SettingsCategory,
   settingsCategoryFromLocation,
   settingsPath,
 } from "../lib/crumbs.js";
 import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
-import { IDENTITY_VIEWS } from "../lib/section-views.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { AccessTree } from "./AccessTree.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
 import { ConnectionsNavigation } from "./ConnectionsNavigation.js";
 import { ConnectionsTree } from "./ConnectionsTree.js";
@@ -30,16 +29,14 @@ import { Crumbs } from "./Crumbs.js";
 import { IconLock, IconMark } from "./Icons.js";
 import { IdentityTree } from "./IdentityTree.js";
 import { KeymapSheet } from "./KeymapSheet.js";
+import { PageTreeLeafRow, useSectionExpand } from "./PageTreeBranch.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
-import {
-  KIND_SEGMENTS,
-  SECTIONS,
-  SectionRow,
-  TreeRow,
-  railRowId,
-} from "./RailRows.js";
+import { SECTIONS, SectionRow, railRowId } from "./RailRows.js";
 import { Statusline } from "./Statusline.js";
+import { VaultRail, uniqueFolderKind } from "./VaultRail.js";
 import { Wordmark } from "./Wordmark.js";
+import { useRailCursor } from "./rail-cursor.js";
+import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
 
 /**
@@ -70,20 +67,6 @@ function TabRow({ section }: { section: (typeof SECTIONS)[number] }) {
  * active section is the open one, and its views hang under it as entries. The
  * `g`-jump key for each section is advertised on its row.
  */
-function selectedRailPath(
-  pathname: string,
-  filter: string,
-  folder: string | null,
-  category: SettingsCategory,
-): string {
-  if (pathname.startsWith("/settings")) return settingsPath(category);
-  if (pathname.startsWith("/vault")) {
-    if (folder) return `/vault?folder=${encodeURIComponent(folder)}`;
-    return filter === "all" ? "/vault" : `/vault?f=${filter}`;
-  }
-  return SECTIONS.find(({ to }) => pathname.startsWith(to))?.to ?? "/vault";
-}
-
 function NavTree() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -93,49 +76,43 @@ function NavTree() {
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
   const currentToRef = useRef("");
-  const inVault = location.pathname.startsWith("/vault");
-  const inSettings = location.pathname.startsWith("/settings");
-  const inConnections = location.pathname.startsWith("/connections");
-  const inIdentity = location.pathname.startsWith("/identity");
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
-  const vaultOpen = sectionOpen("/vault", location.pathname, collapsed);
-  const settingsOpen = sectionOpen("/settings", location.pathname, collapsed);
-  const connectionsOpen = sectionOpen(
-    "/connections",
-    location.pathname,
-    collapsed,
-  );
-  const identityOpen = sectionOpen("/identity", location.pathname, collapsed);
-  const toggleSection = (to: string, active: boolean) => {
-    setCollapsed((previous) => {
-      const next = new Set(previous);
-      if (active && !next.has(to)) next.add(to);
-      else next.delete(to);
-      return next;
-    });
-    if (!active) navigate(to);
-  };
+  const vault = useSectionExpand("/vault");
+  const connections = useSectionExpand("/connections");
+  const access = useSectionExpand("/access");
+  const identity = useSectionExpand("/identity");
+  const settings = useSectionExpand("/settings");
+  const vaultOpen = vault.expanded;
+  const settingsOpen = settings.expanded;
+  const connectionsOpen = connections.expanded;
+  const accessOpen = access.expanded;
+  const identityOpen = identity.expanded;
   const activeFilter = params.get("f") ?? "all";
   const activeFolder = params.get("folder");
   const settingsCategory = settingsCategoryFromLocation(
     location.pathname,
     location.hash,
   );
-  const selectedTo = inIdentity
-    ? `/identity?view=${IDENTITY_VIEWS.find((id) => id === params.get("view")) ?? "people"}`
-    : inConnections
-      ? location.pathname +
-        (location.hash ||
-          (location.pathname === "/connections" ? "#connected" : ""))
-      : selectedRailPath(
-          location.pathname,
-          activeFilter,
-          activeFolder,
-          settingsCategory,
-        );
+  const selectedTo = selectedRailPath(
+    location.pathname,
+    location.hash,
+    params.get("view"),
+    activeFilter,
+    activeFolder,
+    settingsCategory,
+    activeFolder ? uniqueFolderKind(items, activeFolder) : null,
+  );
   const section = SECTIONS.find(({ to }) => location.pathname.startsWith(to));
-  currentToRef.current =
-    section && collapsed.has(section.to) ? section.to : selectedTo;
+  const sectionOpen = Boolean(
+    section &&
+      {
+        "/vault": vaultOpen,
+        "/connections": connectionsOpen,
+        "/access": accessOpen,
+        "/identity": identityOpen,
+        "/settings": settingsOpen,
+      }[section.to],
+  );
+  currentToRef.current = section && !sectionOpen ? section.to : selectedTo;
 
   const counts = useMemo(() => {
     const live = items.filter((item) => item.deletedAt === null);
@@ -157,31 +134,7 @@ function NavTree() {
   }, [items]);
 
   useRailKeyboard(treeRef, navigateRef, currentToRef);
-
-  const entry = (
-    query: string,
-    isActive: boolean,
-    segment: string,
-    count?: number,
-    dir = false,
-  ) => (
-    <TreeRow
-      key={query || "all"}
-      to={`/vault${query}`}
-      isActive={isActive}
-      selected={`/vault${query}` === selectedTo}
-      child
-      end
-    >
-      <span className="railtree__name">
-        {segment}
-        {dir ? <span className="railtree__dim">/</span> : null}
-      </span>
-      {count !== undefined ? (
-        <span className="railtree__count">{count || "-"}</span>
-      ) : null}
-    </TreeRow>
-  );
+  const cursorId = useRailCursor();
 
   return (
     <nav
@@ -191,99 +144,65 @@ function NavTree() {
       role="tree"
       // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
       tabIndex={0}
-      aria-activedescendant={railRowId(
-        currentToRef.current,
-        vaultOpen || settingsOpen || connectionsOpen || identityOpen,
-      )}
+      aria-activedescendant={
+        cursorId ?? railRowId(currentToRef.current, sectionOpen)
+      }
     >
       <SectionRow
         section={SECTIONS[0]}
         open={vaultOpen}
-        active={inVault}
-        onToggle={() => toggleSection("/vault", inVault)}
+        active={vault.here}
+        onToggle={vault.onToggle}
         count={counts.all}
         branch={vaultOpen}
       />
       {vaultOpen ? (
-        <div className="railtree__kids">
-          {entry(
-            "",
-            activeFilter === "all" && !activeFolder,
-            "all",
-            counts.all,
-          )}
-          {entry(
-            "?f=favorites",
-            activeFilter === "favorites",
-            "favorites",
-            counts.favorites,
-          )}
-          {KIND_SEGMENTS.map(({ id, segment }) =>
-            entry(
-              `?f=${id}`,
-              activeFilter === id,
-              segment,
-              counts.byKind.get(id) ?? 0,
-            ),
-          )}
-          {entry("?f=trash", activeFilter === "trash", "trash", counts.trash)}
-          {folders.map((folder) =>
-            entry(
-              `?folder=${encodeURIComponent(folder.id)}`,
-              activeFolder === folder.id,
-              folder.name,
-              counts.byFolder.get(folder.id) ?? 0,
-              true,
-            ),
-          )}
-        </div>
+        <VaultRail
+          items={items}
+          folders={folders}
+          counts={counts}
+          selectedTo={selectedTo}
+        />
       ) : null}
 
-      <ConnectionsTree
-        open={connectionsOpen}
-        onToggle={() => toggleSection("/connections", inConnections)}
-      />
-      <SectionRow
-        section={SECTIONS[2]}
-        open={location.pathname.startsWith("/access")}
+      <ConnectionsTree open={connectionsOpen} onToggle={connections.onToggle} />
+      <AccessTree
+        open={accessOpen}
+        active={access.here}
+        onToggle={access.onToggle}
       />
       <IdentityTree
         open={identityOpen}
-        active={inIdentity}
-        onToggle={() => toggleSection("/identity", inIdentity)}
+        active={identity.here}
+        onToggle={identity.onToggle}
       />
       <SectionRow
         section={SECTIONS[4]}
         open={settingsOpen}
-        active={inSettings}
+        active={settings.here}
         branch={settingsOpen}
-        onToggle={() => toggleSection("/settings", inSettings)}
+        onToggle={settings.onToggle}
       />
       {settingsOpen ? (
         <div className="railtree__kids">
           {SETTINGS_CATEGORIES.map((category) => (
-            <TreeRow
+            <PageTreeLeafRow
               key={category}
-              to={settingsPath(category)}
-              isActive={settingsCategory === category}
-              selected={settingsCategory === category}
-              child
-            >
-              <span className="railtree__name">{category}</span>
-            </TreeRow>
+              node={{
+                id: category,
+                label: category,
+                href: settingsPath(category),
+                children: [],
+                branch: false,
+              }}
+              level={2}
+              current={selectedTo}
+            />
           ))}
         </div>
       ) : null}
     </nav>
   );
-}
-
-function sectionOpen(
-  to: string,
-  pathname: string,
-  collapsed: ReadonlySet<string>,
-) {
-  return pathname.startsWith(to) && !collapsed.has(to);
 }
 
 /**

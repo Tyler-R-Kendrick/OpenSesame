@@ -78,6 +78,7 @@ export function NeedsAttention({
 
   return (
     <section
+      id="attention"
       ref={panelRef}
       className="panel panel--attention"
       aria-labelledby="conn-inbox-title"
@@ -91,7 +92,11 @@ export function NeedsAttention({
             providers.find((item) => item.id === connection.providerId) ?? null;
           const verb = connectionVerb(connection.status);
           return (
-            <li key={connection.connectionId} className="conn-service">
+            <li
+              key={connection.connectionId}
+              id={`attention-${encodeURIComponent(connection.connectionId)}`}
+              className="conn-service"
+            >
               <ConnectorMark
                 providerId={connection.providerId}
                 displayName={connection.displayName}
