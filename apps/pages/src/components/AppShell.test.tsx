@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { setRailCursor } from "./rail-cursor.js";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setRailCursor } from "./rail-cursor.js";
 
 const vault = vi.hoisted(() => {
   const items: Array<{
@@ -89,6 +89,9 @@ function filterLink(
   return matches[0];
 }
 
+function selected(name: string) {
+  return screen.getByRole("treeitem", { name }).getAttribute("aria-selected");
+}
 describe("AppShell", () => {
   beforeEach(() => {
     vault.items = [...ITEMS.map((item) => ({ ...item }))];
@@ -96,9 +99,9 @@ describe("AppShell", () => {
     vault.lock.mockReset();
   });
   afterEach(() => {
-    setRailCursor(null); cleanup();
+    setRailCursor(null);
+    cleanup();
   });
-
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");
     expect(screen.getAllByText("open-sesame").length).toBeGreaterThan(0);
@@ -174,7 +177,6 @@ describe("AppShell", () => {
     expect(row.getAttribute("aria-expanded")).toBe("true");
     expect(row.getAttribute("aria-selected")).toBe("true");
   });
-
 
   it("collapses and reopens a page subtree with the arrow keys", () => {
     renderShell("/access?view=grants");
@@ -322,12 +324,12 @@ describe("AppShell", () => {
     row.focus();
     fireEvent.keyDown(row, { key: "g" });
     fireEvent.keyDown(row, { key: "s" });
-    expect(screen.getByRole("treeitem", { name: "Settings" }).getAttribute("aria-selected")).toBe("true");
+    expect(selected("Settings")).toBe("true");
     fireEvent.keyDown(row, { key: "g" });
     fireEvent.keyDown(row, { key: "v" });
-    expect(screen.getByRole("treeitem", { name: "Vault" }).getAttribute("aria-selected")).toBe("true");
+    expect(selected("Vault")).toBe("true");
     fireEvent.keyDown(row, { key: "j" });
-    expect(screen.getByRole("treeitem", { name: "Settings" }).getAttribute("aria-selected")).toBe("false");
+    expect(selected("Settings")).toBe("false");
   });
 
   it("moves the rail cursor with arrows and j/k", () => {
@@ -368,7 +370,6 @@ describe("AppShell", () => {
     fireEvent.keyDown(tree, { key: "ArrowDown" });
     expect(settings.getAttribute("aria-selected")).toBe("true");
   });
-
   it("arrows move the rail when the vault tree is not focused", () => {
     const { container } = renderShell("/vault");
     fireEvent.keyDown(window, { key: "ArrowDown", bubbles: true });
@@ -376,7 +377,6 @@ describe("AppShell", () => {
       filterLink(container, "/vault?f=favorites", "favorites").className,
     ).toContain("is-active");
   });
-
   it("repeats a rail motion by a vim count", () => {
     const { container } = renderShell("/vault");
     fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));

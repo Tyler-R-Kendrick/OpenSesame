@@ -2,9 +2,9 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, expect, it, vi } from "vitest";
-import * as directory from "../lib/local-directory.js";
-import * as devices from "../lib/local-devices.js";
 import * as idp from "../lib/idp-registry.js";
+import * as devices from "../lib/local-devices.js";
+import * as directory from "../lib/local-directory.js";
 import { notifyLocalIamChange } from "../lib/local-iam-events.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { IdentityTree } from "./IdentityTree.js";
@@ -57,7 +57,9 @@ it("updates every identity subtree when directory or providers change", async ()
     memberships: [],
   });
   const providers = vi.spyOn(idp, "listIdpRegistrations").mockReturnValue([]);
-  const deviceList = vi.spyOn(devices, "ensureThisDevice").mockResolvedValue([]);
+  const deviceList = vi
+    .spyOn(devices, "ensureThisDevice")
+    .mockResolvedValue([]);
   renderTree();
   await waitFor(() => expect(countOf("People")).toBe("1"));
   expect(countOf("Organization")).toBe("1");

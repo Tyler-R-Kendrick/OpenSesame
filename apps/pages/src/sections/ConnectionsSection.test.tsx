@@ -388,7 +388,8 @@ describe("ConnectionsSection gallery", () => {
     const search = () =>
       screen.getByRole("textbox", { name: "Search connectors" });
     await userEvent.type(search(), "linear");
-    expect(within(container.querySelector(".conn-grid")!).getByText("Linear")).toBeTruthy();
+    const grid = container.querySelector(".conn-grid") as HTMLElement;
+    expect(within(grid).getByText("Linear")).toBeTruthy();
     expect(container.querySelectorAll(".conn-tile").length).toBe(1);
     await userEvent.clear(search());
     await userEvent.type(search(), "zzzz");
@@ -1470,7 +1471,6 @@ describe("ConnectionsSection remaining branches", () => {
       expect(notice?.title).toBe("Starting your OpenSesame session");
     });
   });
-
   it("links the provider docs from the connector page", async () => {
     renderAt("/connections/github");
     await screen.findByText(/Create GitHub App for this organization/);

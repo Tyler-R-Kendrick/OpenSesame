@@ -1,7 +1,7 @@
 import { type RefObject, useEffect } from "react";
 import type { NavigateFunction } from "react-router";
-import { hrefContainsCurrent } from "../lib/page-to-tree.js";
 import { focusVaultListing, registerRailKeymap } from "../lib/keymap.js";
+import { hrefContainsCurrent } from "../lib/page-to-tree.js";
 import { pageSteps, viewportIndex } from "../lib/tree-motion.js";
 import { setRailCursor } from "./rail-cursor.js";
 

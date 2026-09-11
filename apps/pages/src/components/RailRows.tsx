@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { NavLink } from "react-router";
 import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { setRailCursor, useRailCursor } from "./rail-cursor.js";
 import {
   IconAuthority,
   IconChevronRight,
@@ -12,6 +11,7 @@ import {
   IconUser,
   IconVault,
 } from "./Icons.js";
+import { setRailCursor, useRailCursor } from "./rail-cursor.js";
 
 export const SECTIONS = [
   {

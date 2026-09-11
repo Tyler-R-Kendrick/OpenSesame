@@ -25,8 +25,8 @@ import { identityManagementCapabilities } from "./identity-management.js";
  */
 
 import { SCOPED_AGENT_ONLY, lifecycleCapabilities } from "./lifecycle.js";
-import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
 import { securityAuthorityCapabilities } from "./security-authority.js";
+import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
 export {
   AGENT_SECRET_NAME_PATTERN,
   assertsNoSecretNames,

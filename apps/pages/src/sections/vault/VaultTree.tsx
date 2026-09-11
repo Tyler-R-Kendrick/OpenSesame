@@ -6,8 +6,8 @@ import {
   IconDots,
   IconStar,
 } from "../../components/Icons.js";
-import { longPress } from "../../lib/gestures.js";
 import { SlashSearchField } from "../../components/SlashSearch.js";
+import { longPress } from "../../lib/gestures.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { activeProject } from "../../lib/projects.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";

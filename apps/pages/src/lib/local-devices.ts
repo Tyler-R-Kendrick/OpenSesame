@@ -15,13 +15,7 @@ import {
 import { kvGet, kvRefresh, kvSet } from "./kv.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VaultCorruptError } from "./vault/crypto.js";
-import {
-  VfsError,
-  readFile,
-  tombFileKey,
-  vfsSeams,
-  writeFile,
-} from "./vfs.js";
+import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";
 
 export const LOCAL_DEVICES_PATH = "config/identity-devices";
 const THIS_DEVICE_KEY = "opensesame.this-device-id";
@@ -77,7 +71,11 @@ export function defaultDeviceName(ua = navigator.userAgent): string {
 }
 
 function validName(value: string): boolean {
-  return value.length > 0 && value.length <= 128 && !/[\u0000-\u001f]/.test(value);
+  return (
+    value.length > 0 &&
+    value.length <= 128 &&
+    ![...value].some((ch) => ch.charCodeAt(0) < 32)
+  );
 }
 
 function isDevice(value: BoundaryValue): value is LocalDevice {
@@ -105,7 +103,9 @@ function parseFile(value: BoundaryValue): DeviceFile {
     value.devices.length > MAX_DEVICES ||
     !value.devices.every(isDevice)
   ) {
-    throw new LocalDeviceError("The device list is not valid. Restore a backup.");
+    throw new LocalDeviceError(
+      "The device list is not valid. Restore a backup.",
+    );
   }
   return {
     version: 1,
@@ -136,7 +136,10 @@ async function readFileOrEmpty(tomb: string): Promise<DeviceFile> {
   }
 }
 
-async function writeFileRecord(tomb: string, next: DeviceFile): Promise<LocalDevice[]> {
+async function writeFileRecord(
+  tomb: string,
+  next: DeviceFile,
+): Promise<LocalDevice[]> {
   const bytes = new TextEncoder().encode(JSON.stringify(next));
   if (bytes.length > MAX_BYTES)
     throw new LocalDeviceError("The device list is too large.");

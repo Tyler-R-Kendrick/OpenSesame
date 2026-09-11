@@ -1,5 +1,5 @@
-import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import { isBoolean } from "@opensesame/os-domain";
+import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import { requireLoginDraft } from "../lib/vault/login-draft.js";
 import { suggestItemMetadata } from "./draft-suggestions.js";
 
@@ -8,10 +8,7 @@ type LoginTool = WebMcpToolSpec & {
   scope: "boot" | "session";
 };
 
-function optStr(
-  args: Record<string, unknown>,
-  key: string,
-): string | null {
+function optStr(args: Record<string, unknown>, key: string): string | null {
   const value = args[key];
   return typeof value === "string" && value.length > 0 ? value : null;
 }

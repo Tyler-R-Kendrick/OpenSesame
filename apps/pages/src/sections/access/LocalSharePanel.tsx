@@ -26,6 +26,41 @@ export function useLocalShares(tomb: string) {
   return { shares, reload };
 }
 
+function ShareCommands({
+  busy,
+  onGrant,
+  onReload,
+}: {
+  busy: boolean;
+  onGrant: () => void;
+  onReload: () => void;
+}) {
+  return (
+    <fieldset className="vtree__keys" aria-label="Share commands">
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label="Grant access"
+        title="Grant access"
+        disabled={busy}
+        onClick={onGrant}
+      >
+        <IconPlus size={15} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        aria-label="Reload shares"
+        title="Reload shares"
+        disabled={busy}
+        onClick={onReload}
+      >
+        <IconRefresh size={15} />
+      </button>
+    </fieldset>
+  );
+}
+
 export function LocalSharePanel({ tomb }: { tomb: string }) {
   const { shares, reload } = useLocalShares(tomb);
   const [identities, setIdentities] = useState<{ id: string; name: string }[]>(
@@ -47,7 +82,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
         ),
       )
       .catch(() => setIdentities([]));
-  }, [tomb, shares]);
+  }, [tomb]);
 
   async function run(action: () => Promise<unknown>) {
     if (busy) return;
@@ -66,34 +101,21 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
   }
 
   return (
-    <section className="panel" id="identity-shares" aria-label="Identity shares">
+    <section
+      className="panel"
+      id="identity-shares"
+      aria-label="Identity shares"
+    >
       <div className="panel__head">
         <h2>Identity shares</h2>
-        <fieldset className="vtree__keys" aria-label="Share commands">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Grant access"
-            title="Grant access"
-            disabled={busy}
-            onClick={() => setDraft(true)}
-          >
-            <IconPlus size={15} />
-          </button>
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Reload shares"
-            title="Reload shares"
-            disabled={busy}
-            onClick={() => {
-              setError("");
-              reload();
-            }}
-          >
-            <IconRefresh size={15} />
-          </button>
-        </fieldset>
+        <ShareCommands
+          busy={busy}
+          onGrant={() => setDraft(true)}
+          onReload={() => {
+            setError("");
+            reload();
+          }}
+        />
       </div>
       <div className="panel__body">
         {error ? (
@@ -144,7 +166,8 @@ function ShareRow({
             {name} → {share.resourceLabel}
           </h3>
           <code className="identity-ref">
-            {share.resourceKind} · {policyLabel(share.resourceKind, share.policy)}
+            {share.resourceKind} ·{" "}
+            {policyLabel(share.resourceKind, share.policy)}
           </code>
         </div>
         <span className="chip">
@@ -164,4 +187,3 @@ function ShareRow({
     </li>
   );
 }
-

@@ -98,9 +98,9 @@ describe("limitPageTree", () => {
 
 describe("pageTreeContains", () => {
   it("treats a hash prefix as the parent of its nested anchors", () => {
-    expect(hrefContainsCurrent("/connections#catalog", "/connections#catalog")).toBe(
-      true,
-    );
+    expect(
+      hrefContainsCurrent("/connections#catalog", "/connections#catalog"),
+    ).toBe(true);
     expect(
       hrefContainsCurrent(
         "/connections#catalog",
@@ -127,9 +127,11 @@ describe("pageTreeContains", () => {
         ],
       },
     ]);
-    expect(
-      pageTreeContains(tree[0]!, "/connections/provider-0/region-b"),
-    ).toBe(true);
-    expect(pageTreeContains(tree[0]!, "/connections#catalog")).toBe(false);
+    const root = tree[0];
+    expect(root).toBeDefined();
+    expect(pageTreeContains(root, "/connections/provider-0/region-b")).toBe(
+      true,
+    );
+    expect(pageTreeContains(root, "/connections#catalog")).toBe(false);
   });
 });

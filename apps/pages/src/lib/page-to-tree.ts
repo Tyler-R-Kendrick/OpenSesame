@@ -72,10 +72,7 @@ export function hrefContainsCurrent(href: string, current: string): boolean {
 }
 
 /** True when this node, or a descendant, is the current rail path. */
-export function pageTreeContains(
-  node: PageTreeNode,
-  current: string,
-): boolean {
+export function pageTreeContains(node: PageTreeNode, current: string): boolean {
   if (hrefContainsCurrent(node.href, current)) return true;
   return node.children.some((child) => pageTreeContains(child, current));
 }

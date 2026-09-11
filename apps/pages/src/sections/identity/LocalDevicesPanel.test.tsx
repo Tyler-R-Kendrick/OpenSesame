@@ -1,11 +1,5 @@
 /** @vitest-environment jsdom */
-import {
-  act,
-  cleanup,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -123,7 +117,7 @@ it("lists this browser as a device, not people or passkeys", async () => {
   await userEvent.clear(screen.getByLabelText("Name"));
   await userEvent.type(screen.getByLabelText("Name"), "Desk laptop");
   await userEvent.click(screen.getByRole("button", { name: "Save name" }));
-  expect(await screen.findByRole("heading", { name: "Desk laptop" })).toBeTruthy();
+  expect(
+    await screen.findByRole("heading", { name: "Desk laptop" }),
+  ).toBeTruthy();
 });
-
-

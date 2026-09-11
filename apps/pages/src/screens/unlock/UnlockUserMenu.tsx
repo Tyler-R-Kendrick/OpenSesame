@@ -15,10 +15,7 @@ import {
 } from "../../components/Icons.js";
 import { useAccount } from "../../lib/account.js";
 import { signOut, switchAccount } from "../../lib/session-exit.js";
-import {
-  type DeviceVault,
-  useDeviceVaults,
-} from "../../lib/vaults.js";
+import { type DeviceVault, useDeviceVaults } from "../../lib/vaults.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { brandFor } from "./ProviderBrand.js";
 

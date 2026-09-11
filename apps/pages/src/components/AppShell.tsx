@@ -29,14 +29,14 @@ import { Crumbs } from "./Crumbs.js";
 import { IconLock, IconMark } from "./Icons.js";
 import { IdentityTree } from "./IdentityTree.js";
 import { KeymapSheet } from "./KeymapSheet.js";
-import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import { PageTreeLeafRow, useSectionExpand } from "./PageTreeBranch.js";
+import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import { SECTIONS, SectionRow, railRowId } from "./RailRows.js";
 import { Statusline } from "./Statusline.js";
-import { uniqueFolderKind, VaultRail } from "./VaultRail.js";
+import { VaultRail, uniqueFolderKind } from "./VaultRail.js";
 import { Wordmark } from "./Wordmark.js";
-import { selectedRailPath } from "./rail-path.js";
 import { useRailCursor } from "./rail-cursor.js";
+import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
 
 /**
@@ -145,8 +145,7 @@ function NavTree() {
       // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
       tabIndex={0}
       aria-activedescendant={
-        cursorId ??
-        railRowId(currentToRef.current, sectionOpen)
+        cursorId ?? railRowId(currentToRef.current, sectionOpen)
       }
     >
       <SectionRow
@@ -166,10 +165,7 @@ function NavTree() {
         />
       ) : null}
 
-      <ConnectionsTree
-        open={connectionsOpen}
-        onToggle={connections.onToggle}
-      />
+      <ConnectionsTree open={connectionsOpen} onToggle={connections.onToggle} />
       <AccessTree
         open={accessOpen}
         active={access.here}

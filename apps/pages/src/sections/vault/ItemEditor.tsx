@@ -31,6 +31,7 @@ import {
   prefillNewDraft,
 } from "../../lib/vault/new-draft.js";
 import { validateWebsitePatterns } from "../../lib/vault/website-pattern.js";
+import { useWebMcpLoginDraft } from "../../webmcp/login-draft.js";
 import { DraftSuggestions } from "./DraftSuggestions.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras, GroupAdd, OptionalField } from "./EditorExtras.js";
@@ -40,7 +41,6 @@ import { LoginWebsites } from "./LoginWebsites.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { NewDropCeremony } from "./NewDropCeremony.js";
 import { TypedFieldInputs } from "./TypedFields.js";
-import { useWebMcpLoginDraft } from "../../webmcp/login-draft.js";
 import { useEditorPath } from "./useEditorPath.js";
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {

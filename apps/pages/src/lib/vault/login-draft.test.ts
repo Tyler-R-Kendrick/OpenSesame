@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { createItem } from "./model.js";
 import {
   applyLoginDraftPatch,
   bindLoginDraft,
   loginDraftView,
   requireLoginDraft,
 } from "./login-draft.js";
+import { createItem } from "./model.js";
 
 describe("login draft port", () => {
   it("projects metadata and never includes the password", () => {

@@ -45,7 +45,9 @@ it("lists every Access tab as a subtree of that tab's page panels", () => {
   expect(grants.getAttribute("aria-expanded")).toBe("false");
   expect(document.getElementById("grants-tree")).toBeNull();
   expect(
-    screen.getByRole("treeitem", { name: "Requests" }).getAttribute("aria-expanded"),
+    screen
+      .getByRole("treeitem", { name: "Requests" })
+      .getAttribute("aria-expanded"),
   ).toBe("false");
   fireEvent.click(grants);
   expect(document.getElementById("grants-tree")).toBeTruthy();

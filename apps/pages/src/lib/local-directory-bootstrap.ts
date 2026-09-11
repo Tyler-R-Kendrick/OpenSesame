@@ -68,11 +68,7 @@ async function ensurePerson(
     });
   }
   const person = current.entries.find((entry) => entry.kind === "person");
-  if (
-    person &&
-    isPlaceholderPerson(person.name) &&
-    person.name !== name
-  ) {
+  if (person && isPlaceholderPerson(person.name) && person.name !== name) {
     return commitLocalDirectoryUnderLock(tomb, current.revision, {
       action: "update",
       id: person.id,
@@ -133,8 +129,7 @@ export async function ensureOwnerPerson(
     if (
       org &&
       !current.memberships.some(
-        (row) =>
-          row.organizationId === org.id && row.principalId === person.id,
+        (row) => row.organizationId === org.id && row.principalId === person.id,
       )
     ) {
       current = await commitLocalDirectoryUnderLock(tomb, current.revision, {
@@ -149,8 +144,7 @@ export async function ensureOwnerPerson(
       org &&
       !current.memberships.some(
         (row) =>
-          row.organizationId === org.id &&
-          row.principalId === SUPPORT_AGENT_ID,
+          row.organizationId === org.id && row.principalId === SUPPORT_AGENT_ID,
       )
     ) {
       current = await commitLocalDirectoryUnderLock(tomb, current.revision, {

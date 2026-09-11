@@ -117,7 +117,9 @@ async function readAll(tomb: string): Promise<LocalShare[]> {
 }
 
 async function writeAll(tomb: string, shares: LocalShare[]): Promise<void> {
-  const bytes = new TextEncoder().encode(JSON.stringify({ version: 1, shares }));
+  const bytes = new TextEncoder().encode(
+    JSON.stringify({ version: 1, shares }),
+  );
   if (bytes.length > MAX_BYTES)
     throw new LocalDirectoryError("Share storage exceeds its limit.");
   try {
@@ -145,7 +147,10 @@ export async function createLocalShare(
 ): Promise<LocalShare[]> {
   if (!text(input.principalId, 42))
     throw new LocalDirectoryError("Choose an identity.");
-  if (!isKind(input.resourceKind) || !allowedPolicy(input.resourceKind, input.policy))
+  if (
+    !isKind(input.resourceKind) ||
+    !allowedPolicy(input.resourceKind, input.policy)
+  )
     throw new LocalDirectoryError("Choose a policy this resource allows.");
   if (!text(input.resourceId, 128) || !text(input.resourceLabel, 128))
     throw new LocalDirectoryError("Choose a vault or connector.");
@@ -162,15 +167,22 @@ export async function createLocalShare(
     issuedAt,
     expiresAt: issuedAt + input.durationSeconds * 1000,
   };
-  const next = [...(await readAll(tomb)).filter((row) => row.expiresAt > issuedAt), share];
+  const next = [
+    ...(await readAll(tomb)).filter((row) => row.expiresAt > issuedAt),
+    share,
+  ];
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
   await writeAll(tomb, next);
   return next.filter((row) => row.expiresAt > Date.now());
 }
 
-export async function revokeLocalShare(tomb: string, id: string): Promise<LocalShare[]> {
-  if (!text(id, 36)) throw new LocalDirectoryError("This share is unavailable.");
+export async function revokeLocalShare(
+  tomb: string,
+  id: string,
+): Promise<LocalShare[]> {
+  if (!text(id, 36))
+    throw new LocalDirectoryError("This share is unavailable.");
   const current = await readAll(tomb);
   if (!current.some((row) => row.id === id))
     throw new LocalDirectoryError("This share is unavailable.");
@@ -198,5 +210,7 @@ export function listShareTargets(): ShareTarget[] {
 }
 
 export function policyLabel(kind: ShareKind, policy: string): string {
-  return SHARE_POLICIES[kind].find((entry) => entry.id === policy)?.label ?? policy;
+  return (
+    SHARE_POLICIES[kind].find((entry) => entry.id === policy)?.label ?? policy
+  );
 }

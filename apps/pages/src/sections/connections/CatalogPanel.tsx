@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router";
+import { IconInfo } from "../../components/Icons.js";
 import {
   SlashSearchField,
   SlashSearchKey,
   useListingSearch,
 } from "../../components/SlashSearch.js";
-import { IconInfo } from "../../components/Icons.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
 import {

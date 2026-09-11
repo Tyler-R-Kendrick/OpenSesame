@@ -24,8 +24,7 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
         }
       })
       .catch(() => {
-        if (alive)
-          setError("Could not read devices from this vault.");
+        if (alive) setError("Could not read devices from this vault.");
       });
     return () => {
       alive = false;
@@ -191,7 +190,12 @@ function RenameForm({
         >
           Save name
         </button>
-        <button type="button" className="btn" disabled={busy} onClick={onCancel}>
+        <button
+          type="button"
+          className="btn"
+          disabled={busy}
+          onClick={onCancel}
+        >
           Cancel
         </button>
       </div>

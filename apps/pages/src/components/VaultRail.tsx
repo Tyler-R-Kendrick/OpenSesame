@@ -1,5 +1,5 @@
-import type { Folder, ItemKind, VaultItem } from "../lib/vault/model.js";
 import type { PageTreeNode } from "../lib/page-to-tree.js";
+import type { Folder, ItemKind, VaultItem } from "../lib/vault/model.js";
 import { PageTreeBranch, PageTreeLeafRow } from "./PageTreeBranch.js";
 import { KIND_SEGMENTS } from "./RailRows.js";
 
@@ -38,9 +38,7 @@ export function uniqueFolderKind(
   );
   if (kinds.size !== 1) return null;
   const kind = [...kinds][0];
-  return kind && KIND_SEGMENTS.some((entry) => entry.id === kind)
-    ? kind
-    : null;
+  return kind && KIND_SEGMENTS.some((entry) => entry.id === kind) ? kind : null;
 }
 
 export function VaultRail({

@@ -9,13 +9,7 @@ import {
 import { kvRefresh } from "./kv.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VaultCorruptError } from "./vault/crypto.js";
-import {
-  VfsError,
-  readFile,
-  tombFileKey,
-  vfsSeams,
-  writeFile,
-} from "./vfs.js";
+import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";
 
 export const LOCAL_DIRECTORY_PATH = "config/identity-directory";
 export class LocalDirectoryError extends Error {

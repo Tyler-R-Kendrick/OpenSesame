@@ -3,7 +3,7 @@ import {
   type PageTreeSource,
   pageTabTree,
 } from "../../lib/page-to-tree.js";
-import { ACCESS_LABELS, ACCESS_VIEWS } from "../../lib/section-views.js";
+import { ACCESS_LABELS, type ACCESS_VIEWS } from "../../lib/section-views.js";
 
 export type AccessPlanes = {
   host?: boolean;
@@ -48,7 +48,9 @@ export function accessPageSources({
     ]),
     tab("sessions", [
       panel("sessions", "local-sessions", "Local sessions & grants"),
-      ...(host ? [panel("sessions", "host-sessions", "Host task sessions")] : []),
+      ...(host
+        ? [panel("sessions", "host-sessions", "Host task sessions")]
+        : []),
     ]),
     tab("resources", [
       ...(identity ? [panel("resources", "resource-sites", "Sites")] : []),

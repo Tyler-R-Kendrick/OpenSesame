@@ -22,10 +22,7 @@ it("shares a vault with a person from the grants command", async () => {
   render(<LocalSharePanel tomb={fixture.tomb} />);
   await userEvent.click(screen.getByRole("button", { name: "Grant access" }));
   await waitFor(() => screen.getByLabelText("Identity"));
-  await userEvent.selectOptions(
-    screen.getByLabelText("Resource"),
-    "Vault",
-  );
+  await userEvent.selectOptions(screen.getByLabelText("Resource"), "Vault");
   await userEvent.selectOptions(screen.getByLabelText("Policy"), "Open");
   await userEvent.selectOptions(screen.getByLabelText("Duration"), "1 hour");
   await userEvent.click(screen.getByRole("button", { name: "Grant" }));

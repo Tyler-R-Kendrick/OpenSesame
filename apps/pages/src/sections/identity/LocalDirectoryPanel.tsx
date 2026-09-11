@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import { kvDurability } from "../../lib/kv.js";
-import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import {
   type LocalDirectory,
   type LocalDirectoryChange,
@@ -12,6 +11,7 @@ import {
   currentOwnerPersonName,
   ensureOwnerPerson,
 } from "../../lib/local-directory.js";
+import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { LocalAgentKeys } from "./LocalAgentKeys.js";
 import { LocalApplicationSettings } from "./LocalApplicationSettings.js";
@@ -110,7 +110,10 @@ function DirectoryEditor({
     >
       <div className="panel__head">
         <h2>{label.heading}</h2>
-        <fieldset className="vtree__keys" aria-label={`${label.heading} commands`}>
+        <fieldset
+          className="vtree__keys"
+          aria-label={`${label.heading} commands`}
+        >
           <button
             type="button"
             className="icon-btn icon-btn--sm"

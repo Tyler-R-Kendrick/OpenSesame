@@ -8,17 +8,17 @@ import {
 } from "@testing-library/react";
 import { useEffect, useRef, useState } from "react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router";
-import { createKeymapHandler } from "../lib/keymap.js";
-import { setRailCursor } from "./rail-cursor.js";
-import { useRailKeyboard } from "./useRailKeyboard.js";
 import { afterEach, expect, it } from "vitest";
 import type { Connection, Provider } from "../lib/connections.js";
 import { getBundledProviders } from "../lib/embedded-catalog.js";
+import { createKeymapHandler } from "../lib/keymap.js";
 import {
   ConnectionsNavigation,
   usePublishConnections,
 } from "./ConnectionsNavigation.js";
 import { ConnectionsTree } from "./ConnectionsTree.js";
+import { setRailCursor } from "./rail-cursor.js";
+import { useRailKeyboard } from "./useRailKeyboard.js";
 
 const template = getBundledProviders()[0];
 if (!template) throw new Error("Bundled catalog must not be empty");
@@ -90,6 +90,7 @@ function Page({ catalog }: { catalog: Provider[] | null }) {
         className="railtree"
         role="tree"
         aria-label="Sections"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
         tabIndex={0}
       >
         <ConnectionsTree open={open} onToggle={() => setOpen(!open)} />

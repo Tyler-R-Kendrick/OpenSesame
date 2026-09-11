@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { listIdpRegistrations } from "../../lib/idp-registry.js";
+import { type LocalDevice, ensureThisDevice } from "../../lib/local-devices.js";
 import {
   type LocalIdentity,
   currentOwnerPersonName,
   ensureOwnerPerson,
 } from "../../lib/local-directory.js";
-import { type LocalDevice, ensureThisDevice } from "../../lib/local-devices.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import type { IdentityRailSnapshot } from "./page-tree.js";

@@ -13,8 +13,8 @@ import {
   identityBase,
   restoreSession,
 } from "./identity.js";
-import { localNetworkFetch } from "./local-network-fetch.js";
 import { rememberLastSignIn } from "./last-sign-in.js";
+import { localNetworkFetch } from "./local-network-fetch.js";
 import { type OperatorIdp, signInMethods } from "./settings.js";
 /**
  * Federated sign-in against a trusted upstream broker (ADR 0033).

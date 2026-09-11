@@ -1,8 +1,8 @@
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import {
-  type ShareKind,
   SHARE_DURATIONS,
   SHARE_POLICIES,
+  type ShareKind,
   listShareTargets,
 } from "../../lib/local-share-grants.js";
 
@@ -31,9 +31,7 @@ export function ShareGrantForm({
   const [principalId, setPrincipalId] = useState(identities[0]?.id ?? "");
   const [resourceId, setResourceId] = useState(resources[0]?.id ?? "");
   const [policy, setPolicy] = useState(SHARE_POLICIES[kind][0]?.id ?? "open");
-  const [duration, setDuration] = useState<number>(
-    SHARE_DURATIONS[0].seconds,
-  );
+  const [duration, setDuration] = useState<number>(SHARE_DURATIONS[0].seconds);
   useEffect(() => {
     const next = listShareTargets().filter((target) => target.kind === kind);
     setResourceId(next[0]?.id ?? "");
@@ -75,7 +73,12 @@ export function ShareGrantForm({
         <button type="submit" className="btn btn--primary" disabled={busy}>
           Grant
         </button>
-        <button type="button" className="btn" disabled={busy} onClick={onCancel}>
+        <button
+          type="button"
+          className="btn"
+          disabled={busy}
+          onClick={onCancel}
+        >
           Cancel
         </button>
       </div>
@@ -83,9 +86,7 @@ export function ShareGrantForm({
   );
 }
 
-function options(
-  rows: readonly { id: string | number; label: string }[],
-) {
+function options(rows: readonly { id: string | number; label: string }[]) {
   return rows.map((row) => (
     <option key={String(row.id)} value={row.id}>
       {row.label}
@@ -132,7 +133,9 @@ function ShareFields({
           value={principalId}
           onChange={(event) => onPrincipal(event.target.value)}
         >
-          {options(identities.map((entry) => ({ id: entry.id, label: entry.name })))}
+          {options(
+            identities.map((entry) => ({ id: entry.id, label: entry.name })),
+          )}
         </select>
       </Field>
       <Field id="share-kind" label="Resource">
@@ -146,7 +149,10 @@ function ShareFields({
           <option value="connection">Connector</option>
         </select>
       </Field>
-      <Field id="share-resource" label={kind === "vault" ? "Vault" : "Connector"}>
+      <Field
+        id="share-resource"
+        label={kind === "vault" ? "Vault" : "Connector"}
+      >
         <select
           id="share-resource"
           required

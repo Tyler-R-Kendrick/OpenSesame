@@ -6,11 +6,7 @@
  */
 
 import type { ReactNode, RefObject } from "react";
-import {
-  IconDots,
-  IconLogin,
-  IconSite,
-} from "../../components/Icons.js";
+import { IconDots, IconLogin, IconSite } from "../../components/Icons.js";
 import type { TrustedUpstream } from "../../lib/federation.js";
 import {
   isLastSignInMethod,
