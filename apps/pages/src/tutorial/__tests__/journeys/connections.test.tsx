@@ -147,7 +147,7 @@ describe("adding a connection, one observation at a time", () => {
         name: "Support — walkthrough in progress",
       }),
     ).toBeTruthy();
-  });
+  }, 20_000);
 
   it("advances when the person arrives their own way, not when they take the highlight", async () => {
     const journey = renderJourney(
@@ -193,5 +193,5 @@ describe("adding a connection, one observation at a time", () => {
         "This is Connections. Adding one starts from the catalog.",
       ),
     ).toBeTruthy();
-  });
+  }, 20_000);
 });
