@@ -161,3 +161,64 @@ describe("the stored record", () => {
     ]);
   });
 });
+
+/** The smallest OPFS a save and a hydrate need. */
+function fakeOpfsRoot() {
+  const files = new Map<string, string>();
+  return {
+    async getFileHandle(name: string, opts?: { create?: boolean }) {
+      if (!files.has(name)) {
+        if (!opts?.create) {
+          throw new DOMException("not found", "NotFoundError");
+        }
+        files.set(name, "");
+      }
+      return {
+        async getFile() {
+          return {
+            async text() {
+              return files.get(name) ?? "";
+            },
+          };
+        },
+        async createWritable() {
+          return {
+            async write(value: string) {
+              files.set(name, value);
+            },
+            async close() {},
+          };
+        },
+      };
+    },
+  };
+}
+
+describe("surviving a reload", () => {
+  // The regression this pins: the record persisted to OPFS but `main.tsx`
+  // did not list MODEL_PROVIDER_KEY in its boot `kvHydrate`, so a provider
+  // chosen in setup or Settings › Model was silently gone after a reload.
+  it("loads what was saved once boot hydrates the key", async () => {
+    const fakeRoot = fakeOpfsRoot();
+    vi.stubGlobal("navigator", {
+      storage: { getDirectory: async () => fakeRoot },
+    });
+    const record: ModelProviderRecord = {
+      kind: "local",
+      provider: "ollama",
+      endpoint: "http://127.0.0.1:11434",
+      model: "llava",
+    };
+    try {
+      await saveModelProvider(record);
+      // A reload starts with an empty in-memory KV: fresh modules, same OPFS.
+      vi.resetModules();
+      const freshKv = await import("./kv.js");
+      await freshKv.kvHydrate([MODEL_PROVIDER_KEY]);
+      const fresh = await import("./model-provider.js");
+      expect(fresh.loadModelProvider()).toEqual(record);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

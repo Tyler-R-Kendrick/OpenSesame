@@ -1,10 +1,12 @@
 /**
  * Step 5 — sync. What this vault should sync with: cloud secret storage and
- * password managers. The bindings land in Settings as they are chosen;
- * authorization completes from Settings › Connections once a Host is paired.
+ * password managers. The binding lands in Settings as it is chosen, and a
+ * connector that needs an account authorizes in place — Connect opens the
+ * ceremony in a new tab and the card reports when it lands (ADR 0114).
  */
 
-import { CapabilityChoices, StepHead } from "./shared.js";
+import { ConnectorCards } from "./ConnectorCards.js";
+import { StepHead } from "./shared.js";
 
 export function SyncStep() {
   return (
@@ -17,12 +19,12 @@ export function SyncStep() {
 
       <section className="setup__stack" aria-label="Cloud secret storage">
         <h2 className="ways__head">Cloud secret storage</h2>
-        <CapabilityChoices id="cloud_secrets" />
+        <ConnectorCards id="cloud_secrets" />
       </section>
 
       <section className="setup__stack" aria-label="Password managers">
         <h2 className="ways__head">Password managers</h2>
-        <CapabilityChoices id="password_managers" />
+        <ConnectorCards id="password_managers" />
         <p className="hint">
           Bringing an existing manager across? Settings › Data imports
           1Password, Bitwarden and KeePass files straight into the vault.

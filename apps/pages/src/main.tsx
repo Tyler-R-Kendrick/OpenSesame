@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router";
 import { App } from "./App.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { kvHydrate } from "./lib/kv.js";
+import { MODEL_PROVIDER_KEY } from "./lib/model-provider.js";
 import {
   PROJECTS_KEY,
   activeProject,
@@ -65,6 +66,10 @@ void (async () => {
     "setup.v1",
     "outbox.v1",
     "connections.firstRun.v1",
+    // The model-provider record reads synchronously (`loadModelProvider`),
+    // so a choice made in setup or Settings › Model is lost on reload
+    // unless it hydrates here with the rest of the plaintext boundary.
+    MODEL_PROVIDER_KEY,
   ]);
   rehydrateProjects();
   const tomb = activeProject().id;

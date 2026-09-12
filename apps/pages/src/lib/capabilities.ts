@@ -198,6 +198,30 @@ export function connectorLabel(providerId: string): string {
       return "Cloudflare Origin CA";
     case "1password":
       return "1Password";
+    case "bitwarden":
+      return "Bitwarden";
+    case "vaultwarden":
+      return "Vaultwarden";
+    case "proton-pass":
+      return "Proton Pass";
+    case "doppler":
+      return "Doppler";
+    case "aws-secrets-manager":
+      return "AWS Secrets Manager";
+    case "gcp-secret-manager":
+      return "Google Cloud Secret Manager";
+    case "azure-key-vault-secrets":
+      return "Azure Key Vault";
+    case "bitwarden-secrets-manager":
+      return "Bitwarden Secrets Manager";
+    case "auth0":
+      return "Auth0";
+    case "workos":
+      return "WorkOS";
+    case "clerk":
+      return "Clerk";
+    case "better-auth":
+      return "Better Auth";
     case "vault":
       return "HashiCorp Vault";
     case "openbao":
