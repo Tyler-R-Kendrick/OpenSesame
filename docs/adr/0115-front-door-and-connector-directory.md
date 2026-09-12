@@ -84,9 +84,16 @@ Rules that keep it honest:
   `unlocked`); a reload before then forgets the key, the endpoint survives,
   and Access › Connectors asks for the key again. Nothing sensitive is ever
   written in the clear to get around that.
-- **https, or http on loopback.** The same scheme rule every other endpoint
-  in this app holds to; `localhost:3003` is offered as a fill on a loopback
-  tab only, never assumed (ADR 0090 §3).
+- **https, or http on loopback — and no query, fragment or credentials.**
+  The same base-URL rule every other typed endpoint in this app holds to
+  (`normalizeApiBase`); the listing routes are appended to what it accepts,
+  so a fragment could not steer a request onto the credential route. A
+  loopback or LAN directory is reachable only where the deployment may reach
+  the local network at all — the fence `local-network-fetch` keeps for
+  pairing — so a shared-origin page keeps to https directories, and
+  `localhost:3003` is offered as a fill on a loopback tab only, never assumed
+  (ADR 0090 §3). One timer covers headers and body: a directory that stalls
+  after its headers is given up on, not waited for.
 - **The tab is skippable like every other,** and the form is the same
   component Access › Connectors uses, so the endpoint means one thing in
   both places.

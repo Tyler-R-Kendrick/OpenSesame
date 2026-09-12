@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localNetworkFetchSeams } from "./local-network-fetch.js";
 import {
   DirectoryError,
   listDirectory,
@@ -34,6 +35,22 @@ describe("the endpoint rule", () => {
     );
     expect(normalizeDirectoryEndpoint("http://nango.internal:3003")).toBeNull();
     expect(normalizeDirectoryEndpoint("https://u:p@api.nango.dev")).toBeNull();
+    // The listing routes are appended to what passes here, so a query would
+    // be rewritten and a fragment could steer the request onto the credential
+    // route.
+    expect(
+      normalizeDirectoryEndpoint("https://api.nango.dev/?env=prod"),
+    ).toBeNull();
+    expect(
+      normalizeDirectoryEndpoint("https://api.nango.dev/connection/abc#x"),
+    ).toBeNull();
+    // An empty fragment is dropped, so nothing of it reaches the wire.
+    expect(
+      normalizeDirectoryEndpoint("https://api.nango.dev/connection/abc#"),
+    ).toBe("https://api.nango.dev/connection/abc");
+    expect(normalizeDirectoryEndpoint("https://proxy.example/nango/")).toBe(
+      "https://proxy.example/nango",
+    );
     expect(normalizeDirectoryEndpoint("not a url")).toBeNull();
     expect(normalizeDirectoryEndpoint("   ")).toBeNull();
   });
@@ -135,6 +152,15 @@ describe("reading the listing", () => {
 });
 
 describe("the two calls", () => {
+  const originalEligible = localNetworkFetchSeams.eligible;
+  beforeEach(() => {
+    localNetworkFetchSeams.eligible = () => true;
+  });
+  afterEach(() => {
+    localNetworkFetchSeams.eligible = originalEligible;
+    vi.useRealTimers();
+  });
+
   it("sends the key as a bearer token and falls back to the older path", async () => {
     const fetchImpl = server({
       "/integrations": () =>
@@ -200,5 +226,39 @@ describe("the two calls", () => {
       listDirectory("http://nango.internal", "k", fetchImpl),
     ).rejects.toMatchObject({ failure: "malformed" });
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("keeps a local-network directory behind the deployment's fence", async () => {
+    localNetworkFetchSeams.eligible = () => false;
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    await expect(
+      listDirectory("http://localhost:3003", "k", fetchImpl),
+    ).rejects.toMatchObject({ failure: "malformed" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    // https anywhere is not the local network.
+    const hosted = server({
+      "/integrations": () => reply(200, { data: [] }),
+      "/connections": () => reply(200, { connections: [] }),
+    });
+    await expect(
+      listDirectory("https://api.nango.dev", "k", hosted),
+    ).resolves.toEqual({ integrations: [], connections: [] });
+  });
+
+  it("gives up on a body that never arrives", async () => {
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn(
+      async () =>
+        ({
+          status: 200,
+          json: () => new Promise(() => {}),
+        }) as unknown as Response,
+    ) as unknown as typeof fetch;
+    const read = listDirectory("https://api.nango.dev", "k", fetchImpl);
+    const outcome = expect(read).rejects.toMatchObject({
+      failure: "unanswered",
+    });
+    await vi.advanceTimersByTimeAsync(9000);
+    await outcome;
   });
 });

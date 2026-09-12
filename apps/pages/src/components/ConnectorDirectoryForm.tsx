@@ -124,10 +124,15 @@ export function ConnectorDirectoryForm({
   const { busy, flash, clear, sync } = useDirectorySync(tomb, onSynced);
 
   function commitEndpoint(raw: string) {
-    const next = normalizeDirectoryEndpoint(raw) ?? "";
-    setEndpoint(next || raw.trim());
-    if (next === deps.readDirectoryEndpoint()) return;
-    void deps.writeDirectoryEndpoint(next).catch(() => {
+    const typed = raw.trim();
+    const next = normalizeDirectoryEndpoint(typed);
+    setEndpoint(next ?? typed);
+    // A slip while editing never erases what was on record: only an address
+    // this page may call, or an emptied field, is written.
+    if (next === null && typed !== "") return;
+    const value = next ?? "";
+    if (value === deps.readDirectoryEndpoint()) return;
+    void deps.writeDirectoryEndpoint(value).catch(() => {
       // The sync writes it again; a browser that cannot persist it is already
       // named on the unlock screen.
     });

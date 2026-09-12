@@ -21,8 +21,11 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
-import { targetAddressSpaceFor } from "./local-network-fetch.js";
-import { isLoopbackUrl } from "./urls.js";
+import {
+  localNetworkFetchSeams,
+  targetAddressSpaceFor,
+} from "./local-network-fetch.js";
+import { normalizeApiBase } from "./urls.js";
 
 /** The hosted directory, offered as a fill on the endpoint field. */
 export const HOSTED_DIRECTORY = "https://api.nango.dev";
@@ -74,22 +77,14 @@ export class DirectoryError extends Error {
 }
 
 /**
- * An endpoint this page may call: https anywhere, or http on loopback. The
- * trailing slash and any path are kept, because a proxy may mount the
- * directory under one — only the scheme rule is ours.
+ * An endpoint this page may call: https anywhere, or http on loopback, with
+ * no credentials, query or fragment — the one base-URL rule every typed
+ * endpoint in this app answers to. A path is kept, because a proxy may mount
+ * the directory under one; a query or fragment is refused, because the
+ * listing routes are appended to whatever is accepted here.
  */
 export function normalizeDirectoryEndpoint(raw: string): string | null {
-  const trimmed = raw.trim().replace(/\/+$/, "");
-  if (!trimmed) return null;
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmed);
-  } catch {
-    return null;
-  }
-  if (parsed.protocol !== "https:" && !isLoopbackUrl(trimmed)) return null;
-  if (parsed.username || parsed.password) return null;
-  return trimmed;
+  return normalizeApiBase(raw);
 }
 
 function text(value: BoundaryValue | undefined, max = 256): string {
@@ -170,6 +165,17 @@ export function parseConnections(
   return out;
 }
 
+/** Rejects the moment the signal aborts, however far the body read got. */
+function rejectOnAbort(signal: AbortSignal): Promise<never> {
+  return new Promise((_, reject) => {
+    signal.addEventListener(
+      "abort",
+      () => reject(signal.reason ?? new Error("aborted")),
+      { once: true },
+    );
+  });
+}
+
 async function fetchJson(
   url: string,
   key: string,
@@ -177,6 +183,9 @@ async function fetchJson(
 ): Promise<{ status: number; body: BoundaryValue | null }> {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (key) headers.Authorization = `Bearer ${key}`;
+  // One timer over the whole exchange, headers and body alike: a directory
+  // that answers its headers and then stalls would otherwise hold the sync
+  // open for good, with every control on the panel disabled behind it.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   const init: RequestInit = {
@@ -189,27 +198,35 @@ async function fetchJson(
   // Chrome's Local Network Access wants the hint for a loopback or LAN host.
   const space = targetAddressSpaceFor(url);
   if (space) Object.assign(init, { targetAddressSpace: space });
-  let response: Response;
   try {
-    response = await fetchImpl(url, init);
-  } catch {
-    throw new DirectoryError("unanswered", "That endpoint did not answer.");
+    let response: Response;
+    try {
+      response = await fetchImpl(url, init);
+    } catch {
+      throw new DirectoryError("unanswered", "That endpoint did not answer.");
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new DirectoryError(
+        "refused",
+        "The endpoint refused the key. Use an environment key with read access.",
+      );
+    }
+    let body: BoundaryValue | null = null;
+    try {
+      body = await Promise.race([
+        response.json(),
+        rejectOnAbort(controller.signal),
+      ]);
+    } catch {
+      if (controller.signal.aborted) {
+        throw new DirectoryError("unanswered", "That endpoint did not answer.");
+      }
+      body = null;
+    }
+    return { status: response.status, body };
   } finally {
     clearTimeout(timer);
   }
-  if (response.status === 401 || response.status === 403) {
-    throw new DirectoryError(
-      "refused",
-      "The endpoint refused the key. Use an environment key with read access.",
-    );
-  }
-  let body: BoundaryValue | null = null;
-  try {
-    body = await response.json();
-  } catch {
-    body = null;
-  }
-  return { status: response.status, body };
 }
 
 /**
@@ -227,6 +244,15 @@ export async function listDirectory(
     throw new DirectoryError(
       "malformed",
       "Use an https address, or http on loopback.",
+    );
+  }
+  // A loopback or LAN directory is reachable only where this deployment may
+  // reach the local network at all — the fence local-network-fetch keeps for
+  // pairing. A shared-origin page keeps to https directories.
+  if (targetAddressSpaceFor(base) && !localNetworkFetchSeams.eligible()) {
+    throw new DirectoryError(
+      "malformed",
+      "This deployment cannot read a directory on the local network. Use an https address.",
     );
   }
   const integrationsReply = await fetchJson(

@@ -67,7 +67,7 @@ const DefaultSettingsSection = lazy(() =>
   })),
 );
 
-type VaultStatus = { status: string; tomb?: string };
+type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
 
 export type AppSlots = {
@@ -141,7 +141,11 @@ function Framed({ children }: { children: ReactNode }) {
  * it in (ADR 0115), lands in the first open tomb. Each is a no-op when there
  * is nothing outstanding.
  */
-function useAfterUnlock(status: string, tomb: string | undefined): void {
+function useAfterUnlock(
+  status: string,
+  tomb: string | undefined,
+  guest: boolean | undefined,
+): void {
   useEffect(() => {
     if (status !== "unlocked") return;
     recoverPendingFederatedLink();
@@ -149,21 +153,25 @@ function useAfterUnlock(status: string, tomb: string | undefined): void {
       // A spent or expired stash is not a reason to trap the vault.
     });
     if (tomb) {
-      void sealPendingConnectorDirectory(tomb).catch(() => {
-        // The endpoint is on record; Access › Connectors syncs it again.
-      });
+      // A guest tomb is wiped on lock, so it gets the list without taking
+      // it: the sync still waits for the vault that lasts.
+      void sealPendingConnectorDirectory(tomb, { ephemeral: guest }).catch(
+        () => {
+          // The endpoint is on record; Access › Connectors syncs it again.
+        },
+      );
     }
-  }, [status, tomb]);
+  }, [status, tomb, guest]);
 }
 
 function VaultApp() {
   const slots = useContext(AppSlotsContext);
-  const { status, tomb } = slots.useVault();
+  const { status, tomb, guest } = slots.useVault();
   const location = useLocation();
   slots.useTheme();
   slots.useSessionGuards();
   useWebMcp(status);
-  useAfterUnlock(status, tomb);
+  useAfterUnlock(status, tomb, guest);
 
   if (status !== "unlocked") {
     return <slots.UnlockScreen />;

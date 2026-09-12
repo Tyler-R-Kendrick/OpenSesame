@@ -123,9 +123,33 @@ it("binds a connector to a person under a policy, lists it, and revokes it", asy
   expect(shares[0]?.resourceLabel).toBe("GitHub · octo@example.com");
   expect(shares[0]?.policy).toBe("invoke");
 
+  // The form is gone; the keyboard is back on the row's Bind, not on body.
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      row.getByRole("button", { name: "Bind" }),
+    ),
+  );
+
   await userEvent.click(row.getByRole("button", { name: "Revoke" }));
   await waitFor(() => expect(row.getByText("0 bound")).toBeTruthy());
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
+});
+
+it("returns the keyboard to the row's Bind when its form is cancelled", async () => {
+  const fixture = await seeded();
+  render(<ConnectorsPanel tomb={fixture.tomb} />);
+  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
+  const [githubRow] = screen.getAllByRole("listitem");
+  const row = within(githubRow as HTMLElement);
+  await userEvent.click(row.getByRole("button", { name: "Bind" }));
+  expect(document.activeElement).toBe(screen.getByLabelText("Identity"));
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      row.getByRole("button", { name: "Bind" }),
+    ),
+  );
+  expect(screen.queryByRole("group", { name: /^Bind GitHub/ })).toBeNull();
 });
 
 it("re-syncs with the sealed key from the command strip", async () => {

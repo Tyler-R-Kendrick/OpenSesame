@@ -118,6 +118,11 @@ function BindingRow({
   );
 }
 
+/** Where the keyboard returns when a row's bind form closes. */
+function bindButtonId(rowId: string): string {
+  return `connector-bind-${rowId}`;
+}
+
 function ConnectorRowItem({
   row,
   bindings,
@@ -139,7 +144,7 @@ function ConnectorRowItem({
   binding: boolean;
   /** Only when the list mixes sources; a chip on every row says nothing. */
   showSource: boolean;
-  onOpenBind: (button: HTMLButtonElement) => void;
+  onOpenBind: () => void;
   onCloseBind: () => void;
   onBind: (input: {
     principalId: string;
@@ -172,10 +177,11 @@ function ConnectorRowItem({
         {binding ? null : (
           <div className="actions">
             <button
+              id={bindButtonId(row.id)}
               type="button"
               className="btn btn--sm"
               disabled={busy}
-              onClick={(event) => onOpenBind(event.currentTarget)}
+              onClick={onOpenBind}
             >
               Bind
             </button>
@@ -227,7 +233,6 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
   const state = useConnectorDirectory(tomb);
   const [editing, setEditing] = useState(false);
   const [bindingRow, setBindingRow] = useState<string | null>(null);
-  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
   const names = new Map(
     state.identities.map((entry) => [entry.id, entry.name]),
   );
@@ -237,9 +242,13 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
     state.rows.some((row) => row.source === "directory");
 
   function closeBind() {
+    const rowId = bindingRow;
     setBindingRow(null);
+    // The row's Bind steps aside while the form is open, so the button that
+    // opened it is gone by now; its replacement is where the keyboard lands.
     requestAnimationFrame(() => {
-      if (keyboardIsIdle() && trigger?.isConnected) trigger.focus();
+      if (!rowId || !keyboardIsIdle()) return;
+      document.getElementById(bindButtonId(rowId))?.focus();
     });
   }
 
@@ -297,10 +306,7 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
                 busy={state.busy}
                 binding={bindingRow === row.id}
                 showSource={mixedSources}
-                onOpenBind={(button) => {
-                  setTrigger(button);
-                  setBindingRow(row.id);
-                }}
+                onOpenBind={() => setBindingRow(row.id)}
                 onCloseBind={closeBind}
                 onBind={(input) =>
                   void state.bind(row, input).then((done) => {

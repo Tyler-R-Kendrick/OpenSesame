@@ -224,25 +224,39 @@ export async function syncConnectorDirectory(input: {
  */
 export async function sealPendingConnectorDirectory(
   tomb: string,
+  { ephemeral = false }: { ephemeral?: boolean } = {},
 ): Promise<boolean> {
   if (!pending || !tombUnlocked(tomb)) return false;
-  const record = pending;
-  await writeConnectorDirectory(tomb, record);
-  pending = null;
+  await writeConnectorDirectory(tomb, pending);
+  // A guest tomb is wiped on lock: it gets the list for its session, and the
+  // sync keeps waiting for a vault that lasts.
+  if (!ephemeral) pending = null;
   return true;
 }
 
 /* ---------------------------------------------------- naming for the PAM plane */
 
+/** FNV-1a over a string: eight hex characters, the same every time. */
+function digest(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
 /**
  * The share-grant resource id for a directory connection — stable across
- * syncs, and never longer than the ledger admits. Nango's own numeric id
- * stands in when the human-readable pair would not fit.
+ * syncs, and never longer than the ledger admits. When the human-readable
+ * pair would not fit, a digest of it stands in: Nango's numeric id alone is
+ * blank on older servers, and two connections sharing one id would share
+ * their bindings.
  */
 export function connectorResourceId(connection: DirectoryConnection): string {
   const readable = `nango:${connection.integrationId}/${connection.connectionId}`;
   if (readable.length <= 128) return readable;
-  return `nango:${connection.integrationId}#${connection.id}`.slice(0, 128);
+  return `nango:${connection.integrationId.slice(0, 100)}#${digest(readable)}`;
 }
 
 export function connectorResourceLabel(

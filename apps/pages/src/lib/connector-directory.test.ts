@@ -96,6 +96,26 @@ describe("a sync", () => {
     expect(await sealPendingConnectorDirectory(tomb)).toBe(false);
   });
 
+  it("gives a guest session the list but keeps waiting for a vault that lasts", async () => {
+    await syncConnectorDirectory({
+      endpoint: "https://api.nango.dev",
+      key: "sk-env",
+      tomb: null,
+    });
+    const guest = await openTomb();
+    expect(
+      await sealPendingConnectorDirectory(guest, { ephemeral: true }),
+    ).toBe(true);
+    expect((await readConnectorDirectory(guest))?.key).toBe("sk-env");
+    expect(pendingConnectorDirectory()?.endpoint).toBe("https://api.nango.dev");
+    const personal = await openTomb();
+    expect(await sealPendingConnectorDirectory(personal)).toBe(true);
+    expect(pendingConnectorDirectory()).toBeNull();
+    expect((await readConnectorDirectory(personal))?.connections).toHaveLength(
+      1,
+    );
+  });
+
   it("keeps nothing sealed when the tomb it was told about is locked", async () => {
     await syncConnectorDirectory({
       endpoint: "https://api.nango.dev",
@@ -131,6 +151,17 @@ describe("naming for the PAM plane", () => {
     expect(connectorResourceId(github)).toBe("nango:github/octocat");
     expect(connectorResourceLabel(github)).toBe("GitHub · octo@example.com");
     const long = { ...github, connectionId: "c".repeat(140) };
-    expect(connectorResourceId(long)).toBe("nango:github#1");
+    expect(connectorResourceId(long)).toMatch(/^nango:github#[0-9a-f]{8}$/);
+    // The digest is over the pair, so Nango's numeric id plays no part — an
+    // older server sends none — and two long connections never share one.
+    expect(connectorResourceId({ ...long, id: "" })).toBe(
+      connectorResourceId(long),
+    );
+    expect(
+      connectorResourceId({ ...long, connectionId: "d".repeat(140) }),
+    ).not.toBe(connectorResourceId(long));
+    expect(
+      connectorResourceId({ ...long, integrationId: "i".repeat(128) }).length,
+    ).toBeLessThanOrEqual(128);
   });
 });

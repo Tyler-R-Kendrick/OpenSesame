@@ -71,23 +71,13 @@ import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import { StrengthMeter } from "./unlock/StrengthMeter.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
+import {
+  METHOD_LABEL,
+  RESEND_COOLDOWN_MS,
+  SECOND_STEP_LABEL,
+} from "./unlock/labels.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
-
-const METHOD_LABEL = {
-  passkey: "Passkey",
-  pin: "PIN",
-  password: "Password",
-};
-
-const SECOND_STEP_LABEL = {
-  totp: "Authenticator",
-  email: "Email",
-  sms: "Text",
-} satisfies Record<SecondStepId, string>;
-
-/** A code by email or text may be asked for again after this long. */
-const RESEND_COOLDOWN_MS = 30_000;
 
 export const unlockScreenDependencies = {
   currentSession,
@@ -1153,9 +1143,11 @@ function UnlockForm({
             <button
               type="button"
               className="unlock__switch"
-              onClick={() =>
-                onSignInInstead ? onSignInInstead() : setLocalOnly(false)
-              }
+              onClick={() => {
+                // Both: this form may outlive the front door that mounted it.
+                setLocalOnly(false);
+                onSignInInstead?.();
+              }}
             >
               Sign in instead
             </button>
