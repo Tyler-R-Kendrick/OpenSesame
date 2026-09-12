@@ -98,7 +98,11 @@ Wholly local; no Host needed. One directory line above terse rows:
   directory), Policy (`Use` | `Invoke`), Duration → **Bind** / **Cancel**.
 - **Bindings** under a row — `Name · Policy · until <time>` with **Revoke**.
   A binding is a local share grant of kind `connection` (the same ledger the
-  Grants tab's Identity shares list), so revoking it there is the same act.
+  Grants tab's Identity shares list), so revoking it there is the same act —
+  and, like that panel's Revoke, it asks nothing twice: a binding is
+  time-boxed already and the ledger records the revocation. (Sessions and
+  application grants confirm, because they are authority in use.)
+- **Bind** steps aside while its form is open: one verb per card.
 - Empty state: `No connectors yet — the directory holds none.`
 
 ## Resources — what grants point at

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   WORDMARK,
   WORDMARK_CIPHER,
@@ -9,6 +9,7 @@ import {
   WORDMARK_MIN_STEPS,
   Wordmark,
   cipherReel,
+  wordmarkSeams,
 } from "./Wordmark.js";
 
 afterEach(() => {
@@ -33,6 +34,21 @@ describe("cipherReel", () => {
 });
 
 describe("Wordmark", () => {
+  beforeEach(() => {
+    wordmarkSeams.revealed = false;
+  });
+
+  it("settles at once on a second mount in the same session", () => {
+    const first = render(<Wordmark />);
+    expect(first.container.querySelector(".wordmark--settled")).toBeNull();
+    first.unmount();
+    const second = render(<Wordmark />);
+    expect(second.container.querySelector(".wordmark--settled")).toBeTruthy();
+    expect(second.container.querySelectorAll(".wordmark__slot")).toHaveLength(
+      WORDMARK.length,
+    );
+  });
+
   it("scrambles every unread slot until the cursor locks it", () => {
     vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValue(0.999);
     const { container, rerender } = render(<Wordmark />);

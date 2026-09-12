@@ -67,8 +67,7 @@ export function FrontDoor({
         <header className="door__hero">
           <Wordmark as="h1" className="door__wordmark" size={40} />
           <p className="door__lede">
-            Join a session you were invited to, or set up your own — sign-in and
-            guest are one press away either way.
+            Join a session you were invited to, or set up your own.
           </p>
         </header>
 
@@ -107,7 +106,7 @@ export function FrontDoor({
             </span>
             <span className="road__name">Set up your own</span>
             <span className="road__kind" id="door-setup-kind">
-              connectors, sign-in, backups — all optional
+              a few optional steps
             </span>
           </button>
         </fieldset>

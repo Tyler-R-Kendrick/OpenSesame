@@ -76,12 +76,14 @@ it("lists the directory's connectors with their source and health", async () => 
   const fixture = await seeded();
   render(<ConnectorsPanel tomb={fixture.tomb} />);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
-  expect(screen.getByText("api.nango.dev")).toBeTruthy();
-  expect(screen.getByText("2 connectors")).toBeTruthy();
+  expect(
+    screen.getByText(/^api\.nango\.dev · 2 connectors · synced /),
+  ).toBeTruthy();
   const rows = screen.getAllByRole("listitem");
   expect(within(rows[0] as HTMLElement).getByText("Authorized")).toBeTruthy();
   expect(within(rows[1] as HTMLElement).getByText("1 error")).toBeTruthy();
-  expect(screen.getAllByText("directory")).toHaveLength(2);
+  // One source only: a chip on every row would say nothing.
+  expect(screen.queryByText("directory")).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
@@ -103,6 +105,8 @@ it("binds a connector to a person under a policy, lists it, and revokes it", asy
   const row = within(githubRow as HTMLElement);
   await userEvent.click(row.getByRole("button", { name: "Bind" }));
   expect(document.activeElement).toBe(screen.getByLabelText("Identity"));
+  // The form carries the verb while it is open; the row's Bind steps aside.
+  expect(row.getAllByRole("button", { name: "Bind" })).toHaveLength(1);
   await userEvent.selectOptions(screen.getByLabelText("Policy"), "Invoke");
   await userEvent.selectOptions(screen.getByLabelText("Duration"), "1 day");
   const form = screen.getByRole("group", { name: /^Bind GitHub/ });
@@ -131,11 +135,14 @@ it("re-syncs with the sealed key from the command strip", async () => {
     connections: [github],
   }));
   render(<ConnectorsPanel tomb={fixture.tomb} />);
-  await screen.findByText("2 connectors");
+  await screen.findByText(/· 2 connectors ·/);
   await userEvent.click(
     screen.getByRole("button", { name: "Sync the directory" }),
   );
-  await screen.findByText("1 connector");
+  await screen.findByText(/· 1 connector ·/);
+  expect(screen.getByRole("status").textContent).toContain(
+    "1 connector synced.",
+  );
   expect(connectorDirectorySeams.listDirectory).toHaveBeenCalledWith(
     "https://api.nango.dev",
     "sk-env",

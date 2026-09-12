@@ -18,6 +18,7 @@ import {
   IconEdit,
   IconRefresh,
 } from "../../components/Icons.js";
+import { StatusNote } from "../../components/StatusNote.js";
 import {
   type ConnectorDirectory,
   directoryOriginLabel,
@@ -124,6 +125,7 @@ function ConnectorRowItem({
   names,
   busy,
   binding,
+  showSource,
   onOpenBind,
   onCloseBind,
   onBind,
@@ -135,6 +137,8 @@ function ConnectorRowItem({
   names: ReadonlyMap<string, string>;
   busy: boolean;
   binding: boolean;
+  /** Only when the list mixes sources; a chip on every row says nothing. */
+  showSource: boolean;
   onOpenBind: (button: HTMLButtonElement) => void;
   onCloseBind: () => void;
   onBind: (input: {
@@ -156,21 +160,27 @@ function ConnectorRowItem({
           <h3>{row.name}</h3>
           <code className="identity-ref">{row.detail}</code>
         </div>
-        <span className="chip">{row.source}</span>
-        <span className={`chip ${row.healthy ? "chip--ok" : "chip--warn"}`}>
-          {row.healthy ? "Authorized" : row.problem}
+        <span className="access-connector__chips">
+          {showSource ? <span className="chip">{row.source}</span> : null}
+          <span className={`chip ${row.healthy ? "chip--ok" : "chip--warn"}`}>
+            {row.healthy ? "Authorized" : row.problem}
+          </span>
+          <span className="chip">{bindings.length} bound</span>
         </span>
-        <span className="chip">{bindings.length} bound</span>
-        <div className="actions">
-          <button
-            type="button"
-            className="btn btn--sm"
-            disabled={busy || binding}
-            onClick={(event) => onOpenBind(event.currentTarget)}
-          >
-            Bind
-          </button>
-        </div>
+        {/* The form beneath carries the verb while it is open — one Bind
+            per card, never a disabled twin beside it. */}
+        {binding ? null : (
+          <div className="actions">
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={busy}
+              onClick={(event) => onOpenBind(event.currentTarget)}
+            >
+              Bind
+            </button>
+          </div>
+        )}
       </div>
       {binding ? (
         <ConnectorBindForm
@@ -198,20 +208,16 @@ function ConnectorRowItem({
   );
 }
 
-/** Where the list came from and when — one ruled line above the rows. */
+/** Where the list came from and when — one mono line above the rows. */
 function DirectoryLine({ directory }: { directory: ConnectorDirectory }) {
   const count = directory.connections.length;
   return (
     <p className="access-directory">
       <IconConnection size={15} />
-      <code className="access-ref">
-        {directoryOriginLabel(directory.endpoint)}
-      </code>
-      <span className="chip">
-        {count} {count === 1 ? "connector" : "connectors"}
-      </span>
-      <span className="access-directory__when">
-        synced {formatTime(directory.syncedAt)}
+      <span>
+        {directoryOriginLabel(directory.endpoint)} · {count}{" "}
+        {count === 1 ? "connector" : "connectors"} · synced{" "}
+        {formatTime(directory.syncedAt)}
       </span>
     </p>
   );
@@ -226,6 +232,9 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
     state.identities.map((entry) => [entry.id, entry.name]),
   );
   const showForm = editing || (state.loaded && !state.directory);
+  const mixedSources =
+    state.rows.some((row) => row.source === "host") &&
+    state.rows.some((row) => row.source === "directory");
 
   function closeBind() {
     setBindingRow(null);
@@ -258,11 +267,14 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
             {state.error}
           </p>
         ) : null}
-        <output>{state.message}</output>
         {state.directory ? <DirectoryLine directory={state.directory} /> : null}
+        <StatusNote
+          message={state.message ? { tone: "ok", text: state.message } : null}
+        />
         {showForm ? (
           <ConnectorDirectoryForm
             tomb={tomb}
+            terse
             initialKey={state.directory?.key ?? ""}
             onSynced={() => {
               setEditing(false);
@@ -284,6 +296,7 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
                 names={names}
                 busy={state.busy}
                 binding={bindingRow === row.id}
+                showSource={mixedSources}
                 onOpenBind={(button) => {
                   setTrigger(button);
                   setBindingRow(row.id);

@@ -103,12 +103,15 @@ function fillsFor(endpoint: string, pick: (next: string) => void): FieldFill[] {
 export function ConnectorDirectoryForm({
   tomb,
   initialKey = "",
+  terse = false,
   onSynced,
 }: {
   /** The open tomb the list seals into, or null before any vault exists. */
   tomb: string | null;
   /** A key the sealed record already holds, offered back for a re-sync. */
   initialKey?: string;
+  /** Access forbids prose: labels, fills and one six-word hint, nothing more. */
+  terse?: boolean;
   onSynced?: (record: ConnectorDirectory) => void;
 }) {
   const deps = connectorDirectoryFormDependencies;
@@ -138,7 +141,7 @@ export function ConnectorDirectoryForm({
         type="url"
         mono
         lead={<IconConnection size={17} />}
-        placeholder={HOSTED_DIRECTORY}
+        placeholder="https://…"
         value={endpoint}
         disabled={busy}
         onValueChange={(next) => {
@@ -147,7 +150,11 @@ export function ConnectorDirectoryForm({
         }}
         onCommit={commitEndpoint}
         fills={fillsFor(endpoint, commitEndpoint)}
-        hint="A Nango-compatible API base: the hosted one, or an instance you run. Only its listings are read — never a token."
+        hint={
+          terse
+            ? "Only listings are read — never a token."
+            : "The hosted directory, or an instance you run. Only listings are read — never a token."
+        }
       />
       <FieldShell
         id="directory-key"
@@ -162,7 +169,11 @@ export function ConnectorDirectoryForm({
           setKey(next);
           clear();
         }}
-        hint="Read access is enough. Sealed into the vault with the list, never written in the clear; leave it empty if the endpoint needs none."
+        hint={
+          terse
+            ? undefined
+            : "Read access is enough. Sealed with the list, never in the clear; leave it empty if the endpoint needs none."
+        }
       />
       <div className="actions">
         <button

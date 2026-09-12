@@ -1,6 +1,14 @@
-import { type ReactElement, useState } from "react";
+import { type ReactElement, useEffect, useState } from "react";
 import { IconMark } from "./Icons.js";
 import "./wordmark.css";
+
+/**
+ * Whether a wordmark has already revealed itself this session. The reel is
+ * the one authored moment of an arrival; a second gate mounting seconds later
+ * — the setup ceremony after the front door, the rail after unlock — arrives
+ * still. Tests reset it between renders.
+ */
+export const wordmarkSeams = { revealed: false };
 
 /** The brand line every gate and the rail share. */
 export const WORDMARK = "open-sesame";
@@ -71,7 +79,8 @@ function createSlots(): Slot[] {
  * at a time. Only the cursor's advance is randomized. Glyphs are stacked in
  * the DOM so wrap cannot fail on a font where `1ch` is not a full cell.
  * `steps()` + transform stay on the compositor. The readable name is
- * visually hidden; the reels are decorative.
+ * visually hidden; the reels are decorative. The reel runs once per session:
+ * a later mount renders the same reels already settled on their letters.
  */
 export function Wordmark({
   className,
@@ -88,8 +97,15 @@ export function Wordmark({
   as?: "p" | "h1";
 }): ReactElement {
   const [slots] = useState(createSlots);
+  const [settled] = useState(() => wordmarkSeams.revealed);
+  useEffect(() => {
+    wordmarkSeams.revealed = true;
+  }, []);
+  const classes = ["wordmark"];
+  if (settled) classes.push("wordmark--settled");
+  if (className) classes.push(className);
   return (
-    <Tag className={className ? `wordmark ${className}` : "wordmark"}>
+    <Tag className={classes.join(" ")}>
       <IconMark size={size} />
       <span className="visually-hidden">{WORDMARK}</span>
       <span className="wordmark__slots" aria-hidden="true">

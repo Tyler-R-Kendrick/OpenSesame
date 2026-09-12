@@ -29,7 +29,7 @@ function ConnectionCards({
       {connections.map((connection) => (
         <li
           key={`${connection.integrationId}/${connection.connectionId}`}
-          className="xcard is-on"
+          className="xcard"
         >
           <span className="xcard__pick">
             <span className="xcard__name">
@@ -65,10 +65,8 @@ export function ConnectorsStep() {
   return (
     <>
       <StepHead title="Which connectors are already authorized?">
-        Name a Nango-compatible directory — the hosted one, or one you run — and
-        every connection it already holds becomes a connector here by reference.
-        Tokens stay where they are; this device keeps the names and seals them
-        with the vault.
+        Name a Nango-compatible directory and every connection it already holds
+        becomes a connector here, by reference. Tokens stay where they are.
       </StepHead>
 
       <GuideTarget id="setup.connectors">
@@ -83,8 +81,7 @@ export function ConnectorsStep() {
           </p>
           <ConnectionCards connections={record.connections} />
           <p className="hint">
-            Who may use each one is decided in Access › Connectors, once the
-            vault is open.
+            Who may use each one is decided in Access › Connectors.
           </p>
         </section>
       ) : null}

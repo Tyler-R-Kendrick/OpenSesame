@@ -74,7 +74,10 @@ export function ConnectorBindForm({
   );
   const [duration, setDuration] = useState<number>(SHARE_DURATIONS[0].seconds);
   const first = useRef<HTMLSelectElement>(null);
+  // The keyboard lands on the first choice — unless a finger opened this,
+  // where a form is not focused uninvited (DESIGN.md › Touch).
   useEffect(() => {
+    if (window.matchMedia?.("(pointer: coarse)").matches) return;
     first.current?.focus();
   }, []);
 
