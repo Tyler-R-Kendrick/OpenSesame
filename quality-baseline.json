@@ -18,7 +18,7 @@
   "totals": {
     "files": 494,
     "violations": 817,
-    "oversizedLines": 279931
+    "oversizedLines": 279335
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -815,12 +815,12 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1833
+      "max-lines": 1436
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 2,
       "max-depth": 1,
-      "max-lines": 1265,
+      "max-lines": 1246,
       "max-lines-per-function": 1,
       "max-statements": 2
     },
@@ -855,7 +855,7 @@
     "apps/pages/src/sections/AccessSection.tsx": {
       "complexity": 5,
       "max-depth": 1,
-      "max-lines": 3671,
+      "max-lines": 3641,
       "max-lines-per-function": 13
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
@@ -1057,10 +1057,10 @@
       "max-lines": 442
     },
     "apps/pages/src/tutorial/registry/catalog.ts": {
-      "max-lines": 606
+      "max-lines": 505
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
-      "max-lines": 985
+      "max-lines": 936
     },
     "apps/pages/src/tutorial/rendering/driver-renderer.ts": {
       "max-lines-per-function": 1

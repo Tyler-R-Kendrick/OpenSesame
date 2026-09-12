@@ -96,39 +96,8 @@ import { type Flash, STATUS_CHIP, errorText } from "./connections/shared.js";
 import "./connections.css";
 import "./access.css";
 import { ACCESS_VIEWS, useSectionView } from "../lib/section-views.js";
-
-const TABS = ACCESS_VIEWS.map((id) => ({
-  id,
-  label: id.charAt(0).toUpperCase() + id.slice(1),
-  guideId: `access.${id}`,
-}));
-
-/** One tab, named so a guide can point at it without knowing the markup. */
-function AccessTabButton({
-  guideId,
-  label,
-  active,
-  onSelect,
-}: {
-  guideId: string;
-  label: string;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const ref = useGuideTarget<HTMLButtonElement>(guideId);
-  return (
-    <button
-      ref={ref}
-      type="button"
-      role="tab"
-      aria-selected={active}
-      className={`access-tab${active ? " is-active" : ""}`}
-      onClick={onSelect}
-    >
-      {label}
-    </button>
-  );
-}
+import { ACCESS_TABS, AccessTabButton } from "./access/AccessTabs.js";
+import { ConnectorsPanel } from "./access/ConnectorsPanel.js";
 
 type GrantTarget =
   | { kind: "connection"; connection: Connection }
@@ -231,7 +200,7 @@ export function AccessSection() {
       />
 
       <div className="access-tabs" role="tablist" aria-label="Access views">
-        {TABS.map(({ id, label, guideId }) => (
+        {ACCESS_TABS.map(({ id, label, guideId }) => (
           <AccessTabButton
             key={id}
             guideId={guideId}
@@ -276,6 +245,7 @@ export function AccessSection() {
       {tab === "sessions" ? (
         <SessionsPanel key={authorityRevision} online={online} />
       ) : null}
+      {tab === "connectors" ? <ConnectorsPanel key={tomb} tomb={tomb} /> : null}
       {tab === "resources" ? (
         <ResourcesPanel
           online={online}

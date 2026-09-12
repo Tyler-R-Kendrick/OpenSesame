@@ -13,6 +13,7 @@ import type { SupportGoalDescription } from "@opensesame/support-agent";
 import { AUTHORITY_GOALS, AUTHORITY_HELP } from "./authority-help.js";
 import { IDENTITY_GOALS } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
+import { SETUP_GOALS } from "./setup-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 
 export type GuideGoalDescriptor = {
@@ -146,57 +147,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
-  {
-    id: "unlock.open",
-    title: "Unlock the vault",
-    routes: ["/unlock"],
-    guide: [
-      "guide/1",
-      'goal "unlock.open"',
-      'say "The vault is sealed on this device. First run leads with sign-in; a returning vault uses the unlock form for a passkey, PIN or password."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'success "Unlocked. The vault key is in memory on this device only."',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "setup.first-run",
-    title: "Set up this deployment (optional)",
-    routes: ["/unlock"],
-    guide: [
-      "guide/1",
-      'goal "setup.first-run"',
-      'say "Nothing has to be set up first: sign in, continue as guest, or seal a local vault. Deployment setup is for whoever runs this deployment and wants to choose who signs people in."',
-      'focus "unlock.setup" "The operator road. It asks who may sign people in, then records that and returns to sign-in." side=top',
-      'hint "setup.join" "Join if you were invited: a link and a code, or a public session to ask into." side=top',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "setup.operator",
-    title: "Choose who signs people in",
-    routes: ["/setup"],
-    guide: [
-      "guide/1",
-      'goal "setup.operator"',
-      'say "Setup is the allowlist of who may sign people in. Add the roads you want, then finish."',
-      'focus "setup.ways" "Each road you add here appears on the sign-in screen. Removing all of them is a local-only vault." side=bottom',
-      'hint "setup.finish" "This records the roads and returns to sign-in." side=top',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "setup.join-session",
-    title: "Join a session",
-    routes: ["/unlock"],
-    guide: [
-      "guide/1",
-      'goal "setup.join-session"',
-      'say "Join a session you were invited to: a link and a code, or a public session to ask into."',
-      'focus "setup.join" "This road never asks you to be the operator. The Host is asked for only here, because sharing reintroduces the server." side=top',
-      "end",
-    ].join("\n"),
-  },
+  ...SETUP_GOALS,
   {
     id: "identity.sign-in",
     title: "Sign in with an identity provider",

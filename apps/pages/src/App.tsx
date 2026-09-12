@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { AppShell as DefaultAppShell } from "./components/AppShell.js";
+import { sealPendingConnectorDirectory } from "./lib/connector-directory.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
 import { recoverPendingFederatedLink } from "./lib/guest-auth.js";
@@ -66,7 +67,7 @@ const DefaultSettingsSection = lazy(() =>
   })),
 );
 
-type VaultStatus = { status: string };
+type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
 
 export type AppSlots = {
@@ -132,25 +133,45 @@ function Framed({ children }: { children: ReactNode }) {
   );
 }
 
-function VaultApp() {
-  const slots = useContext(AppSlotsContext);
-  const { status } = slots.useVault();
-  const location = useLocation();
-  slots.useTheme();
-  slots.useSessionGuards();
-  useWebMcp(status);
-
-  // A reload drops the in-memory notice but not the upstream assertion in
-  // sessionStorage. Once the vault is open, raise the prompt again so a link
-  // deferred by a locked vault can still be finished from the bell. No-ops
-  // unless a link is actually outstanding.
+/**
+ * What an unlock picks back up. A reload drops the in-memory notice but not
+ * the upstream assertion in sessionStorage, so a link deferred by a locked
+ * vault is raised again from the bell; a stashed join resumes; and a
+ * connector directory synced during setup, which waited for a vault to seal
+ * it in (ADR 0115), lands in the first open tomb. Each is a no-op when there
+ * is nothing outstanding.
+ */
+function useAfterUnlock(
+  status: string,
+  tomb: string | undefined,
+  guest: boolean | undefined,
+): void {
   useEffect(() => {
     if (status !== "unlocked") return;
     recoverPendingFederatedLink();
     void resumeStashedJoin().catch(() => {
       // A spent or expired stash is not a reason to trap the vault.
     });
-  }, [status]);
+    if (tomb) {
+      // A guest tomb is wiped on lock, so it gets the list without taking
+      // it: the sync still waits for the vault that lasts.
+      void sealPendingConnectorDirectory(tomb, { ephemeral: guest }).catch(
+        () => {
+          // The endpoint is on record; Access › Connectors syncs it again.
+        },
+      );
+    }
+  }, [status, tomb, guest]);
+}
+
+function VaultApp() {
+  const slots = useContext(AppSlotsContext);
+  const { status, tomb, guest } = slots.useVault();
+  const location = useLocation();
+  slots.useTheme();
+  slots.useSessionGuards();
+  useWebMcp(status);
+  useAfterUnlock(status, tomb, guest);
 
   if (status !== "unlocked") {
     return <slots.UnlockScreen />;

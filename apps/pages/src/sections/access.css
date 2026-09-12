@@ -10,6 +10,19 @@
   border-bottom: 1px solid var(--line);
 }
 
+/* Six tabs do not fit a phone in one row; the hairline stays one line and
+   the strip scrolls, as the setup tabs do. */
+@media (max-width: 480px) {
+  .access-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .access-tab {
+    white-space: nowrap;
+  }
+}
+
 .access-tab {
   display: inline-flex;
   align-items: center;
@@ -902,4 +915,124 @@
 .sites-effect.is-on.is-deny {
   background: var(--err-wash);
   color: var(--err);
+}
+
+/* --- connectors (ADR 0115) ------------------------------------------------- */
+
+/* Where the list came from and when: one mono line above the rows. */
+.access-directory {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.access-directory svg {
+  flex: none;
+  color: var(--ink-3);
+}
+
+.access-directory span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.access-connector__chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+/* On a phone the row is a grid: mark and name with Bind beside them, the
+   chips on a line of their own — never a verb orphaned under the chips. */
+@media (max-width: 30rem) {
+  #local-connectors .identity-row__main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  /* Placed by hand: auto-flow would drop Bind under the chips again. */
+  #local-connectors .identity-row__id {
+    grid-row: 1;
+    grid-column: 2;
+  }
+
+  #local-connectors .access-connector__chips {
+    grid-row: 2;
+    grid-column: 2 / -1;
+  }
+
+  #local-connectors .identity-row .actions {
+    grid-row: 1;
+    grid-column: 3;
+    margin-left: 0;
+  }
+
+  /* Wrap rather than lose the time behind an ellipsis. */
+  .access-directory span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Who is bound to a connector, under its row. */
+.access-bindings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.access-binding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+
+.access-binding__policy,
+.access-binding__until {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.access-binding .btn {
+  margin-left: auto;
+}
+
+.access-bind {
+  min-width: 0;
+  padding: 0.75rem 0 0.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.access-bind legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.access-bind__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.access-bind p {
+  margin: 0 0 0.6rem;
+  max-width: 62ch;
 }

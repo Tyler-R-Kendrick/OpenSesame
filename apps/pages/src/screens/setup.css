@@ -111,7 +111,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.7rem 1.15rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
-  padding-left: calc(3.6rem + env(safe-area-inset-left, 0px));
+  /* Clear of the support key docked in the corner, with room to spare. */
+  padding-left: calc(4.25rem + env(safe-area-inset-left, 0px));
   border-top: 1px solid var(--line);
   background: var(--surface);
 }
@@ -294,6 +295,8 @@
   gap: 0.5rem;
 }
 
+/* Sentence case, untracked: hierarchy comes from size, rung and space, never
+   from shouting (DESIGN.md › Typography). */
 .ways__head {
   display: flex;
   align-items: center;
@@ -301,8 +304,6 @@
   font-family: var(--mono);
   font-size: 0.75rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--ink-3);
 }
 
@@ -372,9 +373,21 @@
   padding: 0 1.15rem;
 }
 
-/* On a phone only the current step's label is read; the bars carry the rest. */
-@media (max-width: 40rem) {
-  .setup .steps__seg:not(.is-now) .steps__label {
-    display: none;
-  }
+/* Only the current step's label is read; the bars carry the rest, and the
+   tab strip beneath names every step in full — six labels across the rail
+   truncated into "Connec…" and "Identi…" at any width. */
+.setup .steps__seg:not(.is-now) .steps__label {
+  display: none;
+}
+
+/* The one label read may spill into the empty slots beside it: six
+   segments at phone width are narrower than "2 · Connectors". The segments
+   keep their equal share; only the text crosses the seam. */
+.setup .steps__seg {
+  min-width: 0;
+}
+
+.setup .steps__seg.is-now .steps__label {
+  overflow: visible;
+  text-overflow: clip;
 }

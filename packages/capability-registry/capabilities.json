@@ -2636,6 +2636,44 @@
     }
   },
   {
+    "id": "connectors.directory.sync",
+    "title": "Sync authorized connectors from a Nango-compatible directory",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/connector-directory.ts:syncConnectorDirectory",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the directory's key is a credential a person types, and pointing this device at an endpoint is how connectors arrive; an agent surface that could do either would be a way to plant connectors",
+        "adr": "0115-front-door-and-connector-directory.md"
+      }
+    }
+  },
+  {
+    "id": "connectors.bind",
+    "title": "Bind a connector to a local identity under a policy",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/local-share-grants.ts:createLocalShare",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "binding is the PAM decision itself — who may use which connector, under which policy, until when — and stays with the human custodian of the vault",
+        "adr": "0115-front-door-and-connector-directory.md"
+      }
+    }
+  },
+  {
     "id": "identity.project.temporary",
     "title": "Create a temporary project",
     "plane": "identity",

@@ -128,7 +128,7 @@ describe("two optional ceremonies, never a fork (ADR 0090)", () => {
   it("opens the operator ceremony on its first tab when asked for", () => {
     openSetup();
     expect(heading()).toBe("Where do backups live?");
-    expect(screen.getAllByRole("tab")).toHaveLength(5);
+    expect(screen.getAllByRole("tab")).toHaveLength(6);
     expect(screen.queryByText("This device is empty")).toBeNull();
   });
 
@@ -235,12 +235,13 @@ describe("the setup ceremony", () => {
     openSetup();
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "backups",
+      "connectors",
       "ai",
       "identity",
       "mfa",
       "sync",
     ]);
-    expect(document.querySelectorAll(".steps__seg")).toHaveLength(5);
+    expect(document.querySelectorAll(".steps__seg")).toHaveLength(6);
     expect(screen.getByRole("button", { name: "Skip this step" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Skip all" })).toBeTruthy();
   });
@@ -488,12 +489,11 @@ describe("keeping it on this device", () => {
   });
 
   it("rides beneath the active step, never a tab of its own", () => {
-    // The ceremony is a tab per concern (ADR 0114), and installing is not one
-    // of them: no wrong answer, no gate on the commit, no sixth tab.
+    // A tab per concern (ADR 0114); installing is not one of them.
     offering("prompt");
     openSetup();
 
-    expect(screen.getAllByRole("tab")).toHaveLength(5);
+    expect(screen.getAllByRole("tab")).toHaveLength(6);
     expect(screen.getByText("Keep it on this device")).toBeDefined();
     const text = document.querySelector(".setup__body")?.textContent ?? "";
     expect(text.indexOf("Where do backups live?")).toBeLessThan(

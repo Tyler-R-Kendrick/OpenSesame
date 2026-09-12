@@ -70,6 +70,7 @@ export function accessPageSources({
         ? [panel("sessions", "host-sessions", "Host task sessions")]
         : []),
     ]),
+    tab("connectors", [panel("connectors", "local-connectors", "Connectors")]),
     tab("resources", [
       ...(identity ? [panel("resources", "resource-sites", "Sites")] : []),
     ]),

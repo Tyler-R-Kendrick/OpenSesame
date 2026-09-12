@@ -228,6 +228,7 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 | `apps/pwa` / `apps/mobile-mfa` | Client PWA + step-up MFA UX (against `:8788`) |
 | `apps/pages` | Installable GitHub Pages offline PWA — authority vault |
 | `apps/pages/src/tutorial` | In-product contextual support: the semantic target/route/predicate registries, the Driver.js renderer, the on-device and AG-UI transports, and the support panel (ADR 0088) |
+| `apps/pages/src/lib/nango-directory.ts`, `apps/pages/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
 | `apps/mcp-client` / `apps/mcp-host` | MCP servers (client- and host-facing) |
 | `apps/console` | Vite Identity console (web UI) |
 | `apps/worker` | Background worker |
@@ -312,15 +313,21 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0093).
+  0001–0115).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker: an empty device opens on the sign-in screen with
   the compiled-in Google-via-Shoo road and the guest road, and nothing — no
   operator ceremony, no Identity API, no Host, no daemon, no localhost — may
-  be placed in front of them. `Deployment setup` and `Join a session` are
-  ceremonies a person opens from the sign-in foot (an invite link opens join
-  by itself); `setupRequired` does not exist and must not come back. No
+  be placed in front of them. On a device with no vault and no setup record
+  that screen is the **front door** (`screens/FrontDoor.tsx`,
+  [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md)): the
+  wordmark at hero scale, the `Join a session` and `Set up your own` roads
+  made large, and the whole sign-in panel beneath them on the same card —
+  offers beside sign-in, never a gate before it. Once the ceremony is
+  answered or skipped, `Deployment setup` and `Join a session` are the quiet
+  links in the sign-in foot (an invite link opens join by itself);
+  `setupRequired` does not exist and must not come back. No
   default may point at a local host: `lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
   offer, never something the app assumes. With no Identity API configured a
@@ -430,6 +437,14 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   the closed catalogue; a concealed field may never reach `subtitle`, `search`,
   or a VFS filename; only a platform-published definition may name a ceremony
   handler ([ADR 0087](docs/adr/0087-vault-item-type-plugins.md)).
+- A connector arrives by reference, never by credential. The connectors tab
+  of setup and Access › Connectors read a Nango-compatible directory's two
+  listing routes and nothing else; `GET /connection/{id}` — the route that
+  returns tokens — is never called, no Nango package is depended on, and the
+  directory's key is sealed in the tomb or held in memory, never written in
+  the clear. Binding a connector to a person or agent is a local share grant
+  of kind `connection` — the one ledger Identity shares use — not a second
+  authority model ([ADR 0115](docs/adr/0115-front-door-and-connector-directory.md)).
 - Every new user-facing capability (gateway route, CLI verb, PWA action) must
   get a `packages/capability-registry` entry that maps it onto the MCP/WebMCP
   surfaces or excludes it with an ADR citation — parity tests in mcp-host,

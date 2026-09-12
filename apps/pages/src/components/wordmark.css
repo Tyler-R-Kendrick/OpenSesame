@@ -76,6 +76,13 @@
   }
 }
 
+/* A reel that already ran this session, and every reel under reduced
+   motion, stands on its letter from the first frame. */
+.wordmark--settled .wordmark__slot,
+.wordmark--settled .wordmark__reel {
+  animation-name: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .wordmark__slot,
   .wordmark__reel {

@@ -49,7 +49,12 @@ export async function checkWordmark(page, check) {
     ),
     "every character has a visible slot background",
   );
+  // Reduced motion is judged on a fresh load, the way a person who asked for
+  // it arrives: a CSS animation this check paused by hand above stays owned
+  // by the Web Animations API, and a paused one survives `animation-name:
+  // none` in Chromium — which is the sampler's doing, not the wordmark's.
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.reload({ waitUntil: "networkidle" });
   await page.evaluate(
     () => new Promise((resolve) => requestAnimationFrame(resolve)),
   );

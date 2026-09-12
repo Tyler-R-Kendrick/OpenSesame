@@ -348,6 +348,15 @@
   flex: none;
 }
 
+/* The same 44px floor every other key gets; this rule loads after the
+   shared one, so the mark needs its own. */
+@media (pointer: coarse), (max-width: 900px) {
+  .signin__social {
+    width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
 .signin__social.is-last {
   box-shadow: 0 0 0 2px var(--accent);
 }

@@ -123,7 +123,9 @@ begins: randomly 6–12 glyph cycles at 35ms each, once on entry, without delayi
 interaction. Counts stay fixed through re-renders; the full reveal takes 2.31–4.62s.
 The reels are decorative; assistive technology reads `open-sesame` once.
 Reduced motion shows the completed word immediately. All front doors and the
-desktop rail use the same `Wordmark` component.
+desktop rail use the same `Wordmark` component, and the reel runs once per
+session: the gate a person arrives on owns the moment, and every wordmark
+mounted after it — the setup ceremony, the rail — stands still on its letters.
 
 ## Colors
 
@@ -172,6 +174,8 @@ stack at a readable measure, because explanations are for reading, not
 scanning.
 
 ### Hierarchy
+- The front door's title is the wordmark at display scale —
+  `clamp(1.75rem, 8vw, 2.6rem)`, the one display step, used nowhere else
 - Page and detail titles ~1.4rem, weight 600, tight tracking
 - Panel headings ~1.0625rem
 - Body 15px / 1.5

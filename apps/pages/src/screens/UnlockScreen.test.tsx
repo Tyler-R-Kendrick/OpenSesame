@@ -1,437 +1,40 @@
-import {
-  type BoundaryValue,
-  type JsonObject,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
+/** @vitest-environment jsdom */
 import {
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
-  within,
 } from "@testing-library/react";
-/** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { SignInMethods } from "../lib/settings.js";
-import type { UnlockMethodId } from "../lib/vault/unlock-methods.js";
-
-type TestVaultState = {
-  status: "empty" | "locked";
-  header: { hint?: string; unlocks?: Record<string, JsonObject> } | null;
-  lockedOutUntil: number | null;
-  failedAttempts: number;
-  durable: boolean;
-  awaitingSecondStep: boolean;
-};
-
-type TestHostCheck = {
-  ok: boolean;
-  reason?: string;
-  fixUrl?: string | null;
-};
-
-type StoreMethod =
-  | "create"
-  | "createWithPasskey"
-  | "createWithPin"
-  | "unlock"
-  | "unlockWithPin"
-  | "unlockWithPasskey"
-  | "confirmTotp"
-  | "cancelTotpChallenge"
-  | "destroy";
-
-type TestHarness = {
-  state: TestVaultState;
-  methods: UnlockMethodId[];
-  preferred: UnlockMethodId;
-  host: TestHostCheck;
-  store: Record<StoreMethod, ReturnType<typeof vi.fn>>;
-};
-
-const v = vi.hoisted((): TestHarness => {
-  const state: TestVaultState = {
-    status: "locked",
-    header: null,
-    lockedOutUntil: null,
-    failedAttempts: 0,
-    durable: true,
-    awaitingSecondStep: false,
-  };
-  const methods: UnlockMethodId[] = ["password"];
-  const preferred: UnlockMethodId = "password";
-  const host: TestHostCheck = { ok: true };
-  return {
-    state,
-    methods,
-    preferred,
-    host,
-    store: {
-      create: vi.fn(),
-      createWithPasskey: vi.fn(),
-      createWithPin: vi.fn(),
-      unlock: vi.fn(),
-      unlockWithPin: vi.fn(),
-      unlockWithPasskey: vi.fn(),
-      confirmTotp: vi.fn(),
-      cancelTotpChallenge: vi.fn(),
-      destroy: vi.fn(),
-    },
-  };
-});
-
-import { vaultHooksSeams } from "../lib/vault/hooks.js";
-const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {
-  useVault: () => v.state,
-  useVaultStore: () => v.store,
-});
-
-import { unlockMethodsSeams } from "../lib/vault/unlock-methods.js";
-const originalUnlockMethodsSeams = { ...unlockMethodsSeams };
-Object.assign(unlockMethodsSeams, {
-  listAvailableUnlockMethods: () => v.methods,
-  preferredUnlockMethod: () => v.preferred,
-  checkWebauthnHost: () => v.host,
-  describeWebauthnError: (error: BoundaryValue) =>
-    `webauthn: ${error instanceof Error ? error.message : String(error)}`,
-});
-
-import { guestAuthSeams } from "../lib/guest-auth.js";
-const continueAsGuest = vi.fn();
-Object.assign(guestAuthSeams, { continueAsGuest });
-
-import { federationSeams } from "../lib/federation.js";
-const beginSignIn = vi.fn();
-const UPSTREAM = {
-  id: "shoo",
-  displayName: "Shoo",
-  issuer: "https://shoo.dev",
-  accountKind: "Google",
-};
-/** Tests that need a different default upstream (e.g. the dev mock) swap this. */
-const upstreamHolder = { current: UPSTREAM };
-Object.assign(federationSeams, {
-  beginSignIn,
-  defaultUpstream: () => upstreamHolder.current,
-});
-
-const FEDERATED_BUTTON = `Continue with ${UPSTREAM.accountKind}`;
-
-import { identitySeams } from "../lib/identity.js";
-import type { IdentitySession } from "../lib/identity.js";
-identitySeams.identityBase = () => "http://127.0.0.1:18788";
-const endSession = vi.fn();
-type SessionHolder = { current: IdentitySession | null };
-const sessionHolder: SessionHolder = { current: null };
-identitySeams.useIdentitySession = () => sessionHolder.current;
-identitySeams.endSession = endSession;
-
-import { orgSeams } from "../lib/orgs.js";
-const lookupOrgTenant = vi.fn();
-const lookupOrgByDomain = vi.fn();
-Object.assign(orgSeams, { lookupOrgTenant, lookupOrgByDomain });
-
-import { providersSeams } from "../lib/providers.js";
-const listFederatedProviders = vi.fn();
-const requestEmailMagicLink = vi.fn();
-Object.assign(providersSeams, {
-  listFederatedProviders,
-  requestEmailMagicLink,
-});
-
-import { setupScreenDependencies } from "./SetupScreen.js";
 import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
+import {
+  FEDERATED_BUTTON,
+  STRONG,
+  UPSTREAM,
+  beginSignIn,
+  chooseSealMethod,
+  continueAsGuest,
+  endSession,
+  goLocalOnly,
+  identifierInput,
+  listFederatedProviders,
+  lookupOrgByDomain,
+  lookupOrgTenant,
+  masterInput,
+  openSignIn,
+  requestEmailMagicLink,
+  resetUnlockHarness,
+  sessionHolder,
+  submitButton,
+  submitIdentifier,
+  upstreamHolder,
+  userMenuTrigger,
+  v,
+} from "./unlock-screen-harness.js";
 
-// Setup is never a gate (ADR 0090); this suite tests the unlock form and handoff.
-type InviteHolder = {
-  current: ReturnType<typeof setupScreenDependencies.readJoinFromLocation>;
-};
-const inviteHolder: InviteHolder = { current: null };
-const identityBaseHolder = { current: "http://127.0.0.1:18788" };
-/** What setup left as the ways in — the screen reads this, not the URL. */
-type WaysInHolder = { current: SignInMethods };
-const waysInHolder: WaysInHolder = {
-  current: { builtin: true, providers: [] },
-};
-const completeSetup = vi.fn<() => Promise<void>>();
-Object.assign(unlockScreenDependencies, {
-  readJoinFromLocation: () => inviteHolder.current,
-  currentSession: () => null,
-  identityBase: () => identityBaseHolder.current,
-  signInMethods: () => waysInHolder.current,
-  noWayIn: () =>
-    !waysInHolder.current.builtin &&
-    waysInHolder.current.providers.length === 0 &&
-    identityBaseHolder.current.trim() === "",
-  defaultUpstream: () => ({
-    id: "shoo",
-    displayName: "Shoo",
-    issuer: "https://shoo.dev",
-    accountKind: "Google",
-  }),
-  resumeStashedJoin: async () => false,
-});
-Object.assign(setupScreenDependencies, {
-  // The ceremony's own behaviour is covered in SetupScreen.test.tsx; these
-  // tests only care that it is reached and handed back from.
-  completeSetup,
-  readJoinFromLocation: () => null,
-});
-
-const STRONG = "correct horse battery staple";
-
-function submitButton(): HTMLButtonElement {
-  // Scoped to the unlock form: on an existing vault the sign-in panel below it
-  // carries a submit button of its own (the identifier field's "Continue").
-  const form = document.querySelector<HTMLElement>(".unlock__form");
-  if (!form) throw new Error("unlock form not found");
-  const buttons = within(form)
-    .getAllByRole("button")
-    .filter((el) => el.getAttribute("type") === "submit");
-  if (buttons.length !== 1) throw new Error("submit button not found");
-  return overlapCast(buttons[0]);
-}
-
-function masterInput(): HTMLInputElement {
-  return overlapCast(screen.getByLabelText(/Master password|^Password$/));
-}
-
-function chooseSealMethod(name: string): void {
-  fireEvent.click(screen.getByRole("tab", { name }));
-}
-
-/** First run lands on sign-in; the seal form is the explicit local-only road. */
-function goLocalOnly(): void {
-  fireEvent.click(
-    screen.getByRole("button", { name: "Use without an account" }),
-  );
-}
-
-function userMenuTrigger(): HTMLElement {
-  return screen.getByRole("button", { name: /Signed in as / });
-}
-
-function openSignIn(): void {
-  fireEvent.click(userMenuTrigger());
-  fireEvent.click(screen.getByRole("menuitem", { name: "Sign in" }));
-}
-
-function identifierInput(): HTMLInputElement {
-  return overlapCast(screen.getByLabelText("Email or organization"));
-}
-
-function submitIdentifier(value: string): void {
-  fireEvent.change(identifierInput(), { target: { value } });
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-}
-
-// Every unlock screen now fetches the catalog and can start a leg, not just
-// first run, so the federation seams need a known state before every test in
-// this file rather than inside the one block that used to be the sole caller.
-beforeEach(() => {
-  // A sign-out or a switch leaves a one-shot note for the next unlock screen;
-  // one test's note must never open another's sign-in panel.
-  sessionStorage.clear();
-  localStorage.clear();
-  continueAsGuest.mockReset();
-  continueAsGuest.mockResolvedValue(undefined);
-  beginSignIn.mockReset();
-  // Real sign-in navigates away and never settles; a pending promise is the
-  // honest stand-in.
-  beginSignIn.mockReturnValue(new Promise(() => {}));
-  lookupOrgTenant.mockReset();
-  lookupOrgByDomain.mockReset();
-  lookupOrgByDomain.mockResolvedValue(null);
-  requestEmailMagicLink.mockReset();
-  requestEmailMagicLink.mockResolvedValue(undefined);
-  listFederatedProviders.mockReset();
-  // No catalog is the default: every expectation below that names the single
-  // fallback button is the empty-catalog path (an unreachable or older
-  // Identity API).
-  listFederatedProviders.mockResolvedValue([]);
-  endSession.mockReset();
-  inviteHolder.current = null;
-  identityBaseHolder.current = "http://127.0.0.1:18788";
-  waysInHolder.current = { builtin: true, providers: [] };
-  completeSetup.mockReset();
-  completeSetup.mockResolvedValue(undefined);
-  sessionHolder.current = null;
-  upstreamHolder.current = UPSTREAM;
-});
-
-describe("UnlockScreen — setup is optional (ADR 0090)", () => {
-  afterEach(cleanup);
-
-  function fresh() {
-    v.state = {
-      status: "empty",
-      header: null,
-      lockedOutUntil: null,
-      failedAttempts: 0,
-      durable: true,
-      awaitingSecondStep: false,
-    };
-  }
-
-  it("opens on sign-in on a fresh device, with the broker and guest on offer", () => {
-    // The screen this replaces was an operator's question ("This device is
-    // empty") with no sign-in and no guest road on it at all.
-    fresh();
-    render(<UnlockScreen />);
-
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Sign in",
-    );
-    expect(
-      screen.getByRole("button", { name: "Continue with Google" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Continue as guest" }),
-    ).toBeTruthy();
-    expect(screen.queryByText("This device is empty")).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
-  });
-
-  it("reaches deployment setup from the foot and hands back to sign-in", () => {
-    fresh();
-    render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Where do backups live?",
-    );
-    // One tap after that: the brokered road needs nothing typed.
-    fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
-
-    return waitFor(() =>
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-        "Sign in",
-      ),
-    );
-  });
-
-  it("backs out of setup without recording anything", () => {
-    fresh();
-    render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Sign in",
-    );
-    expect(completeSetup).not.toHaveBeenCalled();
-  });
-
-  it("reaches the join road from the foot", () => {
-    fresh();
-    render(<UnlockScreen />);
-    fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Join a session",
-    );
-  });
-
-  it("opens join directly when the visit is an invite link", () => {
-    // The link is the request: nobody who was invited should have to find
-    // the road themselves.
-    fresh();
-    inviteHolder.current = {
-      host: "https://host.example",
-      token: "osc_clm_id.secret",
-    };
-    setupScreenDependencies.readJoinFromLocation = () => inviteHolder.current;
-    try {
-      render(<UnlockScreen />);
-      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-        "Join a session",
-      );
-    } finally {
-      setupScreenDependencies.readJoinFromLocation = () => null;
-    }
-  });
-
-  it("withholds the user menu while nothing is sealed on this device", () => {
-    fresh();
-    render(<UnlockScreen />);
-    expect(screen.queryByRole("button", { name: /Signed in as / })).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Sign in" })).toBeNull();
-  });
-
-  it("names who locked the vault in a dropdown, with no Sign in tab", () => {
-    v.state = {
-      status: "locked",
-      header: null,
-      lockedOutUntil: null,
-      failedAttempts: 0,
-      durable: true,
-      awaitingSecondStep: false,
-    };
-    render(<UnlockScreen />);
-    expect(userMenuTrigger()).toBeTruthy();
-    expect(screen.queryByRole("tab", { name: "Unlock" })).toBeNull();
-    expect(screen.queryByRole("tab", { name: "Sign in" })).toBeNull();
-    expect(submitButton()).toBeTruthy();
-  });
-
-  it("names the deployment it is pointed at, and the road back into setup", () => {
-    v.state = {
-      status: "locked",
-      header: null,
-      lockedOutUntil: null,
-      failedAttempts: 0,
-      durable: true,
-      awaitingSecondStep: false,
-    };
-    render(<UnlockScreen />);
-    expect(screen.getByText("127.0.0.1:18788")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Where do backups live?",
-    );
-  });
-
-  it("offers the setup road when setup left no way in at all", () => {
-    fresh();
-    identityBaseHolder.current = "";
-    waysInHolder.current = { builtin: false, providers: [] };
-    render(<UnlockScreen />);
-    expect(screen.getByText(/No way in is configured/)).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Set it up" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
-    );
-  });
-
-  it("says nothing about identity on a deployment that has one", () => {
-    fresh();
-    render(<UnlockScreen />);
-    expect(screen.queryByText(/No way in is configured/)).toBeNull();
-  });
-
-  it("says nothing where the ways in need no identity service", () => {
-    // The old line was "no identity service", and it read as broken on a
-    // deployment whose Google button worked fine (ADR 0078). A provider the
-    // operator brought runs in this browser and needs no service at all.
-    fresh();
-    identityBaseHolder.current = "";
-    waysInHolder.current = {
-      builtin: false,
-      providers: [
-        {
-          providerId: "google",
-          issuer: "https://accounts.google.com",
-          clientId: "google-client.apps",
-          label: "Google",
-        },
-      ],
-    };
-    render(<UnlockScreen />);
-    expect(screen.queryByText(/No way in is configured/)).toBeNull();
-  });
-});
+beforeEach(resetUnlockHarness);
 
 describe("UnlockScreen — first run", () => {
   beforeEach(() => {
@@ -692,7 +295,7 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.queryByLabelText("I understand this vault cannot be recovered."),
     ).toBeNull();
-    expect(screen.getByRole("heading", { name: "Sign in" })).toBeTruthy();
+    expect(screen.getByText("or sign in")).toBeTruthy();
   });
 
   it("starts sign-in at the default upstream and returns to the app root", () => {

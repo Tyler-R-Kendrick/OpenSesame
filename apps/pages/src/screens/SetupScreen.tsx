@@ -9,8 +9,9 @@
  * invite link, which opens the join road directly because the link *is* the
  * request.
  *
- * The operator road is a tab per concern (ADR 0114): backups, ai, identity,
- * mfa, sync. Every tab writes `settings.v1` as it is answered, every tab is
+ * The operator road is a tab per concern (ADR 0114): backups, connectors
+ * (ADR 0115), ai, identity, mfa, sync. Every tab writes its record as it is
+ * answered — `settings.v1`, or the connector directory's own — every tab is
  * skippable, and "Skip all" takes the whole tour off the table — skipping is
  * recorded, so "looked and passed" stays distinct from "never looked". The
  * terminal commit is the shared `.go` control. The join road is a claim
@@ -38,6 +39,7 @@ import { JoinSession } from "./setup/JoinSession.js";
 import { KeepIt } from "./setup/KeepIt.js";
 import { AiStep } from "./setup/steps/AiStep.js";
 import { BackupsStep } from "./setup/steps/BackupsStep.js";
+import { ConnectorsStep } from "./setup/steps/ConnectorsStep.js";
 import { IdentityStep } from "./setup/steps/IdentityStep.js";
 import { MfaStep } from "./setup/steps/MfaStep.js";
 import { SyncStep } from "./setup/steps/SyncStep.js";
@@ -53,6 +55,12 @@ export type SetupRoad = "setup" | "join";
 
 const STEPS = [
   { id: "backups", tab: "backups", rail: "Backups", Panel: BackupsStep },
+  {
+    id: "connectors",
+    tab: "connectors",
+    rail: "Connectors",
+    Panel: ConnectorsStep,
+  },
   { id: "ai", tab: "ai", rail: "AI", Panel: AiStep },
   { id: "identity", tab: "identity", rail: "Identity", Panel: IdentityStep },
   { id: "mfa", tab: "mfa", rail: "MFA", Panel: MfaStep },

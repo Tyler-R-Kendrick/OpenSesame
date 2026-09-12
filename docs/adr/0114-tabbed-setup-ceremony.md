@@ -8,6 +8,9 @@
   (the mfa tab's authenticator road)
 - Supersedes: the "one screen, one question, no stepper" note in
   `docs/design/first-run-setup/`
+- Supplemented by: [ADR 0115](0115-front-door-and-connector-directory.md)
+  (the `connectors` tab, second of six, and the front door that opens the
+  ceremony)
 
 ## Context
 

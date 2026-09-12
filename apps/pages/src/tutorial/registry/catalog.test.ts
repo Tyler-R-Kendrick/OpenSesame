@@ -34,10 +34,15 @@ import {
 const CATALOG_SOURCE = readFileSync(
   join(import.meta.dirname, "catalog.ts"),
   "utf8",
-).replace(
-  "...IDENTITY_TARGETS,",
-  readFileSync(join(import.meta.dirname, "identity-catalog.ts"), "utf8"),
-);
+)
+  .replace(
+    "...IDENTITY_TARGETS,",
+    readFileSync(join(import.meta.dirname, "identity-catalog.ts"), "utf8"),
+  )
+  .replace(
+    "...SETUP_TARGETS,",
+    readFileSync(join(import.meta.dirname, "setup-catalog.ts"), "utf8"),
+  );
 
 const GOALS_SOURCES = ["goals.ts", "authority-help.ts"].map((file) =>
   readFileSync(join(import.meta.dirname, file), "utf8"),
