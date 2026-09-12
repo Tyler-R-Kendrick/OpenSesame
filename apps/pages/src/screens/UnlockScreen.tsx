@@ -39,7 +39,7 @@ import {
   listFederatedProviders,
 } from "../lib/providers.js";
 import { noWayIn, signInMethods } from "../lib/settings.js";
-import { unlockViable } from "../lib/setup.js";
+import { loadSetup, unlockViable } from "../lib/setup.js";
 import { WrongPasswordError } from "../lib/vault/crypto.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { estimateStrength } from "../lib/vault/password.js";
@@ -63,15 +63,16 @@ import {
 } from "../lib/vaults.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
+import { FrontDoor } from "./FrontDoor.js";
 import { type SetupRoad, SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { CodeField } from "./unlock/CodeField.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
+import { StrengthMeter } from "./unlock/StrengthMeter.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
+import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
-
-const STRENGTH_VARS = ["--s-0", "--s-1", "--s-2", "--s-3", "--s-4"] as const;
 
 const METHOD_LABEL = {
   passkey: "Passkey",
@@ -88,53 +89,10 @@ const SECOND_STEP_LABEL = {
 /** A code by email or text may be asked for again after this long. */
 const RESEND_COOLDOWN_MS = 30_000;
 
-function StrengthMeter({ password }: { password: string }) {
-  const strength = estimateStrength(password);
-  const filled = password ? strength.score + 1 : 0;
-  const color = `var(${STRENGTH_VARS[strength.score]})`;
-  return (
-    <div className="unlock__meter">
-      <div className="unlock__track" aria-hidden="true">
-        {[0, 1, 2, 3].map((index) => (
-          <span
-            key={index}
-            style={index < filled ? { background: color } : undefined}
-          />
-        ))}
-      </div>
-      <p className="unlock__meter-row">
-        <span className="unlock__meter-label" style={{ color }}>
-          {password ? strength.label : "Enter a master password"}
-        </span>
-        <span className="unlock__bits">
-          {password ? `≈${strength.bits} bits` : ""}
-        </span>
-      </p>
-    </div>
-  );
-}
-
-function useCountdown(until: number | null): number {
-  const [remaining, setRemaining] = useState(() =>
-    until ? Math.max(0, Math.ceil((until - Date.now()) / 1000)) : 0,
-  );
-  useEffect(() => {
-    if (!until) {
-      setRemaining(0);
-      return;
-    }
-    const tick = () =>
-      setRemaining(Math.max(0, Math.ceil((until - Date.now()) / 1000)));
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [until]);
-  return remaining;
-}
-
 export const unlockScreenDependencies = {
   currentSession,
   identityBase,
+  loadSetup,
   noWayIn,
   signInMethods,
   defaultUpstream,
@@ -196,6 +154,15 @@ export function UnlockScreen() {
       // invite is a new one.
     });
   }, [ceremony, session]);
+  // The front door (ADR 0115): a device with no vault and no setup record
+  // opens on the two roads made large, with sign-in whole beneath them. A
+  // person who chose the local-only seal is past the door until they say
+  // "Sign in instead"; an answered — or skipped — ceremony retires it for good.
+  const [localOnlyPicked, setLocalOnlyPicked] = useState(false);
+  const frontDoor =
+    status === "empty" &&
+    !localOnlyPicked &&
+    unlockScreenDependencies.loadSetup() === null;
 
   if (ceremony) {
     return (
@@ -214,9 +181,23 @@ export function UnlockScreen() {
       />
     );
   }
+  if (frontDoor) {
+    return (
+      <FrontDoor
+        providers={providers}
+        onOpenJoin={() => setCeremony({ road: "join" })}
+        onOpenSetup={() => setCeremony({ road: "setup" })}
+        onUseLocalOnly={() => setLocalOnlyPicked(true)}
+      />
+    );
+  }
   return (
     <UnlockForm
       providers={providers}
+      initialLocalOnly={localOnlyPicked}
+      onSignInInstead={
+        localOnlyPicked ? () => setLocalOnlyPicked(false) : undefined
+      }
       onOpenSetup={(step) => setCeremony({ road: "setup", step })}
       onOpenJoin={() => setCeremony({ road: "join" })}
       onOpenVaults={() => setVaultsOpen(true)}
@@ -226,11 +207,17 @@ export function UnlockScreen() {
 
 function UnlockForm({
   providers,
+  initialLocalOnly = false,
+  onSignInInstead,
   onOpenSetup,
   onOpenJoin,
   onOpenVaults,
 }: {
   providers: FederatedProviderSummary[];
+  /** Arrive on the local-only seal form — the front door's third road. */
+  initialLocalOnly?: boolean;
+  /** Where "Sign in instead" goes when the front door is what sign-in is. */
+  onSignInInstead?: () => void;
   onOpenSetup: (step?: SetupStep) => void;
   /** Join a session somebody invited this device to (ADR 0079 §7). */
   onOpenJoin: () => void;
@@ -265,7 +252,7 @@ function UnlockForm({
       : null;
   const passkeyHost = checkWebauthnHost();
   // First run leads with identity (ADR 0033 §4): sign-in is the default stage, the local seal form the explicit road.
-  const [localOnly, setLocalOnly] = useState(false);
+  const [localOnly, setLocalOnly] = useState(initialLocalOnly);
   const signInStage = firstRun && !localOnly;
   // A returning vault shows the key ceremony; sign-in lives in the user menu. Mid-MFA the code field is the screen.
   const [signingIn, setSigningIn] = useState(() =>
@@ -1166,7 +1153,9 @@ function UnlockForm({
             <button
               type="button"
               className="unlock__switch"
-              onClick={() => setLocalOnly(false)}
+              onClick={() =>
+                onSignInInstead ? onSignInInstead() : setLocalOnly(false)
+              }
             >
               Sign in instead
             </button>

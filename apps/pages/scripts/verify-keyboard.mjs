@@ -87,6 +87,20 @@ try {
     const { page, context } = await harness.newPage(browser);
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+    // The front door (ADR 0115) lands on its first road; Tab walks the
+    // second road, the corner skip, the broker's mark and guest, in order.
+    await expect(
+      page.getByRole("button", { name: "Join a session" }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("button", { name: "Set up your own" }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("button", { name: "Skip sign-in and continue as guest" }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
     await expect(
       page.getByRole("button", { name: "Continue with Google" }),
     ).toBeFocused();

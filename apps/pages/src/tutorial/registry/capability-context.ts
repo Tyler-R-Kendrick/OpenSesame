@@ -41,6 +41,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "app.install": ["/settings"],
     "setup.first-run": ["/unlock", "/setup"],
     "setup.join-session": ["/unlock", "/setup"],
+    "access.connectors": ["/access", "/setup"],
     "browser.pair": ["/connections", "/settings/connectivity"],
     "browser.authenticate": ["/connections", "/settings/connectivity"],
     "browser.revoke": ["/connections", "/settings/connectivity"],

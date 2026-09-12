@@ -5,6 +5,7 @@ export const ACCESS_VIEWS = [
   "grants",
   "requests",
   "sessions",
+  "connectors",
   "resources",
   "policies",
 ] as const;
@@ -12,6 +13,7 @@ export const ACCESS_LABELS = {
   grants: "Grants",
   requests: "Requests",
   sessions: "Sessions",
+  connectors: "Connectors",
   resources: "Resources",
   policies: "Policies",
 } satisfies Record<(typeof ACCESS_VIEWS)[number], string>;

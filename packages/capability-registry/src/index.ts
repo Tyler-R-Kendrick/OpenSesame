@@ -2,10 +2,10 @@ import {
   APPROVAL_CEREMONY,
   accessPortalCapabilities,
 } from "./access-portal.js";
+import { connectorDirectoryCapabilities } from "./connectors.js";
 import { identityManagementCapabilities } from "./identity-management.js";
 /**
  * Agent-surface capability registry (ADR 0065).
- *
  * One literal list maps every product capability to the surfaces that carry
  * it: the CLIs, the PWA, both MCP servers, and WebMCP. Parity sweeps in each
  * surface package compare their implemented catalog against the views derived
@@ -20,8 +20,7 @@ import { identityManagementCapabilities } from "./identity-management.js";
  *           import-checks, "route:/section[/subroute]" for a pages route, or
  *           "pwa-app:<surface>" for the thin apps/pwa shell.
  * - mcp_host / mcp_client: the MCP tool name on that server.
- * - webmcp: the document.modelContext tool name (pages unless the pwa
- *           surface is "pwa-app:*").
+ * - webmcp: the document.modelContext tool name (pwa unless "pwa-app:*").
  */
 
 import { SCOPED_AGENT_ONLY, lifecycleCapabilities } from "./lifecycle.js";
@@ -1670,6 +1669,7 @@ export const CAPABILITIES: readonly Capability[] = [
     excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
   },
   ...identityManagementCapabilities,
+  ...connectorDirectoryCapabilities,
   {
     id: "identity.project.temporary",
     title: "Create a temporary project",

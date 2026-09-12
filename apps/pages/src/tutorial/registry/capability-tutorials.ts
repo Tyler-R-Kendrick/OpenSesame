@@ -84,4 +84,6 @@ export const CAPABILITY_TUTORIALS = {
   "app.install": "app.install",
   "setup.first_run": "setup.first-run",
   "shared_sessions.join_request": "setup.join-session",
+  "connectors.directory.sync": "access.connectors",
+  "connectors.bind": "access.connectors",
 } satisfies Readonly<Record<string, GuideGoalId>>;

@@ -76,13 +76,20 @@ function createSlots(): Slot[] {
 export function Wordmark({
   className,
   size = 16,
+  as: Tag = "p",
 }: {
   className?: string;
   size?: number;
+  /**
+   * The brand line is a paragraph in the chrome. On the front door it is
+   * the page's title, so the same reels render as the `h1` — assistive
+   * technology reads the hidden name as the heading, never the reels.
+   */
+  as?: "p" | "h1";
 }): ReactElement {
   const [slots] = useState(createSlots);
   return (
-    <p className={className ? `wordmark ${className}` : "wordmark"}>
+    <Tag className={className ? `wordmark ${className}` : "wordmark"}>
       <IconMark size={size} />
       <span className="visually-hidden">{WORDMARK}</span>
       <span className="wordmark__slots" aria-hidden="true">
@@ -111,6 +118,6 @@ export function Wordmark({
           </span>
         ))}
       </span>
-    </p>
+    </Tag>
   );
 }

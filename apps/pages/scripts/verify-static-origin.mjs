@@ -11,7 +11,8 @@
 // other than the SPA-fallback 404, any request to a loopback address, any
 // missing asset, or any failed check below.
 //
-//   A. first screen: sign-in with the compiled broker + guest, no setup wall
+//   A. first screen: the front door — the two roads, the compiled broker +
+//      guest, no setup wall (ADR 0115)
 //   B. guest → inside the app → every section, and every tab within Access,
 //      by in-app navigation
 //   C. Google via Shoo: the authorize request, then the return leg against a
@@ -23,6 +24,10 @@ import { fileURLToPath } from "node:url";
 import { checkEditorPaths } from "./lib/editor-path-contract.mjs";
 import { checkEditorRoutes } from "./lib/editor-routes-contract.mjs";
 import { checkEditorTabOrder } from "./lib/editor-tab-order-contract.mjs";
+import {
+  checkFrontDoor,
+  walkSetupCeremony,
+} from "./lib/front-door-contract.mjs";
 import { checkLoginWebsites } from "./lib/login-websites-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
@@ -58,66 +63,9 @@ const browser = await launch();
   const { page, context } = await newPage(browser);
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
   const text = await snap(page, "A-first-screen");
-  check(/^Sign in$/m.test(text), "first screen is Sign in");
-  check(!/This device is empty/.test(text), "no setup wall");
-  check(
-    (await page
-      .getByRole("button", { name: "Continue with Google" })
-      .count()) === 1,
-    "Google button present",
-  );
-  check(
-    (await page
-      .getByRole("button", { name: "Continue as guest", exact: true })
-      .count()) === 1,
-    "guest button present",
-  );
-  check(
-    (await page
-      .getByRole("button", { name: "Skip sign-in and continue as guest" })
-      .count()) === 1,
-    "Skip link present",
-  );
-  check(
-    (await page
-      .getByRole("button", { name: "Use without an account" })
-      .count()) === 1,
-    "local-only road present",
-  );
-  check(
-    (await page.getByRole("button", { name: "Deployment setup" }).count()) ===
-      1,
-    "setup reachable from the foot",
-  );
-  check(
-    (await page.getByRole("button", { name: "Join a session" }).count()) === 1,
-    "join reachable from the foot",
-  );
-  const icon = await page.evaluate(() =>
-    document.querySelector('link[rel="icon"]')?.getAttribute("href"),
-  );
-  check(icon === `${BASE}icon.svg`, `icon href is base-rooted (${icon})`);
+  await checkFrontDoor(page, check, text, BASE);
   await checkWordmark(page, check);
-
-  await page.getByRole("button", { name: "Deployment setup" }).click();
-  const onSetup = await snap(page, "A2-setup");
-  check(
-    (await page.getByRole("tab").count()) === 5 &&
-      /Where do backups live\?/.test(onSetup),
-    "setup opens on the backups tab of five (ADR 0114)",
-  );
-  await page.getByRole("button", { name: "Next" }).click();
-  const ai = await snap(page, "A2-setup-ai");
-  check(/Who runs the model\?/.test(ai), "next browses to ai");
-  await page.getByRole("tab", { name: "identity" }).click();
-  const identity = await snap(page, "A2-setup-identity");
-  check(
-    /How do people sign in\?/.test(identity),
-    "the identity tab keeps the one question",
-  );
-  await page.getByRole("button", { name: "Skip all" }).click();
-  const back = await snap(page, "A2-back");
-  check(/^Sign in$/m.test(back), "skip all returns to sign-in");
+  await walkSetupCeremony(page, check, snap);
 
   await page
     .getByRole("button", { name: "Continue as guest", exact: true })
@@ -166,6 +114,7 @@ const browser = await launch();
         "Grants",
         "Requests",
         "Sessions",
+        "Connectors",
         "Resources",
         "Policies",
       ]) {
@@ -182,6 +131,15 @@ const browser = await launch();
           `Access › ${tab} shows no alert`,
         );
       }
+      // Connectors is wholly local: with no directory synced it asks for one
+      // and reports no failure (ADR 0115).
+      await page.getByRole("tab", { name: "Connectors" }).click();
+      await page.waitForTimeout(700);
+      check(
+        (await page.getByLabel("Directory endpoint").count()) === 1 &&
+          (await page.getByRole("heading", { name: "Connectors" }).count()) > 0,
+        "Access › Connectors asks for a directory without a Host",
+      );
       // Resources is served by the Identity API and this browser, never the
       // Host, so it must render its own panel rather than a Host note.
       await page.getByRole("tab", { name: "Resources" }).click();
@@ -325,9 +283,9 @@ const browser = await launch();
     .waitFor();
   check(
     (await page
-      .getByRole("heading", { name: "Sign in", exact: true })
+      .getByRole("heading", { level: 1, name: "open-sesame", exact: true })
       .count()) === 1,
-    "deep link renders sign-in",
+    "deep link renders the front door",
   );
   check(
     (await page

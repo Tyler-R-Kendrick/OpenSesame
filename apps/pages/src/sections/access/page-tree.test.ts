@@ -42,6 +42,7 @@ describe("access page tree", () => {
       "Requests",
       "Local sessions & grants",
       "Host task sessions",
+      "Connectors",
       "Sites",
       "Local application policies",
       "Policies",

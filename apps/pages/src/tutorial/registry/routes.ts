@@ -21,7 +21,10 @@ export type GuideRouteDescriptor = {
 
 const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
   { id: "/unlock", title: "Unlock — open the vault or sign in" },
-  { id: "/setup", title: "Setup — how people sign in to this deployment" },
+  {
+    id: "/setup",
+    title: "Setup — connectors, sign-in and backups for this deployment",
+  },
   {
     id: "/broker/authorize",
     title: "Broker — approve a static site sign-in",

@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 import { App } from "./App.js";
+import { DIRECTORY_KEY } from "./lib/connector-directory.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { kvHydrate } from "./lib/kv.js";
 import { MODEL_PROVIDER_KEY } from "./lib/model-provider.js";
@@ -64,6 +65,9 @@ void (async () => {
     TOMBS_REGISTRY_KEY,
     "settings.v1",
     "setup.v1",
+    // The connector directory's endpoint (ADR 0115) — its key and list are
+    // sealed in the tomb and hydrate with it.
+    DIRECTORY_KEY,
     "outbox.v1",
     "connections.firstRun.v1",
     // The model-provider record reads synchronously (`loadModelProvider`),

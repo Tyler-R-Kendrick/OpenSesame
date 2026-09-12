@@ -27,7 +27,7 @@ secrets, or itself.
 Route `/access`, nav label **Access** (`IconAuthority`), crumb `access`.
 Tabs, one mounted at a time (`role="tablist"/"tab"`, `aria-selected`):
 
-**Grants · Requests · Sessions · Resources · Policies**
+**Grants · Requests · Sessions · Connectors · Resources · Policies**
 
 ## Grants — the center of gravity (Border0: standing privilege = 0)
 
@@ -81,6 +81,25 @@ Steps, each its own view:
   **Terminate** → `POST /api/v1/tasks/{id}/terminate`
   `{expected_state_version}`. Empty state: `No live sessions.`
 - Receipt trail beneath (connection/agent audit events), terse rows.
+
+## Connectors — what this device knows, and who is bound (ADR 0115)
+
+Wholly local; no Host needed. One directory line above terse rows:
+
+- **Directory line** — `api.nango.dev · 12 connectors · synced <time>`, with
+  icon keys in the panel head: **Sync the directory** (re-reads with the
+  sealed key), **Edit the directory** (reveals the endpoint + key form),
+  **Reload connectors**. No directory synced → the form is the panel, and
+  nothing reports a failure.
+- **Rows** — mark, name (`GitHub · octo@example.com`),
+  `integration · connection id`, chips: source (`directory` | `host`),
+  health (`Authorized` | `N errors`), `N bound`. Action: **Bind** → an inline
+  form under that row only: Identity (people + agents from the local
+  directory), Policy (`Use` | `Invoke`), Duration → **Bind** / **Cancel**.
+- **Bindings** under a row — `Name · Policy · until <time>` with **Revoke**.
+  A binding is a local share grant of kind `connection` (the same ledger the
+  Grants tab's Identity shares list), so revoking it there is the same act.
+- Empty state: `No connectors yet — the directory holds none.`
 
 ## Resources — what grants point at
 

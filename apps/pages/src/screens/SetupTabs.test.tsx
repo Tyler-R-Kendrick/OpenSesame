@@ -31,6 +31,7 @@ describe("the tabs and their skips (ADR 0114)", () => {
     const onDone = openSetup(vi.fn());
     for (const title of [
       "Where do backups live?",
+      "Which connectors are already authorized?",
       "Who runs the model?",
       "How do people sign in?",
       "Should a code follow the key?",
@@ -43,7 +44,7 @@ describe("the tabs and their skips (ADR 0114)", () => {
     expect(completeSetup).toHaveBeenCalledWith({
       ways: ["builtin"],
       service: false,
-      skipped: ["backups", "ai", "identity", "mfa", "sync"],
+      skipped: ["backups", "connectors", "ai", "identity", "mfa", "sync"],
     });
   });
 
@@ -72,6 +73,8 @@ describe("the tabs and their skips (ADR 0114)", () => {
 
   it("next advances without calling anything skipped, and stops at sync", () => {
     openSetup();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(heading()).toBe("Which connectors are already authorized?");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(heading()).toBe("Who runs the model?");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
