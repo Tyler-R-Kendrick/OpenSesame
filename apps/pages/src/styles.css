@@ -1598,15 +1598,31 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Every strip that scrolls sideways on a phone, in one place. They differ
+     in what they hold and in nothing else, and each used to carry its own
+     copy of this. */
+  .vault__chips,
+  .set__nav,
+  .statusline .cx {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+  }
+
+  .vault__chips::-webkit-scrollbar,
+  .set__nav::-webkit-scrollbar,
+  .statusline .cx::-webkit-scrollbar {
+    display: none;
+  }
+
   /* A strip that scrolls runs to the edge of the screen. Cut off at the
      section's gutter it reads as a word that did not fit; running under the
      edge it reads as a row with more in it — which is what it is. The vault's
      chip row has always done this; the tab strips that learned to scroll on a
      phone do it too, out of the same gutter. */
-  .section > .access-tabs,
-  .section > .set__nav,
-  .section > * > .access-tabs,
-  .section > * > .set__nav {
+  .section :is(.access-tabs, .set__nav) {
     margin-left: calc(-1rem - env(safe-area-inset-left));
     margin-right: calc(-1rem - env(safe-area-inset-right));
     padding-left: calc(1rem + env(safe-area-inset-left));

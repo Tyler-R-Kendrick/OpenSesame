@@ -268,16 +268,10 @@
      that says which one is open — so the strip scrolls instead, the way the
      Access tabs and the vault chips already do at this width. */
   .set__nav {
+    /* The scroller itself is shared (styles.css). This one property stays
+       here: the unconditional `.set__nav { flex-wrap: wrap }` above loads
+       after that shared rule, and a media query adds no specificity. */
     flex-wrap: nowrap;
-    gap: 1.1rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-    overscroll-behavior-x: contain;
-  }
-
-  .set__nav::-webkit-scrollbar {
-    display: none;
   }
 
   .set__nav-link {

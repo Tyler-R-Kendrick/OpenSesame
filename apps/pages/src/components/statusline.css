@@ -114,17 +114,6 @@
     min-width: 0;
   }
 
-  .statusline .cx {
-    overflow-x: auto;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-    overscroll-behavior-x: contain;
-  }
-
-  .statusline .cx::-webkit-scrollbar {
-    display: none;
-  }
-
   .statusline .cx__btn {
     scroll-snap-align: center;
   }

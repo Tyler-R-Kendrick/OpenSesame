@@ -46,18 +46,13 @@
 }
 
 @media (max-width: 900px) {
+  /* The scroller itself is shared (styles.css); this is the chip row's own
+     bleed out of the list pane's gutter. */
   .vault__chips {
     display: flex;
     gap: 0.375rem;
-    overflow-x: auto;
-    scrollbar-width: none;
     margin: 0 -0.9rem;
     padding: 0.1rem 0.9rem 0.2rem;
-    scroll-snap-type: x proximity;
-  }
-
-  .vault__chips::-webkit-scrollbar {
-    display: none;
   }
 
   .vault__chip {
