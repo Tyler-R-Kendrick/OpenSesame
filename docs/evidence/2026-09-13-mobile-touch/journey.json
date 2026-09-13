@@ -1,0 +1,143 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 320,
+      "height": 568,
+      "steps": [
+        {
+          "shot": "320-door"
+        },
+        {
+          "guest": null
+        },
+        {
+          "shot": "320-vault"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "shot": "320-settings"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "shot": "390-settings"
+        },
+        {
+          "tab": "Identity"
+        },
+        {
+          "shot": "390-identity"
+        },
+        {
+          "tab": "Vault"
+        },
+        {
+          "press": "support|help"
+        },
+        {
+          "shot": "390-support"
+        },
+        {
+          "escape": null
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "shot": "390-editor"
+        }
+      ]
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "shot": "landscape-vault"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "320-door",
+      "width": 320,
+      "title": "Front door \u2014 320 \u00d7 568",
+      "caption": "The floating support mark rested on the corner of \"Continue as guest\" \u2014 measured, not impression: the mark occupies y 510-554 and the button 474-518. Clipping the card to clear the mark only cut the button in half, so the door tightens its own rhythm below 720px of height instead. Every road off this screen now sits clear of the mark, and the guest roads keep their 44px targets.",
+      "before": "mark on the guest road",
+      "after": "every road clear"
+    },
+    {
+      "shot": "320-vault",
+      "width": 320,
+      "title": "Vault and the footer \u2014 320 \u00d7 568",
+      "caption": "Seven 44px keys are 308px and the screen is 320, so the 13.6px gutter on each side pushed the seventh key onto a second row \u2014 a second band of chrome saying the same thing. The gutter goes; the arrangement does not change. The tab labels also stop truncating: they size against the bar's own width now.",
+      "before": "statusline 99px, wrapped",
+      "after": "49px, one row"
+    },
+    {
+      "shot": "320-settings",
+      "width": 320,
+      "title": "Settings categories \u2014 320 \u00d7 568",
+      "caption": "Five categories do not fit one row on a phone. Wrapping put two of them on a second line, 44px below the hairline and orphaned from the underline that says which one is open. The strip scrolls instead, the way the vault's chip row already did.",
+      "before": "two rows, orphaned underline",
+      "after": "one scrolling row"
+    },
+    {
+      "shot": "390-settings",
+      "width": 390,
+      "title": "Settings controls \u2014 390 \u00d7 844",
+      "caption": "Three things at once. The theme keys were 36px. The switches were 38 \u00d7 24 \u2014 a fine switch and a poor thing to aim at \u2014 so the button becomes a 44px key with the track drawn inside it. And the choices written into the sentence were 34px selects at 15px type, which makes iOS zoom the page on focus and never zoom back; they become tappable chips at 16px, still inside the sentence.",
+      "before": "36px keys, 24px switches, 15px selects",
+      "after": "44px throughout, 16px type"
+    },
+    {
+      "shot": "390-identity",
+      "width": 390,
+      "title": "Identity disclosures \u2014 390 \u00d7 844",
+      "caption": "A disclosure is a control, and its target is the whole row rather than the line box the text happens to occupy. Padding rather than flex, so the browser keeps drawing the marker that says the row opens.",
+      "before": "21px line",
+      "after": "44px row"
+    },
+    {
+      "shot": "390-support",
+      "width": 390,
+      "title": "Support \u2014 390 \u00d7 844",
+      "caption": "On a device with no on-device model the written topics are the entire support offering, and every one of them was a 38px row above a 14px search field. The field is the more serious of the two: below 16px, iOS Safari zooms the page on focus and does not zoom back. The composer also now clears the home indicator.",
+      "before": "38px rows, 14px field",
+      "after": "44px rows, 16px field"
+    },
+    {
+      "shot": "390-editor",
+      "width": 390,
+      "title": "New item \u2014 390 \u00d7 844",
+      "caption": "The longest form on the phone, and the one most likely to summon a zooming keyboard: seven of its fields sat at 14\u201315px. The type suffix was a 25px-tall select drawn as wide as its longest option, with its caret a third of the row away from the word it belongs to; it is sized to its content now and takes the same chip shape as the choices in Settings.",
+      "before": "25px type select, seven 14px fields",
+      "after": "44px chip, every field 16px"
+    },
+    {
+      "shot": "landscape-vault",
+      "width": 844,
+      "title": "Rotated \u2014 844 \u00d7 390",
+      "caption": "A phone on its side has 390px of height, and the frame was spending 167 of it: a top bar over the content and two full-width bars stacked under it. None of the three may go \u2014 plane truth and the sections are why the chrome exists \u2014 so above 640px of width the statusline and the tab bar stop stacking and share one row.",
+      "before": "167px of chrome",
+      "after": "105px, one bottom row"
+    }
+  ]
+}

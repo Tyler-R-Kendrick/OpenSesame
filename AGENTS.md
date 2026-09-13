@@ -274,6 +274,22 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 
 ## 5. Design rules that gate merges
 
+- **A user-visible change ships with before/after evidence on the pull
+  request.** A reviewer must never have to clone the branch, install, build and
+  walk the app to find out whether a change helped, and "I ran it and it looks
+  good" is a claim about a screen nobody else saw. Any diff a person could
+  notice — CSS, a component, a screen, layout, chrome, on-screen copy, an icon,
+  an empty or error state, a focus ring — carries images captured from **two
+  real builds**: the base branch's and this one's, walked the same way, at
+  phone and desktop width. Every pair carries a measurement taken from the
+  browser (`statusline 99px, wrapped → 49px, one row`), never an impression.
+  The sheets go in the PR body under `## Visual evidence`, committed under
+  `docs/evidence/<yyyy-mm-dd>-<topic>/` and linked by commit SHA so they
+  survive the branch. Never stage a screenshot, never crop away the thing you
+  changed, and where a visible change genuinely cannot be captured, say so in
+  the PR and name what you verified instead — silence reads as "nothing to
+  see". Procedure and tooling: `skills/visual-evidence/SKILL.md`,
+  `apps/pages/scripts/capture-evidence.mjs`.
 - **Local app runs are attached HMR debug sessions.** "Run it locally",
   "start the app", or "let me test" means: keep the Vite (or other) dev
   server as a long-lived attached process, open that origin in a
@@ -681,6 +697,7 @@ directly so their own updater can refresh them.
 | `opensesame-mcps` | `skills/opensesame-mcps/SKILL.md` | Install, configure, initialize, and use OpenSesame MCP servers |
 | `install-anti-slop` | `skills/install-anti-slop/SKILL.md` | Install and configure the vendored Oxlint anti-slop plugin |
 | `security-review` | `skills/security-review/SKILL.md` | Run repository security gates and targeted Codex Security reviews |
+| `visual-evidence` | `skills/visual-evidence/SKILL.md` | Capture before/after screenshots from two real builds for any user-visible change and post them on the PR |
 | `local-debug-session` | `skills/local-debug-session/SKILL.md` | Attach a live HMR debug session when asked to run the app locally; watch real console/page/network errors and patch the hot-reloaded process |
 | `impeccable` | `.agents/skills/impeccable/SKILL.md` | Third-party frontend design skill ([pbakaus/impeccable](https://github.com/pbakaus/impeccable), Apache 2.0), installed via `npx impeccable install` — lives in `.agents/skills/` (not `skills/`) so `npx impeccable update` can refresh it; design detector hook in `.codex/hooks.json` + `.claude/settings.local.json` |
 | `scandinavian-design` | `.claude/skills/scandinavian-design/SKILL.md` | Third-party ([ericzakariasson/scandinavian-design](https://github.com/ericzakariasson/scandinavian-design)), installed via `npx skills add ericzakariasson/scandinavian-design` — the visual-restraint contract behind the Scandinavian retoken; its `scripts/*.js` verifiers are patched to launch the container's pinned Chromium (`/opt/pw-browsers/chromium`) instead of a system Chrome |
@@ -698,6 +715,25 @@ Before pushing:
 
 ```bash
 pnpm lint && pnpm quality && pnpm typecheck && pnpm test
+```
+
+If the change is user-visible, also capture its evidence and put it in the PR
+body — see `skills/visual-evidence/SKILL.md`. The gates prove the contract
+holds; the images are the only thing that shows a reviewer what the change
+actually did:
+
+```bash
+J=docs/evidence/<yyyy-mm-dd>-<topic>/journey.json
+git checkout "$(git merge-base HEAD origin/main)" -- apps/pages/src   # the base
+VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  node apps/pages/scripts/capture-evidence.mjs capture before "$J"
+git checkout HEAD -- apps/pages/src                                    # the branch
+VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  node apps/pages/scripts/capture-evidence.mjs capture after "$J"
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  node apps/pages/scripts/capture-evidence.mjs compose "$J"
 ```
 
 For the full local gate suite (what `pnpm verify` runs — required before
