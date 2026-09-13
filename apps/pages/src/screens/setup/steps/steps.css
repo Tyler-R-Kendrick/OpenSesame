@@ -115,3 +115,14 @@
     min-height: 2.75rem;
   }
 }
+
+@media (pointer: coarse), (max-width: 900px) {
+  /* The step names are short — `ai` drew a 16px target. The strip already
+     scrolls, so the tabs can take the room they need to be hit. */
+  .setup__tab {
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    flex: none;
+  }
+}

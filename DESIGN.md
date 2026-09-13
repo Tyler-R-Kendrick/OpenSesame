@@ -264,9 +264,20 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   grid/flex chain is pinned to `min-width: 0` so a `nowrap` row truncates
   instead of dictating the page width; a page that overflows sideways gets
   shrink-to-fit, which scales every target away from where it is drawn.
-- **44px is the floor.** Under `(pointer: coarse)` every row, key, chip and
-  tab is at least 2.75rem. The mono density survives the change: the row
-  grows, the type does not.
+- **44px is the floor, and size is not a property of the pointer.** Every row,
+  key, chip and tab is at least 2.75rem under `(pointer: coarse)` *or*
+  `(max-width: 900px)` — a foldable's cover screen, a split-screen tablet and
+  a narrow desktop window draw the same small keys, and WCAG 2.5.8 does not
+  ask what is pointing at them. A control that opts out of the height floor to
+  sit inline in a sentence (`.sent select`, `.editor__ext`) takes the shape of
+  a chip at that width instead, so its rule never detaches from its own word.
+  The mono density survives the change: the row grows, the type does not.
+- **A field's type is the one thing that does grow.** iOS Safari zooms the page
+  when a focused `input`, `select` or `textarea` is set below 16px, and it does
+  not zoom back — the person is left in a viewport they cannot restore. Every
+  rule that sizes a field reads `max(<its size>, var(--field-min))`; the token
+  is `0` on a desktop and `1rem` under coarse/narrow, so the trap cannot be
+  reopened by adding one more field style.
 - **Nothing waits to find out it was a tap.** Interactive elements set
   `touch-action: manipulation`, drop the platform tap highlight, and answer
   with a `:active` ink instead.
@@ -276,10 +287,33 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
 - **The frame is rows, not overlays.** The tab bar is a row of the app grid
   rather than a bar floating over the content, so nothing scrolls under it,
   and `env(safe-area-inset-*)` keeps it clear of the home indicator.
+- **The chrome earns its height.** Seven 44px keys are 308px and the smallest
+  phone is 320, so the statusline runs edge to edge with no gutter and one
+  left-aligned row of equal keys — it may never fold onto a second row, which
+  costs a 568px screen a sixth of itself. Rotated, the frame has 390px of
+  height and two full-width bottom bars stacked in it, so above 640px of width
+  the statusline and the tab bar stop stacking and share one row. The top bar,
+  the statusline and the tab bar together stay under a third of the screen.
+- **The tab bar's labels ride its own width**, not the viewport's
+  (`clamp(…, 2.9cqi, …)`), because in landscape that bar shares its row and has
+  far less than the screen to divide between five words. A nav label is never
+  truncated to an ellipsis where the word would have fitted at a legible size.
+- **Nothing floating rests on a control.** A screen with no statusline seats
+  the support mark as a fixed corner overlay; the card beneath it therefore
+  keeps that corner clear, and the front door tightens its own rhythm below
+  720px of height so its guest road lands above the mark rather than under it.
+  Clipping a control to avoid an overlay is not a fix.
 - **Scrollers contain their own overscroll** and never hand a flick to the
-  page behind them.
+  page behind them. A strip that scrolls (Access tabs, settings categories,
+  vault chips, the plane glyphs) keeps its selected item in view.
 - **The keyboard is not summoned uninvited**: a form does not autofocus on a
   touch pointer, where it would throw the keyboard over the record.
+
+None of this is a screenshot review: `pnpm --filter @opensesame/pages
+verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real
+coarse-pointer context and measures every rule above. It refuses to report a
+pass from a context that lost its touch emulation, because a check that
+measures the mouse stylesheet passes for free.
 
 ## Elevation & Depth
 

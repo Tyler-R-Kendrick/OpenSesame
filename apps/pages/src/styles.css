@@ -46,6 +46,14 @@
   --radius-lg: 2px;
   --radius-pill: 999px;
 
+  /* The floor a form control's type may not go below. Zero here: on a mouse
+     the chrome's own sizes are right. The touch/narrow block lifts it to 1rem,
+     because iOS Safari zooms the page when a focused field is set below 16px
+     and never zooms back — the person is left in a viewport they cannot
+     restore. Every rule that sizes a field reads `max(<its size>, this)`, so
+     the trap cannot be reopened by adding one more field style. */
+  --field-min: 0rem;
+
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.08), 0 1px 4px -1px
     rgba(0, 0, 0, 0.05);
@@ -257,10 +265,18 @@ kbd {
   color: var(--ink);
 }
 
+/* Read by assistive technology, never landed on by a thumb. The border,
+   padding and margin resets are load-bearing: a file input keeps its own box
+   otherwise, and a 3px-wide sliver in the path strip is a real hit target that
+   nobody can see. */
 .visually-hidden {
   position: absolute;
   width: 1px;
   height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  margin: -1px;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
@@ -525,7 +541,7 @@ textarea {
   background: transparent;
   color: var(--ink);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: max(0.875rem, var(--field-min));
 }
 
 input:focus-visible,
@@ -776,6 +792,16 @@ input[type="radio"] {
     "status status";
   height: 100dvh;
   overflow: hidden;
+}
+
+/* Nothing in the frame gets to dictate the page's width. A grid item's
+   automatic minimum is its min-content, so one `nowrap` row of keys deep
+   inside the statusline could push every other row — the top bar, the crumbs,
+   the tab bar — past the edge of the phone, and the whole document with them.
+   Pinning the panes is the rule DESIGN.md states under Touch; this is where
+   it is actually enforced. */
+.app > * {
+  min-width: 0;
 }
 
 .tabbar {
@@ -1428,8 +1454,8 @@ body {
 }
 
 @media (pointer: coarse) {
-  /* A finger is not a mouse pointer: nothing that does something may be
-     smaller than 44px, and nothing may wait 300ms to find out it was a tap. */
+  /* Pointer semantics, not size: nothing may wait 300ms to find out it was a
+     tap, and a tap answers with ink rather than the platform's blue wash. */
   a,
   button,
   [role="treeitem"],
@@ -1439,28 +1465,29 @@ body {
     -webkit-tap-highlight-color: transparent;
   }
 
-  .prompt__seg,
-  .crumbs a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-  }
-
-  .railtree__row {
-    height: 2.75rem;
-  }
-
   .icon-btn:active,
   .btn:active,
-  .vtree__key:active {
+  .vtree__key:active,
+  .set__theme:active {
     background: var(--surface-3);
   }
 }
 
+/* The 44px floor is a size rule, and size is not a property of the pointer.
+   A phone, a foldable's cover screen, a split-screen tablet and a narrow
+   desktop window all draw the same small keys, and WCAG 2.5.8 does not ask
+   what is pointing at them — so the floor hangs on the width as well. */
 @media (pointer: coarse), (max-width: 900px) {
+  /* Lift the field floor. Nothing else in the chrome changes size: the rows
+     grow, the type does not — but a field's type has to, or the browser
+     zooms it for us and leaves the page scaled. */
+  :root {
+    --field-min: 1rem;
+  }
+
   .btn,
   .conn-doc-link,
-  input:not([type="checkbox"]):not([type="radio"]),
+  input:not([type="checkbox"]):not([type="radio"]):not(.visually-hidden),
   select,
   textarea {
     min-height: 2.75rem;
@@ -1480,8 +1507,27 @@ body {
     min-height: 2.75rem;
   }
 
-  .toggle {
-    min-height: 1.5rem;
+  /* The shell prompt is a row of keys too: `guest@personal:/` reads the same,
+     but each segment is a target a thumb can land on. */
+  .prompt__seg,
+  .crumbs a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .railtree__row {
+    height: 2.75rem;
+  }
+
+  /* A disclosure is a control: its target is the whole row, not the 19px line
+     box the text happens to occupy. Padding rather than flex, so the browser
+     keeps drawing the marker that says the row opens. */
+  summary {
+    min-height: 2.75rem;
+    padding-block: 0.75rem;
   }
 }
 
@@ -1552,10 +1598,30 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Plane truth stays legible on a phone: glyphs and the count, no labels. */
+  /* A strip that scrolls runs to the edge of the screen. Cut off at the
+     section's gutter it reads as a word that did not fit; running under the
+     edge it reads as a row with more in it — which is what it is. The vault's
+     chip row has always done this; the tab strips that learned to scroll on a
+     phone do it too, out of the same gutter. */
+  .section > .access-tabs,
+  .section > .set__nav,
+  .section > * > .access-tabs,
+  .section > * > .set__nav {
+    margin-left: calc(-1rem - env(safe-area-inset-left));
+    margin-right: calc(-1rem - env(safe-area-inset-right));
+    padding-left: calc(1rem + env(safe-area-inset-left));
+    padding-right: calc(1rem + env(safe-area-inset-right));
+    scroll-padding-inline: calc(1rem + env(safe-area-inset-left));
+  }
+
+  /* Plane truth stays legible on a phone: glyphs and the count, no labels.
+     No side gutter: seven 44px keys are 308px and the smallest phone is 320,
+     so a 13.6px gutter on each side is what pushed the seventh key onto a
+     second row. The keys run to the edge and their glyphs, centred in 44px
+     boxes, still line up with the top bar's mark. */
   .statusline {
-    padding-left: calc(0.85rem + env(safe-area-inset-left));
-    padding-right: calc(0.85rem + env(safe-area-inset-right));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   .tabbar {
@@ -1563,10 +1629,16 @@ body {
     /* Column per section, whatever the count, so adding one never overflows. */
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
+    /* The labels size against the bar's own width, not the viewport's: on a
+       phone on its side the bar shares its row with the statusline and has
+       far less than the screen to divide between five words. */
+    container-type: inline-size;
     gap: 0.1rem;
-    padding: 0.35rem 0.35rem calc(0.35rem + env(safe-area-inset-bottom));
-    padding-left: calc(0.35rem + env(safe-area-inset-left));
-    padding-right: calc(0.35rem + env(safe-area-inset-right));
+    /* The side gutters are as thin as the frame allows: what they take comes
+       straight out of the five labels that have to share the width. */
+    padding: 0.35rem 0.15rem calc(0.35rem + env(safe-area-inset-bottom));
+    padding-left: calc(0.15rem + env(safe-area-inset-left));
+    padding-right: calc(0.15rem + env(safe-area-inset-right));
     background: var(--surface);
     border-top: 1px solid var(--line);
   }
@@ -1578,11 +1650,16 @@ body {
     gap: 0.15rem;
     min-width: 0;
     min-height: 2.75rem;
-    padding: 0.4rem 0.15rem;
+    /* No side padding: five labels have to divide the width of a phone, and
+       every pixel spent on a gutter is a pixel "Connections" loses. */
+    padding: 0.4rem 0;
     border-radius: 2px;
     color: var(--ink-2);
     text-decoration: none;
-    font-size: 0.75rem;
+    /* The label rides the bar's width so the longest one fits whole. It used
+       to be fixed at 12px, which truncated three of the five tabs on a phone —
+       an ellipsis where a word would have fitted at a legible size. */
+    font-size: clamp(0.5625rem, 2.9cqi, 0.75rem);
     font-weight: 600;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
@@ -1610,6 +1687,56 @@ body {
 @media (min-width: 901px) {
   .tabbar {
     display: none;
+  }
+}
+
+/* ——— A phone on its side ——————————————————————————————————
+   Rotated, the frame has 390px of height to spend and the chrome was taking
+   167 of it: a top bar over the content and two full-width bars under it.
+   None of the three may go — plane truth and the sections are why the chrome
+   exists — so the bars give back the padding they only needed when there was
+   room, and where the width allows, the two bottom bars stop stacking and
+   share one row. Landscape has width to spare and no height at all. */
+@media (max-height: 500px) and (pointer: coarse) {
+  .topbar {
+    padding-block: 0.2rem;
+    padding-top: calc(0.2rem + env(safe-area-inset-top));
+  }
+
+  .topbar .rail__prompt {
+    padding-block: 0;
+  }
+
+  .tabbar {
+    padding-block: 0 env(safe-area-inset-bottom);
+  }
+
+  .section {
+    padding-block: 0.75rem 1.25rem;
+  }
+}
+
+@media (max-height: 500px) and (min-width: 640px) and (pointer: coarse) {
+  .app {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "main main"
+      "status tabs";
+  }
+
+  /* Sized to its keys, not stretched across the row: the tab bar takes the
+     rest. The strip keeps its own gutter against the screen edge. */
+  .statusline {
+    border-right: 1px solid var(--line);
+    padding-bottom: calc(2px + env(safe-area-inset-bottom));
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .tabbar {
+    border-top: 1px solid var(--line);
+    padding-right: env(safe-area-inset-right);
+    padding-left: 0;
   }
 }
 
@@ -1773,7 +1900,7 @@ body {
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: max(0.8125rem, var(--field-min));
 }
 
 .project-switcher__new button {
@@ -2015,7 +2142,7 @@ body {
   background: transparent;
   color: inherit;
   font: inherit;
-  font-size: 0.8125rem;
+  font-size: max(0.8125rem, var(--field-min));
 }
 
 .account-switcher__new button,
@@ -2151,7 +2278,7 @@ body {
 
 .f__input--mono {
   font-family: var(--mono);
-  font-size: 0.875rem;
+  font-size: max(0.875rem, var(--field-min));
 }
 
 .f__tail {
@@ -2849,6 +2976,9 @@ body {
   background-repeat: no-repeat;
   color: var(--accent);
   font: inherit;
+  /* `font: inherit` resets the size to the sentence's, so the floor has to be
+     restated after it. */
+  font-size: max(0.9375rem, var(--field-min));
   font-weight: 600;
   cursor: pointer;
 }
@@ -3040,6 +3170,126 @@ body {
     border-top-left-radius: 18px;
     border-top-right-radius: 18px;
     animation: slide-up 240ms var(--ease);
+  }
+
+  /* A bottom sheet's last control is exactly where the home indicator is, so
+     the body ends above it and the sheet scrolls rather than hiding a row
+     under the gesture bar. */
+  .sheet__body {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    overscroll-behavior: contain;
+  }
+
+  /* A choice in a ceremony is a row you tap, not a line you click. */
+  .alt__btn {
+    min-height: 2.75rem;
+  }
+
+  /* A choice written into a sentence is a dashed rule under a word — right
+     under a mouse, and too small for a thumb. Growing the box alone would
+     leave the rule stranded 12px below its own word, so on a phone the choice
+     becomes what it already is: a chip you tap, still inside the sentence. */
+  .sent {
+    line-height: 2.6;
+  }
+
+  .sent select {
+    min-height: 2.75rem;
+    padding: 0 1.35rem 0 0.6rem;
+    border: 1px solid var(--accent-line);
+    border-radius: var(--radius);
+    background-color: var(--accent-wash);
+    background-position: right 0.55rem center, right 0.33rem center;
+    vertical-align: middle;
+  }
+
+  .sent select:hover {
+    border-color: var(--accent);
+  }
+
+  /* The type suffix is the same choice one level up — `.login` after a name —
+     so it takes the same shape. Left as a dashed rule it would have detached
+     from its own word the moment the box grew to a key. */
+  .editor__ext {
+    min-height: 2.75rem;
+    /* The sentence chips draw their own caret and pay for the room; this one
+       keeps the platform's, so it only owes it a hair of clearance. */
+    padding: 0 0.35rem 0 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background-color: var(--surface-2);
+  }
+
+  select.editor__ext {
+    border-bottom-style: solid;
+    border-bottom-color: var(--line);
+  }
+
+  select.editor__ext:hover {
+    border-color: var(--ink-3);
+  }
+
+  /* A native select sizes to its widest option, so `.login` was drawn as wide
+     as `.certificate` and its caret sat a third of the row away from the word
+     it belongs to. Sized to its content it reads as the suffix it is, and the
+     name keeps the rest of the line. The cap is for engines without
+     `field-sizing`, where the widest option still wins. */
+  .editor__ext {
+    field-sizing: content;
+    max-width: 40%;
+  }
+
+  .editor__folder {
+    min-width: 2.75rem;
+    max-width: 30%;
+  }
+
+  /* The switch keeps the size of its mechanic and grows a target around it:
+     the button becomes a 44px key, and the track and knob are drawn inside
+     it. A 24px-tall pill is a fine switch and a poor thing to aim at. */
+  .toggle {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .toggle::before {
+    content: "";
+    width: 2.4rem;
+    height: 1.4rem;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-pill);
+    background: var(--surface-3);
+    transition: background 140ms var(--ease), border-color 140ms var(--ease);
+  }
+
+  .toggle::after {
+    top: 50%;
+    left: 50%;
+    /* The knob sits one hairline inside the track's left edge, and the track
+       is centred on the key: half of 2.4rem out, plus the border. */
+    transform: translate(calc(-1.2rem + 1px), -0.575rem);
+  }
+
+  .toggle:active::before {
+    background: var(--line-strong);
+  }
+
+  .toggle[aria-pressed="true"] {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .toggle[aria-pressed="true"]::before {
+    background: var(--accent);
+    border-color: transparent;
+  }
+
+  .toggle[aria-pressed="true"]::after {
+    transform: translate(calc(-0.2rem + 1px), -0.575rem);
   }
 
   @keyframes slide-up {

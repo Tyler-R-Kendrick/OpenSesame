@@ -72,10 +72,22 @@
   height: 17px;
 }
 
+/* ——— The strip on a phone ————————————————————————————————
+   Seven 44px keys are 308px, and a small phone is 320 — so they fit, exactly,
+   with nothing to spare for gutters or gaps. The strip used to wrap below
+   440px instead, which cost a 568px-tall phone a second 46px band of chrome
+   (a sixth of its screen) to say the same thing. Nothing here changes the
+   accepted arrangement: one left-aligned row of equal keys on a shared
+   vertical axis, exactly as on a desktop. It simply stops folding. */
 @media (pointer: coarse), (max-width: 900px) {
   .statusline {
-    padding-inline: 4px;
+    flex-wrap: nowrap;
+    gap: 0;
+    /* The keys carry their own separation; the strip does not add to it. */
+    padding-inline: 0;
+    padding-block: 2px;
   }
+
   .statusline .icon-btn,
   .statusline .cx__btn {
     width: 44px;
@@ -83,15 +95,37 @@
     min-width: 44px;
     min-height: 44px;
   }
+
   .statusline .cx,
   .statusline__tools {
     gap: 0;
   }
-}
 
-@media (max-width: 440px) {
-  .statusline {
-    flex-wrap: wrap;
-    gap: 2px;
+  /* The marks at the ends hold their size; plane truth is the seat that gives
+     way. A sixth connector, or a phone narrower than 308px, scrolls the
+     glyphs rather than wrapping the strip or clipping a key off the end. */
+  .statusline__support,
+  .statusline__tools {
+    flex: none;
+  }
+
+  .statusline__planes,
+  .statusline .cx {
+    min-width: 0;
+  }
+
+  .statusline .cx {
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+  }
+
+  .statusline .cx::-webkit-scrollbar {
+    display: none;
+  }
+
+  .statusline .cx__btn {
+    scroll-snap-align: center;
   }
 }

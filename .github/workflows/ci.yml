@@ -83,6 +83,15 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Phone layout and touch contract
+        # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
+        # targets, no field under 16px (iOS zooms a smaller one on focus and
+        # never zooms back), one-row statusline, safe areas, nothing floating
+        # over a control. DESIGN.md § Touch.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:mobile
       - name: Browser-local application sign-in contract
         # Real cross-origin popup and virtual WebAuthn, no Identity/Host backend.
         env:

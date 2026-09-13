@@ -389,4 +389,16 @@
   .support__trace {
     grid-column: 1;
   }
+
+  /* On a device with no on-device model the written topics are the entire
+     support offering — every one of them has to be a key. */
+  .support__topic-open {
+    min-height: 2.75rem;
+  }
+
+  /* The composer is docked at the foot of a bottom sheet, so it owes the
+     home indicator the same clearance the tab bar gives it. */
+  .support__composer {
+    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px));
+  }
 }

@@ -1,9 +1,13 @@
 /** Cold-load geometry, not a screenshot: state pips cannot shift icon centers. */
 export async function checkStatusline(page, check) {
   const original = page.viewportSize();
+  // 320 is in the list because that is where the strip used to fold onto a
+  // second row: seven 44px keys are 308px, and every pixel of gutter above
+  // that wrapped one of them. Checking 390 alone never saw it.
   for (const viewport of [
     { width: 1280, height: 800 },
     { width: 390, height: 844 },
+    { width: 320, height: 568 },
   ]) {
     await page.setViewportSize(viewport);
     await checkProfileLock(page, check, viewport.width);

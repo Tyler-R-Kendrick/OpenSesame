@@ -254,6 +254,39 @@
   }
 }
 
+@media (pointer: coarse), (max-width: 900px) {
+  /* Three keys in a row, each one a key. They were 36px: a comfortable click
+     and a miss under a thumb. */
+  .set__theme {
+    min-height: 2.75rem;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* Five categories do not fit a phone in one row. Wrapping put two of them
+     on a second line 44px below the hairline, orphaned from the underline
+     that says which one is open — so the strip scrolls instead, the way the
+     Access tabs and the vault chips already do at this width. */
+  .set__nav {
+    flex-wrap: nowrap;
+    gap: 1.1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-x: contain;
+  }
+
+  .set__nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .set__nav-link {
+    flex: none;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+}
+
 /* Item types (ADR 0078). One row per registered type — built in and
    installed alike, because there is only one kind of definition. */
 .itype-list {

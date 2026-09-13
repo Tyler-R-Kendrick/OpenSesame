@@ -119,3 +119,36 @@
     padding-block: 1.2rem;
   }
 }
+
+/* ——— The door on a small phone ————————————————————————————
+   The front door is the first thing anyone sees, and on a 568px screen its
+   generous rhythm ran the card past the bottom of the viewport: the guest
+   road — the one a person with no account has — sat under the floating
+   support mark, half off the screen. Everything here is spacing. The hero
+   stays the hero, the two roads stay the two roads; they simply stop
+   spending 100px of a small screen on air. */
+@media (max-height: 720px) {
+  .door .unlock__card {
+    gap: 0.85rem;
+    /* The corner skip is a 44px key at this width, and the hero is nearly as
+       wide as the card — so the first row starts below the corner rather
+       than under it. */
+    padding-top: 3.25rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .door__hero {
+    gap: 0.5rem;
+  }
+
+  .door .signin {
+    gap: 0.6rem;
+  }
+
+  /* The roads keep a target far above the floor; what they give back is the
+     air around the words, not the size of the key. */
+  .road {
+    min-height: 3.75rem;
+    padding-block: 0.75rem;
+  }
+}

@@ -172,6 +172,15 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # links resolve. Fails on any page error, console error, loopback request,
 # missing asset, or on-screen "No Identity API" copy.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:mobile
+# Same harness, the phone journey (DESIGN.md § Touch): 320, 390, 430 and
+# landscape, in a real coarse-pointer context. Every interactive control is
+# 44px, no form control is under 16px (iOS zooms a smaller one on focus and
+# never zooms back), nothing floating rests on a control, the statusline is
+# one row, the tab bar ends on the last pixel, the chrome stays under a third
+# of the screen, and no strip hides its own selected item. Run before touching
+# layout, chrome, controls or any of the CSS under `(pointer: coarse)`.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:auth
 # Same harness, the authentication flow (ADR 0091): a guest presses Add on the
 # authenticator row and is walked through a key first (the PIN card, in the
@@ -293,6 +302,17 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   movement from empty and populated vaults; guest entry alone is insufficient.
   Keep this gate in the required Bundle budgets
   job; demonstrate failure before fixing a regression and success afterward.
+- **A phone is not a narrow desktop, and the touch rules are gated on width as
+  well as pointer.** The 44px floor, the 16px field floor that keeps iOS from
+  zooming a focused field and never zooming back, the single-row statusline,
+  the safe-area insets and the landscape arrangement are all measured by
+  `pnpm --filter @opensesame/pages verify:mobile` against a fresh Pages build,
+  at 320, 390, 430 and landscape. Changes to the shell, the chrome, any shared
+  control, or any block under `(pointer: coarse)` require it. A screenshot is
+  not evidence: the gate measures computed geometry in a real touch context
+  and fails closed if that context is lost. Keep it in the required Bundle
+  budgets job. Never satisfy it by clipping a control, hiding a road, or
+  lowering a floor — DESIGN.md § Touch is the contract it enforces.
 - **Browser-local IAM must prove an actual application sign-in.** Changes to
   local identity sessions, application grants, popup transport or consent
   require `pnpm --filter @opensesame/pages verify:local-iam` against a fresh
