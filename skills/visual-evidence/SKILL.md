@@ -33,10 +33,11 @@ build script, a test harness, a type, a doc. Those carry their own evidence
    browser, not from the CSS you wrote.
 3. **Phone and desktop both**, for anything in a shared layout or control.
    Most regressions this catches are at one width and invisible at the other.
-4. **The images go on the PR**, in the body under a `## Visual evidence`
-   heading — not only in the chat, and not only as files in the repo. Commit
-   them under `docs/evidence/<yyyy-mm-dd>-<topic>/` and reference them by
-   commit SHA so the links survive the branch being deleted.
+4. **The images reach the PR**, not only the chat. Commit them under
+   `docs/evidence/<yyyy-mm-dd>-<topic>/` with a `README.md` that lays them out,
+   and link that gallery from the PR body under `## Visual evidence`, by commit
+   SHA so it survives the branch being deleted. See *Posting it* — the body
+   itself cannot carry image embeds through the tooling here.
 5. **Never stage the screenshot.** Capture the app as it actually runs, from a
    real build, on the paths the journey names. No hand-placed elements, no
    devtools overlays, no cropping that hides the thing you changed.
@@ -112,20 +113,35 @@ person does, not after the DOM.
 
 ## Posting it
 
-Put the sheets in the PR body, each under its own heading, with the measurement
-beside it. Reference by commit SHA:
+Write a `README.md` in the evidence directory: the sheets in reading order,
+each under its own heading, each with its measurement, images by **relative
+path**. That file is the gallery a reviewer opens, and GitHub renders it.
+
+Then link it from the PR body under `## Visual evidence`, with the measurements
+listed so the summary is readable without clicking:
 
 ```markdown
 ## Visual evidence
 
 Before/after from two real builds — `main` and this branch — same screens, same
-steps. No need to run the app.
+steps. **No need to run the app.**
 
-### Vault and the footer — 320 × 568
-`statusline 99px, wrapped → 49px, one row`
+**→ [Open the gallery](https://github.com/<owner>/<repo>/blob/<sha>/docs/evidence/<dir>/README.md)**
 
-![vault](https://raw.githubusercontent.com/<owner>/<repo>/<sha>/docs/evidence/<dir>/320-vault.png)
+| screen | before → after |
+|---|---|
+| Vault and the footer, 320 | `statusline 99px, wrapped → 49px, one row` |
 ```
+
+Link by commit SHA, not by branch name, so the gallery survives the branch
+being deleted.
+
+**Do not try to embed the images in the PR body itself.** The GitHub tooling
+available here strips `!` from image embeds and wraps bare URLs in backticks —
+a deliberate anti-injection measure — so a pasted `![alt](url)` renders as a
+plain link at best. Verify whatever you post by reading the PR back and
+checking the markup survived; a body that looks right in the tool call is not
+evidence that it looks right on GitHub.
 
 If a change is visible and you cannot capture it — the surface has no harness,
 the flow needs a backend this environment lacks — say so plainly in the PR,

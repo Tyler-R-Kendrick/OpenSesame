@@ -9,6 +9,10 @@ Each directory holds:
 
 - the composed sheets — one PNG per comparison, each a before and an after of
   the same screen with the measurement that makes the difference a fact;
+- `README.md` — the sheets laid out in reading order with their captions. This
+  is the page a pull request links to, because GitHub renders a repository
+  Markdown file's relative images and will not render an image embed pasted
+  into a PR body through a tool;
 - `journey.json` — the screens visited, the steps taken to reach them, and the
   captions. It lives here rather than in the script because a caption that
   outlives its change is a caption nobody rechecks.

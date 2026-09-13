@@ -283,9 +283,11 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   real builds**: the base branch's and this one's, walked the same way, at
   phone and desktop width. Every pair carries a measurement taken from the
   browser (`statusline 99px, wrapped → 49px, one row`), never an impression.
-  The sheets go in the PR body under `## Visual evidence`, committed under
-  `docs/evidence/<yyyy-mm-dd>-<topic>/` and linked by commit SHA so they
-  survive the branch. Never stage a screenshot, never crop away the thing you
+  The sheets are committed under `docs/evidence/<yyyy-mm-dd>-<topic>/` beside
+  a `README.md` that lays them out, and the PR body links that gallery under
+  `## Visual evidence` by commit SHA so it survives the branch. The body cannot
+  carry the images itself — the GitHub tooling here strips image embeds — so
+  read the PR back and check the markup survived whatever you posted. Never stage a screenshot, never crop away the thing you
   changed, and where a visible change genuinely cannot be captured, say so in
   the PR and name what you verified instead — silence reads as "nothing to
   see". Procedure and tooling: `skills/visual-evidence/SKILL.md`,
