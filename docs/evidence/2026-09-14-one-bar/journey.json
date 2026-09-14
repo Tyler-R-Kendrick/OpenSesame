@@ -1,0 +1,73 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "shot": "390-vault" },
+        { "press": "^Sections$" },
+        { "shot": "390-drawer" }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "steps": [{ "guest": null }, { "shot": "320-vault" }]
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "steps": [{ "guest": null }, { "shot": "landscape-vault" }]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [{ "guest": null }, { "shot": "1280-vault" }]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-vault",
+      "width": 390,
+      "title": "One bar of chrome — 390 × 844",
+      "caption": "The bottom nav was a full row of the frame, always drawn, for a choice made rarely: this is a vault, and a person lives in the vault. It is one key at the leading edge of the bar the phone already has. And `personal:/` was drawn twice in the same pane — the header opened with it and the status line closed with it. The one at the foot says more: it follows the cursor and carries the count and the filter, so the header keeps its command keys and drops the label.",
+      "before": "tab bar 64px · personal:/ twice",
+      "after": "no tab bar · personal:/ once"
+    },
+    {
+      "shot": "320-vault",
+      "width": 320,
+      "title": "The smallest phone — 320 × 568",
+      "caption": "Chrome is the top bar and nothing else: 71px of 568. The list runs to the last pixel of the screen.",
+      "before": "chrome 132px of 568",
+      "after": "71px"
+    },
+    {
+      "shot": "390-drawer",
+      "width": 390,
+      "title": "Where the sections went — 390 × 844",
+      "caption": "Five rows with room to be read, the open one marked, the wordmark at the head where a drawer carries a brand. Tab reaches the key, Enter opens it, focus lands inside, Escape closes it and hands the key back — gated. Nothing floats over the content.",
+      "before": "five words dividing the width of a phone",
+      "after": "five rows, each named at a readable size"
+    },
+    {
+      "shot": "landscape-vault",
+      "width": 844,
+      "title": "Rotated — 844 × 390",
+      "caption": "A phone on its side has 390px of height. One bar takes 55 of them, and the list has the rest.",
+      "before": "a bottom bar eating the short axis",
+      "after": "one bar"
+    },
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "Desktop is untouched — 1280 × 800",
+      "caption": "Captured with a mouse. The rail is still the navigation and the statusline is still seven keys; the only change is the list pane's header, which no longer repeats the tomb path its own status line already carries.",
+      "before": "rail, statusline, personal:/ twice",
+      "after": "rail, statusline, personal:/ once"
+    }
+  ]
+}
