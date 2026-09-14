@@ -2,21 +2,24 @@ import type { ReactNode } from "react";
 import { SlashSearchKey } from "../../components/SlashSearch.js";
 import { showKeymapHelp } from "../../lib/keymap.js";
 
+/**
+ * The list pane's command row.
+ *
+ * It used to open with `personal:/` as well, which the pane's own status line
+ * already says at the foot — and says better: that one follows the cursor, so
+ * it reads `personal:/Work/Webmail` where this one never left the root, and it
+ * carries the count and the filter beside it. One tomb path per pane, in the
+ * place that says the most about it.
+ */
 export function VaultPathbar({
-  tomb,
   verbs,
   search,
 }: {
-  tomb: string;
   verbs: ReactNode;
   search: () => void;
 }) {
   return (
     <div className="vtree__pathbar">
-      <span className="vtree__root">
-        <span className="vtree__tomb">{tomb}</span>
-        <span className="vtree__sep">:/</span>
-      </span>
       <fieldset className="vtree__keys" aria-label="Vault commands">
         {verbs}
         <SlashSearchKey onOpen={search} />

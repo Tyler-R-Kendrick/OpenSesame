@@ -31,7 +31,12 @@ function CrumbsDefault() {
     connectionName: connectionId ? decodeURIComponent(connectionId) : undefined,
   });
 
-  if (crumbs.length === 0) return null;
+  // A breadcrumb with one item is not a breadcrumb, it is a label — and it is
+  // the one label both navs already carry: the tab bar marks the section on a
+  // phone and the rail marks it on a desktop. Drawing "Vault" under a "Vault"
+  // tab spent a row of the frame saying nothing. Two or more is a path, which
+  // neither nav shows, so that row stays.
+  if (crumbs.length < 2) return null;
 
   return (
     <nav className="crumbs" aria-label="Breadcrumb">

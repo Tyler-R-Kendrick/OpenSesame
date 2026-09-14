@@ -351,9 +351,45 @@
 /* The same 44px floor every other key gets; this rule loads after the
    shared one, so the mark needs its own. */
 @media (pointer: coarse), (max-width: 900px) {
+  /* This screen has no statusline to seat the support mark in, so the mark
+     falls back to a fixed corner overlay — and on a phone the card runs
+     nearly edge to edge. The screen keeps the mark's band clear at the end of
+     the scroll; the card itself is tightened below so it fits above it rather
+     than being clipped by it. */
+  .unlock {
+    padding-bottom: calc(3.6rem + env(safe-area-inset-bottom, 0px));
+  }
+
   .signin__social {
     width: 2.75rem;
     min-height: 2.75rem;
+  }
+
+  /* Every road off this screen is a key a thumb can hit. The guest roads
+     especially: they are the ones a person with no account has, and a 20px
+     underline at the corner of a phone is a road only a mouse can take. */
+  .unlock__switch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  /* The corner skip grows around its word instead of moving it: the padding
+     that makes the target is subtracted back out of the inset, so the word
+     stays exactly where the layout put it. */
+  .signin__skip {
+    top: calc(1.1rem - 0.75rem);
+    right: calc(1.25rem - 0.75rem);
+    min-height: 0;
+    padding: 0.75rem;
+  }
+
+  /* A sentence-length road wraps rather than pushing the card sideways. */
+  .signin__more .unlock__switch {
+    text-align: center;
+    text-wrap: balance;
   }
 }
 

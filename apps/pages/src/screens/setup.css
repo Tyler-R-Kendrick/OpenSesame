@@ -272,7 +272,7 @@
    reuses the app's `.btn`/`.icon-btn`, which are sized for a mouse, so the
    controls a thumb actually lands on get the 44px minimum here. Scoped to
    `.setup` so the connection ceremonies sharing these classes are untouched. */
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 900px) {
   .setup .btn,
   .setup .preset__opt,
   .setup .ways__item,
@@ -283,6 +283,13 @@
   .setup .icon-btn {
     width: 2.75rem;
     height: 2.75rem;
+  }
+
+  /* A two-word control is still a control: the box grows around the words
+     rather than shrinking to them. */
+  .setup .setup__back {
+    justify-content: center;
+    min-width: 2.75rem;
   }
 }
 

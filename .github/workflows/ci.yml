@@ -83,6 +83,19 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Phone and tablet layout and touch contract
+        # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
+        # targets, no field under 16px (iOS zooms a smaller one on focus and
+        # never zooms back), one-row statusline, safe areas, nothing floating
+        # over a control. Then a finger above 900px, where the wide
+        # arrangement is drawn: a width rule that hid the strip without
+        # putting the phone's top bar back left a tablet in landscape with no
+        # support, notifications or plane truth at all, and every other gate
+        # was green. DESIGN.md § Touch.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:mobile
       - name: Browser-local application sign-in contract
         # Real cross-origin popup and virtual WebAuthn, no Identity/Host backend.
         env:

@@ -172,6 +172,15 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # links resolve. Fails on any page error, console error, loopback request,
 # missing asset, or on-screen "No Identity API" copy.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:mobile
+# Same harness, the phone journey (DESIGN.md § Touch): 320, 390, 430 and
+# landscape, in a real coarse-pointer context. Every interactive control is
+# 44px, no form control is under 16px (iOS zooms a smaller one on focus and
+# never zooms back), nothing floating rests on a control, the statusline is
+# one row, the tab bar ends on the last pixel, the chrome stays under a third
+# of the screen, and no strip hides its own selected item. Run before touching
+# layout, chrome, controls or any of the CSS under `(pointer: coarse)`.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:auth
 # Same harness, the authentication flow (ADR 0091): a guest presses Add on the
 # authenticator row and is walked through a key first (the PIN card, in the
@@ -265,6 +274,24 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 
 ## 5. Design rules that gate merges
 
+- **A user-visible change ships with before/after evidence on the pull
+  request.** A reviewer must never have to clone the branch, install, build and
+  walk the app to find out whether a change helped, and "I ran it and it looks
+  good" is a claim about a screen nobody else saw. Any diff a person could
+  notice — CSS, a component, a screen, layout, chrome, on-screen copy, an icon,
+  an empty or error state, a focus ring — carries images captured from **two
+  real builds**: the base branch's and this one's, walked the same way, at
+  phone and desktop width. Every pair carries a measurement taken from the
+  browser (`statusline 99px, wrapped → 49px, one row`), never an impression.
+  The sheets are committed under `docs/evidence/<yyyy-mm-dd>-<topic>/` beside
+  a `README.md` that lays them out, and the PR body links that gallery under
+  `## Visual evidence` by commit SHA so it survives the branch. The body cannot
+  carry the images itself — the GitHub tooling here strips image embeds — so
+  read the PR back and check the markup survived whatever you posted. Never stage a screenshot, never crop away the thing you
+  changed, and where a visible change genuinely cannot be captured, say so in
+  the PR and name what you verified instead — silence reads as "nothing to
+  see". Procedure and tooling: `skills/visual-evidence/SKILL.md`,
+  `apps/pages/scripts/capture-evidence.mjs`.
 - **Local app runs are attached HMR debug sessions.** "Run it locally",
   "start the app", or "let me test" means: keep the Vite (or other) dev
   server as a long-lived attached process, open that origin in a
@@ -293,6 +320,17 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
   movement from empty and populated vaults; guest entry alone is insufficient.
   Keep this gate in the required Bundle budgets
   job; demonstrate failure before fixing a regression and success afterward.
+- **A phone is not a narrow desktop, and the touch rules are gated on width as
+  well as pointer.** The 44px floor, the 16px field floor that keeps iOS from
+  zooming a focused field and never zooming back, the single-row statusline,
+  the safe-area insets and the landscape arrangement are all measured by
+  `pnpm --filter @opensesame/pages verify:mobile` against a fresh Pages build,
+  at 320, 390, 430 and landscape. Changes to the shell, the chrome, any shared
+  control, or any block under `(pointer: coarse)` require it. A screenshot is
+  not evidence: the gate measures computed geometry in a real touch context
+  and fails closed if that context is lost. Keep it in the required Bundle
+  budgets job. Never satisfy it by clipping a control, hiding a road, or
+  lowering a floor — DESIGN.md § Touch is the contract it enforces.
 - **Browser-local IAM must prove an actual application sign-in.** Changes to
   local identity sessions, application grants, popup transport or consent
   require `pnpm --filter @opensesame/pages verify:local-iam` against a fresh
@@ -661,6 +699,7 @@ directly so their own updater can refresh them.
 | `opensesame-mcps` | `skills/opensesame-mcps/SKILL.md` | Install, configure, initialize, and use OpenSesame MCP servers |
 | `install-anti-slop` | `skills/install-anti-slop/SKILL.md` | Install and configure the vendored Oxlint anti-slop plugin |
 | `security-review` | `skills/security-review/SKILL.md` | Run repository security gates and targeted Codex Security reviews |
+| `visual-evidence` | `skills/visual-evidence/SKILL.md` | Capture before/after screenshots from two real builds for any user-visible change and post them on the PR |
 | `local-debug-session` | `skills/local-debug-session/SKILL.md` | Attach a live HMR debug session when asked to run the app locally; watch real console/page/network errors and patch the hot-reloaded process |
 | `impeccable` | `.agents/skills/impeccable/SKILL.md` | Third-party frontend design skill ([pbakaus/impeccable](https://github.com/pbakaus/impeccable), Apache 2.0), installed via `npx impeccable install` — lives in `.agents/skills/` (not `skills/`) so `npx impeccable update` can refresh it; design detector hook in `.codex/hooks.json` + `.claude/settings.local.json` |
 | `scandinavian-design` | `.claude/skills/scandinavian-design/SKILL.md` | Third-party ([ericzakariasson/scandinavian-design](https://github.com/ericzakariasson/scandinavian-design)), installed via `npx skills add ericzakariasson/scandinavian-design` — the visual-restraint contract behind the Scandinavian retoken; its `scripts/*.js` verifiers are patched to launch the container's pinned Chromium (`/opt/pw-browsers/chromium`) instead of a system Chrome |
@@ -678,6 +717,25 @@ Before pushing:
 
 ```bash
 pnpm lint && pnpm quality && pnpm typecheck && pnpm test
+```
+
+If the change is user-visible, also capture its evidence and put it in the PR
+body — see `skills/visual-evidence/SKILL.md`. The gates prove the contract
+holds; the images are the only thing that shows a reviewer what the change
+actually did:
+
+```bash
+J=docs/evidence/<yyyy-mm-dd>-<topic>/journey.json
+git checkout "$(git merge-base HEAD origin/main)" -- apps/pages/src   # the base
+VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  node apps/pages/scripts/capture-evidence.mjs capture before "$J"
+git checkout HEAD -- apps/pages/src                                    # the branch
+VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  node apps/pages/scripts/capture-evidence.mjs capture after "$J"
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  node apps/pages/scripts/capture-evidence.mjs compose "$J"
 ```
 
 For the full local gate suite (what `pnpm verify` runs — required before

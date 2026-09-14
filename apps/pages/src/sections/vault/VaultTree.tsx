@@ -477,7 +477,6 @@ export function VaultTree({
   return (
     <div className="vtree">
       <VaultPathbar
-        tomb={tomb}
         verbs={verbs}
         search={() => setQuery((current) => current ?? "")}
       />

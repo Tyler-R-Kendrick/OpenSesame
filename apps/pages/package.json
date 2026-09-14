@@ -14,6 +14,7 @@
     "verify:static": "node scripts/verify-static-origin.mjs",
     "verify:auth": "node scripts/verify-auth-flow.mjs",
     "verify:keyboard": "node scripts/verify-keyboard.mjs",
+    "verify:mobile": "node scripts/verify-mobile.mjs",
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
     "verify:webmcp": "node scripts/verify-webmcp.mjs"
   },

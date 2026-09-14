@@ -124,11 +124,15 @@ function answerShoo(route, url, { request, origin }) {
 
 async function newPage(
   browser,
-  { shoo = false, dist, origin, base, record, expectedFallbackUrl },
+  { shoo = false, dist, origin, base, record, expectedFallbackUrl, device },
 ) {
+  // A phone is not a narrow desktop: `(pointer: coarse)` decides whether the
+  // touch rules apply at all, and it comes from the context, not the viewport.
+  // Without this a mobile check silently measures the mouse stylesheet.
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
     serviceWorkers: "block",
+    ...(device ?? {}),
   });
   const shooCalls = [];
   await context.route("**/*", async (route) => {
@@ -167,15 +171,19 @@ async function newPage(
   return { page, context, shooCalls };
 }
 
-async function snap(page, { name, out, record, setStep }) {
+async function snap(page, { name, out, record, setStep, fullPage = true }) {
   setStep(name);
   await page.waitForTimeout(900);
   const text = await page.evaluate(() => document.body.innerText);
   const safe = name.replace(/[^a-z0-9]+/gi, "_");
   fs.writeFileSync(path.join(out, `${safe}.txt`), text);
+  // A full-page capture resizes the viewport, and below roughly 360px
+  // Chromium drops mobile emulation while it does — every measurement after
+  // one then reads the mouse stylesheet. A phone check wants the viewport
+  // anyway: that is the screen the person is holding.
   await page.screenshot({
     path: path.join(out, `${safe}.png`),
-    fullPage: true,
+    fullPage,
   });
   for (const line of text.split("\n")) {
     if (FORBIDDEN_COPY.test(line)) {
@@ -217,6 +225,7 @@ export function createHarness({ dist, origin, base, out }) {
       }),
     newPage: (browser, options = {}) =>
       newPage(browser, { ...options, dist, origin, base, record }),
-    snap: (page, name) => snap(page, { name, out, record, setStep }),
+    snap: (page, name, options = {}) =>
+      snap(page, { ...options, name, out, record, setStep }),
   };
 }

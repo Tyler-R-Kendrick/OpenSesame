@@ -40,6 +40,14 @@ const CATALOG_SOURCE = readFileSync(
     readFileSync(join(import.meta.dirname, "identity-catalog.ts"), "utf8"),
   )
   .replace(
+    "...SHELL_TARGETS,",
+    readFileSync(join(import.meta.dirname, "shell-catalog.ts"), "utf8"),
+  )
+  .replace(
+    "...VAULT_TARGETS,",
+    readFileSync(join(import.meta.dirname, "vault-catalog.ts"), "utf8"),
+  )
+  .replace(
     "...SETUP_TARGETS,",
     readFileSync(join(import.meta.dirname, "setup-catalog.ts"), "utf8"),
   );

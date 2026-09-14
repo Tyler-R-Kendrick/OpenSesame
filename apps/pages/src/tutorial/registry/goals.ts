@@ -81,7 +81,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "host.health.check"',
-      'focus "shell.connectivity" "Plane truth lives here: Host and Identity report their reachability on the statusline." side=top',
+      'focus "shell.connectivity" "Plane truth lives here: Host and Identity report whether they are reachable." side=top',
       'say "For the vault contents themselves, Vault health lists weak, reused and aging items."',
       'navigate "/vault/health"',
       'wait route "/vault/health" timeout=15000',
@@ -439,7 +439,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "client.support"',
-      'focus "shell.support" "This question mark is on every screen. Ask how to do something, and a walkthrough will point at the control." side=right',
+      'focus "shell.support" "Support is always one press away. Ask how to do something, and a walkthrough will point at the control." side=right',
       "end",
     ].join("\n"),
   },

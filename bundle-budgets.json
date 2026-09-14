@@ -19,13 +19,20 @@
         "regression would be invisible inside a 15 MiB total.",
         "2026-09-10: javascript 2500->2750 and javascriptGzip 725->790 because",
         "browser-local IAM precaches passkey/WebAuthn and the local issuer. The",
-        "PWA still precaches every JS byte; measured 2616/748 KiB plus ~5% headroom."
+        "PWA still precaches every JS byte; measured 2616/748 KiB plus ~5% headroom.",
+        "2026-09-13: css 130->139 because the phone layout and touch contract",
+        "landed (DESIGN.md Touch, verify:mobile): the 44px floor gained a",
+        "width-based fallback, every field gained a 16px floor so iOS stops",
+        "zooming and never zooming back, and the statusline, tab bar, front door",
+        "and scrolling strips gained phone and landscape arrangements. Measured",
+        "132.1 KiB plus ~5% headroom. Uncompressed is what is budgeted; on the",
+        "wire the whole of it gzips to 26 KiB."
       ],
       "budgets": {
         "total": 15500,
         "javascript": 2750,
         "javascriptGzip": 790,
-        "css": 130,
+        "css": 139,
         "largestAsset": 12800
       }
     },

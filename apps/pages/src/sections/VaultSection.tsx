@@ -23,8 +23,9 @@ import {
   readItemField,
   typePlural,
 } from "../lib/vault/item-types.js";
-import { type Folder, type VaultItem, sortItems } from "../lib/vault/model.js";
+import { type VaultItem, sortItems } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import "./vault.css";
 
@@ -58,93 +59,6 @@ const FILTER_TITLE = new Map([
   ["drop", "Drops"],
   ["note", "Secure notes"],
 ]);
-
-/** A filter chip a guide can name. Same markup as the untracked ones. */
-function GuidedChip({
-  guideId,
-  to,
-  isActive,
-  label,
-}: {
-  guideId: string;
-  to: string;
-  isActive: boolean;
-  label: string;
-}) {
-  const ref = useGuideTarget<HTMLAnchorElement>(guideId);
-  return (
-    <Link
-      ref={ref}
-      to={to}
-      className={`vault__chip${isActive ? " is-active" : ""}`}
-      aria-current={isActive ? "true" : undefined}
-    >
-      {label}
-    </Link>
-  );
-}
-
-/**
- * The rail carries these filters on desktop, but it is hidden on a phone — so the
- * list header grows a scrolling chip row and nothing becomes unreachable there.
- */
-function MobileFilters({
-  items,
-  folders,
-  filter,
-  folderId,
-}: {
-  items: VaultItem[];
-  folders: Folder[];
-  filter: string;
-  folderId: string | null;
-}) {
-  const live = items.filter((item) => item.deletedAt === null);
-  const chip = (query: string, isActive: boolean, label: string) => (
-    <Link
-      key={query || "all"}
-      to={`/vault${query}`}
-      className={`vault__chip${isActive ? " is-active" : ""}`}
-      aria-current={isActive ? "true" : undefined}
-    >
-      {label}
-    </Link>
-  );
-
-  return (
-    <fieldset className="vault__chips" aria-label="Filter items">
-      {chip("", filter === "all" && !folderId, "All")}
-      <GuidedChip
-        key="favorites"
-        guideId="vault.filter.favorites"
-        to="/vault?f=favorites"
-        isActive={filter === "favorites"}
-        label="Favorites"
-      />
-      {chipTypeIds(live).map((typeId) =>
-        typeId === "login" ? (
-          <GuidedChip
-            key="login"
-            guideId="vault.filter.logins"
-            to="/vault?f=login"
-            isActive={filter === "login"}
-            label={typePlural(typeId)}
-          />
-        ) : (
-          chip(`?f=${typeId}`, filter === typeId, typePlural(typeId))
-        ),
-      )}
-      {folders.map((folder) =>
-        chip(
-          `?folder=${encodeURIComponent(folder.id)}`,
-          folderId === folder.id,
-          folder.name,
-        ),
-      )}
-      {chip("?f=trash", filter === "trash", "Trash")}
-    </fieldset>
-  );
-}
 
 const IMPORT_ACCEPT =
   ".env,.csv,.json,.1pux,.zip,.kdbx,text/plain,text/csv,application/json";
@@ -382,13 +296,6 @@ export function VaultSection() {
           listRef(element);
         }}
       >
-        <MobileFilters
-          items={items}
-          folders={folders}
-          filter={filter}
-          folderId={folderId}
-        />
-
         <VaultTree
           items={visible}
           folders={treeFolders}
@@ -399,6 +306,15 @@ export function VaultSection() {
           emptyMessage={filter === "trash" ? "Trash is empty" : "Nothing here"}
           verbs={
             <>
+              <VaultFilterMenu
+                items={items}
+                folders={folders}
+                typeIds={chipTypeIds(
+                  items.filter((item) => item.deletedAt === null),
+                )}
+                filter={filter}
+                folderId={folderId}
+              />
               <Link
                 ref={(element) => {
                   newItemRef.current = element;

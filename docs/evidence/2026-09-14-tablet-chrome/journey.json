@@ -1,0 +1,47 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1366,
+      "height": 1024,
+      "steps": [{ "guest": null }, { "shot": "1366-tablet-vault" }]
+    },
+    {
+      "width": 1024,
+      "height": 768,
+      "steps": [{ "guest": null }, { "shot": "1024-tablet-vault" }]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [{ "guest": null }, { "shot": "1280-mouse-vault" }]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1366-tablet-vault",
+      "width": 1366,
+      "title": "A finger above 900px — 1366 × 1024",
+      "caption": "These two are meant to match, and that is the claim being evidenced. A tablet in landscape gets the wide arrangement — no top bar, so the status strip is the whole of the chrome — and rebuilding the phone's chrome had no business touching it. Twice in this branch it did. `@media (pointer: coarse), (max-width: 900px) { display: none }` hid the strip, whose only replacement is the top bar, which is off above 900px: rail, and nothing else. And the 44px floor this file already carried was deleted as dead code, because below 900px the strip is hidden — but that rule was two conditions and only one had died. Both are restored, and `verify:mobile` now walks a finger across this width; without the fix its tablet stop fails 8 checks.",
+      "before": "strip 53px · seven keys 44 × 44",
+      "after": "strip 53px · seven keys 44 × 44"
+    },
+    {
+      "shot": "1024-tablet-vault",
+      "width": 1024,
+      "title": "Portrait tablet — 1024 × 768",
+      "caption": "Same arrangement, same floor, same as main. 53px of chrome on a 768px screen is 7%.",
+      "before": "strip 53px · 44 × 44",
+      "after": "strip 53px · 44 × 44"
+    },
+    {
+      "shot": "1280-mouse-vault",
+      "width": 1280,
+      "title": "A mouse is untouched — 1280 × 800",
+      "caption": "Captured with a real mouse, which is what the pointer rule reads. The strip keeps its compact 28px keys and its 40px height, exactly as on main — the floor above applies to a finger and to nothing else.",
+      "before": "strip 40px · seven keys 28 × 28",
+      "after": "strip 40px · seven keys 28 × 28"
+    }
+  ]
+}

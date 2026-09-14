@@ -26,9 +26,11 @@ import { AccountSwitcher } from "./AccountSwitcher.js";
 import { ConnectionsNavigation } from "./ConnectionsNavigation.js";
 import { ConnectionsTree } from "./ConnectionsTree.js";
 import { Crumbs } from "./Crumbs.js";
-import { IconLock, IconMark } from "./Icons.js";
+import { IconLock } from "./Icons.js";
 import { IdentityTree } from "./IdentityTree.js";
 import { KeymapSheet } from "./KeymapSheet.js";
+import { MoreMenu } from "./MoreMenu.js";
+import { NavDrawer } from "./NavDrawer.js";
 import { PageTreeLeafRow, useSectionExpand } from "./PageTreeBranch.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import { SECTIONS, SectionRow, railRowId } from "./RailRows.js";
@@ -38,29 +40,6 @@ import { Wordmark } from "./Wordmark.js";
 import { useRailCursor } from "./rail-cursor.js";
 import { selectedRailPath } from "./rail-path.js";
 import { useRailKeyboard } from "./useRailKeyboard.js";
-
-/**
- * The same destination as its rail row, and bound to the same semantic target.
- * Only one of the two is visible at any width, so the registry holds both as
- * candidates and resolves to whichever can actually be pointed at — otherwise
- * every navigation guide would fail closed on one form factor.
- */
-function TabRow({ section }: { section: (typeof SECTIONS)[number] }) {
-  const ref = useGuideTarget<HTMLAnchorElement>(section.guide);
-  const { to, label, Icon } = section;
-  return (
-    <NavLink
-      ref={ref}
-      to={to}
-      className={({ isActive }) =>
-        `tabbar__link${isActive ? " is-active" : ""}`
-      }
-    >
-      <Icon size={20} />
-      <span>{label}</span>
-    </NavLink>
-  );
-}
 
 /**
  * The rail is the filesystem: sections are directories off the tomb root, the
@@ -274,8 +253,12 @@ function Shell({ children }: { children?: ReactNode }) {
             statusline carries plane truth, so the top bar exists where the
             rail is gone. */}
         <header className="topbar">
-          <IconMark size={16} />
+          {/* Sections at the leading edge, where a drawer's key belongs; plane
+              truth, notifications, help and the keymap at the trailing one.
+              Between them the bar a phone already had is the whole chrome. */}
+          <NavDrawer />
           <SessionPrompt />
+          <MoreMenu />
         </header>
 
         <Crumbs />
@@ -284,11 +267,6 @@ function Shell({ children }: { children?: ReactNode }) {
       </div>
 
       <Statusline />
-      <nav className="tabbar" aria-label="Sections">
-        {SECTIONS.map((section) => (
-          <TabRow key={section.to} section={section} />
-        ))}
-      </nav>
 
       <KeymapSheet open={keymapOpen} close={closeKeymap} />
     </div>

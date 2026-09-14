@@ -584,21 +584,6 @@ describe("VaultSection", () => {
         .getAttribute("aria-expanded"),
     ).toBe("false");
   });
-
-  it("renders kind and folder filter chips only for present kinds", () => {
-    vault.current = {
-      items: [makeLogin()],
-      folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
-      header: null,
-    };
-    renderSection();
-    const chips = screen.getByRole("group", { name: /Filter items/i });
-    expect(chips.textContent).toContain("Logins");
-    expect(chips.textContent).not.toContain("Passkeys");
-    expect(chips.textContent).toContain("Work");
-    expect(chips.textContent).toContain("Trash");
-    expect(chips.querySelector('a[href="/vault/health"]')).toBeNull();
-  });
 });
 
 describe("VaultWelcome", () => {

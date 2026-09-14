@@ -47,6 +47,29 @@
   transition: background 140ms var(--ease), color 140ms var(--ease);
 }
 
+/* The floor a finger is owed, on the one arrangement that draws this strip
+   for a finger: a touchscreen wider than a phone (an iPad in landscape), where
+   the top bar and its overflow key are gone and these seven keys are the whole
+   of the chrome.
+
+   This floor was already here, as `(pointer: coarse), (max-width: 900px)`.
+   Rebuilding the phone chrome deleted it, because below 900px the strip is now
+   `display: none` and sizing a hidden thing reads as dead code — but the rule
+   was two conditions and only one of them was dead. Pointer is the whole of
+   what is left: the shared floor in styles.css cannot stand in for it, because
+   that one says `.icon-btn` (0,1,0) against the compact sizing above at
+   `.statusline .icon-btn` (0,2,0), and never named `.cx__btn` at all. Stated
+   here, beside the 28px it has to beat, so the two cannot drift apart. */
+@media (pointer: coarse) {
+  .statusline .icon-btn,
+  .statusline .cx__btn {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
+
 .statusline .cx__pip {
   position: absolute;
   right: 2px;
@@ -72,26 +95,25 @@
   height: 17px;
 }
 
-@media (pointer: coarse), (max-width: 900px) {
-  .statusline {
-    padding-inline: 4px;
-  }
-  .statusline .icon-btn,
-  .statusline .cx__btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .statusline .cx,
-  .statusline__tools {
-    gap: 0;
-  }
-}
+/* ——— The strip on a phone ————————————————————————————————
+   There isn't one. Seven 44px keys were 308px — a 320px screen edge to edge —
+   and a second full-width bar under the tab bar is a row of the frame spent on
+   things a person looks at rarely. Every phone platform puts exactly that
+   behind one key in the bar it already has, so that is where all of it went
+   (`MoreMenu`).
 
-@media (max-width: 440px) {
+   Hidden rather than unmounted: this strip holds the seat the support mark
+   portals into, and a mark with no seat falls back to a fixed corner overlay —
+   the clutter this removed.
+
+   Width only, never `(pointer: coarse)`. The strip's replacement is the top
+   bar, and that is `display: none` above 900px — so a coarse rule here hid
+   both on a touchscreen wider than a phone: an iPad in landscape kept its rail
+   and lost support, notifications, plane truth, the keymap, and the overflow
+   key that holds them. Layout pairs with layout; the 44px floor above is the
+   rule that reads the pointer, because target size is what a pointer decides. */
+@media (max-width: 900px) {
   .statusline {
-    flex-wrap: wrap;
-    gap: 2px;
+    display: none;
   }
 }
