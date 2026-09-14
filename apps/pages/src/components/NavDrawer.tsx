@@ -17,7 +17,7 @@
  * `SECTIONS` list it draws, so a section is never named twice in two places.
  */
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { NavLink } from "react-router";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -50,7 +50,12 @@ export function NavDrawer() {
   const closeRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
   const keyRef = useGuideTarget<HTMLButtonElement>("nav.menu");
-  useModalFocus(open, drawerRef, closeRef, () => setOpen(false));
+  // Stable: `useModalFocus` keeps this in its effect deps, and a fresh
+  // arrow each render would re-run the effect — re-focusing Close and
+  // taking the keyboard off whatever the person was on. `useConnectors`
+  // re-renders on a timer, so that fired on its own.
+  const close = useCallback(() => setOpen(false), []);
+  useModalFocus(open, drawerRef, closeRef, close);
 
   return (
     <>
@@ -73,7 +78,7 @@ export function NavDrawer() {
             type="button"
             className="scrim"
             aria-label="Close"
-            onClick={() => setOpen(false)}
+            onClick={close}
           />
           <div
             ref={drawerRef}
@@ -90,18 +95,14 @@ export function NavDrawer() {
                 className="icon-btn"
                 aria-label="Close"
                 ref={closeRef}
-                onClick={() => setOpen(false)}
+                onClick={close}
               >
                 <IconX size={18} />
               </button>
             </div>
             <nav className="drawer__rows" aria-label="Sections">
               {SECTIONS.map((section) => (
-                <DrawerRow
-                  key={section.to}
-                  section={section}
-                  onGo={() => setOpen(false)}
-                />
+                <DrawerRow key={section.to} section={section} onGo={close} />
               ))}
             </nav>
           </div>

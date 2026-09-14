@@ -45,29 +45,37 @@ export const notificationsBarDependencies = {
 export type NotificationsForm = "key" | "panel";
 
 /**
- * What the bell is counting: notices, queued writes, and the health report as
- * one. Shared so the phone's More row and the desktop key can never disagree.
+ * What the bell is looking at: the notices, the health report, and the one
+ * count over both. Shared rather than recomputed per form, so the phone's More
+ * row and the desktop strip's key can never disagree — and so the health scan,
+ * which walks every password, runs once per render rather than once per form.
  */
-export function useNoticeCount(): number {
+export function useNotices(): {
+  notices: Notice[];
+  health: ReturnType<typeof buildHealthReport>;
+  queued: number;
+  count: number;
+} {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
   const { items } = notificationsBarDependencies.useVault();
   const health = useMemo(() => buildHealthReport(items), [items]);
-  return (
-    notices.length + loadQueue().length + (health.findings.length > 0 ? 1 : 0)
-  );
+  const queued = loadQueue().length;
+  const count = notices.length + queued + (health.findings.length > 0 ? 1 : 0);
+  return { notices, health, queued, count };
+}
+
+/** Just the number, for a caller that draws no list. */
+export function useNoticeCount(): number {
+  return useNotices().count;
 }
 
 function NotificationsBarDefault({
   form = "key",
   onClose,
 }: { form?: NotificationsForm; onClose?: () => void }) {
-  const notices = useSyncExternalStore(subscribeNotices, listNotices);
-  const { items } = notificationsBarDependencies.useVault();
-  const health = useMemo(() => buildHealthReport(items), [items]);
-  const queued = loadQueue().length;
+  const { notices, health, queued, count } = useNotices();
   const [open, setOpen] = useState(form === "panel");
   const healthPending = health.findings.length > 0;
-  const count = notices.length + queued + (healthPending ? 1 : 0);
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const close = useCallback(() => {

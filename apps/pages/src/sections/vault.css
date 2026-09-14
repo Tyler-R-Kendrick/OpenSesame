@@ -142,12 +142,6 @@
   font-size: 0.75rem;
 }
 
-.vtree__tomb {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.vtree__sep,
 .vtree__dim {
   color: var(--ink-3);
 }

@@ -1,11 +1,14 @@
 /**
- * The phone journey (DESIGN.md § Touch).
+ * The touch journey (DESIGN.md § Touch).
  *
- * Drives the built deployment on three real phone contexts — a coarse pointer,
- * a touch-capable context, a device pixel ratio of 3 — and audits every stop
+ * Drives the built deployment in real touch contexts — a coarse pointer, a
+ * touch-capable context, a device pixel ratio of 3 — and audits every stop
  * against `lib/mobile-contract.mjs`. It walks the roads a person on a phone
- * actually takes: the front door, guest entry, every section behind the tab
- * bar, the footer's own sheets, the item editor, and a locked reload.
+ * actually takes: the front door, guest entry, every section behind the
+ * sections drawer, the overflow key's own sheets, the item editor, and a
+ * locked reload. Then it walks a tablet, where a finger meets the *wide*
+ * arrangement — the one place the phone stylesheet and the desktop one can
+ * contradict each other with every other gate still green.
  *
  * Run it against a fresh build:
  *   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
@@ -19,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import {
   AUDIT,
   PHONES,
+  TABLETS,
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
@@ -249,10 +253,71 @@ async function walk(browser, phone) {
   await context.close();
 }
 
+/**
+ * A finger above 900px: the arrangement the phone roads never reach.
+ *
+ * Here the top bar is gone by width and the status strip is the whole of the
+ * chrome, so this asserts the strip is drawn, that the seven keys it holds are
+ * on screen and named, and — through the same audit every phone stop runs —
+ * that they are keys a finger can hit. A width-gated rule that hides the strip
+ * without putting the top bar back strands all of it, and a size rule written
+ * for a mouse leaves 28px targets under a thumb; both faults live only here.
+ */
+async function tablet(browser, size) {
+  const { page, context } = await harness.newPage(browser, {
+    device: phoneContext(size),
+  });
+  const stop = (name) => `${size.name}-${name}`;
+  await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(700);
+  await page
+    .getByRole("button", { name: "Continue as guest", exact: true })
+    .first()
+    .tap();
+  await page.waitForTimeout(1100);
+  // Name the stop before any check runs, or each failure is filed under the
+  // stop before it and the log points at the wrong screen.
+  harness.setStep(stop("chrome"));
+  const shape = await page.evaluate(() => {
+    const visible = (selector) =>
+      [...document.querySelectorAll(selector)].filter(
+        (el) => el.getClientRects().length > 0,
+      );
+    return {
+      strip: visible("footer.statusline").length,
+      keys: visible("footer.statusline button").length,
+      topbar: visible(".topbar").length,
+      overflow: visible(".topbar__more").length,
+      rail: visible(".rail").length,
+    };
+  });
+  harness.check(
+    shape.strip === 1 && shape.keys === 7,
+    `${stop("chrome")}: the status strip and its seven keys are on screen (saw ${shape.keys} in ${shape.strip} strip)`,
+  );
+  harness.check(
+    shape.topbar === 0 && shape.overflow === 0,
+    `${stop("chrome")}: the phone's top bar stays off above 900px, so the strip is not doubled`,
+  );
+  harness.check(shape.rail === 1, `${stop("chrome")}: the rail is drawn`);
+  // Everything the strip holds has to be reachable by name, not merely
+  // painted: this is the road a person on a tablet takes to support and to the
+  // truth about which planes are configured.
+  for (const name of [/^Support$/, /^Notifications/, /^Host/]) {
+    harness.check(
+      (await page.getByRole("button", { name }).count()) > 0,
+      `${stop("chrome")}: ${name.source} is reachable`,
+    );
+  }
+  await audit(page, stop("vault"));
+  await context.close();
+}
+
 checkSafeAreas();
 const browser = await harness.launch();
 try {
   for (const phone of PHONES) await walk(browser, phone);
+  for (const size of TABLETS) await tablet(browser, size);
 } finally {
   await browser.close();
 }
@@ -269,5 +334,7 @@ if (harness.failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `\nPASS: the phone contract holds at ${PHONES.map((p) => p.width).join(", ")}px.`,
+  `\nPASS: the touch contract holds at ${[...PHONES, ...TABLETS]
+    .map((size) => size.width)
+    .join(", ")}px.`,
 );

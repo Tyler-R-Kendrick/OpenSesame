@@ -15,7 +15,7 @@
  * so the screen never stops saying what is being looked at.
  */
 
-import { useRef, useState } from "react";
+import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { IconFilter, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
@@ -137,14 +137,25 @@ export function VaultFilterMenu({
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
   const openRef = useGuideTarget<HTMLButtonElement>("vault.filter");
-  useModalFocus(open, sheetRef, closeRef, () => setOpen(false));
+  // Stable: `useModalFocus` keeps this in its effect deps, and a fresh
+  // arrow each render would re-run the effect — re-focusing Close and
+  // taking the keyboard off whatever the person was on. `useConnectors`
+  // re-renders on a timer, so that fired on its own.
+  const close = useCallback(() => setOpen(false), []);
+  useModalFocus(open, sheetRef, closeRef, close);
 
-  const roads = buildRoads(items, folders, typeIds, filter, folderId);
+  const roads = useMemo(
+    () => buildRoads(items, folders, typeIds, filter, folderId),
+    [items, folders, typeIds, filter, folderId],
+  );
   const active = roads.find((road) => road.active);
-  // "All items" is the resting state, so it earns no dot: the dot means the
-  // list in front of you is narrower than the vault.
-  const narrowed = active !== undefined && active.key !== "all";
-  const label = `Filter — ${active?.label ?? "All items"}`;
+  // A filter can be in force with no road to show for it: `?f=login` survives
+  // trashing the last login, and a deep link may name a type this vault holds
+  // none of. The list is narrowed either way, so the key says so rather than
+  // claiming the resting state.
+  const resting = filter === "all" && !folderId;
+  const narrowed = !resting;
+  const label = `Filter — ${active?.label ?? (resting ? "All items" : filter)}`;
 
   return (
     <div className="vfilter">
@@ -162,59 +173,80 @@ export function VaultFilterMenu({
       </button>
 
       {open ? (
-        <div className="sheet-layer">
+        <FilterSheet
+          roads={roads}
+          heading={active?.label ?? "All items"}
+          sheetRef={sheetRef}
+          closeRef={closeRef}
+          close={close}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** The sheet itself: the scrim, the head, and one row per road. */
+function FilterSheet({
+  roads,
+  heading,
+  sheetRef,
+  closeRef,
+  close,
+}: {
+  roads: Road[];
+  heading: string;
+  sheetRef: RefObject<HTMLDivElement | null>;
+  closeRef: RefObject<HTMLButtonElement | null>;
+  close: () => void;
+}) {
+  return (
+    <div className="sheet-layer">
+      <button
+        type="button"
+        className="scrim"
+        aria-label="Close"
+        onClick={close}
+      />
+      <div
+        ref={sheetRef}
+        className="sheet"
+        // biome-ignore lint/a11y/useSemanticElements: native <dialog open> inerts the page and paints a blank top-layer surface
+        role="dialog"
+        aria-label="Filter items"
+        aria-modal="true"
+      >
+        <div className="sheet__head">
+          <div className="sheet__grow">
+            <h2>Filter</h2>
+            <p>{heading}</p>
+          </div>
           <button
             type="button"
-            className="scrim"
+            className="icon-btn"
             aria-label="Close"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            ref={sheetRef}
-            className="sheet"
-            // biome-ignore lint/a11y/useSemanticElements: native <dialog open> inerts the page and paints a blank top-layer surface
-            role="dialog"
-            aria-label="Filter items"
-            aria-modal="true"
+            ref={closeRef}
+            onClick={close}
           >
-            <div className="sheet__head">
-              <div className="sheet__grow">
-                <h2>Filter</h2>
-                <p>{active?.label ?? "All items"}</p>
-              </div>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label="Close"
-                ref={closeRef}
-                onClick={() => setOpen(false)}
-              >
-                <IconX size={18} />
-              </button>
-            </div>
-            <div className="sheet__body">
-              <div className="vfilter__roads">
-                {roads.map((road) =>
-                  road.guideId ? (
-                    <GuidedRoad
-                      key={road.key}
-                      road={road}
-                      guideId={road.guideId}
-                      onPick={() => setOpen(false)}
-                    />
-                  ) : (
-                    <RoadRow
-                      key={road.key}
-                      road={road}
-                      onPick={() => setOpen(false)}
-                    />
-                  ),
-                )}
-              </div>
-            </div>
+            <IconX size={18} />
+          </button>
+        </div>
+        <div className="sheet__body">
+          <div className="vfilter__roads">
+            {roads.map((road) =>
+              road.guideId ? (
+                <GuidedRoad
+                  key={road.key}
+                  road={road}
+                  guideId={road.guideId}
+                  onPick={close}
+                />
+              ) : (
+                <RoadRow key={road.key} road={road} onPick={close} />
+              ),
+            )}
           </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

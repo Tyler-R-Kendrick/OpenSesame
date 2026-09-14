@@ -8,9 +8,9 @@ import "./statusline.css";
  * One strip for support, plane truth, and notifications — where there is room
  * for it.
  *
- * A phone does not draw this at all: a second full-width bar under the tab bar
- * is a row of the frame spent on things looked at rarely, so on a phone all of
- * it lives behind the nav's own last item instead (`MoreTab`). The strip stays
+ * A phone does not draw this at all: a second full-width bar is a row of the
+ * frame spent on things looked at rarely, so below 900px all of it lives
+ * behind the top bar's overflow key (`MoreMenu`). The strip stays
  * in the document rather than being unmounted, because it holds the seat the
  * support mark portals into — without a seat the mark falls back to a fixed
  * corner overlay, which is the clutter this removed.

@@ -35,6 +35,25 @@ export const PHONES = [
   { name: "landscape", width: 844, height: 390 },
 ];
 
+/**
+ * Touchscreens wider than a phone, which get the *other* arrangement.
+ *
+ * This list exists because of a regression nothing else could see. A rule
+ * written `@media (pointer: coarse), (max-width: 900px)` hid the status strip,
+ * and the strip's replacement — the top bar with the overflow key — is drawn
+ * only below 900px. An iPad in landscape matched the first half and neither
+ * half of the replacement: it kept its rail and lost support, notifications,
+ * plane truth, the keymap and the key that holds them, with nothing left to
+ * reach them by. Every gate passed. The desktop contract measures a *mouse* at
+ * 1280, and the phone journey measures a finger at 430 and below, so the one
+ * context where the two stylesheets can contradict each other — a finger above
+ * 900px — was the gap between them.
+ */
+export const TABLETS = [
+  { name: "tablet-portrait", width: 1024, height: 1366 },
+  { name: "tablet-landscape", width: 1366, height: 1024 },
+];
+
 /** Emulation that makes `(pointer: coarse)` true. Without it we measure the
  *  mouse stylesheet and every touch rule reads as passing. */
 export function phoneContext({ width, height }) {
@@ -290,12 +309,16 @@ export const AUDIT =
   // Three bars at the 44px floor are ~140px whatever the screen, so a very
   //    short one is held to that budget rather than to a ratio it cannot meet.
   const budget = Math.max(vh * 0.34, 150);
-  if (tabs && bars > budget) {
+  // Gated on the bars actually measured, not on any one of them existing.
+  // This read "if (tabs && ...)", and the tab bar is gone — so the budget the
+  // docs advertise silently stopped being checked at all. (No backticks in
+  // here: this whole audit is a String.raw template, and one would end it.)
+  if (spans.length > 0 && bars > budget) {
     fail(
       "CHROME-EATS-THE-SCREEN",
       Math.round(bars) + "px of chrome on a " + vh + "px screen (budget "
         + Math.round(budget) + ")",
-      tabs,
+      spans.length > 0 ? document.querySelector(".topbar") : null,
     );
   }
 

@@ -127,7 +127,7 @@
    support mark, half off the screen. Everything here is spacing. The hero
    stays the hero, the two roads stay the two roads; they simply stop
    spending 100px of a small screen on air. */
-@media (max-height: 720px) {
+@media (max-height: 720px) and ((pointer: coarse) or (max-width: 900px)) {
   .door .unlock__card {
     gap: 0.85rem;
     /* The corner skip is a 44px key at this width, and the hero is nearly as

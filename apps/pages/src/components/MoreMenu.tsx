@@ -27,7 +27,7 @@
  * first affordance on a phone: `?` opened it on a desktop and nothing did here.
  */
 
-import { type RefObject, useRef, useState } from "react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 import {
   type ConnectorId,
   type ConnectorStatus,
@@ -37,6 +37,7 @@ import {
 } from "../lib/connectors.js";
 import { showKeymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupport } from "../tutorial/session.js";
 import { ConnectionCeremony, connectorGlyph } from "./ConnectivityBar.js";
 import { IconBell, IconDots, IconHelp, IconTerminal, IconX } from "./Icons.js";
@@ -88,7 +89,22 @@ export function MoreMenu() {
   const waiting = useNoticeCount();
   const attention = tone === "attn" || tone === "offline" || waiting > 0;
   const label = `More — ${summarize(connectors)}`;
-  useModalFocus(open, sheetRef, closeRef, () => setOpen(false));
+  // Stable: `useModalFocus` keeps this in its effect deps, and a fresh
+  // arrow each render would re-run the effect — re-focusing Close and
+  // taking the keyboard off whatever the person was on. `useConnectors`
+  // re-renders on a timer, so that fired on its own.
+  const close = useCallback(() => setOpen(false), []);
+  const openNotices = useCallback(() => {
+    setOpen(false);
+    setNotices(true);
+  }, []);
+  const closeNotices = useCallback(() => setNotices(false), []);
+  const openCeremony = useCallback((id: ConnectorId) => {
+    setOpen(false);
+    setCeremony(id);
+  }, []);
+  const closeCeremony = useCallback(() => setCeremony(null), []);
+  useModalFocus(open, sheetRef, closeRef, close);
 
   return (
     <>
@@ -110,27 +126,21 @@ export function MoreMenu() {
           waiting={waiting}
           closeRef={closeRef}
           sheetRef={sheetRef}
-          onClose={() => setOpen(false)}
-          onNotices={() => {
-            setOpen(false);
-            setNotices(true);
-          }}
-          onPick={(id) => {
-            setOpen(false);
-            setCeremony(id);
-          }}
+          onClose={close}
+          onNotices={openNotices}
+          onPick={openCeremony}
         />
       ) : null}
 
       {notices ? (
-        <NotificationsBar form="panel" onClose={() => setNotices(false)} />
+        <NotificationsBar form="panel" onClose={closeNotices} />
       ) : null}
 
       {ceremony ? (
         <ConnectionCeremony
           id={ceremony}
           connectors={connectors}
-          onClose={() => setCeremony(null)}
+          onClose={closeCeremony}
           onSwitch={(next) => setCeremony(next)}
         />
       ) : null}
@@ -211,9 +221,15 @@ function UtilityRows({
   onNotices,
 }: { waiting: number; onClose: () => void; onNotices: () => void }) {
   const { support } = useSupport();
+  // A phone draws no statusline, so these are where `shell.notifications` and
+  // `shell.support` can actually be pointed at. The strip keeps the same ids
+  // where it is drawn; the registry resolves to whichever is pointable.
+  const bellRef = useGuideTarget<HTMLButtonElement>("shell.notifications");
+  const helpRef = useGuideTarget<HTMLButtonElement>("shell.support");
   return (
     <div className="more__rows">
       <button
+        ref={bellRef}
         type="button"
         className="more__row"
         aria-haspopup="dialog"
@@ -226,6 +242,7 @@ function UtilityRows({
         </span>
       </button>
       <button
+        ref={helpRef}
         type="button"
         className="more__row"
         onClick={() => {
@@ -259,8 +276,9 @@ function ConnectionRows({
   connectors: ConnectorStatus[];
   onPick: (id: ConnectorId) => void;
 }) {
+  const planesRef = useGuideTarget<HTMLDivElement>("shell.connectivity");
   return (
-    <div className="conn-grid">
+    <div className="conn-grid" ref={planesRef}>
       {connectors.map((connector) => (
         <button
           key={connector.id}
