@@ -21,6 +21,13 @@
   align-items: center;
 }
 
+/* With room, the five glyphs are the strip and there is nothing to roll up.
+   Selected through the parent so it outranks `.statusline__tools > div` above
+   — a bare `.statusline__more` loses to it and the key stays drawn. */
+.statusline__tools > .statusline__more {
+  display: none;
+}
+
 .statusline__tools,
 .statusline .cx {
   gap: 2px;
@@ -73,12 +80,13 @@
 }
 
 /* ——— The strip on a phone ————————————————————————————————
-   Seven 44px keys are 308px, and a small phone is 320 — so they fit, exactly,
-   with nothing to spare for gutters or gaps. The strip used to wrap below
-   440px instead, which cost a 568px-tall phone a second 46px band of chrome
-   (a sixth of its screen) to say the same thing. Nothing here changes the
-   accepted arrangement: one left-aligned row of equal keys on a shared
-   vertical axis, exactly as on a desktop. It simply stops folding. */
+   Seven 44px keys are 308px, which is a 320px screen edge to edge: a whole
+   band of chrome, six keys of it mute until something goes wrong. A phone
+   platform never shows five separate connection indicators — it shows one and
+   puts the detail behind it — so here the five glyphs give way to the overflow
+   key, which carries the same aggregate pip and names each connector in words
+   once opened. Three keys, and the arrangement is otherwise the accepted one:
+   one left-aligned row of equal keys on a shared vertical axis. */
 @media (pointer: coarse), (max-width: 900px) {
   .statusline {
     flex-wrap: nowrap;
@@ -86,6 +94,14 @@
     /* The keys carry their own separation; the strip does not add to it. */
     padding-inline: 0;
     padding-block: 2px;
+  }
+
+  .statusline__planes {
+    display: none;
+  }
+
+  .statusline__tools > .statusline__more {
+    display: flex;
   }
 
   .statusline .icon-btn,
@@ -101,9 +117,8 @@
     gap: 0;
   }
 
-  /* The marks at the ends hold their size; plane truth is the seat that gives
-     way. A sixth connector, or a phone narrower than 308px, scrolls the
-     glyphs rather than wrapping the strip or clipping a key off the end. */
+  /* Three 44px keys are 132px, so nothing has to give way at any phone width;
+     the rule stays as the guard it always was. */
   .statusline__support,
   .statusline__tools {
     flex: none;
@@ -112,9 +127,5 @@
   .statusline__planes,
   .statusline .cx {
     min-width: 0;
-  }
-
-  .statusline .cx__btn {
-    scroll-snap-align: center;
   }
 }

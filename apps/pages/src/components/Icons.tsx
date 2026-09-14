@@ -174,15 +174,6 @@ export function IconSecret(props: IconProps) {
   );
 }
 
-export function IconCert(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <rect x="5" y="3.5" width="14" height="17" rx="2" />
-      <path d="M8.5 8h7M8.5 11.5h7M8.5 15h4.5" />
-    </Svg>
-  );
-}
-
 export function IconNote(props: IconProps) {
   return (
     <Svg {...props}>
@@ -335,6 +326,14 @@ export function IconDots(props: IconProps) {
       <circle cx="5.5" cy="12" r="0.6" fill="currentColor" />
       <circle cx="12" cy="12" r="0.6" fill="currentColor" />
       <circle cx="18.5" cy="12" r="0.6" fill="currentColor" />
+    </Svg>
+  );
+}
+
+export function IconFilter(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 6h16l-6.2 7.1v5.2l-3.6 1.8v-7z" />
     </Svg>
   );
 }

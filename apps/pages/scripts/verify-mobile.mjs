@@ -100,6 +100,32 @@ async function openFooterSheet(page, pattern, label) {
   await page.waitForTimeout(350);
 }
 
+/**
+ * A connector ceremony, which on a phone is two presses: the connector glyphs
+ * roll up into the overflow key, so Host is a named row inside it rather than
+ * a glyph on the strip.
+ */
+async function openOverflowConnector(page, label) {
+  const more = page.getByRole("button", { name: /^More —/ }).first();
+  if ((await more.count()) === 0) {
+    harness.check(false, `${label}: the overflow key is not on the strip`);
+    return;
+  }
+  await more.tap();
+  await page.waitForTimeout(650);
+  const host = page.getByRole("button", { name: /^Host/ }).first();
+  if ((await host.count()) === 0) {
+    harness.check(false, `${label}: Host is not a row in the overflow`);
+    await page.keyboard.press("Escape");
+    return;
+  }
+  await host.tap();
+  await page.waitForTimeout(650);
+  await audit(page, label);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(350);
+}
+
 /** The front door and the two roads a person with no account has. */
 async function frontDoor(page, stop) {
   await audit(page, stop("front-door"));
@@ -196,7 +222,8 @@ async function walk(browser, phone) {
 
   await openTab(page, "Vault");
   await openFooterSheet(page, /^Notifications/, stop("footer-notifications"));
-  await openFooterSheet(page, /^Host —/, stop("footer-host"));
+  await openFooterSheet(page, /^More —/, stop("footer-more"));
+  await openOverflowConnector(page, stop("footer-host"));
   await openFooterSheet(page, /support|help/i, stop("footer-support"));
 
   await vaultItem(page, stop);

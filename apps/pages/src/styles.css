@@ -1500,7 +1500,6 @@ body {
 
   .access-tab,
   .identity-tab,
-  .vault__chip,
   .grant-choice,
   .sites-effect,
   .set__nav-link {
@@ -1601,7 +1600,6 @@ body {
   /* Every strip that scrolls sideways on a phone, in one place. They differ
      in what they hold and in nothing else, and each used to carry its own
      copy of this. */
-  .vault__chips,
   .set__nav,
   .statusline .cx {
     flex-wrap: nowrap;
@@ -1611,7 +1609,6 @@ body {
     overscroll-behavior-x: contain;
   }
 
-  .vault__chips::-webkit-scrollbar,
   .set__nav::-webkit-scrollbar,
   .statusline .cx::-webkit-scrollbar {
     display: none;
@@ -1619,9 +1616,7 @@ body {
 
   /* A strip that scrolls runs to the edge of the screen. Cut off at the
      section's gutter it reads as a word that did not fit; running under the
-     edge it reads as a row with more in it — which is what it is. The vault's
-     chip row has always done this; the tab strips that learned to scroll on a
-     phone do it too, out of the same gutter. */
+     edge it reads as a row with more in it — which is what it is. */
   .section :is(.access-tabs, .set__nav) {
     margin-left: calc(-1rem - env(safe-area-inset-left));
     margin-right: calc(-1rem - env(safe-area-inset-right));
@@ -1630,11 +1625,9 @@ body {
     scroll-padding-inline: calc(1rem + env(safe-area-inset-left));
   }
 
-  /* Plane truth stays legible on a phone: glyphs and the count, no labels.
-     No side gutter: seven 44px keys are 308px and the smallest phone is 320,
-     so a 13.6px gutter on each side is what pushed the seventh key onto a
-     second row. The keys run to the edge and their glyphs, centred in 44px
-     boxes, still line up with the top bar's mark. */
+  /* Plane truth rolls into the overflow key on a phone, so the strip is three
+     keys wide. No side gutter even so: the keys run to the edge and their
+     glyphs, centred in 44px boxes, line up with the top bar's mark. */
   .statusline {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);

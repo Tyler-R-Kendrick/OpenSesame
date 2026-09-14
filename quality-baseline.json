@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 494,
-    "violations": 817,
-    "oversizedLines": 279335
+    "violations": 816,
+    "oversizedLines": 278799
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -575,7 +575,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/Icons.tsx": {
-      "max-lines": 566
+      "max-lines": 565
     },
     "apps/pages/src/components/IdentityCeremony.tsx": {
       "complexity": 1,
@@ -882,10 +882,9 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 763
+      "max-lines": 748
     },
     "apps/pages/src/sections/VaultSection.tsx": {
-      "max-lines": 466,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/connections/BindingEditor.tsx": {
@@ -1057,7 +1056,7 @@
       "max-lines": 442
     },
     "apps/pages/src/tutorial/registry/catalog.ts": {
-      "max-lines": 505
+      "max-lines": 451
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
       "max-lines": 936

@@ -1,5 +1,5 @@
 import type { JsonObject } from "@opensesame/os-domain";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { MemoryRouter, Route, Routes } from "react-router";
 import {
@@ -21,11 +21,16 @@ import type { Folder, VaultItem } from "../../lib/vault/model.js";
 
 /**
  * A plugin-defined type is a type like any other in the vault list (ADR 0087
- * §1): it gets its own filter chip, its own breadcrumb, and the filter selects
+ * §1): it gets its own filter road, its own breadcrumb, and the filter selects
  * on the type id rather than on the storage discriminant. Before this, every
- * community type collapsed into one undifferentiated "Items" bucket that no
- * chip could reach.
+ * community type collapsed into one undifferentiated "Items" bucket no filter
+ * could reach.
  */
+
+/** The filters live behind one key on a phone. Open it and read the roads. */
+function openFilters(): void {
+  fireEvent.click(screen.getByRole("button", { name: /^Filter — / }));
+}
 
 type VaultHarness = {
   current: { items: VaultItem[]; folders: Folder[]; header: JsonObject | null };
@@ -127,12 +132,13 @@ afterAll(() => {
 });
 
 describe("the vault list for a type installed at runtime", () => {
-  it("gives the type its own filter chip, under its own plural", () => {
+  it("gives the type its own filter road, under its own plural", () => {
     renderSection();
+    openFilters();
     expect(
-      screen.getByRole("link", { name: "Safe deposit boxes" }),
+      screen.getByRole("link", { name: /Safe deposit boxes/ }),
     ).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Logins" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Logins/ })).toBeTruthy();
   });
 
   it("filters on the type id, not on the storage discriminant", () => {
@@ -147,9 +153,10 @@ describe("the vault list for a type installed at runtime", () => {
     expect(screen.queryByText("Box High Street")).toBeNull();
   });
 
-  it("offers no chip for a type this vault holds no items of", () => {
+  it("offers no road for a type this vault holds no items of", () => {
     renderSection();
-    expect(screen.queryByRole("link", { name: "Passkeys" })).toBeNull();
+    openFilters();
+    expect(screen.queryByRole("link", { name: /Passkeys/ })).toBeNull();
   });
 
   it("still lists an item whose definition is not installed here", () => {
@@ -158,8 +165,9 @@ describe("the vault list for a type installed at runtime", () => {
     if (orphan === undefined) throw new Error("expected the box item");
     vault.current = { items: [orphan], folders: [], header: null };
     renderSection();
-    // The chip falls back to the raw type id rather than the item vanishing.
-    expect(screen.getByRole("link", { name: "safe-deposit" })).toBeTruthy();
     expect(screen.getByText("Box High Street")).toBeTruthy();
+    openFilters();
+    // The road falls back to the raw type id rather than the item vanishing.
+    expect(screen.getByRole("link", { name: /safe-deposit/ })).toBeTruthy();
   });
 });

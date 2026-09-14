@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -146,6 +146,11 @@ describe("instrumented screens", () => {
     expect(isMountedGuideTarget("vault.list")).toBe(true);
     expect(isMountedGuideTarget("vault.create")).toBe(true);
     expect(isMountedGuideTarget("vault.import")).toBe(true);
+    // The filter key is always there to point at; the roads themselves are
+    // inside the sheet it opens, so they bind when it does and not before.
+    expect(isMountedGuideTarget("vault.filter")).toBe(true);
+    expect(isMountedGuideTarget("vault.filter.favorites")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: /^Filter — / }));
     expect(isMountedGuideTarget("vault.filter.favorites")).toBe(true);
     // Nothing to filter to yet.
     expect(isMountedGuideTarget("vault.filter.logins")).toBe(false);
@@ -155,6 +160,7 @@ describe("instrumented screens", () => {
     renderVault();
     expect(isMountedGuideTarget("vault.create")).toBe(true);
     expect(isMountedGuideTarget("vault.import")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /^Filter — / }));
     expect(isMountedGuideTarget("vault.filter.logins")).toBe(true);
     expect(
       resolveGuideTargetElement("vault.create")?.getAttribute("href"),

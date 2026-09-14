@@ -71,15 +71,22 @@ const harness = createHarness({
  * what a person does, not what the DOM is: a journey file is read by whoever
  * is reviewing the evidence, and it has to say where the picture was taken.
  */
+/** `tap()` needs a touch context; a desktop capture has a mouse instead. */
+async function press(locator) {
+  const touch = await locator.page().evaluate(() => "ontouchstart" in window);
+  if (touch) await locator.tap();
+  else await locator.click();
+}
+
 const STEPS = {
   async guest(page) {
-    await page
-      .getByRole("button", { name: "Continue as guest", exact: true })
-      .tap();
+    await press(
+      page.getByRole("button", { name: "Continue as guest", exact: true }),
+    );
     await page.waitForTimeout(1400);
   },
   async tab(page, name) {
-    await page.locator(".tabbar__link", { hasText: name }).first().tap();
+    await press(page.locator(".tabbar__link", { hasText: name }).first());
     await page.waitForTimeout(900);
   },
   async press(page, name) {
@@ -87,14 +94,14 @@ const STEPS = {
       .getByRole("button", { name: new RegExp(name, "i") })
       .first();
     if (await target.count()) {
-      await target.tap();
+      await press(target);
       await page.waitForTimeout(1000);
     }
   },
   async open(page, name) {
     const link = page.getByRole("link", { name, exact: true }).first();
     if (await link.count()) {
-      await link.tap();
+      await press(link);
       await page.waitForTimeout(1100);
     }
   },
@@ -107,8 +114,13 @@ const STEPS = {
 async function capture(browser, into) {
   fs.mkdirSync(into, { recursive: true });
   for (const screen of journey.screens) {
+    // A desktop pair has to be captured with a mouse: `phoneContext` forces
+    // `hasTouch`, and a width-and-pointer rule would then show the phone
+    // arrangement at 1280 — evidence of a screen nobody sees.
     const { page, context } = await harness.newPage(browser, {
-      device: phoneContext({ width: screen.width, height: screen.height }),
+      device: screen.desktop
+        ? { viewport: { width: screen.width, height: screen.height } }
+        : phoneContext({ width: screen.width, height: screen.height }),
     });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait

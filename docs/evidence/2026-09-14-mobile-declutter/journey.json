@@ -1,0 +1,84 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "shot": "390-vault" },
+        { "press": "^Filter" },
+        { "shot": "390-filter" },
+        { "escape": null },
+        { "press": "^More —" },
+        { "shot": "390-more" }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "steps": [{ "guest": null }, { "shot": "320-vault" }]
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "steps": [{ "guest": null }, { "shot": "landscape-vault" }]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [{ "guest": null }, { "shot": "1280-vault" }]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-vault",
+      "width": 390,
+      "title": "The vault on a phone — 390 × 844",
+      "caption": "Two bands of chrome go. The filter chips were a 49px strip on screen always, for a control touched rarely, and its active chip was solid ink on canvas — the highest-contrast element on the screen, louder than the items it was filtering. The footer's seven keys were five connector glyphs that say nothing until something breaks, plus support and the bell. Content now starts 49px higher and the footer is three quiet keys.",
+      "before": "chips 49px band · footer 7 keys",
+      "after": "no band · footer 3 keys"
+    },
+    {
+      "shot": "320-vault",
+      "width": 320,
+      "title": "The smallest phone — 320 × 568",
+      "caption": "The same two bands, on a screen where they cost proportionally twice as much. Seven 44px keys are 308px of a 320px screen: the footer was edge-to-edge chrome. Three keys are 132px.",
+      "before": "chrome 43% of the screen",
+      "after": "chrome 37%"
+    },
+    {
+      "shot": "390-filter",
+      "width": 390,
+      "title": "Where the filters went — 390 × 844",
+      "caption": "Every road the chip row carried is still here, and each now says how many items it would show. The key that opens it draws a dot only while the list in front of you is narrower than the vault, so the resting state is silent. The list's own status row still ends in the filter's name, so nothing had to be remembered.",
+      "before": "a scrolling strip of chips",
+      "after": "one key, named roads, counts"
+    },
+    {
+      "shot": "390-more",
+      "width": 390,
+      "title": "Where plane truth went — 390 × 844",
+      "caption": "Five mute glyphs become five named rows with their state and the action each needs. The overflow key carries the aggregate pip, so attention is still glanceable without opening anything. The rows are the same tiles Settings already draws for this list, and the sheet gives the keymap its first affordance on a phone.",
+      "before": "five glyphs, one pip between them",
+      "after": "five rows, each named and actionable"
+    },
+    {
+      "shot": "landscape-vault",
+      "width": 844,
+      "title": "Rotated — 844 × 390",
+      "caption": "A phone on its side has 390px of height, so a band of chrome costs proportionally most here. The statusline and tab bar still share one row; the row is now three keys rather than seven, and the chip band above the list is gone.",
+      "before": "chips above the list, 7 keys below",
+      "after": "neither"
+    },
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "Desktop is untouched — 1280 × 800",
+      "caption": "Captured with a mouse, not an emulated phone. With room the five connector glyphs are still the strip — a glance costs nothing and the pips are the point of it — and the filters are still rail rows. Nothing in this change reaches a screen that has space for the old arrangement.",
+      "before": "7 keys, filters in the rail",
+      "after": "identical"
+    }
+  ]
+}
