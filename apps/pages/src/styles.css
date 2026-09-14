@@ -1572,15 +1572,16 @@ body {
 /* ——— Responsive frame ————————————————————————————————————— */
 
 @media (max-width: 900px) {
-  /* One column, and the tab bar is a row of the frame rather than a bar
-     floating over it — a fixed bar covered the list's last rows and its
-     status line, and nothing could scroll out from under it. */
+  /* One column and one bottom bar. The tab bar is a row of the frame rather
+     than a bar floating over it — a fixed bar covered the list's last rows and
+     its status line, and nothing could scroll out from under it. The
+     statusline is not drawn here at all: its contents are the nav's last item
+     (`MoreTab`), which is a row the frame was already paying for. */
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     grid-template-areas:
       "main"
-      "status"
       "tabs";
     height: 100dvh;
   }
@@ -1699,13 +1700,95 @@ body {
   }
 }
 
+/* ——— The overflow key, and what is behind it ————————————————
+   A phone draws no statusline, so everything that strip held sits behind one
+   key in the bar it already has at the top — where an overflow belongs, and
+   where the prompt's `flex: 1` leaves room at every width. Not a sixth tab:
+   the tab bar divides its width between five labels and a sixth column clipped
+   "Connections" at 320, 390 and 430 alike. */
+.topbar__more {
+  position: relative;
+  flex: none;
+  margin-right: -0.35rem;
+}
+
+/* The strip's pips, summed. A dot here and a pip on a glyph say the same thing
+   for the same reason: something behind this wants a person. */
+.topbar__more.is-attn::after {
+  content: "";
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+.more__rows {
+  display: grid;
+  gap: 1px;
+  margin-bottom: 0.35rem;
+}
+
+.more__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.7rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.more__row:hover {
+  background: var(--surface-2);
+}
+
+.more__row svg {
+  flex: none;
+  color: var(--ink-2);
+}
+
+.more__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.more__n {
+  flex: none;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.more__n.is-attn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.more__head {
+  margin: 0.75rem 0 0.4rem;
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 /* ——— A phone on its side ——————————————————————————————————
    Rotated, the frame has 390px of height to spend and the chrome was taking
-   167 of it: a top bar over the content and two full-width bars under it.
-   None of the three may go — plane truth and the sections are why the chrome
-   exists — so the bars give back the padding they only needed when there was
-   room, and where the width allows, the two bottom bars stop stacking and
-   share one row. Landscape has width to spare and no height at all. */
+   167 of it: a top bar over the content and two full-width bars under it. The
+   two bars are one now — the statusline is not drawn on a phone — so the
+   special case that made them share a row is gone with them, and what is left
+   is the padding the bars only needed when there was room. */
 @media (max-height: 500px) and (pointer: coarse) {
   .topbar {
     padding-block: 0.2rem;
@@ -1722,30 +1805,6 @@ body {
 
   .section {
     padding-block: 0.75rem 1.25rem;
-  }
-}
-
-@media (max-height: 500px) and (min-width: 640px) and (pointer: coarse) {
-  .app {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "main main"
-      "status tabs";
-  }
-
-  /* Sized to its keys, not stretched across the row: the tab bar takes the
-     rest. The strip keeps its own gutter against the screen edge. */
-  .statusline {
-    border-right: 1px solid var(--line);
-    padding-bottom: calc(2px + env(safe-area-inset-bottom));
-    padding-left: env(safe-area-inset-left);
-  }
-
-  .tabbar {
-    border-top: 1px solid var(--line);
-    padding-right: env(safe-area-inset-right);
-    padding-left: 0;
   }
 }
 

@@ -151,6 +151,13 @@ try {
     await page.keyboard.press("g");
     await page.keyboard.press("v");
     await expect(page).toHaveURL(/\/vault$/);
+    // The shell's status chrome, wherever this width draws it: with room the
+    // statusline's bell, and on a phone the top bar's overflow — there is no
+    // statusline there, so the bell is inside the sheet that key opens.
+    const chromeKey =
+      width === 1280
+        ? page.getByRole("button", { name: /^Notifications/ })
+        : page.getByRole("button", { name: /^More —/ });
     if (width === 1280) {
       const items = page.locator(".vtree__rows");
       const rail = page.locator(".railtree");
@@ -183,14 +190,13 @@ try {
       await expect(page.locator("main")).toBeVisible();
       if (width === 390 && section === "identity")
         await localDirectoryContract(page, tabTo);
-      await tabTo(page, page.getByRole("button", { name: /^Notifications/ }));
+      await tabTo(page, chromeKey);
       console.log(
-        `PASS ${width}px: keyboard reaches ${section} and its status bar`,
+        `PASS ${width}px: keyboard reaches ${section} and its status chrome`,
       );
     }
     if (width === 1280) await navigationTreeContract(page, tabTo);
-    const notices = page.getByRole("button", { name: /^Notifications/ });
-    await expect(notices).toBeFocused();
+    await expect(chromeKey).toBeFocused();
     await page.keyboard.press("?");
     const dialog = page.getByRole("dialog", { name: "Keyboard shortcuts" });
     const close = dialog.getByRole("button", { name: "Close", exact: true });
@@ -201,7 +207,7 @@ try {
     }
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
-    await expect(notices).toBeFocused();
+    await expect(chromeKey).toBeFocused();
     const lock = page
       .getByRole("button", { name: "Lock vault", exact: true })
       .filter({ visible: true });

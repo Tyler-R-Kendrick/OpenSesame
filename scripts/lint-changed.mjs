@@ -30,7 +30,11 @@ const untracked = execFileSync(
 );
 const files = [
   ...new Set(`${listed}\0${staged}\0${untracked}`.split("\0").filter(Boolean)),
-];
+  // `--diff-filter=d` only drops what each query itself saw deleted. A file
+  // added since `origin/main` and then removed in the working tree is in the
+  // first list and on no disk, and Biome fails the whole run with an internal
+  // I/O error for it — which is what the rename of a new file looks like.
+].filter((file) => existsSync(file));
 if (files.length === 0) {
   console.log("lint: nothing changed since", since);
   process.exit(0);

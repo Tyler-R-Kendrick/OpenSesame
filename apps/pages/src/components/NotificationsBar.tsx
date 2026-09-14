@@ -35,17 +35,45 @@ export const notificationsBarDependencies = {
   useVault,
 };
 
-function NotificationsBarDefault() {
+/**
+ * `key` is the icon button the desktop statusline draws. `panel` is the same
+ * sheet with no trigger of its own, for the phone's More menu: there is no
+ * strip for a bell to sit on, and the sheet cannot be a child of the menu that
+ * opened it — closing the menu would unmount it, and leaving the menu open
+ * stacks two scrims and squeezes this one into a sliver at the bottom.
+ */
+export type NotificationsForm = "key" | "panel";
+
+/**
+ * What the bell is counting: notices, queued writes, and the health report as
+ * one. Shared so the phone's More row and the desktop key can never disagree.
+ */
+export function useNoticeCount(): number {
+  const notices = useSyncExternalStore(subscribeNotices, listNotices);
+  const { items } = notificationsBarDependencies.useVault();
+  const health = useMemo(() => buildHealthReport(items), [items]);
+  return (
+    notices.length + loadQueue().length + (health.findings.length > 0 ? 1 : 0)
+  );
+}
+
+function NotificationsBarDefault({
+  form = "key",
+  onClose,
+}: { form?: NotificationsForm; onClose?: () => void }) {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
   const { items } = notificationsBarDependencies.useVault();
   const health = useMemo(() => buildHealthReport(items), [items]);
   const queued = loadQueue().length;
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(form === "panel");
   const healthPending = health.findings.length > 0;
   const count = notices.length + queued + (healthPending ? 1 : 0);
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    setOpen(false);
+    onClose?.();
+  }, [onClose]);
   const healthRef = useGuideTarget<HTMLAnchorElement>("notifications.health");
   useModalFocus(open, sheetRef, closeRef, close);
 
@@ -58,18 +86,20 @@ function NotificationsBarDefault() {
 
   return (
     <>
-      <button
-        type="button"
-        className={["cx__btn", count > 0 ? "cx__btn--attn" : "cx__btn--off"]
-          .filter(Boolean)
-          .join(" ")}
-        aria-label={label}
-        title={label}
-        onClick={() => setOpen(true)}
-      >
-        <IconBell />
-        <span className="cx__pip" aria-hidden="true" />
-      </button>
+      {form === "panel" ? null : (
+        <button
+          type="button"
+          className={["cx__btn", count > 0 ? "cx__btn--attn" : "cx__btn--off"]
+            .filter(Boolean)
+            .join(" ")}
+          aria-label={label}
+          title={label}
+          onClick={() => setOpen(true)}
+        >
+          <IconBell />
+          <span className="cx__pip" aria-hidden="true" />
+        </button>
+      )}
       {open ? (
         <div className="sheet-layer">
           <button
@@ -223,7 +253,10 @@ export const notificationsBarSeams = {
   NotificationsBar: NotificationsBarDefault,
 };
 
-export function NotificationsBar() {
+export function NotificationsBar({
+  form,
+  onClose,
+}: { form?: NotificationsForm; onClose?: () => void } = {}) {
   const Impl = notificationsBarSeams.NotificationsBar;
-  return <Impl />;
+  return <Impl form={form} onClose={onClose} />;
 }

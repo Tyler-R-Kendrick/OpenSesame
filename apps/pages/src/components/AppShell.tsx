@@ -29,6 +29,7 @@ import { Crumbs } from "./Crumbs.js";
 import { IconLock, IconMark } from "./Icons.js";
 import { IdentityTree } from "./IdentityTree.js";
 import { KeymapSheet } from "./KeymapSheet.js";
+import { MoreMenu } from "./MoreMenu.js";
 import { PageTreeLeafRow, useSectionExpand } from "./PageTreeBranch.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import { SECTIONS, SectionRow, railRowId } from "./RailRows.js";
@@ -276,6 +277,9 @@ function Shell({ children }: { children?: ReactNode }) {
         <header className="topbar">
           <IconMark size={16} />
           <SessionPrompt />
+          {/* The phone draws no statusline, so plane truth, notifications,
+              help and the keymap live behind this one key instead. */}
+          <MoreMenu />
         </header>
 
         <Crumbs />

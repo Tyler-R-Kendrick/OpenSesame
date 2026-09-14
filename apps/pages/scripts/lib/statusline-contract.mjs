@@ -3,10 +3,12 @@
  *
  * Two arrangements, because a phone is not a narrow desktop. With room the
  * five connector glyphs are the strip — seven keys with support and the bell.
- * On a phone they roll up into the overflow key, which carries the aggregate
- * pip: three keys. Both sets are always in the document, one hidden by a media
- * query, so everything here measures the *visible* controls — counting hidden
- * ones would let either arrangement pass for the other.
+ * A phone draws no strip at all: a second full-width bar under the tab bar is
+ * a row of the frame spent on things looked at rarely, so all of it sits
+ * behind the top bar's one overflow key instead. The strip stays in the
+ * document (it holds the seat the support mark portals into) but is not drawn,
+ * so everything here measures the *visible* controls — counting hidden ones
+ * would let either arrangement pass for the other.
  */
 export async function checkStatusline(page, check) {
   const original = page.viewportSize();
@@ -49,9 +51,12 @@ export async function checkStatusline(page, check) {
           supportCount: document.querySelectorAll(
             'button[aria-label="Support"]',
           ).length,
-          overflowKey: [
-            ...document.querySelectorAll(".statusline__more > button"),
-          ].filter((button) => button.getClientRects().length > 0).length,
+          overflowKey: [...document.querySelectorAll(".topbar__more")].filter(
+            (button) => button.getClientRects().length > 0,
+          ).length,
+          stripVisible: [
+            ...document.querySelectorAll("footer.statusline"),
+          ].filter((el) => el.getClientRects().length > 0).length,
           planesVisible: [
             ...document.querySelectorAll(".statusline__planes"),
           ].filter((el) => el.getClientRects().length > 0).length,
@@ -65,26 +70,37 @@ export async function checkStatusline(page, check) {
 }
 
 /**
- * The arrangement at one width. Seven keys with room, three on a phone, and
- * everything that must hold of either: equal boxes, centred glyphs, one axis,
+ * The arrangement at one width. On a phone: no strip drawn, and one overflow
+ * key in the top bar holding what it held. With room: seven keys, and
+ * everything that must hold of them — equal boxes, centred glyphs, one axis,
  * one left-aligned strip, one styling, one Support, no widened document.
  */
 function checkArrangement(geometry, width, check) {
-  const phone = width < 900;
-  const size = phone ? 44 : 28;
-  // Seven with room (support, five connector glyphs, the bell); three on a
-  // phone (support, the bell, the overflow the glyphs rolled up into).
-  const expected = phone ? 3 : 7;
+  if (width < 900) {
+    // No strip at all, and one key in the top bar carrying what it held.
+    check(
+      geometry.buttons.length === 0 && geometry.stripVisible === 0,
+      `no statusline is drawn at ${width}px; its contents are behind one key`,
+    );
+    check(
+      geometry.overflowKey === 1,
+      "the top bar carries the overflow the strip rolled up into",
+    );
+    check(
+      geometry.supportCount === 1 && geometry.footerCount === 1,
+      "one Support control in one statusline on cold load",
+    );
+    check(!geometry.overflow, "footer does not widen the document");
+    return;
+  }
+  const size = 28;
   check(
-    geometry.buttons.length === expected,
-    `footer has ${expected} visible controls at ${width}px; lock belongs with the profile`,
+    geometry.buttons.length === 7,
+    `footer has 7 visible controls at ${width}px; lock belongs with the profile`,
   );
   check(
-    geometry.overflowKey === (phone ? 1 : 0) &&
-      geometry.planesVisible === (phone ? 0 : 1),
-    phone
-      ? "the connector glyphs roll up into one overflow key on a phone"
-      : "the connector glyphs are the strip where there is room for them",
+    geometry.overflowKey === 0 && geometry.planesVisible === 1,
+    "the connector glyphs are the strip where there is room for them",
   );
   check(
     geometry.buttons.every(
