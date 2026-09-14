@@ -42,4 +42,5 @@ committed, and only enough of them to show one thing each.
 
 | Directory | Change |
 |---|---|
+| `2026-09-14-mobile-declutter/` | The phone declutter — the five connector glyphs rolled into one overflow key, the vault's filter chips moved behind one key (PR #396) |
 | `2026-09-13-mobile-touch/` | The phone layout and touch contract — the 44px floor on width as well as pointer, the 16px field floor, the one-row statusline, the landscape arrangement (PR #396) |
