@@ -158,6 +158,23 @@ try {
       width === 1280
         ? page.getByRole("button", { name: /^Notifications/ })
         : page.getByRole("button", { name: /^More —/ });
+    if (width !== 1280) {
+      // Sections are behind one key on a phone, so that key is navigation and
+      // has to answer the keyboard: Tab reaches it, Enter opens the drawer,
+      // focus lands inside, Escape closes it and hands the key back.
+      const sections = page.getByRole("button", { name: "Sections" });
+      await tabTo(page, sections);
+      await page.keyboard.press("Enter");
+      const drawer = page.getByRole("dialog", { name: "Sections" });
+      await expect(drawer).toBeVisible();
+      await expect(page.locator(":focus")).toHaveCount(1);
+      await expect(drawer.locator(":focus")).toHaveCount(1);
+      await tabTo(page, drawer.getByRole("link", { name: "Connections" }));
+      await page.keyboard.press("Escape");
+      await expect(drawer).toHaveCount(0);
+      await expect(sections).toBeFocused();
+      console.log(`PASS ${width}px: the sections drawer answers the keyboard`);
+    }
     if (width === 1280) {
       const items = page.locator(".vtree__rows");
       const rail = page.locator(".railtree");

@@ -21,8 +21,10 @@ export function useModalFocus(
       if (event.defaultPrevented || event.isComposing) return;
       if (event.key === "Escape") {
         // Support sits above ceremony sheets. Both listen on window; without
-        // this, Escape would close every open sheet at once.
-        const sheets = document.querySelectorAll(".sheet");
+        // this, Escape would close every open sheet at once. The nav drawer is
+        // a modal surface of the same kind — it is in this list or Escape
+        // finds no topmost surface at all and closes nothing.
+        const sheets = document.querySelectorAll(".sheet, .drawer");
         const top = sheets.item(sheets.length - 1);
         if (container.current !== top) return;
         handlePaneEscape(event);

@@ -46,8 +46,8 @@ function checkSafeAreas() {
     .join("\n");
   for (const [what, pattern] of [
     [
-      "the tab bar clears the home indicator",
-      /\.tabbar\{[^}]*safe-area-inset-bottom/,
+      "the drawer clears the home indicator",
+      /\.drawer\{[^}]*safe-area-inset-bottom/,
     ],
     ["the top bar clears the notch", /\.topbar\{[^}]*safe-area-inset-top/],
     ["side gutters clear a landscape notch", /safe-area-inset-left/],
@@ -71,17 +71,24 @@ async function audit(page, label) {
   );
   await harness.snap(page, label, { fullPage: false });
   const chrome = result.chrome.statusline
-    ? ` footer=${result.chrome.statusline.h}px tabs=${result.chrome.tabbar?.h ?? "-"}px`
+    ? ` footer=${result.chrome.statusline.h}px`
     : "";
   console.log(`${count === 0 ? "PASS" : `FAIL(${count})`} ${label}${chrome}`);
   return result;
 }
 
-/** Reach a section through the tab bar, the way a thumb does. */
+/** Reach a section the way a thumb does: the sections key, then its row. */
 async function openTab(page, label) {
-  const link = page.locator(".tabbar__link", { hasText: label }).first();
-  if ((await link.count()) === 0) return false;
-  await link.tap();
+  const key = page.getByRole("button", { name: "Sections" }).first();
+  if ((await key.count()) === 0) return false;
+  await key.tap();
+  await page.waitForTimeout(450);
+  const row = page.locator(".drawer__row", { hasText: label }).first();
+  if ((await row.count()) === 0) {
+    await page.keyboard.press("Escape");
+    return false;
+  }
+  await row.tap();
   await page.waitForTimeout(500);
   return true;
 }

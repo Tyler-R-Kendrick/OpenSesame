@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 494,
-    "violations": 816,
-    "oversizedLines": 278799
+    "files": 493,
+    "violations": 815,
+    "oversizedLines": 278344
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -575,7 +575,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/Icons.tsx": {
-      "max-lines": 565
+      "max-lines": 563
     },
     "apps/pages/src/components/IdentityCeremony.tsx": {
       "complexity": 1,
@@ -870,7 +870,7 @@
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2498,
+      "max-lines": 2497,
       "max-lines-per-function": 12
     },
     "apps/pages/src/sections/SettingsSection.test.tsx": {
@@ -1033,7 +1033,7 @@
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
       "complexity": 1,
-      "max-lines": 595,
+      "max-lines": 594,
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/__tests__/a11y/harness.tsx": {
@@ -1054,9 +1054,6 @@
     },
     "apps/pages/src/tutorial/agents/prompt-api/prompt-api-agent.test.ts": {
       "max-lines": 442
-    },
-    "apps/pages/src/tutorial/registry/catalog.ts": {
-      "max-lines": 451
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
       "max-lines": 936

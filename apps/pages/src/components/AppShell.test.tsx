@@ -105,17 +105,17 @@ describe("AppShell", () => {
   it("renders brand, section navigation, and children", () => {
     renderShell("/vault");
     expect(screen.getAllByText("open-sesame").length).toBeGreaterThan(0);
-    for (const segment of ["connections", "access", "identity", "settings"]) {
-      expect(screen.getAllByText(segment).length).toBe(1);
+    // The rail's lowercase segments are always drawn; the capitalised labels
+    // are the phone's, and a phone keeps its sections behind one key.
+    const labels = ["Vault", "Connections", "Access", "Identity", "Settings"];
+    for (const label of labels) {
+      expect(screen.getAllByText(label.toLowerCase()).length).toBe(1);
     }
-    for (const label of ["Connections", "Access", "Identity", "Settings"]) {
-      expect(screen.getAllByText(label).length).toBe(1);
-    }
-    expect(screen.queryByText("Authority")).toBeNull();
-    expect(screen.queryByText("Authentication")).toBeNull();
-    expect(screen.queryByText("Sites")).toBeNull();
-    expect(screen.getAllByText("vault").length).toBe(1);
-    expect(screen.getAllByText("Vault").length).toBe(1);
+    expect(labels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: "Sections" }));
+    expect(labels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(5);
+    const gone = ["Authority", "Authentication", "Sites"];
+    expect(gone.flatMap((g) => screen.queryAllByText(g))).toHaveLength(0);
     expect(screen.getByText("content")).toBeTruthy();
     expect(screen.getAllByTestId("project-switcher").length).toBe(2);
     expect(screen.getAllByTestId("account-switcher").length).toBe(2);

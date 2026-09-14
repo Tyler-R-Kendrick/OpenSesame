@@ -69,16 +69,6 @@ export function IconVault(props: IconProps) {
   );
 }
 
-export function IconAgent(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <rect x="3.5" y="7.5" width="17" height="12" rx="3" />
-      <path d="M12 4.5v3M8.75 12.5h.01M15.25 12.5h.01M9.5 16h5" />
-      <circle cx="12" cy="3.5" r="1" />
-    </Svg>
-  );
-}
-
 export function IconSite(props: IconProps) {
   return (
     <Svg {...props}>
@@ -326,6 +316,14 @@ export function IconDots(props: IconProps) {
       <circle cx="5.5" cy="12" r="0.6" fill="currentColor" />
       <circle cx="12" cy="12" r="0.6" fill="currentColor" />
       <circle cx="18.5" cy="12" r="0.6" fill="currentColor" />
+    </Svg>
+  );
+}
+
+export function IconMenu(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
     </Svg>
   );
 }

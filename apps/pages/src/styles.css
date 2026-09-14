@@ -804,10 +804,6 @@ input[type="radio"] {
   min-width: 0;
 }
 
-.tabbar {
-  grid-area: tabs;
-}
-
 .rail {
   grid-area: rail;
 }
@@ -1572,17 +1568,14 @@ body {
 /* ——— Responsive frame ————————————————————————————————————— */
 
 @media (max-width: 900px) {
-  /* One column and one bottom bar. The tab bar is a row of the frame rather
-     than a bar floating over it — a fixed bar covered the list's last rows and
-     its status line, and nothing could scroll out from under it. The
-     statusline is not drawn here at all: its contents are the nav's last item
-     (`MoreTab`), which is a row the frame was already paying for. */
+  /* One column and one row of chrome: the top bar. The statusline is not
+     drawn here (its contents are behind the bar's overflow key) and neither is
+     a tab bar (sections are behind the bar's menu key), so nothing is left to
+     stack under the content. */
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "main"
-      "tabs";
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "main";
     height: 100dvh;
   }
 
@@ -1626,76 +1619,98 @@ body {
     scroll-padding-inline: calc(1rem + env(safe-area-inset-left));
   }
 
-  /* Plane truth rolls into the overflow key on a phone, so the strip is three
-     keys wide. No side gutter even so: the keys run to the edge and their
-     glyphs, centred in 44px boxes, line up with the top bar's mark. */
+  /* The strip is not drawn on a phone at all, but it still holds the seat the
+     support mark portals into, so it keeps its gutters for the widths that do
+     draw it. */
   .statusline {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
+}
 
-  .tabbar {
-    display: grid;
-    /* Column per section, whatever the count, so adding one never overflows. */
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    /* The labels size against the bar's own width, not the viewport's: on a
-       phone on its side the bar shares its row with the statusline and has
-       far less than the screen to divide between five words. */
-    container-type: inline-size;
-    gap: 0.1rem;
-    /* The side gutters are as thin as the frame allows: what they take comes
-       straight out of the five labels that have to share the width. */
-    padding: 0.35rem 0.15rem calc(0.35rem + env(safe-area-inset-bottom));
-    padding-left: calc(0.15rem + env(safe-area-inset-left));
-    padding-right: calc(0.15rem + env(safe-area-inset-right));
-    background: var(--surface);
-    border-top: 1px solid var(--line);
-  }
+/* ——— Sections, behind the bar's leading key ——————————————————
+   A bottom bar of five labelled tabs was a full row of the frame, always
+   drawn, for a choice made rarely — this is a vault, and a person lives in the
+   vault. Behind one key that row comes back to the content, and the drawer has
+   room to name each section properly instead of fitting five words into the
+   width of a phone. Nothing floats: a fixed button over the content would
+   cover the thing it floated above. */
+.topbar__menu {
+  flex: none;
+  margin-left: -0.35rem;
+}
 
-  .tabbar__link {
-    display: grid;
-    justify-items: center;
-    align-content: center;
-    gap: 0.15rem;
-    min-width: 0;
-    min-height: 2.75rem;
-    /* No side padding: five labels have to divide the width of a phone, and
-       every pixel spent on a gutter is a pixel "Connections" loses. */
-    padding: 0.4rem 0;
-    border-radius: 2px;
-    color: var(--ink-2);
-    text-decoration: none;
-    /* The label rides the bar's width so the longest one fits whole. It used
-       to be fixed at 12px, which truncated three of the five tabs on a phone —
-       an ellipsis where a word would have fitted at a legible size. */
-    font-size: clamp(0.5625rem, 2.9cqi, 0.75rem);
-    font-weight: 600;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-  }
+.drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  width: min(78vw, 300px);
+  padding-left: env(safe-area-inset-left);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  box-shadow: 0 0 40px rgb(0 0 0 / 0.16);
+  animation: drawer-in 160ms var(--ease);
+}
 
-  .tabbar__link:active {
-    background: var(--surface-3);
-  }
-
-  /* Six sections on a narrow phone: the icon carries the target, so a long
-     label may clip rather than push its neighbours out of the bar. */
-  .tabbar__link span {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .tabbar__link.is-active {
-    color: var(--ink);
-    background: var(--surface-3);
+@keyframes drawer-in {
+  from {
+    transform: translateX(-100%);
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .drawer {
+    animation: none;
+  }
+}
+
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  padding-top: calc(0.75rem + env(safe-area-inset-top));
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer__rows {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 0.6rem 0.5rem;
+  overflow-y: auto;
+}
+
+.drawer__row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.drawer__row:active {
+  background: var(--surface-3);
+}
+
+.drawer__row.is-active {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+
 @media (min-width: 901px) {
-  .tabbar {
+  .topbar__menu {
     display: none;
   }
 }
@@ -1797,10 +1812,6 @@ body {
 
   .topbar .rail__prompt {
     padding-block: 0;
-  }
-
-  .tabbar {
-    padding-block: 0 env(safe-area-inset-bottom);
   }
 
   .section {

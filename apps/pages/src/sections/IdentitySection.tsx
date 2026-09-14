@@ -8,7 +8,6 @@ import {
 } from "react";
 import { Link } from "react-router";
 import {
-  IconAgent,
   IconAlert,
   IconCheck,
   IconCopy,

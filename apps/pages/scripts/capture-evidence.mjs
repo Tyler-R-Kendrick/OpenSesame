@@ -86,7 +86,15 @@ const STEPS = {
     await page.waitForTimeout(1400);
   },
   async tab(page, name) {
-    await press(page.locator(".tabbar__link", { hasText: name }).first());
+    // A phone keeps its sections behind one key; a desktop has the rail.
+    const key = page.getByRole("button", { name: "Sections" }).first();
+    if (await key.count()) {
+      await press(key);
+      await page.waitForTimeout(450);
+      await press(page.locator(".drawer__row", { hasText: name }).first());
+    } else {
+      await press(page.locator(".railtree__row", { hasText: name }).first());
+    }
     await page.waitForTimeout(900);
   },
   async press(page, name) {
