@@ -1,0 +1,73 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "shot": "390-vault" },
+        { "press": "^More —" },
+        { "shot": "390-more" }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "steps": [{ "guest": null }, { "shot": "320-vault" }]
+    },
+    {
+      "width": 844,
+      "height": 390,
+      "steps": [{ "guest": null }, { "shot": "landscape-vault" }]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [{ "guest": null }, { "shot": "1280-vault" }]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-vault",
+      "width": 390,
+      "title": "The vault on a phone — 390 × 844",
+      "caption": "Two more rows of the frame go, and neither carried anything the screen did not already say. The statusline was a full-width bar under the tab bar for things looked at rarely; it is now one key in the bar the phone already has at the top. The breadcrumb read \"Vault\" under a tab bar marking Vault — a breadcrumb with one item is a label, and it is the one label the nav already carries.",
+      "before": "statusline 49px + crumb 24px",
+      "after": "neither · content starts 73px higher"
+    },
+    {
+      "shot": "320-vault",
+      "width": 320,
+      "title": "The smallest phone — 320 × 568",
+      "caption": "On a 568px screen those two rows were an eighth of everything. Chrome is the top bar and the tab bar, and nothing else.",
+      "before": "chrome 174px of 568",
+      "after": "132px"
+    },
+    {
+      "shot": "390-more",
+      "width": 390,
+      "title": "Where the status bar went — 390 × 844",
+      "caption": "Notifications, help, the keymap and the five connectors, behind the top bar's one overflow key — where an overflow belongs. It carries a dot whenever something inside wants attention, so nothing that was glanceable stopped being glanceable. Not a sixth tab: that was tried first and clipped \"Connections\" to \"Connecti…\" at every phone width, because the label clamp sizes type against the bar, which does not shrink when a column is added.",
+      "before": "a bar of three keys",
+      "after": "one key, named rows behind it"
+    },
+    {
+      "shot": "landscape-vault",
+      "width": 844,
+      "title": "Rotated — 844 × 390",
+      "caption": "Landscape has 390px of height and had a special case to make two bottom bars share a row. There is one bar now, so the special case went with the second one.",
+      "before": "two bars sharing a row, plus a crumb",
+      "after": "one bar"
+    },
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "Desktop keeps its strip — 1280 × 800",
+      "caption": "Captured with a mouse, not an emulated phone. The statusline is still seven keys and the five connector glyphs are still the strip: a glance costs nothing where there is room for it. The only change here is the one-item breadcrumb, which the rail already marked.",
+      "before": "7 keys, \"Vault\" crumb",
+      "after": "7 keys, no redundant crumb"
+    }
+  ]
+}
