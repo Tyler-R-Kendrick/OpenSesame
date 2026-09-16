@@ -118,22 +118,3 @@ type cohort_activation
     define subject: [user, service, workload, agent]
     define activator: [user, team#member] or admin from cohort
     define active: subject and member from cohort
-
-# A named place authority lives inside a realm (ADR 0120 / access-domain-forest).
-# Realms are the org/project pair already on the wire; every domain is bound to
-# its project (and optionally its organization). Nesting is `parent`, and roles
-# inherit downward the way vault_item inherits from its collection — a direct
-# grant here is somebody granted this one domain, while `from parent` / `from
-# project` keep anyone who already held the ancestor still holding the child.
-# There is no shape in which a child tuple grants more than its parent does.
-#
-# Isolation and personal-project non-sharing are enforced above the model in
-# the domain control index, not by subtracting relations here (INV-GA-03).
-type access_domain
-  relations
-    define organization: [organization]
-    define project: [project]
-    define parent: [access_domain]
-    define owner: [user, team#member] or owner from parent or owner from project
-    define admin: [user, team#member] or owner or admin from parent or admin from project
-    define member: [user, team#member, workload, agent] or admin or member from parent or developer from project
