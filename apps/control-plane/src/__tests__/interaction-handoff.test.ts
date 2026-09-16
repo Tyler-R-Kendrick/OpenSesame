@@ -1,4 +1,11 @@
 import {
+  type KeyObject,
+  createHash,
+  generateKeyPairSync,
+  randomBytes,
+  sign,
+} from "node:crypto";
+import {
   type JsonObject,
   interactionRef,
   overlapCast,
@@ -105,11 +112,116 @@ const asJson = (token?: string) => ({
   ...(token ? { authorization: `Bearer ${token}` } : undefined),
 });
 
-function approvalBody(digest: string, digestOverride?: string) {
-  // The echo, and nothing else. An earlier shape sent a whole ApprovalProof
-  // here — mechanism, assurance, credential handle — and the server stored it
-  // verbatim, which made this helper an exploit rather than a fixture.
+/** Digest-only body — must NOT be enough to approve (F01 / T-01). */
+function digestOnlyBody(digest: string, digestOverride?: string) {
   return JSON.stringify({ requestDigest: digestOverride ?? digest });
+}
+
+function approvalBody(
+  digest: string,
+  activationId: string,
+  digestOverride?: string,
+) {
+  return JSON.stringify({
+    requestDigest: digestOverride ?? digest,
+    activationId,
+  });
+}
+
+/**
+ * A real EC P-256 credential per enrolment, with the private key kept beside it.
+ *
+ * Interaction approval verifies through `hostAuthorizationPasskeys`, which is
+ * the genuine `@simplewebauthn` verifier even under dev defaults (ADR 0084
+ * phishing resistance / A-05) — a fabricated assertion no longer passes. So the
+ * test registers a COSE public key and signs the authenticator data itself, the
+ * same shape `host-authorization.test.ts` uses to prove real verification.
+ */
+const credentialKeys = new Map<string, KeyObject>();
+
+async function enrolPasskey(cp: Plane, principalId: string): Promise<string> {
+  const key = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const jwk = key.publicKey.export({ format: "jwk" });
+  if (!jwk.x || !jwk.y) throw new Error("public coordinates missing");
+  const publicKey = Buffer.concat([
+    Buffer.from("a5010203262001215820", "hex"),
+    Buffer.from(jwk.x, "base64url"),
+    Buffer.from("225820", "hex"),
+    Buffer.from(jwk.y, "base64url"),
+  ]);
+  const credentialId = randomBytes(16).toString("base64url");
+  await cp.ctx.passkeys.register(principalId, {
+    credentialId,
+    publicKey,
+    counter: 0,
+  });
+  credentialKeys.set(credentialId, key.privateKey);
+  return credentialId;
+}
+
+function assertionFor(challenge: string, credentialId: string): JsonObject {
+  const privateKey = credentialKeys.get(credentialId);
+  if (!privateKey) throw new Error(`no signing key for ${credentialId}`);
+  const clientData = Buffer.from(
+    JSON.stringify({
+      type: "webauthn.get",
+      challenge,
+      origin: "http://127.0.0.1:8788",
+    }),
+  );
+  // rpIdHash(127.0.0.1) || flags(UP+UV) || counter=1 (> the registered 0).
+  const authData = Buffer.concat([
+    createHash("sha256").update("127.0.0.1").digest(),
+    Buffer.from([0x05]),
+    Buffer.from([0, 0, 0, 1]),
+  ]);
+  const signature = sign(
+    "sha256",
+    Buffer.concat([authData, createHash("sha256").update(clientData).digest()]),
+    privateKey,
+  );
+  return {
+    credentialId,
+    clientDataJSON: clientData.toString("base64url"),
+    authenticatorData: authData.toString("base64url"),
+    signature: signature.toString("base64url"),
+  };
+}
+
+/** Mint + complete an interaction-scoped activation; returns activationId. */
+async function activateInteraction(
+  cp: Plane,
+  token: string,
+  ref: string,
+  requestDigest: string,
+  credentialId: string,
+): Promise<string> {
+  const begun = await cp.app.request(`/v1/interactions/${ref}/activation`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ decision: "approved", requestDigest }),
+  });
+  expect(begun.status).toBe(201);
+  const body = overlapCast(await begun.json());
+  const completed = await cp.app.request(
+    `/v1/interactions/${ref}/activation/complete`,
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        activationId: body.activationId,
+        ...assertionFor(String(body.options.challenge), credentialId),
+      }),
+    },
+  );
+  expect(completed.status).toBe(200);
+  return String(body.activationId);
 }
 
 const post = (cp: Plane, path: string, token: string, body?: string) =>
@@ -210,11 +322,19 @@ describe("interaction handoff", () => {
     // theirs to learn and never travels.
     expect(JSON.stringify(opened)).not.toContain("dev-session-77");
 
+    const credentialId = await enrolPasskey(cp, approver.principalId);
+    const activationId = await activateInteraction(
+      cp,
+      approver.accessToken,
+      String(body.ref),
+      String(body.requestDigest),
+      credentialId,
+    );
     const approved = await post(
       cp,
       `/v1/interactions/${body.ref}/approve`,
       approver.accessToken,
-      approvalBody(body.requestDigest),
+      approvalBody(String(body.requestDigest), activationId),
     );
     expect(approved.status).toBe(200);
     expect(overlapCast(await approved.json()).status).toBe("approved");
@@ -320,7 +440,7 @@ describe("interaction handoff", () => {
       cp,
       `/v1/interactions/${body.ref}/approve`,
       approver.accessToken,
-      approvalBody(body.requestDigest),
+      digestOnlyBody(String(body.requestDigest)),
     );
     expect(approved.status).toBe(410);
     expect(await approved.json()).toEqual({ error: "interaction_expired" });
@@ -340,15 +460,22 @@ describe("interaction handoff", () => {
       cp,
       `/v1/interactions/${body.ref}/approve`,
       approver.accessToken,
-      approvalBody(body.requestDigest, `sha256:${"0".repeat(64)}`),
+      digestOnlyBody(String(body.requestDigest), `sha256:${"0".repeat(64)}`),
     );
     expect(wrong.status).toBe(409);
     expect(await wrong.json()).toEqual({ error: "digest_mismatch" });
 
-    // A caller may not declare how strongly they authenticated. Sending a
-    // proof is accepted (the field is simply not part of the schema, so it is
-    // stripped) but nothing it claims is believed: the recorded mechanism and
-    // assurance are the ones the server established.
+    // T-01 / T-02: digest-only approve and a client-fabricated ApprovalProof
+    // both fail. Session enrollment metadata cannot manufacture evidence.
+    const bare = await post(
+      cp,
+      `/v1/interactions/${body.ref}/approve`,
+      approver.accessToken,
+      digestOnlyBody(String(body.requestDigest)),
+    );
+    expect(bare.status).toBe(401);
+    expect(await bare.json()).toEqual({ error: "proof_required" });
+
     const declared = await post(
       cp,
       `/v1/interactions/${body.ref}/approve`,
@@ -360,18 +487,12 @@ describe("interaction handoff", () => {
           boundDigest: body.requestDigest,
           credentialRef: "cred_attacker",
           assurance: "phishing_resistant",
+          verifiedAt: new Date().toISOString(),
         },
       }),
     );
-    expect(declared.status).toBe(200);
-
-    const events = await cp.ctx.repos.auditEvents.list({ limit: 200 });
-    const approved = events.find(
-      (event) => event.eventType === "interaction.approved",
-    );
-    expect(approved?.metadata?.mechanism).toBe("session_reauth");
-    expect(approved?.metadata?.assurance).not.toBe("phishing_resistant");
-    expect(JSON.stringify(events)).not.toContain("cred_attacker");
+    expect(declared.status).toBe(401);
+    expect(await declared.json()).toEqual({ error: "proof_required" });
   });
 
   it("adversarial: only the approver may read or decide", async () => {
@@ -395,7 +516,7 @@ describe("interaction handoff", () => {
         cp,
         `/v1/interactions/${body.ref}/approve`,
         token,
-        approvalBody(body.requestDigest),
+        digestOnlyBody(String(body.requestDigest)),
       );
       expect(decided.status).toBe(404);
       expect(await decided.json()).toEqual({ error: "interaction_not_found" });
@@ -439,13 +560,21 @@ describe("interaction handoff", () => {
       requester.accessToken,
       await inboxRefOf(cp, approver),
     );
+    const credentialId = await enrolPasskey(cp, approver.principalId);
+    const activationId = await activateInteraction(
+      cp,
+      approver.accessToken,
+      String(body.ref),
+      String(body.requestDigest),
+      credentialId,
+    );
     expect(
       (
         await post(
           cp,
           `/v1/interactions/${body.ref}/approve`,
           approver.accessToken,
-          approvalBody(body.requestDigest),
+          approvalBody(String(body.requestDigest), activationId),
         )
       ).status,
     ).toBe(200);
@@ -473,13 +602,21 @@ describe("interaction handoff", () => {
       await inboxRefOf(cp, approver),
     );
 
+    const credentialId = await enrolPasskey(cp, approver.principalId);
+    const activationId = await activateInteraction(
+      cp,
+      approver.accessToken,
+      String(body.ref),
+      String(body.requestDigest),
+      credentialId,
+    );
     expect(
       (
         await post(
           cp,
           `/v1/interactions/${body.ref}/approve`,
           approver.accessToken,
-          approvalBody(body.requestDigest),
+          approvalBody(String(body.requestDigest), activationId),
         )
       ).status,
     ).toBe(200);
@@ -487,7 +624,7 @@ describe("interaction handoff", () => {
       cp,
       `/v1/interactions/${body.ref}/approve`,
       approver.accessToken,
-      approvalBody(body.requestDigest),
+      digestOnlyBody(String(body.requestDigest)),
     );
     expect(again.status).toBe(409);
     expect(await again.json()).toEqual({ error: "interaction_settled" });
@@ -554,7 +691,7 @@ describe("interaction handoff", () => {
       cp,
       `/v1/interactions/${body.ref}/approve`,
       approver.accessToken,
-      approvalBody(body.requestDigest),
+      digestOnlyBody(String(body.requestDigest)),
     );
     expect(decided.status).toBe(409);
     expect(await decided.json()).toEqual({ error: "interaction_revoked" });
@@ -686,11 +823,19 @@ describe("interaction handoff", () => {
     await cp.app.request(`/v1/interactions/${body.ref}`, {
       headers: asJson(approver.accessToken),
     });
+    const credentialId = await enrolPasskey(cp, approver.principalId);
+    const activationId = await activateInteraction(
+      cp,
+      approver.accessToken,
+      String(body.ref),
+      String(body.requestDigest),
+      credentialId,
+    );
     await post(
       cp,
       `/v1/interactions/${body.ref}/approve`,
       approver.accessToken,
-      approvalBody(body.requestDigest),
+      approvalBody(String(body.requestDigest), activationId),
     );
     await post(
       cp,
@@ -727,7 +872,7 @@ describe("interaction handoff", () => {
       requestDigest: body.requestDigest,
       // Server-derived, both of them. The route verifies a session and says
       // so; it does not repeat a caller's claim about a key it never saw.
-      mechanism: "session_reauth",
+      mechanism: "webauthn",
     });
     expect(approvedEvent?.metadata?.credentialRef).toBeUndefined();
     // The id of the row the interaction fronts never travels. The audit read

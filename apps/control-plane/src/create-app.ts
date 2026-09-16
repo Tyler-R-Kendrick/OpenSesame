@@ -46,6 +46,7 @@ import type { AppContext, ControlPlaneRepositories } from "./context.js";
 import type { CreateControlPlaneOptions } from "./create-app-options.js";
 import { resolveControlPlaneConfig } from "./create-app-options.js";
 import { createPasskeys } from "./create-passkeys.js";
+import { resolveWalletNativeMounts } from "./create-wallet-native-mounts.js";
 import { IndexedClaimStore } from "./repos/claim-store.js";
 import { DurableClaimStore } from "./repos/durable-claim-store.js";
 import { DurablePrincipalMappingStore } from "./repos/durable-mapping-store.js";
@@ -342,7 +343,17 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     },
   };
 
-  const app = createHonoApp(ctx);
+  const app = createHonoApp(
+    ctx,
+    resolveWalletNativeMounts({
+      config,
+      processEnv,
+      clock,
+      ...(options.walletNative !== undefined
+        ? { override: options.walletNative }
+        : undefined),
+    }),
+  );
   return { app, ctx, config };
 }
 

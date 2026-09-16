@@ -15,6 +15,7 @@ import {
   mergeProviderIssuers,
   normalizeIssuer,
 } from "./interactions/registry.js";
+import { assertClientAppUrl } from "./interactions/rendezvous.js";
 import { readSupportProxyConfig } from "./services/support-proxy.js";
 
 export interface ControlPlaneConfig {
@@ -24,6 +25,19 @@ export interface ControlPlaneConfig {
   host: string;
   port: number;
   publicUrl: string;
+  /**
+   * The client app (PWA) base a `/i/<ref>` landing should launch into, if any
+   * (`OPENSESAME_CLIENT_APP_URL`).
+   *
+   * When set, the short-link landing becomes a *launcher*: it deep links into
+   * this base carrying only the reference (`<base>/i/<ref>`, base path
+   * preserved for a Pages-style `/OpenSesame/` deployment). When unset, the
+   * landing is an *address* — the reference surfaces in the reader's inbox once
+   * they sign in, and the link is not something to follow. Validated by
+   * `assertClientAppUrl`, so a bad value fails the boot rather than silently
+   * dropping the launcher (ADR 0086).
+   */
+  clientAppUrl?: string;
   issuer: string;
   claimPepper: string;
   provisionalCookieName: string;
@@ -385,6 +399,10 @@ export function loadConfig(
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;
   }
+  const clientAppUrl = (env.OPENSESAME_CLIENT_APP_URL ?? "").trim();
+  if (clientAppUrl) {
+    config.clientAppUrl = clientAppUrl;
+  }
   // All three must be present together: a client id without a secret is the
   // origin-profile case (handled by derivation), and a secret without an
   // issuer has nobody it may legitimately be sent to.
@@ -523,6 +541,14 @@ export function assertSecureConfig(
     throw new Error(
       "self-asserted notification channel bindings must be off in production",
     );
+  }
+  // A configured client-app launcher base must be certifiably safe: a bad
+  // value would otherwise reach every landing page's continuation link. https
+  // is required in production, loopback http excepted for local development.
+  if (config.clientAppUrl) {
+    assertClientAppUrl(config.clientAppUrl, {
+      requireHttps: config.isProduction,
+    });
   }
   assertListenHostAllowed(config.host, env);
 }

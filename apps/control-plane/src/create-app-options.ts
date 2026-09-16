@@ -12,6 +12,7 @@ import type { ChannelAdapter } from "@opensesame/notification-adapters";
 import type { AuthenticationServiceStores, Clock } from "@opensesame/os-domain";
 import type { ControlPlaneConfig } from "./config.js";
 import { assertSecureConfig, loadConfig } from "./config.js";
+import type { WalletNativeMounts } from "./routes/wallet-native.js";
 import type { NotificationCallbackAdapters } from "./services/notification-callbacks.js";
 
 export interface CreateControlPlaneOptions {
@@ -62,6 +63,16 @@ export interface CreateControlPlaneOptions {
   notificationCallbackAdapters?: NotificationCallbackAdapters;
   /** The SMS bridge adapter; tests hand in a recording one. */
   sms?: ChannelAdapter;
+  /**
+   * Composition seam for the wallet-native surfaces (ADR 0086 §5, ADR 0119):
+   * wallet-pass registration, the OpenID4VP verifier, the OpenID4VCI issuer and
+   * the cross-device rendezvous. Each key a swarm supplies is mounted as-is;
+   * every absent key falls back to a typed Unavailable stub, so the prefixes
+   * are wired either way and nothing under them silently 404s. This is a real
+   * production input, not a memory-store test seam, so it is deliberately
+   * outside `assertProductionStoreOptions`.
+   */
+  walletNative?: WalletNativeMounts;
 }
 export function resolveControlPlaneConfig(
   options: CreateControlPlaneOptions,

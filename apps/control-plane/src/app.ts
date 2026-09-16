@@ -46,9 +46,17 @@ import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
 import { createSamlRoutes } from "./routes/saml.js";
 import { createScimRoutes } from "./routes/scim.js";
+import { siopLinkRoutes } from "./routes/siop-link.js";
+import {
+  type WalletNativeMounts,
+  mountWalletNativeRoutes,
+} from "./routes/wallet-native.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 
-export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
+export function createHonoApp(
+  ctx: AppContext,
+  walletNative: WalletNativeMounts = {},
+): Hono<{ Variables: Variables }> {
   const app = new Hono<{ Variables: Variables }>();
   app.use("*", async (c, next) => {
     if (c.req.path !== "/v1/health/live") {
@@ -183,6 +191,16 @@ export function createHonoApp(ctx: AppContext): Hono<{ Variables: Variables }> {
   app.route("/", discoveryRoutes);
   app.route("/v1/support", supportRoutes);
   app.route("/v1/host-authorizations", hostAuthorizationRoutes);
+  // Explicit SIOP sub / JWK-thumbprint → principal link (ADR 0117).
+  app.route("/v1/siop", siopLinkRoutes);
+  // Wallet-native surfaces (ADR 0086 §5, ADR 0119): wallet-pass registration,
+  // the OpenID4VP verifier, the OpenID4VCI issuer and the cross-device
+  // rendezvous, plus the runtime support matrix at
+  // /v1/wallet-native/capabilities. Each surface is a typed Unavailable stub
+  // until its owning swarm supplies a real router through `walletNative`, so
+  // the prefixes are wired now, nothing under them silently 404s, and no
+  // surface can settle an interaction outside approve()'s digest binding.
+  mountWalletNativeRoutes(app, walletNative);
 
   app.onError((err, c) => {
     ctx.log.error({ err }, "request failed");

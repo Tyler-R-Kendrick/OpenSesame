@@ -39,6 +39,12 @@ export function installDurableSecurityMaps(
     86_400_000,
   );
   stores.mfaCodes = new DurableMap(db, "OpenSesame:MfaCode", false, 300_000);
+  stores.siopLinkChallenges = new DurableMap(
+    db,
+    "OpenSesame:SiopLinkChallenge",
+    false,
+    300_000,
+  );
   stores.hostAuthorizations = new DurableMap(
     db,
     "OpenSesame:HostAuthorization",
