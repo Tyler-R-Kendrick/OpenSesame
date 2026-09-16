@@ -644,10 +644,15 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-storage --test authority_adversarial_matrix",
           "result": "ok. 5 passed incl. at_state_restore_generation_fence + at_multiwriter_lease_fence"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-storage --test authority_projection",
+          "result": "ok (existing projection_applied freshness tests)",
+          "note": "invoke path fences via intents_projection::authorize_openfga"
         }
       ],
       "blockedBy": [],
-      "notes": "Storage restore/freshness/multiwriter fences proven. Remaining (not verified): cross-plane OpenFGA projection freshness; Identity/Host cache consistency not AT-named end-to-end; no dispatch-path restore proof."
+      "notes": "Storage restore/freshness/multiwriter fences proven. Dispatch: Host invoke authorize_openfga now requires projection_applied for generalized grants before trusting OpenFGA (intents_projection.rs). Remaining: Identity-plane cache consistency end-to-end when Identity projector is live."
     }
   ]
 }

@@ -26,6 +26,7 @@ mod health;
 mod host_authorizations;
 mod intents;
 mod intents_budget;
+mod intents_projection;
 mod kv_facade;
 mod lifecycle;
 mod local_authority_routes;
@@ -48,16 +49,15 @@ mod sync_page;
 mod sync_targets;
 mod taskbus_config;
 mod tasks;
+use crate::app_state::AppState;
+use crate::config;
+use crate::github_webhook;
 use axum::{
     extract::DefaultBodyLimit,
     routing::{delete, get, post, put},
     Router,
 };
 use tower_http::trace::TraceLayer;
-
-use crate::app_state::AppState;
-use crate::config;
-use crate::github_webhook;
 
 #[expect(
     clippy::too_many_lines,

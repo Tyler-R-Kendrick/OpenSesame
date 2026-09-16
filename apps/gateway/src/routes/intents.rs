@@ -14,7 +14,6 @@ use opensesame_domain::{
 };
 #[cfg(test)]
 use opensesame_domain::{EgressBinding, OrganizationRole};
-use opensesame_provider_openfga::TupleKey;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -116,36 +115,6 @@ fn constrained_http_input(parameters: &Value) -> Result<ConstrainedHttpInput, Re
         url: url.to_string(),
         body: object.get("body").cloned(),
     })
-}
-
-async fn authorize_openfga(st: &AppState, subject: &str) -> Result<(), Response> {
-    let Some(openfga) = &st.openfga else {
-        return Ok(());
-    };
-    match openfga
-        .check_tuple(&TupleKey {
-            user: subject.into(),
-            relation: "user".into(),
-            object: "connection:demo-conn".into(),
-        })
-        .await
-    {
-        Ok(true) => Ok(()),
-        Ok(false) => Err((
-            StatusCode::FORBIDDEN,
-            Json(json!({"error":"openfga_denied","type":"about:blank"})),
-        )
-            .into_response()),
-        Err(error) => {
-            // The transport error can embed the store URL and its bearer.
-            tracing::warn!(%error, "openfga check failed");
-            Err((
-                StatusCode::SERVICE_UNAVAILABLE,
-                Json(json!({"error": "openfga_unavailable", "type":"about:blank"})),
-            )
-                .into_response())
-        }
-    }
 }
 
 fn build_intent(
@@ -557,7 +526,14 @@ pub async fn create(
     };
 
     // Optional live OpenFGA check when configured — subject from session/operator, not a hard-coded demo user.
-    if let Err(response) = authorize_openfga(&st, &subject).await {
+    if let Err(response) = super::intents_projection::authorize_openfga(
+        &st,
+        &boot.org.to_string(),
+        &subject,
+        &resolved,
+    )
+    .await
+    {
         return response;
     }
     let intent = match build_intent(body, &parameters, &boot, &resolved) {
