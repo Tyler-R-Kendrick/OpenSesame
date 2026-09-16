@@ -1,4 +1,5 @@
 import {
+  assertsNoInteractionSettlementTool,
   assertsNoSecretNames,
   mcpClientCatalog,
 } from "@opensesame/capability-registry";
@@ -21,5 +22,13 @@ describe("registry parity — mcp-client", () => {
   it("the grown manifest still passes both secret-name fences", () => {
     expect(() => assertsNoMaterializeTool(toolsManifest)).not.toThrow();
     expect(() => assertsNoSecretNames(toolsManifest)).not.toThrow();
+  });
+
+  it("carries no tool that settles an interaction or mints a proof (ADR 0086)", () => {
+    // Finding S12 / T-34: the client CLI/SDK plane drives the RFC 8628 device
+    // flow but never approves an interaction or produces a human proof.
+    expect(() =>
+      assertsNoInteractionSettlementTool(toolsManifest),
+    ).not.toThrow();
   });
 });

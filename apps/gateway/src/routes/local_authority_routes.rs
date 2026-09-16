@@ -1,7 +1,7 @@
 //! Local-authority registrations; the parent router supplies the shared guards.
 use super::{
-    agent_capabilities, browser_pairings, device, host_authorizations, secret_config_policy,
-    session,
+    access_domains, agent_capabilities, browser_pairings, device, grant_offers,
+    host_authorizations, secret_config_policy, session,
 };
 use crate::app_state::AppState;
 use axum::{
@@ -12,6 +12,8 @@ use axum::{
 
 pub(super) fn router() -> Router<AppState> {
     Router::new()
+        .merge(access_domains::routes())
+        .merge(grant_offers::routes())
         .merge(browser_pairings::routes())
         .merge(host_authorizations::routes())
         .route(

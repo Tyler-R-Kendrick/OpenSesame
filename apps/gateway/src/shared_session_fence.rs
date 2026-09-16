@@ -27,25 +27,42 @@
 //! anybody else, or their own project membership, which is a different road
 //! checked elsewhere. Conflating the two is how "manages the sharing" quietly
 //! becomes "reads everything shared".
+//!
+//! **Presence is read from the seat, not from the grants.** ADR 0079 derived
+//! standing from whether somebody held a grant, which meant the only way to
+//! put a person in a room was to wrap a key for them. Since a coordination
+//! session is mostly people who need no key, standing is now a
+//! [`opensesame_domain::SessionMembership`] and [`Reach::Observer`] is the
+//! mode that holds nothing. A caller with no seat is [`Reach::None`] however
+//! many grants name them: admission precedes connection (ADR 0079 §7), and a
+//! grant row that arrived without a seat is a bug, not a back door.
 
 use chrono::{DateTime, Utc};
 use opensesame_domain::{
-    PrincipalId, SessionGrant, SessionGrantId, SessionRole, VaultId, VaultItemId,
+    PrincipalId, SessionGrant, SessionGrantId, SessionMode, SessionRole, VaultId, VaultItemId,
 };
 use opensesame_storage::{Db, StoredSession};
 
 /// What a caller may do in one session.
 ///
-/// Ordered from most to least: an operator runs the session, a participant is
-/// in it, and everybody else is outside it. `None` is the default rather than
-/// a failure case — a caller with no standing gets it, and so does a caller
-/// whose standing could not be read.
+/// Ordered from most to least: an operator runs the session, a participant may
+/// hold reach in it, an observer is in the room holding nothing, and everybody
+/// else is outside it. `None` is the default rather than a failure case — a
+/// caller with no standing gets it, and so does a caller whose standing could
+/// not be read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reach {
-    /// Runs the session: may invite, admit, refuse, grant and revoke.
+    /// Runs the session: may invite, admit, refuse, grant, revoke and close.
     Operator,
-    /// Holds at least one live grant on the session.
+    /// Seated as somebody who may hold grants. Whether they hold any, and what
+    /// those reach, is a separate question asked of the grants themselves.
     Participant,
+    /// Seated to coordinate, holding nothing.
+    ///
+    /// An observer sees the session and its roster and receives the events
+    /// that name no vault. They are never the subject of a grant, so there is
+    /// no arrangement of their standing that reaches an item.
+    Observer,
     /// No standing at all. A caller here is told the session does not exist
     /// rather than that they are not allowed into it, so the surface is not an
     /// oracle for which private sessions exist.
@@ -58,22 +75,36 @@ impl Reach {
     /// A read failure resolves to [`Reach::None`] and is logged. The
     /// alternative — treating "could not tell" as "probably fine" — is how a
     /// transient database error becomes an authorization bypass.
+    ///
+    /// **A closed session has nobody in it but its operator.** That is what
+    /// closing means, and enforcing it here rather than in each handler is
+    /// what makes it true of every road at once — including the referenced
+    /// grants closing deliberately leaves alive, which keep working on their
+    /// own road and stop working through this session.
     pub async fn of(
         db: &Db,
         session: &StoredSession,
         caller: PrincipalId,
         now: DateTime<Utc>,
     ) -> Self {
+        // The operator keeps their standing after the close so they can still
+        // read what happened. It is a management role and has never been a
+        // reach into the vault, so this hands over nothing.
         if session.operator_principal_id == caller {
             return Self::Operator;
         }
-        match db.active_grants_for(session.id, caller, now).await {
-            Ok(grants) if grants.iter().any(|grant| grant.assert_active(now).is_ok()) => {
-                Self::Participant
-            }
+        if session.closed_at.is_some() {
+            return Self::None;
+        }
+        let _ = now;
+        match db.session_membership(session.id, caller).await {
+            Ok(Some(seat)) if seat.is_active() => match seat.mode {
+                SessionMode::Participant => Self::Participant,
+                SessionMode::Observer => Self::Observer,
+            },
             Ok(_) => Self::None,
             Err(error) => {
-                tracing::warn!(%error, "could not read session grants; denying");
+                tracing::warn!(%error, "could not read session standing; denying");
                 Self::None
             }
         }
@@ -94,7 +125,32 @@ impl Reach {
     /// list to whoever asks for it.
     #[must_use]
     pub fn may_see_session(&self) -> bool {
+        matches!(self, Self::Operator | Self::Participant | Self::Observer)
+    }
+
+    /// Whether this caller's grants are worth asking about.
+    ///
+    /// Not "may read" — that stays [`SessionGrant::permits`]'s question, asked
+    /// of the grants themselves. This is the standing that makes the question
+    /// meaningful at all, and the reason it exists is [`Reach::Observer`]: an
+    /// observer holds no grants by construction, so consulting them would
+    /// always answer no, and a refusal *before* the lookup turns that from a
+    /// happy accident into a rule. If a grant ever names an observer — a
+    /// direct database write, a restore from an older shape — this is what
+    /// still denies it.
+    ///
+    /// The operator is included, and that does not widen anything: their
+    /// grants are consulted like anybody's, and an operator who granted
+    /// themselves nothing reaches nothing.
+    #[must_use]
+    pub fn may_hold_reach(&self) -> bool {
         matches!(self, Self::Operator | Self::Participant)
+    }
+
+    /// Whether this caller may manage who is in the session and close it.
+    #[must_use]
+    pub fn may_admit(&self) -> bool {
+        self.is_operator()
     }
 }
 
@@ -122,250 +178,5 @@ pub(crate) fn authorizing_grant(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::Duration;
-    use opensesame_domain::{GrantScope, NewSessionGrant, SessionId};
-    use std::collections::BTreeSet;
-
-    fn grant(
-        holder: PrincipalId,
-        scope: GrantScope,
-        role: SessionRole,
-        lifetime: Duration,
-        now: DateTime<Utc>,
-    ) -> SessionGrant {
-        SessionGrant::new(NewSessionGrant {
-            id: SessionGrantId::new(),
-            session_id: SessionId::new(),
-            subject_principal_id: holder,
-            granted_by_principal_id: PrincipalId::new(),
-            scope,
-            role,
-            granted_at: now,
-            expires_at: now + lifetime,
-        })
-        .expect("a valid grant")
-    }
-
-    fn rows(vault_id: VaultId, items: &[VaultItemId]) -> GrantScope {
-        GrantScope::Rows {
-            vault_id,
-            items: items.iter().copied().collect::<BTreeSet<_>>(),
-        }
-    }
-
-    #[test]
-    fn no_grants_is_a_denial() {
-        let now = Utc::now();
-        assert_eq!(
-            authorizing_grant(
-                &[],
-                PrincipalId::new(),
-                VaultId::new(),
-                VaultItemId::new(),
-                SessionRole::Read,
-                now,
-            ),
-            None
-        );
-    }
-
-    #[test]
-    fn a_collection_grant_reaches_any_row_in_that_vault_only() {
-        let now = Utc::now();
-        let holder = PrincipalId::new();
-        let vault_id = VaultId::new();
-        let held = grant(
-            holder,
-            GrantScope::Collection { vault_id },
-            SessionRole::Read,
-            Duration::hours(1),
-            now,
-        );
-        let grants = [held.clone()];
-
-        assert_eq!(
-            authorizing_grant(
-                &grants,
-                holder,
-                vault_id,
-                VaultItemId::new(),
-                SessionRole::Read,
-                now
-            ),
-            Some(held.id)
-        );
-        // A different vault is a different vault, whatever the item id says.
-        assert_eq!(
-            authorizing_grant(
-                &grants,
-                holder,
-                VaultId::new(),
-                VaultItemId::new(),
-                SessionRole::Read,
-                now
-            ),
-            None
-        );
-    }
-
-    #[test]
-    fn a_row_grant_reaches_its_rows_and_stops() {
-        let now = Utc::now();
-        let holder = PrincipalId::new();
-        let vault_id = VaultId::new();
-        let mine = VaultItemId::new();
-        let theirs = VaultItemId::new();
-        let held = grant(
-            holder,
-            rows(vault_id, &[mine]),
-            SessionRole::Read,
-            Duration::hours(1),
-            now,
-        );
-        let grants = [held.clone()];
-
-        assert_eq!(
-            authorizing_grant(&grants, holder, vault_id, mine, SessionRole::Read, now),
-            Some(held.id)
-        );
-        assert_eq!(
-            authorizing_grant(&grants, holder, vault_id, theirs, SessionRole::Read, now),
-            None,
-            "a row grant reached a row it was never given"
-        );
-    }
-
-    #[test]
-    fn somebody_elses_grant_never_authorizes_this_caller() {
-        let now = Utc::now();
-        let vault_id = VaultId::new();
-        let item_id = VaultItemId::new();
-        // The grant is live, in scope, and for the right role — and belongs to
-        // somebody else. This is the case a fence that only checked scope
-        // would get wrong.
-        let grants = [grant(
-            PrincipalId::new(),
-            GrantScope::Collection { vault_id },
-            SessionRole::Write,
-            Duration::hours(1),
-            now,
-        )];
-        assert_eq!(
-            authorizing_grant(
-                &grants,
-                PrincipalId::new(),
-                vault_id,
-                item_id,
-                SessionRole::Read,
-                now
-            ),
-            None
-        );
-    }
-
-    #[test]
-    fn a_read_grant_does_not_authorize_a_write() {
-        let now = Utc::now();
-        let holder = PrincipalId::new();
-        let vault_id = VaultId::new();
-        let item_id = VaultItemId::new();
-        let grants = [grant(
-            holder,
-            GrantScope::Collection { vault_id },
-            SessionRole::Read,
-            Duration::hours(1),
-            now,
-        )];
-        assert!(
-            authorizing_grant(&grants, holder, vault_id, item_id, SessionRole::Read, now).is_some()
-        );
-        assert_eq!(
-            authorizing_grant(&grants, holder, vault_id, item_id, SessionRole::Write, now),
-            None,
-            "a read grant authorized a write"
-        );
-    }
-
-    #[test]
-    fn a_lapsed_grant_authorizes_nothing_even_though_it_is_still_in_the_list() {
-        // The store already filters on expiry. This is the second check: if a
-        // stale row ever reaches the fence — a slow query, a clock skew, a
-        // cached list — the answer is still no.
-        let now = Utc::now();
-        let holder = PrincipalId::new();
-        let vault_id = VaultId::new();
-        let item_id = VaultItemId::new();
-        let grants = [grant(
-            holder,
-            GrantScope::Collection { vault_id },
-            SessionRole::Read,
-            Duration::minutes(1),
-            now,
-        )];
-        assert!(
-            authorizing_grant(&grants, holder, vault_id, item_id, SessionRole::Read, now).is_some()
-        );
-        assert_eq!(
-            authorizing_grant(
-                &grants,
-                holder,
-                vault_id,
-                item_id,
-                SessionRole::Read,
-                now + Duration::minutes(2),
-            ),
-            None,
-            "an expired grant still authorized a read"
-        );
-    }
-
-    #[test]
-    fn the_widest_matching_grant_is_not_required_to_be_the_only_one() {
-        // Two grants, one narrow and one wide, both live. The fence answers
-        // with whichever authorizes — it is not a policy about which grant
-        // "should" apply, and it must not deny because a narrower one exists.
-        let now = Utc::now();
-        let holder = PrincipalId::new();
-        let vault_id = VaultId::new();
-        let named = VaultItemId::new();
-        let other = VaultItemId::new();
-        let narrow = grant(
-            holder,
-            rows(vault_id, &[named]),
-            SessionRole::Read,
-            Duration::hours(1),
-            now,
-        );
-        let wide = grant(
-            holder,
-            GrantScope::Collection { vault_id },
-            SessionRole::Read,
-            Duration::hours(1),
-            now,
-        );
-        let grants = [narrow, wide.clone()];
-        assert_eq!(
-            authorizing_grant(&grants, holder, vault_id, other, SessionRole::Read, now),
-            Some(wide.id)
-        );
-    }
-
-    #[test]
-    fn a_pending_requester_is_not_a_participant() {
-        // Reach has no variant for "asked to join", and that is the point:
-        // admission precedes connection (ADR 0079 §7). Anybody who is not the
-        // operator and holds no grant is `None`, whatever they have asked for.
-        assert!(!Reach::None.may_see_session());
-        assert!(!Reach::None.is_operator());
-    }
-
-    #[test]
-    fn an_operator_manages_the_session_and_a_participant_does_not() {
-        assert!(Reach::Operator.is_operator());
-        assert!(Reach::Operator.may_see_session());
-        assert!(!Reach::Participant.is_operator());
-        assert!(Reach::Participant.may_see_session());
-    }
-}
+#[path = "shared_session_fence/tests.rs"]
+mod tests;

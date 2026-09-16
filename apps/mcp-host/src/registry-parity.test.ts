@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
+  assertsNoInteractionSettlementTool,
   assertsNoSecretNames,
   mcpHostCatalog,
 } from "@opensesame/capability-registry";
@@ -16,6 +17,12 @@ describe("registry parity — mcp-host", () => {
   it("catalog passes both secret-name denylists", () => {
     expect(() => assertsNoSecretNames(hostTools)).not.toThrow();
     expect(() => assertsNoSecretTools(hostTools)).not.toThrow();
+  });
+
+  it("exposes no tool that settles an interaction or mints a proof (ADR 0086)", () => {
+    // Finding S12 / T-34: interaction settlement and proof generation are
+    // human-only; a headless host tool must never carry either.
+    expect(() => assertsNoInteractionSettlementTool(hostTools)).not.toThrow();
   });
 
   it("a connected server advertises exactly hostTools, nothing more", async () => {

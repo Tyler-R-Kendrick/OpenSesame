@@ -18,9 +18,11 @@ import {
  * surface need a passkey assertion, and a second copy of that ceremony is a
  * second place for the "did the authenticator really answer?" checks to drift.
  * ADR 0086 §7 is the reason the return value is so thin: an assertion is a
- * verification *input*, checked once at the protocol edge and dropped, and what
- * survives into an `ApprovalProof` is a non-secret credential handle and
- * nothing else.
+ * verification *input*, checked once at the protocol edge and dropped. What
+ * comes back is a non-secret credential handle — the only part of a WebAuthn
+ * response safe to name in a log — and never the assertion bytes. The approve
+ * body carries none of it: the server records the proof it built from what it
+ * verified, so the handle is a diagnostic, not something a decision ships.
  */
 
 /**
@@ -141,6 +143,40 @@ export async function assertPasskey(token: string): Promise<string> {
   // The credential id, not the assertion. Non-secret, and the only part of a
   // WebAuthn response that is safe to carry in an audit row (ADR 0086 §7).
   return assertion.id;
+}
+
+/**
+ * Perform an interaction-scoped assertion (ADR 0086 §7, A-01/A-02).
+ *
+ * Unlike `assertPasskey`, this does not fetch its own options and does not talk
+ * to the generic `/v1/mfa/passkey/*` endpoints: the authority has already
+ * issued WebAuthn options whose challenge it bound to *this interaction's*
+ * digest, so this runs the authenticator against exactly those options and
+ * hands the raw assertion back for the authority to verify at
+ * `/activation/complete`. Nothing here is a proof — the credential handle and
+ * the signed bytes are verification inputs, and this app records no mechanism
+ * or assurance of its own. `StepUpError` for every failure, cancellation
+ * included: from here "the sheet was dismissed" and "the options were bad" are
+ * the same fact — there is no assertion to submit.
+ */
+export async function assertInteractionActivation(
+  options: JsonObject,
+): Promise<{
+  credentialId: string;
+  clientDataJSON: string;
+  authenticatorData: string;
+  signature: string;
+}> {
+  const parsed = parsePublicKeyCredentialRequestOptionsJson(options);
+  if (!parsed) throw new StepUpError("Passkey options were invalid.");
+  const assertion = await navigator.credentials.get(
+    requestOptionsFromJson(parsed),
+  );
+  if (!assertion) throw new StepUpError("Passkey cancelled.");
+  if (!isPublicKeyCredential(assertion)) {
+    throw new StepUpError("Passkey returned an invalid credential.");
+  }
+  return assertionPayload(assertion);
 }
 
 /**

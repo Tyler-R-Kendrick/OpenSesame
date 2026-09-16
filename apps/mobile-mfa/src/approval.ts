@@ -2,7 +2,6 @@ import type { InteractionErrorCode } from "@opensesame/ceremony-kit";
 import { renderInteractionSummary } from "@opensesame/ceremony-kit";
 import type {
   ApprovalMechanism,
-  AssuranceLevel,
   InteractionDetail,
   InteractionStatus,
 } from "@opensesame/os-domain";
@@ -138,56 +137,46 @@ export function outcomeOfErrorCode(
   }
 }
 
-/** A mechanism this phone can actually produce, with what it is worth. */
+/**
+ * A step-up this phone can actually perform.
+ *
+ * No `assurance` field: the level an approval is worth is the server's to
+ * decide, read off the interaction-scoped activation it verified, and a copy
+ * asserted here would only be a claim the server never checked. What this type
+ * carries is which authenticator to reach for, and nothing that would end up in
+ * an audit row.
+ */
 export interface Mechanism {
   mechanism: ApprovalMechanism;
-  assurance: AssuranceLevel;
-  /** Whether the human must type a current code to complete it. */
-  needsCode: boolean;
 }
 
 const PASSKEY: Mechanism = {
   mechanism: "webauthn",
-  assurance: "phishing_resistant",
-  needsCode: false,
-};
-
-const REAUTH: Mechanism = {
-  mechanism: "session_reauth",
-  assurance: "mfa",
-  needsCode: true,
 };
 
 /**
- * Pick the strongest approval this device can honestly produce.
+ * Pick the approval this device can honestly produce.
  *
- * A ladder with a floor, not a preference list. The passkey rung is taken
- * whenever the platform offers one, because it is the only mechanism here that
- * is phishing-resistant and verifier-name-bound. The fallback rung still costs
- * a live TOTP code — never merely the session — because ADR 0086 §7 is
- * explicit that an authenticated session is not an approval.
+ * WebAuthn or nothing. Approving an interaction is an authorization-assurance
+ * decision, and the authority requires a phishing-resistant, interaction-scoped
+ * WebAuthn activation (the server's `INTERACTION_APPROVAL_POLICY`): it issues
+ * options whose challenge is bound to the request digest, verifies the raw
+ * assertion itself, and only then mints the activation this screen spends. A
+ * bare session — even one freshly re-authenticated with a TOTP code — is not an
+ * approval (ADR 0086 §7), and the earlier "reauth" rung was exactly the
+ * privileged-approval bypass this reconciliation removes (F01/A-04).
  *
- * `undefined` is the important return: a request that needs a passkey on a
- * browser that has none cannot be approved from here, and offering the weaker
- * rung anyway would mint a proof claiming more than it proves.
- *
- * The rule is keyed on the interaction's *kind* rather than on
- * `assuranceRequired`. `InteractionDetail` declares that field, but
- * `@opensesame/ceremony-kit` deliberately does not decode it — the trust
- * vocabulary belongs to each surface's own step-up code rather than to a
- * transport — so a branch reading it here would be a branch that can never
- * run. `transaction_authorization` is the kind ADR 0086 §6 puts an amount
- * behind, and PSD2 dynamic linking is not something a code typed into a form
- * satisfies. Whatever this ladder picks, the server re-checks the proof it
- * receives; this is the floor, not the authority.
+ * `undefined` is the important return: a browser with no passkey cannot approve
+ * from here, and offering a weaker rung anyway would step the human up to less
+ * than the request demands and be refused as `proof_required` besides. A TOTP
+ * rung with genuinely weaker policy is possible only once per-kind policy lands
+ * server-side (ADR 0086 D-03) with a matching activation path; until then this
+ * surface does not pretend to offer one.
  */
 export function chooseMechanism(
-  detail: InteractionDetail,
   webauthnAvailable: boolean,
 ): Mechanism | undefined {
-  if (webauthnAvailable) return PASSKEY;
-  if (detail.kind === "transaction_authorization") return undefined;
-  return REAUTH;
+  return webauthnAvailable ? PASSKEY : undefined;
 }
 
 /** The rendered interaction, split for layout. */

@@ -66,6 +66,8 @@ function detailBody(over: JsonObject = {}): JsonObject {
 interface RouteHandlers {
   resolve?: Response;
   detail?: Response;
+  activation?: Response;
+  activationComplete?: Response;
   approve?: Response;
   deny?: Response;
 }
@@ -73,6 +75,12 @@ interface RouteHandlers {
 function routes(handlers: RouteHandlers) {
   fetchMock.mockImplementation((input: BoundaryValue) => {
     const url = String(input);
+    if (url.endsWith("/activation/complete") && handlers.activationComplete) {
+      return Promise.resolve(handlers.activationComplete);
+    }
+    if (url.endsWith("/activation") && handlers.activation) {
+      return Promise.resolve(handlers.activation);
+    }
     if (url.endsWith("/approve") && handlers.approve) {
       return Promise.resolve(handlers.approve);
     }
@@ -85,11 +93,69 @@ function routes(handlers: RouteHandlers) {
     if (url === LINK && handlers.resolve) {
       return Promise.resolve(handlers.resolve);
     }
-    if (url.endsWith("/v1/mfa/totp/verify")) {
-      return Promise.resolve(jsonRes(200, { ok: true }));
-    }
     return Promise.resolve(jsonRes(500, {}));
   });
+}
+
+/** The activation handle the happy-path begin/complete responses carry. */
+const ACTIVATION_ID = "apac_test_activation";
+
+/** The interaction-scoped begin-activation response: options bound to a digest. */
+function activationBegin(over: JsonObject = {}): Response {
+  return jsonRes(201, {
+    activationId: ACTIVATION_ID,
+    transactionDigest: "td",
+    policyDigest: "pd",
+    expiresAt: "2026-09-01T00:00:00.000Z",
+    options: { challenge: "aGk" },
+    ...over,
+  });
+}
+
+/** The complete-activation response: the authority verified the raw assertion. */
+function activationComplete(over: JsonObject = {}): Response {
+  return jsonRes(200, {
+    activationId: ACTIVATION_ID,
+    state: "activated",
+    activatedAt: "2026-08-31T23:59:00.000Z",
+    ...over,
+  });
+}
+
+/**
+ * A virtual platform authenticator whose assertion the kit will accept.
+ *
+ * The same shape `sdk-browser`'s `isPublicKeyCredential`/`assertionPayload`
+ * require — buffers, not base64 — so the ceremony reaches the wire rather than
+ * failing in the parser.
+ */
+function installWebAuthn() {
+  Object.defineProperty(window, "PublicKeyCredential", {
+    value: class PublicKeyCredential {},
+    configurable: true,
+  });
+  Object.defineProperty(window.navigator, "credentials", {
+    value: {
+      get: () =>
+        Promise.resolve({
+          id: "cred-1",
+          rawId: new Uint8Array([1]).buffer,
+          type: "public-key",
+          response: {
+            clientDataJSON: new Uint8Array([1]).buffer,
+            authenticatorData: new Uint8Array([2]).buffer,
+            signature: new Uint8Array([3]).buffer,
+          },
+          getClientExtensionResults: () => ({}),
+        }),
+    },
+    configurable: true,
+  });
+}
+
+function removeWebAuthn() {
+  Reflect.deleteProperty(window, "PublicKeyCredential");
+  Reflect.deleteProperty(window.navigator, "credentials");
 }
 
 async function flush() {
@@ -180,6 +246,7 @@ afterEach(async () => {
   });
   container.remove();
   vi.unstubAllGlobals();
+  removeWebAuthn();
   window.history.replaceState(null, "", "/");
 });
 
@@ -274,90 +341,77 @@ describe("resolving an interaction", () => {
 });
 
 describe("approving", () => {
-  it("echoes the digest and binds the proof to it", async () => {
+  it("approves through a server-verified, interaction-scoped activation", async () => {
+    installWebAuthn();
     routes({
       resolve: jsonRes(200, summaryBody()),
       detail: jsonRes(200, detailBody()),
+      activation: activationBegin(),
+      activationComplete: activationComplete(),
       approve: jsonRes(200, detailBody({ status: "approved" })),
     });
     await renderApp();
     await signIn();
-    await act(async () => {
-      setInput(byId("stepup-code"), "123456");
-    });
+    // The passkey rung has no code field: nothing for the human to type.
+    expect(container.querySelector("#stepup-code")).toBeNull();
     await click(buttonByText("Approve"));
 
-    const body = bodyOf("/approve");
-    expect(body.requestDigest).toBe(DIGEST);
-    expect(body.proof).toEqual({
-      mechanism: "session_reauth",
-      boundDigest: DIGEST,
-      assurance: "mfa",
-      verifiedAt: expect.any(String),
+    // A-01: the step-up begins by asking the authority for options bound to
+    // THIS request's digest — not a generic, interaction-agnostic assertion.
+    expect(bodyOf("/activation")).toEqual({
+      requestDigest: DIGEST,
+      decision: "approved",
     });
+    // A-02: the raw assertion is submitted for the authority to verify. The
+    // signed bytes are inputs, checked once server-side — never a proof this
+    // screen builds.
+    const complete = bodyOf("/activation/complete");
+    expect(complete.activationId).toBe(ACTIVATION_ID);
+    expect(complete.credentialId).toBe("cred-1");
+    expect(complete).toHaveProperty("clientDataJSON");
+    expect(complete).toHaveProperty("authenticatorData");
+    expect(complete).toHaveProperty("signature");
+
+    // F02/A-04: the approve body echoes the digest and names the activation the
+    // authority verified — an opaque handle, never a client-constructed
+    // `ApprovalProof`, and never a bare session.
+    const body = bodyOf("/approve");
+    expect(body).toEqual({
+      requestDigest: DIGEST,
+      activationId: ACTIVATION_ID,
+    });
+    expect(body).not.toHaveProperty("proof");
+    expect(body).not.toHaveProperty("mechanism");
+    expect(body).not.toHaveProperty("assurance");
+
     expect(container.querySelector("[data-outcome]")?.textContent).toContain(
       "Approved",
     );
   });
 
-  it("uses a passkey when the platform has one", async () => {
-    Object.defineProperty(window, "PublicKeyCredential", {
-      value: class PublicKeyCredential {},
-      configurable: true,
+  it("never falls back to a digest-only approve when the step-up fails", async () => {
+    installWebAuthn();
+    routes({
+      resolve: jsonRes(200, summaryBody()),
+      detail: jsonRes(200, detailBody()),
+      // The authority refuses the raw assertion: no activation is minted.
+      activation: activationBegin(),
+      activationComplete: jsonRes(401, {
+        error: "activation_verification_failed",
+      }),
     });
-    Object.defineProperty(window.navigator, "credentials", {
-      value: {
-        get: () =>
-          Promise.resolve({
-            id: "cred-1",
-            rawId: new Uint8Array([1]).buffer,
-            type: "public-key",
-            response: {
-              clientDataJSON: new Uint8Array([1]).buffer,
-              authenticatorData: new Uint8Array([2]).buffer,
-              signature: new Uint8Array([3]).buffer,
-            },
-            getClientExtensionResults: () => ({}),
-          }),
-      },
-      configurable: true,
-    });
-    fetchMock.mockImplementation((input: BoundaryValue) => {
-      const url = String(input);
-      if (url === API) return Promise.resolve(jsonRes(200, detailBody()));
-      if (url.endsWith("/approve")) {
-        return Promise.resolve(
-          jsonRes(200, detailBody({ status: "approved" })),
-        );
-      }
-      if (url.endsWith("/authentication-options")) {
-        return Promise.resolve(jsonRes(200, { options: { challenge: "aGk" } }));
-      }
-      if (url.endsWith("/passkey/assert")) {
-        return Promise.resolve(jsonRes(200, { ok: true }));
-      }
-      return Promise.resolve(jsonRes(200, summaryBody()));
-    });
-
     await renderApp();
     await signIn();
-    // No code field on the passkey rung: nothing for the human to type.
-    expect(container.querySelector("#stepup-code")).toBeNull();
     await click(buttonByText("Approve"));
 
-    expect(bodyOf("/approve").proof).toEqual({
-      mechanism: "webauthn",
-      boundDigest: DIGEST,
-      assurance: "phishing_resistant",
-      credentialRef: "cred-1",
-      verifiedAt: expect.any(String),
-    });
-
-    Reflect.deleteProperty(window, "PublicKeyCredential");
-    Reflect.deleteProperty(window.navigator, "credentials");
+    // A-04: a rejected step-up must never degrade into a bare approve. Nothing
+    // was approved, and no approve was even attempted.
+    expect(calls().some(([url]) => url.endsWith("/approve"))).toBe(false);
+    expect(container.querySelector("[data-outcome]")).toBeNull();
   });
 
   it("refuses a digest that changed since it was shown, before any fetch", async () => {
+    installWebAuthn();
     let detail = detailBody();
     fetchMock.mockImplementation((input: BoundaryValue) => {
       const url = String(input);
@@ -367,9 +421,6 @@ describe("approving", () => {
     });
     await renderApp();
     await signIn();
-    await act(async () => {
-      setInput(byId("stepup-code"), "123456");
-    });
 
     // The phone goes away and comes back to a request that has been rewritten
     // underneath it. The digest frozen at display time is what notices.
@@ -385,6 +436,7 @@ describe("approving", () => {
     const before = calls().length;
     await click(buttonByText("Approve"));
 
+    // Refused before any step-up: no activation begun, nothing on the wire.
     expect(calls().length).toBe(before);
     expect(statusText()).toBe(
       "This request changed since it was shown. Nothing was approved.",
@@ -393,15 +445,13 @@ describe("approving", () => {
   });
 
   it("refuses an interaction that carries no digest at all, before any fetch", async () => {
+    installWebAuthn();
     routes({
       resolve: jsonRes(200, summaryBody()),
       detail: jsonRes(200, detailBody({ requestDigest: undefined })),
     });
     await renderApp();
     await signIn();
-    await act(async () => {
-      setInput(byId("stepup-code"), "123456");
-    });
 
     const before = calls().length;
     await click(buttonByText("Approve"));
@@ -538,9 +588,6 @@ describe("accessibility", () => {
 
     await signIn();
     expect(document.activeElement?.textContent).toBe("Approve this device");
-    expect(
-      container.querySelector('label[for="stepup-code"]')?.textContent,
-    ).toBe("Code");
 
     await click(buttonByText("Deny"));
     expect(document.activeElement?.textContent).toContain("Denied");
@@ -559,6 +606,9 @@ describe("accessibility", () => {
   });
 
   it("styles deny destructively and gives both answers a touch target", async () => {
+    // The approve rung only appears with a passkey available, so install one to
+    // assert both controls share the `.decide` sizing.
+    installWebAuthn();
     routes({
       resolve: jsonRes(200, summaryBody()),
       detail: jsonRes(200, detailBody()),

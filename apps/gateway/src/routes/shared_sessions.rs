@@ -27,8 +27,8 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use opensesame_domain::{
-    GrantScope, JoinDecision, JoinRequest, JoinRequestId, NewSessionGrant, PrincipalId,
-    SessionGrant, SessionGrantId, SessionId, SessionRole, SessionVisibility, VaultId, VaultItemId,
+    GrantLink, GrantScope, NewSessionGrant, PrincipalId, SessionGrant, SessionGrantId, SessionId,
+    SessionMembership, SessionMode, SessionRole, SessionVisibility, VaultId, VaultItemId,
 };
 use opensesame_storage::StoredSession;
 use serde::Deserialize;
@@ -39,10 +39,51 @@ use crate::middleware::auth::{parse_principal, resolve_caller, Caller};
 use crate::session_channel::{Delivery, Recipient, SessionChannel, SessionEvent};
 use crate::shared_session_fence::Reach;
 
+/// Every shared-session road, declared by the feature that owns them.
+///
+/// Presence (`/members`) and the session's end (`/close`) sit beside the grant
+/// roads on purpose: a seat and a key are different things, and keeping both
+/// tables in one place is what makes it obvious which roads need a key at all.
+pub fn routes() -> axum::Router<AppState> {
+    use axum::routing::{delete, get, post};
+    use axum::Router;
+
+    Router::new()
+        .route("/api/v1/shared-sessions", get(discover).post(open))
+        .route("/api/v1/shared-sessions/{id}", get(detail))
+        .route(
+            "/api/v1/shared-sessions/{id}/activity",
+            post(announce_activity),
+        )
+        .route("/api/v1/shared-sessions/{id}/events", get(events))
+        .route("/api/v1/shared-sessions/{id}/grants", post(grant))
+        .route(
+            "/api/v1/shared-sessions/{id}/grants/{grant_id}",
+            delete(revoke),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/join-requests",
+            get(join::list_join_requests).post(join::ask_to_join),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/join-requests/{request_id}/decide",
+            post(join::decide_join_request),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/members",
+            get(super::session_coordination::list_members)
+                .post(super::session_coordination::seat_member),
+        )
+        .route(
+            "/api/v1/shared-sessions/{id}/close",
+            post(super::session_coordination::close),
+        )
+}
+
 /// The one refusal shape this module uses for "no".
 ///
 /// Deliberately indistinguishable from "no such session": see the module note.
-fn not_found() -> Response {
+pub(crate) fn not_found() -> Response {
     (
         StatusCode::NOT_FOUND,
         Json(json!({"error": "session_not_found"})),
@@ -50,7 +91,7 @@ fn not_found() -> Response {
         .into_response()
 }
 
-fn bad_request(code: &str, detail: &str) -> Response {
+pub(crate) fn bad_request(code: &str, detail: &str) -> Response {
     (
         StatusCode::UNPROCESSABLE_ENTITY,
         Json(json!({"error": code, "detail": opensesame_redaction::redact_text(detail)})),
@@ -58,7 +99,7 @@ fn bad_request(code: &str, detail: &str) -> Response {
         .into_response()
 }
 
-fn unavailable(error: &anyhow::Error) -> Response {
+pub(crate) fn unavailable(error: &anyhow::Error) -> Response {
     tracing::warn!(%error, "shared session store unavailable");
     (
         StatusCode::SERVICE_UNAVAILABLE,
@@ -107,7 +148,7 @@ fn caller_principal(
 
 /// Resolve caller, session and standing in one step, so no handler can do two
 /// of the three and forget the last.
-async fn standing(
+pub(crate) async fn standing(
     st: &AppState,
     headers: &axum::http::HeaderMap,
     raw_session_id: &str,
@@ -162,7 +203,7 @@ fn roster_entry(grant: &SessionGrant) -> Value {
 }
 
 /// What the operator is told, which is everything they granted.
-fn operator_entry(grant: &SessionGrant) -> Value {
+pub(crate) fn operator_entry(grant: &SessionGrant) -> Value {
     let mut entry = roster_entry(grant);
     let scope = match &grant.scope {
         GrantScope::Collection { vault_id } => json!({
@@ -340,7 +381,7 @@ pub struct GrantRequest {
     /// admitting a join request, where the requester is the only possible
     /// subject and a second opinion in the body could only be a mistake or an
     /// attempt to admit one person and grant another.
-    subject_principal_id: Option<String>,
+    pub(crate) subject_principal_id: Option<String>,
     scope: ScopeBody,
     role: String,
     /// When the grant lapses. Refused, never clamped, if it is outside the
@@ -361,7 +402,7 @@ pub struct GrantRequest {
 /// set the start of the window could set it in the past and buy itself a
 /// longer one than the seven-day ceiling allows.
 #[allow(clippy::result_large_err)]
-fn grant_from(
+pub(crate) fn grant_from(
     body: &GrantRequest,
     session_id: SessionId,
     subject: PrincipalId,
@@ -401,6 +442,11 @@ fn grant_from(
         role,
         granted_at: now,
         expires_at: expires_at.with_timezone(&Utc),
+        // Reach this session is minting, so closing the session takes it back.
+        // A route cannot build a `Referenced` link: that needs the source
+        // grant to compare against, which only `SessionGrant::referencing`
+        // has, and a link the caller merely asserted would be worthless.
+        link: GrantLink::LifecycleBound,
     })
     .map_err(|error| bad_request("grant_refused", &error.to_string()))
 }
@@ -429,10 +475,50 @@ pub async fn grant(
     else {
         return bad_request("grant_subject", "not a principal id");
     };
-    let minted = match grant_from(&body, session.id, subject, principal, Utc::now()) {
+
+    // An observer is refused here rather than at the read. A grant is a
+    // wrapped key and ADR 0079 §3's revocation is re-keying, so a key wrapped
+    // for somebody the operator seated as needing none cannot be taken back —
+    // the refusal has to be before it is minted, not at the first use.
+    //
+    // Somebody with no seat at all is a different case and not an error: an
+    // operator granting a colleague directly *is* the admission, so the seat
+    // is the one this grant creates. What is refused is contradicting a seat
+    // the operator already chose, which is the mistake worth catching — they
+    // raise the observer first, deliberately, with a timestamp on it.
+    let now = Utc::now();
+    let seat = match st.db.session_membership(session.id, subject).await {
+        Ok(Some(held)) if held.is_active() => {
+            if let Err(error) = held.assert_may_hold_grant() {
+                return bad_request("grant_subject", &error.to_string());
+            }
+            held
+        }
+        Ok(_) => SessionMembership::new(
+            session.id,
+            subject,
+            SessionMode::Participant,
+            principal,
+            now,
+        ),
+        Err(error) => return unavailable(&error),
+    };
+
+    let minted = match grant_from(&body, session.id, subject, principal, now) {
         Ok(grant) => grant,
         Err(resp) => return resp,
     };
+    // The seat is written first. A grant that then fails leaves somebody
+    // seated with nothing, which is a state the product already has a name
+    // for; the other order would leave a grant whose holder is not in the
+    // room, which the fence reads as no standing at all.
+    if let Err(error) = st
+        .db
+        .upsert_session_membership(&session.organization_id, &seat)
+        .await
+    {
+        return unavailable(&error);
+    }
     match st
         .db
         .insert_session_grant(&session.organization_id, &minted)
@@ -516,226 +602,6 @@ pub async fn revoke(
     }
 }
 
-#[derive(Deserialize)]
-pub struct AskToJoinRequest {
-    note: Option<String>,
-}
-
-/// `POST /api/v1/shared-sessions/{id}/join-requests` — a stranger asks in.
-///
-/// Only a public session accepts one. A private session answers `404` to a
-/// non-participant here exactly as it does everywhere else, so this route
-/// cannot be used to probe for private sessions by id.
-pub async fn ask_to_join(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Path(id): Path<String>,
-    Json(body): Json<AskToJoinRequest>,
-) -> Response {
-    let (principal, session, reach) = match standing(&st, &headers, &id).await {
-        Ok(found) => found,
-        Err(resp) => return resp,
-    };
-    if session.visibility != SessionVisibility::Public && !reach.may_see_session() {
-        return not_found();
-    }
-    if session.closed_at.is_some() {
-        return not_found();
-    }
-    if reach.may_see_session() {
-        return bad_request("already_in_session", "you are already in this session");
-    }
-
-    let request = match JoinRequest::new(
-        JoinRequestId::new(),
-        session.id,
-        principal,
-        body.note.clone(),
-        Utc::now(),
-    ) {
-        Ok(request) => request,
-        Err(error) => return bad_request("join_request_refused", &error.to_string()),
-    };
-    match st
-        .db
-        .insert_join_request(&session.organization_id, &request)
-        .await
-    {
-        // The requester learns their request is pending and nothing else: no
-        // roster, no channel, no peer (ADR 0079 §7).
-        Ok(()) => {
-            announce(
-                &st,
-                session.id,
-                SessionEvent::JoinRequested {
-                    request_id: request.id,
-                },
-            );
-            (
-                StatusCode::ACCEPTED,
-                Json(json!({"id": request.id.to_string(), "decision": "pending"})),
-            )
-                .into_response()
-        }
-        Err(error) => {
-            // The partial unique index refuses a second pending ask from the
-            // same principal. Asking twice is the same ask, so report the
-            // state rather than an error.
-            tracing::debug!(%error, "join request refused by the store");
-            (
-                StatusCode::CONFLICT,
-                Json(json!({"error": "join_request_pending"})),
-            )
-                .into_response()
-        }
-    }
-}
-
-/// `GET /api/v1/shared-sessions/{id}/join-requests` — who is waiting.
-pub async fn list_join_requests(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Path(id): Path<String>,
-) -> Response {
-    let (_, session, reach) = match standing(&st, &headers, &id).await {
-        Ok(found) => found,
-        Err(resp) => return resp,
-    };
-    if !reach.is_operator() {
-        return not_found();
-    }
-    match st.db.pending_join_requests(session.id).await {
-        Ok(requests) => Json(json!({
-            "requests": requests
-                .iter()
-                .map(|request| json!({
-                    "id": request.id.to_string(),
-                    "requester_principal_id": request.requester_principal_id.to_string(),
-                    // Untrusted text written by somebody with no standing in
-                    // the session. Bounded by the domain at 280 characters;
-                    // whatever renders it escapes it.
-                    "note": request.note,
-                    "requested_at": request.requested_at.to_rfc3339(),
-                }))
-                .collect::<Vec<_>>(),
-        }))
-        .into_response(),
-        Err(error) => unavailable(&error),
-    }
-}
-
-#[derive(Deserialize)]
-pub struct DecideRequest {
-    /// `admitted` or `refused`.
-    decision: String,
-    /// Required for `admitted`, forbidden for `refused`: admission *is* a
-    /// grant, and one without the other is the shape that lets the roster and
-    /// the request log disagree.
-    grant: Option<GrantRequest>,
-}
-
-/// `POST /api/v1/shared-sessions/{id}/join-requests/{request_id}/decide`
-pub async fn decide_join_request(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Path((id, request_id)): Path<(String, String)>,
-    Json(body): Json<DecideRequest>,
-) -> Response {
-    let (principal, session, reach) = match standing(&st, &headers, &id).await {
-        Ok(found) => found,
-        Err(resp) => return resp,
-    };
-    if !reach.is_operator() {
-        return not_found();
-    }
-    let Ok(request_id) = JoinRequestId::parse(&request_id) else {
-        return not_found();
-    };
-    let waiting = match st
-        .db
-        .join_request(&session.organization_id, request_id)
-        .await
-    {
-        Ok(Some(found)) if found.session_id == session.id => found,
-        Ok(_) => return not_found(),
-        Err(error) => return unavailable(&error),
-    };
-    if waiting.decision != JoinDecision::Pending {
-        return (
-            StatusCode::CONFLICT,
-            Json(json!({"error": "join_request_decided"})),
-        )
-            .into_response();
-    }
-
-    let now = Utc::now();
-    let (decision, minted) = match (body.decision.as_str(), body.grant.as_ref()) {
-        ("refused", None) => (JoinDecision::Refused, None),
-        ("refused", Some(_)) => {
-            return bad_request("decision_shape", "a refusal mints no grant");
-        }
-        ("admitted", Some(spec)) => {
-            if spec.subject_principal_id.is_some() {
-                return bad_request(
-                    "decision_shape",
-                    "an admission grants the requester; naming another subject is refused",
-                );
-            }
-            // The requester is the subject, structurally: `grant_from` takes it
-            // as a parameter, so there is no body field that could disagree.
-            match grant_from(
-                spec,
-                session.id,
-                waiting.requester_principal_id,
-                principal,
-                now,
-            ) {
-                Ok(grant) => (JoinDecision::Admitted { grant_id: grant.id }, Some(grant)),
-                Err(resp) => return resp,
-            }
-        }
-        ("admitted", None) => {
-            return bad_request("decision_shape", "admission needs the grant it mints");
-        }
-        _ => return bad_request("decision_shape", "admitted or refused"),
-    };
-
-    match st
-        .db
-        .decide_join_request(
-            &session.organization_id,
-            request_id,
-            decision,
-            principal,
-            now,
-            minted.as_ref(),
-        )
-        .await
-    {
-        Ok(()) => {
-            if let Some(grant) = minted.as_ref() {
-                announce(
-                    &st,
-                    session.id,
-                    SessionEvent::GrantAdded {
-                        grant_id: grant.id,
-                        subject_principal_id: grant.subject_principal_id,
-                        role: grant.role,
-                        expires_at: grant.expires_at,
-                    },
-                );
-            }
-            Json(json!({
-                "id": request_id.to_string(),
-                "decision": if minted.is_some() { "admitted" } else { "refused" },
-                "grant": minted.as_ref().map(operator_entry),
-            }))
-            .into_response()
-        }
-        Err(error) => unavailable(&error),
-    }
-}
-
 /// Announce something on the session's channel, if anybody is listening.
 ///
 /// Best-effort by design. The store is the record and the channel is a
@@ -743,7 +609,7 @@ pub async fn decide_join_request(
 /// and a route that refused to act because nobody was listening would be
 /// worse. Publishing never widens anybody's reach — every event still passes
 /// [`Delivery::for_recipient`] against live grants before it reaches a reader.
-fn announce(st: &AppState, session_id: SessionId, event: SessionEvent) {
+pub(crate) fn announce(st: &AppState, session_id: SessionId, event: SessionEvent) {
     let channels = st.session_channels.lock().unwrap();
     if let Some(channel) = channels.get(&session_id) {
         channel.publish(event);
@@ -779,7 +645,11 @@ pub async fn announce_activity(
         Ok(found) => found,
         Err(resp) => return resp,
     };
-    if !reach.may_see_session() {
+    // Two refusals, and the first is the structural one: an observer holds no
+    // grants, so asking about theirs could only ever answer no — refusing
+    // before the lookup turns that from a happy accident into a rule, and is
+    // what still denies a grant that named an observer by some other road.
+    if !reach.may_see_session() || !reach.may_hold_reach() {
         return not_found();
     }
     let (Ok(vault_id), Ok(item_id)) = (
@@ -874,6 +744,11 @@ pub async fn events(
         return not_found();
     }
     let is_operator = reach.is_operator();
+    let seated = match reach {
+        Reach::Participant => Some(SessionMode::Participant),
+        Reach::Observer => Some(SessionMode::Observer),
+        Reach::Operator | Reach::None => None,
+    };
 
     let receiver = {
         let mut channels = st.session_channels.lock().unwrap();
@@ -893,11 +768,11 @@ pub async fn events(
         session_id,
         SessionEvent::ParticipantJoined {
             principal_id: principal,
-            role: if is_operator {
-                SessionRole::Write
-            } else {
-                SessionRole::Read
-            },
+            // The seat, not a role. The operator used to be announced as
+            // `write`, which said the person running the session writes the
+            // vault through it; they run it, and they are seated as a
+            // participant only if somebody seated them.
+            mode: seated.unwrap_or(SessionMode::Participant),
         },
     );
     let presence = Presence {
@@ -941,6 +816,7 @@ pub async fn events(
                 let recipient = Recipient {
                     principal_id: principal,
                     is_operator,
+                    mode: seated,
                     grants,
                 };
                 if !Delivery::for_recipient(&event, &recipient, now) {
@@ -964,6 +840,9 @@ pub async fn events(
         .into_response()
 }
 
+#[path = "shared_sessions/join.rs"]
+pub mod join;
+
 #[cfg(test)]
 #[path = "shared_sessions/tests.rs"]
-mod tests;
+pub(crate) mod tests;

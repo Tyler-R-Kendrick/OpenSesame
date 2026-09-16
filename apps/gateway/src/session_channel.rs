@@ -30,7 +30,7 @@
 
 use chrono::{DateTime, Utc};
 use opensesame_domain::{
-    JoinRequestId, PrincipalId, SessionGrantId, SessionRole, VaultId, VaultItemId,
+    JoinRequestId, PrincipalId, SessionGrantId, SessionMode, SessionRole, VaultId, VaultItemId,
 };
 use serde::Serialize;
 
@@ -60,10 +60,18 @@ where
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum SessionEvent {
     /// Somebody with live standing connected.
+    ///
+    /// Carries the mode they are seated in, not a role. A role belongs to a
+    /// grant, and presence is no longer a grant — that is the whole of the
+    /// coordination change. The old shape had to invent one, and what it
+    /// invented for an operator was `write`, which announced the person who
+    /// runs the session as somebody who writes the vault through it. An
+    /// operator is not a reader (ADR 0079 §6), so the field that said
+    /// otherwise is gone rather than corrected.
     ParticipantJoined {
         #[serde(serialize_with = "canonical")]
         principal_id: PrincipalId,
-        role: SessionRole,
+        mode: SessionMode,
     },
     /// Their last connection went away.
     ParticipantLeft { principal_id: PrincipalId },
@@ -116,6 +124,13 @@ pub enum SessionEvent {
     /// channel at all, which is a cheaper rule to hold than "escape it
     /// everywhere".
     JoinRequested { request_id: JoinRequestId },
+    /// The operator ended the session.
+    ///
+    /// Every seat is given up and every grant the session minted is revoked at
+    /// this instant; the reach it merely *referenced* is untouched and keeps
+    /// working on its own road. The event is a courtesy — readers are cut off
+    /// because the next standing read denies them, not because they were told.
+    SessionClosed { closed_at: DateTime<Utc> },
 }
 
 /// Who an event is for, before per-recipient narrowing.
@@ -143,7 +158,8 @@ impl SessionEvent {
             Self::ParticipantJoined { .. }
             | Self::ParticipantLeft { .. }
             | Self::GrantAdded { .. }
-            | Self::GrantWithdrawn { .. } => Audience::Participants,
+            | Self::GrantWithdrawn { .. }
+            | Self::SessionClosed { .. } => Audience::Participants,
             Self::ItemOpened {
                 vault_id, item_id, ..
             }
@@ -167,6 +183,11 @@ impl SessionEvent {
 pub struct Recipient {
     pub principal_id: PrincipalId,
     pub is_operator: bool,
+    /// The seat this reader holds, when they are not the operator.
+    ///
+    /// `None` is a reader with no seat, which is nobody: standing comes from a
+    /// seat now, and a reader without one receives nothing at all.
+    pub mode: Option<SessionMode>,
     pub grants: Vec<opensesame_domain::SessionGrant>,
 }
 
@@ -181,11 +202,10 @@ impl Delivery {
     /// standing receives nothing, including their own departure.
     #[must_use]
     pub fn for_recipient(event: &SessionEvent, recipient: &Recipient, now: DateTime<Utc>) -> bool {
-        let standing = recipient.is_operator
-            || recipient
-                .grants
-                .iter()
-                .any(|grant| grant.assert_active(now).is_ok());
+        // Standing is the seat, not the grants. An observer holds none and is
+        // still in the room; somebody with neither is not, however many
+        // expired grants still name them.
+        let standing = recipient.is_operator || recipient.mode.is_some();
         if !standing {
             return false;
         }
@@ -193,10 +213,17 @@ impl Delivery {
             Audience::Participants => true,
             Audience::OperatorOnly => recipient.is_operator,
             Audience::ReadersOf { vault_id, item_id } => {
-                // The operator is not exempt here either. Running the session
-                // is not reaching into the vault through it (ADR 0079); an
-                // operator who granted themselves nothing sees that somebody
-                // is working, not what they are working on.
+                // Two refusals, and the first is the structural one: an
+                // observer is never asked about, so a grant that somehow named
+                // one could not deliver an item event to them.
+                //
+                // The operator is not exempt from the second. Running the
+                // session is not reaching into the vault through it
+                // (ADR 0079); an operator who granted themselves nothing sees
+                // that somebody is working, not what they are working on.
+                if recipient.mode == Some(SessionMode::Observer) {
+                    return false;
+                }
                 crate::shared_session_fence::authorizing_grant(
                     &recipient.grants,
                     recipient.principal_id,
@@ -263,282 +290,5 @@ impl Default for SessionChannel {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::Duration;
-    use opensesame_domain::{GrantScope, NewSessionGrant, SessionGrant, SessionId};
-    use serde_json::Value;
-    use std::collections::BTreeSet;
-
-    fn grant(
-        holder: PrincipalId,
-        scope: GrantScope,
-        lifetime: Duration,
-        now: DateTime<Utc>,
-    ) -> SessionGrant {
-        SessionGrant::new(NewSessionGrant {
-            id: SessionGrantId::new(),
-            session_id: SessionId::new(),
-            subject_principal_id: holder,
-            granted_by_principal_id: PrincipalId::new(),
-            scope,
-            role: SessionRole::Read,
-            granted_at: now,
-            expires_at: now + lifetime,
-        })
-        .expect("a valid grant")
-    }
-
-    /// One of every variant, so the structural test cannot be passed by
-    /// forgetting a case.
-    fn every_variant() -> Vec<SessionEvent> {
-        let now = Utc::now();
-        vec![
-            SessionEvent::ParticipantJoined {
-                principal_id: PrincipalId::new(),
-                role: SessionRole::Read,
-            },
-            SessionEvent::ParticipantLeft {
-                principal_id: PrincipalId::new(),
-            },
-            SessionEvent::GrantAdded {
-                grant_id: SessionGrantId::new(),
-                subject_principal_id: PrincipalId::new(),
-                role: SessionRole::Write,
-                expires_at: now + Duration::hours(1),
-            },
-            SessionEvent::GrantWithdrawn {
-                grant_id: SessionGrantId::new(),
-                subject_principal_id: PrincipalId::new(),
-            },
-            SessionEvent::ItemOpened {
-                vault_id: VaultId::new(),
-                item_id: VaultItemId::new(),
-                by_principal_id: PrincipalId::new(),
-            },
-            SessionEvent::ItemChanged {
-                vault_id: VaultId::new(),
-                item_id: VaultItemId::new(),
-                by_principal_id: PrincipalId::new(),
-            },
-            SessionEvent::JoinRequested {
-                request_id: JoinRequestId::new(),
-            },
-        ]
-    }
-
-    /// Whether a serialized string is something the channel is allowed to
-    /// carry: an id, a closed discriminant, or a timestamp.
-    fn is_reference(value: &str) -> bool {
-        const DISCRIMINANTS: [&str; 11] = [
-            "participant_joined",
-            "participant_left",
-            "grant_added",
-            "grant_withdrawn",
-            "item_opened",
-            "item_changed",
-            "join_requested",
-            "read",
-            "write",
-            "private",
-            "public",
-        ];
-        DISCRIMINANTS.contains(&value)
-            || PrincipalId::parse(value).is_ok()
-            || SessionGrantId::parse(value).is_ok()
-            || JoinRequestId::parse(value).is_ok()
-            || VaultId::parse(value).is_ok()
-            || VaultItemId::parse(value).is_ok()
-            || DateTime::parse_from_rfc3339(value).is_ok()
-    }
-
-    #[test]
-    fn every_event_carries_references_and_never_prose() {
-        // The structural fence. A variant that grew a label, a note, a title,
-        // a token or any other free text fails here, because free text is not
-        // an id and not a discriminant.
-        for event in every_variant() {
-            let json = serde_json::to_value(&event).unwrap();
-            let fields: Vec<(String, Value)> = json
-                .as_object()
-                .expect("an object")
-                .iter()
-                .map(|(key, value)| (key.clone(), value.clone()))
-                .collect();
-            assert_field_is_a_reference(&event, &fields);
-        }
-    }
-
-    /// Split out so the fence above stays one shallow loop.
-    fn assert_field_is_a_reference(event: &SessionEvent, fields: &[(String, Value)]) {
-        for (key, value) in fields {
-            let text = value.as_str().unwrap_or_else(|| {
-                panic!("{key} on {event:?} serialized as a non-string; audit it by hand")
-            });
-            assert!(
-                is_reference(text),
-                "{key} on {event:?} carried `{text}`, which is not a reference"
-            );
-        }
-    }
-
-    #[test]
-    fn a_grant_event_never_names_the_scope_it_grants() {
-        let vault_id = VaultId::new();
-        let event = SessionEvent::GrantAdded {
-            grant_id: SessionGrantId::new(),
-            subject_principal_id: PrincipalId::new(),
-            role: SessionRole::Read,
-            expires_at: Utc::now(),
-        };
-        let json = serde_json::to_string(&event).unwrap();
-        assert!(!json.contains(&vault_id.to_string()));
-        // And there is no field it could have gone in.
-        assert!(!json.contains("scope"), "{json}");
-        assert!(!json.contains("items"), "{json}");
-    }
-
-    #[test]
-    fn a_join_request_event_carries_the_id_and_not_the_person_or_their_words() {
-        let event = SessionEvent::JoinRequested {
-            request_id: JoinRequestId::new(),
-        };
-        let json = serde_json::to_value(&event).unwrap();
-        let keys: Vec<&String> = json.as_object().unwrap().keys().collect();
-        assert_eq!(keys, ["request_id", "type"]);
-    }
-
-    #[test]
-    fn a_join_request_reaches_the_operator_and_nobody_else() {
-        let now = Utc::now();
-        let event = SessionEvent::JoinRequested {
-            request_id: JoinRequestId::new(),
-        };
-        let holder = PrincipalId::new();
-        let participant = Recipient {
-            principal_id: holder,
-            is_operator: false,
-            grants: vec![grant(
-                holder,
-                GrantScope::Collection {
-                    vault_id: VaultId::new(),
-                },
-                Duration::hours(1),
-                now,
-            )],
-        };
-        let operator = Recipient {
-            principal_id: PrincipalId::new(),
-            is_operator: true,
-            grants: Vec::new(),
-        };
-        assert!(!Delivery::for_recipient(&event, &participant, now));
-        assert!(Delivery::for_recipient(&event, &operator, now));
-    }
-
-    #[test]
-    fn an_item_event_reaches_only_participants_who_can_reach_that_item() {
-        let now = Utc::now();
-        let vault_id = VaultId::new();
-        let mine = VaultItemId::new();
-        let theirs = VaultItemId::new();
-        let holder = PrincipalId::new();
-        let row_scoped = Recipient {
-            principal_id: holder,
-            is_operator: false,
-            grants: vec![grant(
-                holder,
-                GrantScope::Rows {
-                    vault_id,
-                    items: [mine].into_iter().collect::<BTreeSet<_>>(),
-                },
-                Duration::hours(1),
-                now,
-            )],
-        };
-
-        let reachable = SessionEvent::ItemOpened {
-            vault_id,
-            item_id: mine,
-            by_principal_id: PrincipalId::new(),
-        };
-        let out_of_reach = SessionEvent::ItemOpened {
-            vault_id,
-            item_id: theirs,
-            by_principal_id: PrincipalId::new(),
-        };
-        assert!(Delivery::for_recipient(&reachable, &row_scoped, now));
-        assert!(
-            !Delivery::for_recipient(&out_of_reach, &row_scoped, now),
-            "a row-scoped participant was told about an item they cannot reach"
-        );
-    }
-
-    #[test]
-    fn running_the_session_is_not_reaching_into_the_vault_through_it() {
-        // An operator who granted themselves nothing sees that somebody is
-        // working, not what they are working on. Conflating the two is how
-        // "manages the sharing" becomes "reads everything shared".
-        let now = Utc::now();
-        let operator = Recipient {
-            principal_id: PrincipalId::new(),
-            is_operator: true,
-            grants: Vec::new(),
-        };
-        let joined = SessionEvent::ParticipantJoined {
-            principal_id: PrincipalId::new(),
-            role: SessionRole::Read,
-        };
-        let opened = SessionEvent::ItemOpened {
-            vault_id: VaultId::new(),
-            item_id: VaultItemId::new(),
-            by_principal_id: PrincipalId::new(),
-        };
-        assert!(Delivery::for_recipient(&joined, &operator, now));
-        assert!(!Delivery::for_recipient(&opened, &operator, now));
-    }
-
-    #[test]
-    fn a_lapsed_participant_receives_nothing_at_all() {
-        // The send-time re-check. A grant that expired between the event and
-        // the send stops delivery on this event, not at the next reconnect.
-        let now = Utc::now();
-        let holder = PrincipalId::new();
-        let vault_id = VaultId::new();
-        let recipient = Recipient {
-            principal_id: holder,
-            is_operator: false,
-            grants: vec![grant(
-                holder,
-                GrantScope::Collection { vault_id },
-                Duration::minutes(1),
-                now,
-            )],
-        };
-        let event = SessionEvent::ParticipantJoined {
-            principal_id: PrincipalId::new(),
-            role: SessionRole::Read,
-        };
-        assert!(Delivery::for_recipient(&event, &recipient, now));
-        assert!(
-            !Delivery::for_recipient(&event, &recipient, now + Duration::minutes(2)),
-            "a participant whose grant lapsed was still on the channel"
-        );
-    }
-
-    #[test]
-    fn a_recipient_with_no_standing_receives_nothing() {
-        let now = Utc::now();
-        let stranger = Recipient {
-            principal_id: PrincipalId::new(),
-            is_operator: false,
-            grants: Vec::new(),
-        };
-        for event in every_variant() {
-            assert!(
-                !Delivery::for_recipient(&event, &stranger, now),
-                "a stranger received {event:?}"
-            );
-        }
-    }
-}
+#[path = "session_channel/tests.rs"]
+mod tests;
