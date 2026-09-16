@@ -1,0 +1,383 @@
+{
+  "schema": "opensesame/wallet-interaction-evidence@2",
+  "adr": ["0086", "0084", "0091", "0115", "0119"],
+  "checkoutSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
+  "dirtyAtStart": true,
+  "startedAt": "2026-09-15T20:23:00Z",
+  "finalizedAt": "2026-09-15T20:50:00Z",
+  "finalizedBy": "Swarm Q \u2014 integrated validation + evidence manifest",
+  "toolchain": {
+    "node": "v26.5.0",
+    "pnpm": "9.15.0",
+    "cargo": "1.88.0",
+    "vitest": "4.1.10"
+  },
+  "honesty": "Every result below is an ACTUAL exit observed in this repository in this session. No result is asserted that was not run. Suites that could not be run to completion are marked not_run; the one failing suite records its failing test verbatim. All commands were run locally; no GitHub Actions runner was used.",
+  "coordinatorNote": "Parallel swarms A/D/L/W/V/S/P/X/R/U/I/H/C/Q. Coordinator closed F01 session_reauth bypass with interaction-scoped WebAuthn activations; mounted wallet.registration + rendezvous by default; OpenID4VP routes behind OPENSESAME_OID4VP_ENABLED; Pages Settings \u203a Security \u203a Google Wallet panel added.",
+  "swarmQ": {
+    "role": "Integrated validation across the six wallet-interaction surfaces, plus one integration harness that hits production factories the per-package suites do not cross, plus this manifest and the traceability matrix.",
+    "workItems": [
+      {
+        "id": "Q-01",
+        "title": "Run the six focused vitest suites named in the assignment; record actual exits.",
+        "status": "done",
+        "result": "all six exit 0 (see focusedSuites)"
+      },
+      {
+        "id": "Q-02",
+        "title": "Add a Q harness test hitting production factories that no per-package suite crosses: an os-domain-minted interaction reference carried by a wallet pass built by the production wallet factory.",
+        "status": "done",
+        "artifact": "packages/wallet/src/interaction-handoff.q.test.ts",
+        "result": "3/3 pass in isolation (exit 0) and inside the full wallet suite (115/115). Anti-slop clean. File type-clean."
+      },
+      {
+        "id": "Q-03",
+        "title": "Recheck the F01/F02 approval-bypass regression and the consume race the coordinator flagged as flaking once in isolation.",
+        "status": "done",
+        "result": "interaction-approval-bypass.security.test.ts + subject-adapters + interaction-subject-settlement: 17/17 pass. interaction-handoff.test.ts consume-race test ('one approval is spent exactly once under a real race') passed inside the 82/82 control-plane run; no flake observed in this session."
+      },
+      {
+        "id": "Q-04",
+        "title": "Prove the payment-credential refusal end to end and that a request digest never rides on a pass.",
+        "status": "done",
+        "result": "Q harness test 'carries the canonical URL as its only barcode, and no request secret' asserts the canonicalRequestDigest, binding digest, fronted id, amount, payee and detail type are absent from the signed save link; 'the production issue path refuses a display row smuggling a secret' proves the production issuePath refuses a Luhn-valid PAN and names a path, never the value. Control-plane 'card data in an authorization detail is refused, and not echoed' corroborates at the route."
+      },
+      {
+        "id": "Q-05",
+        "title": "Produce the F01-F15 and T-01-T-44 traceability matrix bound to real tests.",
+        "status": "done",
+        "artifact": "docs/validation/wallet-interaction-traceability.md"
+      },
+      {
+        "id": "Q-06",
+        "title": "Record toolchain reality and the pre-existing dirty-tree failures honestly; assemble this manifest.",
+        "status": "done",
+        "result": "See dirtyTreePreExisting. Package-wide typecheck is red from untracked sibling WIP (google-client.ts, os-domain/interaction-proof.ts) that is not on HEAD and not owned by Q; the Q harness file itself is type-clean."
+      }
+    ],
+    "focusedSuites": [
+      {
+        "surface": "interaction-handoff",
+        "package": "@opensesame/control-plane",
+        "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/interaction-handoff.test.ts src/__tests__/interaction-auto-continue.test.ts src/__tests__/federated-interaction.test.ts",
+        "testFiles": 3,
+        "tests": 82,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "surface": "approval-ceremony",
+        "package": "@opensesame/os-domain",
+        "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/approval-ceremony.test.ts src/__tests__/interaction-machine.test.ts src/__tests__/interaction-ref.test.ts src/__tests__/transaction-binding.test.ts src/__tests__/authorization-request-transitions.test.ts src/__tests__/device-auth-edges.test.ts",
+        "testFiles": 6,
+        "tests": 121,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "surface": "local-access-requests",
+        "package": "@opensesame/pages",
+        "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/local-access-requests.test.ts src/lib/local-request-authorization.test.ts src/lib/access-requests.test.ts",
+        "testFiles": 3,
+        "tests": 37,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "surface": "wallet",
+        "package": "@opensesame/wallet",
+        "command": "pnpm --filter @opensesame/wallet exec vitest run",
+        "testFiles": 5,
+        "tests": 115,
+        "exit": 0,
+        "result": "passed",
+        "note": "Includes the Q harness (interaction-handoff.q.test.ts, 3 tests). In isolation the harness is also 3/3 exit 0."
+      },
+      {
+        "surface": "openid4vp",
+        "package": "@opensesame/openid4vp",
+        "command": "pnpm --filter @opensesame/openid4vp exec vitest run",
+        "testFiles": 4,
+        "tests": 94,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "surface": "openid4vci",
+        "package": "@opensesame/openid4vci",
+        "command": "pnpm --filter @opensesame/openid4vci exec vitest run",
+        "testFiles": 7,
+        "tests": 115,
+        "exit": 0,
+        "result": "passed"
+      }
+    ],
+    "findingAnchorSuites": [
+      {
+        "findings": ["F01", "F02"],
+        "threats": ["T-01", "T-02", "T-03"],
+        "package": "@opensesame/control-plane",
+        "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/interaction-approval-bypass.security.test.ts src/routes/subject-adapters.test.ts src/__tests__/interaction-subject-settlement.test.ts",
+        "testFiles": 3,
+        "tests": 17,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "findings": ["F08", "F15"],
+        "threats": ["T-20", "T-17"],
+        "package": "@opensesame/os-domain",
+        "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/interaction-proof.test.ts src/__tests__/interaction-digests.test.ts",
+        "testFiles": 2,
+        "tests": 38,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "findings": ["F02"],
+        "threats": ["T-02"],
+        "package": "@opensesame/contracts",
+        "command": "pnpm --filter @opensesame/contracts exec vitest run src/interactions.security.test.ts",
+        "testFiles": 1,
+        "tests": 4,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "findings": ["F13"],
+        "threats": ["T-39"],
+        "package": "@opensesame/policy",
+        "command": "pnpm --filter @opensesame/policy exec vitest run src/__tests__/approval-mechanisms.test.ts",
+        "testFiles": 1,
+        "tests": 12,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "findings": ["S12"],
+        "threats": ["T-34"],
+        "package": "@opensesame/capability-registry",
+        "command": "pnpm --filter @opensesame/capability-registry exec vitest run",
+        "testFiles": 1,
+        "tests": 14,
+        "exit": 0,
+        "result": "passed"
+      },
+      {
+        "findings": ["F04", "F05", "F12"],
+        "threats": ["T-07"],
+        "package": "@opensesame/database",
+        "command": "pnpm --filter @opensesame/database exec vitest run tests/interactions-repos.test.ts",
+        "testFiles": 1,
+        "tests": 28,
+        "passedTests": 27,
+        "failedTests": 1,
+        "exit": 1,
+        "result": "partial_fail",
+        "failure": "PostgresRepositories.interactions constraints > 'refuses a consumption time on a row that is not consumed': AssertionError: expected the insert error to match /interactions_consumed_at_check/. The CHECK constraint is not present in the dirty-tree schema state. This is in the F12/T-07 durable-store area and appears to be concurrent sibling migration WIP, not introduced by Q and not in a Q-owned file."
+      }
+    ],
+    "gates": [
+      {
+        "gate": "anti-slop (scoped to Q harness)",
+        "command": "pnpm lint:anti-slop:files packages/wallet/src/interaction-handoff.q.test.ts",
+        "exit": 0,
+        "result": "clean"
+      },
+      {
+        "gate": "anti-slop (full repository)",
+        "command": "pnpm lint:anti-slop",
+        "exit": null,
+        "result": "not_run",
+        "note": "Ran ~13 minutes without completing over the dirty tree and was terminated. Substituted the scoped file lint above, which is clean. Not asserting a repo-wide result that did not finish."
+      },
+      {
+        "gate": "typecheck (Q harness file)",
+        "result": "clean",
+        "note": "The only tsc error the harness itself produced (an overlapCast type-argument on a boundary decode) was fixed; the file now contributes no error."
+      },
+      {
+        "gate": "typecheck (@opensesame/wallet package)",
+        "command": "pnpm --filter @opensesame/wallet exec tsc --noEmit",
+        "exit": 2,
+        "result": "fail_preexisting",
+        "note": "Fails on packages/wallet/src/google-client.ts and ../os-domain/src/interaction-proof.ts, both UNTRACKED files not present at HEAD (concurrent sibling WIP). Not caused by Q's change; vitest transpiles per file so the Q harness runs green regardless."
+      }
+    ],
+    "dirtyTreePreExisting": {
+      "untrackedFilesBreakingTypecheck": [
+        "packages/wallet/src/google-client.ts",
+        "packages/os-domain/src/interaction-proof.ts"
+      ],
+      "failingTest": "packages/database/tests/interactions-repos.test.ts > 'refuses a consumption time on a row that is not consumed' (missing interactions_consumed_at_check constraint)",
+      "note": "Confirmed via `git status --short` (?? = untracked) and `git cat-file -e HEAD:<path>` (not on HEAD). Swarm Q added exactly one file (the wallet Q harness) and this manifest and the traceability doc; it did not touch any file listed here."
+    }
+  },
+  "capabilities": [
+    {
+      "capability": "interaction.approval.webauthn.hosted",
+      "workItems": ["A-01", "A-02", "A-04"],
+      "requirements": ["F01", "F02", "T-01", "T-02", "T-03", "T-04"],
+      "sourcePaths": [
+        "apps/control-plane/src/routes/interaction-activation.ts",
+        "apps/control-plane/src/routes/interaction-handoff.ts",
+        "packages/contracts/src/interactions.ts"
+      ],
+      "tests": [
+        "interaction approval bypass (F01/F02)",
+        "interaction handoff (approve requires activation)"
+      ],
+      "commands": [
+        "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/interaction-approval-bypass.security.test.ts",
+        "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/interaction-handoff.test.ts"
+      ],
+      "result": "passed",
+      "qReverify": "Q-03 reran both; 17/17 and 82/82 respectively, exit 0. The consume-race concern noted below did not reproduce this session.",
+      "notes": "Digest-only approve returns proof_required. Client ApprovalProof ignored. Approve spends activated WebAuthn activation. Deny remains digest+session. Consume race test flaked once in isolation (both 200) \u2014 recheck under Q-03."
+    },
+    {
+      "capability": "wallet.native.composition",
+      "workItems": ["C-01", "C-02", "W-01", "R-04"],
+      "requirements": ["F06", "F07", "T-26", "T-31"],
+      "sourcePaths": [
+        "apps/control-plane/src/create-wallet-native-mounts.ts",
+        "apps/control-plane/src/routes/wallet-native.ts",
+        "apps/control-plane/src/create-app.ts"
+      ],
+      "tests": [
+        "wallet-native-mounts.test.ts",
+        "wallet-native.test.ts",
+        "rendezvous-landing.test.ts"
+      ],
+      "commands": [
+        "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/wallet-native-mounts.test.ts src/__tests__/wallet-native.test.ts"
+      ],
+      "result": "passed",
+      "checkoutSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
+      "environment": "vitest 4.1.10; default mounts: wallet.registration + rendezvous; oid4vp feature-gated; oid4vci override-mounted",
+      "externalBoundary": "Google Wallet live save; OID4VCI signing-key load",
+      "evidencePath": "/tmp/wallet-final-cp.log"
+    },
+    {
+      "capability": "wallet.registration.hosted",
+      "workItems": ["W-01", "W-02", "C-02"],
+      "requirements": ["F07", "T-26"],
+      "sourcePaths": [
+        "apps/control-plane/src/create-wallet-native-mounts.ts",
+        "apps/control-plane/src/routes/wallet-registration.ts",
+        "apps/pages/src/sections/settings/WalletPassPanel.tsx"
+      ],
+      "tests": [
+        "resolveWalletNativeMounts via createControlPlane > exposes wallet registration and rendezvous without an override",
+        "resolveWalletNativeMounts via createControlPlane > lists registrations for an authenticated principal (empty)"
+      ],
+      "commands": [
+        "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/wallet-native-mounts.test.ts"
+      ],
+      "result": "passed",
+      "checkoutSha": "dirty-worktree",
+      "environment": "Node via vitest 4.1.10; InMemoryWalletRegistrationStore; Google issue remains external_prerequisite",
+      "externalBoundary": "Google Wallet Save / rotating barcode provisioning",
+      "evidencePath": "/tmp/wallet-final-cp.log"
+    },
+    {
+      "capability": "interaction.landing.continuation",
+      "workItems": ["R-04", "F06"],
+      "requirements": ["F06", "T-31"],
+      "sourcePaths": [
+        "apps/control-plane/src/routes/interaction-handoff.ts",
+        "apps/control-plane/src/interactions/rendezvous.ts"
+      ],
+      "tests": ["rendezvous-landing.test.ts", "rendezvous.test.ts"],
+      "commands": [
+        "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/rendezvous-landing.test.ts"
+      ],
+      "result": "passed",
+      "checkoutSha": "dirty-worktree",
+      "environment": "vitest 4.1.10",
+      "externalBoundary": null,
+      "evidencePath": "/tmp/wallet-handoff-test.log"
+    },
+    {
+      "capability": "openid4vp.verifier.hosted",
+      "workItems": ["V-01", "V-03", "C-02"],
+      "requirements": ["F08", "T-20"],
+      "sourcePaths": [
+        "apps/control-plane/src/routes/openid4vp.ts",
+        "packages/openid4vp/src/routes.ts"
+      ],
+      "tests": [
+        "resolveWalletNativeMounts via createControlPlane > enables OpenID4VP when the protocol feature flag is on"
+      ],
+      "commands": [
+        "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/wallet-native-mounts.test.ts"
+      ],
+      "result": "passed",
+      "checkoutSha": "dirty-worktree",
+      "environment": "feature flag OPENSESAME_OID4VP_ENABLED; trusted issuers empty by default (finish fails closed)",
+      "externalBoundary": "Independent holder / Digital Credentials API live device",
+      "evidencePath": "/tmp/wallet-final-cp.log"
+    },
+    {
+      "capability": "openid4vci.issuer.hosted",
+      "workItems": ["I-01", "C-02"],
+      "requirements": ["F10", "T-24"],
+      "sourcePaths": [
+        "apps/control-plane/src/create-wallet-native-mounts.ts",
+        "apps/control-plane/src/routes/openid4vci.ts"
+      ],
+      "tests": [
+        "wallet-native-mounts.test.ts \u2014 enables OpenID4VCI when the protocol feature flag is on",
+        "openid4vci-issuance.test.ts (existing focused issuance suite)"
+      ],
+      "commands": [
+        "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/wallet-native-mounts.test.ts"
+      ],
+      "result": "passed",
+      "checkoutSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
+      "environment": "OPENSESAME_OID4VCI_ENABLED; ephemeral ES256 PKCS8; https issuer required for metadata",
+      "externalBoundary": "Production durable issuer key management",
+      "evidencePath": "/tmp/wallet-mounts4.log"
+    },
+    {
+      "capability": "rendezvous.admission",
+      "workItems": ["R-01", "R-02"],
+      "requirements": ["T-27", "T-28"],
+      "sourcePaths": ["apps/control-plane/src/routes/rendezvous.ts"],
+      "tests": ["rendezvous-admission.test.ts"],
+      "commands": [
+        "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/rendezvous-admission.test.ts"
+      ],
+      "result": "passed",
+      "checkoutSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
+      "environment": "vitest 4.1.10",
+      "externalBoundary": null,
+      "evidencePath": "/tmp/wallet-batch.log"
+    }
+  ],
+  "findings": {
+    "F01": "closed_in_tree",
+    "F02": "partial_ceremony_kit_updated",
+    "F03": "local_path_preserved_swarm_L",
+    "F06": "rendezvous_pages_in_progress",
+    "F07": "wallet_registration_module_added",
+    "F08": "interaction_digests_module_added",
+    "C_composition": "wallet_native_prefixes_wired_typed_501_stubs_plus_public_capabilities_matrix",
+    "C_bypass": "no_silent_404_under_any_wallet_native_prefix; settlement stays in approve(); settlement guard wired in capability-registry index",
+    "C_typecheck": "package tsc red from concurrent sibling WIP in files C does not own; C-owned files type-clean and tested in isolation"
+  },
+  "swarmArtifactsPresent": [
+    "apps/control-plane/src/routes/interaction-activation.ts",
+    "apps/control-plane/src/routes/wallet-native.ts",
+    "apps/control-plane/src/__tests__/wallet-native.test.ts",
+    "apps/control-plane/src/interactions/rendezvous.ts",
+    "apps/control-plane/src/ui/rendezvous-pages.ts",
+    "packages/os-domain/src/crypto/interaction-digests.ts",
+    "packages/wallet/src/registration.ts",
+    "packages/openid4vp/src/dcql.ts",
+    "packages/policy/src/approval-mechanisms.ts",
+    "docs/adr/0119-wallet-native-control-plane-composition.md",
+    "packages/wallet/src/interaction-handoff.q.test.ts"
+  ],
+  "updatedAt": "2026-09-16T03:07:05.718667+00:00"
+}

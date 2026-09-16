@@ -114,3 +114,66 @@ literal source no longer matches and the dry run fails with an opaque
 Snapshot updates are always explicit. Use Vitest's `-u` or
 `VISUAL_UPDATE=1 pnpm test:visual`, inspect the diff, and commit only intended
 behavior changes.
+
+## Measured 2026-09-15 — SIOP
+
+Focused `@opensesame/siop-v2` coverage (v8, `src/**/*.ts` only):
+
+```bash
+pnpm --dir packages/siop-v2 exec vitest run --coverage --coverage.provider=v8 \
+  --coverage.include='src/**/*.ts' --coverage.reporter=text-summary \
+  --coverage.reporter=json --coverage.reportsDirectory=../../coverage/siop-v2
+```
+
+| Metric | Measured |
+| --- | --- |
+| Statements | 86.99% (388/446) |
+| Branches | 82.81% (294/355) |
+| Functions | **100%** (52/52) |
+| Lines | **90.45%** (360/398) |
+
+Well above the 50% per-package lines floor. Property coverage lives in
+`request.property.test.ts` (fast-check); adversarial coverage in
+`security.adversarial.test.ts` and `token.adversarial.test.ts`; fragment
+contract coverage in `response.test.ts`. Identity hosted bridge PACT lives in
+`apps/control-plane/src/__tests__/siop-bridge.pact.test.ts`
+(`pnpm --filter @opensesame/control-plane verify:siop`).
+
+Approximate CRAP (branch-outcome complexity × uncovered³) after the response
+and validity extractions — lower is better; pure decision modules sit at their
+complexity floor because coverage is 100%:
+
+| File | Stmt % | Approx CRAP |
+| --- | ---: | ---: |
+| `request.ts` | 74.7 | 118 |
+| `id-token.ts` | 87.1 | 83 |
+| `response.ts` | 93.5 | 65 |
+| `validity.ts` / `issuer.ts` / `audience.ts` / `link-profile.ts` | 100 | = complexity |
+
+Scoped Stryker (`break: 100`) was run one file at a time — the CLI applies a
+single `--mutate` path per invocation:
+
+| File | Killed | Survived | Timeout | No cov | Score | In `stryker.config.json`? |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `packages/siop-v2/src/issuer.ts` | 82 | 0 | 0 | 0 | **100%** | **Yes** |
+| `packages/siop-v2/src/audience.ts` | 29 | 0 | 0 | 0 | **100%** | **Yes** |
+| `packages/siop-v2/src/validity.ts` | 67 | 0 | 0 | 0 | **100%** | **Yes** — epochs / `i_am_siop` / freshness extracted from `id-token.ts` |
+| `packages/siop-v2/src/link-profile.ts` | 43 | 0 | 0 | 0 | **100%** | **Yes** — challenge profile + email-join refuse for ADR 0117 |
+| `packages/siop-v2/src/id-token.ts` | — | — | — | — | — | **No** — mint/verify/JOSE orchestration; decision branches live in the modules above |
+| `apps/pages/src/lib/siop-authority.ts` | 48 | 27 | 0 | 9 | 57.14% | **No** — jsdom ceremony path; optional-chaining / string-copy survivors |
+| `apps/control-plane/src/services/siop-verify.ts` | — | — | — | — | — | **No** — take/restore/audit orchestration held by PACT; profile decisions in `link-profile.ts` |
+
+Scoped runs (2026-09-15):
+
+```bash
+pnpm exec stryker run --mutate packages/siop-v2/src/issuer.ts
+pnpm exec stryker run --mutate packages/siop-v2/src/audience.ts
+pnpm exec stryker run --mutate packages/siop-v2/src/validity.ts
+pnpm exec stryker run --mutate packages/siop-v2/src/link-profile.ts
+```
+
+`packages/siop-v2` unit tests: **88** cases across issuer, audience, validity,
+link-profile, token, token.adversarial, response, matrix, property, and
+adversarial suites. `vitest.mutation.config.ts` sets
+`OPENSESAME_ALLOW_DEV_DEFAULTS=1` so related Identity suites can boot under
+Stryker.

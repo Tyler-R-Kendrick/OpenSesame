@@ -214,6 +214,23 @@ default on other routes. The Vite development server scopes this exception to
 Do not use a `noopener` link or an RP opener policy that severs cross-origin
 popups. If the opener is unavailable, sign-in is refused.
 
+## Self-Issued OpenID Provider v2 (SIOP)
+
+Pages can also act as a **Self-Issued OP** (SIOPv2 Implementer's Draft 1).
+That profile is separate from hosted OIDC and reuses the same browser-local
+application admission, exact redirects, passkey consent gate, and pairwise
+ES256 vault keys. WebAuthn authenticates the human and gates consent; it is
+not the JOSE signing key. RPs that want self-issued trust verify the
+`id_token` from `sub_jwk` themselves — see `@opensesame/siop-v2`
+`SUPPORT_MATRIX` and `apps/example-siop-rp`.
+
+An optional hosted bridge can bind a verified SIOP `sub` / JWK thumbprint to a
+canonical principal ([ADR 0117](../adr/0117-hosted-siop-oidc-bridge.md)). The
+hosted OP still signs downstream tokens; that is not non-custodial. Email is
+never a SIOP join key. The experimental browser-signed conventional OIDC
+facade remains unimplemented ([ADR 0116](../adr/0116-browser-native-siop-v2.md)
+§5).
+
 The popup cannot simultaneously claim cross-origin isolation. Its message port
 is not operator authority, and it exposes no arbitrary fetch, vault or Host
 operation. A public subject may correlate the same local person across admitted
@@ -227,6 +244,7 @@ production origin isolation.
 ```sh
 VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build
 pnpm --filter @opensesame/pages verify:local-iam
+pnpm --filter @opensesame/pages verify:siop
 pnpm --filter @opensesame/pages exec vitest run scripts/local-iam-headers.test.mjs
 pnpm --filter @opensesame/static-auth test
 ```

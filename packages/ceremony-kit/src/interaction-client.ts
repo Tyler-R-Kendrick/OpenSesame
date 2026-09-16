@@ -6,7 +6,6 @@ import {
   readString,
 } from "@opensesame/os-domain";
 import type {
-  ApprovalProof,
   InteractionDetail,
   InteractionKind,
   InteractionStatus,
@@ -26,12 +25,21 @@ import { isInteractionRef } from "./interaction-url.js";
  *
  * Two invariants are enforced here rather than left to each caller:
  *
- * 1. **The digest is echoed.** Approving and denying both send back the
- *    request digest the client was shown. A client that cannot reproduce the
- *    digest it saw cannot answer — which is what makes an approval an
- *    approval *of something* rather than a bare yes, and what stops a proof
- *    minted against one request from settling another (the same dynamic
- *    linking `machines/interaction.ts` enforces server-side).
+ * 1. **The digest is echoed, and the client never hands over a proof.**
+ *    Approving and denying both carry back the request digest the client was
+ *    shown; approving may additionally name an opaque `activationId` the
+ *    authority already minted for this interaction, and nothing else. A client
+ *    that cannot reproduce the digest it saw cannot answer — which is what
+ *    makes an approval an approval *of something* rather than a bare yes, and
+ *    what stops a decision computed against one request from settling another
+ *    (the same dynamic linking `machines/interaction.ts` enforces
+ *    server-side). The client never hands the server an `ApprovalProof`: the
+ *    proof is built server-side from what the server actually verified — the
+ *    raw assertion the authority checked at `/activation/complete`, recorded
+ *    against that `activationId` (`ApproveInteractionSchema` in
+ *    `@opensesame/contracts`) — because a client that could name its own
+ *    mechanism and assurance could manufacture an audit row for a key it
+ *    never touched.
  * 2. **Server prose never becomes an error message.** Failures map to a closed
  *    code union with messages this package owns. A response body is written by
  *    whatever answered the request — which, on a phone that joined the wrong
@@ -244,29 +252,6 @@ function toDetail(body: JsonObject): InteractionDetail {
   };
 }
 
-/**
- * The proof, on the wire.
- *
- * camelCase, matching the Identity API's other bodies — `AuthorizationRequest`
- * responses carry `authReqId`, `bindingMessage` and `requestDigest`, and this
- * envelope is read by the same clients.
- *
- * `verifiedAt` is sent for completeness and is *not* what the server records:
- * the route stamps its own clock, because a client that can move the time an
- * approval was verified can hold one open past its window.
- */
-function encodeProof(proof: ApprovalProof): JsonObject {
-  return {
-    mechanism: proof.mechanism,
-    boundDigest: proof.boundDigest,
-    assurance: proof.assurance,
-    verifiedAt: proof.verifiedAt.toISOString(),
-    ...(proof.credentialRef === undefined
-      ? undefined
-      : { credentialRef: proof.credentialRef }),
-  };
-}
-
 export interface InteractionClientOptions {
   /** Identity API origin. Build-time for a bundled app, runtime for Pages. */
   baseUrl: string;
@@ -283,19 +268,84 @@ export interface InteractionClientOptions {
 export interface ApproveInteractionInput {
   /**
    * The digest the client was shown. Echoed so the server can refuse an
-   * approval computed against a request that has since changed.
+   * approval computed against a request that has since changed. No `proof`
+   * field: the approval proof is built server-side from what the server
+   * verified, never taken from the caller (`ApproveInteractionSchema` in
+   * `@opensesame/contracts`).
    */
   requestDigest: string;
-  proof: ApprovalProof;
+  /**
+   * The opaque handle for an interaction-scoped activation the authority has
+   * already verified (`beginInteractionActivation` then
+   * `completeInteractionActivation`). It is not a proof and not a claim about a
+   * mechanism — the server reads the mechanism and assurance from the
+   * activation record it minted, never from this id. Omitted by a surface that
+   * cannot step up, and the server then answers `proof_required`.
+   */
+  activationId?: string;
 }
 
 export interface DenyInteractionInput {
   requestDigest: string;
 }
 
+export interface BeginInteractionActivationInput {
+  /** The digest the client was shown; the challenge is bound to it server-side. */
+  requestDigest: string;
+}
+
+/**
+ * The interaction-scoped WebAuthn options the authority issued (ADR 0086 §7).
+ *
+ * `options` is passed through to the surface's own authenticator call
+ * unaltered — it is a `PublicKeyCredentialRequestOptionsJSON` whose challenge
+ * the server bound to this interaction's digest, and decoding it here would put
+ * a second copy of the WebAuthn JSON shape in a transport package. The surface
+ * runs `navigator.credentials.get`, then answers with
+ * `completeInteractionActivation`.
+ */
+export interface InteractionActivationChallenge {
+  activationId: string;
+  options: JsonObject;
+  expiresAt: Date;
+}
+
+export interface CompleteInteractionActivationInput {
+  activationId: string;
+  credentialId: string;
+  clientDataJSON: string;
+  authenticatorData: string;
+  signature: string;
+}
+
+export interface InteractionActivationResult {
+  activationId: string;
+  /** The activation lifecycle state, e.g. `activated`. Displayed, never decided on. */
+  state: string;
+}
+
 export interface InteractionClient {
   resolveInteraction(ref: string): Promise<InteractionSummary>;
   readInteraction(ref: string): Promise<InteractionDetail>;
+  /**
+   * Begin an interaction-scoped step-up: the authority mints a WebAuthn
+   * challenge bound to this interaction's digest and returns it with the
+   * activation handle. The surface performs the assertion and answers with
+   * `completeInteractionActivation` (ADR 0086 §7 / A-01).
+   */
+  beginInteractionActivation(
+    ref: string,
+    input: BeginInteractionActivationInput,
+  ): Promise<InteractionActivationChallenge>;
+  /**
+   * Submit the raw assertion for the authority to verify. Nothing here is a
+   * proof the client built — the server checks the assertion against the
+   * challenge it issued and records the mechanism itself (A-02).
+   */
+  completeInteractionActivation(
+    ref: string,
+    input: CompleteInteractionActivationInput,
+  ): Promise<InteractionActivationResult>;
   approveInteraction(
     ref: string,
     input: ApproveInteractionInput,
@@ -401,18 +451,60 @@ export function createInteractionClient({
       );
     },
 
-    async approveInteraction(ref, { requestDigest, proof }) {
-      // Refused before the call, not after it. A proof bound to a different
-      // digest is not a slow "no" from the server — it is a client that has
-      // lost track of what it is approving, and it must not put that on the
-      // wire where a lenient endpoint might accept it.
-      if (proof.boundDigest !== requestDigest) {
-        throw new InteractionError(0, "digest_mismatch");
-      }
-      return decide(ref, "/approve", {
-        requestDigest,
-        proof: encodeProof(proof),
+    async beginInteractionActivation(ref, { requestDigest }) {
+      // Names the decision so a deny-bound activation can never be minted here
+      // and spent as an approve; the server refuses any other decision.
+      const body = await send(path(ref, "/activation"), {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authorized() },
+        body: JSON.stringify({ requestDigest, decision: "approved" }),
       });
+      const activationId = readString(body.activationId);
+      const expiresAt = readDate(body.expiresAt);
+      const options = body.options;
+      if (
+        activationId === undefined ||
+        expiresAt === undefined ||
+        !isJsonObject(options)
+      ) {
+        throw malformed();
+      }
+      return { activationId, options, expiresAt };
+    },
+
+    async completeInteractionActivation(ref, input) {
+      // The raw assertion, verified server-side. The response carries only the
+      // activation handle and its state — never a proof the client could read
+      // back and re-assert.
+      const body = await send(path(ref, "/activation/complete"), {
+        method: "POST",
+        headers: { "content-type": "application/json", ...authorized() },
+        body: JSON.stringify({
+          activationId: input.activationId,
+          credentialId: input.credentialId,
+          clientDataJSON: input.clientDataJSON,
+          authenticatorData: input.authenticatorData,
+          signature: input.signature,
+        }),
+      });
+      const activationId = readString(body.activationId);
+      const state = readString(body.state);
+      if (activationId === undefined || state === undefined) throw malformed();
+      return { activationId, state };
+    },
+
+    async approveInteraction(ref, { requestDigest, activationId }) {
+      // The digest echo, and — at most — the opaque handle for an activation
+      // the authority already verified. Never a client-built `ApprovalProof`:
+      // the server reads the mechanism and assurance from the activation
+      // record it minted, so a body that named them would be asserting a check
+      // the server never saw. The step-up that produced the activation
+      // happened at `/activation/complete` before this call.
+      const body: JsonObject = { requestDigest };
+      if (activationId !== undefined) {
+        body.activationId = activationId;
+      }
+      return decide(ref, "/approve", body);
     },
 
     async denyInteraction(ref, { requestDigest }) {
