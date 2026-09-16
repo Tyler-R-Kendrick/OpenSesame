@@ -14,7 +14,7 @@ pub mod config_access;
 pub mod configuration;
 pub mod crypto;
 pub mod custom_provider;
-pub mod delegation;
+pub mod delegation; mod delegation_lineage;
 pub mod egress;
 pub mod error;
 pub mod flow;
