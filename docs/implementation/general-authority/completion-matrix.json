@@ -5,17 +5,8 @@
   "baselineDirty": false,
   "generatedAt": "2026-09-16",
   "generatedBy": "GA-1 contracts/docs stack from origin/main; matrix honesty — no verified for unimplemented Rust on this branch",
-  "statusVocabulary": [
-    "unresolved",
-    "in-progress",
-    "blocked",
-    "verified"
-  ],
-  "verificationVocabulary": [
-    "none",
-    "self-reported",
-    "command-backed"
-  ],
+  "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
+  "verificationVocabulary": ["none", "self-reported", "command-backed"],
   "rules": [
     "A work item moves off 'unresolved' only with a recorded command and what that command printed.",
     "'verified' requires command-backed verification; a passing claim without a command stays 'self-reported' and the item stays 'in-progress'.",
@@ -50,9 +41,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-A-01"
-      ],
+      "blockedBy": ["GA-A-01"],
       "notes": "invariants.ts holds no authority invariants at baseline."
     },
     {
@@ -62,9 +51,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-A-01"
-      ],
+      "blockedBy": ["GA-A-01"],
       "notes": "Depth bound undecided."
     },
     {
@@ -74,9 +61,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-A-01"
-      ],
+      "blockedBy": ["GA-A-01"],
       "notes": null
     },
     {
@@ -96,9 +81,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-F-01"
-      ],
+      "blockedBy": ["GA-F-01"],
       "notes": null
     },
     {
@@ -118,9 +101,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-F-02"
-      ],
+      "blockedBy": ["GA-F-02"],
       "notes": null
     },
     {
@@ -130,9 +111,7 @@
       "status": "in-progress",
       "verification": "command-backed",
       "evidence": "ValidatedGrantChain in authz; AccessDomain HTTP routes + 3 gateway tests; fabric PASS",
-      "blockedBy": [
-        "GA-A-03"
-      ],
+      "blockedBy": ["GA-A-03"],
       "notes": "Host evaluation path exists; not every public route inventory complete"
     },
     {
@@ -142,9 +121,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-A-01"
-      ],
+      "blockedBy": ["GA-A-01"],
       "notes": "AccessDomain forest, grant sidecar, budget CHECK, ancestor fence; Host HTTP routes still separate | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): cargo +1.88.0 test -p opensesame-storage --test authority_schema (8 ok); cargo +1.88.0 test -p opensesame-storage authority --lib (5 ok); migrations/0034_general_authority.sql in migrations.rs"
     },
     {
@@ -154,9 +131,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-H-02"
-      ],
+      "blockedBy": ["GA-H-02"],
       "notes": "Feed half proven; auth-path deny remains fenced_authority expires_at (ADR 0121). Live OpenBao stack still optional/unavailable without .tools/bin/bao. | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): SubjectKind::AuthorityGrant; crates/lifecycle/src/authority_grant_expiry.rs; storage authority/expiry.rs + gateway subjects absorb; cargo +1.88.0 test -p opensesame-lifecycle authority_grant_expiry; fabric GA-V-33 retargeted off dishonest live-stack-test.sh"
     },
     {
@@ -166,9 +141,7 @@
       "status": "in-progress",
       "verification": "command-backed",
       "evidence": "cargo +1.88.0 test -p opensesame-storage --lib issuing_authority_writes_an_outbox_event → ok; outbox event_type authority.grant.issued",
-      "blockedBy": [
-        "GA-H-01"
-      ],
+      "blockedBy": ["GA-H-01"],
       "notes": "Durable outbox intent on issue; signed InvocationReceipt binding for dispatch still separate"
     },
     {
@@ -178,9 +151,7 @@
       "status": "in-progress",
       "verification": "command-backed",
       "evidence": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-principals.test.ts → 12 pass; pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' → 2 pass",
-      "blockedBy": [
-        "GA-A-04"
-      ],
+      "blockedBy": ["GA-A-04"],
       "notes": "ID-BIND: AuthorityPrincipalKind + relation fences + PoP enrollment; ID-SPAWN domain mint/refuse (wasmtime only). Control-plane HTTP enrollment/spawn routes and Host grant issuance still open."
     },
     {
@@ -190,9 +161,7 @@
       "status": "in-progress",
       "verification": "command-backed",
       "evidence": "pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' → 2 pass (MEMBERSHIP_SUBJECT_KINDS ≡ CHECK)",
-      "blockedBy": [
-        "GA-A-01"
-      ],
+      "blockedBy": ["GA-A-01"],
       "notes": "Subject-kind fence landed; ADR 0038 membership CRUD generalization / live reconciliation still open."
     },
     {
@@ -202,9 +171,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-I-01"
-      ],
+      "blockedBy": ["GA-I-01"],
       "notes": "No Identity authority-mutation audit events yet; depends on control-plane routes."
     },
     {
@@ -214,9 +181,7 @@
       "status": "in-progress",
       "verification": "self-reported",
       "evidence": "authority-templates + LocalAuthorityTemplates panel landed; minting/enforcement wiring open",
-      "blockedBy": [
-        "GA-A-01"
-      ],
+      "blockedBy": ["GA-A-01"],
       "notes": "authority-templates + LocalAuthorityTemplates panel landed; minting/enforcement wiring open"
     },
     {
@@ -226,9 +191,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-P-01"
-      ],
+      "blockedBy": ["GA-P-01"],
       "notes": "User-visible: needs before/after evidence from two real builds."
     },
     {
@@ -238,9 +201,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-P-02"
-      ],
+      "blockedBy": ["GA-P-02"],
       "notes": "ADR 0090: gate a panel on what it needs, never on 'a backend'."
     },
     {
@@ -260,10 +221,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-I-01",
-        "GA-P-02"
-      ],
+      "blockedBy": ["GA-I-01", "GA-P-02"],
       "notes": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=… pnpm test:authority-fabric:report → GA-V-30 pass | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=… pnpm test:authority-fabric:report → GA-V-30 pass"
     },
     {
@@ -273,9 +231,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-C-01"
-      ],
+      "blockedBy": ["GA-C-01"],
       "notes": "Parity tests in mcp-host/mcp-client are modified in the dirty tree."
     },
     {
@@ -335,10 +291,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-A-02",
-        "GA-F-03"
-      ],
+      "blockedBy": ["GA-A-02", "GA-F-03"],
       "notes": null
     },
     {
@@ -348,9 +301,7 @@
       "status": "unresolved",
       "verification": "none",
       "evidence": null,
-      "blockedBy": [
-        "GA-P-02"
-      ],
+      "blockedBy": ["GA-P-02"],
       "notes": "Base-branch capture is complicated by the dirty tree; plan it before GA-P-02 lands."
     },
     {

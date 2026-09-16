@@ -389,6 +389,7 @@ fn authorize_invocation(
         requested_url: parameters.get("url").and_then(Value::as_str),
         requested_action: Some(&body.operation),
         connection_policy_id: &resolved.connection_policy_id,
+        lineage: None,
     };
     match authorize_authority_use(&st.broker.policy, &authority_use) {
         Ok(decision) if decision.allowed => Ok(()),
