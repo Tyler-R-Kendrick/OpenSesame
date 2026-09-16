@@ -1,11 +1,6 @@
 /**
- * Step 2 — connectors. Which connectors are already authorized?
- *
- * The fewest touch-points a deployment can have: a Nango-compatible
- * directory already ran the OAuth round trips, so naming it once brings
- * every connection it holds across by reference (ADR 0115). Nothing is
- * re-authorized, no token reaches this page, and what comes back is sealed
- * with the vault — bound to people and agents from Access › Connectors.
+ * Step — connectors first. Connections arrive by reference (ADR 0115);
+ * later tabs (backups) may reuse what this directory authorized.
  */
 
 import { useState } from "react";
@@ -17,7 +12,6 @@ import {
 import type { DirectoryConnection } from "../../../lib/nango-directory.js";
 import { useVaultStore } from "../../../lib/vault/hooks.js";
 import { GuideTarget } from "../../../tutorial/registry/react.jsx";
-import { StepHead } from "./shared.js";
 
 function ConnectionCards({
   connections,
@@ -64,25 +58,13 @@ export function ConnectorsStep() {
   );
   return (
     <>
-      <StepHead title="Which connectors are already authorized?">
-        Name a Nango-compatible directory and every connection it already holds
-        becomes a connector here, by reference. Tokens stay where they are.
-      </StepHead>
-
       <GuideTarget id="setup.connectors">
         <ConnectorDirectoryForm tomb={tomb} onSynced={setRecord} />
       </GuideTarget>
 
       {record && record.connections.length > 0 ? (
         <section className="setup__stack" aria-label="Synced connectors">
-          <p className="ways__head">
-            Connectors
-            <span className="ways__count">{record.connections.length}</span>
-          </p>
           <ConnectionCards connections={record.connections} />
-          <p className="hint">
-            Who may use each one is decided in Access › Connectors.
-          </p>
         </section>
       ) : null}
     </>

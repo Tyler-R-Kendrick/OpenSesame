@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { Link } from "react-router";
+import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import {
   IconAlert,
   IconCheck,
@@ -55,6 +56,7 @@ import {
 import {
   type IdentitySession,
   identityBase,
+  remoteIdentityApi,
   useIdentitySession,
 } from "../lib/identity.js";
 import {
@@ -533,9 +535,10 @@ function ByoClientFields({
 }) {
   const { copy, copied } = useCopy();
 
-  // The deployment-wide callback every BYO registration is bound to
-  // server-side (stableFederatedRedirectUri); the IdP must allow it exactly.
-  const redirectUri = `${identityBase()}/v1/federated/callback`;
+  // BYO callback lives on the remote Identity API (stableFederatedRedirectUri),
+  // never the device-native host — which has no federated callback route.
+  const remote = remoteIdentityApi().trim();
+  const redirectUri = remote ? `${remote}/v1/federated/callback` : "";
 
   return (
     <>
@@ -569,23 +572,32 @@ function ByoClientFields({
       </div>
       <div className="field">
         <span className="label">Redirect URI for your provider</span>
-        <div className="byo__uri">
-          <code>{redirectUri}</code>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Copy redirect URI"
-            title="Copy redirect URI"
-            onClick={() => copy(redirectUri, "redirect")}
-          >
-            {copied === "redirect" ? <IconCheck /> : <IconCopy />}
-          </button>
-        </div>
-        <p className="hint">
-          {copied === "redirect"
-            ? "Copied. Add it to your provider's allowed redirect URIs."
-            : "Register this exact redirect URI at your provider."}
-        </p>
+        {redirectUri ? (
+          <>
+            <div className="byo__uri">
+              <code>{redirectUri}</code>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Copy redirect URI"
+                title="Copy redirect URI"
+                onClick={() => copy(redirectUri, "redirect")}
+              >
+                {copied === "redirect" ? <IconCheck /> : <IconCopy />}
+              </button>
+            </div>
+            <p className="hint">
+              {copied === "redirect"
+                ? "Copied. Add it to your provider's allowed redirect URIs."
+                : "Register this exact redirect URI at your provider."}
+            </p>
+          </>
+        ) : (
+          <p className="hint">
+            Set a remote Identity URL under Settings → Connectivity to get the
+            deployment callback URI. Browser-local providers do not need it.
+          </p>
+        )}
       </div>
     </>
   );
@@ -1329,6 +1341,7 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
         {identities && identities.length === 0 ? (
           <div className="empty">
             <h3>No linked identities</h3>
+            <EmptyTip>{emptyTips.rail}</EmptyTip>
           </div>
         ) : null}
 
@@ -1640,6 +1653,7 @@ function ProvidersPanel({
         {providers.length === 0 ? (
           <div className="empty">
             <h3>No identity provider registered.</h3>
+            <EmptyTip>{emptyTips.navigate}</EmptyTip>
           </div>
         ) : (
           <ul className="identity-rows">
@@ -1990,6 +2004,7 @@ function ServiceAccountsPanel({
           {clients && clients.length === 0 ? (
             <div className="empty">
               <h3>No applications registered.</h3>
+              <EmptyTip>{emptyTips.navigate}</EmptyTip>
             </div>
           ) : null}
 
@@ -2290,6 +2305,7 @@ function OrganizationPanel({
           {orgs && orgs.length === 0 ? (
             <div className="empty">
               <h3>No organizations yet</h3>
+              <EmptyTip>{emptyTips.navigate}</EmptyTip>
             </div>
           ) : null}
         </div>

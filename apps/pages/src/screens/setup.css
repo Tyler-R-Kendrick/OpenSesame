@@ -40,25 +40,13 @@
   color: var(--ink-2);
 }
 
+/* Bar dismiss / skip-all sit after the wordmark; sizing comes from `.icon-btn`. */
 .setup__back {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--ink-2);
-  cursor: pointer;
+  margin-left: auto;
 }
 
-.setup__back:hover,
-.setup__back:focus-visible {
-  color: var(--ink);
+.setup__skipall {
+  margin-left: 0.25rem;
 }
 
 .roads {
@@ -105,11 +93,14 @@
 /* The thumb bar. The screen's one commitment sits here, at the bottom of the
    phone — the thing the screen this replaces never had. It is the whole of
    the mobile-navigation fix. */
+/* Wizard foot: icon keys for retreat / skip / advance; Finish stays the
+   terminal `.go` commit (docs/design/controls.md). */
 .setup__foot {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding: 0.7rem 1.15rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
   /* Clear of the support key docked in the corner, with room to spare. */
   padding-left: calc(4.25rem + env(safe-area-inset-left, 0px));
@@ -117,8 +108,20 @@
   background: var(--surface);
 }
 
+.setup__foot-start,
+.setup__foot-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.setup__foot-end {
+  margin-left: auto;
+}
+
 .setup__foot .go-row {
-  flex: 1;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -275,21 +278,13 @@
 @media (pointer: coarse), (max-width: 900px) {
   .setup .btn,
   .setup .preset__opt,
-  .setup .ways__item,
-  .setup .setup__back {
+  .setup .ways__item {
     min-height: 2.75rem;
   }
 
   .setup .icon-btn {
     width: 2.75rem;
     height: 2.75rem;
-  }
-
-  /* A two-word control is still a control: the box grows around the words
-     rather than shrinking to them. */
-  .setup .setup__back {
-    justify-content: center;
-    min-width: 2.75rem;
   }
 }
 
@@ -366,10 +361,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.setup__skipall {
-  margin-left: auto;
 }
 
 /* The rail and the tabs pin here, outside the scrollport (ADR 0114). */

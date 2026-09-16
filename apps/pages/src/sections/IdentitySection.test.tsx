@@ -17,12 +17,15 @@ const listFederatedProviders = vi.hoisted(() => vi.fn());
 const registerByoProvider = vi.hoisted(() => vi.fn());
 const registry: { raw: string | null } = vi.hoisted(() => ({ raw: null }));
 
+import { deviceIdentitySeams } from "../lib/device-identity.js";
 import { identitySeams } from "../lib/identity.js";
+const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
 Object.assign(identitySeams, {
   identityBase: () => "http://127.0.0.1:8788",
   useConnect: () => ({ connect, connecting: false, error: null }),
   useIdentitySession: () => session.current,
 });
+deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:8788";
 
 import { useOnlineSeams } from "../lib/use-online.js";
 Object.assign(useOnlineSeams, { useOnline: () => online.value });
@@ -204,6 +207,7 @@ describe("IdentitySection", () => {
       createdAt: "2026-08-29T00:00:00Z",
     });
     directory.approveDevice.mockResolvedValue({ ok: true, status: 200 });
+    deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:8788";
 
     access.listDelegations.mockResolvedValue([]);
     access.revokeDelegation.mockResolvedValue(undefined);
@@ -225,6 +229,7 @@ describe("IdentitySection", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
   });
 
   it("opens administration without an upstream binding and offers an explicit provider ceremony", async () => {

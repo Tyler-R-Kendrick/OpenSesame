@@ -38,7 +38,9 @@ export type StoreMethod =
   | "unlockWithPasskey"
   | "confirmTotp"
   | "cancelTotpChallenge"
-  | "destroy";
+  | "destroy"
+  | "isUnlocked"
+  | "activeTomb";
 
 export type TestHarness = {
   state: TestVaultState;
@@ -75,6 +77,8 @@ export const v = ((): TestHarness => {
       confirmTotp: vi.fn(),
       cancelTotpChallenge: vi.fn(),
       destroy: vi.fn(),
+      isUnlocked: vi.fn(() => false),
+      activeTomb: vi.fn(() => null),
     },
   };
 })();
@@ -117,6 +121,7 @@ Object.assign(federationSeams, {
 
 export const FEDERATED_BUTTON = `Continue with ${UPSTREAM.accountKind}`;
 
+import { deviceIdentitySeams } from "../lib/device-identity.js";
 import { identitySeams } from "../lib/identity.js";
 import type { IdentitySession } from "../lib/identity.js";
 identitySeams.identityBase = () => "http://127.0.0.1:18788";
@@ -148,6 +153,7 @@ export type InviteHolder = {
 };
 export const inviteHolder: InviteHolder = { current: null };
 export const identityBaseHolder = { current: "http://127.0.0.1:18788" };
+deviceIdentitySeams.remoteIdentityApi = () => identityBaseHolder.current;
 /** What setup left as the ways in — the screen reads this, not the URL. */
 export type WaysInHolder = { current: SignInMethods };
 export const waysInHolder: WaysInHolder = {
@@ -242,9 +248,47 @@ export function submitIdentifier(value: string): void {
 // first run, so the federation seams need a known state before every test in
 // this file rather than inside the one block that used to be the sole caller.
 /** Every suite starts from the same device: no note, no catalog, no record. */
+
+function ensureMemoryLocalStorage(): void {
+  if (
+    globalThis.localStorage &&
+    typeof globalThis.localStorage.getItem === "function"
+  ) {
+    return;
+  }
+  const store = new Map<string, string>();
+  const memory: Storage = {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string) {
+      const value = store.get(key);
+      return value === undefined ? null : value;
+    },
+    key(index: number) {
+      return [...store.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      store.delete(key);
+    },
+    setItem(key: string, value: string) {
+      store.set(key, String(value));
+    },
+  };
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    enumerable: true,
+    value: memory,
+  });
+}
+
 export function resetUnlockHarness(): void {
   // A sign-out or a switch leaves a one-shot note for the next unlock screen;
   // one test's note must never open another's sign-in panel.
+  ensureMemoryLocalStorage();
   sessionStorage.clear();
   localStorage.clear();
   continueAsGuest.mockReset();

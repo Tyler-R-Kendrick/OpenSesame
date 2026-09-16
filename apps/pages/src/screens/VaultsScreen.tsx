@@ -6,7 +6,7 @@
  * named, and the others were reachable only after unlocking that one. This
  * screen puts the choice first: every vault on the device, the guest road as
  * a peer beside them, and a way to seal a new one. Picking a vault lands on
- * its own Unlock form; the `‹ Vaults` crumb there leads back.
+ * its own Unlock form; All vaults in the account menu leads back.
  *
  * Names stay honest: a project's name is sealed inside it, so its row says
  * `project · 4f2a` and "name is inside the vault" — nothing typed as a name
@@ -14,9 +14,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { IconPlus } from "../components/Icons.js";
+import { IconMark, IconPlus } from "../components/Icons.js";
 import { VaultList } from "../components/VaultList.js";
-import { Wordmark } from "../components/Wordmark.js";
 import { firstControl, landFocus } from "../lib/focus.js";
 import type { FederatedProviderSummary } from "../lib/providers.js";
 import { signOut, switchAccount } from "../lib/session-exit.js";
@@ -87,12 +86,8 @@ export function VaultsScreen({ providers, onPicked }: Props) {
     <div className="unlock">
       <div className="unlock__card">
         <div className="unlock__brand">
-          <Wordmark className="unlock__wordmark" />
-          <h1>Vaults</h1>
-          <p>
-            Everything sealed on this device, and the two roads that need no
-            key. Pick one to open it.
-          </p>
+          <IconMark className="unlock__mark" size={28} title="open-sesame" />
+          <h1 className="visually-hidden">Vaults</h1>
         </div>
 
         <AccountRow

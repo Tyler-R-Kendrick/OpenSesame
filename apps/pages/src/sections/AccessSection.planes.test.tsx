@@ -23,7 +23,9 @@ import * as localDirectory from "../lib/local-directory.js";
 import * as localGrants from "../lib/local-grant-admin.js";
 import * as localSessions from "../lib/local-sessions.js";
 
+import { deviceIdentitySeams } from "../lib/device-identity.js";
 import { identitySeams } from "../lib/identity.js";
+const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
 Object.assign(identitySeams, {
   hostBase: () => "http://127.0.0.1:8787",
   identityBase: () => "http://127.0.0.1:8788",
@@ -31,6 +33,7 @@ Object.assign(identitySeams, {
   identityFetch,
   useIdentitySession: () => session.current,
 });
+deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:8788";
 
 import { useOnlineSeams } from "../lib/use-online.js";
 Object.assign(useOnlineSeams, { useOnline: () => online.value });
@@ -91,6 +94,7 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
   });
   afterEach(() => {
     identitySeams.hostBase = originalHostBase;
+    deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:8788";
     cleanup();
     vi.restoreAllMocks();
   });
@@ -163,6 +167,7 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
     // group whose plane is absent is absent, the way an empty group is.
     const withIdentity = identitySeams.identityBase;
     identitySeams.identityBase = () => "";
+    deviceIdentitySeams.remoteIdentityApi = () => "";
     identityFetch.mockClear();
     try {
       renderAccess();
@@ -182,6 +187,7 @@ describe("Access with a plane that is not there (ADR 0090 §7)", () => {
       expect(screen.queryByRole("alert")).toBeNull();
     } finally {
       identitySeams.identityBase = withIdentity;
+      deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
     }
   });
 

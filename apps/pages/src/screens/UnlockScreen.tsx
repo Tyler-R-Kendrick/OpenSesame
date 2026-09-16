@@ -14,19 +14,20 @@ import {
   IconEyeOff,
   IconLock,
   IconMail,
+  IconMark,
   IconMessage,
   IconPasskey,
   IconPhone,
   IconShield,
 } from "../components/Icons.js";
-import { Wordmark } from "../components/Wordmark.js";
+import { ThemeToggle } from "../components/ThemeToggle.js";
 import { outcomeWantsSignIn, readAuthOutcome } from "../lib/auth-outcome.js";
 import { defaultUpstream } from "../lib/federation.js";
 import { firstControl, landFocus } from "../lib/focus.js";
 import { continueAsGuest } from "../lib/guest-auth.js";
 import {
   currentSession,
-  identityBase,
+  remoteIdentityApi,
   useIdentitySession,
 } from "../lib/identity.js";
 import {
@@ -81,7 +82,7 @@ import "./unlock.css";
 
 export const unlockScreenDependencies = {
   currentSession,
-  identityBase,
+  remoteIdentityApi,
   loadSetup,
   noWayIn,
   signInMethods,
@@ -259,8 +260,8 @@ function UnlockForm({
    * read as broken on a deployment whose Google button worked fine.
    */
   const deploymentName = (() => {
-    const service = unlockScreenDependencies.identityBase().trim();
-    if (service) return briefOrigin(service);
+    const remote = unlockScreenDependencies.remoteIdentityApi().trim();
+    if (remote) return briefOrigin(remote);
     const configured = unlockScreenDependencies.signInMethods();
     const [first] = configured.providers;
     if (first) {
@@ -535,69 +536,54 @@ function UnlockForm({
       <div className="unlock__card">
         <PendingLinkBanner />
         <div className="unlock__brand">
-          <div className="unlock__brand-copy">
-            <Wordmark className="unlock__wordmark" />
-            <h1>
-              {signInStage || showSignIn
-                ? "Sign in"
-                : firstRun
-                  ? "Seal this device"
-                  : awaitingSecondStep
-                    ? "Confirm it is you"
-                    : "Unlock"}
-            </h1>
-            {vaultCrumb && !showSignIn ? (
-              <p className="unlock__crumb">
-                <button
-                  type="button"
-                  className="unlock__switch"
-                  onClick={onOpenVaults}
-                >
-                  ‹ Vaults
-                </button>
-                <span className="prompt__dim" aria-hidden="true">
-                  /
-                </span>
-                <span className="unlock__crumb-tomb">{vaultCrumb}</span>
-                <span className="prompt__dim" aria-hidden="true">
-                  :/
-                </span>
-              </p>
+          <IconMark className="unlock__mark" size={28} title="open-sesame" />
+          <div className="unlock__brand-tools">
+            <ThemeToggle />
+            {!firstRun ? (
+              <UnlockUserMenu
+                disabled={busy}
+                currentVaultId={activeTomb}
+                signingIn={showSignIn}
+                showAllVaults={vaultCrumb !== null}
+                onOpenVaults={onOpenVaults}
+                onSignIn={() => {
+                  cancelPasskeyCeremony();
+                  if (awaitingSecondStep) store.cancelTotpChallenge();
+                  setError(null);
+                  setSigningIn(true);
+                }}
+                onUnlock={() => {
+                  setError(null);
+                  setSigningIn(false);
+                }}
+                onPickVault={(vault: DeviceVault) => {
+                  cancelPasskeyCeremony();
+                  setError(null);
+                  setBusy(true);
+                  void switchVault(vault.id)
+                    .then(() => setSigningIn(false))
+                    .catch((caught) => {
+                      setError(
+                        caught instanceof Error
+                          ? caught.message
+                          : "Could not switch vault.",
+                      );
+                    })
+                    .finally(() => setBusy(false));
+                }}
+              />
             ) : null}
           </div>
-          {!firstRun ? (
-            <UnlockUserMenu
-              disabled={busy}
-              currentVaultId={activeTomb}
-              signingIn={showSignIn}
-              onSignIn={() => {
-                cancelPasskeyCeremony();
-                if (awaitingSecondStep) store.cancelTotpChallenge();
-                setError(null);
-                setSigningIn(true);
-              }}
-              onUnlock={() => {
-                setError(null);
-                setSigningIn(false);
-              }}
-              onPickVault={(vault: DeviceVault) => {
-                cancelPasskeyCeremony();
-                setError(null);
-                setBusy(true);
-                void switchVault(vault.id)
-                  .then(() => setSigningIn(false))
-                  .catch((caught) => {
-                    setError(
-                      caught instanceof Error
-                        ? caught.message
-                        : "Could not switch vault.",
-                    );
-                  })
-                  .finally(() => setBusy(false));
-              }}
-            />
-          ) : null}
         </div>
+        <h1 className="unlock__title">
+          {signInStage || showSignIn
+            ? "Sign in"
+            : firstRun
+              ? "Seal this device"
+              : awaitingSecondStep
+                ? "Confirm it is you"
+                : "Unlock"}
+        </h1>
 
         {/* Setup left no way in at all. One sentence and the road that fixes
             it — landing on the identity tab, where the fix lives. */}

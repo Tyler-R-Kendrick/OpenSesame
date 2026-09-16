@@ -1,24 +1,12 @@
 /**
- * A capability family's connectors as live cards (ADR 0114).
+ * Multi-select history backups grouped into Git and PostgreSQL (ADR 0114).
  *
- * Nango-style: every card can be taken to a configured state without leaving
- * the step. A connector that needs no account binds the moment it is chosen.
- * One that needs authorization opens its ceremony in a NEW TAB — the Host's
- * callback page posts `opensesame:connection` back to the opener and closes
- * itself — and the card observes that notification (and polls, in case the
- * message is lost) through the same `awaitConsent` the Connections page uses,
- * flipping to Connected when the connection is established.
- *
- * Where no Host answers, nothing pretends: the card says so and the action is
- * withheld, because a button that can only fail is a lie about the road.
+ * Git cards reuse Host OAuth when needed. PostgreSQL-family cards mint an
+ * anon/agent account on select so sealed history persists before a guest claim.
  */
 
 import { useEffect, useState } from "react";
-import {
-  type CapabilityId,
-  capabilityDef,
-  connectorLabel,
-} from "../../../lib/capabilities.js";
+import { capabilityDef, connectorLabel } from "../../../lib/capabilities.js";
 import {
   type Connection,
   authorizeConnection,
@@ -26,43 +14,73 @@ import {
   createConnection,
   listConnections,
 } from "../../../lib/connections.js";
+import {
+  HISTORY_BACKUP_GROUPS,
+  type HistoryBackupSelection,
+  bindHistoryConnection,
+  historyProviderLabel,
+  historyRequiresHostAuth,
+  loadHistorySelections,
+  toggleHistoryProvider,
+} from "../../../lib/history-backups.js";
 import { ensureHostSession } from "../../../lib/identity.js";
 import { usePlaneStatus } from "../../../lib/planes.js";
-import { useCapabilityChoice } from "./shared.js";
 
-type CardState =
+type ConnectState =
   | { phase: "idle" }
   | { phase: "busy" }
   | { phase: "connected"; as?: string }
   | { phase: "error"; text: string };
 
-/** Open the ceremony in a new tab — the opener link stays, so the Host's
- * callback can post the event notification back and close itself. */
 function openCeremonyTab(url: string): Window | null {
   return window.open(url, "_blank");
 }
 
-/** The connect round trip: session, connection, authorize, new tab, observe. */
-function useConnectFlow(
-  capability: CapabilityId,
+function selectionFor(
+  selections: HistoryBackupSelection[],
   providerId: string,
-  connection: Connection | undefined,
-  choose: (providerId: string, connectionId?: string) => void,
-): [CardState, () => Promise<void>] {
-  const def = capabilityDef(capability);
-  const [state, setState] = useState<CardState>({ phase: "idle" });
+): HistoryBackupSelection | undefined {
+  return selections.find((row) => row.providerId === providerId);
+}
+
+function BackupCard({
+  providerId,
+  groupId,
+  selection,
+  connection,
+  hostLive,
+  onChanged,
+}: {
+  providerId: string;
+  groupId: "git" | "postgres";
+  selection: HistoryBackupSelection | undefined;
+  connection: Connection | undefined;
+  hostLive: boolean;
+  onChanged: () => void;
+}) {
+  const [state, setState] = useState<ConnectState>({ phase: "idle" });
+  const selected = selection !== undefined;
+  const needsAuth = historyRequiresHostAuth(providerId);
+  const active = connection?.status === "active";
+
+  const toggle = async () => {
+    await toggleHistoryProvider(providerId);
+    onChanged();
+  };
+
   const connect = async () => {
     setState({ phase: "busy" });
     const tab = openCeremonyTab("about:blank");
     try {
       await ensureHostSession();
+      const def = capabilityDef("history");
       const scopes = def.authScopes?.(providerId);
       const live =
         connection && connection.status !== "revoked"
           ? connection
           : await createConnection({
               providerId,
-              displayName: `${connectorLabel(providerId)} (${def.title.toLowerCase()})`,
+              displayName: `${connectorLabel(providerId)} (history)`,
               scopes,
             });
       const { authorizationUrl } = await authorizeConnection(
@@ -73,11 +91,13 @@ function useConnectFlow(
       else window.location.href = authorizationUrl;
       const outcome = await awaitConsent(live.connectionId, tab);
       if (outcome.result === "active") {
-        choose(providerId, outcome.connection.connectionId);
+        if (!selected) await toggleHistoryProvider(providerId);
+        bindHistoryConnection(providerId, outcome.connection.connectionId);
         setState({
           phase: "connected",
           as: outcome.connection.accountLabel ?? undefined,
         });
+        onChanged();
       } else {
         setState({
           phase: "error",
@@ -99,31 +119,17 @@ function useConnectFlow(
       });
     }
   };
-  return [state, connect];
-}
 
-function ConnectorCard({
-  capability,
-  providerId,
-  connection,
-  hostLive,
-}: {
-  capability: CapabilityId;
-  providerId: string;
-  connection: Connection | undefined;
-  hostLive: boolean;
-}) {
-  const def = capabilityDef(capability);
-  const [binding, choose] = useCapabilityChoice(capability);
-  const [state, connect] = useConnectFlow(
-    capability,
-    providerId,
-    connection,
-    choose,
-  );
-  const selected = binding.providerId === providerId;
-  const needsAuth = def.requiresAuth(providerId);
-  const active = connection?.status === "active";
+  const kind =
+    groupId === "postgres"
+      ? selected
+        ? selection?.claimState === "claimed"
+          ? "claimed anon account"
+          : "anon · claimable"
+        : "anon on select"
+      : needsAuth
+        ? "account required"
+        : "no account needed";
 
   return (
     <li className={`xcard${selected ? " is-on" : ""}`}>
@@ -131,15 +137,21 @@ function ConnectorCard({
         type="button"
         className="xcard__pick"
         aria-pressed={selected}
-        onClick={() => choose(providerId)}
+        onClick={() => void toggle()}
       >
-        <span className="xcard__name">{connectorLabel(providerId)}</span>
-        <span className="xcard__kind">
-          {needsAuth ? "account required" : "no account needed"}
-        </span>
+        <span className="xcard__name">{historyProviderLabel(providerId)}</span>
+        <span className="xcard__kind">{kind}</span>
       </button>
       <span className="xcard__side">
-        {!needsAuth ? (
+        {groupId === "postgres" ? (
+          <span className={`chip${selected ? " chip--ok" : ""}`}>
+            {selected
+              ? selection?.claimState === "claimed"
+                ? "Claimed"
+                : "Claimable"
+              : "Off"}
+          </span>
+        ) : !needsAuth ? (
           <span className={`chip${selected ? " chip--ok" : ""}`}>
             {selected ? "Ready" : "Instant"}
           </span>
@@ -175,11 +187,13 @@ function ConnectorCard({
   );
 }
 
-export function ConnectorCards({ id }: { id: CapabilityId }) {
-  const def = capabilityDef(id);
+export function BackupGroups() {
   const planes = usePlaneStatus();
-  const [connections, setConnections] = useState<Connection[]>([]);
   const hostLive = planes.host === "live";
+  const [selections, setSelections] = useState(() => loadHistorySelections());
+  const [connections, setConnections] = useState<Connection[]>([]);
+
+  const refresh = () => setSelections(loadHistorySelections());
 
   useEffect(() => {
     if (!hostLive) {
@@ -200,18 +214,32 @@ export function ConnectorCards({ id }: { id: CapabilityId }) {
   }, [hostLive]);
 
   return (
-    <ul className="xcards" aria-label={def.title}>
-      {def.connectorIds.map((providerId) => (
-        <ConnectorCard
-          key={providerId}
-          capability={id}
-          providerId={providerId}
-          connection={connections.find(
-            (row) => row.providerId === providerId && row.status === "active",
-          )}
-          hostLive={hostLive}
-        />
+    <div className="backup-groups">
+      {HISTORY_BACKUP_GROUPS.map((group) => (
+        <section
+          key={group.id}
+          className="setup__stack"
+          aria-label={group.title}
+        >
+          <h3 className="setup__group-title">{group.title}</h3>
+          <ul className="xcards" aria-label={group.title}>
+            {group.providerIds.map((providerId) => (
+              <BackupCard
+                key={providerId}
+                providerId={providerId}
+                groupId={group.id}
+                selection={selectionFor(selections, providerId)}
+                connection={connections.find(
+                  (row) =>
+                    row.providerId === providerId && row.status === "active",
+                )}
+                hostLive={hostLive}
+                onChanged={refresh}
+              />
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   );
 }

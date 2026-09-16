@@ -37,10 +37,31 @@
 
 .unlock__brand {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   text-align: left;
+}
+
+.unlock__brand-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.unlock__mark {
+  display: block;
+  flex: 0 0 auto;
+  color: var(--ink);
+}
+
+.unlock__title {
+  margin: 0;
+  font-size: 1.4rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.021em;
 }
 
 .unlock__brand-copy {
