@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import {
   IconAlert,
   IconCheck,
@@ -19,9 +20,12 @@ import {
   type Flash,
   errorText as accessErrorText,
 } from "../connections/shared.js";
+import { HostSharedSessionsPanel } from "./HostSharedSessionsPanel.js";
 import { LocalAuthorityPanel } from "./LocalAuthorityPanel.js";
+import { LocalAuthorityTemplates } from "./LocalAuthorityTemplates.js";
 import { NewSession } from "./NewSession.js";
 import { TaskCompare, statusTone } from "./TaskCompare.js";
+import { VaultSessionsPanel } from "./VaultSessionsPanel.js";
 import { Receipts } from "./receipts.js";
 
 function useSessions(online: boolean) {
@@ -89,6 +93,11 @@ export function SessionsPanel({ online }: { online: boolean }) {
   return (
     <>
       <LocalAuthorityPanel key={tomb} tomb={tomb} />
+      <LocalAuthorityTemplates />
+      <VaultSessionsPanel key={`${tomb}-vault-sessions`} tomb={tomb} />
+      {state.hostConfigured ? (
+        <HostSharedSessionsPanel key={`${tomb}-host-shared`} tomb={tomb} />
+      ) : null}
       {state.hostConfigured ? (
         <SessionList online={online} state={state} />
       ) : null}
@@ -189,7 +198,10 @@ function SessionRows({
       ) : null}
 
       {tasks && tasks.length === 0 ? (
-        <p className="hint">No live sessions.</p>
+        <>
+          <p className="hint">No live sessions.</p>
+          <EmptyTip>{emptyTips.navigate}</EmptyTip>
+        </>
       ) : null}
 
       {flash ? (

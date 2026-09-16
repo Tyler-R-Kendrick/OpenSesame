@@ -71,9 +71,10 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
       <div className="panel__body">
         <p className="hint local-policy-intro">
           Choose which organization roles may request each application scope.
-          Unchecked roles are denied, including owners. Saving a changed policy
-          invalidates existing application grants; a new sign-in and explicit
-          consent are required.
+          Owner/Admin are Operators; Member is Member. Guest identities are
+          limited to openid regardless of these checkboxes. Unchecked roles are
+          denied, including owners. Saving a changed policy invalidates existing
+          application grants; a new sign-in and explicit consent are required.
         </p>
         {error ? (
           <p className="note note--err" role="alert">

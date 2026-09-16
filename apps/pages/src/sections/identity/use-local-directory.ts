@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { listIdpRegistrations } from "../../lib/idp-registry.js";
-import { type LocalDevice, ensureThisDevice } from "../../lib/local-devices.js";
+import { ensureDefaultAccess } from "../../lib/local-access-bootstrap.js";
+import { type LocalDevice, readLocalDevices } from "../../lib/local-devices.js";
 import {
   type LocalIdentity,
-  currentOwnerPersonName,
-  ensureOwnerPerson,
+  readLocalDirectory,
 } from "../../lib/local-directory.js";
 import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
@@ -25,23 +25,36 @@ export function useIdentityRailSnapshot(): IdentityRailSnapshot {
         setDevices([]);
         return;
       }
-      void ensureOwnerPerson(tomb, currentOwnerPersonName())
-        .then((next) => {
-          if (alive) setDirectory(next.entries);
+      // Read only — never ensureDefaultAccess here. Ensure writes notify, and
+      // a notify listener that ensures again is a write→notify feedback loop
+      // that also clears in-panel validation errors mid-keystroke.
+      void Promise.all([readLocalDirectory(tomb), readLocalDevices(tomb)])
+        .then(([next, deviceRows]) => {
+          if (!alive) return;
+          setDirectory(next.entries);
+          setDevices(deviceRows);
         })
         .catch(() => {
-          if (alive) setDirectory([]);
-        });
-      void ensureThisDevice(tomb)
-        .then((next) => {
-          if (alive) setDevices(next);
-        })
-        .catch(() => {
-          if (alive) setDevices([]);
+          if (alive) {
+            setDirectory([]);
+            setDevices([]);
+          }
         });
     };
+    const seed = async () => {
+      if (!tomb) {
+        refresh();
+        return;
+      }
+      try {
+        await ensureDefaultAccess(tomb);
+      } catch {
+        // refresh still runs so the rail can show an empty/error state
+      }
+      if (alive) refresh();
+    };
     const off = subscribeLocalIamChanges(refresh);
-    refresh();
+    void seed();
     return () => {
       alive = false;
       off();

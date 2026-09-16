@@ -63,34 +63,61 @@ function ShareCommands({
 
 export function LocalSharePanel({ tomb }: { tomb: string }) {
   const { shares, reload } = useLocalShares(tomb);
-  const [identities, setIdentities] = useState<{ id: string; name: string }[]>(
-    [],
-  );
+  const [identities, setIdentities] = useState<
+    { id: string; name: string; role: string }[]
+  >([]);
+  const [canGrant, setCanGrant] = useState(false);
   const [draft, setDraft] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const names = new Map(identities.map((entry) => [entry.id, entry.name]));
   useEffect(() => {
-    void readLocalDirectory(tomb)
-      .then((directory) =>
+    void (async () => {
+      try {
+        const [
+          directory,
+          {
+            accessRoleLabel,
+            canAccess,
+            resolveAccessRole,
+            resolveCurrentAccessRole,
+          },
+        ] = await Promise.all([
+          readLocalDirectory(tomb),
+          import("../../lib/local-rbac.js"),
+        ]);
+        const actor = await resolveCurrentAccessRole(tomb);
+        setCanGrant(canAccess(actor, "manage_grants"));
         setIdentities(
-          directory.entries.filter(
-            (entry) =>
-              (entry.kind === "person" || entry.kind === "agent") &&
-              entry.enabled,
-          ),
-        ),
-      )
-      .catch(() => setIdentities([]));
+          directory.entries
+            .filter(
+              (entry) =>
+                (entry.kind === "person" || entry.kind === "agent") &&
+                entry.enabled,
+            )
+            .map((entry) => ({
+              id: entry.id,
+              name: entry.name,
+              role: accessRoleLabel(
+                resolveAccessRole(directory, entry.id) ?? "member",
+              ),
+            })),
+        );
+      } catch {
+        setIdentities([]);
+        setCanGrant(false);
+      }
+    })();
   }, [tomb]);
 
-  async function run(action: () => Promise<unknown>) {
+  async function run(action: () => Promise<LocalShare[] | undefined>) {
     if (busy) return;
     setBusy(true);
     setError("");
     try {
       await action();
       setDraft(false);
+      reload();
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Could not update shares.",
@@ -109,7 +136,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
       <div className="panel__head">
         <h2>Identity shares</h2>
         <ShareCommands
-          busy={busy}
+          busy={busy || !canGrant}
           onGrant={() => setDraft(true)}
           onReload={() => {
             setError("");
@@ -118,12 +145,22 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
         />
       </div>
       <div className="panel__body">
+        <p className="hint">
+          Operators grant standing access. Guests stay Guest — they do not
+          receive connector or admin powers unless an operator grants them here.
+        </p>
+        {!canGrant ? (
+          <p className="hint">
+            An operator identity is assigned. Guests and members can view shares
+            but cannot grant or revoke them.
+          </p>
+        ) : null}
         {error ? (
           <p className="note note--err" role="alert">
             {error}
           </p>
         ) : null}
-        {draft ? (
+        {draft && canGrant ? (
           <ShareGrantForm
             identities={identities}
             busy={busy}
@@ -137,7 +174,11 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
               key={share.id}
               share={share}
               name={names.get(share.principalId) ?? share.principalId}
+              role={
+                identities.find((row) => row.id === share.principalId)?.role
+              }
               busy={busy}
+              canRevoke={canGrant}
               onRevoke={() => void run(() => revokeLocalShare(tomb, share.id))}
             />
           ))}
@@ -150,12 +191,16 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
 function ShareRow({
   share,
   name,
+  role,
   busy,
+  canRevoke,
   onRevoke,
 }: {
   share: LocalShare;
   name: string;
+  role: string | undefined;
   busy: boolean;
+  canRevoke: boolean;
   onRevoke: () => void;
 }) {
   return (
@@ -170,6 +215,7 @@ function ShareRow({
             {policyLabel(share.resourceKind, share.policy)}
           </code>
         </div>
+        {role ? <span className="chip">{role}</span> : null}
         <span className="chip">
           until {new Date(share.expiresAt).toLocaleString()}
         </span>
@@ -177,7 +223,7 @@ function ShareRow({
           <button
             type="button"
             className="btn btn--sm btn--danger"
-            disabled={busy}
+            disabled={busy || !canRevoke}
             onClick={onRevoke}
           >
             Revoke

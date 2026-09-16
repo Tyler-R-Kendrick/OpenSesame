@@ -69,7 +69,7 @@ export function ConnectorBindForm({
   onBind: (input: BindInput) => void;
 }) {
   const [principalId, setPrincipalId] = useState(identities[0]?.id ?? "");
-  const [policy, setPolicy] = useState(
+  const [policy, setPolicy] = useState<string>(
     SHARE_POLICIES.connection[0]?.id ?? "use",
   );
   const [duration, setDuration] = useState<number>(SHARE_DURATIONS[0].seconds);

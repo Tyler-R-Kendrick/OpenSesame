@@ -4,7 +4,15 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { deviceIdentitySeams } from "../../lib/device-identity.js";
 import { identitySeams } from "../../lib/identity.js";
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+Object.assign(vaultHooksSeams, {
+  useVaultStore: () => ({
+    activeTomb: () => null,
+    isUnlocked: () => false,
+  }),
+});
 import { ApprovalInbox } from "./ApprovalInbox.js";
 import { NewSession } from "./NewSession.js";
 
@@ -32,6 +40,9 @@ beforeEach(() => {
     principalId: "principal-1",
     accessToken: "fixture",
     issuerOrigin: "https://identity.example",
+  });
+  Object.assign(deviceIdentitySeams, {
+    remoteIdentityApi: () => "https://identity.example",
   });
 });
 afterEach(() => {

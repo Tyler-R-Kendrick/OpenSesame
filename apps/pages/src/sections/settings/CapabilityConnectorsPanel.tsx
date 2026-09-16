@@ -45,6 +45,7 @@ import {
 } from "../../lib/settings.js";
 import { useOnline } from "../../lib/use-online.js";
 import { useStatusNotice } from "../../lib/use-status-notice.js";
+import { BackupGroups } from "../../screens/setup/steps/BackupGroups.js";
 import { GithubHistoryRemotePicker as GithubHistoryRemotePickerDefault } from "./GithubHistoryRemotePicker.js";
 import {
   type ConnectorFlash,
@@ -502,26 +503,30 @@ export function CapabilityConnectorsPanel() {
                   </span>
                 </div>
 
-                <div className="field">
-                  <label htmlFor={`cap-connector-${def.id}`}>Connector</label>
-                  <select
-                    id={`cap-connector-${def.id}`}
-                    value={binding.providerId}
-                    disabled={busy === def.id}
-                    onChange={(event) =>
-                      updateBinding(def.id, {
-                        providerId: event.target.value,
-                      })
-                    }
-                  >
-                    {def.connectorIds.map((id) => (
-                      <option key={id} value={id}>
-                        {connectorLabel(id)}
-                        {id === def.connectorIds[0] ? " (default)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {def.id === "history" ? (
+                  <BackupGroups />
+                ) : (
+                  <div className="field">
+                    <label htmlFor={`cap-connector-${def.id}`}>Connector</label>
+                    <select
+                      id={`cap-connector-${def.id}`}
+                      value={binding.providerId}
+                      disabled={busy === def.id}
+                      onChange={(event) =>
+                        updateBinding(def.id, {
+                          providerId: event.target.value,
+                        })
+                      }
+                    >
+                      {def.connectorIds.map((id) => (
+                        <option key={id} value={id}>
+                          {connectorLabel(id)}
+                          {id === def.connectorIds[0] ? " (default)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {def.id === "history" && binding.providerId === "github"
                   ? (() => {

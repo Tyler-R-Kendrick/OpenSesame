@@ -9,6 +9,7 @@ import {
 } from "react-router";
 
 import { isString } from "@opensesame/os-domain";
+import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import { IconDownload, IconPlus, IconUpload } from "../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { swipeBack } from "../lib/gestures.js";
@@ -364,7 +365,7 @@ export function VaultWelcome() {
     // it. Saying it twice, side by side, only asks which one to believe.
     return (
       <div className="buffer">
-        <p className="buffer__keys">n new · / search · ? keys</p>
+        <EmptyTip>{emptyTips.vaultEmpty}</EmptyTip>
       </div>
     );
   }
@@ -374,9 +375,8 @@ export function VaultWelcome() {
       <p className="buffer__line">
         {live.length} {live.length === 1 ? "item" : "items"}
       </p>
-      <p className="buffer__keys">
-        j/k browse · enter open · n new · / search · ? keys
-      </p>
+      <EmptyTip>{emptyTips.vaultMove}</EmptyTip>
+      <p className="buffer__keys">enter open · n new · / search · ? keys</p>
     </div>
   );
 }

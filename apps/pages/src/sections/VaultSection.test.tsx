@@ -186,6 +186,9 @@ describe("VaultSection", () => {
     renderSection();
     expect(screen.getByText("Nothing here")).toBeTruthy();
     expect(
+      screen.getByText(/Try the keyboard — n new, \/ search/),
+    ).toBeTruthy();
+    expect(
       screen.getByRole("link", { name: /New item/i }).getAttribute("href"),
     ).toBe("/vault/new");
     expectVaultCommands();
@@ -598,7 +601,9 @@ describe("VaultWelcome", () => {
 
   it("hands over the keys on an empty vault, without a second empty state", () => {
     renderWelcome();
-    expect(screen.getByText(/n new/)).toBeTruthy();
+    expect(
+      screen.getByText(/Try the keyboard — n new, \/ search/),
+    ).toBeTruthy();
     expect(
       screen.queryByRole("link", { name: /Add your first login/i }),
     ).toBeNull();
@@ -619,7 +624,12 @@ describe("VaultWelcome", () => {
     };
     renderWelcome();
     expect(screen.getByText("2 items")).toBeTruthy();
-    expect(screen.getByText(/j\/k browse/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /Use the arrow keys or j\/k to move through vault items/,
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText(/enter open/)).toBeTruthy();
     // The stat-counter dashboard is gone for good.
     expect(screen.queryByText("What is in here")).toBeNull();
     expect(screen.queryByText("Recently changed")).toBeNull();
