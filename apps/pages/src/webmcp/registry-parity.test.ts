@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CAPABILITIES,
+  assertsNoInteractionSettlementTool,
   assertsNoSecretNames,
   webmcpPagesCatalog,
 } from "@opensesame/capability-registry";
@@ -46,6 +47,13 @@ describe("WebMCP registry parity (ADR 0065)", () => {
 
   it("contains no secret-shaped tool name", () => {
     assertsNoSecretNames(WEBMCP_TOOLS.map((tool) => tool.name));
+  });
+
+  it("names no tool that settles an interaction or mints a proof (ADR 0086)", () => {
+    // Finding S12 / T-34: WebMCP may open a human ceremony (opensesame_open_*)
+    // but must never approve/deny a cross-device interaction or produce a
+    // proof — the humane openers settle nothing and stay clear of the fence.
+    assertsNoInteractionSettlementTool(WEBMCP_TOOLS.map((tool) => tool.name));
   });
 
   it("every lib/<file>.ts:<export> pwa surface resolves to a real export", async () => {

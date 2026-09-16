@@ -10,12 +10,25 @@ const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const osDomainBrowser = fileURLToPath(
   new URL("../../packages/os-domain/src/browser.ts", import.meta.url),
 );
+const osDomainAuthorityTemplates = fileURLToPath(
+  new URL(
+    "../../packages/os-domain/src/authority-templates/index.ts",
+    import.meta.url,
+  ),
+);
+const osDomainWallet = fileURLToPath(
+  new URL("../../packages/os-domain/src/wallet/index.ts", import.meta.url),
+);
 
 export default defineConfig({
   base,
   define: { "process.env.NODE_DEBUG_NATIVE": "false" },
   resolve: {
     alias: {
+      // Subpaths must precede the bare package alias; otherwise Vite resolves
+      // `@opensesame/os-domain/authority-templates` as `browser.ts/authority-templates`.
+      "@opensesame/os-domain/authority-templates": osDomainAuthorityTemplates,
+      "@opensesame/os-domain/wallet": osDomainWallet,
       "@opensesame/os-domain": osDomainBrowser,
     },
   },

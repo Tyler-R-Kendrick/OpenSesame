@@ -69,6 +69,7 @@ import {
   navigationTool,
   webmcpNavigationSeam,
 } from "./navigation.js";
+import { WALLET_TOOLS } from "./wallet-tools.js";
 export { SECTION_PATHS, webmcpNavigationSeam } from "./navigation.js";
 
 export type WebMcpSupportSeam = {
@@ -136,6 +137,31 @@ function requireUnlocked(): void {
   if (vaultStore.getSnapshot().status !== "unlocked") {
     throw new Error("vault_locked");
   }
+}
+
+async function assertHostItemReach(
+  itemId: string,
+  wanted: "read" | "write",
+): Promise<void> {
+  const { assertHostSessionReach } = await import(
+    "../lib/host-session-reach.js"
+  );
+  await assertHostSessionReach(
+    vaultStore.activeTomb(),
+    { kind: "item", id: itemId },
+    wanted,
+  );
+}
+
+async function assertHostVaultWrite(): Promise<void> {
+  const { assertHostSessionReach } = await import(
+    "../lib/host-session-reach.js"
+  );
+  await assertHostSessionReach(
+    vaultStore.activeTomb(),
+    { kind: "vault" },
+    "write",
+  );
 }
 
 function findItem(itemId: string): VaultItem {
@@ -326,7 +352,7 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       },
       additionalProperties: false,
     },
-    execute: (args) => {
+    execute: async (args) => {
       requireUnlocked();
       const query = optStr(args, "query");
       const kind = optStr(args, "kind");
@@ -336,15 +362,23 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
         throw new Error(`unknown_kind:${kind}`);
       }
       const issues = healthIssuesById();
-      const items = activeItems(vaultStore.getSnapshot().items)
+      const candidates = activeItems(vaultStore.getSnapshot().items)
         .filter((item) => (kind ? item.kind === kind : true))
         .filter((item) => (folderId ? item.folderId === folderId : true))
         .filter((item) => (favorites ? item.favorite : true))
-        .filter((item) => (query ? searchMatches(item, query) : true))
-        .map((item) => ({
+        .filter((item) => (query ? searchMatches(item, query) : true));
+      const items = [];
+      for (const item of candidates) {
+        try {
+          await assertHostItemReach(item.id, "read");
+        } catch {
+          continue;
+        }
+        items.push({
           ...projectVaultItemMeta(item),
           healthIssues: issues.get(item.id) ?? [],
-        }));
+        });
+      }
       return { items, folders: vaultStore.getSnapshot().folders };
     },
   },
@@ -361,9 +395,10 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       required: ["itemId"],
       additionalProperties: false,
     },
-    execute: (args) => {
+    execute: async (args) => {
       requireUnlocked();
       const item = findItem(str(args, "itemId"));
+      await assertHostItemReach(item.id, "read");
       return {
         ...projectVaultItemMeta(item),
         healthIssues: healthIssuesById().get(item.id) ?? [],
@@ -407,6 +442,8 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
       if (args.action === "suggest") return suggestItemMetadata(args);
       assertMetadataOnlyWrite(args);
       const itemId = optStr(args, "itemId");
+      if (itemId) await assertHostItemReach(itemId, "write");
+      else await assertHostVaultWrite();
       const name = optStr(args, "name");
       const folderId = optStr(args, "folderId");
       const url = optStr(args, "url");
@@ -872,4 +909,5 @@ export const WEBMCP_TOOLS: readonly PagesWebMcpTool[] = [
     },
   },
   ...LOGIN_DRAFT_TOOLS,
+  ...WALLET_TOOLS,
 ];

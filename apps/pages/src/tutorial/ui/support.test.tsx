@@ -266,9 +266,9 @@ describe("support panel", () => {
     );
     await openPanel(user);
     const walkthroughs = await screen.findByRole("region", {
-      name: "Walkthroughs",
+      name: "Questions",
     });
-    expect(walkthroughs.textContent).toContain("Lock the vault");
+    expect(walkthroughs.textContent).toContain("Where do I lock the vault?");
     const [start] = screen.getAllByRole("button", { name: "Show me" });
     if (!start) throw new Error("no walkthrough to start");
     await user.click(start);
@@ -406,7 +406,7 @@ describe("support panel", () => {
     mount(fakeAgentAlwaysUnavailable("no_local_model"), "none");
     await openPanel(user);
 
-    await user.type(screen.getByLabelText("Search help"), "healthy");
+    await user.type(screen.getByLabelText("Search questions"), "healthy");
     expect(
       await screen.findByRole("button", {
         name: "How do I tell whether OpenSesame is healthy?",
@@ -633,6 +633,7 @@ describe("choosing what answers", () => {
     const choice = chooseSupportAgent(
       local,
       { kind: "ready" },
+      null,
       () => remote,
       absent,
     );
@@ -643,6 +644,7 @@ describe("choosing what answers", () => {
       chooseSupportAgent(
         local,
         { kind: "downloading", progress: 0.2 },
+        null,
         () => remote,
         absent,
       ).transport,
@@ -663,6 +665,7 @@ describe("choosing what answers", () => {
     const choice = chooseSupportAgent(
       local,
       { kind: "downloadable" },
+      null,
       () => remote,
       absent,
     );
@@ -671,12 +674,28 @@ describe("choosing what answers", () => {
     expect(remote.destroyed()).toBe(false);
   });
 
+  it("uses a configured local provider before a pending browser download", () => {
+    const local = fakeAgentAnswering("browser");
+    const provider = fakeAgentAnswering("ollama");
+    const remote = fakeAgentAnswering("remote");
+    const choice = chooseSupportAgent(
+      local,
+      { kind: "downloadable" },
+      provider,
+      () => remote,
+      absent,
+    );
+    expect(choice.transport).toBe("on-device");
+    expect(choice.port).toBe(provider);
+  });
+
   it("falls back to a configured endpoint only when the device cannot", () => {
     const local = fakeAgentAnswering("local");
     const remote = fakeAgentAnswering("remote");
     const choice = chooseSupportAgent(
       local,
       { kind: "unavailable", reason: "platform_unsupported" },
+      null,
       () => remote,
       absent,
     );
@@ -691,6 +710,7 @@ describe("choosing what answers", () => {
     const choice = chooseSupportAgent(
       local,
       { kind: "unavailable", reason: "model_not_downloaded" },
+      null,
       () => null,
       absent,
     );
@@ -699,7 +719,7 @@ describe("choosing what answers", () => {
   });
 
   it("still answers with something when the browser has neither", () => {
-    const choice = chooseSupportAgent(null, null, () => null, absent);
+    const choice = chooseSupportAgent(null, null, null, () => null, absent);
     expect(choice.transport).toBe("none");
     expect(choice.port).toBe(absent);
   });

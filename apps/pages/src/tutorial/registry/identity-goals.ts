@@ -131,4 +131,41 @@ export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
       'wait target "identity.agents" event=activate timeout=60000',
     ].join("\n"),
   },
+  {
+    id: "identity.local.siop.authorize",
+    title: "Approve a Self-Issued OpenID Provider sign-in",
+    routes: ["/identity"],
+    guide: [
+      "guide/1",
+      'goal "identity.local.siop.authorize"',
+      'say "When a relying party asks this device to sign in as itself, review the exact client and claims on Identity. Verify an enrolled passkey, then allow or deny. The Self-Issued ID Token never leaves the vault as a reusable secret."',
+      "end",
+    ].join("\n"),
+  },
+  {
+    id: "authority.portal.templates.manage",
+    title: "Install or revise Access portal authority templates",
+    routes: ["/access"],
+    guide: [
+      "guide/1",
+      'goal "authority.portal.templates.manage"',
+      'navigate "/access"',
+      'wait route "/access" timeout=15000',
+      'say "Open Access and review Audience templates. Installing or revising a template shapes the vocabulary and default limits for temporary domains or sessions. Selecting a template does not issue a grant."',
+      "end",
+    ].join("\n"),
+  },
+  {
+    id: "authority.portal.templates.read",
+    title: "Read Access portal authority templates",
+    routes: ["/access"],
+    guide: [
+      "guide/1",
+      'goal "authority.portal.templates.read"',
+      'navigate "/access"',
+      'wait route "/access" timeout=15000',
+      'say "Audience templates list the versioned vocabulary and default limits available on Access. Reading them does not change grants or enforcement."',
+      "end",
+    ].join("\n"),
+  },
 ];

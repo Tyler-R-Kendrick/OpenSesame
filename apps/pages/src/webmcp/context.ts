@@ -30,6 +30,8 @@ export const SESSION_TOOL_CONTEXTS: Record<string, readonly WebMcpContextId[]> =
     opensesame_identity_read: ["identity"],
     opensesame_help: WEBMCP_CONTEXTS,
     opensesame_guide_start: WEBMCP_CONTEXTS,
+    opensesame_wallet_budgets_read: ["vault", "access", "settings"],
+    opensesame_wallet_allocations_read: ["vault", "access", "settings"],
   };
 
 let editorKind: string | null = null;

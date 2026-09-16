@@ -194,7 +194,7 @@ describe("the authored guides", () => {
   it("are the only goals help topics point at", () => {
     const goals = new Set(guideGoalIds());
     for (const topic of HELP_TOPICS) {
-      if (topic.goal === null) continue;
+      expect(topic.goal.length).toBeGreaterThan(0);
       expect(goals.has(topic.goal)).toBe(true);
     }
   });
@@ -203,7 +203,9 @@ describe("the authored guides", () => {
     const goals = new Set(guideGoalIds());
     for (const required of [
       "connection.create",
+      "connection.repair",
       "vault.item.create",
+      "vault.import",
       "vault.health.review",
       "identity.account.add",
       "settings.security.review",

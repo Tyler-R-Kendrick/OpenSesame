@@ -13,7 +13,7 @@ import type { SupportGoalDescription } from "@opensesame/support-agent";
 import { AUTHORITY_GOALS, AUTHORITY_HELP } from "./authority-help.js";
 import { IDENTITY_GOALS } from "./identity-goals.js";
 import { type GuideRouteId, guideRouteWithin } from "./routes.js";
-import { SETUP_GOALS } from "./setup-goals.js";
+import { SETUP_GOALS, SHELL_GOALS } from "./setup-goals.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 
 export type GuideGoalDescriptor = {
@@ -35,8 +35,8 @@ export type HelpTopic = {
   /** Authored answer shown when there is no model to ask. */
   readonly answer: string;
   readonly routes: readonly GuideRouteId[];
-  /** Goal to offer alongside the answer, when one applies. */
-  readonly goal: GuideGoalId | null;
+  /** Authored walkthrough that answers this question in tutorial mode. */
+  readonly goal: GuideGoalId;
   /**
    * The words a person uses for this that the title and answer do not: "user"
    * for an account, "reset" for a master password. Retrieval is lexical and
@@ -338,7 +338,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
   },
   {
     id: "settings.model-provider",
-    title: "Choose the password-reset model",
+    title: "Choose voice and inference models",
     routes: [],
     guide: [
       "guide/1",
@@ -346,7 +346,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/connectivity"',
       'wait route "/settings/connectivity" timeout=15000',
-      'focus "settings.model-provider" "This chooses which plane runs the reset model, or that this deployment does not use one." side=bottom',
+      'focus "settings.model-provider" "This chooses the voice speech language and which model runs inference, or that this deployment uses neither." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -443,6 +443,7 @@ export const GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       "end",
     ].join("\n"),
   },
+  ...SHELL_GOALS,
   ...AUTHORITY_GOALS,
 ];
 
@@ -514,7 +515,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     answer:
       "Open that connector's page from Connections. An authorization that only needs a fresh credential offers Renew now; one the provider has invalidated has to be authorized again. If the whole list fails to load, the Host plane is the thing to check first, on the statusline.",
     routes: [],
-    goal: null,
+    goal: "connection.repair",
     keywords: [
       "broken",
       "stopped working",
@@ -559,7 +560,7 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     answer:
       "Import sits beside New item in the Vault, and takes a .env, .csv, .json, .1pux, .zip or .kdbx export. Choosing a file hands it to the import panel under Settings → Vault data, which is also where an earlier OpenSesame export is merged back in.",
     routes: [],
-    goal: null,
+    goal: "vault.import",
     keywords: [
       "import",
       "migrate",

@@ -54,6 +54,14 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "app.navigate",
   },
   {
+    id: "nav.wallet",
+    description:
+      "Rail entry that opens Wallet, where spending overview, budgets, passes, payment methods and activity are reviewed.",
+    role: "navigation",
+    routes: [],
+    capabilityId: "app.navigate",
+  },
+  {
     id: "nav.settings",
     description:
       "Rail entry that opens Settings, covering general preferences, security, connectivity, vault data and destructive actions.",
@@ -100,5 +108,13 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
     role: "surface",
     routes: [],
     capabilityId: "client.support",
+  },
+  {
+    id: "shell.command-bar",
+    description:
+      "Typed or spoken commands that navigate and copy vault fields. Hold the mic to talk; Enter runs the command.",
+    role: "surface",
+    routes: [],
+    capabilityId: "client.command_bar",
   },
 ];

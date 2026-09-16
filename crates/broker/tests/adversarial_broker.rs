@@ -123,7 +123,6 @@ async fn idempotency_must_not_duplicate_side_effects() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params.clone(),
-        
             lineage: None,
         })
         .await
@@ -149,7 +148,6 @@ async fn idempotency_must_not_duplicate_side_effects() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params,
-        
             lineage: None,
         })
         .await
@@ -193,7 +191,6 @@ async fn cross_org_grant_must_be_rejected() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params,
-        
             lineage: None,
         })
         .await;
@@ -221,7 +218,6 @@ async fn revoked_grant_fails_closed() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params,
-        
             lineage: None,
         })
         .await
@@ -247,7 +243,6 @@ async fn expired_grant_fails_closed() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params,
-        
             lineage: None,
         })
         .await
@@ -274,7 +269,6 @@ async fn quorum_loss_fails_closed_a3() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params,
-        
             lineage: None,
         })
         .await
@@ -308,7 +302,6 @@ async fn parameter_digest_tamper_rejected() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params,
-        
             lineage: None,
         })
         .await
@@ -329,7 +322,6 @@ async fn operation_not_in_grant_denied() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params,
-        
             lineage: None,
         })
         .await
@@ -350,7 +342,6 @@ async fn receipt_roundtrip_prefixed_and_bare_id() {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             parameters: params,
-        
             lineage: None,
         })
         .await

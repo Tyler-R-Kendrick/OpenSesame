@@ -17,6 +17,11 @@ pub enum AuthzError {
     StepUpRequired(String),
     #[error("authority quorum unavailable")]
     AuthorityUnavailable,
+    /// The platform in front of this grant cannot hold the grant's own terms.
+    /// Distinct from [`Self::Denied`] on purpose: policy would have permitted
+    /// it, and the thing to change is the surface, not the tuple.
+    #[error("enforcement unavailable: {0}")]
+    EnforcementUnavailable(crate::enforcement_gate::EnforcementRefused),
 }
 
 #[derive(Clone, Debug, Default)]

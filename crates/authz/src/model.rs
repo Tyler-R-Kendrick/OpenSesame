@@ -48,6 +48,84 @@ mod tests {
     }
 
     #[test]
+    fn an_access_domain_can_only_ever_add_to_its_parent_or_project() {
+        // INV-GA-03 / ADR 0120: access_domain is the hierarchical grain. Direct
+        // owner/admin/member tuples grant that one domain; inheritance from
+        // parent and project keeps ancestor holders reaching the child. Dropping
+        // a `from parent` or `from project` clause would turn an additive nest
+        // into a replacement one.
+        let text = model();
+        assert!(
+            text.contains("type access_domain"),
+            "access_domain is the realm-bound hierarchical grain"
+        );
+        assert!(
+            text.contains("define project: [project]"),
+            "a domain is realm-bound through its project"
+        );
+        assert!(
+            text.contains("define parent: [access_domain]"),
+            "nesting is a parent edge, not a second hierarchy"
+        );
+        assert!(
+            text.contains(
+                "define owner: [user, team#member] or owner from parent or owner from project"
+            ),
+            "owner must inherit from parent and project"
+        );
+        assert!(
+            text.contains(
+                "define admin: [user, team#member] or owner or admin from parent or admin from project"
+            ),
+            "admin must inherit from parent and project"
+        );
+        assert!(
+            text.contains(
+                "define member: [user, team#member, workload, agent] or admin or member from parent or developer from project"
+            ),
+            "member must inherit from parent and project"
+        );
+    }
+
+    #[test]
+    fn a_cohort_is_never_a_grantee_of_anything() {
+        // Cohorts define eligibility; an activation binds one principal. The way
+        // that is enforced in the policy is by absence: `cohort#member` appears
+        // only inside the `cohort` type itself, and in the `cohort_activation`
+        // intersection that re-checks it for one named subject. The moment it
+        // appears in a `reader`, `writer`, `executor`, `user`, `developer` or any
+        // other granting relation, "the reviewers" holds authority — which is a
+        // grant no receipt can attribute to a person.
+        //
+        // So this walks the model and fails on any granting relation that admits a
+        // cohort, rather than pinning one spelling of one line.
+        let mut current_type = String::new();
+        for line in model().lines() {
+            let trimmed = line.trim();
+            if let Some(name) = trimmed.strip_prefix("type ") {
+                current_type = name.trim().to_string();
+                continue;
+            }
+            if !trimmed.starts_with("define ") || !trimmed.contains("cohort#member") {
+                continue;
+            }
+            assert!(
+                current_type == "cohort" || current_type == "cohort_activation",
+                "type {current_type} admits cohort#member in `{trimmed}`, which would be a \
+                 cohort-wide grant"
+            );
+        }
+
+        // And the activation really is an intersection with live membership, not a
+        // standalone claim: dropping either half would leave a subject who is no
+        // longer eligible still active.
+        assert!(
+            model().contains("define active: subject and member from cohort"),
+            "an activation is only active while its named subject is still a member"
+        );
+    }
+
+    #[test]
     fn changing_the_policy_changes_the_version_digest() {
         // The digest is how a deployment notices the model moved. It is
         // computed over the file, so this is really a guard on the include

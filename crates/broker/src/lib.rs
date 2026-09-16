@@ -28,7 +28,8 @@ pub struct InvokeInput {
     pub subject: String,
     pub connection_policy_id: String,
     pub parameters: Value,
-    /// Verified lineage for delegated exercise; omit for root/owner grants.
+    /// Verified lineage for delegated exercise. Raw `parent_grant_id` is not
+    /// eligibility; omit only for root/owner grants that rely on tuples.
     pub lineage: Option<ValidatedGrantChain>,
 }
 
