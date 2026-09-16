@@ -26,8 +26,8 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Duration, Utc};
 use opensesame_claims::{generate_claim_token, generate_user_code, hash_eq, hash_low_entropy};
 use opensesame_domain::{
-    ConnectionId, Grant, GrantConstraints, GrantId, OfflineUse, OrganizationId, PrincipalId,
-    Shareability,
+    grant_budgets::inherit_budgets, ConnectionId, Grant, GrantConstraints, GrantId, OfflineUse,
+    OrganizationId, PrincipalId, Shareability,
 };
 use opensesame_relay::ExecutionMode;
 use serde::{Deserialize, Serialize};
@@ -964,10 +964,10 @@ impl ConnectionBroker {
         Ok(PreparedClaim {
             item_id,
             connection_id,
+            budgets: child.constraints.budgets.clone(),
             child,
             owner_grant_id: owner_grant.id,
             execution_mode: parse_execution_mode(&item.get::<String, _>("execution_mode")),
-            budgets: template.budgets,
         })
     }
 
@@ -1593,7 +1593,7 @@ fn child_grant_from(owner: &Grant, template: &ItemTemplate, now: DateTime<Utc>) 
             authentication_max_age_seconds: None,
             allowed_networks: vec![],
             parameter_rules_digest: None,
-            budgets: template.budgets.clone(),
+            budgets: inherit_budgets(&owner.constraints.budgets, &template.budgets),
             // No re-delegation unless the owner opts in — and the owner
             // ceiling caps it at one hop regardless.
             maximum_delegation_depth: owner.constraints.maximum_delegation_depth,
