@@ -442,5 +442,4 @@ mod never_renewable_tests {
             events.iter().any(should_respond),
             "a certificate on an actionable rung should still be acted on"
         );
-    }
-}
+    }}

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { browserInferenceSeams } from "../../lib/browser-inference.js";
+import { resetSpeechSeams, speechSeams } from "../../lib/command-bar/speech.js";
 import { kvSetDurable } from "../../lib/kv.js";
 import {
   MODEL_PROVIDER_KEY,
@@ -39,13 +40,31 @@ function barrenBrowser() {
   browserInferenceSeams.gpu = () => null;
 }
 
+function speechAvailable() {
+  speechSeams.globals = () => ({
+    SpeechRecognition: class {
+      continuous = false;
+      interimResults = false;
+      lang = "";
+      onresult = null;
+      onerror = null;
+      onend = null;
+      start() {}
+      stop() {}
+      abort() {}
+    },
+  });
+}
+
 beforeEach(async () => {
   await kvSetDurable(MODEL_PROVIDER_KEY, "");
+  speechAvailable();
 });
 
 afterEach(() => {
   cleanup();
   Object.assign(browserInferenceSeams, originalSeams);
+  resetSpeechSeams();
   vi.restoreAllMocks();
 });
 
@@ -55,8 +74,13 @@ describe("ModelProviderPanel", () => {
     render(<ModelProviderPanel />);
 
     expect(
+      await screen.findByRole("heading", { name: "AI models" }),
+    ).toBeTruthy();
+    expect(
       await screen.findByText(/No provider set, so this device's own model/),
     ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Voice" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Inference" })).toBeTruthy();
   });
 
   it("withholds the browser option rather than greying it, and says why", async () => {
@@ -108,7 +132,31 @@ describe("ModelProviderPanel", () => {
         provider: "browser",
         endpoint: "",
         model: "",
+        voice: {
+          provider: "browser-speech",
+          kind: "browser",
+          endpoint: "",
+          model: "en-US",
+        },
+        inference: {
+          kind: "browser",
+          provider: "browser",
+          endpoint: "",
+          model: "",
+        },
       });
+    });
+  });
+
+  it("records a speech language from the voice catalog", async () => {
+    capableBrowser();
+    render(<ModelProviderPanel />);
+
+    const lang = await screen.findByLabelText("Speech language");
+    await userEvent.selectOptions(lang, "ja-JP");
+
+    await waitFor(() => {
+      expect(loadModelProvider().voice.model).toBe("ja-JP");
     });
   });
 
@@ -159,5 +207,17 @@ describe("ModelProviderPanel", () => {
     expect(
       await screen.findByText(/No provider set, so this device's own model/),
     ).toBeTruthy();
+  });
+
+  it("withholds the voice catalog when speech recognition is missing", async () => {
+    capableBrowser();
+    resetSpeechSeams();
+    speechSeams.globals = () => ({});
+    render(<ModelProviderPanel />);
+
+    expect(
+      await screen.findByText(/no speech recognition, so the mic stays off/),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Speech language")).toBeNull();
   });
 });

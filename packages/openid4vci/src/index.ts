@@ -58,6 +58,7 @@ export {
   type TransactionCodeSpec,
   assertOfferLinkIsClean,
   createCredentialOffer,
+  redeemGrant,
 } from "./offer.js";
 
 export {

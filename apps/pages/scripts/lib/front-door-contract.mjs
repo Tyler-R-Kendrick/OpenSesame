@@ -36,33 +36,62 @@ export async function checkFrontDoor(page, check, text, base) {
 }
 
 /**
- * A2. "Set up your own": six tabs opening on backups, connectors second and
- * asking for a directory, the identity tab keeping its question, and Skip
- * all retiring the door — sign-in, with both roads back in its foot.
+ * A2. "Set up your own": six tabs opening on connectors (so backups can reuse
+ * directory endpoints), then backups, and Skip all retiring the door — sign-in,
+ * with both roads back in its foot.
  */
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
   const onSetup = await snap(page, "A2-setup");
   check(
     (await page.getByRole("tab").count()) === 6 &&
-      /Where do backups live\?/.test(onSetup),
-    "setup opens on the backups tab of six (ADR 0114, ADR 0115)",
+      (await page
+        .getByRole("tab", { name: "connectors", selected: true })
+        .count()) === 1,
+    "setup opens on the connectors tab of six (ADR 0114, ADR 0115)",
+  );
+  check(
+    !/Where do backups live\?|Should a code follow the key\?|Who runs the model\?|How do people sign in\?|Which connectors are already authorized\?|What should this vault sync with\?/.test(
+      onSetup,
+    ),
+    "setup ceremony has no question-title subheaders",
+  );
+  check(
+    (await page.getByLabel("Directory endpoint").count()) === 1,
+    "connectors tab asks for a directory endpoint",
   );
   await page.getByRole("button", { name: "Next" }).click();
-  const connectors = await snap(page, "A2-setup-connectors");
+  const backups = await snap(page, "A2-setup-backups");
   check(
-    /Which connectors are already authorized\?/.test(connectors) &&
-      (await page.getByLabel("Directory endpoint").count()) === 1,
-    "next browses to connectors, which asks for a directory endpoint",
+    (await page
+      .getByRole("tab", { name: "backups", selected: true })
+      .count()) === 1,
+    "next browses to backups",
   );
   await page.getByRole("button", { name: "Next" }).click();
   const ai = await snap(page, "A2-setup-ai");
-  check(/Who runs the model\?/.test(ai), "next browses to ai");
-  await page.getByRole("tab", { name: "identity" }).click();
-  const identity = await snap(page, "A2-setup-identity");
   check(
-    /How do people sign in\?/.test(identity),
-    "the identity tab keeps the one question",
+    (await page.getByRole("tab", { name: "ai", selected: true }).count()) === 1,
+    "next browses to ai",
+  );
+  await page.getByRole("tab", { name: "identity" }).click();
+  await snap(page, "A2-setup-identity");
+  check(
+    (await page
+      .getByRole("tab", { name: "identity", selected: true })
+      .count()) === 1,
+    "the identity tab opens from the strip",
+  );
+  await page.getByRole("tab", { name: "mfa" }).click();
+  const mfa = await snap(page, "A2-setup-mfa");
+  check(
+    !/Should a code follow the key\?/.test(mfa) &&
+      (await page
+        .getByRole("heading", { name: "Authenticator app" })
+        .count()) === 1 &&
+      (await page.getByRole("heading", { name: "Email code" }).count()) === 1 &&
+      (await page.getByRole("heading", { name: "Text message" }).count()) === 1,
+    "mfa shows connector group labels and no question subheader",
   );
   await page.getByRole("button", { name: "Skip all" }).click();
   const back = await snap(page, "A2-back");

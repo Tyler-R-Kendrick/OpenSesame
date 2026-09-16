@@ -1716,9 +1716,9 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
       },
       "/v1/interactions/{ref}/approve": {
         post: {
-          summary: "Approve, with a proof bound to the displayed digest",
+          summary: "Approve, spending an interaction-scoped activation",
           description:
-            "Both the echoed requestDigest and the proof's boundDigest must equal the stored digest: they come from different parties, and requiring both closes the gap between what a person read and what a credential signed over. verifiedAt is stamped from the server clock.",
+            "The body echoes requestDigest and names an activationId — the handle of a WebAuthn ceremony already verified at /activation/complete. The server rebuilds the ApprovalProof from that spent activation (mechanism, boundDigest, assurance, verifiedAt from the server clock); it never trusts a client-constructed proof. Both the echoed requestDigest and the proof's server-derived boundDigest must equal the stored digest. An approve carrying only requestDigest, with no spent activation, answers 401 proof_required: an ordinary session may deny, but may not approve a privileged interaction.",
           security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           parameters: [
             {
@@ -1746,7 +1746,10 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
               },
             },
             "400": { description: "invalid_request" },
-            "401": { description: "Unauthorized" },
+            "401": {
+              description:
+                "Unauthorized, or proof_required when no spent activation is presented",
+            },
             "404": { description: "interaction_not_found" },
             "409": {
               description:
@@ -1800,6 +1803,79 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
                 "digest_mismatch, interaction_settled, interaction_revoked, or interaction_consumed",
             },
             "410": { description: "interaction_expired" },
+          },
+        },
+      },
+      "/v1/interactions/{ref}/activation": {
+        post: {
+          summary:
+            "Mint a WebAuthn ceremony bound to this interaction approval",
+          description:
+            "Interaction-scoped step-up (A-01). The challenge is bound to a digest over the interaction, the approve decision and the effective policy, so it cannot be spent on another interaction, on a deny, or under a policy since tightened. Only decision=approved mints an activation. Returns the activation handle and the request options; the raw assertion is completed at /activation/complete and never travels through /approve.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "ref",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/BeginApprovalActivation",
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "Activation and request options" },
+            "400": {
+              description: "invalid_request (including a deny decision)",
+            },
+            "404": { description: "interaction_not_found" },
+            "409": { description: "digest_mismatch" },
+            "410": { description: "interaction_expired" },
+            "422": { description: "interaction_settled" },
+            ...authenticationUnauthorizedResponse,
+          },
+        },
+      },
+      "/v1/interactions/{ref}/activation/complete": {
+        post: {
+          summary: "Verify the assertion and activate the interaction ceremony",
+          description:
+            "Verification only (A-02): the raw WebAuthn assertion is checked by the real phishing-resistant verifier (ADR 0084), and the activation is spent by the subsequent /approve as a compare-and-set on the stored row. A missing enrolment or a revoked credential fails verification here (A-05), never at /approve.",
+          security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
+          parameters: [
+            {
+              name: "ref",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/CompleteApprovalActivation",
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Activated" },
+            // The assertion, the challenge binding and an absent session all
+            // answer 401: which one it was is not the caller's to learn.
+            "401": { description: "Assertion or challenge binding refused" },
+            "404": { description: "No such activation for this caller" },
+            "409": { description: "activation_not_pending" },
+            "410": { description: "activation_expired" },
           },
         },
       },
@@ -2627,10 +2703,44 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         ApproveInteraction: {
           type: "object",
           additionalProperties: false,
-          required: ["requestDigest", "proof"],
+          required: ["requestDigest"],
           properties: {
             requestDigest: { type: "string", minLength: 16, maxLength: 256 },
-            proof: { $ref: "#/components/schemas/ApprovalProof" },
+            // The handle of a ceremony verified at /activation/complete. Not a
+            // proof: the server rebuilds the ApprovalProof from the spent
+            // activation. Absent it, approve answers 401 proof_required (F01).
+            activationId: { type: "string", minLength: 8, maxLength: 256 },
+          },
+        },
+        BeginApprovalActivation: {
+          type: "object",
+          additionalProperties: false,
+          required: ["decision", "requestDigest"],
+          properties: {
+            decision: { type: "string", enum: ["approved", "denied"] },
+            requestDigest: { type: "string", minLength: 16, maxLength: 256 },
+          },
+        },
+        CompleteApprovalActivation: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "activationId",
+            "credentialId",
+            "clientDataJSON",
+            "authenticatorData",
+            "signature",
+          ],
+          properties: {
+            activationId: { type: "string", minLength: 8, maxLength: 256 },
+            credentialId: { type: "string", minLength: 1, maxLength: 16384 },
+            clientDataJSON: { type: "string", minLength: 1, maxLength: 16384 },
+            authenticatorData: {
+              type: "string",
+              minLength: 1,
+              maxLength: 16384,
+            },
+            signature: { type: "string", minLength: 1, maxLength: 16384 },
           },
         },
         DenyInteraction: {

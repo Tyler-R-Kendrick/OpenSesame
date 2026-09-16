@@ -31,6 +31,23 @@ export const SETTINGS_CATEGORY_LABEL = {
   danger: "Danger",
 } satisfies Record<SettingsCategory, string>;
 
+export const WALLET_CATEGORIES = [
+  "overview",
+  "budgets",
+  "passes",
+  "methods",
+  "activity",
+] as const;
+export type WalletCategory = (typeof WALLET_CATEGORIES)[number];
+
+export const WALLET_CATEGORY_LABEL = {
+  overview: "Overview",
+  budgets: "Budgets",
+  passes: "Spending passes",
+  methods: "Payment methods",
+  activity: "Activity",
+} satisfies Record<WalletCategory, string>;
+
 const HASH_TO_SETTINGS = new Map<string, SettingsCategory>([
   ["general", "general"],
   ["security", "security"],
@@ -61,6 +78,7 @@ function vaultFilterLabel(filter: string): string | undefined {
 
 const ITEM_KINDS = new Set<string>(Object.keys(KIND_LABEL));
 const SETTINGS_CATEGORY_SET = new Set<string>(SETTINGS_CATEGORIES);
+const WALLET_CATEGORY_SET = new Set<string>(WALLET_CATEGORIES);
 
 function isItemKind(value: string): value is ItemKind {
   return ITEM_KINDS.has(value);
@@ -68,6 +86,22 @@ function isItemKind(value: string): value is ItemKind {
 
 export function isSettingsCategory(value: string): value is SettingsCategory {
   return SETTINGS_CATEGORY_SET.has(value);
+}
+
+export function isWalletCategory(value: string): value is WalletCategory {
+  return WALLET_CATEGORY_SET.has(value);
+}
+
+/** `/wallet/budgets` → budgets; bare `/wallet` → overview. */
+export function walletCategoryFromLocation(pathname: string): WalletCategory {
+  const match = pathname.match(/\/wallet\/([^/]+)/);
+  const fromPath = match?.[1];
+  if (fromPath && isWalletCategory(fromPath)) return fromPath;
+  return "overview";
+}
+
+export function walletPath(category: WalletCategory): string {
+  return category === "overview" ? "/wallet" : `/wallet/${category}`;
 }
 
 export function settingsCategoryFromHash(
@@ -124,6 +158,7 @@ export function crumbsFor(
   }
   if (parts[0] === "access") return current("Access");
   if (parts[0] === "identity") return current("Identity");
+  if (parts[0] === "wallet") return walletCrumbs(parts);
   return [];
 }
 
@@ -191,6 +226,16 @@ function connectionsCrumbs(parts: string[], ctx: CrumbContext): Crumb[] {
     label: ctx.connectionName || decodeURIComponent(connection),
   });
   return crumbs;
+}
+
+function walletCrumbs(parts: string[]): Crumb[] {
+  const category =
+    parts[1] && isWalletCategory(parts[1]) ? parts[1] : "overview";
+  if (category === "overview") return current("Wallet");
+  return [
+    { label: "Wallet", to: "/wallet" },
+    { label: WALLET_CATEGORY_LABEL[category] },
+  ];
 }
 
 function settingsCrumbs(parts: string[]): Crumb[] {

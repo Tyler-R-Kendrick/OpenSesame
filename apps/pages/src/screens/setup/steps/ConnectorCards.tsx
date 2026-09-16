@@ -47,7 +47,7 @@ function useConnectFlow(
   capability: CapabilityId,
   providerId: string,
   connection: Connection | undefined,
-  choose: (providerId: string) => void,
+  choose: (providerId: string, connectionId?: string) => void,
 ): [CardState, () => Promise<void>] {
   const def = capabilityDef(capability);
   const [state, setState] = useState<CardState>({ phase: "idle" });
@@ -73,7 +73,7 @@ function useConnectFlow(
       else window.location.href = authorizationUrl;
       const outcome = await awaitConsent(live.connectionId, tab);
       if (outcome.result === "active") {
-        choose(providerId);
+        choose(providerId, outcome.connection.connectionId);
         setState({
           phase: "connected",
           as: outcome.connection.accountLabel ?? undefined,
@@ -200,26 +200,18 @@ export function ConnectorCards({ id }: { id: CapabilityId }) {
   }, [hostLive]);
 
   return (
-    <>
-      <ul className="xcards" aria-label={def.title}>
-        {def.connectorIds.map((providerId) => (
-          <ConnectorCard
-            key={providerId}
-            capability={id}
-            providerId={providerId}
-            connection={connections.find(
-              (row) => row.providerId === providerId && row.status === "active",
-            )}
-            hostLive={hostLive}
-          />
-        ))}
-      </ul>
-      {!hostLive ? (
-        <p className="hint">
-          Authorization talks to the Host. Name one in Settings › Endpoints —
-          every choice here is already saved.
-        </p>
-      ) : null}
-    </>
+    <ul className="xcards" aria-label={def.title}>
+      {def.connectorIds.map((providerId) => (
+        <ConnectorCard
+          key={providerId}
+          capability={id}
+          providerId={providerId}
+          connection={connections.find(
+            (row) => row.providerId === providerId && row.status === "active",
+          )}
+          hostLive={hostLive}
+        />
+      ))}
+    </ul>
   );
 }

@@ -1,4 +1,4 @@
-import type { ApprovalProof, BoundaryValue } from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   CeremonyRequestError,
@@ -22,13 +22,6 @@ const DETAIL_BODY = {
   requestDigest: DIGEST,
   resourceRef: "conn_7",
   authorizationDetails: [{ type: "payment" }, "not-an-object"],
-};
-
-const PROOF: ApprovalProof = {
-  mechanism: "webauthn",
-  boundDigest: DIGEST,
-  assurance: "verified",
-  verifiedAt: new Date("2026-09-01T09:59:00.000Z"),
 };
 
 function json(body: BoundaryValue, status = 200): Response {
@@ -131,43 +124,23 @@ describe("interaction client — happy paths", () => {
     expect(only(calls).init.headers).toEqual({});
   });
 
-  it("echoes the digest on approve and on deny", async () => {
+  it("sends only the digest echo on approve and on deny, never a proof", async () => {
     const { calls, fetchImpl } = recorder(() => json(DETAIL_BODY));
     const subject = client(fetchImpl, () => "bearer-value");
-    await subject.approveInteraction(REF, {
-      requestDigest: DIGEST,
-      proof: PROOF,
-    });
+    await subject.approveInteraction(REF, { requestDigest: DIGEST });
     await subject.denyInteraction(REF, { requestDigest: DIGEST });
     const bodies = calls.map((call) => JSON.parse(String(call.init.body)));
-    expect(bodies[0]).toEqual({
-      requestDigest: DIGEST,
-      proof: {
-        mechanism: "webauthn",
-        boundDigest: DIGEST,
-        assurance: "verified",
-        verifiedAt: "2026-09-01T09:59:00.000Z",
-      },
-    });
+    // Approve and deny are byte-for-byte the same body. A client that could
+    // add a `proof` here would be asserting a mechanism and an assurance the
+    // server never verified; the server builds the proof itself, so the body
+    // is the echo and nothing more.
+    expect(bodies[0]).toEqual({ requestDigest: DIGEST });
+    expect(bodies[0]).not.toHaveProperty("proof");
     expect(bodies[1]).toEqual({ requestDigest: DIGEST });
   });
 });
 
 describe("interaction client — refusals", () => {
-  it("will not approve with a proof bound to a different request", async () => {
-    const { calls, fetchImpl } = recorder(() => json(DETAIL_BODY));
-    const other: ApprovalProof = { ...PROOF, boundDigest: "e".repeat(64) };
-    expect(
-      await codeOf(
-        client(fetchImpl).approveInteraction(REF, {
-          requestDigest: DIGEST,
-          proof: other,
-        }),
-      ),
-    ).toBe("digest_mismatch");
-    expect(calls).toHaveLength(0);
-  });
-
   it("will not put a malformed reference into a URL path", async () => {
     const { calls, fetchImpl } = recorder(() => json(DETAIL_BODY));
     expect(await codeOf(client(fetchImpl).resolveInteraction("../admin"))).toBe(

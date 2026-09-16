@@ -7,8 +7,9 @@
 
 use chrono::{Duration, Utc};
 use opensesame_domain::{
-    GrantScope, JoinDecision, JoinRequest, JoinRequestId, NewSessionGrant, PrincipalId,
-    SessionGrant, SessionGrantId, SessionId, SessionRole, SessionVisibility, VaultId, VaultItemId,
+    Admission, GrantLink, GrantScope, JoinDecision, JoinRequest, JoinRequestId, NewSessionGrant,
+    PrincipalId, SessionGrant, SessionGrantId, SessionId, SessionRole, SessionVisibility, VaultId,
+    VaultItemId,
 };
 use opensesame_storage::{Db, StoredSession};
 use std::collections::BTreeSet;
@@ -53,6 +54,7 @@ fn grant(
         role,
         granted_at: now,
         expires_at: now + lifetime,
+        link: GrantLink::LifecycleBound,
     })
     .expect("a valid grant")
 }
@@ -260,7 +262,9 @@ async fn admitting_writes_the_request_and_its_grant_together() {
         ORG,
         request.id,
         JoinDecision::Admitted {
-            grant_id: minted.id,
+            admission: Admission::Participant {
+                grant_id: minted.id,
+            },
         },
         opened.operator_principal_id,
         Utc::now(),
@@ -293,7 +297,9 @@ async fn admission_without_the_grant_it_mints_is_refused() {
             ORG,
             request.id,
             JoinDecision::Admitted {
-                grant_id: SessionGrantId::new(),
+                admission: Admission::Participant {
+                    grant_id: SessionGrantId::new(),
+                },
             },
             opened.operator_principal_id,
             Utc::now(),
@@ -334,7 +340,9 @@ async fn admission_carrying_somebody_elses_grant_is_refused() {
             ORG,
             request.id,
             JoinDecision::Admitted {
-                grant_id: SessionGrantId::new(),
+                admission: Admission::Participant {
+                    grant_id: SessionGrantId::new(),
+                },
             },
             opened.operator_principal_id,
             Utc::now(),
@@ -417,7 +425,9 @@ async fn a_decided_request_is_never_decided_again() {
             ORG,
             request.id,
             JoinDecision::Admitted {
-                grant_id: minted.id,
+                admission: Admission::Participant {
+                    grant_id: minted.id,
+                },
             },
             opened.operator_principal_id,
             Utc::now(),
@@ -679,7 +689,9 @@ async fn an_admitted_request_reads_back_naming_the_grant_it_minted() {
         ORG,
         asked.id,
         JoinDecision::Admitted {
-            grant_id: minted.id,
+            admission: Admission::Participant {
+                grant_id: minted.id,
+            },
         },
         operator,
         Utc::now(),
@@ -696,7 +708,9 @@ async fn an_admitted_request_reads_back_naming_the_grant_it_minted() {
     assert_eq!(
         read.decision,
         JoinDecision::Admitted {
-            grant_id: minted.id
+            admission: Admission::Participant {
+                grant_id: minted.id
+            },
         }
     );
     assert_eq!(read.decided_by_principal_id, Some(operator));

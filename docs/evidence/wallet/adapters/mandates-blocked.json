@@ -1,0 +1,8 @@
+{
+  "adapterId": "ap2-ucp-vi",
+  "status": "blocked",
+  "local_execution_verified": false,
+  "productionEnabled": false,
+  "reason": "AP2/UCP/VI mandate verification has no independently constructed local counterparty harness (WAL-B10–B12). Negotiated protection must not fall back to unprotected checkout.",
+  "recordedAt": "2026-09-16T04:05:22.579Z"
+}

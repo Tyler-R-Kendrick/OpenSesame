@@ -180,11 +180,23 @@ function NotificationsBarDefault({
                     ok={false}
                     top="Guest session"
                     name={notice.title}
-                    facts={
-                      notice.userCode
-                        ? [{ key: "Consent code", value: notice.userCode }]
-                        : []
-                    }
+                    facts={(() => {
+                      const rows: { key: string; value: string }[] = [];
+                      if (notice.userCode) {
+                        rows.push({
+                          key: "Consent code",
+                          value: notice.userCode,
+                        });
+                      }
+                      if (notice.body.includes("backup account")) {
+                        rows.push({
+                          key: "Backups",
+                          value:
+                            "Provisional Postgres accounts claim with this sign-in",
+                        });
+                      }
+                      return rows;
+                    })()}
                     primary={{
                       label: "Sign in to claim",
                       onClick: () => {

@@ -1,5 +1,5 @@
-import { cleanup, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OperatorIdp, PagesSettings } from "../../lib/settings.js";
@@ -32,10 +32,14 @@ Object.assign(settingsSeams, {
   }),
 });
 
+import { deviceIdentitySeams } from "../../lib/device-identity.js";
 import { identitySeams } from "../../lib/identity.js";
 Object.assign(identitySeams, {
   identityBase: () => state.identityApi,
   useIdentitySession: () => null,
+});
+Object.assign(deviceIdentitySeams, {
+  remoteIdentityApi: () => state.identityApi,
 });
 
 import type { TrustedUpstream } from "../../lib/federation.js";
@@ -64,11 +68,42 @@ function idp(overrides: Partial<OperatorIdp> = {}): OperatorIdp {
   };
 }
 
+function ensureLocalStorage(): Storage {
+  const existing = globalThis.localStorage;
+  if (existing) return existing;
+  const map = new Map<string, string>();
+  const storage: Storage = {
+    get length() {
+      return map.size;
+    },
+    clear() {
+      map.clear();
+    },
+    getItem(key: string) {
+      return map.get(key) ?? null;
+    },
+    key(index: number) {
+      return [...map.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      map.delete(key);
+    },
+    setItem(key: string, value: string) {
+      map.set(key, value);
+    },
+  };
+  Object.defineProperty(globalThis, "localStorage", {
+    value: storage,
+    configurable: true,
+  });
+  return storage;
+}
+
 beforeEach(() => {
   state.identityApi = "";
   state.signIn = defaultSignInMethods();
   beginSignIn.mockClear();
-  localStorage.clear();
+  ensureLocalStorage().clear();
 });
 
 afterEach(cleanup);

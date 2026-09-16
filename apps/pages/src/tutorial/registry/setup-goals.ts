@@ -73,3 +73,5 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
 ];
+
+export { SHELL_GOALS } from "./shell-goals.js";

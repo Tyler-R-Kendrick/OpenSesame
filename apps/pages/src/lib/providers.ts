@@ -28,7 +28,11 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { TRUSTED_UPSTREAMS, type TrustedUpstream } from "./federation.js";
-import { identityBase } from "./identity.js";
+import {
+  identityBase,
+  isRemoteIdentityConfigured,
+  remoteIdentityApi,
+} from "./identity.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 
 const PROVIDERS_FETCH_MS = 6000;
@@ -63,8 +67,8 @@ function isSummary(value: BoundaryValue): value is FederatedProviderSummary {
 async function listFederatedProvidersDefault(): Promise<
   FederatedProviderSummary[]
 > {
-  const base = identityBase();
-  if (!base) return [];
+  if (!isRemoteIdentityConfigured()) return [];
+  const base = remoteIdentityApi();
   try {
     const res = await localNetworkFetch(`${base}/v1/federated/providers`, {
       credentials: "omit",
@@ -96,7 +100,7 @@ export function brokeredUpstream(
 ): TrustedUpstream {
   return {
     id: `broker:${provider.id}`,
-    issuer: identityBase(),
+    issuer: remoteIdentityApi() || identityBase(),
     displayName: provider.label,
     accountKind: provider.label,
   };
@@ -124,7 +128,7 @@ export function brokeredOrgUpstream(org: {
 }): TrustedUpstream {
   return {
     id: `broker:org:${org.slug}`,
-    issuer: identityBase(),
+    issuer: remoteIdentityApi() || identityBase(),
     displayName: org.displayName,
     accountKind: `your ${org.displayName} account`,
   };
@@ -143,7 +147,7 @@ export function brokeredByoUpstream(registration: {
 }): TrustedUpstream {
   return {
     id: `broker:byo:${registration.issuer}`,
-    issuer: identityBase(),
+    issuer: remoteIdentityApi() || identityBase(),
     displayName: registration.label,
     accountKind: `your ${registration.label} account`,
   };
@@ -156,7 +160,7 @@ export function brokeredByoUpstream(registration: {
 export function brokeredRealmUpstream(): TrustedUpstream {
   return {
     id: "broker:realm",
-    issuer: identityBase(),
+    issuer: remoteIdentityApi() || identityBase(),
     displayName: "your organization",
     accountKind: "your work account",
   };
@@ -192,10 +196,10 @@ export function workEmailDomain(email: string): string {
  * request 404s and the caller surfaces "Email sign-in is not available".
  */
 async function requestEmailMagicLinkDefault(email: string): Promise<void> {
-  const base = identityBase();
+  const base = remoteIdentityApi();
   if (!base) {
     throw new Error(
-      "No Identity API is configured. Set the Identity URL in Settings.",
+      "No remote Identity API is configured. Set the Identity URL in Settings.",
     );
   }
   const res = await localNetworkFetch(`${base}/v1/auth/sign-in/magic-link`, {

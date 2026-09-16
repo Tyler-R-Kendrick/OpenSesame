@@ -1,5 +1,8 @@
 export * from "./schema/index.js";
+export * from "./schema/authority.js";
+export * from "./schema/wallet-interactions.js";
 export * from "./repos/interfaces.js";
+export * from "./repos/wallet-interaction-types.js";
 export {
   MemoryOrganizationMembershipStore,
   MemoryOrganizationStore,

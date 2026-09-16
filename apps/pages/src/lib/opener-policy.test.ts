@@ -6,6 +6,9 @@ describe("crossOriginOpenerPolicy", () => {
     expect(
       crossOriginOpenerPolicy("/OpenSesame/identity/authorize", "/OpenSesame/"),
     ).toBe("unsafe-none");
+    expect(
+      crossOriginOpenerPolicy("/OpenSesame/identity/siop", "/OpenSesame/"),
+    ).toBe("unsafe-none");
   });
 
   it("isolates neighboring identity routes and extra path suffixes", () => {
@@ -15,6 +18,12 @@ describe("crossOriginOpenerPolicy", () => {
     expect(
       crossOriginOpenerPolicy(
         "/OpenSesame/identity/authorize-extra",
+        "/OpenSesame/",
+      ),
+    ).toBe("same-origin");
+    expect(
+      crossOriginOpenerPolicy(
+        "/OpenSesame/identity/siop-extra",
         "/OpenSesame/",
       ),
     ).toBe("same-origin");

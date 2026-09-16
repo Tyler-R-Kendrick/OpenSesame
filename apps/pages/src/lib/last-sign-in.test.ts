@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   LAST_SIGN_IN_KEY,
   canonicalSignInMethod,
@@ -8,6 +8,31 @@ import {
   readLastSignIn,
   rememberLastSignIn,
 } from "./last-sign-in.js";
+
+/** Node 22 shadows Storage with an unavailable experimental global. */
+function ensureLocalStorage(): void {
+  const map = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => map.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      map.set(key, value);
+    },
+    removeItem: (key: string) => {
+      map.delete(key);
+    },
+    clear: () => {
+      map.clear();
+    },
+    get length() {
+      return map.size;
+    },
+    key: (index: number) => [...map.keys()][index] ?? null,
+  } satisfies Storage);
+}
+
+beforeEach(() => {
+  ensureLocalStorage();
+});
 
 afterEach(() => {
   localStorage.removeItem(LAST_SIGN_IN_KEY);

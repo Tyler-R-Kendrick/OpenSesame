@@ -66,12 +66,18 @@ export function accessPageSources({
     ]),
     tab("sessions", [
       panel("sessions", "local-sessions", "Local sessions & grants"),
+      panel("sessions", "local-authority-templates", "Audience templates"),
+      panel("sessions", "vault-share-sessions", "Vault share sessions"),
       ...(host
-        ? [panel("sessions", "host-sessions", "Host task sessions")]
+        ? [
+            panel("sessions", "host-shared-sessions", "Host shared sessions"),
+            panel("sessions", "host-sessions", "Host task sessions"),
+          ]
         : []),
     ]),
     tab("connectors", [panel("connectors", "local-connectors", "Connectors")]),
     tab("resources", [
+      panel("resources", "local-resources", "Local resources"),
       ...(identity ? [panel("resources", "resource-sites", "Sites")] : []),
     ]),
     tab("policies", [

@@ -15,6 +15,7 @@ import {
   useState,
 } from "react";
 import { Link } from "react-router";
+import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import {
   IconAlert,
   IconCheck,
@@ -1836,7 +1837,10 @@ function RequestsPanel({ online }: { online: boolean }) {
         ) : null}
 
         {emptyInbox && emptyOffers ? (
-          <p className="hint">Nothing waiting for approval.</p>
+          <>
+            <p className="hint">Nothing waiting for approval.</p>
+            <EmptyTip>{emptyTips.navigate}</EmptyTip>
+          </>
         ) : null}
 
         {flash ? (
@@ -2443,12 +2447,15 @@ function ResourcesPanel({
         ) : null}
 
         {nothingShown ? (
-          <p className="hint">
-            {needle
-              ? "Nothing matches."
-              : "Nothing to grant yet — connect a service or add a secret."}{" "}
-            {needle ? null : <Link to="/connections">Connections</Link>}
-          </p>
+          <>
+            <p className="hint">
+              {needle
+                ? "Nothing matches."
+                : "Nothing to grant yet — connect a service or add a secret."}{" "}
+              {needle ? null : <Link to="/connections">Connections</Link>}
+            </p>
+            <EmptyTip>{needle ? emptyTips.keymap : emptyTips.rail}</EmptyTip>
+          </>
         ) : null}
 
         {flash ? (

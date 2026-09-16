@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { StatusNote } from "../../components/StatusNote.js";
 import { loadSession } from "../../lib/federation.js";
-import { identityBase } from "../../lib/identity.js";
+import { isRemoteIdentityConfigured } from "../../lib/identity.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { RemoteCodeError } from "../../lib/vault/remote-code.js";
 import {
@@ -39,7 +39,7 @@ export function UnlockMethodsPanel() {
   const enrolled = guest ? [] : listAvailableUnlockMethods(header);
   const secondSteps = guest ? [] : listSecondSteps(header);
   const hasRecovery = !guest && Boolean(header?.unlocks?.recovery);
-  const hasIdentity = identityBase().length > 0;
+  const hasIdentity = isRemoteIdentityConfigured();
   const accountEmail = loadSession()?.email ?? null;
 
   const [message, setMessage] = useState<{

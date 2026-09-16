@@ -23,6 +23,9 @@ type Props = {
   disabled?: boolean;
   currentVaultId: string;
   signingIn: boolean;
+  /** Offer a way back to the device vault list (ADR 0089). */
+  showAllVaults?: boolean;
+  onOpenVaults?: () => void;
   onSignIn: () => void;
   onUnlock: () => void;
   onPickVault: (vault: DeviceVault) => void;
@@ -32,6 +35,8 @@ export function UnlockUserMenu({
   disabled,
   currentVaultId,
   signingIn,
+  showAllVaults = false,
+  onOpenVaults,
   onSignIn,
   onUnlock,
   onPickVault,
@@ -79,6 +84,8 @@ export function UnlockUserMenu({
           vaults={vaults}
           currentVaultId={currentVaultId}
           signingIn={signingIn}
+          showAllVaults={showAllVaults}
+          onOpenVaults={onOpenVaults}
           onClose={close}
           onSignIn={onSignIn}
           onUnlock={onUnlock}
@@ -95,6 +102,8 @@ type MenuProps = {
   vaults: DeviceVault[];
   currentVaultId: string;
   signingIn: boolean;
+  showAllVaults: boolean;
+  onOpenVaults: (() => void) | undefined;
   onClose: () => void;
   onSignIn: () => void;
   onUnlock: () => void;
@@ -107,6 +116,8 @@ function Menu({
   vaults,
   currentVaultId,
   signingIn,
+  showAllVaults,
+  onOpenVaults,
   onClose,
   onSignIn,
   onUnlock,
@@ -160,6 +171,19 @@ function Menu({
             </button>
           );
         })}
+        {showAllVaults && onOpenVaults ? (
+          <button
+            type="button"
+            role="menuitem"
+            className="account-switcher__item"
+            onClick={() => {
+              onClose();
+              onOpenVaults();
+            }}
+          >
+            <span className="account-switcher__item-name">All vaults</span>
+          </button>
+        ) : null}
         <div className="account-switcher__exits">
           <button
             type="button"

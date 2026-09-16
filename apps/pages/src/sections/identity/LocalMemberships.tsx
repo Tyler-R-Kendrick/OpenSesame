@@ -4,6 +4,12 @@ import type {
   LocalDirectory,
   LocalDirectoryChange,
 } from "../../lib/local-directory.js";
+import {
+  accessRoleLabel,
+  isGuestIdentity,
+  organizationRoleLabel,
+  resolveAccessRole,
+} from "../../lib/local-rbac.js";
 
 type MembershipProps = {
   directory: LocalDirectory;
@@ -26,8 +32,9 @@ export function LocalMemberships(props: MembershipProps) {
     <details>
       <summary ref={summary}>Members</summary>
       <p className="hint">
-        Manage this organization as the vault custodian. Assign an enabled
-        person as its first owner. Role changes require local sessions to sign
+        Organization roles map to Access RBAC: Owner/Admin are Operators, Member
+        is Member, and guest@guest stays Guest. Guests cannot be operators once
+        another person is assigned. Role changes require local sessions to sign
         in again.
       </p>
       <ul className="identity-passkeys">
@@ -40,7 +47,13 @@ export function LocalMemberships(props: MembershipProps) {
                     ?.name
                 }
               </span>
-              <span className="chip">{member.role}</span>
+              <span className="chip">
+                {organizationRoleLabel(member.role)}
+                {" · "}
+                {accessRoleLabel(
+                  resolveAccessRole(directory, member.principalId) ?? "member",
+                )}
+              </span>
               <button
                 type="button"
                 className="btn btn--sm btn--danger"
@@ -115,6 +128,10 @@ function MembershipForm(props: MembershipProps) {
     setPrincipalId(value);
     const existing = members.find((row) => row.principalId === value);
     const person = people.find((entry) => entry.id === value);
+    if (person && isGuestIdentity(person)) {
+      setRole("member");
+      return;
+    }
     setRole(
       existing?.role ??
         (person?.kind === "person" && members.length === 0
@@ -123,16 +140,34 @@ function MembershipForm(props: MembershipProps) {
     );
   }
 
+  const guestSelected = selected ? isGuestIdentity(selected) : false;
+
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        if (!selected || disabled) return;
+        if (disabled) return;
+        const selects = event.currentTarget.querySelectorAll("select");
+        const personControl = selects.item(0);
+        const roleControl = selects.item(1);
+        if (!(personControl instanceof HTMLSelectElement)) return;
+        if (!(roleControl instanceof HTMLSelectElement)) return;
+        const nextPrincipal = personControl.value;
+        const nextRole = roleControl.value;
+        if (!nextPrincipal) return;
+        if (
+          nextRole !== "owner" &&
+          nextRole !== "admin" &&
+          nextRole !== "member"
+        )
+          return;
+        const chosen = people.find((entry) => entry.id === nextPrincipal);
+        if (!chosen) return;
         void onChange({
           action: "membership",
           organizationId,
-          principalId,
-          role,
+          principalId: nextPrincipal,
+          role: nextRole,
         });
       }}
     >
@@ -142,10 +177,17 @@ function MembershipForm(props: MembershipProps) {
         </label>
         <select
           id={`${id}-person`}
+          name={`${id}-person`}
           required
           disabled={disabled}
-          value={principalId}
-          onChange={(event) => selectPerson(event.target.value)}
+          defaultValue=""
+          onChange={(event) => selectPerson(event.currentTarget.value)}
+          onKeyUp={(event) => selectPerson(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            // Enter inside a select submits the form; that must not assign
+            // whatever option is under the caret mid-arrow navigation.
+            if (event.key === "Enter") event.preventDefault();
+          }}
         >
           <option value="">Choose an identity</option>
           {people.map((person) => (
@@ -162,7 +204,8 @@ function MembershipForm(props: MembershipProps) {
         </label>
         <select
           id={`${id}-role`}
-          disabled={disabled || selected?.kind === "agent"}
+          name={`${id}-role`}
+          disabled={disabled || selected?.kind === "agent" || guestSelected}
           value={role}
           onChange={(event) => {
             const value = event.target.value;
@@ -170,16 +213,16 @@ function MembershipForm(props: MembershipProps) {
               setRole(value);
           }}
         >
-          <option value="member">Member</option>
-          <option value="admin">Admin</option>
-          <option value="owner">Owner</option>
+          <option value="member">{organizationRoleLabel("member")}</option>
+          {guestSelected ? null : (
+            <>
+              <option value="admin">{organizationRoleLabel("admin")}</option>
+              <option value="owner">{organizationRoleLabel("owner")}</option>
+            </>
+          )}
         </select>
       </div>
-      <button
-        type="submit"
-        className="btn btn--primary"
-        disabled={disabled || !selected}
-      >
+      <button type="submit" className="btn btn--primary" disabled={disabled}>
         {members.some((row) => row.principalId === principalId)
           ? "Save role"
           : "Add member"}

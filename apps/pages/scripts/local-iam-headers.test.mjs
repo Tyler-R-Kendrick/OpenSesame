@@ -17,6 +17,7 @@ test("only the local authorization popup may retain a cross-origin opener", asyn
     assert(address && Object.hasOwn(address, "port"));
     for (const [path, policy] of [
       ["identity/authorize?state=test", "unsafe-none"],
+      ["identity/siop?client_id=test", "unsafe-none"],
       ["vault", "same-origin"],
       ["identity", "same-origin"],
       ["identity/authorize-extra", "same-origin"],

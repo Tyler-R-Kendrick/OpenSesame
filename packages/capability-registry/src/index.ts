@@ -3,7 +3,9 @@ import {
   accessPortalCapabilities,
 } from "./access-portal.js";
 import { connectorDirectoryCapabilities } from "./connectors.js";
+import { generalAuthorityCapabilities } from "./general-authority.js";
 import { identityManagementCapabilities } from "./identity-management.js";
+import { sharedSessionCapabilities } from "./shared-sessions.js";
 /**
  * Agent-surface capability registry (ADR 0065).
  * One literal list maps every product capability to the surfaces that carry
@@ -26,10 +28,15 @@ import { identityManagementCapabilities } from "./identity-management.js";
 import { SCOPED_AGENT_ONLY, lifecycleCapabilities } from "./lifecycle.js";
 import { securityAuthorityCapabilities } from "./security-authority.js";
 import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
+import { walletSpendingCapabilities } from "./wallet-spending.js";
 export {
   AGENT_SECRET_NAME_PATTERN,
   assertsNoSecretNames,
 } from "./secret-names.js";
+export {
+  INTERACTION_SETTLEMENT_PATTERN,
+  assertsNoInteractionSettlementTool,
+} from "./interaction-boundary.js";
 
 export type Surface = "cli" | "pwa" | "mcp_host" | "mcp_client" | "webmcp";
 export type AgentSurface = "mcp_host" | "mcp_client" | "webmcp";
@@ -60,7 +67,7 @@ export interface Capability {
    * and every capability with a pwa surface to be mapped or excluded on
    * WebMCP.
    */
-  readonly excluded?: Partial<Record<AgentSurface, CapabilityExclusion>>;
+  readonly excluded?: Partial<Record<Surface, CapabilityExclusion>>;
 }
 
 const ADR_AUTHORITY_HANDLE = "0005-authority-handle-connectionref.md";
@@ -69,7 +76,6 @@ const ADR_PM_BRIDGING = "0052-password-manager-ecosystem-bridging.md";
 const ADR_AGENT_SURFACE_PARITY = "0065-agent-surface-parity.md";
 const ADR_KEY_CUSTODY = "0075-host-certificate-key-custody.md";
 const ADR_FIRST_RUN_SETUP = "0077-first-run-setup-ceremony.md";
-const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
 const ADR_SECURITY_EVENTS = "0080-security-event-hooks.md";
 const ADR_AI_SUPPORT = "0088-ai-native-contextual-support.md";
 const ADR_LIVE_OBSERVATION = "0081-live-session-observation.md";
@@ -160,18 +166,6 @@ const DEFERRED: CapabilityExclusion = {
   adr: ADR_AGENT_SURFACE_PARITY,
 };
 
-const SESSION_AUTHORITY_CEREMONY: CapabilityExclusion = {
-  reason:
-    "hands one person reach into another's vault; deciding who may read somebody else's rows is a human decision, and an agent that could make it could admit itself",
-  adr: ADR_SHARED_SESSIONS,
-};
-
-const SESSION_SURFACE_DEFERRED: CapabilityExclusion = {
-  reason:
-    "shared-session management is not yet exposed to agents; the transport and its ceremonies land first, then the surface is decided deliberately rather than by accretion",
-  adr: ADR_SHARED_SESSIONS,
-};
-
 const MODEL_PLANE_REDIRECT: CapabilityExclusion = {
   reason:
     "choosing the model plane names the endpoint redacted frames are sent to; an agent able to make that choice holds a redirect primitive, and the boundary holds only because nobody untrusted picks the destination",
@@ -182,6 +176,12 @@ const DEVICE_GESTURE: CapabilityExclusion = {
   reason:
     "installing is a browser-mediated act on the human's own device: the install dialog only opens inside a transient user activation, and there is no gesture an agent can supply or consent it can give on the device owner's behalf",
   adr: ADR_PWA_INSTALL,
+};
+
+const COMMAND_BAR_HUMAN_ONLY: CapabilityExclusion = {
+  reason:
+    "the shell omnibox is a human mic / typed command surface that copies vault fields onto the device clipboard; an agent must not hold the mic, speak a copy verb, or receive a secret value through WebMCP",
+  adr: "0122-shell-command-omnibox.md",
 };
 
 const IN_PAGE_GUIDANCE_ONLY: CapabilityExclusion = {
@@ -201,6 +201,7 @@ const DEVICE_VAULT_CEREMONY: CapabilityExclusion = {
   adr: ADR_DEVICE_VAULTS,
 };
 export const CAPABILITIES: readonly Capability[] = [
+  ...generalAuthorityCapabilities,
   ...accessPortalCapabilities,
   // ── Host plane: health, discovery, session ────────────────────────────
   {
@@ -414,163 +415,7 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
 
-  // ── Host plane: shared sessions (ADR 0079) ────────────────────────────
-  {
-    id: "shared_sessions.open",
-    title: "Open a shared session",
-    plane: "host",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_SURFACE_DEFERRED,
-      mcp_client: SESSION_SURFACE_DEFERRED,
-    },
-  },
-  {
-    id: "shared_sessions.discover",
-    title: "List public shared sessions",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_SURFACE_DEFERRED,
-      mcp_client: SESSION_SURFACE_DEFERRED,
-    },
-  },
-  {
-    id: "shared_sessions.roster",
-    title: "Read a shared session and its roster",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_SURFACE_DEFERRED,
-      mcp_client: SESSION_SURFACE_DEFERRED,
-    },
-  },
-  {
-    id: "shared_sessions.activity",
-    title: "Announce activity on an item in a shared session",
-    plane: "host",
-    kind: "act",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_SURFACE_DEFERRED,
-      mcp_client: SESSION_SURFACE_DEFERRED,
-    },
-  },
-  {
-    id: "shared_sessions.events",
-    title: "Subscribe to a shared session's live channel",
-    plane: "host",
-    kind: "read",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_SURFACE_DEFERRED,
-      mcp_client: SESSION_SURFACE_DEFERRED,
-    },
-  },
-  {
-    id: "shared_sessions.grant",
-    title: "Grant a participant scoped reach into a vault",
-    plane: "host",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_AUTHORITY_CEREMONY,
-      mcp_client: SESSION_AUTHORITY_CEREMONY,
-      webmcp: SESSION_AUTHORITY_CEREMONY,
-    },
-  },
-  {
-    id: "shared_sessions.revoke",
-    title: "Withdraw a participant's grant",
-    plane: "host",
-    kind: "act",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_SURFACE_DEFERRED,
-      mcp_client: SESSION_SURFACE_DEFERRED,
-    },
-  },
-  {
-    id: "shared_sessions.join_request",
-    title: "Ask to join a public shared session",
-    plane: "host",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: "lib/join-session.ts:askToJoin",
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_SURFACE_DEFERRED,
-      mcp_client: SESSION_SURFACE_DEFERRED,
-      webmcp: SESSION_SURFACE_DEFERRED,
-    },
-  },
-  {
-    id: "shared_sessions.decide_join_request",
-    title: "Admit or refuse a join request",
-    plane: "host",
-    kind: "ceremony",
-    surfaces: {
-      cli: null,
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: SESSION_AUTHORITY_CEREMONY,
-      mcp_client: SESSION_AUTHORITY_CEREMONY,
-      webmcp: SESSION_AUTHORITY_CEREMONY,
-    },
-  },
+  ...sharedSessionCapabilities,
 
   // ── Host plane: delegations, offers, relay ────────────────────────────
   {
@@ -1899,6 +1744,7 @@ export const CAPABILITIES: readonly Capability[] = [
     },
   },
   ...vaultLoginDraftCapabilities,
+  ...walletSpendingCapabilities,
   {
     id: "vault.items.reveal",
     title: "Reveal a vault item secret",
@@ -2089,6 +1935,20 @@ export const CAPABILITIES: readonly Capability[] = [
       mcp_host: IN_PAGE_GUIDANCE_ONLY,
       mcp_client: IN_PAGE_GUIDANCE_ONLY,
     },
+  },
+  {
+    id: "client.command_bar",
+    title: "Shell command omnibox (typed + mic STT)",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/command-bar/execute.ts:executeCommand",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { webmcp: COMMAND_BAR_HUMAN_ONLY },
   },
   {
     id: "client.tutorial",

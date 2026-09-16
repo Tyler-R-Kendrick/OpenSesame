@@ -1,17 +1,18 @@
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 import { createTransport } from "nodemailer";
 import type { ControlPlaneConfig } from "../config.js";
 
 /**
- * Outbound email (D16).
+ * Outbound email (D16 + MFA codes).
  *
- * The identity plane sends exactly one kind of message today — an email
- * magic-link — and it goes through nodemailer's real SMTP transport wherever
- * SMTP is configured. Locally and in tests the transport is nodemailer's
- * `jsonTransport`, which is a real transport: it runs the same MailComposer
- * pass SMTP runs and hands back the fully composed message instead of opening
- * a socket. That is what makes an assertion about "the email we sent" an
- * assertion about a message nodemailer actually built, rather than about a
- * string a test double was handed.
+ * Prefer an HTTP ESP when its key is set (Resend, SendGrid, Postmark, Brevo —
+ * the same providers Pages binds under `mfa_email`), then SMTP via
+ * `OPENSESAME_SMTP_URL`. Locally and in tests without either, nodemailer's
+ * `jsonTransport` captures composed messages when dev defaults are allowed.
  */
 
 export interface OutboundMail {
@@ -21,14 +22,6 @@ export interface OutboundMail {
   html?: string;
 }
 
-/**
- * One composed message, as nodemailer handed it back.
- *
- * `body` is `info.message` verbatim — under `jsonTransport` that is the
- * composed message serialized as JSON (headers, envelope, subject, parts).
- * Under SMTP nodemailer sets no `message`, so the outbox stays empty: nothing
- * is captured for messages that really went out over the wire.
- */
 export interface CapturedMail {
   messageId: string;
   envelope: { from: string | false; to: string[] };
@@ -39,21 +32,17 @@ export class MailerNotConfiguredError extends Error {
   override readonly name = "MailerNotConfiguredError";
 
   constructor() {
-    super("No mail transport is configured (set OPENSESAME_SMTP_URL)");
+    super(
+      "No mail transport is configured (set OPENSESAME_RESEND_API_KEY, another ESP key, or OPENSESAME_SMTP_URL)",
+    );
   }
 }
 
 export interface Mailer {
   send(mail: OutboundMail): Promise<void>;
-  /** Composed messages captured by the local transport, newest last. */
   readonly outbox: readonly CapturedMail[];
 }
 
-/**
- * A composed message is a few kilobytes and the outbox exists for local
- * inspection, not retention; the cap keeps a long-running dev process from
- * holding every link it ever issued.
- */
 const MAX_CAPTURED = 50;
 
 function defaultFrom(config: ControlPlaneConfig): string {
@@ -66,13 +55,195 @@ function defaultFrom(config: ControlPlaneConfig): string {
   return `OpenSesame <no-reply@${host}>`;
 }
 
+function addressFromMailbox(from: string): string {
+  const angled = from.match(/<([^>]+)>/);
+  return angled?.[1]?.trim() || from.trim();
+}
+
+type HttpEsp = {
+  id: string;
+  send: (mail: OutboundMail, from: string) => Promise<{ id: string }>;
+};
+
+async function readJson(res: Response): Promise<BoundaryValue> {
+  return res.json().catch(() => null);
+}
+
+function pickHttpEsp(env: NodeJS.ProcessEnv): HttpEsp | undefined {
+  const resend = env.OPENSESAME_RESEND_API_KEY?.trim();
+  if (resend) {
+    return {
+      id: "resend",
+      async send(mail, from) {
+        const body =
+          mail.html !== undefined
+            ? {
+                from,
+                to: [mail.to],
+                subject: mail.subject,
+                text: mail.text,
+                html: mail.html,
+              }
+            : {
+                from,
+                to: [mail.to],
+                subject: mail.subject,
+                text: mail.text,
+              };
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${resend}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+          redirect: "error",
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          throw new Error(`resend_send_failed:${res.status}:${detail}`);
+        }
+        const payload = await readJson(res);
+        const id =
+          isJsonObject(payload) && isString(payload.id) ? payload.id : "";
+        return { id };
+      },
+    };
+  }
+
+  const sendgrid = env.OPENSESAME_SENDGRID_API_KEY?.trim();
+  if (sendgrid) {
+    return {
+      id: "sendgrid",
+      async send(mail, from) {
+        const content =
+          mail.html !== undefined
+            ? [
+                { type: "text/plain", value: mail.text },
+                { type: "text/html", value: mail.html },
+              ]
+            : [{ type: "text/plain", value: mail.text }];
+        const res = await fetch("https://api.sendgrid.com/v3/mail/send", {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${sendgrid}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: mail.to }] }],
+            from: { email: addressFromMailbox(from) },
+            subject: mail.subject,
+            content,
+          }),
+          redirect: "error",
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok && res.status !== 202) {
+          const detail = await res.text().catch(() => "");
+          throw new Error(`sendgrid_send_failed:${res.status}:${detail}`);
+        }
+        return { id: res.headers.get("x-message-id") ?? "" };
+      },
+    };
+  }
+
+  const postmark = env.OPENSESAME_POSTMARK_SERVER_TOKEN?.trim();
+  if (postmark) {
+    return {
+      id: "postmark",
+      async send(mail, from) {
+        const body =
+          mail.html !== undefined
+            ? {
+                From: from,
+                To: mail.to,
+                Subject: mail.subject,
+                TextBody: mail.text,
+                HtmlBody: mail.html,
+              }
+            : {
+                From: from,
+                To: mail.to,
+                Subject: mail.subject,
+                TextBody: mail.text,
+              };
+        const res = await fetch("https://api.postmarkapp.com/email", {
+          method: "POST",
+          headers: {
+            "X-Postmark-Server-Token": postmark,
+            "content-type": "application/json",
+            accept: "application/json",
+          },
+          body: JSON.stringify(body),
+          redirect: "error",
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          throw new Error(`postmark_send_failed:${res.status}:${detail}`);
+        }
+        const payload = await readJson(res);
+        const id =
+          isJsonObject(payload) && isString(payload.MessageID)
+            ? payload.MessageID
+            : "";
+        return { id };
+      },
+    };
+  }
+
+  const brevo = env.OPENSESAME_BREVO_API_KEY?.trim();
+  if (brevo) {
+    return {
+      id: "brevo",
+      async send(mail, from) {
+        const body =
+          mail.html !== undefined
+            ? {
+                sender: { email: addressFromMailbox(from) },
+                to: [{ email: mail.to }],
+                subject: mail.subject,
+                textContent: mail.text,
+                htmlContent: mail.html,
+              }
+            : {
+                sender: { email: addressFromMailbox(from) },
+                to: [{ email: mail.to }],
+                subject: mail.subject,
+                textContent: mail.text,
+              };
+        const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: {
+            "api-key": brevo,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+          redirect: "error",
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          throw new Error(`brevo_send_failed:${res.status}:${detail}`);
+        }
+        const payload = await readJson(res);
+        const id =
+          isJsonObject(payload) && isString(payload.messageId)
+            ? payload.messageId
+            : "";
+        return { id };
+      },
+    };
+  }
+  return undefined;
+}
+
 /**
  * Build the deployment's mailer.
  *
- * Reads its own environment rather than `ControlPlaneConfig` because the config
- * module belongs to another swarm this cycle; the variables are the env-spec
- * ones documented in `.env.schema` (`OPENSESAME_SMTP_URL` is `@sensitive` — it
- * carries SMTP credentials — and `OPENSESAME_MAIL_FROM` is `@public`).
+ * ESP keys and `OPENSESAME_SMTP_URL` are `@sensitive` in `.env.schema`;
+ * `OPENSESAME_MAIL_FROM` is `@public`.
  */
 export function createMailer(
   env: NodeJS.ProcessEnv,
@@ -81,14 +252,33 @@ export function createMailer(
   const smtpUrl = env.OPENSESAME_SMTP_URL?.trim();
   const from = env.OPENSESAME_MAIL_FROM?.trim() || defaultFrom(config);
   const captured: CapturedMail[] = [];
+  const http = pickHttpEsp(env);
 
-  if (!smtpUrl && !config.allowDevDefaults) {
-    // No transport and no local shortcut: refuse loudly at send time rather
-    // than silently dropping a sign-in link on the floor.
+  if (!http && !smtpUrl && !config.allowDevDefaults) {
     return {
       outbox: captured,
       async send() {
         throw new MailerNotConfiguredError();
+      },
+    };
+  }
+
+  if (http) {
+    return {
+      outbox: captured,
+      async send(mail) {
+        const result = await http.send(mail, from);
+        captured.push({
+          messageId: result.id,
+          envelope: { from, to: [mail.to] },
+          body: JSON.stringify({
+            provider: http.id,
+            to: mail.to,
+            subject: mail.subject,
+            text: mail.text,
+          }),
+        });
+        if (captured.length > MAX_CAPTURED) captured.splice(0, 1);
       },
     };
   }
@@ -100,13 +290,22 @@ export function createMailer(
   return {
     outbox: captured,
     async send(mail) {
-      const info = await transport.sendMail({
-        from,
-        to: mail.to,
-        subject: mail.subject,
-        text: mail.text,
-        ...(mail.html !== undefined ? { html: mail.html } : undefined),
-      });
+      const message =
+        mail.html !== undefined
+          ? {
+              from,
+              to: mail.to,
+              subject: mail.subject,
+              text: mail.text,
+              html: mail.html,
+            }
+          : {
+              from,
+              to: mail.to,
+              subject: mail.subject,
+              text: mail.text,
+            };
+      const info = await transport.sendMail(message);
       if (info.message === undefined) return;
       captured.push({
         messageId: info.messageId ?? "",

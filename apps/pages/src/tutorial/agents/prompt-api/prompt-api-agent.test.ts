@@ -22,6 +22,7 @@ import {
   createPromptApiAgent,
   createPromptApiSupportAgent,
   resetLocalModelDownloadProgressForTest,
+  resetLocalModelSessionForTest,
 } from "./prompt-api-agent.js";
 
 type PromptHandler = (input: string, signal: AbortSignal) => Promise<string>;
@@ -139,8 +140,9 @@ function outboundText(model: FakeModel): string {
 
 beforeEach(() => {
   resetLocalModelDownloadProgressForTest();
+  resetLocalModelSessionForTest();
   document.body.innerHTML = "";
-  localStorage.clear();
+  globalThis.localStorage?.clear();
 });
 
 describe("createPromptApiSupportAgent without a platform model", () => {
@@ -351,7 +353,7 @@ describe("model output that is not what we asked for", () => {
 });
 
 describe("the session lifecycle", () => {
-  it("destroys the platform session and recreates cleanly on the next run", async () => {
+  it("keeps the shared platform session across agent destroy, and recreates after release", async () => {
     const model = createFakeModel();
     const agent = createPromptApiSupportAgent({ api: model.api });
 
@@ -359,11 +361,18 @@ describe("the session lifecycle", () => {
     expect(model.creates).toHaveLength(1);
 
     agent.destroy();
+    // Agent teardown must not drop the document-wide session — that is what
+    // made every Support open look like another download.
+    expect(model.destroys).toBe(0);
+
+    await agent.run(makeRequest(), { signal: live() });
+    expect(model.creates).toHaveLength(1);
+
+    resetLocalModelSessionForTest();
     expect(model.destroys).toBe(1);
 
     await agent.run(makeRequest(), { signal: live() });
     expect(model.creates).toHaveLength(2);
-    expect(model.destroys).toBe(1);
   });
 
   it("reuses one session across turns on the same page", async () => {
@@ -396,7 +405,7 @@ describe("what actually leaves the device", () => {
   it("never carries page text or stored values the context did not authorize", async () => {
     document.body.innerHTML =
       "<p>correct-horse-battery-staple</p><input value='4111111111111111'>";
-    localStorage.setItem("os.vault", "stored-secret-value");
+    globalThis.localStorage?.setItem("os.vault", "stored-secret-value");
 
     const model = createFakeModel();
     const agent = createPromptApiSupportAgent({ api: model.api });

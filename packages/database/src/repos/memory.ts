@@ -73,6 +73,8 @@ import {
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
+import { mergeInteractionPatch } from "./memory-interaction-merge.js";
+import { MemoryWalletInteractionRepos } from "./wallet-interaction-memory.js";
 
 function normalizeTenant(tenant?: string): string {
   return tenant ?? "";
@@ -692,6 +694,15 @@ export class MemoryRepositories implements Repositories {
     },
 
     updateWithVersion: async (id, expectedVersion, patch, uow) => {
+      const merge = (current: Interaction): Interaction =>
+        mergeInteractionPatch(current, patch, (kind, subjectId) =>
+          liveInteractionForSubject(
+            this.#store.interactions.values(),
+            kind,
+            subjectId,
+          ),
+        );
+
       const current = this.#store.interactions.get(id);
       if (!current) {
         throw new NotFoundError(`interaction not found: ${id}`);
@@ -701,46 +712,25 @@ export class MemoryRepositories implements Repositories {
           `interaction version conflict: expected ${expectedVersion}, got ${current.version}`,
         );
       }
-      // Field by field rather than `...patch`, mirroring the explicit `set()`
-      // the Postgres implementation writes. A spread would apply whatever a
-      // JavaScript caller handed over — including the consented-to fields the
-      // patch type forbids — and the two stores would then disagree about
-      // whether a settled interaction can be rewritten, with only the one
-      // nobody runs tests against enforcing it.
-      const merged: Interaction = { ...current, version: current.version + 1 };
-      if (patch.status !== undefined) merged.status = patch.status;
-      if (patch.approverPrincipalId !== undefined) {
-        merged.approverPrincipalId = patch.approverPrincipalId;
-      }
-      if (patch.approvalProof !== undefined) {
-        merged.approvalProof = patch.approvalProof;
-      }
-      if (patch.presentedAt !== undefined)
-        merged.presentedAt = patch.presentedAt;
-      if (patch.decidedAt !== undefined) merged.decidedAt = patch.decidedAt;
-      if (patch.consumedAt !== undefined) merged.consumedAt = patch.consumedAt;
-      if (patch.revokedAt !== undefined) merged.revokedAt = patch.revokedAt;
-      // The partial unique index applies to updates too, so a patch that
-      // brings a row back into the live set has to lose to whoever holds the
-      // slot. Without this a settled envelope could be reopened alongside the
-      // replacement that was issued after it settled.
-      if (!interactionMachine.isTerminal(merged.status)) {
-        const holder = liveInteractionForSubject(
-          this.#store.interactions.values(),
-          merged.subject.kind,
-          merged.subject.subjectId,
-        );
-        if (holder && holder.id !== merged.id) {
+      const optimistic = merge(current);
+
+      // Re-check the version at apply time. A MemoryUnitOfWork defers writes
+      // until commit, so two concurrent transactions can both pass the eager
+      // check above; without a commit-time CAS both would land (F12 / T-07).
+      const apply = () => {
+        const live = this.#store.interactions.get(id);
+        if (!live) {
+          throw new NotFoundError(`interaction not found: ${id}`);
+        }
+        if (live.version !== expectedVersion) {
           throw new ConflictError(
-            `interaction already live for subject: ${merged.subject.kind}/${merged.subject.subjectId}`,
+            `interaction version conflict: expected ${expectedVersion}, got ${live.version}`,
           );
         }
-      }
-      const apply = () => {
-        this.#store.interactions.set(id, cloneInteraction(merged));
+        this.#store.interactions.set(id, cloneInteraction(merge(live)));
       };
       applyNowOrDefer(uow, apply);
-      return cloneInteraction(merged);
+      return cloneInteraction(optimistic);
     },
   };
 
@@ -1548,6 +1538,11 @@ export class MemoryRepositories implements Repositories {
       return purged;
     },
   };
+
+  readonly #wallet = new MemoryWalletInteractionRepos(applyNowOrDefer);
+  readonly interactionProofAttempts = this.#wallet.interactionProofAttempts;
+  readonly walletRegistrations = this.#wallet.walletRegistrations;
+  readonly executionReservations = this.#wallet.executionReservations;
 
   async transaction<T>(fn: TransactionFn<T>): Promise<T> {
     const uow = new MemoryUnitOfWork(this.#store);

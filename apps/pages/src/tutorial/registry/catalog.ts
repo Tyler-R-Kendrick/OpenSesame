@@ -324,7 +324,7 @@ export const GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.model-provider",
     description:
-      "Chooses which plane runs the password-reset model, or that this deployment does not use one.",
+      "Chooses the voice speech language and the inference plane (password-reset and freer command phrasing), or that this deployment uses neither.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "model_plane.choose",

@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { deviceIdentitySeams } from "./device-identity.js";
 import { identitySeams } from "./identity.js";
 import {
   GUEST_PROFILE_ID,
@@ -19,18 +20,21 @@ const originalIdentityJson = identitySeams.identityJson;
 const originalIdentityBase = identitySeams.identityBase;
 
 describe("orgs", () => {
+  const originalRemote = deviceIdentitySeams.remoteIdentityApi;
   beforeEach(() => {
     // The profile selection lives in memory for the session now (sealed in
     // the tomb between sessions) — reset it like a fresh lock would.
     discardOrgProfile();
     sessionStorage.clear();
     identitySeams.identityBase = () => "http://127.0.0.1:18788";
+    deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:18788";
     identitySeams.identityJson = originalIdentityJson;
   });
 
   afterEach(() => {
     identitySeams.identityJson = originalIdentityJson;
     identitySeams.identityBase = originalIdentityBase;
+    deviceIdentitySeams.remoteIdentityApi = originalRemote;
   });
 
   it("starts on the guest profile and persists a selection in this tab", () => {
@@ -93,12 +97,15 @@ describe("orgs", () => {
     ]);
   });
 
-  it("returns no memberships when Identity is not configured", async () => {
+  it("returns no memberships when the device host has none", async () => {
+    deviceIdentitySeams.remoteIdentityApi = () => "";
     identitySeams.identityBase = () => "";
     // SAFETY: the mock intentionally preserves the seam's exact function type.
-    identitySeams.identityJson = vi.fn() as typeof identitySeams.identityJson;
+    identitySeams.identityJson = vi.fn(async () => ({
+      organizations: [],
+    })) as typeof identitySeams.identityJson;
     await expect(listOrgMemberships()).resolves.toEqual([]);
-    expect(identitySeams.identityJson).not.toHaveBeenCalled();
+    expect(identitySeams.identityJson).toHaveBeenCalled();
   });
 
   it("routes a method with a browser issuer through this browser", () => {

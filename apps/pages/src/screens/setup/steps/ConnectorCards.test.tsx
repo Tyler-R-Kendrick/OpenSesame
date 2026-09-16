@@ -100,7 +100,6 @@ describe("connector cards (ADR 0114)", () => {
     render(<ConnectorCards id="history" />);
     expect(screen.getAllByText("Needs a Host").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Connect" })).toBeNull();
-    expect(screen.getByText(/Authorization talks to the Host/)).toBeTruthy();
   });
 
   it("opens the ceremony in a new tab and reports the established connection", async () => {
@@ -119,6 +118,7 @@ describe("connector cards (ADR 0114)", () => {
     expect(window.open).toHaveBeenCalledWith("about:blank", "_blank");
     expect(tab.location.href).toBe("https://host.example/consent");
     expect(capabilityConnectors.history.providerId).toBe("github");
+    expect(capabilityConnectors.history.connectionId).toBe("conn_1");
   });
 
   it("says plainly when consent is not finished, and binds nothing", async () => {

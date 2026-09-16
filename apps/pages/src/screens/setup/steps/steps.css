@@ -33,6 +33,22 @@
   border-bottom-color: var(--ink);
 }
 
+.backup-groups {
+  display: grid;
+  gap: 1rem;
+}
+
+.backup-groups__title,
+.setup__group-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.8125rem;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* The connector card. The pick (name + kind) is the whole left side, the
    state or action sits at the right edge, and a note spans the row when the
    road has something to say. */

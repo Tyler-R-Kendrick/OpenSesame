@@ -148,6 +148,42 @@ export const identityManagementCapabilities: readonly Capability[] = [
     },
   },
   {
+    id: "identity.local.siop.authorize",
+    title:
+      "Approve or deny browser-native Self-Issued OpenID Provider v2 sign-in",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/identity/siop",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: {
+        reason:
+          "Self-Issued ID Token consent requires the human and a verified passkey; private SIOP keys never leave the vault",
+        adr: "0116-browser-native-siop-v2.md",
+      },
+      mcp_client: {
+        reason:
+          "Self-Issued ID Token consent requires the human and a verified passkey; private SIOP keys never leave the vault",
+        adr: "0116-browser-native-siop-v2.md",
+      },
+      webmcp: {
+        reason:
+          "Agents may navigate; they cannot mint a Self-Issued ID Token for an RP",
+        adr: "0116-browser-native-siop-v2.md",
+      },
+      cli: {
+        reason:
+          "Native SIOPv2 is a browser/PWA Self-Issued OP ceremony; CLI RPs consume verified tokens rather than hosting the vault OP",
+        adr: "0116-browser-native-siop-v2.md",
+      },
+    },
+  },
+  {
     id: "identity.local.passkeys.manage",
     title: "Manage vault-local passkeys and passkey-backed sessions",
     plane: "client_local",

@@ -96,9 +96,9 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     fresh();
     render(<UnlockScreen />);
     fireEvent.click(screen.getByRole("button", { name: "Set up your own" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Where do backups live?",
-    );
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("connectors");
     // One tap after that: the brokered road needs nothing typed.
     fireEvent.click(screen.getByRole("button", { name: "Finish setup" }));
 
@@ -113,7 +113,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     fresh();
     render(<UnlockScreen />);
     fireEvent.click(screen.getByRole("button", { name: "Set up your own" }));
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(
       screen.getByRole("heading", { level: 1, name: "open-sesame" }),
     ).toBeTruthy();
@@ -198,9 +198,9 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     expect(screen.getByText("127.0.0.1:18788")).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Deployment setup" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Where do backups live?",
-    );
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("connectors");
   });
 
   it("offers the setup road when setup left no way in at all", () => {
@@ -212,9 +212,9 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     expect(screen.getByText(/No way in is configured/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Set it up" }));
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "How do people sign in?",
-    );
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("identity");
   });
 
   it("says nothing about identity on a deployment that has one", () => {

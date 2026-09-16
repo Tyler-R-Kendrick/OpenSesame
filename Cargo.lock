@@ -3527,6 +3527,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "opensesame-domain",
+ "opensesame-enforcement",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -3677,6 +3678,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-collab-adapter"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "opensesame-connection-broker"
 version = "0.1.0"
 dependencies = [
@@ -3820,6 +3837,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "opensesame-dns-enforcement"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "opensesame-domain"
 version = "0.1.0"
 dependencies = [
@@ -3832,6 +3862,15 @@ dependencies = [
  "thiserror 2.0.19",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "opensesame-enforcement"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -4208,6 +4247,17 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.19",
  "tokio",
+]
+
+[[package]]
+name = "opensesame-sandbox"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "opensesame-domain",
+ "thiserror 2.0.19",
+ "wasmtime",
+ "wat",
 ]
 
 [[package]]

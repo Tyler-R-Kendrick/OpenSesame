@@ -53,7 +53,7 @@ import {
 } from "../../lib/federation.js";
 import { landFocus } from "../../lib/focus.js";
 import { continueAsGuest } from "../../lib/guest-auth.js";
-import { identityBase } from "../../lib/identity.js";
+import { isRemoteIdentityConfigured } from "../../lib/identity.js";
 import { readLastSignIn } from "../../lib/last-sign-in.js";
 import {
   type OrgAuthMethod,
@@ -142,7 +142,7 @@ export function SignInPanel(props: Props) {
    * once Identity is reachable, so the guest road is never gated on this (see
    * AGENTS.md §5 — the guest/anonymous flow must not be removed or gated).
    */
-  const hasIdentityService = identityBase().trim().length > 0;
+  const hasIdentityService = isRemoteIdentityConfigured();
   const fallbackUpstream =
     methods.builtin && upstream.id !== "mock" ? upstream : null;
 

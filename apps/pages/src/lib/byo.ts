@@ -17,7 +17,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import { identityBase } from "./identity.js";
+import { remoteIdentityApi } from "./identity.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 
 const BYO_FETCH_MS = 15_000;
@@ -71,7 +71,7 @@ export type ByoProviderInput = {
 async function registerByoProviderDefault(
   input: ByoProviderInput,
 ): Promise<ByoRegistration> {
-  const base = identityBase();
+  const base = remoteIdentityApi();
   if (!base) {
     throw new ByoError(
       "no_identity_api",

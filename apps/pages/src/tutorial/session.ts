@@ -504,6 +504,15 @@ export function createSupportController(
       set({ error: null });
       const loaded = await ensureEngine();
       if (!loaded) {
+        const authored = rankHelpTopics(text, state.route).find(
+          (entry) => entry.strong,
+        )?.topic;
+        if (authored) {
+          push("answer", authored.answer, [], {
+            walkthroughs: walkthroughsFor([authored]),
+          });
+          return;
+        }
         set({ error: SUPPORT_ERROR_TEXT.AGENT_UNAVAILABLE });
         return;
       }
@@ -519,6 +528,17 @@ export function createSupportController(
       }
       const snapshot = loaded.session.snapshot();
       if (snapshot.status === "error") {
+        const authored = rankHelpTopics(text, state.route).find(
+          (entry) => entry.strong,
+        )?.topic;
+        if (authored && snapshot.error === "AGENT_UNAVAILABLE") {
+          push("answer", authored.answer, [], {
+            walkthroughs: walkthroughsFor([authored]),
+          });
+          set({ error: null });
+          void refreshAvailability();
+          return;
+        }
         set({
           error: SUPPORT_ERROR_TEXT[snapshot.error ?? "AGENT_PROTOCOL_ERROR"],
         });
@@ -598,28 +618,33 @@ export type SupportAgentChoice = {
 /**
  * Which agent answers — and therefore whether a question leaves the device.
  *
- * On-device wins whenever it can answer at all, including while its model is
- * still downloading. A configured endpoint wins in exactly one case: the local
- * model reports that it cannot answer. With no endpoint either, the local port
- * is kept anyway, because its own reason ("not downloaded", "unsupported") is
- * the honest thing to put in front of somebody — and `absent` is the last
- * resort, so the panel still opens on a browser that has neither.
+ * Preference order:
+ *  1. Browser Prompt API when its model is already ready (shared, no download).
+ *  2. A configured *local* model provider (Ollama / LM Studio on loopback) —
+ *     already chosen in Setup / Settings, and already on the machine.
+ *  3. Browser Prompt API while downloadable/downloading (offer the one-time
+ *     browser download rather than quietly sending prompts off-device).
+ *  4. Same-origin AG-UI remote endpoint.
+ *  5. The local port's honest unavailable reason, or `absent`.
  */
 export function chooseSupportAgent(
   local: SupportAgentPort | null,
   localState: SupportAgentAvailability | null,
+  provider: SupportAgentPort | null,
   openRemote: () => SupportAgentPort | null,
   absent: SupportAgentPort,
 ): SupportAgentChoice {
-  // `downloadable` counts as the device being able to answer, deliberately.
-  // The panel says so plainly and offers the download as a click; preferring a
-  // configured endpoint here would send somebody's questions off the device
-  // because their own browser had not fetched a model they were never asked
-  // about. On-device is the privacy-preserving default, and a default that
-  // quietly yields to a remote one the first time it is inconvenient is not a
-  // default.
-  const answers = localState !== null && localState.kind !== "unavailable";
-  if (local !== null && answers) return { port: local, transport: "on-device" };
+  if (local !== null && localState?.kind === "ready") {
+    return { port: local, transport: "on-device" };
+  }
+  if (provider !== null) {
+    return { port: provider, transport: "on-device" };
+  }
+  const browserPending =
+    local !== null &&
+    localState !== null &&
+    (localState.kind === "downloadable" || localState.kind === "downloading");
+  if (browserPending) return { port: local, transport: "on-device" };
   const remote = openRemote();
   if (remote !== null) {
     // Nothing may hold a second provider session open behind the one in use.
@@ -701,12 +726,18 @@ export async function loadBrowserEngine(
     destroy: () => {},
   };
   const local = promptApi.createPromptApiAgent();
+  const providerMod = await import("./agents/provider/index.js");
+  const provider = providerMod.createProviderAgent();
   const { port, transport } = chooseSupportAgent(
     local,
     local === null ? null : await localAvailability(local),
+    provider,
     () => agUi.createAgUiAgent(),
     absent,
   );
+  // Keep unused planes from holding a second live session.
+  if (port !== local) local?.destroy();
+  if (port !== provider) provider?.destroy();
 
   function readContext(question?: string) {
     const planes = connectivity.connectivitySnapshot();
@@ -813,6 +844,7 @@ export async function loadBrowserEngine(
       runtime.cancel("lock");
       renderer.clear();
       session.destroy();
+      promptApi.releaseLocalModelSession();
     },
   };
 }

@@ -164,9 +164,29 @@ export function classifyIdentityConnector(
   status: PlaneStatus,
   target: TargetState,
   offline: boolean,
+  /** Settings Identity URL — empty means the plane status is the device host. */
+  remoteIdentityApi = "",
 ): ConnectorStatus {
-  const base = briefOrigin(status.identityBase);
   const shell = { id: "identity", name: "Identity" } as const;
+  // No remote URL: Pages is the identity host whenever the plane status names
+  // an issuer (resolveIdentityBase). An empty status is still "not configured".
+  if (!remoteIdentityApi.trim() && status.identityBase.trim()) {
+    if (offline) {
+      return {
+        ...shell,
+        tone: "offline",
+        detail: "Offline",
+        ...probed(target),
+      };
+    }
+    return {
+      ...shell,
+      tone: "live",
+      detail: "This device",
+      ...probed(target),
+    };
+  }
+  const base = briefOrigin(status.identityBase);
   if (!base) {
     return {
       ...shell,
@@ -292,7 +312,12 @@ export function buildConnectors(
 ): ConnectorStatus[] {
   return [
     classifyHostConnector(plane, monitor.host, monitor.offline),
-    classifyIdentityConnector(plane, monitor.identity, monitor.offline),
+    classifyIdentityConnector(
+      plane,
+      monitor.identity,
+      monitor.offline,
+      settings.identityApi,
+    ),
     classifyMachineConnector(
       monitor.machine,
       settings.daemonApi,

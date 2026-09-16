@@ -43,8 +43,12 @@ export {
 } from "./interaction-url.js";
 export {
   type ApproveInteractionInput,
+  type BeginInteractionActivationInput,
+  type CompleteInteractionActivationInput,
   createInteractionClient,
   type DenyInteractionInput,
+  type InteractionActivationChallenge,
+  type InteractionActivationResult,
   type InteractionClient,
   type InteractionClientOptions,
   InteractionError,

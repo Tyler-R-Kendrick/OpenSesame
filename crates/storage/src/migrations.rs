@@ -129,4 +129,24 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0032_config_authorization",
         include_str!("../../../migrations/0032_config_authorization.sql"),
     ),
+    (
+        "0033_authority_invalidation_fence",
+        include_str!("../../../migrations/0033_authority_invalidation_fence.sql"),
+    ),
+    (
+        "0034_general_authority",
+        include_str!("../../../migrations/0034_general_authority.sql"),
+    ),
+    (
+        "0035_session_coordination",
+        include_str!("../../../migrations/0035_session_coordination.sql"),
+    ),
+    (
+        "0036_authority_grant_watermarks",
+        include_str!("../../../migrations/0036_authority_grant_watermarks.sql"),
+    ),
+    (
+        "0037_session_join_refusal_grant_check",
+        include_str!("../../../migrations/0037_session_join_refusal_grant_check.sql"),
+    ),
 ];

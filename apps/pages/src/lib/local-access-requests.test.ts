@@ -1,3 +1,8 @@
+import {
+  b64urlToBytes,
+  bytesToB64url,
+  sha256Base64Url,
+} from "@opensesame/sdk-browser";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   consumeLocalAccessRequest,
@@ -9,7 +14,10 @@ import {
 } from "./local-access-requests.js";
 import { configureLocalApplication } from "./local-applications.js";
 import { revokeLocalPasskey } from "./local-credentials.js";
-import { readLocalRequestRecords } from "./local-request-store.js";
+import {
+  localDecisionDigest,
+  readLocalRequestRecords,
+} from "./local-request-store.js";
 import { localRequestFixture } from "./local-request.fixture.js";
 import {
   type LocalSession,
@@ -284,4 +292,68 @@ it("projects expiry and permits deleting expired history without approval", asyn
   ).rejects.toThrow();
   await removeSettledLocalAccessRequest(tomb, expired);
   expect(await listLocalAccessRequests(tomb)).toEqual([]);
+});
+
+it("approval opens a fresh authenticator ceremony bound to the decision digest", async () => {
+  const pending = await createRequest();
+  const row = (await readLocalRequestRecords(tomb))[0];
+  if (!row) throw new Error("Missing pending request");
+  const decisionDigest = await localDecisionDigest(row, personId, "approve");
+  const random = vi.spyOn(crypto, "getRandomValues");
+  const get = vi.spyOn(device, "get");
+  await decideLocalAccessRequest(tomb, {
+    ...pending,
+    principalId: personId,
+    decision: "approve",
+  });
+  expect(get).toHaveBeenCalledOnce();
+  const nonce = random.mock.calls[0]?.[0];
+  if (!nonce) throw new Error("Missing ceremony nonce");
+  const expected = await sha256Base64Url(
+    JSON.stringify([
+      "opensesame:local-approval:v1",
+      bytesToB64url(
+        new Uint8Array(nonce.buffer, nonce.byteOffset, nonce.byteLength),
+      ),
+      decisionDigest,
+    ]),
+  );
+  expect(get.mock.calls[0]?.[0].publicKey?.challenge).toEqual(
+    b64urlToBytes(expected),
+  );
+});
+
+it("a live requester session cannot approve without the authenticator", async () => {
+  const pending = await createRequest();
+  vi.spyOn(device, "get").mockRejectedValue(
+    new Error("no authenticator present"),
+  );
+  await expect(
+    decideLocalAccessRequest(tomb, {
+      ...pending,
+      principalId: personId,
+      decision: "approve",
+    }),
+  ).rejects.toThrow();
+  expect((await listLocalAccessRequests(tomb))[0]?.status).toBe("pending");
+});
+
+it("completes create, approval, and consumption with no Identity or Host backend", async () => {
+  const fetchSpy = vi.spyOn(globalThis, "fetch");
+  const pending = await createRequest();
+  const approved = await decideLocalAccessRequest(tomb, {
+    ...pending,
+    principalId: personId,
+    decision: "approve",
+  });
+  const effect = vi.fn(async () => "done");
+  const result = await consumeLocalAccessRequest(
+    tomb,
+    session,
+    approved,
+    effect,
+  );
+  expect(result).toBe("done");
+  expect(effect).toHaveBeenCalledOnce();
+  expect(fetchSpy).not.toHaveBeenCalled();
 });

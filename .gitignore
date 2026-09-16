@@ -85,3 +85,17 @@ mutants.out.old/
 # Seeded Claude Design canvases — ~2.3 MB of editor code each, regenerated
 # from the .dc.html artboards beside them (docs/design/*/README.md).
 docs/design/**/opensesame-*.html
+
+# Wallet EVM local-chain vendor (cloned at pin by contracts-harness)
+packages/wallet-evm/vendor/
+
+
+# Local agent debug dumps / tool binaries (never ship)
+kimi-debug-session_*.zip
+tools/bin/
+
+# Foundry build outputs (regenerate locally)
+packages/wallet-x402/forge/out/
+packages/wallet-x402/forge/cache/
+**/forge/out/
+**/forge/cache/

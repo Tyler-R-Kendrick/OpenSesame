@@ -18,10 +18,15 @@ import {
   withLocalDirectoryLock,
 } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
+import { isGuestIdentity } from "./local-rbac.js";
 import {
   type LocalSession,
   withLocalIdentitySession,
 } from "./local-sessions.js";
+import {
+  PAGES_DOGFOOD_SCOPES,
+  pagesDogfoodScopeRoles,
+} from "./pages-dogfood.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
 const PATH = "config/identity-applications";
@@ -254,23 +259,31 @@ export async function ensurePagesApplicationRegistration(
     (row) => row.applicationId === applicationId,
   );
   if (existing && existing.organizationId !== organizationId) return;
-  if (existing?.redirectUris.includes(redirect)) return;
-  if (existing && existing.redirectUris.length >= 16) return;
-  const registration: LocalApplicationRegistration = existing
-    ? {
-        applicationId: existing.applicationId,
-        organizationId: existing.organizationId,
-        redirectUris: [...existing.redirectUris, redirect],
-        scopes: existing.scopes,
-        scopeRoles: existing.scopeRoles,
-      }
-    : {
-        applicationId,
-        organizationId,
-        redirectUris: [redirect],
-        scopes: ["openid"],
-        scopeRoles: defaultScopeRoles(["openid"]),
-      };
+  if (
+    existing &&
+    existing.redirectUris.length >= 16 &&
+    !existing.redirectUris.includes(redirect)
+  )
+    return;
+  const dogfoodScopes = [...PAGES_DOGFOOD_SCOPES];
+  const dogfoodRoles = pagesDogfoodScopeRoles();
+  const needsRedirect = !existing?.redirectUris.includes(redirect);
+  const needsScopes =
+    !existing ||
+    dogfoodScopes.some((scope) => !existing.scopes.includes(scope));
+  if (existing && !needsRedirect && !needsScopes) return;
+  const redirectUris = existing
+    ? needsRedirect
+      ? [...existing.redirectUris, redirect]
+      : [...existing.redirectUris]
+    : [redirect];
+  const registration: LocalApplicationRegistration = {
+    applicationId,
+    organizationId,
+    redirectUris,
+    scopes: dogfoodScopes,
+    scopeRoles: dogfoodRoles,
+  };
   await configureLocalApplication(
     tomb,
     current.revision,
@@ -360,8 +373,14 @@ export async function requireLocalApplicationAdmission(
       row.organizationId === app.organizationId &&
       row.principalId === principalId,
   );
+  if (!member) unavailable();
+  const subject = directory.entries.find((entry) => entry.id === principalId);
+  if (subject && isGuestIdentity(subject)) {
+    // Guests never inherit operator application scopes. openid only unless an
+    // operator later widens standing shares; app admin scopes stay closed.
+    if (!scopes.every((scope) => scope === "openid")) unavailable();
+  }
   if (
-    !member ||
     !permitsApplicationScopes(
       app.scopeRoles ?? defaultScopeRoles(app.scopes),
       member.role,

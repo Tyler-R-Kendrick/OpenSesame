@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconInfo } from "../../components/Icons.js";
 import {
   SlashSearchField,
@@ -116,6 +117,7 @@ export function CatalogPanel({
               <div className="empty conn-marketplace-empty">
                 <h3>No matching connectors</h3>
                 <p>Try a provider name, category, or connector ID.</p>
+                <EmptyTip>{emptyTips.keymap}</EmptyTip>
                 <button
                   type="button"
                   className="btn btn--sm"

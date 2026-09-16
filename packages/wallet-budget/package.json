@@ -1,0 +1,23 @@
+{
+  "name": "@opensesame/wallet-budget",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure budget journal: disjoint projections, atomic reserve/commit/release, idempotent payment attempts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "fast-check": "4.9.0",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}

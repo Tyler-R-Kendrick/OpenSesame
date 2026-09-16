@@ -2,6 +2,13 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { clearHostSession, endSession } from "../identity.js";
 import { clearNotices } from "../notices.js";
 import { clearStagedClaimTokens } from "../queue.js";
+import {
+  applyTheme,
+  hasStoredTheme,
+  loadTheme,
+  setTheme,
+  useThemePreference,
+} from "../theme.js";
 import { type VaultState, vaultStore } from "./store.js";
 
 function useVaultDefault(): VaultState {
@@ -159,25 +166,35 @@ function useCopySecretDefault(): (value: string) => Promise<CopyResult> {
       lastCopied = value;
       if (pendingClear !== null) window.clearTimeout(pendingClear);
       pendingClear = null;
-      if (prefs.clipboardClearSeconds > 0) {
+      const clearAfter = prefs?.clipboardClearSeconds ?? 0;
+      if (clearAfter > 0) {
         pendingClear = window.setTimeout(() => {
           pendingClear = null;
           void clearIfOurs(value);
-        }, prefs.clipboardClearSeconds * 1000);
+        }, clearAfter * 1000);
       }
       return "copied";
     },
-    [prefs.clipboardClearSeconds],
+    [prefs?.clipboardClearSeconds],
   );
 }
 
 function useThemeDefault(): void {
-  const { prefs } = useVault();
+  const { status, prefs } = useVault();
+  const theme = useThemePreference();
   useEffect(() => {
-    const root = document.documentElement;
-    if (prefs.theme === "system") root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", prefs.theme);
-  }, [prefs.theme]);
+    applyTheme(theme);
+  }, [theme]);
+  useEffect(() => {
+    if (status !== "unlocked") return;
+    // First unlock after this feature: adopt sealed prefs when device has none.
+    if (!hasStoredTheme()) {
+      setTheme(prefs.theme);
+      return;
+    }
+    const device = loadTheme();
+    if (prefs.theme !== device) vaultStore.setPrefs({ theme: device });
+  }, [status, prefs.theme]);
 }
 
 export function useSessionGuards(): void {

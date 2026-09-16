@@ -10,6 +10,15 @@ export {
   type ProvisionalUsage,
 } from "./provisional.js";
 export {
+  isPhishingResistantMechanism,
+  mechanismSatisfies,
+  assertAssuranceCoherent,
+  IncoherentAssuranceError,
+  type MechanismRequirement,
+  type MechanismDecision,
+  type MechanismDecisionEffect,
+} from "./approval-mechanisms.js";
+export {
   AGENT_AUTH_SCOPES,
   AGENT_AUTH_SCOPE_ACTIONS,
   AGENT_AUTH_SCOPE_DESCRIPTIONS,

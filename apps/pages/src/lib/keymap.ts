@@ -1,4 +1,9 @@
 import { type KeybindingsMap, createKeybindingsHandler } from "tinykeys";
+import {
+  focusCommandBar,
+  handleCommandBarChord,
+  toggleCommandBarMic,
+} from "./command-bar/focus.js";
 import { handlePaneEscape } from "./pane-escape.js";
 
 export type ListingMotion = {
@@ -88,19 +93,11 @@ function movementTarget(event: KeyboardEvent): ListingMotion | null {
     : (vaultTarget ?? railTarget);
 }
 
-let helpTarget: (() => void) | null = null;
-
-/** The shell owns the keymap sheet; registering hands `?` (and any pointer twin) a way to open it. */
-export function registerKeymapHelp(show: () => void): () => void {
-  helpTarget = show;
-  return () => {
-    if (helpTarget === show) helpTarget = null;
-  };
-}
-
-export function showKeymapHelp(): void {
-  helpTarget?.();
-}
+export {
+  KEYMAP_HELP,
+  registerKeymapHelp,
+  showKeymapHelp,
+} from "./keymap-help.js";
 
 export function focusRailListing(): void {
   railTarget?.focus?.();
@@ -109,25 +106,6 @@ export function focusRailListing(): void {
 export function focusVaultListing(): void {
   vaultTarget?.focus?.();
 }
-
-/** In-app `?` sheet. Characterization snapshots this so copy drift is a diff. */
-export const KEYMAP_HELP = [
-  ["j / k or arrows", "Move"],
-  ["3j  10k", "Repeat a motion"],
-  ["Ctrl-d / u", "Half-page"],
-  ["Ctrl-f / b or PgUp/Dn", "Page"],
-  ["H / M / L", "High, mid, low"],
-  ["gg / G  0 / $", "First or last"],
-  ["l / h  Enter  Backspace", "Dive or climb"],
-  ["Tab / Shift-Tab", "Next or previous control"],
-  ["F6", "Other listing"],
-  ["/  Esc", "Search or focus the tree"],
-  ["y / u", "Copy secret or username"],
-  ["e / x", "Edit or trash"],
-  ["n / .", "New or favorite"],
-  ["s", "Share once"],
-  ["g v/c/a/i/s", "Go to a section"],
-] as const;
 
 function typing(target: EventTarget | null): boolean {
   return (
@@ -143,6 +121,7 @@ const SECTION_PATHS = new Map([
   ["c", "/connections"],
   ["a", "/access"],
   ["i", "/identity"],
+  ["w", "/wallet"],
   ["s", "/settings"],
 ]);
 
@@ -310,6 +289,8 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
     s: verb(() => vaultTarget?.share()),
     "Shift+?": verb(() => showHelp()),
     "?": verb(() => showHelp()),
+    ":": verb(() => focusCommandBar()),
+    m: verb(() => toggleCommandBarMic()),
     F6: (event) => {
       count = 0;
       const listing = listingOf(event);
@@ -330,8 +311,17 @@ export function createKeymapHandler({ navigate, showHelp }: KeymapOptions) {
 
   return (event: KeyboardEvent) => {
     ensureCode(event);
+    if (handlePaneEscape(event)) {
+      count = 0;
+      clearGo();
+      return;
+    }
+    if (handleCommandBarChord(event)) {
+      count = 0;
+      clearGo();
+      return;
+    }
     if (
-      handlePaneEscape(event) ||
       event.defaultPrevented ||
       event.metaKey ||
       event.altKey ||

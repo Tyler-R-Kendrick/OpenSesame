@@ -86,13 +86,31 @@ describe("ActiveProjectPanel", () => {
     session.current = { principalId: "prn_op" };
     connecting.value = false;
     shouldAutoConnect.mockReturnValue(true);
-    loadSettings.mockReturnValue({ activeProjectId: "" });
+    loadSettings.mockReturnValue({
+      activeProjectId: "",
+      identityApi: "http://127.0.0.1:8788",
+    });
     mockSuccessfulRefresh();
   });
 
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it("loads vault projects through the device-native Identity host", async () => {
+    loadSettings.mockReturnValue({ activeProjectId: "", identityApi: "" });
+    render(<ActiveProjectPanel />);
+    expect(await screen.findByText(/Projects on this device/i)).toBeTruthy();
+    await waitFor(() => {
+      expect(identityFetch).toHaveBeenCalledWith(
+        "/v1/projects/personal/ensure",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    expect(
+      await screen.findByRole("option", { name: /Personal \(personal\)/i }),
+    ).toBeTruthy();
   });
 
   it("offers identity connect when signed out", () => {
@@ -159,7 +177,10 @@ describe("ActiveProjectPanel", () => {
   });
 
   it("keeps a stored selection that still exists", async () => {
-    loadSettings.mockReturnValue({ activeProjectId: "proj_team" });
+    loadSettings.mockReturnValue({
+      activeProjectId: "proj_team",
+      identityApi: "http://127.0.0.1:8788",
+    });
     render(<ActiveProjectPanel />);
     await screen.findByText(/Using your personal project/);
     const select = overlapCast(screen.getByLabelText(/Project/i));
@@ -180,7 +201,10 @@ describe("ActiveProjectPanel", () => {
   });
 
   it("shows tomb binding details for the active project", async () => {
-    loadSettings.mockReturnValue({ activeProjectId: "proj_team" });
+    loadSettings.mockReturnValue({
+      activeProjectId: "proj_team",
+      identityApi: "http://127.0.0.1:8788",
+    });
     identityFetch.mockImplementation((path: string) => {
       if (path === "/v1/projects/personal/ensure") {
         return Promise.resolve(jsonResponse(personalProject));

@@ -14,6 +14,7 @@
 import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { GUIDE_GOALS, HELP_TOPICS } from "../../registry/goals.js";
 import { GUIDE_ERROR_TEXT, UNAVAILABLE_TEXT } from "../../ui/messages.js";
 import { openSupport, renderJourney, resetJourney } from "./harness.jsx";
 
@@ -22,8 +23,20 @@ async function showMe(
   panel: HTMLElement,
   goalTitle: string,
 ): Promise<HTMLElement> {
-  const region = within(panel).getByRole("region", { name: "Walkthroughs" });
-  const row = within(region).getByText(goalTitle).closest("article");
+  const region = within(panel).getByRole("region", { name: "Questions" });
+  const goal = GUIDE_GOALS.find((entry) => entry.title === goalTitle);
+  const topic = goal
+    ? HELP_TOPICS.find((entry) => entry.goal === goal.id)
+    : undefined;
+  const needles = [goalTitle, topic?.title]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase());
+  const row = within(region)
+    .getAllByRole("article")
+    .find((node) => {
+      const textContent = (node.textContent ?? "").toLowerCase();
+      return needles.some((needle) => textContent.includes(needle));
+    });
   if (!row) throw new Error(`no walkthrough offered for ${goalTitle}`);
   return within(row).getByRole("button", { name: "Show me" });
 }
@@ -48,7 +61,7 @@ describe("support on a browser that has no model to run", () => {
     );
     expect(composer.disabled).toBe(true);
 
-    const help = within(panel).getByRole("region", { name: "Written help" });
+    const help = within(panel).getByRole("region", { name: "Questions" });
     expect(
       within(help).getByRole("button", { name: "Where do I lock the vault?" }),
     ).toBeTruthy();
@@ -59,7 +72,7 @@ describe("support on a browser that has no model to run", () => {
     ).toBeTruthy();
 
     // Search is a substring over authored prose — no index, no model.
-    await user.type(within(panel).getByLabelText("Search help"), "import");
+    await user.type(within(panel).getByLabelText("Search questions"), "import");
     expect(
       await within(help).findByRole("button", {
         name: "How do I bring items in from another password manager?",
@@ -70,7 +83,7 @@ describe("support on a browser that has no model to run", () => {
         name: "Where do I lock the vault?",
       }),
     ).toBeNull();
-    await user.clear(within(panel).getByLabelText("Search help"));
+    await user.clear(within(panel).getByLabelText("Search questions"));
     expect(
       await within(help).findByRole("button", {
         name: "Where do I lock the vault?",
@@ -89,7 +102,7 @@ describe("support on a browser that has no model to run", () => {
 
     // And a named goal runs a real walkthrough, over the real registry.
     await user.click(
-      await showMe(panel, "Check whether OpenSesame is healthy"),
+      await showMe(panel, "How do I tell whether OpenSesame is healthy?"),
     );
     await waitFor(() =>
       expect(journey.focused()).toEqual(["shell.connectivity"]),
@@ -127,7 +140,7 @@ describe("support on a browser that has no model to run", () => {
     const { user } = journey;
 
     const panel = await openSupport(user);
-    await user.click(await showMe(panel, "Connect a provider"));
+    await user.click(await showMe(panel, "How do I connect a provider?"));
 
     // It walks from the vault to Connections and points at the picker there.
     await waitFor(() =>
@@ -146,7 +159,7 @@ describe("support on a browser that has no model to run", () => {
     );
     const reopened = await openSupport(onConnections.user);
     await onConnections.user.click(
-      await showMe(reopened, "Connect a provider"),
+      await showMe(reopened, "How do I connect a provider?"),
     );
 
     await waitFor(() =>

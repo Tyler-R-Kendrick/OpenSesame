@@ -4,74 +4,31 @@ import {
   type BrowserInferenceVerdict,
   browserInference,
 } from "../../lib/browser-inference.js";
+import { detectSpeechRecognition } from "../../lib/command-bar/speech.js";
 import {
-  type ModelPlaneKind,
+  MODEL_PROVIDER_PRESETS,
+  type ModelProviderPreset,
+} from "../../lib/model-catalog.js";
+import {
   type ModelProviderRecord,
   NO_MODEL_PROVIDER,
   type ResolvedModelPlane,
   loadModelProvider,
   resolveModelPlane,
   saveModelProvider,
+  withInference,
 } from "../../lib/model-provider.js";
+import {
+  InferenceRefineFields,
+  InferenceRolePicker,
+  VoiceRolePicker,
+  clearInference,
+} from "./AiModelRoles.js";
+
+export type { ModelProviderPreset };
+export { MODEL_PROVIDER_PRESETS };
 
 type Flash = { tone: "ok" | "err"; text: string };
-
-export type ModelProviderPreset = {
-  readonly id: string;
-  readonly kind: ModelPlaneKind;
-  readonly name: string;
-  readonly kindLabel: string;
-  readonly endpoint: string;
-  readonly model: string;
-};
-
-/**
- * The sheet's list, as data. Local first, because the ordering is the argument:
- * the arrangements where nothing leaves the machine come before the ones where
- * something does. The setup ceremony's ai step offers the same list (ADR 0114).
- */
-export const MODEL_PROVIDER_PRESETS: readonly ModelProviderPreset[] = [
-  {
-    id: "ollama",
-    kind: "local",
-    name: "Ollama",
-    kindLabel: "nothing leaves",
-    endpoint: "http://127.0.0.1:11434",
-    model: "qwen2.5-vl:7b",
-  },
-  {
-    id: "lmstudio",
-    kind: "local",
-    name: "LM Studio",
-    kindLabel: "nothing leaves",
-    endpoint: "http://127.0.0.1:1234/v1",
-    model: "qwen2.5-vl-7b",
-  },
-  {
-    id: "anthropic",
-    kind: "hosted",
-    name: "Anthropic",
-    kindLabel: "api key",
-    endpoint: "https://api.anthropic.com",
-    model: "claude-sonnet-5",
-  },
-  {
-    id: "openai",
-    kind: "hosted",
-    name: "OpenAI",
-    kindLabel: "api key",
-    endpoint: "https://api.openai.com/v1",
-    model: "",
-  },
-  {
-    id: "openai-shaped",
-    kind: "hosted",
-    name: "Anything OpenAI-shaped",
-    kindLabel: "bring a url",
-    endpoint: "",
-    model: "",
-  },
-];
 
 /**
  * What the device is short of, said plainly.
@@ -111,14 +68,8 @@ function planeSentence(plane: ResolvedModelPlane): string {
 }
 
 /**
- * Who runs the model that works a website's own password-reset form.
- *
- * The panel exists to make one thing legible that a settings form normally
- * hides: **not choosing is itself a choice, and it has an outcome**. Every
- * other panel here is inert until filled in. This one reports what is running
- * *right now* at the top — which, with nothing configured, may well be the
- * browser's own on-device model, an arrangement narrower than anything on the
- * list below it.
+ * Who runs the model that works a website's own password-reset form, plus the
+ * voice and inference catalog picks for the command bar.
  *
  * See `lib/model-provider.ts` for the bypass rule and
  * `lib/browser-inference.ts` for the capability ladder. Nothing here downloads
@@ -135,8 +86,8 @@ export function ModelProviderPanel() {
   useEffect(() => {
     const stored = loadModelProvider();
     setRecord(stored);
-    setEndpoint(stored.endpoint);
-    setModel(stored.model);
+    setEndpoint(stored.inference.endpoint);
+    setModel(stored.inference.model);
     let live = true;
     void browserInference().then((result) => {
       if (live) setVerdict(result);
@@ -152,8 +103,8 @@ export function ModelProviderPanel() {
     try {
       await saveModelProvider(next);
       setRecord(next);
-      setEndpoint(next.endpoint);
-      setModel(next.model);
+      setEndpoint(next.inference.endpoint);
+      setModel(next.inference.model);
       setFlash({ tone: "ok", text: "Saved." });
     } catch {
       setFlash({
@@ -166,23 +117,17 @@ export function ModelProviderPanel() {
   }, []);
 
   const plane = verdict ? resolveModelPlane(record, verdict) : null;
-  // Offered only where the browser can carry it now. A rung that needs a
-  // download is described below rather than presented as a one-tap option.
   const browserReady = verdict?.plane === "builtin";
+  const speechReady = detectSpeechRecognition() !== null;
 
   return (
     <section className="panel" id="model-provider">
       <div className="panel__head">
         <div>
-          <h2>Who runs the model</h2>
+          <h2>AI models</h2>
         </div>
       </div>
       <div className="panel__body">
-        {/* An `<output>`, because this line is a computed result rather than
-            prose: it is what the record and the capability probe resolve to,
-            and it changes under the reader as either one does. `.note` already
-            lays it out as a flex row, so the element carries the semantics and
-            nothing else moves. */}
         {plane ? (
           <output
             className={`note note--${plane.kind === "none" ? "err" : "ok"}`}
@@ -195,27 +140,15 @@ export function ModelProviderPanel() {
           </output>
         )}
 
-        {browserReady ? (
-          <div className="actions">
-            <button
-              type="button"
-              className={record.kind === "browser" ? "btn btn--primary" : "btn"}
-              disabled={busy || record.kind === "browser"}
-              onClick={() =>
-                void commit({
-                  kind: "browser",
-                  provider: "browser",
-                  endpoint: "",
-                  model: "",
-                })
-              }
-            >
-              {record.kind === "browser"
-                ? "Using this device"
-                : "Use this device's own model"}
-            </button>
-          </div>
-        ) : verdict ? (
+        <VoiceRolePicker
+          record={record}
+          busy={busy}
+          chrome="list"
+          speechReady={speechReady}
+          onCommit={(next) => void commit(next)}
+        />
+
+        {!browserReady && verdict ? (
           <p className="note">
             <span>
               {LIMIT_TEXT[verdict.limit ?? "no-hardware"]}
@@ -226,86 +159,53 @@ export function ModelProviderPanel() {
           </p>
         ) : null}
 
-        <ul className="list">
-          {MODEL_PROVIDER_PRESETS.map((preset) => (
-            <li key={preset.id}>
-              <div>
-                <strong>{preset.name}</strong>
-                <div className="muted">{preset.kindLabel}</div>
-              </div>
-              <button
-                type="button"
-                className={
-                  record.provider === preset.id ? "btn btn--primary" : "btn"
-                }
-                disabled={busy}
-                onClick={() =>
-                  void commit({
-                    kind: preset.kind,
-                    provider: preset.id,
-                    endpoint: preset.endpoint,
-                    model: preset.model,
-                  })
-                }
-              >
-                {record.provider === preset.id ? "In use" : "Use"}
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        {record.kind === "local" || record.kind === "hosted" ? (
-          <>
-            <label className="field">
-              <span>Endpoint</span>
-              <input
-                type="url"
-                value={endpoint}
-                onChange={(event) => setEndpoint(event.target.value)}
-                placeholder="http://127.0.0.1:11434"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </label>
-            <label className="field">
-              <span>Model</span>
-              <input
-                type="text"
-                value={model}
-                onChange={(event) => setModel(event.target.value)}
-                placeholder="a vision model — it has to see the page"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </label>
-            {/* No key field, here or anywhere: a provider's key is a secret and
-                lives in the vault behind the same seal as everything else. */}
-            <p className="note">
-              <span>
-                An API key is not asked for here. Keep it in the vault; this
-                panel stores addresses only.
-              </span>
-            </p>
-            <div className="actions">
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy}
-                onClick={() => void commit({ ...record, endpoint, model })}
-              >
-                {busy ? "Saving…" : "Save"}
-              </button>
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => void commit(NO_MODEL_PROVIDER)}
-              >
-                Use no provider
-              </button>
-            </div>
-          </>
+        {browserReady ? (
+          <div className="actions">
+            <button
+              type="button"
+              className={
+                record.inference.provider === "browser"
+                  ? "btn btn--primary"
+                  : "btn"
+              }
+              disabled={busy || record.inference.provider === "browser"}
+              onClick={() =>
+                void commit(
+                  withInference(record, {
+                    kind: "browser",
+                    provider: "browser",
+                    endpoint: "",
+                    model: "",
+                  }),
+                )
+              }
+            >
+              {record.inference.provider === "browser"
+                ? "Using this device"
+                : "Use this device's own model"}
+            </button>
+          </div>
         ) : null}
+
+        <InferenceRolePicker
+          record={record}
+          busy={busy}
+          chrome="list"
+          browserReady={false}
+          onCommit={(next) => void commit(next)}
+        />
+
+        <InferenceRefineFields
+          record={record}
+          busy={busy}
+          endpoint={endpoint}
+          model={model}
+          setEndpoint={setEndpoint}
+          setModel={setModel}
+          mode="button"
+          onCommit={(next) => void commit(next)}
+          onClear={() => void commit(clearInference(record))}
+        />
 
         {flash ? (
           <p

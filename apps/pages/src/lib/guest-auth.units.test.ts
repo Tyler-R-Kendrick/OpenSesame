@@ -48,7 +48,7 @@ function withDeps(overrides: GuestAuthDependencyOverrides): void {
   // road (ADR 0090) has its own cases in guest-auth.test.ts.
   Object.assign(
     guestAuthDependencies,
-    { identityBase: () => "http://127.0.0.1:18788" },
+    { isRemoteIdentityConfigured: () => true },
     overrides,
   );
 }

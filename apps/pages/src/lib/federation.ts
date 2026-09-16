@@ -9,8 +9,14 @@ import {
 import { decodeJwtEnvelope } from "@opensesame/sdk-browser";
 import { b64urlDecode, b64urlEncode } from "./federation-encoding.js";
 import {
+  clearFederationSessionJson,
+  readFederationSessionJson,
+  writeFederationSessionJson,
+} from "./federation-session-store.js";
+import {
   type IdentitySession,
   identityBase,
+  remoteIdentityApi,
   restoreSession,
 } from "./identity.js";
 import { rememberLastSignIn } from "./last-sign-in.js";
@@ -27,7 +33,6 @@ import { type OperatorIdp, signInMethods } from "./settings.js";
  */
 
 const PKCE_KEY = "opensesame:federation:pkce";
-const SESSION_KEY = "opensesame:federation:session";
 export type TrustedUpstream = {
   id: string;
   displayName: string;
@@ -72,7 +77,6 @@ export type TrustedUpstream = {
    */
   sessionCheckEndpoint?: string;
 };
-
 /**
  * Trust is configuration, not discovery: an issuer absent from this list is
  * refused even if it completes a flow correctly (ADR 0033 §2).
@@ -176,8 +180,9 @@ function trimSlashes(value: string): string {
  * upstream and is left exactly as narrow as it was (T18).
  */
 export function isBrokeredIssuer(issuer: string): boolean {
-  const base = trimSlashes(identityBase());
-  // An unconfigured Identity API is "" and must not make "" a trusted issuer.
+  const base = trimSlashes(remoteIdentityApi());
+  // An unconfigured remote Identity API is "" and must not make the
+  // device-native Pages origin a trusted brokered issuer.
   return base.length > 0 && trimSlashes(issuer) === base;
 }
 
@@ -762,11 +767,11 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
 async function adoptBrokeredSessionDefault(
   accessToken: string,
 ): Promise<IdentitySession> {
-  const base = identityBase();
+  const base = remoteIdentityApi();
   if (!base) {
     throw new FederationError(
       "no_identity_api",
-      "No Identity API is configured, so this sign-in cannot be adopted.",
+      "No remote Identity API is configured, so this sign-in cannot be adopted.",
     );
   }
   let response: Response;
@@ -931,16 +936,14 @@ export function clearAuthResponseFromUrl(): void {
  * revocation after that takes effect only when `exp` passes.
  */
 export function saveSession(identity: UpstreamIdentity): void {
-  // ast-grep-ignore: ts-localstorage-set
-  localStorage.setItem(SESSION_KEY, JSON.stringify(identity));
+  writeFederationSessionJson(JSON.stringify(identity));
   rememberLastSignIn(identity.upstreamId);
 }
 
 function loadSessionDefault(): UpstreamIdentity | null {
   // The sessionStorage read admits a session an older build saved; new ones
   // only ever land in localStorage.
-  const raw =
-    localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY);
+  const raw = readFederationSessionJson();
   if (!raw) return null;
   try {
     const identity: BoundaryValue = JSON.parse(raw);
@@ -974,8 +977,7 @@ function loadSessionDefault(): UpstreamIdentity | null {
 }
 
 function clearSessionDefault(): void {
-  localStorage.removeItem(SESSION_KEY);
-  sessionStorage.removeItem(SESSION_KEY);
+  clearFederationSessionJson();
 }
 
 function displayNameDefault(identity: UpstreamIdentity): string {

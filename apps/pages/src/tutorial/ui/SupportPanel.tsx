@@ -1,4 +1,3 @@
-import type { SupportAgentAvailability } from "@opensesame/support-agent";
 import { SUPPORT_LIMITS } from "@opensesame/support-agent";
 import {
   type FormEvent,
@@ -8,18 +7,12 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
 } from "react";
 import { IconSupport, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
 import {
-  subscribeWebMcpRegistration,
-  webmcpRegistrationSnapshot,
-} from "../../webmcp/registration.js";
-import {
   GUIDE_GOALS,
   type GuideGoalDescriptor,
-  type HelpTopic,
   guideGoal,
   helpTopicsForRoute,
   searchHelpTopics,
@@ -29,7 +22,16 @@ import type { SupportEntry } from "../session.js";
 import { useSupport } from "../session.js";
 import "../support.css";
 import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
-import { UNAVAILABLE_TEXT, webmcpStatusText } from "./messages.js";
+import {
+  Availability,
+  GuideStatus,
+  WebMcpStatus,
+} from "./SupportPanelChrome.js";
+import {
+  SupportQuestions,
+  questionsFromGoals,
+  questionsFromTopics,
+} from "./SupportQuestions.js";
 
 const SPEAKER = {
   question: "you",
@@ -61,12 +63,11 @@ function goalsForRoute(route: string): readonly GuideGoalDescriptor[] {
 /**
  * In-product support, as a sheet over what you were already doing.
  *
- * The written help, the search over it and the walkthroughs are rendered
- * whether or not anything can answer a typed question: the knowledge is
- * checked-in data, and a model only makes it conversational. A browser with no
- * on-device model and no configured endpoint opens this panel and still gets
- * helped, which is why the unavailable notice sits *above* the help rather
- * than in place of it.
+ * Agent chat is the primary road: a question can be typed, or any listed QA
+ * scenario can be asked the same way. Each scenario also carries Show me — an
+ * authored GuideLang walkthrough that puts the app in tutorial mode. With no
+ * on-device model and no configured endpoint the authored answers still land,
+ * and Show me still runs; a model only makes the same graph conversational.
  *
  * Everything the model says is rendered as a React text node. There is no
  * `dangerouslySetInnerHTML` here, and there never may be: model prose is
@@ -95,15 +96,20 @@ export function SupportPanel(): ReactElement {
   const availability = view.availability;
   const canAsk = availability?.kind === "ready" && !view.thinking;
 
+  const questions = useMemo(() => {
+    const fromTopics = questionsFromTopics(topics, support, canAsk);
+    const covered = new Set(topics.map((topic) => topic.goal));
+    const fromGoals = query.trim()
+      ? []
+      : questionsFromGoals(goals, covered, support, canAsk);
+    return [...fromTopics, ...fromGoals];
+  }, [topics, goals, support, canAsk, query]);
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const asked = question;
     setQuestion("");
     void support.ask(asked);
-  };
-
-  const runTopic = (topic: HelpTopic) => {
-    support.answerFromAuthoredHelp(topic.title, topic.answer);
   };
 
   return (
@@ -263,72 +269,14 @@ export function SupportPanel(): ReactElement {
             </p>
           ) : null}
 
-          <section className="support__help" aria-label="Written help">
-            <p className="support__section-label">Help</p>
-            <div className="f__shell support__search">
-              <label className="visually-hidden" htmlFor={searchId}>
-                Search help
-              </label>
-              <input
-                id={searchId}
-                className="f__input"
-                type="search"
-                value={query}
-                placeholder="Search help"
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </div>
-            {topics.length === 0 ? (
-              <p className="hint">Nothing written matches that yet.</p>
-            ) : null}
-            {topics.map((topic) => {
-              const shown = topic.goal ? guideGoal(topic.goal) : null;
-              return (
-                <article key={topic.id} className="support__topic">
-                  <button
-                    type="button"
-                    className="support__topic-open"
-                    onClick={() => runTopic(topic)}
-                  >
-                    {topic.title}
-                  </button>
-                  {shown ? (
-                    <button
-                      type="button"
-                      className="btn btn--sm"
-                      onClick={() =>
-                        void support.startGuide(shown.guide, "authored")
-                      }
-                    >
-                      Show me
-                    </button>
-                  ) : null}
-                </article>
-              );
-            })}
-          </section>
+          <SupportQuestions
+            query={query}
+            searchId={searchId}
+            onQueryChange={setQuery}
+            questions={questions}
+          />
 
           <WebMcpStatus />
-
-          {goals.length > 0 ? (
-            <section className="support__goals" aria-label="Walkthroughs">
-              <p className="support__section-label">Walkthroughs</p>
-              {goals.map((goal) => (
-                <article key={goal.id} className="support__goal">
-                  <span className="support__goal-title">{goal.title}</span>
-                  <button
-                    type="button"
-                    className="btn btn--sm btn--primary"
-                    onClick={() =>
-                      void support.startGuide(goal.guide, "authored")
-                    }
-                  >
-                    Show me
-                  </button>
-                </article>
-              ))}
-            </section>
-          ) : null}
         </div>
 
         <div className="sheet__foot">
@@ -344,7 +292,7 @@ export function SupportPanel(): ReactElement {
                 value={question}
                 maxLength={SUPPORT_LIMITS.maxQuestionChars}
                 placeholder={
-                  canAsk ? "Ask about this screen" : "Written help only"
+                  canAsk ? "Ask about this screen" : "Questions only"
                 }
                 disabled={!canAsk}
                 onChange={(event) => setQuestion(event.target.value)}
@@ -361,123 +309,5 @@ export function SupportPanel(): ReactElement {
         </div>
       </section>
     </div>
-  );
-}
-
-/**
- * What this page has registered with the browser's model context. The same
- * fact the DevTools WebMCP panel reports, shown where a person can see it
- * without DevTools — and where "no tools detected" can be told apart from "no
- * model context in this browser".
- */
-function WebMcpStatus(): ReactElement {
-  const snapshot = useSyncExternalStore(
-    subscribeWebMcpRegistration,
-    webmcpRegistrationSnapshot,
-    webmcpRegistrationSnapshot,
-  );
-  return (
-    <p className="hint support__webmcp" aria-label="WebMCP status">
-      {webmcpStatusText(snapshot)}
-    </p>
-  );
-}
-
-function Availability({
-  availability,
-  ready,
-  onAcquire,
-}: {
-  availability: SupportAgentAvailability | null;
-  ready: boolean;
-  onAcquire: () => void;
-}): ReactElement | null {
-  if (availability === null) {
-    return (
-      <p className="hint">
-        {ready ? "Nothing has reported yet." : "Checking what can answer here…"}
-      </p>
-    );
-  }
-  if (availability.kind === "ready") return null;
-  if (availability.kind === "downloading") {
-    const percent = Math.round(availability.progress * 100);
-    return (
-      <div className="support__download">
-        <output className="support__download-read">
-          Downloading the on-device model — {percent}%
-        </output>
-        {/* The output beside it already reads the whole sentence; an unnamed
-            progressbar would only announce "progress bar, 40". */}
-        <progress
-          className="support__progress"
-          max={100}
-          value={percent}
-          aria-hidden="true"
-        />
-      </div>
-    );
-  }
-  if (availability.kind === "downloadable") {
-    return (
-      <div className="support__download">
-        <p className="hint">
-          This browser can answer on the device once its model has been
-          downloaded. Nothing is fetched until you ask for it.
-        </p>
-        <button type="button" className="btn btn--primary" onClick={onAcquire}>
-          Download the on-device model
-        </button>
-      </div>
-    );
-  }
-  return (
-    <p className="hint support__unavailable">
-      {UNAVAILABLE_TEXT[availability.reason]}
-    </p>
-  );
-}
-
-function GuideStatus(): ReactElement | null {
-  const { view, support } = useSupport();
-  const guide = view.guide;
-  const live =
-    guide?.status === "running" ||
-    guide?.status === "waiting" ||
-    guide?.status === "paused";
-  if (!guide || !live) return null;
-  const running = guide.status !== "paused";
-  const title = guide.goal
-    ? (guideGoal(guide.goal)?.title ?? guide.goal)
-    : "Walkthrough";
-  return (
-    <section className="support__guide" aria-label="Walkthrough in progress">
-      <p className="support__guide-head">
-        <span className="support__goal-title">{title}</span>
-        <span className="support__guide-step">
-          {guide.status === "paused" ? "paused · " : ""}
-          step {Math.min(guide.index + 1, guide.total)} of {guide.total}
-        </span>
-      </p>
-      {guide.message ? <p className="support__text">{guide.message}</p> : null}
-      <div className="actions">
-        {running ? (
-          <button
-            type="button"
-            className="btn btn--sm"
-            onClick={() => support.pauseGuide()}
-          >
-            Pause
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="btn btn--sm"
-          onClick={() => support.stopGuide()}
-        >
-          Stop
-        </button>
-      </div>
-    </section>
   );
 }

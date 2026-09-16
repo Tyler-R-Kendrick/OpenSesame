@@ -95,6 +95,7 @@ import { type SettingsPanels, SettingsSection } from "./SettingsSection.js";
 
 const stubPanels: SettingsPanels = {
   UnlockMethodsPanel: () => <div data-testid="unlock-methods-panel" />,
+  WalletPassPanel: () => <div data-testid="wallet-pass-panel" />,
   InstallPanel: () => <div data-testid="install-panel" />,
   VaultsPanel: () => <div data-testid="vaults-panel" />,
   ActiveProjectPanel: () => <div data-testid="active-project-panel" />,
@@ -201,8 +202,9 @@ describe("SettingsSection", () => {
 
   it("switches theme and locking preferences", async () => {
     renderSettings();
-    await userEvent.click(screen.getByRole("button", { name: /Dark/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Night/i }));
     expect(store.setPrefs).toHaveBeenCalledWith({ theme: "dark" });
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 
     await userEvent.selectOptions(
       screen.getByLabelText(/Lock after inactivity/i),

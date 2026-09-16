@@ -1,5 +1,5 @@
-import { overlapCast } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
+import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -1321,21 +1321,22 @@ describe("UnlockScreen — several vaults on this device", () => {
     await waitFor(() =>
       expect(switchVault).toHaveBeenCalledWith("prj_0000-4f2a"),
     );
-    // Picked: its unlock form is next, with the way back beside the heading.
+    // Picked: its unlock form is next, with the way back in the account menu.
     expect(await screen.findByRole("heading", { name: "Unlock" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "‹ Vaults" })).toBeTruthy();
     fireEvent.click(userMenuTrigger());
+    expect(screen.getByRole("menuitem", { name: "All vaults" })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "personal" })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "Sign in" })).toBeTruthy();
   });
 
-  it("the crumb leads back to the front door", async () => {
+  it("All vaults in the account menu leads back to the front door", async () => {
     render(<UnlockScreen />);
     fireEvent.click(
       screen.getByText("personal", { selector: ".vault-row__name" }),
     );
     expect(await screen.findByRole("heading", { name: "Unlock" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "‹ Vaults" }));
+    fireEvent.click(userMenuTrigger());
+    fireEvent.click(screen.getByRole("menuitem", { name: "All vaults" }));
     expect(screen.getByRole("heading", { name: "Vaults" })).toBeTruthy();
   });
 
@@ -1346,7 +1347,8 @@ describe("UnlockScreen — several vaults on this device", () => {
     Object.assign(vaultsSeams, { deviceHasSeveralVaults: () => false });
     render(<UnlockScreen />);
     expect(screen.getByRole("heading", { name: "Unlock" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "‹ Vaults" })).toBeNull();
+    fireEvent.click(userMenuTrigger());
+    expect(screen.queryByRole("menuitem", { name: "All vaults" })).toBeNull();
   });
 });
 

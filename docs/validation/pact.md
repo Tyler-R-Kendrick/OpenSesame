@@ -77,6 +77,7 @@ Do not add a suite that only documents the happy path.
 | Sealed-store paths | nested logical names round-trip | `..` / NUL / absolute refused | interleaved rejects stay closed | `.osseal`/`.age` strip to logical names |
 | Human-vault envelopes | KDF band accepts what wrap writes | hostile Argon params fail closed | bad nonces error, never panic | envelopes are ciphertext-only |
 | Host redaction | `token_type` kept across shapes | substring `token` does not redact `token_type` | concurrent redact never leaks values | redacted JSON has no secret values |
+| Browser-native SIOP / hosted SIOP bridge (ADR 0117) | `packages/siop-v2/src/request.property.test.ts` (fast-check); thumbprint binding | `packages/siop-v2/src/security.adversarial.test.ts`; `checkThenSetAdmitsDoubleClaim` in `siop-bridge.pact.test.ts` | exclusive `/v1/siop/link` claim on one `challengeId` (`assertExclusiveClaim`) | `siop-bridge.pact.test.ts` source-order oracles; link JSON has no secret fields / no raw `id_token`; Pages `pnpm --filter @opensesame/pages verify:siop`; Identity `pnpm --filter @opensesame/control-plane verify:siop` |
 | Connection env sync | vercel/railway only | doppler/infisical/craft-bar ids refused | interleaved checks stay fail-closed | https host pin before `send()` |
 | eve-deepsec (out of workspace) | GLM 5.2 pinned to blackbox | `deepsec process/sandbox` refused before spawn | missing install fails closed | README keeps the app out of `pnpm-workspace.yaml` |
 
@@ -104,4 +105,7 @@ Reference call sites: `apps/gateway/src/github_webhook.rs`,
 `packages/redteam/src/structural.pact.test.ts`,
 `packages/visual-contract/src/compare.pact.test.ts`,
 `packages/visual-contract/tests/vault-visual-contract.spec.ts`,
-`apps/mcp-host/src/pact.test.ts`.
+`apps/mcp-host/src/pact.test.ts`,
+`apps/control-plane/src/__tests__/siop-bridge.pact.test.ts`,
+`packages/siop-v2/src/request.property.test.ts`,
+`packages/siop-v2/src/security.adversarial.test.ts`.

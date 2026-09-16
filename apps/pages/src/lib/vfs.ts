@@ -57,6 +57,8 @@ export class VfsError extends Error {
 
 /** The personal vault's tomb — same name as the personal project (ADR 0038). */
 export const PERSONAL_TOMB = "personal";
+/** Isolated guest session tomb — never a project in the vault list. */
+export const GUEST_TOMB = "guest";
 
 /** Plaintext top-level registry key — tomb names only, never contents. */
 export const TOMBS_REGISTRY_KEY = "tombs.v1";

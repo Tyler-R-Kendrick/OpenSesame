@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import {
   cleanup,
   fireEvent,
@@ -5,9 +6,9 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-/** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { deviceIdentitySeams } from "../lib/device-identity.js";
 import { federationSeams } from "../lib/federation.js";
 import { guestAuthSeams } from "../lib/guest-auth.js";
 import { identitySeams } from "../lib/identity.js";
@@ -33,6 +34,9 @@ Object.assign(settingsSeams, {
 Object.assign(identitySeams, {
   identityBase: () => state.identityApi,
   useIdentitySession: () => null,
+});
+Object.assign(deviceIdentitySeams, {
+  remoteIdentityApi: () => state.identityApi,
 });
 Object.assign(federationSeams, {
   beginSignIn: vi.fn(() => new Promise<void>(() => {})),
@@ -61,7 +65,43 @@ function renderDoor(overrides: Partial<Parameters<typeof FrontDoor>[0]> = {}) {
   return props;
 }
 
+function ensureMemoryLocalStorage(): void {
+  if (
+    globalThis.localStorage &&
+    typeof globalThis.localStorage.getItem === "function"
+  ) {
+    return;
+  }
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    enumerable: true,
+    value: {
+      get length() {
+        return store.size;
+      },
+      clear() {
+        store.clear();
+      },
+      getItem(key: string) {
+        const value = store.get(key);
+        return value === undefined ? null : value;
+      },
+      key(index: number) {
+        return [...store.keys()][index] ?? null;
+      },
+      removeItem(key: string) {
+        store.delete(key);
+      },
+      setItem(key: string, value: string) {
+        store.set(key, String(value));
+      },
+    } satisfies Storage,
+  });
+}
+
 beforeEach(() => {
+  ensureMemoryLocalStorage();
   state.identityApi = "";
   continueAsGuest.mockReset();
   continueAsGuest.mockResolvedValue(undefined);

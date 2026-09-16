@@ -1,0 +1,120 @@
+model
+  schema 1.1
+
+type user
+
+type service
+
+type workload
+
+type agent
+  relations
+    define owner: [user, organization]
+    define operator: [organization]
+
+type team
+  relations
+    define parent: [team]
+    define member: [user, service, workload, agent, team#member]
+
+type organization
+  relations
+    define owner: [user]
+    define admin: [user, team#member] or owner
+    define member: [user, team#member] or admin
+
+type project
+  relations
+    define organization: [organization]
+    define owner: [user, team#member]
+    define admin: [user, team#member] or owner
+    define developer: [user, team#member, workload, agent] or admin
+    define viewer: [user, team#member, workload, agent] or developer
+
+type environment
+  relations
+    define project: [project]
+    define admin: [user, team#member] or admin from project
+    define operator: [user, team#member, workload, agent] or developer from project
+    define viewer: [user, team#member, workload, agent] or viewer from project
+
+type connection
+  relations
+    define organization: [organization]
+    define project: [project]
+    define owner: [user, organization, project]
+    define admin: [user, team#member] or admin from project
+    define user: [user, team#member, workload, agent] or owner
+
+type connector_operation
+  relations
+    define connection: [connection]
+    define executor: [user, team#member, workload, agent] and user from connection
+
+type vault_collection
+  relations
+    define project: [project]
+    define owner: [user, project]
+    define reader: [user, team#member, workload, agent] or owner
+    define writer: [user, team#member, workload, agent] or owner
+
+# One item within a collection: the grain a row-level session grant names
+# (ADR 0079). Until now vault_collection was the finest thing the model could
+# express, so "these three rows and nothing else" had nowhere to live.
+#
+# Both relations inherit from the collection, which is what makes a row grant
+# purely additive: a direct reader here is somebody granted this one row, and
+# `reader from collection` keeps anyone who could already read the whole
+# collection reading it. There is no shape in which an item tuple grants more
+# than the collection does — a row grant can only ever add.
+type vault_item
+  relations
+    define collection: [vault_collection]
+    define reader: [user, team#member, workload, agent] or reader from collection
+    define writer: [user, team#member, workload, agent] or writer from collection
+
+type certificate_role
+  relations
+    define project: [project]
+    define issuer: [user, team#member, workload, agent]
+
+# A cohort is a group that decides *who may ask*, and never a group that holds
+# authority of its own.
+#
+# Note what `cohort#member` is missing from: every relation above that grants
+# something. No connection, vault, project or certificate relation admits a
+# cohort, and none may be changed to. That absence is the enforcement — a cohort
+# added as a grantee anywhere above would be a cohort-wide grant, which is the
+# one thing this type exists not to be. `crates/authz` pins it as a test rather
+# than a convention.
+#
+# Nesting is `cohort#member` inside `member`, and deliberately nothing else: a
+# separate `parent` relation would be a second way to inherit membership, and two
+# mechanisms mean two answers to "who is in this". Teams are named rather than
+# copied, so a cohort meaning "the platform team" follows that team's roster
+# instead of duplicating it.
+#
+# Depth and size are *not* bounded here — `OpenFGA` will happily traverse a
+# ten-deep nest — so `crates/domain` refuses one before any tuple is written.
+type cohort
+  relations
+    define organization: [organization]
+    define member: [user, service, workload, agent, team#member, cohort#member]
+    define admin: [user, team#member] or admin from organization
+
+# One eligible principal, bound to one activation: the step that turns "is in a
+# group" into "may act", named individually.
+#
+# `active` is the intersection that matters. `subject` is the single principal
+# this activation was minted for, and `member from cohort` is that principal
+# still being eligible — so an activation whose subject was removed from the
+# cohort stops being active without anything having to revoke it, and an
+# activation minted for one person can never carry another. There is deliberately
+# no relation here that a holder could present: authority follows the named
+# subject authenticating as themselves.
+type cohort_activation
+  relations
+    define cohort: [cohort]
+    define subject: [user, service, workload, agent]
+    define activator: [user, team#member] or admin from cohort
+    define active: subject and member from cohort

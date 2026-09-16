@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 491,
-    "violations": 813,
-    "oversizedLines": 277389
+    "files": 540,
+    "violations": 880,
+    "oversizedLines": 280382
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -128,7 +128,7 @@
       "max-lines": 408
     },
     "apps/control-plane/src/__tests__/interaction-handoff.test.ts": {
-      "max-lines": 790
+      "max-lines": 935
     },
     "apps/control-plane/src/__tests__/ldap-bind.test.ts": {
       "max-lines": 785
@@ -193,7 +193,7 @@
     },
     "apps/control-plane/src/config.ts": {
       "complexity": 2,
-      "max-lines": 528,
+      "max-lines": 554,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -231,7 +231,7 @@
       "max-statements": 1
     },
     "apps/control-plane/src/openapi.ts": {
-      "max-lines": 2677,
+      "max-lines": 2787,
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/routes/agents.ts": {
@@ -263,9 +263,13 @@
     "apps/control-plane/src/routes/device.ts": {
       "max-lines-per-function": 1
     },
-    "apps/control-plane/src/routes/interaction-handoff.ts": {
+    "apps/control-plane/src/routes/interaction-activation.ts": {
       "complexity": 1,
-      "max-lines": 1204,
+      "max-lines-per-function": 2
+    },
+    "apps/control-plane/src/routes/interaction-handoff.ts": {
+      "complexity": 2,
+      "max-lines": 1203,
       "max-lines-per-function": 4
     },
     "apps/control-plane/src/routes/interactions-byo.ts": {
@@ -306,6 +310,12 @@
     "apps/control-plane/src/routes/oauth-clients.ts": {
       "max-lines": 416
     },
+    "apps/control-plane/src/routes/openid4vci.ts": {
+      "max-lines-per-function": 1
+    },
+    "apps/control-plane/src/routes/openid4vp.ts": {
+      "max-lines-per-function": 1
+    },
     "apps/control-plane/src/routes/org-assertion.ts": {
       "complexity": 1
     },
@@ -334,6 +344,12 @@
       "max-lines": 820,
       "max-lines-per-function": 1
     },
+    "apps/control-plane/src/routes/siop-link.ts": {
+      "complexity": 1
+    },
+    "apps/control-plane/src/routes/wallet-registration.ts": {
+      "max-lines-per-function": 1
+    },
     "apps/control-plane/src/server.ts": {
       "complexity": 2,
       "max-lines-per-function": 2,
@@ -354,6 +370,17 @@
     },
     "apps/control-plane/src/services/identity-link.ts": {
       "complexity": 1,
+      "max-lines-per-function": 1
+    },
+    "apps/control-plane/src/services/mailer.ts": {
+      "max-lines-per-function": 1
+    },
+    "apps/control-plane/src/services/siop-verify.ts": {
+      "complexity": 1,
+      "max-lines-per-function": 1,
+      "max-statements": 1
+    },
+    "apps/control-plane/src/services/wallet-registration.ts": {
       "max-lines-per-function": 1
     },
     "apps/control-plane/src/state.ts": {
@@ -408,7 +435,7 @@
       "max-lines": 638
     },
     "apps/gateway/src/lifecycle/subjects.rs": {
-      "max-lines": 723
+      "max-lines": 714
     },
     "apps/gateway/src/managed_certs.rs": {
       "max-lines": 731
@@ -456,7 +483,7 @@
       "max-lines": 1639
     },
     "apps/gateway/src/routes/mod.rs": {
-      "max-lines": 527
+      "max-lines": 505
     },
     "apps/gateway/src/routes/relay.rs": {
       "max-lines": 955
@@ -468,25 +495,22 @@
       "max-lines": 838
     },
     "apps/gateway/src/routes/shared_sessions.rs": {
-      "max-lines": 969
+      "max-lines": 848
     },
     "apps/gateway/src/routes/shared_sessions/tests.rs": {
-      "max-lines": 1181
+      "max-lines": 1169
     },
     "apps/gateway/src/routes/taskbus_config.rs": {
       "max-lines": 552
     },
     "apps/gateway/src/routes/tasks.rs": {
-      "max-lines": 978
+      "max-lines": 979
     },
     "apps/gateway/src/security/delivery.rs": {
       "max-lines": 719
     },
     "apps/gateway/src/security/hooks.rs": {
       "max-lines": 550
-    },
-    "apps/gateway/src/session_channel.rs": {
-      "max-lines": 544
     },
     "apps/gateway/src/sync_actor.rs": {
       "max-lines": 580
@@ -508,14 +532,13 @@
       "max-lines-per-function": 1
     },
     "apps/mobile-mfa/src/App.interaction.test.tsx": {
-      "max-lines": 592
+      "max-lines": 642
     },
     "apps/mobile-mfa/src/App.test.tsx": {
       "max-lines": 681
     },
     "apps/mobile-mfa/src/Approval.tsx": {
-      "complexity": 1,
-      "max-lines": 498,
+      "max-lines": 479,
       "max-lines-per-function": 1
     },
     "apps/mobile-mfa/src/Enrolment.tsx": {
@@ -550,15 +573,24 @@
     "apps/pages/scripts/verify-auth-flow.mjs": {
       "max-lines": 465
     },
+    "apps/pages/src/App.tsx": {
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/components/AccountSwitcher.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
+    },
+    "apps/pages/src/components/AppShell.test.tsx": {
+      "max-lines": 418
     },
     "apps/pages/src/components/AppShell.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/CeremonyShell.tsx": {
       "complexity": 1
+    },
+    "apps/pages/src/components/CommandBar.tsx": {
+      "max-lines-per-function": 1
     },
     "apps/pages/src/components/ConnectGitHistory.tsx": {
       "complexity": 2,
@@ -575,7 +607,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/Icons.tsx": {
-      "max-lines": 563
+      "max-lines": 583
     },
     "apps/pages/src/components/IdentityCeremony.tsx": {
       "complexity": 1,
@@ -611,13 +643,16 @@
       "max-lines": 518
     },
     "apps/pages/src/lib/capabilities.ts": {
-      "complexity": 1
+      "complexity": 2
     },
     "apps/pages/src/lib/changelog.test.ts": {
       "max-lines": 401
     },
     "apps/pages/src/lib/changelog.ts": {
       "complexity": 2
+    },
+    "apps/pages/src/lib/command-bar/speech.ts": {
+      "max-lines-per-function": 1
     },
     "apps/pages/src/lib/connections.test.ts": {
       "max-lines": 765
@@ -629,7 +664,7 @@
       "max-lines": 478
     },
     "apps/pages/src/lib/connectors.test.ts": {
-      "max-lines": 499
+      "max-lines": 507
     },
     "apps/pages/src/lib/crumbs.ts": {
       "complexity": 1
@@ -647,24 +682,27 @@
       "max-lines": 615
     },
     "apps/pages/src/lib/federation.test.ts": {
-      "max-lines": 1383
+      "max-lines": 1418
     },
     "apps/pages/src/lib/federation.ts": {
       "complexity": 2,
-      "max-lines": 1026,
+      "max-lines": 1028,
       "max-lines-per-function": 1
     },
     "apps/pages/src/lib/guest-auth.units.test.ts": {
       "max-lines": 544
     },
+    "apps/pages/src/lib/history-backups.ts": {
+      "complexity": 1
+    },
     "apps/pages/src/lib/identity-graph.ts": {
       "complexity": 1
     },
     "apps/pages/src/lib/identity-session.test.ts": {
-      "max-lines": 478
+      "max-lines": 477
     },
     "apps/pages/src/lib/identity.ts": {
-      "max-lines": 793
+      "max-lines": 797
     },
     "apps/pages/src/lib/idp-registry.ts": {
       "complexity": 1
@@ -677,21 +715,27 @@
       "max-lines": 433
     },
     "apps/pages/src/lib/keymap.coverage.test.ts": {
-      "max-lines": 939
+      "max-lines": 959
     },
     "apps/pages/src/lib/keymap.ts": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
+    "apps/pages/src/lib/local-vault-sessions.ts": {
+      "complexity": 1
+    },
     "apps/pages/src/lib/projects.ts": {
-      "max-lines": 491
+      "max-lines": 497
     },
     "apps/pages/src/lib/secret-configs.ts": {
       "max-lines": 429
     },
     "apps/pages/src/lib/settings.ts": {
       "complexity": 1,
-      "max-lines": 526
+      "max-lines": 552
+    },
+    "apps/pages/src/lib/siop-keys.ts": {
+      "complexity": 1
     },
     "apps/pages/src/lib/site-broker.test.ts": {
       "max-lines": 468
@@ -710,10 +754,10 @@
       "max-depth": 1
     },
     "apps/pages/src/lib/vault/drop.test.ts": {
-      "max-lines": 428
+      "max-lines": 526
     },
     "apps/pages/src/lib/vault/drop.ts": {
-      "max-lines": 650
+      "max-lines": 570
     },
     "apps/pages/src/lib/vault/export/cxf.ts": {
       "complexity": 1,
@@ -794,7 +838,7 @@
       "max-lines": 528
     },
     "apps/pages/src/lib/vault/store.ts": {
-      "max-lines": 1849
+      "max-lines": 1864
     },
     "apps/pages/src/lib/vault/unlock-methods-extra.test.ts": {
       "max-lines": 534
@@ -803,24 +847,33 @@
       "max-lines": 791
     },
     "apps/pages/src/lib/vfs.ts": {
-      "max-lines": 469
+      "max-lines": 471
     },
     "apps/pages/src/screens/BrokerAuthorize.tsx": {
       "max-lines-per-function": 1
     },
+    "apps/pages/src/screens/DropClaimScreen.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/screens/FrontDoor.tsx": {
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/screens/SetupScreen.test.tsx": {
-      "max-lines": 566
+      "max-lines": 570
     },
     "apps/pages/src/screens/SetupScreen.tsx": {
       "max-lines-per-function": 1
     },
+    "apps/pages/src/screens/SiopAuthorize.tsx": {
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1436
+      "max-lines": 1438
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 2,
       "max-depth": 1,
-      "max-lines": 1246,
+      "max-lines": 1232,
       "max-lines-per-function": 1,
       "max-statements": 2
     },
@@ -834,7 +887,11 @@
     },
     "apps/pages/src/screens/setup/WaysIn.tsx": {
       "complexity": 1,
-      "max-lines": 429,
+      "max-lines": 417,
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/screens/setup/steps/BackupGroups.tsx": {
+      "complexity": 1,
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/ByoProviderSheet.tsx": {
@@ -849,13 +906,16 @@
       "max-lines": 475,
       "max-lines-per-function": 1
     },
+    "apps/pages/src/screens/unlock/UnlockUserMenu.tsx": {
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/sections/AccessSection.test.tsx": {
       "max-lines": 1372
     },
     "apps/pages/src/sections/AccessSection.tsx": {
       "complexity": 5,
       "max-depth": 1,
-      "max-lines": 3641,
+      "max-lines": 3648,
       "max-lines-per-function": 13
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
@@ -866,26 +926,42 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 1066
+      "max-lines": 1071
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
       "complexity": 2,
-      "max-lines": 2497,
+      "max-lines": 2513,
       "max-lines-per-function": 12
     },
     "apps/pages/src/sections/SettingsSection.test.tsx": {
-      "max-lines": 563
+      "max-lines": 565
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
       "complexity": 1,
-      "max-lines": 972,
+      "max-lines": 981,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 748
+      "max-lines": 758
     },
     "apps/pages/src/sections/VaultSection.tsx": {
       "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/HostSessionManage.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/HostSharedSessionsPanel.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/LocalResourcesPanel.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/LocalSharePanel.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/VaultSessionsPanel.tsx": {
+      "complexity": 1,
+      "max-lines-per-function": 2
     },
     "apps/pages/src/sections/connections/BindingEditor.tsx": {
       "max-lines-per-function": 1
@@ -924,6 +1000,9 @@
     "apps/pages/src/sections/connections/shared.ts": {
       "complexity": 1
     },
+    "apps/pages/src/sections/identity/LocalMemberships.tsx": {
+      "max-lines-per-function": 1
+    },
     "apps/pages/src/sections/runs/RunViewer.tsx": {
       "max-lines-per-function": 1
     },
@@ -936,7 +1015,7 @@
     },
     "apps/pages/src/sections/settings/CapabilityConnectorsPanel.tsx": {
       "complexity": 2,
-      "max-lines": 738,
+      "max-lines": 743,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/settings/ChangelogPanel.tsx": {
@@ -969,7 +1048,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/ModelProviderPanel.tsx": {
-      "complexity": 1,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/OfflineBackupPanel.tsx": {
@@ -987,13 +1065,16 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.test.tsx": {
-      "max-lines": 544
+      "max-lines": 555
     },
     "apps/pages/src/sections/settings/UnlockMethodsPanel.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/VaultsPanel.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/settings/WalletPassPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/settings/security/KeyCeremony.tsx": {
@@ -1006,7 +1087,7 @@
     },
     "apps/pages/src/sections/settings/security/SecondStepCeremonies.tsx": {
       "complexity": 2,
-      "max-lines": 965,
+      "max-lines": 967,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/DropCeremony.tsx": {
@@ -1020,7 +1101,7 @@
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,
-      "max-lines": 1056,
+      "max-lines": 1058,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
@@ -1028,16 +1109,22 @@
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,
-      "max-lines": 515,
+      "max-lines": 518,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
       "complexity": 1,
-      "max-lines": 594,
+      "max-lines": 600,
       "max-lines-per-function": 1
     },
+    "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/wallet/PassesPanel.tsx": {
+      "max-lines-per-function": 2
+    },
     "apps/pages/src/tutorial/__tests__/a11y/harness.tsx": {
-      "max-lines": 410
+      "max-lines": 424
     },
     "apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts": {
       "max-nested-callbacks": 1
@@ -1053,30 +1140,30 @@
       "max-lines": 412
     },
     "apps/pages/src/tutorial/agents/prompt-api/prompt-api-agent.test.ts": {
-      "max-lines": 442
+      "max-lines": 451
     },
     "apps/pages/src/tutorial/registry/goals.ts": {
-      "max-lines": 936
+      "max-lines": 937
     },
     "apps/pages/src/tutorial/rendering/driver-renderer.ts": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/session.ts": {
-      "max-lines": 926,
+      "complexity": 1,
+      "max-lines": 958,
       "max-lines-per-function": 2
     },
     "apps/pages/src/tutorial/ui/SupportPanel.tsx": {
-      "max-lines": 483,
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/support.test.tsx": {
-      "max-lines": 706
+      "max-lines": 726
     },
     "apps/pages/src/webmcp/tools.test.ts": {
       "max-lines": 646
     },
     "apps/pages/src/webmcp/tools.ts": {
-      "max-lines": 875
+      "max-lines": 913
     },
     "apps/pm-bridges/src/keepassxc/actions.rs": {
       "max-lines": 649
@@ -1129,7 +1216,7 @@
       "max-lines": 452
     },
     "crates/broker/src/frozen.rs": {
-      "max-lines": 629
+      "max-lines": 633
     },
     "crates/ceremony/src/capture.rs": {
       "max-lines": 506
@@ -1141,7 +1228,7 @@
       "max-lines": 676
     },
     "crates/connection-broker/src/delegation.rs": {
-      "max-lines": 1630
+      "max-lines": 1634
     },
     "crates/connection-broker/src/egress.rs": {
       "max-lines": 526
@@ -1189,7 +1276,7 @@
       "max-lines": 422
     },
     "crates/connection-detect/src/lib.rs": {
-      "max-lines": 1291
+      "max-lines": 1302
     },
     "crates/connection-detect/src/offers.rs": {
       "max-lines": 501
@@ -1216,10 +1303,13 @@
       "max-lines": 434
     },
     "crates/domain/src/shared_session.rs": {
-      "max-lines": 594
+      "max-lines": 510
     },
     "crates/domain/src/shared_session_adversarial.rs": {
-      "max-lines": 591
+      "max-lines": 583
+    },
+    "crates/enforcement/src/conformance.rs": {
+      "max-lines": 413
     },
     "crates/env-spec/src/lib.rs": {
       "max-lines": 464
@@ -1240,7 +1330,7 @@
       "max-lines": 510
     },
     "crates/lifecycle/src/evaluate.rs": {
-      "max-lines": 446
+      "max-lines": 445
     },
     "crates/pki-core/src/bundle.rs": {
       "max-lines": 560
@@ -1309,7 +1399,7 @@
       "max-lines": 625
     },
     "crates/storage/src/lib.rs": {
-      "max-lines": 2089
+      "max-lines": 2091
     },
     "crates/storage/src/observation.rs": {
       "max-lines": 469
@@ -1318,13 +1408,16 @@
       "max-lines": 1612
     },
     "crates/storage/src/shared_sessions.rs": {
-      "max-lines": 679
+      "max-lines": 674
     },
     "crates/storage/src/tests.rs": {
       "max-lines": 3001
     },
+    "crates/storage/tests/session_coordination_store.rs": {
+      "max-lines": 530
+    },
     "crates/storage/tests/shared_sessions_store.rs": {
-      "max-lines": 737
+      "max-lines": 751
     },
     "crates/storage/tests/support/mod.rs": {
       "max-lines": 411
@@ -1388,10 +1481,10 @@
       "max-lines": 422
     },
     "packages/capability-registry/src/index.ts": {
-      "max-lines": 2218
+      "max-lines": 2078
     },
     "packages/ceremony-kit/src/interaction-client.ts": {
-      "max-lines": 425,
+      "max-lines": 517,
       "max-lines-per-function": 1
     },
     "packages/ceremony-kit/src/interaction-url.ts": {
@@ -1444,17 +1537,17 @@
       "max-lines-per-function": 1
     },
     "packages/database/src/repos/interfaces.ts": {
-      "max-lines": 866
+      "max-lines": 856
     },
     "packages/database/src/repos/memory.ts": {
-      "max-lines": 1810
+      "max-lines": 1805
     },
     "packages/database/src/repos/postgres.ts": {
-      "complexity": 2,
-      "max-lines": 2898
+      "complexity": 1,
+      "max-lines": 2888
     },
     "packages/database/src/schema/index.ts": {
-      "max-lines": 2372
+      "max-lines": 2371
     },
     "packages/database/src/scim-store.ts": {
       "max-lines-per-function": 1
@@ -1536,7 +1629,7 @@
     },
     "packages/openid4vci/src/offer.ts": {
       "complexity": 1,
-      "max-lines": 414
+      "max-lines": 483
     },
     "packages/openid4vci/src/proof.ts": {
       "complexity": 2
@@ -1546,16 +1639,15 @@
     },
     "packages/openid4vp/src/request.ts": {
       "complexity": 1,
-      "max-lines": 710,
-      "max-lines-per-function": 1,
-      "max-statements": 1
+      "max-lines": 632,
+      "max-lines-per-function": 1
     },
     "packages/openid4vp/src/verify.test.ts": {
-      "max-lines": 1106
+      "max-lines": 1097
     },
     "packages/openid4vp/src/verify.ts": {
       "complexity": 2,
-      "max-lines": 867,
+      "max-lines": 837,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -1568,6 +1660,9 @@
     "packages/os-domain/src/approval-ceremony.ts": {
       "max-lines": 456
     },
+    "packages/os-domain/src/authority-templates/parse.ts": {
+      "complexity": 1
+    },
     "packages/os-domain/src/authorization-details.ts": {
       "complexity": 2,
       "max-lines": 447
@@ -1577,7 +1672,19 @@
       "max-lines": 977
     },
     "packages/os-domain/src/types.ts": {
-      "max-lines": 863
+      "max-lines": 865
+    },
+    "packages/os-domain/src/wallet/amount.ts": {
+      "complexity": 1
+    },
+    "packages/os-domain/src/wallet/payment-intent.ts": {
+      "complexity": 1,
+      "max-lines": 412,
+      "max-lines-per-function": 1,
+      "max-statements": 1
+    },
+    "packages/policy/src/__tests__/authority-additivity.test.ts": {
+      "max-lines": 491
     },
     "packages/recovery-graph/src/index.ts": {
       "complexity": 2,
@@ -1619,6 +1726,18 @@
     "packages/sdk-server/src/verifier.ts": {
       "complexity": 1
     },
+    "packages/siop-v2/src/id-token.ts": {
+      "complexity": 1
+    },
+    "packages/siop-v2/src/jwk.ts": {
+      "complexity": 1
+    },
+    "packages/siop-v2/src/request.ts": {
+      "complexity": 1
+    },
+    "packages/siop-v2/src/response.ts": {
+      "complexity": 1
+    },
     "packages/support-agent/src/egress.test.ts": {
       "max-lines": 494
     },
@@ -1658,12 +1777,32 @@
       "max-lines-per-function": 2,
       "max-statements": 1
     },
+    "packages/wallet-budget/src/holds.ts": {
+      "max-statements": 1
+    },
+    "packages/wallet-evm/src/direct-erc20-delegation.ts": {
+      "max-lines-per-function": 2
+    },
+    "packages/wallet-policy/src/assess.ts": {
+      "complexity": 1,
+      "max-lines-per-function": 1
+    },
+    "packages/wallet-policy/src/compare.ts": {
+      "complexity": 1
+    },
+    "packages/wallet-x402/src/assess.ts": {
+      "complexity": 1,
+      "max-lines-per-function": 1,
+      "max-statements": 1
+    },
+    "packages/wallet/src/google-client.ts": {
+      "max-lines-per-function": 1
+    },
     "packages/wallet/src/google.test.ts": {
       "max-lines": 597
     },
     "packages/wallet/src/google.ts": {
-      "max-lines": 578,
-      "max-lines-per-function": 1
+      "max-lines": 405
     },
     "packages/wallet/src/payload.test.ts": {
       "max-lines": 592
@@ -1674,6 +1813,26 @@
     },
     "packages/webmcp/src/registrar.test.ts": {
       "max-lines": 474
+    },
+    "scripts/lib/authority-fabric-scenarios-cross.mjs": {
+      "max-lines": 487
+    },
+    "scripts/wallet/browser-harness.mjs": {
+      "max-lines": 424,
+      "max-lines-per-function": 2,
+      "max-statements": 1
+    },
+    "scripts/wallet/contracts-harness.mjs": {
+      "max-lines": 449
+    },
+    "scripts/wallet/lib/deny-mainnet.mjs": {
+      "complexity": 1
+    },
+    "scripts/wallet/protocols-harness.mjs": {
+      "complexity": 1,
+      "max-lines": 560,
+      "max-lines-per-function": 1,
+      "max-statements": 1
     },
     "tools/oxlint/anti-slop/rules/no-known-value-widening.ts": {
       "complexity": 1,

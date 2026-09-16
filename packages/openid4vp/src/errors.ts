@@ -41,7 +41,7 @@
  *
  * The first twelve are the contract: they name the checks an OpenID4VP 1.0
  * verifier must be able to fail independently, and callers may switch on them.
- * The remaining four exist because folding them into their nearest neighbour
+ * The remaining five exist because folding them into their nearest neighbour
  * would have been a lie — an untrusted issuer is not a malformed presentation,
  * and a credential that expired yesterday is not a request that expired. Codes
  * are only ever added, never renamed or repurposed.
@@ -78,7 +78,9 @@ export type Openid4vpErrorCode =
   /** The credential's `nbf` is in the future. */
   | "credential_not_yet_valid"
   /** The credential does not answer the DCQL query it was returned for. */
-  | "query_not_satisfied";
+  | "query_not_satisfied"
+  /** The response arrived encrypted and this verifier does not decrypt JWE. */
+  | "response_encryption_unsupported";
 
 /**
  * Where in the pipeline a refusal happened.
@@ -106,7 +108,8 @@ export type Openid4vpCheckpoint =
   | "nonce_binding"
   | "audience_binding"
   | "transaction_data"
-  | "session_consume";
+  | "session_consume"
+  | "response_decryption";
 
 /**
  * Constant text per code.
@@ -135,6 +138,8 @@ const MESSAGES = {
   credential_expired: "credential has expired",
   credential_not_yet_valid: "credential is not yet valid",
   query_not_satisfied: "credential does not satisfy the credential query",
+  response_encryption_unsupported:
+    "encrypted responses are not supported by this verifier",
 } as const satisfies Record<Openid4vpErrorCode, string>;
 
 /**

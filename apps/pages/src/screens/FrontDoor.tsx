@@ -21,6 +21,7 @@
 
 import { useEffect, useRef } from "react";
 import { IconAuthority, IconBroadcast } from "../components/Icons.js";
+import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { landFocus } from "../lib/focus.js";
 import type { FederatedProviderSummary } from "../lib/providers.js";
@@ -110,6 +111,10 @@ export function FrontDoor({
             </span>
           </button>
         </fieldset>
+
+        <div className="door__theme">
+          <ThemeToggle tabIndex={-1} />
+        </div>
 
         <div className="signin__divider" aria-hidden="true">
           or sign in

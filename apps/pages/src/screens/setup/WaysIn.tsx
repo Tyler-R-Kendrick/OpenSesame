@@ -261,14 +261,8 @@ export function WaysIn() {
   return (
     <div className="setup__stack">
       <div className="ways">
-        <p className="ways__head">
-          Ways in
-          <span className="ways__count">{ways.length}</span>
-        </p>
-        {ways.length === 0 ? (
-          <p className="hint">None yet. Local vault only: no recovery.</p>
-        ) : (
-          <ul className="ways__list">
+        {ways.length === 0 ? null : (
+          <ul className="ways__list" aria-label="Ways in">
             {ways.map((way) => {
               const brand = way.brandId ? brandFor(way.brandId) : null;
               return (
@@ -297,9 +291,7 @@ export function WaysIn() {
       </div>
 
       <div className="setup__stack">
-        <p className="ways__head">Add a provider</p>
-
-        <div className="preset">
+        <div className="preset" aria-label="Add a provider">
           {SETUP_PROVIDERS.map((entry) => (
             <button
               key={entry.id}
@@ -345,7 +337,6 @@ export function WaysIn() {
                   {copied ? <IconCheck size={17} /> : <IconCopy size={17} />}
                 </button>
               }
-              hint="Paste this into the provider's allowed redirect URIs, exactly as shown."
             />
 
             {preset.field ? (
@@ -359,7 +350,6 @@ export function WaysIn() {
                 value={issuerInput}
                 disabled={busy}
                 onValueChange={setIssuerInput}
-                hint={preset.field.hint}
               />
             ) : null}
 
@@ -373,7 +363,6 @@ export function WaysIn() {
               value={clientIdInput}
               disabled={busy}
               onValueChange={setClientIdInput}
-              hint={preset.clientIdHint}
             />
 
             <div className="actions">
@@ -398,7 +387,6 @@ export function WaysIn() {
       </div>
 
       <div className="setup__stack">
-        <p className="ways__head">Or an OpenSesame identity service</p>
         <FieldShell
           id="setup-identity-api"
           label="Identity service"

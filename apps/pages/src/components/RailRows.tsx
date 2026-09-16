@@ -5,6 +5,7 @@ import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import {
   IconAuthority,
+  IconCard,
   IconChevronRight,
   IconConnection,
   IconSettings,
@@ -45,6 +46,14 @@ export const SECTIONS = [
     guide: "nav.identity",
     jump: "i",
     Icon: IconUser,
+  },
+  {
+    to: "/wallet",
+    label: "Wallet",
+    segment: "wallet",
+    guide: "nav.wallet",
+    jump: "w",
+    Icon: IconCard,
   },
   {
     to: "/settings",

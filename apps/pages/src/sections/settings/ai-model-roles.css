@@ -1,0 +1,21 @@
+.ai-role__title {
+  margin: 0.35rem 0 0.2rem;
+  font-size: 0.8125rem;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-role__lead {
+  margin: 0 0 0.45rem;
+  font-size: 0.8438rem;
+  color: var(--ink-2);
+  max-width: 58ch;
+}
+
+.ai-role__kind {
+  font-size: 0.7813rem;
+  color: var(--ink-2);
+}

@@ -14,7 +14,11 @@
     "apps/pages/src/lib/keymap.ts",
     "apps/pages/src/lib/tree-motion.ts",
     "packages/audit/src/chain.ts",
-    "apps/control-plane/src/ui/agent-auth-pages.ts"
+    "apps/control-plane/src/ui/agent-auth-pages.ts",
+    "packages/siop-v2/src/issuer.ts",
+    "packages/siop-v2/src/audience.ts",
+    "packages/siop-v2/src/validity.ts",
+    "packages/siop-v2/src/link-profile.ts"
   ],
   "ignorePatterns": [
     ".agents/**",

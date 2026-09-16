@@ -1,5 +1,12 @@
 /** @vitest-environment jsdom */
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -53,8 +60,15 @@ function openDevices(tomb = fixture.tomb) {
 
 it("revokes a real enrolled passkey and its authentication from Devices without a backend", async () => {
   openPeople();
-  await screen.findByRole("heading", { name: "Test person" });
-  await userEvent.click(screen.getByText("Passkeys", { exact: true }));
+  const personHeading = await screen.findByRole("heading", {
+    level: 3,
+    name: "Test person",
+  });
+  const personRow = personHeading.closest("li");
+  if (!personRow) throw new Error("expected Test person row");
+  await userEvent.click(
+    within(personRow).getByText("Passkeys", { exact: true }),
+  );
   const revoke = await screen.findByRole("button", { name: "Revoke passkey" });
   await userEvent.click(revoke);
   await userEvent.click(screen.getByRole("button", { name: "Keep passkey" }));
@@ -74,7 +88,15 @@ it("revokes a real enrolled passkey and its authentication from Devices without 
 
 it("refreshes an open passkey disclosure after another surface revokes its credential", async () => {
   openPeople();
-  await userEvent.click(await screen.findByText("Passkeys", { exact: true }));
+  const personHeading = await screen.findByRole("heading", {
+    level: 3,
+    name: "Test person",
+  });
+  const personRow = personHeading.closest("li");
+  if (!personRow) throw new Error("expected Test person row");
+  await userEvent.click(
+    await within(personRow).findByText("Passkeys", { exact: true }),
+  );
   await screen.findByRole("button", { name: "Revoke passkey" });
   screen.getByRole("button", { name: "Revoke passkey" }).focus();
   const key = (await readLocalPasskeys(fixture.tomb))[0];
@@ -85,13 +107,21 @@ it("refreshes an open passkey disclosure after another surface revokes its crede
   await screen.findByText("No passkeys enrolled.");
   expect(screen.queryByRole("button", { name: "Revoke passkey" })).toBeNull();
   expect(document.activeElement).toBe(
-    screen.getByText("Passkeys", { exact: true }),
+    within(personRow).getByText("Passkeys", { exact: true }),
   );
 });
 
 it("distinguishes unreadable credentials from an empty directory and refuses stale controls", async () => {
   openPeople();
-  await userEvent.click(await screen.findByText("Passkeys", { exact: true }));
+  const personHeading = await screen.findByRole("heading", {
+    level: 3,
+    name: "Test person",
+  });
+  const personRow = personHeading.closest("li");
+  if (!personRow) throw new Error("expected Test person row");
+  await userEvent.click(
+    await within(personRow).findByText("Passkeys", { exact: true }),
+  );
   await screen.findByRole("button", { name: "Enroll passkey" });
   lockAllTombs();
   await act(async () => {

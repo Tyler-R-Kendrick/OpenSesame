@@ -23,7 +23,10 @@ const ROUTES: &str = concat!(
     include_str!("health.rs"),
     include_str!("sync_page.rs"),
     include_str!("browser_pairings.rs"),
-    include_str!("host_authorizations.rs")
+    include_str!("host_authorizations.rs"),
+    include_str!("shared_sessions.rs"),
+    include_str!("access_domains.rs"),
+    include_str!("grant_offers.rs")
 );
 
 /// Routes deliberately absent from the public `OpenAPI` spec, as

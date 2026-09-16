@@ -1,6 +1,7 @@
-import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { deviceIdentitySeams } from "./device-identity.js";
 import {
   FederationError,
   TRUSTED_UPSTREAMS,
@@ -83,7 +84,34 @@ function identity(overrides: Partial<UpstreamIdentity> = {}): UpstreamIdentity {
 
 import { localNetworkFetchSeams } from "./local-network-fetch.js";
 const originalNetworkEligibility = localNetworkFetchSeams.eligible;
+
+/** Node 22 shadows Storage with an unavailable experimental global. */
+function ensureWebStorage(): void {
+  const memory = (): Storage => {
+    const map = new Map<string, string>();
+    return {
+      getItem: (key: string) => map.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        map.set(key, value);
+      },
+      removeItem: (key: string) => {
+        map.delete(key);
+      },
+      clear: () => {
+        map.clear();
+      },
+      get length() {
+        return map.size;
+      },
+      key: (index: number) => [...map.keys()][index] ?? null,
+    };
+  };
+  vi.stubGlobal("localStorage", memory());
+  vi.stubGlobal("sessionStorage", memory());
+}
+
 beforeEach(() => {
+  ensureWebStorage();
   localNetworkFetchSeams.eligible = () => true;
   sessionStorage.clear();
   localStorage.clear();
@@ -855,6 +883,7 @@ describe("clearAuthResponseFromUrl", () => {
 describe("brokered federation", () => {
   const BASE = "http://127.0.0.1:18788";
   const originalIdentityBase = identitySeams.identityBase;
+  const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
   const originalRestoreSession = identitySeams.restoreSession;
 
   function stubDiscoveryAt(issuer: string): void {
@@ -892,10 +921,12 @@ describe("brokered federation", () => {
 
   beforeEach(() => {
     identitySeams.identityBase = () => BASE;
+    deviceIdentitySeams.remoteIdentityApi = () => BASE;
   });
 
   afterEach(() => {
     identitySeams.identityBase = originalIdentityBase;
+    deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
     identitySeams.restoreSession = originalRestoreSession;
   });
 
@@ -1037,11 +1068,13 @@ describe("brokered federation", () => {
     expect(loadSession()?.issuer).toBe(BASE);
     // Repointing Settings at another Identity API withdraws that trust.
     identitySeams.identityBase = () => "http://127.0.0.1:28788";
+    deviceIdentitySeams.remoteIdentityApi = () => "http://127.0.0.1:28788";
     expect(loadSession()).toBeNull();
   });
 
   it("never treats an unconfigured Identity API as a trusted issuer", () => {
     identitySeams.identityBase = () => "";
+    deviceIdentitySeams.remoteIdentityApi = () => "";
     expect(isBrokeredIssuer("")).toBe(false);
     expect(isBrokeredIssuer(BASE)).toBe(false);
   });
@@ -1114,6 +1147,7 @@ describe("brokered federation", () => {
 
   it("cannot adopt anything without an Identity API", async () => {
     identitySeams.identityBase = () => "";
+    deviceIdentitySeams.remoteIdentityApi = () => "";
     await expect(adoptBrokeredSession("at_x")).rejects.toMatchObject({
       code: "no_identity_api",
     });
@@ -1320,6 +1354,7 @@ describe("an operator's own identity provider", () => {
 describe("prompt=login for switching accounts", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    ensureWebStorage();
     localStorage.clear();
     sessionStorage.clear();
   });

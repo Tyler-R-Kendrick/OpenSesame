@@ -28,6 +28,7 @@ import {
 } from "../projects.js";
 import {
   BODY_PATH,
+  GUEST_TOMB,
   HEADER_PATH,
   VfsError,
   deleteFile,
@@ -69,6 +70,7 @@ import {
   syncInstalledTypes,
   uninstallItemType,
 } from "./item-types.js";
+import { emitVaultLock } from "./lock-events.js";
 import {
   type Folder,
   type VaultBody,
@@ -150,7 +152,7 @@ function scopedVaultScope(): VaultScope {
  * can land on the real body, and nothing pushes to the Host (no header, no
  * snapshot). Not a project id — those are random ids or `personal`.
  */
-export const GUEST_TOMB = "guest";
+export { GUEST_TOMB };
 
 function guestVaultScope(): VaultScope {
   return {
@@ -488,6 +490,7 @@ export class VaultStore {
       projects: projectsState(),
     };
     for (const handler of this.#lockHandlers) handler();
+    emitVaultLock();
     lockTomb(previous.scope.tomb);
     discardTombCaches();
     this.#scope = next;
@@ -1366,6 +1369,7 @@ export class VaultStore {
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
     for (const handler of this.#lockHandlers) handler();
+    emitVaultLock();
     this.#emit();
   };
 
@@ -1415,6 +1419,17 @@ export class VaultStore {
         bodyJson: JSON.stringify(sealed),
         epoch: rev,
       });
+    }
+    // Postgres-family history backups (Supabase / Neon / PostgreSQL) hold the
+    // same sealed body under provisional anon accounts until guest claim.
+    try {
+      const { persistHistoryToPostgresAccounts } = await import(
+        "../history-backups.js"
+      );
+      const bytes = new TextEncoder().encode(JSON.stringify(sealed));
+      await persistHistoryToPostgresAccounts(bytes);
+    } catch {
+      /* history backup is best-effort beside Host sync */
     }
   }
 

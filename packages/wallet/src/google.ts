@@ -43,8 +43,8 @@
 import { createHash } from "node:crypto";
 import { overlapCast } from "@opensesame/os-domain";
 import type { InteractionKind } from "@opensesame/os-domain";
-import { SignJWT, importPKCS8 } from "jose";
 import type { GoogleWalletEnabled } from "./config.js";
+import { createGoogleClient } from "./google-client.js";
 import { assertPassPayloadSafe } from "./payload.js";
 import {
   type WalletCapabilities,
@@ -54,32 +54,12 @@ import {
   type WalletPassProvider,
   type WalletPassRevokeInput,
   type WalletPassUpdateInput,
-  WalletRequestError,
 } from "./provider.js";
 
 const PROVIDER = "google";
-const SAVE_LINK_PREFIX = "https://pay.google.com/gp/v/save/";
-const WALLET_OBJECTS_BASE =
-  "https://walletobjects.googleapis.com/walletobjects/v1";
-const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
-const ISSUER_SCOPE = "https://www.googleapis.com/auth/wallet_object.issuer";
-const JWT_BEARER_GRANT = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 
 /** Domain separation for the object-id derivation below. */
 const OBJECT_ID_PURPOSE = "opensesame:wallet:google:generic-object:v1";
-
-/**
- * A ceiling on the save link, because a save link is a URL.
- *
- * There is no specified maximum URL length; there are practical ones, and
- * browsers, proxies, chat clients, and QR renderers each give up somewhere. The
- * widely-safe figure is 4096, and a fully-populated Generic pass costs roughly
- * 1900 characters before any display rows, so this leaves generous room for a
- * real pass while still catching an unbounded caller — a hundred rows of audit
- * detail — at the call site, next to the data that caused it, rather than as an
- * unexplained failure on somebody's phone.
- */
-const SAVE_URL_MAX_LENGTH = 4096;
 
 /** Google caps `textModulesData` at ten entries; silent truncation loses rows. */
 const MAX_DISPLAY_ROWS = 10;
@@ -89,9 +69,6 @@ const DEFAULT_LANGUAGE = "en-US";
 
 /** Dark slate. Google renders the card's own text light over this. */
 const CARD_BACKGROUND = "#1f2933";
-
-/** Refresh the access token early so a call never races its own expiry. */
-const TOKEN_SKEW_SECONDS = 60;
 
 /**
  * The card title: what kind of question this pass is fronting.
@@ -356,175 +333,22 @@ export function createGoogleWalletProvider(
   options: GoogleWalletProviderOptions,
 ): GoogleWalletProvider {
   const { config } = options;
-  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  const now = options.now ?? (() => new Date());
-
-  let signingKey: Promise<CryptoKey> | null = null;
-  const key = (): Promise<CryptoKey> => {
-    signingKey ??= importPKCS8(config.serviceAccountKeyPem, "RS256");
-    return signingKey;
-  };
-
-  let token: { value: string; expiresAtMs: number } | null = null;
-
-  /**
-   * A service-account access token, via the JWT-bearer grant.
-   *
-   * Cached until shortly before it expires. The alternative — a token per call
-   * — would put an extra round trip and an extra RSA signature in front of
-   * every revocation, and revocation is the operation most likely to be run in
-   * a hurry.
-   */
-  const accessToken = async (): Promise<string> => {
-    const nowMs = now().getTime();
-    if (token !== null && token.expiresAtMs > nowMs) return token.value;
-
-    const issuedAt = Math.floor(nowMs / 1000);
-    const assertion = await new SignJWT({
-      iss: config.serviceAccountEmail,
-      scope: ISSUER_SCOPE,
-      aud: TOKEN_ENDPOINT,
-      iat: issuedAt,
-      exp: issuedAt + 3600,
-    })
-      .setProtectedHeader({ alg: "RS256", typ: "JWT" })
-      .sign(await key());
-
-    let response: Response;
-    try {
-      response = await fetchImpl(TOKEN_ENDPOINT, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: JWT_BEARER_GRANT,
-          assertion,
-        }).toString(),
-      });
-    } catch (cause) {
-      throw new WalletRequestError(
-        0,
-        "Google's token endpoint was unreachable; no change was made.",
-        cause,
-      );
-    }
-    if (!response.ok) {
-      throw new WalletRequestError(
-        response.status,
-        `Google refused the service-account assertion (HTTP ${response.status}).`,
-      );
-    }
-    /*
-     * SAFETY: `Response.json` is `any`; narrowing it to the two fields this
-     * function actually reads keeps the rest of the code honest about what it
-     * relies on, and both fields are re-checked below — a response that does
-     * not match yields a typed error rather than a bad token.
-     */
-    const body = (await response.json()) as {
-      access_token?: string;
-      expires_in?: number;
-    };
-    const value = body.access_token ?? "";
-    if (value.length === 0) {
-      throw new WalletRequestError(
-        response.status,
-        "Google's token response carried no access token.",
-      );
-    }
-    const lifetime = body.expires_in ?? 3600;
-    token = {
-      value,
-      expiresAtMs: nowMs + Math.max(lifetime - TOKEN_SKEW_SECONDS, 0) * 1000,
-    };
-    return value;
-  };
-
-  /**
-   * PATCH one Generic object.
-   *
-   * Every status other than 2xx becomes a `WalletRequestError`. Google's own
-   * error body is deliberately not quoted into the message: it is untrusted
-   * remote content on its way into our logs, and the status plus the operation
-   * is what an operator can act on anyway.
-   */
-  const patchObject = async (
-    passId: string,
-    body: Partial<GoogleGenericObject>,
-  ): Promise<void> => {
-    // The gate runs on outbound mutations too, not just on issuance: an update
-    // is another way for a field to reach Google's servers.
-    // `overlapCast` bridges the named interface to the boundary union the gate
-    // takes: a structural interface has no index signature, and the gate must
-    // not be narrowed to the shape it is checking.
-    assertPassPayloadSafe(overlapCast(body));
-    const authorization = await accessToken();
-    const url = `${WALLET_OBJECTS_BASE}/genericObject/${encodeURIComponent(passId)}`;
-
-    let response: Response;
-    try {
-      response = await fetchImpl(url, {
-        method: "PATCH",
-        headers: {
-          authorization: `Bearer ${authorization}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
-    } catch (cause) {
-      throw new WalletRequestError(
-        0,
-        "Google Wallet was unreachable; the pass was not changed.",
-        cause,
-      );
-    }
-    if (response.ok) return;
-    if (response.status === 404) {
-      throw new WalletRequestError(
-        404,
-        `Google holds no pass with id ${passId}.`,
-      );
-    }
-    if (response.status >= 500) {
-      throw new WalletRequestError(
-        response.status,
-        `Google Wallet failed the update (HTTP ${response.status}); the pass may or may not have changed.`,
-      );
-    }
-    throw new WalletRequestError(
-      response.status,
-      `Google Wallet refused the update (HTTP ${response.status}).`,
-    );
-  };
+  // The service-account grant, the outbound REST verbs and the Save-to-Wallet
+  // signing envelope all live in the shared client, so the launcher adapter
+  // and this one cannot drift on the plumbing that mints Google-trusted
+  // artifacts. This adapter keeps only what is specific to a per-interaction
+  // "address" pass: the object shape and the lifecycle verbs over it.
+  const client = createGoogleClient(options);
+  const now = client.now;
 
   const issue = async (
     input: WalletPassIssueInput,
     state: GoogleObjectState,
   ): Promise<WalletPassArtifact> => {
-    const issuedAt = now();
-    const genericObject = buildGenericObject(config, input, issuedAt, state);
-
-    const claims = {
-      iss: config.serviceAccountEmail,
-      aud: "google",
-      typ: "savetowallet",
-      iat: Math.floor(issuedAt.getTime() / 1000),
-      origins: [...config.origins],
-      payload: { genericObjects: [genericObject] },
-    };
-    // The gate runs over the whole claim set rather than the object alone, so
-    // a future claim added here is inspected without anyone remembering to.
-    // It runs *before* signing: nothing forbidden is ever put to the key.
-    assertPassPayloadSafe(overlapCast(claims));
-
-    const jwt = await new SignJWT(claims)
-      .setProtectedHeader({ alg: "RS256", typ: "JWT" })
-      .sign(await key());
-    const saveUrl = `${SAVE_LINK_PREFIX}${jwt}`;
-    if (saveUrl.length > SAVE_URL_MAX_LENGTH) {
-      throw new WalletInputError(
-        `The save link is ${saveUrl.length} characters; Google rejects links over ${SAVE_URL_MAX_LENGTH}. Shorten the title or drop display rows.`,
-      );
-    }
-
+    const genericObject = buildGenericObject(config, input, now(), state);
+    // `overlapCast` bridges the named interface to the boundary union the gate
+    // and signer take: a structural interface has no index signature.
+    const saveUrl = await client.signSaveUrl([overlapCast(genericObject)]);
     return {
       provider: PROVIDER,
       saveUrl,
@@ -538,13 +362,12 @@ export function createGoogleWalletProvider(
       // No I/O. `issue` is pure signing and stays true through any Google
       // outage; `update` and `revoke` are the only capabilities that need a
       // client, so they are the only ones a missing `fetch` can take away.
-      const hasFetch = fetchImpl !== undefined;
       return {
         provider: PROVIDER,
         available: true,
         issue: true,
-        update: hasFetch,
-        revoke: hasFetch,
+        update: client.hasFetch,
+        revoke: client.hasFetch,
         rotatingBarcode: false,
       };
     },
@@ -558,7 +381,10 @@ export function createGoogleWalletProvider(
     ): Promise<WalletPassArtifact> {
       const state = input.state === "expired" ? "EXPIRED" : "ACTIVE";
       const genericObject = buildGenericObject(config, input, now(), state);
-      await patchObject(genericObject.id, genericObject);
+      await client.patchGenericObject(
+        genericObject.id,
+        overlapCast(genericObject),
+      );
       // A fresh save link is returned as well: the link embeds the object, so
       // anyone who has not yet saved the pass should be handed the new one
       // rather than a link that would install the superseded content.
@@ -570,9 +396,10 @@ export function createGoogleWalletProvider(
       // object from a device that already holds it, so expiry is the strongest
       // truthful statement available: the card greys out, stops being offered
       // for redemption, and the object survives for the audit trail.
-      await patchObject(objectIdFor(config, input.interactionRef), {
-        state: "EXPIRED",
-      });
+      await client.patchGenericObject(
+        objectIdFor(config, input.interactionRef),
+        overlapCast({ state: "EXPIRED" }),
+      );
     },
   };
 }

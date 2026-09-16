@@ -38,6 +38,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "vault.item-types.install": ["/settings"],
     "vault.export": ["/settings/data"],
     "client.support": [],
+    "client.command-bar": [],
     "app.install": ["/settings"],
     "setup.first-run": ["/unlock", "/setup"],
     "setup.join-session": ["/unlock", "/setup"],
@@ -48,6 +49,9 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "configs.permissions": ["/settings/connectivity"],
     "agent.observe": ["/access"],
     "agent.control": ["/access"],
+    "authority.portal.templates.manage": ["/access"],
+    "authority.portal.templates.read": ["/access"],
+    "identity.local.siop.authorize": ["/identity"],
   }),
 );
 

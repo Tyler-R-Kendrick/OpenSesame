@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
@@ -7,7 +8,6 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-/** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Delegation, DelegationOffer } from "../lib/access.js";
@@ -22,6 +22,7 @@ const session: { current: { principalId: string } | null } = vi.hoisted(() => ({
 const identityJson = vi.hoisted(() => vi.fn());
 const identityFetch = vi.hoisted(() => vi.fn());
 
+import { deviceIdentitySeams } from "../lib/device-identity.js";
 import { identitySeams } from "../lib/identity.js";
 Object.assign(identitySeams, {
   hostBase: () => "http://127.0.0.1:8787",
@@ -29,6 +30,9 @@ Object.assign(identitySeams, {
   identityJson,
   identityFetch,
   useIdentitySession: () => session.current,
+});
+Object.assign(deviceIdentitySeams, {
+  remoteIdentityApi: () => "http://127.0.0.1:8788",
 });
 
 import { useOnlineSeams } from "../lib/use-online.js";
@@ -1274,7 +1278,6 @@ describe("AccessSection sites", () => {
       screen.getByRole("tabpanel", { name: /Explicit JS/i }).textContent,
     ).toContain("OpenSesame.complete(profile)");
   });
-
   it("restricts and blocks domains from the drill-in", async () => {
     mockClients([clientAlpha]);
     renderAccess();
@@ -1291,13 +1294,11 @@ describe("AccessSection sites", () => {
     );
     expect(await screen.findByText("Restricted")).toBeTruthy();
     expect(screen.getByText("app.example.com")).toBeTruthy();
-
     await userEvent.type(domain, "evil.example.com");
     await userEvent.click(screen.getByRole("button", { name: /^Block$/i }));
     expect(await screen.findByText(/Blocked evil\.example\.com/)).toBeTruthy();
     expect(screen.getByText("Blocked")).toBeTruthy();
   });
-
   it("remembers and revokes broker consent for the site's origin", async () => {
     mockClients([clientAlpha]);
     renderAccess();
@@ -1324,7 +1325,6 @@ describe("AccessSection sites", () => {
     expect(await screen.findByText(/Revoked broker consent/)).toBeTruthy();
     expect(screen.getByText(/No site origins approved yet/)).toBeTruthy();
   });
-
   it("renders only the site's own sign-in events", async () => {
     identityFetch.mockImplementation((path: string) => {
       if (path === "/v1/oauth/clients") {

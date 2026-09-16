@@ -132,3 +132,12 @@ it("closing the popup refuses rather than silently applying a control action", a
   await expect(result).rejects.toThrow(/refused or expired/);
   expect(fetched).not.toHaveBeenCalled();
 });
+
+it("refuses when only the device-native Identity host is available", async () => {
+  hostAuthorizationSeams.identityBase = () => "";
+  await expect(
+    authorizeHost(request, new AbortController().signal),
+  ).rejects.toThrow(/remote Identity API/);
+  expect(opened).not.toHaveBeenCalled();
+  expect(fetched).not.toHaveBeenCalled();
+});

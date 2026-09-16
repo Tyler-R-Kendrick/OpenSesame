@@ -28,6 +28,7 @@ Mandatory local suite does **not** require cloud IdP credentials.
 | OID4VCI wallet | OpenID4VCI 1.0 + HAIP 1.0 | Multipaz 0.100.0 (native) | Issuer policy, encrypted custody, verified invocation |
 | OID4VP **verifier** | OpenID4VP 1.0 (Final, 2025-07-09) + RFC 9901 + draft-ietf-oauth-sd-jwt-vc-18 | `jose` | `packages/openid4vp` — request construction, DCQL, transaction-data binding, SD-JWT VC verification |
 | OID4VCI **issuer** | OpenID4VCI 1.0 (Final, 2025-09-16) + RFC 9901 + draft-ietf-oauth-sd-jwt-vc-18 | `jose` | `packages/openid4vci` — pre-authorized code, JWT proof of possession, `dc+sd-jwt` |
+| SIOPv2 (Self-Issued OP) | Self-Issued OpenID Provider v2 **Implementer's Draft 1** (`openid-connect-self-issued-v2-1_0-07`, 2022-01-28) | `jose` | `packages/siop-v2` — ES256 mint/verify, JWK-thumbprint `sub`/`sub_jwk`, static + dynamic **issuer profiles** (`STATIC_SIOP_METADATA` documents draft static shape; no discovery HTTP client); see `SUPPORT_MATRIX`. Hosted link bridge: ADR 0117. PACT + mutation slice cover SIOP (`docs/validation/pact.md`). **Not a Final Specification.** |
 
 ## Draft features (pinned / gated)
 

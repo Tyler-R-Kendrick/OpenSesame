@@ -30,6 +30,7 @@ import {
   settingsCategoryFromLocation,
   settingsPath,
 } from "../lib/crumbs.js";
+import { setTheme, useThemePreference } from "../lib/theme.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import {
   defaultPassphraseOptions,
@@ -63,13 +64,14 @@ import { SyncTargetsPanel as DefaultSyncTargetsPanel } from "./settings/SyncTarg
 import { TaskBusPanel as DefaultTaskBusPanel } from "./settings/TaskBusPanel.js";
 import { UnlockMethodsPanel as DefaultUnlockMethodsPanel } from "./settings/UnlockMethodsPanel.js";
 import { VaultsPanel as DefaultVaultsPanel } from "./settings/VaultsPanel.js";
+import { WalletPassPanel as DefaultWalletPassPanel } from "./settings/WalletPassPanel.js";
 import "./settings.css";
 import { overlapCast } from "@opensesame/os-domain";
 
 const THEMES = [
   { id: "system", label: "System", Icon: IconMonitor },
-  { id: "light", label: "Light", Icon: IconSun },
-  { id: "dark", label: "Dark", Icon: IconMoon },
+  { id: "light", label: "Day", Icon: IconSun },
+  { id: "dark", label: "Night", Icon: IconMoon },
 ] as const;
 
 /**
@@ -144,6 +146,7 @@ type CategoryId = SettingsCategory;
 
 export type SettingsPanels = {
   UnlockMethodsPanel: ComponentType;
+  WalletPassPanel: ComponentType;
   InstallPanel: ComponentType;
   ActiveProjectPanel: ComponentType;
   CapabilityConnectorsPanel: ComponentType;
@@ -161,6 +164,7 @@ export type SettingsPanels = {
 
 const defaultPanels: SettingsPanels = {
   UnlockMethodsPanel: DefaultUnlockMethodsPanel,
+  WalletPassPanel: DefaultWalletPassPanel,
   InstallPanel: DefaultInstallPanel,
   ActiveProjectPanel: DefaultActiveProjectPanel,
   CapabilityConnectorsPanel: DefaultCapabilityConnectorsPanel,
@@ -189,6 +193,7 @@ export function SettingsSection({
   const resolvedPanels = { ...defaultPanels, ...panels };
   const { prefs, items, folders, header } = useVault();
   const store = useVaultStore();
+  const theme = useThemePreference();
   const { hash, pathname } = useLocation();
   const navigate = useNavigate();
   const category = settingsCategoryFromLocation(pathname, hash);
@@ -431,8 +436,11 @@ export function SettingsSection({
                     key={id}
                     type="button"
                     className="set__theme"
-                    aria-pressed={prefs.theme === id}
-                    onClick={() => store.setPrefs({ theme: id })}
+                    aria-pressed={theme === id}
+                    onClick={() => {
+                      setTheme(id);
+                      store.setPrefs({ theme: id });
+                    }}
                   >
                     <Icon size={18} />
                     {label}
@@ -528,6 +536,7 @@ export function SettingsSection({
       )}
 
       {category !== "security" ? null : <resolvedPanels.UnlockMethodsPanel />}
+      {category !== "security" ? null : <resolvedPanels.WalletPassPanel />}
 
       {category !== "security" ? null : (
         <section className="panel">

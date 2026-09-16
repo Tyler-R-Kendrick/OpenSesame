@@ -45,6 +45,10 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
     id: "/identity",
     title: "Identity — accounts, providers and linked identities",
   },
+  {
+    id: "/wallet",
+    title: "Wallet — spending overview, budgets and payment methods",
+  },
   { id: "/settings", title: "Settings — this deployment's preferences" },
 ];
 

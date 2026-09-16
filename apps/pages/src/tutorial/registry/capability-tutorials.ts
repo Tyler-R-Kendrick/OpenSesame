@@ -64,6 +64,9 @@ export const CAPABILITY_TUTORIALS = {
   "identity.local.agent.keys.manage": "identity.local.agent.keys.manage",
   "identity.local.application.authorize":
     "identity.local.application.authorize",
+  "identity.local.siop.authorize": "identity.local.siop.authorize",
+  "authority.portal.templates.manage": "authority.portal.templates.manage",
+  "authority.portal.templates.read": "authority.portal.templates.read",
   "identity.agent.register": "identity.agents.manage",
   "identity.agent.manage": "identity.agents.manage",
   "identity.device.approve": "identity.device.approve",
@@ -80,6 +83,7 @@ export const CAPABILITY_TUTORIALS = {
   "app.navigate": "client.support",
   "client.support": "client.support",
   "client.tutorial": "client.support",
+  "client.command_bar": "client.command-bar",
   "pwa.status": "host.health.check",
   "app.install": "app.install",
   "setup.first_run": "setup.first-run",

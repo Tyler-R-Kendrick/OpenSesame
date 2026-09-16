@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 opensesame-domain = { path = "../domain" }
+opensesame-lifecycle = { path = "../lifecycle" }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }

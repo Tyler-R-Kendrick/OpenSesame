@@ -58,14 +58,22 @@ export function promoteLastSignIn<T>(
 function rememberLastSignInDefault(id: string): void {
   const canonical = canonicalSignInMethod(id);
   if (!canonical) return;
-  // ast-grep-ignore: ts-localstorage-set
-  localStorage.setItem(LAST_SIGN_IN_KEY, canonical);
+  try {
+    // ast-grep-ignore: ts-localstorage-set
+    globalThis.localStorage?.setItem(LAST_SIGN_IN_KEY, canonical);
+  } catch {
+    /* Node without --localstorage-file, or quota / private mode */
+  }
 }
 
 function readLastSignInDefault(): string | null {
-  const raw = localStorage.getItem(LAST_SIGN_IN_KEY);
-  if (!raw) return null;
-  return canonicalSignInMethod(raw) || null;
+  try {
+    const raw = globalThis.localStorage?.getItem(LAST_SIGN_IN_KEY);
+    if (!raw) return null;
+    return canonicalSignInMethod(raw) || null;
+  } catch {
+    return null;
+  }
 }
 
 export const lastSignInSeams = {

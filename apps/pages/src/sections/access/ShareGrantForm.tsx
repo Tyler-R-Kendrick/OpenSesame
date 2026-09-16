@@ -30,7 +30,9 @@ export function ShareGrantForm({
   const resources = listShareTargets().filter((target) => target.kind === kind);
   const [principalId, setPrincipalId] = useState(identities[0]?.id ?? "");
   const [resourceId, setResourceId] = useState(resources[0]?.id ?? "");
-  const [policy, setPolicy] = useState(SHARE_POLICIES[kind][0]?.id ?? "open");
+  const [policy, setPolicy] = useState<string>(
+    SHARE_POLICIES[kind][0]?.id ?? "open",
+  );
   const [duration, setDuration] = useState<number>(SHARE_DURATIONS[0].seconds);
   useEffect(() => {
     const next = listShareTargets().filter((target) => target.kind === kind);

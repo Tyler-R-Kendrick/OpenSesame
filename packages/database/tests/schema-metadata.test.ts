@@ -1,7 +1,11 @@
-import { overlapCast } from "@opensesame/os-domain";
+import { MEMBERSHIP_SUBJECT_KINDS, overlapCast } from "@opensesame/os-domain";
 import { getTableConfig } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
+import * as authoritySchema from "../src/schema/authority.js";
 import * as schema from "../src/schema/index.js";
+import * as walletSchema from "../src/schema/wallet-interactions.js";
+
+const schemaTables = { ...schema, ...walletSchema };
 
 /**
  * Static contract for the drizzle schema: table names, foreign keys (with
@@ -75,6 +79,11 @@ const EXPECTED_TABLES = [
   "approval_receipts",
   "callback_replays",
   "push_subscriptions",
+  // Durable wallet-interaction persistence (ADR 0086; findings F04, F05, F12).
+  "interaction_proof_attempts",
+  "wallet_registrations",
+  "execution_reservations",
+  "interaction_approval_quarantine",
 ] as const;
 
 type PgTable = Parameters<typeof getTableConfig>[0];
@@ -83,7 +92,7 @@ function tables() {
   // Every export that getTableConfig accepts is a table; the rest (the
   // `schema` aggregate object) is skipped.
   const out: { [key: string]: PgTable } = {};
-  for (const [key, value] of Object.entries(schema)) {
+  for (const [key, value] of Object.entries(schemaTables)) {
     try {
       const table: PgTable = overlapCast(value);
       getTableConfig(table);
@@ -243,6 +252,22 @@ describe("schema metadata contract", () => {
         "oauth_clients_state_check",
       ]),
     );
+    expect(checkNames(authoritySchema.authorityMembershipEdges)).toEqual(
+      expect.arrayContaining([
+        "authority_membership_edges_relation_check",
+        "authority_membership_edges_subject_kind_check",
+      ]),
+    );
+  });
+
+  it("keeps membership subject kinds aligned with os-domain ID-BIND", () => {
+    expect([...MEMBERSHIP_SUBJECT_KINDS]).toEqual([
+      "person",
+      "service",
+      "agent_registration",
+      "workload_instance",
+      "device",
+    ]);
   });
 
   it("keeps the unique constraints the repositories rely on", () => {

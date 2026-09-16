@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconSettings } from "../../components/Icons.js";
 import { NoHostNote } from "../../components/NoHostNote.js";
 import type { Connection, Provider } from "../../lib/connections.js";
@@ -77,6 +78,7 @@ export function ConnectedPanel({
         ) : automatic.length === 0 && managed.length === 0 ? (
           <div className="empty">
             <h3>Nothing connected</h3>
+            <EmptyTip>{emptyTips.rail}</EmptyTip>
           </div>
         ) : (
           <ul className="conn-list">

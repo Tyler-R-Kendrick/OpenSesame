@@ -39,10 +39,47 @@ export {
   type GoogleWalletProviderOptions,
 } from "./google.js";
 export {
+  type GoogleClient,
+  type GoogleClientOptions,
+  createGoogleClient,
+} from "./google-client.js";
+export {
+  createGoogleLauncherProvider,
+  createWalletLauncherProvider,
+  newRotatingBarcodeSeed,
+  NullLauncherProvider,
+  type WalletLauncherArtifact,
+  type WalletLauncherCapabilities,
+  type WalletLauncherProvider,
+} from "./launcher.js";
+export {
   assertPassPayloadSafe,
   WalletPayloadRejected,
   type WalletPayloadRule,
 } from "./payload.js";
+export {
+  assertLauncherPublicSafe,
+  buildLauncherProvisioningObject,
+  buildLauncherPublicObject,
+  type GoogleLauncherProvisioningObject,
+  type GoogleLauncherPublicObject,
+  type GoogleRotatingBarcode,
+  type GoogleTotpDetails,
+  type GoogleTotpParameter,
+  launcherObjectId,
+  launcherUrl,
+  type RotatingBarcodeSeed,
+  type WalletLauncherInput,
+  WalletLauncherError,
+} from "./registration.js";
+export {
+  InMemoryWalletRegistrationStore,
+  type WalletRegistration,
+  WalletRegistrationConflictError,
+  type WalletRegistrationInput,
+  type WalletRegistrationState,
+  type WalletRegistrationStore,
+} from "./registry.js";
 export {
   NullWalletProvider,
   type WalletCapabilities,

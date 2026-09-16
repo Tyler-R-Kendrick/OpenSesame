@@ -43,7 +43,7 @@ let world: World;
 function givenADevice(options: DeviceOptions): void {
   world = { vaultCreated: false, linkedTokens: [], provisionalMints: 0 };
   Object.assign(guestAuthDependencies, {
-    identityBase: () => "http://127.0.0.1:18788",
+    isRemoteIdentityConfigured: () => true,
     vaultStatus: () => options.vault,
     createGuest: vi.fn(async () => {
       world.vaultCreated = true;

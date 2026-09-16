@@ -39,37 +39,73 @@ export {
 } from "./jose.js";
 
 export {
-  type AuthorizationRequest,
-  type AuthorizationRequestInput,
   type CredentialFormat,
   type DcqlClaimQuery,
   type DcqlCredentialQuery,
   type DcqlQuery,
+  type VerifiableCredentialFormat,
+  DCQL_PROFILE,
+  DCQL_PROFILE_ID,
+  KNOWN_CREDENTIAL_FORMATS,
+  VERIFIABLE_CREDENTIAL_FORMATS,
+  assertDcqlProfile,
+  dcqlQueryToJson,
+  isKnownCredentialFormat,
+  isVerifiableCredentialFormat,
+} from "./dcql.js";
+
+export {
+  type DeriveRequestDigestsInput,
+  type OperationDigestInput,
+  type RequestDigests,
+  OPERATION_DIGEST_PURPOSE,
+  deriveRequestDigests,
+  operationDigest,
+  protocolDigest,
+} from "./digests.js";
+
+export {
+  type AuthorizationRequest,
+  type AuthorizationRequestInput,
   type DigitalCredentialsRequest,
   type EncodedTransactionData,
   type RequestObjectSigningKey,
   type RequestableClientIdPrefix,
   type SupportedResponseMode,
   type TransactionDataInput,
-  type VerifiableCredentialFormat,
   DC_API_PROTOCOL_UNSIGNED,
-  KNOWN_CREDENTIAL_FORMATS,
   REQUESTABLE_CLIENT_ID_PREFIXES,
   REQUEST_BINDING_TRANSACTION_DATA_TYPE,
   STATIC_DISCOVERY_AUDIENCE,
   SUPPORTED_RESPONSE_MODES,
-  VERIFIABLE_CREDENTIAL_FORMATS,
   authorizationRequestParameters,
   buildAuthorizationRequest,
   buildTransactionData,
   clientIdPrefix,
-  dcqlQueryToJson,
   digitalCredentialsRequest,
-  isKnownCredentialFormat,
-  isVerifiableCredentialFormat,
   signRequestObject,
   transactionDataHash,
 } from "./request.js";
+
+export { assertApprovalBinding } from "./transaction-binding.js";
+
+export {
+  type CourierDelivery,
+  type EncryptedResponseMode,
+  ENCRYPTED_RESPONSE_MODES,
+  isCompactJwe,
+  isEncryptedResponseMode,
+  readCourierResponse,
+} from "./courier.js";
+
+export {
+  type BeginPresentationInput,
+  type BeginPresentationResult,
+  type FinishPresentationInput,
+  type VerifierRouteConfig,
+  beginPresentation,
+  finishPresentation,
+} from "./routes.js";
 
 export {
   type InMemoryRequestSessionStoreOptions,

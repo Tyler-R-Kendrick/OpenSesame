@@ -3,7 +3,6 @@ import {
   createInteractionClient,
 } from "@opensesame/ceremony-kit";
 import type {
-  ApprovalProof,
   InteractionDetail,
   InteractionSummary,
 } from "@opensesame/os-domain";
@@ -12,7 +11,6 @@ import { OutcomePanel } from "./OutcomePanel.js";
 import { type Notice, Status } from "./Status.js";
 import { TokenField } from "./TokenField.js";
 import {
-  type Mechanism,
   type Outcome,
   chooseMechanism,
   outcomeOfErrorCode,
@@ -21,10 +19,9 @@ import {
 } from "./approval.js";
 import {
   StepUpError,
-  assertPasskey,
+  assertInteractionActivation,
   hasWebAuthn,
   identityBase,
-  verifyTotpCode,
 } from "./identity.js";
 
 /**
@@ -90,7 +87,6 @@ export function Approval({
   const [phase, setPhase] = useState<Phase>({ kind: "resolving" });
   const [summary, setSummary] = useState<InteractionSummary | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [code, setCode] = useState("");
   const [busy, setBusy] = useState<"approve" | "deny" | null>(null);
 
   /**
@@ -276,11 +272,12 @@ export function Approval({
    * The digest both answers must echo, or `undefined` when neither may be sent.
    *
    * Checked here — before the step-up, and therefore before any request —
-   * rather than left to the kit's own guard inside `approveInteraction`. The
-   * kit's check is the structural backstop and must stay; this one exists
    * because a step-up costs a human a biometric prompt or a code from their
    * authenticator, and spending that on a request that has already changed
-   * teaches people to approve through warnings.
+   * teaches people to approve through warnings. The server is the structural
+   * backstop: it compares the echoed digest against the stored one and
+   * refuses a mismatch (`digest_mismatch`) whatever this screen sends. This
+   * guard is the courtesy that keeps a human from paying for that refusal.
    */
   function echoableDigest(detail: InteractionDetail): string | undefined {
     const displayed = shownDigest.current;
@@ -326,7 +323,7 @@ export function Approval({
     }
   }
 
-  async function approve(detail: InteractionDetail, mechanism: Mechanism) {
+  async function approve(detail: InteractionDetail) {
     const digest = echoableDigest(detail);
     if (digest === undefined) {
       refuse(detail);
@@ -335,28 +332,26 @@ export function Approval({
     setNotice(null);
     setBusy("approve");
     try {
-      const bearer = token.trim();
-      let credentialRef: string | undefined;
-      if (mechanism.mechanism === "webauthn") {
-        credentialRef = await assertPasskey(bearer);
-      } else {
-        await verifyTotpCode(bearer, code);
-      }
-      // Bound to the digest that was displayed, echoed alongside the digest the
-      // screen is holding. They are the same value by the check above, which is
-      // what lets the kit's own equality guard be a backstop rather than the
-      // first line of defence.
-      const proof: ApprovalProof = {
-        mechanism: mechanism.mechanism,
-        boundDigest: digest,
-        assurance: mechanism.assurance,
-        verifiedAt: new Date(),
-        ...(credentialRef === undefined ? undefined : { credentialRef }),
-      };
+      // The step-up is interaction-scoped and server-verified (ADR 0086 §7,
+      // A-01/A-02). The authority issues WebAuthn options whose challenge it
+      // bound to *this* request's digest, checks the raw assertion itself, and
+      // only then mints an activation. The approve body names that activation —
+      // an opaque handle, never a client-built proof, and never a bare session
+      // (F01/A-04). The server reads the mechanism and assurance from the
+      // activation it verified, so this screen asserts none of its own.
+      const challenge = await client.beginInteractionActivation(
+        interactionRef,
+        { requestDigest: digest },
+      );
+      const assertion = await assertInteractionActivation(challenge.options);
+      await client.completeInteractionActivation(interactionRef, {
+        activationId: challenge.activationId,
+        ...assertion,
+      });
       settle(
         await client.approveInteraction(interactionRef, {
           requestDigest: digest,
-          proof,
+          activationId: challenge.activationId,
         }),
         "approved",
       );
@@ -435,8 +430,7 @@ export function Approval({
 
   const { detail } = phase;
   const view = viewOf(detail);
-  const mechanism = chooseMechanism(detail, hasWebAuthn());
-  const missingCode = mechanism?.needsCode === true && code.trim().length === 0;
+  const mechanism = chooseMechanism(hasWebAuthn());
 
   return (
     <section className="approve">
@@ -457,27 +451,14 @@ export function Approval({
       {mechanism === undefined ? (
         <p className="hint">Needs a passkey. This browser has none.</p>
       ) : null}
-      {mechanism?.needsCode === true ? (
-        <div className="field">
-          <label htmlFor="stepup-code">Code</label>
-          <input
-            id="stepup-code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            disabled={busy !== null}
-          />
-        </div>
-      ) : null}
       <div className="decide">
         {mechanism === undefined ? null : (
           <button
             type="button"
             className="primary"
-            disabled={busy !== null || missingCode}
+            disabled={busy !== null}
             aria-busy={busy === "approve"}
-            onClick={() => void approve(detail, mechanism)}
+            onClick={() => void approve(detail)}
           >
             {busy === "approve" ? "Approving…" : "Approve"}
           </button>

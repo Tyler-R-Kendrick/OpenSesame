@@ -77,3 +77,63 @@ type certificate_role
   relations
     define project: [project]
     define issuer: [user, team#member, workload, agent]
+
+# A cohort is a group that decides *who may ask*, and never a group that holds
+# authority of its own.
+#
+# Note what `cohort#member` is missing from: every relation above that grants
+# something. No connection, vault, project or certificate relation admits a
+# cohort, and none may be changed to. That absence is the enforcement — a cohort
+# added as a grantee anywhere above would be a cohort-wide grant, which is the
+# one thing this type exists not to be. `crates/authz` pins it as a test rather
+# than a convention.
+#
+# Nesting is `cohort#member` inside `member`, and deliberately nothing else: a
+# separate `parent` relation would be a second way to inherit membership, and two
+# mechanisms mean two answers to "who is in this". Teams are named rather than
+# copied, so a cohort meaning "the platform team" follows that team's roster
+# instead of duplicating it.
+#
+# Depth and size are *not* bounded here — `OpenFGA` will happily traverse a
+# ten-deep nest — so `crates/domain` refuses one before any tuple is written.
+type cohort
+  relations
+    define organization: [organization]
+    define member: [user, service, workload, agent, team#member, cohort#member]
+    define admin: [user, team#member] or admin from organization
+
+# One eligible principal, bound to one activation: the step that turns "is in a
+# group" into "may act", named individually.
+#
+# `active` is the intersection that matters. `subject` is the single principal
+# this activation was minted for, and `member from cohort` is that principal
+# still being eligible — so an activation whose subject was removed from the
+# cohort stops being active without anything having to revoke it, and an
+# activation minted for one person can never carry another. There is deliberately
+# no relation here that a holder could present: authority follows the named
+# subject authenticating as themselves.
+type cohort_activation
+  relations
+    define cohort: [cohort]
+    define subject: [user, service, workload, agent]
+    define activator: [user, team#member] or admin from cohort
+    define active: subject and member from cohort
+
+# A named place authority lives inside a realm (ADR 0120 / access-domain-forest).
+# Realms are the org/project pair already on the wire; every domain is bound to
+# its project (and optionally its organization). Nesting is `parent`, and roles
+# inherit downward the way vault_item inherits from its collection — a direct
+# grant here is somebody granted this one domain, while `from parent` / `from
+# project` keep anyone who already held the ancestor still holding the child.
+# There is no shape in which a child tuple grants more than its parent does.
+#
+# Isolation and personal-project non-sharing are enforced above the model in
+# the domain control index, not by subtracting relations here (INV-GA-03).
+type access_domain
+  relations
+    define organization: [organization]
+    define project: [project]
+    define parent: [access_domain]
+    define owner: [user, team#member] or owner from parent or owner from project
+    define admin: [user, team#member] or owner or admin from parent or admin from project
+    define member: [user, team#member, workload, agent] or admin or member from parent or developer from project

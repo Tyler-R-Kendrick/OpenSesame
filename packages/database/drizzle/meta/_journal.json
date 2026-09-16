@@ -162,6 +162,20 @@
       "when": 1788340800000,
       "tag": "0022_agent_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789504443334,
+      "tag": "0023_naive_meltdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789509894938,
+      "tag": "0024_authority_membership",
+      "breakpoints": true
     }
   ]
 }

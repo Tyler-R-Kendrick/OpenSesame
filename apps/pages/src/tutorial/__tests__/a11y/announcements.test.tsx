@@ -103,7 +103,7 @@ describe("states an assistive technology has to hear", () => {
     // `disabled` is exposed to assistive technology; the placeholder repeats
     // it for anyone reading. Neither is a greyed-out box and nothing else.
     await waitFor(() => expect(field.disabled).toBe(true));
-    expect(field.getAttribute("placeholder")).toBe("Written help only");
+    expect(field.getAttribute("placeholder")).toBe("Questions only");
   });
 
   it("raises a failure as an alert, in a sentence, with no code in it", async () => {

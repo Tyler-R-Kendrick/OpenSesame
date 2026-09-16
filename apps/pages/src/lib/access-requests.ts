@@ -8,7 +8,7 @@ import {
 import { isJsonObject, isString } from "@opensesame/os-domain";
 import { call } from "./directory.js";
 import { validateIdentityUrl } from "./host-authorization.js";
-import { identityBase } from "./identity.js";
+import { remoteIdentityApi } from "./identity.js";
 
 export type AccessRequest = ReturnType<
   typeof AuthorizationRequestResponseSchema.parse
@@ -100,7 +100,13 @@ async function hostedDecision(
   decision: "approve" | "deny",
   cancellation?: AbortSignal,
 ) {
-  const identity = new URL(identityBase());
+  const base = remoteIdentityApi().trim();
+  if (!base) {
+    throw new Error(
+      "Hosted approval needs a remote Identity API under Settings → Connectivity.",
+    );
+  }
+  const identity = new URL(base);
   validateIdentityUrl(identity);
   const remaining = Math.min(
     300000,

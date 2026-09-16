@@ -11,6 +11,13 @@
 /* The title is the wordmark at hero scale — one authored moment, then
    stillness. It is centred because it is a title, not a chrome line. The
    size is the display step DESIGN.md records for the front door. */
+.door__theme {
+  position: absolute;
+  top: 0.35rem;
+  right: 0;
+  z-index: 1;
+}
+
 .door__hero {
   display: grid;
   justify-items: center;

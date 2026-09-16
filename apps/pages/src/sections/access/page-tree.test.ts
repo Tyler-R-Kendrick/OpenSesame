@@ -16,6 +16,7 @@ describe("access page tree", () => {
       "Local application grants",
       "Identity shares",
     ]);
+    expect(headings("resources")).toEqual(["Local resources"]);
     expect(
       tree
         .find((node) => node.id === "grants")
@@ -41,8 +42,12 @@ describe("access page tree", () => {
       "Local requests",
       "Requests",
       "Local sessions & grants",
+      "Audience templates",
+      "Vault share sessions",
+      "Host shared sessions",
       "Host task sessions",
       "Connectors",
+      "Local resources",
       "Sites",
       "Local application policies",
       "Policies",

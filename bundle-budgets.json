@@ -26,12 +26,17 @@
         "zooming and never zooming back, and the statusline, tab bar, front door",
         "and scrolling strips gained phone and landscape arrangements. Measured",
         "132.1 KiB plus ~5% headroom. Uncompressed is what is budgeted; on the",
-        "wire the whole of it gzips to 26 KiB."
+        "wire the whole of it gzips to 26 KiB.",
+        "2026-09-15: javascript 2750->2800 and javascriptGzip 790->810 because",
+        "browser-native SIOPv2 (ADR 0116) adds a lazy /identity/siop ceremony",
+        "chunk (~19 KiB) plus @opensesame/siop-v2 ES256 mint helpers. Measured",
+        "2764/794 KiB after the SIOP build; budgets keep ~1\u20132% headroom.",
+        "2026-09-16: javascript 2800->3450, javascriptGzip 810->980, total 15500->16700 because ADR 0123 spending Wallet lands Pages /wallet panels, conserved ledger/leases/consent, and wallet-* packages in the offline PWA. Measured CI 3252/926/15901 KiB; budgets keep ~5% headroom."
       ],
       "budgets": {
-        "total": 15500,
-        "javascript": 2750,
-        "javascriptGzip": 790,
+        "total": 16700,
+        "javascript": 3450,
+        "javascriptGzip": 980,
         "css": 139,
         "largestAsset": 12800
       }

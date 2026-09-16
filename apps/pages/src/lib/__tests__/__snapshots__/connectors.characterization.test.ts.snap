@@ -93,47 +93,47 @@ unset                                  off      Not configured"
 `;
 
 exports[`connector copy characterization > says exactly this for every Identity state 1`] = `
-"connected / no-failure                 live     127.0.0.1:18788
+"connected / no-failure                 live     This device
 connected / no-failure / offline       offline  Offline
-connected / offline                    live     127.0.0.1:18788
+connected / offline                    live     This device
 connected / offline / offline          offline  Offline
-connected / timeout                    live     127.0.0.1:18788
+connected / timeout                    live     This device
 connected / timeout / offline          offline  Offline
-connected / unreachable                live     127.0.0.1:18788
+connected / unreachable                live     This device
 connected / unreachable / offline      offline  Offline
-connected / rejected                   live     127.0.0.1:18788
+connected / rejected                   live     This device
 connected / rejected / offline         offline  Offline
-connected / server-error               live     127.0.0.1:18788
+connected / server-error               live     This device
 connected / server-error / offline     offline  Offline
-connected / not-opensesame             live     127.0.0.1:18788
+connected / not-opensesame             live     This device
 connected / not-opensesame / offline   offline  Offline
-none / no-failure                      attn     No identity session
+none / no-failure                      live     This device
 none / no-failure / offline            offline  Offline
-none / offline                         attn     No identity session
+none / offline                         live     This device
 none / offline / offline               offline  Offline
-none / timeout                         attn     No identity session
+none / timeout                         live     This device
 none / timeout / offline               offline  Offline
-none / unreachable                     attn     No identity session
+none / unreachable                     live     This device
 none / unreachable / offline           offline  Offline
-none / rejected                        attn     No identity session
+none / rejected                        live     This device
 none / rejected / offline              offline  Offline
-none / server-error                    attn     No identity session
+none / server-error                    live     This device
 none / server-error / offline          offline  Offline
-none / not-opensesame                  attn     No identity session
+none / not-opensesame                  live     This device
 none / not-opensesame / offline        offline  Offline
-down / no-failure                      attn     Unreachable · 127.0.0.1:18788
+down / no-failure                      live     This device
 down / no-failure / offline            offline  Offline
-down / offline                         attn     Unreachable · 127.0.0.1:18788
+down / offline                         live     This device
 down / offline / offline               offline  Offline
-down / timeout                         attn     No answer in time · 127.0.0.1:18788
+down / timeout                         live     This device
 down / timeout / offline               offline  Offline
-down / unreachable                     attn     Unreachable · 127.0.0.1:18788
+down / unreachable                     live     This device
 down / unreachable / offline           offline  Offline
-down / rejected                        attn     Refused the request · 127.0.0.1:18788
+down / rejected                        live     This device
 down / rejected / offline              offline  Offline
-down / server-error                    attn     Erroring · 127.0.0.1:18788
+down / server-error                    live     This device
 down / server-error / offline          offline  Offline
-down / not-opensesame                  attn     Not OpenSesame · 127.0.0.1:18788
+down / not-opensesame                  live     This device
 down / not-opensesame / offline        offline  Offline"
 `;
 

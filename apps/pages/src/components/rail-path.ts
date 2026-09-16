@@ -1,4 +1,9 @@
-import { type SettingsCategory, settingsPath } from "../lib/crumbs.js";
+import {
+  type SettingsCategory,
+  settingsPath,
+  walletCategoryFromLocation,
+  walletPath,
+} from "../lib/crumbs.js";
 import { ACCESS_VIEWS, IDENTITY_VIEWS } from "../lib/section-views.js";
 import { KIND_SEGMENTS, SECTIONS } from "./RailRows.js";
 
@@ -12,6 +17,8 @@ export function selectedRailPath(
   folderKind: string | null = null,
 ): string {
   if (pathname.startsWith("/settings")) return settingsPath(category);
+  if (pathname.startsWith("/wallet"))
+    return walletPath(walletCategoryFromLocation(pathname));
   if (pathname.startsWith("/vault"))
     return vaultRailPath(filter, folder, folderKind);
   if (pathname.startsWith("/access")) {

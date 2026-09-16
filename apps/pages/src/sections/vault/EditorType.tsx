@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { itemTypeRegistry, typeExtension } from "../../lib/vault/item-types.js";
 
 export function UnknownItemType() {
@@ -7,6 +8,7 @@ export function UnknownItemType() {
       <div className="empty">
         <h2>Unknown item type</h2>
         <p>This type is not installed on this device.</p>
+        <EmptyTip>{emptyTips.keymap}</EmptyTip>
         <Link className="btn btn--sm" to="/vault/new">
           Choose an item type
         </Link>

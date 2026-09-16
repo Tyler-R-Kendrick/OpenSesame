@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-09-16T15:18:09.711Z",
+  "head": "4df1dadd03c947cece5c107df261e9520056e38f",
+  "treeDirty": false,
+  "invokedAs": "pnpm wallet:verify",
+  "mainnet": {
+    "ok": true,
+    "message": null,
+    "denials": []
+  },
+  "results": [
+    {
+      "suite": "mainnet-deny",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "assertNoMainnet()",
+      "durationMs": 0
+    },
+    {
+      "suite": "domain",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/test-domain.mjs",
+      "durationMs": 2639
+    },
+    {
+      "suite": "contracts",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/run-suite.mjs contracts",
+      "durationMs": 3316
+    },
+    {
+      "suite": "protocols",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/run-suite.mjs protocols",
+      "durationMs": 3309
+    },
+    {
+      "suite": "browser",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/run-suite.mjs browser",
+      "durationMs": 10990
+    },
+    {
+      "suite": "security",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/run-suite.mjs security",
+      "durationMs": 4777
+    }
+  ],
+  "ok": true,
+  "notes": [
+    "All wallet suites passed.",
+    "Domain targets present: os-domain-wallet, wallet-budget, wallet-policy",
+    "Domain targets missing: (none)",
+    "Evidence: docs/evidence/wallet/last-run.json",
+    "Evidence attests wallet:verify green at attestedCommit (review-fix commit); evidence pin commit may follow."
+  ],
+  "attestedCommit": "4df1dadd03c947cece5c107df261e9520056e38f"
+}

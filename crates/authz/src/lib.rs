@@ -11,6 +11,7 @@ pub mod callout;
 pub mod combine;
 pub mod condition;
 pub mod condition_set;
+pub mod enforcement_gate;
 pub mod engine;
 pub mod error;
 pub mod evaluate;
@@ -24,6 +25,7 @@ pub use callout::*;
 pub use combine::*;
 pub use condition::*;
 pub use condition_set::*;
+pub use enforcement_gate::*;
 pub use engine::*;
 pub use error::*;
 pub use evaluate::*;
@@ -35,5 +37,7 @@ pub use model::*;
 mod adversarial;
 #[cfg(test)]
 mod authority_use_contract;
+#[cfg(test)]
+mod enforcement_gate_contract;
 #[cfg(test)]
 mod engine_contract;

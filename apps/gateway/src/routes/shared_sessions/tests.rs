@@ -18,12 +18,12 @@ use crate::app_state::{self, AppState};
 use crate::config::Args;
 
 /// A caller: a principal, the bearer that speaks for them, and their org.
-struct Actor {
-    principal: PrincipalId,
+pub(crate) struct Actor {
+    pub(crate) principal: PrincipalId,
     bearer: String,
 }
 
-async fn state() -> AppState {
+pub(crate) async fn state() -> AppState {
     app_state::build_test(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
@@ -40,7 +40,7 @@ async fn state() -> AppState {
 /// This writes the session map directly rather than going through
 /// `/session/local`, because what is under test is the shared-session fence,
 /// not how a bearer is obtained.
-fn actor(st: &AppState, organization: OrganizationId) -> Actor {
+pub(crate) fn actor(st: &AppState, organization: OrganizationId) -> Actor {
     let principal = PrincipalId::new();
     let opaque = format!("sess_{}", uuid::Uuid::new_v4());
     let digest = opensesame_claims::hash_secret(&opaque);
@@ -59,7 +59,7 @@ fn actor(st: &AppState, organization: OrganizationId) -> Actor {
     }
 }
 
-async fn call(
+pub(crate) async fn call(
     router: &Router,
     method: &str,
     path: &str,
@@ -80,7 +80,7 @@ async fn call(
     (status, parsed)
 }
 
-async fn get(router: &Router, path: &str, actor: &Actor) -> (StatusCode, Value) {
+pub(crate) async fn get(router: &Router, path: &str, actor: &Actor) -> (StatusCode, Value) {
     let request = Request::builder()
         .method("GET")
         .uri(path)
@@ -95,7 +95,7 @@ async fn get(router: &Router, path: &str, actor: &Actor) -> (StatusCode, Value) 
 }
 
 /// Open a session and return its id.
-async fn open_session(router: &Router, operator: &Actor, visibility: &str) -> String {
+pub(crate) async fn open_session(router: &Router, operator: &Actor, visibility: &str) -> String {
     let (status, body) = call(
         router,
         "POST",
@@ -108,13 +108,26 @@ async fn open_session(router: &Router, operator: &Actor, visibility: &str) -> St
     body["id"].as_str().expect("an id").to_string()
 }
 
-fn collection_grant(subject: PrincipalId, vault_id: VaultId) -> Value {
+pub(crate) fn collection_grant(subject: PrincipalId, vault_id: VaultId) -> Value {
     json!({
         "subject_principal_id": subject.to_string(),
         "scope": {"kind": "collection", "vault_id": vault_id.to_string()},
         "role": "read",
         "expires_at": (Utc::now() + Duration::hours(2)).to_rfc3339(),
     })
+}
+
+/// Mint a collection grant the way the operator does in every case below.
+pub(crate) async fn give(
+    router: &Router,
+    id: &str,
+    operator: &Actor,
+    subject: PrincipalId,
+    vault_id: VaultId,
+) -> (StatusCode, Value) {
+    let path = format!("/api/v1/shared-sessions/{id}/grants");
+    let body = collection_grant(subject, vault_id);
+    call(router, "POST", &path, operator, body).await
 }
 
 #[tokio::test]
@@ -182,14 +195,7 @@ async fn a_participant_sees_the_roster_but_not_another_participants_scope() {
     let bobs_row = VaultItemId::new();
 
     // Alice gets the whole collection; Bob gets one row.
-    let (status, body) = call(
-        &router,
-        "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(alice.principal, vault_id),
-    )
-    .await;
+    let (status, body) = give(&router, &id, &operator, alice.principal, vault_id).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     let (status, body) = call(
         &router,
@@ -251,14 +257,7 @@ async fn a_participant_cannot_grant_and_cannot_revoke() {
     let id = open_session(&router, &operator, "private").await;
     let vault_id = VaultId::new();
 
-    let (_, body) = call(
-        &router,
-        "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(alice.principal, vault_id),
-    )
-    .await;
+    let (_, body) = give(&router, &id, &operator, alice.principal, vault_id).await;
     let grant_id = body["grant"]["grant_id"].as_str().expect("a grant id");
 
     // Alice is in the session and still may not extend it to anybody.
@@ -448,14 +447,7 @@ async fn a_pending_requester_learns_only_that_they_are_pending() {
     let alice = actor(&st, org);
     let stranger = actor(&st, org);
     let id = open_session(&router, &operator, "public").await;
-    call(
-        &router,
-        "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(alice.principal, VaultId::new()),
-    )
-    .await;
+    give(&router, &id, &operator, alice.principal, VaultId::new()).await;
 
     let (status, body) = call(
         &router,
@@ -553,6 +545,7 @@ async fn admitting_one_person_cannot_grant_another() {
         &operator,
         json!({
             "decision": "admitted",
+            "mode": "participant",
             "grant": {
                 "subject_principal_id": PrincipalId::new().to_string(),
                 "scope": {"kind": "collection", "vault_id": vault_id.to_string()},
@@ -572,6 +565,7 @@ async fn admitting_one_person_cannot_grant_another() {
         &operator,
         json!({
             "decision": "admitted",
+            "mode": "participant",
             "grant": {
                 "scope": {"kind": "collection", "vault_id": vault_id.to_string()},
                 "role": "read",
@@ -616,7 +610,7 @@ async fn an_admission_without_a_grant_and_a_refusal_with_one_are_both_refused() 
         "POST",
         &decide,
         &operator,
-        json!({"decision": "admitted"}),
+        json!({"decision": "admitted", "mode": "participant"}),
     )
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
@@ -687,6 +681,7 @@ async fn a_decided_request_is_not_decided_again() {
         &operator,
         json!({
             "decision": "admitted",
+            "mode": "participant",
             "grant": {
                 "scope": {"kind": "collection", "vault_id": VaultId::new().to_string()},
                 "role": "read",
@@ -709,14 +704,7 @@ async fn revoking_says_what_it_does_not_undo() {
     let alice = actor(&st, org);
     let id = open_session(&router, &operator, "private").await;
 
-    let (_, body) = call(
-        &router,
-        "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(alice.principal, VaultId::new()),
-    )
-    .await;
+    let (_, body) = give(&router, &id, &operator, alice.principal, VaultId::new()).await;
     let grant_id = body["grant"]["grant_id"].as_str().unwrap().to_string();
     let path = format!("/api/v1/shared-sessions/{id}/grants/{grant_id}");
 
@@ -726,13 +714,28 @@ async fn revoking_says_what_it_does_not_undo() {
     let note = body["note"].as_str().expect("a note");
     assert!(note.contains("Re-key"), "{note}");
 
-    // Alice is out.
+    // Alice's reach is gone and Alice is still in the meeting. Presence and
+    // reach are separate now (ADR 0079 §2): withdrawing a grant withdraws the
+    // grant, and an operator who wants somebody out of the room says so.
     let (status, _) = get(&router, &format!("/api/v1/shared-sessions/{id}"), &alice).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(status, StatusCode::OK);
 
     // And revoking again is the same answer, not an error to retry against.
     let (status, _) = call(&router, "DELETE", &path, &operator, json!({})).await;
     assert_eq!(status, StatusCode::OK);
+
+    // Ending the seat is the separate act that puts her outside.
+    let (status, body) = call(
+        &router,
+        "POST",
+        &format!("/api/v1/shared-sessions/{id}/members"),
+        &operator,
+        json!({"principal_id": alice.principal.to_string(), "mode": "none"}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let (status, _) = get(&router, &format!("/api/v1/shared-sessions/{id}"), &alice).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -860,14 +863,7 @@ async fn a_grant_event_reaches_the_operator_naming_no_scope() {
     )
     .await;
 
-    let (status, _) = call(
-        &router,
-        "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(alice.principal, vault_id),
-    )
-    .await;
+    let (status, _) = give(&router, &id, &operator, alice.principal, vault_id).await;
     assert_eq!(status, StatusCode::CREATED);
 
     let event = next_event_of(
@@ -943,14 +939,7 @@ async fn a_participant_hears_a_grant_but_not_a_join_request() {
     let stranger = actor(&st, org);
     let id = open_session(&router, &operator, "public").await;
     let vault_id = VaultId::new();
-    call(
-        &router,
-        "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(alice.principal, vault_id),
-    )
-    .await;
+    give(&router, &id, &operator, alice.principal, vault_id).await;
 
     let mut stream = open_stream(
         &router,
@@ -970,14 +959,7 @@ async fn a_participant_hears_a_grant_but_not_a_join_request() {
         json!({}),
     )
     .await;
-    call(
-        &router,
-        "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(PrincipalId::new(), vault_id),
-    )
-    .await;
+    give(&router, &id, &operator, PrincipalId::new(), vault_id).await;
 
     // The participant hears the grant. A `join_requested` frame reaching them
     // would be the leak, so the assertion is on what arrives first among the
@@ -998,7 +980,7 @@ async fn a_participant_hears_a_grant_but_not_a_join_request() {
 }
 
 #[tokio::test]
-async fn a_revoked_participant_stops_hearing_mid_stream() {
+async fn a_revoked_participant_stops_hearing_about_items_mid_stream() {
     let st = state().await;
     let router = super::super::router(st.clone());
     let org = OrganizationId::new();
@@ -1006,14 +988,7 @@ async fn a_revoked_participant_stops_hearing_mid_stream() {
     let alice = actor(&st, org);
     let id = open_session(&router, &operator, "private").await;
     let vault_id = VaultId::new();
-    let (_, body) = call(
-        &router,
-        "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(alice.principal, vault_id),
-    )
-    .await;
+    let (_, body) = give(&router, &id, &operator, alice.principal, vault_id).await;
     let grant_id = body["grant"]["grant_id"].as_str().unwrap().to_string();
 
     let mut stream = open_stream(
@@ -1023,7 +998,8 @@ async fn a_revoked_participant_stops_hearing_mid_stream() {
     )
     .await;
 
-    // Withdraw Alice's grant, then publish something she would otherwise hear.
+    // Withdraw Alice's grant, then announce work on an item she could reach a
+    // moment ago.
     call(
         &router,
         "DELETE",
@@ -1032,22 +1008,34 @@ async fn a_revoked_participant_stops_hearing_mid_stream() {
         json!({}),
     )
     .await;
+    let bob = actor(&st, org);
+    give(&router, &id, &operator, bob.principal, vault_id).await;
     call(
         &router,
         "POST",
-        &format!("/api/v1/shared-sessions/{id}/grants"),
-        &operator,
-        collection_grant(PrincipalId::new(), vault_id),
+        &format!("/api/v1/shared-sessions/{id}/activity"),
+        &bob,
+        json!({
+            "kind": "opened",
+            "vault_id": vault_id.to_string(),
+            "item_id": VaultItemId::new().to_string(),
+        }),
     )
     .await;
 
     // Her subscription is still open — a subscription is not a permission, and
-    // standing is re-read per event, so she receives nothing further.
+    // standing is re-read per event. She keeps her seat, so she hears that Bob
+    // joined the room; she hears nothing about what he opened, because her
+    // reach is gone.
+    let mut heard = Vec::new();
+    while let Some(event) = next_event(&mut stream, std::time::Duration::from_millis(750)).await {
+        heard.push(event);
+    }
     assert!(
-        next_event(&mut stream, std::time::Duration::from_millis(750))
-            .await
-            .is_none(),
-        "a revoked participant was still on the channel"
+        heard
+            .iter()
+            .all(|event| event["type"] != json!("item_opened")),
+        "a revoked participant was still told what was opened: {heard:?}"
     );
 }
 

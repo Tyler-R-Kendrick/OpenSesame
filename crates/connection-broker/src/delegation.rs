@@ -222,6 +222,9 @@ pub struct ResolvedDelegation {
     pub claimant_subject: String,
     pub execution_mode: ExecutionMode,
     pub grant: Grant,
+    /// Active parent grant loaded with the child. Required so the gateway can
+    /// construct a [`opensesame_domain::ValidatedGrantChain`] at the invoke
+    /// fence — a raw `parent_grant_id` is not lineage.
     pub parent_grant: Grant,
     pub parent_grant_id: GrantId,
 }
@@ -1418,7 +1421,8 @@ impl ConnectionBroker {
         if grant.assert_active(now).is_err() {
             return Ok(None);
         }
-        // Ancestor revocation kills descendants under a dead parent.
+        // Ancestor revocation kills descendants: a live child under a dead
+        // parent is authority that outlived the thing it narrowed.
         let Some(parent_grant) = self
             .load_grant(&row.get::<String, _>("parent_grant_id"))
             .await?

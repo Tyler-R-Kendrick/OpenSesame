@@ -9,12 +9,14 @@
  * invite link, which opens the join road directly because the link *is* the
  * request.
  *
- * The operator road is a tab per concern (ADR 0114): backups, connectors
- * (ADR 0115), ai, identity, mfa, sync. Every tab writes its record as it is
- * answered — `settings.v1`, or the connector directory's own — every tab is
- * skippable, and "Skip all" takes the whole tour off the table — skipping is
- * recorded, so "looked and passed" stays distinct from "never looked". The
- * terminal commit is the shared `.go` control. The join road is a claim
+ * The operator road is a tab per concern (ADR 0114): connectors
+ * (ADR 0115), backups, ai, identity, mfa, sync. Connectors come first so
+ * backups can reuse directory-authorized endpoints. Every tab writes its
+ * record as it is answered — `settings.v1`, or the connector directory's
+ * own — every tab is skippable, and "Skip all" takes the whole tour off the
+ * table — skipping is recorded, so "looked and passed" stays distinct from
+ * "never looked". The foot is icon keys for previous / skip / next, and the
+ * shared `.go` Finish. The join road is a claim
  * invite (ADR 0079 §7) or a request into a public session, and is the only
  * place the Host is asked for, because sharing is the action that
  * reintroduces the server.
@@ -23,7 +25,14 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { IconCheck, IconChevronLeft } from "../components/Icons.js";
+import {
+  IconCheck,
+  IconChevronLeft,
+  IconChevronRight,
+  IconSkip,
+  IconSkipAll,
+  IconX,
+} from "../components/Icons.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { firstControl, landFocus } from "../lib/focus.js";
 import {
@@ -54,13 +63,13 @@ export const setupScreenDependencies = {
 export type SetupRoad = "setup" | "join";
 
 const STEPS = [
-  { id: "backups", tab: "backups", rail: "Backups", Panel: BackupsStep },
   {
     id: "connectors",
     tab: "connectors",
     rail: "Connectors",
     Panel: ConnectorsStep,
   },
+  { id: "backups", tab: "backups", rail: "Backups", Panel: BackupsStep },
   { id: "ai", tab: "ai", rail: "AI", Panel: AiStep },
   { id: "identity", tab: "identity", rail: "Identity", Panel: IdentityStep },
   { id: "mfa", tab: "mfa", rail: "MFA", Panel: MfaStep },
@@ -163,7 +172,14 @@ export function SetupScreen({
     finish([...skipped, ...STEPS.slice(index).map((step) => step.id)]);
   }
 
+  function stepBack() {
+    if (index <= 0) return;
+    setIndex(index - 1);
+  }
+
   const current = STEPS[index] ?? STEPS[0];
+  const atStart = index <= 0;
+  const atEnd = index + 1 >= STEPS.length;
 
   return (
     <div className="setup">
@@ -172,17 +188,24 @@ export function SetupScreen({
           <Wordmark className="setup__wordmark" />
           {/* Backing out changes nothing: every step writes to settings as it
               is answered, and nothing here was ever required. */}
-          <button type="button" className="setup__back" onClick={onDone}>
-            <IconChevronLeft size={16} />
-            Back
+          <button
+            type="button"
+            className="icon-btn setup__back"
+            aria-label="Close"
+            title="Close"
+            onClick={onDone}
+          >
+            <IconX size={18} />
           </button>
           <button
             type="button"
-            className="setup__back setup__skipall"
+            className="icon-btn setup__back setup__skipall"
             disabled={finishing}
+            aria-label="Skip all"
+            title="Skip all"
             onClick={skipAll}
           >
-            Skip all
+            <IconSkipAll size={18} />
           </button>
         </div>
 
@@ -242,41 +265,58 @@ export function SetupScreen({
             </main>
 
             <div className="setup__foot">
-              <button
-                type="button"
-                className="setup__back"
-                disabled={finishing}
-                aria-label="Skip this step"
-                onClick={skipStep}
-              >
-                Skip
-              </button>
-              {index + 1 < STEPS.length ? (
+              <div className="setup__foot-start">
                 <button
                   type="button"
-                  className="btn"
-                  disabled={finishing}
-                  onClick={() => setIndex(index + 1)}
+                  className="icon-btn"
+                  disabled={finishing || atStart}
+                  aria-label="Previous step"
+                  title="Previous step"
+                  onClick={stepBack}
                 >
-                  Next
+                  <IconChevronLeft size={18} />
                 </button>
-              ) : null}
-              <div className="go-row">
                 <button
-                  ref={finishRef}
                   type="button"
-                  className="go"
+                  className="icon-btn"
                   disabled={finishing}
-                  aria-busy={finishing}
-                  aria-label={verb}
-                  title={verb}
-                  onClick={() => finish(skipped)}
+                  aria-label="Skip this step"
+                  title="Skip this step"
+                  onClick={skipStep}
                 >
-                  <IconCheck size={18} />
+                  <IconSkip size={18} />
                 </button>
-                <span className="go-verb" aria-hidden="true">
-                  {verb}
-                </span>
+              </div>
+              <div className="setup__foot-end">
+                {atEnd ? null : (
+                  <button
+                    type="button"
+                    className="icon-btn"
+                    disabled={finishing}
+                    aria-label="Next step"
+                    title="Next step"
+                    onClick={() => setIndex(index + 1)}
+                  >
+                    <IconChevronRight size={18} />
+                  </button>
+                )}
+                <div className="go-row">
+                  <button
+                    ref={finishRef}
+                    type="button"
+                    className="go"
+                    disabled={finishing}
+                    aria-busy={finishing}
+                    aria-label={verb}
+                    title={verb}
+                    onClick={() => finish(skipped)}
+                  >
+                    <IconCheck size={18} />
+                  </button>
+                  <span className="go-verb" aria-hidden="true">
+                    {verb}
+                  </span>
+                </div>
               </div>
             </div>
           </>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import {
   type AccessRequest,
@@ -6,7 +7,10 @@ import {
   getInboxRef,
   listAccessRequests,
 } from "../../lib/access-requests.js";
-import { identityBase, useIdentitySession } from "../../lib/identity.js";
+import {
+  isRemoteIdentityConfigured,
+  useIdentitySession,
+} from "../../lib/identity.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { ConnectIdentityNote } from "../identity/ConnectIdentityNote.js";
 import { ApprovalReview } from "./ApprovalReview.js";
@@ -46,9 +50,9 @@ export function ApprovalInbox({ online }: { online: boolean }) {
   return (
     <>
       <LocalRequestsPanel key={tomb} tomb={tomb} />
-      {session ? (
+      {isRemoteIdentityConfigured() && session ? (
         <ConnectedInbox key={session.principalId} online={online} />
-      ) : identityBase() ? (
+      ) : isRemoteIdentityConfigured() ? (
         <ConnectIdentityNote online={online} what="approval requests" />
       ) : null}
     </>
@@ -186,9 +190,12 @@ function InboxRows({
         <output>{online ? "Loading approvals…" : "Offline."}</output>
       ) : null}
       {inbox.requests?.length === 0 ? (
-        <p className="hint">
-          No requests yet; share your inbox address or request access.
-        </p>
+        <>
+          <p className="hint">
+            No requests yet; share your inbox address or request access.
+          </p>
+          <EmptyTip>{emptyTips.navigate}</EmptyTip>
+        </>
       ) : null}
       <ul className="access-requests">
         {inbox.requests?.map((row) => (

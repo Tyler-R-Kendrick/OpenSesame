@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import {
   ConcealedValue,
   CopyButton,
@@ -97,6 +98,7 @@ export function ItemDetail() {
       <div className="detail">
         <div className="empty">
           <h2>That item is not in this vault</h2>
+          <EmptyTip>{emptyTips.escBack}</EmptyTip>
           <Link className="btn btn--sm" to={listPath}>
             Back to the vault
           </Link>

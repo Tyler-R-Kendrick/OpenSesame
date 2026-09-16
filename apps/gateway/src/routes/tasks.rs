@@ -392,7 +392,8 @@ pub async fn invoke_task(
                 grant: boot.grant.clone(),
                 subject,
                 connection_policy_id: "demo-conn".into(),
-                required_capability: required, lineage: None,
+                required_capability: required,
+                lineage: None,
             },
         )
         .await

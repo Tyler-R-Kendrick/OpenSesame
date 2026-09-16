@@ -1,4 +1,6 @@
 mod a2h;
+mod access_domains;
+mod grant_offers;
 mod aauth;
 mod admin;
 pub(crate) mod agent_capabilities;
@@ -37,6 +39,7 @@ mod secret_config_policy_tests;
 mod secret_configs;
 mod security;
 mod session;
+mod session_coordination;
 mod shared_sessions;
 mod sync;
 mod sync_blobs;
@@ -294,35 +297,10 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/delegations/{id}", delete(delegations::revoke))
         .route("/api/v1/delegations/{id}/narrow", post(delegations::narrow))
-        .route(
-            "/api/v1/shared-sessions",
-            get(shared_sessions::discover).post(shared_sessions::open),
-        )
-        .route("/api/v1/shared-sessions/{id}", get(shared_sessions::detail))
-        .route(
-            "/api/v1/shared-sessions/{id}/activity",
-            post(shared_sessions::announce_activity),
-        )
-        .route(
-            "/api/v1/shared-sessions/{id}/events",
-            get(shared_sessions::events),
-        )
-        .route(
-            "/api/v1/shared-sessions/{id}/grants",
-            post(shared_sessions::grant),
-        )
-        .route(
-            "/api/v1/shared-sessions/{id}/grants/{grant_id}",
-            delete(shared_sessions::revoke),
-        )
-        .route(
-            "/api/v1/shared-sessions/{id}/join-requests",
-            get(shared_sessions::list_join_requests).post(shared_sessions::ask_to_join),
-        )
-        .route(
-            "/api/v1/shared-sessions/{id}/join-requests/{request_id}/decide",
-            post(shared_sessions::decide_join_request),
-        )
+        // ADR 0079: every shared-session road, registered by the feature that
+        // owns it. Presence is a seat rather than a grant, so an observer is in
+        // the room holding nothing.
+        .merge(shared_sessions::routes())
         // ADR 0046: relayed execution — dual-RPC tier. The holder's runtime
         // heartbeats, drains, decides, and reports; the delegate submits and
         // polls. Admission rules run at submit and at result.

@@ -6,6 +6,8 @@ import {
   AGENT_SECRET_NAME_PATTERN,
   type AgentSurface,
   CAPABILITIES,
+  INTERACTION_SETTLEMENT_PATTERN,
+  assertsNoInteractionSettlementTool,
   assertsNoSecretNames,
   exclusionsFor,
   mcpClientCatalog,
@@ -133,6 +135,59 @@ describe("agent-surface parity rules", () => {
     expect(exclusionsFor("mcp_host").length).toBeGreaterThanOrEqual(10);
   });
 
+  it("cross-device interaction settlement stays excluded on every agent surface (ADR 0086)", () => {
+    // Finding S12 / T-34: the server mints the canonical interaction and a
+    // human authenticator mints its proof. No agent surface may create, approve
+    // or deny one — a tool that could would remove the only step that makes the
+    // answer mean anything.
+    const ADR_INTERACTION = "0086-wallet-native-interaction-layer.md";
+    for (const id of [
+      "identity.interaction.create",
+      "identity.interaction.approve",
+      "identity.interaction.deny",
+    ]) {
+      const capability = CAPABILITIES.find((c) => c.id === id);
+      expect(capability, `registry lost interaction entry ${id}`).toBeDefined();
+      for (const surface of AGENT_SURFACES) {
+        expect(
+          capability?.surfaces[surface],
+          `${id} must not be mapped on ${surface}`,
+        ).toBeNull();
+        expect(
+          capability?.excluded?.[surface]?.adr,
+          `${id} must cite ${ADR_INTERACTION} on ${surface}`,
+        ).toBe(ADR_INTERACTION);
+      }
+    }
+  });
+
+  it("no agent catalog names a tool that settles an interaction or mints a proof", () => {
+    for (const catalog of [
+      mcpHostCatalog(),
+      mcpClientCatalog(),
+      webmcpCatalog(),
+    ]) {
+      expect(() => assertsNoInteractionSettlementTool(catalog)).not.toThrow();
+    }
+    // The fence bites the shapes the finding names, and leaves the humane
+    // "open a ceremony" tools (which settle nothing) alone.
+    expect(INTERACTION_SETTLEMENT_PATTERN.test("approve_interaction")).toBe(
+      true,
+    );
+    expect(INTERACTION_SETTLEMENT_PATTERN.test("mint_approval_proof")).toBe(
+      true,
+    );
+    expect(() =>
+      assertsNoInteractionSettlementTool(["deny_interaction"]),
+    ).toThrow("interaction_settlement_tools_forbidden");
+    expect(
+      INTERACTION_SETTLEMENT_PATTERN.test("opensesame_open_relay_approval"),
+    ).toBe(false);
+    expect(
+      INTERACTION_SETTLEMENT_PATTERN.test("opensesame_open_delegation_claim"),
+    ).toBe(false);
+  });
+
   it("in-product guidance ships on WebMCP and stays off headless MCP", () => {
     for (const [id, tool] of [
       ["client.support", "opensesame_help"],
@@ -187,6 +242,28 @@ it("admits exact nested routes without URL or path ambiguity", () => {
     "route:/identity%2fauthorize",
   ])
     expect(route).not.toMatch(PWA_SURFACE);
+});
+
+describe("generalized hierarchical authority parity", () => {
+  it("Every authority capability maps or ADR-excludes all four agent surfaces", () => {
+    const authority = CAPABILITIES.filter((capability) =>
+      capability.id.startsWith("authority."),
+    );
+    expect(authority.length).toBeGreaterThan(0);
+    for (const capability of authority) {
+      // Agent surfaces under ADR 0065: mcp_host, mcp_client, webmcp, plus cli.
+      for (const surface of [...AGENT_SURFACES, "cli"] as const) {
+        const mapped = capability.surfaces[surface];
+        const excluded = capability.excluded?.[surface];
+        const mappedOk =
+          mapped !== null && mapped !== undefined && excluded === undefined;
+        const excludedOk =
+          (mapped === null || mapped === undefined) &&
+          Boolean(excluded?.adr && excluded.reason);
+        expect(mappedOk || excludedOk).toBe(true);
+      }
+    }
+  });
 });
 
 describe("capabilities.json mirror", () => {

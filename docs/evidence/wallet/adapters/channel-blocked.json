@@ -1,0 +1,8 @@
+{
+  "adapterId": "prepaid-channel",
+  "status": "blocked",
+  "local_execution_verified": false,
+  "productionEnabled": false,
+  "reason": "No OSS prepaid session/channel counterparty harness in-repo yet (WAL-E19–E22). Refuse to claim escrow/voucher enforcement without Anvil+facilitator evidence.",
+  "recordedAt": "2026-09-16T04:05:22.578Z"
+}

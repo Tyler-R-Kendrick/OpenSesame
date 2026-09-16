@@ -8,6 +8,7 @@ import {
   type CapabilityConnectorBinding,
   type CapabilityConnectorMap,
   type CapabilityId,
+  type HistoryBackupSelection,
   defaultCapabilityConnectors,
   normalizeCapabilityConnectors,
 } from "./capabilities.js";
@@ -263,17 +264,42 @@ function readCapabilityConnectors(
   for (const id of ["encryption", "history"] as const) {
     const candidate = value[id];
     if (!isJsonObject(candidate)) continue;
-    connectors[id] = {
-      ...(isString(candidate.providerId)
-        ? { providerId: candidate.providerId }
-        : undefined),
-      ...(isString(candidate.connectionId)
-        ? { connectionId: candidate.connectionId }
-        : undefined),
-      ...(isString(candidate.remote)
-        ? { remote: candidate.remote }
-        : undefined),
-    };
+    const binding: Partial<CapabilityConnectorBinding> = {};
+    if (isString(candidate.providerId)) {
+      binding.providerId = candidate.providerId;
+    }
+    if (isString(candidate.connectionId)) {
+      binding.connectionId = candidate.connectionId;
+    }
+    if (isString(candidate.remote)) {
+      binding.remote = candidate.remote;
+    }
+    if (id === "history" && Array.isArray(candidate.selections)) {
+      binding.selections = candidate.selections
+        .filter(isJsonObject)
+        .map((row) => {
+          const selection: HistoryBackupSelection = {
+            providerId: isString(row.providerId) ? row.providerId : "",
+            group: row.group === "postgres" ? "postgres" : "git",
+          };
+          if (isString(row.connectionId)) {
+            selection.connectionId = row.connectionId;
+          }
+          if (isString(row.remote)) selection.remote = row.remote;
+          if (
+            row.claimState === "provisional" ||
+            row.claimState === "claimed"
+          ) {
+            selection.claimState = row.claimState;
+          }
+          if (isString(row.provisionalAccountId)) {
+            selection.provisionalAccountId = row.provisionalAccountId;
+          }
+          return selection;
+        })
+        .filter((row) => row.providerId.length > 0);
+    }
+    connectors[id] = binding;
   }
   return connectors;
 }

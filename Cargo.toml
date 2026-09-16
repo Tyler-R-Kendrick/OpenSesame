@@ -22,11 +22,14 @@ members = [
   "crates/human-vault",
   "crates/sealed-store",
   "crates/vault-item-types",
+  "crates/collab-adapter",
   "crates/connection-broker",
   "crates/connection-detect",
+  "crates/enforcement",
   "crates/invoke-through",
   "crates/connector-host",
   "crates/connector-sdk",
+  "crates/sandbox",
   "crates/env-spec",
   "crates/relay",
   "crates/rotation",
@@ -47,6 +50,7 @@ members = [
   "crates/pki-core",
   "crates/uds-authn",
   "crates/tailscale-authn",
+  "crates/dns-enforcement",
   "apps/gateway",
   "apps/worker",
   "apps/credential-agent",
@@ -94,7 +98,7 @@ hyper-rustls = { version = "0.27.9", default-features = false, features = [
     "webpki-tokio",
     "ring",
 ] }
-hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "tokio"] }
+hyper-util = { version = "0.1.20", features = ["client", "client-legacy", "http1", "tokio"] }
 secrecy = { version = "0.10.3", features = ["serde"] }
 jsonwebtoken = { version = "10.4.0", default-features = false, features = ["use_pem", "aws_lc_rs"] }
 libc = "0.2.189"

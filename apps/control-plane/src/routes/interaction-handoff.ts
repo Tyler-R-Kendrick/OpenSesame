@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   ApproveInteractionSchema,
@@ -13,7 +13,6 @@ import {
 import { ConflictError } from "@opensesame/database";
 import {
   type ApprovalProof,
-  type AssuranceLevel,
   type AuthorizationDetail,
   DomainError,
   FORBIDDEN_URL_PARAMS,
@@ -33,14 +32,35 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { AppContext } from "../context.js";
+import {
+  admitRequester,
+  resetRequesterAdmission,
+  resolveContinuation,
+} from "../interactions/rendezvous.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import {
-  claimPageSecurityHeaders,
-  escapeHtml,
-} from "../middleware/security-headers.js";
+  renderRendezvousLanding,
+  renderRendezvousRefusal,
+} from "../ui/rendezvous-pages.js";
+import {
+  attachInteractionActivationRoutes,
+  spendInteractionActivation,
+} from "./interaction-activation.js";
+import {
+  inboxRef,
+  requesterRef,
+  resolveInboxRef,
+} from "./interaction-handles.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+import {
+  type BindingRefusal,
+  auditSettlementRefusal,
+  settleInteractionSubject,
+  verifyInteractionBinding,
+} from "./subject-adapters.js";
 
 /**
  * The cross-device interaction handoff (ADR 0086).
@@ -125,6 +145,7 @@ const ERRORS = {
   interaction_consumed: { code: "interaction_consumed", status: 409 },
   interaction_settled: { code: "interaction_settled", status: 409 },
   interaction_already_live: { code: "interaction_already_live", status: 409 },
+  proof_required: { code: "proof_required", status: 401 },
   approval_required: { code: "approval_required", status: 401 },
   digest_mismatch: { code: "digest_mismatch", status: 409 },
   unsupported_kind: { code: "unsupported_kind", status: 422 },
@@ -159,66 +180,6 @@ function terminalError(status: InteractionStatus): ErrorName {
     default:
       return "interaction_settled";
   }
-}
-
-/**
- * An opaque handle for whoever is asking.
- *
- * Derived exactly as the authorization-request inbox derives it, and with the
- * same purpose string, so one requester has one handle across both surfaces —
- * a relay that sees `req_…` on an interaction and on an inbox item is looking
- * at the same asker. The canonical principal id does not travel here: this
- * value reaches an approver's screen and, once relay lands, crosses bus
- * subjects that are not private (ADR 0042 subject hygiene).
- */
-function requesterRef(principalId: string, pepper: string): string {
-  return `req_${createHash("sha256")
-    .update(`opensesame:requester-ref:v1\0${pepper}\0${principalId}`)
-    .digest("base64url")
-    .slice(0, 24)}`;
-}
-
-/** The inbox handle for a principal, byte-identical to the inbox route's. */
-function inboxRef(principalId: string, pepper: string): string {
-  const body = Buffer.from(principalId, "utf8").toString("base64url");
-  const tag = createHmac("sha256", pepper)
-    .update(`opensesame:inbox-ref:v1\0${principalId}`)
-    .digest("base64url")
-    .slice(0, 32);
-  return `inbox_${body}.${tag}`;
-}
-
-/**
- * The principal an `inbox_…` handle addresses, or null if it was not minted
- * here.
- *
- * Interactions address an approver by the same handle the authorization-request
- * inbox issues (`GET /v1/authorization-requests/inbox-ref`), so this must
- * reproduce that derivation byte for byte — a second handle family would mean
- * a user holding one address that works on one surface and not the other, and
- * whichever surface was easier to reach would become the one attackers use.
- *
- * A handle that does not verify and a handle for a principal that no longer
- * exists both answer 404 at the call site, so there is no oracle left to query.
- */
-function resolveInboxRef(ref: string, pepper: string): string | null {
-  if (!ref.startsWith("inbox_")) return null;
-  const [body, tag] = ref.slice("inbox_".length).split(".");
-  if (!body || !tag) return null;
-  let principalId: string;
-  try {
-    principalId = Buffer.from(body, "base64url").toString("utf8");
-  } catch {
-    return null;
-  }
-  if (!principalId) return null;
-  const expected = inboxRef(principalId, pepper);
-  // Constant-time: the tag is a MAC, and a byte-by-byte compare with an early
-  // exit is a forgery oracle for a caller who can time the answer.
-  const a = Buffer.from(ref, "utf8");
-  const b = Buffer.from(expected, "utf8");
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  return principalId;
 }
 
 /**
@@ -458,6 +419,27 @@ function domainErrorName(error: DomainError, row: Interaction): ErrorName {
 }
 
 /**
+ * Map a subject-binding refusal onto the wire vocabulary.
+ *
+ * A digest that does not recompute, a proof bound to elsewhere, or a subject
+ * that is not bound are all `digest_mismatch`: the approver consented to
+ * something other than what is being spent. A missing digest or proof is
+ * `approval_required` — the ceremony behind the envelope was never actually
+ * proven — and a kind with no adapter is `unsupported_kind`.
+ */
+function bindingErrorName(reason: BindingRefusal): ErrorName {
+  switch (reason) {
+    case "unsupported_subject":
+      return "unsupported_kind";
+    case "missing_digest":
+    case "missing_proof":
+      return "approval_required";
+    default:
+      return "digest_mismatch";
+  }
+}
+
+/**
  * A sliding-window budget for the unauthenticated short link.
  *
  * Module-global because it must outlive a request, bounded because it is keyed
@@ -500,6 +482,7 @@ const linkAttempts = new Map<string, number[]>();
 export function resetInteractionLinkBudget(): void {
   linkAttempts.clear();
   referenceAttempts.clear();
+  resetRequesterAdmission();
 }
 
 function consumeLinkBudget(c: Context<{ Variables: Variables }>): boolean {
@@ -538,37 +521,6 @@ function wantsJson(c: Context<{ Variables: Variables }>): boolean {
   return (c.req.header("accept") ?? "")
     .toLowerCase()
     .includes("application/json");
-}
-
-/**
- * The page a person lands on after scanning.
- *
- * Server-rendered, no script, no images, everything escaped — the CSP from
- * `claimPageSecurityHeaders` allows inline styles and nothing else. It says
- * what kind of question is waiting and when it lapses, and directs the reader
- * to sign in, because the reference itself grants nothing and the page must
- * not imply otherwise.
- */
-function summaryPage(title: string, lines: readonly string[]): string {
-  const body = lines.map((line) => `    <p>${escapeHtml(line)}</p>`).join("\n");
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>OpenSesame</title>
-  <style>
-    body{font-family:system-ui,sans-serif;margin:2rem;background:#0f1419;color:#e7ecf3}
-    main{max-width:32rem}
-  </style>
-</head>
-<body>
-  <main>
-    <h1>${escapeHtml(title)}</h1>
-${body}
-  </main>
-</body>
-</html>`;
 }
 
 /** Prose for a kind, for the landing page only. Never used for a decision. */
@@ -616,23 +568,13 @@ export function createInteractionLinkRoutes(): Hono<{ Variables: Variables }> {
     if (!paced) {
       return json
         ? fail(c, "rate_limited")
-        : c.html(
-            summaryPage("Too many requests", [
-              "Try opening this link again in a moment.",
-            ]),
-            429,
-          );
+        : c.html(renderRendezvousRefusal("rate_limited"), 429);
     }
 
     const notFound = () =>
       json
         ? fail(c, "interaction_not_found")
-        : c.html(
-            summaryPage("Nothing to approve", [
-              "This link is not valid, or the request behind it is gone.",
-            ]),
-            404,
-          );
+        : c.html(renderRendezvousRefusal("not_found"), 404);
 
     const now = ctx.clock();
     const row = await loadByRef(ctx, ref, now);
@@ -640,12 +582,7 @@ export function createInteractionLinkRoutes(): Hono<{ Variables: Variables }> {
     if (row.status === "expired") {
       return json
         ? fail(c, "interaction_expired")
-        : c.html(
-            summaryPage("This request has expired", [
-              "Start it again from the device that asked.",
-            ]),
-            410,
-          );
+        : c.html(renderRendezvousRefusal("expired"), 410);
     }
 
     // A terminal interaction still resolves, and that is what makes a
@@ -673,12 +610,21 @@ export function createInteractionLinkRoutes(): Hono<{ Variables: Variables }> {
     }
 
     if (json) return c.json(toSummary(current));
+    // Continue into the real ceremony (ADR 0086). A launcher deep links into
+    // the configured client app carrying nothing but the reference; with no
+    // client app configured the reference is an address that surfaces in the
+    // reader's inbox. Either way the page discloses only the kind, the status
+    // and the expiry — never who is asking whom for what.
     return c.html(
-      summaryPage(`Someone is asking you to ${KIND_PROSE[current.kind]}`, [
-        `Status: ${current.status}.`,
-        `This request lapses at ${current.expiresAt.toISOString()}.`,
-        "Sign in to OpenSesame on this device to see what is being asked and answer it.",
-      ]),
+      renderRendezvousLanding({
+        kindProse: KIND_PROSE[current.kind],
+        status: current.status,
+        expiresAtISO: current.expiresAt.toISOString(),
+        continuation: resolveContinuation({
+          clientAppUrl: ctx.config.clientAppUrl,
+          ref,
+        }),
+      }),
     );
   });
 
@@ -740,6 +686,19 @@ export function createInteractionHandoffRoutes(): Hono<{
         return fail(c, "unsupported_kind");
       }
 
+      // Per-requester admission (ADR 0086). An authenticated principal may
+      // raise interactions, but not without bound: one minting them in a loop
+      // floods every approver's inbox and exhausts the one-live-per-ceremony
+      // index. Keyed by the opaque requester handle — the same value that
+      // reaches an approver's screen — so nothing identifying a person is held
+      // to pace them. Checked before the approver lookup so a throttled caller
+      // costs no database read, and after the schema/kind checks so a
+      // malformed request never spends the budget.
+      const requester = requesterRef(callerId, ctx.config.claimPepper);
+      if (!admitRequester(requester)) {
+        return fail(c, "rate_limited");
+      }
+
       // Knowing the handle is what authorizes the asking. A handle that does
       // not verify, and one that verifies for a principal that is gone or must
       // not be asked, answer identically: nothing here confirms an id.
@@ -793,7 +752,6 @@ export function createInteractionHandoffRoutes(): Hono<{
         now.getTime() + (body.ttlSeconds ?? DEFAULT_TTL_SECONDS) * 1000,
       );
       const bindingMessage = deriveBindingMessage(details);
-      const requester = requesterRef(callerId, ctx.config.claimPepper);
       const digest = canonicalRequestDigest({
         kind: body.kind,
         // Binds the approval to the record it settles, so two interactions
@@ -946,6 +904,12 @@ export function createInteractionHandoffRoutes(): Hono<{
     }
   });
 
+  attachInteractionActivationRoutes(routes, {
+    loadByRef,
+    isApprover,
+    fail,
+  });
+
   routes.post("/:ref/approve", requirePrincipal(), decideRoute("approved"));
   routes.post("/:ref/deny", requirePrincipal(), decideRoute("denied"));
 
@@ -982,13 +946,49 @@ export function createInteractionHandoffRoutes(): Hono<{
     }
     if (row.status !== "approved") return fail(c, terminalError(row.status));
 
-    try {
-      const spent = interactionMachine.consume(row, now);
-      const saved = await ctx.repos.interactions.updateWithVersion(
-        row.id,
-        row.version,
-        { status: spent.status, consumedAt: now },
+    // T-16: the executor recomputes the binding from the interaction's own
+    // fields before it spends anything. A consumed row is not an effect
+    // (F05), and an approval whose digest does not recompute — or whose proof
+    // is bound to a different request — must not be spent to settle a subject
+    // at all, so the check runs before the compare-and-set, not after it.
+    const binding = verifyInteractionBinding(ctx, row);
+    if (!binding.ok) {
+      await auditSettlementRefusal(
+        ctx,
+        row,
+        binding.reason,
+        c.get("correlationId"),
       );
+      return fail(c, bindingErrorName(binding.reason));
+    }
+
+    try {
+      // Consuming the envelope and commanding the real ceremony are one
+      // atomic write. The version compare-and-set serializes two racing
+      // executors, and the settlement command rides the same transaction on
+      // the outbox — so there is no committed state where the approval was
+      // spent and the ceremony was never told.
+      const saved = await ctx.repos.transaction(async (uow) => {
+        const spent = interactionMachine.consume(row, now);
+        const updated = await ctx.repos.interactions.updateWithVersion(
+          row.id,
+          row.version,
+          { status: spent.status, consumedAt: now },
+          uow,
+        );
+        const settlement = await settleInteractionSubject(ctx, updated, uow);
+        if (!settlement.ok) {
+          // The pre-transaction check already passed and the binding fields
+          // do not change on the consume flip, so this is unreachable in
+          // practice; aborting rather than committing keeps the invariant a
+          // hard one instead of a hope.
+          throw new DomainError(
+            "INVARIANT_VIOLATION",
+            `subject binding refused at dispatch: ${settlement.reason}`,
+          );
+        }
+        return updated;
+      });
       await appendAuditEvent(ctx.repos.auditEvents, {
         eventType: "interaction.consumed",
         principalId,
@@ -1083,11 +1083,13 @@ function decideRoute(decision: "approved" | "denied") {
         ERRORS.invalid_request.status,
       );
 
-    // Both decisions carry the same body: the digest echo, and nothing else.
-    // A refusal still has to be a refusal of *this* request, and an approval
-    // may not hand the server a proof the server has not verified.
     const raw = await c.req.json().catch(() => ({}));
-    const echo = DenyInteractionSchema.safeParse(raw);
+    // Deny: digest echo only (authority shrinks). Approve: digest + spent
+    // activation — never a session-minted proof (F01).
+    const echo =
+      decision === "approved"
+        ? ApproveInteractionSchema.safeParse(raw)
+        : DenyInteractionSchema.safeParse(raw);
     if (!echo.success) return invalid(echo.error.issues);
 
     const now = ctx.clock();
@@ -1103,57 +1105,54 @@ function decideRoute(decision: "approved" | "denied") {
     if (interactionMachine.isTerminal(row.status)) {
       return fail(c, terminalError(row.status));
     }
+    // `approved` is not machine-terminal (consume/revoke still move it), but a
+    // second decision is settled. Refuse before asking for a new proof so a
+    // digest-only retry does not look like "proof_required" after success.
+    if (row.status === "approved" || row.status === "denied") {
+      return fail(c, "interaction_settled");
+    }
     if (
       row.requestDigest === undefined ||
       row.requestDigest !== echo.data.requestDigest
     ) {
-      // What was shown is not what is stored: refuse rather than consent to
-      // something the approver did not read.
       return fail(c, "digest_mismatch");
     }
 
-    // Read from the store, never from the body. This is the one field in the
-    // proof with security meaning downstream — a policy that gates on
-    // assurance is gating on this — so it has to be the level the approver
-    // actually holds.
-    const approver = await ctx.repos.principals.getById(principalId);
-    const approverAssurance: AssuranceLevel =
-      approver?.assurance ?? "provisional";
+    let approvalProof: ApprovalProof | undefined;
+    if (decision === "approved") {
+      // Re-parse the body at the approve boundary so `activationId` arrives as
+      // the schema's own `string | undefined` — the shared `echo` is the
+      // `approve | deny` union, on which the field is not addressable without
+      // a runtime cast. This is the same `raw` the union already accepted, so
+      // the parse succeeds; a body without an activation is refused below.
+      const approveBody = ApproveInteractionSchema.safeParse(raw);
+      const activationId = approveBody.success
+        ? approveBody.data.activationId
+        : undefined;
+      if (!activationId) return fail(c, "proof_required");
+      const spent = await spendInteractionActivation({
+        ctx,
+        interaction: row,
+        principalId,
+        activationId,
+        decision: "approved",
+        now,
+      });
+      if (!spent.ok) return fail(c, spent.error);
+      approvalProof = spent.proof;
+    }
 
     try {
-      // `approved` is only reachable from `awaiting_approval`, because
-      // approving something never put in front of anybody is not a ceremony.
-      // The approver's read normally makes that move; staging it here means a
-      // client that worked from the inbox listing can still answer, without
-      // this route inventing an edge the machine does not have.
       const staged =
         row.status === "awaiting_approval"
           ? row
           : interactionMachine.awaitApproval(row, principalId, now);
-      /*
-       * The proof records what the *server* established, not what the caller
-       * says happened.
-       *
-       * Everything here is server-side: the mechanism is the one thing this
-       * route actually verifies (an authenticated session), the assurance is
-       * read from the approver's own principal record, the bound digest is
-       * the stored one, and the timestamp comes from the server clock. A
-       * client that could name its own mechanism and assurance could write
-       * `webauthn` / `phishing_resistant` into an audit trail having touched
-       * no key, and an audit row that overstates what was checked is worse
-       * than none — it is the row a reviewer believes.
-       */
       const settled =
-        decision === "approved"
+        decision === "approved" && approvalProof
           ? interactionMachine.approve(staged, {
               approverPrincipalId: principalId,
               now,
-              proof: {
-                mechanism: "session_reauth",
-                boundDigest: row.requestDigest ?? "",
-                assurance: approverAssurance,
-                verifiedAt: now,
-              } satisfies ApprovalProof,
+              proof: approvalProof,
             })
           : interactionMachine.deny(staged, principalId, now);
 

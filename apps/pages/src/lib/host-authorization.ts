@@ -10,7 +10,7 @@ import {
   browserPairingSignal,
   currentBrowserGrant,
 } from "./browser-pairing.js";
-import { hostFetch, identityBase } from "./identity.js";
+import { hostFetch, remoteIdentityApi } from "./identity.js";
 import { loadSettings } from "./settings.js";
 
 export type ControlTransition = "handoff" | "take" | "release";
@@ -23,10 +23,10 @@ export type HostAuthorizationRequest =
     };
 
 export class HostAuthorizationError extends Error {
-  constructor() {
-    super(
-      "Identity verification was refused or expired. Check your Identity sign-in and passkey, then try again.",
-    );
+  constructor(
+    message = "Identity verification was refused or expired. Check your Identity sign-in and passkey, then try again.",
+  ) {
+    super(message);
     this.name = "HostAuthorizationError";
   }
 }
@@ -35,7 +35,8 @@ export const hostAuthorizationSeams = {
   open: (url: string) =>
     window.open(url, "_blank", "popup,width=540,height=680"),
   hostFetch,
-  identityBase,
+  /** Remote Identity only — device host has no WebAuthn ceremony popup. */
+  identityBase: remoteIdentityApi,
   pairingSignal: browserPairingSignal,
 };
 
@@ -61,7 +62,13 @@ export async function authorizeHost(
   request: HostAuthorizationRequest,
   cancellation: AbortSignal,
 ): Promise<string | null> {
-  const identity = new URL(hostAuthorizationSeams.identityBase());
+  const base = hostAuthorizationSeams.identityBase().trim();
+  if (!base) {
+    throw new HostAuthorizationError(
+      "Host verification needs a remote Identity API under Settings → Connectivity. This device hosts local identity only.",
+    );
+  }
+  const identity = new URL(base);
   validateIdentityUrl(identity);
   const lifetime = AbortSignal.any([
     cancellation,

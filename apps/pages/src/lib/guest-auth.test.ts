@@ -15,11 +15,11 @@ const currentSession = vi.fn();
 const createGuest = vi.fn();
 const vaultStatus = vi.fn();
 const loadFederationSession = vi.fn();
-const identityBase = vi.fn(() => "http://127.0.0.1:18788");
+const isRemoteIdentityConfigured = vi.fn(() => true);
 
 Object.assign(guestAuthDependencies, {
   connectProvisional,
-  identityBase,
+  isRemoteIdentityConfigured,
   identityJson,
   currentSession,
   createGuest,
@@ -39,8 +39,8 @@ beforeEach(() => {
   vaultStatus.mockReturnValue("unlocked");
   loadFederationSession.mockReset();
   loadFederationSession.mockReturnValue(null);
-  identityBase.mockReset();
-  identityBase.mockReturnValue("http://127.0.0.1:18788");
+  isRemoteIdentityConfigured.mockReset();
+  isRemoteIdentityConfigured.mockReturnValue(true);
   connectProvisional.mockResolvedValue({
     principalId: "prn_guest",
     accessToken: "guest-tok",
@@ -103,7 +103,7 @@ describe("with no identity service configured (ADR 0090)", () => {
   // way. A guest is a local vault; a federated sign-in is the broker's
   // assertion held on this device. Neither is "pending" anything.
   beforeEach(() => {
-    identityBase.mockReturnValue("");
+    isRemoteIdentityConfigured.mockReturnValue(false);
   });
 
   it("enters as a guest with nothing to claim and no notice", async () => {

@@ -28,6 +28,17 @@
  * answers unknown, expired, already-spent and wrong-transaction-code with one
  * identical refusal, so the token endpoint cannot be turned into a probe for
  * which offers exist.
+ *
+ * **F10 — an offer by reference is still a bearer.** Emitting only
+ * `credential_offer_uri` keeps the code off the screen, but the code is still
+ * served *from* the offer resource: whoever can fetch that resource can redeem
+ * it. So {@link createCredentialOffer} refuses to mint an offer that has
+ * neither a Transaction Code nor a declaration that its redemption is
+ * protected. One of the two must be true: either a second factor is demanded
+ * out of band (`txCode`), or the caller asserts the offer resource and the
+ * token endpoint are gated by the same authentication (`protectedRedemption`),
+ * which {@link PreAuthorizedGrant.requiresProtectedRedemption} then carries to
+ * the redemption path so a route can enforce it rather than assume it.
  */
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -106,6 +117,18 @@ export interface CredentialOfferInput {
   readonly txCode?: TransactionCodeSpec;
   /** The literal Transaction Code, when `txCode` is present. */
   readonly txCodeValue?: string;
+  /**
+   * Assert that the offer resource and the token endpoint are gated by the
+   * same authentication (F10).
+   *
+   * This is the alternative to a Transaction Code, not an addition a caller
+   * can skip: an offer with no `txCode` and no `protectedRedemption` is
+   * refused, because a by-reference offer with neither is a bearer on a
+   * screen. Setting this to `true` is a promise the caller keeps at the HTTP
+   * boundary — {@link PreAuthorizedGrant.requiresProtectedRedemption} carries
+   * it to redemption so the promise can be checked rather than trusted.
+   */
+  readonly protectedRedemption?: boolean;
   readonly ttlSeconds?: number;
   readonly now?: Date;
 }
@@ -122,6 +145,14 @@ export interface PreAuthorizedGrant {
   readonly credentialConfigurationIds: readonly string[];
   readonly expiresAt: Date;
   readonly txCodeValue?: string;
+  /**
+   * The offer relied on an authenticated fetch rather than a Transaction Code
+   * (F10). Redemption of such a grant MUST be gated by the same authentication
+   * that gated the offer resource; the code alone is not sufficient. A store
+   * cannot enforce this — it does not see the caller — so it is returned in
+   * {@link RedeemedGrant} for the redemption route to check.
+   */
+  readonly requiresProtectedRedemption: boolean;
 }
 
 export interface CreatedCredentialOffer {
@@ -247,6 +278,16 @@ export function createCredentialOffer(
     refuse("invalid_offer");
   }
 
+  // F10. A by-reference offer serves its code from the offer resource, so an
+  // offer that demands no Transaction Code and does not declare its redemption
+  // protected is a bearer waiting to be fetched. Refuse to mint one. The two
+  // are not mutually exclusive — a caller may set both — but at least one must
+  // hold.
+  const protectedRedemption = input.protectedRedemption === true;
+  if (input.txCode === undefined && !protectedRedemption) {
+    refuse("offer_redemption_unprotected");
+  }
+
   const now = input.now ?? new Date();
   const code = randomBytes(CODE_BYTES).toString("base64url");
 
@@ -276,6 +317,7 @@ export function createCredentialOffer(
     code,
     credentialConfigurationIds: [...configurationIds],
     expiresAt: new Date(now.getTime() + ttl * 1000),
+    requiresProtectedRedemption: protectedRedemption,
   };
   const grant: PreAuthorizedGrant =
     input.txCodeValue === undefined
@@ -288,6 +330,49 @@ export function createCredentialOffer(
 /** What a successful redemption proves. */
 export interface RedeemedGrant {
   readonly credentialConfigurationIds: readonly string[];
+  /**
+   * Carried from {@link PreAuthorizedGrant}. When true, the redemption route
+   * must confirm the caller is the authenticated principal the offer was
+   * bound to before it proceeds — the pre-authorized code alone does not
+   * authorize issuance for a protected offer (F10).
+   */
+  readonly requiresProtectedRedemption: boolean;
+}
+
+/**
+ * Evaluate a redemption against a grant: expiry, then Transaction Code.
+ *
+ * Extracted from the in-memory store so that every store — this one, and the
+ * durable one a horizontally scaled deployment injects — reaches the same
+ * decision through the same constant-time comparison, rather than each
+ * re-deriving the no-oracle rule and the Transaction Code check. A store's
+ * only remaining job is the atomic spend: fetch-and-remove the grant, then
+ * hand it here. Refuses unknown (the store passes nothing), expired and
+ * wrong-transaction-code with one identical `pre_authorized_code_rejected`.
+ */
+export function redeemGrant(
+  grant: PreAuthorizedGrant,
+  txCode: string | undefined,
+  now: Date,
+): RedeemedGrant {
+  if (grant.expiresAt.getTime() <= now.getTime()) {
+    refuse("pre_authorized_code_rejected");
+  }
+  const expected = grant.txCodeValue;
+  if (expected !== undefined) {
+    if (txCode === undefined || !constantTimeEquals(expected, txCode)) {
+      refuse("pre_authorized_code_rejected");
+    }
+  } else if (txCode !== undefined) {
+    // A code supplied where none was demanded means the wallet is following a
+    // different offer than the one we minted. §6.1 makes `tx_code` valid only
+    // when the offer asked for it.
+    refuse("pre_authorized_code_rejected");
+  }
+  return {
+    credentialConfigurationIds: grant.credentialConfigurationIds,
+    requiresProtectedRedemption: grant.requiresProtectedRedemption,
+  };
 }
 
 /**
@@ -383,25 +468,9 @@ export class MemoryPreAuthorizedCodeStore implements PreAuthorizedCodeStore {
     if (stored !== undefined) this.#entries.delete(code);
 
     if (stored === undefined) refuse("pre_authorized_code_rejected");
-    if (stored.grant.expiresAt.getTime() <= at.getTime()) {
-      refuse("pre_authorized_code_rejected");
-    }
-
-    const expected = stored.grant.txCodeValue;
-    if (expected !== undefined) {
-      if (txCode === undefined || !constantTimeEquals(expected, txCode)) {
-        refuse("pre_authorized_code_rejected");
-      }
-    } else if (txCode !== undefined) {
-      // A code supplied where none was demanded means the wallet is following
-      // a different offer than the one we minted. §6.1 makes `tx_code` valid
-      // only when the offer asked for it.
-      refuse("pre_authorized_code_rejected");
-    }
-
-    return {
-      credentialConfigurationIds: stored.grant.credentialConfigurationIds,
-    };
+    // The expiry and Transaction Code checks live in `redeemGrant`, shared
+    // with every other store so the no-oracle rule is written once.
+    return redeemGrant(stored.grant, txCode, at);
   }
 
   #sweep(now: Date): void {

@@ -165,7 +165,8 @@ export function ShareSecretDrop({
     <section className="detail__group" aria-label="Share this secret once">
       <h2 className="detail__grouphead">Share this secret once</h2>
       <p className="hint">
-        Sealed here with a fresh key; the server only ever sees ciphertext.
+        Sealed here with a fresh key. This device hosts the claim when no
+        Identity API is set.
       </p>
       <TtlPicker value={ttlMs} onChange={setTtlMs} />
       <div className="field">

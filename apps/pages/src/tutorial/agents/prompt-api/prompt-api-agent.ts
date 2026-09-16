@@ -29,6 +29,15 @@ import {
   type LocalModelSession,
   detectLocalLanguageModel,
 } from "./detect.js";
+import {
+  obtainLocalModelSession,
+  releaseLocalModelSession,
+} from "./shared-session.js";
+
+export {
+  releaseLocalModelSession,
+  resetLocalModelSessionForTest,
+} from "./shared-session.js";
 
 export type PromptApiAgentOptions = {
   /**
@@ -218,12 +227,9 @@ export async function acquireLocalModel(
   }
   if (before === "available") return { kind: "ready" };
   try {
-    const session = await api.create({
-      initialPrompts: [],
-      monitor: recordProgress(options),
-      signal: null,
-    });
-    session.destroy();
+    // Keep the warmed session — destroying it after acquire is what made the
+    // next ask look like another download.
+    await obtainLocalModelSession(api, "", recordProgress(options), null);
   } catch {
     return { kind: "unavailable", reason: "model_not_downloaded" };
   }
@@ -276,9 +282,9 @@ export function createPromptApiSupportAgent(
   let active: ActiveSession | null = null;
 
   function dropSession(): void {
-    const current = active;
+    // Clear this agent's pointer only. The shared session stays warm for the
+    // next ask and for any other on-device caller; vault lock releases it.
     active = null;
-    if (current !== null) current.session.destroy();
   }
 
   /**
@@ -290,16 +296,12 @@ export function createPromptApiSupportAgent(
     instructions: string,
     signal: AbortSignal,
   ): Promise<LocalModelSession> {
-    const current = active;
-    if (current !== null && current.instructions === instructions) {
-      return current.session;
-    }
-    dropSession();
-    const session = await api.create({
-      initialPrompts: [{ role: "system", content: instructions }],
-      monitor: recordProgress(options),
-      signal: null,
-    });
+    const session = await obtainLocalModelSession(
+      api,
+      instructions,
+      recordProgress(options),
+      null,
+    );
     active = { session, instructions };
     if (signal.aborted) throw abortedError();
     return session;
@@ -351,6 +353,7 @@ export function createPromptApiSupportAgent(
         rethrowAbort(cause);
         if (!isContextExhausted(cause)) throw protocolError(cause);
         dropSession();
+        releaseLocalModelSession();
         try {
           return await ask(api, instructions, text, runOptions.signal);
         } catch (retryCause) {

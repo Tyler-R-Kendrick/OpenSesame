@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import type { JsonObject } from "@opensesame/os-domain";
 import {
   cleanup,
@@ -84,9 +85,15 @@ Object.assign(qrSeams, {
 });
 
 const identityApi = vi.hoisted(() => ({ current: "http://127.0.0.1:8788" }));
+import { deviceIdentitySeams } from "../../lib/device-identity.js";
+import { federationSeams } from "../../lib/federation.js";
 import { identitySeams } from "../../lib/identity.js";
 const originalIdentitySeams = { ...identitySeams };
+const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
+const originalFederationSeams = { ...federationSeams };
 Object.assign(identitySeams, { identityBase: () => identityApi.current });
+deviceIdentitySeams.remoteIdentityApi = () => identityApi.current;
+Object.assign(federationSeams, { loadSession: () => null });
 
 import { UnlockMethodsPanel } from "./UnlockMethodsPanel.js";
 
@@ -520,6 +527,8 @@ afterEach(() => {
   Object.assign(passwordSeams, originalPasswordSeams);
   Object.assign(qrSeams, originalQrSeams);
   Object.assign(identitySeams, originalIdentitySeams);
+  deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
+  Object.assign(federationSeams, originalFederationSeams);
   Object.assign(vaultHooksSeams, {
     useVault: () => vault.current,
     useVaultStore: () => store,
@@ -541,4 +550,6 @@ afterEach(() => {
     ),
   });
   Object.assign(identitySeams, { identityBase: () => identityApi.current });
+  deviceIdentitySeams.remoteIdentityApi = () => identityApi.current;
+  Object.assign(federationSeams, { loadSession: () => null });
 });

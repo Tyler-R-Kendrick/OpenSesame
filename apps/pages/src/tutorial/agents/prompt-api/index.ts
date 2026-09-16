@@ -21,5 +21,7 @@ export {
   createPromptApiAgent,
   createPromptApiSupportAgent,
   readLocalModelDownloadProgress,
+  releaseLocalModelSession,
   resetLocalModelDownloadProgressForTest,
+  resetLocalModelSessionForTest,
 } from "./prompt-api-agent.js";

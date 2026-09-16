@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconChevronLeft, IconEdit } from "../../components/Icons.js";
 import {
   type HealthIssue,
@@ -44,6 +45,7 @@ export function HealthPanel() {
       {report.scored === 0 ? (
         <div className="empty">
           <h2>No passwords to review</h2>
+          <EmptyTip>{emptyTips.vaultEmpty}</EmptyTip>
           <Link className="btn btn--primary btn--sm" to="/vault/new/login">
             New login
           </Link>

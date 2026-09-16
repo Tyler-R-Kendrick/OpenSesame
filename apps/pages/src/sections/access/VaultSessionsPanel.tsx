@@ -1,0 +1,383 @@
+/**
+ * Access › Sessions — vault-bound share sessions with a join code.
+ * Start issues time-boxed grants; stop revokes them; restart reissues.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import { GUEST_PERSON_ID } from "../../lib/local-guest.js";
+import { subscribeLocalIamChanges } from "../../lib/local-iam-events.js";
+import {
+  SHARE_DURATIONS,
+  SHARE_POLICIES,
+} from "../../lib/local-share-grants.js";
+import {
+  type LocalVaultSession,
+  type SessionGrantSpec,
+  createVaultSession,
+  listVaultSessions,
+  restartVaultSession,
+  startVaultSession,
+  stopVaultSession,
+} from "../../lib/local-vault-sessions.js";
+import { useVaultStore } from "../../lib/vault/hooks.js";
+import { listDeviceVaults } from "../../lib/vaults.js";
+
+export function VaultSessionsPanel({ tomb }: { tomb: string }) {
+  const [sessions, setSessions] = useState<LocalVaultSession[]>([]);
+  const [draft, setDraft] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const items = useVaultStore()
+    .getSnapshot()
+    .items.filter((item) => item.deletedAt === null);
+
+  const reload = useCallback(() => {
+    void listVaultSessions(tomb)
+      .then(setSessions)
+      .catch(() => setSessions([]));
+  }, [tomb]);
+
+  useEffect(() => {
+    const off = subscribeLocalIamChanges(reload);
+    reload();
+    return off;
+  }, [reload]);
+
+  async function run(action: () => Promise<LocalVaultSession | undefined>) {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await action();
+      setDraft(false);
+      reload();
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Could not update sessions.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section
+      className="panel"
+      id="vault-share-sessions"
+      aria-label="Vault share sessions"
+    >
+      <div className="panel__head">
+        <h2>Vault share sessions</h2>
+        <fieldset className="vtree__keys" aria-label="Session commands">
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Start vault session"
+            title="Start vault session"
+            disabled={busy}
+            onClick={() => setDraft(true)}
+          >
+            <IconPlus size={15} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Reload sessions"
+            title="Reload sessions"
+            disabled={busy}
+            onClick={() => {
+              setError("");
+              reload();
+            }}
+          >
+            <IconRefresh size={15} />
+          </button>
+        </fieldset>
+      </div>
+      <div className="panel__body">
+        <p className="hint">
+          A session is bound to this vault. While running it issues time-boxed
+          grants for chosen identities or roles (and optional rows). The join
+          code is what others redeem. Stop revokes the grants; restart reissues
+          them.
+        </p>
+        {error ? (
+          <p className="note note--err" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {draft ? (
+          <NewVaultSessionForm
+            tomb={tomb}
+            busy={busy}
+            items={items.map((item) => ({ id: item.id, label: item.name }))}
+            onCancel={() => setDraft(false)}
+            onSave={(input) =>
+              void run(() =>
+                createVaultSession(tomb, { ...input, start: true }),
+              )
+            }
+          />
+        ) : null}
+        <ul className="identity-rows">
+          {sessions.map((session) => (
+            <SessionRow
+              key={session.id}
+              session={session}
+              busy={busy}
+              onStart={() =>
+                void run(() => startVaultSession(tomb, session.id))
+              }
+              onStop={() => void run(() => stopVaultSession(tomb, session.id))}
+              onRestart={() =>
+                void run(() => restartVaultSession(tomb, session.id))
+              }
+            />
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function SessionRow({
+  session,
+  busy,
+  onStart,
+  onStop,
+  onRestart,
+}: {
+  session: LocalVaultSession;
+  busy: boolean;
+  onStart: () => void;
+  onStop: () => void;
+  onRestart: () => void;
+}) {
+  return (
+    <li className="identity-row" id={`vault-session-${session.id}`}>
+      <div className="identity-row__main">
+        <div className="identity-row__id">
+          <h3>{session.label}</h3>
+          <code className="identity-ref">
+            code {session.code} · {session.grants.length} grant
+            {session.grants.length === 1 ? "" : "s"} · bound {session.boundTomb}
+          </code>
+        </div>
+        <span className="chip">{session.status}</span>
+        {session.expiresAt ? (
+          <span className="chip">
+            until {new Date(session.expiresAt).toLocaleString()}
+          </span>
+        ) : null}
+        <div className="actions">
+          {session.status === "stopped" ? (
+            <button
+              type="button"
+              className="btn btn--sm btn--primary"
+              disabled={busy}
+              onClick={onStart}
+            >
+              Start
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--sm btn--danger"
+              disabled={busy}
+              onClick={onStop}
+            >
+              Stop
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={busy}
+            onClick={onRestart}
+          >
+            Restart
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function NewVaultSessionForm({
+  tomb,
+  busy,
+  items,
+  onCancel,
+  onSave,
+}: {
+  tomb: string;
+  busy: boolean;
+  items: { id: string; label: string }[];
+  onCancel: () => void;
+  onSave: (input: {
+    label: string;
+    durationSeconds: number;
+    grants: SessionGrantSpec[];
+  }) => void;
+}) {
+  const vault =
+    listDeviceVaults().find((row) => row.id === tomb) ?? listDeviceVaults()[0];
+  const [label, setLabel] = useState("Shared session");
+  const [duration, setDuration] = useState<number>(SHARE_DURATIONS[0].seconds);
+  const [subject, setSubject] = useState<"guest" | "member" | "operator">(
+    "guest",
+  );
+  const [scope, setScope] = useState<"vault" | "item">("vault");
+  const [itemId, setItemId] = useState(items[0]?.id ?? "");
+
+  function submit() {
+    if (!vault) return;
+    const grants: SessionGrantSpec[] = [];
+    if (scope === "vault") {
+      grants.push({
+        subject: { kind: "accessRole", role: subject },
+        resourceKind: "vault",
+        resourceId: vault.id,
+        resourceLabel: vault.label,
+        policy: subject === "guest" ? "open" : "items",
+      });
+    } else if (itemId) {
+      const item = items.find((row) => row.id === itemId);
+      grants.push({
+        subject: { kind: "accessRole", role: subject },
+        resourceKind: "item",
+        resourceId: itemId,
+        resourceLabel: item?.label ?? itemId,
+        policy: "read",
+      });
+    }
+    // Always include an explicit guest principal grant when targeting guests,
+    // so redeem-by-code can match either the role or the standing guest id.
+    if (subject === "guest") {
+      grants.push({
+        subject: { kind: "principal", principalId: GUEST_PERSON_ID },
+        resourceKind: grants[0]?.resourceKind ?? "vault",
+        resourceId: grants[0]?.resourceId ?? vault.id,
+        resourceLabel: grants[0]?.resourceLabel ?? vault.label,
+        policy: grants[0]?.policy ?? "open",
+      });
+    }
+    onSave({ label, durationSeconds: duration, grants });
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <div className="field">
+        <label className="label" htmlFor="vault-session-label">
+          Session name
+        </label>
+        <input
+          id="vault-session-label"
+          required
+          maxLength={128}
+          value={label}
+          disabled={busy}
+          onChange={(event) => setLabel(event.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label className="label" htmlFor="vault-session-subject">
+          Grant to
+        </label>
+        <select
+          id="vault-session-subject"
+          value={subject}
+          disabled={busy}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (value === "guest" || value === "member" || value === "operator")
+              setSubject(value);
+          }}
+        >
+          <option value="guest">Guest</option>
+          <option value="member">Member</option>
+          <option value="operator">Operator</option>
+        </select>
+      </div>
+      <div className="field">
+        <label className="label" htmlFor="vault-session-scope">
+          Scope
+        </label>
+        <select
+          id="vault-session-scope"
+          value={scope}
+          disabled={busy}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (value === "vault" || value === "item") setScope(value);
+          }}
+        >
+          <option value="vault">Whole vault</option>
+          <option value="item">Selected row</option>
+        </select>
+      </div>
+      {scope === "item" ? (
+        <div className="field">
+          <label className="label" htmlFor="vault-session-item">
+            Row
+          </label>
+          <select
+            id="vault-session-item"
+            value={itemId}
+            disabled={busy || items.length === 0}
+            onChange={(event) => setItemId(event.target.value)}
+          >
+            {items.length === 0 ? (
+              <option value="">No items in this vault</option>
+            ) : (
+              items.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))
+            )}
+          </select>
+          <p className="hint">
+            Row policy: {SHARE_POLICIES.item[0]?.label ?? "Read"}
+          </p>
+        </div>
+      ) : null}
+      <div className="field">
+        <label className="label" htmlFor="vault-session-ttl">
+          Lifetime
+        </label>
+        <select
+          id="vault-session-ttl"
+          value={duration}
+          disabled={busy}
+          onChange={(event) => setDuration(Number(event.target.value))}
+        >
+          {SHARE_DURATIONS.map((entry) => (
+            <option key={entry.seconds} value={entry.seconds}>
+              {entry.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="actions">
+        <button type="submit" className="btn btn--primary" disabled={busy}>
+          Start session
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={busy}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
