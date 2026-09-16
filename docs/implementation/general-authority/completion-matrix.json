@@ -620,10 +620,15 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::fix_workcell",
           "result": "ok. 1 passed (100-cap concurrent conservation); fabric GA-V-47"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::invoke_spend",
+          "result": "ok. 2 passed (skip when unconfigured; concurrent dispatch conserves capacity)",
+          "note": "Host intents create() calls reserve_invoke_budgets before execute and settles after"
         }
       ],
       "blockedBy": [],
-      "notes": "Domain + storage conservation proven. Remaining (not verified): Host invoke path does not call reserve_authority_budget; broker spend_delegation_budget is a separate JSON ledger on connection_delegations."
+      "notes": "Domain + storage conservation proven. Dispatch path: gateway intents spend authority_budgets via reserve_invoke_budgets/settle (intents_budget.rs) in addition to connection-delegation spend_delegation_budget. Remaining: OpenFGA projection freshness and Identity/Host cache consistency (INV-CONSISTENCY)."
     },
     {
       "id": "INV-CONSISTENCY",

@@ -1,7 +1,6 @@
 mod a2h;
-mod access_domains;
-mod grant_offers;
 mod aauth;
+mod access_domains;
 mod admin;
 pub(crate) mod agent_capabilities;
 mod agent_runs;
@@ -22,9 +21,11 @@ mod credential_connections;
 mod delegations;
 mod device;
 pub(crate) mod github_app;
+mod grant_offers;
 mod health;
 mod host_authorizations;
 mod intents;
+mod intents_budget;
 mod kv_facade;
 mod lifecycle;
 mod local_authority_routes;
@@ -47,7 +48,6 @@ mod sync_page;
 mod sync_targets;
 mod taskbus_config;
 mod tasks;
-
 use axum::{
     extract::DefaultBodyLimit,
     routing::{delete, get, post, put},

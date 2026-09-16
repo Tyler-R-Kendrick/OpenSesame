@@ -26,8 +26,8 @@ use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_ca
 
 /// What a submitted `ConnectionRef` resolved to: whose grant will be exercised,
 /// against which connection, through which connector component.
-struct ResolvedInvocation {
-    grant: Grant,
+pub(crate) struct ResolvedInvocation {
+    pub(crate) grant: Grant,
     /// Verified parent→child lineage at resolve time (AT-RAW-PARENT fence).
     lineage: Option<ValidatedGrantChain>,
     delegation_chain: Vec<GrantId>,
@@ -36,7 +36,7 @@ struct ResolvedInvocation {
     binding: ConnectionAuthorityBinding,
     connection_policy_id: String,
     /// Budget to decrement after authorization, when the path is delegated.
-    spend_budget: Option<String>,
+    pub(crate) spend_budget: Option<String>,
     /// True when this resolved through the durable connection broker rather
     /// than the development bootstrap fixture.
     broker_connection: bool,
@@ -430,28 +430,6 @@ fn authorize_invocation(
     }
 }
 
-async fn spend_delegation_budget(
-    st: &AppState,
-    resolved: &ResolvedInvocation,
-) -> Result<(), Response> {
-    let Some(delegation_id) = &resolved.spend_budget else {
-        return Ok(());
-    };
-    st.connection_broker
-        .spend_delegation_budget(
-            delegation_id,
-            opensesame_connection_broker::delegation::BUDGET_INVOCATIONS,
-        )
-        .await
-        .map_err(|_| {
-            (
-                StatusCode::FORBIDDEN,
-                Json(json!({"error":"budget_exhausted"})),
-            )
-                .into_response()
-        })
-}
-
 async fn execute_invocation(
     st: &AppState,
     organization_id: OrganizationId,
@@ -561,10 +539,22 @@ pub async fn create(
     }
 
     // Budgets decrement after authorization and before execution, and deny
-    // when the decrement cannot be performed (ADR 0044 decision 10).
-    if let Err(response) = spend_delegation_budget(&st, &resolved).await {
-        return response;
-    }
+    // when the decrement cannot be performed (ADR 0044 decision 10 + INV-BUDGET).
+    let idempotency_key = body
+        .idempotency_key
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
+    let authority_hold = match super::intents_budget::spend_invoke_budgets(
+        &st,
+        &boot.org.to_string(),
+        &resolved,
+        &idempotency_key,
+    )
+    .await
+    {
+        Ok(hold) => hold,
+        Err(response) => return response,
+    };
 
     // Optional live OpenFGA check when configured — subject from session/operator, not a hard-coded demo user.
     if let Err(response) = authorize_openfga(&st, &subject).await {
@@ -584,6 +574,8 @@ pub async fn create(
         lineage: resolved.lineage.clone(),
     };
     let result = execute_invocation(&st, boot.org, &resolved, invoke_input, constrained_http).await;
+    // Unknown provider outcomes stay charged (storage budget contract).
+    super::intents_budget::settle_authority_budget_hold(&st, authority_hold).await;
 
     match result {
         Ok(receipt) => {
