@@ -14,6 +14,7 @@ pub enum OfflineUse {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GrantConstraints {
     pub audiences: Vec<String>,
     pub not_before: Option<DateTime<Utc>>,
@@ -90,50 +91,31 @@ impl Grant {
     ///
     /// Returns an error when validation or the underlying operation fails.
     pub fn validate_attenuation(parent: &Grant, child: &Grant) -> Result<(), DomainError> {
-        if child.organization_id != parent.organization_id {
-            return Err(DomainError::OrganizationMismatch);
-        }
-        if child.delegation_depth != parent.delegation_depth + 1 {
-            return Err(DomainError::GrantAttenuation(
-                "delegation_depth must increment by 1".into(),
-            ));
-        }
-        if child.constraints.maximum_delegation_depth > parent.constraints.maximum_delegation_depth
-        {
-            return Err(DomainError::GrantAttenuation(
-                "maximum_delegation_depth expanded".into(),
-            ));
-        }
-        if child.delegation_depth > parent.constraints.maximum_delegation_depth {
-            return Err(DomainError::DelegationDepthExceeded);
-        }
-        if child.constraints.expires_at > parent.constraints.expires_at {
-            return Err(DomainError::GrantAttenuation("lifetime expanded".into()));
-        }
-        if child.constraints.raw_credential_export && !parent.constraints.raw_credential_export {
-            return Err(DomainError::GrantAttenuation(
-                "export privilege expanded".into(),
-            ));
-        }
+        crate::grant_attenuation::validate_lineage_pointers(parent, child)?;
+        crate::grant_lineage::validate_issuance(parent, child)?;
         if !is_subset(&child.actions, &parent.actions) {
             return Err(DomainError::GrantAttenuation("actions expanded".into()));
         }
-        if !is_subset(&child.resources, &parent.resources) {
+        if !crate::grant_attenuation::resources_attenuate(&child.resources, &parent.resources) {
             return Err(DomainError::GrantAttenuation("resources expanded".into()));
         }
-        if !is_subset(&child.constraints.audiences, &parent.constraints.audiences) {
-            return Err(DomainError::GrantAttenuation("audiences expanded".into()));
-        }
-        for (k, v) in &child.constraints.budgets {
-            match parent.constraints.budgets.get(k) {
-                Some(pv) if v <= pv => {}
-                _ => {
-                    return Err(DomainError::GrantAttenuation(format!(
-                        "budget expanded for {k}"
-                    )))
-                }
+        // Empty parent audiences means unrestricted, so a child may introduce a
+        // list; a parent that names audiences can neither be widened past them
+        // nor have them cleared away.
+        if !parent.constraints.audiences.is_empty() {
+            if child.constraints.audiences.is_empty() {
+                return Err(DomainError::GrantAttenuation(
+                    "audiences cleared under restricted parent".into(),
+                ));
+            }
+            if !is_subset(&child.constraints.audiences, &parent.constraints.audiences) {
+                return Err(DomainError::GrantAttenuation("audiences expanded".into()));
             }
         }
+        crate::grant_attenuation::validate_constraint_attenuation(
+            &parent.constraints,
+            &child.constraints,
+        )?;
         Ok(())
     }
 
@@ -179,11 +161,6 @@ impl Grant {
                 "replacement widens actions".into(),
             ));
         }
-        if !is_subset(&replacement.resources, &current.resources) {
-            return Err(DomainError::GrantAttenuation(
-                "replacement widens resources".into(),
-            ));
-        }
         if !is_subset(
             &replacement.constraints.audiences,
             &current.constraints.audiences,
@@ -192,16 +169,12 @@ impl Grant {
                 "replacement widens audiences".into(),
             ));
         }
-        if replacement.constraints.expires_at > current.constraints.expires_at {
+        if !crate::grant_attenuation::resources_attenuate(
+            &replacement.resources,
+            &current.resources,
+        ) {
             return Err(DomainError::GrantAttenuation(
-                "replacement extends lifetime".into(),
-            ));
-        }
-        if replacement.constraints.maximum_delegation_depth
-            > current.constraints.maximum_delegation_depth
-        {
-            return Err(DomainError::GrantAttenuation(
-                "replacement widens re-delegation".into(),
+                "replacement widens resources".into(),
             ));
         }
         if replacement.constraints.raw_credential_export
@@ -211,16 +184,17 @@ impl Grant {
                 "replacement adds export privilege".into(),
             ));
         }
-        for (k, v) in &replacement.constraints.budgets {
-            match current.constraints.budgets.get(k) {
-                Some(cv) if v <= cv => {}
-                _ => {
-                    return Err(DomainError::GrantAttenuation(format!(
-                        "replacement raises budget for {k}"
-                    )))
-                }
-            }
+        if replacement.constraints.maximum_delegation_depth
+            > current.constraints.maximum_delegation_depth
+        {
+            return Err(DomainError::GrantAttenuation(
+                "replacement widens re-delegation".into(),
+            ));
         }
+        crate::grant_attenuation::validate_constraint_narrowing(
+            &current.constraints,
+            &replacement.constraints,
+        )?;
         Ok(())
     }
 }

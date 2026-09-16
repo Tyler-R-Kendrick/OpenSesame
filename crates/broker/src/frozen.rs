@@ -5,8 +5,7 @@ use opensesame_authz::{AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSu
 use opensesame_connector_host::InvokeRequest;
 use opensesame_domain::{
     AvailabilityClass, Capability, DetachedProof, DomainError, FrozenIntentV2, Grant, Intent,
-    Invocation, InvocationReceipt, InvocationState, ReceiptId, ReceiptOutcome,
-};
+    Invocation, InvocationReceipt, InvocationState, ReceiptId, ReceiptOutcome, ValidatedGrantChain};
 use opensesame_task_access::{TaskAccessEngine, TaskStore};
 use serde_json::{json, Value};
 
@@ -19,7 +18,7 @@ pub struct FrozenInvokeInput {
     pub subject: String,
     pub connection_policy_id: String,
     /// Required capability for the operation within the task current set.
-    pub required_capability: Capability,
+    pub required_capability: Capability, pub lineage: Option<ValidatedGrantChain>,
 }
 
 /// Every narrowing field a grant carries, checked against the intent it is being
@@ -200,7 +199,7 @@ impl Broker {
 
         let decision = self.policy.decide(
             &authz_req,
-            Some(&input.grant),
+            Some(&input.grant), input.lineage.as_ref(),
             AvailabilityClass::A3ExternalSideEffect,
         )?;
         if !decision.decision {
@@ -543,6 +542,7 @@ mod tests {
             subject: "user:demo".into(),
             connection_policy_id: "demo-conn".into(),
             required_capability: Capability::new("read", ResourceSelector::exact("doc:1")),
+            lineage: None,
         };
 
         let first = broker.invoke_frozen(&tasks, invoke()).await.unwrap();

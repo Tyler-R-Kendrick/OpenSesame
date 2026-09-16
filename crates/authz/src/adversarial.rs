@@ -81,7 +81,7 @@ mod tests {
             context: json!({}),
         };
         assert!(
-            !e.decide(&req, None, AvailabilityClass::A2AuthorityRequired)
+            !e.decide(&req, None, None, AvailabilityClass::A2AuthorityRequired)
                 .unwrap()
                 .decision
         );
@@ -111,7 +111,12 @@ mod tests {
             }),
         };
         let d = e
-            .decide(&req, Some(&g), AvailabilityClass::A3ExternalSideEffect)
+            .decide(
+                &req,
+                Some(&g),
+                None,
+                AvailabilityClass::A3ExternalSideEffect,
+            )
             .unwrap();
         assert!(!d.decision);
     }
@@ -139,9 +144,14 @@ mod tests {
             }),
         };
         assert!(
-            !e.decide(&req, Some(&g), AvailabilityClass::A3ExternalSideEffect)
-                .unwrap()
-                .decision
+            !e.decide(
+                &req,
+                Some(&g),
+                None,
+                AvailabilityClass::A3ExternalSideEffect
+            )
+            .unwrap()
+            .decision
         );
     }
 
@@ -173,8 +183,13 @@ mod tests {
             }),
         };
         assert_eq!(
-            e.decide(&req, Some(&g), AvailabilityClass::A3ExternalSideEffect)
-                .unwrap_err(),
+            e.decide(
+                &req,
+                Some(&g),
+                None,
+                AvailabilityClass::A3ExternalSideEffect
+            )
+            .unwrap_err(),
             AuthzError::StepUpRequired("phishing-resistant".into())
         );
     }
@@ -201,7 +216,7 @@ mod tests {
             context: json!({"connection_id": "connA", "audience": "https://api.github.com"}),
         };
         assert_eq!(
-            e.decide(&req, Some(&g), AvailabilityClass::A1Preauthorized)
+            e.decide(&req, Some(&g), None, AvailabilityClass::A1Preauthorized)
                 .unwrap_err(),
             AuthzError::AuthorityUnavailable
         );

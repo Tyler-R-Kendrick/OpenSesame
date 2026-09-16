@@ -10,7 +10,7 @@ use opensesame_authz::{
 use opensesame_connector_host::{HostRuntime, InvokeRequest};
 use opensesame_domain::{
     AvailabilityClass, DomainError, Grant, Intent, Invocation, InvocationId, InvocationReceipt,
-    InvocationState, ReceiptId, ReceiptOutcome,
+    InvocationState, ReceiptId, ReceiptOutcome, ValidatedGrantChain,
 };
 use opensesame_storage::Db;
 use serde_json::{json, Value};
@@ -28,6 +28,8 @@ pub struct InvokeInput {
     pub subject: String,
     pub connection_policy_id: String,
     pub parameters: Value,
+    /// Verified lineage for delegated exercise; omit for root/owner grants.
+    pub lineage: Option<ValidatedGrantChain>,
 }
 
 impl Broker {
@@ -177,6 +179,7 @@ impl Broker {
         let decision = self.policy.decide(
             &authz_req,
             Some(&input.grant),
+            input.lineage.as_ref(),
             AvailabilityClass::A3ExternalSideEffect,
         )?;
         if !decision.decision {

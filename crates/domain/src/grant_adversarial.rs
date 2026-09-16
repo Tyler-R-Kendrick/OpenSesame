@@ -73,10 +73,16 @@ mod tests {
     }
 
     #[test]
-    fn cannot_add_new_budget_key() {
+    fn cannot_add_unmetered_budget_key_or_omit_parent_key() {
+        // Parent keys form a closed metering vocabulary: inventing a key the
+        // parent never metered is not a "further restriction" an enforcer can
+        // honour, and omitting a parent key erases its limit.
         let p = parent();
         let mut c = child_ok(&p);
         c.constraints.budgets.insert("new".into(), 1);
+        assert!(Grant::validate_attenuation(&p, &c).is_err());
+        let mut c = child_ok(&p);
+        c.constraints.budgets.remove("calls");
         assert!(Grant::validate_attenuation(&p, &c).is_err());
     }
 

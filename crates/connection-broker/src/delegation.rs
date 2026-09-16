@@ -26,8 +26,8 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Duration, Utc};
 use opensesame_claims::{generate_claim_token, generate_user_code, hash_eq, hash_low_entropy};
 use opensesame_domain::{
-    ConnectionId, Grant, GrantConstraints, GrantId, OfflineUse, OrganizationId, PrincipalId,
-    Shareability,
+    grant_budgets::inherit_budgets, ConnectionId, Grant, GrantConstraints, GrantId, OfflineUse,
+    OrganizationId, PrincipalId, Shareability,
 };
 use opensesame_relay::ExecutionMode;
 use serde::{Deserialize, Serialize};
@@ -222,6 +222,7 @@ pub struct ResolvedDelegation {
     pub claimant_subject: String,
     pub execution_mode: ExecutionMode,
     pub grant: Grant,
+    pub parent_grant: Grant,
     pub parent_grant_id: GrantId,
 }
 
@@ -964,10 +965,10 @@ impl ConnectionBroker {
         Ok(PreparedClaim {
             item_id,
             connection_id,
+            budgets: child.constraints.budgets.clone(),
             child,
             owner_grant_id: owner_grant.id,
             execution_mode: parse_execution_mode(&item.get::<String, _>("execution_mode")),
-            budgets: template.budgets,
         })
     }
 
@@ -1417,16 +1418,14 @@ impl ConnectionBroker {
         if grant.assert_active(now).is_err() {
             return Ok(None);
         }
-        // Ancestor revocation kills descendants: a live child under a dead
-        // parent is authority that outlived the thing it narrowed.
-        if let Some(parent) = self
+        // Ancestor revocation kills descendants under a dead parent.
+        let Some(parent_grant) = self
             .load_grant(&row.get::<String, _>("parent_grant_id"))
             .await?
-        {
-            if parent.assert_active(now).is_err() {
-                return Ok(None);
-            }
-        } else {
+        else {
+            return Ok(None);
+        };
+        if parent_grant.assert_active(now).is_err() {
             return Ok(None);
         }
         let parent_grant_id = GrantId::parse(&row.get::<String, _>("parent_grant_id"))
@@ -1439,6 +1438,7 @@ impl ConnectionBroker {
             claimant_subject: row.get("claimant_subject"),
             execution_mode: parse_execution_mode(&row.get::<String, _>("execution_mode")),
             grant,
+            parent_grant,
             parent_grant_id,
         }))
     }
@@ -1593,7 +1593,7 @@ fn child_grant_from(owner: &Grant, template: &ItemTemplate, now: DateTime<Utc>) 
             authentication_max_age_seconds: None,
             allowed_networks: vec![],
             parameter_rules_digest: None,
-            budgets: template.budgets.clone(),
+            budgets: inherit_budgets(&owner.constraints.budgets, &template.budgets),
             // No re-delegation unless the owner opts in — and the owner
             // ceiling caps it at one hop regardless.
             maximum_delegation_depth: owner.constraints.maximum_delegation_depth,

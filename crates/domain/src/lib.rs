@@ -15,6 +15,10 @@ pub mod delegation_chain;
 pub mod error;
 pub mod frozen_intent;
 pub mod grant;
+pub mod grant_attenuation;
+pub mod grant_budgets;
+pub mod grant_lineage;
+pub mod validated_grant_chain;
 pub mod ids;
 pub mod intent;
 pub mod invocation;
@@ -35,6 +39,8 @@ mod canonical_adversarial;
 #[cfg(test)]
 mod grant_adversarial;
 #[cfg(test)]
+mod grant_lineage_adversarial;
+#[cfg(test)]
 mod invocation_adversarial;
 
 pub use authentication_policy::*;
@@ -50,6 +56,7 @@ pub use delegation_chain::*;
 pub use error::*;
 pub use frozen_intent::*;
 pub use grant::*;
+pub use validated_grant_chain::*;
 pub use ids::*;
 pub use intent::*;
 pub use invocation::*;
