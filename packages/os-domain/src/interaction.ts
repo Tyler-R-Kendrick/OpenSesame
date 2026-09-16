@@ -156,7 +156,26 @@ export interface Interaction {
   decidedAt?: Date;
   consumedAt?: Date;
   revokedAt?: Date;
+  /**
+   * Lifecycle version. Bumped on every transition — presented, awaiting,
+   * approved, consumed — and used by the store's compare-and-set to serialize
+   * two racing writers. It says nothing about *what* is being approved; it
+   * only counts how many times the row moved.
+   */
   version: number;
+  /**
+   * Semantic revision of the operation content, distinct from `version`.
+   *
+   * `version` answers "has this row changed at all"; `revision` answers "has
+   * what is being approved changed". They diverge on purpose: presenting an
+   * interaction bumps the version but not the revision, because nothing about
+   * the operation moved, whereas re-issuing it with a new amount or a new
+   * window bumps the revision. The operation digest folds `revision` in
+   * (`crypto/interaction-digests.ts`), so an approval gathered for one
+   * revision does not carry to another even if the content were reverted to a
+   * previously approved state. Absent is revision 0 — the initial content.
+   */
+  revision?: number;
 }
 
 /**

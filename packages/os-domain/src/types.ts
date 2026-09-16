@@ -51,7 +51,9 @@ export type ExternalIdentityKind =
   | "nostr"
   | "spiffe"
   | "auth_md"
-  | "enterprise_directory";
+  | "enterprise_directory"
+  // A Self-Issued OP JWK-thumbprint subject bound cryptographically (ADR 0117).
+  | "siop";
 
 export interface ExternalIdentity {
   id: string;
