@@ -62,11 +62,13 @@ import {
 } from "@opensesame/os-domain";
 import { type JWK, calculateJwkThumbprint } from "jose";
 import {
+  type VerifiableCredentialFormat,
+  isVerifiableCredentialFormat,
+} from "./dcql.js";
+import {
   DEFAULT_HASH_ALGORITHM,
   type HashAlgorithm,
   constantTimeEquals,
-  decodeBase64url,
-  decodeUtf8,
   hashStringToBase64url,
   isHashAlgorithm,
 } from "./encoding.js";
@@ -84,15 +86,10 @@ import {
   readSignedCompactJws,
   verifyCompactJws,
 } from "./jose.js";
-import {
-  type AuthorizationRequest,
-  REQUEST_BINDING_TRANSACTION_DATA_TYPE,
-  type VerifiableCredentialFormat,
-  isVerifiableCredentialFormat,
-  transactionDataHash,
-} from "./request.js";
+import { type AuthorizationRequest, transactionDataHash } from "./request.js";
 import { parseSdJwt, readDisclosures, resolveDisclosures } from "./sd-jwt.js";
 import type { RequestSessionStore } from "./session.js";
+import { assertApprovalBinding } from "./transaction-binding.js";
 
 /**
  * An issuer this verifier trusts, and the keys it trusts it with.
@@ -521,7 +518,7 @@ export async function verifyPresentation(
 
   // ---- 10. Transaction data, and the digest binding it carries ------------
   const boundTypes = verifyTransactionData(request, keyBindingJws.payload);
-  assertRequestDigestBinding(request);
+  assertApprovalBinding(request);
 
   // ---- 11. Disclosures ----------------------------------------------------
   const disclosures = guarded(
@@ -561,7 +558,7 @@ export async function verifyPresentation(
       DEFAULT_HASH_ALGORITHM,
       `opensesame:openid4vp:credential:v1${SEPARATOR}${scope}${SEPARATOR}${parsed.issuerJwt}`,
     )}`,
-    boundDigest: request.requestDigest,
+    boundDigest: request.digests.approval,
     assurance: {
       format: query.format,
       issuer,
@@ -818,33 +815,6 @@ function verifyTransactionData(
     }
   }
   return authorized.map((entry) => entry.type);
-}
-
-/**
- * Confirm the digest the holder signed over is this request's digest.
- *
- * By the time this runs, `verifyTransactionData` has proved the holder's
- * signature covers a hash of every authorized entry's exact encoded bytes. So
- * decoding the binding entry and finding our digest inside it upgrades the
- * caller's cross-check in step 3 from "two values I hold agree" to "the holder
- * signed a statement naming this request".
- */
-function assertRequestDigestBinding(request: AuthorizationRequest): void {
-  const binding = request.transactionData.find(
-    (entry) => entry.type === REQUEST_BINDING_TRANSACTION_DATA_TYPE,
-  );
-  if (binding === undefined) refuse("digest_mismatch", "request_binding");
-  const decoded = guarded("request_binding", "digest_mismatch", () => {
-    const parsed: JsonValue = JSON.parse(
-      decodeUtf8(decodeBase64url(binding.encoded)),
-    );
-    if (!isJsonObject(parsed)) throw new SyntaxError("not an object");
-    return parsed;
-  });
-  const digest = decoded.request_digest;
-  if (!isString(digest) || !constantTimeEquals(digest, request.requestDigest)) {
-    refuse("digest_mismatch", "request_binding");
-  }
 }
 
 /**

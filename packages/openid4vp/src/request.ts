@@ -49,9 +49,10 @@ import {
   type JsonObject,
   type MutableJsonObject,
   canonicalize,
-  digestManifest,
 } from "@opensesame/os-domain";
 import { type KeyInput, SignJWT } from "jose";
+import { type DcqlQuery, assertDcqlProfile, dcqlQueryToJson } from "./dcql.js";
+import { type RequestDigests, deriveRequestDigests } from "./digests.js";
 import {
   DEFAULT_HASH_ALGORITHM,
   type HashAlgorithm,
@@ -65,53 +66,6 @@ import {
   REQUEST_OBJECT_TYP,
   type SupportedSignatureAlgorithm,
 } from "./jose.js";
-
-/**
- * Credential Format Identifiers this package recognizes by name.
- *
- * Recognizing is not supporting. `mso_mdoc` is listed so that a response
- * carrying one is refused as "a format we know and do not verify" rather than
- * falling through a default branch — see `VERIFIABLE_CREDENTIAL_FORMATS`.
- */
-export const KNOWN_CREDENTIAL_FORMATS = [
-  "dc+sd-jwt",
-  "vc+sd-jwt",
-  "mso_mdoc",
-] as const;
-
-export type CredentialFormat = (typeof KNOWN_CREDENTIAL_FORMATS)[number];
-
-/**
- * Formats this verifier can actually check end to end.
- *
- * `mso_mdoc` is absent. Verifying one means CBOR, COSE_Sign1, an IssuerAuth
- * MSO, device authentication over a SessionTranscript whose construction
- * differs between redirect and DC API invocation (§B.2.6), and an X.509 IACA
- * trust chain — none of which is reachable from `jose`, and all of which would
- * be a second, unrelated credential stack in a package whose value is that its
- * verification path is short enough to read. Declaring it unsupported and
- * refusing it by name is honest; accepting it and checking only the parts that
- * happen to be easy would not be.
- */
-export const VERIFIABLE_CREDENTIAL_FORMATS = [
-  "dc+sd-jwt",
-  "vc+sd-jwt",
-] as const;
-
-export type VerifiableCredentialFormat =
-  (typeof VERIFIABLE_CREDENTIAL_FORMATS)[number];
-
-export function isKnownCredentialFormat(
-  value: string,
-): value is CredentialFormat {
-  return KNOWN_CREDENTIAL_FORMATS.some((candidate) => candidate === value);
-}
-
-export function isVerifiableCredentialFormat(
-  value: string,
-): value is VerifiableCredentialFormat {
-  return VERIFIABLE_CREDENTIAL_FORMATS.some((candidate) => candidate === value);
-}
 
 /**
  * Response modes this verifier is willing to be the other end of.
@@ -158,40 +112,6 @@ export function clientIdPrefix(clientId: string): string | null {
   if (colon <= 0) return null;
   return clientId.slice(0, colon);
 }
-
-/**
- * A claims path pointer (§7) — the DCQL way of naming a claim.
- *
- * `null` selects every element of an array; a number selects one index. Kept
- * as data rather than a dotted string because a dotted string cannot express
- * either without an escaping rule.
- */
-export interface DcqlClaimQuery {
-  readonly path: readonly (string | number | null)[];
-  readonly id?: string | undefined;
-}
-
-/**
- * One Credential Query (§6.1).
- *
- * `vctValues` is promoted out of the format-specific `meta` object and made
- * required because §B.3.5 makes `vct_values` REQUIRED for `dc+sd-jwt`, and it
- * is the only part of the query this verifier actually re-checks against the
- * returned credential.
- */
-export interface DcqlCredentialQuery {
-  readonly id: string;
-  readonly format: VerifiableCredentialFormat;
-  readonly vctValues: readonly string[];
-  readonly claims?: readonly DcqlClaimQuery[] | undefined;
-}
-
-export interface DcqlQuery {
-  readonly credentials: readonly DcqlCredentialQuery[];
-}
-
-/** `id` values are constrained by §6.1 to this alphabet. */
-const DCQL_ID = /^[A-Za-z0-9_-]+$/;
 
 /** A transaction-data entry as the caller describes it. */
 export interface TransactionDataInput {
@@ -324,6 +244,17 @@ export interface AuthorizationRequestInput {
   readonly dcqlQuery: DcqlQuery;
   readonly transactionData?: readonly TransactionDataInput[] | undefined;
   readonly clientMetadata?: JsonObject | undefined;
+  /**
+   * The approval digest the holder's signature must commit to (finding F08).
+   *
+   * In an OpenSesame deployment this is the ADR 0086 interaction digest
+   * (`canonicalRequestDigest`) — the value `approve()` compares a proof's
+   * `boundDigest` against. Supplying it here is what makes a verifiable
+   * presentation able to *settle* an interaction rather than merely verify.
+   * Omitted, the approval digest degrades to the protocol digest and the
+   * verifier behaves exactly as it did before F08 — see `digests.ts`.
+   */
+  readonly approvalBindingDigest?: string | undefined;
   /** Default 300s. The wallet round trip includes a human reading a screen. */
   readonly ttlSeconds?: number | undefined;
   readonly now?: Date | undefined;
@@ -353,7 +284,22 @@ export interface AuthorizationRequest {
   readonly dcqlQuery: DcqlQuery;
   readonly transactionData: readonly EncodedTransactionData[];
   readonly clientMetadata: JsonObject | null;
-  /** `sha256:<hex>` over the canonical request. */
+  /**
+   * The operation, approval and protocol digests (finding F08).
+   *
+   * `digests.protocol` is `sha256:<hex>` over the canonical wire request — what
+   * a session cross-checks a response against. `digests.approval` is what the
+   * holder's signature is bound to and `boundDigest` returns. `digests.operation`
+   * is the transport-independent digest of the ask. See `digests.ts`.
+   */
+  readonly digests: RequestDigests;
+  /**
+   * The protocol digest, kept as a top-level alias of `digests.protocol`.
+   *
+   * Every caller and session store that predates F08 reads `requestDigest` and
+   * means "the wire request", which is exactly the protocol digest. Retained so
+   * the split is additive rather than a rename that would touch every call site.
+   */
   readonly requestDigest: string;
   readonly createdAt: Date;
   readonly expiresAt: Date;
@@ -368,30 +314,10 @@ const STATE_BYTES = 24;
 export function buildAuthorizationRequest(
   input: AuthorizationRequestInput,
 ): AuthorizationRequest {
-  const credentials = input.dcqlQuery.credentials;
-  // Exactly one, not "at least one". A response to a multi-credential query
-  // yields several independent presentations with independent trust
-  // conclusions, and `VerifiedPresentation` describes one. Rather than return
-  // a shape that pretends several were reduced to one, this package declines
-  // the request — see `SUPPORT_MATRIX`.
-  if (credentials.length !== 1) {
-    refuse("malformed_presentation", "request_construction");
-  }
-  const ids = new Set<string>();
-  for (const query of credentials) {
-    if (!DCQL_ID.test(query.id) || ids.has(query.id)) {
-      // §6.1: ids are alphanumeric/underscore/hyphen and unique within a
-      // request. A duplicate id makes the response's `vp_token` ambiguous.
-      refuse("malformed_presentation", "request_construction");
-    }
-    ids.add(query.id);
-    if (!isVerifiableCredentialFormat(query.format)) {
-      refuse("format_not_supported", "request_construction");
-    }
-    if (query.vctValues.length === 0) {
-      refuse("malformed_presentation", "request_construction");
-    }
-  }
+  // Exactly one credential, the §6.1 id alphabet, a verifiable format, and a
+  // non-empty `vct_values` — the closed DCQL profile of finding F09, enforced
+  // in one place. The returned id set scopes the transaction-data checks below.
+  const ids = assertDcqlProfile(input.dcqlQuery);
 
   const now = input.now ?? new Date();
   const ttl = input.ttlSeconds ?? DEFAULT_TTL_SECONDS;
@@ -458,24 +384,38 @@ export function buildAuthorizationRequest(
   const state = randomBase64url(STATE_BYTES);
   const expiresAt = new Date(now.getTime() + ttl * 1000);
 
+  const dcqlJson = dcqlQueryToJson(input.dcqlQuery);
+  const callerEncoded = callerEntries.map((entry) => entry.encoded);
   const core: JsonObject = {
     audience,
     client_id: clientId,
-    dcql_query: dcqlQueryToJson(input.dcqlQuery),
+    dcql_query: dcqlJson,
     expires_at: expiresAt.toISOString(),
     nonce,
     response_mode: input.responseMode,
     response_uri: responseUri,
     state,
-    transaction_data: callerEntries.map((entry) => entry.encoded),
+    transaction_data: callerEncoded,
   };
-  const requestDigest = digestManifest(core);
+  const digests = deriveRequestDigests({
+    core,
+    dcqlQuery: dcqlJson,
+    callerTransactionData: callerEncoded,
+    approvalBindingDigest: input.approvalBindingDigest,
+  });
 
+  // The binding entry carries both digests so the holder's signature covers
+  // them: `request_digest` ties the presentation to this wire request, and
+  // `approval_binding_digest` is what `boundDigest` returns and ADR 0086's
+  // `approve()` checks. See `transaction-binding.ts` for the read-back.
   const bindingEntry = buildTransactionData({
     type: REQUEST_BINDING_TRANSACTION_DATA_TYPE,
     credentialIds: [...ids],
     hashAlgorithms: bindingHashAlgorithms,
-    parameters: { request_digest: requestDigest },
+    parameters: {
+      request_digest: digests.protocol,
+      approval_binding_digest: digests.approval,
+    },
   });
 
   return {
@@ -488,7 +428,8 @@ export function buildAuthorizationRequest(
     dcqlQuery: input.dcqlQuery,
     transactionData: [...callerEntries, bindingEntry],
     clientMetadata: input.clientMetadata ?? null,
-    requestDigest,
+    digests,
+    requestDigest: digests.protocol,
     createdAt: now,
     expiresAt,
   };
@@ -538,26 +479,6 @@ function isRequestableClientIdPrefix(
   return REQUESTABLE_CLIENT_ID_PREFIXES.some(
     (candidate) => candidate === value,
   );
-}
-
-export function dcqlQueryToJson(query: DcqlQuery): JsonObject {
-  return {
-    credentials: query.credentials.map((credential) => {
-      const entry: MutableJsonObject = {
-        id: credential.id,
-        format: credential.format,
-        meta: { vct_values: [...credential.vctValues] },
-      };
-      if (credential.claims !== undefined) {
-        entry.claims = credential.claims.map((claim) => {
-          const claimEntry: MutableJsonObject = { path: [...claim.path] };
-          if (claim.id !== undefined) claimEntry.id = claim.id;
-          return claimEntry;
-        });
-      }
-      return entry;
-    }),
-  };
 }
 
 /**
@@ -621,6 +542,7 @@ export interface RequestObjectSigningKey {
  * outside SIOPv2, and it is the correct value whenever the verifier does not
  * know which wallet will read the request — which, for a QR code, is always.
  */
+// Must stay equal to @opensesame/siop-v2 STATIC_SELF_ISSUED_ISSUER.
 export const STATIC_DISCOVERY_AUDIENCE = "https://self-issued.me/v2";
 
 /**

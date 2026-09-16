@@ -28,11 +28,8 @@ import { SUPPORT_MATRIX } from "./index.js";
 import { REQUEST_OBJECT_TYP, readSignedCompactJws } from "./jose.js";
 import {
   type AuthorizationRequest,
-  KNOWN_CREDENTIAL_FORMATS,
   buildAuthorizationRequest,
   buildTransactionData,
-  isKnownCredentialFormat,
-  isVerifiableCredentialFormat,
   transactionDataHash,
 } from "./request.js";
 import { InMemoryRequestSessionStore } from "./session.js";
@@ -437,21 +434,15 @@ describe("verifyPresentation", () => {
   });
 
   it("refuses unsupported credential formats by name", async () => {
-    // From the response side: a credential typed as something else entirely.
+    // A credential typed as something else entirely, from the response side.
+    // The static counterpart — that mdoc is a format this package *knows* and
+    // declines rather than one it fails to recognize — lives in `dcql.test.ts`
+    // beside the format constants it asserts against.
     const foreign = await scenario.issue({ typ: "jwt_vc_json" });
     const presentation = await scenario.present({ credential: foreign });
     expect((await refusal(() => scenario.verify(presentation))).code).toBe(
       "format_not_supported",
     );
-
-    // From the request side: mdoc is a format identifier this package knows
-    // and declines, rather than one it fails to recognize. The distinction is
-    // the whole reason KNOWN_CREDENTIAL_FORMATS is a superset.
-    expect(KNOWN_CREDENTIAL_FORMATS).toContain("mso_mdoc");
-    expect(isKnownCredentialFormat("mso_mdoc")).toBe(true);
-    expect(isVerifiableCredentialFormat("mso_mdoc")).toBe(false);
-    expect(isVerifiableCredentialFormat("jwt_vc_json")).toBe(false);
-    expect(isVerifiableCredentialFormat("ldp_vc")).toBe(false);
   });
 
   it("refuses an expired credential", async () => {
