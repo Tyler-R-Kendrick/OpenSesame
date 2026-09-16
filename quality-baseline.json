@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 493,
-    "violations": 815,
-    "oversizedLines": 278344
+    "files": 491,
+    "violations": 813,
+    "oversizedLines": 277389
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1125,12 +1125,6 @@
     "crates/authenticator-core/src/lib.rs": {
       "max-lines": 487
     },
-    "crates/authz/src/authority_use.rs": {
-      "max-lines": 424
-    },
-    "crates/authz/src/engine.rs": {
-      "max-lines": 505
-    },
     "crates/breach-intel/src/event.rs": {
       "max-lines": 452
     },
@@ -1219,7 +1213,7 @@
       "max-lines": 412
     },
     "crates/domain/src/grant.rs": {
-      "max-lines": 460
+      "max-lines": 434
     },
     "crates/domain/src/shared_session.rs": {
       "max-lines": 594
