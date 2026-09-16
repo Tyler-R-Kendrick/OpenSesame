@@ -1,10 +1,10 @@
 {
-  "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, \u2026) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
+  "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, …) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
   "programme": "general-authority",
   "baselineSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
   "baselineDirty": true,
   "generatedAt": "2026-09-16",
-  "generatedBy": "GA-O honesty pass: DOM-FOREST verified (domain+gateway); GA-A-03/GA-O-02/COL-TEST/ENF evidence refreshed; INV-REVOCATION/BUDGET/CONSISTENCY added in-progress (fence/budget/restore proven; invoke/FGA gaps remain)",
+  "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
   "rules": [
@@ -149,7 +149,7 @@
       "title": "Receipts for authority-mediated invocation",
       "status": "in-progress",
       "verification": "command-backed",
-      "evidence": "cargo +1.88.0 test -p opensesame-storage --lib issuing_authority_writes_an_outbox_event \u2192 ok; outbox event_type authority.grant.issued",
+      "evidence": "cargo +1.88.0 test -p opensesame-storage --lib issuing_authority_writes_an_outbox_event → ok; outbox event_type authority.grant.issued",
       "blockedBy": ["GA-H-01"],
       "notes": "Durable outbox intent on issue; signed InvocationReceipt binding for dispatch still separate"
     },
@@ -159,7 +159,7 @@
       "title": "Identity API authority routes",
       "status": "in-progress",
       "verification": "command-backed",
-      "evidence": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-principals.test.ts \u2192 12 pass; pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' \u2192 2 pass",
+      "evidence": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-principals.test.ts → 12 pass; pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' → 2 pass",
       "blockedBy": ["GA-A-04"],
       "notes": "ID-BIND: AuthorityPrincipalKind + relation fences + PoP enrollment; ID-SPAWN domain mint/refuse (wasmtime only). Control-plane HTTP enrollment/spawn routes and Host grant issuance still open."
     },
@@ -169,7 +169,7 @@
       "title": "Project membership reconciliation",
       "status": "in-progress",
       "verification": "command-backed",
-      "evidence": "pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' \u2192 2 pass (MEMBERSHIP_SUBJECT_KINDS \u2261 CHECK)",
+      "evidence": "pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' → 2 pass (MEMBERSHIP_SUBJECT_KINDS ≡ CHECK)",
       "blockedBy": ["GA-A-01"],
       "notes": "Subject-kind fence landed; ADR 0038 membership CRUD generalization / live reconciliation still open."
     },
@@ -229,9 +229,9 @@
       "title": "Capability-registry entries",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=\u2026 pnpm test:authority-fabric:report \u2192 GA-V-30 pass",
+      "evidence": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=… pnpm test:authority-fabric:report → GA-V-30 pass",
       "blockedBy": ["GA-I-01", "GA-P-02"],
-      "notes": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=\u2026 pnpm test:authority-fabric:report \u2192 GA-V-30 pass"
+      "notes": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=… pnpm test:authority-fabric:report → GA-V-30 pass"
     },
     {
       "id": "GA-C-02",
@@ -289,7 +289,7 @@
       "title": "Structural quality gates for new modules",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "docs/evidence/general-authority/authority-fabric-report.json \u2192 53 pass / 0 blocked / 3 unsupported (gate pass)",
+      "evidence": "docs/evidence/general-authority/authority-fabric-report.json → 53 pass / 0 blocked / 3 unsupported (gate pass)",
       "blockedBy": [],
       "notes": "FIX-* and AT-* modules registered; residual unsupported rows honest"
     },
@@ -399,7 +399,29 @@
           "result": "ok. 3 passed (create/list/read, cross-realm refuse, terminate fences descendant)"
         }
       ],
-      "notes": "Domain algebra + gateway AccessDomain HTTP proven. crates/storage authority/domains.rs CRUD is exercised via gateway tests; no dedicated storage::authority::domains unit module."
+      "notes": "Domain algebra + gateway AccessDomain HTTP proven. crates/storage authority/domains.rs CRUD is exercised via gateway tests and authority_schema / authority_adversarial_matrix storage tests."
+    },
+    {
+      "id": "COHORT-SNAPSHOT-LIVE",
+      "swarm": "COHORT",
+      "title": "snapshot offers bind roster digest; live binding refuses until writer path exists",
+      "status": "in-progress",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "cargo +1.88.0 test -p opensesame-domain --lib authority_adversarial_matrix::at_snapshot_",
+          "result": "AT-SNAPSHOT-ADD/REMOVE domain algebra covered"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-storage --test authority_schema",
+          "result": "ok. 10 passed (snapshot digest required; live create refused; revision freeze; domain forest)"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::fix_contractor::",
+          "result": "ok. snapshot late-add refused at offer activation"
+        }
+      ],
+      "notes": "Host persists snapshot roster_digest (migration 0038). Live membership_binding remains a schema CHECK value but create_grant_offer returns false until a trusted-writer advance path exists — refuse rather than label a frozen revision as live. Identity authority_membership_edges is the live graph store; Host does not duplicate it."
     },
     {
       "id": "BUD-RESERVE",
@@ -483,7 +505,7 @@
         },
         {
           "command": "cargo +1.88.0 test -p opensesame-domain --lib fix_family::",
-          "result": "ok. 2 passed (snapshot late-add exclusion, guardian supervision \u2260 vault secrets)"
+          "result": "ok. 2 passed (snapshot late-add exclusion, guardian supervision ≠ vault secrets)"
         }
       ],
       "blockedBy": [],
@@ -575,16 +597,10 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::tests::a_revoked_ancestor",
           "result": "ok. 1 passed; fabric GA-V-25 pass"
-        },
-        {
-          "kind": "command",
-          "command": "cargo +1.88.0 test -p opensesame-connection-broker --lib web_rotation::delegation_tests",
-          "result": "ok. 13 passed; find_live_delegation walks ancestor grants via delegation_lineage",
-          "note": "Grandparent revoke now fails closed on resolve; full fenced_authority SQL still separate"
         }
       ],
       "blockedBy": [],
-      "notes": "Storage fence proven (ADR 0121). Dispatch path: find_live_delegation now walks the full parent chain (not one-hop). Remaining: OpenFGA tuple-cache interaction; storage fenced_authority not yet the sole deny boundary on ConnectionRef resolve; INV-GA-07 still pending in contract-registry."
+      "notes": "Storage fence proven (ADR 0121). Remaining (not verified): connection-broker find_live_delegation still one-hop parent assert_active (not fenced_authority); Host invoke spends broker budget_remaining, not authority_budgets; OpenFGA tuple-cache interaction unanalysed; INV-GA-07 still pending in contract-registry."
     },
     {
       "id": "INV-BUDGET",
@@ -607,7 +623,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Domain + storage conservation proven. Remaining: budget spend not yet on Host dispatch/invoke path (BUD-RESERVE note); broker spend_delegation_budget is a separate ledger."
+      "notes": "Domain + storage conservation proven. Remaining (not verified): Host invoke path does not call reserve_authority_budget; broker spend_delegation_budget is a separate JSON ledger on connection_delegations."
     },
     {
       "id": "INV-CONSISTENCY",
@@ -626,7 +642,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Storage restore/freshness/multiwriter fences proven. Remaining: cross-plane OpenFGA projection freshness; Identity/Host cache consistency not AT-named end-to-end."
+      "notes": "Storage restore/freshness/multiwriter fences proven. Remaining (not verified): cross-plane OpenFGA projection freshness; Identity/Host cache consistency not AT-named end-to-end; no dispatch-path restore proof."
     }
   ]
 }

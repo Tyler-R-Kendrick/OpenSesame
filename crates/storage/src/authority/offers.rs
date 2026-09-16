@@ -11,6 +11,13 @@
 //! `(offer_id, beneficiary_principal_id)` means one activation per person, and
 //! `(organization_id, idempotency_key)` means a redelivered claim is the same
 //! claim.
+//!
+//! **Snapshot vs live.** A `snapshot` offer stores the reviewed roster digest
+//! alongside the revision and activates only against that pair. A `live` offer
+//! would admit under a trusted writer's advancing envelope; that writer path is
+//! not implemented on the Host store yet, so `create_grant_offer` refuses
+//! `membership_binding = "live"` rather than recording a binding that still
+//! behaved like a frozen revision.
 
 use crate::{append_outbox_tx, Db, Utc};
 
@@ -21,10 +28,12 @@ pub struct NewGrantOffer<'a> {
     pub domain_id: &'a str,
     pub cohort_id: &'a str,
     pub cohort_revision: i64,
-    /// `snapshot` binds the roster as reviewed; `live` admits under a trusted
-    /// writer's envelope. The distinction is recorded because the two have
-    /// different revocation meanings.
+    /// `snapshot` binds the roster as reviewed; `live` is refused until a
+    /// trusted-writer advance path exists (see module note).
     pub membership_binding: &'a str,
+    /// Digest of the reviewed roster. Required for `snapshot`; must be absent
+    /// for any future live path so the two bindings stay distinguishable.
+    pub roster_digest: Option<&'a str>,
     /// The grant whose envelope every activation must stay inside. It must
     /// already carry generalized authority.
     pub envelope_grant_id: &'a str,
@@ -60,11 +69,28 @@ pub enum ActivationOutcome {
 impl Db {
     /// Create an offer against an envelope grant.
     ///
+    /// Returns `false` when the envelope is missing, the binding is unsupported,
+    /// or a snapshot offer arrives without a roster digest — a refusal, not an
+    /// error.
+    ///
     /// # Errors
     ///
     /// Returns an error when the insert or its outbox event cannot commit.
     pub async fn create_grant_offer(&self, offer: &NewGrantOffer<'_>) -> anyhow::Result<bool> {
         anyhow::ensure!(offer.max_activations > 0, "an offer must admit somebody");
+        let digest = match offer.membership_binding {
+            "snapshot" => {
+                let Some(digest) = offer.roster_digest.filter(|d| !d.is_empty()) else {
+                    return Ok(false);
+                };
+                Some(digest)
+            }
+            // Live admission needs a writer that may advance `cohort_revision`
+            // under an envelope the store can check. Until that exists, refuse
+            // rather than persist a "live" row that still freezes one revision.
+            "live" => return Ok(false),
+            _ => return Ok(false),
+        };
         let now = Utc::now().to_rfc3339();
         let mut tx = self.pool().begin().await?;
         let envelope = sqlx::query(
@@ -82,8 +108,8 @@ impl Db {
         sqlx::query(
             "INSERT INTO grant_offers \
              (id, organization_id, domain_id, cohort_id, cohort_revision, membership_binding, \
-              envelope_grant_id, max_activations, activations, revision, created_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?)",
+              roster_digest, envelope_grant_id, max_activations, activations, revision, created_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?)",
         )
         .bind(offer.id)
         .bind(offer.organization_id)
@@ -91,6 +117,7 @@ impl Db {
         .bind(offer.cohort_id)
         .bind(offer.cohort_revision)
         .bind(offer.membership_binding)
+        .bind(digest)
         .bind(offer.envelope_grant_id)
         .bind(offer.max_activations)
         .bind(&now)
@@ -104,6 +131,8 @@ impl Db {
                 "offer_id": offer.id,
                 "cohort_id": offer.cohort_id,
                 "cohort_revision": offer.cohort_revision,
+                "membership_binding": offer.membership_binding,
+                "roster_digest": digest,
             })
             .to_string(),
         )
@@ -140,6 +169,8 @@ impl Db {
         let counted = sqlx::query(
             "UPDATE grant_offers SET activations = activations + 1, revision = revision + 1 \
              WHERE id = ? AND organization_id = ? AND revoked_at IS NULL \
+               AND membership_binding = 'snapshot' \
+               AND roster_digest IS NOT NULL \
                AND cohort_revision = ? AND activations < max_activations",
         )
         .bind(activation.offer_id)

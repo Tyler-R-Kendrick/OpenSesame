@@ -10,7 +10,7 @@ silently downgrade to a mock success.
 |---|---|---|---|
 | Canonical `Grant` attenuation (time, budget omit, offline, assurance, correlated PermissionEntry) | supported (unit) | `crates/domain` `grant_attenuation`, `ValidatedGrantChain`; fabric GA-V-01… | Route-level reachability still traced per entry point |
 | AccessDomain forest (realm-bound, reparent CAS, terminate fence) | supported (storage) | `migrations/0034_general_authority.sql`, `crates/storage` authority domain tests | Host HTTP surface landing separately |
-| Cohort snapshot / live eligibility | supported (domain + storage offers) | domain cohort modules; `grant_offers` activation caps | OpenFGA `cohort` additive; live writer ceiling tests ongoing |
+| Cohort snapshot / live eligibility | snapshot supported (domain + storage); live refused at Host create | domain AT-SNAPSHOT-*; `grant_offers.roster_digest` (0038); live create returns false | Live writer advance path not implemented; do not claim live SaaS admission |
 | OpenFGA additive `access_domain` | supported (provider) | `policy/openfga/model.fga` + `authority-additivity` with `OPENSESAME_OPENFGA_URL` (GA-V-32) | Consistency is check-scoped, not cross-store zookie |
 | Ancestor invalidation fence | supported (storage) | migration `0033`/`0034`, `a_revoked_ancestor_denies_a_descendant_on_the_next_read` | Provider cleanup remains reconciliation |
 | Budget reservation conservation | supported (storage) | CHECK + concurrent debit test | Active-time metering profiles per template |
