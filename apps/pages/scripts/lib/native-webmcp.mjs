@@ -56,6 +56,13 @@ export async function nativeWebMcp(page) {
         () => tools.size === count,
         `Expected ${count} native tools; got ${[...tools.keys()]}`,
       ),
+    // Soft navigations clear the CDP tool map on frameNavigated and re-add
+    // asynchronously; callers that only waitForURL can race a transient empty set.
+    expectAtLeast: (count) =>
+      until(
+        () => tools.size >= count,
+        `Expected at least ${count} native tools; got ${[...tools.keys()]}`,
+      ),
     invoke,
     async refuse(name, input) {
       await assert.rejects(() => invoke(name, input));

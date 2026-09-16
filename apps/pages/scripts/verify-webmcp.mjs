@@ -72,11 +72,11 @@ try {
         .filter({ hasText: new RegExp(label, "i") })
         .waitFor();
     }
+    await native.expectAtLeast(5);
     const names = native.names();
     for (const tool of boot) {
       assert.ok(names.includes(tool), `lost ${tool} at ${destination}`);
     }
-    assert.ok(names.length >= 5, `too few tools at ${destination}`);
     console.log(
       `PASS CDP navigation ${destination}: ${names.length} native tools`,
     );
