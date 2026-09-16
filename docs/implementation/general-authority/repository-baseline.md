@@ -23,3 +23,5 @@ Do not mark GA complete until recursive revocation, conserved budgets, restore f
 ## Honesty rule for this stack
 
 GA-1 lands contracts and ADRs only. `completion-matrix.json` must not claim `verified` for Rust or other implementation that is not present on this branch; those claims move to GA-2+ with command-backed evidence on the matching code.
+
+Rebased onto main after GA-2 (#400) via signed createCommitOnBranch.
