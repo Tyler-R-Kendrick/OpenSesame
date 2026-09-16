@@ -1,5 +1,6 @@
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import {
   IconChevronRight,
   IconClock,
@@ -483,6 +484,11 @@ export function VaultTree({
       {items.length === 0 ? (
         <div className="empty">
           <h2>{emptyMessage}</h2>
+          <EmptyTip>
+            {emptyMessage === "Trash is empty"
+              ? emptyTips.keymap
+              : emptyTips.vaultEmpty}
+          </EmptyTip>
         </div>
       ) : null}
 

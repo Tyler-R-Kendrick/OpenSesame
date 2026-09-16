@@ -79,7 +79,7 @@ describe("support dialog semantics", () => {
     const sheet = await openPanel(user);
 
     const ask = within(sheet).getByLabelText("Ask about this screen");
-    const search = within(sheet).getByLabelText("Search help");
+    const search = within(sheet).getByLabelText("Search questions");
     expect(ask.tagName).toBe("INPUT");
     expect(search.tagName).toBe("INPUT");
     // A placeholder is not a name: both fields keep a real <label> even where
@@ -94,10 +94,7 @@ describe("support dialog semantics", () => {
     const sheet = await openPanel(user);
 
     expect(
-      within(sheet).getByRole("region", { name: "Written help" }),
-    ).toBeTruthy();
-    expect(
-      within(sheet).getByRole("region", { name: "Walkthroughs" }),
+      within(sheet).getByRole("region", { name: "Questions" }),
     ).toBeTruthy();
     // Present before anything is said. A live region created in the same paint
     // as its first message is not reliably announced, so an empty one has to be

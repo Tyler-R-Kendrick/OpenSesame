@@ -1109,6 +1109,10 @@ select.editor__ext:hover {
   font-family: var(--mono);
 }
 
+.buffer .empty__tip {
+  font-family: var(--font);
+}
+
 .buffer__line {
   margin: 0;
   max-width: 62ch;

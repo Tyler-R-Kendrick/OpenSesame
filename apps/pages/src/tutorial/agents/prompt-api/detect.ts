@@ -82,7 +82,9 @@ type PlatformCreateOptions = {
  */
 export const LOCAL_MODEL_LANGUAGES: readonly string[] = ["en"];
 
-type PlatformAvailability = () => Promise<BoundaryValue>;
+type PlatformAvailability = (
+  options?: PlatformCreateOptions,
+) => Promise<BoundaryValue>;
 type PlatformCreate = (
   options: PlatformCreateOptions,
 ) => Promise<BoundaryValue>;
@@ -180,13 +182,20 @@ export function detectLocalLanguageModel(): LocalLanguageModelApi | null {
   // are the Prompt API contract, and every returned value is re-validated.
   const availability: PlatformAvailability = overlapCast(availabilityValue);
   const create: PlatformCreate = overlapCast(createValue);
+  const textExpectation = {
+    expectedInputs: [{ type: "text", languages: LOCAL_MODEL_LANGUAGES }],
+    expectedOutputs: [{ type: "text", languages: LOCAL_MODEL_LANGUAGES }],
+  } as const;
   return {
+    // Probe with the same modality the session will be created for. Asking
+    // bare and creating with languages is how Chrome reports unavailable for a
+    // model that is already on the device and ready to answer.
     availability: async () =>
-      normalizeAvailability(await availability.call(model)),
+      normalizeAvailability(await availability.call(model, textExpectation)),
     create: async (options) => {
       const payload: PlatformCreateOptions = {
-        expectedInputs: [{ type: "text", languages: LOCAL_MODEL_LANGUAGES }],
-        expectedOutputs: [{ type: "text", languages: LOCAL_MODEL_LANGUAGES }],
+        expectedInputs: textExpectation.expectedInputs,
+        expectedOutputs: textExpectation.expectedOutputs,
       };
       // An empty `initialPrompts` is not the same as none: send the member
       // only when there is a system instruction to seed the session with.

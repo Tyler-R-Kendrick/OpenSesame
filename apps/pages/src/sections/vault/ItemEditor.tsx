@@ -2,6 +2,7 @@ import { overlapCast } from "@opensesame/os-domain";
 import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import {
   IconEye,
   IconEyeOff,
@@ -110,6 +111,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       <div className="detail">
         <div className="empty">
           <h2>Nothing to edit</h2>
+          <EmptyTip>{emptyTips.escBack}</EmptyTip>
           <Link className="btn btn--sm" to="/vault">
             Back to the vault
           </Link>
@@ -153,6 +155,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       <div className="detail">
         <div className="empty">
           <h2>Drops cannot be edited</h2>
+          <EmptyTip>{emptyTips.escBack}</EmptyTip>
           <Link className="btn btn--sm" to={`/vault/${draft.id}`}>
             Back to the drop
           </Link>

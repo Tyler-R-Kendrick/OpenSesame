@@ -83,7 +83,7 @@ describe("the panel at a narrow viewport", () => {
     // The help, which is the long part, is what scrolls.
     expect(
       scrolling.contains(
-        within(sheet).getByRole("region", { name: "Written help" }),
+        within(sheet).getByRole("region", { name: "Questions" }),
       ),
     ).toBe(true);
   });

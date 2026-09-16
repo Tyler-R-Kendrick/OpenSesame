@@ -202,7 +202,7 @@ describe("who holds the caret once a walkthrough is live", () => {
       await user.click(launcher());
       const sheet = await screen.findByRole("dialog", { name: "Support" });
       expect(
-        within(sheet).getByRole("region", { name: "Written help" }),
+        within(sheet).getByRole("region", { name: "Questions" }),
       ).toBeTruthy();
     } finally {
       watcher.stop();

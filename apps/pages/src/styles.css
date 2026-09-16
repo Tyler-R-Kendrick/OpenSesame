@@ -1439,6 +1439,37 @@ body {
   text-wrap: pretty;
 }
 
+/* Tip under an empty heading — IconInfo + hint sizing, not a .note card. */
+.empty__tip {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+  max-width: 42ch;
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink-3);
+  text-wrap: pretty;
+  text-align: start;
+}
+
+.empty__tip svg {
+  flex: none;
+  margin-top: 0.12rem;
+  color: var(--ink-3);
+}
+
+.empty__tip span {
+  min-width: 0;
+}
+
+/* Keyboard tips stay off touch-primary surfaces (DESIGN.md § Touch). */
+@media (pointer: coarse) {
+  .empty__tip--keys {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
   .field {
     grid-template-columns: minmax(0, 1fr);
@@ -1482,6 +1513,7 @@ body {
   }
 
   .btn,
+  .fill,
   .conn-doc-link,
   input:not([type="checkbox"]):not([type="radio"]):not(.visually-hidden),
   select,

@@ -23,7 +23,7 @@ import {
   IconSecret,
 } from "../../../components/Icons.js";
 import { QrCode } from "../../../components/QrCode.js";
-import { identityBase } from "../../../lib/identity.js";
+import { remoteIdentityApi } from "../../../lib/identity.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
 import type { SentCode } from "../../../lib/vault/remote-code.js";
 import {
@@ -644,7 +644,9 @@ function looksLikeAddress(channel: CodeChannel, to: string): boolean {
 
 function identityHost(): string {
   try {
-    return new URL(identityBase()).host;
+    const remote = remoteIdentityApi().trim();
+    if (!remote) return "your Identity API";
+    return new URL(remote).host;
   } catch {
     return "your Identity API";
   }

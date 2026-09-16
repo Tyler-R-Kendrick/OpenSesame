@@ -129,11 +129,11 @@ describe("keyboard operability", () => {
     const harness = mountSupport({
       agent: fakeAgentAlwaysUnavailable("no_local_model"),
       transport: "none",
-      targets: ["shell.lock"],
+      targets: ["shell.connectivity"],
     });
     const sheet = await openPanel(user);
 
-    const search = within(sheet).getByLabelText("Search help");
+    const search = within(sheet).getByLabelText("Search questions");
     await tabTo(user, search);
     await user.keyboard("healthy");
     expect(
@@ -142,13 +142,15 @@ describe("keyboard operability", () => {
       }),
     ).toBeTruthy();
 
-    const start = walkthrough("Lock the vault");
+    const start = walkthrough("How do I tell whether OpenSesame is healthy?");
     await tabTo(user, start);
     await user.keyboard("{Enter}");
 
     await waitFor(() => {
       const step = harness.driver.records()[0]?.steps[0];
-      expect(step?.element).toBe(harness.fixtures.element("shell.lock"));
+      expect(step?.element).toBe(
+        harness.fixtures.element("shell.connectivity"),
+      );
     });
   });
 

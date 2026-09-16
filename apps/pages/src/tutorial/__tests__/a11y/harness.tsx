@@ -13,7 +13,11 @@
  * moves focus into its own popover. A fake that did neither would let the
  * panel pass on a page the real library would break.
  */
-import { guideGoalIds } from "../../registry/goals.js";
+import {
+  GUIDE_GOALS,
+  HELP_TOPICS,
+  guideGoalIds,
+} from "../../registry/goals.js";
 import { GUIDE_ROUTES } from "../../registry/routes.js";
 import { guidePredicateIds } from "../../registry/state.js";
 import { guideTargetIds } from "../../registry/targets.js";
@@ -399,12 +403,22 @@ export async function tabTo(
   }
 }
 
-/** The "Show me" button beside a named walkthrough. */
+/** The "Show me" button beside a named walkthrough or help question. */
 export function walkthrough(title: string): HTMLElement {
-  const region = screen.getByRole("region", { name: "Walkthroughs" });
+  const region = screen.getByRole("region", { name: "Questions" });
+  const goal = GUIDE_GOALS.find((entry) => entry.title === title);
+  const topic = goal
+    ? HELP_TOPICS.find((entry) => entry.goal === goal.id)
+    : undefined;
+  const needles = [title, topic?.title]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase());
   const entry = within(region)
     .getAllByRole("article")
-    .find((node) => (node.textContent ?? "").startsWith(title));
+    .find((node) => {
+      const textContent = (node.textContent ?? "").toLowerCase();
+      return needles.some((needle) => textContent.includes(needle));
+    });
   if (!entry) throw new Error(`no walkthrough offered for "${title}"`);
   return within(entry).getByRole("button", { name: "Show me" });
 }
