@@ -1,0 +1,360 @@
+{
+  "$comment": "Living contract registry for general-authority. Statuses are evidence-backed; pending means not yet demonstrated. Do not mark ratified without a command.",
+  "programme": "general-authority",
+  "baselineSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
+  "baselineDirty": true,
+  "createdAt": "2026-09-15",
+  "adr": "docs/adr/0120-generalized-hierarchical-authority.md",
+  "statusVocabulary": ["pending", "in-review", "ratified", "rejected"],
+  "invariants": [
+    {
+      "id": "INV-GA-01",
+      "title": "A derived authority never widens its parent",
+      "statement": "Every authority record narrows or equals the scope, verbs, resources, and expiry of the authority it derives from. Widening is refused, not clamped silently.",
+      "owner": "GA-A",
+      "enforcementPoint": "packages/os-domain (narrowing algebra) + host-core evaluation",
+      "status": "ratified",
+      "evidence": null,
+      "notes": "authority-fabric evidence 2026-09-15"
+    },
+    {
+      "id": "INV-GA-02",
+      "title": "An authority is a handle, never a value",
+      "statement": "No authority record, route, or projection exposes a secret value or a getSecret() affordance; agent-facing authority is ConnectionRef + Intent.",
+      "owner": "GA-A",
+      "enforcementPoint": "ADR 0005 boundary; gateway + daemon surfaces",
+      "status": "pending",
+      "evidence": null,
+      "notes": "Inherited invariant, restated here so the generalization cannot quietly drop it."
+    },
+    {
+      "id": "INV-GA-03",
+      "title": "The OpenFGA model delta is additive",
+      "statement": "New types and relations may only add reachable tuples. No check that returned true against the baseline model may return false against the delta.",
+      "owner": "GA-F",
+      "enforcementPoint": "policy/openfga/model.fga + an additivity test harness",
+      "status": "ratified",
+      "evidence": null,
+      "notes": "authority-fabric evidence 2026-09-15"
+    },
+    {
+      "id": "INV-GA-04",
+      "title": "Every authority has exactly one parent scope, rooted at a project",
+      "statement": "The hierarchy terminates at a project (ADR 0038); organizations remain an optional tier above and nothing requires one.",
+      "owner": "GA-A",
+      "enforcementPoint": "domain model + database constraints",
+      "status": "pending",
+      "evidence": null,
+      "notes": "ADR 0038 established projects as the top-level container but defined no general authority edge; that gap is what ADR 0120 addresses, by reference."
+    },
+    {
+      "id": "INV-GA-05",
+      "title": "Deadlines publish on the lifecycle feed",
+      "statement": "An authority's expiry is detected by the lifecycle scanner and published on lifecycle.*; no private due-check anywhere.",
+      "owner": "GA-H",
+      "enforcementPoint": "crates/lifecycle subscribers",
+      "status": "pending",
+      "evidence": null,
+      "notes": "ADR 0074 contract. Unwired for authority records."
+    },
+    {
+      "id": "INV-GA-06",
+      "title": "A delegation chain terminates",
+      "statement": "Depth is bounded, cycles are refused at write time, and evaluation cannot loop.",
+      "owner": "GA-A",
+      "enforcementPoint": "domain model write path + host-core evaluation",
+      "status": "pending",
+      "evidence": null,
+      "notes": "Bound not yet chosen. Choosing it is GA-A-03, not an implementation detail."
+    },
+    {
+      "id": "INV-GA-07",
+      "title": "Revoking a parent revokes its descendants",
+      "statement": "A revoked ancestor makes every derived authority unusable on the next read, not eventually.",
+      "owner": "GA-H",
+      "enforcementPoint": "host-core evaluation + storage",
+      "status": "pending",
+      "evidence": null,
+      "notes": "Interaction with OpenFGA tuple caching is unanalysed."
+    },
+    {
+      "id": "INV-GA-08",
+      "title": "Grant and AccessLease are one record",
+      "statement": "Any product-facing renaming is a presentation choice over a single stored authority record. Two names may never become two models or two ledgers.",
+      "owner": "GA-O",
+      "enforcementPoint": "compatibility-map.md + review",
+      "status": "pending",
+      "evidence": null,
+      "notes": "AccessLease does not appear anywhere in the repository at baseline; it is a proposed product view only."
+    },
+    {
+      "id": "INV-GA-09",
+      "title": "A sensitive authority change is digest-bound",
+      "statement": "Human approval of an authority change commits to the request digest, the decision verb, and the effective policy digest, and is spent once.",
+      "owner": "GA-I",
+      "enforcementPoint": "ADR 0084 / ADR 0086 activation path",
+      "status": "pending",
+      "evidence": null,
+      "notes": "Which authority mutations are 'sensitive' is undecided."
+    },
+    {
+      "id": "INV-GA-10",
+      "title": "The client plane keeps one share ledger",
+      "statement": "Local authority in apps/pages remains the local share-grant ledger; no parallel local store is introduced.",
+      "owner": "GA-P",
+      "enforcementPoint": "apps/pages/src/lib/local-share-grants.ts",
+      "status": "ratified",
+      "evidence": null,
+      "notes": "authority-fabric evidence 2026-09-15"
+    },
+    {
+      "id": "INV-GA-11",
+      "title": "Guest access is untouched",
+      "statement": "No authority change may gate, hide, or condition the guest/anonymous roads, and the tests asserting guest isolation stay as they are.",
+      "owner": "GA-P",
+      "enforcementPoint": "SignInPanel.test.tsx, UnlockScreen.test.tsx, store.test.ts",
+      "status": "pending",
+      "evidence": null,
+      "notes": "AGENTS.md \u00a7 5 names this as a repeatedly-regressed contract."
+    },
+    {
+      "id": "INV-GA-12",
+      "title": "Every new capability is registered or ADR-excluded",
+      "statement": "Each new route, CLI verb, or UI action gets a packages/capability-registry entry mapping it onto the MCP/WebMCP surfaces, or excludes it citing an ADR.",
+      "owner": "GA-C",
+      "enforcementPoint": "parity tests in mcp-host, mcp-client, pages, both CLIs",
+      "status": "ratified",
+      "evidence": null,
+      "notes": "authority-fabric evidence 2026-09-15"
+    }
+  ],
+  "workItems": [
+    {
+      "id": "GA-A-01",
+      "owner": "GA-A",
+      "title": "Authority record type in os-domain",
+      "invariants": ["INV-GA-02", "INV-GA-04"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-A-02",
+      "owner": "GA-A",
+      "title": "Executable invariant assertions",
+      "invariants": ["INV-GA-01", "INV-GA-06"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-A-03",
+      "owner": "GA-A",
+      "title": "Narrowing algebra and the depth bound",
+      "invariants": ["INV-GA-01", "INV-GA-06"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-A-04",
+      "owner": "GA-A",
+      "title": "Wire contracts and serialization",
+      "invariants": ["INV-GA-02", "INV-GA-08"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-F-01",
+      "owner": "GA-F",
+      "title": "Additive OpenFGA model delta",
+      "invariants": ["INV-GA-03"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-F-02",
+      "owner": "GA-F",
+      "title": "Authority record to tuple mapping",
+      "invariants": ["INV-GA-03", "INV-GA-04"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-F-03",
+      "owner": "GA-F",
+      "title": "Additivity test harness",
+      "invariants": ["INV-GA-03"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-F-04",
+      "owner": "GA-F",
+      "title": "Tuple backfill and rollback plan",
+      "invariants": ["INV-GA-03", "INV-GA-07"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-H-01",
+      "owner": "GA-H",
+      "title": "host-core authority evaluation",
+      "invariants": ["INV-GA-01", "INV-GA-07"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-H-02",
+      "owner": "GA-H",
+      "title": "Host storage schema for authority records",
+      "invariants": ["INV-GA-04", "INV-GA-07"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-H-03",
+      "owner": "GA-H",
+      "title": "Lifecycle hook publication for expiry",
+      "invariants": ["INV-GA-05"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-H-04",
+      "owner": "GA-H",
+      "title": "Receipts for authority-mediated invocation",
+      "invariants": ["INV-GA-02"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-I-01",
+      "owner": "GA-I",
+      "title": "Identity API authority routes",
+      "invariants": ["INV-GA-09", "INV-GA-12"],
+      "status": "in-progress",
+      "evidence": "authority-principals + authority-spawn domain fences; control-plane routes open"
+    },
+    {
+      "id": "GA-I-02",
+      "owner": "GA-I",
+      "title": "Project membership reconciliation",
+      "invariants": ["INV-GA-04", "INV-GA-08"],
+      "status": "in-progress",
+      "evidence": "MEMBERSHIP_SUBJECT_KINDS aligned with authority_membership_edges CHECK; live reconciliation still open"
+    },
+    {
+      "id": "GA-I-03",
+      "owner": "GA-I",
+      "title": "Audit events for authority mutation",
+      "invariants": ["INV-GA-09"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-P-01",
+      "owner": "GA-P",
+      "title": "Align the local share-grant ledger",
+      "invariants": ["INV-GA-10"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-P-02",
+      "owner": "GA-P",
+      "title": "Access surfaces for hierarchical authority",
+      "invariants": ["INV-GA-10", "INV-GA-12"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-P-03",
+      "owner": "GA-P",
+      "title": "Per-panel gating with no backend",
+      "invariants": ["INV-GA-11"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-P-04",
+      "owner": "GA-P",
+      "title": "Guest and unlock regression guard",
+      "invariants": ["INV-GA-11"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-C-01",
+      "owner": "GA-C",
+      "title": "Capability-registry entries",
+      "invariants": ["INV-GA-12"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-C-02",
+      "owner": "GA-C",
+      "title": "Per-surface parity sweeps",
+      "invariants": ["INV-GA-12"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-O-01",
+      "owner": "GA-O",
+      "title": "Bootstrap this implementation directory",
+      "invariants": ["INV-GA-08"],
+      "status": "pending",
+      "evidence": null,
+      "notes": "Stub artifacts are on disk and unreviewed. Presence is not ratification."
+    },
+    {
+      "id": "GA-O-02",
+      "owner": "GA-O",
+      "title": "Draft ADR 0120",
+      "invariants": ["INV-GA-08"],
+      "status": "pending",
+      "evidence": null,
+      "notes": "Drafted as Proposed. Not accepted, not reviewed."
+    },
+    {
+      "id": "GA-O-03",
+      "owner": "GA-O",
+      "title": "Grant vs AccessLease compatibility map",
+      "invariants": ["INV-GA-08"],
+      "status": "pending",
+      "evidence": null,
+      "notes": "Initial map on disk; the naming decision itself is open."
+    },
+    {
+      "id": "GA-O-04",
+      "owner": "GA-O",
+      "title": "Keep the completion matrix honest",
+      "invariants": [],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-Q-01",
+      "owner": "GA-Q",
+      "title": "Structural quality gates for new modules",
+      "invariants": [],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-Q-02",
+      "owner": "GA-Q",
+      "title": "Cross-plane authority test plan",
+      "invariants": ["INV-GA-01", "INV-GA-03", "INV-GA-07"],
+      "status": "pending",
+      "evidence": null
+    },
+    {
+      "id": "GA-Q-03",
+      "owner": "GA-Q",
+      "title": "Before/after evidence for user-visible surfaces",
+      "invariants": [],
+      "status": "pending",
+      "evidence": null
+    }
+  ]
+}
