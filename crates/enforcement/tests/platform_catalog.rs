@@ -19,7 +19,7 @@ fn every_catalogued_platform_passes_its_own_audit() {
     // The descriptors are built through the audited builder, so this is the
     // test that a new entry cannot be added with an inconsistent claim.
     let catalog = catalog().expect("every catalogued descriptor conforms");
-    assert!(catalog.all().len() >= 5);
+    assert!(catalog.all().len() >= 7);
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn the_mobile_platforms_claim_nothing_and_name_why() {
     // plausible-looking guarantees here, so the shape is asserted rather than
     // left to reviewer attention.
     let catalog = catalog().expect("catalog conforms");
-    for platform in ["apple-ios", "android"] {
+    for platform in ["apple-ios", "android", "discord-live", "blocky-live-saas"] {
         let descriptor = catalog.find(platform).expect("the platform is catalogued");
         assert_eq!(
             descriptor.adapter(),
