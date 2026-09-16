@@ -68,19 +68,22 @@ pub fn responder_for(kind: SubjectKind) -> Option<&'static str> {
         // reissued unattended; `renew_managed` refuses the rest with
         // `NotInCustody`, which becomes the outcome a subscriber reads.
         SubjectKind::Certificate => Some(CERTIFICATE_RESPONDER),
-        // Three kinds with no unattended path, for two different reasons.
+        // Four kinds with no unattended path, for two different reasons.
         //
         // A certificate authority is never re-keyed unattended: it changes
         // trust for everything it signed (ADR 0052-cert). Signer rotation has
-        // no unattended path *yet*. A session grant has none and never will —
-        // extending one human's reach into another's vault is a decision only
-        // a human makes (ADR 0079), which is why `SubjectKind::renewable`
-        // refuses it in `should_respond` before the dispatcher is even
+        // no unattended path *yet*. A session grant and an authority grant have
+        // none and never will — extending reach is a decision only a human
+        // makes (ADR 0079 / GA-3), which is why `SubjectKind::renewable`
+        // refuses them in `should_respond` before the dispatcher is even
         // reached; this is the second fence.
         //
-        // None of the three is silently skipped: the dispatcher reports the
+        // None of the four is silently skipped: the dispatcher reports the
         // gap as an outcome event.
-        SubjectKind::CertificateAuthority | SubjectKind::Signer | SubjectKind::SessionGrant => None,
+        SubjectKind::CertificateAuthority
+        | SubjectKind::Signer
+        | SubjectKind::SessionGrant
+        | SubjectKind::AuthorityGrant => None,
     }
 }
 
@@ -423,12 +426,13 @@ mod tests {
         for kind in [
             SubjectKind::CertificateAuthority,
             SubjectKind::Signer,
-            // A session grant is the strongest case of this: not "no
-            // unattended path yet" but never one, because extending one
-            // human's reach into another's vault is a human decision
-            // (ADR 0079). `should_respond` refuses the kind before the
-            // dispatcher is reached; this is the second fence.
+            // A session/authority grant is the strongest case of this: not
+            // "no unattended path yet" but never one, because extending
+            // reach is a human decision (ADR 0079 / GA-3). `should_respond`
+            // refuses the kind before the dispatcher is reached; this is
+            // the second fence.
             SubjectKind::SessionGrant,
+            SubjectKind::AuthorityGrant,
         ] {
             assert_eq!(responder_for(kind), None, "{kind:?}");
         }
