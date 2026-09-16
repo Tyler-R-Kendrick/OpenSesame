@@ -33,11 +33,14 @@ import {
   type Column,
   and,
   asc,
+  count,
   desc,
   eq,
   getTableColumns,
+  gte,
   inArray,
   isNull,
+  lte,
   notExists,
   or,
   sql,
@@ -90,6 +93,13 @@ import {
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
+import { mapAuditEvent } from "./postgres-map-audit.js";
+import { createPostgresWalletInteractionRepos } from "./wallet-interaction-postgres.js";
+import type {
+  ExecutionReservationRepository,
+  InteractionProofAttemptRepository,
+  WalletRegistrationRepository,
+} from "./wallet-interaction-types.js";
 
 export type Database = PostgresJsDatabase<typeof schema>;
 
@@ -97,36 +107,6 @@ type TxDb = Database;
 
 function normalizeTenant(tenant?: string | null): string {
   return tenant ?? "";
-}
-
-function mapAuditEvent(
-  row: typeof schema.auditEvents.$inferSelect,
-): AuditEvent {
-  const mapped: AuditEvent = {
-    id: row.id,
-    occurredAt: row.occurredAt,
-    eventType: row.eventType,
-    outcome: overlapCast(row.outcome),
-    correlationId: row.correlationId,
-    metadata: overlapCast(row.metadata ?? {}),
-  };
-  if (row.principalId) mapped.principalId = row.principalId;
-  if (row.actorType) {
-    mapped.actorType = overlapCast(row.actorType);
-  }
-  if (row.actorId) mapped.actorId = row.actorId;
-  if (row.agentInstanceId) mapped.agentInstanceId = row.agentInstanceId;
-  if (row.clientId) mapped.clientId = row.clientId;
-  if (row.organizationId) mapped.organizationId = row.organizationId;
-  if (row.projectId) mapped.projectId = row.projectId;
-  if (row.claimId) mapped.claimId = row.claimId;
-  if (row.sessionId) mapped.sessionId = row.sessionId;
-  if (row.targetType) mapped.targetType = row.targetType;
-  if (row.targetId) mapped.targetId = row.targetId;
-  if (row.causationId) mapped.causationId = row.causationId;
-  if (row.previousDigest) mapped.previousDigest = row.previousDigest;
-  if (row.digest) mapped.digest = row.digest;
-  return mapped;
 }
 
 function mapPrincipal(row: typeof schema.principals.$inferSelect): Principal {
@@ -599,6 +579,12 @@ export class PostgresRepositories implements Repositories {
     this.agentAuth = createPostgresAgentAuthRepository(this.db, (uow) =>
       dbOf(uow, this.db),
     );
+    const wallet = createPostgresWalletInteractionRepos(this.db, (uow) =>
+      dbOf(uow, this.db),
+    );
+    this.interactionProofAttempts = wallet.interactionProofAttempts;
+    this.walletRegistrations = wallet.walletRegistrations;
+    this.executionReservations = wallet.executionReservations;
   }
 
   readonly principals: PrincipalRepository = {
@@ -2395,6 +2381,10 @@ export class PostgresRepositories implements Repositories {
       return rows.length;
     },
   };
+
+  readonly interactionProofAttempts: InteractionProofAttemptRepository;
+  readonly walletRegistrations: WalletRegistrationRepository;
+  readonly executionReservations: ExecutionReservationRepository;
 
   async transaction<T>(fn: TransactionFn<T>): Promise<T> {
     return this.db.transaction(async (tx) => {

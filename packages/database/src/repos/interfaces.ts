@@ -713,26 +713,7 @@ export interface ApprovalReceiptRepository {
   getForRequest(authReqId: string): Promise<ApprovalReceipt | null>;
 }
 
-/**
- * A W3C Push subscription.
- *
- * Deliberately not an `ExternalChannelBinding`. A binding's `metadata` is
- * documented as digest-shaped and never secret, and a push subscription
- * carries two things that are neither: `endpoint` is a capability URL — a
- * bearer credential for pushing to that browser, which anyone holding it can
- * use — and `authSecret` is the RFC 8291 shared secret that the content
- * encryption is keyed from. Both must be stored whole, because signing and
- * encrypting need the raw bytes (the same reason `webhook_endpoints.secret`
- * cannot be a hash), and neither may ever reach an API response, a log line,
- * or a notification body. `endpointDigest` exists so a subscription can be
- * deduplicated and named without either.
- *
- * NOTE FOR THE COORDINATOR: this type lives here rather than in
- * `packages/os-domain/src/approval-ceremony.ts` only because this agent's
- * scope is `packages/database`. It is a pure domain shape and belongs beside
- * the other ADR 0084 types; move it when convenient — the only import to
- * repoint is `ChannelBindingChallenge`-style, i.e. this file's own re-export.
- */
+/** Web Push subscription for a principal (ADR 0084). */
 export interface PushSubscription {
   id: string;
   principalId: PrincipalId;
@@ -836,6 +817,12 @@ export interface AgentAuthRepository {
   countLiveRegistrations(): Promise<number>;
 }
 
+import type {
+  ExecutionReservationRepository,
+  InteractionProofAttemptRepository,
+  WalletRegistrationRepository,
+} from "./wallet-interaction-types.js";
+
 export interface Repositories {
   principals: PrincipalRepository;
   authorizationRequests: AuthorizationRequestRepository;
@@ -858,6 +845,9 @@ export interface Repositories {
   approvalReceipts: ApprovalReceiptRepository;
   pushSubscriptions: PushSubscriptionRepository;
   callbackReplays: CallbackReplayRepository;
+  interactionProofAttempts: InteractionProofAttemptRepository;
+  walletRegistrations: WalletRegistrationRepository;
+  executionReservations: ExecutionReservationRepository;
   agentAuth: AgentAuthRepository;
   /**
    * Run work in a single transaction. Domain writes + outbox append must share this boundary.

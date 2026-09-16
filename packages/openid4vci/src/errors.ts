@@ -43,6 +43,13 @@ export type Openid4vciErrorCode =
    * query or fragment. Thrown before the link is returned, never after.
    */
   | "offer_link_would_leak"
+  /**
+   * An offer was asked for that neither demands a Transaction Code nor
+   * declares its redemption protected. A by-reference offer's code is served
+   * from the offer resource, so an offer with no second factor and no
+   * authenticated fetch is a bearer on a screen (F10). Refused at mint time.
+   */
+  | "offer_redemption_unprotected"
   /** The proof JWT is not a well-formed compact JWS with a signature. */
   | "malformed_proof"
   /** `typ` is absent or is not `openid4vci-proof+jwt`. */
@@ -105,6 +112,7 @@ const WIRE_ERRORS = {
   invalid_issuer_configuration: "credential_request_denied",
   invalid_offer: "invalid_request",
   offer_link_would_leak: "credential_request_denied",
+  offer_redemption_unprotected: "invalid_request",
   malformed_proof: "invalid_proof",
   proof_typ_mismatch: "invalid_proof",
   proof_algorithm_not_allowed: "invalid_proof",
@@ -132,6 +140,8 @@ const MESSAGES = {
   invalid_issuer_configuration: "issuer configuration is incomplete or invalid",
   invalid_offer: "credential offer parameters are incomplete or invalid",
   offer_link_would_leak: "offer link would carry credential material",
+  offer_redemption_unprotected:
+    "offer has neither a transaction code nor protected redemption",
   malformed_proof: "key proof is not a signed compact JWS",
   proof_typ_mismatch: "key proof is not typed openid4vci-proof+jwt",
   proof_algorithm_not_allowed: "key proof algorithm is not allowed",

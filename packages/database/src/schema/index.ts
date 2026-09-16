@@ -17,7 +17,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 /** bytea column mapped to Uint8Array */
-const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
+export const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
   dataType() {
     return "bytea";
   },
@@ -29,7 +29,7 @@ const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
   },
 });
 
-const timestamps = {
+export const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
     .defaultNow(),
@@ -2060,9 +2060,7 @@ export const pushSubscriptions = pgTable(
  * over it is MAC-bound (see `crypto/interaction-ref.ts`), so a photographed QR
  * buys the finder an opaque handle and no authority at all.
  *
- * Storage deliberately does not re-implement `machines/interaction.ts`. The
- * checks below are the invariants a *stored* row must satisfy no matter which
- * code path wrote it — a second line under the machine, not a copy of it.
+ * Checks below are stored-row invariants (not a copy of machines/interaction).
  */
 export const interactions = pgTable(
   "interactions",
@@ -2220,15 +2218,16 @@ export const interactions = pgTable(
      * with no moment attached — unauditable, and indistinguishable from one
      * written around the machine.
      *
-     * `expired` and `revoked` are excluded because neither has a decider.
-     * Expiry is the clock running out, and revocation is reachable from
-     * `pending`, where nobody has been asked yet. Widening this check to all
-     * four terminal states would be a constraint the legitimate paths cannot
-     * satisfy.
+     * `expired`/`revoked` excluded (no decider); widening breaks legitimate paths.
      */
     check(
       "interactions_decided_at_check",
       sql`${t.status} not in ('denied','consumed') or ${t.decidedAt} is not null`,
+    ),
+    // ADR 0086 F12: approved rows must carry durable approvalProof.
+    check(
+      "interactions_approved_proof_check",
+      sql`${t.status} <> 'approved' or ${t.approvalProof} is not null`,
     ),
   ],
 );

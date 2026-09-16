@@ -23,6 +23,10 @@ function newOffer(overrides: Partial<CredentialOfferInput> = {}) {
     credentialIssuer: ISSUER,
     credentialConfigurationIds: ["opensesame-holder-binding"],
     offerUri: OFFER_URI,
+    // The default an offer without an explicit Transaction Code relies on:
+    // the offer resource and token endpoint are behind authentication (F10).
+    // Tests that need the unprotected case call createCredentialOffer directly.
+    protectedRedemption: true,
     ...overrides,
   });
 }
@@ -110,6 +114,53 @@ describe("createCredentialOffer", () => {
       () => newOffer({ txCodeValue: "1234" }),
       "invalid_offer",
     );
+  });
+
+  // T-24: F10 — an offer by reference is a bearer unless a second factor or an
+  // authenticated fetch stands in front of it.
+  it("refuses an offer with neither a tx_code nor protected redemption (F10)", async () => {
+    await expectRefusal(
+      () =>
+        createCredentialOffer({
+          credentialIssuer: ISSUER,
+          credentialConfigurationIds: ["opensesame-holder-binding"],
+          offerUri: OFFER_URI,
+        }),
+      "offer_redemption_unprotected",
+    );
+    await expectRefusal(
+      () =>
+        createCredentialOffer({
+          credentialIssuer: ISSUER,
+          credentialConfigurationIds: ["opensesame-holder-binding"],
+          offerUri: OFFER_URI,
+          protectedRedemption: false,
+        }),
+      "offer_redemption_unprotected",
+    );
+  });
+
+  it("accepts an offer protected by a tx_code alone, with no protectedRedemption", () => {
+    const created = createCredentialOffer({
+      credentialIssuer: ISSUER,
+      credentialConfigurationIds: ["opensesame-holder-binding"],
+      offerUri: OFFER_URI,
+      txCode: { length: 4 },
+      txCodeValue: "4821",
+    });
+    // A tx_code offer needs no principal binding at the resource, so the grant
+    // does not demand protected redemption.
+    expect(created.grant.requiresProtectedRedemption).toBe(false);
+    expect(created.grant.txCodeValue).toBe("4821");
+  });
+
+  it("carries the protected-redemption flag onto the grant and the redemption", async () => {
+    const store = new MemoryPreAuthorizedCodeStore();
+    const created = newOffer();
+    expect(created.grant.requiresProtectedRedemption).toBe(true);
+    await store.register(created.grant);
+    const redeemed = await store.redeem(created.grant.code);
+    expect(redeemed.requiresProtectedRedemption).toBe(true);
   });
 
   it("refuses a cleartext offer URI and an empty configuration list", async () => {

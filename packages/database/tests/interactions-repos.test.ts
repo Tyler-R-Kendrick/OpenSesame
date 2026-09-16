@@ -15,7 +15,6 @@ import {
 import * as schema from "../src/schema/index.js";
 import { makePrincipal } from "./factories.js";
 import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
-
 /**
  * Storage contract for the canonical interaction (ADR 0086).
  *
@@ -30,7 +29,6 @@ import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
  * migrations in PGlite, so the checks and the partial unique index are the ones
  * production would apply, not a hand-written approximation of them.
  */
-
 function makeAssuranceRequirement(): AssuranceRequirement {
   return {
     subjectKind: "human",
@@ -40,7 +38,6 @@ function makeAssuranceRequirement(): AssuranceRequirement {
     acceptableAcrValues: ["urn:mace:incommon:iap:silver"],
   };
 }
-
 function makeApprovalProof(
   boundDigest: string,
   overrides: Partial<ApprovalProof> = {},
@@ -54,7 +51,6 @@ function makeApprovalProof(
     ...overrides,
   };
 }
-
 function makeInteraction(overrides: Partial<Interaction> = {}): Interaction {
   const now = new Date("2026-03-04T05:00:00.000Z");
   // The subject's kind tracks the interaction's own: an envelope that fronted
@@ -73,7 +69,6 @@ function makeInteraction(overrides: Partial<Interaction> = {}): Interaction {
     ...overrides,
   };
 }
-
 /** A row with every optional column populated, for the round-trip assertion. */
 function makeFullInteraction(
   approverPrincipalId: string,
@@ -99,7 +94,6 @@ function makeFullInteraction(
     ...overrides,
   });
 }
-
 /**
  * The suite both implementations must pass.
  *
@@ -471,7 +465,13 @@ describe("PostgresRepositories.interactions constraints", () => {
       ctx.db.insert(schema.interactions).values({
         id: row.id,
         kind: row.kind,
-        status: "approved",
+        // `denied`, not `approved`: an approved row must carry its proof
+        // (interactions_approved_proof_check, ADR 0086 F12), which would refuse
+        // this row first and stop it exercising the consumed-at check. A denied
+        // row is a decided terminal state that satisfies the decided-at check
+        // while still violating consumed-at, so the constraint under test is
+        // the one that fires.
+        status: "denied",
         subjectKind: row.subject.kind,
         subjectId: row.subject.subjectId,
         createdAt: row.createdAt,
