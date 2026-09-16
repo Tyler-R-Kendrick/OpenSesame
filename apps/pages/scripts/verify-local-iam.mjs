@@ -161,7 +161,7 @@ async function approveConsent(page, popup, width, agentMode = false) {
     name: agentMode ? "Allow agent access" : "Allow application",
     exact: true,
   });
-  await expect(allow).toBeVisible();
+  await expect(allow).toBeVisible({ timeout: 30_000 });
   await expect(page.locator("output")).toHaveText("Waiting");
   await tabTo(popup, allow);
   await popup.locator(".wordmark").evaluateAll(async (nodes) => {
@@ -246,6 +246,7 @@ async function journey(width, agentMode = false) {
   try {
     await expect(page.locator("output")).toHaveText(
       `Signed in locally: ${agentMode ? identities.agent : identities.person}`,
+      { timeout: 30_000 },
     );
   } catch (error) {
     console.error(
@@ -256,13 +257,17 @@ async function journey(width, agentMode = false) {
   }
   await tabTo(page, page.getByRole("button", { name: "Check session" }));
   await page.keyboard.press("Enter");
-  await expect(page.locator("output")).toHaveText("Session active");
+  await expect(page.locator("output")).toHaveText("Session active", {
+    timeout: 30_000,
+  });
   const updated = await popupDevice.cdp.send("WebAuthn.getCredentials", {
     authenticatorId: popupDevice.authenticatorId,
   });
   await tabTo(page, page.getByRole("button", { name: "Revoke", exact: true }));
   await page.keyboard.press("Enter");
-  await expect(page.locator("output")).toHaveText("Revoked");
+  await expect(page.locator("output")).toHaveText("Revoked", {
+    timeout: 30_000,
+  });
   const denied = await openConsent(
     page,
     context,

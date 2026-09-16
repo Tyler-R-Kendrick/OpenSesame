@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, expect, it, vi } from "vitest";
 import * as idp from "../lib/idp-registry.js";
+import * as accessBootstrap from "../lib/local-access-bootstrap.js";
 import * as devices from "../lib/local-devices.js";
 import * as directory from "../lib/local-directory.js";
 import { notifyLocalIamChange } from "../lib/local-iam-events.js";
@@ -36,7 +37,8 @@ function renderTree() {
 }
 
 it("updates every identity subtree when directory or providers change", async () => {
-  const read = vi.spyOn(directory, "ensureOwnerPerson").mockResolvedValue({
+  vi.spyOn(accessBootstrap, "ensureDefaultAccess").mockResolvedValue();
+  const read = vi.spyOn(directory, "readLocalDirectory").mockResolvedValue({
     version: 2,
     revision: 1,
     entries: [
@@ -58,7 +60,7 @@ it("updates every identity subtree when directory or providers change", async ()
   });
   const providers = vi.spyOn(idp, "listIdpRegistrations").mockReturnValue([]);
   const deviceList = vi
-    .spyOn(devices, "ensureThisDevice")
+    .spyOn(devices, "readLocalDevices")
     .mockResolvedValue([]);
   renderTree();
   await waitFor(() => expect(countOf("People")).toBe("1"));

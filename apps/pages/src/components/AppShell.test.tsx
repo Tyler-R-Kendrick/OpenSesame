@@ -19,7 +19,17 @@ const vault = vi.hoisted(() => {
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
-  useVault: () => ({ items: vault.items, folders: vault.folders }),
+  useVault: () => ({
+    items: vault.items,
+    folders: vault.folders,
+    prefs: {
+      theme: "system",
+      autoLockMinutes: 0,
+      clipboardClearSeconds: 30,
+      lockOnHide: false,
+      signOutOnLock: false,
+    },
+  }),
   useVaultStore: () => ({ lock: vault.lock }),
 });
 
@@ -107,13 +117,20 @@ describe("AppShell", () => {
     expect(screen.getAllByText("open-sesame").length).toBeGreaterThan(0);
     // The rail's lowercase segments are always drawn; the capitalised labels
     // are the phone's, and a phone keeps its sections behind one key.
-    const labels = ["Vault", "Connections", "Access", "Identity", "Settings"];
+    const labels = [
+      "Vault",
+      "Connections",
+      "Access",
+      "Identity",
+      "Wallet",
+      "Settings",
+    ];
     for (const label of labels) {
       expect(screen.getAllByText(label.toLowerCase()).length).toBe(1);
     }
     expect(labels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Sections" }));
-    expect(labels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(5);
+    expect(labels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(6);
     const gone = ["Authority", "Authentication", "Sites"];
     expect(gone.flatMap((g) => screen.queryAllByText(g))).toHaveLength(0);
     expect(screen.getByText("content")).toBeTruthy();
@@ -129,7 +146,7 @@ describe("AppShell", () => {
     const jumps = [...container.querySelectorAll("kbd.railtree__jump")].map(
       (kbd) => kbd.textContent,
     );
-    expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gs"]);
+    expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gw", "gs"]);
   });
 
   it("hangs the settings categories under settings/ when inside", () => {
@@ -362,7 +379,8 @@ describe("AppShell", () => {
       container.querySelector('a[href="/vault"] + .railtree__kids'),
     ).toBeTruthy();
     expect(document.getElementById("connections-tree")).toBeNull();
-    fireEvent.keyDown(tree, { key: "3" });
+    // connections → access → identity → wallet → settings
+    fireEvent.keyDown(tree, { key: "4" });
     fireEvent.keyDown(tree, { key: "j" });
     const settings = screen.getByRole("treeitem", { name: "Settings" });
     expect(settings.getAttribute("aria-selected")).toBe("true");

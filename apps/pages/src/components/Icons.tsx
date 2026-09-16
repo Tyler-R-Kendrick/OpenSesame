@@ -310,6 +310,26 @@ export function IconChevronLeft(props: IconProps) {
   );
 }
 
+/** Skip one step — chevron past a stop. */
+export function IconSkip(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M7 5.5l6.5 6.5L7 18.5" />
+      <path d="M16.5 5.5v13" />
+    </Svg>
+  );
+}
+
+/** Skip the rest — double chevron. */
+export function IconSkipAll(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.5 5.5L11 12l-6.5 6.5" />
+      <path d="M11.5 5.5L18 12l-6.5 6.5" />
+    </Svg>
+  );
+}
+
 export function IconDots(props: IconProps) {
   return (
     <Svg {...props}>

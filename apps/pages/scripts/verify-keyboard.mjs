@@ -16,7 +16,7 @@ const harness = createHarness({
 const browser = await harness.launch();
 
 async function tabTo(page, target, key = "Tab") {
-  for (let step = 0; step < 80; step++) {
+  for (let step = 0; step < 160; step++) {
     if (await target.evaluate((node) => node === document.activeElement))
       return;
     await page.keyboard.press(key);

@@ -22,6 +22,7 @@ import {
   useVault as defaultUseVault,
 } from "./lib/vault/hooks.js";
 import { BrokerAuthorize as DefaultBrokerAuthorize } from "./screens/BrokerAuthorize.js";
+import { DropClaimScreen } from "./screens/DropClaimScreen.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
 import {
@@ -61,9 +62,19 @@ const LocalAuthorize = lazy(() =>
     default: m.LocalAuthorize,
   })),
 );
+const SiopAuthorize = lazy(() =>
+  import("./screens/SiopAuthorize.js").then((m) => ({
+    default: m.SiopAuthorize,
+  })),
+);
 const DefaultSettingsSection = lazy(() =>
   import("./sections/SettingsSection.js").then((m) => ({
     default: m.SettingsSection,
+  })),
+);
+const DefaultWalletSection = lazy(() =>
+  import("./sections/WalletSection.js").then((m) => ({
+    default: m.WalletSection,
   })),
 );
 
@@ -82,6 +93,7 @@ export type AppSlots = {
   AccessSection: ComponentType;
   ConnectionsSection: ComponentType;
   IdentitySection: ComponentType;
+  WalletSection: ComponentType;
   SettingsSection: ComponentType;
   VaultSection: ComponentType;
   VaultWelcome: ComponentType;
@@ -102,6 +114,7 @@ const defaultSlots: AppSlots = {
   AccessSection: DefaultAccessSection,
   ConnectionsSection: DefaultConnectionsSection,
   IdentitySection: DefaultIdentitySection,
+  WalletSection: DefaultWalletSection,
   SettingsSection: DefaultSettingsSection,
   VaultSection: DefaultVaultSection,
   VaultWelcome: DefaultVaultWelcome,
@@ -229,10 +242,26 @@ function VaultApp() {
             }
           />
           <Route
+            path="/identity/siop"
+            element={
+              <Framed>
+                <SiopAuthorize />
+              </Framed>
+            }
+          />
+          <Route
             path="/connections/:providerId?/:connectionId?"
             element={
               <Framed>
                 <slots.ConnectionsSection />
+              </Framed>
+            }
+          />
+          <Route
+            path="/wallet/:category?"
+            element={
+              <Framed>
+                <slots.WalletSection />
               </Framed>
             }
           />
@@ -265,6 +294,8 @@ export function App({ slots }: { slots?: Partial<AppSlots> } = {}) {
     <resolved.FederationReturn />
   ) : location.pathname === "/broker/authorize" ? (
     <resolved.BrokerAuthorize />
+  ) : location.pathname === "/claim" ? (
+    <DropClaimScreen />
   ) : (
     <VaultApp />
   );

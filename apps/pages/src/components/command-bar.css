@@ -1,0 +1,109 @@
+/* Shell omnibox — URL-bar geometry under crumbs, above the section. */
+
+.command-bar {
+  flex: none;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.35rem 0.85rem 0.45rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.command-bar__form {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2rem;
+  padding: 0.15rem 0.35rem 0.15rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.command-bar__input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0.35rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.command-bar__input::placeholder {
+  color: var(--ink-3);
+}
+
+.command-bar__input:focus {
+  outline: none;
+}
+
+.command-bar__form:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.command-bar__mic,
+.command-bar__go {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.command-bar__mic:hover,
+.command-bar__go:hover {
+  color: var(--ink);
+  background: var(--surface-3);
+}
+
+.command-bar__mic.is-hot {
+  color: var(--err);
+  background: color-mix(in srgb, var(--err) 12%, var(--surface-2));
+}
+
+.command-bar__mic:disabled,
+.command-bar__go:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.command-bar__status {
+  margin: 0;
+  padding: 0 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  text-wrap: pretty;
+}
+
+@media (pointer: coarse) {
+  .command-bar__mic,
+  .command-bar__go {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .command-bar__input {
+    font-size: 1rem; /* iOS zoom floor */
+  }
+}
+
+@media (max-width: 900px) {
+  .command-bar {
+    padding-left: calc(0.75rem + env(safe-area-inset-left));
+    padding-right: calc(0.75rem + env(safe-area-inset-right));
+  }
+}

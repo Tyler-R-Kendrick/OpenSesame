@@ -6,10 +6,12 @@ export async function localMembershipContract(page, tabTo) {
     await page.keyboard.press("Enter");
   }
   async function create(panel, kind, name) {
-    await tabTo(
-      page,
-      panel.getByRole("button", { name: `New ${kind}`, exact: true }),
-    );
+    const createButton = panel.getByRole("button", {
+      name: `New ${kind}`,
+      exact: true,
+    });
+    await expect(createButton).toBeEnabled();
+    await tabTo(page, createButton);
     await page.keyboard.press("Enter");
     await expect(
       panel.getByRole("textbox", { name: "Name", exact: true }),
@@ -50,7 +52,7 @@ export async function localMembershipContract(page, tabTo) {
   );
   await page.keyboard.press("Enter");
   const member = rows.filter({ hasText: "Membership member" });
-  await expect(member.getByText("member", { exact: true })).toBeVisible();
+  await expect(member).toContainText("Member");
   await tabTo(page, role);
   await page.keyboard.press("Home");
   await page.keyboard.press("ArrowDown");
@@ -60,7 +62,7 @@ export async function localMembershipContract(page, tabTo) {
     org.getByRole("button", { name: "Save role", exact: true }),
   );
   await page.keyboard.press("Enter");
-  await expect(member.getByText("admin", { exact: true })).toBeVisible();
+  await expect(member).toContainText("Admin (operator)");
   await panel.scrollIntoViewIfNeeded();
   await page.screenshot({
     path: `/tmp/opensesame-local-memberships-${page.viewportSize().width}.png`,
@@ -94,15 +96,21 @@ async function assignOwner(page, panel, tabTo) {
     await page.keyboard.press("ArrowDown");
   }
   await expect(person.locator("option:checked")).toHaveText(/Membership owner/);
+  await page.keyboard.press("Tab");
+  await expect(role).toBeFocused();
   await expect(role).toHaveValue("owner");
-  await tabTo(
-    page,
-    panel.getByRole("button", { name: "Add member", exact: true }),
-  );
+  const addMember = panel.getByRole("button", {
+    name: "Add member",
+    exact: true,
+  });
+  await expect(addMember).toBeEnabled();
+  await tabTo(page, addMember);
+  await expect(addMember).toBeFocused();
   await page.keyboard.press("Enter");
   const rows = panel.locator(".identity-passkeys > li");
   const owner = rows.filter({ hasText: "Membership owner" });
-  await expect(owner.getByText("owner", { exact: true })).toBeVisible();
+  await expect(owner).toBeVisible();
+  await expect(owner).toContainText("Owner (operator)");
   await tabTo(
     page,
     owner.getByRole("button", { name: "Remove member", exact: true }),

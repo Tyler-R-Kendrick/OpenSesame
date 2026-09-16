@@ -166,7 +166,13 @@ async function newPage(
   const page = await context.newPage();
   observeHttpFailures(page, record, expectedFallbackUrl);
   page.on("pageerror", (error) =>
-    record("PAGE-ERROR", String(error?.stack ?? error).slice(0, 800)),
+    record(
+      "PAGE-ERROR",
+      String(error?.stack || error?.message || error || "unknown").slice(
+        0,
+        800,
+      ),
+    ),
   );
   return { page, context, shooCalls };
 }

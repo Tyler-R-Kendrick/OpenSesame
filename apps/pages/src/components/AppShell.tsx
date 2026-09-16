@@ -14,8 +14,10 @@ import {
 } from "react-router";
 import {
   SETTINGS_CATEGORIES,
+  WALLET_CATEGORIES,
   settingsCategoryFromLocation,
   settingsPath,
+  walletPath,
 } from "../lib/crumbs.js";
 import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
@@ -23,6 +25,7 @@ import type { ItemKind } from "../lib/vault/model.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccessTree } from "./AccessTree.js";
 import { AccountSwitcher } from "./AccountSwitcher.js";
+import { CommandBar } from "./CommandBar.js";
 import { ConnectionsNavigation } from "./ConnectionsNavigation.js";
 import { ConnectionsTree } from "./ConnectionsTree.js";
 import { Crumbs } from "./Crumbs.js";
@@ -35,6 +38,7 @@ import { PageTreeLeafRow, useSectionExpand } from "./PageTreeBranch.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import { SECTIONS, SectionRow, railRowId } from "./RailRows.js";
 import { Statusline } from "./Statusline.js";
+import { ThemeToggle } from "./ThemeToggle.js";
 import { VaultRail, uniqueFolderKind } from "./VaultRail.js";
 import { Wordmark } from "./Wordmark.js";
 import { useRailCursor } from "./rail-cursor.js";
@@ -59,12 +63,14 @@ function NavTree() {
   const connections = useSectionExpand("/connections");
   const access = useSectionExpand("/access");
   const identity = useSectionExpand("/identity");
+  const wallet = useSectionExpand("/wallet");
   const settings = useSectionExpand("/settings");
   const vaultOpen = vault.expanded;
   const settingsOpen = settings.expanded;
   const connectionsOpen = connections.expanded;
   const accessOpen = access.expanded;
   const identityOpen = identity.expanded;
+  const walletOpen = wallet.expanded;
   const activeFilter = params.get("f") ?? "all";
   const activeFolder = params.get("folder");
   const settingsCategory = settingsCategoryFromLocation(
@@ -88,6 +94,7 @@ function NavTree() {
         "/connections": connectionsOpen,
         "/access": accessOpen,
         "/identity": identityOpen,
+        "/wallet": walletOpen,
         "/settings": settingsOpen,
       }[section.to],
   );
@@ -157,6 +164,31 @@ function NavTree() {
       />
       <SectionRow
         section={SECTIONS[4]}
+        open={walletOpen}
+        active={wallet.here}
+        branch={walletOpen}
+        onToggle={wallet.onToggle}
+      />
+      {walletOpen ? (
+        <div className="railtree__kids">
+          {WALLET_CATEGORIES.map((category) => (
+            <PageTreeLeafRow
+              key={category}
+              node={{
+                id: category,
+                label: category,
+                href: walletPath(category),
+                children: [],
+                branch: false,
+              }}
+              level={2}
+              current={selectedTo}
+            />
+          ))}
+        </div>
+      ) : null}
+      <SectionRow
+        section={SECTIONS[5]}
         open={settingsOpen}
         active={settings.here}
         branch={settingsOpen}
@@ -258,10 +290,13 @@ function Shell({ children }: { children?: ReactNode }) {
               Between them the bar a phone already had is the whole chrome. */}
           <NavDrawer />
           <SessionPrompt />
+          <ThemeToggle />
           <MoreMenu />
         </header>
 
         <Crumbs />
+
+        <CommandBar />
 
         {children}
       </div>

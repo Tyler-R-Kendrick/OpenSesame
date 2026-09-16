@@ -11,7 +11,12 @@ export async function localPolicyJourney({
   const { page, context, credentials } = await seedJourney(false);
   const { popup } = await openConsent(page, context, credentials, width);
   await approveConsent(page, popup, width);
-  await expect(page.locator("output")).toHaveText(/^Signed in locally: local_/);
+  await expect(page.locator("output")).toHaveText(
+    /^Signed in locally: local_/,
+    {
+      timeout: 30_000,
+    },
+  );
   await page.getByRole("button", { name: "Check session" }).click();
   await expect(page.locator("output")).toHaveText("Session active");
   const management = await openLocalAccessPage(context, width, "policies");

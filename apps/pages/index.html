@@ -10,8 +10,8 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' data: http: https: ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self' https://github.com; frame-src 'none'"
-    />
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' http://localhost:8400; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' data: http: https: ws: wss: http://localhost:8400; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self' https://github.com; frame-src 'none'"
+ data-impeccable-csp-original="ZGVmYXVsdC1zcmMgJ3NlbGYnOyBzY3JpcHQtc3JjICdzZWxmJyAnd2FzbS11bnNhZmUtZXZhbCc7IHN0eWxlLXNyYyAnc2VsZicgJ3Vuc2FmZS1pbmxpbmUnOyBmb250LXNyYyAnc2VsZic7IGltZy1zcmMgJ3NlbGYnIGRhdGE6IGJsb2I6OyBjb25uZWN0LXNyYyAnc2VsZicgZGF0YTogaHR0cDogaHR0cHM6IHdzOiB3c3M6OyB3b3JrZXItc3JjICdzZWxmJyBibG9iOjsgb2JqZWN0LXNyYyAnbm9uZSc7IGJhc2UtdXJpICdub25lJzsgZm9ybS1hY3Rpb24gJ3NlbGYnIGh0dHBzOi8vZ2l0aHViLmNvbTsgZnJhbWUtc3JjICdub25lJw=="    />
     <meta name="referrer" content="no-referrer" />
     <meta name="color-scheme" content="light dark" />
     <meta
@@ -52,5 +52,8 @@
     -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- impeccable-live-start -->
+<script src="http://localhost:8400/live.js?token=f93fe896-b5fb-4274-b494-84cf621fa183"></script>
+<!-- impeccable-live-end -->
+</body>
 </html>

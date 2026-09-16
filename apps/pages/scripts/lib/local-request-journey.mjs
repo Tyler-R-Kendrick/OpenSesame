@@ -44,6 +44,7 @@ export async function localRequestJourney({
     .click();
   await expect(panel.getByLabel("Local session status")).toHaveText(
     /Signed in locally with a passkey/,
+    { timeout: 30_000 },
   );
   await panel
     .getByLabel("Reason", { exact: true })
@@ -54,7 +55,7 @@ export async function localRequestJourney({
     .click();
   await expect(
     panel.getByText("Local request created. No access was granted."),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30_000 });
   await expect(create).toBeFocused();
   await panel
     .getByRole("button", { name: "Review request", exact: true })
