@@ -1,0 +1,26 @@
+[package]
+name = "opensesame-sandbox"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Bounded, brokered sandbox for general-authority guest execution"
+
+[dependencies]
+opensesame-domain = { path = "../domain" }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+wasmtime = { workspace = true, optional = true }
+
+[features]
+# The engine is default-off, mirroring `opensesame-connector-host`: the
+# profile/boundary/revocation types are policy and must stay linkable by
+# trees that may not pull in a JIT (ADR 0048 §5 dependency budget).
+wasm-runtime = ["dep:wasmtime"]
+# Grant-chain builders for tests in this crate and its dependents.
+fixtures = []
+
+[dev-dependencies]
+# Assembles the hostile-guest fixtures. The sandbox refuses WAT text, so
+# tests must hand it a real binary rather than lean on the engine's own
+# text support — which is itself one of the things asserted.
+wat = "1.258.0"

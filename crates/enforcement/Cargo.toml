@@ -1,0 +1,17 @@
+[package]
+name = "opensesame-enforcement"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Multidimensional enforcement guarantees: what a platform actually holds, and what it must refuse to claim"
+
+[lib]
+name = "opensesame_enforcement"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

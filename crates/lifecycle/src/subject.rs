@@ -42,10 +42,15 @@ pub enum SubjectKind {
     /// vault renewing itself overnight is the platform giving away what it
     /// was trusted to hold.
     SessionGrant,
+    /// A generalized hierarchical authority grant (`grant_authority` sidecar).
+    ///
+    /// Non-renewable like [`SubjectKind::SessionGrant`]: expiry narrates; a
+    /// human (or a new reviewed issuance) extends reach — not the ladder.
+    AuthorityGrant,
 }
 
 impl SubjectKind {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::Certificate,
         Self::CertificateAuthority,
         Self::ConnectionCredential,
@@ -53,6 +58,7 @@ impl SubjectKind {
         Self::Signer,
         Self::WebLogin,
         Self::SessionGrant,
+        Self::AuthorityGrant,
     ];
 
     /// Whether the platform's own responder may ever extend this kind.
@@ -76,7 +82,7 @@ impl SubjectKind {
             | Self::StorePath
             | Self::Signer
             | Self::WebLogin => true,
-            Self::SessionGrant => false,
+            Self::SessionGrant | Self::AuthorityGrant => false,
         }
     }
 
@@ -91,6 +97,7 @@ impl SubjectKind {
             Self::Signer => "signer",
             Self::WebLogin => "web_login",
             Self::SessionGrant => "session_grant",
+            Self::AuthorityGrant => "authority_grant",
         }
     }
 
@@ -186,16 +193,17 @@ mod tests {
                 "signer",
                 "web_login",
                 "session_grant",
+                "authority_grant",
             ],
         );
     }
 
     #[test]
-    fn a_session_grant_is_the_one_kind_that_never_renews_itself() {
+    fn session_and_authority_grants_never_renew_themselves() {
         for kind in SubjectKind::ALL {
             assert_eq!(
                 kind.renewable(),
-                kind != SubjectKind::SessionGrant,
+                kind != SubjectKind::SessionGrant && kind != SubjectKind::AuthorityGrant,
                 "{kind:?} renewability"
             );
         }
