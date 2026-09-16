@@ -113,6 +113,15 @@ describe("listDeviceVaults", () => {
     expect(guest?.state).toBe("empty");
   });
 
+  it("never lists the guest tomb twice when guest files exist on disk", async () => {
+    await vaultStore.createGuest();
+    vaultStore.lock();
+    const vaults = listDeviceVaults();
+    const guests = vaults.filter((vault) => vault.id === GUEST_TOMB);
+    expect(guests).toHaveLength(1);
+    expect(guests[0]?.kind).toBe("guest");
+  });
+
   it("marks the guest row open while a guest session runs — never the tomb it borrows", async () => {
     await vaultStore.createGuest();
     const vaults = listDeviceVaults();

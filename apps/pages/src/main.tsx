@@ -14,6 +14,7 @@ import {
   rehydrateProjects,
 } from "./lib/projects.js";
 import { loadRuntimeConfig } from "./lib/runtime-config.js";
+import { THEME_KEY, bootstrapTheme } from "./lib/theme.js";
 import { vaultStore } from "./lib/vault/store.js";
 import {
   migrateLegacyVaultStorage,
@@ -71,9 +72,11 @@ void (async () => {
     "outbox.v1",
     "connections.firstRun.v1",
     // The model-provider record reads synchronously (`loadModelProvider`),
-    // so a choice made in setup or Settings › Model is lost on reload
+    // so a choice made in setup or Settings › AI models is lost on reload
     // unless it hydrates here with the rest of the plaintext boundary.
     MODEL_PROVIDER_KEY,
+    // Day/night must survive a locked reload — not a vault secret.
+    THEME_KEY,
   ]);
   rehydrateProjects();
   const tomb = activeProject().id;
@@ -83,6 +86,7 @@ void (async () => {
   // bytes); sealed config migrates on unlock.
   await migrateLegacyVaultStorage(tomb);
   vaultStore.rehydrate();
+  bootstrapTheme();
 
   createRoot(root).render(
     <StrictMode>

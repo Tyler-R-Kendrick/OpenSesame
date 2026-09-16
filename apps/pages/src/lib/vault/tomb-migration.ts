@@ -126,6 +126,7 @@ function tombSessionKeys(tomb: string): string[] {
     "config/identity-agent-keys",
     "config/identity-applications",
     "config/identity-requests",
+    "config/siop-keys",
   ].map((path) => tombFileKey(tomb, path));
 }
 

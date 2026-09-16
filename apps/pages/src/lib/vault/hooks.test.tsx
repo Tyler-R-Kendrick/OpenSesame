@@ -34,8 +34,6 @@ type ClipboardStub = {
   writeText: ReturnType<typeof vi.fn>;
 };
 
-type ThemeProps = { theme: "system" | "light" | "dark" };
-
 function stubClipboard(overrides: Partial<ClipboardStub> = {}): ClipboardStub {
   const clipboard: ClipboardStub = {
     readText: vi.fn().mockResolvedValue(""),
@@ -369,27 +367,26 @@ describe("clearCopiedSecret", () => {
 });
 
 describe("useTheme", () => {
-  it("applies the theme attribute and removes it for system", () => {
-    const initialProps: ThemeProps = {
-      theme: "dark",
-    };
-    const { rerender } = renderHook(
-      ({ theme }: ThemeProps) => {
-        const snapshot = vaultStore.getSnapshot();
-        vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
-          ...snapshot,
-          prefs: { ...snapshot.prefs, theme },
-        });
-        useTheme();
-      },
-      { initialProps },
-    );
+  it("applies the theme attribute and removes it for system", async () => {
+    const { setTheme } = await import("../theme.js");
+    const { rerender } = renderHook(() => {
+      useTheme();
+    });
+    act(() => {
+      setTheme("dark");
+    });
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 
-    rerender({ theme: "light" });
+    act(() => {
+      setTheme("light");
+    });
+    rerender();
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 
-    rerender({ theme: "system" });
+    act(() => {
+      setTheme("system");
+    });
+    rerender();
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
   });
 });

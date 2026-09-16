@@ -127,14 +127,16 @@ async function addProvider(
 describe("two optional ceremonies, never a fork (ADR 0090)", () => {
   it("opens the operator ceremony on its first tab when asked for", () => {
     openSetup();
-    expect(heading()).toBe("Where do backups live?");
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("connectors");
     expect(screen.getAllByRole("tab")).toHaveLength(6);
     expect(screen.queryByText("This device is empty")).toBeNull();
   });
 
-  it("backs out to the caller without recording anything", () => {
+  it("closes to the caller without recording anything", () => {
     const onDone = openSetup();
-    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(completeSetup).not.toHaveBeenCalled();
   });
@@ -149,7 +151,9 @@ describe("two optional ceremonies, never a fork (ADR 0090)", () => {
 
   it("defaults to the operator ceremony with no invite in the address bar", () => {
     render(<SetupScreen onDone={vi.fn()} />);
-    expect(heading()).toBe("Where do backups live?");
+    expect(
+      screen.getByRole("tab", { selected: true }).textContent?.trim(),
+    ).toBe("connectors");
   });
 
   it("opens join directly when the visit is an invite", () => {
@@ -234,8 +238,8 @@ describe("the setup ceremony", () => {
   it("is a tab per concern, each skippable, with a skip-all (ADR 0114)", () => {
     openSetup();
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "backups",
       "connectors",
+      "backups",
       "ai",
       "identity",
       "mfa",
@@ -344,12 +348,11 @@ describe("building the list of ways in", () => {
     expect(written.signIn.builtin).toBe(false);
   });
 
-  it("says plainly what removing everything means", async () => {
+  it("lets a deployment finish with no ways in", async () => {
     const onDone = openWaysIn(vi.fn());
     fireEvent.click(screen.getByRole("button", { name: "Remove Google" }));
 
     expect(ways()).toEqual([]);
-    expect(screen.getByText(/Local vault only: no recovery/)).toBeDefined();
 
     fireEvent.click(commit());
     await waitFor(() => expect(onDone).toHaveBeenCalled());
@@ -495,10 +498,11 @@ describe("keeping it on this device", () => {
 
     expect(screen.getAllByRole("tab")).toHaveLength(6);
     expect(screen.getByText("Keep it on this device")).toBeDefined();
-    const text = document.querySelector(".setup__body")?.textContent ?? "";
-    expect(text.indexOf("Where do backups live?")).toBeLessThan(
-      text.indexOf("Keep it on this device"),
-    );
+    expect(
+      document
+        .querySelector(".setup__body")
+        ?.contains(screen.getByText("Keep it on this device")),
+    ).toBe(true);
   });
 
   it("offers the install inside the card, never as the screen's commit", () => {

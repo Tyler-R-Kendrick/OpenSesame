@@ -12,7 +12,11 @@
  * in Settings → Endpoints lights the Host-backed panels up without a reload.
  */
 
-import { hostBase, identityBase } from "./identity.js";
+import {
+  hostBase,
+  identityBase,
+  isRemoteIdentityConfigured,
+} from "./identity.js";
 import { useSettingsEpoch } from "./use-settings.js";
 
 export function useHostConfigured(): boolean {
@@ -21,18 +25,36 @@ export function useHostConfigured(): boolean {
 }
 
 /**
- * Is an OpenSesame Identity API configured?
+ * Is a remote OpenSesame Identity API configured?
  *
- * Also optional (ADR 0078): sign-in runs against the compiled-in broker or a
- * provider the operator brought, both in this browser. What an Identity API
- * adds is the things a browser cannot do alone — org SSO and SAML, magic
- * links, provisional principals, and the OAuth clients a site registers.
+ * Also optional (ADR 0078 / 0118): the device-native identity host always
+ * serves provisional sessions and claims in-tab. What a *remote* Identity API
+ * adds is the networked control-plane — org SSO and SAML, magic links, hosted
+ * OAuth client registration (Sites), and the directory APIs behind Identity ›
+ * People when that plane is pointed at a server.
  *
- * A panel asks this for the same reason it asks about a Host: so that "no
- * sites are registered here" never arrives dressed as "that client no longer
- * exists".
+ * Panels that talk those control-plane shapes ask this so a missing remote URL
+ * keeps showing the browser-local directory, never a "Connect to Identity"
+ * dead end over an empty remote API.
  */
 export function useIdentityConfigured(): boolean {
   useSettingsEpoch();
+  return isRemoteIdentityConfigured();
+}
+
+/**
+ * Is any Identity plane available — remote URL or the device-native host?
+ *
+ * Prefer this for surfaces that speak `/v1/*` through `identityFetch` and are
+ * backed on-device (Active project from vault projects). Prefer
+ * `useIdentityConfigured` for control-plane-only roads.
+ */
+export function useIdentityPlane(): boolean {
+  useSettingsEpoch();
   return identityBase().trim().length > 0;
+}
+
+/** @deprecated Prefer useIdentityConfigured — same remote-only meaning. */
+export function useRemoteIdentityConfigured(): boolean {
+  return useIdentityConfigured();
 }

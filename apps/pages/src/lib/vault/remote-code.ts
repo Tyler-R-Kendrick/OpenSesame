@@ -1,5 +1,5 @@
 import { isString, overlapCast } from "@opensesame/os-domain";
-import { identityBase, identityFetch } from "../identity.js";
+import { identityFetch, isRemoteIdentityConfigured } from "../identity.js";
 import type { CodeChannel } from "./unlock-methods.js";
 
 /**
@@ -34,12 +34,12 @@ export class RemoteCodeError extends Error {
   }
 }
 
-/** Whether there is an Identity API to send through at all. */
+/** Whether there is a remote Identity API to send through at all. */
 function requireIdentity(): void {
-  if (!identityBase()) {
+  if (!isRemoteIdentityConfigured()) {
     throw new RemoteCodeError(
       "no_identity",
-      "Codes by email or text need an Identity API. Set one under Settings → Connectivity.",
+      "Codes by email or text need a remote Identity API. Set one under Settings → Connectivity.",
     );
   }
 }

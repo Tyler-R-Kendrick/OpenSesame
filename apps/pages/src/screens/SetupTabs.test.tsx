@@ -22,36 +22,36 @@ function openSetup(onDone: () => void = vi.fn()): () => void {
   return onDone;
 }
 
-function heading(): string {
-  return screen.getByRole("heading", { level: 1 }).textContent ?? "";
+function selectedTab(): string {
+  return screen.getByRole("tab", { selected: true }).textContent?.trim() ?? "";
 }
 
 describe("the tabs and their skips (ADR 0114)", () => {
-  it("walks from backups to sync as steps are skipped, recording each", async () => {
+  it("walks from connectors to sync as steps are skipped, recording each", async () => {
     const onDone = openSetup(vi.fn());
-    for (const title of [
-      "Where do backups live?",
-      "Which connectors are already authorized?",
-      "Who runs the model?",
-      "How do people sign in?",
-      "Should a code follow the key?",
-      "What should this vault sync with?",
+    for (const tab of [
+      "connectors",
+      "backups",
+      "ai",
+      "identity",
+      "mfa",
+      "sync",
     ]) {
-      expect(heading()).toBe(title);
+      expect(selectedTab()).toBe(tab);
       fireEvent.click(screen.getByRole("button", { name: "Skip this step" }));
     }
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(completeSetup).toHaveBeenCalledWith({
       ways: ["builtin"],
       service: false,
-      skipped: ["backups", "connectors", "ai", "identity", "mfa", "sync"],
+      skipped: ["connectors", "backups", "ai", "identity", "mfa", "sync"],
     });
   });
 
   it("skip all finishes from wherever the tour is", async () => {
     const onDone = openSetup(vi.fn());
     fireEvent.click(screen.getByRole("tab", { name: "mfa" }));
-    expect(heading()).toBe("Should a code follow the key?");
+    expect(selectedTab()).toBe("mfa");
     fireEvent.click(screen.getByRole("button", { name: "Skip all" }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect(completeSetup).toHaveBeenCalledWith({
@@ -63,7 +63,7 @@ describe("the tabs and their skips (ADR 0114)", () => {
 
   it("lands on a named tab when a road asks for it", () => {
     render(<SetupScreen road="setup" step="identity" onDone={vi.fn()} />);
-    expect(heading()).toBe("How do people sign in?");
+    expect(selectedTab()).toBe("identity");
     expect(
       screen
         .getByRole("tab", { name: "identity" })
@@ -71,14 +71,30 @@ describe("the tabs and their skips (ADR 0114)", () => {
     ).toBe("true");
   });
 
+  it("back returns to the previous step without recording a skip", () => {
+    openSetup();
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(selectedTab()).toBe("backups");
+    fireEvent.click(screen.getByRole("button", { name: "Previous step" }));
+    expect(selectedTab()).toBe("connectors");
+    expect(completeSetup).not.toHaveBeenCalled();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Previous step",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+  });
+
   it("next advances without calling anything skipped, and stops at sync", () => {
     openSetup();
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(heading()).toBe("Which connectors are already authorized?");
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(heading()).toBe("Who runs the model?");
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(heading()).toBe("How do people sign in?");
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(selectedTab()).toBe("backups");
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(selectedTab()).toBe("ai");
+    fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    expect(selectedTab()).toBe("identity");
     // Browsing is not skipping: the record only hears from Skip and Skip all.
     fireEvent.click(screen.getByRole("button", { name: "Skip all" }));
     expect(completeSetup).toHaveBeenCalledWith({
@@ -87,6 +103,6 @@ describe("the tabs and their skips (ADR 0114)", () => {
       skipped: ["identity", "mfa", "sync"],
     });
     fireEvent.click(screen.getByRole("tab", { name: "sync" }));
-    expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next step" })).toBeNull();
   });
 });

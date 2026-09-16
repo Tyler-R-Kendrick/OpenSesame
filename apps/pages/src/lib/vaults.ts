@@ -128,7 +128,9 @@ function listDeviceVaultsDefault(): DeviceVault[] {
   const snapshot = vaultStore.getSnapshot();
   const guestOpen = snapshot.status === "unlocked" && snapshot.guest;
   return [
-    ...listProjects().map(describeVault),
+    ...listProjects()
+      .filter((project) => project.id !== GUEST_TOMB)
+      .map(describeVault),
     guestOpen ? { ...GUEST_VAULT, state: "open" as const } : GUEST_VAULT,
   ];
 }

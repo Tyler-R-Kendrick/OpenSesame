@@ -22,12 +22,8 @@ import {
  * has no BLAKE3). v1 caps total ciphertext at 1 MiB.
  */
 
-import {
-  ensureIdentitySession,
-  identityBase,
-  identityFetch,
-} from "../identity.js";
 import { b64ToBytes, bytesToB64, randomBytes } from "./crypto.js";
+import { DropTransportError, dropSeams } from "./drop-transport.js";
 import {
   type DropItem,
   type DropKeptCopy,
@@ -42,8 +38,6 @@ export const DROP_CHUNK_BYTES = 1_048_576;
 export const MAX_DROP_CIPHERTEXT_BYTES = 1_048_576;
 
 const DROP_MANIFEST_KIND = "secret-drop";
-/** Claim target type a drop session is created under; the manifest discriminates. */
-const DROP_CLAIM_TYPE = "resource_bundle";
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
 
@@ -103,7 +97,9 @@ export type DropErrorCode =
   | "invalid_key"
   | "tampered"
   | "unreachable"
-  | "refused";
+  | "refused"
+  | "corrupt"
+  | "limit_exceeded";
 
 export class DropError extends Error {
   constructor(
@@ -401,149 +397,73 @@ export function dropStateFromClaim(status: string): DropState {
     default:
       throw new DropError(
         "refused",
-        "The Identity API reported a claim state this app does not know.",
+        "The claim plane reported a state this app does not know.",
       );
   }
 }
 
-function ceremoniesBaseDefault(): string {
-  // The ceremonies app is a separate deploy; the Pages runtime config has no
-  // key for it yet, so the build-time override mirrors ceremonies' own
-  // issuer.ts default (its dev port).
-  const fromEnv: BoundaryValue = import.meta.env?.VITE_OPENSESAME_CEREMONIES;
-  return isString(fromEnv) && fromEnv.trim()
-    ? fromEnv.trim().replace(/\/$/, "")
-    : "http://127.0.0.1:5181";
+function mapTransportError(error: Error): DropError {
+  if (error instanceof DropError) return error;
+  if (error instanceof DropTransportError) {
+    return new DropError(error.code, error.message);
+  }
+  return new DropError("unreachable", error.message);
 }
 
-async function createClaimDefault(
-  manifest: DropManifest,
-  ttlMs: number,
-): Promise<DropSession> {
-  // Drops must work for guests: the claim plane needs a principal, and a
-  // provisional one is the platform's anonymous identity — mint it silently
-  // rather than asking the user to "connect" anything.
-  try {
-    await ensureIdentitySession();
-  } catch {
-    throw new DropError(
-      "unreachable",
-      `The Identity API at ${identityBase()} could not be reached. A drop needs it to hold the sealed payload for the recipient.`,
-    );
-  }
-  let res: Response;
-  try {
-    res = await identityFetch("/v1/claims", {
-      method: "POST",
-      body: JSON.stringify({
-        type: DROP_CLAIM_TYPE,
-        targetManifest: manifest,
-        ttlSeconds: Math.max(1, Math.round(ttlMs / 1000)),
-      }),
-    });
-  } catch {
-    throw new DropError(
-      "unreachable",
-      `The Identity API at ${identityBase()} could not be reached. Connect and try again.`,
-    );
-  }
-  if (!res.ok) {
-    const detail = obj(await res.json().catch(() => null));
-    throw new DropError(
-      "refused",
-      isString(detail.hint)
-        ? detail.hint
-        : res.status === 401 || res.status === 403
-          ? "The Identity API refused the drop session. Try again in a moment."
-          : `The Identity API answered ${res.status} — the drop was not created.`,
-    );
-  }
-  const body = obj(await res.json());
-  const claimId = body.claimId;
-  const bearerToken = body.claimToken;
-  const userCode = body.userCode;
-  const expiresAt = body.expiresAt;
-  if (
-    !isString(claimId) ||
-    !isString(bearerToken) ||
-    !isString(userCode) ||
-    !isString(expiresAt)
-  ) {
-    throw new DropError(
-      "refused",
-      "The Identity API's answer did not look like a claim session.",
-    );
-  }
-  return {
-    claimId,
-    bearerToken,
-    userCode,
-    verifyUrl: `${dropSeams.ceremoniesBase()}/claim`,
-    expiresAt,
-  };
-}
-
-async function pollClaimDefault(
-  claimId: string,
-  bearerToken: string,
-): Promise<DropState> {
-  let res: Response;
-  try {
-    res = await identityFetch(
-      `/v1/claims/${encodeURIComponent(claimId)}/poll`,
-      { headers: { "x-claim-token": bearerToken } },
-    );
-  } catch {
-    throw new DropError(
-      "unreachable",
-      `The Identity API at ${identityBase()} could not be reached.`,
-    );
-  }
-  if (res.status === 401) {
-    throw new DropError(
-      "refused",
-      "The Identity API refused this drop's claim token.",
-    );
-  }
-  // An open claim polls as 400 authorization_pending and an expired one as
-  // 410 — both bodies still name the claim state, so read it either way.
-  const body = obj(await res.json().catch(() => null));
-  const nested = obj(body.claim).state;
-  const status = isString(body.status)
-    ? body.status
-    : isString(nested)
-      ? nested
-      : null;
-  if (status === null) {
-    throw new DropError(
-      "refused",
-      "The Identity API's poll answer did not name a claim state.",
-    );
-  }
-  return dropStateFromClaim(status);
-}
-
-export const dropSeams = {
-  createClaim: createClaimDefault,
-  pollClaim: pollClaimDefault,
-  ceremoniesBase: ceremoniesBaseDefault,
+export type PresentedDrop = {
+  targetManifest: DropManifest;
 };
 
 /** Create the single-use, time-boxed claim session carrying this manifest. */
-export function createDropSession(
+export async function createDropSession(
   manifest: DropManifest,
   ttlMs: number,
 ): Promise<DropSession> {
-  return dropSeams.createClaim(manifest, ttlMs);
+  try {
+    // SAFETY: DropManifest is a JsonObject (kind + sealed fields).
+    return await dropSeams.createClaim(overlapCast(manifest), ttlMs);
+  } catch (error) {
+    throw mapTransportError(
+      error instanceof Error ? error : new Error("drop claim create failed"),
+    );
+  }
 }
 
 /** Map the claim's current state onto the drop record's lifecycle. */
-export function pollDrop(
+export async function pollDrop(
   claimId: string,
   bearerToken: string,
 ): Promise<DropState> {
-  return dropSeams.pollClaim(claimId, bearerToken);
+  try {
+    const status = await dropSeams.pollClaim(claimId, bearerToken);
+    // Local host already returns drop states; Identity poll returns claim states.
+    if (status === "pending" || status === "consumed" || status === "expired") {
+      return status;
+    }
+    return dropStateFromClaim(status);
+  } catch (error) {
+    throw mapTransportError(
+      error instanceof Error ? error : new Error("drop claim poll failed"),
+    );
+  }
 }
+
+/** Open a drop once — user code + bearer; returns the sealed manifest. */
+export async function presentDrop(
+  bearerToken: string,
+  userCode: string,
+): Promise<PresentedDrop> {
+  try {
+    const presented = await dropSeams.presentClaim(bearerToken, userCode);
+    return { targetManifest: guardManifest(presented.targetManifest) };
+  } catch (error) {
+    throw mapTransportError(
+      error instanceof Error ? error : new Error("drop claim present failed"),
+    );
+  }
+}
+
+export { dropSeams };
 
 /**
  * The shareable link: ceremonies claim URL with the bearer and the drop key
