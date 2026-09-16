@@ -201,6 +201,7 @@ impl Broker {
         let decision = self.policy.decide(
             &authz_req,
             Some(&input.grant),
+            None,
             AvailabilityClass::A3ExternalSideEffect,
         )?;
         if !decision.decision {
