@@ -142,6 +142,7 @@ async fn grant_offer_activate_and_revoke() {
             cohort_id: "cohort:raid",
             cohort_revision: 3,
             membership_binding: "snapshot",
+            roster_digest: Some("sha256:reviewed-roster"),
             envelope_grant_id: "grant:envelope",
             max_activations: 2,
         })

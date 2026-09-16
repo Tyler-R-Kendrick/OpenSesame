@@ -14,8 +14,8 @@ Wallet (ADR 0123 / PR #397) and general authority must not share one review surf
 | GA-1 | `feat/ga-01-contracts-docs` from `main` | ADR 0120/0121, ownership, contract-registry, completion-matrix honesty | docs + matrix lint |
 | GA-2 | `feat/ga-02-grant-lineage` on GA-1 | `grant_attenuation`, budgets omit, `ValidatedGrantChain`, AT-RAW-PARENT | `cargo test -p opensesame-domain -p opensesame-authz` |
 | GA-3 | `feat/ga-03-storage-fence` on GA-2 | authority schema/migrate/fence/restore/budget | storage + fence tests |
-| GA-4 | `feat/ga-04-domain-cohort` on GA-3 | AccessDomain forest, snapshot/live cohort | domain + cohort tests |
-| GA-5 | `feat/ga-05-enforcement` on GA-4 | descriptors, broker fixture, Wasmtime, Blocky, Discord-or-refuse | adapter + refusal tests |
+| GA-4 | `feat/ga-04-cohort-snapshot` from `main` | AccessDomain verified; snapshot digest persistence; live offer refuse | domain + cohort/storage tests |
+| GA-5 | `feat/ga-05-enforcement` from `main` | descriptors, broker fixture, Wasmtime, Blocky, Discord-or-refuse | adapter + refusal tests |
 | GA-6 | `feat/ga-06-scenarios-portal` on GA-5 | `test:authority-fabric`, FIX-* scenarios, Pages templates | fabric gate + evidence |
 
 Do not mark GA complete until recursive revocation, conserved budgets, restore fencing, and four primary E2E scenarios have named executable evidence.

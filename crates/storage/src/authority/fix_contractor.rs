@@ -69,6 +69,7 @@ async fn fix_contractor_snapshot_roster_add_is_denied_at_offer() {
             cohort_id: "cohort:contractors",
             cohort_revision: 3,
             membership_binding: "snapshot",
+            roster_digest: Some("sha256:contractors-rev3"),
             envelope_grant_id: "grant:envelope",
             max_activations: 4,
         })

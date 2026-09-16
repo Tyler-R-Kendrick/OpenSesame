@@ -149,4 +149,8 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0037_session_join_refusal_grant_check",
         include_str!("../../../migrations/0037_session_join_refusal_grant_check.sql"),
     ),
+    (
+        "0038_authority_offer_roster_digest",
+        include_str!("../../../migrations/0038_authority_offer_roster_digest.sql"),
+    ),
 ];
