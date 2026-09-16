@@ -29,6 +29,7 @@ import type {
   AgentInstance,
   ProvisionalSession,
 } from "@opensesame/os-domain";
+import type { SiopIssuerProfile } from "@opensesame/siop-v2";
 import type { SecurityMap } from "./repos/durable-map.js";
 import {
   type PostgresAgentInstanceStore,
@@ -50,6 +51,16 @@ export interface UsageSnapshot {
   oauthClients: number;
   projects: number;
   claims: number;
+}
+
+/** Server-issued SIOP link ceremony binding (ADR 0117). Single-use, short TTL. */
+export interface SiopLinkChallenge {
+  id: string;
+  principalId: string;
+  nonce: string;
+  audience: string;
+  profile: SiopIssuerProfile;
+  expiresAt: number;
 }
 
 /**
@@ -140,6 +151,8 @@ export interface AppStores {
   mfaFailures: SecurityMap<number>;
   /** challengeId → a one-time code sent by email or text, until it is spent */
   mfaCodes: SecurityMap<MfaCodeChallenge>;
+  /** challengeId → expected nonce/aud/issuer for hosted SIOP link (ADR 0117) */
+  siopLinkChallenges: SecurityMap<SiopLinkChallenge>;
   /** principalId → serialized quota mutations */
   principalMutations: Map<string, Promise<void>>;
   /** Idempotency-Key inflight locks */
@@ -204,6 +217,7 @@ export function createAppStores(options?: {
     claimApprovalAttempts: new Map(),
     mfaFailures: new Map(),
     mfaCodes: new Map(),
+    siopLinkChallenges: new Map(),
     hostAuthorizations: new Map(),
     principalMutations: new Map(),
     idempotencyLocks: new Map(),

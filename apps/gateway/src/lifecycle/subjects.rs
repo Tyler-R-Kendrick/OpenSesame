@@ -33,25 +33,10 @@ pub const CERTIFICATE_HORIZON_DAYS: i64 = 400;
 /// due time fires it, preserving `policy_due_at`'s original semantics exactly.
 pub const SCHEDULE_RENEW_BEFORE_SECONDS: i64 = 1;
 
-/// How many unrevoked session grants one pass pulls per organization.
-///
-/// There is no horizon to pair this with, and deliberately so: a grant's
-/// lifetime is capped at `MAX_GRANT_LIFETIME` (seven days, ADR 0079), so every
-/// live grant is already inside any horizon worth naming. The bound that
-/// matters is the count, and it is a cap on the *scan*, not on the grants —
-/// grants beyond it keep their deadline, they are simply announced on a later
-/// pass, ordered soonest-first so the ones about to lapse are never the ones
-/// dropped.
+/// Cap on unrevoked session grants per org per pass (soonest-first; ADR 0079).
 pub const SESSION_GRANT_SCAN_LIMIT: i64 = 512;
 
-/// Renewal lead for a session grant.
-///
-/// One second, for the same reason a rotation schedule uses one: the renewal
-/// rung must exist so the ladder is well-formed, but nothing may ever act on
-/// it. [`opensesame_lifecycle::SubjectKind::renewable`] refuses this kind
-/// outright, so the rung fires and no responder answers. The lead is therefore
-/// as small as it can be rather than a window somebody might mistake for an
-/// opportunity to extend.
+/// Minimal renewal lead: kind is non-renewable, so the rung only shapes the ladder.
 pub const SESSION_GRANT_RENEW_BEFORE_SECONDS: i64 = 1;
 
 fn parse_time(raw: &str) -> Option<DateTime<Utc>> {
@@ -102,6 +87,11 @@ pub async fn collect(
         &mut subjects,
         session_grants(&state.db, &organization).await,
         "session grants",
+    );
+    absorb(
+        &mut subjects,
+        super::authority_subjects::authority_grants(&state.db, &organization).await,
+        "authority grants",
     );
     absorb(
         &mut subjects,
@@ -324,6 +314,7 @@ fn session_grant_subject(grant: &SessionGrant, organization: &str) -> ExpirySubj
         label: None,
     }
 }
+
 
 /// Rotation policies, as schedules rather than deadlines.
 ///
@@ -626,7 +617,6 @@ mod tests {
     }
 
     fn grant(expires_at: &str) -> SessionGrant {
-        let granted_at: DateTime<Utc> = "2026-08-30T00:00:00Z".parse().unwrap();
         SessionGrant::new(opensesame_domain::NewSessionGrant {
             id: opensesame_domain::SessionGrantId::new(),
             session_id: opensesame_domain::SessionId::new(),
@@ -636,8 +626,9 @@ mod tests {
                 vault_id: opensesame_domain::VaultId::new(),
             },
             role: opensesame_domain::SessionRole::Read,
-            granted_at,
+            granted_at: "2026-08-30T00:00:00Z".parse().unwrap(),
             expires_at: expires_at.parse().unwrap(),
+            link: opensesame_domain::GrantLink::LifecycleBound,
         })
         .expect("a grant inside the bounds")
     }

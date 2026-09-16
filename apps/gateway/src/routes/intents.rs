@@ -28,7 +28,7 @@ use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_ca
 /// against which connection, through which connector component.
 struct ResolvedInvocation {
     grant: Grant,
-    /// Verified parent→child lineage for delegated exercise (AT-RAW-PARENT).
+    /// Verified parent→child lineage at resolve time (AT-RAW-PARENT fence).
     lineage: Option<ValidatedGrantChain>,
     delegation_chain: Vec<GrantId>,
     connection_id: ConnectionId,

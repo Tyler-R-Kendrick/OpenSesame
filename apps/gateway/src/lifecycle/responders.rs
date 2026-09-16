@@ -78,9 +78,8 @@ pub fn responder_for(kind: SubjectKind) -> Option<&'static str> {
         // refuses it in `should_respond` before the dispatcher is even
         // reached; this is the second fence.
         //
-        // None of the three is silently skipped: the dispatcher reports the
-        // gap as an outcome event.
-        SubjectKind::CertificateAuthority | SubjectKind::Signer | SubjectKind::SessionGrant => None,
+        // None are silently skipped: the dispatcher reports the gap as an outcome.
+        SubjectKind::CertificateAuthority | SubjectKind::Signer | SubjectKind::SessionGrant | SubjectKind::AuthorityGrant => None,
     }
 }
 
@@ -429,6 +428,7 @@ mod tests {
             // (ADR 0079). `should_respond` refuses the kind before the
             // dispatcher is reached; this is the second fence.
             SubjectKind::SessionGrant,
+            SubjectKind::AuthorityGrant,
         ] {
             assert_eq!(responder_for(kind), None, "{kind:?}");
         }
