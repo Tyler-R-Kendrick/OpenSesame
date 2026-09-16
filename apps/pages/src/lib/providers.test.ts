@@ -1,6 +1,7 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { deviceIdentitySeams } from "./device-identity.js";
 import { identitySeams } from "./identity.js";
 import {
   brokeredOrgUpstream,
@@ -13,6 +14,7 @@ import {
 } from "./providers.js";
 
 const originalIdentityBase = identitySeams.identityBase;
+const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
 const BASE = "https://identity.example.test";
 
 function jsonOnce(body: BoundaryValue, status = 200): ReturnType<typeof vi.fn> {
@@ -30,10 +32,12 @@ function jsonOnce(body: BoundaryValue, status = 200): ReturnType<typeof vi.fn> {
 
 beforeEach(() => {
   identitySeams.identityBase = () => BASE;
+  deviceIdentitySeams.remoteIdentityApi = () => BASE;
 });
 
 afterEach(() => {
   identitySeams.identityBase = originalIdentityBase;
+  deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -93,6 +97,7 @@ describe("listFederatedProviders", () => {
 
   it("asks nobody when no Identity API is configured", async () => {
     identitySeams.identityBase = () => "";
+    deviceIdentitySeams.remoteIdentityApi = () => "";
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     await expect(listFederatedProviders()).resolves.toEqual([]);
@@ -196,8 +201,9 @@ describe("requestEmailMagicLink", () => {
 
   it("refuses to send when no Identity API is configured", async () => {
     identitySeams.identityBase = () => "";
+    deviceIdentitySeams.remoteIdentityApi = () => "";
     await expect(requestEmailMagicLink("ada@example.com")).rejects.toThrow(
-      /No Identity API/,
+      /No remote Identity API/,
     );
   });
 });

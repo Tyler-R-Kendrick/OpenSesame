@@ -4,7 +4,8 @@ export function crossOriginOpenerPolicy(
   basePath: string,
 ): "unsafe-none" | "same-origin" {
   const root = basePath.endsWith("/") ? basePath : `${basePath}/`;
-  return pathname === `${root}identity/authorize`
+  return pathname === `${root}identity/authorize` ||
+    pathname === `${root}identity/siop`
     ? "unsafe-none"
     : "same-origin";
 }

@@ -27,6 +27,7 @@ import {
 import { kvDeleteDurable, kvGet, kvSetDurable } from "./kv.js";
 import {
   BODY_PATH,
+  GUEST_TOMB,
   HEADER_PATH,
   INDEX_PATH,
   MIGRATION_MARKER_PATH,
@@ -106,6 +107,8 @@ function sanitize(raw: BoundaryValue): ProjectsState {
       if (isJsonObject(entry) && isString(entry.id) && isString(entry.name)) {
         const id = entry.id;
         const name = entry.name;
+        // Guest is a session road (GUEST_TOMB), never a project in the list.
+        if (id === GUEST_TOMB) continue;
         projects.push({
           id,
           name,
@@ -161,7 +164,7 @@ function bootView(): ProjectsState {
   const ids = new Set<string>([PERSONAL_PROJECT_ID, ...listTombs(), activeId]);
   const projects: PagesProject[] = [personalProject()];
   for (const id of [...ids].sort()) {
-    if (id === PERSONAL_PROJECT_ID) continue;
+    if (id === PERSONAL_PROJECT_ID || id === GUEST_TOMB) continue;
     const known = unsealedNames.get(id);
     projects.push({
       id,
@@ -369,6 +372,9 @@ export function projectScopedKeys(
 async function createProjectDefault(name: string): Promise<PagesProject> {
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Give the project a name.");
+  if (trimmed.toLowerCase() === GUEST_TOMB) {
+    throw new Error("guest is the continue-as-guest road, not a vault name.");
+  }
   const state = projectsState();
   if (
     state.projects.some(

@@ -15,7 +15,7 @@ import {
 } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import type { LocalAuthentication } from "./local-passkeys.js";
-import { vaultStore } from "./vault/store.js";
+import { onVaultLock } from "./vault/lock-events.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
 const PATH = "config/identity-sessions";
@@ -47,7 +47,9 @@ let presentations = new WeakMap<
   { tomb: string; token: string }
 >();
 const activeSessions = new Map<string, LocalSession>();
-vaultStore.onLock(() => {
+// Use the lock bus, not vaultStore.onLock: this file sits on the store's
+// import cycle via identity, so the singleton is unfinished at module load.
+onVaultLock(() => {
   presentations = new WeakMap();
   activeSessions.clear();
   notifyLocalIamChange();

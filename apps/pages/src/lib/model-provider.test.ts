@@ -5,14 +5,20 @@ import type {
 } from "./browser-inference.js";
 import { kvGet, kvSetDurable } from "./kv.js";
 import {
+  DEFAULT_VOICE_CHOICE,
   MODEL_PROVIDER_KEY,
   type ModelProviderRecord,
   NO_MODEL_PROVIDER,
+  aiModelChoiceKeys,
   autonomousResetAvailable,
+  browserInferenceForCommands,
   loadModelProvider,
   modelProviderSeams,
   resolveModelPlane,
   saveModelProvider,
+  voiceRecognitionLang,
+  withInference,
+  withVoice,
 } from "./model-provider.js";
 
 const original = { ...modelProviderSeams };
@@ -40,16 +46,30 @@ function verdict(plane: BrowserInferencePlane): BrowserInferenceVerdict {
   };
 }
 
-const OLLAMA: ModelProviderRecord = {
+function withRoles(
+  partial: Omit<ModelProviderRecord, "voice" | "inference">,
+): ModelProviderRecord {
+  return {
+    ...partial,
+    voice: DEFAULT_VOICE_CHOICE,
+    inference: {
+      kind: partial.kind,
+      provider: partial.provider,
+      endpoint: partial.endpoint,
+      model: partial.model,
+    },
+  };
+}
+
+const OLLAMA = withRoles({
   kind: "local",
   provider: "ollama",
   endpoint: "http://127.0.0.1:11434",
   model: "qwen2.5-vl:7b",
-};
+});
 
 describe("resolveModelPlane", () => {
   it("uses a configured provider even where the browser could carry it", () => {
-    // An operator who typed an endpoint is not second-guessed by a probe.
     const plane = resolveModelPlane(OLLAMA, verdict("builtin"));
     expect(plane.kind).toBe("local");
     expect(plane.because).toBe("configured");
@@ -80,12 +100,12 @@ describe("resolveModelPlane", () => {
   });
 
   it("holds a chosen browser plane off until it is actually ready", () => {
-    const chosen: ModelProviderRecord = {
+    const chosen = withRoles({
       kind: "browser",
       provider: "browser",
       endpoint: "",
       model: "",
-    };
+    });
     expect(resolveModelPlane(chosen, verdict("builtin")).kind).toBe("browser");
 
     const notYet = resolveModelPlane(chosen, verdict("builtin-download"));
@@ -94,13 +114,73 @@ describe("resolveModelPlane", () => {
   });
 
   it("keeps a hosted provider hosted", () => {
-    const hosted: ModelProviderRecord = {
+    const hosted = withRoles({
       kind: "hosted",
       provider: "anthropic",
       endpoint: "https://api.anthropic.com",
       model: "claude-sonnet-5",
-    };
+    });
     expect(resolveModelPlane(hosted, verdict("builtin")).kind).toBe("hosted");
+  });
+});
+
+describe("voice and inference roles", () => {
+  it("defaults voice to browser speech when nothing was stored", () => {
+    expect(loadModelProvider().voice).toEqual(DEFAULT_VOICE_CHOICE);
+    expect(voiceRecognitionLang()).toBe("en-US");
+  });
+
+  it("migrates a legacy top-level-only record into inference", async () => {
+    await kvSetDurable(
+      MODEL_PROVIDER_KEY,
+      JSON.stringify({
+        kind: "local",
+        provider: "ollama",
+        endpoint: "http://127.0.0.1:11434",
+        model: "llava",
+      }),
+    );
+    const loaded = loadModelProvider();
+    expect(loaded.inference).toEqual({
+      kind: "local",
+      provider: "ollama",
+      endpoint: "http://127.0.0.1:11434",
+      model: "llava",
+    });
+    expect(loaded.voice).toEqual(DEFAULT_VOICE_CHOICE);
+  });
+
+  it("persists a speech language pick without changing inference", async () => {
+    await saveModelProvider(OLLAMA);
+    const next = withVoice(OLLAMA, {
+      provider: "browser-speech",
+      kind: "browser",
+      endpoint: "",
+      model: "fr-FR",
+    });
+    await saveModelProvider(next);
+    const loaded = loadModelProvider();
+    expect(loaded.voice.model).toBe("fr-FR");
+    expect(loaded.inference.provider).toBe("ollama");
+    expect(voiceRecognitionLang(loaded)).toBe("fr-FR");
+  });
+
+  it("syncs top-level fields when inference changes", () => {
+    const next = withInference(NO_MODEL_PROVIDER, {
+      kind: "browser",
+      provider: "browser",
+      endpoint: "https://should-drop.example",
+      model: "",
+    });
+    expect(next.kind).toBe("browser");
+    expect(next.provider).toBe("browser");
+    expect(next.endpoint).toBe("");
+    expect(next.inference.endpoint).toBe("");
+  });
+
+  it("withholds Prompt API freer phrasing when inference is local", () => {
+    expect(browserInferenceForCommands(OLLAMA)).toBe(false);
+    expect(browserInferenceForCommands(NO_MODEL_PROVIDER)).toBe(true);
   });
 });
 
@@ -131,8 +211,6 @@ describe("the stored record", () => {
   });
 
   it("drops an endpoint smuggled onto the browser plane", async () => {
-    // The browser plane has no address by construction; carrying one would
-    // let a stored record aim in-page inference at a remote host.
     await kvSetDurable(
       MODEL_PROVIDER_KEY,
       JSON.stringify({
@@ -146,19 +224,30 @@ describe("the stored record", () => {
   });
 
   it("stores no field a key could be smuggled into", async () => {
-    await saveModelProvider({
-      kind: "hosted",
-      provider: "anthropic",
-      endpoint: "https://api.anthropic.com",
-      model: "claude-sonnet-5",
-    });
+    await saveModelProvider(
+      withRoles({
+        kind: "hosted",
+        provider: "anthropic",
+        endpoint: "https://api.anthropic.com",
+        model: "claude-sonnet-5",
+      }),
+    );
     const raw = kvGet(MODEL_PROVIDER_KEY) ?? "";
-    expect(Object.keys(JSON.parse(raw)).sort()).toEqual([
+    const parsed: { voice: object; inference: object } = JSON.parse(raw);
+    expect(Object.keys(parsed).sort()).toEqual([
       "endpoint",
+      "inference",
       "kind",
       "model",
       "provider",
+      "voice",
     ]);
+    expect(Object.keys(parsed.voice).sort()).toEqual(
+      [...aiModelChoiceKeys()].sort(),
+    );
+    expect(Object.keys(parsed.inference).sort()).toEqual(
+      [...aiModelChoiceKeys()].sort(),
+    );
   });
 });
 
@@ -195,23 +284,19 @@ function fakeOpfsRoot() {
 }
 
 describe("surviving a reload", () => {
-  // The regression this pins: the record persisted to OPFS but `main.tsx`
-  // did not list MODEL_PROVIDER_KEY in its boot `kvHydrate`, so a provider
-  // chosen in setup or Settings › Model was silently gone after a reload.
   it("loads what was saved once boot hydrates the key", async () => {
     const fakeRoot = fakeOpfsRoot();
     vi.stubGlobal("navigator", {
       storage: { getDirectory: async () => fakeRoot },
     });
-    const record: ModelProviderRecord = {
+    const record = withRoles({
       kind: "local",
       provider: "ollama",
       endpoint: "http://127.0.0.1:11434",
       model: "llava",
-    };
+    });
     try {
       await saveModelProvider(record);
-      // A reload starts with an empty in-memory KV: fresh modules, same OPFS.
       vi.resetModules();
       const freshKv = await import("./kv.js");
       await freshKv.kvHydrate([MODEL_PROVIDER_KEY]);

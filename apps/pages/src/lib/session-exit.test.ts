@@ -20,7 +20,33 @@ const clearFederation = vi.fn();
 const originalIdentity = { ...identitySeams };
 const originalFederation = { ...federationSeams };
 
+/** Node 22 shadows Storage with an unavailable experimental global. */
+function ensureWebStorage(): void {
+  const memory = (): Storage => {
+    const map = new Map<string, string>();
+    return {
+      getItem: (key: string) => map.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        map.set(key, value);
+      },
+      removeItem: (key: string) => {
+        map.delete(key);
+      },
+      clear: () => {
+        map.clear();
+      },
+      get length() {
+        return map.size;
+      },
+      key: (index: number) => [...map.keys()][index] ?? null,
+    };
+  };
+  vi.stubGlobal("localStorage", memory());
+  vi.stubGlobal("sessionStorage", memory());
+}
+
 beforeEach(() => {
+  ensureWebStorage();
   sessionStorage.clear();
   localStorage.clear();
   endSession.mockReset();

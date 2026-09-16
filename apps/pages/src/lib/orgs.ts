@@ -6,7 +6,12 @@
  */
 
 import { isString } from "@opensesame/os-domain";
-import { IdentityError, identityBase, identityJson } from "./identity.js";
+import {
+  IdentityError,
+  identityBase,
+  identityJson,
+  isRemoteIdentityConfigured,
+} from "./identity.js";
 import { VfsError, readFile, writeFile } from "./vfs.js";
 
 /** Legacy sessionStorage key — migrated into the tomb on unlock, then deleted. */
@@ -163,9 +168,9 @@ async function lookupOrgTenantDefault(slug: string): Promise<OrgTenant> {
   if (!ORG_SLUG_RE.test(normalized)) {
     throw new IdentityError("Enter an organization slug like acme-corp.", 400);
   }
-  if (!identityBase()) {
+  if (!isRemoteIdentityConfigured()) {
     throw new IdentityError(
-      "No Identity API is configured. Set the Identity URL in Settings.",
+      "No remote Identity API is configured. Set the Identity URL in Settings.",
       0,
     );
   }
@@ -184,9 +189,9 @@ async function lookupOrgTenantDefault(slug: string): Promise<OrgTenant> {
 async function lookupOrgByDomainDefault(
   domain: string,
 ): Promise<OrgTenant | null> {
-  if (!identityBase()) {
+  if (!isRemoteIdentityConfigured()) {
     throw new IdentityError(
-      "No Identity API is configured. Set the Identity URL in Settings.",
+      "No remote Identity API is configured. Set the Identity URL in Settings.",
       0,
     );
   }
@@ -201,11 +206,11 @@ async function lookupOrgByDomainDefault(
 }
 
 async function listOrgMembershipsDefault(): Promise<OrgMembership[]> {
-  if (!identityBase()) return [];
+  // Device host answers from the local directory; remote Identity from its store.
   const body = await identityJson<{ organizations: OrgMembership[] }>(
     "/v1/organizations",
   );
-  return Array.isArray(body.organizations) ? body.organizations : [];
+  return Array.isArray(body?.organizations) ? body.organizations : [];
 }
 
 async function joinOrgTenantDefault(
