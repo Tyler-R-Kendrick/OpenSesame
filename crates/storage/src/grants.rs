@@ -8,12 +8,20 @@
 use super::{Db, Grant, GrantId, Row};
 
 impl Db {
-    /// Persist an authorization grant.
+    /// Persist an authorization grant, and its lineage with it.
+    ///
+    /// The two writes share one transaction on purpose. A grant that exists
+    /// without a `grant_lineage` row has an ancestry the fence cannot prove,
+    /// so it denies every request (ADR 0121) — which is the safe answer, but a
+    /// useless grant. Committing them together means a grant is never visible
+    /// in that state.
     ///
     /// # Errors
     ///
-    /// Returns an error when serialization or insertion fails.
+    /// Returns an error when serialization fails, when the grant names a
+    /// parent that has no lineage of its own, or when the transaction fails.
     pub async fn insert_grant(&self, grant: &Grant) -> anyhow::Result<()> {
+        let mut transaction = self.pool.begin().await?;
         sqlx::query(
             "INSERT INTO grants (id, organization_id, body_json, revoked_at, created_at) VALUES (?, ?, ?, ?, ?)",
         )
@@ -22,8 +30,16 @@ impl Db {
         .bind(serde_json::to_string(grant)?)
         .bind(grant.revoked_at.map(|t| t.to_rfc3339()))
         .bind(grant.created_at.to_rfc3339())
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
+        let parent = grant.parent_grant_id.map(|id| id.to_string());
+        crate::authority_fence::record_lineage(
+            &mut transaction,
+            &grant.id.to_string(),
+            parent.as_deref(),
+        )
+        .await?;
+        transaction.commit().await?;
         Ok(())
     }
 
@@ -52,53 +68,75 @@ impl Db {
         Ok(Some(grant))
     }
 
-    /// Revoke a live grant once.
+    /// Revoke a live grant once, through the fence.
+    ///
+    /// The fence row is what stops descendants, so this is not "update a
+    /// column and schedule a cascade" — [`Db::fence_grant`] commits the
+    /// invalidation and the descendant `revoked_at` columns together, and the
+    /// commit is the instant the revocation takes effect for every grant below
+    /// this one (ADR 0121).
+    ///
+    /// Returns `false` when the grant was already revoked, so a retried
+    /// revoke is a no-op rather than a reordering.
     ///
     /// # Errors
     ///
-    /// Returns an error when the update fails.
+    /// Returns an error when the grant has no recorded lineage — its
+    /// descendants could not then be fenced, and reporting success would be a
+    /// lie — or when the transaction fails.
     pub async fn revoke_grant(
         &self,
         id: &GrantId,
         at: chrono::DateTime<chrono::Utc>,
     ) -> anyhow::Result<bool> {
-        let result =
-            sqlx::query("UPDATE grants SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL")
-                .bind(at.to_rfc3339())
-                .bind(id.to_string())
-                .execute(&self.pool)
-                .await?;
-        Ok(result.rows_affected() == 1)
+        let commit = self
+            .fence_grant(
+                &id.to_string(),
+                crate::authority_fence::REASON_OWNER_REVOKED,
+                at,
+            )
+            .await?;
+        Ok(commit.newly_fenced)
     }
 
-    /// Assert every hop of a delegation chain is live, walking `parent_grant_id`
-    /// up from `grant` to the root. Ancestor revocation must kill descendants:
-    /// a child that stayed "active" after its parent died would be authority
-    /// that outlived the thing it narrowed (ADR 0044 decision 8).
+    /// Assert a delegation chain is live: the grant's own window, then the
+    /// fence over its whole ancestry.
+    ///
+    /// This used to walk `parent_grant_id` upward, one query per hop. The walk
+    /// is gone, and with it the window it opened: a revoke had to reach a
+    /// descendant before that descendant stopped being honoured, and until it
+    /// did, the child was authority that had outlived the thing it narrowed
+    /// (ADR 0044 decision 8). The fence answers for every ancestor at once
+    /// from the grant's materialized lineage, so a root revocation blocks this
+    /// grant the moment it commits — there is nothing left to arrive.
+    ///
+    /// Only this grant's clock is checked, and that is not an omission.
+    /// [`Grant::validate_attenuation`] refuses a child whose `expires_at`
+    /// exceeds its parent's, so a grant inside its own window is necessarily
+    /// inside every ancestor's window too — expiry is transitive at mint time.
+    /// Revocation is not: it happens long after the chain was built, which is
+    /// exactly why it needs the fence rather than an invariant.
     ///
     /// # Errors
     ///
-    /// Returns an error when a grant is inactive, missing, malformed, or cyclic.
+    /// Returns an error when the grant is outside its window, or when the
+    /// fence does not come back clear — including when it cannot tell.
+    /// Uncertainty denies.
     pub async fn assert_grant_chain_active(
         &self,
         grant: &Grant,
         now: chrono::DateTime<chrono::Utc>,
     ) -> anyhow::Result<()> {
         grant.assert_active(now)?;
-        let mut cursor = grant.parent_grant_id;
-        // Bounded walk: depth is validated at mint, but a storage cycle must
-        // fail closed rather than spin.
-        for _ in 0..16 {
-            let Some(parent_id) = cursor else {
-                return Ok(());
-            };
-            let parent = self
-                .find_grant(&parent_id)
-                .await?
-                .ok_or_else(|| anyhow::anyhow!("delegation chain hop missing: {parent_id}"))?;
-            parent.assert_active(now)?;
-            cursor = parent.parent_grant_id;
+        let verdict = self
+            .fence_status(
+                &grant.id.to_string(),
+                opensesame_lifecycle::Freshness::any(),
+            )
+            .await;
+        if !verdict.authorizes() {
+            anyhow::bail!("delegation chain refused: {}", verdict.reason());
         }
-        anyhow::bail!("delegation chain too deep to verify")
+        Ok(())
     }
 }

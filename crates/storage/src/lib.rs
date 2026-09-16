@@ -1570,6 +1570,8 @@ impl Db {
 mod acme;
 mod approval_policies;
 mod approval_requests;
+pub mod authority;
+pub mod authority_fence;
 pub mod backup_inventory;
 pub mod browser_pairing;
 mod cert_alerts;

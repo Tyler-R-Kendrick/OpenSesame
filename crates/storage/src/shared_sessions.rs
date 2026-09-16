@@ -17,13 +17,17 @@
 use anyhow::{bail, Context};
 use chrono::{DateTime, Utc};
 use opensesame_domain::{
-    GrantScope, JoinDecision, JoinRequest, JoinRequestId, PrincipalId, SessionGrant,
+    Admission, GrantScope, JoinDecision, JoinRequest, JoinRequestId, PrincipalId, SessionGrant,
     SessionGrantId, SessionId, SessionRole, SessionVisibility, VaultId, VaultItemId,
 };
 use sqlx::{sqlite::SqliteRow, Row};
 use std::collections::BTreeSet;
 
 use crate::Db;
+use session_links::{admission_from, link_from, link_str};
+
+mod session_links;
+mod session_memberships;
 
 /// A session as stored: who runs it, what it is called, and whether strangers
 /// may ask to join.
@@ -39,13 +43,16 @@ pub struct StoredSession {
     pub closed_at: Option<DateTime<Utc>>,
 }
 
-fn parse_time(raw: &str, field: &str) -> anyhow::Result<DateTime<Utc>> {
+pub(crate) fn parse_time(raw: &str, field: &str) -> anyhow::Result<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(raw)
         .with_context(|| format!("{field} is not an RFC3339 timestamp"))
         .map(|value| value.with_timezone(&Utc))
 }
 
-fn parse_optional_time(raw: Option<String>, field: &str) -> anyhow::Result<Option<DateTime<Utc>>> {
+pub(crate) fn parse_optional_time(
+    raw: Option<String>,
+    field: &str,
+) -> anyhow::Result<Option<DateTime<Utc>>> {
     raw.map(|value| parse_time(&value, field)).transpose()
 }
 
@@ -106,29 +113,26 @@ fn stored_session(row: &SqliteRow) -> anyhow::Result<StoredSession> {
 
 /// Rebuild a request from its row.
 ///
-/// The decision is reassembled from two columns — `decision` and `grant_id` —
-/// which the table's own CHECK keeps consistent: a grant id exists exactly
-/// when the decision is `admitted`. A row that somehow arrived without one is
-/// refused here rather than read as a bare admission, because an admission
-/// that names no grant is an admission nobody can point at.
+/// The decision is reassembled from two columns — `admitted_mode` and
+/// `grant_id` — which the table's own CHECK keeps consistent. A row that
+/// somehow arrived with a mode and grant that disagree is refused here rather
+/// than read as the nearest plausible admission: see [`admission_from`].
 fn stored_join_request(row: &SqliteRow) -> anyhow::Result<JoinRequest> {
     let id: String = row.get("id");
     let session_id: String = row.get("session_id");
     let requester: String = row.get("requester_principal_id");
     let requested_at: String = row.get("requested_at");
     let decision: String = row.get("decision");
+    let admitted_mode: Option<String> = row.get("admitted_mode");
     let grant_id: Option<String> = row.get("grant_id");
     let decided_at: Option<String> = row.get("decided_at");
     let decided_by: Option<String> = row.get("decided_by_principal_id");
 
     let decision = match decision.as_str() {
         "pending" => JoinDecision::Pending,
-        "admitted" => {
-            let minted = grant_id.context("an admitted request with no grant")?;
-            JoinDecision::Admitted {
-                grant_id: SessionGrantId::parse(&minted).context("admitted grant id")?,
-            }
-        }
+        "admitted" => JoinDecision::Admitted {
+            admission: admission_from(admitted_mode.as_deref(), grant_id)?,
+        },
         "refused" => JoinDecision::Refused,
         other => bail!("unknown join decision '{other}'"),
     };
@@ -208,43 +212,8 @@ impl Db {
         grant: &SessionGrant,
     ) -> anyhow::Result<()> {
         let mut transaction = self.pool.begin().await.context("begin grant")?;
-        let (scope_kind, vault_id, items) = match &grant.scope {
-            GrantScope::Collection { vault_id } => ("collection", *vault_id, Vec::new()),
-            GrantScope::Rows { vault_id, items } => {
-                ("rows", *vault_id, items.iter().copied().collect::<Vec<_>>())
-            }
-        };
-
-        sqlx::query(
-            "INSERT INTO session_grants (id, session_id, organization_id, \
-             subject_principal_id, granted_by_principal_id, scope_kind, vault_id, \
-             role, granted_at, expires_at, revoked_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
-        )
-        .bind(grant.id.to_string())
-        .bind(grant.session_id.to_string())
-        .bind(organization_id)
-        .bind(grant.subject_principal_id.to_string())
-        .bind(grant.granted_by_principal_id.to_string())
-        .bind(scope_kind)
-        .bind(vault_id.to_string())
-        .bind(role_str(grant.role))
-        .bind(grant.granted_at.to_rfc3339())
-        .bind(grant.expires_at.to_rfc3339())
-        .bind(grant.revoked_at.map(|at| at.to_rfc3339()))
-        .execute(&mut *transaction)
-        .await
-        .context("insert session grant")?;
-
-        for item in items {
-            sqlx::query("INSERT INTO session_grant_items (grant_id, item_id) VALUES (?1, ?2)")
-                .bind(grant.id.to_string())
-                .bind(item.to_string())
-                .execute(&mut *transaction)
-                .await
-                .context("insert granted row")?;
-        }
-
+        self.insert_grant_in(&mut transaction, organization_id, grant)
+            .await?;
         transaction.commit().await.context("commit grant")?;
         Ok(())
     }
@@ -324,6 +293,8 @@ impl Db {
         let granted_at: String = row.get("granted_at");
         let expires_at: String = row.get("expires_at");
         let revoked_at: Option<String> = row.get("revoked_at");
+        let link: String = row.get("link");
+        let source_grant_id: Option<String> = row.get("source_grant_id");
 
         let scope = match scope_kind.as_str() {
             "collection" => GrantScope::Collection { vault_id },
@@ -358,6 +329,7 @@ impl Db {
             role: role_from(&role)?,
             granted_at: parse_time(&granted_at, "granted_at")?,
             expires_at: parse_time(&expires_at, "expires_at")?,
+            link: link_from(&link, source_grant_id)?,
             revoked_at: parse_optional_time(revoked_at, "revoked_at")?,
         })
     }
@@ -415,19 +387,32 @@ impl Db {
         // Matched on the decision itself rather than a tuple so the compiler
         // checks every shape: the pairings that are contradictions each get
         // their own refusal instead of falling through a catch-all.
-        let grant_id = match decision {
+        let (admitted_mode, grant_id) = match decision {
             JoinDecision::Pending => {
                 bail!("deciding a request to 'pending' is not a decision")
             }
-            JoinDecision::Admitted { grant_id } => match minted {
-                Some(grant) if grant.id == grant_id => Some(grant_id),
-                _ => bail!("admission must carry the grant it mints"),
+            JoinDecision::Admitted {
+                admission: Admission::Participant { grant_id },
+            } => match minted {
+                Some(grant) if grant.id == grant_id => (Some("participant"), Some(grant_id)),
+                _ => bail!("admitting a participant must carry the grant it mints"),
             },
+            JoinDecision::Admitted {
+                admission: Admission::Observer,
+            } => {
+                // The seat that holds nothing. A grant alongside it would be a
+                // key wrapped for somebody the operator said needs none, and
+                // ADR 0079 §3 cannot take that back.
+                if minted.is_some() {
+                    bail!("admitting an observer must not mint a grant");
+                }
+                (Some("observer"), None)
+            }
             JoinDecision::Refused => {
                 if minted.is_some() {
                     bail!("a refusal must not carry a grant");
                 }
-                None
+                (None, None)
             }
         };
 
@@ -446,12 +431,14 @@ impl Db {
         // cannot be edited in place. A later ask is a new row.
         let result = sqlx::query(
             "UPDATE session_join_requests \
-             SET decision = ?1, decided_at = ?2, decided_by_principal_id = ?3, grant_id = ?4 \
-             WHERE id = ?5 AND organization_id = ?6 AND decision = 'pending'",
+             SET decision = ?1, decided_at = ?2, decided_by_principal_id = ?3, \
+             admitted_mode = ?4, grant_id = ?5 \
+             WHERE id = ?6 AND organization_id = ?7 AND decision = 'pending'",
         )
         .bind(decision_str(decision))
         .bind(decided_at.to_rfc3339())
         .bind(decided_by.to_string())
+        .bind(admitted_mode)
         .bind(grant_id.map(|id| id.to_string()))
         .bind(request_id.to_string())
         .bind(organization_id)
@@ -467,7 +454,12 @@ impl Db {
         Ok(())
     }
 
-    /// The grant insert, inside a caller's transaction.
+    /// The one grant insert, inside a caller's transaction.
+    ///
+    /// Both roads that write a grant — the operator's direct grant and the one
+    /// admitting a join request mints — go through here. Two copies of this
+    /// statement is how a column added on one road (the `link` that decides
+    /// whether closing the session revokes it) goes missing on the other.
     async fn insert_grant_in(
         &self,
         transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
@@ -483,8 +475,8 @@ impl Db {
         sqlx::query(
             "INSERT INTO session_grants (id, session_id, organization_id, \
              subject_principal_id, granted_by_principal_id, scope_kind, vault_id, \
-             role, granted_at, expires_at, revoked_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, NULL)",
+             role, granted_at, expires_at, revoked_at, link, source_grant_id) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         )
         .bind(grant.id.to_string())
         .bind(grant.session_id.to_string())
@@ -496,6 +488,9 @@ impl Db {
         .bind(role_str(grant.role))
         .bind(grant.granted_at.to_rfc3339())
         .bind(grant.expires_at.to_rfc3339())
+        .bind(grant.revoked_at.map(|at| at.to_rfc3339()))
+        .bind(link_str(grant.link))
+        .bind(grant.link.source_grant_id().map(|id| id.to_string()))
         .execute(&mut **transaction)
         .await
         .context("insert minted grant")?;
