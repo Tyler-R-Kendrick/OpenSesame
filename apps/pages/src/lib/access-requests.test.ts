@@ -8,7 +8,10 @@ import {
   getRequestComparison,
   listAccessRequests,
 } from "./access-requests.js";
+import { deviceIdentitySeams } from "./device-identity.js";
 import { identitySeams } from "./identity.js";
+
+const originalRemoteIdentityApi = deviceIdentitySeams.remoteIdentityApi;
 
 const request: AccessRequest = {
   authReqId: "request-1",
@@ -34,11 +37,15 @@ const requirement = {
   maximumApprovalAgeSeconds: 300,
 };
 beforeEach(() => {
+  deviceIdentitySeams.remoteIdentityApi = () => "https://identity.example";
   vi.spyOn(identitySeams, "identityBase").mockReturnValue(
     "https://identity.example",
   );
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  deviceIdentitySeams.remoteIdentityApi = originalRemoteIdentityApi;
+  vi.restoreAllMocks();
+});
 
 it.each(["approve", "deny"] as const)(
   "%s binds the reviewed digest after resolving current requirements",

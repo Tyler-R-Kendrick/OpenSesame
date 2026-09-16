@@ -7,15 +7,22 @@
  */
 
 import { loadSession as loadFederationSession } from "./federation.js";
+import { claimProvisionalHistoryAccounts } from "./history-backups.js";
+import {
+  GUEST_NOTICE_TITLE,
+  guestClaimNoticeBody,
+} from "./history-claim-notice.js";
 import {
   IdentityError,
   connectProvisional,
   currentSession,
-  identityBase,
   identityJson,
+  isRemoteIdentityConfigured,
 } from "./identity.js";
+import { ensureDefaultAccess } from "./local-access-bootstrap.js";
 import { clearNotices, listNotices, pushNotice } from "./notices.js";
 import { vaultStore } from "./vault/store.js";
+import { GUEST_TOMB } from "./vfs.js";
 
 /**
  * Set while a verified upstream identity is waiting to be attached, cleared the
@@ -24,10 +31,6 @@ import { vaultStore } from "./vault/store.js";
  * inventing one on every reload of an already-linked session.
  */
 const PENDING_LINK_KEY = "opensesame:federation:pending-link";
-
-const GUEST_NOTICE_TITLE = "Claim this guest session";
-const GUEST_NOTICE_BODY =
-  "You skipped registered sign-in. Sign in with a trusted account to attach it to this principal — the id stays the same.";
 
 const FEDERATED_NOTICE_TITLE = "Finish attaching your sign-in";
 const FEDERATED_NOTICE_BODY =
@@ -45,7 +48,7 @@ const COLLISION_MESSAGE =
 export const guestAuthDependencies = {
   connectProvisional,
   currentSession,
-  identityBase,
+  isRemoteIdentityConfigured,
   identityJson,
   createGuest: () => vaultStore.createGuest(),
   vaultStatus: () => vaultStore.getSnapshot().status,
@@ -118,7 +121,7 @@ let inFlightClaim: Promise<void> | null = null;
  * an error on a deployment that is working exactly as designed.
  */
 function hasIdentityService(): boolean {
-  return guestAuthDependencies.identityBase().trim().length > 0;
+  return guestAuthDependencies.isRemoteIdentityConfigured();
 }
 
 async function claimGuestAuthDefault(): Promise<void> {
@@ -128,12 +131,13 @@ async function claimGuestAuthDefault(): Promise<void> {
   }
   if (inFlightClaim) return inFlightClaim;
   inFlightClaim = (async () => {
+    const body = await guestClaimNoticeBody();
     try {
       await guestAuthDependencies.connectProvisional();
       pushNotice({
         kind: "guest_claim",
         title: GUEST_NOTICE_TITLE,
-        body: GUEST_NOTICE_BODY,
+        body,
       });
     } catch (caught) {
       pushNotice({
@@ -151,8 +155,21 @@ async function claimGuestAuthDefault(): Promise<void> {
   return inFlightClaim;
 }
 
-async function continueAsGuestDefault(): Promise<void> {
+async function seedGuestAccess(): Promise<void> {
+  try {
+    await ensureDefaultAccess(GUEST_TOMB);
+  } catch {
+    /* Access seeds when Identity/Access opens; guest entry must not fail. */
+  }
+}
+
+async function openGuestVault(): Promise<void> {
   await guestAuthDependencies.createGuest();
+  await seedGuestAccess();
+}
+
+async function continueAsGuestDefault(): Promise<void> {
+  await openGuestVault();
   await claimGuestAuthDefault();
 }
 
@@ -166,6 +183,14 @@ async function linkGuestAccountDefault(idToken: string): Promise<void> {
     method: "POST",
     body: JSON.stringify({ idToken }),
   });
+  const principalId = guestAuthDependencies.currentSession()?.principalId;
+  if (principalId) {
+    try {
+      await claimProvisionalHistoryAccounts(principalId);
+    } catch {
+      /* history claim is best-effort beside identity link */
+    }
+  }
   clearNotices();
 }
 
@@ -212,13 +237,21 @@ async function adoptFederatedIdentityDefault(
     // No principal to link to, so nothing to defer or retry. A true first run
     // still opens the same ephemeral vault a guest gets; a locked vault stays
     // locked, and the caller's "signed in, now unlock" banner says so.
-    if (status === "empty") await guestAuthDependencies.createGuest();
+    if (status === "empty") await openGuestVault();
+    const federation = guestAuthDependencies.loadFederationSession();
+    if (federation?.pairwiseSub) {
+      try {
+        await claimProvisionalHistoryAccounts(federation.pairwiseSub);
+      } catch {
+        /* history claim is best-effort beside local federation */
+      }
+    }
     clearPendingLink();
     return { kind: "local" };
   }
 
   if (status === "empty") {
-    await guestAuthDependencies.createGuest();
+    await openGuestVault();
     try {
       await linkGuestAccountDefault(idToken);
       clearPendingLink();
@@ -280,7 +313,7 @@ async function adoptFederatedIdentityDefault(
  */
 async function openVaultAfterSignInDefault(): Promise<boolean> {
   if (guestAuthDependencies.vaultStatus() === "empty") {
-    await guestAuthDependencies.createGuest();
+    await openGuestVault();
   }
   return guestAuthDependencies.vaultStatus() === "unlocked";
 }
@@ -341,3 +374,5 @@ export async function openVaultAfterSignIn(): Promise<boolean> {
 export function recoverPendingFederatedLink(): void {
   guestAuthSeams.recoverPendingFederatedLink();
 }
+
+export { ensureHistoryClaimNotice } from "./history-claim-notice.js";

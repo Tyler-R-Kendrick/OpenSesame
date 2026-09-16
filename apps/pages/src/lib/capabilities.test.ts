@@ -13,6 +13,9 @@ describe("capability connectors", () => {
     const defaults = defaultCapabilityConnectors();
     expect(defaults.encryption.providerId).toBe("webcrypto");
     expect(defaults.history.providerId).toBe("github");
+    expect(defaults.mfa_authenticator.providerId).toBe("vault-self");
+    expect(defaults.mfa_email.providerId).toBe("resend");
+    expect(defaults.mfa_sms.providerId).toBe("twilio");
   });
 
   it("keeps GitHub as the history default and accepts a remote", () => {
@@ -47,19 +50,58 @@ describe("capability connectors", () => {
       "workflow",
     ]);
     expect(history?.requiresAuth("password-store")).toBe(false);
+    expect(history?.requiresAuth("supabase")).toBe(false);
+    expect(history?.requiresAuth("neon")).toBe(false);
+    expect(history?.connectorIds).toEqual([
+      "github",
+      "password-store",
+      "gitlab",
+      "supabase",
+      "neon",
+      "postgresql",
+    ]);
+  });
+
+  it("preserves multi-select history selections", () => {
+    const next = normalizeCapabilityConnectors({
+      history: {
+        providerId: "supabase",
+        selections: [
+          { providerId: "github", group: "git" },
+          {
+            providerId: "supabase",
+            group: "postgres",
+            claimState: "provisional",
+            provisionalAccountId: "hacc_1",
+          },
+        ],
+      },
+    });
+    expect(next.history.selections).toEqual([
+      { providerId: "github", group: "git" },
+      {
+        providerId: "supabase",
+        group: "postgres",
+        claimState: "provisional",
+        provisionalAccountId: "hacc_1",
+      },
+    ]);
   });
 
   it("labels the device encryption key vault clearly", () => {
     expect(connectorLabel("webcrypto")).toMatch(/WebCrypto/i);
   });
 
-  it("covers the six capability families of ADR 0065", () => {
+  it("covers the capability families including MFA delivery", () => {
     expect(CAPABILITIES.map((c) => c.id).sort()).toEqual([
       "certificates",
       "cloud_secrets",
       "encryption",
       "history",
       "identity",
+      "mfa_authenticator",
+      "mfa_email",
+      "mfa_sms",
       "password_managers",
     ]);
     const defaults = defaultCapabilityConnectors();

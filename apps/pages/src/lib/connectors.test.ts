@@ -191,7 +191,12 @@ describe("classifyIdentityConnector", () => {
 
   it.each(cases)("maps identity plane %s to %s", (identity, tone) => {
     expect(
-      classifyIdentityConnector(plane({ identity }), target(), false).tone,
+      classifyIdentityConnector(
+        plane({ identity }),
+        target(),
+        false,
+        "http://127.0.0.1:18788",
+      ).tone,
     ).toBe(tone);
   });
 
@@ -214,6 +219,7 @@ describe("classifyIdentityConnector", () => {
       plane({ identity: "down" }),
       target({ health: "unreachable", failure: "offline" }),
       false,
+      "http://127.0.0.1:18788",
     );
     expect(stale.tone).toBe("attn");
     expect(stale.detail).not.toBe("Offline");
@@ -225,6 +231,7 @@ describe("classifyIdentityConnector", () => {
       plane({ identity: "down" }),
       target(),
       true,
+      "http://127.0.0.1:18788",
     );
     expect(status.tone).toBe("offline");
     expect(status.detail).toBe("Offline");
@@ -236,6 +243,7 @@ describe("classifyIdentityConnector", () => {
         plane({ identity: "down" }),
         target({ health: "unreachable", failure: "rejected" }),
         false,
+        "http://127.0.0.1:18788",
       ).detail,
     ).toBe("Refused the request · 127.0.0.1:18788");
   });
@@ -472,7 +480,7 @@ describe("buildConnectors", () => {
     const built = buildConnectors(
       plane({ host: "down", identity: "none" }),
       snapshot({ host: target({ health: "unreachable" }) }),
-      settings(),
+      settings({ identityApi: "http://127.0.0.1:18788" }),
     );
     // Host down and Identity sessionless are configured addresses that are
     // not answering — two. The unpaired machine, optional git history and

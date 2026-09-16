@@ -4,10 +4,12 @@ import { isString } from "@opensesame/os-domain";
  *
  * OpenSesame's brokered capabilities are organized as families (ADR 0065):
  * encryption key vault (local storage), git history/persistence (backup and
- * file storage), cloud secret storage, password managers, identity, and
- * certificates. Settings binds each capability to a Host catalog connector.
+ * file storage), cloud secret storage, password managers, identity,
+ * certificates, and the three MFA delivery families (authenticator / email /
+ * SMS). Settings binds each capability to a Host catalog connector.
  * Defaults: WebCrypto on this device for encryption; GitHub for encrypted
- * secret history; the first listed connector everywhere else.
+ * secret history; vault-self for authenticator MFA; Resend / Twilio for
+ * email / SMS MFA; the first listed connector everywhere else.
  */
 
 export type CapabilityId =
@@ -16,7 +18,22 @@ export type CapabilityId =
   | "cloud_secrets"
   | "password_managers"
   | "identity"
-  | "certificates";
+  | "certificates"
+  | "mfa_authenticator"
+  | "mfa_email"
+  | "mfa_sms";
+
+export type HistoryBackupGroup = "git" | "postgres";
+
+/** One selected history backup road (multi-select on the backups step). */
+export type HistoryBackupSelection = {
+  providerId: string;
+  group: HistoryBackupGroup;
+  connectionId?: string;
+  remote?: string;
+  claimState?: "provisional" | "claimed";
+  provisionalAccountId?: string;
+};
 
 export type CapabilityConnectorBinding = {
   providerId: string;
@@ -24,6 +41,8 @@ export type CapabilityConnectorBinding = {
   connectionId?: string;
   /** For history: git remote URL (e.g. https://github.com/org/store.git). */
   remote?: string;
+  /** Multi-select history backups (git + PostgreSQL groups). */
+  selections?: HistoryBackupSelection[];
 };
 
 export type CapabilityConnectorMap = {
@@ -65,8 +84,15 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     id: "history",
     title: "History & persistence",
     summary:
-      "Optional git persistence for encrypted secrets. The vault already lives on this device; connect GitHub to push and pull ciphertext without revealing plaintext.",
-    connectorIds: ["github", "password-store", "gitlab"],
+      "Optional persistence for encrypted secrets: git remotes and PostgreSQL-family stores (Supabase, Neon, plain Postgres). Multi-select; Postgres roads mint anon/agent accounts a guest can claim later.",
+    connectorIds: [
+      "github",
+      "password-store",
+      "gitlab",
+      "supabase",
+      "neon",
+      "postgresql",
+    ],
     requiresAuth: (providerId) =>
       providerId === "github" || providerId === "gitlab",
     authScopes: (providerId) => {
@@ -119,6 +145,36 @@ export const CAPABILITIES: readonly CapabilityDef[] = [
     connectorIds: ["letsencrypt", "zerossl", "cloudflare-origin-ca"],
     requiresAuth: (providerId) => providerId === "cloudflare-origin-ca",
   },
+  {
+    id: "mfa_authenticator",
+    title: "Authenticator app",
+    summary:
+      "Where the TOTP second step lives. This vault can hold its own entry and supply the code (ADR 0113); a password-manager bridge keeps the seed in a manager you already run.",
+    connectorIds: [
+      "vault-self",
+      "bitwarden",
+      "vaultwarden",
+      "1password",
+      "proton-pass",
+    ],
+    requiresAuth: (providerId) => providerId !== "vault-self",
+  },
+  {
+    id: "mfa_email",
+    title: "Email code",
+    summary:
+      "Who delivers a one-time email code when Identity is configured. Connect an ESP the Host can invoke; enrollment still happens from Settings › Security once a vault exists.",
+    connectorIds: ["resend", "sendgrid", "postmark", "brevo"],
+    requiresAuth: () => true,
+  },
+  {
+    id: "mfa_sms",
+    title: "Text message",
+    summary:
+      "Who delivers a one-time SMS code when Identity is configured. A number can move SIMs — a fallback, never the first second step (ADR 0091).",
+    connectorIds: ["twilio", "messagebird", "vonage", "plivo"],
+    requiresAuth: () => true,
+  },
 ] as const;
 
 export function defaultCapabilityConnectors(): CapabilityConnectorMap {
@@ -129,6 +185,9 @@ export function defaultCapabilityConnectors(): CapabilityConnectorMap {
     password_managers: { providerId: "1password" },
     identity: { providerId: "auth0" },
     certificates: { providerId: "letsencrypt" },
+    mfa_authenticator: { providerId: "vault-self" },
+    mfa_email: { providerId: "resend" },
+    mfa_sms: { providerId: "twilio" },
   };
 }
 
@@ -160,6 +219,40 @@ export function normalizeCapabilityConnectors(
     }
     if (isString(incoming.remote) && incoming.remote.trim()) {
       next.remote = incoming.remote.trim();
+    }
+    if (def.id === "history" && Array.isArray(incoming.selections)) {
+      const selections: HistoryBackupSelection[] = [];
+      for (const raw of incoming.selections) {
+        if (
+          !isString(raw.providerId) ||
+          !def.connectorIds.includes(raw.providerId)
+        ) {
+          continue;
+        }
+        const group: HistoryBackupGroup =
+          raw.group === "postgres" ? "postgres" : "git";
+        const row: HistoryBackupSelection = {
+          providerId: raw.providerId,
+          group,
+        };
+        if (isString(raw.connectionId) && raw.connectionId.trim()) {
+          row.connectionId = raw.connectionId.trim();
+        }
+        if (isString(raw.remote) && raw.remote.trim()) {
+          row.remote = raw.remote.trim();
+        }
+        if (raw.claimState === "provisional" || raw.claimState === "claimed") {
+          row.claimState = raw.claimState;
+        }
+        if (
+          isString(raw.provisionalAccountId) &&
+          raw.provisionalAccountId.trim()
+        ) {
+          row.provisionalAccountId = raw.provisionalAccountId.trim();
+        }
+        selections.push(row);
+      }
+      if (selections.length > 0) next.selections = selections;
     }
     out[def.id] = next;
   }
@@ -226,6 +319,30 @@ export function connectorLabel(providerId: string): string {
       return "HashiCorp Vault";
     case "openbao":
       return "OpenBao";
+    case "vault-self":
+      return "This vault";
+    case "resend":
+      return "Resend";
+    case "sendgrid":
+      return "SendGrid";
+    case "postmark":
+      return "Postmark";
+    case "brevo":
+      return "Brevo";
+    case "twilio":
+      return "Twilio";
+    case "messagebird":
+      return "MessageBird";
+    case "vonage":
+      return "Vonage";
+    case "plivo":
+      return "Plivo";
+    case "supabase":
+      return "Supabase";
+    case "neon":
+      return "Neon";
+    case "postgresql":
+      return "PostgreSQL";
     default:
       return providerId;
   }
