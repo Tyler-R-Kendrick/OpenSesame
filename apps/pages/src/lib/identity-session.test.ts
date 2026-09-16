@@ -397,24 +397,23 @@ describe("missing configuration", () => {
     });
   });
 
-  it("refuses to connect with no Identity API configured", async () => {
+  it("mints a device-native provisional session when no remote Identity API is set", async () => {
     stubFetch(() => jsonResponse({}, 401));
-    const error = await ensureIdentitySession().catch((caught) => caught);
-    expect(error).toBeInstanceOf(IdentityError);
-    expect(overlapCast(error).status).toBe(0);
-    expect(overlapCast(error).message).toMatch(/No Identity API/);
+    const session = await ensureIdentitySession();
+    expect(session.principalId).toMatch(/^prn_/);
+    expect(session.accessToken.length).toBeGreaterThan(8);
+    expect(session.issuerOrigin.length).toBeGreaterThan(0);
   });
 
-  it("refuses a provisional mint with no issuer", async () => {
+  it("connects provisionally against the device identity host", async () => {
     stubFetch(() => jsonResponse({}, 401));
-    await expect(connectProvisional()).rejects.toThrow(
-      /No Identity API is configured/,
-    );
+    const session = await connectProvisional();
+    expect(session.principalId).toMatch(/^prn_/);
   });
 
-  it("reports unconfigured planes as unreachable without fetching", async () => {
+  it("reports device identity as reachable without fetching", async () => {
     const spy = stubFetch(() => jsonResponse({}, 500));
-    await expect(probeIdentity()).resolves.toBe("unreachable");
+    await expect(probeIdentity()).resolves.toBe("reachable");
     await expect(probeHost()).resolves.toBe("unreachable");
     expect(spy).not.toHaveBeenCalled();
   });

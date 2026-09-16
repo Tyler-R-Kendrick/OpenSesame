@@ -137,6 +137,16 @@ export async function kvDeleteDurable(key: string): Promise<void> {
     await root.removeEntry(fileName(key));
   } catch (error) {
     if (error instanceof DOMException && error.name === "NotFoundError") return;
+    // Restricted OPFS (CI Chrome / sandboxed profiles) refuses mutation; memory
+    // already dropped the key, so treat as session-only storage.
+    if (
+      error instanceof DOMException &&
+      (error.name === "NoModificationAllowedError" ||
+        error.name === "SecurityError")
+    ) {
+      durability = "memory";
+      return;
+    }
     throw error;
   }
 }

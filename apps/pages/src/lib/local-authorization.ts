@@ -17,7 +17,7 @@ import {
   type LocalSession,
   withLocalIdentitySession,
 } from "./local-sessions.js";
-import { vaultStore } from "./vault/store.js";
+import { onVaultLock } from "./vault/lock-events.js";
 
 export type { LocalAuthorizationRequest } from "@opensesame/static-auth";
 /** Object capability: serialization loses authority. Not a network OAuth token. */
@@ -42,7 +42,7 @@ let presentations = new WeakMap<
     request: LocalAuthorizationRequest;
   }
 >();
-vaultStore.onLock(() => {
+onVaultLock(() => {
   pending = new Map();
   presentations = new WeakMap();
 });

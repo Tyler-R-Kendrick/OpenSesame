@@ -4,8 +4,8 @@
  * The organization owns this instance's projects/vaults. The OpenSesame
  * agent is the in-product helper (ADR 0088); it is a member, never an owner.
  * The OpenSesame application is this origin as a relying party, so grants
- * and policies apply to Pages itself. A guest's person is the same identity
- * the prompt shows (`guest@guest`).
+ * and policies apply to Pages itself. A guest person is always present
+ * (`guest@guest`) so Access can grant and tighten what guests may use.
  */
 
 export const SUPPORT_AGENT_ID = "local_00000000-0000-4000-8000-000000000001";
@@ -13,7 +13,11 @@ export const SUPPORT_AGENT_NAME = "open-sesame";
 export const PAGES_APPLICATION_ID =
   "local_00000000-0000-4000-8000-000000000002";
 export const PAGES_APPLICATION_NAME = "OpenSesame";
-export const GUEST_PERSON_NAME = "guest@guest";
+export {
+  GUEST_PERSON_ID,
+  GUEST_PERSON_NAME,
+} from "./local-guest.js";
+import { GUEST_PERSON_ID, GUEST_PERSON_NAME } from "./local-guest.js";
 
 import { describeAccount } from "./account.js";
 import {
@@ -59,6 +63,17 @@ export function currentOwnerPersonName(): string {
   );
 }
 
+function findGuestPerson(
+  directory: LocalDirectory,
+): LocalDirectory["entries"][number] | undefined {
+  return (
+    directory.entries.find((entry) => entry.id === GUEST_PERSON_ID) ??
+    directory.entries.find(
+      (entry) => entry.kind === "person" && entry.name === GUEST_PERSON_NAME,
+    )
+  );
+}
+
 async function ensurePerson(
   tomb: string,
   current: LocalDirectory,
@@ -66,6 +81,14 @@ async function ensurePerson(
 ): Promise<LocalDirectory> {
   const name = label.length <= 128 ? label : "Owner";
   if (!current.entries.some((entry) => entry.kind === "person")) {
+    if (name === GUEST_PERSON_NAME) {
+      return commitLocalDirectoryUnderLock(tomb, current.revision, {
+        action: "create",
+        kind: "person",
+        name,
+        id: GUEST_PERSON_ID,
+      });
+    }
     return commitLocalDirectoryUnderLock(tomb, current.revision, {
       action: "create",
       kind: "person",
@@ -74,6 +97,13 @@ async function ensurePerson(
   }
   const person = current.entries.find((entry) => entry.kind === "person");
   if (person && isPlaceholderPerson(person.name) && person.name !== name) {
+    // Guest is a standing principal; never rename Owner into a second guest@guest.
+    if (
+      name === GUEST_PERSON_NAME &&
+      findGuestPerson(current)?.id !== person.id
+    ) {
+      return current;
+    }
     return commitLocalDirectoryUnderLock(tomb, current.revision, {
       action: "update",
       id: person.id,
@@ -82,6 +112,20 @@ async function ensurePerson(
     });
   }
   return current;
+}
+
+/** Guest is always a directory principal so Access can grant them policies. */
+async function ensureGuestPerson(
+  tomb: string,
+  current: LocalDirectory,
+): Promise<LocalDirectory> {
+  if (findGuestPerson(current)) return current;
+  return commitLocalDirectoryUnderLock(tomb, current.revision, {
+    action: "create",
+    kind: "person",
+    name: GUEST_PERSON_NAME,
+    id: GUEST_PERSON_ID,
+  });
 }
 
 async function ensureAgent(
@@ -139,6 +183,7 @@ export async function ensureOwnerPerson(
       await readLocalDirectory(tomb),
       label,
     );
+    current = await ensureGuestPerson(tomb, current);
     const person = current.entries.find((entry) => entry.kind === "person");
     if (!person) return current;
     if (!current.entries.some((entry) => entry.kind === "organization")) {
@@ -160,6 +205,22 @@ export async function ensureOwnerPerson(
         organizationId: org.id,
         principalId: person.id,
         role: "owner",
+      });
+    }
+    const guest = findGuestPerson(current);
+    if (
+      org &&
+      guest &&
+      guest.id !== person.id &&
+      !current.memberships.some(
+        (row) => row.organizationId === org.id && row.principalId === guest.id,
+      )
+    ) {
+      current = await commitLocalDirectoryUnderLock(tomb, current.revision, {
+        action: "membership",
+        organizationId: org.id,
+        principalId: guest.id,
+        role: "member",
       });
     }
     current = await ensureAgent(tomb, current);

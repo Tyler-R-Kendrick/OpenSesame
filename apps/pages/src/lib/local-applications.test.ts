@@ -149,7 +149,7 @@ it("registers this origin as the default OpenSesame relying party", async () => 
   expect(pages).toMatchObject({
     applicationId: PAGES_APPLICATION_ID,
     organizationId: org,
-    scopes: ["openid"],
+    scopes: ["openid", "profile", "records:read"],
   });
   expect(pages?.redirectUris).toContain(redirectUri);
   const revision = apps.revision;

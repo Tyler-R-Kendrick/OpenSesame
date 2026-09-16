@@ -21,18 +21,21 @@ const REQUIRED_IN_DESIGN = [
   "5j",
   "Ctrl-d",
   "Ctrl-f",
+  "Ctrl-l",
   "H",
   "M",
   "L",
   "gg",
   "Backspace",
   "Tab",
-  "g v/c/a/i/s",
+  "g v/c/a/i/w/s",
 ];
 
 describe("listing keymap contract", () => {
   it("the in-app sheet is the exported KEYMAP_HELP table", () => {
     expect(KEYMAP_HELP.map(([keys]) => keys)).toEqual([
+      "Ctrl-l / :",
+      "m",
       "j / k or arrows",
       "3j  10k",
       "Ctrl-d / u",
@@ -47,7 +50,7 @@ describe("listing keymap contract", () => {
       "e / x",
       "n / .",
       "s",
-      "g v/c/a/i/s",
+      "g v/c/a/i/w/s",
     ]);
   });
 

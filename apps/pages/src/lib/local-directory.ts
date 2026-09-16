@@ -1,109 +1,37 @@
 import {
   type BoundaryValue,
-  type OrganizationRole,
   isBoolean,
   isJsonObject,
   isNumber,
   isString,
 } from "@opensesame/os-domain";
 import { kvRefresh } from "./kv.js";
+import {
+  changedMemberships,
+  isMembership,
+  validateDirectoryMemberships,
+} from "./local-directory-memberships.js";
+import {
+  type LocalDirectory,
+  type LocalDirectoryChange,
+  LocalDirectoryError,
+  type LocalIdentity,
+  type LocalIdentityKind,
+  type LocalMembership,
+} from "./local-directory-types.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import { VaultCorruptError } from "./vault/crypto.js";
 import { VfsError, readFile, tombFileKey, vfsSeams, writeFile } from "./vfs.js";
 
 export const LOCAL_DIRECTORY_PATH = "config/identity-directory";
-export class LocalDirectoryError extends Error {
-  readonly name = "LocalDirectoryError";
-}
-export type LocalIdentityKind =
-  | "person"
-  | "agent"
-  | "application"
-  | "organization";
-export type LocalIdentity = {
-  id: string;
-  kind: LocalIdentityKind;
-  name: string;
-  enabled: boolean;
-};
-export type LocalDirectory = {
-  version: 2;
-  revision: number;
-  entries: LocalIdentity[];
-  memberships: LocalMembership[];
-};
-export type LocalMembership = {
-  organizationId: string;
-  principalId: string;
-  role: OrganizationRole;
-};
-
-function isRole(value: BoundaryValue): value is OrganizationRole {
-  return value === "owner" || value === "admin" || value === "member";
-}
-
-function isMembership(value: BoundaryValue): value is LocalMembership {
-  return (
-    isJsonObject(value) &&
-    isString(value.organizationId) &&
-    isString(value.principalId) &&
-    isRole(value.role)
-  );
-}
-
-function validateMemberships(
-  entries: LocalIdentity[],
-  memberships: LocalMembership[],
-) {
-  const ids = new Set<string>();
-  if (memberships.length > 5000)
-    throw new LocalDirectoryError(
-      "The directory is limited to 5,000 memberships.",
-    );
-  for (const membership of memberships) {
-    const org = entries.find((entry) => entry.id === membership.organizationId);
-    const person = entries.find((entry) => entry.id === membership.principalId);
-    const key = `${membership.organizationId}:${membership.principalId}`;
-    if (
-      ids.has(key) ||
-      org?.kind !== "organization" ||
-      !person ||
-      (person.kind !== "person" && person.kind !== "agent") ||
-      (person.kind === "agent" && membership.role !== "member")
-    )
-      throw new LocalDirectoryError("Invalid organization membership.");
-    ids.add(key);
-  }
-  requireOwners(entries, memberships, memberships);
-}
-
-function requireOwners(
-  entries: LocalIdentity[],
-  memberships: LocalMembership[],
-  previous: LocalMembership[],
-) {
-  for (const organizationId of new Set(
-    previous.map((row) => row.organizationId),
-  )) {
-    if (!entries.some((entry) => entry.id === organizationId)) continue;
-    if (
-      !memberships.some(
-        (row) =>
-          row.organizationId === organizationId &&
-          row.role === "owner" &&
-          entries.some(
-            (entry) =>
-              entry.id === row.principalId &&
-              entry.kind === "person" &&
-              entry.enabled,
-          ),
-      )
-    )
-      throw new LocalDirectoryError(
-        "Keep an enabled person as organization owner before removing or disabling the last owner.",
-      );
-  }
-}
+export {
+  LocalDirectoryError,
+  type LocalDirectory,
+  type LocalDirectoryChange,
+  type LocalIdentity,
+  type LocalIdentityKind,
+  type LocalMembership,
+} from "./local-directory-types.js";
 
 function isKind(value: BoundaryValue): value is LocalIdentityKind {
   return (
@@ -161,7 +89,7 @@ function parseDirectory(value: BoundaryValue): LocalDirectory {
     throw new LocalDirectoryError(
       "Invalid organization memberships. Restore a valid backup.",
     );
-  validateMemberships(entries, memberships);
+  validateDirectoryMemberships(entries, memberships);
   return { version: 2, revision: value.revision, entries, memberships };
 }
 
@@ -193,17 +121,6 @@ export async function readLocalDirectory(
     throw error;
   }
 }
-
-export type LocalDirectoryChange =
-  | { action: "create"; kind: LocalIdentityKind; name: string; id?: string }
-  | { action: "update"; id: string; name: string; enabled: boolean }
-  | { action: "delete"; id: string }
-  | {
-      action: "membership";
-      organizationId: string;
-      principalId: string;
-      role: OrganizationRole | null;
-    };
 
 function changedEntries(
   entries: LocalIdentity[],
@@ -253,36 +170,6 @@ function changedEntries(
       ? { ...entry, name: change.name, enabled: change.enabled }
       : entry,
   );
-}
-
-function changedMemberships(
-  current: LocalDirectory,
-  entries: LocalIdentity[],
-  change: LocalDirectoryChange,
-) {
-  let memberships = current.memberships.filter(
-    (row) =>
-      entries.some((entry) => entry.id === row.organizationId) &&
-      entries.some((entry) => entry.id === row.principalId),
-  );
-  if (change.action === "membership") {
-    if (change.role !== null && !isRole(change.role))
-      throw new LocalDirectoryError("Invalid organization role.");
-    memberships = memberships.filter(
-      (row) =>
-        row.organizationId !== change.organizationId ||
-        row.principalId !== change.principalId,
-    );
-    if (change.role !== null)
-      memberships.push({
-        organizationId: change.organizationId,
-        principalId: change.principalId,
-        role: change.role,
-      });
-  }
-  validateMemberships(entries, memberships);
-  requireOwners(entries, memberships, current.memberships);
-  return memberships;
 }
 
 export async function changeLocalDirectory(
@@ -344,6 +231,7 @@ export async function withLocalDirectoryLock<T>(
 }
 
 export {
+  GUEST_PERSON_ID,
   GUEST_PERSON_NAME,
   PAGES_APPLICATION_ID,
   PAGES_APPLICATION_NAME,

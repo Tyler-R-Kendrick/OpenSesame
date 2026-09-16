@@ -21,7 +21,7 @@ import {
   readLocalDirectory,
   withLocalDirectoryLock,
 } from "./local-directory.js";
-import { vaultStore } from "./vault/store.js";
+import { onVaultLock } from "./vault/lock-events.js";
 import { tombUnlocked } from "./vfs.js";
 
 const CEREMONY_MS = 120_000;
@@ -39,7 +39,7 @@ export type LocalAuthentication = Readonly<{
   requestDigest?: string;
 }>;
 let unspentAuthentications = new WeakMap<LocalAuthentication, number>();
-vaultStore.onLock(() => {
+onVaultLock(() => {
   unspentAuthentications = new WeakMap();
 });
 

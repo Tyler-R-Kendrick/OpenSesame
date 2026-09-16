@@ -15,7 +15,7 @@ import {
   withLocalDirectoryLock,
 } from "./local-directory.js";
 import type { LocalAuthentication } from "./local-passkeys.js";
-import { vaultStore } from "./vault/store.js";
+import { onVaultLock } from "./vault/lock-events.js";
 
 type Pending = {
   tomb: string;
@@ -26,7 +26,7 @@ type Pending = {
 };
 let pending = new Map<string, Pending>();
 let evidenceSet = new WeakSet<LocalAuthentication>();
-vaultStore.onLock(() => {
+onVaultLock(() => {
   pending = new Map();
   evidenceSet = new WeakSet();
 });

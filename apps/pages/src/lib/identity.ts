@@ -22,6 +22,14 @@ import {
   currentBrowserGrant,
   pairedHostFetch,
 } from "./browser-pairing.js";
+import {
+  deviceIdentityOrigin,
+  identityPlaneRequest,
+  isDeviceIdentityMode,
+  isRemoteIdentityConfigured,
+  remoteIdentityApi,
+  resolveIdentityBase,
+} from "./device-identity.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import {
   type FailureClass,
@@ -30,6 +38,8 @@ import {
 } from "./probe-failure.js";
 import { loadSettings } from "./settings.js";
 import { isLoopbackUrl } from "./urls.js";
+
+export { isDeviceIdentityMode, isRemoteIdentityConfigured, remoteIdentityApi };
 
 const IDENTITY_FETCH_MS = 8000;
 const PROBE_MS = 4000;
@@ -154,7 +164,7 @@ function setOrphan(next: boolean): void {
 /** Does the cookie alone still authenticate? `whenUnreachable` breaks the tie. */
 async function cookieAuthenticates(whenUnreachable: boolean): Promise<boolean> {
   try {
-    const res = await localNetworkFetch(`${identityBase()}/v1/principals/me`, {
+    const res = await identityPlaneRequest("/v1/principals/me", {
       credentials: "include",
       timeoutMs: PROBE_MS,
     });
@@ -198,17 +208,14 @@ function endSessionDefault(): void {
 }
 
 function revokeRequest(bearer?: string): Promise<Response> {
-  return localNetworkFetch(
-    `${identityBase()}/v1/principals/provisional/revoke`,
-    {
-      method: "POST",
-      credentials: "include",
-      timeoutMs: IDENTITY_FETCH_MS,
-      ...(bearer
-        ? { headers: { authorization: `Bearer ${bearer}` } }
-        : undefined),
-    },
-  );
+  return identityPlaneRequest("/v1/principals/provisional/revoke", {
+    method: "POST",
+    credentials: "include",
+    timeoutMs: IDENTITY_FETCH_MS,
+    ...(bearer
+      ? { headers: { authorization: `Bearer ${bearer}` } }
+      : undefined),
+  });
 }
 
 async function recheckOrphan(): Promise<void> {
@@ -226,10 +233,11 @@ async function settleRevokes(): Promise<void> {
 }
 
 function identityBaseDefault(): string {
-  return loadSettings().identityApi.replace(/\/$/, "");
+  return resolveIdentityBase();
 }
 
 function identityOrigin(): string {
+  if (isDeviceIdentityMode()) return deviceIdentityOrigin();
   try {
     return new URL(identityBase()).origin;
   } catch {
@@ -257,12 +265,6 @@ export async function ensureIdentitySession(): Promise<IdentitySession> {
   const existing = currentSession();
   if (existing) {
     return existing;
-  }
-  if (!identityBase()) {
-    throw new IdentityError(
-      "No Identity API is configured. Set the Identity URL in Settings — OpenSesame issues your session there (upstream IdP / Better Auth is optional).",
-      0,
-    );
   }
   if (!pendingIdentitySession) {
     pendingIdentitySession = connectProvisional();
@@ -328,7 +330,7 @@ async function identityFetchDefault(
   if (init.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-  const res = await localNetworkFetch(`${identityBase()}${path}`, {
+  const res = await identityPlaneRequest(path, {
     ...init,
     headers,
     // An adopted token stands alone. Sending a cookie beside it would let a
@@ -377,11 +379,7 @@ async function connectProvisionalDefault(): Promise<IdentitySession> {
   // would otherwise land after the new one is set and take it with it.
   await settleRevokes();
   const epoch = sessionEpoch;
-  const issuer = identityBase();
-  if (!issuer) {
-    throw new IdentityError("No Identity API is configured.", 0);
-  }
-  const res = await localNetworkFetch(`${issuer}/v1/principals/provisional`, {
+  const res = await identityPlaneRequest("/v1/principals/provisional", {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "include",
@@ -417,7 +415,7 @@ async function connectProvisionalDefault(): Promise<IdentitySession> {
     principalId: body.principalId,
     accessToken,
     expiresAt: body.expiresAt,
-    issuerOrigin: new URL(issuer).origin,
+    issuerOrigin: identityOrigin(),
   };
   session = nextSession;
   emit();
@@ -426,8 +424,10 @@ async function connectProvisionalDefault(): Promise<IdentitySession> {
 
 async function resumeCookieSession(): Promise<IdentitySession | null> {
   if (session) return session;
+  // Device-native identity has no HttpOnly cookie plane.
+  if (isDeviceIdentityMode()) return null;
   try {
-    const res = await localNetworkFetch(`${identityBase()}/v1/principals/me`, {
+    const res = await identityPlaneRequest("/v1/principals/me", {
       credentials: "include",
       timeoutMs: PROBE_MS,
     });
@@ -463,7 +463,7 @@ async function adoptTokenDefault(accessToken: string): Promise<void> {
   // Prove the token itself works, with the cookie deliberately withheld. A
   // mistyped token would otherwise appear to work by riding a leftover cookie,
   // and every ceremony would run as the wrong principal.
-  const res = await localNetworkFetch(`${identityBase()}/v1/principals/me`, {
+  const res = await identityPlaneRequest("/v1/principals/me", {
     headers: { authorization: `Bearer ${token}` },
     credentials: "omit",
     timeoutMs: IDENTITY_FETCH_MS,
@@ -531,10 +531,14 @@ export type ProbeResult = {
 };
 
 export async function probeIdentityDetailed(): Promise<ProbeResult> {
+  // Device-native mode is always the local host — never probe the network.
+  if (isDeviceIdentityMode()) {
+    return { health: "reachable", failure: null };
+  }
   const base = identityBase();
   if (!base) return { health: "unreachable", failure: null };
   try {
-    const res = await localNetworkFetch(`${base}/v1/health/live`, {
+    const res = await identityPlaneRequest("/v1/health/live", {
       credentials: "omit",
       timeoutMs: PROBE_MS,
     });

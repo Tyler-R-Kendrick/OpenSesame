@@ -210,6 +210,25 @@ describe("ignore guards", () => {
     release();
   });
 
+  it("Ctrl-l focuses the command bar even while typing", () => {
+    document.body.innerHTML = '<input id="command-bar-input" />';
+    const field = document.createElement("input");
+    document.body.append(field);
+    const handler = createKeymapHandler({
+      navigate: vi.fn(),
+      showHelp: vi.fn(),
+    });
+    const event = new KeyboardEvent("keydown", {
+      key: "l",
+      ctrlKey: true,
+      cancelable: true,
+    });
+    Object.defineProperty(event, "target", { value: field });
+    handler(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement?.id).toBe("command-bar-input");
+  });
+
   it("a dialog without aria-modal does not trap the keymap", () => {
     const tree = vault();
     const release = registerVaultKeymap(tree);
@@ -296,6 +315,7 @@ describe("counts and the g leader", () => {
     for (const [letter, path] of [
       ["c", "/connections"],
       ["i", "/identity"],
+      ["w", "/wallet"],
       ["s", "/settings"],
       ["v", "/vault"],
     ] as const) {

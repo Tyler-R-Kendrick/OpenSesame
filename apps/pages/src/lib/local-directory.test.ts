@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvGet } from "./kv.js";
 import {
+  GUEST_PERSON_ID,
   GUEST_PERSON_NAME,
   LOCAL_DIRECTORY_PATH,
   type LocalDirectory,
@@ -190,6 +191,11 @@ describe("local encrypted directory", () => {
     const first = await ensureOwnerPerson(tomb, "Ada Lovelace");
     expect(first.entries).toEqual([
       expect.objectContaining({ kind: "person", name: "Ada Lovelace" }),
+      expect.objectContaining({
+        kind: "person",
+        name: GUEST_PERSON_NAME,
+        id: GUEST_PERSON_ID,
+      }),
       expect.objectContaining({ kind: "organization", name: "Ada Lovelace" }),
       expect.objectContaining({
         kind: "agent",
@@ -202,13 +208,20 @@ describe("local encrypted directory", () => {
         id: PAGES_APPLICATION_ID,
       }),
     ]);
-    const person = first.entries.find((entry) => entry.kind === "person");
+    const person = first.entries.find(
+      (entry) => entry.kind === "person" && entry.id !== GUEST_PERSON_ID,
+    );
     const org = first.entries.find((entry) => entry.kind === "organization");
     expect(first.memberships).toEqual([
       {
         organizationId: org?.id,
         principalId: person?.id,
         role: "owner",
+      },
+      {
+        organizationId: org?.id,
+        principalId: GUEST_PERSON_ID,
+        role: "member",
       },
       {
         organizationId: org?.id,
@@ -225,6 +238,11 @@ describe("local encrypted directory", () => {
     const directory = await ensureOwnerPerson(tomb, "Owner");
     expect(directory.entries).toEqual([
       expect.objectContaining({ kind: "person", name: "Owner" }),
+      expect.objectContaining({
+        kind: "person",
+        name: GUEST_PERSON_NAME,
+        id: GUEST_PERSON_ID,
+      }),
       expect.objectContaining({ kind: "organization", name: "Personal" }),
       expect.objectContaining({ kind: "agent", name: SUPPORT_AGENT_NAME }),
       expect.objectContaining({
@@ -241,7 +259,11 @@ describe("local encrypted directory", () => {
     expect(ownerPersonName(false, null)).toBe("Owner");
     const directory = await ensureOwnerPerson(tomb, GUEST_PERSON_NAME);
     expect(directory.entries).toEqual([
-      expect.objectContaining({ kind: "person", name: GUEST_PERSON_NAME }),
+      expect.objectContaining({
+        kind: "person",
+        name: GUEST_PERSON_NAME,
+        id: GUEST_PERSON_ID,
+      }),
       expect.objectContaining({ kind: "organization", name: "Personal" }),
       expect.objectContaining({ kind: "agent", name: SUPPORT_AGENT_NAME }),
       expect.objectContaining({
@@ -249,14 +271,28 @@ describe("local encrypted directory", () => {
         name: PAGES_APPLICATION_NAME,
       }),
     ]);
+    expect(
+      directory.entries.filter((entry) => entry.kind === "person"),
+    ).toHaveLength(1);
   });
 
-  it("renames a placeholder Owner person to the guest identity", async () => {
+  it("keeps Owner and guest as separate people when guest is already seeded", async () => {
     await ensureOwnerPerson(tomb, "Owner");
     const directory = await ensureOwnerPerson(tomb, GUEST_PERSON_NAME);
     expect(
-      directory.entries.find((entry) => entry.kind === "person")?.name,
-    ).toBe(GUEST_PERSON_NAME);
+      directory.entries
+        .filter((entry) => entry.kind === "person")
+        .map((row) => ({
+          id: row.id,
+          name: row.name,
+        })),
+    ).toEqual([
+      expect.objectContaining({ name: "Owner" }),
+      expect.objectContaining({
+        id: GUEST_PERSON_ID,
+        name: GUEST_PERSON_NAME,
+      }),
+    ]);
     expect(
       directory.entries.find((entry) => entry.kind === "organization")?.name,
     ).toBe("Personal");
