@@ -144,7 +144,9 @@ mod tests {
                 subject: "user:demo".into(),
                 connection_policy_id: "demo-conn".into(),
                 parameters,
-            })
+            
+            lineage: None,
+        })
             .await
             .unwrap();
         (

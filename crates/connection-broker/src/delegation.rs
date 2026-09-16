@@ -222,6 +222,7 @@ pub struct ResolvedDelegation {
     pub claimant_subject: String,
     pub execution_mode: ExecutionMode,
     pub grant: Grant,
+    pub parent_grant: Grant,
     pub parent_grant_id: GrantId,
 }
 
@@ -1417,16 +1418,14 @@ impl ConnectionBroker {
         if grant.assert_active(now).is_err() {
             return Ok(None);
         }
-        // Ancestor revocation kills descendants: a live child under a dead
-        // parent is authority that outlived the thing it narrowed.
-        if let Some(parent) = self
+        // Ancestor revocation kills descendants under a dead parent.
+        let Some(parent_grant) = self
             .load_grant(&row.get::<String, _>("parent_grant_id"))
             .await?
-        {
-            if parent.assert_active(now).is_err() {
-                return Ok(None);
-            }
-        } else {
+        else {
+            return Ok(None);
+        };
+        if parent_grant.assert_active(now).is_err() {
             return Ok(None);
         }
         let parent_grant_id = GrantId::parse(&row.get::<String, _>("parent_grant_id"))
@@ -1439,6 +1438,7 @@ impl ConnectionBroker {
             claimant_subject: row.get("claimant_subject"),
             execution_mode: parse_execution_mode(&row.get::<String, _>("execution_mode")),
             grant,
+            parent_grant,
             parent_grant_id,
         }))
     }

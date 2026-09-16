@@ -444,7 +444,7 @@
       "max-lines": 1688
     },
     "apps/gateway/src/routes/intents.rs": {
-      "max-lines": 900
+      "max-lines": 617
     },
     "apps/gateway/src/routes/kv_facade.rs": {
       "max-lines": 758
