@@ -1213,6 +1213,127 @@
       "operations": ["email.send", "contact.read", "template.read"]
     },
     {
+      "id": "twilio",
+      "display_name": "Twilio",
+      "category": "communication",
+      "docs_url": "https://www.twilio.com/docs/sms/api",
+      "provenance_url": "https://www.twilio.com/docs/sms/api",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.twilio.com"],
+        "path_prefixes": []
+      },
+      "operations": ["sms.send", "message.read", "number.read"],
+      "connection_configuration_fields": [
+        {
+          "name": "account_sid",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "auth_token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "from_number",
+          "secret": false,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "messagebird",
+      "display_name": "MessageBird",
+      "category": "communication",
+      "docs_url": "https://developers.messagebird.com/api/",
+      "provenance_url": "https://developers.messagebird.com/api/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "AccessKey "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["rest.messagebird.com"],
+        "path_prefixes": []
+      },
+      "operations": ["sms.send", "message.read", "balance.read"]
+    },
+    {
+      "id": "vonage",
+      "display_name": "Vonage",
+      "category": "communication",
+      "docs_url": "https://developer.vonage.com/en/messaging/sms/overview",
+      "provenance_url": "https://developer.vonage.com/en/messaging/sms/overview",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["rest.nexmo.com", "api.nexmo.com"],
+        "path_prefixes": []
+      },
+      "operations": ["sms.send", "message.read"],
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_secret",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "from",
+          "secret": false,
+          "required": true
+        }
+      ]
+    },
+    {
+      "id": "plivo",
+      "display_name": "Plivo",
+      "category": "communication",
+      "docs_url": "https://www.plivo.com/docs/sms/api/overview/",
+      "provenance_url": "https://www.plivo.com/docs/sms/api/overview/",
+      "auth": {
+        "kind": "configuration"
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.plivo.com"],
+        "path_prefixes": []
+      },
+      "operations": ["sms.send", "message.read"],
+      "connection_configuration_fields": [
+        {
+          "name": "auth_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "auth_token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "from_number",
+          "secret": false,
+          "required": true
+        }
+      ]
+    },
+    {
       "id": "pagerduty",
       "display_name": "PagerDuty",
       "category": "communication",
@@ -1268,6 +1389,49 @@
         "path_prefixes": []
       },
       "operations": ["project.read", "project.write", "branch.read"]
+    },
+    {
+      "id": "postgresql",
+      "display_name": "PostgreSQL",
+      "category": "storage",
+      "docs_url": "https://www.postgresql.org/docs/current/",
+      "provenance_url": "https://www.postgresql.org/docs/current/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["127.0.0.1:5432", "localhost:5432"],
+        "path_prefixes": []
+      },
+      "operations": ["database.read", "database.write"]
+    },
+    {
+      "id": "supabase",
+      "display_name": "Supabase",
+      "category": "storage",
+      "docs_url": "https://supabase.com/docs/guides/api",
+      "provenance_url": "https://supabase.com/docs/guides/api",
+      "auth": {
+        "kind": "api_key",
+        "header": "apikey",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.supabase.com"],
+        "path_prefixes": []
+      },
+      "operations": [
+        "project.read",
+        "project.write",
+        "database.read",
+        "database.write"
+      ]
     },
     {
       "id": "ngrok",
@@ -2065,6 +2229,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-08-30.3",
+  "revision": "2026-09-15.2",
   "schema_version": 1
 }

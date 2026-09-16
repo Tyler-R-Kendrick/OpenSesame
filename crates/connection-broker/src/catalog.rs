@@ -792,15 +792,15 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-08-30.3");
-        assert_eq!(catalog.providers().len(), 89);
+        assert_eq!(catalog.revision(), "2026-09-15.2");
+        assert_eq!(catalog.providers().len(), 95);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            88
+            94
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     }
