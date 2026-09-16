@@ -84,6 +84,11 @@ export const InteractionErrorCodeSchema = z.enum([
   /** One live interaction per ceremony; another already holds the slot. */
   "interaction_already_live",
   "approval_required",
+  /**
+   * Privileged approval needs a spent, interaction-scoped activation
+   * (WebAuthn/TOTP/OID4VP). An ordinary session + digest echo is not enough.
+   */
+  "proof_required",
   "digest_mismatch",
   "unsupported_kind",
   "invalid_request",
@@ -209,29 +214,23 @@ export const ApprovalProofSchema = z.object({
 });
 
 /**
- * Approving echoes the digest, and carries nothing else.
+ * Approving echoes the digest and names a spent activation.
  *
  * An earlier shape took the whole `ApprovalProof` from the request body —
  * mechanism, assurance level, credential handle — and stored and audited it.
- * That was evidence manufacture: the server verified no assertion and no
- * presentation, so a caller could write `mechanism: "webauthn"`,
- * `assurance: "phishing_resistant"` into an audit trail having touched no key
- * at all. A record that overstates what was checked is worse than no record,
- * because it is the record a reviewer trusts.
+ * That was evidence manufacture. A later hosted path built a
+ * `session_reauth` proof from the ordinary session alone; that was the same
+ * failure under a different label (F01). The proof is built only after the
+ * authority verifies a raw assertion against an interaction-scoped
+ * activation; the client may not invent mechanism or assurance.
  *
- * So the proof is built server-side from what the server actually
- * established, which today is the authenticated session and the approver's
- * own assurance level. Binding a separately verified step-up — the passkey
- * assertion and TOTP checks that `/v1/mfa/*` really does verify — to a
- * specific interaction is the work that would let a stronger mechanism be
- * recorded honestly; until it exists, none is.
- *
- * The echo stays: it says "this is the request I was shown", and comparing it
- * against the stored digest is what stops a stale screen settling the request
- * that replaced it.
+ * The digest echo still means "this is the request I was shown".
+ * `activationId` names the activation that already verified the step-up.
  */
 export const ApproveInteractionSchema = z.object({
   requestDigest: z.string().min(16).max(256),
+  /** Spent interaction activation; omit and the server answers proof_required. */
+  activationId: z.string().min(8).max(256).optional(),
 });
 
 /**
