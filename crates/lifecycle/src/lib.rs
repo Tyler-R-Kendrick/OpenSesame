@@ -13,6 +13,12 @@
 //! - [`evaluate`] — the pure decision: given a subject, its watermarks, and a
 //!   clock reading, the events it owes.
 //!
+//! A deadline is one way authority ends; revocation is the other, and it has
+//! to take effect without waiting for anything. [`evaluate_fence`] is that
+//! decision: a grant carries its [`Lineage`], a revoke writes one durable
+//! invalidation, and an authorization asks whether any ancestor is fenced
+//! before it asks anything else. Uncertainty denies — see [`FenceVerdict`].
+//!
 //! Nothing here does I/O. The gateway supplies subjects and persistence, and
 //! **`OpenSesame`'s own rotation and certificate responders subscribe to the same
 //! events an external tool does** — the platform has no private trigger path
@@ -24,9 +30,13 @@
 
 mod evaluate;
 mod event;
+mod fence;
 mod notice;
 mod stage;
 mod subject;
+
+#[cfg(test)]
+mod authority_grant_expiry;
 
 pub use evaluate::{evaluate, should_respond, Watermark, Watermarks};
 pub use event::{
@@ -34,6 +44,10 @@ pub use event::{
     EVENT_EXPIRY_EXPIRED, EVENT_EXPIRY_NOTICE, EVENT_EXPIRY_URGENT, EVENT_EXPIRY_WARNING,
     EVENT_RENEWAL_DUE, EVENT_RENEWAL_FAILED, EVENT_RENEWAL_SUCCEEDED, EVENT_WILDCARD,
     LIFECYCLE_EVENT_TYPES, MAX_DETAIL_CHARS, MAX_LABEL_CHARS,
+};
+pub use fence::{
+    evaluate_fence, is_fence_safe_id, missing_lineage, store_unavailable, FenceReading,
+    FenceVerdict, Freshness, Invalidation, Lineage, LineageError, Uncertainty, MAX_FENCE_DEPTH,
 };
 pub use notice::{humanize_seconds, severity_for_stage};
 pub use stage::{

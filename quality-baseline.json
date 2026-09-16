@@ -1309,7 +1309,7 @@
       "max-lines": 625
     },
     "crates/storage/src/lib.rs": {
-      "max-lines": 2089
+      "max-lines": 2091
     },
     "crates/storage/src/observation.rs": {
       "max-lines": 469

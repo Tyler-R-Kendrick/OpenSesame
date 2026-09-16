@@ -242,7 +242,7 @@ fn pact_certificate_statuses_are_the_documented_set() {
 }
 
 #[test]
-fn pact_migrations_are_append_only_and_end_with_0032() {
+fn pact_migrations_are_append_only_and_end_with_0036() {
     let versions = migration_versions();
     assert_eq!(
         versions,
@@ -279,7 +279,13 @@ fn pact_migrations_are_append_only_and_end_with_0032() {
             "0030_agent_capabilities",
             "0031_host_authorizations",
             "0032_config_authorization",
+            "0033_authority_invalidation_fence",
+            "0034_general_authority",
+            "0036_authority_grant_watermarks",
         ]
     );
-    assert_eq!(versions.last().copied(), Some("0032_config_authorization"));
+    assert_eq!(
+        versions.last().copied(),
+        Some("0036_authority_grant_watermarks")
+    );
 }

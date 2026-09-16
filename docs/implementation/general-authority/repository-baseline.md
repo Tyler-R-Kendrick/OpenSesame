@@ -1,8 +1,9 @@
 # Repository baseline — general authority
 
+- **GA-3 base (origin/main after GA-2):** `f73429348a66e87f66ee8c3a31695362469b1bcd`
 - **GA-1 stack start SHA:** `4358f7feacee97468b17abdd9b5ccc02c81ee68d` (`origin/main` at GA-1 branch creation)
 - **Inspected baseline (spec):** `4358f7feacee97468b17abdd9b5ccc02c81ee68d` (2026-09-14T16:33:13Z)
-- **Working branch:** `feat/ga-01-contracts-docs` (docs/contracts only; no wallet or Rust authority implementation)
+- **Working branch:** `feat/ga-03-storage-fence` (storage fence/budget/restore; from GA-2 tip on main)
 
 ## Stacked PR sequence (authority trust boundary)
 

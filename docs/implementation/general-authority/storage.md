@@ -20,7 +20,7 @@ revocation that predates this work still ends the authority, because
 
 Ancestry and per-grant revocation are **not** reimplemented here either. They
 belong to the invalidation fence (`migrations/0033_authority_invalidation_fence.sql`,
-`crates/storage/src/authority_fence.rs`): `issue_authority` records the child's
+`crates/storage/src/authority_fence/`): `issue_authority` records the child's
 lineage through `record_lineage`, and `fenced_authority` asks `fence_status` for
 the chain verdict. Two ancestry tables would eventually disagree, and the
 disagreement would be a privilege escalation rather than a bug.
@@ -29,11 +29,13 @@ disagreement would be a privilege escalation rather than a bug.
 
 | Plane | ID | Adds |
 |---|---|---|
+| Host (`crates/storage`) | `0033_authority_invalidation_fence` | `grant_lineage`, `grant_invalidations` |
 | Host (`crates/storage`) | `0034_general_authority` | `access_domains`, `authority_generations`, `grant_authority`, `grant_permission_entries`, `grant_offers`, `grant_offer_activations`, `authority_budgets`, `authority_budget_reservations`, `authority_provider_effects`, `authority_evidence`, `authority_projections`, `authority_writer_lease`, `authority_operational_generation`, `authority_backfill_progress`, `authority_backfill_quarantine`, `authority_client_floor` |
+| Host (`crates/storage`) | `0036_authority_grant_watermarks` | extends `lifecycle_watermarks` CHECK for `authority_grant` (INV-GA-05) |
 | Identity (`packages/database`) | `0024_authority_membership` | `authority_membership_edges`, `authority_projection_state` |
 
 Host migrations are applied in order by `crates/storage/src/migrations.rs`;
-`0033` is the sibling fence and stays ahead of `0034`, which depends on it.
+`0033` is the sibling fence and stays ahead of `0034`, which depends on it. `0036` follows without `0035_session_coordination` on this branch (session coordination stays out of GA-3).
 The Identity migration follows `0023_naive_meltdown` and is generated from
 `packages/database/src/schema/authority.ts` (registered in `drizzle.config.ts`
 alongside `schema/index.ts`, which is at its structural size budget).
