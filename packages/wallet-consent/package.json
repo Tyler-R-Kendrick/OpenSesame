@@ -1,0 +1,29 @@
+{
+  "name": "@opensesame/wallet-consent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./verify": {
+      "types": "./src/verify.ts",
+      "default": "./src/verify.ts"
+    },
+    "./digest": {
+      "types": "./src/digest.ts",
+      "default": "./src/digest.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}
