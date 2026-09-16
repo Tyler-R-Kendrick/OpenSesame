@@ -1301,12 +1301,12 @@ impl ConnectionBroker {
         if row.get::<Option<String>, _>("revoked_at").is_some() {
             return Err(BrokerError::InvalidState);
         }
-        let current = self
-            .load_grant(&row.get::<String, _>("grant_id"))
+        let current = crate::delegation_lineage::load_grant(
+            &self.pool, &row.get::<String, _>("grant_id"))
             .await?
             .ok_or(BrokerError::InvalidState)?;
-        let parent = self
-            .load_grant(&row.get::<String, _>("parent_grant_id"))
+        let parent = crate::delegation_lineage::load_grant(
+            &self.pool, &row.get::<String, _>("parent_grant_id"))
             .await?
             .ok_or(BrokerError::InvalidState)?;
 
@@ -1371,28 +1371,12 @@ impl ConnectionBroker {
         })
     }
 
-    async fn load_grant(&self, id: &str) -> Result<Option<Grant>> {
-        let row = sqlx::query("SELECT body_json, revoked_at FROM grants WHERE id = ?")
-            .bind(id)
-            .fetch_optional(&self.pool)
-            .await
-            .map_err(internal)?;
-        let Some(row) = row else { return Ok(None) };
-        let mut grant: Grant =
-            serde_json::from_str(&row.get::<String, _>("body_json")).map_err(internal)?;
-        if let Some(revoked) = row.get::<Option<String>, _>("revoked_at") {
-            grant.revoked_at = grant.revoked_at.or(Some(parse_time(&revoked)));
-        }
-        Ok(Some(grant))
-    }
 
-    /// The caller's live delegation for a connection, with its child grant —
-    /// what the invoke path resolves a submitted `ConnectionRef` against.
+    /// Live delegation for a connection (invoke-path `ConnectionRef` resolve).
     ///
     /// # Errors
     ///
-    /// Returns an error when stored identifiers or grants are malformed, or
-    /// when persistence cannot be queried.
+    /// Malformed stored grants/ids, or persistence failure.
     pub async fn find_live_delegation(
         &self,
         claimant_subject: &str,
@@ -1415,21 +1399,20 @@ impl ConnectionBroker {
         if now >= parse_time(&row.get::<String, _>("expires_at")) {
             return Ok(None);
         }
-        let Some(grant) = self.load_grant(&row.get::<String, _>("grant_id")).await? else {
+        let Some(grant) = crate::delegation_lineage::load_grant(&self.pool, &row.get::<String, _>("grant_id")).await? else {
             return Ok(None);
         };
         if grant.assert_active(now).is_err() {
             return Ok(None);
         }
-        // Ancestor revocation kills descendants: a live child under a dead
-        // parent is authority that outlived the thing it narrowed.
-        let Some(parent_grant) = self
-            .load_grant(&row.get::<String, _>("parent_grant_id"))
+        // Walk every ancestor — one-hop left a live child under a dead grandparent.
+        let Some(parent_grant) = crate::delegation_lineage::load_grant(
+            &self.pool, &row.get::<String, _>("parent_grant_id"))
             .await?
         else {
             return Ok(None);
         };
-        if parent_grant.assert_active(now).is_err() {
+        if !crate::delegation_lineage::grant_lineage_active(&self.pool, &parent_grant, now).await? {
             return Ok(None);
         }
         let parent_grant_id = GrantId::parse(&row.get::<String, _>("parent_grant_id"))
@@ -1446,6 +1429,7 @@ impl ConnectionBroker {
             parent_grant_id,
         }))
     }
+
 
     /// Spend one unit of a delegation budget, atomically. Deny when the
     /// decrement cannot be performed — exhausted or contended past retry —
@@ -1548,7 +1532,7 @@ impl ConnectionBroker {
         .map_err(internal)?;
         let mut views = Vec::with_capacity(rows.len());
         for row in rows {
-            let grant = self.load_grant(&row.get::<String, _>("grant_id")).await?;
+            let grant = crate::delegation_lineage::load_grant(&self.pool, &row.get::<String, _>("grant_id")).await?;
             views.push(DelegationView {
                 id: row.get("id"),
                 offer_id: row.get("offer_id"),
