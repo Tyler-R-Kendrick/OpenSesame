@@ -1,9 +1,9 @@
 {
   "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, \u2026) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
   "programme": "general-authority",
-  "baselineSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
-  "baselineDirty": true,
-  "generatedAt": "2026-09-16",
+  "baselineSha": "09b7e3158b32199a4943ca4966b6ca7781dddcd3",
+  "baselineDirty": false,
+  "generatedAt": "2026-09-16T23:24:11Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -14,11 +14,11 @@
     "Artifacts existing on disk is not completion. GA-O-01 through GA-O-03 produced files and are still unresolved."
   ],
   "summary": {
-    "totalWorkItems": 47,
-    "unresolved": 14,
-    "inProgress": 13,
+    "totalWorkItems": 48,
+    "unresolved": 13,
+    "inProgress": 14,
     "blocked": 0,
-    "verified": 20,
+    "verified": 21,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported"
@@ -188,10 +188,15 @@
       "swarm": "GA-P",
       "title": "Align the local share-grant ledger",
       "status": "in-progress",
-      "verification": "self-reported",
-      "evidence": "authority-templates + LocalAuthorityTemplates panel landed; minting/enforcement wiring open",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/pages exec vitest run src/sections/access/LocalAuthorityTemplates.test.tsx",
+          "result": "ok. lists audience templates with honest support statuses"
+        }
+      ],
       "blockedBy": ["GA-A-01"],
-      "notes": "authority-templates + LocalAuthorityTemplates panel landed; minting/enforcement wiring open"
+      "notes": "authority-templates + LocalAuthorityTemplates panel landed and tested; minting/enforcement still Host-side (GA-H)."
     },
     {
       "id": "GA-P-02",
@@ -217,11 +222,16 @@
       "id": "GA-P-04",
       "swarm": "GA-P",
       "title": "Guest and unlock regression guard",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/pages exec vitest run src/screens/unlock/SignInPanel.test.tsx src/screens/UnlockScreen.test.tsx src/lib/vault/store.test.ts",
+          "result": "ok. guest roads present; guest tomb isolation covered in store tests (part of 126 pass suite with LocalAuthorityTemplates)"
+        }
+      ],
       "blockedBy": [],
-      "notes": "Existing guest tests are load-bearing and must not be deleted or inverted."
+      "notes": "Guest Continue/Skip roads remain load-bearing; LocalAuthorityTemplates coexists without gating guest."
     },
     {
       "id": "GA-C-01",
@@ -241,7 +251,7 @@
       "verification": "none",
       "evidence": null,
       "blockedBy": ["GA-C-01"],
-      "notes": "Parity tests in mcp-host/mcp-client are modified in the dirty tree."
+      "notes": "Parity registry entries exist (GA-C-01). Remaining mcp-host/mcp-client sweeps tracked separately; no dirty-tree claim."
     },
     {
       "id": "GA-O-01",
@@ -652,7 +662,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Storage restore/freshness/multiwriter fences proven. Dispatch: Host invoke authorize_openfga now requires projection_applied for generalized grants before trusting OpenFGA (intents_projection.rs). Remaining: Identity-plane cache consistency end-to-end when Identity projector is live."
+      "notes": "Storage restore/freshness/multiwriter fences proven. Dispatch: Host invoke authorize_openfga now requires projection_applied for generalized grants before trusting OpenFGA (intents_projection.rs, #406). Remaining: Identity-plane cache consistency end-to-end when Identity projector is live."
     }
   ]
 }

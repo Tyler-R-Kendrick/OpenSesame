@@ -25,3 +25,8 @@ Do not mark GA complete until recursive revocation, conserved budgets, restore f
 GA-1 lands contracts and ADRs only. `completion-matrix.json` must not claim `verified` for Rust or other implementation that is not present on this branch; those claims move to GA-2+ with command-backed evidence on the matching code.
 
 Rebased onto main after GA-2 (#400) via signed createCommitOnBranch.
+
+## Landed on main (2026-09-16)
+
+- GA-1 #398, GA-2 #400, wallet #397, INV-REVOCATION #402, GA-4 #403, GA-5 #404, INV-BUDGET #405, INV-CONSISTENCY #406.
+- Remaining open honesty: portal visual evidence (GA-P-02/Q-03), Identity routes (GA-I-*), surfaces minting/enforcement (GA-P-01 Host-side).
