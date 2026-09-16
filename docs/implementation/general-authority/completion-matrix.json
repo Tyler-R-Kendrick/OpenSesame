@@ -1,0 +1,515 @@
+{
+  "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, …) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
+  "programme": "general-authority",
+  "baselineSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
+  "baselineDirty": false,
+  "generatedAt": "2026-09-16",
+  "generatedBy": "GA-1 contracts/docs stack from origin/main; matrix honesty — no verified for unimplemented Rust on this branch",
+  "statusVocabulary": [
+    "unresolved",
+    "in-progress",
+    "blocked",
+    "verified"
+  ],
+  "verificationVocabulary": [
+    "none",
+    "self-reported",
+    "command-backed"
+  ],
+  "rules": [
+    "A work item moves off 'unresolved' only with a recorded command and what that command printed.",
+    "'verified' requires command-backed verification; a passing claim without a command stays 'self-reported' and the item stays 'in-progress'.",
+    "No item may be marked 'verified' by GA-O on another swarm's behalf.",
+    "Artifacts existing on disk is not completion. GA-O-01 through GA-O-03 produced files and are still unresolved."
+  ],
+  "summary": {
+    "totalWorkItems": 44,
+    "unresolved": 35,
+    "inProgress": 9,
+    "blocked": 0,
+    "verified": 0,
+    "testsRun": 0,
+    "gatesRun": 0,
+    "authorityFabric": "not run on GA-1 (docs/contracts only)"
+  },
+  "workItems": [
+    {
+      "id": "GA-A-01",
+      "swarm": "GA-A",
+      "title": "Authority record type in os-domain",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "No authority type exists at baseline; ProjectMembership is the only authority primitive."
+    },
+    {
+      "id": "GA-A-02",
+      "swarm": "GA-A",
+      "title": "Executable invariant assertions",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-A-01"
+      ],
+      "notes": "invariants.ts holds no authority invariants at baseline."
+    },
+    {
+      "id": "GA-A-03",
+      "swarm": "GA-A",
+      "title": "Narrowing algebra and the depth bound",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-A-01"
+      ],
+      "notes": "Depth bound undecided."
+    },
+    {
+      "id": "GA-A-04",
+      "swarm": "GA-A",
+      "title": "Wire contracts and serialization",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-A-01"
+      ],
+      "notes": null
+    },
+    {
+      "id": "GA-F-01",
+      "swarm": "GA-F",
+      "title": "Additive OpenFGA model delta",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "fga model validate; cargo test -p opensesame-authz --lib model::; authority-additivity with OpenFGA | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): fga model validate; cargo test -p opensesame-authz --lib model::; authority-additivity with OpenFGA"
+    },
+    {
+      "id": "GA-F-02",
+      "swarm": "GA-F",
+      "title": "Authority record to tuple mapping",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-F-01"
+      ],
+      "notes": null
+    },
+    {
+      "id": "GA-F-03",
+      "swarm": "GA-F",
+      "title": "Additivity test harness",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "packages/policy authority-additivity.test.ts + GA-V-32 pass | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): packages/policy authority-additivity.test.ts + GA-V-32 pass"
+    },
+    {
+      "id": "GA-F-04",
+      "swarm": "GA-F",
+      "title": "Tuple backfill and rollback plan",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-F-02"
+      ],
+      "notes": null
+    },
+    {
+      "id": "GA-H-01",
+      "swarm": "GA-H",
+      "title": "host-core authority evaluation",
+      "status": "in-progress",
+      "verification": "command-backed",
+      "evidence": "ValidatedGrantChain in authz; AccessDomain HTTP routes + 3 gateway tests; fabric PASS",
+      "blockedBy": [
+        "GA-A-03"
+      ],
+      "notes": "Host evaluation path exists; not every public route inventory complete"
+    },
+    {
+      "id": "GA-H-02",
+      "swarm": "GA-H",
+      "title": "Host storage schema for authority records",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-A-01"
+      ],
+      "notes": "AccessDomain forest, grant sidecar, budget CHECK, ancestor fence; Host HTTP routes still separate | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): cargo +1.88.0 test -p opensesame-storage --test authority_schema (8 ok); cargo +1.88.0 test -p opensesame-storage authority --lib (5 ok); migrations/0034_general_authority.sql in migrations.rs"
+    },
+    {
+      "id": "GA-H-03",
+      "swarm": "GA-H",
+      "title": "Lifecycle hook publication for expiry",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-H-02"
+      ],
+      "notes": "Feed half proven; auth-path deny remains fenced_authority expires_at (ADR 0121). Live OpenBao stack still optional/unavailable without .tools/bin/bao. | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): SubjectKind::AuthorityGrant; crates/lifecycle/src/authority_grant_expiry.rs; storage authority/expiry.rs + gateway subjects absorb; cargo +1.88.0 test -p opensesame-lifecycle authority_grant_expiry; fabric GA-V-33 retargeted off dishonest live-stack-test.sh"
+    },
+    {
+      "id": "GA-H-04",
+      "swarm": "GA-H",
+      "title": "Receipts for authority-mediated invocation",
+      "status": "in-progress",
+      "verification": "command-backed",
+      "evidence": "cargo +1.88.0 test -p opensesame-storage --lib issuing_authority_writes_an_outbox_event → ok; outbox event_type authority.grant.issued",
+      "blockedBy": [
+        "GA-H-01"
+      ],
+      "notes": "Durable outbox intent on issue; signed InvocationReceipt binding for dispatch still separate"
+    },
+    {
+      "id": "GA-I-01",
+      "swarm": "GA-I",
+      "title": "Identity API authority routes",
+      "status": "in-progress",
+      "verification": "command-backed",
+      "evidence": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-principals.test.ts → 12 pass; pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' → 2 pass",
+      "blockedBy": [
+        "GA-A-04"
+      ],
+      "notes": "ID-BIND: AuthorityPrincipalKind + relation fences + PoP enrollment; ID-SPAWN domain mint/refuse (wasmtime only). Control-plane HTTP enrollment/spawn routes and Host grant issuance still open."
+    },
+    {
+      "id": "GA-I-02",
+      "swarm": "GA-I",
+      "title": "Project membership reconciliation",
+      "status": "in-progress",
+      "verification": "command-backed",
+      "evidence": "pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' → 2 pass (MEMBERSHIP_SUBJECT_KINDS ≡ CHECK)",
+      "blockedBy": [
+        "GA-A-01"
+      ],
+      "notes": "Subject-kind fence landed; ADR 0038 membership CRUD generalization / live reconciliation still open."
+    },
+    {
+      "id": "GA-I-03",
+      "swarm": "GA-I",
+      "title": "Audit events for authority mutation",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-I-01"
+      ],
+      "notes": "No Identity authority-mutation audit events yet; depends on control-plane routes."
+    },
+    {
+      "id": "GA-P-01",
+      "swarm": "GA-P",
+      "title": "Align the local share-grant ledger",
+      "status": "in-progress",
+      "verification": "self-reported",
+      "evidence": "authority-templates + LocalAuthorityTemplates panel landed; minting/enforcement wiring open",
+      "blockedBy": [
+        "GA-A-01"
+      ],
+      "notes": "authority-templates + LocalAuthorityTemplates panel landed; minting/enforcement wiring open"
+    },
+    {
+      "id": "GA-P-02",
+      "swarm": "GA-P",
+      "title": "Access surfaces for hierarchical authority",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-P-01"
+      ],
+      "notes": "User-visible: needs before/after evidence from two real builds."
+    },
+    {
+      "id": "GA-P-03",
+      "swarm": "GA-P",
+      "title": "Per-panel gating with no backend",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-P-02"
+      ],
+      "notes": "ADR 0090: gate a panel on what it needs, never on 'a backend'."
+    },
+    {
+      "id": "GA-P-04",
+      "swarm": "GA-P",
+      "title": "Guest and unlock regression guard",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "Existing guest tests are load-bearing and must not be deleted or inverted."
+    },
+    {
+      "id": "GA-C-01",
+      "swarm": "GA-C",
+      "title": "Capability-registry entries",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-I-01",
+        "GA-P-02"
+      ],
+      "notes": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=… pnpm test:authority-fabric:report → GA-V-30 pass | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=… pnpm test:authority-fabric:report → GA-V-30 pass"
+    },
+    {
+      "id": "GA-C-02",
+      "swarm": "GA-C",
+      "title": "Per-surface parity sweeps",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-C-01"
+      ],
+      "notes": "Parity tests in mcp-host/mcp-client are modified in the dirty tree."
+    },
+    {
+      "id": "GA-O-01",
+      "swarm": "GA-O",
+      "title": "Bootstrap this implementation directory",
+      "status": "in-progress",
+      "verification": "self-reported",
+      "evidence": "ownership/ledger present; contract-registry still needs full status sync",
+      "blockedBy": [],
+      "notes": "ownership/ledger present; contract-registry still needs full status sync"
+    },
+    {
+      "id": "GA-O-02",
+      "swarm": "GA-O",
+      "title": "Draft ADR 0120",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "Status Proposed. ADRs 0116-0119 are untracked on disk, so 0120 is the next free number against that tree; re-check before committing."
+    },
+    {
+      "id": "GA-O-03",
+      "swarm": "GA-O",
+      "title": "Grant vs AccessLease compatibility map",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "The naming decision is open; the map states the constraint, not the outcome."
+    },
+    {
+      "id": "GA-O-04",
+      "swarm": "GA-O",
+      "title": "Keep the completion matrix honest",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "Standing item; never closes."
+    },
+    {
+      "id": "GA-Q-01",
+      "swarm": "GA-Q",
+      "title": "Structural quality gates for new modules",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "FIX-* and AT-* modules registered; residual unsupported rows honest | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): OPENSESAME_OPENFGA_URL=http://127.0.0.1:18081 pnpm test:authority-fabric → gate pass (48/0/0/3)"
+    },
+    {
+      "id": "GA-Q-02",
+      "swarm": "GA-Q",
+      "title": "Cross-plane authority test plan",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-A-02",
+        "GA-F-03"
+      ],
+      "notes": null
+    },
+    {
+      "id": "GA-Q-03",
+      "swarm": "GA-Q",
+      "title": "Before/after evidence for user-visible surfaces",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [
+        "GA-P-02"
+      ],
+      "notes": "Base-branch capture is complicated by the dirty tree; plan it before GA-P-02 lands."
+    },
+    {
+      "id": "GRA-REPRO",
+      "swarm": "GRA",
+      "title": "reproduced attenuation gaps; regression tests in grant_attenuation",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "notes": "GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib\", \"result\": \"ok. 301 passed; 0 failed\", \"note\": \"not_before, assurance, auth age, networks, parameter digest, offline, parent budget omission\"}]"
+    },
+    {
+      "id": "GRA-VALIDATE",
+      "swarm": "GRA",
+      "title": "complete constraint attenuation + resource containment algebra",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "notes": "GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib\", \"result\": \"ok. 301 passed\", \"note\": \"complete constraint attenuation + resource containment algebra\"}]"
+    },
+    {
+      "id": "GRA-CHAIN",
+      "swarm": "GRA",
+      "title": "ValidatedGrantChain private constructor; no serde",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "notes": "GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib\", \"result\": \"ok. 301 passed\", \"note\": \"ValidatedGrantChain private constructor; no serde\"}]"
+    },
+    {
+      "id": "AZ-TRUST",
+      "swarm": "AZ",
+      "title": "PolicyEngine requires ValidatedGrantChain; client assurance ignored",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "notes": "GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-authz --lib\", \"result\": \"ok. 29 passed\", \"note\": \"PolicyEngine requires ValidatedGrantChain; client assurance ignored\"}]"
+    },
+    {
+      "id": "RES-ENTRIES",
+      "swarm": "RES",
+      "title": "PermissionEntry/PermissionSet; AT-CORRELATED unit test",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "notes": "GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib permission\", \"result\": \"AT-CORRELATED covered\", \"note\": \"PermissionEntry/PermissionSet; AT-CORRELATED unit test\"}]"
+    },
+    {
+      "id": "DOM-FOREST",
+      "swarm": "DOM",
+      "title": "realm-bound AccessDomain forest, acyclicity, personal-project non-sharing",
+      "status": "in-progress",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "cargo +1.88.0 test -p opensesame-domain --lib access_domain",
+          "result": "forest+control green; storage/API pending",
+          "note": "realm-bound AccessDomain forest, acyclicity, personal-project non-sharing"
+        }
+      ]
+    },
+    {
+      "id": "BUD-RESERVE",
+      "swarm": "BUD",
+      "title": "atomic reservation/settlement ledger with conservation tests",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "notes": "GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib budget::\", \"result\": \"ok. 72 passed; 0 failed\", \"note\": \"reserve/settle/release + parallel conservation; not yet on dispatch path\"}]"
+    },
+    {
+      "id": "ENF-DESCRIBE",
+      "swarm": "ENF",
+      "title": "multidimensional EnforcementDescriptor; refuse unsupported guarantees",
+      "status": "in-progress",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "cargo +1.88.0 test -p opensesame-enforcement --lib",
+          "result": "ok. 28 passed; issuance wiring pending",
+          "note": "multidimensional EnforcementDescriptor; refuse unsupported guarantees"
+        }
+      ]
+    },
+    {
+      "id": "DNS-SCOPE",
+      "swarm": "DNS",
+      "title": "ok. 49 passed; empty-group disable refused; DNS-only coverage",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "notes": "GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-dns-enforcement --lib\", \"result\": \"ok. 49 passed; empty-group disable refused; DNS-only coverage\"}]"
+    },
+    {
+      "id": "SBOX-PROFILE",
+      "swarm": "SBOX",
+      "title": "ok. 46 passed; native binary refusal; generation fence",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "notes": "GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-sandbox --lib\", \"result\": \"ok. 46 passed; native binary refusal; generation fence\"}]"
+    },
+    {
+      "id": "COL-TEST",
+      "swarm": "COL",
+      "title": "adapter + protocol fixtures present; hyper-util http1 fix; tests compiling",
+      "status": "in-progress",
+      "verification": "self-reported",
+      "evidence": []
+    },
+    {
+      "id": "FIX-FAMILY",
+      "swarm": "VERIFICATION",
+      "title": "Household scheduled window, budget, snapshot exclusion, expiry, guardian/vault separation",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "Fabric GA-V-35..39. Storage fenced reads + domain cohort/control composition; not UI. | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-storage --lib authority::fix_family::\", \"result\": \"ok. 3 passed (scheduled window, bounded budget, expiry)\"}, {\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib fix_family::\", \"result\": \"ok. 2 passed (snapshot late-add exclusion, guardian supervision \\u2260 vault secrets)\"}]"
+    },
+    {
+      "id": "FIX-CONTRACTOR",
+      "swarm": "VERIFICATION",
+      "title": "Correlated PermissionEntry, snapshot roster deny, ancestor revoke, independent grant survives",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "Fabric GA-V-40..43. | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib fix_contractor::\", \"result\": \"ok. 2 passed (correlated permits, snapshot roster add denied)\"}, {\"command\": \"cargo +1.88.0 test -p opensesame-storage --lib authority::fix_contractor::\", \"result\": \"ok. 4 passed (correlated persist, offer revision refuse, ancestor fence, independent survives)\"}]"
+    },
+    {
+      "id": "FIX-RAID",
+      "swarm": "VERIFICATION",
+      "title": "Observer metadata-only; leave/end terminates lifecycle-bound; referenced grant survives",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "Fabric GA-V-44..46. Discord live adapter still contract/fixture-only (not claimed as live enforcement). | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib fix_raid::\", \"result\": \"ok. 3 passed\"}, {\"command\": \"cargo +1.88.0 test -p opensesame-storage --lib authority::fix_raid::\", \"result\": \"ok. 2 passed\"}]"
+    },
+    {
+      "id": "FIX-WORKCELL",
+      "swarm": "VERIFICATION",
+      "title": "Budget conservation under concurrent spend; omitted child budget refuse; spawn depth refuse",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "Fabric GA-V-47..49. Native-binary WASM refusal remains covered by sandbox format tests (SBOX-PROFILE), not re-marked here. | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"cargo +1.88.0 test -p opensesame-storage --lib authority::fix_workcell::\", \"result\": \"ok. 1 passed (100-cap concurrent conservation)\"}, {\"command\": \"cargo +1.88.0 test -p opensesame-domain --lib fix_workcell::\", \"result\": \"ok. 2 passed (omitted budget, spawn depth)\"}]"
+    },
+    {
+      "id": "FIX-GENERALITY",
+      "swarm": "VERIFICATION",
+      "title": "Load declarative authority templates without audience-specific engine branches",
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
+      "blockedBy": [],
+      "notes": "Fabric GA-V-50. Templates remain data-only; provider-specific surfaces stay unsupported unless a tested adapter exists. | GA-1 honesty: demoted from verified — implementation not on this docs-only branch. Re-verify with command-backed evidence on GA-2+ when the matching code lands. Prior wallet-branch claim (not evidence for GA-1): [{\"command\": \"pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-templates.test.ts -t 'loads declarative templates without audience-specific engine branches'\", \"result\": \"1 passed | 11 skipped\"}]"
+    }
+  ]
+}
