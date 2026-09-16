@@ -98,6 +98,12 @@ opaque_id!(SessionGrantId, "sgrant");
 opaque_id!(JoinRequestId, "joinreq");
 opaque_id!(VaultItemId, "item");
 opaque_id!(SessionInviteId, "sinvite");
+opaque_id!(BudgetReservationId, "budgetres");
+opaque_id!(CohortId, "cohort");
+opaque_id!(CohortSnapshotId, "cohortsnap");
+opaque_id!(CohortActivationId, "cohortact");
+opaque_id!(AccessDomainId, "adom");
+opaque_id!(DomainControlId, "dctl");
 
 /// Stable profile IDs derived from slug strings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

@@ -29,6 +29,7 @@ mod tests {
             role,
             granted_at: now,
             expires_at: now + lifetime,
+            link: GrantLink::LifecycleBound,
         })
         .expect("grant should be valid")
     }
@@ -51,6 +52,7 @@ mod tests {
             role: SessionRole::Read,
             granted_at: now,
             expires_at: now + MAX_GRANT_LIFETIME + Duration::seconds(1),
+            link: GrantLink::LifecycleBound,
         })
         .expect_err("a lifetime past the cap must be refused");
         assert!(matches!(error, DomainError::SessionGrantLifetime(_)));
@@ -72,6 +74,7 @@ mod tests {
             role: SessionRole::Read,
             granted_at: now,
             expires_at: now + Duration::days(365),
+            link: GrantLink::LifecycleBound,
         });
         assert!(outcome.is_err());
     }
@@ -91,6 +94,7 @@ mod tests {
                 role: SessionRole::Read,
                 granted_at: now,
                 expires_at,
+                link: GrantLink::LifecycleBound,
             });
             assert!(outcome.is_err(), "{expires_at} should be refused");
         }
@@ -274,6 +278,7 @@ mod tests {
             role: SessionRole::Read,
             granted_at: now,
             expires_at: ceiling.expires_at - Duration::minutes(1),
+            link: GrantLink::LifecycleBound,
         })
         .expect("valid");
         assert!(shorter.narrows_to(&ceiling));
@@ -287,6 +292,7 @@ mod tests {
             role: SessionRole::Read,
             granted_at: now,
             expires_at: ceiling.expires_at + Duration::minutes(1),
+            link: GrantLink::LifecycleBound,
         })
         .expect("valid");
         assert!(
@@ -343,21 +349,6 @@ mod tests {
     }
 
     #[test]
-    fn admission_cannot_be_recorded_without_the_grant_it_minted() {
-        // There is no `Admitted` without a grant id, so "in the room with
-        // nothing" is unrepresentable rather than merely discouraged.
-        let admitted = JoinDecision::Admitted {
-            grant_id: SessionGrantId::new(),
-        };
-        match admitted {
-            JoinDecision::Admitted { grant_id } => {
-                assert_ne!(grant_id.to_string(), String::new());
-            }
-            other => panic!("unexpected decision {other:?}"),
-        }
-    }
-
-    #[test]
     fn the_holder_and_the_giver_stay_distinguishable() {
         // `NewSessionGrant` names both principals because positionally they
         // are one transposition apart, and transposing them hands the
@@ -377,6 +368,7 @@ mod tests {
             role: SessionRole::Read,
             granted_at: now,
             expires_at: now + Duration::hours(1),
+            link: GrantLink::LifecycleBound,
         })
         .expect("valid");
 

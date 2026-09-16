@@ -56,6 +56,14 @@ pub enum DomainError {
     SessionInviteOutlivesGrant(String),
     #[error("share link is not open: {0}")]
     SessionInviteClosed(String),
+    #[error("session grant link was not checked against its source: {0}")]
+    SessionGrantLinkUnchecked(String),
+    #[error("an observer holds no reach; raise them to participant first")]
+    SessionObserverHoldsNoGrant,
+    #[error("session membership has ended")]
+    SessionMembershipEnded,
+    #[error("session is closed")]
+    SessionClosed,
     #[error("proof binding mismatch: {0}")]
     ProofBindingMismatch(String),
     #[error("unknown protocol profile: {0}")]
@@ -74,4 +82,70 @@ pub enum DomainError {
     FrozenIntentDigestMismatch,
     #[error("frozen intent migration denied: {0}")]
     FrozenIntentMigrationDenied(String),
+    #[error("access domain is not in this realm: {0}")]
+    AccessDomainRealmMismatch(String),
+    #[error("access domain parentage would form a cycle: {0}")]
+    AccessDomainCycle(String),
+    #[error("access domain invalid: {0}")]
+    AccessDomainInvalid(String),
+    #[error("access domain not found: {0}")]
+    AccessDomainNotFound(String),
+    #[error("access domain conflict: {0}")]
+    AccessDomainConflict(String),
+    #[error("access domain depth exceeded: {0} levels")]
+    AccessDomainDepthExceeded(usize),
+    #[error("access domain lifetime invalid: {0}")]
+    AccessDomainLifetime(String),
+    #[error("access domain has expired")]
+    AccessDomainExpired,
+    #[error("access domain control would widen authority: {0}")]
+    AccessDomainControlWiden(String),
+    #[error("personal project refuses sharing: {0}")]
+    AccessDomainPersonalSharing(String),
+    #[error("access domain vault binding mismatch: {0}")]
+    AccessDomainVaultBinding(String),
+    #[error("cohort label invalid: {0}")]
+    CohortLabelInvalid(String),
+    #[error("cohort names no members")]
+    CohortEmpty,
+    #[error("cohort names too many members: {0}")]
+    CohortTooManyMembers(usize),
+    #[error("cohort nesting cycle: {0}")]
+    CohortCycle(String),
+    #[error("cohort nesting depth exceeded: {0}")]
+    CohortDepthExceeded(usize),
+    #[error("cohort graph larger than {0} cohorts")]
+    CohortGraphTooLarge(usize),
+    #[error("cohort would make more than {0} principals eligible")]
+    CohortTooManyPrincipals(usize),
+    #[error("cohort member could not be resolved: {0}")]
+    CohortUnresolvedMember(String),
+    #[error("cohort eligibility path invalid: {0}")]
+    CohortPathInvalid(String),
+    #[error("cohort admission mode mismatch: {0}")]
+    CohortAdmissionModeMismatch(String),
+    #[error("cohort resolution is not live enough: {0}")]
+    CohortResolutionStale(String),
+    #[error("cohort snapshot is closed: {0}")]
+    CohortSnapshotClosed(String),
+    #[error("cohort snapshot roster does not match its digest")]
+    CohortSnapshotDigestMismatch,
+    #[error("cohort snapshot belongs to a different cohort")]
+    CohortSnapshotCohortMismatch,
+    #[error("principal is not eligible: {0}")]
+    CohortNotEligible(String),
+    #[error("cohort activation lifetime invalid: {0}")]
+    CohortActivationLifetime(String),
+    #[error("cohort activation binding mismatch: {0}")]
+    CohortActivationBindingMismatch(String),
+    #[error("cohort activation already spent")]
+    CohortActivationSpent,
+    #[error("permission entry invalid: {0}")]
+    PermissionEntryInvalid(String),
+    #[error("permission correlation lost: {0}")]
+    PermissionCorrelationLost(String),
+    #[error("permission role unknown: {0}")]
+    PermissionRoleUnknown(String),
+    #[error("resource selector invalid: {0}")]
+    ResourceSelectorInvalid(String),
 }
