@@ -86,6 +86,8 @@ pub fn catalog() -> Result<Catalog, Vec<CatalogError>> {
         ("host-minted-token-revocable", minted_token_revocable()),
         ("apple-ios", apple_ios()),
         ("android", android()),
+        ("discord-live", discord_live()),
+        ("blocky-live-saas", blocky_live_saas()),
     ];
     let mut entries = Vec::new();
     let mut errors = Vec::new();
@@ -240,6 +242,31 @@ fn apple_ios() -> Built {
 /// No Android adapter exists in this repository.
 fn android() -> Built {
     foreign_platform_without_adapter("android", "no Android enforcement adapter exists")
+}
+
+/// Live Discord guild enforcement is not a catalogued guarantee.
+///
+/// `crates/collab-adapter` has an HTTP fixture and an `#[ignore]`d opt-in live
+/// test. Neither is an issuance-path adapter: a grant that needs Discord to
+/// hold expiry/termination/isolation must refuse here rather than borrow the
+/// fixture's self-consistency as proof the guild will enforce.
+fn discord_live() -> Built {
+    foreign_platform_without_adapter(
+        "discord-live",
+        "live Discord guild enforcement is unsupported; fixture/opt-in only",
+    )
+}
+
+/// Remote Blocky-as-a-service is not a catalogued guarantee.
+///
+/// `crates/dns-enforcement` talks to a local disposable Blocky and refuses with
+/// `CapabilityUnavailable` when none is present. A remote SaaS endpoint is a
+/// different trust boundary and must not inherit the local adapter's claims.
+fn blocky_live_saas() -> Built {
+    foreign_platform_without_adapter(
+        "blocky-live-saas",
+        "remote Blocky SaaS enforcement is unsupported; local disposable only",
+    )
 }
 
 fn foreign_platform_without_adapter(platform: &'static str, detail: &'static str) -> Built {

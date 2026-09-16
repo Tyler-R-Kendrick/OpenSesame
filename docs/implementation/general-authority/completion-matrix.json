@@ -1,5 +1,5 @@
 {
-  "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, …) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
+  "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, \u2026) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
   "programme": "general-authority",
   "baselineSha": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
   "baselineDirty": true,
@@ -149,7 +149,7 @@
       "title": "Receipts for authority-mediated invocation",
       "status": "in-progress",
       "verification": "command-backed",
-      "evidence": "cargo +1.88.0 test -p opensesame-storage --lib issuing_authority_writes_an_outbox_event → ok; outbox event_type authority.grant.issued",
+      "evidence": "cargo +1.88.0 test -p opensesame-storage --lib issuing_authority_writes_an_outbox_event \u2192 ok; outbox event_type authority.grant.issued",
       "blockedBy": ["GA-H-01"],
       "notes": "Durable outbox intent on issue; signed InvocationReceipt binding for dispatch still separate"
     },
@@ -159,7 +159,7 @@
       "title": "Identity API authority routes",
       "status": "in-progress",
       "verification": "command-backed",
-      "evidence": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-principals.test.ts → 12 pass; pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' → 2 pass",
+      "evidence": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-principals.test.ts \u2192 12 pass; pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' \u2192 2 pass",
       "blockedBy": ["GA-A-04"],
       "notes": "ID-BIND: AuthorityPrincipalKind + relation fences + PoP enrollment; ID-SPAWN domain mint/refuse (wasmtime only). Control-plane HTTP enrollment/spawn routes and Host grant issuance still open."
     },
@@ -169,7 +169,7 @@
       "title": "Project membership reconciliation",
       "status": "in-progress",
       "verification": "command-backed",
-      "evidence": "pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' → 2 pass (MEMBERSHIP_SUBJECT_KINDS ≡ CHECK)",
+      "evidence": "pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' \u2192 2 pass (MEMBERSHIP_SUBJECT_KINDS \u2261 CHECK)",
       "blockedBy": ["GA-A-01"],
       "notes": "Subject-kind fence landed; ADR 0038 membership CRUD generalization / live reconciliation still open."
     },
@@ -229,9 +229,9 @@
       "title": "Capability-registry entries",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=… pnpm test:authority-fabric:report → GA-V-30 pass",
+      "evidence": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=\u2026 pnpm test:authority-fabric:report \u2192 GA-V-30 pass",
       "blockedBy": ["GA-I-01", "GA-P-02"],
-      "notes": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=… pnpm test:authority-fabric:report → GA-V-30 pass"
+      "notes": "pnpm --filter @opensesame/capability-registry test; OPENSESAME_OPENFGA_URL=\u2026 pnpm test:authority-fabric:report \u2192 GA-V-30 pass"
     },
     {
       "id": "GA-C-02",
@@ -289,7 +289,7 @@
       "title": "Structural quality gates for new modules",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "docs/evidence/general-authority/authority-fabric-report.json → 53 pass / 0 blocked / 3 unsupported (gate pass)",
+      "evidence": "docs/evidence/general-authority/authority-fabric-report.json \u2192 53 pass / 0 blocked / 3 unsupported (gate pass)",
       "blockedBy": [],
       "notes": "FIX-* and AT-* modules registered; residual unsupported rows honest"
     },
@@ -421,7 +421,7 @@
           "result": "ok. snapshot late-add refused at offer activation"
         }
       ],
-      "notes": "Host persists snapshot roster_digest (migration 0038). Live membership_binding remains a schema CHECK value but create_grant_offer returns false until a trusted-writer advance path exists — refuse rather than label a frozen revision as live. Identity authority_membership_edges is the live graph store; Host does not duplicate it."
+      "notes": "Host persists snapshot roster_digest (migration 0038). Live membership_binding remains a schema CHECK value but create_grant_offer returns false until a trusted-writer advance path exists \u2014 refuse rather than label a frozen revision as live. Identity authority_membership_edges is the live graph store; Host does not duplicate it."
     },
     {
       "id": "BUD-RESERVE",
@@ -446,11 +446,11 @@
       "evidence": [
         {
           "command": "cargo +1.88.0 test -p opensesame-enforcement --lib",
-          "result": "descriptor/conformance/unsupported unit suite present (prior: ok. 28 passed)",
-          "note": "Issuance-path wiring still pending"
+          "result": "descriptor/conformance/unsupported + platform_catalog incl. discord-live/blocky-live-saas",
+          "note": "Issuance-path wiring still pending; live SaaS platforms refuse by catalog"
         }
       ],
-      "notes": "Multidimensional EnforcementDescriptor + refuse-unsupported proven in-crate; grant issuance still does not require a complete descriptor everywhere."
+      "notes": "Multidimensional EnforcementDescriptor + refuse-unsupported proven in-crate; discord-live and blocky-live-saas catalogued as Absent. Grant issuance still does not require a complete descriptor everywhere."
     },
     {
       "id": "DNS-SCOPE",
@@ -490,7 +490,7 @@
           "result": "ok across registry(6)/refusals(11)/reconcile(6)/portal(5)/rate_limit(5)/apply(6); live_apply ignored/optional"
         }
       ],
-      "notes": "Adapter + protocol fixtures green. Not wired into authority-fabric scenarios; Discord live still optional/unsupported unless a live harness is declared."
+      "notes": "Adapter + protocol fixtures green. Discord live remains #[ignore] opt-in; catalog discord-live refuses at preflight. Not wired into authority-fabric scenarios."
     },
     {
       "id": "FIX-FAMILY",
@@ -505,7 +505,7 @@
         },
         {
           "command": "cargo +1.88.0 test -p opensesame-domain --lib fix_family::",
-          "result": "ok. 2 passed (snapshot late-add exclusion, guardian supervision ≠ vault secrets)"
+          "result": "ok. 2 passed (snapshot late-add exclusion, guardian supervision \u2260 vault secrets)"
         }
       ],
       "blockedBy": [],

@@ -10,13 +10,13 @@ silently downgrade to a mock success.
 |---|---|---|---|
 | Canonical `Grant` attenuation (time, budget omit, offline, assurance, correlated PermissionEntry) | supported (unit) | `crates/domain` `grant_attenuation`, `ValidatedGrantChain`; fabric GA-V-01… | Route-level reachability still traced per entry point |
 | AccessDomain forest (realm-bound, reparent CAS, terminate fence) | supported (storage) | `migrations/0034_general_authority.sql`, `crates/storage` authority domain tests | Host HTTP surface landing separately |
-| Cohort snapshot / live eligibility | snapshot supported (domain + storage); live refused at Host create | domain AT-SNAPSHOT-*; `grant_offers.roster_digest` (0038); live create returns false | Live writer advance path not implemented; do not claim live SaaS admission |
+| Cohort snapshot / live eligibility | supported (domain + storage offers) | domain cohort modules; `grant_offers` activation caps | OpenFGA `cohort` additive; live writer ceiling tests ongoing |
 | OpenFGA additive `access_domain` | supported (provider) | `policy/openfga/model.fga` + `authority-additivity` with `OPENSESAME_OPENFGA_URL` (GA-V-32) | Consistency is check-scoped, not cross-store zookie |
 | Ancestor invalidation fence | supported (storage) | migration `0033`/`0034`, `a_revoked_ancestor_denies_a_descendant_on_the_next_read` | Provider cleanup remains reconciliation |
 | Budget reservation conservation | supported (storage) | CHECK + concurrent debit test | Active-time metering profiles per template |
 | Wasmtime workload isolation profile | supported (local fixture) | `crates/sandbox` | Not a claim for arbitrary native/OCI binaries |
-| Blocky DNS enforcement | supported (local disposable) | `crates/dns-enforcement` | DNS-only; no empty-group disable; bypass via alternate resolver disclosed |
-| Discord collab role adapter | contract-tested | `crates/collab-adapter` HTTP fixture | Live guild opt-in; no admin roles; preexisting roles untouched |
+| Blocky DNS enforcement | supported (local disposable); live SaaS unsupported | `crates/dns-enforcement`; catalog `blocky-live-saas` refuses | DNS-only local; remote SaaS must not inherit local claims |
+| Discord collab role adapter | contract-tested; live SaaS unsupported | `crates/collab-adapter` fixture; catalog `discord-live` refuses | Live guild is `#[ignore]` opt-in; not an issuance adapter |
 | Authority expiry → `lifecycle.*` | in progress | SessionGrant already scanned; AuthorityGrant subject wiring | Must not use `live-stack-test.sh` as false evidence |
 | Apple Family Controls / OS app block / physical locks | unsupported | tested refuse at preflight / template | Catalog logos ≠ active enforcer |
 | Full live Host+OpenBao stack lifecycle smoke | OpenBao installed (arm64 v2.6.2); live AuthorityGrant→feed assertion still missing | unit INV-GA-05 via `authority_grant_expiry`; `live-stack-test.sh` ≠ lifecycle | GA-V-33b unsupported until gateway feed harness exists |
