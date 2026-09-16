@@ -193,7 +193,7 @@ a 21rem list column between rail and detail, giving ranger's three panes;
 the other sections read as a single 60rem flowing document of chapters.
 
 Below 900px the rail gives way to a slim top bar (identity and the lock),
-the statusline keeps carrying plane truth, a five-item tab bar closes the
+the statusline keeps carrying plane truth, a section drawer key closes the
 frame, and the vault collapses to one pane at a time with a back key and a
 back swipe. Because the rail carries the vault's
 filters, the list header grows a scrolling chip row at that breakpoint —
@@ -211,7 +211,7 @@ items are files with kind pseudo-extensions (`GitHub.login`, `Deploy
 webhook.secret`), and the vault list renders as a compact first-party mono
 file tree (ADR 0073), never as a card wall. The navigation rail is the same
 tree one level up: sections are directories off the tomb root (`vault/`,
-`connections/`, `access/`, `identity/`, `settings/`), each advertising its
+`connections/`, `access/`, `identity/`, `wallet/`, `settings/`), each advertising its
 `g`-jump key; the active section starts open but its parent row toggles
 expand/collapse without changing the selected child. Arrow Left/Right use the
 same behavior. Rows without children remain navigation links. The vault's
@@ -235,9 +235,10 @@ a vim-style command line at the foot of the pane, backed by a real input so
 typed keys never leak into the keymap; matches highlight, non-matches hide,
 `Esc` closes it and returns the keyboard to the tree. Item verbs are single
 keys: `y` copies the secret, `u` the username, `e` edits, `x` trashes, `n`
-creates, `.` toggles favorite, and `s` shares a secret once. `g v/c/a/i/s`
+creates, `.` toggles favorite, and `s` shares a secret once. `g v/c/a/i/w/s`
 jumps between sections (`g` times out like vim so a stray `g` does not
-swallow the next key) and `?` shows the keymap. A mono status line always
+swallow the next key). `Ctrl-l` / `:` focuses the command bar (browser
+URL-bar style); `m` toggles push-to-speak on the mic. `?` shows the keymap. A mono status line always
 shows the focused path, item count, and active filter (or the live query).
 Pointer access remains complete: rows click, directories toggle, a `⋯` menu
 on the cursor or hovered row carries the verbs, and the `/` and `?` key
@@ -402,7 +403,7 @@ revealing first.
 The rail renders as a mono filesystem tree (see "VFS interaction model")
 rooted at the prompt line `guest@personal:/`: directory rows with counts
 and g-jump key chips. Selection is inverse video (see "Selection"). The
-mobile tab bar mirrors the five sections and nothing else.
+phone section drawer lists every rail section and nothing else.
 Password health is a notifications-only review, never a tree entry or vault filter chip.
 
 Identity's children and its content tabs share the URL's `view` selection;

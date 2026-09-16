@@ -198,6 +198,169 @@ paths:
         "200": {description: Updated policy revision; zero only creates an absent policy}
         "404": {$ref: '#/components/responses/Error'}
         "409": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/access-domains:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}, description: Required for operator callers}
+    get:
+      summary: List access domains in a realm
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      responses:
+        "200":
+          description: Realm-scoped access-domain forest
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+    post:
+      summary: Create an access domain in a realm
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                id: {type: string, maxLength: 128}
+                parent_id: {type: [string, 'null'], maxLength: 128}
+                project_id: {type: [string, 'null'], maxLength: 128}
+      responses:
+        "201":
+          description: Created domain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/access-domains/{id}:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    get:
+      summary: Read one access domain
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      responses:
+        "200":
+          description: Domain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/access-domains/{id}/reparent:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Move an access domain within its realm
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_revision]
+              properties:
+                parent_id: {type: [string, 'null'], maxLength: 128}
+                expected_revision: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: Reparented domain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/access-domains/{id}/terminate:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Terminate an access domain and fence its subtree
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expected_revision]
+              properties:
+                expected_revision: {type: integer, minimum: 1}
+      responses:
+        "200":
+          description: Terminated domain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessDomain'}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/grant-offers/{id}/activate:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Activate a grant offer for one beneficiary
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [beneficiary_principal_id, grant_id, cohort_revision, membership_source, membership_issuer, idempotency_key]
+              properties:
+                beneficiary_principal_id: {type: string, maxLength: 128}
+                grant_id: {type: string, maxLength: 128}
+                cohort_revision: {type: integer, minimum: 1}
+                membership_source: {type: string, maxLength: 256}
+                membership_issuer: {type: string, maxLength: 256}
+                idempotency_key: {type: string, maxLength: 128}
+      responses:
+        "200": {description: Activation bound}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
+        "409": {$ref: '#/components/responses/Error'}
+        "422": {$ref: '#/components/responses/Error'}
+  /organizations/{organization}/grant-offers/{id}/revoke:
+    parameters:
+      - {in: path, name: organization, required: true, schema: {type: string}}
+      - {in: path, name: id, required: true, schema: {type: string}}
+      - {in: header, name: X-OpenSesame-Organization, schema: {type: string}}
+    post:
+      summary: Revoke a grant offer (existing activations keep their grants)
+      security: [{HostBearer: []}, {HostDPoP: []}, {HostOperatorBearer: []}, {HostOperatorHeader: []}]
+      responses:
+        "204": {description: Offer revoked}
+        "401": {$ref: '#/components/responses/Error'}
+        "403": {$ref: '#/components/responses/Error'}
+        "404": {$ref: '#/components/responses/Error'}
   /projects/{project}/config-access:
     get:
       summary: Read the caller's current project metadata capabilities
@@ -1932,9 +2095,13 @@ paths:
       summary: Admit or refuse a join request
       description: >-
         Operator only, and once — a decided request is 409, so a refusal cannot
-        be turned into an admission after the fact. Admission is a grant: the two
-        land in one transaction or not at all. The grant's subject is always the
-        requester; a body that names another is refused rather than ignored.
+        be turned into an admission after the fact. Admission is a named seat:
+        `mode` says whether the requester is let in as an observer, who holds
+        nothing and needs no vault key, or as a participant, whose grant lands
+        in the same transaction as the decision. A participant admission
+        without a grant, and an observer admission with one, are both refused.
+        The grant's subject is always the requester; a body that names another
+        is refused rather than ignored.
       security: [{ HostBearer: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -1948,8 +2115,17 @@ paths:
               required: [decision]
               properties:
                 decision: { type: string, enum: [admitted, refused] }
+                mode:
+                  description: >-
+                    Required for admitted, refused for refused. No default: an
+                    operator letting somebody in says whether that person may be
+                    given keys, and a missing field must never decide it.
+                  type: string
+                  enum: [observer, participant]
                 grant:
-                  description: Required for admitted, refused for refused. Carries no subject.
+                  description: >-
+                    Required for a participant admission and refused for every
+                    other shape. Carries no subject.
                   type: object
                   required: [scope, role, expires_at]
                   properties:
@@ -1967,12 +2143,117 @@ paths:
                 properties:
                   id: { type: string }
                   decision: { type: string, enum: [admitted, refused] }
+                  mode: { type: string, enum: [observer, participant], nullable: true }
                   grant: { $ref: "#/components/schemas/SessionGrantView" }
         "401": { $ref: "#/components/responses/ContractError" }
         "403": { $ref: "#/components/responses/ContractError" }
         "404": { $ref: "#/components/responses/ContractError" }
         "409": { $ref: "#/components/responses/ContractError" }
         "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/members:
+    get:
+      summary: Who is in the room
+      description: >-
+        Participants and observers alike, because knowing who else is present is
+        the point of being present. A seat is a mode and a timestamp, never a
+        scope: an observer learns from this list who is here and nothing
+        whatever about the vault.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The roster of seats
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [operator_principal_id, members]
+                properties:
+                  operator_principal_id: { type: string }
+                  closed_at: { type: string, format: date-time, nullable: true }
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      required: [principal_id, mode, admitted_at]
+                      properties:
+                        principal_id: { type: string }
+                        mode: { type: string, enum: [observer, participant] }
+                        admitted_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+    post:
+      summary: Seat, raise, lower or remove a member
+      description: >-
+        Operator only. One route for all four because they are one statement —
+        this principal's standing in this session is now *this*. `observer` is
+        in the room holding nothing and is never the subject of a grant;
+        `participant` may be given reach, which is a separate decision on
+        `/grants` with its own scope and expiry. `none` ends the seat.
+        Lowering somebody who still holds live grants is refused rather than
+        silently revoking on their behalf: revocation is re-keying (ADR 0079
+        §3), and the operator should see that they are asking for it. The
+        operator cannot be seated — running a session is a role, not a seat.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [principal_id, mode]
+              properties:
+                principal_id: { type: string }
+                mode: { type: string, enum: [observer, participant, none] }
+      responses:
+        "200":
+          description: The seat as it now stands
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [principal_id, mode]
+                properties:
+                  principal_id: { type: string }
+                  mode: { type: string, enum: [observer, participant, none] }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
+        "422": { $ref: "#/components/responses/ContractError" }
+  /shared-sessions/{id}/close:
+    post:
+      summary: End the session
+      description: >-
+        Operator only, and idempotent. Three things happen in one transaction:
+        the session shuts, every seat is given up, and every grant the session
+        *minted* is revoked. Reach the session only *referenced* — a narrowed
+        pointer at something the holder already had by another road — is left
+        exactly as it was, because ending a meeting must not withdraw somebody's
+        project access. Revocation is still re-keying rather than a switch, and
+        the response says so.
+      security: [{ HostBearer: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The session is closed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [closed, closed_at]
+                properties:
+                  closed: { type: boolean }
+                  closed_at: { type: string, format: date-time }
+                  already_closed: { type: boolean }
+                  note: { type: string }
+        "401": { $ref: "#/components/responses/ContractError" }
+        "403": { $ref: "#/components/responses/ContractError" }
+        "404": { $ref: "#/components/responses/ContractError" }
   /security/hooks:
     get:
       summary: List registered security-event subscriptions
@@ -2624,6 +2905,18 @@ components:
     AgentAudience:
       type: string
       enum: ['urn:opensesame:agent:mcp-host', 'urn:opensesame:agent:mcp-client']
+    AccessDomain:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, lifecycle, revision, depth]
+      properties:
+        id: {type: string}
+        organization_id: {type: string}
+        parent_id: {type: [string, 'null']}
+        project_id: {type: [string, 'null']}
+        lifecycle: {type: string, enum: [active, archived, terminated]}
+        revision: {type: integer, minimum: 1}
+        depth: {type: integer, minimum: 0, maximum: 32}
     SyncCursor:
       type: object
       additionalProperties: false
