@@ -21,34 +21,36 @@
 mod budget;
 mod domains;
 mod effects;
+mod expiry;
 mod grants;
+mod invoke_spend;
 mod legacy_record;
 mod migrate;
-mod expiry;
 mod offers;
 mod projection;
 mod restore;
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
-mod outbox_tests;
-#[cfg(test)]
-mod fix_support;
+mod fix_contractor;
 #[cfg(test)]
 mod fix_family;
 #[cfg(test)]
-mod fix_contractor;
-#[cfg(test)]
 mod fix_raid;
 #[cfg(test)]
+mod fix_support;
+#[cfg(test)]
 mod fix_workcell;
+#[cfg(test)]
+mod outbox_tests;
+#[cfg(test)]
+mod tests;
 
 pub use budget::{BudgetScope, Reservation, ReserveOutcome, SettleOutcome};
 pub use domains::{AccessDomain, DomainReparent, NewAccessDomain};
 pub use effects::{DesiredEffect, EffectObservation};
 pub use expiry::AuthorityGrantDeadline;
 pub use grants::{AuthorityIssue, FencedAuthority, PermissionEntry};
+pub use invoke_spend::InvokeBudgetOutcome;
 pub use migrate::{BackfillPlan, BackfillReport};
 pub use offers::{ActivationOutcome, NewGrantOffer, OfferActivation};
 pub use projection::{ProjectionMark, WriterLease};
