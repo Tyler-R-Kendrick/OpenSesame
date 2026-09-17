@@ -7,11 +7,11 @@
  * is that an unresolvable scenario is `blocked`, never absent and never green.
  */
 
-import { STATUSES, TIERS, scenarios } from "./authority-fabric-scenarios.mjs";
 import {
   cargoBatchKey,
   cargoSuiteArgs,
 } from "./authority-fabric-cargo-run.mjs";
+import { STATUSES, TIERS, scenarios } from "./authority-fabric-scenarios.mjs";
 
 export { STATUSES, TIERS, scenarios };
 

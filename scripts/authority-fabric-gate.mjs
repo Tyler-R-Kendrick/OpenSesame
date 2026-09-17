@@ -19,6 +19,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  enumerateScenarioCargoTests,
+  readCargoResult,
+  runCargoBatches,
+} from "./lib/authority-fabric-cargo-run.mjs";
+import {
   capabilityIds,
   crateFacts,
   enumerateCargoTests,
@@ -29,11 +34,6 @@ import {
   packageFacts,
   workspaceMembers,
 } from "./lib/authority-fabric-facts.mjs";
-import {
-  enumerateScenarioCargoTests,
-  readCargoResult,
-  runCargoBatches,
-} from "./lib/authority-fabric-cargo-run.mjs";
 import { markdown, printSummary } from "./lib/authority-fabric-render.mjs";
 import {
   BLOCKED_REASONS,

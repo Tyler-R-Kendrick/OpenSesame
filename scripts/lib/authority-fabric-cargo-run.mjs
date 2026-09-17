@@ -7,7 +7,10 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { cargoDiagnostics, enumerateCargoTests } from "./authority-fabric-facts.mjs";
+import {
+  cargoDiagnostics,
+  enumerateCargoTests,
+} from "./authority-fabric-facts.mjs";
 
 /** @param {{ crate: string, bin?: string }} target */
 export function cargoBatchKey(target) {
@@ -42,7 +45,8 @@ export function runCargoBatches(resolved, { root, noRun }) {
     if (!batches.has(key)) {
       batches.set(key, {
         crate: scenario.target.crate,
-        bin: typeof scenario.target.bin === "string" ? scenario.target.bin : null,
+        bin:
+          typeof scenario.target.bin === "string" ? scenario.target.bin : null,
       });
     }
   }
@@ -131,7 +135,12 @@ export function readCargoResult(scenario, cargoResults) {
  *   modules: Record<string, boolean>,
  * }} args
  */
-export function enumerateScenarioCargoTests({ root, noRun, cargoTargets, modules }) {
+export function enumerateScenarioCargoTests({
+  root,
+  noRun,
+  cargoTargets,
+  modules,
+}) {
   const tests = {};
   const testErrors = {};
   const enumKeys = new Map();
