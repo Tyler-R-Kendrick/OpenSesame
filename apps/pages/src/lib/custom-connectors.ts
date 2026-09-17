@@ -77,8 +77,7 @@ function toProvider(input: CustomConnectorInput): Provider {
     autoConfigurable: false,
     missingConfig: [],
     callbackUrl: null,
-    scopes:
-      input.auth.kind === "oauth2_authorization_code" ? input.auth.scopes : [],
+    scopes: [],
     egress: {
       scheme: "https",
       authorities: [url.host],

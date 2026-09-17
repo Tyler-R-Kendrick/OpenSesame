@@ -198,7 +198,12 @@ async function connectFetch(
 
 function rows(value: BoundaryValue | undefined): JsonObject[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(isJsonObject).slice(0, 100);
+  const out: JsonObject[] = [];
+  for (const item of value) {
+    if (isJsonObject(item)) out.push(item);
+    if (out.length === 100) break;
+  }
+  return out;
 }
 
 function connectorOf(value: BoundaryValue): JsonObject | null {
