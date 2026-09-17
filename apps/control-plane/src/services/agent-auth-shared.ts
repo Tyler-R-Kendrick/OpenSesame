@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
-import { appendAuditEvent } from "@opensesame/audit";
 import {
   agentAuthError,
   issueServiceAgentIdentityAssertion,
 } from "@opensesame/agent-protocols";
+import { appendAuditEvent } from "@opensesame/audit";
 import {
   type AgentAccessTokenRecord,
   type AgentClaimAttempt,
@@ -20,12 +20,12 @@ import {
   hmacDigest,
   verifyAgentUserCode,
 } from "@opensesame/os-domain";
+import { markAgentRegistrationClaimPending } from "@opensesame/os-domain";
 import {
   evaluateAgentAuthScopes,
   intersectAgentAuthScopes,
   scopesForRegistrationState,
 } from "@opensesame/policy";
-import { markAgentRegistrationClaimPending } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { agentAuthRuntime } from "./agent-auth-runtime.js";
 
