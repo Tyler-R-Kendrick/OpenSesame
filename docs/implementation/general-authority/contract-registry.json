@@ -158,8 +158,8 @@
       "owner": "GA-A",
       "title": "Wire contracts and serialization",
       "invariants": ["INV-GA-02", "INV-GA-08"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "packages/contracts/src/authority-grant.ts + __tests__/authority-grant.test.ts"
     },
     {
       "id": "GA-F-01",

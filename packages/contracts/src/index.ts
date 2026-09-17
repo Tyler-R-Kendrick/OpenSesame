@@ -22,3 +22,4 @@ export * from "./trust.js";
 export * from "./notifications.js";
 export * from "./webhooks.js";
 export * from "./authentication-service.js";
+export * from "./authority-grant.js";

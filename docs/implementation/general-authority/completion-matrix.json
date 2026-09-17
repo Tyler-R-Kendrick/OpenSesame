@@ -3,7 +3,7 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T02:24:33Z",
+  "generatedAt": "2026-09-17T03:10:35Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -15,13 +15,14 @@
   ],
   "summary": {
     "totalWorkItems": 48,
-    "unresolved": 9,
+    "unresolved": 8,
     "inProgress": 6,
     "blocked": 0,
-    "verified": 33,
+    "verified": 34,
     "testsRun": 53,
     "gatesRun": 1,
-    "authorityFabric": "53 pass / 0 blocked / 3 unsupported"
+    "authorityFabric": "53 pass / 0 blocked / 3 unsupported",
+    "in-progress": 6
   },
   "workItems": [
     {
@@ -73,11 +74,16 @@
       "id": "GA-A-04",
       "swarm": "GA-A",
       "title": "Wire contracts and serialization",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/contracts exec vitest run src/__tests__/authority-grant.test.ts",
+          "result": "ok. 5 passed \u2014 Host-shaped Grant wire schema; AccessLease alias; strict secret refusal; depth ceiling"
+        }
+      ],
       "blockedBy": ["GA-A-01"],
-      "notes": "Rust Grant serde + TS access-domain/principals exist; packages/contracts still lacks a hierarchical authority wire schema."
+      "notes": "packages/contracts/src/authority-grant.ts mirrors Host Grant serde (snake_case, strict). AccessLeaseSchema is the same object (GA-O-03). raw_credential_export stays boolean for Host round-trip; agent paths still refuse via INV-GA-02 asserts."
     },
     {
       "id": "GA-F-01",
