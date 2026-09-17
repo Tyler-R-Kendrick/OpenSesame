@@ -198,8 +198,8 @@
       "owner": "GA-H",
       "title": "host-core authority evaluation",
       "invariants": ["INV-GA-01", "INV-GA-07"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "docs/implementation/general-authority/host-authority-route-inventory.md"
     },
     {
       "id": "GA-H-02",
@@ -270,8 +270,8 @@
       "owner": "GA-P",
       "title": "Per-panel gating with no backend",
       "invariants": ["INV-GA-11"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "docs/implementation/general-authority/panel-gating.md"
     },
     {
       "id": "GA-P-04",

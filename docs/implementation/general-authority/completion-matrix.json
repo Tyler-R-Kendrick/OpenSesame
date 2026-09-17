@@ -3,7 +3,7 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T05:22:14Z",
+  "generatedAt": "2026-09-17T05:38:38Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -15,14 +15,14 @@
   ],
   "summary": {
     "totalWorkItems": 48,
-    "unresolved": 5,
-    "inProgress": 2,
+    "unresolved": 4,
+    "inProgress": 1,
     "blocked": 0,
-    "verified": 41,
+    "verified": 43,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported",
-    "in-progress": 2
+    "in-progress": 1
   },
   "workItems": [
     {
@@ -139,11 +139,20 @@
       "id": "GA-H-01",
       "swarm": "GA-H",
       "title": "host-core authority evaluation",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
-      "evidence": "ValidatedGrantChain in authz; AccessDomain HTTP routes + 3 gateway tests; fabric PASS",
+      "evidence": [
+        {
+          "command": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::access_domains::tests",
+          "result": "ok. 3 passed \u2014 create/list/read, cross-realm refuse, terminate fence"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::grant_offers::tests",
+          "result": "ok. 1 passed \u2014 activate and revoke"
+        }
+      ],
       "blockedBy": ["GA-A-03"],
-      "notes": "Host evaluation path exists; not every public route inventory complete"
+      "notes": "host-authority-route-inventory.md + api-surface.md. Evaluation + AccessDomain/offer HTTP inventoried; grant issue HTTP still open (GA-P-01)."
     },
     {
       "id": "GA-H-02",
@@ -254,11 +263,20 @@
       "id": "GA-P-03",
       "swarm": "GA-P",
       "title": "Per-panel gating with no backend",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
-      "blockedBy": ["GA-P-02"],
-      "notes": "ADR 0090: gate a panel on what it needs, never on 'a backend'."
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/setup.test.ts -t 'never a gate'",
+          "result": "ok. 1 passed | 15 skipped \u2014 setup seams have no setupRequired"
+        },
+        {
+          "command": "rg -n \"useHostConfigured|NoHostNote\" apps/pages/src/sections apps/pages/src/components",
+          "result": "ok. 18 matches \u2014 Host-only panels use the seam"
+        }
+      ],
+      "blockedBy": [],
+      "notes": "panel-gating.md: useHostConfigured + NoHostNote; no setupRequired boot wall. Independent of GA-P-02 surfaces."
     },
     {
       "id": "GA-P-04",
@@ -348,7 +366,7 @@
       "verification": "none",
       "evidence": null,
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Latest refresh after #412/#413/#414/#415 landings."
+      "notes": "Standing honesty ratchet; never closes. Latest refresh after GA-H-01/P-03 inventory + panel-gating evidence."
     },
     {
       "id": "GA-Q-01",
