@@ -1,5 +1,10 @@
 import { randomBytes } from "node:crypto";
 import type { NotificationChannelKind } from "@opensesame/os-domain";
+import {
+  type AgentAuthTrustedProvider,
+  loadAgentAuthFromEnv,
+  truthy,
+} from "./config-agent-providers.js";
 import { parseChannelKinds } from "./config-channels.js";
 import {
   assertServiceEndpoints,
@@ -17,6 +22,7 @@ import {
 } from "./interactions/registry.js";
 import { assertClientAppUrl } from "./interactions/rendezvous.js";
 import { readSupportProxyConfig } from "./services/support-proxy.js";
+export type { AgentAuthTrustedProvider };
 
 export interface ControlPlaneConfig {
   supportProxy?:
@@ -179,11 +185,12 @@ export interface ControlPlaneConfig {
     preClaimScopes: string[];
     postClaimScopes: string[];
     resourceScopes: string[];
+    /**
+     * Explicit ID-JAG issuers. Empty means identity_assertion stays
+     * unadvertised even if the env flag is on.
+     */
+    trustedProviders: AgentAuthTrustedProvider[];
   };
-}
-
-function truthy(v: string | undefined): boolean {
-  return v === "true" || v === "1";
 }
 
 /** Like {@link truthy}, but an unset value means on. Only `false`/`0` opt out. */
@@ -348,53 +355,7 @@ export function loadConfig(
         env.OPENSESAME_PRESENTATION_AGENT_INTENTS_ENABLED,
       ),
     },
-    agentAuth: {
-      enabled: truthyDefaultOn(env.OPENSESAME_AGENT_AUTH_ENABLED),
-      anonymousEnabled: truthyDefaultOn(
-        env.OPENSESAME_AGENT_AUTH_ANONYMOUS_ENABLED,
-      ),
-      serviceAuthEnabled: truthyDefaultOn(
-        env.OPENSESAME_AGENT_AUTH_SERVICE_AUTH_ENABLED,
-      ),
-      providerAssertionEnabled: truthy(
-        env.OPENSESAME_AGENT_AUTH_PROVIDER_ASSERTION_ENABLED,
-      ),
-      eventsEnabled: truthy(env.OPENSESAME_AGENT_AUTH_EVENTS_ENABLED),
-      registrationTtlMs: Number(
-        env.OPENSESAME_AGENT_AUTH_REGISTRATION_TTL_MS ?? String(86_400_000),
-      ),
-      claimAttemptTtlMs: Number(
-        env.OPENSESAME_AGENT_AUTH_CLAIM_ATTEMPT_TTL_MS ?? String(600_000),
-      ),
-      assertionTtlMs: Number(
-        env.OPENSESAME_AGENT_AUTH_ASSERTION_TTL_MS ?? String(3_600_000),
-      ),
-      accessTokenTtlMs: Number(
-        env.OPENSESAME_AGENT_AUTH_ACCESS_TOKEN_TTL_MS ?? String(3_600_000),
-      ),
-      pollIntervalSeconds: Number(
-        env.OPENSESAME_AGENT_AUTH_POLL_INTERVAL_SECONDS ?? "5",
-      ),
-      maxUserCodeAttempts: Number(
-        env.OPENSESAME_AGENT_AUTH_MAX_USER_CODE_ATTEMPTS ?? "5",
-      ),
-      maxLiveAnonymous: Number(
-        env.OPENSESAME_AGENT_AUTH_MAX_LIVE_ANONYMOUS ?? "1024",
-      ),
-      preClaimScopes: ["resource:read", "resource:create:temporary"],
-      postClaimScopes: [
-        "resource:read",
-        "resource:create:temporary",
-        "project:create:temporary",
-        "claim:create",
-      ],
-      resourceScopes: [
-        "resource:read",
-        "resource:create:temporary",
-        "project:create:temporary",
-        "claim:create",
-      ],
-    },
+    agentAuth: loadAgentAuthFromEnv(env, issuer),
   };
   if (env.DATABASE_URL) {
     config.databaseUrl = env.DATABASE_URL;

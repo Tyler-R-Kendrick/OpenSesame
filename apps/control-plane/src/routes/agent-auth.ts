@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from "node:crypto";
 import {
   AGENT_CLAIM_GRANT,
   AgentAuthError,
@@ -8,8 +9,12 @@ import {
   AgentClaimInitRequestSchema,
   AgentIdentityRequestSchema,
 } from "@opensesame/contracts";
-import { overlapCast } from "@opensesame/os-domain";
+import {
+  digestAgentClaimAttemptToken,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { Hono } from "hono";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import type { Variables } from "../middleware/context.js";
 import {
@@ -17,7 +22,9 @@ import {
   exchangeJwtBearer,
   initClaim,
   pollClaimGrant,
+  providerAssertionIsAdvertised,
   registerAnonymous,
+  registerProviderAssertion,
   registerServiceAuth,
   resolveAgentAccessToken,
   revokeAccessToken,
@@ -25,6 +32,8 @@ import {
 } from "../services/agent-auth.js";
 import {
   AGENT_AUTH_CLAIM_CSP,
+  AGENT_AUTH_OAUTH_CLIENT_ID,
+  agentAuthClaimRedirectUri,
   renderAgentAuthClaimPage,
   renderAgentAuthLoginPage,
   safeAgentAuthReturnTo,
@@ -32,7 +41,20 @@ import {
 
 export const agentAuthRoutes = new Hono<{ Variables: Variables }>();
 
+function isAgentAuthError(err: unknown): err is AgentAuthError {
+  if (err instanceof AgentAuthError) return true;
+  return (
+    err instanceof Error &&
+    err.name === "AgentAuthError" &&
+    typeof (err as AgentAuthError).status === "number" &&
+    typeof (err as AgentAuthError).error === "string" &&
+    typeof (err as AgentAuthError).toJSON === "function"
+  );
+}
+
 agentAuthRoutes.post("/agent/identity", async (c) => {
+  c.header("cache-control", "no-store");
+  c.header("pragma", "no-cache");
   const ctx = c.get("ctx");
   let body: unknown;
   try {
@@ -64,16 +86,39 @@ agentAuthRoutes.post("/agent/identity", async (c) => {
       );
       return c.json(result, 200);
     }
-    return c.json(
+    if (!providerAssertionIsAdvertised(ctx.config.agentAuth)) {
+      return c.json(
+        {
+          error: "identity_assertion_not_enabled",
+          error_description:
+            "Provider ID-JAG registration is disabled until issuer trust is configured.",
+        },
+        400,
+      );
+    }
+    const result = await registerProviderAssertion(
+      ctx,
       {
-        error: "identity_assertion_not_enabled",
-        error_description:
-          "Provider ID-JAG registration is disabled until issuer trust is configured.",
+        assertionType: parsed.data.assertion_type,
+        assertion: parsed.data.assertion,
       },
-      400,
+      headers,
+      correlationId,
     );
+    return c.json(result, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
+      if (err.status === 401) {
+        const maxAge = err.extras?.max_age;
+        const description = (err.errorDescription ?? err.error).replace(
+          /"/g,
+          "",
+        );
+        const parts = [`AgentAuth error="${err.error}"`];
+        if (typeof maxAge === "number") parts.push(`max_age="${maxAge}"`);
+        parts.push(`error_description="${description}"`);
+        c.header("WWW-Authenticate", parts.join(", "));
+      }
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -101,7 +146,7 @@ agentAuthRoutes.post("/agent/identity/claim", async (c) => {
     );
     return c.json(result, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -141,6 +186,7 @@ agentAuthRoutes.post("/agent/identity/claim/complete", async (c) => {
       renderAgentAuthClaimPage({
         error: result.error,
         claimAttemptToken: parsed.data.claim_attempt_token,
+        principalId,
       }),
       overlapCast(result.status),
     );
@@ -164,7 +210,7 @@ agentAuthRoutes.post("/agent/identity/:id/revoke", async (c) => {
     );
     return c.json({ status: "revoked" }, 200);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -202,7 +248,7 @@ agentAuthRoutes.post("/oauth2/token", async (c) => {
     }
     return c.json({ error: "unsupported_grant_type" }, 400);
   } catch (err) {
-    if (err instanceof AgentAuthError) {
+    if (isAgentAuthError(err)) {
       return c.json(err.toJSON(), overlapCast(err.status));
     }
     throw err;
@@ -246,31 +292,5 @@ agentAuthRoutes.get("/v1/agent-resources/demo", async (c) => {
   });
 });
 
-agentAuthRoutes.get("/claim", async (c) => {
-  const token = c.req.query("claim_attempt_token") ?? "";
-  const principalId = c.get("principalId");
-  c.header("X-Frame-Options", "DENY");
-  c.header("Content-Security-Policy", AGENT_AUTH_CLAIM_CSP);
-  if (!principalId) {
-    const returnTo = `/claim?claim_attempt_token=${encodeURIComponent(token)}`;
-    return c.redirect(`/login?return_to=${encodeURIComponent(returnTo)}`, 303);
-  }
-  return c.html(renderAgentAuthClaimPage({ claimAttemptToken: token }));
-});
-
-agentAuthRoutes.get("/login", async (c) => {
-  const ctx = c.get("ctx");
-  const returnTo = safeAgentAuthReturnTo(c.req.query("return_to") ?? "/claim");
-  const principalId = c.get("principalId");
-  c.header("X-Frame-Options", "DENY");
-  c.header("Content-Security-Policy", AGENT_AUTH_CLAIM_CSP);
-  if (principalId) {
-    return c.redirect(returnTo, 303);
-  }
-  return c.html(
-    renderAgentAuthLoginPage({
-      returnTo,
-      publicUrl: ctx.config.publicUrl,
-    }),
-  );
-});
+import { registerAgentAuthCeremony } from "./agent-auth-ceremony.js";
+registerAgentAuthCeremony(agentAuthRoutes);
