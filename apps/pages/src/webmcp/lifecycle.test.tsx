@@ -136,6 +136,8 @@ describe("registerBootTools / registerSessionTools", () => {
     const { tools, restore } = stubModelContext();
     const unregister = registerSessionTools("vault");
     expect(tools.map((t) => t.name)).toEqual(SESSION_NAMES);
+    expect(BOOT_NAMES).toHaveLength(4);
+    expect(SESSION_NAMES).toHaveLength(15);
     expect(tools.map((t) => t.name)).not.toContain("opensesame_settings_read");
     unregister();
     expect(tools).toHaveLength(0);

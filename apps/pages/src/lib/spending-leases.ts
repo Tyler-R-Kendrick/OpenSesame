@@ -14,6 +14,7 @@ import {
 } from "@opensesame/os-domain";
 import type { SpendingLeaseStatus } from "@opensesame/os-domain/wallet";
 import {
+  type DigestBoundApprovalRefusal,
   type DigestBoundPaymentProof,
   type LocalPaymentApprovalIntent,
   assessLocalPaymentApproval,
@@ -148,10 +149,8 @@ export function listSpendingLeases(): readonly LeaseRecord[] {
 
 const SPENT_ASSERTIONS_KEY = "opensesame.wallet.spent-assertions.v1";
 
-function assertionFingerprint(bytes: Uint8Array): string {
-  let out = "";
-  for (const b of bytes) out += b.toString(16).padStart(2, "0");
-  return out;
+function assertionFingerprint(digest: string): string {
+  return digest;
 }
 
 function readSpentAssertions(): Set<string> {
@@ -199,10 +198,9 @@ export type IssueSpendingLeaseResult =
   | {
       readonly ok: false;
       readonly reason:
+        | DigestBoundApprovalRefusal
         | "allocation_missing"
-        | "digest_mismatch"
-        | "unverified_assurance"
-        | "missing_verified_bytes"
+        | "allocation_mismatch"
         | "insufficient_available"
         | "invalid_amount"
         | "assertion_replay"
@@ -214,10 +212,32 @@ export type IssueSpendingLeaseResult =
  * Issue a lease under an existing ledger allocation after digest-bound
  * approval. Does not call external rails.
  */
+function leaseIntentBinding(
+  input: IssueSpendingLeaseInput,
+): IssueSpendingLeaseResult | null {
+  const mismatch =
+    input.allocationRef !== input.intent.allocationRef ||
+    (input.policyVersion !== undefined &&
+      input.policyVersion !== input.intent.policyVersion);
+  if (mismatch) {
+    return { ok: false, reason: "allocation_mismatch" };
+  }
+  const windowMismatch =
+    input.validFrom !== input.intent.validFrom ||
+    input.validUntil !== input.intent.validUntil;
+  if (windowMismatch) {
+    return { ok: false, reason: "lease_window_invalid" };
+  }
+  return null;
+}
+
 export async function issueSpendingLease(
   input: IssueSpendingLeaseInput,
 ): Promise<IssueSpendingLeaseResult> {
-  const node = getSpendingLedger().project(input.allocationRef);
+  const bound = leaseIntentBinding(input);
+  if (bound !== null) return bound;
+
+  const node = getSpendingLedger().project(input.intent.allocationRef);
   if (node === undefined) {
     return { ok: false, reason: "allocation_missing" };
   }
@@ -230,8 +250,8 @@ export async function issueSpendingLease(
     return { ok: false, reason: assessment.reason };
   }
 
-  const fromMs = Date.parse(input.validFrom);
-  const untilMs = Date.parse(input.validUntil);
+  const fromMs = Date.parse(input.intent.validFrom);
+  const untilMs = Date.parse(input.intent.validUntil);
   if (
     !Number.isFinite(fromMs) ||
     !Number.isFinite(untilMs) ||
@@ -241,25 +261,20 @@ export async function issueSpendingLease(
     return { ok: false, reason: "lease_window_invalid" };
   }
 
-  const verified = input.proof.verifiedBytes;
-  if (verified !== undefined && verified.byteLength > 0) {
-    const fp = assertionFingerprint(verified);
-    if (readSpentAssertions().has(fp)) {
-      return { ok: false, reason: "assertion_replay" };
-    }
-  }
-
   if (!/^[0-9]+$/u.test(input.intent.amount)) {
     return { ok: false, reason: "invalid_amount" };
   }
   const amount = BigInt(input.intent.amount);
 
   const approvalDigest = await buildLocalPaymentApprovalDigest(input.intent);
+  if (readSpentAssertions().has(assertionFingerprint(approvalDigest))) {
+    return { ok: false, reason: "assertion_replay" };
+  }
   const attemptId = `lease-res-${approvalDigest.slice(0, 12)}-${Date.now().toString(36)}`;
   try {
     getSpendingLedger().reserve({
       attemptId,
-      nodeId: input.allocationRef,
+      nodeId: input.intent.allocationRef,
       amount,
     });
   } catch {
@@ -270,12 +285,12 @@ export async function issueSpendingLease(
   const lease: LeaseRecord = {
     id,
     grantRef: input.grantRef,
-    allocationRef: input.allocationRef,
-    policyVersion: input.policyVersion ?? "1",
+    allocationRef: input.intent.allocationRef,
+    policyVersion: input.intent.policyVersion,
     beneficiaryRef: input.beneficiaryRef,
     proofKeyThumbprint: "local-demo",
-    validFrom: input.validFrom,
-    validUntil: input.validUntil,
+    validFrom: input.intent.validFrom,
+    validUntil: input.intent.validUntil,
     requiredEnforcementDigest: approvalDigest,
     effectiveEnforcementDigest: approvalDigest,
     rootAccountingRef: input.rootAccountingRef,
@@ -288,9 +303,7 @@ export async function issueSpendingLease(
   };
 
   writeAll([...readAll(), lease]);
-  if (verified !== undefined && verified.byteLength > 0) {
-    markAssertionSpent(assertionFingerprint(verified));
-  }
+  markAssertionSpent(assertionFingerprint(approvalDigest));
   return { ok: true, lease };
 }
 
@@ -321,4 +334,17 @@ export function listActiveSpendingLeases(
   }
   if (mutated) writeAll(next);
   return next.filter((l) => l.status === "active");
+}
+
+/** Mark an active lease stop_requested. Does not claim on-chain revocation. */
+export function requestStopSpendingLease(leaseId: string): boolean {
+  const all = readAll();
+  const idx = all.findIndex((l) => l.id === leaseId);
+  if (idx < 0) return false;
+  const current = all[idx];
+  if (current === undefined || current.status !== "active") return false;
+  const next = [...all];
+  next[idx] = { ...current, status: "stop_requested" };
+  writeAll(next);
+  return true;
 }

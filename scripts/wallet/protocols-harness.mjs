@@ -8,13 +8,18 @@
  */
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import {
+  bumpProtocolClaims,
+  runMandates,
+  runShippedAdapterLive,
+} from "./lib/protocols-followup.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const forgeDir = join(root, "packages/wallet-x402/forge");
@@ -59,12 +64,18 @@ function which(bin) {
   return r.status === 0 ? r.stdout.trim() : null;
 }
 
-function run(cmd, args, cwd) {
+/**
+ * @param {string} cmd
+ * @param {string[]} args
+ * @param {string} cwd
+ * @param {Record<string, string>} [extraEnv]
+ */
+function run(cmd, args, cwd, extraEnv) {
   const started = Date.now();
   const r = spawnSync(cmd, args, {
     cwd,
     encoding: "utf8",
-    env: foundryEnv(),
+    env: { ...foundryEnv(), ...(extraEnv ?? {}) },
     maxBuffer: 8 * 1024 * 1024,
   });
   if (r.stdout) process.stdout.write(r.stdout);
@@ -467,6 +478,20 @@ async function main() {
     });
     if (!replayRejected) ok = false;
 
+    const live = runShippedAdapterLive(run, {
+      root,
+      rpcUrl: RPC_URL,
+      asset,
+      payTo: merchantAccount.address,
+      payerKey: KEYS.payer,
+      facilitatorKey: KEYS.facilitator,
+      amount: PAY_AMOUNT,
+      network: NETWORK,
+      chainId: CHAIN_ID,
+    });
+    results.push(live.result);
+    if (!live.ok) ok = false;
+
     ok = ok && results.every((r) => r.status === "passed");
   } catch (err) {
     ok = false;
@@ -485,6 +510,10 @@ async function main() {
     anvilProc = null;
   }
 
+  const mandates = runMandates(run, root);
+  results.push(mandates.result);
+  if (!mandates.ok) ok = false;
+
   writeWalletEvidence(root, {
     invokedAs: "pnpm wallet:test:protocols",
     mainnet: { ok: true, message: null, denials: [] },
@@ -492,7 +521,7 @@ async function main() {
     ok,
     notes: [
       ok
-        ? "local_execution_verified for Exact EIP-3009 on Anvil 31337 (verify+settle+mismatch+replay)."
+        ? "local_execution_verified for Exact EIP-3009 on Anvil 31337 via shipped adapter; AP2/UCP ES256 fixture-local."
         : "Protocols harness failed — do not claim x402 local_execution_verified.",
       `rpc=${RPC_URL}`,
       `chainId=${CHAIN_ID}`,
@@ -500,51 +529,15 @@ async function main() {
     ],
   });
 
-  if (ok) {
-    const claimsPath = join(root, "docs/evidence/wallet/claims.json");
-    try {
-      const claims = JSON.parse(readFileSync(claimsPath, "utf8"));
-      claims.claims = claims.claims ?? {};
-      const bump = {
-        status: "local_execution_verified",
-        productionEnabled: false,
-        evidenceRefs: [
-          "pnpm wallet:test:protocols",
-          "packages/wallet-x402/forge/src/EIP3009Mock.sol",
-          EVIDENCE_REL,
-        ],
-        profileId: "local-test.x402-exact-eip3009",
-        scope: "one local anvil chain, ExactEvmScheme, EIP3009Mock",
-      };
-      claims.claims["WAL-E11"] = {
-        ...bump,
-        reason:
-          "Exact facilitator verify rejects amount-mutated PaymentRequirements against a payload signed for the approved amount",
-      };
-      claims.claims["WAL-E13"] = {
-        ...bump,
-        reason:
-          "Settlement success only after ExactEvmScheme.settle tx; merchant balance increases by approved subunits",
-      };
-      claims.claims["WAL-E14"] = {
-        ...bump,
-        reason:
-          "Replayed EIP-3009 authorization fails settle (nonce already used); no second credit",
-      };
-      claims.adapters = claims.adapters ?? {};
-      claims.adapters["x402-exact"] = {
-        status: "local_execution_verified",
-        local_execution_verified: true,
-        productionEnabled: false,
-        sdkPins: ["@x402/core@2.26.0", "@x402/evm@2.26.0"],
-        reason:
-          "Anvil Exact EIP-3009 verify+settle against EIP3009Mock; productionEnabled remains false",
-      };
-      mkdirSync(dirname(claimsPath), { recursive: true });
-      writeFileSync(claimsPath, `${JSON.stringify(claims, null, 2)}\n`);
-    } catch (err) {
-      console.error("wallet:protocols — could not update claims.json", err);
-    }
+  try {
+    bumpProtocolClaims({
+      root,
+      ok,
+      mandatesOk: mandates.ok,
+      evidenceRel: EVIDENCE_REL,
+    });
+  } catch (err) {
+    console.error("wallet:protocols — could not update claims.json", err);
   }
 
   if (!ok) {

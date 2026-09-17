@@ -1,14 +1,6 @@
 #!/usr/bin/env node
 /**
- * wallet:test:browser — Vitest Wallet fixtures + Playwright QAB-01/QAB-03 lite.
- *
- * QAB-01: guest Wallet under real static base path; fail on loopback requests.
- * QAB-03 lite: second origin cannot inject forged spending authority via
- * postMessage (no broker accepts cross-origin spend grants).
- *
- * WAL-B03/B05: guest Wallet › Spending passes demo refuses forged WebAuthn
- * labels, expired lease windows, and assertion replay under the static origin.
- * Full phishing-resistant RP binding still awaits a ceremony-bound path.
+ * wallet:test:browser — Vitest Wallet fixtures + Playwright QAB.
  */
 
 import { spawnSync } from "node:child_process";
@@ -18,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import { runWalB20NarrowWallet } from "./lib/wallet-b20.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DIST = join(root, "apps/pages/dist");
@@ -133,6 +126,9 @@ async function runPlaywrightQab() {
       "Wallet has no crash / Identity-API wall",
     );
     check(loopbackHits.length === 0, "no loopback requests during Wallet boot");
+
+    setStep("WAL-B20-narrow-wallet");
+    await runWalB20NarrowWallet(page, check);
 
     setStep("QAB-03-forged-origin");
     const beforeStorage = await page.evaluate(() => {
@@ -321,6 +317,9 @@ async function main() {
     "src/lib/wallet-isolation-claims.test.ts",
     "src/lib/wallet-budget-labels.test.ts",
     "src/lib/wallet-origin-profile.test.ts",
+    "src/lib/wallet-sw-payment.test.ts",
+    "src/lib/wallet-activation.test.ts",
+    "src/lib/wallet-agent-broker.test.ts",
   ]);
   results.push({
     suite: "browser-vitest",

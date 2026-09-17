@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-09-16T15:18:09.711Z",
-  "head": "4df1dadd03c947cece5c107df261e9520056e38f",
-  "treeDirty": false,
+  "generatedAt": "2026-09-17T17:35:54.296Z",
+  "head": "b3a47a2b0dabb3cc3e7f596df94e7677c009609a",
+  "treeDirty": true,
   "invokedAs": "pnpm wallet:verify",
   "mainnet": {
     "ok": true,
@@ -23,7 +23,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/test-domain.mjs",
-      "durationMs": 2639
+      "durationMs": 3150
     },
     {
       "suite": "contracts",
@@ -31,7 +31,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/run-suite.mjs contracts",
-      "durationMs": 3316
+      "durationMs": 3758
     },
     {
       "suite": "protocols",
@@ -39,7 +39,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/run-suite.mjs protocols",
-      "durationMs": 3309
+      "durationMs": 5898
     },
     {
       "suite": "browser",
@@ -47,7 +47,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/run-suite.mjs browser",
-      "durationMs": 10990
+      "durationMs": 12782
     },
     {
       "suite": "security",
@@ -55,7 +55,7 @@
       "exitCode": 0,
       "reason": null,
       "command": "node scripts/wallet/run-suite.mjs security",
-      "durationMs": 4777
+      "durationMs": 7038
     }
   ],
   "ok": true,
@@ -63,8 +63,6 @@
     "All wallet suites passed.",
     "Domain targets present: os-domain-wallet, wallet-budget, wallet-policy",
     "Domain targets missing: (none)",
-    "Evidence: docs/evidence/wallet/last-run.json",
-    "Evidence attests wallet:verify green at attestedCommit (review-fix commit); evidence pin commit may follow."
-  ],
-  "attestedCommit": "4df1dadd03c947cece5c107df261e9520056e38f"
+    "Evidence: docs/evidence/wallet/last-run.json"
+  ]
 }

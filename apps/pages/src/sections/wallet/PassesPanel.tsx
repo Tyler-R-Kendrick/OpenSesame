@@ -3,9 +3,13 @@
  * Presentation passes stay in the vault; this list is authority, not cards.
  */
 
+import { signDigestWithEphemeralP256 } from "@opensesame/wallet-consent/verify";
 import { useCallback, useState } from "react";
 import { StatusNote } from "../../components/StatusNote.js";
-import { buildLocalPaymentApprovalDigest } from "../../lib/spending-consent.js";
+import {
+  buildLocalPaymentApprovalDigest,
+  localPaymentApprovalIntent,
+} from "../../lib/spending-consent.js";
 import {
   clearSpendingLeases,
   issueSpendingLease,
@@ -38,11 +42,13 @@ export function PassesPanel() {
     openDemoHouseholdBudget();
     const now = new Date();
     const until = new Date(now.getTime() + 60 * 60 * 1000);
-    const intent = {
-      currency: "TEST",
+    const intent = localPaymentApprovalIntent({
       amount: "25",
       recipient: "workload-research",
-    };
+      allocationRef: "child-a",
+      validFrom: now.toISOString(),
+      validUntil: until.toISOString(),
+    });
     void (async () => {
       const digest = await buildLocalPaymentApprovalDigest(intent);
       const forged = await issueSpendingLease({
@@ -70,21 +76,26 @@ export function PassesPanel() {
 
       const pastUntil = new Date(now.getTime() - 60_000).toISOString();
       const pastFrom = new Date(now.getTime() - 120_000).toISOString();
+      const expiredIntent = localPaymentApprovalIntent({
+        ...intent,
+        amount: "5",
+        validFrom: pastFrom,
+        validUntil: pastUntil,
+      });
       const expiredWindow = await issueSpendingLease({
-        allocationRef: "child-a",
+        allocationRef: expiredIntent.allocationRef,
         beneficiaryRef: "workload-research",
         grantRef: "grant-demo",
         rootAccountingRef: "household",
-        intent: { ...intent, amount: "5" },
+        intent: expiredIntent,
         proof: {
-          boundDigest: await buildLocalPaymentApprovalDigest({
-            ...intent,
-            amount: "5",
-          }),
-          verifiedBytes: new Uint8Array([8, 8, 8]),
+          boundDigest: await buildLocalPaymentApprovalDigest(expiredIntent),
+          ...(await signDigestWithEphemeralP256(
+            await buildLocalPaymentApprovalDigest(expiredIntent),
+          )),
         },
-        validFrom: pastFrom,
-        validUntil: pastUntil,
+        validFrom: expiredIntent.validFrom,
+        validUntil: expiredIntent.validUntil,
       });
       if (expiredWindow.ok || expiredWindow.reason !== "lease_window_invalid") {
         setMessage({
@@ -95,18 +106,19 @@ export function PassesPanel() {
         return;
       }
 
+      const issuedProof = {
+        boundDigest: digest,
+        ...(await signDigestWithEphemeralP256(digest)),
+      };
       const issued = await issueSpendingLease({
-        allocationRef: "child-a",
+        allocationRef: intent.allocationRef,
         beneficiaryRef: "workload-research",
         grantRef: "grant-demo",
         rootAccountingRef: "household",
         intent,
-        proof: {
-          boundDigest: digest,
-          verifiedBytes: new Uint8Array([9, 9, 9]),
-        },
-        validFrom: now.toISOString(),
-        validUntil: until.toISOString(),
+        proof: issuedProof,
+        validFrom: intent.validFrom,
+        validUntil: intent.validUntil,
       });
       if (!issued.ok) {
         setMessage({
@@ -118,20 +130,14 @@ export function PassesPanel() {
       }
 
       const replay = await issueSpendingLease({
-        allocationRef: "child-a",
+        allocationRef: intent.allocationRef,
         beneficiaryRef: "workload-research",
         grantRef: "grant-demo",
         rootAccountingRef: "household",
-        intent: { ...intent, amount: "26" },
-        proof: {
-          boundDigest: await buildLocalPaymentApprovalDigest({
-            ...intent,
-            amount: "26",
-          }),
-          verifiedBytes: new Uint8Array([9, 9, 9]),
-        },
-        validFrom: now.toISOString(),
-        validUntil: until.toISOString(),
+        intent,
+        proof: issuedProof,
+        validFrom: intent.validFrom,
+        validUntil: intent.validUntil,
       });
       if (replay.ok || replay.reason !== "assertion_replay") {
         setMessage({
@@ -144,7 +150,7 @@ export function PassesPanel() {
 
       setMessage({
         tone: "ok",
-        text: `Issued lease ${issued.lease.id} for 25 TEST under household. Refused forged WebAuthn/RP label, expired lease window (lease_window_invalid), and assertion replay (assertion_replay). Demo uses opaque local verifiedBytes only — not a WebAuthn/RP proof.`,
+        text: `Issued lease ${issued.lease.id} for 25 TEST under household. Refused forged WebAuthn/RP label, expired lease window (lease_window_invalid), and assertion replay (assertion_replay). Demo uses an ephemeral local P-256 signature, not a WebAuthn/RP proof.`,
       });
       refresh();
     })();

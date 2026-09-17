@@ -13,41 +13,10 @@ const HEADLESS_MCP_WALLET: CapabilityExclusion = {
 };
 
 /**
- * execute_approved may only spend a digest-bound PreparedExecutionRef. Until
- * that binder is wired on a surface, withhold rather than accept caller refs.
- */
-const EXECUTE_NEEDS_BINDING: CapabilityExclusion = {
-  reason:
-    "execute_approved may spend only a digest-bound PreparedExecutionRef; unbound or caller-constructed refs must never move funds",
-  adr: ADR_WALLET_SPENDING,
-};
-
-/**
- * Status / payment reads that invent settlement stay off WebMCP until receipt
- * adapters exist. Budget/allocation reads are allowed once the Wallet ledger
- * UI exists (same-origin only).
- */
-const PAYMENT_STATUS_PENDING_RECEIPTS: CapabilityExclusion = {
-  reason:
-    "payment.status needs receipt/reconciliation adapters; until those exist a WebMCP tool would invent settlement",
-  adr: ADR_WALLET_SPENDING,
-};
-
-/**
- * Lease mutation and payment propose stay ceremony-gated on WebMCP until the
- * proof/consent path is registered; capabilities.read remains the inventory.
- */
-const SPEND_ACT_PENDING_PROOF: CapabilityExclusion = {
-  reason:
-    "propose, lease request, and request_stop need digest-bound proof and human consent; withhold agent act tools until that binder is registered rather than accept unbound spend",
-  adr: ADR_WALLET_SPENDING,
-};
-
-/**
  * Wallet spending capabilities (ADR 0123). Agent-facing catalog is narrow:
- * inventory read may ship as a refuse-or-read-only WebMCP stub; propose may
- * later be agent-facing with proof; execute_approved stays excluded until
- * strict binding exists; no get_secret / PAN / root-key surface.
+ * inventory, propose, execute_approved (internally issued refs only), status,
+ * and lease tools on WebMCP. Headless MCP stays excluded. No get_secret /
+ * PAN / root-key surface.
  */
 export const walletSpendingCapabilities: readonly Capability[] = [
   {
@@ -111,12 +80,11 @@ export const walletSpendingCapabilities: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: null,
+      webmcp: "opensesame_wallet_payment_propose",
     },
     excluded: {
       mcp_host: HEADLESS_MCP_WALLET,
       mcp_client: HEADLESS_MCP_WALLET,
-      webmcp: SPEND_ACT_PENDING_PROOF,
     },
   },
   {
@@ -129,12 +97,11 @@ export const walletSpendingCapabilities: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: null,
+      webmcp: "opensesame_wallet_payment_execute_approved",
     },
     excluded: {
-      mcp_host: EXECUTE_NEEDS_BINDING,
-      mcp_client: EXECUTE_NEEDS_BINDING,
-      webmcp: EXECUTE_NEEDS_BINDING,
+      mcp_host: HEADLESS_MCP_WALLET,
+      mcp_client: HEADLESS_MCP_WALLET,
     },
   },
   {
@@ -147,12 +114,11 @@ export const walletSpendingCapabilities: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: null,
+      webmcp: "opensesame_wallet_payment_status",
     },
     excluded: {
       mcp_host: HEADLESS_MCP_WALLET,
       mcp_client: HEADLESS_MCP_WALLET,
-      webmcp: PAYMENT_STATUS_PENDING_RECEIPTS,
     },
   },
   {
@@ -165,12 +131,11 @@ export const walletSpendingCapabilities: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: null,
+      webmcp: "opensesame_wallet_lease_request",
     },
     excluded: {
       mcp_host: HEADLESS_MCP_WALLET,
       mcp_client: HEADLESS_MCP_WALLET,
-      webmcp: SPEND_ACT_PENDING_PROOF,
     },
   },
   {
@@ -183,12 +148,11 @@ export const walletSpendingCapabilities: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: null,
+      webmcp: "opensesame_wallet_lease_status",
     },
     excluded: {
       mcp_host: HEADLESS_MCP_WALLET,
       mcp_client: HEADLESS_MCP_WALLET,
-      webmcp: PAYMENT_STATUS_PENDING_RECEIPTS,
     },
   },
   {
@@ -201,12 +165,11 @@ export const walletSpendingCapabilities: readonly Capability[] = [
       pwa: null,
       mcp_host: null,
       mcp_client: null,
-      webmcp: null,
+      webmcp: "opensesame_wallet_lease_request_stop",
     },
     excluded: {
       mcp_host: HEADLESS_MCP_WALLET,
       mcp_client: HEADLESS_MCP_WALLET,
-      webmcp: SPEND_ACT_PENDING_PROOF,
     },
   },
 ];
