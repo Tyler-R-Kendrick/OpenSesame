@@ -8,6 +8,10 @@
  *
  * Trusted-issuer material is injected; an empty set refuses every finish
  * closed rather than auto-trusting a credential's named issuer.
+ *
+ * The interaction↔state binding (`pendingStore`) must travel with the protocol
+ * session store: a wallet callback on another replica must not see
+ * `presentation_unknown` while the durable protocol session still exists.
  */
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -37,24 +41,55 @@ import { z } from "zod";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { DurableMap, type SecurityMap } from "../repos/durable-map.js";
 import { interactionApprovalPolicyDigest } from "./interaction-activation.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+
+/** Interaction binding keyed by OpenID4VP `state` (not the protocol request). */
+export interface Openid4vpPendingPresentation {
+  readonly interactionId: string;
+  readonly principalId: string;
+  readonly protocolDigest: string;
+  readonly approvalBindingDigest: string;
+  readonly expiresAt: Date;
+}
 
 export interface Openid4vpRouteOptions {
   readonly publicUrl: string;
   readonly clock: () => Date;
   readonly vct: string;
   readonly trustedIssuers?: readonly TrustedIssuer[];
-  /** Test seam: replace the in-memory protocol session store. */
+  /** Protocol request sessions (`state` → AuthorizationRequest). */
   readonly sessionStore?: RequestSessionStore;
+  /**
+   * Interaction binding for a `state`. Defaults to a process Map; production
+   * mounts pass a DurableMap so begin on one replica completes on another.
+   */
+  readonly pendingStore?: SecurityMap<Openid4vpPendingPresentation>;
 }
 
-interface PendingPresentation {
-  readonly interactionId: string;
-  readonly principalId: string;
-  readonly protocolDigest: string;
-  readonly approvalBindingDigest: string;
-  readonly expiresAt: Date;
+async function pendingGet(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+  state: string,
+): Promise<Openid4vpPendingPresentation | undefined> {
+  return store instanceof DurableMap ? store.get(state) : store.get(state);
+}
+
+async function pendingSet(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+  state: string,
+  value: Openid4vpPendingPresentation,
+): Promise<void> {
+  if (store instanceof DurableMap) await store.set(state, value);
+  else store.set(state, value);
+}
+
+async function pendingDelete(
+  store: SecurityMap<Openid4vpPendingPresentation>,
+  state: string,
+): Promise<void> {
+  if (store instanceof DurableMap) await store.delete(state);
+  else store.delete(state);
 }
 
 const BeginSchema = z.object({
@@ -83,7 +118,8 @@ export function createOpenid4vpRoutes(
 ): Hono<{ Variables: Variables }> {
   const store = options.sessionStore ?? new InMemoryRequestSessionStore();
   const trustedIssuers = options.trustedIssuers ?? [];
-  const pending = new Map<string, PendingPresentation>();
+  const pending =
+    options.pendingStore ?? new Map<string, Openid4vpPendingPresentation>();
   const verifierConfig = {
     store,
     trustedIssuers,
@@ -142,7 +178,7 @@ export function createOpenid4vpRoutes(
       now: options.clock(),
     });
 
-    pending.set(begun.state, {
+    await pendingSet(pending, begun.state, {
       interactionId: row.id,
       principalId,
       protocolDigest: begun.digests.protocol,
@@ -174,12 +210,12 @@ export function createOpenid4vpRoutes(
     const bodyValue = raw.body;
     if (!isJsonObject(bodyValue)) return fail(c, "invalid_request");
 
-    const attempt = pending.get(parsed.data.state);
+    const attempt = await pendingGet(pending, parsed.data.state);
     if (!attempt || attempt.principalId !== principalId) {
       return fail(c, "presentation_unknown", 404);
     }
     if (attempt.expiresAt.getTime() <= options.clock().getTime()) {
-      pending.delete(parsed.data.state);
+      await pendingDelete(pending, parsed.data.state);
       return fail(c, "presentation_expired", 409);
     }
 
@@ -221,7 +257,7 @@ export function createOpenid4vpRoutes(
       now: options.clock(),
       credentialRef: verified.credentialRef,
     });
-    pending.delete(parsed.data.state);
+    await pendingDelete(pending, parsed.data.state);
     return c.json({
       activationId: activation.id,
       boundDigest: verified.boundDigest,
@@ -237,7 +273,7 @@ export function createOpenid4vpRoutes(
     // SAFETY: parseBody values are string | File; only strings are states.
     const stateValue: BoundaryValue = overlapCast(form.state);
     const state = isString(stateValue) ? stateValue : "";
-    const attempt = pending.get(state);
+    const attempt = await pendingGet(pending, state);
     if (!attempt) return fail(c, "presentation_unknown", 404);
     return c.json({
       status: "received",
