@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-09-17T16:08:02.672Z",
-  "head": "4d3e3a9cc3ec53b15f6852dd0e4664fed5863d3c",
+  "generatedAt": "2026-09-17T16:10:05.468Z",
+  "head": "4ed0d61f2544af29e64cfc6fac4287d9675792f7",
   "treeDirty": true,
-  "invokedAs": "pnpm wallet:test:browser",
+  "invokedAs": "pnpm wallet:verify",
   "mainnet": {
     "ok": true,
     "message": null,
@@ -10,41 +10,59 @@
   },
   "results": [
     {
-      "suite": "browser-vitest",
+      "suite": "mainnet-deny",
       "status": "passed",
       "exitCode": 0,
       "reason": null,
-      "command": "pnpm --filter @opensesame/pages exec vitest run src/sections/WalletSection.test.tsx src/lib/spending-ledger.test.ts src/lib/spending-consent.test.ts src/lib/spending-leases.test.ts src/lib/wallet-safe-label.test.ts src/lib/wallet-isolation-claims.test.ts src/lib/wallet-budget-labels.test.ts src/lib/wallet-origin-profile.test.ts",
-      "durationMs": 3338
+      "command": "assertNoMainnet()",
+      "durationMs": 0
     },
     {
-      "suite": "browser-QAB-playwright",
+      "suite": "domain",
       "status": "passed",
       "exitCode": 0,
       "reason": null,
-      "command": "Playwright static Wallet QAB-01/QAB-03 + WAL-B03/B05",
-      "durationMs": null,
-      "details": {
-        "failures": [],
-        "loopbackHits": [],
-        "logTail": [
-          "PASS:Wallet overview renders for guest under static base",
-          "PASS:Wallet has no crash / Identity-API wall",
-          "PASS:no loopback requests during Wallet boot",
-          "PASS:forged MessageEvent amount does not appear in Wallet UI",
-          "PASS:forged cross-origin message does not mutate localStorage keys",
-          "PASS:WAL-B03: demo refuses assertion replay of spent verifiedBytes",
-          "PASS:WAL-B05: demo refuses already-expired lease window",
-          "PASS:WAL-B03: forged WebAuthn/RP assurance label refused (wrong-RP not treated as authority)",
-          "PASS:WAL-B03/B05 demo did not report unexpected acceptance",
-          "PASS:WAL-B03/B05 path made no loopback requests"
-        ]
-      }
+      "command": "node scripts/wallet/test-domain.mjs",
+      "durationMs": 4006
+    },
+    {
+      "suite": "contracts",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/run-suite.mjs contracts",
+      "durationMs": 6328
+    },
+    {
+      "suite": "protocols",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/run-suite.mjs protocols",
+      "durationMs": 5894
+    },
+    {
+      "suite": "browser",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/run-suite.mjs browser",
+      "durationMs": 11756
+    },
+    {
+      "suite": "security",
+      "status": "passed",
+      "exitCode": 0,
+      "reason": null,
+      "command": "node scripts/wallet/run-suite.mjs security",
+      "durationMs": 4794
     }
   ],
   "ok": true,
   "notes": [
-    "browser fixtures + static Wallet QAB-01/QAB-03 + WAL-B03/B05 passes demo passed",
+    "All wallet suites passed.",
+    "Domain targets present: os-domain-wallet, wallet-budget, wallet-policy",
+    "Domain targets missing: (none)",
     "Evidence: docs/evidence/wallet/last-run.json"
   ]
 }
