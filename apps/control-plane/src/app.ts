@@ -14,6 +14,7 @@ import { approvalPageRoutes } from "./routes/approval-page.js";
 import { auditRoutes } from "./routes/audit.js";
 import { createUpstreamAuthRoutes } from "./routes/auth-upstream.js";
 import { authenticationServiceRoutes } from "./routes/authentication-service.js";
+import { authorityRoutes } from "./routes/authority.js";
 import { authorizationRequestRoutes } from "./routes/authorization-requests.js";
 import { createBackchannelLogoutRoutes } from "./routes/backchannel-logout.js";
 import { createByoAdminRoutes } from "./routes/byo-admin.js";
@@ -127,6 +128,7 @@ export function createHonoApp(
   // that order. See routes/notification-callbacks.ts.
   app.route("/v1/notification-callbacks", notificationCallbackRoutes);
   app.route("/v1/agents", agentRoutes);
+  app.route("/v1/authority", authorityRoutes);
   app.route("/v1/mfa", mfaRoutes);
   app.route("/v1/authentication", authenticationServiceRoutes);
   app.route("/v1/device", deviceRoutes);

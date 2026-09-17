@@ -1,9 +1,9 @@
 {
   "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, \u2026) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
   "programme": "general-authority",
-  "baselineSha": "46ccd0aaa7132dee152141bd05d6cad5e7a96637",
+  "baselineSha": "09b7e3158b32199a4943ca4966b6ca7781dddcd3",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T01:05:19Z",
+  "generatedAt": "2026-09-16T23:24:11Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -15,10 +15,10 @@
   ],
   "summary": {
     "totalWorkItems": 48,
-    "unresolved": 11,
-    "inProgress": 13,
+    "unresolved": 13,
+    "inProgress": 14,
     "blocked": 0,
-    "verified": 24,
+    "verified": 21,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported"
@@ -28,46 +28,40 @@
       "id": "GA-A-01",
       "swarm": "GA-A",
       "title": "Authority record type in os-domain",
-      "status": "verified",
-      "verification": "command-backed",
-      "evidence": [
-        {
-          "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-grant.test.ts",
-          "result": "ok. 6 passed \u2014 AuthorityGrant/AuthorityRecord + attenuation + resource match"
-        }
-      ],
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
       "blockedBy": [],
-      "notes": "packages/os-domain/src/authority-grant.ts mirrors Host Grant; AccessLease naming remains GA-O-03."
+      "notes": "Rust Grant/authority exists (GRA-*); os-domain has AccessDomain + principals/templates. No TS AuthorityRecord type in types.ts yet."
     },
     {
       "id": "GA-A-02",
       "swarm": "GA-A",
       "title": "Executable invariant assertions",
-      "status": "verified",
-      "verification": "command-backed",
-      "evidence": [
-        {
-          "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-grant.test.ts",
-          "result": "ok. INV-GA-01/02/04/06/07/08 asserts exercised"
-        }
-      ],
+      "status": "unresolved",
+      "verification": "none",
+      "evidence": null,
       "blockedBy": ["GA-A-01"],
-      "notes": "Executable INV-GA asserts in authority-invariants.ts. Remaining INV-GA-03/09/10/11/12 stay with their owning swarms."
+      "notes": "packages/os-domain/src/invariants.ts still has no authority INV-GA-* asserts. Rust attenuation covered under GRA-*."
     },
     {
       "id": "GA-A-03",
       "swarm": "GA-A",
       "title": "Narrowing algebra and the depth bound",
-      "status": "verified",
+      "status": "in-progress",
       "verification": "command-backed",
       "evidence": [
         {
-          "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-grant.test.ts",
-          "result": "ok. DEFAULT_MAXIMUM_DELEGATION_DEPTH=2; assertInvGa04FiniteDepth defaults to it"
+          "command": "cargo +1.88.0 test -p opensesame-domain --lib grant_attenuation",
+          "result": "ok. 5 passed (assurance, not_before, offline, budget omit, subtree narrow)"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-domain --lib validated_grant_chain",
+          "result": "ok. 1 passed (raw parent pointer alone is not a validated chain)"
         }
       ],
       "blockedBy": ["GA-A-01"],
-      "notes": "Product ceiling is 2 (matches Host adversarial/ValidatedGrantChain fixtures). Per-grant maximumDelegationDepth may be lower; never higher under attenuation."
+      "notes": "Rust narrowing algebra + ValidatedGrantChain proven. Product depth-bound decision and shared TS os-domain algebra still open (GA-A ownership)."
     },
     {
       "id": "GA-A-04",
