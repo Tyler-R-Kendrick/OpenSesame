@@ -101,18 +101,37 @@ function collectFacts() {
 
   const tests = {};
   const testErrors = {};
-  for (const crate of noRun ? crateNames : []) {
-    const anyReachable = cargoTargets.some(
-      (target) =>
-        target.crate === crate && modules[`${crate}:${target.module}`] === true,
-    );
+  const enumKeys = new Map();
+  for (const target of cargoTargets) {
+    const key =
+      typeof target.bin === "string"
+        ? `${target.crate}#bin:${target.bin}`
+        : target.crate;
+    if (!enumKeys.has(key)) {
+      enumKeys.set(key, {
+        crate: target.crate,
+        bin: typeof target.bin === "string" ? target.bin : null,
+      });
+    }
+  }
+  for (const [key, spec] of noRun ? enumKeys : []) {
+    const anyReachable = cargoTargets.some((target) => {
+      const targetKey =
+        typeof target.bin === "string"
+          ? `${target.crate}#bin:${target.bin}`
+          : target.crate;
+      return (
+        targetKey === key &&
+        modules[`${target.crate}:${target.module}`] === true
+      );
+    });
     if (!anyReachable) {
-      tests[crate] = null;
+      tests[key] = null;
       continue;
     }
-    const enumerated = enumerateCargoTests(root, crate);
-    tests[crate] = enumerated.tests;
-    testErrors[crate] = enumerated.error;
+    const enumerated = enumerateCargoTests(root, spec.crate, spec.bin);
+    tests[key] = enumerated.tests;
+    testErrors[key] = enumerated.error;
   }
 
   const packages = packageFacts(root);

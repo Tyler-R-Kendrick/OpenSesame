@@ -6,7 +6,10 @@
  * Registered by authority-fabric-scenarios.mjs.
  */
 
-const cargo = (crate, module, test) => ({ kind: "cargo", crate, module, test });
+const cargo = (crate, module, test, bin = null) =>
+  bin === null
+    ? { kind: "cargo", crate, module, test }
+    : { kind: "cargo", crate, module, test, bin };
 const vitest = (pkg, file, test) => ({ kind: "vitest", pkg, file, test });
 
 /** @type {readonly object[]} */
@@ -179,16 +182,16 @@ export const crossPlaneScenarios = Object.freeze([
     id: "GA-V-33b",
     workItem: "TEST-STACK",
     area: "DOMAIN",
-    tier: "unsupported",
+    tier: "integration",
     invariant: "INV-GA-05",
     title:
       "An authority expiry reaches the lifecycle.* feed from a running gateway",
-    unsupported: {
-      reason:
-        "OpenBao is available locally, but no live gateway harness yet asserts AuthorityGrant → lifecycle.expiry.expired; live-stack-test.sh still only covers connections/intents.",
-      wouldRequire:
-        "Gateway integration test: issue AuthorityGrant, advance clock/scanner, observe lifecycle.expiry.expired on the running feed (not live-stack-test.sh).",
-    },
+    target: cargo(
+      "opensesame-gateway",
+      "lifecycle::authority_grant_scan",
+      "lifecycle::authority_grant_scan::authority_grant_expiry_reaches_lifecycle_feed_via_scan",
+      "opensesame-gateway",
+    ),
   },
   {
     id: "GA-V-34",

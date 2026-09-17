@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  type MembershipLineageEdge,
   membershipLineageActive,
   membershipLineageActiveInSnapshot,
-  type MembershipLineageEdge,
 } from "../authority-membership-lineage.js";
 import type { AuthorityMembershipEdgeSnapshot } from "../authority-membership-reconcile.js";
 
 function edge(
   partial: Partial<MembershipLineageEdge> &
-    Pick<
-      MembershipLineageEdge,
-      "cohortId" | "subjectPrincipalId" | "relation"
-    >,
+    Pick<MembershipLineageEdge, "cohortId" | "subjectPrincipalId" | "relation">,
 ): MembershipLineageEdge {
   return {
     organizationId: "org:1",

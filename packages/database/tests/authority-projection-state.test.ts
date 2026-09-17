@@ -8,9 +8,9 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  createMemoryAuthorityProjectionStateStore,
   type AuthorityProjectionMark,
   type AuthorityProjectionStateStore,
+  createMemoryAuthorityProjectionStateStore,
 } from "../src/repos/authority-projection-state.js";
 
 function mark(revision: number): AuthorityProjectionMark {
