@@ -3,7 +3,7 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T05:38:38Z",
+  "generatedAt": "2026-09-17T05:51:23Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -15,14 +15,14 @@
   ],
   "summary": {
     "totalWorkItems": 48,
-    "unresolved": 4,
-    "inProgress": 1,
+    "unresolved": 3,
+    "inProgress": 0,
     "blocked": 0,
-    "verified": 43,
+    "verified": 45,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported",
-    "in-progress": 1
+    "in-progress": 0
   },
   "workItems": [
     {
@@ -149,10 +149,14 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::grant_offers::tests",
           "result": "ok. 1 passed \u2014 activate and revoke"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::local_authority_routes::authority_grants::tests",
+          "result": "ok. 2 passed \u2014 Host issue_authority HTTP"
         }
       ],
       "blockedBy": ["GA-A-03"],
-      "notes": "host-authority-route-inventory.md + api-surface.md. Evaluation + AccessDomain/offer HTTP inventoried; grant issue HTTP still open (GA-P-01)."
+      "notes": "host-authority-route-inventory.md + api-surface.md. Evaluation + AccessDomain/offer + grant-issue HTTP inventoried."
     },
     {
       "id": "GA-H-02",
@@ -238,16 +242,24 @@
       "id": "GA-P-01",
       "swarm": "GA-P",
       "title": "Align the local share-grant ledger",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
+          "command": "pnpm test:authority-fabric:report",
+          "result": "ok. GA-V-31 pass \u2014 one local authority ledger classified"
+        },
+        {
           "command": "pnpm --filter @opensesame/pages exec vitest run src/sections/access/LocalAuthorityTemplates.test.tsx",
-          "result": "ok. lists audience templates with honest support statuses"
+          "result": "ok. audience templates with honest support statuses"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::local_authority_routes::authority_grants::tests",
+          "result": "ok. 2 passed \u2014 issue writes fence-clear authority; members forbidden"
         }
       ],
       "blockedBy": ["GA-A-01"],
-      "notes": "authority-templates + LocalAuthorityTemplates panel landed and tested; minting/enforcement still Host-side (GA-H)."
+      "notes": "INV-GA-10 local-ledger-inventory.json + LocalAuthorityTemplates. Host grant-issue HTTP (issue_authority) lands with this PR; not a second ledger."
     },
     {
       "id": "GA-P-02",
@@ -307,11 +319,32 @@
       "id": "GA-C-02",
       "swarm": "GA-C",
       "title": "Per-surface parity sweeps",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/mcp-host exec vitest run src/registry-parity.test.ts",
+          "result": "ok. 4 passed"
+        },
+        {
+          "command": "pnpm --filter @opensesame/mcp-client exec vitest run src/registry-parity.test.ts",
+          "result": "ok. 3 passed"
+        },
+        {
+          "command": "pnpm --filter @opensesame/pages exec vitest run src/webmcp/registry-parity.test.ts",
+          "result": "ok. 14 passed"
+        },
+        {
+          "command": "pnpm --filter @opensesame/cli exec vitest run src/capability-parity.test.ts",
+          "result": "ok. 1 passed"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-cli --test capability_parity",
+          "result": "ok. 2 passed"
+        }
+      ],
       "blockedBy": ["GA-C-01"],
-      "notes": "Parity registry entries exist (GA-C-01). Remaining mcp-host/mcp-client sweeps tracked separately; no dirty-tree claim."
+      "notes": "Per-surface registry parity sweeps green for mcp-host/client, pages webmcp, both CLIs."
     },
     {
       "id": "GA-O-01",
@@ -366,7 +399,7 @@
       "verification": "none",
       "evidence": null,
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Latest refresh after GA-H-01/P-03 inventory + panel-gating evidence."
+      "notes": "Standing honesty ratchet; never closes. Latest refresh after Host grant-issue HTTP + GA-P-01/C-02 verification."
     },
     {
       "id": "GA-Q-01",

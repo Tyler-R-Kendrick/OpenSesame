@@ -24,13 +24,20 @@ cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::gra
 Router merge: `apps/gateway/src/routes/mod.rs` merges `access_domains` and
 `grant_offers`; `contract.rs` includes both sources so undocumented routes fail CI.
 
+## Grant issue HTTP
+
+| Surface | Evidence |
+|---|---|
+| `POST .../grants/{grant_id}/authority` | `cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::local_authority_routes::authority_grants::tests` |
+
+Records sidecar authority on an existing `grants` row (`issue_authority`). Does not insert the legacy envelope.
+
 ## Deliberately not on this inventory
 
-- Grant **issue** HTTP (`issue_authority`) — storage-ready; Host mint API still open (GA-P-01 / Host follow-up).
 - Live OpenFGA write from these routes — projectors only (GA-F-04 dry-run).
 - Identity `/v1/authority/*` — Identity plane (GA-I-01).
+- Offer create/list/get HTTP — storage-ready (`create_grant_offer`); activate/revoke only today.
 
 ## Status
 
-Evaluation + AccessDomain/offer HTTP are inventory-complete for GA-H-01.
-Remaining Host mint/issue routes stay named above rather than claimed.
+Evaluation + AccessDomain/offer + grant-issue HTTP are inventory-complete for GA-H-01.

@@ -24,6 +24,7 @@ mutations already emit outbox events from the storage transaction.
 | `GET` | `/api/v1/organizations/{organization}/access-domains/{id}` | `access_domain` |
 | `POST` | `/api/v1/organizations/{organization}/access-domains/{id}/reparent` | `reparent_access_domain` |
 | `POST` | `/api/v1/organizations/{organization}/access-domains/{id}/terminate` | `terminate_access_domain` |
+| `POST` | `/api/v1/organizations/{organization}/grants/{grant_id}/authority` | `issue_authority` |
 | `POST` | `/api/v1/organizations/{organization}/grant-offers/{id}/activate` | `activate_grant_offer` |
 | `POST` | `/api/v1/organizations/{organization}/grant-offers/{id}/revoke` | `revoke_grant_offer` |
 
@@ -43,5 +44,5 @@ are unwritable at the schema FK and return `422 refused`.
 - Offer **create** / list / get are storage-ready (`create_grant_offer`) but
   not exposed on Host HTTP yet; activate/revoke assume an offer already
   exists.
-- Grant **issue** (`issue_authority`) remains a storage/API follow-up; these
-  routes do not mint grants.
+- Grant **issue** (`issue_authority`) is exposed as `POST .../grants/{grant_id}/authority`
+  for an existing `grants` envelope; it does not insert the legacy grant row.
