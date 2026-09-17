@@ -87,7 +87,6 @@ async function openPanel(user: ReturnType<typeof userEvent.setup>) {
   );
   return { affordance, panel };
 }
-
 /** The composer, typed, so `disabled` can be read without a cast. */
 function composer(): Promise<HTMLInputElement> {
   return screen.findByLabelText<HTMLInputElement>("Ask about this screen");
