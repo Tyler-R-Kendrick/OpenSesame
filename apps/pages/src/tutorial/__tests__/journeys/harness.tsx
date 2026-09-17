@@ -1,29 +1,15 @@
-/**
- * The application these journeys are walked through.
- *
- * Everything a person touches here is the real thing: the shell they navigate
- * with, the semantic target registry the rail and the tab bar bind themselves
- * to, the compiler a program is checked by, the runtime that drives it, the
- * support session that holds the conversation, and the panel it is read in.
- * Only two things are substituted, because neither can be driven
- * deterministically — the model, which is a scripted fake agent, and the
- * deadline clock, which never fires unless a test advances it.
- *
- * The renderer is the recording one rather than Driver.js: these stories are
- * about *what* a walkthrough was asked to point at and when, and the overlay
- * Driver.js actually draws already has its own suite.
- *
- * The shell's identity, connectivity and breadcrumb widgets are stood down
- * through their own seams. They reach for storage and the network, none of
- * them is part of a support journey, and leaving them in would make every
- * story below a test of them as well.
- */
-import { guideGoalIds } from "../../registry/goals.js";
-import { GUIDE_ROUTES } from "../../registry/routes.js";
-import { guidePredicateIds } from "../../registry/state.js";
-import { guideTargetIds } from "../../registry/targets.js";
-
 import { compileGuide } from "@opensesame/guide-lang";
+
+if (typeof globalThis.MutationObserver !== "function") {
+  class MutationObserverPolyfill {
+    observe(): void {}
+    disconnect(): void {}
+    takeRecords(): MutationRecord[] {
+      return [];
+    }
+  }
+  globalThis.MutationObserver = MutationObserverPolyfill as typeof MutationObserver;
+}
 import type {
   GuideOutcome,
   RecordedRendererCall,
@@ -55,13 +41,37 @@ import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
 import { CatalogPanel } from "../../../sections/connections/CatalogPanel.js";
 import { HealthPanel } from "../../../sections/vault/HealthPanel.js";
 import { buildSupportPageContext } from "../../registry/context.js";
+/**
+ * The application these journeys are walked through.
+ *
+ * Everything a person touches here is the real thing: the shell they navigate
+ * with, the semantic target registry the rail and the tab bar bind themselves
+ * to, the compiler a program is checked by, the runtime that drives it, the
+ * support session that holds the conversation, and the panel it is read in.
+ * Only two things are substituted, because neither can be driven
+ * deterministically — the model, which is a scripted fake agent, and the
+ * deadline clock, which never fires unless a test advances it.
+ *
+ * The renderer is the recording one rather than Driver.js: these stories are
+ * about *what* a walkthrough was asked to point at and when, and the overlay
+ * Driver.js actually draws already has its own suite.
+ *
+ * The shell's identity, connectivity and breadcrumb widgets are stood down
+ * through their own seams. They reach for storage and the network, none of
+ * them is part of a support journey, and leaving them in would make every
+ * story below a test of them as well.
+ */
+import { guideGoalIds } from "../../registry/goals.js";
 import { registerGuidePredicates } from "../../registry/predicates.js";
+import { GUIDE_ROUTES } from "../../registry/routes.js";
 import { isKnownGuideRoute } from "../../registry/routes.js";
+import { guidePredicateIds } from "../../registry/state.js";
 import {
   isKnownGuidePredicate,
   observeGuidePredicate,
   readGuidePredicate,
 } from "../../registry/state.js";
+import { guideTargetIds } from "../../registry/targets.js";
 import {
   clearMountedGuideTargets,
   isKnownGuideTarget,
@@ -79,7 +89,6 @@ import {
   SupportLauncher,
   SupportSlotProvider,
 } from "../../ui/SupportLauncher.js";
-
 export type JourneyUser = ReturnType<typeof userEvent.setup>;
 
 const lockHandlers = new Set<() => void>();
@@ -383,10 +392,9 @@ export async function askSupport(
     "Ask about this screen",
   );
   const ask = () => screen.getByRole("button", { name: "Ask" });
-  await waitFor(() => {
-    expect(field.disabled).toBe(false);
-    expect(ask()).not.toBeDisabled();
-  });
+  await waitFor(() =>
+    expect(!field.disabled && !ask().hasAttribute("disabled")).toBe(true),
+  );
   await user.type(field, question);
   await waitFor(() => expect(ask()).not.toBeDisabled());
   await user.click(ask());
