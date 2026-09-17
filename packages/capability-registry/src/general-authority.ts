@@ -168,4 +168,21 @@ export const generalAuthorityCapabilities: readonly Capability[] = [
     },
     excluded: { ...READ_EXCLUDED },
   },
+
+  {
+    id: "authority.workload.spawn",
+    title: "Mint a workload identity (Identity spawn; no Host grant)",
+    plane: "identity",
+    kind: "admin",
+    surfaces: { ...NONE },
+    excluded: { ...HUMAN_EXCLUDED },
+  },
+  {
+    id: "authority.enrollment.pop",
+    title: "Bind proof-of-possession for an authority principal",
+    plane: "identity",
+    kind: "admin",
+    surfaces: { ...NONE },
+    excluded: { ...HUMAN_EXCLUDED },
+  },
 ];

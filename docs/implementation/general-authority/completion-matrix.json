@@ -1,9 +1,9 @@
 {
   "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, \u2026) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
   "programme": "general-authority",
-  "baselineSha": "46ccd0aaa7132dee152141bd05d6cad5e7a96637",
+  "baselineSha": "cc165f7cb0ff9f9d4a8b4aa8d93312ac36459efb",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T01:05:19Z",
+  "generatedAt": "2026-09-17T02:00:53Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -15,8 +15,8 @@
   ],
   "summary": {
     "totalWorkItems": 48,
-    "unresolved": 11,
-    "inProgress": 13,
+    "unresolved": 10,
+    "inProgress": 14,
     "blocked": 0,
     "verified": 24,
     "testsRun": 53,
@@ -165,9 +165,14 @@
       "title": "Identity API authority routes",
       "status": "in-progress",
       "verification": "command-backed",
-      "evidence": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-principals.test.ts \u2192 12 pass; pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' \u2192 2 pass",
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-routes.test.ts",
+          "result": "ok. 3 passed \u2014 spawn wasmtime, refuse native, PoP enroll + audit"
+        }
+      ],
       "blockedBy": ["GA-A-04"],
-      "notes": "ID-BIND: AuthorityPrincipalKind + relation fences + PoP enrollment; ID-SPAWN domain mint/refuse (wasmtime only). Control-plane HTTP enrollment/spawn routes and Host grant issuance still open."
+      "notes": "HTTP /v1/authority/workloads/spawn and /enrollment/pop landed. Host grant issuance still open (Host plane)."
     },
     {
       "id": "GA-I-02",
@@ -183,11 +188,16 @@
       "id": "GA-I-03",
       "swarm": "GA-I",
       "title": "Audit events for authority mutation",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
+      "status": "in-progress",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-routes.test.ts",
+          "result": "ok. authority.workload.spawned + authority.enrollment.pop audit events"
+        }
+      ],
       "blockedBy": ["GA-I-01"],
-      "notes": "No Identity authority-mutation audit events yet; depends on control-plane routes."
+      "notes": "Spawn/enroll mutations emit audit events. Broader authority-mutation catalog still open with remaining Identity routes."
     },
     {
       "id": "GA-P-01",
