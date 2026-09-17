@@ -254,8 +254,8 @@
       "owner": "GA-P",
       "title": "Align the local share-grant ledger",
       "invariants": ["INV-GA-10"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "local-ledger-inventory.json + Host POST .../grants/{id}/authority"
     },
     {
       "id": "GA-P-02",
@@ -294,8 +294,8 @@
       "owner": "GA-C",
       "title": "Per-surface parity sweeps",
       "invariants": ["INV-GA-12"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "mcp-host/client + pages webmcp + cli parity sweeps"
     },
     {
       "id": "GA-O-01",

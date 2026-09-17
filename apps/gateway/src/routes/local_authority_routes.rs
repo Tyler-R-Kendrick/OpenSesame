@@ -1,4 +1,7 @@
 //! Local-authority registrations; the parent router supplies the shared guards.
+#[path = "authority_grants.rs"]
+mod authority_grants;
+
 use super::{
     access_domains, agent_capabilities, browser_pairings, device, grant_offers,
     host_authorizations, secret_config_policy, session,
@@ -13,6 +16,7 @@ use axum::{
 pub(super) fn router() -> Router<AppState> {
     Router::new()
         .merge(access_domains::routes())
+        .merge(authority_grants::routes())
         .merge(grant_offers::routes())
         .merge(browser_pairings::routes())
         .merge(host_authorizations::routes())
