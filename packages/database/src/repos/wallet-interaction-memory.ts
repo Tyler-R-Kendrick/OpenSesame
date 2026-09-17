@@ -260,6 +260,7 @@ export class MemoryWalletInteractionRepos {
       const apply = () => {
         this.#reservations.set(row.id, cloneReservation(row));
       };
+      apply();
       this.#apply(uow, apply);
       return cloneReservation(row);
     },

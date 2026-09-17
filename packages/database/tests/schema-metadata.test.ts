@@ -259,6 +259,19 @@ describe("schema metadata contract", () => {
         "authority_membership_edges_subject_kind_check",
       ]),
     );
+    expect(checkNames(walletSchema.interactionProofAttempts)).toEqual(
+      expect.arrayContaining([
+        "interaction_proof_attempts_mechanism_check",
+        "interaction_proof_attempts_outcome_check",
+      ]),
+    );
+    const mechanismSql = JSON.stringify(
+      getTableConfig(walletSchema.interactionProofAttempts).checks.find(
+        (c) => c.name === "interaction_proof_attempts_mechanism_check",
+      ),
+    );
+    expect(mechanismSql).toContain("session_reauth");
+    expect(mechanismSql).toContain("out_of_band");
   });
 
   it("keeps membership subject kinds aligned with os-domain ID-BIND", () => {

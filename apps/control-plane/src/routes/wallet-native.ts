@@ -209,6 +209,12 @@ export function mountWalletNativeRoutes(
       mountFor(mounts, surface.id) ?? unavailableStub(surface),
     );
   }
+  // Issuer metadata and `/oid4vci/*` are specified at the credential-issuer
+  // identifier, not under `/v1/openid4vci`. Mount the real router at `/` so
+  // an independent client can complete issuance from discovery.
+  if (mounts.openid4vciIssuer) {
+    app.route("/", mounts.openid4vciIssuer);
+  }
   app.get("/v1/wallet-native/capabilities", (c) =>
     c.json({ capabilities: walletNativeCapabilities(mounts) }),
   );

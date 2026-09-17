@@ -13,6 +13,7 @@ import {
 import { beforeEach, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { resetInteractionLinkBudget } from "../routes/interaction-handoff.js";
+import { seedRaiseSubject } from "./seed-ceremony-subject.js";
 
 /**
  * The cross-device interaction layer (ADR 0086).
@@ -51,7 +52,9 @@ async function principal(cp: Plane) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return overlapCast(await res.json());
+  return overlapCast<{ accessToken: string; principalId: string }>(
+    await res.json(),
+  );
 }
 
 /** Only its owner can obtain an inbox handle — that is what makes it an address. */
@@ -73,14 +76,15 @@ const DELEGATION_DETAIL = {
 let seq = 0;
 async function raise(
   cp: Plane,
-  requesterToken: string,
+  requester: { accessToken: string; principalId: string },
   approverRef: string,
   overrides: JsonObject = {},
 ) {
+  seedRaiseSubject(cp, requester.principalId, overrides);
   return cp.app.request("/v1/interactions", {
     method: "POST",
     headers: {
-      authorization: `Bearer ${requesterToken}`,
+      authorization: `Bearer ${requester.accessToken}`,
       "content-type": "application/json",
       "idempotency-key": `raise-${++seq}`,
     },
@@ -98,11 +102,11 @@ async function raise(
 /** Create an interaction and return the creation body. */
 async function created(
   cp: Plane,
-  requesterToken: string,
+  requester: { accessToken: string; principalId: string },
   approverRef: string,
   overrides: JsonObject = {},
 ) {
-  const res = await raise(cp, requesterToken, approverRef, overrides);
+  const res = await raise(cp, requester, approverRef, overrides);
   expect(res.status).toBe(201);
   return overlapCast(await res.json());
 }
@@ -245,11 +249,7 @@ describe("the short-link budget paces probing, not scanning", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     // Far past both the client and the global budget. Every one of these
     // fails MAC verification, so every one is a prober.
@@ -288,11 +288,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     expect(body.status).toBe("pending");
     expect(body.url).toBe(`http://127.0.0.1:8788/i/${body.ref}`);
@@ -361,7 +357,7 @@ describe("interaction handoff", () => {
     const approver = await principal(cp);
     const requester = await principal(cp);
     const approverRef = await inboxRefOf(cp, approver);
-    const body = await created(cp, requester.accessToken, approverRef);
+    const body = await created(cp, requester, approverRef);
 
     const res = await cp.app.request(`/i/${body.ref}`, { headers: asJson() });
     const serialized = await res.text();
@@ -388,11 +384,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     // Flipping one character of the tag: correct shape, wrong MAC.
     const ref = String(body.ref);
@@ -422,12 +414,9 @@ describe("interaction handoff", () => {
     const cp = plane(clock);
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-      { ttlSeconds: 60 },
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver), {
+      ttlSeconds: 60,
+    });
     advanceSeconds(61);
 
     const scanned = await cp.app.request(`/i/${body.ref}`, {
@@ -450,11 +439,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     const wrong = await post(
       cp,
@@ -491,8 +476,8 @@ describe("interaction handoff", () => {
         },
       }),
     );
-    expect(declared.status).toBe(401);
-    expect(await declared.json()).toEqual({ error: "proof_required" });
+    expect(declared.status).toBe(400);
+    expect(await declared.json()).toEqual({ error: "invalid_request" });
   });
 
   it("adversarial: only the approver may read or decide", async () => {
@@ -500,11 +485,7 @@ describe("interaction handoff", () => {
     const approver = await principal(cp);
     const requester = await principal(cp);
     const stranger = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     for (const token of [requester.accessToken, stranger.accessToken]) {
       const read = await cp.app.request(`/v1/interactions/${body.ref}`, {
@@ -532,11 +513,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     const inbox = await cp.app.request("/v1/interactions?status=pending", {
       headers: asJson(approver.accessToken),
@@ -555,11 +532,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
     const credentialId = await enrolPasskey(cp, approver.principalId);
     const activationId = await activateInteraction(
       cp,
@@ -596,11 +569,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     const credentialId = await enrolPasskey(cp, approver.principalId);
     const activationId = await activateInteraction(
@@ -651,11 +620,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     const early = await post(
       cp,
@@ -673,11 +638,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     const withdrawn = await post(
       cp,
@@ -701,11 +662,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     const denied = await post(
       cp,
@@ -729,25 +686,20 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-      {
-        kind: "transaction_authorization",
-        subject: { kind: "transaction_authorization", subjectId: "txn-1" },
-        authorizationDetails: [
-          {
-            type: "payment_initiation",
-            amount: { currency: "USD", value: "143.72" },
-            payee: { display_name: "AliceCo" },
-          },
-        ],
-        // Ignored: a requester-written message is a message that can disagree
-        // with what executes.
-        bindingMessage: "Confirm your session",
-      },
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver), {
+      kind: "transaction_authorization",
+      subject: { kind: "transaction_authorization", subjectId: "txn-1" },
+      authorizationDetails: [
+        {
+          type: "payment_initiation",
+          amount: { currency: "USD", value: "143.72" },
+          payee: { display_name: "AliceCo" },
+        },
+      ],
+      // Ignored: a requester-written message is a message that can disagree
+      // with what executes.
+      bindingMessage: "Confirm your session",
+    });
     expect(body.bindingMessage).toBe("Pay 143.72 USD to AliceCo");
   });
 
@@ -757,25 +709,20 @@ describe("interaction handoff", () => {
     const requester = await principal(cp);
     const pan = "4111111111111111";
 
-    const res = await raise(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-      {
-        kind: "transaction_authorization",
-        subject: { kind: "transaction_authorization", subjectId: "txn-2" },
-        authorizationDetails: [
-          {
-            type: "payment_initiation",
-            amount: { currency: "USD", value: "10.00" },
-            payee: { display_name: "AliceCo" },
-            // A PAN under an innocuous key: how card numbers actually reach
-            // systems that never meant to hold them.
-            reference: pan,
-          },
-        ],
-      },
-    );
+    const res = await raise(cp, requester, await inboxRefOf(cp, approver), {
+      kind: "transaction_authorization",
+      subject: { kind: "transaction_authorization", subjectId: "txn-2" },
+      authorizationDetails: [
+        {
+          type: "payment_initiation",
+          amount: { currency: "USD", value: "10.00" },
+          payee: { display_name: "AliceCo" },
+          // A PAN under an innocuous key: how card numbers actually reach
+          // systems that never meant to hold them.
+          reference: pan,
+        },
+      ],
+    });
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.status).toBeLessThan(500);
     const serialized = await res.text();
@@ -789,12 +736,9 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const res = await raise(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-      { kind: "transaction_authorization" },
-    );
+    const res = await raise(cp, requester, await inboxRefOf(cp, approver), {
+      kind: "transaction_authorization",
+    });
     expect(res.status).toBe(422);
     expect(await res.json()).toEqual({ error: "unsupported_kind" });
   });
@@ -804,7 +748,7 @@ describe("interaction handoff", () => {
     const requester = await principal(cp);
     const forged = await raise(
       cp,
-      requester.accessToken,
+      requester,
       "inbox_aW50X25vdF9yZWFs.notarealtagnotarealtagnotarealt",
     );
     expect(forged.status).toBe(404);
@@ -815,11 +759,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
     await cp.app.request(`/v1/interactions/${body.ref}`, {
       headers: asJson(approver.accessToken),
     });
@@ -888,11 +828,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     const page = await cp.app.request(`/i/${body.ref}`, {
       headers: { accept: "text/html" },
@@ -913,11 +849,7 @@ describe("interaction handoff", () => {
     const cp = plane();
     const approver = await principal(cp);
     const requester = await principal(cp);
-    const body = await created(
-      cp,
-      requester.accessToken,
-      await inboxRefOf(cp, approver),
-    );
+    const body = await created(cp, requester, await inboxRefOf(cp, approver));
 
     for (let i = 0; i < 3; i += 1) {
       const res = await cp.app.request(`/i/${body.ref}`, {

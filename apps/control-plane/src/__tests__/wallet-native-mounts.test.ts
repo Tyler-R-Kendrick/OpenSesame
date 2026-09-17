@@ -44,8 +44,9 @@ describe("resolveWalletNativeMounts via createControlPlane", () => {
     const byId = Object.fromEntries(rows.map((c) => [c.id, c.state]));
     expect(byId["wallet.registration"]).toBe("available");
     expect(byId.rendezvous).toBe("available");
-    expect(byId["openid4vp.verifier"]).toBe("unavailable");
-    expect(byId["openid4vci.issuer"]).toBe("unavailable");
+    expect(byId["openid4vp.verifier"]).toBe("available");
+    expect(byId["openid4vci.issuer"]).toBe("available");
+    expect((await app.request("/v1/openid4vp/ping")).status).toBe(200);
   });
 
   it("lists registrations for an authenticated principal (empty)", async () => {

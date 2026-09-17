@@ -20,7 +20,11 @@
  * sealing, so an incoherent pairing is refused rather than written.
  */
 
-import type { ApprovalMechanism, AssuranceLevel } from "@opensesame/os-domain";
+import type {
+  ApprovalMechanism,
+  AssuranceLevel,
+  InteractionKind,
+} from "@opensesame/os-domain";
 
 /**
  * The mechanisms whose success is bound to the verifier's origin, and so
@@ -131,4 +135,26 @@ export function assertAssuranceCoherent(
   ) {
     throw new IncoherentAssuranceError(mechanism, assurance);
   }
+}
+
+const PHISHING_RESISTANT_KINDS: ReadonlySet<InteractionKind> = new Set([
+  "authorization_request",
+  "transaction_authorization",
+  "grant_claim",
+]);
+
+/** True when this interaction kind may only be approved by a phishing-resistant mechanism. */
+export function interactionRequiresPhishingResistance(
+  kind: InteractionKind,
+): boolean {
+  return PHISHING_RESISTANT_KINDS.has(kind);
+}
+
+export function mechanismPermittedForKind(
+  mechanism: ApprovalMechanism,
+  kind: InteractionKind,
+): MechanismDecision {
+  return mechanismSatisfies(mechanism, {
+    requirePhishingResistance: interactionRequiresPhishingResistance(kind),
+  });
 }

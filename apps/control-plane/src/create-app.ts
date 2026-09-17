@@ -377,6 +377,10 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       config,
       processEnv,
       clock,
+      ...(drizzleBundle ? { database: drizzleBundle.db } : undefined),
+      ...(options.openid4vpTrustedIssuers
+        ? { openid4vpTrustedIssuers: options.openid4vpTrustedIssuers }
+        : undefined),
       ...(options.walletNative !== undefined
         ? { override: options.walletNative }
         : undefined),

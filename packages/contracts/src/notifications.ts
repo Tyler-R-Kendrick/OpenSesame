@@ -189,6 +189,8 @@ export const BeginApprovalActivationSchema = z.object({
    * cannot be signed for.
    */
   requestDigest: z.string().min(16).max(256),
+  /** Default `webauthn`. `totp` is refused for high-risk interaction kinds. */
+  method: z.enum(["webauthn", "totp"]).optional(),
 });
 
 export const BeginApprovalActivationResponseSchema = z.object({

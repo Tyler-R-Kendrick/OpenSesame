@@ -204,6 +204,8 @@ describe("redaction boundaries (mutation coverage)", () => {
       "interactionKind",
       "subjectKind",
       "subjectId",
+      "eventType",
+      "execution",
       "mechanism",
       "credentialRef",
       "assurance",

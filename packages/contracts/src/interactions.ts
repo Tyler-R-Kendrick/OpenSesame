@@ -227,11 +227,13 @@ export const ApprovalProofSchema = z.object({
  * The digest echo still means "this is the request I was shown".
  * `activationId` names the activation that already verified the step-up.
  */
-export const ApproveInteractionSchema = z.object({
-  requestDigest: z.string().min(16).max(256),
-  /** Spent interaction activation; omit and the server answers proof_required. */
-  activationId: z.string().min(8).max(256).optional(),
-});
+export const ApproveInteractionSchema = z
+  .object({
+    requestDigest: z.string().min(16).max(256),
+    /** Spent interaction activation; omit and the server answers proof_required. */
+    activationId: z.string().min(8).max(256).optional(),
+  })
+  .strict();
 
 /**
  * Denying echoes the digest too.
@@ -240,9 +242,11 @@ export const ApproveInteractionSchema = z.object({
  * still has to be a refusal of *this* request. Without the echo, a stale tab
  * showing a superseded request could deny the one that replaced it.
  */
-export const DenyInteractionSchema = z.object({
-  requestDigest: z.string().min(16).max(256),
-});
+export const DenyInteractionSchema = z
+  .object({
+    requestDigest: z.string().min(16).max(256),
+  })
+  .strict();
 
 export type InteractionKind = z.infer<typeof InteractionKindSchema>;
 export type InteractionStatus = z.infer<typeof InteractionStatusSchema>;
