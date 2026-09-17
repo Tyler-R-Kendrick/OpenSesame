@@ -1,19 +1,16 @@
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { SupportSlot } from "../tutorial/ui/SupportLauncher.js";
+import { SupportAskSlot, SupportSlot } from "../tutorial/ui/SupportLauncher.js";
 import { ConnectivityBar } from "./ConnectivityBar.js";
 import { NotificationsBar } from "./NotificationsBar.js";
 import "./statusline.css";
 
 /**
- * One strip for support, plane truth, and notifications — where there is room
- * for it.
+ * One strip for asking, support, plane truth, and notifications.
  *
- * A phone does not draw this at all: a second full-width bar is a row of the
- * frame spent on things looked at rarely, so below 900px all of it lives
- * behind the top bar's overflow key (`MoreMenu`). The strip stays
- * in the document rather than being unmounted, because it holds the seat the
- * support mark portals into — without a seat the mark falls back to a fixed
- * corner overlay, which is the clutter this removed.
+ * The ask field lives here — outer chrome, not the support sheet — so it is
+ * on every unlocked screen. Below 900px the plane glyphs and bell stay behind
+ * the top bar's overflow key; the strip itself still draws, because that is
+ * where a question is typed.
  */
 export function Statusline() {
   const connectivityRef = useGuideTarget<HTMLDivElement>("shell.connectivity");
@@ -23,6 +20,7 @@ export function Statusline() {
   return (
     <footer className="statusline">
       <SupportSlot />
+      <SupportAskSlot />
       <div className="statusline__planes" ref={connectivityRef}>
         <ConnectivityBar />
       </div>

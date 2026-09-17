@@ -14,11 +14,22 @@
 }
 
 .statusline__support,
+.statusline__ask,
 .statusline__planes,
 .statusline__tools,
 .statusline__tools > div {
   display: flex;
   align-items: center;
+}
+
+.statusline__ask {
+  flex: 1;
+  min-width: 0;
+}
+
+.statusline__ask .support__composer {
+  flex: 1;
+  min-width: 0;
 }
 
 .statusline__tools,
@@ -114,6 +125,11 @@
    rule that reads the pointer, because target size is what a pointer decides. */
 @media (max-width: 900px) {
   .statusline {
+    padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .statusline__planes,
+  .statusline__tools {
     display: none;
   }
 }

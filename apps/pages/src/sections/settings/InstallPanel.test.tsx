@@ -32,13 +32,11 @@ afterEach(() => {
 });
 
 describe("Settings → General → Install", () => {
-  it("is where the offer lives once the ceremony is done with", () => {
+  it("leaves Chromium's one-gesture dialog to the wordmark", () => {
     withState("prompt");
-    render(<InstallPanel />);
-    expect(screen.getByRole("heading", { name: "Install" })).toBeDefined();
-    expect(
-      screen.getByRole("button", { name: "Install OpenSesame" }),
-    ).toBeDefined();
+    const { container } = render(<InstallPanel />);
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Install" })).toBeNull();
   });
 
   it("still reports an install that has already happened", () => {
