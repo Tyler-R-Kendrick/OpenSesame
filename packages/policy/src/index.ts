@@ -31,3 +31,5 @@ export {
   evaluateAgentAuthScopes,
   type AgentAuthScope,
 } from "./agent-auth-scopes.js";
+
+export * from "./authority-tuples.js";
