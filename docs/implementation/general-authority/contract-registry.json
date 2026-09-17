@@ -246,8 +246,8 @@
       "owner": "GA-I",
       "title": "Audit events for authority mutation",
       "invariants": ["INV-GA-09"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "authority-routes.test.ts audit events"
     },
     {
       "id": "GA-P-01",
@@ -345,8 +345,8 @@
       "owner": "GA-Q",
       "title": "Cross-plane authority test plan",
       "invariants": ["INV-GA-01", "INV-GA-03", "INV-GA-07"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "docs/implementation/general-authority/cross-plane-test-plan.md"
     },
     {
       "id": "GA-Q-03",
