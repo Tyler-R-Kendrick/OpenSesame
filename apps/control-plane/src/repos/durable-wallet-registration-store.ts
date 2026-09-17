@@ -26,9 +26,6 @@ export class DurableWalletRegistrationStore implements WalletRegistrationStore {
   }
 
   async create(input: WalletRegistrationInput): Promise<WalletRegistration> {
-    if (await this.rows.get(input.registrationId)) {
-      throw new WalletRegistrationConflictError(input.registrationId);
-    }
     const row: WalletRegistration = {
       registrationId: input.registrationId,
       state: "active",
@@ -36,7 +33,10 @@ export class DurableWalletRegistrationStore implements WalletRegistrationStore {
       passId: input.passId,
       createdAt: this.clock(),
     };
-    await this.rows.set(row.registrationId, row);
+    const claimed = await this.rows.claim(row.registrationId, row);
+    if (!claimed) {
+      throw new WalletRegistrationConflictError(input.registrationId);
+    }
     return { ...row };
   }
 

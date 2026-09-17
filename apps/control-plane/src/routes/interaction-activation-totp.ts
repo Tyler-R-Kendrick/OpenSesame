@@ -3,14 +3,22 @@
  */
 
 import { appendAuditEvent } from "@opensesame/audit";
-import type { ApprovalActivation, Interaction } from "@opensesame/os-domain";
+import {
+  type ApprovalActivation,
+  type Interaction,
+  isString,
+} from "@opensesame/os-domain";
 import { interactionRequiresPhishingResistance } from "@opensesame/policy";
 import type { Context, Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { incrementSecurityCounter } from "../repos/durable-map.js";
 import { totpCode } from "./mfa.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+
+const MAX_INTERACTION_TOTP_FAILURES = 5;
+const TOTP_CODE = /^\d{6}$/;
 
 type TotpActivationDeps = {
   loadByRef: (
@@ -84,10 +92,14 @@ async function completeTotp(
     return deps.fail(c, "invalid_request");
   }
   const body = (await c.req.json().catch(() => ({}))) as {
-    activationId?: string;
-    code?: string;
+    activationId?: unknown;
+    code?: unknown;
   };
-  if (!body.activationId || !body.code) {
+  if (
+    !isString(body.activationId) ||
+    !isString(body.code) ||
+    !TOTP_CODE.test(body.code)
+  ) {
     return deps.fail(c, "invalid_request");
   }
   const activation = await pendingTotpActivation(c, {
@@ -100,6 +112,12 @@ async function completeTotp(
   if (isHttpResponse(activation)) return activation;
   const secret = await ctx.stores.totpSecrets.get(principalId);
   if (!secret) return c.json({ error: "not_enrolled" }, 404);
+  const fenceKey = `interaction-totp:${principalId}:${activation.id}`;
+  const prior =
+    (await incrementSecurityCounter(ctx.stores.mfaFailures, fenceKey)) - 1;
+  if (prior >= MAX_INTERACTION_TOTP_FAILURES) {
+    return c.json({ error: "too_many_attempts" }, 429);
+  }
   if (!totpCodesEqual(body.code, totpCode(secret))) {
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "authority.activation.denied",
@@ -115,6 +133,7 @@ async function completeTotp(
     });
     return c.json({ error: "activation_verification_failed" }, 401);
   }
+  await ctx.stores.mfaFailures.delete(fenceKey);
   const updated: ApprovalActivation =
     await ctx.repos.approvalActivations.updateWithVersion(
       activation.id,

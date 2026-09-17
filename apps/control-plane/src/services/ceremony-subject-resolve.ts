@@ -7,13 +7,18 @@ import type { InteractionKind } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import { requesterRef } from "../routes/interaction-handles.js";
 
+function stillLive(expiresAt: Date, now: Date): boolean {
+  return expiresAt.getTime() > now.getTime();
+}
+
 async function resolveAuthorizationRequest(
   ctx: AppContext,
   subjectId: string,
   callerId: string,
 ): Promise<boolean> {
   const request = await ctx.repos.authorizationRequests.getById(subjectId);
-  if (!request) return false;
+  if (!request || request.status !== "pending") return false;
+  if (!stillLive(request.expiresAt, ctx.clock())) return false;
   const callerHandle = requesterRef(callerId, ctx.config.claimPepper);
   return (
     request.requesterRef === callerHandle || request.principalId === callerId
@@ -26,8 +31,16 @@ async function resolveClaim(
   callerId: string,
 ): Promise<boolean> {
   const session = await ctx.repos.claimSessions.getById(subjectId);
-  if (!session) return false;
-  return session.creatorPrincipalId === callerId;
+  if (!session || session.creatorPrincipalId !== callerId) return false;
+  if (
+    session.state === "completed" ||
+    session.state === "denied" ||
+    session.state === "revoked" ||
+    session.state === "expired"
+  ) {
+    return false;
+  }
+  return stillLive(session.expiresAt, ctx.clock());
 }
 
 function resolveDevice(
@@ -36,7 +49,9 @@ function resolveDevice(
   callerId: string,
 ): boolean {
   const existing = ctx.stores.ceremonySubjects.getDevice(subjectId);
-  return existing?.ownerPrincipalId === callerId;
+  if (!existing || existing.ownerPrincipalId !== callerId) return false;
+  if (existing.session.state === "consumed") return false;
+  return stillLive(existing.session.expiresAt, ctx.clock());
 }
 
 function resolvePairing(
@@ -45,7 +60,9 @@ function resolvePairing(
   callerId: string,
 ): boolean {
   const existing = ctx.stores.ceremonySubjects.getPairing(subjectId);
-  return existing?.ownerPrincipalId === callerId;
+  if (!existing || existing.ownerPrincipalId !== callerId) return false;
+  if (existing.state !== "pending") return false;
+  return stillLive(existing.expiresAt, ctx.clock());
 }
 
 function resolveTransaction(
@@ -54,7 +71,9 @@ function resolveTransaction(
   callerId: string,
 ): boolean {
   const existing = ctx.stores.ceremonySubjects.getTransaction(subjectId);
-  return existing?.ownerPrincipalId === callerId;
+  if (!existing || existing.ownerPrincipalId !== callerId) return false;
+  if (existing.state !== "pending") return false;
+  return stillLive(existing.expiresAt, ctx.clock());
 }
 
 const RESOLVERS: Record<

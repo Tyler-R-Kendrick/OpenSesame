@@ -19,11 +19,13 @@ export class DurableOpenid4vpSessionStore implements RequestSessionStore {
   }
 
   async create(request: AuthorizationRequest): Promise<void> {
-    const existing = await this.rows.get(request.state);
-    if (existing) {
+    const claimed = await this.rows.claim(request.state, {
+      request,
+      consumedAt: null,
+    });
+    if (!claimed) {
       throw new Openid4vpError("presentation_replayed", "session_lookup");
     }
-    await this.rows.set(request.state, { request, consumedAt: null });
   }
 
   async lookup(state: string): Promise<RequestSessionRecord | null> {
