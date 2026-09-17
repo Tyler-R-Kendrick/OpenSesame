@@ -21,8 +21,7 @@ test("parses schema without leaking sensitive static values", () => {
 API_URL=http://localhost:3000
 
 # @required @sensitive
-# @type=string(startsWith="sk_")
-STRIPE_SECRET_KEY=opensesameConnection(conn://demo/stripe, projection=legacy-token)
+WORKOS_API_KEY=opensesameConnection(conn://demo/workos, projection=legacy-token)
 
 # @required @sensitive
 # DO NOT COMMIT REAL TOKENS
@@ -35,10 +34,10 @@ LEAKY=sk_live_should_not_appear_when_sensitive
     const api = j.items.find((i) => i.key === "API_URL");
     assert.equal(api.value, "http://localhost:3000");
     assert.equal(api.public, true);
-    const stripe = j.items.find((i) => i.key === "STRIPE_SECRET_KEY");
-    assert.equal(stripe.sensitive, true);
-    assert.equal(stripe.value, null);
-    assert.equal(stripe.resolver.fn, "opensesameConnection");
+    const workos = j.items.find((i) => i.key === "WORKOS_API_KEY");
+    assert.equal(workos.sensitive, true);
+    assert.equal(workos.value, null);
+    assert.equal(workos.resolver.fn, "opensesameConnection");
     const leaky = j.items.find((i) => i.key === "LEAKY");
     assert.equal(leaky.sensitive, true);
     assert.equal(leaky.value, null);

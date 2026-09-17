@@ -1137,14 +1137,14 @@ mod tests {
         use opensesame_domain::{CredentialDeliveryMode, LegacyProjection, PlaceholderPlacement};
         let egress = EgressBinding {
             scheme: "https".into(),
-            authorities: vec!["api.stripe.com".into()],
+            authorities: vec!["api.github.com".into()],
             path_prefixes: vec![],
             allow_redirects_cross_authority: false,
         };
         let proj = LegacyProjection {
-            env_var: "STRIPE_SECRET_KEY".into(),
-            connection_ref_uri: "conn://demo/stripe".into(),
-            placeholder_pattern: "sk_test_*".into(),
+            env_var: "GITHUB_TOKEN".into(),
+            connection_ref_uri: "conn://demo/github".into(),
+            placeholder_pattern: "ostest_*".into(),
             issued_placeholder: None,
             placement: PlaceholderPlacement::default(),
             delivery: CredentialDeliveryMode::Placeholder,
@@ -1157,7 +1157,7 @@ mod tests {
             &proj,
             &SubstitutePlaceholderRequest {
                 method: "POST",
-                url: "https://api.stripe.com/v1/charges",
+                url: "https://api.github.com/user",
                 header_name: Some("Authorization"),
                 header_value: Some(&format!("Bearer {ph}")),
                 body_field_path: None,
@@ -1179,7 +1179,7 @@ mod tests {
             &proj,
             &SubstitutePlaceholderRequest {
                 method: "POST",
-                url: "https://api.stripe.com/v1/charges",
+                url: "https://api.github.com/user",
                 header_name: None,
                 header_value: None,
                 body_field_path: Some("message"),
@@ -1197,7 +1197,7 @@ mod tests {
             &proj,
             &SubstitutePlaceholderRequest {
                 method: "POST",
-                url: "https://api.stripe.com/v1/charges",
+                url: "https://api.github.com/user",
                 header_name: Some("Authorization"),
                 header_value: Some("Bearer oslive_someone_elses"),
                 body_field_path: None,
@@ -1219,7 +1219,7 @@ mod tests {
             &proj,
             &SubstitutePlaceholderRequest {
                 method: "POST",
-                url: "https://api.stripe.com/v1/charges",
+                url: "https://api.github.com/user",
                 header_name: Some("Authorization"),
                 header_value: Some(&format!("Bearer {ph} {ph}")),
                 body_field_path: None,
@@ -1246,7 +1246,7 @@ mod tests {
             &bound,
             &SubstitutePlaceholderRequest {
                 method: "POST",
-                url: "https://api.stripe.com/v1/charges",
+                url: "https://api.github.com/user",
                 header_name: Some("Authorization"),
                 header_value: Some(&format!("Bearer {neighbour}")),
                 body_field_path: None,

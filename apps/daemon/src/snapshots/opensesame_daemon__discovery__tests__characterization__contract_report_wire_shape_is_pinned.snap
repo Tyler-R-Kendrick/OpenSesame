@@ -37,10 +37,10 @@ expression: report
       "registry_hint": null
     },
     {
-      "provider_id": "stripe",
+      "provider_id": "railway",
       "source": {
         "kind": "env_var",
-        "name": "STRIPE_SECRET_KEY"
+        "name": "RAILWAY_TOKEN"
       },
       "capabilities": [
         "importable"

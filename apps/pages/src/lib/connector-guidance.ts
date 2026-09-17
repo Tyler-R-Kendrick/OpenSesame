@@ -1,12 +1,23 @@
 import { isString } from "@opensesame/os-domain";
-import type { ConfigurationField, Provider } from "./connections.js";
+import type {
+  ConfigurationField,
+  Provider,
+  ProviderCategory,
+} from "./connections.js";
 
 type FieldGuidance = { help: string; placeholder: string };
 
 const CATEGORY_SUMMARY = {
+  identity: "Use this identity device or service from the Host.",
+  backup_recovery:
+    "Use this repository or database as a backup and recovery target.",
   encryption: "Encrypt secrets before they are stored or committed.",
-  cloud_secret_storage: "Read secrets from a centralized cloud service.",
   password_managers: "Use secrets already managed by this password service.",
+  agent_harnesses:
+    "Give approved agents a runtime without exposing the credential.",
+  networking: "Configure this network so the Host can reach machines on it.",
+  wallet: "Configure this wallet so passes can be bound to an authority.",
+  cloud_secret_storage: "Read secrets from a centralized cloud service.",
   local_storage: "Use credentials available on the Host machine.",
   developer:
     "Give approved projects and agents access without exposing the credential.",
@@ -14,13 +25,11 @@ const CATEGORY_SUMMARY = {
   communication: "Authorize selected actions in your communication account.",
   storage: "Authorize selected files and storage actions.",
   crm: "Authorize selected customer-data actions.",
-  payments: "Authorize selected payment-platform actions.",
-  identity: "Use this identity device or service from the Host.",
   testing: "Exercise the connection flow without a production provider.",
   certificates:
     "Issue and renew certificates from this authority without exposing account keys.",
   custom: "Authorize selected actions in a service this organization defined.",
-};
+} satisfies Record<ProviderCategory, string>;
 
 const FIELD_GUIDANCE = new Map<string, FieldGuidance>(
   Object.entries({

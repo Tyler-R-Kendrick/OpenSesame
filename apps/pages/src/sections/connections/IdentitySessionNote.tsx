@@ -22,7 +22,7 @@ export function IdentitySessionNote() {
             id: "identity-session",
             tone: "err",
             title: "OpenSesame Identity is unreachable",
-            body: `Host connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device. ${error}`,
+            body: `Connectors cannot authorize yet. Vault logins, passkeys, and import still work on this device. ${error}`,
             retry: connect,
             retryLabel: "Try Identity again",
           }
@@ -30,7 +30,7 @@ export function IdentitySessionNote() {
             id: "identity-session",
             tone: "info",
             title: "Starting your OpenSesame session",
-            body: "Host connectors can authorize once the session is up. Vault items on this identity stay available either way.",
+            body: "Connectors can authorize once the session is up. Vault items on this identity stay available either way.",
           }
       : null,
   );

@@ -18,6 +18,7 @@ import {
   needsScopeSelection,
 } from "../../lib/connector-guidance.js";
 import { ensureHostSession } from "../../lib/identity.js";
+import { usesConnect } from "../../lib/vercel-connect.js";
 import { OauthClientPanel } from "./OauthClientPanel.js";
 import { ConnectorSetupGuide } from "./guides.js";
 import { type Flash, errorText } from "./shared.js";
@@ -63,7 +64,6 @@ export function ConnectForm({
         : [...current, scope],
     );
   }
-
   async function connectOauth(event: FormEvent) {
     event.preventDefault();
     // Opened synchronously or the browser treats it as an unsolicited popup;
@@ -72,7 +72,7 @@ export function ConnectForm({
     setBusy(true);
     let created = false;
     try {
-      await ensureHostSession();
+      if (!usesConnect(provider.id)) await ensureHostSession();
       const connection = await createConnection({
         providerId: provider.id,
         displayName: name.trim() || provider.displayName,

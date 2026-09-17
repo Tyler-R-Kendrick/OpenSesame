@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconInfo } from "../../components/Icons.js";
@@ -9,17 +9,19 @@ import {
 } from "../../components/SlashSearch.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
+import { isManagedConnector } from "../../lib/managed-connectors.js";
 import {
-  VERB_CHIP,
-  VERB_LABEL,
-  providerVerb,
-} from "../../lib/identity-graph.js";
+  catalogTileNote,
+  isVercelCatalogId,
+  isVercelConnectable,
+} from "../../lib/vercel-connect-catalog.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { catalogPageSections } from "./page-tree.js";
 import { connectorPath } from "./shared.js";
 
 export function authKindLabel(provider: Provider): string {
+  if (isManagedConnector(provider.id)) return "Managed";
   if (provider.id === "openrouter") return "Delegated sign-in";
   if (provider.authKind === "api_key") return "API key";
   if (provider.authKind === "configuration") return "Configuration";
@@ -150,14 +152,19 @@ function ProviderTile({
   provider: Provider;
   connection: Connection | null;
 }) {
-  const verb = providerVerb(provider, connection);
+  const note = catalogTileNote(provider, connection);
   const { hash } = useLocation();
   return (
     <li
       className={`conn-tile${hash === `#catalog-${encodeURIComponent(provider.id)}` ? " is-selected" : ""}`}
       id={`catalog-${encodeURIComponent(provider.id)}`}
     >
-      <Link className="conn-tile__link" to={connectorPath(provider.id)}>
+      <TileBody
+        provider={provider}
+        blocked={
+          isVercelCatalogId(provider.id) && !isVercelConnectable(provider.id)
+        }
+      >
         <ConnectorMark
           providerId={provider.id}
           displayName={provider.displayName}
@@ -167,12 +174,33 @@ function ProviderTile({
           <span className="conn-tile__name">{provider.displayName}</span>
           <span className="conn-tile__kind">{authKindLabel(provider)}</span>
         </span>
-        {verb !== "idle" ? (
-          <span className={`chip chip--sm-tile ${VERB_CHIP[verb]}`}>
-            {VERB_LABEL[verb]}
+        {note ? (
+          <span className={`chip chip--sm-tile ${note.tone}`}>
+            {note.label}
           </span>
         ) : null}
-      </Link>
+      </TileBody>
     </li>
+  );
+}
+
+function TileBody({
+  provider,
+  blocked,
+  children,
+}: {
+  provider: Provider;
+  blocked: boolean;
+  children: ReactNode;
+}) {
+  if (blocked) return <span className="conn-tile__link">{children}</span>;
+  return (
+    <Link
+      className="conn-tile__link"
+      tabIndex={-1}
+      to={connectorPath(provider.id)}
+    >
+      {children}
+    </Link>
   );
 }

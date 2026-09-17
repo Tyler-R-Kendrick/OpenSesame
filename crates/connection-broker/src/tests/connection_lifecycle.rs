@@ -355,7 +355,7 @@ async fn an_api_key_connection_activates_without_a_consent_screen() {
     let (_db, broker) = broker().await;
     let org = OrganizationId::new();
     let view = broker
-        .create_connection(&org, create("stripe"))
+        .create_connection(&org, create("workos"))
         .await
         .unwrap();
     let err = broker
@@ -509,7 +509,7 @@ async fn revoking_keeps_the_row_and_drops_the_credential() {
     let (db, broker) = broker().await;
     let org = OrganizationId::new();
     let view = broker
-        .create_connection(&org, create("stripe"))
+        .create_connection(&org, create("workos"))
         .await
         .unwrap();
     broker
@@ -653,7 +653,7 @@ async fn every_mutation_leaves_an_event() {
     let (_db, broker) = broker().await;
     let org = OrganizationId::new();
     let view = broker
-        .create_connection(&org, create("stripe"))
+        .create_connection(&org, create("workos"))
         .await
         .unwrap();
     broker
@@ -698,7 +698,7 @@ async fn a_stored_credential_is_unreadable_in_the_database() {
     let (db, broker) = broker().await;
     let org = OrganizationId::new();
     let view = broker
-        .create_connection(&org, create("stripe"))
+        .create_connection(&org, create("workos"))
         .await
         .unwrap();
     broker
@@ -737,14 +737,14 @@ async fn a_stored_credential_is_unreadable_in_the_database() {
 async fn listing_can_be_narrowed_to_one_owner() {
     let (_db, broker) = broker().await;
     let org = OrganizationId::new();
-    let mut mine = create("stripe");
+    let mut mine = create("workos");
     mine.owner_subject = Some("user:alice".into());
     let mine = broker.create_connection(&org, mine).await.unwrap();
-    let mut theirs = create("stripe");
+    let mut theirs = create("workos");
     theirs.owner_subject = Some("user:bob".into());
     let theirs = broker.create_connection(&org, theirs).await.unwrap();
     let unowned = broker
-        .create_connection(&org, create("stripe"))
+        .create_connection(&org, create("workos"))
         .await
         .unwrap();
 
@@ -782,7 +782,7 @@ async fn materialization_defaults_to_deny_and_fails_closed() {
     let (_db, broker) = broker().await;
     let organization = OrganizationId::new();
     let connection = broker
-        .create_connection(&organization, create("stripe"))
+        .create_connection(&organization, create("workos"))
         .await
         .unwrap();
     assert_eq!(connection.materialization, MaterializationPolicy::Deny);
@@ -809,7 +809,7 @@ async fn materialization_defaults_to_deny_and_fails_closed() {
 async fn providers_without_a_mint_path_fail_closed() {
     let (_db, broker) = broker().await;
     let organization = OrganizationId::new();
-    for provider_id in ["stripe", "aws", "aws-kms", "aws-ps", "aws-bedrock"] {
+    for provider_id in ["vercel", "aws", "aws-kms", "aws-ps", "aws-bedrock"] {
         let connection = broker
             .create_connection(&organization, create(provider_id))
             .await

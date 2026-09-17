@@ -21,10 +21,15 @@ export type LoadFailure = {
 };
 
 export const CATEGORY_LABELS = {
-  custom: "Custom connectors",
+  identity: "Identity",
+  backup_recovery: "Backup/recovery",
   encryption: "Encryption (secrets in git)",
-  cloud_secret_storage: "Cloud secret storage",
   password_managers: "Password managers",
+  agent_harnesses: "Agent harnesses",
+  networking: "Networking",
+  wallet: "Wallet",
+  custom: "Custom connectors",
+  cloud_secret_storage: "Cloud secret storage",
   local_storage: "Local storage",
   certificates: "Certificates",
   developer: "Developer tools",
@@ -32,16 +37,19 @@ export const CATEGORY_LABELS = {
   communication: "Communication",
   storage: "Storage",
   crm: "CRM",
-  payments: "Payments",
-  identity: "Identity",
   testing: "Testing",
 } satisfies Record<ProviderCategory, string>;
 
 export const CATEGORY_ORDER: ProviderCategory[] = [
-  "custom",
+  "identity",
+  "backup_recovery",
   "encryption",
-  "cloud_secret_storage",
   "password_managers",
+  "agent_harnesses",
+  "networking",
+  "wallet",
+  "custom",
+  "cloud_secret_storage",
   "local_storage",
   "certificates",
   "developer",
@@ -49,8 +57,6 @@ export const CATEGORY_ORDER: ProviderCategory[] = [
   "communication",
   "storage",
   "crm",
-  "payments",
-  "identity",
   "testing",
 ];
 

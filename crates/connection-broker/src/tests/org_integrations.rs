@@ -178,7 +178,7 @@ async fn disabled_api_key_integration_blocks_credentials_and_delete_is_guarded()
             &org,
             CreateIntegration {
                 key: "billing".into(),
-                provider_id: "stripe".into(),
+                provider_id: "workos".into(),
                 display_name: "Billing".into(),
                 scopes: Vec::new(),
                 client_id: None,
@@ -194,7 +194,7 @@ async fn disabled_api_key_integration_blocks_credentials_and_delete_is_guarded()
             &org,
             CreateConnection {
                 integration_id: Some(integration.id.clone()),
-                ..create("stripe")
+                ..create("workos")
             },
         )
         .await
@@ -445,7 +445,7 @@ async fn concurrent_connection_create_and_integration_delete_never_orphan() {
             &org,
             CreateIntegration {
                 key: "race".into(),
-                provider_id: "stripe".into(),
+                provider_id: "workos".into(),
                 display_name: "Race".into(),
                 scopes: Vec::new(),
                 client_id: None,
@@ -458,7 +458,7 @@ async fn concurrent_connection_create_and_integration_delete_never_orphan() {
         .unwrap();
     let request = CreateConnection {
         integration_id: Some(integration.id.clone()),
-        ..create("stripe")
+        ..create("workos")
     };
     let (created, deleted) = tokio::join!(
         broker.create_connection(&org, request),

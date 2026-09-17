@@ -27,7 +27,6 @@ import {
   identitySeams,
 } from "./identity.js";
 import { loadSettings, saveSettings, shippedHostApi } from "./settings.js";
-
 const HOST = shippedHostApi;
 const IDENTITY = "https://identity.example.test";
 const originalHostFetch = identitySeams.hostFetch;
@@ -376,12 +375,13 @@ describe("transport", () => {
     const error = await listConnections().catch((caught) => caught);
 
     expect(overlapCast(error).code).toBe("unreachable");
-    expect(overlapCast(error).message).toContain(HOST);
+    expect(overlapCast(error).message).toContain(
+      "Couldn't reach the connected service.",
+    );
   });
 });
 
 describe("awaiting consent", () => {
-  /** `awaitConsent` listens on window; the node test environment has none. */
   function stubWindow() {
     vi.stubGlobal("window", {
       addEventListener: vi.fn(),

@@ -25,7 +25,6 @@ const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
     error: null,
   }),
 );
-
 const ensureHostSession = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
@@ -91,6 +90,7 @@ import {
   type Provider,
   connectionSeams,
 } from "../lib/connections.js";
+import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
 import { ConnectionsSection } from "./ConnectionsSection.js";
 const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, {
@@ -265,8 +265,9 @@ const catalog = vi.hoisted(() => {
     betterAuthProvider,
   ];
 });
-
 const bundledRef: { current: Provider[] } = vi.hoisted(() => ({ current: [] }));
+vercelCatalogSeams.providers = () =>
+  bundledRef.current.length > 0 ? bundledRef.current : catalog;
 
 import { embeddedCatalogSeams } from "../lib/embedded-catalog.js";
 const originalEmbeddedCatalogSeams = {
@@ -399,18 +400,18 @@ describe("ConnectionsSection gallery", () => {
     );
     expect(container.querySelectorAll(".conn-tile").length).toBe(5);
   });
-  it("reports the unreachable Host as a notification, not a banner", async () => {
+  it("does not report an unreachable Host as a notification", async () => {
     listConnections.mockRejectedValue(
       new ConnectionsError(0, "unreachable", "fetch failed"),
     );
     renderAt("/connections");
     await waitFor(() => {
-      const notice = listNotices().find((n) => n.id === "connections-load");
-      expect(notice?.title).toBe("Host API unavailable");
-      expect(notice?.tone).toBe("err");
-      expect(notice?.ceremony).toBe("host");
+      expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
     });
-    // The page itself stays clean of the load-error banner.
+    expect(
+      listNotices().find((n) => n.id === "connections-load"),
+    ).toBeUndefined();
+    expect(screen.queryByText(/Host API/i)).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
@@ -422,29 +423,25 @@ describe("ConnectionsSection gallery", () => {
     expect(await screen.findByText("Choose an organization")).toBeTruthy();
   });
 
-  it("warns through a notification when the catalog falls back to the bundled copy", async () => {
+  it("keeps the bundled catalog when the remote list is unreachable", async () => {
     listProviders.mockRejectedValue(
       new ConnectionsError(0, "unreachable", "fetch failed"),
     );
     renderAt("/connections");
     await waitFor(() => {
-      const notice = listNotices().find((n) => n.id === "catalog-stale");
-      expect(notice?.title).toBe("Host catalog did not refresh");
-      expect(notice?.retryLabel).toBe("Try again");
+      expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
     });
-    // Bundled providers still render.
-    expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
-    // The notice's retry re-runs the catalog load.
-    listNotices()
-      .find((n) => n.id === "catalog-stale")
-      ?.retry?.();
-    await waitFor(() => expect(listProviders).toHaveBeenCalledTimes(2));
+    expect(listNotices().find((n) => n.id === "catalog-stale")).toBeUndefined();
+    expect(screen.queryByText(/Host API/i)).toBeNull();
+    expect(screen.queryByText(/Host catalog/i)).toBeNull();
   });
 
   it("warns when the Host is missing its sealing key", async () => {
-    listProviders.mockResolvedValue([
+    const keyed = [
       { ...catalog[1], missingConfig: ["OPENSESAME_CONNECTION_KEY"] },
-    ]);
+    ];
+    bundledRef.current = keyed;
+    embeddedCatalogSeams.bundledProviders = keyed;
     renderAt("/connections");
     expect(
       await screen.findByText(/credentials cannot be sealed yet/),
@@ -1053,14 +1050,15 @@ describe("ConnectionsSection deeper branches", () => {
     expect(await screen.findByText("2 authorizations")).toBeTruthy();
     expect(screen.getByText("Linear work")).toBeTruthy();
     expect(screen.getByText("Linear personal")).toBeTruthy();
-    // Adding another authorization is offered for configured providers.
     expect(screen.getByText("Add another authorization")).toBeTruthy();
   });
 
   it("offers OAuth client setup for an unconfigured non-GitHub provider", async () => {
-    listProviders.mockResolvedValue([
+    const unconfigured = [
       { ...catalog[1], configured: false, missingConfig: ["LINEAR_CLIENT_ID"] },
-    ]);
+    ];
+    bundledRef.current = unconfigured;
+    embeddedCatalogSeams.bundledProviders = unconfigured;
     renderAt("/connections/linear");
     expect(
       await screen.findByText(/has no Linear OAuth client yet/),
@@ -1077,9 +1075,11 @@ describe("ConnectionsSection deeper branches", () => {
   });
 
   it("seals an OAuth client and unlocks Authorize", async () => {
-    listProviders.mockResolvedValue([
+    const unconfigured = [
       { ...catalog[1], configured: false, missingConfig: ["LINEAR_CLIENT_ID"] },
-    ]);
+    ];
+    bundledRef.current = unconfigured;
+    embeddedCatalogSeams.bundledProviders = unconfigured;
     createIntegration.mockResolvedValue({
       id: "int_1",
       key: "linear-oauth",

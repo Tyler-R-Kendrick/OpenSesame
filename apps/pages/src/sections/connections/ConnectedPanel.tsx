@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconSettings } from "../../components/Icons.js";
-import { NoHostNote } from "../../components/NoHostNote.js";
 import type { Connection, Provider } from "../../lib/connections.js";
 import { createConnection, revokeConnection } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
@@ -16,8 +15,16 @@ import {
   statusSentence,
 } from "./shared.js";
 
-/** Everything currently enabled on this Host: managed authorizations plus
- *  the local storage providers that only need a switch. */
+function nothingConnected() {
+  return (
+    <div className="empty">
+      <h3>Nothing connected</h3>
+      <EmptyTip>{emptyTips.rail}</EmptyTip>
+    </div>
+  );
+}
+
+/** Managed authorizations plus local storage providers that only need a switch. */
 export function ConnectedPanel({
   connections,
   providers,
@@ -40,11 +47,6 @@ export function ConnectedPanel({
     connection: Connection;
   }) => void;
   setupRequired: boolean;
-  /**
-   * Whether a Host is configured at all. Without one nothing is ever asked,
-   * so "could not be read" was a report of a failure that never happened
-   * (ADR 0090) — the panel says what a Host would hold instead.
-   */
   hostConfigured: boolean;
 }) {
   const panelRef = useGuideTarget<HTMLElement>("connections.connected");
@@ -61,8 +63,12 @@ export function ConnectedPanel({
         <h2>Connected</h2>
       </div>
       <div className="panel__body panel__body--tight">
-        {!hostConfigured ? (
-          <NoHostNote what="A connection is a credential a Host holds for you, so an agent can be sent through it without ever seeing it." />
+        {!hostConfigured ||
+        (!setupRequired &&
+          connections !== null &&
+          automatic.length === 0 &&
+          managed.length === 0) ? (
+          nothingConnected()
         ) : setupRequired ? (
           <div className="empty conn-gate">
             <h3>Choose an organization</h3>

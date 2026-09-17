@@ -34,8 +34,8 @@ async fn revoke_invalidates_late_callback_and_cas_key_writes() {
         .create_connection(
             &org,
             CreateConnection {
-                integration_id: Some("deployment:stripe".into()),
-                ..create("stripe")
+                integration_id: Some("deployment:workos".into()),
+                ..create("workos")
             },
         )
         .await
@@ -332,7 +332,7 @@ async fn a_refresh_that_lost_a_race_does_not_report_reauth() {
     let (db, broker) = broker().await;
     let org = OrganizationId::new();
     let view = broker
-        .create_connection(&org, create("stripe"))
+        .create_connection(&org, create("workos"))
         .await
         .unwrap();
     broker

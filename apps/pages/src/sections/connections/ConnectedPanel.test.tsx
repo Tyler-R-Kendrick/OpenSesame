@@ -39,15 +39,12 @@ function renderPanel(over: PanelOverrides) {
 describe("ConnectedPanel with no Host", () => {
   afterEach(cleanup);
 
-  it("says what a Host would hold rather than that a read failed", () => {
+  it("treats a missing Host as empty, not a failed read", () => {
     renderPanel({ hostConfigured: false });
-    expect(screen.getByText("No Host connected")).toBeTruthy();
+    expect(screen.getByText("Nothing connected")).toBeTruthy();
+    expect(screen.queryByText("No Host connected")).toBeNull();
     expect(screen.queryByText("Connections could not be read.")).toBeNull();
     expect(screen.queryByRole("alert")).toBeNull();
-    // The road out is named, not demanded.
-    expect(
-      screen.getByRole("link", { name: "Settings → Connectivity" }),
-    ).toBeTruthy();
   });
 
   it("still reports a real read failure where a Host was asked", () => {

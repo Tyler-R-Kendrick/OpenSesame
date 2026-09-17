@@ -1,6 +1,7 @@
 import type { Connection, Provider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
 import { unfinishedConnections } from "../../lib/identity-graph.js";
+import { isManagedConnector } from "../../lib/managed-connectors.js";
 import {
   type PageTreeLeaf,
   type PageTreeSource,
@@ -37,16 +38,38 @@ export function catalogPageSections(
   query = "",
 ): PageTreeSource[] {
   const normalized = query.trim().toLocaleLowerCase();
+  const managed: Provider[] = [];
   const grouped = new Map<Provider["category"], Provider[]>();
   for (const provider of providers) {
     if (canConfigureAutomatically(provider)) continue;
     if (!matchesCatalog(provider, normalized)) continue;
+    if (isManagedConnector(provider.id)) {
+      managed.push(provider);
+      continue;
+    }
     const items = grouped.get(provider.category) ?? [];
     items.push(provider);
     grouped.set(provider.category, items);
   }
-  return CATEGORY_ORDER.filter((category) => grouped.has(category)).map(
-    (category) => ({
+  const groups: PageTreeSource[] = [];
+  if (managed.length > 0) {
+    groups.push({
+      id: "managed",
+      label: "Managed",
+      href: "/connections#catalog-managed",
+      items: managed.map((provider) =>
+        leaf(
+          provider.id,
+          provider.displayName,
+          connectorPath(provider.id),
+          "catalog",
+        ),
+      ),
+    });
+  }
+  for (const category of CATEGORY_ORDER) {
+    if (!grouped.has(category)) continue;
+    groups.push({
       id: category,
       label: CATEGORY_LABELS[category],
       href: `/connections#catalog-${category}`,
@@ -58,8 +81,9 @@ export function catalogPageSections(
           "catalog",
         ),
       ),
-    }),
-  );
+    });
+  }
+  return groups;
 }
 
 export function connectedPageItems(

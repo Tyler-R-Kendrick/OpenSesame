@@ -18,7 +18,7 @@
   "totals": {
     "files": 545,
     "violations": 882,
-    "oversizedLines": 278692
+    "oversizedLines": 278666
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -626,7 +626,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/PlaneNote.test.tsx": {
-      "max-lines": 546
+      "max-lines": 541
     },
     "apps/pages/src/components/PlaneNote.tsx": {
       "complexity": 2,
@@ -637,7 +637,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/lib/access.test.ts": {
-      "max-lines": 509
+      "max-lines": 505
     },
     "apps/pages/src/lib/access.ts": {
       "max-lines": 518
@@ -658,7 +658,7 @@
       "max-lines": 765
     },
     "apps/pages/src/lib/connections.ts": {
-      "max-lines": 928
+      "max-lines": 924
     },
     "apps/pages/src/lib/connectivity-monitor.ts": {
       "max-lines": 478
@@ -679,7 +679,7 @@
       "max-lines": 501
     },
     "apps/pages/src/lib/embedded-catalog.ts": {
-      "max-lines": 615
+      "max-lines": 612
     },
     "apps/pages/src/lib/federation.test.ts": {
       "max-lines": 1418
@@ -1292,7 +1292,7 @@
       "max-lines": 422
     },
     "crates/connection-detect/src/lib.rs": {
-      "max-lines": 1302
+      "max-lines": 1300
     },
     "crates/connection-detect/src/offers.rs": {
       "max-lines": 501
@@ -1328,7 +1328,7 @@
       "max-lines": 413
     },
     "crates/env-spec/src/lib.rs": {
-      "max-lines": 464
+      "max-lines": 458
     },
     "crates/human-vault/src/lib.rs": {
       "max-lines": 792
@@ -1532,7 +1532,7 @@
       "complexity": 1
     },
     "packages/contracts/src/connections.ts": {
-      "max-lines": 438
+      "max-lines": 436
     },
     "packages/database/src/authentication-service-store.ts": {
       "max-lines": 864,

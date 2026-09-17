@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation, useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
 import {
   IconAlert,
   IconCheck,
-  IconInfo,
   IconRefresh,
   IconX,
 } from "../components/Icons.js";
@@ -15,13 +14,12 @@ import {
   type Provider,
   discoverConnections,
   listConnections,
-  listProviders,
 } from "../lib/connections.js";
 import {
-  getBundledProviders,
-  readEmbeddedProviders,
-  writeEmbeddedProviders,
-} from "../lib/embedded-catalog.js";
+  listCustomConnectors,
+  mergeCustomConnectors,
+} from "../lib/custom-connectors.js";
+import { getBundledProviders } from "../lib/embedded-catalog.js";
 import {
   HostSessionError,
   hostLocalSessionEligible,
@@ -31,7 +29,8 @@ import {
 import { shouldAutoConnect } from "../lib/settings.js";
 import { useHostConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
-import { useStatusNotice } from "../lib/use-status-notice.js";
+import { vercelCatalogSeams } from "../lib/vercel-connect-catalog.js";
+import { useVercelConnectConfigured } from "../lib/vercel-connect.js";
 import { noteGuideConnectionsPresent } from "../tutorial/registry/predicates.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
@@ -52,9 +51,11 @@ export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
   const { hash } = useLocation();
   const online = useOnline();
-  // Connections are the Host's to hold (ADR 0090). The connector catalog below
-  // is embedded in this build and stays browsable with no Host at all.
+  // Live connections go through Vercel Connect. The catalog below is
+  // embedded and stays browsable with no backend at all (ADR 0090).
   const hostConfigured = useHostConfigured();
+  const connectConfigured = useVercelConnectConfigured();
+  const liveConnections = hostConfigured || connectConfigured;
   const session = useIdentitySession();
   const { connecting, error: connectError, connect } = useConnect();
 
@@ -99,34 +100,23 @@ export function ConnectionsSection() {
 
   const loadCatalog = useCallback(async () => {
     const id = ++catalogRun.current;
-    // Never leave the catalog blocked on Turso/OPFS — paint the bundle first.
-    setProviders(getBundledProviders());
-    const embedded = await readEmbeddedProviders();
+    setProviders(
+      mergeCustomConnectors(
+        vercelCatalogSeams.providers(getBundledProviders()),
+      ),
+    );
     if (catalogRun.current !== id) return;
-    setProviders(embedded);
-    try {
-      const nextProviders = await listProviders();
-      if (catalogRun.current !== id) return;
-      if (nextProviders.length === 0) {
-        // An empty Host catalog must not wipe the built-in list on github.io.
-        setCatalogError(null);
-        return;
-      }
-      setProviders(nextProviders);
-      setCatalogError(null);
-      void writeEmbeddedProviders(nextProviders);
-    } catch (error) {
-      if (catalogRun.current !== id) return;
-      setCatalogError({
-        message: errorText(error),
-        unreachable:
-          error instanceof ConnectionsError && error.code === "unreachable",
-      });
-    }
+    setCatalogError(null);
   }, []);
 
   const loadConnections = useCallback(async () => {
     const id = ++connectionRun.current;
+    if (!liveConnections) {
+      setConnections([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       let configured = 0;
@@ -142,12 +132,12 @@ export function ConnectionsSection() {
       if (configured > 0) {
         setFlash({
           tone: "ok",
-          text: `${configured} connector${configured === 1 ? "" : "s"} already configured on this Host ${configured === 1 ? "was" : "were"} connected automatically.`,
+          text: `${configured} connector${configured === 1 ? "" : "s"} already configured ${configured === 1 ? "was" : "were"} connected automatically.`,
         });
       }
     } catch (error) {
       if (connectionRun.current !== id) return;
-      setConnections(null);
+      setConnections([]);
       setLoadError({
         message: errorText(error),
         unreachable:
@@ -158,70 +148,36 @@ export function ConnectionsSection() {
     } finally {
       if (connectionRun.current === id) setLoading(false);
     }
-  }, []);
+  }, [liveConnections]);
 
   // Re-run after Identity changes because Host authentication is session-backed.
   // biome-ignore lint/correctness/useExhaustiveDependencies: session is the retry trigger.
   useEffect(() => {
     void loadCatalog();
-  }, [loadCatalog, session]);
+  }, [loadCatalog, session, providerId]);
 
   useEffect(() => {
-    if (!session && !hostLocalSessionEligible()) return;
+    if (!connectConfigured && !session && !hostLocalSessionEligible()) return;
     void loadConnections();
-  }, [session, loadConnections]);
+  }, [session, loadConnections, connectConfigured]);
 
   useEffect(() => {
+    if (!hostConfigured) return;
     if (hostLocalSessionEligible()) return;
     if (session || !online || connecting || connectError) return;
     if (!shouldAutoConnect()) return;
     void connect();
-  }, [session, online, connecting, connectError, connect]);
-
-  // Standing load trouble goes to the notifications tray, not the page.
-  useStatusNotice(
-    loadError && !loadError.setupRequired
-      ? {
-          id: "connections-load",
-          tone: "err",
-          title: loadError.unreachable
-            ? "Host API unavailable"
-            : "Connections could not load",
-          body: `${loadError.message} ${
-            loadError.unreachable
-              ? "Start the configured Host service, or repair it here."
-              : "Try refreshing the connection list."
-          }`,
-          ...(loadError.unreachable
-            ? {
-                ceremony: "host" as const,
-                ceremonyLabel: "Repair the Host connection",
-              }
-            : null),
-          retry: loadConnections,
-          retryLabel: "Reload",
-        }
-      : null,
-  );
-  useStatusNotice(
-    catalogError && (providers?.length ?? 0) > 0
-      ? {
-          id: "catalog-stale",
-          tone: "warn",
-          title: "Host catalog did not refresh",
-          body: "Showing the bundled connectors instead.",
-          retry: loadCatalog,
-          retryLabel: "Try again",
-        }
-      : null,
-  );
+  }, [hostConfigured, session, online, connecting, connectError, connect]);
 
   if (providerId === "new") {
     return <CustomConnectorPage />;
   }
 
   if (providerId) {
-    const provider = providers?.find((item) => item.id === providerId) ?? null;
+    const provider =
+      providers?.find((item) => item.id === providerId) ??
+      listCustomConnectors().find((item) => item.id === providerId) ??
+      null;
     const providerConnections = (connections ?? []).filter(
       (item) => item.providerId === providerId && item.status !== "revoked",
     );
@@ -248,7 +204,7 @@ export function ConnectionsSection() {
         }
         configureHint={
           session === null
-            ? "Host authorization waits on an Identity session. You can still save a vault login or import one below."
+            ? "You can still save a vault login or import one below."
             : "Select an organization before configuring this connector."
         }
         flash={flash}
@@ -278,8 +234,10 @@ export function ConnectionsSection() {
           </button>
         </div>
       </header>
-      <PagesCannotHostNote ceremony="Host authorization" />
-      <IdentitySessionNote />
+      {hostConfigured ? (
+        <PagesCannotHostNote ceremony="Host authorization" />
+      ) : null}
+      {hostConfigured ? <IdentitySessionNote /> : null}
 
       {flash ? (
         <output className={`note note--${flash.tone} conn-flash`}>

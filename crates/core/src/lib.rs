@@ -29,7 +29,7 @@ mod pact {
 
     #[test]
     fn property_connection_handles_are_never_secret_kind() {
-        for label in ["demo", "github", "stripe"] {
+        for label in ["demo", "github", "workos"] {
             let h = AuthorityHandle::connection(OrganizationId::new(), None, label);
             assert_eq!(h.kind, AuthorityKind::Connection);
             assert_ne!(h.kind, AuthorityKind::Secret);

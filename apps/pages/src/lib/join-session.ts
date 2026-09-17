@@ -272,7 +272,7 @@ async function presentInviteDefault(
     throw new AccessError(
       0,
       "unreachable",
-      `Host API unreachable at ${base}. Start the Host, or point at a running one.`,
+      `Couldn't reach ${base}. Point Settings at a running service, or continue without it.`,
     );
   }
   if (!res.ok) {
@@ -349,7 +349,7 @@ async function askToJoinDefault(
     throw new AccessError(
       0,
       "unreachable",
-      `Host API unreachable at ${joinSessionSeams.hostBase()}. Start the Host, or point at a running one.`,
+      `Couldn't reach ${joinSessionSeams.hostBase()}. Point Settings at a running service, or continue without it.`,
     );
   }
   if (!res.ok) {

@@ -1,8 +1,7 @@
 import { type FormEvent, useId, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { IconAlert, IconChevronLeft } from "../../components/Icons.js";
-import type { CustomProviderAuth } from "../../lib/connections.js";
-import { createCustomProvider } from "../../lib/connections.js";
+import { addCustomConnector } from "../../lib/custom-connectors.js";
 import { hostBase } from "../../lib/identity.js";
 import { useOnline } from "../../lib/use-online.js";
 import { connectorPath, errorText } from "./shared.js";
@@ -54,7 +53,7 @@ export function CustomConnectorPage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!complete) return;
-    const auth: CustomProviderAuth =
+    const auth =
       kind === "oauth2_authorization_code"
         ? {
             kind,
@@ -67,7 +66,7 @@ export function CustomConnectorPage() {
     setBusy(true);
     setError(null);
     try {
-      const provider = await createCustomProvider({
+      const provider = await addCustomConnector({
         id,
         displayName: name.trim(),
         baseUrl: baseUrl.trim(),

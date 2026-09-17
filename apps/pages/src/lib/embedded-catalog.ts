@@ -15,6 +15,8 @@ import type {
 import { loadSettings } from "./settings.js";
 
 const CATEGORY = new Map<ProviderCategory, readonly string[]>([
+  ["identity", ["better-auth", "workos", "auth0"]],
+  ["backup_recovery", ["github", "gitlab", "supabase", "neon", "postgresql"]],
   [
     "encryption",
     [
@@ -27,6 +29,33 @@ const CATEGORY = new Map<ProviderCategory, readonly string[]>([
       "gcp-kms",
       "sealed-local",
     ],
+  ],
+  [
+    "password_managers",
+    [
+      "1password",
+      "bitwarden",
+      "vaultwarden",
+      "infisical",
+      "proton-pass",
+      "passwordstate",
+    ],
+  ],
+  [
+    "agent_harnesses",
+    [
+      "anthropic",
+      "openai",
+      "azure-openai",
+      "aws-bedrock",
+      "openrouter",
+      "huggingface",
+    ],
+  ],
+  ["networking", ["tailscale"]],
+  [
+    "wallet",
+    ["cloudflare-wallet", "google-wallet", "apple-wallet", "samsung-wallet"],
   ],
   [
     "cloud_secret_storage",
@@ -44,30 +73,11 @@ const CATEGORY = new Map<ProviderCategory, readonly string[]>([
       "encrypted-remote",
     ],
   ],
-  [
-    "password_managers",
-    [
-      "1password",
-      "bitwarden",
-      "vaultwarden",
-      "infisical",
-      "proton-pass",
-      "passwordstate",
-    ],
-  ],
   ["local_storage", ["keychain", "keepass", "password-store", "plain"]],
   ["certificates", ["letsencrypt", "zerossl", "cloudflare-origin-ca"]],
-  ["developer", ["github", "gitlab", "vercel"]],
+  ["developer", ["vercel"]],
   ["productivity", ["linear"]],
-  ["communication", []],
-  ["storage", []],
-  ["crm", []],
-  ["payments", ["stripe"]],
-  ["identity", []],
-  ["testing", []],
 ]);
-
-const PROVIDER_CATEGORIES = new Set<string>(CATEGORY.keys());
 
 const NAMES = new Map(
   Object.entries({
@@ -86,7 +96,6 @@ const NAMES = new Map(
     github: "GitHub",
     gitlab: "GitLab",
     linear: "Linear",
-    stripe: "Stripe",
     vercel: "Vercel",
     foks: "FOKS",
     "gcp-kms": "Google Cloud KMS",
@@ -107,96 +116,75 @@ const NAMES = new Map(
   }),
 );
 
+function field(
+  name: string,
+  label: string,
+  secret = false,
+  required = true,
+): ConfigurationField {
+  return { name, label, secret, required };
+}
+
 const FIELDS = new Map<string, ConfigurationField[]>(
   Object.entries({
     age: [
-      {
-        name: "recipients",
-        label: "Recipients",
-        secret: false,
-        required: true,
-      },
-      { name: "identity", label: "Identity", secret: true, required: true },
+      field("recipients", "Recipients"),
+      field("identity", "Identity", true),
     ],
     "better-auth": [
-      { name: "base_url", label: "Base URL", secret: false, required: true },
-      { name: "api_key", label: "API key", secret: true, required: true },
-      {
-        name: "api_key_header",
-        label: "API key header",
-        secret: false,
-        required: true,
-      },
-      { name: "config_id", label: "Config ID", secret: false, required: false },
+      field("base_url", "Base URL"),
+      field("api_key", "API key", true),
+      field("api_key_header", "API key header"),
+      field("config_id", "Config ID", false, false),
+    ],
+    tailscale: [
+      field("tailnet", "Tailnet"),
+      field("hostname", "Hostname", false, false),
+      field("auth_key", "Auth key", true),
+      field("socket", "Socket", false, false),
+    ],
+    "cloudflare-wallet": [
+      field("account_id", "Account ID"),
+      field("wallet_id", "Wallet ID"),
+      field("api_token", "API token", true),
+    ],
+    "google-wallet": [
+      field("issuer_id", "Issuer ID"),
+      field("class_id", "Class ID"),
+      field("service_account_email", "Service account email"),
+      field("service_account_key", "Service account key", true),
+    ],
+    "apple-wallet": [
+      field("pass_type_id", "Pass type ID"),
+      field("team_id", "Team ID"),
+      field("certificate", "Pass certificate", true),
+    ],
+    "samsung-wallet": [
+      field("service_id", "Service ID"),
+      field("api_key", "API key", true),
     ],
     auth0: [
-      { name: "domain", label: "Tenant domain", secret: false, required: true },
-      { name: "client_id", label: "Client ID", secret: false, required: true },
-      {
-        name: "client_secret",
-        label: "Client secret",
-        secret: true,
-        required: true,
-      },
-      { name: "audience", label: "Audience", secret: false, required: false },
+      field("domain", "Tenant domain"),
+      field("client_id", "Client ID"),
+      field("client_secret", "Client secret", true),
+      field("audience", "Audience", false, false),
     ],
     bitwarden: [
-      {
-        name: "session_token",
-        label: "Session token",
-        secret: true,
-        required: false,
-      },
-      {
-        name: "server_url",
-        label: "Server URL",
-        secret: false,
-        required: false,
-      },
+      field("session_token", "Session token", true, false),
+      field("server_url", "Server URL", false, false),
     ],
     "bitwarden-secrets-manager": [
-      {
-        name: "access_token",
-        label: "Access token",
-        secret: true,
-        required: true,
-      },
-      {
-        name: "organization_id",
-        label: "Organization ID",
-        secret: false,
-        required: false,
-      },
-      {
-        name: "project_id",
-        label: "Project ID",
-        secret: false,
-        required: false,
-      },
+      field("access_token", "Access token", true),
+      field("organization_id", "Organization ID", false, false),
+      field("project_id", "Project ID", false, false),
     ],
-    keychain: [
-      { name: "service", label: "Service", secret: false, required: true },
-    ],
+    keychain: [field("service", "Service")],
     keepass: [
-      {
-        name: "database_path",
-        label: "Database path",
-        secret: false,
-        required: true,
-      },
-      { name: "password", label: "Password", secret: true, required: true },
+      field("database_path", "Database path"),
+      field("password", "Password", true),
     ],
-    "password-store": [
-      {
-        name: "store_dir",
-        label: "Store directory",
-        secret: false,
-        required: true,
-      },
-    ],
-    plain: [
-      { name: "namespace", label: "Namespace", secret: false, required: true },
-    ],
+    "password-store": [field("store_dir", "Store directory")],
+    plain: [field("namespace", "Namespace")],
   }),
 );
 
@@ -250,7 +238,7 @@ const HOST = [
   },
   {
     id: "vercel",
-    docs: "https://vercel.com/docs/rest-api",
+    docs: "https://vercel.com/docs/rest-api/reference/sdk",
     auth: "api_key",
     refresh: false,
     authorities: ["api.vercel.com", "vercel.com"],
@@ -263,14 +251,6 @@ const HOST = [
     refresh: true,
     authorities: ["api.linear.app", "linear.app"],
     operations: ["issue.read", "issue.create", "project.read"],
-  },
-  {
-    id: "stripe",
-    docs: "https://docs.stripe.com/keys",
-    auth: "api_key",
-    refresh: false,
-    authorities: ["api.stripe.com", "stripe.com"],
-    operations: ["customer.read", "charge.read", "invoice.read"],
   },
 ] as const;
 
@@ -288,7 +268,18 @@ const IDENTITY = [
   ],
 ] as const;
 
-const BUNDLED_REVISION = "2026-08-13.1";
+const NETWORKING = [
+  ["tailscale", "https://tailscale.com/kb/1085/auth-keys", "configuration"],
+] as const;
+
+const WALLET = [
+  ["cloudflare-wallet", "https://developers.cloudflare.com/", "configuration"],
+  ["google-wallet", "https://developers.google.com/wallet", "configuration"],
+  ["apple-wallet", "https://developer.apple.com/wallet/", "configuration"],
+  ["samsung-wallet", "https://developer.samsung.com/wallet", "configuration"],
+] as const;
+
+const BUNDLED_REVISION = "2026-09-17.1";
 
 function title(id: string): string {
   return (
@@ -308,10 +299,6 @@ function categoryOf(id: string): ProviderCategory {
     }
   }
   return "developer";
-}
-
-function isProviderCategory(value: string): value is ProviderCategory {
-  return PROVIDER_CATEGORIES.has(value);
 }
 
 function preview(
@@ -369,7 +356,7 @@ export const bundledProviders: Provider[] = [
     };
     return provider;
   }),
-  ...LLM.map(([id, docs, auth]) => preview(id, docs, auth, "developer")),
+  ...LLM.map(([id, docs, auth]) => preview(id, docs, auth, "agent_harnesses")),
   ...IDENTITY.map(([id, docs, auth]) => {
     const provider = preview(id, docs, auth, "identity");
     provider.operations =
@@ -385,6 +372,16 @@ export const bundledProviders: Provider[] = [
     }
     return provider;
   }),
+  ...NETWORKING.map(([id, docs, auth]) =>
+    Object.assign(preview(id, docs, auth, "networking"), {
+      operations: ["network.configure"],
+    }),
+  ),
+  ...WALLET.map(([id, docs, auth]) =>
+    Object.assign(preview(id, docs, auth, "wallet"), {
+      operations: ["wallet.configure"],
+    }),
+  ),
 ];
 
 type TursoDb = {

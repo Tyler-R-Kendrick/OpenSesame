@@ -533,7 +533,7 @@ impl PlaceholderPlacement {
 pub struct LegacyProjection {
     pub env_var: String,
     pub connection_ref_uri: String,
-    /// Pattern hint, e.g. `sk_test_*` or exact placeholder string.
+    /// Pattern hint, e.g. `ostest_*` or exact placeholder string.
     pub placeholder_pattern: String,
     /// The placeholder this projection actually handed out, when it is known.
     /// Substitution is bound to it exactly; the pattern only bounds shape.
@@ -544,7 +544,7 @@ pub struct LegacyProjection {
 }
 
 impl LegacyProjection {
-    /// Generate a unique shaped placeholder from pattern (`sk_test_*` → `sk_test_` + hex).
+    /// Generate a unique shaped placeholder from pattern (`ostest_*` → `ostest_` + hex).
     ///
     /// The suffix is what makes a placeholder one connection's own. A pattern with
     /// no `*` used to be returned verbatim, which handed every projection sharing
@@ -804,23 +804,23 @@ mod tests {
     #[test]
     fn shaped_placeholder_from_pattern() {
         let lp = LegacyProjection {
-            env_var: "STRIPE_SECRET_KEY".into(),
-            connection_ref_uri: "conn://demo/stripe".into(),
-            placeholder_pattern: "sk_test_*".into(),
+            env_var: "WORKOS_API_KEY".into(),
+            connection_ref_uri: "conn://demo/workos".into(),
+            placeholder_pattern: "ostest_*".into(),
             issued_placeholder: None,
             placement: PlaceholderPlacement::default(),
             delivery: CredentialDeliveryMode::Placeholder,
         };
-        assert_eq!(lp.shaped_placeholder("abc"), "sk_test_abc");
+        assert_eq!(lp.shaped_placeholder("abc"), "ostest_abc");
 
         // A pattern with no wildcard still gets the suffix. Returning it verbatim
         // gave every projection with that pattern one shared placeholder, and
         // substitution matches on placeholder text.
         let fixed = LegacyProjection {
-            placeholder_pattern: "sk_live".into(),
+            placeholder_pattern: "ostest".into(),
             ..lp.clone()
         };
-        assert_eq!(fixed.shaped_placeholder("abc"), "sk_liveabc");
+        assert_eq!(fixed.shaped_placeholder("abc"), "ostestabc");
         let empty = LegacyProjection {
             placeholder_pattern: String::new(),
             ..lp
@@ -831,8 +831,8 @@ mod tests {
     #[test]
     fn a_projection_only_accepts_a_placeholder_it_could_have_issued() {
         let lp = LegacyProjection {
-            env_var: "STRIPE_SECRET_KEY".into(),
-            connection_ref_uri: "conn://demo/stripe".into(),
+            env_var: "WORKOS_API_KEY".into(),
+            connection_ref_uri: "conn://demo/workos".into(),
             placeholder_pattern: "ostest_*".into(),
             issued_placeholder: None,
             placement: PlaceholderPlacement::default(),
@@ -864,8 +864,8 @@ mod tests {
     #[test]
     fn a_recorded_placeholder_admits_only_itself() {
         let mine = LegacyProjection {
-            env_var: "STRIPE_SECRET_KEY".into(),
-            connection_ref_uri: "conn://demo/stripe".into(),
+            env_var: "WORKOS_API_KEY".into(),
+            connection_ref_uri: "conn://demo/workos".into(),
             placeholder_pattern: "ostest_*".into(),
             issued_placeholder: Some("ostest_0123456789abcdef".into()),
             placement: PlaceholderPlacement::default(),
@@ -981,13 +981,13 @@ mod tests {
                 &PlaceholderRequestView {
                     method: "POST",
                     header_name: Some("Authorization"),
-                    header_value: Some("Bearer sk_test_x"),
-                    path: "/v1/charges",
+                    header_value: Some("Bearer ostest_x"),
+                    path: "/user",
                     query: None,
                     body_field_path: None,
                     body_field_value: None,
                 },
-                "sk_test_x",
+                "ostest_x",
             )
             .is_ok());
         assert!(p
@@ -996,12 +996,12 @@ mod tests {
                     method: "POST",
                     header_name: None,
                     header_value: None,
-                    path: "/v1/charges",
+                    path: "/user",
                     query: None,
                     body_field_path: Some("message"),
-                    body_field_value: Some("leak sk_test_x"),
+                    body_field_value: Some("leak ostest_x"),
                 },
-                "sk_test_x",
+                "ostest_x",
             )
             .is_err());
     }

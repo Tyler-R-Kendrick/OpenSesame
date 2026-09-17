@@ -222,7 +222,7 @@ fn resolve_connection_entry(
     }
 
     policy.assert_allows(CredentialDeliveryMode::Placeholder)?;
-    let pattern = starts_with_from_type(item.r#type.as_ref()).unwrap_or_else(|| "sk_test_*".into());
+    let pattern = starts_with_from_type(item.r#type.as_ref()).unwrap_or_else(|| "ostest_*".into());
     let mut projection = LegacyProjection {
         env_var: item.key.clone(),
         connection_ref_uri: uri.clone(),
@@ -343,16 +343,16 @@ mod tests {
       "decorators": [{"name": "public", "value": true}]
     },
     {
-      "key": "STRIPE_SECRET_KEY",
+      "key": "WORKOS_API_KEY",
       "sensitive": true,
       "required": true,
       "public": false,
-      "type": {"fn": "string", "args": [{"key": "startsWith", "value": "sk_"}]},
+      "type": {"fn": "string"},
       "value": null,
       "resolver": {
         "fn": "opensesameConnection",
         "args": [
-          {"value": "conn://demo/stripe"},
+          {"value": "conn://demo/workos"},
           {"key": "projection", "value": "legacy-token"}
         ]
       },
@@ -379,8 +379,8 @@ mod tests {
         let doc = parse_schema_json(FIXTURE).unwrap();
         let s = schema_summary(&doc);
         let text = s.to_string();
-        assert!(text.contains("STRIPE_SECRET_KEY"));
-        assert!(!text.contains("sk_live"));
+        assert!(text.contains("WORKOS_API_KEY"));
+        assert!(!text.contains("ostest_"));
     }
 
     #[test]
@@ -388,12 +388,9 @@ mod tests {
         let doc = parse_schema_json(FIXTURE).unwrap();
         let policy = DevDeliveryPolicy::agent_default();
         let entries = resolve_for_delivery(&doc, &policy, true).unwrap();
-        let stripe = entries
-            .iter()
-            .find(|e| e.key == "STRIPE_SECRET_KEY")
-            .unwrap();
-        assert_eq!(stripe.delivery, CredentialDeliveryMode::Placeholder);
-        assert!(stripe.env_value.as_ref().unwrap().starts_with("sk_"));
+        let workos = entries.iter().find(|e| e.key == "WORKOS_API_KEY").unwrap();
+        assert_eq!(workos.delivery, CredentialDeliveryMode::Placeholder);
+        assert!(workos.env_value.as_ref().unwrap().starts_with("ostest_"));
         let gh = entries.iter().find(|e| e.key == "GITHUB_TOKEN").unwrap();
         assert_eq!(gh.delivery, CredentialDeliveryMode::Handle);
         assert_eq!(gh.env_value.as_deref(), Some("conn://demo/github"));
@@ -408,7 +405,7 @@ mod tests {
         let pick = |entries: &[ResolvedEnvEntry]| {
             entries
                 .iter()
-                .find(|e| e.key == "STRIPE_SECRET_KEY")
+                .find(|e| e.key == "WORKOS_API_KEY")
                 .cloned()
                 .unwrap()
         };
@@ -417,7 +414,7 @@ mod tests {
         // Two projections of the same connection must not share a placeholder:
         // egress substitution keys off the text alone.
         assert_ne!(pa, pb);
-        assert!(pa.starts_with("sk_"));
+        assert!(pa.starts_with("ostest_"));
         // And the placeholder handed out is one the projection will accept back.
         assert!(a.projection.as_ref().unwrap().accepts_placeholder(&pa));
         // Each projection admits only its own placeholder, not its neighbour's.
@@ -444,21 +441,18 @@ mod tests {
             }
             Err(e) => panic!("bridge parse failed: {e}"),
         };
-        assert!(doc.items.iter().any(|i| i.key == "STRIPE_SECRET_KEY"));
-        let stripe = doc
+        assert!(doc.items.iter().any(|i| i.key == "WORKOS_API_KEY"));
+        let workos = doc
             .items
             .iter()
-            .find(|i| i.key == "STRIPE_SECRET_KEY")
+            .find(|i| i.key == "WORKOS_API_KEY")
             .unwrap();
-        assert!(stripe.sensitive);
-        assert!(stripe.value.is_none());
+        assert!(workos.sensitive);
+        assert!(workos.value.is_none());
         let entries =
             resolve_for_delivery(&doc, &DevDeliveryPolicy::agent_default(), true).unwrap();
-        let stripe_e = entries
-            .iter()
-            .find(|e| e.key == "STRIPE_SECRET_KEY")
-            .unwrap();
-        assert_eq!(stripe_e.delivery, CredentialDeliveryMode::Placeholder);
-        assert!(stripe_e.env_value.as_ref().unwrap().starts_with("sk_"));
+        let workos_e = entries.iter().find(|e| e.key == "WORKOS_API_KEY").unwrap();
+        assert_eq!(workos_e.delivery, CredentialDeliveryMode::Placeholder);
+        assert!(workos_e.env_value.as_ref().unwrap().starts_with("ostest_"));
     }
 }

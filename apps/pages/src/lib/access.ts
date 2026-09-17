@@ -163,7 +163,7 @@ export async function call<T>(
     throw new AccessError(
       0,
       "unreachable",
-      `Host API unreachable at ${base()}. Start the Host, or point at a running one under Settings.`,
+      `Couldn't reach ${base()}. Point Settings at a running service, or continue without it.`,
     );
   }
 
