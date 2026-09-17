@@ -2,6 +2,9 @@
 //!
 //! When `OPENSESAME_OPENFGA_URL` is unset, callers may fall back to the in-process PEP.
 
+mod grant_tuples;
+pub use grant_tuples::{grant_to_openfga_tuples, GrantTupleMappingError, GrantTupleMappingResult};
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
