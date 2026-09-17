@@ -18,7 +18,7 @@
   "totals": {
     "files": 545,
     "violations": 882,
-    "oversizedLines": 279033
+    "oversizedLines": 278833
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -336,7 +336,7 @@
     },
     "apps/control-plane/src/routes/projects.ts": {
       "complexity": 2,
-      "max-lines": 951,
+      "max-lines": 751,
       "max-lines-per-function": 3
     },
     "apps/control-plane/src/routes/scim.ts": {

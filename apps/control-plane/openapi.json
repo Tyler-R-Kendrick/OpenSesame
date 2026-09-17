@@ -1675,6 +1675,7 @@
                 "required": [
                   "subjectKind",
                   "principalId",
+                  "realmId",
                   "publicKeyJkt",
                   "authorityGeneration"
                 ],
@@ -1686,6 +1687,11 @@
                   "principalId": {
                     "type": "string",
                     "maxLength": 256
+                  },
+                  "realmId": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Organization realm; caller must be owner or admin"
                   },
                   "publicKeyJkt": {
                     "type": "string",
@@ -1714,6 +1720,9 @@
           },
           "401": {
             "description": "Authentication required"
+          },
+          "403": {
+            "description": "Caller is not a realm owner or admin"
           }
         }
       }

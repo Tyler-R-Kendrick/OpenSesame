@@ -1,4 +1,5 @@
 import {
+  type AuthorityMembershipEdgeStore,
   type ClientClaimChallengeStore,
   type ClientOriginStore,
   type ConsentStore,
@@ -11,6 +12,7 @@ import {
   type ProjectStores,
   type SamlStores,
   type ScimStores,
+  createMemoryAuthorityMembershipEdgeStore,
   createMemoryClientClaimChallengeStore,
   createMemoryClientOriginStore,
   createMemoryConsentStore,
@@ -94,6 +96,8 @@ export interface AppStores {
   projects: ProjectStore;
   /** Durable project memberships, keyed by (projectId, principalId). */
   projectMemberships: ProjectMembershipStore;
+  /** Durable authority membership edges (GA-I-02 live apply). */
+  authorityMembershipEdges: AuthorityMembershipEdgeStore;
   /** project id → tail of serialized membership mutations */
   projectMembershipMutations: Map<string, Promise<void>>;
   /** principalId → active (swapped-in) project id */
@@ -183,6 +187,7 @@ export function createAppStores(options?: {
   consents?: ConsentStore;
   projectStores?: ProjectStores;
   organizationStores?: OrganizationStores;
+  authorityMembershipEdges?: AuthorityMembershipEdgeStore;
   scimStores?: ScimStores;
   orgFederationStores?: OrgFederationStores;
   samlStores?: SamlStores;
@@ -195,6 +200,9 @@ export function createAppStores(options?: {
     provisionalTokens: new Map(),
     projects: projectStores.projects,
     projectMemberships: projectStores.projectMemberships,
+    authorityMembershipEdges:
+      options?.authorityMembershipEdges ??
+      createMemoryAuthorityMembershipEdgeStore(),
     projectMembershipMutations: new Map(),
     activeProjects: new Map(),
     organizations: organizationStores.organizations,

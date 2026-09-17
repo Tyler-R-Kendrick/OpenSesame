@@ -202,11 +202,11 @@
       "evidence": [
         {
           "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-routes.test.ts",
-          "result": "ok. 3 passed \u2014 spawn wasmtime, refuse native, PoP enroll + audit"
+          "result": "ok \u2014 spawn wasmtime, refuse native, orchestrator=caller, PoP realm-admin + refuse without membership + audit"
         }
       ],
       "blockedBy": ["GA-A-04"],
-      "notes": "HTTP /v1/authority/workloads/spawn and /enrollment/pop landed (GA-A-04 wire unblocks). Host grant issuance remains Host-plane (GA-H). Self-review: OpenAPI paths added; spawn requires orchestratorPrincipalId=caller; PoP requires kind-prefixed principalId. Realm-admin for cross-device enroll remains residual."
+      "notes": "HTTP /v1/authority/workloads/spawn and /enrollment/pop landed. Spawn requires orchestratorPrincipalId=caller; PoP requires kind-prefixed principalId and realm owner/admin membership. Host grant issuance remains Host-plane (GA-H)."
     },
     {
       "id": "GA-I-02",
@@ -218,10 +218,18 @@
         {
           "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-membership-reconcile.test.ts",
           "result": "ok. 4 passed \u2014 upsert, invalidate removed, refuse personal, role drift upsert"
+        },
+        {
+          "command": "pnpm --filter @opensesame/database exec vitest run tests/authority-membership-edges.test.ts",
+          "result": "ok. 1 passed \u2014 memory upsert/drift/invalidate"
+        },
+        {
+          "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-membership-reconcile-live.test.ts",
+          "result": "ok. 1 passed \u2014 live apply + authority.membership.reconciled audit"
         }
       ],
       "blockedBy": ["GA-A-01"],
-      "notes": "planProjectMembershipReconcile diffs ADR 0038 memberships into authority edge upserts/invalidations; personal projects refuse. Live DB writer still Identity apply."
+      "notes": "planProjectMembershipReconcile + AuthorityMembershipEdgeStore.applyPlan wired from project membership mutations; personal projects and projects without organizationId skip; audit authority.membership.reconciled."
     },
     {
       "id": "GA-I-03",
@@ -413,7 +421,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Self-review #421 pass fixed: OpenFGA connection/project double-prefix, Host issue depth ceiling + validation status mapping, Identity spawn orchestrator=caller + PoP kind prefix, Identity OpenAPI authority paths, capture-evidence fail-closed press. Residual: realm-admin scoping for cross-device PoP enrollment; live OpenFGA apply; fabric unsupported shuttle/OpenBao rows."
+      "notes": "Standing honesty ratchet; never closes. Self-review #421 pass fixed: OpenFGA connection/project double-prefix, Host issue depth ceiling + validation status mapping, Identity spawn orchestrator=caller + PoP kind prefix, Identity OpenAPI authority paths, capture-evidence fail-closed press. Residual: live OpenFGA apply; fabric unsupported shuttle/OpenBao rows."
     },
     {
       "id": "GA-Q-01",

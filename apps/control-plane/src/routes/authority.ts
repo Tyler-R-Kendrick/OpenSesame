@@ -45,11 +45,36 @@ const EnrollPopBody = z
   .object({
     subjectKind: z.enum(["actor_instance", "device", "workload_instance"]),
     principalId: z.string().trim().min(1).max(256),
+    /** Organization realm that must authorize this enrollment. */
+    realmId: z.string().trim().min(1).max(256),
     publicKeyJkt: z.string().trim().min(8).max(256),
     authorityGeneration: z.number().int().min(1),
     expiresAt: z.string().trim().min(1).max(64).optional(),
   })
   .strict();
+
+async function assertRealmAdmin(
+  c: AppContext,
+  realmId: string,
+  principalId: string,
+): Promise<Response | undefined> {
+  const membership = await c
+    .get("ctx")
+    .stores.organizationMemberships.find(realmId, principalId);
+  if (
+    !membership ||
+    (membership.role !== "owner" && membership.role !== "admin")
+  ) {
+    return c.json(
+      {
+        error: "forbidden",
+        hint: "PoP enrollment requires realm owner or admin membership",
+      },
+      403,
+    );
+  }
+  return undefined;
+}
 
 function invariantResponse(c: AppContext, error: DomainError) {
   return c.json(
@@ -186,6 +211,8 @@ async function enrollPop(c: AppContext) {
       400,
     );
   }
+  const realmDenied = await assertRealmAdmin(c, body.realmId, principal);
+  if (realmDenied) return realmDenied;
   try {
     const boundAt = ctx.clock();
     const enrollment =
@@ -216,6 +243,7 @@ async function enrollPop(c: AppContext) {
         action: "authority.enrollment.pop",
         authorityGeneration: enrollment.authorityGeneration,
         subjectKind: enrollment.subjectKind,
+        realmId: body.realmId,
       },
     });
     if (enrollment.expiresAt === undefined) {

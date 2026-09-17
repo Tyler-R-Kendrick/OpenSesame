@@ -45,6 +45,7 @@ import { organizationRoutes } from "./routes/organizations.js";
 import { originClientAdminRoutes } from "./routes/origin-clients-admin.js";
 import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
+import "./routes/projects-members.js";
 import { createSamlRoutes } from "./routes/saml.js";
 import { createScimRoutes } from "./routes/scim.js";
 import { siopLinkRoutes } from "./routes/siop-link.js";

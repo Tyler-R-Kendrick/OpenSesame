@@ -185,4 +185,12 @@ export const generalAuthorityCapabilities: readonly Capability[] = [
     surfaces: { ...NONE },
     excluded: { ...HUMAN_EXCLUDED },
   },
+  {
+    id: "authority.membership.reconcile",
+    title: "Reconcile project memberships into authority edges",
+    plane: "identity",
+    kind: "admin",
+    surfaces: { ...NONE },
+    excluded: { ...HUMAN_EXCLUDED },
+  },
 ];

@@ -30,6 +30,8 @@ gate aggregates scenario status.
 |---|---|
 | `/v1/authority` spawn + PoP + audit | `pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-routes.test.ts` |
 | Membership subject-kind fence | `pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds\|enum-like text'` |
+| Live membership reconcile (GA-I-02) | `pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-membership-reconcile-live.test.ts` |
+| Membership edge store apply | `pnpm --filter @opensesame/database exec vitest run tests/authority-membership-edges.test.ts` |
 
 ## 4. Fabric aggregation
 
@@ -45,6 +47,5 @@ they do not greenwash the gate.
 
 ## 5. Still outside this plan
 
-- Live membership reconciliation (GA-I-02).
 - Pages visual evidence (GA-P-02 / GA-Q-03).
-- Standing matrix honesty ratchet (GA-O-04).
+- Standing matrix honesty ratchet (GA-O-04) — never closes.

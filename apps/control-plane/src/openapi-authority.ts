@@ -68,6 +68,7 @@ export const authorityPaths = {
               required: [
                 "subjectKind",
                 "principalId",
+                "realmId",
                 "publicKeyJkt",
                 "authorityGeneration",
               ],
@@ -77,6 +78,12 @@ export const authorityPaths = {
                   enum: ["actor_instance", "device", "workload_instance"],
                 },
                 principalId: { type: "string", maxLength: 256 },
+                realmId: {
+                  type: "string",
+                  maxLength: 256,
+                  description:
+                    "Organization realm; caller must be owner or admin",
+                },
                 publicKeyJkt: { type: "string", minLength: 8, maxLength: 256 },
                 authorityGeneration: { type: "integer", minimum: 1 },
                 expiresAt: { type: "string", format: "date-time" },
@@ -88,6 +95,7 @@ export const authorityPaths = {
       responses: {
         "201": { description: "PoP enrollment bound" },
         "400": { description: "Validation or invariant violation" },
+        "403": { description: "Caller is not a realm owner or admin" },
         ...unauthorized,
       },
     },
