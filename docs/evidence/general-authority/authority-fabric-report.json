@@ -10,8 +10,8 @@
     "TEST-PARITY",
     "TEST-REPORT"
   ],
-  "generatedAt": "2026-09-17T14:03:29.812Z",
-  "head": "c40e1ad3f281786e8cae5bfb7e6bb67946e6ce1e",
+  "generatedAt": "2026-09-17T14:44:37.336Z",
+  "head": "7a3a06e2c04998381b27fcc3877e372f0ae3288c",
   "treeDirty": true,
   "treeChangedDuringRun": true,
   "executed": true,
@@ -22,14 +22,14 @@
   "summary": {
     "total": 56,
     "byStatus": {
-      "pass": 53,
+      "pass": 54,
       "fail": 0,
       "blocked": 1,
-      "unsupported": 2
+      "unsupported": 1
     },
     "byTier": {
       "unit": {
-        "pass": 33,
+        "pass": 34,
         "fail": 0,
         "blocked": 0,
         "unsupported": 0
@@ -56,7 +56,7 @@
         "pass": 0,
         "fail": 0,
         "blocked": 0,
-        "unsupported": 2
+        "unsupported": 1
       }
     },
     "gate": "blocked"
@@ -474,13 +474,13 @@
       "id": "GA-V-34",
       "workItem": "TEST-REPORT",
       "area": "DOMAIN",
-      "tier": "unsupported",
+      "tier": "unit",
       "invariant": "INV-GA-08",
       "title": "Two product names never become two models or two ledgers",
-      "status": "unsupported",
-      "reason": "A naming decision is a review contract over a stored record. GA-V-31 covers the mechanical half (one ledger); the presentation half has no executable form.",
-      "detail": "GA-O-03 closes the naming decision, after which the stored record can be asserted single-valued in a type test.",
-      "reproduce": null
+      "status": "pass",
+      "reason": null,
+      "detail": "\"does not export an AccessLease domain type beside AuthorityGrant\" ran and passed",
+      "reproduce": "pnpm --filter @opensesame/os-domain exec vitest run --reporter=json src/__tests__/authority-naming.test.ts"
     },
     {
       "id": "GA-V-35",

@@ -179,15 +179,14 @@ export const crossPlaneScenarios = Object.freeze([
     id: "GA-V-34",
     workItem: "TEST-REPORT",
     area: "DOMAIN",
-    tier: "unsupported",
+    tier: "unit",
     invariant: "INV-GA-08",
     title: "Two product names never become two models or two ledgers",
-    unsupported: {
-      reason:
-        "A naming decision is a review contract over a stored record. GA-V-31 covers the mechanical half (one ledger); the presentation half has no executable form.",
-      wouldRequire:
-        "GA-O-03 closes the naming decision, after which the stored record can be asserted single-valued in a type test.",
-    },
+    target: vitest(
+      "@opensesame/os-domain",
+      "src/__tests__/authority-naming.test.ts",
+      "does not export an AccessLease domain type beside AuthorityGrant",
+    ),
   },
 
   // ---- FIX-* end-to-end scenario fixtures (mandate FIX-FAMILY..GENERALITY) --
