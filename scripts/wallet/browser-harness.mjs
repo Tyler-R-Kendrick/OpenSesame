@@ -1,14 +1,6 @@
 #!/usr/bin/env node
 /**
- * wallet:test:browser — Vitest Wallet fixtures + Playwright QAB-01/QAB-03 lite.
- *
- * QAB-01: guest Wallet under real static base path; fail on loopback requests.
- * QAB-03 lite: second origin cannot inject forged spending authority via
- * postMessage (no broker accepts cross-origin spend grants).
- *
- * WAL-B03/B05: guest Wallet › Spending passes demo refuses forged WebAuthn
- * labels, expired lease windows, and assertion replay under the static origin.
- * Full phishing-resistant RP binding still awaits a ceremony-bound path.
+ * wallet:test:browser — Vitest Wallet fixtures + Playwright QAB.
  */
 
 import { spawnSync } from "node:child_process";
@@ -18,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { assertNoMainnet } from "./lib/deny-mainnet.mjs";
 import { EVIDENCE_REL, writeWalletEvidence } from "./lib/evidence.mjs";
+import { runWalB20NarrowWallet } from "./lib/wallet-b20.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DIST = join(root, "apps/pages/dist");
@@ -135,30 +128,7 @@ async function runPlaywrightQab() {
     check(loopbackHits.length === 0, "no loopback requests during Wallet boot");
 
     setStep("WAL-B20-narrow-wallet");
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("link", { name: "Budgets" }).first().click();
-    await page.waitForTimeout(400);
-    const controlSizes = await page.evaluate(() => {
-      const nodes = [
-        ...document.querySelectorAll(".section .btn, .panel .btn, .panel button"),
-      ];
-      return nodes
-        .map((node) => {
-          const box = node.getBoundingClientRect();
-          if (box.height <= 0 || box.width <= 0) return null;
-          return { h: box.height };
-        })
-        .filter((row) => row !== null);
-    });
-    check(
-      controlSizes.length > 0,
-      "WAL-B20: Wallet has visible controls at 390px",
-    );
-    check(
-      controlSizes.every((row) => row.h >= 44),
-      "WAL-B20: visible Wallet .btn controls are at least 44px at 390px",
-    );
-    await page.setViewportSize({ width: 1280, height: 900 });
+    await runWalB20NarrowWallet(page, check);
 
     setStep("QAB-03-forged-origin");
     const beforeStorage = await page.evaluate(() => {

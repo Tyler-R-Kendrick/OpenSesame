@@ -214,24 +214,30 @@ export type IssueSpendingLeaseResult =
  * Issue a lease under an existing ledger allocation after digest-bound
  * approval. Does not call external rails.
  */
+function leaseIntentBinding(
+  input: IssueSpendingLeaseInput,
+): IssueSpendingLeaseResult | null {
+  const mismatch =
+    input.allocationRef !== input.intent.allocationRef ||
+    (input.policyVersion !== undefined &&
+      input.policyVersion !== input.intent.policyVersion);
+  if (mismatch) {
+    return { ok: false, reason: "allocation_mismatch" };
+  }
+  const windowMismatch =
+    input.validFrom !== input.intent.validFrom ||
+    input.validUntil !== input.intent.validUntil;
+  if (windowMismatch) {
+    return { ok: false, reason: "lease_window_invalid" };
+  }
+  return null;
+}
+
 export async function issueSpendingLease(
   input: IssueSpendingLeaseInput,
 ): Promise<IssueSpendingLeaseResult> {
-  if (input.allocationRef !== input.intent.allocationRef) {
-    return { ok: false, reason: "allocation_mismatch" };
-  }
-  if (
-    input.validFrom !== input.intent.validFrom ||
-    input.validUntil !== input.intent.validUntil
-  ) {
-    return { ok: false, reason: "lease_window_invalid" };
-  }
-  if (
-    input.policyVersion !== undefined &&
-    input.policyVersion !== input.intent.policyVersion
-  ) {
-    return { ok: false, reason: "allocation_mismatch" };
-  }
+  const bound = leaseIntentBinding(input);
+  if (bound !== null) return bound;
 
   const node = getSpendingLedger().project(input.intent.allocationRef);
   if (node === undefined) {
