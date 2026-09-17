@@ -5,6 +5,7 @@
 
 import { useCallback, useState } from "react";
 import { StatusNote } from "../../components/StatusNote.js";
+import { signDigestWithEphemeralP256 } from "@opensesame/wallet-consent/verify";
 import { buildLocalPaymentApprovalDigest } from "../../lib/spending-consent.js";
 import {
   clearSpendingLeases,
@@ -81,7 +82,9 @@ export function PassesPanel() {
             ...intent,
             amount: "5",
           }),
-          verifiedBytes: new Uint8Array([8, 8, 8]),
+          ...(await signDigestWithEphemeralP256(
+            await buildLocalPaymentApprovalDigest({ ...intent, amount: "5" }),
+          )),
         },
         validFrom: pastFrom,
         validUntil: pastUntil,
@@ -95,16 +98,17 @@ export function PassesPanel() {
         return;
       }
 
+      const issuedProof = {
+        boundDigest: digest,
+        ...(await signDigestWithEphemeralP256(digest)),
+      };
       const issued = await issueSpendingLease({
         allocationRef: "child-a",
         beneficiaryRef: "workload-research",
         grantRef: "grant-demo",
         rootAccountingRef: "household",
         intent,
-        proof: {
-          boundDigest: digest,
-          verifiedBytes: new Uint8Array([9, 9, 9]),
-        },
+        proof: issuedProof,
         validFrom: now.toISOString(),
         validUntil: until.toISOString(),
       });
@@ -122,14 +126,8 @@ export function PassesPanel() {
         beneficiaryRef: "workload-research",
         grantRef: "grant-demo",
         rootAccountingRef: "household",
-        intent: { ...intent, amount: "26" },
-        proof: {
-          boundDigest: await buildLocalPaymentApprovalDigest({
-            ...intent,
-            amount: "26",
-          }),
-          verifiedBytes: new Uint8Array([9, 9, 9]),
-        },
+        intent,
+        proof: issuedProof,
         validFrom: now.toISOString(),
         validUntil: until.toISOString(),
       });
@@ -144,7 +142,7 @@ export function PassesPanel() {
 
       setMessage({
         tone: "ok",
-        text: `Issued lease ${issued.lease.id} for 25 TEST under household. Refused forged WebAuthn/RP label, expired lease window (lease_window_invalid), and assertion replay (assertion_replay). Demo uses opaque local verifiedBytes only — not a WebAuthn/RP proof.`,
+        text: `Issued lease ${issued.lease.id} for 25 TEST under household. Refused forged WebAuthn/RP label, expired lease window (lease_window_invalid), and assertion replay (assertion_replay). Demo uses an ephemeral local P-256 signature, not a WebAuthn/RP proof.`,
       });
       refresh();
     })();
