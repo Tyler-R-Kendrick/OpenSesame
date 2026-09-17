@@ -119,5 +119,5 @@ describe("locking while support is busy", { timeout: 20_000 }, () => {
     ).toBeNull();
     expect(screen.queryByText(ANSWER)).toBeNull();
     expect(screen.queryByText("How do I add a connection?")).toBeNull();
-  });
+  }, 20_000);
 });

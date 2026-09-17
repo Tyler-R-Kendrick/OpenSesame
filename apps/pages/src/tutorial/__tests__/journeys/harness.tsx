@@ -1,46 +1,3 @@
-import { compileGuide } from "@opensesame/guide-lang";
-
-if (typeof globalThis.MutationObserver !== "function") {
-  class MutationObserverPolyfill {
-    observe(): void {}
-    disconnect(): void {}
-    takeRecords(): MutationRecord[] {
-      return [];
-    }
-  }
-  globalThis.MutationObserver = MutationObserverPolyfill as typeof MutationObserver;
-}
-import type {
-  GuideOutcome,
-  RecordedRendererCall,
-  RecordingGuideRenderer,
-  TestGuideClock,
-} from "@opensesame/guide-runtime";
-import {
-  createGuideRuntime,
-  createRecordingRenderer,
-  createTestClock,
-} from "@opensesame/guide-runtime";
-import type {
-  FakeSupportAgent,
-  SupportGuideVocabulary,
-  SupportPageContext,
-} from "@opensesame/support-agent";
-import { createSupportSession } from "@opensesame/support-agent";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router";
-import { expect } from "vitest";
-import { accountSwitcherSeams } from "../../../components/AccountSwitcher.js";
-import { AppShell } from "../../../components/AppShell.js";
-import { connectivityBarSeams } from "../../../components/ConnectivityBar.js";
-import { crumbsSeams } from "../../../components/Crumbs.js";
-import { notificationsBarSeams } from "../../../components/NotificationsBar.js";
-import { projectSwitcherSeams } from "../../../components/ProjectSwitcher.js";
-import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
-import { CatalogPanel } from "../../../sections/connections/CatalogPanel.js";
-import { HealthPanel } from "../../../sections/vault/HealthPanel.js";
-import { buildSupportPageContext } from "../../registry/context.js";
 /**
  * The application these journeys are walked through.
  *
@@ -62,16 +19,48 @@ import { buildSupportPageContext } from "../../registry/context.js";
  * story below a test of them as well.
  */
 import { guideGoalIds } from "../../registry/goals.js";
-import { registerGuidePredicates } from "../../registry/predicates.js";
 import { GUIDE_ROUTES } from "../../registry/routes.js";
-import { isKnownGuideRoute } from "../../registry/routes.js";
 import { guidePredicateIds } from "../../registry/state.js";
+import { guideTargetIds } from "../../registry/targets.js";
+
+import { compileGuide } from "@opensesame/guide-lang";
+import type {
+  GuideOutcome,
+  RecordedRendererCall,
+  RecordingGuideRenderer,
+  TestGuideClock,
+} from "@opensesame/guide-runtime";
+import {
+  createGuideRuntime,
+  createRecordingRenderer,
+  createTestClock,
+} from "@opensesame/guide-runtime";
+import type {
+  FakeSupportAgent,
+  SupportGuideVocabulary,
+  SupportPageContext,
+} from "@opensesame/support-agent";
+import { createSupportSession } from "@opensesame/support-agent";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes } from "react-router";
+import { accountSwitcherSeams } from "../../../components/AccountSwitcher.js";
+import { AppShell } from "../../../components/AppShell.js";
+import { connectivityBarSeams } from "../../../components/ConnectivityBar.js";
+import { crumbsSeams } from "../../../components/Crumbs.js";
+import { notificationsBarSeams } from "../../../components/NotificationsBar.js";
+import { projectSwitcherSeams } from "../../../components/ProjectSwitcher.js";
+import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
+import { CatalogPanel } from "../../../sections/connections/CatalogPanel.js";
+import { HealthPanel } from "../../../sections/vault/HealthPanel.js";
+import { buildSupportPageContext } from "../../registry/context.js";
+import { registerGuidePredicates } from "../../registry/predicates.js";
+import { isKnownGuideRoute } from "../../registry/routes.js";
 import {
   isKnownGuidePredicate,
   observeGuidePredicate,
   readGuidePredicate,
 } from "../../registry/state.js";
-import { guideTargetIds } from "../../registry/targets.js";
 import {
   clearMountedGuideTargets,
   isKnownGuideTarget,
@@ -89,7 +78,7 @@ import {
   SupportLauncher,
   SupportSlotProvider,
 } from "../../ui/SupportLauncher.js";
-export type JourneyUser = ReturnType<typeof userEvent.setup>;
+import type { JourneyUser } from "./harness-support.js";
 
 const lockHandlers = new Set<() => void>();
 let lockPresses = 0;
@@ -365,46 +354,10 @@ export function resetJourney(): void {
   targetsCleared = 0;
 }
 
-/** The overlay affordance, which is present at every width. */
-export async function openSupport(user: JourneyUser): Promise<HTMLElement> {
-  await user.click(await screen.findByRole("button", { name: "Support" }));
-  return screen.findByRole("dialog", { name: "Support" }, { timeout: 10_000 });
-}
-
-/**
- * The way back in while a walkthrough is live. The panel steps aside for one,
- * and the overlay is what says so.
- */
-export async function reopenSupport(user: JourneyUser): Promise<HTMLElement> {
-  await user.click(
-    await screen.findByRole("button", {
-      name: "Support — walkthrough in progress",
-    }),
-  );
-  return screen.findByRole("dialog", { name: "Support" });
-}
-
-export async function askSupport(
-  user: JourneyUser,
-  question: string,
-): Promise<void> {
-  const field = await screen.findByLabelText<HTMLInputElement>(
-    "Ask about this screen",
-  );
-  const ask = () => screen.getByRole("button", { name: "Ask" });
-  await waitFor(() =>
-    expect(!field.disabled && !ask().hasAttribute("disabled")).toBe(true),
-  );
-  await user.type(field, question);
-  await waitFor(() => expect(ask()).not.toBeDisabled());
-  await user.click(ask());
-}
-
-/** Counts clicks on one element, so "nothing activated it" can be asserted. */
-export function countClicks(element: HTMLElement): () => number {
-  let clicks = 0;
-  element.addEventListener("click", () => {
-    clicks += 1;
-  });
-  return () => clicks;
-}
+export {
+  type JourneyUser,
+  askSupport,
+  countClicks,
+  openSupport,
+  reopenSupport,
+} from "./harness-support.js";

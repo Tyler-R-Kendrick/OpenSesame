@@ -117,5 +117,5 @@ describe("support at phone width", { timeout: 20_000 }, () => {
     const reopened = await openSupport(user);
     expect(within(reopened).getByText(ANSWER)).toBeTruthy();
     expect(within(reopened).getByText("This is Connections.")).toBeTruthy();
-  });
+  }, 20_000);
 });
