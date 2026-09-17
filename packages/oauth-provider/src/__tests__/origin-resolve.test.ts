@@ -312,4 +312,23 @@ describe("toOidcClientMetadata", () => {
     });
     expect(meta.scope).toBe("openid");
   });
+
+  it("forwards public JWKS for private_key_jwt clients", () => {
+    const meta = toOidcClientMetadata({
+      id: "svc",
+      admissionMode: "pre_registered",
+      displayName: "Workload",
+      redirectUris: ["https://svc.example/cb"],
+      sectorIdentifier: "https://svc.example",
+      grantTypes: ["client_credentials"],
+      responseTypes: [],
+      tokenEndpointAuthMethod: "private_key_jwt",
+      allowedScopes: ["openid"],
+      allowedResources: [],
+      state: "active",
+      jwks: { keys: [{ kty: "RSA", kid: "1", n: "n", e: "AQAB" }] },
+    });
+    expect(meta.jwks?.keys[0]?.kid).toBe("1");
+    expect(meta.token_endpoint_auth_method).toBe("private_key_jwt");
+  });
 });

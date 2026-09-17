@@ -1,3 +1,5 @@
+import { searchPalette } from "../configuration/palette.js";
+import { lookupConfigResource } from "../configuration/registry.js";
 import type { AppCommand } from "./types.js";
 
 const SECTION_ALIASES: ReadonlyArray<{
@@ -54,11 +56,30 @@ function parseCopy(text: string): AppCommand | null {
   return null;
 }
 
+function refusePath(): AppCommand {
+  return {
+    action: "refuse",
+    message: "That path is not an editable document.",
+  };
+}
+
+function parseResourcePath(text: string): AppCommand | null {
+  const lookup = lookupConfigResource(text);
+  if (lookup.ok) {
+    return { action: "open_path", path: "/settings", label: text };
+  }
+  if (lookup.reason === "forbidden") return refusePath();
+  if (text.includes("/") || text.startsWith(".")) return refusePath();
+  return null;
+}
+
 function parseOpenOrSearch(text: string): AppCommand | null {
   const open = text.match(/^(?:open|show|find)\s+(.+)$/i);
   if (open) {
     const query = (open[1] ?? "").trim();
     const queryLower = query.toLowerCase();
+    const pathCommand = parseResourcePath(query);
+    if (pathCommand) return pathCommand;
     if (
       query !== "" &&
       !SECTION_ALIASES.some((s) => s.words.includes(queryLower))
@@ -84,6 +105,17 @@ export function parseCommand(raw: string): AppCommand | null {
   const lower = text.toLowerCase();
   if (/^(help|\?|what can you do)\b/.test(lower)) return { action: "help" };
   return (
-    parseNavigate(lower) ?? parseCopy(text) ?? parseOpenOrSearch(text) ?? null
+    parseNavigate(lower) ??
+    parseCopy(text) ??
+    parseOpenOrSearch(text) ??
+    parseResourcePath(text) ??
+    parsePalette(text)
   );
+}
+
+function parsePalette(text: string): AppCommand | null {
+  const hits = searchPalette({ query: text });
+  const setting = hits.find((hit) => hit.kind === "setting" && hit.href);
+  if (!setting?.href) return null;
+  return { action: "open_path", path: setting.href, label: setting.label };
 }

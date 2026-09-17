@@ -76,14 +76,14 @@ export const SectorIdentifierSchema = z
 /**
  * Grant and response types this issuer will honour.
  *
- * These were free-form strings, so a registration could declare `implicit` or
- * `client_credentials` for itself — a token in a URL fragment with no PKCE, or a
- * client acting with no user at all. What the provider happens to have disabled
- * today is not a reason to let a record ask for it.
+ * These were free-form strings, so a registration could declare `implicit`
+ * for itself — a token in a URL fragment with no PKCE. `client_credentials`
+ * is a confidential-client grant; Identity still refuses it on public clients.
  */
 export const GrantTypeSchema = z.enum([
   "authorization_code",
   "refresh_token",
+  "client_credentials",
   "urn:ietf:params:oauth:grant-type:device_code",
 ]);
 
@@ -96,30 +96,61 @@ export const TokenEndpointAuthMethodSchema = z.enum([
   "private_key_jwt",
 ]);
 
-export const CreateOAuthClientRequestSchema = z.object({
-  displayName: z.string().min(1).max(128),
-  redirectUris: z.array(RedirectUriSchema).min(1),
-  sectorIdentifier: SectorIdentifierSchema,
-  grantTypes: z
-    .array(GrantTypeSchema)
-    .default(["authorization_code", "refresh_token"]),
-  responseTypes: z.array(ResponseTypeSchema).default(["code"]),
-  tokenEndpointAuthMethod: TokenEndpointAuthMethodSchema.default("none"),
-  allowedScopes: z.array(z.string()).default(["openid"]),
-  allowedResources: z.array(z.string()).default([]),
-  admissionMode: ClientAdmissionModeSchema.default("pre_registered"),
-});
+const ClientJwksSchema = z
+  .object({
+    keys: z
+      .array(
+        z
+          .object({
+            kty: z.string().min(1),
+            kid: z.string().min(1).optional(),
+            use: z.string().optional(),
+            alg: z.string().optional(),
+            n: z.string().optional(),
+            e: z.string().optional(),
+            crv: z.string().optional(),
+            x: z.string().optional(),
+            y: z.string().optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(8),
+  })
+  .strict();
+
+export const CreateOAuthClientRequestSchema = z
+  .object({
+    displayName: z.string().min(1).max(128),
+    redirectUris: z.array(RedirectUriSchema).min(1),
+    sectorIdentifier: SectorIdentifierSchema,
+    grantTypes: z
+      .array(GrantTypeSchema)
+      .default(["authorization_code", "refresh_token"]),
+    responseTypes: z.array(ResponseTypeSchema).default(["code"]),
+    tokenEndpointAuthMethod: TokenEndpointAuthMethodSchema.default("none"),
+    allowedScopes: z.array(z.string()).default(["openid"]),
+    allowedResources: z.array(z.string()).default([]),
+    admissionMode: ClientAdmissionModeSchema.default("pre_registered"),
+    jwks: ClientJwksSchema.optional(),
+  })
+  .strict();
 export type CreateOAuthClientRequest = z.infer<
   typeof CreateOAuthClientRequestSchema
 >;
 
-export const PatchOAuthClientRequestSchema = z.object({
-  displayName: z.string().min(1).max(128).optional(),
-  redirectUris: z.array(RedirectUriSchema).min(1).optional(),
-  allowedScopes: z.array(z.string()).optional(),
-  allowedResources: z.array(z.string()).optional(),
-  state: OAuthClientStateSchema.optional(),
-});
+export const PatchOAuthClientRequestSchema = z
+  .object({
+    displayName: z.string().min(1).max(128).optional(),
+    redirectUris: z.array(RedirectUriSchema).min(1).optional(),
+    allowedScopes: z.array(z.string()).optional(),
+    allowedResources: z.array(z.string()).optional(),
+    grantTypes: z.array(GrantTypeSchema).min(1).optional(),
+    tokenEndpointAuthMethod: TokenEndpointAuthMethodSchema.optional(),
+    state: OAuthClientStateSchema.optional(),
+    jwks: ClientJwksSchema.optional(),
+  })
+  .strict();
 export type PatchOAuthClientRequest = z.infer<
   typeof PatchOAuthClientRequestSchema
 >;
@@ -137,6 +168,7 @@ export const OAuthClientResponseSchema = z.object({
   allowedScopes: z.array(z.string()),
   allowedResources: z.array(z.string()),
   state: OAuthClientStateSchema,
+  jwks: ClientJwksSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

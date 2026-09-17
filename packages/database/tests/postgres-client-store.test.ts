@@ -62,6 +62,30 @@ describe("createPostgresClientRecordStore", () => {
     expect(await clients.findById(client.id)).toEqual(inserted);
   });
 
+  it("persists public JWKS through insert and update", async () => {
+    const jwks = {
+      keys: [{ kty: "RSA", kid: "cc-1", n: "n", e: "AQAB", alg: "RS256" }],
+    };
+    const inserted = await clients.insertAtomic(
+      makeClient({
+        admissionMode: "pre_registered",
+        tokenEndpointAuthMethod: "private_key_jwt",
+        grantTypes: ["client_credentials"],
+        responseTypes: [],
+        jwks,
+      }),
+    );
+    expect(inserted.jwks).toEqual(jwks);
+    expect((await clients.findById(inserted.id))?.jwks).toEqual(jwks);
+
+    const rotated = {
+      keys: [{ kty: "RSA", kid: "cc-2", n: "n2", e: "AQAB", alg: "RS256" }],
+    };
+    const updated = await clients.update({ ...inserted, jwks: rotated });
+    expect(updated.jwks).toEqual(rotated);
+    expect((await clients.findById(inserted.id))?.jwks).toEqual(rotated);
+  });
+
   it("finds a client by its canonical origin", async () => {
     const client = makeClient();
     await clients.insertAtomic(client);

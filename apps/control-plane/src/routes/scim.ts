@@ -5,11 +5,9 @@ import {
   type BoundaryValue,
   type JsonObject,
   type Organization,
-  type OrganizationRole,
   isBoolean,
   isJsonObject,
   isString,
-  overlapCast,
 } from "@opensesame/os-domain";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -17,15 +15,29 @@ import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import {
-  revokeOrganizationMembership,
-  serializeMembershipMutation,
-} from "./organizations.js";
+  SCIM_ROLE_ATTRIBUTE,
+  SCIM_SUBJECTS_ATTRIBUTE,
+  deprovision,
+  provisionedRoleForSubject,
+  withRememberedSubjects,
+} from "./scim-effects.js";
 import {
+  patchScimGroup,
+  putGroupRoleMapping,
+  roleForGroupName,
+} from "./scim-groups.js";
+import {
+  type ScimPatchOperation,
+  boundedScimString,
+  readScimJsonBody,
   scimAuditActor,
   scimBody,
   scimError,
+  scimPatchOperations,
   scimUserUpdateAudit,
 } from "./scim-protocol.js";
+
+export { provisionedRoleForSubject, putGroupRoleMapping, roleForGroupName };
 
 /**
  * SCIM 2.0 directory provisioning, per organization (C15, D11, ADR 0056).
@@ -54,63 +66,20 @@ import {
  */
 
 const USER_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:User";
-const GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group";
 const LIST_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:ListResponse";
 
 /** Provisioning-token prefix. Shown once, at mint; only the hash is stored. */
 export const SCIM_TOKEN_PREFIX = "sct_";
 
-/**
- * Where a Groups PATCH records the role it mapped, on the SCIM row itself.
- *
- * A SCIM-reserved URN spelling so it cannot collide with a directory's own
- * attributes, and stripped out of every representation this route renders: it
- * is our bookkeeping, not something the IdP sent.
- */
-const ROLE_ATTRIBUTE = "urn:opensesame:params:scim:2.0:role";
-
 /** Attributes never kept, whatever the directory sends. */
 const NEVER_STORED = new Set(["password", "schemas", "meta", "id"]);
-
-/** Identity kinds an org sign-in can have linked a subject under (C5). */
-const ORG_IDENTITY_KINDS = ["oidc", "oauth2", "saml", "ldap", "email"] as const;
+const BOOKKEEPING = new Set([SCIM_ROLE_ATTRIBUTE, SCIM_SUBJECTS_ATTRIBUTE]);
 
 const MAX_USER_NAME_LENGTH = 320;
 const MAX_DISPLAY_LENGTH = 512;
 
 function scimTokenHash(token: string): string {
   return createHash("sha256").update(token).digest("hex");
-}
-
-/** The subject an assertion must carry to match this row (C15). */
-function subjectOf(user: ScimUserRecord): string {
-  return user.externalId ?? user.userName;
-}
-
-function roleOf(user: ScimUserRecord): OrganizationRole | undefined {
-  const stored = user.raw[ROLE_ATTRIBUTE];
-  return stored === "owner" || stored === "admin" || stored === "member"
-    ? stored
-    : undefined;
-}
-
-/**
- * The role a directory-provisioned subject should join at, or `undefined` when
- * no Groups push has said otherwise.
- *
- * Sign-in and group updates consume the same directory role mapping.
- */
-export async function provisionedRoleForSubject(
-  ctx: AppContext,
-  organizationId: string,
-  subject: string,
-): Promise<OrganizationRole | undefined> {
-  const user = await ctx.stores.scim.users.findBySubject(
-    organizationId,
-    subject,
-  );
-  if (!user?.active) return undefined;
-  return roleOf(user);
 }
 
 /** Attributes as the directory sent them, minus what we must never keep. */
@@ -120,7 +89,7 @@ function sanitizeRaw(body: JsonObject): JsonObject {
     // `password` is a real SCIM attribute and a real credential. It is dropped
     // before anything durable sees it: this service authenticates nobody by a
     // directory-supplied password, so keeping one would be pure liability.
-    if (NEVER_STORED.has(key) || key === ROLE_ATTRIBUTE) continue;
+    if (NEVER_STORED.has(key) || BOOKKEEPING.has(key)) continue;
     raw[key] = value;
   }
   return raw;
@@ -140,7 +109,7 @@ function scimBase(ctx: AppContext, organizationId: string): string {
 function userResource(ctx: AppContext, user: ScimUserRecord): JsonObject {
   const attributes: JsonObject = {};
   for (const [key, value] of Object.entries(user.raw)) {
-    if (key === ROLE_ATTRIBUTE) continue;
+    if (BOOKKEEPING.has(key)) continue;
     attributes[key] = value;
   }
   return {
@@ -237,131 +206,6 @@ async function requireOwner(
 }
 
 /**
- * Every principal that has signed in to this tenant as `subject`.
- *
- * The organization's own issuers are the only ones consulted: a SCIM row says
- * what the tenant's directory believes about its own people, and it must not
- * reach an identity minted at some unrelated upstream that happens to use the
- * same subject string.
- */
-async function principalsForSubject(
-  ctx: AppContext,
-  organization: Organization,
-  subject: string,
-): Promise<string[]> {
-  const issuers = [organization.ssoIssuer, organization.samlIssuer].filter(
-    (issuer): issuer is string => isString(issuer) && issuer.length > 0,
-  );
-  const principalIds = new Set<string>();
-  for (const issuer of issuers) {
-    for (const kind of ORG_IDENTITY_KINDS) {
-      const identity = await ctx.repos.externalIdentities.findByTuple({
-        kind,
-        issuer,
-        subject,
-      });
-      if (identity) principalIds.add(identity.principalId);
-    }
-  }
-  return [...principalIds];
-}
-
-/** Withdraw a deactivated subject's membership and live sessions (D11). */
-async function deprovision(
-  ctx: AppContext,
-  organization: Organization,
-  user: ScimUserRecord,
-  correlationId: string,
-): Promise<void> {
-  for (const principalId of await principalsForSubject(
-    ctx,
-    organization,
-    subjectOf(user),
-  )) {
-    await revokeOrganizationMembership(ctx, {
-      organizationId: organization.id,
-      principalId,
-      correlationId,
-      reason: "scim_deactivated",
-    });
-  }
-}
-
-/** Apply a Groups mapping to whoever already holds a membership here. */
-async function applyRole(
-  ctx: AppContext,
-  organization: Organization,
-  user: ScimUserRecord,
-  role: OrganizationRole,
-): Promise<void> {
-  for (const principalId of await principalsForSubject(
-    ctx,
-    organization,
-    subjectOf(user),
-  )) {
-    await serializeMembershipMutation(ctx, organization.id, async () => {
-      const existing = await ctx.stores.organizationMemberships.find(
-        organization.id,
-        principalId,
-      );
-      if (!existing || existing.role === role) return;
-      await ctx.stores.organizationMemberships.upsert({
-        ...existing,
-        role,
-        updatedAt: ctx.clock(),
-      });
-    });
-  }
-}
-
-/**
- * The org role a group name maps to, or `undefined` for a group we do not
- * model (accepted and ignored, per SCIM's leniency norm).
- *
- * The mapping is by name because a group is not a resource this service
- * stores: the directory administrator names the group for the role it grants
- * (`Owners`, `acme-admins`, `OpenSesame Members`), and everything else is
- * simply not a role assignment. Matching is on the trailing word so a tenant
- * prefix does not have to be configured anywhere.
- */
-export function roleForGroupName(name: string): OrganizationRole | undefined {
-  const normalized = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z]+/g, " ")
-    .trim();
-  const last = normalized.split(" ").pop() ?? "";
-  if (last === "owner" || last === "owners") return "owner";
-  if (last === "admin" || last === "admins") return "admin";
-  if (last === "member" || last === "members") return "member";
-  return undefined;
-}
-
-type PatchOperation = {
-  op: string;
-  path?: string;
-  value?: BoundaryValue;
-};
-
-function patchOperations(body: JsonObject): PatchOperation[] {
-  const raw = body.Operations ?? body.operations;
-  if (!Array.isArray(raw)) return [];
-  const operations: PatchOperation[] = [];
-  for (const entry of raw) {
-    if (!isJsonObject(entry)) continue;
-    const record: JsonObject = entry;
-    const op = isString(record.op) ? record.op.toLowerCase() : "";
-    if (!op) continue;
-    operations.push({
-      op,
-      ...(isString(record.path) ? { path: record.path } : undefined),
-      ...(record.value !== undefined ? { value: record.value } : undefined),
-    });
-  }
-  return operations;
-}
-
-/**
  * SCIM `active` arrives as a boolean from Okta and as the string `"False"`
  * from Entra. Both mean the same thing, and reading only one of them is the
  * classic way a deprovisioning push silently does nothing.
@@ -375,13 +219,6 @@ function asActive(value: BoundaryValue): boolean | undefined {
   return undefined;
 }
 
-function bounded(value: BoundaryValue, max: number): string | undefined {
-  if (!isString(value)) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.length > max) return undefined;
-  return trimmed;
-}
-
 type UserPatch = {
   active?: boolean;
   userName?: string;
@@ -390,7 +227,7 @@ type UserPatch = {
 };
 
 /** Fold one PATCH body into the fields this service models. */
-function foldUserPatch(operations: PatchOperation[]): UserPatch {
+function foldUserPatch(operations: ScimPatchOperation[]): UserPatch {
   const patch: UserPatch = {};
   const assign = (path: string, value: BoundaryValue) => {
     const attribute = path.split(".").pop()?.toLowerCase() ?? "";
@@ -400,17 +237,17 @@ function foldUserPatch(operations: PatchOperation[]): UserPatch {
       return;
     }
     if (attribute === "username") {
-      const userName = bounded(value, MAX_USER_NAME_LENGTH);
+      const userName = boundedScimString(value, MAX_USER_NAME_LENGTH);
       if (userName) patch.userName = userName;
       return;
     }
     if (attribute === "displayname") {
-      const displayName = bounded(value, MAX_DISPLAY_LENGTH);
+      const displayName = boundedScimString(value, MAX_DISPLAY_LENGTH);
       if (displayName) patch.displayName = displayName;
       return;
     }
     if (attribute === "externalid") {
-      const externalId = bounded(value, MAX_USER_NAME_LENGTH);
+      const externalId = boundedScimString(value, MAX_USER_NAME_LENGTH);
       if (externalId) patch.externalId = externalId;
     }
     // Anything else is accepted and ignored: SCIM clients push whole profiles
@@ -424,7 +261,7 @@ function foldUserPatch(operations: PatchOperation[]): UserPatch {
       if (operation.path.toLowerCase() === "active") patch.active = false;
       continue;
     }
-    if (operation.path) {
+    if (operation.path && operation.value !== undefined) {
       assign(operation.path, operation.value);
       continue;
     }
@@ -435,32 +272,6 @@ function foldUserPatch(operations: PatchOperation[]): UserPatch {
     }
   }
   return patch;
-}
-
-/** Member ids named by one Groups operation. */
-function memberIds(value: BoundaryValue): string[] {
-  const entries = Array.isArray(value) ? value : [value];
-  const ids: string[] = [];
-  for (const entry of entries) {
-    if (isString(entry)) {
-      ids.push(entry);
-      continue;
-    }
-    if (!isJsonObject(entry)) continue;
-    if (isString(entry.value)) ids.push(entry.value);
-  }
-  return ids;
-}
-
-async function readJsonBody(
-  c: Context<{ Variables: Variables }>,
-): Promise<JsonObject | undefined> {
-  try {
-    const parsed: BoundaryValue = overlapCast(await c.req.json());
-    return isJsonObject(parsed) ? parsed : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /** `filter=userName eq "someone@acme.example"` — the one filter SCIM clients need. */
@@ -552,9 +363,9 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
     if (session instanceof Response) return session;
     const { ctx, organization } = session;
 
-    const body = await readJsonBody(c);
+    const body = await readScimJsonBody(c);
     if (!body) return scimError(c, 400, "Body is not a SCIM resource.");
-    const userName = bounded(body.userName, MAX_USER_NAME_LENGTH);
+    const userName = boundedScimString(body.userName, MAX_USER_NAME_LENGTH);
     if (!userName) {
       return scimError(c, 400, "userName is required.", "invalidValue");
     }
@@ -568,8 +379,8 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
     }
 
     const now = ctx.clock();
-    const externalId = bounded(body.externalId, MAX_USER_NAME_LENGTH);
-    const displayName = bounded(body.displayName, MAX_DISPLAY_LENGTH);
+    const externalId = boundedScimString(body.externalId, MAX_USER_NAME_LENGTH);
+    const displayName = boundedScimString(body.displayName, MAX_DISPLAY_LENGTH);
     const created = await ctx.stores.scim.users.create({
       id: randomUUID(),
       organizationId: organization.id,
@@ -658,10 +469,10 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
       c.req.param("id") ?? "",
     );
     if (!user) return scimError(c, 404, "User not found.");
-    const body = await readJsonBody(c);
+    const body = await readScimJsonBody(c);
     if (!body) return scimError(c, 400, "Body is not a SCIM PatchOp.");
 
-    const patch = foldUserPatch(patchOperations(body));
+    const patch = foldUserPatch(scimPatchOperations(body));
     if (patch.userName && patch.userName !== user.userName) {
       const clash = await ctx.stores.scim.users.findByUserName(
         organization.id,
@@ -677,7 +488,7 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
       }
     }
 
-    const updated = await ctx.stores.scim.users.update({
+    const next = {
       ...user,
       userName: patch.userName ?? user.userName,
       active: patch.active ?? user.active,
@@ -688,10 +499,19 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
       ...(patch.externalId !== undefined
         ? { externalId: patch.externalId }
         : undefined),
-    });
+    };
+    const updated = await ctx.stores.scim.users.update(
+      withRememberedSubjects(user, next),
+    );
 
     if (user.active && !updated.active) {
-      await deprovision(ctx, organization, updated, c.get("correlationId"));
+      await deprovision(
+        ctx,
+        organization,
+        updated,
+        c.get("correlationId"),
+        user,
+      );
     }
     await appendAuditEvent(ctx.repos.auditEvents, {
       ...scimUserUpdateAudit(user.active, updated.active),
@@ -745,75 +565,10 @@ export function createScimRoutes(): Hono<{ Variables: Variables }> {
     return c.body(null, 204);
   });
 
-  /**
-   * Groups, minimally (D11): a group whose name maps to an org role moves its
-   * members to that role, and every other group is accepted and ignored.
-   *
-   * Groups are not stored — the name in the path (or in the operation body) is
-   * the whole input, so there is no group resource to enumerate and nothing to
-   * keep in sync. That is deliberate: the only thing this service needs from a
-   * directory's group graph is the role it implies.
-   */
   routes.patch("/:organizationId/scim/v2/Groups/:groupId", async (c) => {
     const session = await authenticate(c);
     if (session instanceof Response) return session;
-    const { ctx, organization } = session;
-
-    const body = await readJsonBody(c);
-    if (!body) return scimError(c, 400, "Body is not a SCIM PatchOp.");
-    const operations = patchOperations(body);
-    const groupId = decodeURIComponent(c.req.param("groupId") ?? "");
-    let displayName = bounded(body.displayName, MAX_DISPLAY_LENGTH) ?? groupId;
-    for (const operation of operations) {
-      if (operation.path?.toLowerCase() === "displayname") {
-        displayName =
-          bounded(operation.value, MAX_DISPLAY_LENGTH) ?? displayName;
-      }
-    }
-
-    const role = roleForGroupName(displayName);
-    if (role) {
-      for (const operation of operations) {
-        if (operation.path?.toLowerCase().split("[")[0] !== "members") continue;
-        // `remove` drops the elevation rather than the membership: leaving the
-        // owners group makes you a member again, it does not throw you out of
-        // the organization. Only a SCIM deactivation does that.
-        const target: OrganizationRole =
-          operation.op === "remove" ? "member" : role;
-        for (const memberId of memberIds(operation.value)) {
-          const member = await ctx.stores.scim.users.getById(
-            organization.id,
-            memberId,
-          );
-          if (!member) continue;
-          await ctx.stores.scim.users.update({
-            ...member,
-            raw: { ...member.raw, [ROLE_ATTRIBUTE]: target },
-            updatedAt: ctx.clock(),
-          });
-          await applyRole(ctx, organization, member, target);
-          await appendAuditEvent(ctx.repos.auditEvents, {
-            eventType: "organization.scim_role_mapped",
-            outcome: "succeeded",
-            organizationId: organization.id,
-            correlationId: c.get("correlationId"),
-            ...scimAuditActor(c),
-            targetType: "scim_user",
-            targetId: member.id,
-            metadata: {
-              action: "organization.scim_group.map_role",
-              type: target,
-            },
-          });
-        }
-      }
-    }
-
-    return scimBody(c, 200, {
-      schemas: [GROUP_SCHEMA],
-      id: groupId,
-      displayName,
-    });
+    return patchScimGroup(c, session);
   });
 
   return routes;

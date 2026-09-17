@@ -122,7 +122,8 @@ export function toOidcClientMetadata(client: OAuthClientRecord) {
     response_types: client.responseTypes,
     token_endpoint_auth_method: client.tokenEndpointAuthMethod,
     scope: scopes.join(" "),
-    subject_type: "pairwise",
-    application_type: "web",
+    subject_type: "pairwise" as const,
+    application_type: "web" as const,
+    ...(client.jwks ? { jwks: client.jwks } : {}),
   };
 }

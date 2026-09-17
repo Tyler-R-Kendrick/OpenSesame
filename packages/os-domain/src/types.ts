@@ -2,7 +2,6 @@
  * Pure OpenSesame identity-plane domain types.
  * No framework imports (hono/drizzle/better-auth/oidc-provider).
  */
-
 import type { JsonObject } from "./json.js";
 
 export type PrincipalId = string;
@@ -495,6 +494,7 @@ export interface OAuthClientRecord {
   allowedResources: string[];
   metadataUri?: string;
   metadataDigest?: string;
+  jwks?: { keys: JsonObject[] };
   state: OAuthClientState;
   createdAt: Date;
   updatedAt: Date;

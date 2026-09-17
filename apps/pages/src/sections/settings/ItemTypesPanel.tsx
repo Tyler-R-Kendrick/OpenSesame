@@ -3,6 +3,7 @@ import { IconCheck, IconTrash } from "../../components/Icons.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { itemTypeRegistry } from "../../lib/vault/item-types.js";
 import { itemTypeId } from "../../lib/vault/item-types.js";
+import { ItemTypeVisual } from "./ItemTypeVisual.js";
 
 type Flash = { tone: "ok" | "err"; text: string };
 
@@ -145,14 +146,7 @@ export function ItemTypesPanel() {
 
         <div className="field">
           <label htmlFor="item-type-definition">Add a type</label>
-          <textarea
-            id="item-type-definition"
-            rows={8}
-            spellCheck={false}
-            placeholder='{"apiVersion":"opensesame.dev/v1alpha1","kind":"VaultItemType",…}'
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-          />
+          <ItemTypeVisual draft={draft} onDraft={setDraft} />
           <p className="hint">
             A definition carries no values and no code — it names field types
             from a fixed catalogue and says how the type maps onto a{" "}

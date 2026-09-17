@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { StatusNote } from "../../components/StatusNote.js";
+import { describeRecovery } from "../../lib/configuration/recovery-outcomes.js";
 import { loadSession } from "../../lib/federation.js";
 import { isRemoteIdentityConfigured } from "../../lib/identity.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
@@ -270,7 +271,9 @@ function UnlockMethodsBody() {
         <div className="panel__head">
           <div>
             <h2>Recovery</h2>
-            <p className="hint">For the day the phone is gone.</p>
+            <p className="hint">
+              For the day the phone is gone. {describeRecovery("identity")}
+            </p>
           </div>
         </div>
         <div className="panel__body">

@@ -6,7 +6,6 @@ import {
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
-
 /**
  * OAuth client persistence — structural types matching `ClientRecordStore`
  * and `OAuthClientRecord` in `@opensesame/oauth-provider` (ADR 0050 slice 1).
@@ -18,7 +17,6 @@ export type ClientAdmissionMode =
   | "dynamic_registration"
   | "client_metadata_document"
   | "origin_profile";
-
 export type ClientState = "active" | "suspended" | "revoked";
 
 export type OwnershipStatus = "unclaimed" | "claimed";
@@ -36,6 +34,7 @@ export interface OAuthClientRecord {
   allowedResources: string[];
   metadataUri?: string;
   metadataDigest?: string;
+  jwks?: { keys: import("@opensesame/os-domain").JsonObject[] };
   state: ClientState;
   origin?: string;
   ownershipStatus?: OwnershipStatus;
@@ -162,10 +161,10 @@ function mapRow(row: OAuthClientRow): OAuthClientRecord {
   };
   if (row.metadataUri) record.metadataUri = row.metadataUri;
   if (row.metadataDigest) record.metadataDigest = row.metadataDigest;
+  if (row.tokenEndpointJwks) record.jwks = overlapCast(row.tokenEndpointJwks);
   if (row.origin) record.origin = row.origin;
-  if (row.ownershipStatus) {
+  if (row.ownershipStatus)
     record.ownershipStatus = overlapCast(row.ownershipStatus);
-  }
   if (row.ownerPrincipalId) record.ownerPrincipalId = row.ownerPrincipalId;
   if (row.firstSeenAt) record.firstSeenAt = row.firstSeenAt;
   if (row.lastUsedAt) record.lastUsedAt = row.lastUsedAt;
@@ -189,6 +188,7 @@ function insertValues(client: OAuthClientRecord, now: Date) {
     allowedResources: client.allowedResources,
     metadataUri: client.metadataUri,
     metadataDigest: client.metadataDigest,
+    tokenEndpointJwks: client.jwks ?? null,
     state: client.state,
     origin: client.origin ?? null,
     ownershipStatus: client.ownershipStatus ?? "unclaimed",
@@ -202,8 +202,7 @@ function insertValues(client: OAuthClientRecord, now: Date) {
 }
 
 function updateValues(client: OAuthClientRecord, now: Date) {
-  // Full-record replace except identity (id) and first sight; createdAt is
-  // immutable, updatedAt is stamped by the write.
+  // Full-record replace except id/firstSeen/createdAt; updatedAt is stamped.
   return {
     admissionMode: client.admissionMode,
     displayName: client.displayName,
@@ -216,6 +215,7 @@ function updateValues(client: OAuthClientRecord, now: Date) {
     allowedResources: client.allowedResources,
     metadataUri: client.metadataUri ?? null,
     metadataDigest: client.metadataDigest ?? null,
+    tokenEndpointJwks: client.jwks ?? null,
     state: client.state,
     origin: client.origin ?? null,
     ownershipStatus: client.ownershipStatus ?? "unclaimed",

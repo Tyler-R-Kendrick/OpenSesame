@@ -15,7 +15,6 @@ import {
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-
 /** bytea column mapped to Uint8Array */
 export const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
   dataType() {
@@ -28,7 +27,6 @@ export const bytea = customType<{ data: Uint8Array; driverData: Buffer }>({
     return new Uint8Array(value);
   },
 });
-
 export const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
     .notNull()
@@ -959,9 +957,11 @@ export const oauthClients = pgTable(
       .default([]),
     metadataUri: text("metadata_uri"),
     metadataDigest: text("metadata_digest"),
+    tokenEndpointJwks: jsonb("token_endpoint_jwks").$type<{
+      keys: JsonObject[];
+    }>(),
     state: text("state").notNull(),
-    /** Canonical web origin for origin_profile clients (`https://app.example.com`). */
-    origin: text("origin"),
+    origin: text("origin"), // origin_profile canonical origin
     /** Origin-profile clients begin unclaimed until the F5 claim flow runs. */
     ownershipStatus: text("ownership_status").notNull().default("unclaimed"),
     firstSeenAt: timestamp("first_seen_at", {

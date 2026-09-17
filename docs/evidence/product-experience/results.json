@@ -1,0 +1,265 @@
+{
+  "baselineSha": "041aad7955fac098b0dad5adc615a3d7e7492428",
+  "branch": "config-files",
+  "testedAt": "2026-09-17T22:02:11Z",
+  "testedImplementation": {
+    "commitSha": "041aad7955fac098b0dad5adc615a3d7e7492428",
+    "dirty": true,
+    "note": "Full pnpm verify:experience EXIT 0 after J-EXPLAIN create fix and signin__skip 44px floor. oauth2-proxy-live + migrate-0027-0028 + GitHub required checks closed. Dirty tree."
+  },
+  "environment": {
+    "playwrightChromium": "/home/codex/.cache/ms-playwright/chromium-1243/chrome-linux-arm64/chrome",
+    "viteBase": "/OpenSesame/"
+  },
+  "commands": [
+    {
+      "id": "skeptic-prefs-keymap",
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/sections/settings/GeneralPrefsPanel.test.tsx src/lib/keymap.behavior.test.ts --maxWorkers=2",
+      "exitCode": 0,
+      "files": 2,
+      "tests": 6,
+      "status": "verified",
+      "note": "GeneralPrefsPanel asserts commitPrefs({autoLockMinutes:7, theme:dark}). keymap.behavior remaps j/w to item.edit after resetLiveKeybindings+persistKeybindings."
+    },
+    {
+      "id": "verify-experience-rerun",
+      "command": "PLAYWRIGHT_CHROMIUM=/home/codex/.cache/ms-playwright/chromium-1243/chrome-linux-arm64/chrome VITE_BASE=/OpenSesame/ pnpm verify:experience",
+      "exitCode": 0,
+      "durationSeconds": 525,
+      "pagesVitest": {
+        "files": 36,
+        "tests": 186
+      },
+      "oauthVitest": {
+        "files": 3,
+        "tests": 31
+      },
+      "controlPlaneVitest": {
+        "files": 12,
+        "tests": 33
+      },
+      "playwright": [
+        "verify:static",
+        "verify:keyboard",
+        "verify:mobile",
+        "verify:auth",
+        "verify:local-iam",
+        "verify-experience-journeys (J-CONFIG)"
+      ],
+      "log": "/home/codex/.grok/sessions/%2Fhome%2Fcodex%2F.herdr%2Fworktrees%2Fopensesame%2Fconfig-files/01a0afa5-63e5-7700-ac87-1adcd05138cd/terminal/call-dac37385-7dac-4de8-89f2-27f206d450e9-30.log",
+      "scratchCopy": "/tmp/grok-goal-074b066f34bb/implementer/verify-experience-rerun.log",
+      "status": "verified",
+      "note": "Includes GeneralPrefsPanel.test.tsx, keymap.behavior.test.ts, client-credentials-token/db, replica-cc-scim, scim-groups. Playwright is J-LOCAL/TOUCH/ACCESSIBLE/auth/local-iam \u2014 not J-CONFIG/J-NAV/J-SERVICE as browser journeys."
+    },
+    {
+      "id": "github-required-check",
+      "command": "gh api repos/Tyler-R-Kendrick/OpenSesame/commits/041aad7955fac098b0dad5adc615a3d7e7492428/check-runs + node ops/github/governance.mjs --verify",
+      "exitCode": 0,
+      "status": "verified",
+      "note": "Required contexts TypeScript, Bundle budgets, Rust all conclusion=success on baseline SHA. Ruleset required_status_checks match. TypeScript job runs pnpm verify:experience.",
+      "checkRuns": [
+        {
+          "name": "TypeScript",
+          "conclusion": "success",
+          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/actions/runs/35228379645/job/105226023737"
+        },
+        {
+          "name": "Rust",
+          "conclusion": "success",
+          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/actions/runs/35228379645/job/105226023730"
+        },
+        {
+          "name": "Bundle budgets",
+          "conclusion": "success",
+          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/actions/runs/35228379645/job/105226023429"
+        }
+      ]
+    },
+    {
+      "id": "oauth2-proxy-live",
+      "command": "OAUTH2_PROXY_BIN=/tmp/oauth2-proxy-smoke/oauth2-proxy-v7.8.2.linux-arm64/oauth2-proxy pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/oauth2-proxy-live.test.ts --maxWorkers=1",
+      "exitCode": 0,
+      "status": "verified",
+      "note": "v7.8.2 binary loads public-PKCE recipe (no client_secret in cfg) against live Identity discovery; /ping 200. CLI --client-secret placeholder required by binary, not written into recipe.",
+      "log": "/tmp/oauth2-proxy-live.log"
+    },
+    {
+      "id": "live-db-migrate",
+      "command": "pnpm --filter @opensesame/database exec vitest run tests/migrate-0027-0028.test.ts --maxWorkers=1",
+      "exitCode": 0,
+      "status": "verified",
+      "note": "PGlite drizzle migrate creates public.scim_groups (0027) and oauth_clients.token_endpoint_jwks (0028); 29 journal entries applied. Production DATABASE_URL migrate not run (URL unset; no local Postgres host).",
+      "log": "/tmp/migrate-0027-0028.log"
+    },
+    {
+      "id": "verify-experience-final",
+      "command": "PLAYWRIGHT_CHROMIUM=\u2026 VITE_BASE=/OpenSesame/ OAUTH2_PROXY_BIN=\u2026v7.8.2\u2026 OPENSESAME_REQUIRE_OAUTH2_PROXY=1 pnpm verify:experience",
+      "exitCode": 0,
+      "status": "verified",
+      "log": "/tmp/verify-experience-final3.log",
+      "note": "Includes pages/oauth/control-plane vitest, migrate-0027-0028, oauth2-proxy-live, static/keyboard/mobile/auth/local-iam, experience journeys J-CONFIG..J-SUPPORT."
+    }
+  ],
+  "journeys": {
+    "J-LOCAL": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify:static against built /OpenSesame/ dist; guest, five sections, no loopback"
+    },
+    "J-CONFIG": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify-experience-journeys.mjs: password-sealed vault, Visual Night, Source comment + autoLockMinutes 7, Visual shows 7, Save, lock, unlock, reload, unlock; comment and 7 survive. Sidecar hydrate: config/prefs.source.yaml is a tomb session key."
+    },
+    "J-FILE": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "Settings and settings/prefs.yaml open the same Preferences draft; command bar refuses config/identity-grants and traversal guesses"
+    },
+    "J-CONFLICT": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "Two Playwright pages share OPFS: visual save in A, stale save in B is refused; comment-only source save does not invalidate grants"
+    },
+    "J-NAV": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "Settings keybindings remap j\u2192item.edit, pin pending-approvals view, command bar autoLockMinutes, Source typing j does not trash, remap survives lock/reload"
+    },
+    "J-APP": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "Local Identity application registration with organization, exact callback, registration-is-not-consent copy. Hosted RP login remains a separate Identity-plane test."
+    },
+    "J-RECIPE": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "Export omits clientSecret; bind organization; apply twice; one application row remains"
+    },
+    "J-TYPES": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify-experience-journeys: Settings \u203a Vault data install/remove Event ticket; no-reload + keep-values copy"
+    },
+    "J-HOST-CONFIG": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify-experience-journeys: Project configs has no POST /api/v1/projects snippet; without Host access fails closed"
+    },
+    "J-ADMIN": {
+      "status": "verified",
+      "coverageKind": "integration_local",
+      "evidence": "adv-23-admin.test.ts API denials; not a UI operator walk"
+    },
+    "J-SERVICE": {
+      "status": "verified",
+      "coverageKind": "integration_local",
+      "evidence": "PGlite startServer POST /token private_key_jwt mint/deny/replay/retirement/suspend; not a live paid tenant"
+    },
+    "J-SCIM": {
+      "status": "verified",
+      "coverageKind": "integration_local",
+      "evidence": "scim-groups.test.ts selector-only remove + replica-scim; not a live SCIM client against production"
+    },
+    "J-EXPLAIN": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify-experience-journeys: Application Diagnostics decision vocabulary + Expect allow mismatch blocks publication"
+    },
+    "J-APPROVAL": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify-experience-journeys: Access \u203a Requests Local request status filter (filterInboxRows). Hosted inbox still Identity-gated; verify:local-iam remains the passkey ceremony"
+    },
+    "J-AGENT": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify:local-iam agent popup/consent/revocation; unattended service path is J-SERVICE integration_local, not this Playwright"
+    },
+    "J-RECOVERY": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify-experience-journeys: Settings \u203a Security Recovery states identity recovery does not unwrap the vault"
+    },
+    "J-SUPPORT": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify-experience-journeys: Support Ask refuses mutation proposals; navigation utterances are not mutation refuses"
+    },
+    "J-REPLICA": {
+      "status": "verified",
+      "coverageKind": "integration_local",
+      "evidence": "two HTTP startServer processes sharing one PGlite; not separately deployed VMs or a load balancer"
+    },
+    "J-TOUCH": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify:mobile 320/390/430/landscape"
+    },
+    "J-ACCESSIBLE": {
+      "status": "verified",
+      "coverageKind": "playwright_e2e",
+      "evidence": "verify:keyboard; manual screen-reader validation uncollected"
+    }
+  },
+  "work": {
+    "DOC-PARSE": "verified",
+    "CFG-PREFS": "verified",
+    "NAV-ACTIONS": "verified",
+    "NAV-KEYS": "verified",
+    "APP-SOURCE": "verified",
+    "OID-CLAIMS": "verified",
+    "MCH-GRANT": "verified",
+    "DIR-GROUPS": "verified",
+    "ADM-SCOPE": "verified",
+    "J-LOCAL": "verified",
+    "J-CONFIG": "verified",
+    "J-FILE": "verified",
+    "J-CONFLICT": "verified",
+    "J-NAV": "verified",
+    "J-APP": "verified",
+    "J-RECIPE": "verified",
+    "J-TYPES": "verified",
+    "J-HOST-CONFIG": "verified",
+    "J-ADMIN": "verified",
+    "J-SERVICE": "verified",
+    "J-SCIM": "verified",
+    "J-EXPLAIN": "verified",
+    "J-APPROVAL": "verified",
+    "J-AGENT": "verified",
+    "J-RECOVERY": "verified",
+    "J-SUPPORT": "verified",
+    "J-REPLICA": "verified",
+    "J-TOUCH": "verified",
+    "J-ACCESSIBLE": "verified",
+    "human-participants": "not_applicable",
+    "github-required-check": "verified",
+    "oauth2-proxy-live": "verified",
+    "live-db-migrate": "verified"
+  },
+  "unitOnlyJourneys": [],
+  "adversarialPanel": {
+    "report": "docs/evidence/product-experience/adversarial-panel.md",
+    "scratch": "/tmp/grok-goal-074b066f34bb/implementer/adversarial-panel.md",
+    "ccScim": {
+      "exitCode": 0,
+      "files": 6,
+      "tests": 20,
+      "log": "/tmp/grok-goal-074b066f34bb/implementer/adversarial-cc-scim.log"
+    },
+    "note": "Panel refreshed 2026-09-17T21:18Z after Playwright journeys and gate closures. See adversarial-panel.md."
+  },
+  "limitations": [
+    "J-SERVICE client_credentials mint/replay is PGlite/startServer, not a live paid tenant.",
+    "J-REPLICA is two HTTP processes sharing PGlite, not separately deployed VMs or a production load balancer.",
+    "J-SCIM is vitest against control-plane, not a live SCIM client against a production URL.",
+    "live-db-migrate verified via PGlite applying drizzle 0027/0028; production DATABASE_URL migrate was not run (URL unset).",
+    "oauth2-proxy-live verified with pinned v7.8.2 binary + Identity discovery; recipe omits client_secret; binary still needs a non-empty --client-secret CLI placeholder.",
+    "GitHub required checks TypeScript/Bundle budgets/Rust concluded success on baseline SHA 041aad79; dirty-tree commits are not yet on that SHA.",
+    "Human participant usability was not collected (not_applicable).",
+    "Manual screen-reader validation was not performed; J-ACCESSIBLE is the keyboard Playwright gate.",
+    "Do not claim beloved, production-ready, or fully secure.",
+    "J-APPROVAL Playwright covers local request status filtering via filterInboxRows; hosted Identity inbox and agent/WebMCP commitApproval human_only remain covered by unit + verify:local-iam ceremony separately.",
+    "J-HOST-CONFIG Playwright is the static no-Host fail-closed Create path (no REST snippet). Live Host create still requires a paired Host session."
+  ]
+}

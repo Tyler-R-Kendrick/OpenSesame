@@ -1,0 +1,28 @@
+{
+  "baselineSha": "041aad7955fac098b0dad5adc615a3d7e7492428",
+  "shared": {
+    "package.json": "STEWARD",
+    "pnpm-lock.yaml": "STEWARD",
+    ".github/workflows/ci.yml": "STEWARD",
+    "apps/pages/package.json": "STEWARD"
+  },
+  "items": [
+    { "id": "ST-BASE", "owner": "STEWARD" },
+    { "id": "DOC-PARSE", "owner": "DOCUMENT" },
+    { "id": "CFG-PREFS", "owner": "CONFIG" },
+    { "id": "NAV-ACTIONS", "owner": "NAVIGATION" },
+    { "id": "OID-CLAIMS", "owner": "OIDC" },
+    { "id": "MCH-GRANT", "owner": "WORKLOAD" },
+    { "id": "DIR-GROUPS", "owner": "DIRECTORY" },
+    { "id": "CFG-HOST", "owner": "CONFIG" },
+    { "id": "ONB-INDEPENDENT", "owner": "ONBOARDING" },
+    { "id": "RUN-IDENTITY", "owner": "RUNTIME" },
+    { "id": "ADV-18", "owner": "WORKLOAD" },
+    { "id": "ADV-30", "owner": "ONBOARDING" },
+    { "id": "J-REPLICA", "owner": "RUNTIME" },
+    { "id": "J-LOCAL", "owner": "EVIDENCE" },
+    { "id": "J-TOUCH", "owner": "CRAFT" },
+    { "id": "ADV-23", "owner": "ADMINISTRATION" },
+    { "id": "APP-SOURCE", "owner": "APPLICATIONS" }
+  ]
+}

@@ -13,6 +13,11 @@ import Provider, {
 import { withDynamicClientLoader } from "./adapter/dynamic-client-adapter.js";
 import { createMemoryAdapterConstructor } from "./adapter/memory-adapter.js";
 import type { OidcAdapterConstructor } from "./adapter/types.js";
+import {
+  type LookupAccount,
+  type MapClaims,
+  createFindAccount,
+} from "./claims/find-account.js";
 import { createClientAdmissionPolicy } from "./clients/admission.js";
 import {
   findOriginClient,
@@ -23,7 +28,19 @@ import {
   type ClientRecordStore,
   MemoryClientRecordStore,
 } from "./clients/store.js";
+import {
+  type FindStoredConsent,
+  createLoadExistingGrant,
+} from "./consent/load-existing-grant.js";
 import { readOAuthProviderEnv } from "./env.js";
+import {
+  CLIENT_CREDENTIALS_FEATURE,
+  SERVICE_ACCESS_TOKEN_MAX_SECONDS,
+  assertConfidentialClientCredentials,
+  clientCredentialsExtraMetadata,
+  createJwtClientAuthReplayGuard,
+} from "./grants/client-credentials.js";
+import { type JwtReplayCache, ReplayCache } from "./grants/replay-cache.js";
 import { SafeMetadataFetcher } from "./metadata/safe-fetcher.js";
 import { parseOriginClientId } from "./origin/canonical.js";
 import {
@@ -35,7 +52,7 @@ import type {
   OAuthProviderEnv,
   PairwiseSubjectStore,
 } from "./types.js";
-
+export { createLoadExistingGrant } from "./consent/load-existing-grant.js";
 export interface CreateOpenSesameProviderOptions {
   issuer?: string;
   env?: Partial<OAuthProviderEnv>;
@@ -64,13 +81,13 @@ export interface CreateOpenSesameProviderOptions {
    * oidc-provider's session-scoped grant reuse applies — existing callers
    * behave unchanged. Return `null` when no live consent exists.
    */
-  findStoredConsent?: (
-    accountId: string,
-    clientId: string,
-  ) => Promise<{ scopes: string[]; claims: string[] } | null>;
+  findStoredConsent?: FindStoredConsent;
+  /** Null/suspended accounts fail issuance (ADV-17). Absent: any id is `{sub}`. */
+  lookupAccount?: LookupAccount;
+  /** Extra claim mapping; reserved protocol claims are fenced (ADV-16). */
+  mapClaims?: MapClaims;
+  replayCache?: JwtReplayCache;
 }
-
-type OidcAccountContext = BoundaryValue;
 
 export interface OpenSesameProviderBundle {
   provider: Provider;
@@ -265,90 +282,15 @@ function recordFromClientMetadata(meta: ClientMetadata): OAuthClientRecord {
     allowedScopes: scope ? scope.split(" ") : ["openid"],
     allowedResources: [],
     state: "active",
-  };
-}
-
-/** Structural subset of panva's KoaContextWithOIDC used by grant reuse. */
-type GrantContext = {
-  oidc: {
-    session?: {
-      accountId?: string;
-      grantIdFor?: (clientId: string) => string | undefined;
-    };
-    client?: { clientId?: string };
-    params?: { scope?: BoundaryValue };
-    prompts?: { has(name: string): boolean };
-    result?: { consent?: { grantId?: string } };
-    provider: {
-      Grant: {
-        find(id: string): Promise<BoundaryValue>;
-        new (args: { accountId: string; clientId: string }): {
-          addOIDCScope(scope: string): void;
-          addOIDCClaims(claims: string[]): void;
-          save(): Promise<string>;
-        };
-      };
-    };
-  };
-};
-
-/**
- * Durable consent reuse (the control plane's `consents` rows, written on
- * every Continue). oidc-provider's default only reuses the SESSION's grant,
- * so a new browser session re-prompted for a decision already remembered.
- *
- * The skip is deliberately narrow: the session grant still wins when one
- * exists; an explicit `prompt=consent` always prompts; and a request asking
- * for any scope outside the stored set falls through to the consent page
- * rather than silently widening what was granted.
- */
-export function createLoadExistingGrant(
-  findStoredConsent: NonNullable<
-    CreateOpenSesameProviderOptions["findStoredConsent"]
-  >,
-): (ctx: BoundaryValue) => Promise<BoundaryValue | undefined> {
-  return async (ctx: BoundaryValue) => {
-    const { oidc } = overlapCast<BoundaryValue, GrantContext>(ctx);
-    // oidc-provider's own default first: the session-scoped grant.
-    const clientId = oidc.client?.clientId;
-    const sessionGrantId =
-      oidc.result?.consent?.grantId ??
-      (isString(clientId) ? oidc.session?.grantIdFor?.(clientId) : undefined);
-    if (isString(sessionGrantId) && sessionGrantId) {
-      return oidc.provider.Grant.find(sessionGrantId);
-    }
-    const accountId = oidc.session?.accountId;
-    if (
-      !isString(accountId) ||
-      !accountId ||
-      !isString(clientId) ||
-      !clientId
-    ) {
-      return undefined;
-    }
-    if (oidc.prompts?.has("consent")) return undefined;
-    const stored = await findStoredConsent(accountId, clientId);
-    if (!stored) return undefined;
-    const requested = (isString(oidc.params?.scope) ? oidc.params.scope : "")
-      .split(" ")
-      .filter(Boolean);
-    if (requested.length === 0) return undefined;
-    if (!requested.every((scope) => stored.scopes.includes(scope))) {
-      return undefined;
-    }
-    const grant = new oidc.provider.Grant({ accountId, clientId });
-    grant.addOIDCScope(stored.scopes.join(" "));
-    if (stored.claims.length > 0) grant.addOIDCClaims(stored.claims);
-    await grant.save();
-    return overlapCast<unknown, BoundaryValue>(grant);
+    ...(meta.jwks ? { jwks: meta.jwks } : {}),
   };
 }
 
 /**
  * Configure panva `oidc-provider` for the OpenSesame downstream issuer.
  *
- * Features: authorization_code (+ PKCE S256 required), refresh, device_authorization,
- * revocation, introspection, userinfo, PAR, resourceIndicators, dPoP.
+ * Features: authorization_code (+ PKCE S256 required), refresh, client_credentials,
+ * device_authorization, revocation, introspection, userinfo, PAR, resourceIndicators, dPoP.
  * DCR/CIMD off by default; origin clients gated by OPENSESAME_ORIGIN_CLIENTS_ENABLED.
  */
 export function createOpenSesameProvider(
@@ -388,6 +330,9 @@ export function createOpenSesameProvider(
     options.adapter ?? createMemoryAdapterConstructor();
 
   const staticClients = options.clients ?? [];
+  for (const client of staticClients) {
+    assertConfidentialClientCredentials(client);
+  }
   let clientStore: ClientRecordStore;
   if (options.clientStore) {
     clientStore = options.clientStore;
@@ -431,11 +376,9 @@ export function createOpenSesameProvider(
           loadExistingGrant: createLoadExistingGrant(options.findStoredConsent),
         })
       : undefined),
-    pkce: {
-      // Always require PKCE. oidc-provider only supports S256 challenge method.
-      required: () => true,
-    },
+    pkce: { required: () => true },
     scopes: ["openid", "offline_access", "profile", "email"],
+    ttl: { ClientCredentials: SERVICE_ACCESS_TOKEN_MAX_SECONDS },
     features: {
       devInteractions: { enabled: false },
       deviceFlow: { enabled: true },
@@ -474,23 +417,22 @@ export function createOpenSesameProvider(
       },
       registration: { enabled: env.dcrEnabled },
       registrationManagement: { enabled: env.dcrEnabled },
-      clientCredentials: { enabled: false },
+      clientCredentials: CLIENT_CREDENTIALS_FEATURE,
     },
     claims: {
       openid: ["sub"],
       profile: ["name"],
-      email: ["email"],
+      email: ["email", "email_verified"],
     },
+    extraClientMetadata: clientCredentialsExtraMetadata(),
+    assertJwtClientAuthClaimsAndHeader: createJwtClientAuthReplayGuard(
+      options.replayCache ?? new ReplayCache(),
+    ),
     // Federated upstream hints sent by the browser SDK survive into
     // `interaction.details.params` so the hosted login page can preselect the
     // caller's provider. Values are normalized, never trusted or echoed.
     extraParams: buildProviderHintParams(),
-    findAccount: async (_ctx: OidcAccountContext, id: string) => ({
-      accountId: id,
-      async claims() {
-        return { sub: id };
-      },
-    }),
+    findAccount: createFindAccount(options),
   };
 
   const provider = new Provider(env.issuer, configuration);

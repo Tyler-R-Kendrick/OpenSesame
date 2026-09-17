@@ -22,6 +22,8 @@ export interface OAuthClientRecord {
   allowedResources: string[];
   metadataUri?: string;
   metadataDigest?: string;
+  /** Public JWKS for `private_key_jwt`. Never stores private key material. */
+  jwks?: { keys: import("@opensesame/os-domain").JsonObject[] };
   state: ClientState;
   /** Origin-profile clients are constrained (no offline_access / admin scopes). */
   origin?: string;

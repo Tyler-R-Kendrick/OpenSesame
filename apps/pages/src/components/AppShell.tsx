@@ -13,11 +13,9 @@ import {
   useSearchParams,
 } from "react-router";
 import {
-  SETTINGS_CATEGORIES,
   WALLET_CATEGORIES,
   WALLET_CATEGORY_LABEL,
   settingsCategoryFromLocation,
-  settingsPath,
   walletPath,
 } from "../lib/crumbs.js";
 import { createKeymapHandler, registerKeymapHelp } from "../lib/keymap.js";
@@ -39,6 +37,7 @@ import { NavDrawer } from "./NavDrawer.js";
 import { PageTreeLeafRow, useSectionExpand } from "./PageTreeBranch.js";
 import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import { SECTIONS, SectionRow, railRowId } from "./RailRows.js";
+import { SettingsTree } from "./SettingsTree.js";
 import { Statusline } from "./Statusline.js";
 import { ThemeToggle } from "./ThemeToggle.js";
 import { VaultRail, uniqueFolderKind } from "./VaultRail.js";
@@ -196,24 +195,7 @@ function NavTree() {
         branch={settingsOpen}
         onToggle={settings.onToggle}
       />
-      {settingsOpen ? (
-        <div className="railtree__kids">
-          {SETTINGS_CATEGORIES.map((category) => (
-            <PageTreeLeafRow
-              key={category}
-              node={{
-                id: category,
-                label: category,
-                href: settingsPath(category),
-                children: [],
-                branch: false,
-              }}
-              level={2}
-              current={selectedTo}
-            />
-          ))}
-        </div>
-      ) : null}
+      {settingsOpen ? <SettingsTree current={selectedTo} /> : null}
     </nav>
   );
 }
