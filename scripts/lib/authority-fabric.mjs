@@ -9,6 +9,7 @@
 
 import {
   cargoBatchKey,
+  cargoFeatureArgs,
   cargoSuiteArgs,
 } from "./authority-fabric-cargo-run.mjs";
 import { STATUSES, TIERS, scenarios } from "./authority-fabric-scenarios.mjs";
@@ -97,6 +98,7 @@ function resolveCargo(target, facts) {
     "-p",
     target.crate,
     ...cargoSuiteArgs(target),
+    ...cargoFeatureArgs(target),
     "--",
     "--exact",
     target.test,

@@ -29,4 +29,4 @@ Rebased onto main after GA-2 (#400) via signed createCommitOnBranch.
 ## Landed on main (2026-09-16+)
 
 - GA-1 #398, GA-2 #400, wallet #397, INV-REVOCATION #402, GA-4 #403, GA-5 #404, INV-BUDGET #405, INV-CONSISTENCY #406, surfaces honesty #407, GA-A #408, GA-I spawn/enroll #409.
-- Remaining open: standing matrix honesty (GA-O-04) — never closes. Fabric unsupported rows (shuttle interleaving, live OpenBao expiry harness, presentation naming) stay named with lift conditions. GA-F-04 live OpenFGA apply, INV-REVOCATION Identity eligibility lineage, and INV-CONSISTENCY Identity projection fence landed.
+- Remaining open: standing matrix honesty (GA-O-04) — never closes. Fabric unsupported residual cleared (GA-V-29 shuttle authority evaluator lifted via `opensesame-domain` concurrency-test). GA-V-32 stays env-blocked on live OpenFGA (`OPENSESAME_OPENFGA_URL`). GA-F-04 live OpenFGA apply, INV-REVOCATION Identity eligibility lineage, and INV-CONSISTENCY Identity projection fence landed.

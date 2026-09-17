@@ -22,10 +22,10 @@
   "summary": {
     "total": 56,
     "byStatus": {
-      "pass": 54,
+      "pass": 55,
       "fail": 0,
       "blocked": 1,
-      "unsupported": 1
+      "unsupported": 0
     },
     "byTier": {
       "unit": {
@@ -35,7 +35,7 @@
         "unsupported": 0
       },
       "integration": {
-        "pass": 20,
+        "pass": 21,
         "fail": 0,
         "blocked": 0,
         "unsupported": 0
@@ -56,7 +56,7 @@
         "pass": 0,
         "fail": 0,
         "blocked": 0,
-        "unsupported": 1
+        "unsupported": 0
       }
     },
     "gate": "blocked"
@@ -414,13 +414,13 @@
       "id": "GA-V-29",
       "workItem": "TEST-RACES",
       "area": "DOMAIN",
-      "tier": "unsupported",
+      "tier": "integration",
       "invariant": "INV-GA-06",
       "title": "Evaluation cannot loop under an adversarial interleaving",
-      "status": "unsupported",
-      "reason": "Interleaving coverage needs a model checker, not a test that happens to pass once. cargo-shuttle runs behind pnpm audit:shuttle and no authority evaluator is registered with it.",
-      "detail": "GA-H-01 lands an evaluator, then scripts/shuttle-gate.sh gains an authority target.",
-      "reproduce": null
+      "status": "pass",
+      "reason": null,
+      "detail": "evaluation_cannot_loop_under_adversarial_interleaving ran and passed",
+      "reproduce": "cargo +1.88.0 test -p opensesame-domain --test shuttle_authority --features concurrency-test -- --exact evaluation_cannot_loop_under_adversarial_interleaving"
     },
     {
       "id": "GA-V-30",

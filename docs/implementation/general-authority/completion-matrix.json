@@ -19,9 +19,9 @@
     "inProgress": 0,
     "blocked": 0,
     "verified": 47,
-    "testsRun": 53,
+    "testsRun": 55,
     "gatesRun": 1,
-    "authorityFabric": "54 pass / 1 blocked / 1 unsupported",
+    "authorityFabric": "55 pass / 1 blocked / 0 unsupported",
     "in-progress": 0
   },
   "workItems": [
@@ -429,7 +429,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Residual fabric unsupported: GA-V-29 shuttle authority evaluator. GA-V-33b and GA-V-34 lifted."
+      "notes": "Standing honesty ratchet; never closes. Fabric unsupported residual cleared (GA-V-29 shuttle authority evaluator lifted). GA-V-32 remains env-blocked on live OpenFGA."
     },
     {
       "id": "GA-Q-01",
@@ -437,9 +437,9 @@
       "title": "Structural quality gates for new modules",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "docs/evidence/general-authority/authority-fabric-report.json \u2192 54 pass / 1 blocked / 1 unsupported",
+      "evidence": "docs/evidence/general-authority/authority-fabric-report.json \u2192 55 pass / 1 blocked / 0 unsupported",
       "blockedBy": [],
-      "notes": "FIX-* and AT-* modules registered; residual unsupported: shuttle interleaving (GA-V-29)."
+      "notes": "FIX-* and AT-* modules registered; fabric unsupported residual cleared (GA-V-29 shuttle interleaving now runnable via concurrency-test)."
     },
     {
       "id": "GA-Q-02",

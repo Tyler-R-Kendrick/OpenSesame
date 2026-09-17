@@ -140,8 +140,16 @@ export function moduleFacts(root, crates, targets) {
     const crateFact = crates[crate];
     const key = `${crate}:${module}`;
     const bin = typeof target.bin === "string" ? target.bin : null;
+    const integration =
+      typeof target.integration === "string" ? target.integration : null;
     if (crateFact === undefined) {
       facts[key] = false;
+      continue;
+    }
+    if (integration !== null) {
+      facts[key] = existsSync(
+        join(root, crateFact.member, "tests", `${integration}.rs`),
+      );
       continue;
     }
     if (bin !== null) {
@@ -186,7 +194,23 @@ function declaresChain(read, parentPath, chain) {
  * does not compile is distinguishable from one that has no tests — the verdict
  * logic treats neither as an empty set.
  */
-export function enumerateCargoTests(root, crate, bin = null) {
+export function enumerateCargoTests(
+  root,
+  crate,
+  bin = null,
+  features = null,
+  integration = null,
+) {
+  const featureArgs =
+    Array.isArray(features) && features.length > 0
+      ? ["--features", features.join(",")]
+      : [];
+  const suiteArgs =
+    typeof integration === "string"
+      ? ["--test", integration]
+      : bin
+        ? ["--bin", bin]
+        : ["--lib"];
   const result = spawnSync(
     "cargo",
     [
@@ -194,7 +218,8 @@ export function enumerateCargoTests(root, crate, bin = null) {
       "test",
       "-p",
       crate,
-      ...(bin ? ["--bin", bin] : ["--lib"]),
+      ...suiteArgs,
+      ...featureArgs,
       "--",
       "--list",
       "--format",
