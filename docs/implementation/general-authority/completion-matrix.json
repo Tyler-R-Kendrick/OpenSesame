@@ -3,7 +3,7 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T04:46:47Z",
+  "generatedAt": "2026-09-17T05:00:11Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -15,14 +15,14 @@
   ],
   "summary": {
     "totalWorkItems": 48,
-    "unresolved": 6,
-    "inProgress": 4,
+    "unresolved": 5,
+    "inProgress": 3,
     "blocked": 0,
-    "verified": 38,
+    "verified": 40,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported",
-    "in-progress": 4
+    "in-progress": 3
   },
   "workItems": [
     {
@@ -209,7 +209,7 @@
       "id": "GA-I-03",
       "swarm": "GA-I",
       "title": "Audit events for authority mutation",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
@@ -218,7 +218,7 @@
         }
       ],
       "blockedBy": ["GA-I-01"],
-      "notes": "Spawn/enroll mutations emit authority.workload.spawned + authority.enrollment.pop. Broader authority-mutation catalog still open with remaining Identity routes."
+      "notes": "Spawn/enroll mutations emit authority.workload.spawned + authority.enrollment.pop. Further mutation verbs join this catalog as routes land \u2014 not a second audit path."
     },
     {
       "id": "GA-P-01",
@@ -343,7 +343,7 @@
       "verification": "none",
       "evidence": null,
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Latest refresh after #408/#409 landings."
+      "notes": "Standing honesty ratchet; never closes. Latest refresh after #412/#413/#414/#415 landings."
     },
     {
       "id": "GA-Q-01",
@@ -359,11 +359,16 @@
       "id": "GA-Q-02",
       "swarm": "GA-Q",
       "title": "Cross-plane authority test plan",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "rg -n \"Shared domain|Host plane|Identity plane|Fabric aggregation\" docs/implementation/general-authority/cross-plane-test-plan.md",
+          "result": "ok. four sections + still-outside residuals named"
+        }
+      ],
       "blockedBy": ["GA-A-02", "GA-F-03"],
-      "notes": null
+      "notes": "docs/implementation/general-authority/cross-plane-test-plan.md maps Host/Identity/shared commands + fabric gate."
     },
     {
       "id": "GA-Q-03",
