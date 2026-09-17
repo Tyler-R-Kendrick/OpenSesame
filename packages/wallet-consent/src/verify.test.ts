@@ -22,28 +22,28 @@ function signedProof(digest: string) {
 }
 
 describe("verifyDigestBoundApproval", () => {
-  it("admits a matching digest with a verified ES256 signature", () => {
+  it("admits a matching digest with a verified ES256 signature", async () => {
     expect(
-      verifyDigestBoundApproval({
+      await verifyDigestBoundApproval({
         expectedDigest: DIGEST,
         proof: { ...signedProof(DIGEST), mechanism: "webauthn" },
       }),
     ).toEqual({ ok: true, verifiedMechanism: "es256" });
   });
 
-  it("rejects forged mechanism:webauthn without verified bytes", () => {
+  it("rejects forged mechanism:webauthn without verified bytes", async () => {
     expect(
-      verifyDigestBoundApproval({
+      await verifyDigestBoundApproval({
         expectedDigest: DIGEST,
         proof: { boundDigest: DIGEST, mechanism: "webauthn" },
       }),
     ).toEqual({ ok: false, reason: "unverified_assurance" });
   });
 
-  it("rejects dummy bytes that are not a signature", () => {
+  it("rejects dummy bytes that are not a signature", async () => {
     const keys = generatePaymentApprovalKeyPair();
     expect(
-      verifyDigestBoundApproval({
+      await verifyDigestBoundApproval({
         expectedDigest: DIGEST,
         proof: {
           boundDigest: DIGEST,
@@ -54,34 +54,34 @@ describe("verifyDigestBoundApproval", () => {
     ).toEqual({ ok: false, reason: "signature_invalid" });
   });
 
-  it("rejects digest mismatch", () => {
+  it("rejects digest mismatch", async () => {
     const tampered = buildPaymentApprovalDigest({
       currency: "USD",
       amount: "999.00",
       recipient: "Merchant",
     });
     expect(
-      verifyDigestBoundApproval({
+      await verifyDigestBoundApproval({
         expectedDigest: DIGEST,
         proof: signedProof(tampered),
       }),
     ).toEqual({ ok: false, reason: "digest_mismatch" });
   });
 
-  it("rejects a signature from a different key", () => {
+  it("rejects a signature from a different key", async () => {
     const proof = signedProof(DIGEST);
     const other = generatePaymentApprovalKeyPair();
     expect(
-      verifyDigestBoundApproval({
+      await verifyDigestBoundApproval({
         expectedDigest: DIGEST,
         proof: { ...proof, publicKeySpki: other.publicKeySpki },
       }),
     ).toEqual({ ok: false, reason: "signature_invalid" });
   });
 
-  it("rejects a bare digest match with no bytes", () => {
+  it("rejects a bare digest match with no bytes", async () => {
     expect(
-      verifyDigestBoundApproval({
+      await verifyDigestBoundApproval({
         expectedDigest: DIGEST,
         proof: { boundDigest: DIGEST },
       }),
