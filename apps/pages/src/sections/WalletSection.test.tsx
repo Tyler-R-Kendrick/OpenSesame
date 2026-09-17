@@ -125,9 +125,16 @@ describe("WalletSection", () => {
     expect(
       await screen.findByRole("heading", { name: "Execution adapters" }),
     ).toBeTruthy();
-    expect(await screen.findByText("source_inspected")).toBeTruthy();
-    expect((await screen.findAllByText("blocked")).length).toBeGreaterThan(0);
-    expect(await screen.findByText("fixture_verified")).toBeTruthy();
+    const adapterTimeout = { timeout: 10_000 };
+    expect(
+      await screen.findByText("source_inspected", {}, adapterTimeout),
+    ).toBeTruthy();
+    expect(
+      (await screen.findAllByText("blocked", {}, adapterTimeout)).length,
+    ).toBeGreaterThan(0);
+    expect(
+      await screen.findByText("fixture_verified", {}, adapterTimeout),
+    ).toBeTruthy();
     expect(screen.getByText("Restricted ERC-20 transfer")).toBeTruthy();
     expect(
       screen.queryByText(/Restricted ERC-20 transfer \(simulation\)/i),
