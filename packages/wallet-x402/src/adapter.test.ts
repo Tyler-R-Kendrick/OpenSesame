@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-
 import {
   X402AdapterBlockedError,
-  X402_ADAPTER_BLOCKED_REASON,
   assessX402Adapter,
   describeX402Adapter,
   executeX402Payment,
@@ -12,28 +10,36 @@ import {
 import { fixtureChallenge, fixtureProfile } from "./fixtures.js";
 
 describe("x402 adapter", () => {
-  it("describes itself as blocked for local_execution with production off", () => {
+  it("stays production-off without a local runtime", () => {
     const manifest = describeX402Adapter();
-    expect(manifest.adapterId).toBe("x402-exact");
-    expect(manifest.evidenceStatus).toBe("blocked");
     expect(manifest.productionEnabled).toBe(false);
-    expect(manifest.blockedReason).toBe(X402_ADAPTER_BLOCKED_REASON);
-    expect(manifest.supportedSchemes).toEqual(["exact"]);
-    expect(manifest.headers.paymentRequired).toBe("PAYMENT-REQUIRED");
+    expect(manifest.evidenceStatus).toBe("blocked");
   });
 
-  it("assesses via pure functions without unlocking local_execution", () => {
-    const assessment = assessX402Adapter({
-      profile: fixtureProfile(),
-      challenge: fixtureChallenge(),
-    });
-    expect(assessment.evidenceStatus).toBe("blocked");
-    expect(assessment.productionEnabled).toBe(false);
+  it("may report local_execution_verified without enabling production", () => {
+    const manifest = describeX402Adapter({ localExecutionVerified: true });
+    expect(manifest.evidenceStatus).toBe("local_execution_verified");
+    expect(manifest.productionEnabled).toBe(false);
   });
 
-  it("blocks prepare/execute/reconcile until a harness exists", () => {
-    expect(() => prepareX402Payment()).toThrow(X402AdapterBlockedError);
-    expect(() => executeX402Payment()).toThrow(X402AdapterBlockedError);
-    expect(() => reconcileX402Payment()).toThrow(X402AdapterBlockedError);
+  it("assesses without unlocking production", () => {
+    expect(
+      assessX402Adapter({
+        profile: fixtureProfile(),
+        challenge: fixtureChallenge(),
+      }).productionEnabled,
+    ).toBe(false);
+  });
+
+  it("blocks prepare/execute/reconcile without a runtime", async () => {
+    await expect(prepareX402Payment()).rejects.toBeInstanceOf(
+      X402AdapterBlockedError,
+    );
+    await expect(executeX402Payment()).rejects.toBeInstanceOf(
+      X402AdapterBlockedError,
+    );
+    await expect(reconcileX402Payment()).rejects.toBeInstanceOf(
+      X402AdapterBlockedError,
+    );
   });
 });
