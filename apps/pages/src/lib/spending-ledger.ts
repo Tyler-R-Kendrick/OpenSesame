@@ -8,6 +8,7 @@
 
 import {
   type AmountUnits,
+  BudgetError,
   type BudgetLedger,
   type BudgetProjection,
   type BudgetSnapshot,
@@ -21,6 +22,14 @@ import {
   readPersisted,
   writePersisted,
 } from "./spending-ledger-persist.js";
+import { unbindBudget } from "./wallet-assignments.js";
+import {
+  onWalletTombChange,
+  walletStorageKey,
+  walletStorageTomb,
+} from "./wallet-storage-scope.js";
+
+const LABELS_KEY = "opensesame.wallet.budget.labels.v1";
 
 /**
  * Persist after every successful transaction. Nested transactions stay in the
@@ -45,9 +54,19 @@ class PersistingBudgetStore implements BudgetStore {
 }
 
 let cached: BudgetLedger | null = null;
+let cachedTomb = "";
+let labelCache: Record<string, string> | null = null;
+
+onWalletTombChange(() => {
+  cached = null;
+  cachedTomb = "";
+  labelCache = null;
+});
 
 export function getSpendingLedger(): BudgetLedger {
-  if (cached !== null) return cached;
+  const tomb = walletStorageTomb();
+  if (cached !== null && cachedTomb === tomb) return cached;
+  cachedTomb = tomb;
   cached = createBudgetLedger(new PersistingBudgetStore(readPersisted()));
   return cached;
 }
@@ -59,11 +78,18 @@ export function resetSpendingLedgerCache(): void {
 
 export function clearSpendingLedgerStorage(): void {
   try {
-    localStorage.removeItem(SPENDING_LEDGER_STORAGE_KEY);
+    localStorage.removeItem(walletStorageKey(SPENDING_LEDGER_STORAGE_KEY));
+    localStorage.removeItem(walletStorageKey(LABELS_KEY));
+    if (walletStorageTomb() === "personal") {
+      localStorage.removeItem(SPENDING_LEDGER_STORAGE_KEY);
+      localStorage.removeItem(LABELS_KEY);
+    }
   } catch {
     // Ignore missing Storage (SSR / Node without stub).
   }
   cached = null;
+  cachedTomb = "";
+  labelCache = null;
 }
 
 export function formatUnits(amount: AmountUnits, decimals = 0): string {
@@ -81,71 +107,124 @@ export type BudgetRow = BudgetProjection & {
   readonly label: string;
 };
 
+function readLabels(): Record<string, string> {
+  if (labelCache !== null) return labelCache;
+  try {
+    let raw = localStorage.getItem(walletStorageKey(LABELS_KEY));
+    if ((raw === null || raw === "") && walletStorageTomb() === "personal") {
+      raw = localStorage.getItem(LABELS_KEY);
+    }
+    if (raw === null || raw === "") {
+      labelCache = {};
+      return labelCache;
+    }
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      labelCache = {};
+      return labelCache;
+    }
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === "string" && value.trim() !== "") out[key] = value;
+    }
+    labelCache = out;
+    return labelCache;
+  } catch {
+    labelCache = {};
+    return labelCache;
+  }
+}
+
+function writeLabels(labels: Record<string, string>): void {
+  labelCache = labels;
+  try {
+    localStorage.setItem(walletStorageKey(LABELS_KEY), JSON.stringify(labels));
+  } catch {
+    // Quota / private mode — keep the in-memory labels.
+  }
+}
+
+function setLabel(nodeId: string, name: string): void {
+  const labels = readLabels();
+  labels[nodeId] = name;
+  writeLabels(labels);
+}
+
+function dropLabel(nodeId: string): void {
+  const labels = readLabels();
+  delete labels[nodeId];
+  writeLabels(labels);
+}
+
 export function listBudgetRows(
   ledger: BudgetLedger = getSpendingLedger(),
 ): readonly BudgetRow[] {
-  return ledger.listNodes().map((node) => ({
-    ...node,
-    label:
-      node.parentId === null ? "Root budget" : `Allocation · ${node.nodeId}`,
-  }));
+  const labels = readLabels();
+  return ledger
+    .listNodes()
+    .filter((node) => node.parentId === null)
+    .map((node) => ({
+      ...node,
+      label: labels[node.nodeId] ?? node.nodeId,
+    }));
 }
 
-export function openDemoHouseholdBudget(
-  ledger: BudgetLedger = getSpendingLedger(),
-): void {
-  const existing = ledger.project("household");
-  if (existing !== undefined) return;
-  ledger.transact((tx) => {
-    tx.openNode({
-      nodeId: "household",
-      ceiling: 1000n,
-      strategy: "shared_counter",
-    });
-    tx.openNode({
-      nodeId: "child-a",
-      parentId: "household",
-      ceiling: 0n,
-      strategy: "shared_counter",
-    });
-    tx.openNode({
-      nodeId: "child-b",
-      parentId: "household",
-      ceiling: 0n,
-      strategy: "shared_counter",
-    });
+function requireName(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed === "") throw new Error("Name a budget.");
+  return trimmed;
+}
+
+export function parseCeiling(raw: string): AmountUnits {
+  const trimmed = raw.trim();
+  if (!/^[0-9]+$/u.test(trimmed)) {
+    throw new Error("Ceiling must be a non-negative integer.");
+  }
+  return BigInt(trimmed);
+}
+
+export function createBudget(input: {
+  readonly name: string;
+  readonly ceiling: AmountUnits;
+}): BudgetRow {
+  const name = requireName(input.name);
+  const nodeId = `b-${crypto.randomUUID()}`;
+  const node = getSpendingLedger().openNode({
+    nodeId,
+    ceiling: input.ceiling,
+    strategy: "shared_counter",
   });
+  setLabel(nodeId, name);
+  return { ...node, label: name };
 }
 
-export type SiblingOverspendDemoResult = {
-  readonly firstOk: boolean;
-  readonly secondOk: boolean;
-};
-
-/** Demo: siblings cannot both reserve more than the shared remainder (WAL-D03). */
-export function trySiblingOverspendDemo(
-  ledger: BudgetLedger = getSpendingLedger(),
-): SiblingOverspendDemoResult {
-  openDemoHouseholdBudget(ledger);
-  let firstOk = true;
-  let secondOk = true;
-  try {
-    ledger.reserve({
-      attemptId: `demo-a-${Date.now()}`,
-      nodeId: "child-a",
-      amount: 700n,
-    });
-  } catch {
-    firstOk = false;
-  }
-  try {
-    ledger.reserve({
-      attemptId: `demo-b-${Date.now()}`,
-      nodeId: "child-b",
-      amount: 400n,
-    });
-  } catch {
-    secondOk = false;
-  }
-  return { firstOk, secondOk } satisfies SiblingOverspendDemoResult;
+export function updateBudget(input: {
+  readonly nodeId: string;
+  readonly name: string;
+  readonly ceiling: AmountUnits;
+}): BudgetRow {
+  const name = requireName(input.name);
+  const ledger = getSpendingLedger();
+  const current = ledger.project(input.nodeId);
+  const node =
+    current !== undefined && current.ceiling === input.ceiling
+      ? current
+      : ledger.setCeiling({
+          nodeId: input.nodeId,
+          ceiling: input.ceiling,
+        });
+  setLabel(input.nodeId, name);
+  return { ...node, label: name };
 }
+
+export function removeBudget(nodeId: string): void {
+  getSpendingLedger().closeNode(nodeId);
+  dropLabel(nodeId);
+  unbindBudget(nodeId);
+}
+
+export { BudgetError };

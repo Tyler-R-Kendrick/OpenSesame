@@ -33,16 +33,14 @@ export const SETTINGS_CATEGORY_LABEL = {
 } satisfies Record<SettingsCategory, string>;
 
 export const WALLET_CATEGORIES = [
-  "overview",
   "budgets",
-  "passes",
   "methods",
+  "passes",
   "activity",
 ] as const;
 export type WalletCategory = (typeof WALLET_CATEGORIES)[number];
 
 export const WALLET_CATEGORY_LABEL = {
-  overview: "Overview",
   budgets: "Budgets",
   passes: "Spending passes",
   methods: "Payment methods",
@@ -93,16 +91,16 @@ export function isWalletCategory(value: string): value is WalletCategory {
   return WALLET_CATEGORY_SET.has(value);
 }
 
-/** `/wallet/budgets` → budgets; bare `/wallet` → overview. */
+/** `/wallet/methods` → methods; bare `/wallet` → budgets. */
 export function walletCategoryFromLocation(pathname: string): WalletCategory {
   const match = pathname.match(/\/wallet\/([^/]+)/);
   const fromPath = match?.[1];
   if (fromPath && isWalletCategory(fromPath)) return fromPath;
-  return "overview";
+  return "budgets";
 }
 
 export function walletPath(category: WalletCategory): string {
-  return category === "overview" ? "/wallet" : `/wallet/${category}`;
+  return category === "budgets" ? "/wallet" : `/wallet/${category}`;
 }
 
 export function settingsCategoryFromHash(
@@ -259,8 +257,8 @@ function connectionsCrumbs(parts: string[], ctx: CrumbContext): Crumb[] {
 
 function walletCrumbs(parts: string[]): Crumb[] {
   const category =
-    parts[1] && isWalletCategory(parts[1]) ? parts[1] : "overview";
-  if (category === "overview") return current("Wallet");
+    parts[1] && isWalletCategory(parts[1]) ? parts[1] : "budgets";
+  if (category === "budgets") return current("Wallet");
   return [
     { label: "Wallet", to: "/wallet" },
     { label: WALLET_CATEGORY_LABEL[category] },

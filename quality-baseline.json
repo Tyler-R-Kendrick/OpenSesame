@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 543,
-    "violations": 879,
-    "oversizedLines": 277621
+    "violations": 878,
+    "oversizedLines": 277619
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -679,7 +679,7 @@
       "max-lines": 501
     },
     "apps/pages/src/lib/embedded-catalog.ts": {
-      "max-lines": 612
+      "max-lines": 610
     },
     "apps/pages/src/lib/federation.test.ts": {
       "max-lines": 1418
@@ -1137,7 +1137,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/wallet/PassesPanel.tsx": {
-      "max-lines-per-function": 2
+      "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/__tests__/a11y/harness.tsx": {
       "max-lines": 424

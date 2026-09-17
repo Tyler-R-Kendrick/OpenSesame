@@ -7,6 +7,11 @@
 
 import { BudgetError, budgetErrorMessage, fail } from "./errors.js";
 import { ancestorPath, applyReserveHold, reverseReserveHold } from "./holds.js";
+import {
+  type SetCeilingInput,
+  closeNodeInTx,
+  setCeilingInTx,
+} from "./node-lifecycle.js";
 import type { AttemptState, BudgetSnapshot, NodeState } from "./state.js";
 import { projectAttempt, projectNode } from "./state.js";
 import type { BudgetStore, BudgetTx } from "./store.js";
@@ -44,6 +49,8 @@ export type ReserveInput = {
   readonly nodeId: BudgetNodeRef;
   readonly amount: AmountUnits;
 };
+
+export type { SetCeilingInput };
 
 function requireId(value: string, label: string): string {
   if (value.length === 0) {
@@ -258,6 +265,8 @@ function releaseInTx(
 
 export type BudgetLedger = {
   openNode(input: OpenNodeInput): BudgetProjection;
+  setCeiling(input: SetCeilingInput): BudgetProjection;
+  closeNode(nodeId: BudgetNodeRef): BudgetProjection;
   allocateExclusive(input: AllocateExclusiveInput): AllocateExclusiveResult;
   reserve(input: ReserveInput): ReservationRecord;
   commit(attemptId: PaymentAttemptId): ReservationRecord;
@@ -273,6 +282,8 @@ export type BudgetLedger = {
 
 export type BudgetLedgerTx = {
   openNode(input: OpenNodeInput): BudgetProjection;
+  setCeiling(input: SetCeilingInput): BudgetProjection;
+  closeNode(nodeId: BudgetNodeRef): BudgetProjection;
   allocateExclusive(input: AllocateExclusiveInput): AllocateExclusiveResult;
   reserve(input: ReserveInput): ReservationRecord;
   commit(attemptId: PaymentAttemptId): ReservationRecord;
@@ -284,6 +295,8 @@ export type BudgetLedgerTx = {
 function bindTx(tx: BudgetTx): BudgetLedgerTx {
   return {
     openNode: (input) => openNodeInTx(tx, input),
+    setCeiling: (input) => setCeilingInTx(tx, input),
+    closeNode: (nodeId) => closeNodeInTx(tx, nodeId),
     allocateExclusive: (input) => allocateExclusiveInTx(tx, input),
     reserve: (input) => reserveInTx(tx, input),
     commit: (attemptId) => commitInTx(tx, attemptId),
@@ -302,6 +315,8 @@ function bindTx(tx: BudgetTx): BudgetLedgerTx {
 export function createBudgetLedger(store: BudgetStore): BudgetLedger {
   return {
     openNode: (input) => store.transact((tx) => openNodeInTx(tx, input)),
+    setCeiling: (input) => store.transact((tx) => setCeilingInTx(tx, input)),
+    closeNode: (nodeId) => store.transact((tx) => closeNodeInTx(tx, nodeId)),
     allocateExclusive: (input) =>
       store.transact((tx) => allocateExclusiveInTx(tx, input)),
     reserve: (input) => store.transact((tx) => reserveInTx(tx, input)),

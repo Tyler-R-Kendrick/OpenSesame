@@ -201,3 +201,95 @@ describe("budget ledger — shared counter", () => {
     expect(root?.locallyAvailable).toBe(600n);
   });
 });
+
+describe("budget ledger — close and ceiling", () => {
+  it("raises a root ceiling and refuses a cut below posted spend", () => {
+    const l = ledger();
+    l.openNode({
+      nodeId: "root",
+      ceiling: 100n,
+      strategy: "shared_counter",
+    });
+    l.reserve({ attemptId: "p", nodeId: "root", amount: 40n });
+    l.commit("p");
+    expect(
+      l.setCeiling({ nodeId: "root", ceiling: 150n }).locallyAvailable,
+    ).toBe(110n);
+    expect(() => l.setCeiling({ nodeId: "root", ceiling: 30n })).toThrow(
+      BudgetError,
+    );
+  });
+
+  it("closes an idle root and refuses a reserved one", () => {
+    const l = ledger();
+    l.openNode({
+      nodeId: "root",
+      ceiling: 50n,
+      strategy: "shared_counter",
+    });
+    l.reserve({ attemptId: "hold", nodeId: "root", amount: 10n });
+    expect(() => l.closeNode("root")).toThrow(BudgetError);
+    l.release("hold");
+    l.closeNode("root");
+    expect(l.project("root")).toBeUndefined();
+  });
+
+  it("returns unused exclusive carve-out to the parent on close", () => {
+    const l = ledger();
+    l.openNode({
+      nodeId: "root",
+      ceiling: 100n,
+      strategy: "exclusive_allocation",
+    });
+    l.openNode({
+      nodeId: "child",
+      parentId: "root",
+      ceiling: 0n,
+      strategy: "shared_counter",
+    });
+    l.allocateExclusive({ parentId: "root", childId: "child", amount: 40n });
+    l.reserve({ attemptId: "p", nodeId: "child", amount: 10n });
+    l.commit("p");
+    l.closeNode("child");
+    const root = expectConserves(l.project("root"));
+    expect(root.locallyAvailable).toBe(90n);
+    expect(root.postedSpending).toBe(10n);
+    expect(root.reservedToChildren).toBe(0n);
+    expect(l.project("child")).toBeUndefined();
+  });
+
+  it("returns shared-child committed spend to the parent on close", () => {
+    const l = ledger();
+    l.openNode({
+      nodeId: "root",
+      ceiling: 100n,
+      strategy: "shared_counter",
+    });
+    l.openNode({
+      nodeId: "child",
+      parentId: "root",
+      ceiling: 0n,
+      strategy: "shared_counter",
+    });
+    l.reserve({ attemptId: "p", nodeId: "child", amount: 25n });
+    l.commit("p");
+    l.closeNode("child");
+    const root = expectConserves(l.project("root"));
+    expect(root.postedSpending).toBe(25n);
+    expect(root.reservedToChildren).toBe(0n);
+    expect(root.locallyAvailable).toBe(75n);
+    expect(l.project("child")).toBeUndefined();
+  });
+
+  it("refuses to close a root with posted spend", () => {
+    const l = ledger();
+    l.openNode({
+      nodeId: "root",
+      ceiling: 50n,
+      strategy: "shared_counter",
+    });
+    l.reserve({ attemptId: "p", nodeId: "root", amount: 10n });
+    l.commit("p");
+    expect(() => l.closeNode("root")).toThrow(BudgetError);
+  });
+});

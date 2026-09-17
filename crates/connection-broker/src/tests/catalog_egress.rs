@@ -8,6 +8,12 @@ fn every_network_catalog_connector_has_a_generic_execution_contract() {
         if matches!(&provider.auth, catalog::AuthMethod::Configuration) {
             continue;
         }
+        // Wallet issuers are list-only metadata (empty operations); they must
+        // not enter invoke_network_json, so they have no execution contract.
+        if matches!(provider.category, catalog::Category::Wallet) && provider.operations.is_empty()
+        {
+            continue;
+        }
         assert_ne!(
             provider.egress.scheme, "none",
             "{} has no egress",

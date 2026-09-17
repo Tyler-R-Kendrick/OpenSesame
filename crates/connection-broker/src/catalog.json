@@ -1011,11 +1011,25 @@
       "category": "certificates",
       "docs_url": "https://letsencrypt.org/docs/",
       "provenance_url": "https://letsencrypt.org/docs/client-options/",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "contact_email", "secret": false, "required": false },
-        { "name": "accept_terms", "secret": false, "required": true },
-        { "name": "environment", "secret": false, "required": false }
+        {
+          "name": "contact_email",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "accept_terms",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "environment",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
       "egress": {
@@ -1034,11 +1048,25 @@
       "category": "certificates",
       "docs_url": "https://zerossl.com/documentation/acme",
       "provenance_url": "https://zerossl.com/documentation/acme",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "eab_kid", "secret": false, "required": true },
-        { "name": "eab_hmac_key", "secret": true, "required": true },
-        { "name": "contact_email", "secret": false, "required": false }
+        {
+          "name": "eab_kid",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "eab_hmac_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "contact_email",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
       "egress": {
@@ -1436,15 +1464,37 @@
       "category": "identity",
       "docs_url": "https://better-auth.com/docs/plugins/api-key",
       "provenance_url": "https://better-auth.com/docs/plugins/api-key/reference",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "base_url", "secret": false, "required": true },
-        { "name": "api_key", "secret": true, "required": true },
-        { "name": "api_key_header", "secret": false, "required": true },
-        { "name": "config_id", "secret": false, "required": false }
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "api_key_header",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "config_id",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["identity.configure"]
     },
     {
@@ -1472,15 +1522,37 @@
       "category": "identity",
       "docs_url": "https://auth0.com/docs/secure/tokens/access-tokens/get-access-tokens",
       "provenance_url": "https://auth0.com/docs/api/authentication/client-credential-flow/get-token",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "domain", "secret": false, "required": true },
-        { "name": "client_id", "secret": false, "required": true },
-        { "name": "client_secret", "secret": true, "required": true },
-        { "name": "audience", "secret": false, "required": false }
+        {
+          "name": "domain",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "audience",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["identity.configure"]
     },
     {
@@ -1637,14 +1709,32 @@
       "category": "password_managers",
       "docs_url": "https://fnox.jdx.dev/providers/1password.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "service_account_token", "secret": true, "required": true },
-        { "name": "account", "secret": false, "required": false },
-        { "name": "vault", "secret": false, "required": false }
+        {
+          "name": "service_account_token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "account",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "vault",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1653,13 +1743,27 @@
       "category": "encryption",
       "docs_url": "https://fnox.jdx.dev/providers/age.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "recipients", "secret": false, "required": true },
-        { "name": "identity", "secret": true, "required": true }
+        {
+          "name": "recipients",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "identity",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1668,16 +1772,42 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/aws-sm.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "region", "secret": false, "required": true },
-        { "name": "access_key_id", "secret": false, "required": true },
-        { "name": "secret_access_key", "secret": true, "required": true },
-        { "name": "session_token", "secret": true, "required": false },
-        { "name": "prefix", "secret": false, "required": false }
+        {
+          "name": "region",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "access_key_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "secret_access_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "session_token",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1686,16 +1816,42 @@
       "category": "encryption",
       "docs_url": "https://fnox.jdx.dev/providers/aws-kms.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "key_id", "secret": false, "required": true },
-        { "name": "region", "secret": false, "required": true },
-        { "name": "access_key_id", "secret": false, "required": true },
-        { "name": "secret_access_key", "secret": true, "required": true },
-        { "name": "session_token", "secret": true, "required": false }
+        {
+          "name": "key_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "region",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "access_key_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "secret_access_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "session_token",
+          "secret": true,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1704,16 +1860,42 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/aws-ps.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "region", "secret": false, "required": true },
-        { "name": "access_key_id", "secret": false, "required": true },
-        { "name": "secret_access_key", "secret": true, "required": true },
-        { "name": "session_token", "secret": true, "required": false },
-        { "name": "prefix", "secret": false, "required": false }
+        {
+          "name": "region",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "access_key_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "secret_access_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "session_token",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1722,16 +1904,42 @@
       "category": "encryption",
       "docs_url": "https://fnox.jdx.dev/providers/azure-kms.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "vault_url", "secret": false, "required": true },
-        { "name": "key_name", "secret": false, "required": true },
-        { "name": "tenant_id", "secret": false, "required": true },
-        { "name": "client_id", "secret": false, "required": true },
-        { "name": "client_secret", "secret": true, "required": true }
+        {
+          "name": "vault_url",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "key_name",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "tenant_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1740,16 +1948,42 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/azure-sm.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "vault_url", "secret": false, "required": true },
-        { "name": "tenant_id", "secret": false, "required": true },
-        { "name": "client_id", "secret": false, "required": true },
-        { "name": "client_secret", "secret": true, "required": true },
-        { "name": "prefix", "secret": false, "required": false }
+        {
+          "name": "vault_url",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "tenant_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1758,16 +1992,42 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/azure-ac.html",
       "provenance_url": "https://fnox.jdx.dev/providers/overview",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "endpoint", "secret": false, "required": true },
-        { "name": "tenant_id", "secret": false, "required": true },
-        { "name": "client_id", "secret": false, "required": true },
-        { "name": "client_secret", "secret": true, "required": true },
-        { "name": "prefix", "secret": false, "required": false }
+        {
+          "name": "endpoint",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "tenant_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1776,14 +2036,32 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/gcp-sm.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "project_id", "secret": false, "required": true },
-        { "name": "service_account_json", "secret": true, "required": true },
-        { "name": "prefix", "secret": false, "required": false }
+        {
+          "name": "project_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "service_account_json",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1792,16 +2070,42 @@
       "category": "encryption",
       "docs_url": "https://fnox.jdx.dev/providers/gcp-kms.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "project_id", "secret": false, "required": true },
-        { "name": "location", "secret": false, "required": true },
-        { "name": "key_ring", "secret": false, "required": true },
-        { "name": "key_name", "secret": false, "required": true },
-        { "name": "service_account_json", "secret": true, "required": true }
+        {
+          "name": "project_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "location",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "key_ring",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "key_name",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "service_account_json",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1810,14 +2114,32 @@
       "category": "encryption",
       "docs_url": "https://fnox.jdx.dev/providers/fido2.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "credential_id", "secret": false, "required": true },
-        { "name": "relying_party_id", "secret": false, "required": false },
-        { "name": "pin", "secret": true, "required": false }
+        {
+          "name": "credential_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "relying_party_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "pin",
+          "secret": true,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1826,15 +2148,37 @@
       "category": "password_managers",
       "docs_url": "https://fnox.jdx.dev/providers/bitwarden.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "session_token", "secret": true, "required": true },
-        { "name": "server_url", "secret": false, "required": false },
-        { "name": "organization_id", "secret": false, "required": false },
-        { "name": "collection_id", "secret": false, "required": false }
+        {
+          "name": "session_token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "server_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "organization_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "collection_id",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1849,9 +2193,21 @@
         "value_prefix": "Bearer "
       },
       "connection_configuration_fields": [
-        { "name": "api_key", "secret": true, "required": true },
-        { "name": "project", "secret": false, "required": false },
-        { "name": "config", "secret": false, "required": false }
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "project",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "config",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
       "egress": {
@@ -1867,13 +2223,27 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/foks.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "profile", "secret": false, "required": true },
-        { "name": "token", "secret": true, "required": false }
+        {
+          "name": "profile",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "token",
+          "secret": true,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1882,15 +2252,37 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/bitwarden-sm.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "access_token", "secret": true, "required": true },
-        { "name": "organization_id", "secret": false, "required": false },
-        { "name": "project_id", "secret": false, "required": false },
-        { "name": "server_url", "secret": false, "required": false }
+        {
+          "name": "access_token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "organization_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "project_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "server_url",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1899,15 +2291,37 @@
       "category": "password_managers",
       "docs_url": "https://fnox.jdx.dev/providers/infisical.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "token", "secret": true, "required": true },
-        { "name": "host", "secret": false, "required": false },
-        { "name": "project_id", "secret": false, "required": false },
-        { "name": "environment", "secret": false, "required": false }
+        {
+          "name": "token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "host",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "project_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "environment",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1916,14 +2330,32 @@
       "category": "local_storage",
       "docs_url": "https://fnox.jdx.dev/providers/keepass.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "database_path", "secret": false, "required": true },
-        { "name": "password", "secret": true, "required": true },
-        { "name": "key_file", "secret": true, "required": false }
+        {
+          "name": "database_path",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "password",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "key_file",
+          "secret": true,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1932,13 +2364,27 @@
       "category": "local_storage",
       "docs_url": "https://fnox.jdx.dev/providers/keychain.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "service", "secret": false, "required": true },
-        { "name": "prefix", "secret": false, "required": false }
+        {
+          "name": "service",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1947,13 +2393,27 @@
       "category": "local_storage",
       "docs_url": "https://fnox.jdx.dev/providers/password-store.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "store_dir", "secret": false, "required": true },
-        { "name": "prefix", "secret": false, "required": false }
+        {
+          "name": "store_dir",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1962,14 +2422,32 @@
       "category": "password_managers",
       "docs_url": "https://www.passbolt.com/docs",
       "provenance_url": "https://api-reference.passbolt.com/",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "server_url", "secret": false, "required": true },
-        { "name": "private_key", "secret": true, "required": true },
-        { "name": "passphrase", "secret": true, "required": true }
+        {
+          "name": "server_url",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "private_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "passphrase",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1978,14 +2456,32 @@
       "category": "password_managers",
       "docs_url": "https://fnox.jdx.dev/cli/provider/add",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "base_url", "secret": false, "required": true },
-        { "name": "api_key", "secret": true, "required": true },
-        { "name": "password_list_id", "secret": false, "required": false }
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "password_list_id",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -1994,12 +2490,22 @@
       "category": "local_storage",
       "docs_url": "https://fnox.jdx.dev/providers/plain.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "namespace", "secret": false, "required": true }
+        {
+          "name": "namespace",
+          "secret": false,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -2008,13 +2514,27 @@
       "category": "password_managers",
       "docs_url": "https://fnox.jdx.dev/providers/proton-pass.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "agent_token", "secret": true, "required": true },
-        { "name": "vault", "secret": false, "required": false }
+        {
+          "name": "agent_token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "vault",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -2023,15 +2543,37 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/vault.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "address", "secret": false, "required": true },
-        { "name": "token", "secret": true, "required": true },
-        { "name": "namespace", "secret": false, "required": false },
-        { "name": "path", "secret": false, "required": false }
+        {
+          "name": "address",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "namespace",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "path",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -2040,15 +2582,37 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/openbao.html",
       "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "address", "secret": false, "required": true },
-        { "name": "token", "secret": true, "required": true },
-        { "name": "namespace", "secret": false, "required": false },
-        { "name": "path", "secret": false, "required": false }
+        {
+          "name": "address",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "namespace",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "path",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -2057,15 +2621,37 @@
       "category": "password_managers",
       "docs_url": "https://fnox.jdx.dev/providers/vaultwarden.html",
       "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "session_token", "secret": true, "required": true },
-        { "name": "server_url", "secret": false, "required": false },
-        { "name": "organization_id", "secret": false, "required": false },
-        { "name": "collection_id", "secret": false, "required": false }
+        {
+          "name": "session_token",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "server_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "organization_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "collection_id",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -2074,13 +2660,27 @@
       "category": "local_storage",
       "docs_url": "https://fnox.jdx.dev/providers/overview.html",
       "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "location", "secret": false, "required": true },
-        { "name": "key", "secret": true, "required": true }
+        {
+          "name": "location",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "key",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -2089,13 +2689,27 @@
       "category": "cloud_secret_storage",
       "docs_url": "https://fnox.jdx.dev/providers/overview.html",
       "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "location", "secret": false, "required": true },
-        { "name": "key", "secret": true, "required": true }
+        {
+          "name": "location",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "key",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -2104,15 +2718,37 @@
       "category": "agent_harnesses",
       "docs_url": "https://learn.microsoft.com/azure/ai-services/openai/reference",
       "provenance_url": "https://learn.microsoft.com/azure/ai-services/openai/reference",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "endpoint", "secret": false, "required": true },
-        { "name": "deployment", "secret": false, "required": true },
-        { "name": "api_version", "secret": false, "required": false },
-        { "name": "api_key", "secret": true, "required": true }
+        {
+          "name": "endpoint",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "deployment",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_version",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["model.invoke"]
     },
     {
@@ -2121,16 +2757,42 @@
       "category": "agent_harnesses",
       "docs_url": "https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started-api.html",
       "provenance_url": "https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "region", "secret": false, "required": true },
-        { "name": "api_key", "secret": true, "required": false },
-        { "name": "access_key_id", "secret": false, "required": false },
-        { "name": "secret_access_key", "secret": true, "required": false },
-        { "name": "session_token", "secret": true, "required": false }
+        {
+          "name": "region",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "access_key_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "secret_access_key",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "session_token",
+          "secret": true,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["model.invoke"]
     },
     {
@@ -2158,14 +2820,32 @@
       "category": "encryption",
       "docs_url": "https://fnox.jdx.dev/providers/yubikey.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "recipient", "secret": false, "required": true },
-        { "name": "slot", "secret": false, "required": false },
-        { "name": "pin", "secret": true, "required": false }
+        {
+          "name": "recipient",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "slot",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "pin",
+          "secret": true,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["secret.configure"]
     },
     {
@@ -2174,15 +2854,37 @@
       "category": "networking",
       "docs_url": "https://tailscale.com/kb/1085/auth-keys",
       "provenance_url": "https://tailscale.com/kb/1085/auth-keys",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "tailnet", "secret": false, "required": true },
-        { "name": "hostname", "secret": false, "required": false },
-        { "name": "auth_key", "secret": true, "required": true },
-        { "name": "socket", "secret": false, "required": false }
+        {
+          "name": "tailnet",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "hostname",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "auth_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "socket",
+          "secret": false,
+          "required": false
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["network.configure"]
     },
     {
@@ -2191,14 +2893,32 @@
       "category": "wallet",
       "docs_url": "https://developers.cloudflare.com/",
       "provenance_url": "https://developers.cloudflare.com/",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "account_id", "secret": false, "required": true },
-        { "name": "wallet_id", "secret": false, "required": true },
-        { "name": "api_token", "secret": true, "required": true }
+        {
+          "name": "account_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "wallet_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_token",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["wallet.configure"]
     },
     {
@@ -2207,15 +2927,37 @@
       "category": "wallet",
       "docs_url": "https://developers.google.com/wallet",
       "provenance_url": "https://developers.google.com/wallet",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "issuer_id", "secret": false, "required": true },
-        { "name": "class_id", "secret": false, "required": true },
-        { "name": "service_account_email", "secret": false, "required": true },
-        { "name": "service_account_key", "secret": true, "required": true }
+        {
+          "name": "issuer_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "class_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "service_account_email",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "service_account_key",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["wallet.configure"]
     },
     {
@@ -2224,14 +2966,32 @@
       "category": "wallet",
       "docs_url": "https://developer.apple.com/wallet/",
       "provenance_url": "https://developer.apple.com/wallet/",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "pass_type_id", "secret": false, "required": true },
-        { "name": "team_id", "secret": false, "required": true },
-        { "name": "certificate", "secret": true, "required": true }
+        {
+          "name": "pass_type_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "team_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "certificate",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["wallet.configure"]
     },
     {
@@ -2240,16 +3000,106 @@
       "category": "wallet",
       "docs_url": "https://developer.samsung.com/wallet",
       "provenance_url": "https://developer.samsung.com/wallet",
-      "auth": { "kind": "configuration" },
+      "auth": {
+        "kind": "configuration"
+      },
       "connection_configuration_fields": [
-        { "name": "service_id", "secret": false, "required": true },
-        { "name": "api_key", "secret": true, "required": true }
+        {
+          "name": "service_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
       ],
       "scopes": [],
-      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
       "operations": ["wallet.configure"]
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "api-key "
+      },
+      "category": "wallet",
+      "display_name": "Privacy",
+      "docs_url": "https://privacy.com/developer/docs",
+      "egress": {
+        "authorities": ["api.privacy.com"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "privacy",
+      "operations": [],
+      "provenance_url": "https://privacy.com/developer/docs",
+      "scopes": []
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Bearer "
+      },
+      "category": "wallet",
+      "display_name": "Lithic",
+      "docs_url": "https://docs.lithic.com/docs/authentication",
+      "egress": {
+        "authorities": ["api.lithic.com"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "lithic",
+      "operations": [],
+      "provenance_url": "https://docs.lithic.com/docs/authentication",
+      "scopes": []
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Basic "
+      },
+      "category": "wallet",
+      "display_name": "Marqeta",
+      "docs_url": "https://www.marqeta.com/docs/developer-guides/api-authentication",
+      "egress": {
+        "authorities": ["api.marqeta.com", "sandbox-api.marqeta.com"],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "marqeta",
+      "operations": [],
+      "provenance_url": "https://www.marqeta.com/docs/developer-guides/api-authentication",
+      "scopes": []
+    },
+    {
+      "auth": {
+        "header": "Authorization",
+        "kind": "api_key",
+        "value_prefix": "Bearer "
+      },
+      "category": "wallet",
+      "display_name": "Stripe Issuing",
+      "docs_url": "https://docs.stripe.com/issuing",
+      "egress": {
+        "authorities": ["api.stripe.com"],
+        "path_prefixes": ["/v1/issuing"],
+        "scheme": "https"
+      },
+      "id": "stripe-issuing",
+      "operations": [],
+      "provenance_url": "https://docs.stripe.com/issuing",
+      "scopes": []
     }
   ],
-  "revision": "2026-09-17.2",
+  "revision": "2026-09-17.3",
   "schema_version": 1
 }

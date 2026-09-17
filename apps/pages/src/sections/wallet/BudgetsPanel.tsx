@@ -1,118 +1,93 @@
 /**
  * Wallet › Budgets — conserved local ledger (ADR 0123).
  *
- * Creates a shared-counter household demo and shows exact subunit amounts.
- * Sibling overspend is refused by the journal, not by UI copy.
+ * Add, edit, and remove root budgets. Amounts are integer subunits.
  */
 
-import { useCallback, useState } from "react";
+import { type FormEvent, useCallback, useState } from "react";
+import { IconEdit, IconPlus, IconTrash } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import {
-  buildLocalPaymentApprovalDigest,
-  localPaymentApprovalIntent,
-} from "../../lib/spending-consent.js";
-import {
-  clearSpendingLedgerStorage,
+  BudgetError,
+  createBudget,
   formatUnits,
-  getSpendingLedger,
   listBudgetRows,
-  openDemoHouseholdBudget,
-  resetSpendingLedgerCache,
-  trySiblingOverspendDemo,
+  parseCeiling,
+  removeBudget,
+  updateBudget,
 } from "../../lib/spending-ledger.js";
+import { useVault } from "../../lib/vault/hooks.js";
+import {
+  instrumentIdsForBudget,
+  setBudgetInstruments,
+  unbindBudget,
+} from "../../lib/wallet-assignments.js";
+import { listPaymentInstruments } from "../../lib/wallet-instruments.js";
+
+type Draft = {
+  readonly nodeId: string | null;
+  readonly name: string;
+  readonly ceiling: string;
+  readonly itemIds: readonly string[];
+};
+
+function failText(caught: unknown): string {
+  if (caught instanceof BudgetError) return caught.message;
+  if (caught instanceof Error) return caught.message;
+  return "Could not update budget";
+}
 
 export function BudgetsPanel() {
+  const { items } = useVault();
   const [tick, setTick] = useState(0);
+  const [draft, setDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState<{
     tone: "ok" | "err" | "warn";
     text: string;
   } | null>(null);
-  const [approvalDigest, setApprovalDigest] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     setTick((n) => n + 1);
   }, []);
-
-  // tick forces re-read after mutations
   void tick;
-  const rows = listBudgetRows(getSpendingLedger());
+  const rows = listBudgetRows();
+  const instruments = listPaymentInstruments(items);
 
-  const onCreateDemo = () => {
+  const onSave = (event: FormEvent) => {
+    event.preventDefault();
+    if (draft === null) return;
     setMessage(null);
-    setApprovalDigest(null);
     try {
-      openDemoHouseholdBudget();
-      void buildLocalPaymentApprovalDigest(
-        localPaymentApprovalIntent({
-          amount: "1000",
-          recipient: "household",
-          allocationRef: "household",
-        }),
-      ).then((digest) => {
-        setApprovalDigest(digest);
-      });
-      setMessage({
-        tone: "ok",
-        text: "Opened a 1000-subunit shared household budget with two children.",
-      });
+      const ceiling = parseCeiling(draft.ceiling);
+      const saved =
+        draft.nodeId === null
+          ? createBudget({ name: draft.name, ceiling })
+          : updateBudget({
+              nodeId: draft.nodeId,
+              name: draft.name,
+              ceiling,
+            });
+      setBudgetInstruments(saved.nodeId, draft.itemIds);
+      setDraft(null);
+      refresh();
+    } catch (caught) {
+      setMessage({ tone: "err", text: failText(caught) });
+    }
+  };
+
+  const onRemove = (nodeId: string, label: string) => {
+    setMessage(null);
+    try {
+      removeBudget(nodeId);
+      unbindBudget(nodeId);
+      if (draft?.nodeId === nodeId) setDraft(null);
       refresh();
     } catch (caught) {
       setMessage({
         tone: "err",
-        text:
-          caught instanceof Error ? caught.message : "Could not open budget",
+        text: failText(caught) || `Could not remove ${label}`,
       });
     }
-  };
-
-  const onSiblingDemo = () => {
-    setMessage(null);
-    setApprovalDigest(null);
-    try {
-      const result = trySiblingOverspendDemo();
-      if (result.firstOk && !result.secondOk) {
-        void buildLocalPaymentApprovalDigest(
-          localPaymentApprovalIntent({
-            amount: "700",
-            recipient: "child-a",
-            allocationRef: "child-a",
-          }),
-        ).then((digest) => {
-          setApprovalDigest(digest);
-        });
-        setMessage({
-          tone: "ok",
-          text: "First sibling reserved 700; second 400 refused — shared remainder conserved.",
-        });
-      } else if (result.firstOk && result.secondOk) {
-        setMessage({
-          tone: "warn",
-          text: "Both reservations succeeded — check remaining capacity before claiming an overspend test.",
-        });
-      } else {
-        setMessage({
-          tone: "err",
-          text: "Demo reservation failed unexpectedly.",
-        });
-      }
-      refresh();
-    } catch (caught) {
-      setMessage({
-        tone: "err",
-        text: caught instanceof Error ? caught.message : "Demo failed",
-      });
-    }
-  };
-
-  const onReset = () => {
-    clearSpendingLedgerStorage();
-    resetSpendingLedgerCache();
-    setApprovalDigest(null);
-    setMessage({
-      tone: "warn",
-      text: "Cleared this browser's local budget ledger. External authority is unaffected.",
-    });
-    refresh();
   };
 
   return (
@@ -120,61 +95,150 @@ export function BudgetsPanel() {
       <div className="panel__head">
         <div>
           <h2 id="wallet-budgets">Budgets</h2>
-          <p className="hint">
-            Exact integer subunits on this device. A local ledger is not a
-            hostile-owner money counter and does not settle offline.
-          </p>
         </div>
+        <fieldset className="vtree__keys" aria-label="Budget commands">
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Add budget"
+            title="Add budget"
+            disabled={draft !== null}
+            onClick={() =>
+              setDraft({ nodeId: null, name: "", ceiling: "0", itemIds: [] })
+            }
+          >
+            <IconPlus size={15} />
+          </button>
+        </fieldset>
       </div>
       <div className="panel__body">
-        <div className="row gap">
-          <button type="button" className="btn" onClick={onCreateDemo}>
-            Open demo household budget
-          </button>
-          <button type="button" className="btn" onClick={onSiblingDemo}>
-            Try sibling overspend
-          </button>
-          <button type="button" className="btn" onClick={onReset}>
-            Clear local ledger
-          </button>
-        </div>
-
-        {rows.length === 0 ? (
+        {rows.length === 0 && draft === null ? (
           <div className="empty">
             <h3>No budgets yet</h3>
-            <p className="hint">
-              Open the demo household budget to exercise shared-counter
-              conservation, or wait for an owner-approved policy allocation.
-            </p>
           </div>
         ) : (
-          <ul className="list">
-            {rows.map((row) => (
-              <li key={row.nodeId} className="list__row">
-                <div>
-                  <strong>{row.label}</strong>
-                  <span className="hint">
-                    {" "}
-                    · {row.strategy.replace("_", " ")}
-                  </span>
-                  <p className="hint">
-                    ceiling {formatUnits(row.ceiling)} · available{" "}
-                    {formatUnits(row.locallyAvailable)} · reserved to children{" "}
-                    {formatUnits(row.reservedToChildren)} · exposure{" "}
-                    {formatUnits(row.unresolvedExternalExposure)} · posted{" "}
-                    {formatUnits(row.postedSpending)}
-                  </p>
-                </div>
-              </li>
-            ))}
+          <ul className="identity-rows">
+            {rows.map((row) => {
+              const assigned = instrumentIdsForBudget(row.nodeId)
+                .map((id) => instruments.find((item) => item.id === id)?.name)
+                .filter((name): name is string => Boolean(name));
+              return (
+                <li key={row.nodeId} className="identity-row">
+                  <div className="identity-row__main">
+                    <div className="identity-row__id">
+                      <h3>{row.label}</h3>
+                      <span className="identity-ref">
+                        {formatUnits(row.ceiling)} ·{" "}
+                        {formatUnits(row.locallyAvailable)} left
+                        {assigned.length > 0 ? ` · ${assigned.join(", ")}` : ""}
+                      </span>
+                    </div>
+                    <fieldset
+                      className="vtree__keys actions"
+                      aria-label={`${row.label} actions`}
+                    >
+                      <button
+                        type="button"
+                        className="icon-btn icon-btn--sm"
+                        aria-label={`Edit ${row.label}`}
+                        title={`Edit ${row.label}`}
+                        onClick={() =>
+                          setDraft({
+                            nodeId: row.nodeId,
+                            name: row.label,
+                            ceiling: row.ceiling.toString(10),
+                            itemIds: instrumentIdsForBudget(row.nodeId),
+                          })
+                        }
+                      >
+                        <IconEdit size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn icon-btn--sm"
+                        aria-label={`Remove ${row.label}`}
+                        title={`Remove ${row.label}`}
+                        onClick={() => onRemove(row.nodeId, row.label)}
+                      >
+                        <IconTrash size={15} />
+                      </button>
+                    </fieldset>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
 
-        {approvalDigest ? (
-          <p className="hint" data-testid="wallet-approval-digest">
-            Local approval digest (executable terms only; not WebAuthn proof):{" "}
-            <code>{approvalDigest}</code>
-          </p>
+        {draft ? (
+          <form onSubmit={onSave}>
+            <div className="field">
+              <label className="label" htmlFor="budget-name">
+                Name
+              </label>
+              <input
+                id="budget-name"
+                required
+                maxLength={80}
+                value={draft.name}
+                onChange={(event) =>
+                  setDraft({ ...draft, name: event.target.value })
+                }
+              />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="budget-ceiling">
+                Ceiling (subunits)
+              </label>
+              <input
+                id="budget-ceiling"
+                inputMode="numeric"
+                required
+                pattern="[0-9]+"
+                value={draft.ceiling}
+                onChange={(event) =>
+                  setDraft({ ...draft, ceiling: event.target.value })
+                }
+              />
+            </div>
+            {instruments.length > 0 ? (
+              <fieldset className="field">
+                <legend className="label">Payment methods</legend>
+                {instruments.map((item) => {
+                  const checked = draft.itemIds.includes(item.id);
+                  return (
+                    <label className="check" key={item.id}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setDraft({
+                            ...draft,
+                            itemIds: checked
+                              ? draft.itemIds.filter((id) => id !== item.id)
+                              : [...draft.itemIds, item.id],
+                          });
+                        }}
+                      />{" "}
+                      {item.name}
+                    </label>
+                  );
+                })}
+              </fieldset>
+            ) : null}
+            <div className="actions">
+              <button type="submit" className="btn btn--primary">
+                {draft.nodeId === null ? "Create budget" : "Save budget"}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setDraft(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         ) : null}
 
         {message ? <StatusNote message={message} /> : null}

@@ -17,6 +17,7 @@ export {
   type BudgetLedgerTx,
   type OpenNodeInput,
   type ReserveInput,
+  type SetCeilingInput,
 } from "./ledger.js";
 export type { BudgetJournal, JournalEntry } from "./journal.js";
 export {

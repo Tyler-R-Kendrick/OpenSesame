@@ -15,6 +15,7 @@ import {
 import {
   SETTINGS_CATEGORIES,
   WALLET_CATEGORIES,
+  WALLET_CATEGORY_LABEL,
   settingsCategoryFromLocation,
   settingsPath,
   walletPath,
@@ -177,7 +178,7 @@ function NavTree() {
               key={category}
               node={{
                 id: category,
-                label: category,
+                label: WALLET_CATEGORY_LABEL[category],
                 href: walletPath(category),
                 children: [],
                 branch: false,

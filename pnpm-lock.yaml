@@ -786,12 +786,6 @@ importers:
       '@opensesame/wallet-consent':
         specifier: workspace:*
         version: link:../../packages/wallet-consent
-      '@opensesame/wallet-evm':
-        specifier: workspace:*
-        version: link:../../packages/wallet-evm
-      '@opensesame/wallet-x402':
-        specifier: workspace:*
-        version: link:../../packages/wallet-x402
       '@opensesame/webmcp':
         specifier: workspace:*
         version: link:../../packages/webmcp

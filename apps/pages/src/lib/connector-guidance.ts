@@ -16,7 +16,8 @@ const CATEGORY_SUMMARY = {
   agent_harnesses:
     "Give approved agents a runtime without exposing the credential.",
   networking: "Configure this network so the Host can reach machines on it.",
-  wallet: "Configure this wallet so passes can be bound to an authority.",
+  wallet:
+    "Connect a card issuer or pass wallet. OpenSesame does not mint cards.",
   cloud_secret_storage: "Read secrets from a centralized cloud service.",
   local_storage: "Use credentials available on the Host machine.",
   developer:

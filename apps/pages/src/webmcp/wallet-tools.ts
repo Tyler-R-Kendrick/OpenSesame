@@ -133,9 +133,9 @@ export const WALLET_TOOLS: readonly WalletTool[] = [
     },
     execute: () => {
       const ledger = getSpendingLedger();
-      const children = listBudgetRows(ledger).filter(
-        (row) => row.parentId !== null,
-      );
+      const children = ledger
+        .listNodes()
+        .filter((row) => row.parentId !== null);
       const attempts = [...ledger.snapshot().attempts.values()];
       return {
         status: "local_ledger",

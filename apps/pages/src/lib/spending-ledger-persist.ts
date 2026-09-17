@@ -1,3 +1,6 @@
+/**
+ * localStorage wire format for the browser spending ledger (ADR 0123).
+ */
 import {
   type BoundaryValue,
   type JsonObject,
@@ -5,9 +8,6 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-/**
- * localStorage wire format for the browser spending ledger (ADR 0123).
- */
 import type {
   AmountUnits,
   AttemptState,
@@ -16,6 +16,8 @@ import type {
   JournalEntry,
   NodeState,
 } from "@opensesame/wallet-budget";
+
+import { readWalletStorage, walletStorageKey } from "./wallet-storage-scope.js";
 
 export const SPENDING_LEDGER_STORAGE_KEY = "opensesame.wallet.budget.v1";
 
@@ -164,11 +166,40 @@ function journalToWire(entry: JournalEntry): JsonObject {
     case "committed":
     case "released":
       return { kind: entry.kind, attemptId: entry.attemptId };
+    case "ceiling_set":
+      return {
+        kind: entry.kind,
+        nodeId: entry.nodeId,
+        ceiling: amountToWire(entry.ceiling),
+      };
+    case "node_closed":
+      return { kind: entry.kind, nodeId: entry.nodeId };
   }
+}
+
+function parseClosedOrCeiling(
+  value: JsonObject,
+  kind: unknown,
+): JournalEntry | null {
+  if (kind === "node_closed") {
+    if (!isString(value.nodeId)) throw new Error("nodeId required");
+    return { kind, nodeId: value.nodeId };
+  }
+  if (kind === "ceiling_set") {
+    if (!isString(value.nodeId)) throw new Error("nodeId required");
+    return {
+      kind,
+      nodeId: value.nodeId,
+      ceiling: parseAmount(value.ceiling, "ceiling"),
+    };
+  }
+  return null;
 }
 
 function parseJournalEntry(value: JsonObject): JournalEntry {
   const kind = value.kind;
+  const lifecycle = parseClosedOrCeiling(value, kind);
+  if (lifecycle) return lifecycle;
   if (kind === "committed" || kind === "released") {
     if (!isString(value.attemptId)) throw new Error("attemptId required");
     return { kind, attemptId: value.attemptId };
@@ -256,12 +287,7 @@ function readJsonObjectArray(value: BoundaryValue): JsonObject[] | undefined {
 }
 
 export function readPersisted(): BudgetSnapshot | undefined {
-  let text: string | null;
-  try {
-    text = localStorage.getItem(SPENDING_LEDGER_STORAGE_KEY);
-  } catch {
-    return undefined;
-  }
+  const text = readWalletStorage(SPENDING_LEDGER_STORAGE_KEY);
   if (text === null || text === "") return undefined;
   try {
     const parsed: BoundaryValue = overlapCast(JSON.parse(text));
@@ -285,15 +311,10 @@ export function readPersisted(): BudgetSnapshot | undefined {
 export function writePersisted(snapshot: BudgetSnapshot): void {
   try {
     localStorage.setItem(
-      SPENDING_LEDGER_STORAGE_KEY,
+      walletStorageKey(SPENDING_LEDGER_STORAGE_KEY),
       JSON.stringify(snapshotToPersisted(snapshot)),
     );
   } catch {
     // Quota / private mode — keep in-memory ledger; do not invent persistence.
   }
 }
-
-/**
- * Persist after every successful transaction. Nested transactions stay in the
- * inner store; only the outer publish hits localStorage.
- */

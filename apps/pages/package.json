@@ -52,9 +52,7 @@
     "tinykeys": "4.0.0",
     "zod": "4.4.3",
     "@opensesame/wallet-budget": "workspace:*",
-    "@opensesame/wallet-consent": "workspace:*",
-    "@opensesame/wallet-evm": "workspace:*",
-    "@opensesame/wallet-x402": "workspace:*"
+    "@opensesame/wallet-consent": "workspace:*"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",

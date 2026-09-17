@@ -8,7 +8,7 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, and identity provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(47);
+    expect(ids).toHaveLength(51);
     for (const id of [
       "webcrypto",
       "azure-key-vault-secrets",
@@ -22,6 +22,10 @@ describe("embedded connector catalog", () => {
       "google-wallet",
       "apple-wallet",
       "samsung-wallet",
+      "privacy",
+      "lithic",
+      "marqeta",
+      "stripe-issuing",
       "anthropic",
       "openai",
       "azure-openai",
@@ -79,6 +83,14 @@ describe("embedded connector catalog", () => {
       decodeEmbeddedProviders(
         JSON.stringify({
           revision: "2026-09-17.1",
+          providers: bundledProviders,
+        }),
+      ),
+    ).toBeNull();
+    expect(
+      decodeEmbeddedProviders(
+        JSON.stringify({
+          revision: "2026-09-17.3",
           providers: bundledProviders,
         }),
       ),

@@ -13,14 +13,15 @@ import {
   issueSpendingLease,
   listActiveSpendingLeases,
   listSpendingLeases,
+  removeSpendingLease,
   requestStopSpendingLease,
 } from "./spending-leases.js";
 import {
   clearSpendingLedgerStorage,
   getSpendingLedger,
-  openDemoHouseholdBudget,
   resetSpendingLedgerCache,
 } from "./spending-ledger.js";
+import { setWalletStorageTomb } from "./wallet-storage-scope.js";
 
 function ensureLocalStorage(): void {
   const map = new Map<string, string>();
@@ -70,7 +71,19 @@ describe("spending-leases", () => {
     clearSpendingLedgerStorage();
     resetSpendingLedgerCache();
     clearSpendingLeases();
-    openDemoHouseholdBudget();
+    getSpendingLedger().transact((tx) => {
+      tx.openNode({
+        nodeId: "household",
+        ceiling: 1000n,
+        strategy: "shared_counter",
+      });
+      tx.openNode({
+        nodeId: "child-a",
+        parentId: "household",
+        ceiling: 0n,
+        strategy: "shared_counter",
+      });
+    });
   });
 
   afterEach(() => {
@@ -281,5 +294,57 @@ describe("spending-leases", () => {
     expect(requestStopSpendingLease(issued.lease.id)).toBe(true);
     expect(listSpendingLeases()[0]?.status).toBe("stop_requested");
     expect(requestStopSpendingLease(issued.lease.id)).toBe(false);
+  });
+
+  it("migrates unsuffixed personal leases and spent assertions", async () => {
+    const intent = windowedIntent({ amount: "11" });
+    const digest = await buildLocalPaymentApprovalDigest(intent);
+    localStorage.setItem(
+      "opensesame.wallet.spent-assertions.v1",
+      JSON.stringify([digest]),
+    );
+    const replay = await issueSpendingLease({
+      allocationRef: intent.allocationRef,
+      beneficiaryRef: "workload-research",
+      grantRef: "grant-demo",
+      rootAccountingRef: "household",
+      intent,
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
+    });
+    expect(replay).toEqual({ ok: false, reason: "assertion_replay" });
+    expect(
+      localStorage.getItem("opensesame.wallet.spent-assertions.v1"),
+    ).toBeNull();
+
+    const other = windowedIntent({ amount: "12" });
+    const otherDigest = await buildLocalPaymentApprovalDigest(other);
+    const issued = await issueSpendingLease({
+      allocationRef: other.allocationRef,
+      beneficiaryRef: "workload-research",
+      grantRef: "grant-demo",
+      rootAccountingRef: "household",
+      intent: other,
+      proof: signedProof(otherDigest),
+      validFrom: other.validFrom,
+      validUntil: other.validUntil,
+    });
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) return;
+    const scoped = localStorage.getItem("opensesame.wallet.leases.v1.personal");
+    expect(scoped).toBeTruthy();
+    localStorage.setItem("opensesame.wallet.leases.v1", scoped ?? "[]");
+    localStorage.removeItem("opensesame.wallet.leases.v1.personal");
+    setWalletStorageTomb("guest");
+    setWalletStorageTomb("personal");
+    expect(listSpendingLeases()).toHaveLength(1);
+    expect(localStorage.getItem("opensesame.wallet.leases.v1")).toBeNull();
+    const reserved = issued.lease.reserveAttemptId;
+    removeSpendingLease(issued.lease.id);
+    expect(listSpendingLeases()).toHaveLength(0);
+    expect(getSpendingLedger().snapshot().attempts.get(reserved)?.state).toBe(
+      "released",
+    );
   });
 });
