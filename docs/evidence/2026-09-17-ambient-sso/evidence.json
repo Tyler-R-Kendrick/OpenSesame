@@ -1,0 +1,182 @@
+{
+  "commit": "c40e1ad3f281786e8cae5bfb7e6bb67946e6ce1e",
+  "sdk": { "@azure/msal-browser": "5.22.0" },
+  "liveDevice": {
+    "status": "not-run",
+    "reason": "external managed-device environment unavailable"
+  },
+  "cases": [
+    {
+      "id": "POL-DEFAULT",
+      "owner": "policy+controller",
+      "symbols": ["resolveAmbientAuthPolicy", "evaluateEligibility"],
+      "test": "ambient-auth/policy.test.ts, controller.test.ts",
+      "command": "pnpm --filter @opensesame/pages test -- src/lib/ambient-auth",
+      "status": "pass"
+    },
+    {
+      "id": "POL-ENTERPRISE",
+      "owner": "policy+controller",
+      "symbols": ["resolveAmbientAuthPolicy", "runAutomaticAttempt"],
+      "test": "ambient-auth/controller.test.ts",
+      "command": "pnpm --filter @opensesame/pages test -- src/lib/ambient-auth",
+      "status": "pass"
+    },
+    {
+      "id": "POL-OPTIN",
+      "owner": "policy",
+      "symbols": ["resolveAmbientAuthPolicy"],
+      "test": "ambient-auth/policy.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "OIDC-ERROR-STATE",
+      "owner": "transactions+federation",
+      "symbols": ["takeMatchingPending", "parseAuthCallback"],
+      "test": "federation.test.ts, transactions.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "OIDC-NONCE",
+      "owner": "verification",
+      "symbols": ["verifyBrowserIdTokenClaims"],
+      "test": "packages/sdk-browser/src/oidc-validation.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "OIDC-RESTORE",
+      "owner": "verification",
+      "symbols": [
+        "verifyRestoredBrowserIdToken",
+        "restoreAuthenticatedSession",
+        "loadSession",
+        "readStoredSessionSync"
+      ],
+      "test": "oidc-validation.test.ts, restoration.test.ts, session-load.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "OIDC-CACHE",
+      "owner": "verification",
+      "symbols": ["loadSession", "readStoredSessionSync"],
+      "test": "session-load.test.ts, restoration.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "OIDC-MIXUP",
+      "owner": "transactions",
+      "symbols": ["completeAmbientIfPresent"],
+      "test": "complete.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "ID-COOKIE",
+      "owner": "admission",
+      "symbols": [
+        "applyAmbientReturn",
+        "admitAmbientSession",
+        "vaultStateFromStore"
+      ],
+      "test": "return-path.test.ts, admission.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "ID-SAMEEMAIL",
+      "owner": "admission",
+      "symbols": ["applyAmbientReturn", "admitAmbientSession"],
+      "test": "return-path.test.ts, admission.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "LIFE-TWOTABS",
+      "owner": "controller",
+      "symbols": ["runAutomaticAttempt", "startAutomaticAttempt"],
+      "test": "controller.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "LIFE-SWITCH",
+      "owner": "controller+entra",
+      "symbols": [
+        "runAutomaticAttempt",
+        "acquireEntraSilent",
+        "fenceLocalSignOut"
+      ],
+      "test": "controller.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "ID-LOCKED",
+      "owner": "admission",
+      "symbols": ["admitAmbientSession"],
+      "test": "admission.test.ts, FederationReturn.test.tsx",
+      "status": "pass"
+    },
+    {
+      "id": "ID-GUEST",
+      "owner": "admission",
+      "symbols": ["admitAmbientSession"],
+      "test": "admission.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "ID-HISTORY",
+      "owner": "admission",
+      "symbols": ["admitAmbientSession"],
+      "test": "admission.test.ts, FederationReturn.test.tsx",
+      "status": "pass"
+    },
+    {
+      "id": "LIFE-LOGOUT",
+      "owner": "exit",
+      "symbols": ["fenceLocalSignOut", "admitAmbientSession", "clearSession"],
+      "test": "admission.test.ts, return-path.test.ts, session-exit.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "LIFE-LOCK",
+      "owner": "exit+controller",
+      "symbols": ["fenceLocalSignOut", "evaluateEligibility"],
+      "test": "controller.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "PROVIDER-SHOO",
+      "owner": "providers",
+      "symbols": ["normalizePrompt", "capabilitiesForProtocol"],
+      "test": "provider.test.ts, controller.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "PROVIDER-SCOPES",
+      "owner": "entra",
+      "symbols": ["ENTRA_SCOPES", "AMBIENT_SCOPES"],
+      "test": "entra.test.ts, controller.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "WEB-BRIDGE",
+      "owner": "transport",
+      "symbols": ["auth/redirect-bridge.ts", "crossOriginOpenerPolicy"],
+      "test": "bridge-asset.test.ts, opener-policy.test.ts",
+      "status": "pass"
+    },
+    {
+      "id": "WEB-STATIC",
+      "owner": "harness",
+      "symbols": ["apps/pages/scripts/verify-ambient-sso.mjs"],
+      "test": "verify:ambient-sso",
+      "command": "pnpm --filter @opensesame/pages verify:ambient-sso",
+      "status": "pass",
+      "reason": "two consistent runs: POL-DEFAULT zero IdP; POL-ENTERPRISE one authorize+token, organization banner, no link/history; Sign out then reload issues zero authorize; MSAL bridge in dist without React"
+    },
+    {
+      "id": "REG-EVIDENCE",
+      "owner": "operations",
+      "symbols": ["docs/validation/ambient-sso.md"],
+      "test": "n/a",
+      "status": "not-run",
+      "reason": "live PRT/Windows device SSO not claimed; hermetic only"
+    }
+  ]
+}

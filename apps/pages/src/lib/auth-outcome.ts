@@ -24,7 +24,13 @@ export type AuthOutcome = {
    * attached to the one it has. Either opens the unlock screen on its Sign in
    * tab and says why.
    */
-  kind: "linked" | "link_failed" | "error" | "signed_out" | "attach";
+  kind:
+    | "linked"
+    | "link_failed"
+    | "error"
+    | "signed_out"
+    | "attach"
+    | "authenticated";
   /** Plain-words detail, already user-ready (see federation-copy.ts). */
   detail?: string;
   /** Who signed in, when the leg got far enough to know. */
@@ -43,6 +49,7 @@ const OUTCOME_KINDS: ReadonlySet<string> = new Set([
   "error",
   "signed_out",
   "attach",
+  "authenticated",
 ]);
 
 function isAuthOutcome(value: BoundaryValue): value is AuthOutcome {

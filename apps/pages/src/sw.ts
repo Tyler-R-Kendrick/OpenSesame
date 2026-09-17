@@ -38,13 +38,11 @@ function isolated(response: Response, requestUrl: URL): Response {
   }
   const headers = new Headers(response.headers);
   headers.set("Cross-Origin-Embedder-Policy", "require-corp");
-  headers.set(
-    "Cross-Origin-Opener-Policy",
-    crossOriginOpenerPolicy(
-      requestUrl.pathname,
-      new URL(".", sw.registration.scope).pathname,
-    ),
+  const coop = crossOriginOpenerPolicy(
+    requestUrl.pathname,
+    new URL(".", sw.registration.scope).pathname,
   );
+  if (coop) headers.set("Cross-Origin-Opener-Policy", coop);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

@@ -2,7 +2,12 @@ import type { JsonObject } from "@opensesame/os-domain";
 import { SignJWT } from "jose";
 import { afterEach, expect, it, vi } from "vitest";
 import { assertCallbackTransaction } from "./callback-transaction.js";
-import { fetchOidcJson, verifyBrowserIdToken } from "./oidc-validation.js";
+import {
+  fetchOidcJson,
+  verifyBrowserIdToken,
+  verifyBrowserIdTokenClaims,
+  verifyRestoredBrowserIdToken,
+} from "./oidc-validation.js";
 import { createTestSigningKey } from "./test/jwt-fixtures.js";
 
 afterEach(() => vi.restoreAllMocks());
@@ -211,4 +216,64 @@ it("binds the callback to exact issuer, redirect, age and unambiguous response f
       redirectUri,
     ),
   ).toThrow(/redirect/);
+});
+
+it("OIDC-NONCE: ambient verification returns claims and refuses a wrong nonce", async () => {
+  const keys = await createTestSigningKey("ES256");
+  const now = Math.floor(Date.now() / 1000);
+  const token = await new SignJWT({
+    sub: "user",
+    iss: issuer,
+    aud: "rp",
+    nonce: "expected-nonce",
+    iat: now,
+    exp: now + 300,
+  })
+    .setProtectedHeader({ alg: "ES256", kid: "test-signing-key" })
+    .sign(keys.privateKey);
+  const fetchImpl: typeof fetch = async () =>
+    new Response(JSON.stringify(keys.jwks));
+  const claims = await verifyBrowserIdTokenClaims({
+    token,
+    nonce: "expected-nonce",
+    issuer,
+    clientId: "rp",
+    jwksUri: `${issuer}/jwks`,
+    fetchImpl,
+  });
+  expect(claims.sub).toBe("user");
+  expect(claims.iss).toBe(issuer);
+  await expect(
+    verifyBrowserIdToken({
+      token,
+      nonce: "other-nonce",
+      issuer,
+      clientId: "rp",
+      jwksUri: `${issuer}/jwks`,
+      fetchImpl,
+    }),
+  ).rejects.toThrow(/nonce/);
+});
+
+it("OIDC-RESTORE: restoration uses signed exp, not mutable JSON age", async () => {
+  const keys = await createTestSigningKey("ES256");
+  const now = Math.floor(Date.now() / 1000);
+  const token = await new SignJWT({
+    sub: "user",
+    iss: issuer,
+    aud: "rp",
+    iat: now - 3600,
+    exp: now + 3600,
+  })
+    .setProtectedHeader({ alg: "ES256", kid: "test-signing-key" })
+    .sign(keys.privateKey);
+  const claims = await verifyRestoredBrowserIdToken({
+    token,
+    issuer,
+    clientId: "rp",
+    jwksUri: `${issuer}/jwks`,
+    fetchImpl: async () => new Response(JSON.stringify(keys.jwks)),
+  });
+  expect(claims.sub).toBe("user");
+  expect(claims.exp).toBe(now + 3600);
 });

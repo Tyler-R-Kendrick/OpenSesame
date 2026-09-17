@@ -21,6 +21,8 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { applyAmbientReturn } from "../lib/ambient-auth/return-path.js";
+import { isAmbientIntent } from "../lib/ambient-auth/types.js";
 import { storeAuthOutcome } from "../lib/auth-outcome.js";
 import { describeFederationError } from "../lib/federation-copy.js";
 import {
@@ -43,6 +45,9 @@ type ReturnOutcome = { returnTo?: string };
 async function processReturn(): Promise<ReturnOutcome> {
   const result = await completeSignIn();
   if (!result) return {};
+  if (isAmbientIntent(result.intent)) {
+    return applyAmbientReturn({ ...result, intent: result.intent });
+  }
   if (result.orgSlug && result.orgMethod) {
     await ensureIdentitySession();
     await joinOrgTenant(

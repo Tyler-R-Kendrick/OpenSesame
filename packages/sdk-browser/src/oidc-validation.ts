@@ -1,6 +1,7 @@
 import {
   type BoundaryValue,
   isJsonObject,
+  isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -95,42 +96,189 @@ function validatePublicKey(key: BoundaryValue, seenKids: Set<string>) {
   seenKids.add(key.kid);
 }
 
-export async function verifyBrowserIdToken(input: {
+export type VerifiedIdTokenClaims = {
+  iss: string;
+  sub: string;
+  aud: string | string[];
+  exp: number;
+  iat: number;
+  nonce?: string;
+  azp?: string;
+  auth_time?: number;
+  tid?: string;
+  oid?: string;
+  name?: string;
+  email?: string;
+};
+
+export type VerifyBrowserIdTokenInput = {
   token: string;
   nonce: string;
   issuer: string;
   clientId: string;
   jwksUri: string;
   fetchImpl: typeof fetch;
-}): Promise<string> {
+};
+
+export type VerifyRestoredIdTokenInput = {
+  token: string;
+  issuer: string;
+  clientId: string;
+  jwksUri: string;
+  fetchImpl: typeof fetch;
+};
+
+export async function verifyBrowserIdToken(
+  input: VerifyBrowserIdTokenInput,
+): Promise<string> {
+  const claims = await verifyBrowserIdTokenClaims(input);
+  return claims.sub;
+}
+
+/**
+ * Strict ID-token verification for a fresh ambient/OIDC transaction.
+ * The expected nonce comes from the initiating transaction, never from the
+ * token copied into its own expected-value field.
+ */
+export async function verifyBrowserIdTokenClaims(
+  input: VerifyBrowserIdTokenInput,
+): Promise<VerifiedIdTokenClaims> {
   if (!input.nonce || input.token.length > 16384)
     throw new Error("Invalid ID token transaction");
+  return verifySignedIdToken({
+    ...input,
+    expectedNonce: input.nonce,
+    maxTokenAge: "10m",
+    requiredClaims: ["iss", "aud", "sub", "exp", "iat", "nonce"],
+  });
+}
+
+/**
+ * Re-validate a persisted assertion. Does not apply the ten-minute new-token
+ * age rule and does not perform a nonce ceremony. Expiry still comes from
+ * the signed `exp`, not from mutable JSON.
+ */
+export async function verifyRestoredBrowserIdToken(
+  input: VerifyRestoredIdTokenInput,
+): Promise<VerifiedIdTokenClaims> {
+  if (input.token.length > 16384)
+    throw new Error("Invalid ID token transaction");
+  return verifySignedIdToken({
+    ...input,
+    expectedNonce: undefined,
+    maxTokenAge: undefined,
+    requiredClaims: ["iss", "aud", "sub", "exp", "iat"],
+  });
+}
+
+async function verifySignedIdToken(input: {
+  token: string;
+  issuer: string;
+  clientId: string;
+  jwksUri: string;
+  fetchImpl: typeof fetch;
+  expectedNonce: string | undefined;
+  maxTokenAge: string | undefined;
+  requiredClaims: string[];
+}): Promise<VerifiedIdTokenClaims> {
   const getKey = await readPublicJwks(input.fetchImpl, input.jwksUri);
   const { payload, protectedHeader } = await jwtVerify(input.token, getKey, {
     issuer: input.issuer,
     audience: input.clientId,
     algorithms: ["RS256", "ES256"],
-    requiredClaims: ["iss", "aud", "sub", "exp", "iat", "nonce"],
+    requiredClaims: input.requiredClaims,
     clockTolerance: 5,
-    maxTokenAge: "10m",
+    ...(input.maxTokenAge ? { maxTokenAge: input.maxTokenAge } : undefined),
   });
-  if (protectedHeader.typ !== undefined && protectedHeader.typ !== "JWT")
-    throw new Error("Invalid ID token type");
+  assertProtectedHeader(protectedHeader);
   if (
-    protectedHeader.jku !== undefined ||
-    protectedHeader.x5u !== undefined ||
-    protectedHeader.jwk !== undefined
+    input.expectedNonce !== undefined &&
+    payload.nonce !== input.expectedNonce
   )
-    throw new Error("Embedded ID token key references refused");
-  if (payload.nonce !== input.nonce) throw new Error("id_token nonce mismatch");
+    throw new Error("id_token nonce mismatch");
   if (!isString(payload.sub) || !payload.sub)
     throw new Error("id_token missing sub");
-  // JOSE has decoded this field from the signed JSON payload, not an arbitrary object.
+  if (
+    !isString(payload.iss) ||
+    !isNumber(payload.exp) ||
+    !isNumber(payload.iat)
+  )
+    throw new Error("id_token missing required claims");
   const authorizedParty: BoundaryValue = overlapCast(payload.azp);
   if (authorizedParty !== undefined && !isString(authorizedParty))
     throw new Error("Invalid authorized party");
   assertAuthorizedParty(payload.aud, authorizedParty, input.clientId);
-  return payload.sub;
+  const extra = payload as Record<string, unknown>;
+  return claimsFromPayload(
+    {
+      iss: payload.iss,
+      sub: payload.sub,
+      aud: payload.aud,
+      exp: payload.exp,
+      iat: payload.iat,
+      nonce: payload.nonce,
+      tid: extra.tid,
+      oid: extra.oid,
+      name: payload.name,
+      email: payload.email,
+      auth_time: payload.auth_time,
+    },
+    isString(authorizedParty) ? authorizedParty : undefined,
+  );
+}
+
+function assertProtectedHeader(header: {
+  typ?: unknown;
+  jku?: unknown;
+  x5u?: unknown;
+  jwk?: unknown;
+}) {
+  if (header.typ !== undefined && header.typ !== "JWT")
+    throw new Error("Invalid ID token type");
+  if (
+    header.jku !== undefined ||
+    header.x5u !== undefined ||
+    header.jwk !== undefined
+  )
+    throw new Error("Embedded ID token key references refused");
+}
+
+function claimsFromPayload(
+  payload: {
+    iss: string;
+    sub: string;
+    aud: unknown;
+    exp: number;
+    iat: number;
+    nonce?: unknown;
+    tid?: unknown;
+    oid?: unknown;
+    name?: unknown;
+    email?: unknown;
+    auth_time?: unknown;
+  },
+  authorizedParty: string | undefined,
+): VerifiedIdTokenClaims {
+  const tid: BoundaryValue = overlapCast(payload.tid);
+  const oid: BoundaryValue = overlapCast(payload.oid);
+  const name: BoundaryValue = overlapCast(payload.name);
+  const email: BoundaryValue = overlapCast(payload.email);
+  const authTime: BoundaryValue = overlapCast(payload.auth_time);
+  const nonce: BoundaryValue = overlapCast(payload.nonce);
+  return {
+    iss: payload.iss,
+    sub: payload.sub,
+    aud: payload.aud as string | string[],
+    exp: payload.exp,
+    iat: payload.iat,
+    ...(isString(nonce) ? { nonce } : undefined),
+    ...(isString(authorizedParty) ? { azp: authorizedParty } : undefined),
+    ...(isNumber(authTime) ? { auth_time: authTime } : undefined),
+    ...(isString(tid) ? { tid } : undefined),
+    ...(isString(oid) ? { oid } : undefined),
+    ...(isString(name) ? { name } : undefined),
+    ...(isString(email) ? { email } : undefined),
+  };
 }
 
 function assertAuthorizedParty(

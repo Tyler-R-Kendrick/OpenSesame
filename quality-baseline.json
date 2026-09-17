@@ -18,7 +18,7 @@
   "totals": {
     "files": 545,
     "violations": 882,
-    "oversizedLines": 278817
+    "oversizedLines": 278700
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -560,7 +560,7 @@
     },
     "apps/mock-upstream-idp/src/server.ts": {
       "complexity": 1,
-      "max-lines": 785,
+      "max-lines": 751,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -686,7 +686,7 @@
     },
     "apps/pages/src/lib/federation.ts": {
       "complexity": 2,
-      "max-lines": 1028,
+      "max-lines": 945,
       "max-lines-per-function": 1
     },
     "apps/pages/src/lib/guest-auth.units.test.ts": {

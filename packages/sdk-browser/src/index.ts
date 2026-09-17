@@ -20,6 +20,15 @@ export {
   sha256Base64Url,
   base64UrlEncode,
 } from "./pkce.js";
+export {
+  fetchOidcJson,
+  verifyBrowserIdToken,
+  verifyBrowserIdTokenClaims,
+  verifyRestoredBrowserIdToken,
+  type VerifiedIdTokenClaims,
+  type VerifyBrowserIdTokenInput,
+  type VerifyRestoredIdTokenInput,
+} from "./oidc-validation.js";
 export type {
   ClaimDecision,
   ClaimPresentation,

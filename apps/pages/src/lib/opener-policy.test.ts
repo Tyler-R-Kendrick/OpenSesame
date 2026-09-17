@@ -31,4 +31,11 @@ describe("crossOriginOpenerPolicy", () => {
       "same-origin",
     );
   });
+
+  it("does not attach COOP to the MSAL redirect bridge (WEB-BRIDGE)", () => {
+    expect(
+      crossOriginOpenerPolicy("/OpenSesame/auth/redirect.html", "/OpenSesame/"),
+    ).toBeNull();
+    expect(crossOriginOpenerPolicy("/auth/redirect.html", "/")).toBeNull();
+  });
 });
