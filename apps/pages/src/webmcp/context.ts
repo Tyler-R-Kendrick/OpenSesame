@@ -32,6 +32,12 @@ export const SESSION_TOOL_CONTEXTS: Record<string, readonly WebMcpContextId[]> =
     opensesame_guide_start: WEBMCP_CONTEXTS,
     opensesame_wallet_budgets_read: ["vault", "access", "settings"],
     opensesame_wallet_allocations_read: ["vault", "access", "settings"],
+    opensesame_wallet_payment_propose: ["vault", "access", "settings"],
+    opensesame_wallet_payment_execute_approved: ["vault", "access", "settings"],
+    opensesame_wallet_payment_status: ["vault", "access", "settings"],
+    opensesame_wallet_lease_request: ["vault", "access", "settings"],
+    opensesame_wallet_lease_status: ["vault", "access", "settings"],
+    opensesame_wallet_lease_request_stop: ["vault", "access", "settings"],
   };
 
 let editorKind: string | null = null;

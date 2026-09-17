@@ -3598,7 +3598,7 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": null
+      "webmcp": "opensesame_wallet_payment_propose"
     },
     "excluded": {
       "mcp_host": {
@@ -3607,10 +3607,6 @@
       },
       "mcp_client": {
         "reason": "Wallet spending is browser-local with digest-bound human consent (ADR 0123); headless MCP must not propose, execute, lease, or invent budget",
-        "adr": "0123-wallet-spending-authority.md"
-      },
-      "webmcp": {
-        "reason": "propose, lease request, and request_stop need digest-bound proof and human consent; withhold agent act tools until that binder is registered rather than accept unbound spend",
         "adr": "0123-wallet-spending-authority.md"
       }
     }
@@ -3625,19 +3621,15 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": null
+      "webmcp": "opensesame_wallet_payment_execute_approved"
     },
     "excluded": {
       "mcp_host": {
-        "reason": "execute_approved may spend only a digest-bound PreparedExecutionRef; unbound or caller-constructed refs must never move funds",
+        "reason": "Wallet spending is browser-local with digest-bound human consent (ADR 0123); headless MCP must not propose, execute, lease, or invent budget",
         "adr": "0123-wallet-spending-authority.md"
       },
       "mcp_client": {
-        "reason": "execute_approved may spend only a digest-bound PreparedExecutionRef; unbound or caller-constructed refs must never move funds",
-        "adr": "0123-wallet-spending-authority.md"
-      },
-      "webmcp": {
-        "reason": "execute_approved may spend only a digest-bound PreparedExecutionRef; unbound or caller-constructed refs must never move funds",
+        "reason": "Wallet spending is browser-local with digest-bound human consent (ADR 0123); headless MCP must not propose, execute, lease, or invent budget",
         "adr": "0123-wallet-spending-authority.md"
       }
     }
@@ -3652,7 +3644,7 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": null
+      "webmcp": "opensesame_wallet_payment_status"
     },
     "excluded": {
       "mcp_host": {
@@ -3661,10 +3653,6 @@
       },
       "mcp_client": {
         "reason": "Wallet spending is browser-local with digest-bound human consent (ADR 0123); headless MCP must not propose, execute, lease, or invent budget",
-        "adr": "0123-wallet-spending-authority.md"
-      },
-      "webmcp": {
-        "reason": "payment.status needs receipt/reconciliation adapters; until those exist a WebMCP tool would invent settlement",
         "adr": "0123-wallet-spending-authority.md"
       }
     }
@@ -3679,7 +3667,7 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": null
+      "webmcp": "opensesame_wallet_lease_request"
     },
     "excluded": {
       "mcp_host": {
@@ -3688,10 +3676,6 @@
       },
       "mcp_client": {
         "reason": "Wallet spending is browser-local with digest-bound human consent (ADR 0123); headless MCP must not propose, execute, lease, or invent budget",
-        "adr": "0123-wallet-spending-authority.md"
-      },
-      "webmcp": {
-        "reason": "propose, lease request, and request_stop need digest-bound proof and human consent; withhold agent act tools until that binder is registered rather than accept unbound spend",
         "adr": "0123-wallet-spending-authority.md"
       }
     }
@@ -3706,7 +3690,7 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": null
+      "webmcp": "opensesame_wallet_lease_status"
     },
     "excluded": {
       "mcp_host": {
@@ -3715,10 +3699,6 @@
       },
       "mcp_client": {
         "reason": "Wallet spending is browser-local with digest-bound human consent (ADR 0123); headless MCP must not propose, execute, lease, or invent budget",
-        "adr": "0123-wallet-spending-authority.md"
-      },
-      "webmcp": {
-        "reason": "payment.status needs receipt/reconciliation adapters; until those exist a WebMCP tool would invent settlement",
         "adr": "0123-wallet-spending-authority.md"
       }
     }
@@ -3733,7 +3713,7 @@
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
-      "webmcp": null
+      "webmcp": "opensesame_wallet_lease_request_stop"
     },
     "excluded": {
       "mcp_host": {
@@ -3742,10 +3722,6 @@
       },
       "mcp_client": {
         "reason": "Wallet spending is browser-local with digest-bound human consent (ADR 0123); headless MCP must not propose, execute, lease, or invent budget",
-        "adr": "0123-wallet-spending-authority.md"
-      },
-      "webmcp": {
-        "reason": "propose, lease request, and request_stop need digest-bound proof and human consent; withhold agent act tools until that binder is registered rather than accept unbound spend",
         "adr": "0123-wallet-spending-authority.md"
       }
     }

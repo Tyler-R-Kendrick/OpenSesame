@@ -7,6 +7,19 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
+/** Session Wallet tools registered on vault unlock (ADR 0123 / context.ts). */
+const VAULT_SESSION_WALLET_TOOLS = [
+  "opensesame_wallet_allocations_read",
+  "opensesame_wallet_budgets_read",
+  "opensesame_wallet_lease_request",
+  "opensesame_wallet_lease_request_stop",
+  "opensesame_wallet_lease_status",
+  "opensesame_wallet_payment_execute_approved",
+  "opensesame_wallet_payment_propose",
+  "opensesame_wallet_payment_status",
+];
+/** 4 boot tools + 7 vault/help tools + 8 Wallet session tools. */
+const VAULT_UNLOCKED_TOOL_COUNT = 19;
 const harness = createHarness({
   dist: path.resolve(import.meta.dirname, "../dist"),
   origin,
@@ -45,12 +58,9 @@ try {
   await page
     .getByRole("button", { name: "Continue as guest", exact: true })
     .click();
-  await native.expectCount(13);
+  await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
   const vaultTools = native.names();
-  for (const tool of [
-    "opensesame_wallet_budgets_read",
-    "opensesame_wallet_allocations_read",
-  ]) {
+  for (const tool of VAULT_SESSION_WALLET_TOOLS) {
     assert.ok(vaultTools.includes(tool), `missing ${tool} after unlock`);
   }
   assert.equal((await native.invoke("opensesame_status")).vault, "unlocked");
@@ -119,7 +129,7 @@ try {
   }
   await native.invoke("opensesame_navigate", { section: "/vault" });
   await page.waitForURL(`${origin}${base}vault`);
-  await native.expectCount(13);
+  await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
   const labels = await native.invoke("opensesame_vault_item_write", {
     action: "suggest",
     kind: "login",
@@ -152,11 +162,6 @@ try {
     section: "/vault/new",
     prefill: { password: "sentinel-never-prefill" },
   });
-  await native.refuse("opensesame_vault_item_write", {
-    action: "suggest",
-    kind: "login",
-    password: "sentinel-never-prompt",
-  });
   await native.refuse("opensesame_navigate", {
     section: "https://attacker.invalid",
   });
@@ -165,6 +170,13 @@ try {
     itemType: "not-installed",
   });
   await native.invoke("opensesame_navigate", { section: "/vault" });
+  await page.waitForURL(`${origin}${base}vault`);
+  await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
+  await native.refuse("opensesame_vault_item_write", {
+    action: "suggest",
+    kind: "login",
+    password: "sentinel-never-prompt",
+  });
   const item = await native.invoke("opensesame_vault_item_write", {
     kind: "login",
     name: "Browser control fixture",
@@ -191,7 +203,7 @@ try {
     .waitFor();
   await native.invoke("opensesame_navigate", { section: "/vault" });
   await page.waitForURL(`${origin}${base}vault`);
-  await native.expectCount(13);
+  await native.expectCount(VAULT_UNLOCKED_TOOL_COUNT);
   await native.refuse("opensesame_vault_item_write", {
     itemId: item.id,
     password: "sentinel-not-a-real-credential",
@@ -202,7 +214,7 @@ try {
   await native.invoke("opensesame_help", {});
   await page
     .getByLabel("WebMCP status")
-    .filter({ hasText: "13 tools exposed" })
+    .filter({ hasText: `${VAULT_UNLOCKED_TOOL_COUNT} tools exposed` })
     .waitFor();
   await page.getByRole("button", { name: "Close", exact: true }).last().click();
   await page

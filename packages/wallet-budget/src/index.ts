@@ -27,6 +27,13 @@ export {
 } from "./store.js";
 export type { AttemptState, BudgetSnapshot, NodeState } from "./state.js";
 export {
+  reserveTransferAndFee,
+  transferCapAllInLossLabel,
+  type FeeExposureAssessment,
+  type FeeExposureOk,
+  type FeeExposureRefusal,
+} from "./fee-exposure.js";
+export {
   assertAmountUnits,
   conserves,
   isAmountUnits,

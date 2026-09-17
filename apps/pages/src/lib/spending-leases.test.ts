@@ -1,14 +1,23 @@
 /** @vitest-environment jsdom */
+import {
+  generatePaymentApprovalKeyPair,
+  signPaymentApprovalDigest,
+} from "@opensesame/wallet-consent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildLocalPaymentApprovalDigest } from "./spending-consent.js";
+import {
+  buildLocalPaymentApprovalDigest,
+  localPaymentApprovalIntent,
+} from "./spending-consent.js";
 import {
   clearSpendingLeases,
   issueSpendingLease,
   listActiveSpendingLeases,
   listSpendingLeases,
+  requestStopSpendingLease,
 } from "./spending-leases.js";
 import {
   clearSpendingLedgerStorage,
+  getSpendingLedger,
   openDemoHouseholdBudget,
   resetSpendingLedgerCache,
 } from "./spending-ledger.js";
@@ -33,6 +42,28 @@ function ensureLocalStorage(): void {
   } satisfies Storage);
 }
 
+function windowedIntent(
+  overrides: Parameters<typeof localPaymentApprovalIntent>[0] = {},
+) {
+  const now = new Date().toISOString();
+  const until = new Date(Date.now() + 3600_000).toISOString();
+  return localPaymentApprovalIntent({
+    validFrom: now,
+    validUntil: until,
+    ...overrides,
+  });
+}
+
+function signedProof(digest: string) {
+  const keys = generatePaymentApprovalKeyPair();
+  const verifiedBytes = signPaymentApprovalDigest(digest, keys.privateKeyPkcs8);
+  return {
+    boundDigest: digest,
+    verifiedBytes,
+    publicKeySpki: keys.publicKeySpki,
+  };
+}
+
 describe("spending-leases", () => {
   beforeEach(() => {
     ensureLocalStorage();
@@ -49,17 +80,11 @@ describe("spending-leases", () => {
   });
 
   it("refuses forged assurance then issues under a real allocation", async () => {
-    const intent = {
-      currency: "TEST",
-      amount: "25",
-      recipient: "workload-research",
-    };
+    const intent = windowedIntent({ amount: "25" });
     const digest = await buildLocalPaymentApprovalDigest(intent);
-    const now = new Date().toISOString();
-    const until = new Date(Date.now() + 3600_000).toISOString();
 
     const forged = await issueSpendingLease({
-      allocationRef: "child-a",
+      allocationRef: intent.allocationRef,
       beneficiaryRef: "workload-research",
       grantRef: "grant-demo",
       rootAccountingRef: "household",
@@ -69,8 +94,8 @@ describe("spending-leases", () => {
         mechanism: "webauthn",
         assurance: "phishing_resistant",
       },
-      validFrom: now,
-      validUntil: until,
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
     });
     expect(forged.ok).toBe(false);
     if (!forged.ok) {
@@ -79,41 +104,31 @@ describe("spending-leases", () => {
     expect(listSpendingLeases()).toHaveLength(0);
 
     const issued = await issueSpendingLease({
-      allocationRef: "child-a",
+      allocationRef: intent.allocationRef,
       beneficiaryRef: "workload-research",
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
-      proof: {
-        boundDigest: digest,
-        verifiedBytes: new Uint8Array([1]),
-      },
-      validFrom: now,
-      validUntil: until,
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
     });
     expect(issued.ok).toBe(true);
     expect(listSpendingLeases()).toHaveLength(1);
   });
 
   it("refuses a lease that would exceed root available capacity", async () => {
-    const intent = {
-      currency: "TEST",
-      amount: "5000",
-      recipient: "workload-research",
-    };
+    const intent = windowedIntent({ amount: "5000" });
     const digest = await buildLocalPaymentApprovalDigest(intent);
     const result = await issueSpendingLease({
-      allocationRef: "child-a",
+      allocationRef: intent.allocationRef,
       beneficiaryRef: "workload-research",
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
-      proof: {
-        boundDigest: digest,
-        verifiedBytes: new Uint8Array([1]),
-      },
-      validFrom: new Date().toISOString(),
-      validUntil: new Date(Date.now() + 3600_000).toISOString(),
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
     });
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -121,91 +136,124 @@ describe("spending-leases", () => {
     }
   });
 
-  it("refuses replay of the same verifiedBytes (WAL-B03)", async () => {
-    const intent = {
-      currency: "TEST",
-      amount: "10",
-      recipient: "workload-research",
-    };
+  it("refuses reserving an unsigned allocationRef (WAL-B02)", async () => {
+    const intent = windowedIntent({ amount: "10", allocationRef: "child-a" });
     const digest = await buildLocalPaymentApprovalDigest(intent);
-    const now = new Date().toISOString();
-    const until = new Date(Date.now() + 3600_000).toISOString();
-    const proof = {
-      boundDigest: digest,
-      verifiedBytes: new Uint8Array([7, 7, 7]),
-    };
+    const beforeB = getSpendingLedger().project("child-b");
+    const result = await issueSpendingLease({
+      allocationRef: "child-b",
+      beneficiaryRef: "workload-research",
+      grantRef: "grant-demo",
+      rootAccountingRef: "household",
+      intent,
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
+    });
+    expect(result).toEqual({ ok: false, reason: "allocation_mismatch" });
+    expect(getSpendingLedger().project("child-b")?.locallyAvailable).toBe(
+      beforeB?.locallyAvailable,
+    );
+    expect(listSpendingLeases()).toHaveLength(0);
+  });
+
+  it("refuses replay of the same verifiedBytes (WAL-B03)", async () => {
+    const intent = windowedIntent({ amount: "10" });
+    const digest = await buildLocalPaymentApprovalDigest(intent);
+    const proof = signedProof(digest);
     const first = await issueSpendingLease({
-      allocationRef: "child-a",
+      allocationRef: intent.allocationRef,
       beneficiaryRef: "workload-research",
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
       proof,
-      validFrom: now,
-      validUntil: until,
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
     });
     expect(first.ok).toBe(true);
     const replay = await issueSpendingLease({
-      allocationRef: "child-a",
+      allocationRef: intent.allocationRef,
       beneficiaryRef: "workload-research",
       grantRef: "grant-demo",
       rootAccountingRef: "household",
-      intent: { ...intent, amount: "11" },
-      proof: {
-        boundDigest: await buildLocalPaymentApprovalDigest({
-          ...intent,
-          amount: "11",
-        }),
-        verifiedBytes: new Uint8Array([7, 7, 7]),
-      },
-      validFrom: now,
-      validUntil: until,
+      intent,
+      proof,
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
     });
     expect(replay.ok).toBe(false);
     if (!replay.ok) expect(replay.reason).toBe("assertion_replay");
   });
 
-  it("refuses already-expired lease windows (WAL-B05)", async () => {
-    const intent = {
-      currency: "TEST",
-      amount: "5",
-      recipient: "workload-research",
-    };
+  it("refuses a fresh ECDSA signature of an already-spent digest", async () => {
+    const intent = windowedIntent({ amount: "10" });
     const digest = await buildLocalPaymentApprovalDigest(intent);
-    const past = new Date(Date.now() - 3600_000).toISOString();
-    const earlier = new Date(Date.now() - 7200_000).toISOString();
-    const refused = await issueSpendingLease({
-      allocationRef: "child-a",
+    const first = await issueSpendingLease({
+      allocationRef: intent.allocationRef,
       beneficiaryRef: "workload-research",
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
-      proof: { boundDigest: digest, verifiedBytes: new Uint8Array([3]) },
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
+    });
+    expect(first.ok).toBe(true);
+    const replay = await issueSpendingLease({
+      allocationRef: intent.allocationRef,
+      beneficiaryRef: "workload-research",
+      grantRef: "grant-demo",
+      rootAccountingRef: "household",
+      intent,
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
+    });
+    expect(replay).toEqual({ ok: false, reason: "assertion_replay" });
+  });
+
+  it("refuses already-expired lease windows (WAL-B05)", async () => {
+    const past = new Date(Date.now() - 3600_000).toISOString();
+    const earlier = new Date(Date.now() - 7200_000).toISOString();
+    const intent = windowedIntent({
+      amount: "5",
       validFrom: earlier,
       validUntil: past,
+    });
+    const digest = await buildLocalPaymentApprovalDigest(intent);
+    const refused = await issueSpendingLease({
+      allocationRef: intent.allocationRef,
+      beneficiaryRef: "workload-research",
+      grantRef: "grant-demo",
+      rootAccountingRef: "household",
+      intent,
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
     });
     expect(refused.ok).toBe(false);
     if (!refused.ok) expect(refused.reason).toBe("lease_window_invalid");
   });
 
   it("listActiveSpendingLeases marks and withholds expired rows (WAL-B05)", async () => {
-    const intent = {
-      currency: "TEST",
-      amount: "7",
-      recipient: "workload-research",
-    };
-    const digest = await buildLocalPaymentApprovalDigest(intent);
     const from = new Date(Date.now() - 10_000).toISOString();
     const until = new Date(Date.now() + 60_000).toISOString();
+    const intent = windowedIntent({
+      amount: "7",
+      validFrom: from,
+      validUntil: until,
+    });
+    const digest = await buildLocalPaymentApprovalDigest(intent);
     const issued = await issueSpendingLease({
-      allocationRef: "child-a",
+      allocationRef: intent.allocationRef,
       beneficiaryRef: "workload-research",
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
-      proof: { boundDigest: digest, verifiedBytes: new Uint8Array([4, 4]) },
-      validFrom: from,
-      validUntil: until,
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
     });
     expect(issued.ok).toBe(true);
     const activeNow = listActiveSpendingLeases(Date.now());
@@ -213,5 +261,25 @@ describe("spending-leases", () => {
     const afterExpiry = listActiveSpendingLeases(Date.now() + 120_000);
     expect(afterExpiry.some((l) => l.amount === "7")).toBe(false);
     expect(listSpendingLeases().some((l) => l.status === "expired")).toBe(true);
+  });
+
+  it("requestStopSpendingLease marks an active lease stop_requested", async () => {
+    const intent = windowedIntent({ amount: "8" });
+    const digest = await buildLocalPaymentApprovalDigest(intent);
+    const issued = await issueSpendingLease({
+      allocationRef: intent.allocationRef,
+      beneficiaryRef: "workload-research",
+      grantRef: "grant-demo",
+      rootAccountingRef: "household",
+      intent,
+      proof: signedProof(digest),
+      validFrom: intent.validFrom,
+      validUntil: intent.validUntil,
+    });
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) return;
+    expect(requestStopSpendingLease(issued.lease.id)).toBe(true);
+    expect(listSpendingLeases()[0]?.status).toBe("stop_requested");
+    expect(requestStopSpendingLease(issued.lease.id)).toBe(false);
   });
 });

@@ -134,6 +134,8 @@ if (suite === "security") {
     ["exec", "vitest", "run", "scripts/wallet/lib/deny-mainnet.test.mjs"],
   ]);
   commands.push(["pnpm", ["--filter", "@opensesame/wallet-evm", "test"]]);
+  commands.push(["pnpm", ["--filter", "@opensesame/wallet-consent", "test"]]);
+  commands.push(["pnpm", ["--filter", "@opensesame/wallet-x402", "test"]]);
 }
 
 const started = Date.now();

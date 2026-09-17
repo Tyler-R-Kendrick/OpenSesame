@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Record honest blocked evidence for prepaid channel + AP2/UCP/VI adapters.
- * Does not invent local_execution_verified. Fail-closed documentation only.
+ * Record honest blocked evidence for prepaid channel adapters.
+ * AP2/UCP ES256 is fixture-local via @opensesame/wallet-mandates; this script
+ * must not overwrite WAL-B10–B12 back to blocked.
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -18,8 +19,6 @@ mkdirSync(outDir, { recursive: true });
 
 const channelReason =
   "No OSS prepaid session/channel counterparty harness in-repo yet (WAL-E19–E22). Refuse to claim escrow/voucher enforcement without Anvil+facilitator evidence.";
-const mandatesReason =
-  "AP2/UCP/VI mandate verification has no independently constructed local counterparty harness (WAL-B10–B12). Negotiated protection must not fall back to unprotected checkout.";
 
 writeFileSync(
   join(outDir, "channel-blocked.json"),
@@ -42,10 +41,12 @@ writeFileSync(
   `${JSON.stringify(
     {
       adapterId: "ap2-ucp-vi",
-      status: "blocked",
+      status: "fixture_verified",
       local_execution_verified: false,
       productionEnabled: false,
-      reason: mandatesReason,
+      trust: "fixture-local",
+      reason:
+        "AP2/UCP ES256 local verifier is fixture-local (WAL-B10–B12). Not a public merchant; productionEnabled remains false.",
       recordedAt: new Date().toISOString(),
     },
     null,
@@ -72,15 +73,20 @@ for (const id of channelClaimIds) {
 
 const mandateClaimIds = ["WAL-B10", "WAL-B11", "WAL-B12"];
 for (const id of mandateClaimIds) {
-  claims.claims[id] = {
-    status: "blocked",
-    reason: mandatesReason,
-    productionEnabled: false,
-    evidenceRefs: [
-      "docs/evidence/wallet/adapters/mandates-blocked.json",
-      "pnpm wallet:evidence:blocked-adapters",
-    ],
-  };
+  const existing = claims.claims[id];
+  if (existing?.status === "blocked") {
+    claims.claims[id] = {
+      status: "fixture_verified",
+      reason:
+        "AP2/UCP ES256 local verifier is fixture-local; not a public merchant. productionEnabled false.",
+      productionEnabled: false,
+      trust: "fixture-local",
+      evidenceRefs: [
+        "packages/wallet-mandates",
+        "docs/evidence/wallet/adapters/mandates-blocked.json",
+      ],
+    };
+  }
 }
 
 claims.adapters["prepaid-channel"] = {
@@ -90,10 +96,12 @@ claims.adapters["prepaid-channel"] = {
   reason: channelReason,
 };
 claims.adapters["ap2-ucp-vi"] = {
-  status: "blocked",
+  status: "fixture_verified",
   local_execution_verified: false,
   productionEnabled: false,
-  reason: mandatesReason,
+  trust: "fixture-local",
+  reason:
+    "ES256 fixture-local mandate crypto; no independent merchant counterparty. productionEnabled remains false",
 };
 
 writeFileSync(claimsPath, `${JSON.stringify(claims, null, 2)}\n`);
@@ -107,19 +115,19 @@ writeWalletEvidence(root, {
       status: "blocked",
       exitCode: 0,
       reason:
-        "Honest blocked evidence recorded for prepaid-channel and ap2-ucp-vi (not a pass)",
+        "Honest blocked prepaid-channel; AP2/UCP remains fixture-local (not local_execution_verified)",
       command: "node scripts/wallet/blocked-adapters.mjs",
       durationMs: 0,
     },
   ],
   ok: true,
   notes: [
-    "Blocked adapters are documented with evidence files; local_execution_verified remains false.",
+    "Prepaid-channel stays blocked. AP2/UCP is fixture-local; local_execution_verified remains false.",
     `Evidence: ${EVIDENCE_REL}`,
   ],
 });
 
 console.error(
-  "wallet:evidence:blocked-adapters — recorded honest blocked channel + mandate adapters",
+  "wallet:evidence:blocked-adapters — recorded prepaid blocked; AP2/UCP fixture-local",
 );
 process.exit(0);

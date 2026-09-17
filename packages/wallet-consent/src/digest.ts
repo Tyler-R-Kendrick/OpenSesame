@@ -1,36 +1,24 @@
 /**
  * Digest over the executable terms of a wallet payment approval (CONSENT).
  *
- * Narrower than Identity-plane `canonicalRequestDigest`: that binds the whole
- * interaction envelope. This binds only what an executor must not alter —
- * currency, amount, recipient — so a lease or agent can recompute and compare
- * without needing ceremony handles.
- *
  * Length-prefixed fields (same discipline as os-domain request digests) stop
  * text from migrating across field boundaries without changing the digest.
  */
 
 import { createHash } from "node:crypto";
+import {
+  type PaymentApprovalIntent,
+  paymentApprovalDigestValues,
+} from "./intent.js";
 
-/** Canonicalization version; bump when covered fields change. */
-export const PAYMENT_APPROVAL_DIGEST_VERSION = 1 as const;
-
-const PURPOSE = `opensesame:wallet-payment-approval:v${PAYMENT_APPROVAL_DIGEST_VERSION}`;
-
-/**
- * Executable payment terms an approval authorizes.
- *
- * Amount is a decimal **string**, never a float: binary rounding would make
- * displayed and hashed values disagree (same rule as ADR 0086 / contracts).
- */
-export interface PaymentApprovalIntent {
-  /** ISO 4217 alphabetic code, uppercase. */
-  currency: string;
-  /** Bounded decimal string (e.g. `"42.00"`). */
-  amount: string;
-  /** Payee / recipient the human read and the executor must pay. */
-  recipient: string;
-}
+export {
+  PAYMENT_APPROVAL_DIGEST_FIELD_ORDER,
+  PAYMENT_APPROVAL_DIGEST_PURPOSE,
+  PAYMENT_APPROVAL_DIGEST_VERSION,
+  type PaymentApprovalDigestField,
+  type PaymentApprovalIntent,
+  paymentApprovalDigestValues,
+} from "./intent.js";
 
 function field(hash: ReturnType<typeof createHash>, value: string): void {
   hash.update(String(Buffer.byteLength(value, "utf8")));
@@ -48,9 +36,8 @@ export function buildPaymentApprovalDigest(
   intent: PaymentApprovalIntent,
 ): string {
   const hash = createHash("sha256");
-  field(hash, PURPOSE);
-  field(hash, intent.currency);
-  field(hash, intent.amount);
-  field(hash, intent.recipient);
+  for (const value of paymentApprovalDigestValues(intent)) {
+    field(hash, value);
+  }
   return hash.digest("hex");
 }
