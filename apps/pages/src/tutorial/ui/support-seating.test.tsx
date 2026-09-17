@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { SupportProvider } from "../session.js";
 import {
+  SupportAskSlot,
   SupportLauncher,
   SupportSlot,
   SupportSlotProvider,
@@ -21,6 +22,7 @@ describe("support statusline seating", () => {
           <SupportSlotProvider>
             <footer className="statusline">
               <SupportSlot />
+              <SupportAskSlot />
             </footer>
             <SupportLauncher />
           </SupportSlotProvider>
@@ -31,6 +33,9 @@ describe("support statusline seating", () => {
     expect(chrome.closest(".statusline")).not.toBeNull();
     expect(chrome.className).toContain("support-launch--chrome");
     expect(screen.getAllByRole("button", { name: "Support" })).toHaveLength(1);
+    expect(
+      screen.getByLabelText("Ask about this screen").closest(".statusline"),
+    ).not.toBeNull();
   });
 
   it("falls back to the overlay when the shell has no seat", () => {

@@ -20,8 +20,11 @@ export function InstallPanel() {
   // The same value the card below reads, from the same store: a panel that
   // disagreed with its own body about whether there is an install to make
   // would render a heading over nothing.
-  const { visible } = useInstall();
+  const { visible, state } = useInstall();
   if (!visible) return null;
+  // Chromium's one-gesture dialog hangs off the wordmark. This panel keeps
+  // the roads a page cannot open: iOS three-tap, and the spent-event fallback.
+  if (state === "prompt") return null;
 
   return (
     <section className="panel" aria-labelledby="settings-install">

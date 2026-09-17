@@ -3,8 +3,11 @@
   grid-area: status;
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 8px;
+  box-sizing: border-box;
   min-height: 40px;
+  max-height: 56px;
   padding: 4px 12px;
   border-top: 1px solid var(--line);
   background: var(--surface-2);
@@ -14,11 +17,36 @@
 }
 
 .statusline__support,
+.statusline__ask,
 .statusline__planes,
 .statusline__tools,
 .statusline__tools > div {
   display: flex;
   align-items: center;
+}
+
+.statusline__ask {
+  flex: 1;
+  min-width: 0;
+}
+
+.statusline__ask .support__composer {
+  flex: 1;
+  flex-wrap: nowrap;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.statusline__ask .f__input {
+  height: 2.75rem;
+  min-height: 2.75rem;
+  font-size: 1rem;
+}
+
+/* Enter submits. A second labelled key in this strip breaks the seven-key
+   tablet contract and wraps the row on a 320px phone. */
+.statusline__ask .btn {
+  display: none;
 }
 
 .statusline__tools,
@@ -114,6 +142,13 @@
    rule that reads the pointer, because target size is what a pointer decides. */
 @media (max-width: 900px) {
   .statusline {
+    padding: 4px 8px;
+    padding-left: max(8px, env(safe-area-inset-left));
+    padding-right: max(8px, env(safe-area-inset-right));
+  }
+
+  .statusline__planes,
+  .statusline__tools {
     display: none;
   }
 }
