@@ -3,7 +3,7 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T06:15:56Z",
+  "generatedAt": "2026-09-17T06:43:09Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -206,7 +206,7 @@
         }
       ],
       "blockedBy": ["GA-A-04"],
-      "notes": "HTTP /v1/authority/workloads/spawn and /enrollment/pop landed (GA-A-04 wire unblocks). Host grant issuance remains Host-plane (GA-H)."
+      "notes": "HTTP /v1/authority/workloads/spawn and /enrollment/pop landed (GA-A-04 wire unblocks). Host grant issuance remains Host-plane (GA-H). Self-review: OpenAPI paths added; spawn requires orchestratorPrincipalId=caller; PoP requires kind-prefixed principalId. Realm-admin for cross-device enroll remains residual."
     },
     {
       "id": "GA-I-02",
@@ -269,8 +269,8 @@
       "verification": "command-backed",
       "evidence": [
         {
-          "command": "ls docs/evidence/2026-09-17-access-authority/",
-          "result": "ok. journey.json + 390/1280 sheets + README \u2014 Local sessions & grants + Audience templates"
+          "command": "PLAYWRIGHT_CHROMIUM=$CHROME node apps/pages/scripts/capture-evidence.mjs compose docs/evidence/2026-09-17-access-authority/journey.json",
+          "result": "ok. before=Vault share sessions only; after=Local sessions & grants + Audience templates (phone+desktop)"
         }
       ],
       "blockedBy": ["GA-P-01"],
@@ -402,9 +402,18 @@
       "title": "Keep the completion matrix honest",
       "status": "unresolved",
       "verification": "none",
-      "evidence": null,
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/policy exec vitest run src/__tests__/authority-tuples.test.ts",
+          "result": "ok \u2014 typedObject refuses connection:connection: double-prefix"
+        },
+        {
+          "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/authority-routes.test.ts",
+          "result": "ok \u2014 spawn refuses foreign orchestrator; OpenAPI lists /v1/authority/*"
+        }
+      ],
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Latest refresh after GA-P-02/Q-03 Access Sessions visual evidence."
+      "notes": "Standing honesty ratchet; never closes. Self-review #421 pass fixed: OpenFGA connection/project double-prefix, Host issue depth ceiling + validation status mapping, Identity spawn orchestrator=caller + PoP kind prefix, Identity OpenAPI authority paths, capture-evidence fail-closed press. Residual: realm-admin scoping for cross-device PoP enrollment; live OpenFGA apply; fabric unsupported shuttle/OpenBao rows."
     },
     {
       "id": "GA-Q-01",
@@ -439,8 +448,8 @@
       "verification": "command-backed",
       "evidence": [
         {
-          "command": "test -f docs/evidence/2026-09-17-access-authority/390-access-sessions.png && test -f docs/evidence/2026-09-17-access-authority/1280-access-sessions.png",
-          "result": "ok. phone + desktop composed sheets present"
+          "command": "rg -n \"Local sessions & grants|Audience templates|Vault share sessions\" docs/evidence/2026-09-17-access-authority/README.md",
+          "result": "ok. measured before/after captions committed beside sheets"
         }
       ],
       "blockedBy": ["GA-P-02"],

@@ -342,7 +342,7 @@ paths:
                 policy_digest: {type: string, maxLength: 128}
                 role_revision: {type: integer, minimum: 0}
                 offer_id: {type: string, maxLength: 128}
-                delegation_depth_remaining: {type: integer, minimum: 0}
+                delegation_depth_remaining: {type: integer, minimum: 0, maximum: 2}
                 not_before: {type: string, format: date-time}
                 expires_at: {type: string, format: date-time}
                 evidence_id: {type: string, maxLength: 128}
@@ -370,8 +370,8 @@ paths:
         "400": {$ref: '#/components/responses/Error'}
         "401": {$ref: '#/components/responses/Error'}
         "403": {$ref: '#/components/responses/Error'}
-        "404": {$ref: '#/components/responses/Error'}
         "422": {$ref: '#/components/responses/Error'}
+        "503": {$ref: '#/components/responses/Error'}
   /organizations/{organization}/grant-offers/{id}/activate:
     parameters:
       - {in: path, name: organization, required: true, schema: {type: string}}

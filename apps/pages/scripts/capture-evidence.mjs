@@ -110,7 +110,11 @@ const STEPS = {
     if (await tab.count()) {
       await press(tab);
       await page.waitForTimeout(1000);
+      return;
     }
+    throw new Error(
+      `capture-evidence press("${name}"): no button or tab matched — refusing a silent miss`,
+    );
   },
   async open(page, name) {
     const link = page.getByRole("link", { name, exact: true }).first();

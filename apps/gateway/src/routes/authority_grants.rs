@@ -152,6 +152,14 @@ async fn issue(
         Ok(entries) => entries,
         Err(response) => return response,
     };
+    // INV-GA-04 / contracts: maximum_delegation_depth ≤ 2; remaining budget
+    // cannot advertise more depth than the product ceiling.
+    const MAX_DELEGATION_DEPTH_REMAINING: i64 = 2;
+    if body.delegation_depth_remaining < 0
+        || body.delegation_depth_remaining > MAX_DELEGATION_DEPTH_REMAINING
+    {
+        return bad_request("delegation_depth_remaining must be 0..=2");
+    }
     let issued = match st
         .db
         .issue_authority(
@@ -175,7 +183,13 @@ async fn issue(
         .await
     {
         Ok(issued) => issued,
-        Err(_) => return unavailable(),
+        Err(error) => {
+            let message = error.to_string();
+            if message.contains("permission entry") || message.contains("interval") {
+                return bad_request(&message);
+            }
+            return unavailable();
+        }
     };
     if !issued {
         return refused();

@@ -1,12 +1,11 @@
 import type { ControlPlaneConfig } from "./config.js";
 import { agentManagementPaths } from "./openapi-agents.js";
+import { authorityPaths } from "./openapi-authority.js";
 import { publicAuthenticationPaths } from "./openapi-public-authentication.js";
 
 const authenticationUnauthorizedResponse = {
   "401": { description: "Authentication required" },
 } as const;
-
-/** Minimal OpenAPI 3.1 document for product APIs. */
 export function buildOpenApiDocument(config: ControlPlaneConfig) {
   return {
     openapi: "3.1.0",
@@ -999,6 +998,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         },
       },
       ...agentManagementPaths,
+      ...authorityPaths,
       "/auth.md": {
         get: {
           summary: "Generated auth surface markdown",
