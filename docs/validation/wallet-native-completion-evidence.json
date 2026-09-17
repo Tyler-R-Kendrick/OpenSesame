@@ -1,0 +1,254 @@
+{
+  "schema": "opensesame/wallet-interaction-evidence@5",
+  "checkoutSha": "a98d4f1e57ef1c96bcfad23d0194093d6011daaa",
+  "parentSha": "1590767ff41e69c8f0bc5ce9e27f7a76ee5fc59d",
+  "reviewBaseline": "4358f7feacee97468b17abdd9b5ccc02c81ee68d",
+  "environment": {
+    "node": "v26.5.0",
+    "pnpm": "9.15.0",
+    "vitest": "4.1.10",
+    "database": "in-memory createControlPlane factory (no Postgres multi-instance)"
+  },
+  "adr": ["0086", "0119", "0125"],
+  "honesty": "Commands below were executed against HEAD a98d4f1e (skeptic-panel settlement) plus the Host-optional consume drain. The Rust Host is optional and is not required for consume settlement: Identity-plane ceremony/claim/authorization rows are the complete effect. Default loopback hostApiUrl plus an operator token does not dispatch Host HTTP. An unreachable explicit Host does not un-succeed Identity execution. Live Google save and Multipaz remain external_prerequisite. T-07 is one-process in-memory, not two Postgres instances.",
+  "consumeDrain": {
+    "device_authorization": "consumed",
+    "pairing": "paired",
+    "transaction_authorization": "authorized",
+    "claim": "completed",
+    "grant_claim": "completed",
+    "authorization_request": "approved"
+  },
+  "commands": [
+    {
+      "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/interaction-approval-bypass.security.test.ts src/__tests__/interaction-handoff.test.ts src/__tests__/interaction-subject-settlement.test.ts src/__tests__/interaction-approval-matrix.security.test.ts src/__tests__/interaction-approval-matrix-rest.security.test.ts src/__tests__/interaction-factory-settlement.security.test.ts src/__tests__/interaction-factory-six-kind.security.test.ts src/routes/subject-adapters.test.ts --reporter=verbose",
+      "exit": 0,
+      "result": "passed",
+      "tests": "60/60",
+      "files": "8/8",
+      "breakdown": {
+        "interaction-approval-bypass.security.test.ts": "3/3",
+        "interaction-handoff.test.ts": "21/21",
+        "interaction-subject-settlement.test.ts": "4/4",
+        "interaction-approval-matrix.security.test.ts": "7/7",
+        "interaction-approval-matrix-rest.security.test.ts": "7/7",
+        "interaction-factory-settlement.security.test.ts": "5/5",
+        "interaction-factory-six-kind.security.test.ts": "2/2",
+        "subject-adapters.test.ts": "11/11"
+      },
+      "log": "/tmp/grok-goal-6602cab00776/implementer/freeze-t-matrix.log"
+    },
+    {
+      "command": "pnpm --filter @opensesame/pages exec vitest run src/lib/local-access-requests.test.ts src/lib/local-passkeys.test.ts --reporter=verbose",
+      "exit": 0,
+      "result": "passed",
+      "tests": "36/36",
+      "files": "2/2",
+      "log": "/tmp/grok-goal-6602cab00776/implementer/local-iam.log"
+    },
+    {
+      "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/oid4vc-factory.security.test.ts --reporter=verbose",
+      "exit": 0,
+      "result": "passed",
+      "tests": "6/6",
+      "log": "/tmp/grok-goal-6602cab00776/implementer/oid4vc-routes.log"
+    },
+    {
+      "command": "pnpm --filter @opensesame/wallet exec vitest run --reporter=verbose",
+      "exit": 0,
+      "result": "passed",
+      "tests": "140/140",
+      "files": "8/8",
+      "note": "jwtVerify on Save JWTs in launcher.test.ts / google.test.ts / interaction-handoff.q.test.ts",
+      "log": "/tmp/grok-goal-6602cab00776/implementer/pass-and-landing.log"
+    },
+    {
+      "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/rendezvous-landing.test.ts src/__tests__/wallet-native.test.ts --reporter=verbose",
+      "exit": 0,
+      "result": "passed",
+      "tests": "11/11",
+      "files": "2/2",
+      "log": "/tmp/grok-goal-6602cab00776/implementer/pass-and-landing.log"
+    },
+    {
+      "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/interaction-factory-settlement.security.test.ts src/__tests__/interaction-factory-six-kind.security.test.ts --reporter=verbose",
+      "exit": 0,
+      "result": "passed",
+      "tests": "7/7",
+      "files": "2/2",
+      "run": 1,
+      "log": "/tmp/grok-goal-6602cab00776/implementer/hosted-approve-consume-1.log"
+    },
+    {
+      "command": "pnpm --filter @opensesame/control-plane exec vitest run src/__tests__/interaction-factory-settlement.security.test.ts src/__tests__/interaction-factory-six-kind.security.test.ts --reporter=verbose",
+      "exit": 0,
+      "result": "passed",
+      "tests": "7/7",
+      "files": "2/2",
+      "run": 2,
+      "log": "/tmp/grok-goal-6602cab00776/implementer/hosted-approve-consume-2.log"
+    },
+    {
+      "command": "pnpm --filter @opensesame/policy exec vitest run src/__tests__/approval-mechanisms.test.ts --reporter=verbose",
+      "exit": 0,
+      "result": "passed",
+      "tests": "17/17",
+      "log": "/tmp/grok-goal-6602cab00776/implementer/policy-mechanisms.log"
+    },
+    {
+      "command": "pnpm typecheck",
+      "exit": 0,
+      "result": "passed",
+      "tasks": "68/68",
+      "note": "Second run after factoryPlane/actorTypeFromProof typing fixes.",
+      "log": "/tmp/grok-goal-6602cab00776/implementer/typecheck.log"
+    },
+    {
+      "command": "pnpm quality",
+      "exit": 0,
+      "result": "CLEAN -- 881 tracked violations across 545 files; package metrics CLEAN",
+      "log": "/tmp/grok-goal-6602cab00776/implementer/quality.log"
+    },
+    {
+      "command": "pnpm lint",
+      "exit": 0,
+      "result": "passed",
+      "note": "Re-run after biome format --write on factory helpers/tests and this file.",
+      "log": "/tmp/grok-goal-6602cab00776/implementer/lint.log"
+    }
+  ],
+  "findings": {
+    "F01": {
+      "result": "passed",
+      "tests": ["T-01", "T-02", "T-03", "T-04"],
+      "sourcePaths": [
+        "apps/control-plane/src/routes/interaction-activation.ts",
+        "apps/control-plane/src/routes/interaction-handoff.ts"
+      ]
+    },
+    "F02": {
+      "result": "passed",
+      "tests": ["T-02"],
+      "sourcePaths": ["packages/contracts/src/interactions.ts"]
+    },
+    "F03": {
+      "result": "passed",
+      "tests": ["T-13", "T-14"],
+      "sourcePaths": [
+        "apps/pages/src/lib/local-access-requests.ts",
+        "apps/pages/src/lib/local-passkeys.ts"
+      ]
+    },
+    "F04": {
+      "result": "passed",
+      "tests": ["T-09"],
+      "sourcePaths": [
+        "apps/control-plane/src/services/ceremony-subject-resolve.ts"
+      ]
+    },
+    "F05": {
+      "result": "passed",
+      "tests": ["T-07"],
+      "sourcePaths": [
+        "apps/control-plane/src/services/interaction-settlement.ts",
+        "apps/control-plane/src/services/host-settlement.ts"
+      ]
+    },
+    "F06": {
+      "result": "passed",
+      "tests": ["rendezvous-landing"],
+      "sourcePaths": ["apps/control-plane/src/ui/rendezvous-pages.ts"]
+    },
+    "F07": {
+      "result": "passed",
+      "tests": ["wallet 140/140"],
+      "sourcePaths": [
+        "packages/wallet/src/launcher.ts",
+        "apps/control-plane/src/create-wallet-native-mounts.ts"
+      ]
+    },
+    "F08": {
+      "result": "passed",
+      "tests": ["T-20", "oid4vc T-15"],
+      "sourcePaths": ["apps/control-plane/src/routes/openid4vp.ts"]
+    },
+    "F09": {
+      "result": "passed",
+      "tests": ["T-18", "T-21"],
+      "sourcePaths": ["packages/openid4vp"]
+    },
+    "F10": {
+      "result": "passed",
+      "tests": ["oid4vc issuance"],
+      "sourcePaths": [
+        "packages/openid4vci",
+        "apps/control-plane/src/routes/openid4vci.ts"
+      ]
+    },
+    "F11": {
+      "result": "passed",
+      "tests": ["wallet launcher"],
+      "sourcePaths": ["packages/wallet/src/launcher.ts"]
+    },
+    "F12": {
+      "result": "passed",
+      "tests": ["T-07", "consume succeeds without a Host"],
+      "sourcePaths": [
+        "apps/control-plane/src/services/interaction-settlement.ts",
+        "apps/control-plane/src/services/host-settlement-http.ts"
+      ],
+      "limit": "T-07 one-process memory. Host HTTP is optional extra dispatch."
+    },
+    "F13": {
+      "result": "passed",
+      "note": "mechanism recorded as webauthn; not claimed as secure display or hardware-bound"
+    },
+    "F14": {
+      "result": "passed",
+      "tests": ["wallet seed never in Save JWT"]
+    },
+    "F15": {
+      "result": "passed",
+      "tests": ["handoff card-data refusal"],
+      "note": "defense-in-depth, not PCI"
+    }
+  },
+  "acceptance": {
+    "T-01": "passed",
+    "T-02": "passed",
+    "T-03": "passed",
+    "T-04": "passed",
+    "T-05": "passed",
+    "T-06": "passed",
+    "T-07": "passed_one_process_memory",
+    "T-08": "passed",
+    "T-09": "passed",
+    "T-10": "passed",
+    "T-11": "passed",
+    "T-12": "passed",
+    "T-13": "passed",
+    "T-14": "passed",
+    "T-15": "passed",
+    "T-16": "passed",
+    "T-17": "passed_canonical_bind_not_browser_XSS_proof",
+    "T-18": "passed",
+    "T-19": "passed_profile_or_reject",
+    "T-20": "passed",
+    "T-21": "passed",
+    "T-22": "passed_package_openid4vp",
+    "T-23": "passed",
+    "T-38": "passed",
+    "T-39": "not_run_this_round",
+    "T-40": "passed",
+    "T-41": "passed",
+    "T-42": "passed",
+    "T-43": "passed_activation_not_found_in_approval-ceremony_prior",
+    "T-44": "passed"
+  },
+  "externalPrerequisite": [
+    "live Google Wallet save / issuer account",
+    "signed Multipaz device build",
+    "unmodified third-party OpenID4VP holder",
+    "two-process Postgres T-07"
+  ]
+}

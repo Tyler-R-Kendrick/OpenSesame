@@ -120,6 +120,8 @@ export const AUDIT_METADATA_ALLOWLIST = new Set([
   "interactionKind",
   "subjectKind",
   "subjectId",
+  "eventType",
+  "execution",
   "mechanism",
   "credentialRef",
   "assurance",

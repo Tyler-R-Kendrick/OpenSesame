@@ -13,6 +13,8 @@ export {
   isPhishingResistantMechanism,
   mechanismSatisfies,
   assertAssuranceCoherent,
+  interactionRequiresPhishingResistance,
+  mechanismPermittedForKind,
   IncoherentAssuranceError,
   type MechanismRequirement,
   type MechanismDecision,

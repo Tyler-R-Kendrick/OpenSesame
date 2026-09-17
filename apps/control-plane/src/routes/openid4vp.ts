@@ -15,6 +15,7 @@ import {
   type CourierDelivery,
   InMemoryRequestSessionStore,
   Openid4vpError,
+  type RequestSessionStore,
   type TrustedIssuer,
   type VerifiedPresentation,
   beginPresentation,
@@ -45,7 +46,7 @@ export interface Openid4vpRouteOptions {
   readonly vct: string;
   readonly trustedIssuers?: readonly TrustedIssuer[];
   /** Test seam: replace the in-memory protocol session store. */
-  readonly sessionStore?: InMemoryRequestSessionStore;
+  readonly sessionStore?: RequestSessionStore;
 }
 
 interface PendingPresentation {
@@ -275,7 +276,7 @@ async function activateFromPresentation(
 ): Promise<ApprovalActivation> {
   const { ctx, interaction, principalId, now, credentialRef } = input;
   const requestDigest = interaction.requestDigest ?? "";
-  const policyDigest = interactionApprovalPolicyDigest();
+  const policyDigest = interactionApprovalPolicyDigest(interaction.kind);
   const transactionDigest = approvalTransactionDigest({
     authReqId: interaction.id,
     requestDigest,

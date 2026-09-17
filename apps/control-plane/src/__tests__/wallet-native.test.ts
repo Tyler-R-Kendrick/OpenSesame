@@ -135,18 +135,20 @@ describe("wallet-native typed Unavailable stubs", () => {
 });
 
 describe("wallet-native wiring in the real composition root", () => {
-  it("mounts the stubs alongside — not instead of — the SIOP routes", async () => {
+  it("mounts live wallet-native surfaces alongside SIOP, not instead of it", async () => {
     const { app } = createControlPlane();
-
-    // Wallet-native surfaces are wired and refuse honestly.
-    const vp = await app.request("/v1/openid4vp/authorize", { method: "POST" });
-    expect(vp.status).toBe(501);
-    expect((await readJson<StubBody>(vp)).capability).toBe(
-      "openid4vp.verifier",
-    );
 
     const matrix = await app.request("/v1/wallet-native/capabilities");
     expect(matrix.status).toBe(200);
+    const body = await readJson<{ capabilities: CapabilityRow[] }>(matrix);
+    const byId = Object.fromEntries(body.capabilities.map((c) => [c.id, c]));
+    expect(byId["openid4vp.verifier"]?.state).toBe("available");
+    expect(byId["openid4vci.issuer"]?.state).toBe("available");
+
+    // Unknown verifier subpaths must not settle an interaction (F08).
+    const vp = await app.request("/v1/openid4vp/authorize", { method: "POST" });
+    expect(vp.status).toBeGreaterThanOrEqual(400);
+    expect(vp.status).not.toBe(200);
 
     // SIOP (ADR 0117) is preserved: still mounted, still gated on a principal.
     const siop = await app.request("/v1/siop/challenges", {

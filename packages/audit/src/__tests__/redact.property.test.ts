@@ -227,6 +227,8 @@ const EXPECTED_ALLOWLIST = [
   "interactionKind",
   "subjectKind",
   "subjectId",
+  "eventType",
+  "execution",
   "mechanism",
   "credentialRef",
   "assurance",

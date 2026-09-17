@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { resetInteractionLinkBudget } from "../routes/interaction-handoff.js";
 import { totpCode } from "../routes/mfa.js";
+import { seedOwnedCeremony } from "./seed-ceremony-subject.js";
 
 /**
  * Swarm S — adversarial regression tests for the interaction handoff
@@ -54,7 +55,9 @@ async function principal(cp: Plane) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return overlapCast(await res.json());
+  return overlapCast<{ accessToken: string; principalId: string }>(
+    await res.json(),
+  );
 }
 
 async function inboxRefOf(cp: Plane, who: { accessToken: string }) {
@@ -73,14 +76,20 @@ async function inboxRefOf(cp: Plane, who: { accessToken: string }) {
 let seq = 0;
 async function raisePrivileged(
   cp: Plane,
-  requesterToken: string,
+  requester: { accessToken: string; principalId: string },
   approverRef: string,
   overrides: JsonObject = {},
 ) {
+  seedOwnedCeremony(
+    cp,
+    "transaction_authorization",
+    "txn-77",
+    requester.principalId,
+  );
   const res = await cp.app.request("/v1/interactions", {
     method: "POST",
     headers: {
-      authorization: `Bearer ${requesterToken}`,
+      authorization: `Bearer ${requester.accessToken}`,
       "content-type": "application/json",
       "idempotency-key": `bypass-${++seq}`,
     },
@@ -180,7 +189,7 @@ describe("interaction approval bypass (F01/F02)", () => {
     const requester = await principal(cp);
     const body = await raisePrivileged(
       cp,
-      requester.accessToken,
+      requester,
       await inboxRefOf(cp, approver),
     );
     await openAsApprover(cp, body.ref, approver.accessToken);
@@ -209,7 +218,7 @@ describe("interaction approval bypass (F01/F02)", () => {
     const requester = await principal(cp);
     const body = await raisePrivileged(
       cp,
-      requester.accessToken,
+      requester,
       await inboxRefOf(cp, approver),
     );
     await openAsApprover(cp, body.ref, approver.accessToken);
@@ -259,7 +268,7 @@ describe("interaction approval bypass (F01/F02)", () => {
     const requester = await principal(cp);
     const body = await raisePrivileged(
       cp,
-      requester.accessToken,
+      requester,
       await inboxRefOf(cp, approver),
     );
     await openAsApprover(cp, body.ref, approver.accessToken);

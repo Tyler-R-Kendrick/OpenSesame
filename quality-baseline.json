@@ -128,7 +128,7 @@
       "max-lines": 408
     },
     "apps/control-plane/src/__tests__/interaction-handoff.test.ts": {
-      "max-lines": 935
+      "max-lines": 867
     },
     "apps/control-plane/src/__tests__/ldap-bind.test.ts": {
       "max-lines": 785
@@ -193,7 +193,7 @@
     },
     "apps/control-plane/src/config.ts": {
       "complexity": 2,
-      "max-lines": 515,
+      "max-lines": 497,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -265,11 +265,11 @@
     },
     "apps/control-plane/src/routes/interaction-activation.ts": {
       "complexity": 1,
-      "max-lines-per-function": 2
+      "max-lines-per-function": 1
     },
     "apps/control-plane/src/routes/interaction-handoff.ts": {
       "complexity": 2,
-      "max-lines": 1203,
+      "max-lines": 1202,
       "max-lines-per-function": 4
     },
     "apps/control-plane/src/routes/interactions-byo.ts": {

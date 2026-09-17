@@ -31,37 +31,35 @@ describe("ApproveInteractionSchema carries no client-supplied proof (F02)", () =
 
   it("never surfaces a client-constructed ApprovalProof", () => {
     const digest = `v2:${"b".repeat(64)}`;
-    const parsed = ApproveInteractionSchema.parse({
-      requestDigest: digest,
-      // A perfectly-formed proof an attacker would love to have recorded.
-      proof: {
+    expect(
+      ApproveInteractionSchema.safeParse({
+        requestDigest: digest,
+        proof: {
+          mechanism: "webauthn",
+          boundDigest: digest,
+          credentialRef: "cred_attacker",
+          assurance: "phishing_resistant",
+        },
         mechanism: "webauthn",
-        boundDigest: digest,
-        credentialRef: "cred_attacker",
         assurance: "phishing_resistant",
-      },
-      mechanism: "webauthn",
-      assurance: "phishing_resistant",
-      credentialRef: "cred_attacker",
-      verifiedAt: new Date().toISOString(),
-    });
-    // Every manufactured field is dropped: the parsed value is the echo alone.
-    expect(parsed).toEqual({ requestDigest: digest });
-    const serialized = JSON.stringify(parsed);
-    expect(serialized).not.toContain("webauthn");
-    expect(serialized).not.toContain("phishing_resistant");
-    expect(serialized).not.toContain("cred_attacker");
-    expect(serialized).not.toContain("verifiedAt");
+        credentialRef: "cred_attacker",
+        verifiedAt: new Date().toISOString(),
+      }).success,
+    ).toBe(false);
   });
 
   it("denial is the digest echo too, with no proof surface", () => {
     const digest = `v2:${"c".repeat(64)}`;
-    const parsed = DenyInteractionSchema.parse({
-      requestDigest: digest,
-      proof: { mechanism: "webauthn", boundDigest: digest, assurance: "high" },
-    });
-    expect(parsed).toEqual({ requestDigest: digest });
-    expect(Object.keys(parsed)).toEqual(["requestDigest"]);
+    expect(
+      DenyInteractionSchema.safeParse({
+        requestDigest: digest,
+        proof: {
+          mechanism: "webauthn",
+          boundDigest: digest,
+          assurance: "high",
+        },
+      }).success,
+    ).toBe(false);
   });
 
   it("still refuses a missing or too-short digest", () => {
