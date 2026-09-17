@@ -40,12 +40,7 @@ fn fix_family_snapshot_excludes_a_late_add() {
 fn fix_family_guardian_supervision_does_not_read_vault_secrets() {
     let mut forest = AccessDomainForest::new(Realm::standard(None, ProjectId::new()));
     let household = forest
-        .create_root(
-            crate::AccessDomainId::new(),
-            "household",
-            "Household",
-            t0(),
-        )
+        .create_root(crate::AccessDomainId::new(), "household", "Household", t0())
         .expect("root");
     let guardian = PrincipalId::new();
     let mut control = ControlIndex::new();
@@ -89,11 +84,9 @@ fn fix_family_guardian_supervision_does_not_read_vault_secrets() {
         "even an Owner seated as observer must not receive a vault key"
     );
 
-    let browse = PermissionSet::new(vec![PermissionEntry::new(
-        &["browse"],
-        &["device:tablet"],
-    )
-    .unwrap()])
+    let browse = PermissionSet::new(vec![
+        PermissionEntry::new(&["browse"], &["device:tablet"]).unwrap()
+    ])
     .unwrap();
     assert!(browse.permits("browse", "device:tablet"));
     assert!(!browse.permits("reveal", "device:tablet"));

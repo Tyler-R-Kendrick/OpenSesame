@@ -5,8 +5,8 @@
 
 use chrono::{DateTime, Utc};
 
-use crate::event::EVENT_EXPIRY_EXPIRED;
 use crate::evaluate::{evaluate, should_respond, Watermarks};
+use crate::event::EVENT_EXPIRY_EXPIRED;
 use crate::subject::{ExpirySubject, SubjectKind};
 
 fn at(raw: &str) -> DateTime<Utc> {

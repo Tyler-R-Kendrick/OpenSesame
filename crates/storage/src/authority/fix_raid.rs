@@ -17,10 +17,7 @@ async fn fix_raid_leave_or_end_terminates_lifecycle_bound_reach() {
     seed_grant(&db, &organization_id, "grant:raider").await;
     let parent = issue("grant:raid", &organization_id, &domain_id);
     assert!(db
-        .issue_authority(
-            &parent,
-            &[entry("strategy:tonight", "read")],
-        )
+        .issue_authority(&parent, &[entry("strategy:tonight", "read")],)
         .await
         .unwrap());
     let mut raider = issue("grant:raider", &organization_id, &domain_id);

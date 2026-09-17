@@ -16,9 +16,12 @@ use opensesame_storage::authority::{AuthorityIssue, PermissionEntry};
 use serde::Deserialize;
 use serde_json::json;
 
+use super::super::secret_configs::access::hidden;
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
-use super::super::secret_configs::access::hidden;
+
+#[path = "authority_issuance_preflight.rs"]
+mod issuance_preflight;
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new().route(
@@ -53,6 +56,12 @@ struct IssueBody {
     expires_at: String,
     evidence_id: Option<String>,
     entries: Vec<EntryBody>,
+    /// Catalog platform the grant's terms must be holdable on. Defaults to
+    /// `host-brokered-invocation`. Absent adapters (apple-ios, discord-live, …)
+    /// refuse rather than mint a sidecar.
+    enforcement_platform: Option<String>,
+    offline_use: Option<String>,
+    raw_credential_export: Option<bool>,
 }
 
 #[allow(clippy::result_large_err)]
@@ -77,6 +86,20 @@ fn authorize_realm(
         return Err(hidden());
     }
     Ok((who, organization))
+}
+
+const RESERVED_ISSUE_ACTIONS: &[&str] = &["credential.export", "policy.edit"];
+
+fn entries_include_reserved(entries: &[PermissionEntry]) -> bool {
+    entries.iter().any(|entry| {
+        serde_json::from_str::<Vec<String>>(&entry.action_set_json)
+            .ok()
+            .is_some_and(|actions| {
+                actions
+                    .iter()
+                    .any(|action| RESERVED_ISSUE_ACTIONS.contains(&action.as_str()))
+            })
+    })
 }
 
 fn unavailable() -> Response {
@@ -117,8 +140,7 @@ fn entries_from_body(body: &[EntryBody]) -> Result<Vec<PermissionEntry>, Respons
         entries.push(PermissionEntry {
             resource_selector: entry.resource_selector.clone(),
             provider_operation_id: entry.provider_operation_id.clone(),
-            action_set_json: serde_json::to_string(&entry.action_set)
-                .map_err(|_| unavailable())?,
+            action_set_json: serde_json::to_string(&entry.action_set).map_err(|_| unavailable())?,
             parameter_constraints_json: serde_json::to_string(&entry.parameter_constraints)
                 .map_err(|_| unavailable())?,
             audience_set_json: serde_json::to_string(&entry.audience_set)
@@ -135,7 +157,7 @@ async fn issue(
     Path((organization, grant_id)): Path<(String, String)>,
     Json(body): Json<IssueBody>,
 ) -> Response {
-    let (_, organization) = match authorize_realm(&st, &headers, &organization) {
+    let (who, organization) = match authorize_realm(&st, &headers, &organization) {
         Ok(pair) => pair,
         Err(response) => return response,
     };
@@ -152,6 +174,25 @@ async fn issue(
         Ok(entries) => entries,
         Err(response) => return response,
     };
+    if let Err(response) = issuance_preflight::preflight(
+        body.enforcement_platform.as_deref(),
+        body.offline_use.as_deref(),
+        body.raw_credential_export,
+    ) {
+        return response;
+    }
+    if (body.raw_credential_export == Some(true) || entries_include_reserved(&entries))
+        && !who.may_issue_reserved_administration()
+    {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "forbidden",
+                "hint": "reserved administration requires higher-scope issuance"
+            })),
+        )
+            .into_response();
+    }
     // INV-GA-04 / contracts: maximum_delegation_depth ≤ 2; remaining budget
     // cannot advertise more depth than the product ceiling.
     const MAX_DELEGATION_DEPTH_REMAINING: i64 = 2;
@@ -196,9 +237,7 @@ async fn issue(
     }
     // Projection is a cache (storage.md §5): issue already committed. A failed
     // live apply leaves the projection unmarked so freshness stays fail-closed.
-    if let Err(error) =
-        crate::openfga_project::project_grant_live(&st, &org, &grant_id).await
-    {
+    if let Err(error) = crate::openfga_project::project_grant_live(&st, &org, &grant_id).await {
         tracing::warn!(%error, grant_id, "openfga live projection failed after issue");
     }
     (

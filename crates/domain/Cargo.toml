@@ -13,11 +13,11 @@ chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
+shuttle = { version = "0.9.1", optional = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
 blake3 = { workspace = true }
 url = { workspace = true }
-shuttle = { version = "0.9.1", optional = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

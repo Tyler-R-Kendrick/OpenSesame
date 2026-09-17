@@ -9,10 +9,7 @@ use opensesame_connection_broker::store as broker_store;
 const OWNER: &str = "principal:00000000-0000-4000-8000-000000000008";
 const GUEST: &str = "principal:00000000-0000-4000-8000-000000000013";
 
-async fn delegable_github_row(
-    state: &crate::app_state::AppState,
-    org: OrganizationId,
-) -> String {
+async fn delegable_github_row(state: &crate::app_state::AppState, org: OrganizationId) -> String {
     let now = Utc::now();
     let row = broker_store::ConnectionRow {
         id: ConnectionId::new().to_string(),
@@ -231,6 +228,91 @@ async fn contract_revocation_ends_delegated_exercise() {
     )
     .await;
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn at_revoke_queue_queued_invoke_is_denied_after_revoke() {
+    let state = crate::app_state::test_demo_state().await;
+    let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
+    let connection_id = delegable_github_row(&state, org).await;
+    let delegations = delegate_to_guest(&state, org, &connection_id).await;
+    let headers =
+        crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
+
+    super::intents_queue::hold_next_invoke();
+    let queued = create(
+        State(state.clone()),
+        headers,
+        Json(invoke_body(&connection_id, "repository.read")),
+    )
+    .await;
+    assert_eq!(
+        queued.status(),
+        StatusCode::ACCEPTED,
+        "a permitted invoke must be held before the broker side effect"
+    );
+    assert_eq!(
+        super::intents_queue::fixture_work(),
+        0,
+        "queueing must not produce fixture work"
+    );
+
+    state
+        .connection_broker
+        .revoke_delegation(&org, OWNER, &delegations[0].id)
+        .await
+        .expect("revoke");
+
+    let drained = super::intents_queue::drain(&state).await;
+    assert_eq!(
+        drained.status(),
+        StatusCode::NOT_FOUND,
+        "drain after revoke must not accept the held operation"
+    );
+    assert_eq!(
+        super::intents_queue::fixture_work(),
+        0,
+        "a revoked queued invoke must produce zero fixture side effects"
+    );
+}
+
+#[tokio::test]
+async fn family_expiry_stops_queued_fixture_work() {
+    let state = crate::app_state::test_demo_state().await;
+    let org = state.bootstrap.lock().unwrap().as_ref().unwrap().org;
+    let connection_id = delegable_github_row(&state, org).await;
+    delegate_to_guest(&state, org, &connection_id).await;
+    let headers =
+        crate::app_state::test_session_headers(&state, GUEST, org, OrganizationRole::Member);
+
+    super::intents_queue::hold_next_invoke();
+    let queued = create(
+        State(state.clone()),
+        headers,
+        Json(invoke_body(&connection_id, "repository.read")),
+    )
+    .await;
+    assert_eq!(queued.status(), StatusCode::ACCEPTED);
+    assert_eq!(super::intents_queue::fixture_work(), 0);
+
+    let past = (Utc::now() - chrono::Duration::hours(1)).to_rfc3339();
+    sqlx::query(
+        "UPDATE connection_delegations SET expires_at = ? WHERE claimant_subject = ? AND connection_id = ?",
+    )
+    .bind(&past)
+    .bind(GUEST)
+    .bind(&connection_id)
+    .execute(state.connection_broker.pool())
+    .await
+    .expect("expire the queued family's delegation");
+
+    let drained = super::intents_queue::drain(&state).await;
+    assert_eq!(
+        drained.status(),
+        StatusCode::NOT_FOUND,
+        "FIX-FAMILY expiry must stop owned fixture work at the side-effect fence"
+    );
+    assert_eq!(super::intents_queue::fixture_work(), 0);
 }
 
 #[tokio::test]

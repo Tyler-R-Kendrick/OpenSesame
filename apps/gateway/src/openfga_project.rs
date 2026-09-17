@@ -24,11 +24,7 @@ pub async fn project_grant_live(
     let Some(openfga) = &st.openfga else {
         return Ok(());
     };
-    let Some(lease) = st
-        .db
-        .acquire_writer_lease(WRITER_ID, LEASE_SECONDS)
-        .await?
-    else {
+    let Some(lease) = st.db.acquire_writer_lease(WRITER_ID, LEASE_SECONDS).await? else {
         anyhow::bail!("authority writer lease held by another projector");
     };
 
@@ -65,6 +61,10 @@ pub async fn project_grant_live(
     };
     st.db.record_projection_applied(&mark, None).await?;
     st.db.assert_writer_lease(&lease).await?;
-    info!(grant_id, tuples = tuples.len(), "openfga projection applied");
+    info!(
+        grant_id,
+        tuples = tuples.len(),
+        "openfga projection applied"
+    );
     Ok(())
 }

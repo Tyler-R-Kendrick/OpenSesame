@@ -315,7 +315,6 @@ fn session_grant_subject(grant: &SessionGrant, organization: &str) -> ExpirySubj
     }
 }
 
-
 /// Rotation policies, as schedules rather than deadlines.
 ///
 /// This is the collector that makes rotation a hook consumer: the policy's
