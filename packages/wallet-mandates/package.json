@@ -1,0 +1,25 @@
+{
+  "name": "@opensesame/wallet-mandates",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AP2/UCP conservative ES256 mandate codecs (fixture trust only)",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "jose": "6.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}
