@@ -55,7 +55,8 @@ export const authorityPaths = {
   },
   "/v1/authority/enrollment/pop": {
     post: {
-      summary: "Bind proof-of-possession for a device, actor, or workload subject",
+      summary:
+        "Bind proof-of-possession for a device, actor, or workload subject",
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
