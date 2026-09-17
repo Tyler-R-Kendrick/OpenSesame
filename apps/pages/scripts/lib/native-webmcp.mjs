@@ -56,7 +56,7 @@ export async function nativeWebMcp(page) {
         () => tools.size === count,
         `Expected ${count} native tools; got ${[...tools.keys()]}`,
       ),
-    /** Frame navigations clear CDP tools; wait for re-registration. */
+    /** Frame navigations clear CDP tools before toolsAdded; wait for re-registration. */
     expectReady: (required, minimum = required.length) =>
       until(
         () => {
