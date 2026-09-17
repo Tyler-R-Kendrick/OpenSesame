@@ -8,6 +8,14 @@ Connections. Phone 390×844 and desktop 1280×800.
 | `390-connections.png` | Connected empty state is **No Host connected**; catalog starts at Encryption | **Nothing connected**; **Managed** leads (GitHub, Linear, Linq, Microsoft) with **Not configured** chips |
 | `1280-connections.png` | Rail `Add a connection` count **40**; catalog starts at Encryption (age, FIDO2, YubiKey) | Rail `Add a connection` count **155**; **Managed** grid then **Identity** (Auth0, Clerk, Okta); Custom connector in the panel head |
 
+### 390 × 844
+
+![Connections catalog at 390](390-connections.png)
+
+### 1280 × 800
+
+![Connections catalog at 1280](1280-connections.png)
+
 ## What this proves
 
 - Catalog grouping leads Managed, then Identity / Backup/recovery, not Encryption.
