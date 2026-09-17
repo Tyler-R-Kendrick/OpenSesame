@@ -112,7 +112,15 @@ export function resolveWalletNativeMounts(
         ? { trustedIssuers: input.openid4vpTrustedIssuers }
         : undefined),
       ...(input.database
-        ? { sessionStore: new DurableOpenid4vpSessionStore(input.database) }
+        ? {
+            sessionStore: new DurableOpenid4vpSessionStore(input.database),
+            pendingStore: new DurableMap(
+              input.database,
+              "OpenSesame:Openid4vpPending",
+              false,
+              null,
+            ),
+          }
         : undefined),
     });
   }
