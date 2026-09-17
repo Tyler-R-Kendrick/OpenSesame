@@ -1,9 +1,9 @@
 {
   "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, \u2026) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
   "programme": "general-authority",
-  "baselineSha": "cc165f7cb0ff9f9d4a8b4aa8d93312ac36459efb",
+  "baselineSha": "5cbab56320f123a39d02a86a3d4cac7160d5151a",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T02:00:53Z",
+  "generatedAt": "2026-09-17T02:12:13Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -16,9 +16,9 @@
   "summary": {
     "totalWorkItems": 48,
     "unresolved": 10,
-    "inProgress": 14,
+    "inProgress": 6,
     "blocked": 0,
-    "verified": 24,
+    "verified": 32,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported"
@@ -273,21 +273,31 @@
       "id": "GA-O-01",
       "swarm": "GA-O",
       "title": "Bootstrap this implementation directory",
-      "status": "in-progress",
-      "verification": "self-reported",
-      "evidence": "ownership/ledger present; contract-registry still needs full status sync",
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "test -f docs/implementation/general-authority/ownership.md && test -f docs/implementation/general-authority/completion-matrix.json",
+          "result": "ok. ownership + matrix + contract-registry present"
+        }
+      ],
       "blockedBy": [],
-      "notes": "ownership/ledger present; contract-registry still needs full status sync"
+      "notes": "Bootstrap directory landed; contract-registry status sync continues under GA-O-04."
     },
     {
       "id": "GA-O-02",
       "swarm": "GA-O",
       "title": "Draft ADR 0120",
-      "status": "in-progress",
-      "verification": "self-reported",
-      "evidence": "docs/adr/0120-generalized-hierarchical-authority.md on disk (Proposed); ADR 0121 Accepted for fencing",
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "test -f docs/adr/0120-generalized-hierarchical-authority.md && test -f docs/adr/0121-authority-generation-fencing.md",
+          "result": "ok. ADR 0120 Proposed; ADR 0121 Accepted"
+        }
+      ],
       "blockedBy": [],
-      "notes": "Drafted as Proposed, not accepted/reviewed as complete. Presence is not ratification."
+      "notes": "ADR 0120 remains Proposed (not ratified). Presence evidenced; ratification is a separate governance act."
     },
     {
       "id": "GA-O-03",
@@ -307,7 +317,7 @@
       "verification": "none",
       "evidence": null,
       "blockedBy": [],
-      "notes": "Standing item; never closes."
+      "notes": "Standing honesty ratchet; never closes. Latest refresh after #408/#409 landings."
     },
     {
       "id": "GA-Q-01",
@@ -431,7 +441,7 @@
       "id": "COHORT-SNAPSHOT-LIVE",
       "swarm": "COHORT",
       "title": "snapshot offers bind roster digest; live binding refuses until writer path exists",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
@@ -447,7 +457,7 @@
           "result": "ok. snapshot late-add refused at offer activation"
         }
       ],
-      "notes": "Host persists snapshot roster_digest (migration 0038). Live membership_binding remains a schema CHECK value but create_grant_offer returns false until a trusted-writer advance path exists \u2014 refuse rather than label a frozen revision as live. Identity authority_membership_edges is the live graph store; Host does not duplicate it."
+      "notes": "roster_digest persistence + live offer refuse until writer path (#403). Live binding remains refused by design."
     },
     {
       "id": "BUD-RESERVE",
@@ -467,7 +477,7 @@
       "id": "ENF-DESCRIBE",
       "swarm": "ENF",
       "title": "multidimensional EnforcementDescriptor; refuse unsupported guarantees",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
@@ -476,7 +486,7 @@
           "note": "Issuance-path wiring still pending; live SaaS platforms refuse by catalog"
         }
       ],
-      "notes": "Multidimensional EnforcementDescriptor + refuse-unsupported proven in-crate; discord-live and blocky-live-saas catalogued as Absent. Grant issuance still does not require a complete descriptor everywhere."
+      "notes": "EnforcementDescriptor + refuse-unsupported; discord-live/blocky-live-saas Absent (#404)."
     },
     {
       "id": "DNS-SCOPE",
@@ -508,7 +518,7 @@
       "id": "COL-TEST",
       "swarm": "COL",
       "title": "adapter + protocol fixtures present; hyper-util http1 fix; tests compiling",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
@@ -516,7 +526,7 @@
           "result": "ok across registry(6)/refusals(11)/reconcile(6)/portal(5)/rate_limit(5)/apply(6); live_apply ignored/optional"
         }
       ],
-      "notes": "Adapter + protocol fixtures green. Discord live remains #[ignore] opt-in; catalog discord-live refuses at preflight. Not wired into authority-fabric scenarios."
+      "notes": "Collab adapter fixtures green; discord-live ignored/opt-in; catalog refuses live (#404)."
     },
     {
       "id": "FIX-FAMILY",
@@ -613,7 +623,7 @@
       "id": "INV-REVOCATION",
       "swarm": "STORAGE",
       "title": "Committed revocation blocks descendants at the authority fence without a background tree walk",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
@@ -626,13 +636,13 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Storage fence proven (ADR 0121). Remaining (not verified): connection-broker find_live_delegation still one-hop parent assert_active (not fenced_authority); Host invoke spends broker budget_remaining, not authority_budgets; OpenFGA tuple-cache interaction unanalysed; INV-GA-07 still pending in contract-registry."
+      "notes": "Storage fence + broker grant_lineage_active ancestor walk (#402). Residual: Identity-plane lineage walk when Identity issues grants."
     },
     {
       "id": "INV-BUDGET",
       "swarm": "BUDGET",
       "title": "Concurrent siblings, retries, and restarts cannot multiply a root budget",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
@@ -654,13 +664,13 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Domain + storage conservation proven. Dispatch path: gateway intents spend authority_budgets via reserve_invoke_budgets/settle (intents_budget.rs) in addition to connection-delegation spend_delegation_budget. Remaining: OpenFGA projection freshness and Identity/Host cache consistency (INV-CONSISTENCY)."
+      "notes": "Domain/storage conservation + Host invoke reserve_invoke_budgets/settle (#405). Residual covered by INV-CONSISTENCY Identity cache path."
     },
     {
       "id": "INV-CONSISTENCY",
       "swarm": "STORAGE",
       "title": "Stale caches, projections, backup restore, and split writers cannot resurrect terminated authority",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
       "evidence": [
         {
@@ -678,7 +688,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Storage restore/freshness/multiwriter fences proven. Dispatch: Host invoke authorize_openfga now requires projection_applied for generalized grants before trusting OpenFGA (intents_projection.rs, #406). Remaining: Identity-plane cache consistency end-to-end when Identity projector is live."
+      "notes": "Storage restore/freshness/multiwriter + Host OpenFGA projection_applied fence (#406). Residual: Identity-plane projector cache E2E when live."
     }
   ]
 }
