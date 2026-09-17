@@ -114,11 +114,13 @@ export function resolveWalletNativeMounts(
       ...(input.database
         ? {
             sessionStore: new DurableOpenid4vpSessionStore(input.database),
+            // TTL is a GC backstop only; binding expiry uses bindingExpiresAt
+            // so an overdue row still classifies as presentation_expired.
             pendingStore: new DurableMap(
               input.database,
               "OpenSesame:Openid4vpPending",
               false,
-              null,
+              15 * 60_000,
             ),
           }
         : undefined),
