@@ -18,6 +18,7 @@ import {
   revokeVercelConnection,
   setVercelConnectAuth,
   toConnectConnection,
+  usesConnect,
   vercelConnectConfigured,
   vercelConnectSeams,
 } from "./vercel-connect.js";
@@ -215,5 +216,31 @@ describe("Connections live path", () => {
       true,
     );
     expect(vercelConnectSeams.startAuthorization).toHaveBeenCalled();
+  });
+
+  it("keeps custom and blocked ids off the Connect create path", async () => {
+    setVercelConnectAuth({ token: "vercel_token" });
+    expect(usesConnect("slack")).toBe(true);
+    expect(usesConnect("custom-acme")).toBe(false);
+    expect(usesConnect("stripe")).toBe(false);
+    await expect(
+      createVercelConnection({ providerId: "stripe" }),
+    ).rejects.toMatchObject({ code: "refused" });
+    await expect(
+      createVercelConnection({ providerId: "custom-acme" }),
+    ).rejects.toMatchObject({ code: "refused" });
+  });
+
+  it("parses ISO-8601 Connect timestamps", () => {
+    const mapped = toConnectConnection(
+      {
+        ...slackConnector(),
+        createdAt: "2026-09-17T00:00:00.000Z",
+        updatedAt: "2026-09-17T01:00:00.000Z",
+      },
+      { token: "secret", teamId: "team_1" },
+    );
+    expect(mapped?.createdAt).toBe("2026-09-17T00:00:00.000Z");
+    expect(mapped?.updatedAt).toBe("2026-09-17T01:00:00.000Z");
   });
 });

@@ -34,12 +34,21 @@ function parse(raw: string | null): CustomConnectorInput[] {
 function isInput(value: unknown): value is CustomConnectorInput {
   if (!value || typeof value !== "object") return false;
   const row = value as CustomConnectorInput;
-  return (
-    typeof row.id === "string" &&
-    typeof row.displayName === "string" &&
-    typeof row.baseUrl === "string" &&
-    Boolean(row.auth)
-  );
+  if (
+    typeof row.id !== "string" ||
+    typeof row.displayName !== "string" ||
+    typeof row.baseUrl !== "string" ||
+    !row.auth
+  ) {
+    return false;
+  }
+  try {
+    httpsOrigin(row.baseUrl);
+    if (row.docsUrl) httpsOrigin(row.docsUrl);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function httpsOrigin(raw: string): URL {
@@ -148,5 +157,5 @@ export function mergeCustomConnectors(
 
 /** Tests. */
 export function clearCustomConnectors(): void {
-  cache = [];
+  cache = null;
 }

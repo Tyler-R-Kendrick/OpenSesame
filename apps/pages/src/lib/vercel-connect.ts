@@ -18,6 +18,7 @@ import {
 } from "@vercel/connect";
 import { useSyncExternalStore } from "react";
 import type { Connection } from "./connections.js";
+import { isVercelConnectable } from "./vercel-connect-catalog.js";
 
 export const CONNECT_API = "https://api.vercel.com";
 const TIMEOUT_MS = 8000;
@@ -47,24 +48,15 @@ export class ConnectError extends Error {
 let sessionAuth: VercelConnectAuth | null = null;
 const listeners = new Set<() => void>();
 
-function envAuth(): VercelConnectAuth | null {
-  const token = String(
-    import.meta.env.VITE_VERCEL_OIDC_TOKEN ||
-      import.meta.env.VITE_VERCEL_TOKEN ||
-      "",
-  ).trim();
-  if (!token) return null;
-  const teamId = String(import.meta.env.VITE_VERCEL_TEAM_ID || "").trim();
-  const projectId = String(import.meta.env.VITE_VERCEL_PROJECT_ID || "").trim();
-  return {
-    token,
-    ...(teamId ? { teamId } : {}),
-    ...(projectId ? { projectId } : {}),
-  };
+export function vercelConnectAuth(): VercelConnectAuth | null {
+  return sessionAuth;
 }
 
-export function vercelConnectAuth(): VercelConnectAuth | null {
-  return sessionAuth ?? envAuth();
+/** Live Connect transport, never custom or blocked catalog ids. */
+export function usesConnect(providerId?: string): boolean {
+  if (!sessionAuth?.token) return false;
+  if (providerId === undefined) return true;
+  return isVercelConnectable(providerId);
 }
 
 export function vercelConnectConfigured(): boolean {
@@ -127,8 +119,15 @@ function text(value: BoundaryValue | undefined, max = 256): string {
 }
 
 function iso(value: BoundaryValue | undefined): string {
-  const ms = isNumber(value) ? value : Number(text(value));
-  if (!Number.isFinite(ms) || ms <= 0) return new Date(0).toISOString();
+  if (isNumber(value) && Number.isFinite(value) && value > 0) {
+    return new Date(value).toISOString();
+  }
+  const raw = text(value);
+  if (!raw) return "";
+  const numeric = Number(raw);
+  const ms =
+    Number.isFinite(numeric) && numeric > 0 ? numeric : Date.parse(raw);
+  if (!Number.isFinite(ms) || ms <= 0) return "";
   return new Date(ms).toISOString();
 }
 
@@ -314,6 +313,9 @@ export async function createVercelConnection(body: {
   scopes?: string[];
   projectId?: string;
 }): Promise<Connection> {
+  if (!isVercelConnectable(body.providerId)) {
+    throw new ConnectError(0, "refused", "This connector is not connectable.");
+  }
   const auth = requireAuth();
   const projectId = body.projectId || auth.projectId;
   const payload: JsonObject = {

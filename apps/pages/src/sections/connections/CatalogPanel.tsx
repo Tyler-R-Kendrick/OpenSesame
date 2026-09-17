@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
 import { IconInfo } from "../../components/Icons.js";
@@ -10,7 +10,11 @@ import {
 import type { Connection, Provider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
 import { isManagedConnector } from "../../lib/managed-connectors.js";
-import { catalogTileNote } from "../../lib/vercel-connect-catalog.js";
+import {
+  catalogTileNote,
+  isVercelCatalogId,
+  isVercelConnectable,
+} from "../../lib/vercel-connect-catalog.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { catalogPageSections } from "./page-tree.js";
@@ -155,10 +159,11 @@ function ProviderTile({
       className={`conn-tile${hash === `#catalog-${encodeURIComponent(provider.id)}` ? " is-selected" : ""}`}
       id={`catalog-${encodeURIComponent(provider.id)}`}
     >
-      <Link
-        className="conn-tile__link"
-        tabIndex={-1}
-        to={connectorPath(provider.id)}
+      <TileBody
+        provider={provider}
+        blocked={
+          isVercelCatalogId(provider.id) && !isVercelConnectable(provider.id)
+        }
       >
         <ConnectorMark
           providerId={provider.id}
@@ -174,7 +179,28 @@ function ProviderTile({
             {note.label}
           </span>
         ) : null}
-      </Link>
+      </TileBody>
     </li>
+  );
+}
+
+function TileBody({
+  provider,
+  blocked,
+  children,
+}: {
+  provider: Provider;
+  blocked: boolean;
+  children: ReactNode;
+}) {
+  if (blocked) return <span className="conn-tile__link">{children}</span>;
+  return (
+    <Link
+      className="conn-tile__link"
+      tabIndex={-1}
+      to={connectorPath(provider.id)}
+    >
+      {children}
+    </Link>
   );
 }

@@ -512,8 +512,7 @@ function listProvidersDefault(): Promise<Provider[]> {
 }
 
 function listConnectionsDefault(): Promise<Connection[]> {
-  if (vercelConnect.vercelConnectConfigured())
-    return vercelConnect.listVercelConnections();
+  if (vercelConnect.usesConnect()) return vercelConnect.listVercelConnections();
   return call("/connections", {}, (body) =>
     ListConnectionsResponseSchema.parse(body).connections.map(toConnection),
   );
@@ -528,8 +527,7 @@ function discoverConnectionsDefault(): Promise<number> {
 }
 
 export function getConnection(id: string): Promise<Connection> {
-  if (vercelConnect.vercelConnectConfigured())
-    return vercelConnect.getVercelConnection(id);
+  if (vercelConnect.usesConnect()) return vercelConnect.getVercelConnection(id);
   return call(`/connections/${encodeURIComponent(id)}`, {}, toConnection);
 }
 
@@ -540,7 +538,7 @@ function createConnectionDefault(body: {
   projectId?: string;
   integrationId?: string;
 }): Promise<Connection> {
-  if (vercelConnect.vercelConnectConfigured())
+  if (vercelConnect.usesConnect(body.providerId))
     return vercelConnect.createVercelConnection(body);
   return call(
     "/connections",
@@ -564,7 +562,7 @@ function authorizeConnectionDefault(
   id: string,
   scopes?: string[],
 ): Promise<{ authorizationUrl: string; expiresAt: string }> {
-  if (vercelConnect.vercelConnectConfigured())
+  if (vercelConnect.usesConnect())
     return vercelConnect.authorizeVercelConnection(id, scopes);
   return call(
     `/connections/${encodeURIComponent(id)}/authorize`,
@@ -623,7 +621,7 @@ function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
-  if (vercelConnect.vercelConnectConfigured())
+  if (vercelConnect.usesConnect())
     return vercelConnect.revokeVercelConnection(id);
   return call(
     `/connections/${encodeURIComponent(id)}`,

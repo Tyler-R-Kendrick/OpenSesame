@@ -18,7 +18,7 @@
   "totals": {
     "files": 545,
     "violations": 882,
-    "oversizedLines": 278668
+    "oversizedLines": 278666
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -658,7 +658,7 @@
       "max-lines": 765
     },
     "apps/pages/src/lib/connections.ts": {
-      "max-lines": 926
+      "max-lines": 924
     },
     "apps/pages/src/lib/connectivity-monitor.ts": {
       "max-lines": 478

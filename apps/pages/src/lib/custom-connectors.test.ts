@@ -9,7 +9,7 @@ import {
   mergeCustomConnectors,
   removeCustomConnector,
 } from "./custom-connectors.js";
-import { kvDelete } from "./kv.js";
+import { kvDelete, kvSet } from "./kv.js";
 import { isManagedConnector } from "./managed-connectors.js";
 
 const originalCreate = customConnectorSeams.createRemote;
@@ -133,5 +133,27 @@ describe("managed vs user-owned connectors", () => {
         },
       }),
     ).rejects.toThrow(/already exists/);
+  });
+
+  it("ignores stored rows that are not https origins", () => {
+    kvSet(
+      "custom-connectors.v1",
+      JSON.stringify([
+        {
+          id: "custom-bad",
+          displayName: "Bad",
+          baseUrl: "http://evil.test",
+          auth: { kind: "api_key", header: "Authorization", valuePrefix: "" },
+        },
+        {
+          id: "custom-ok",
+          displayName: "Ok",
+          baseUrl: "https://ok.test",
+          auth: { kind: "api_key", header: "Authorization", valuePrefix: "" },
+        },
+      ]),
+    );
+    clearCustomConnectors();
+    expect(listCustomConnectors().map((row) => row.id)).toEqual(["custom-ok"]);
   });
 });
