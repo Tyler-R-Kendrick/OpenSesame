@@ -56,6 +56,15 @@ export async function nativeWebMcp(page) {
         () => tools.size === count,
         `Expected ${count} native tools; got ${[...tools.keys()]}`,
       ),
+    /** Frame navigations clear CDP tools; wait for re-registration. */
+    expectReady: (required, minimum = required.length) =>
+      until(
+        () => {
+          if (tools.size < minimum) return false;
+          return required.every((name) => tools.has(name));
+        },
+        `Expected >=${minimum} tools including ${required.join(", ")}; got ${[...tools.keys()]}`,
+      ),
     invoke,
     async refuse(name, input) {
       await assert.rejects(() => invoke(name, input));

@@ -14,6 +14,7 @@ import {
   authorizeVercelConnection,
   createVercelConnection,
   getVercelConnection,
+  isConnectConnector,
   listVercelConnections,
   revokeVercelConnection,
   setVercelConnectAuth,
@@ -216,6 +217,18 @@ describe("Connections live path", () => {
       true,
     );
     expect(vercelConnectSeams.startAuthorization).toHaveBeenCalled();
+  });
+
+  it("remembers Connect connectors from list/create and ignores Host ids", async () => {
+    setVercelConnectAuth({ token: "vercel_token" });
+    stubConnect(() => jsonResponse({ connectors: [slackConnector()] }));
+    expect(isConnectConnector("scl_slack")).toBe(false);
+    expect(isConnectConnector("connection_host")).toBe(false);
+    await listConnections();
+    expect(isConnectConnector("scl_slack")).toBe(true);
+    expect(isConnectConnector("connection_host")).toBe(false);
+    setVercelConnectAuth(null);
+    expect(isConnectConnector("scl_slack")).toBe(false);
   });
 
   it("keeps custom and blocked ids off the Connect create path", async () => {

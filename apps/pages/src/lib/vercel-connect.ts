@@ -47,6 +47,12 @@ export class ConnectError extends Error {
 
 let sessionAuth: VercelConnectAuth | null = null;
 const listeners = new Set<() => void>();
+/** Connector ids listed or created on the live Connect transport this session. */
+const knownConnectors = new Set<string>();
+
+function rememberConnector(id: string): void {
+  if (id) knownConnectors.add(id);
+}
 
 export function vercelConnectAuth(): VercelConnectAuth | null {
   return sessionAuth;
@@ -59,12 +65,18 @@ export function usesConnect(providerId?: string): boolean {
   return isVercelConnectable(providerId);
 }
 
+/** True only for connectors this session listed or created via Connect. */
+export function isConnectConnector(id: string): boolean {
+  return Boolean(sessionAuth?.token) && knownConnectors.has(id);
+}
+
 export function vercelConnectConfigured(): boolean {
   return Boolean(vercelConnectAuth()?.token);
 }
 
 export function setVercelConnectAuth(next: VercelConnectAuth | null): void {
   sessionAuth = next;
+  if (!next) knownConnectors.clear();
   for (const listener of listeners) listener();
 }
 
@@ -272,7 +284,10 @@ export async function listVercelConnections(): Promise<Connection[]> {
   const out: Connection[] = [];
   for (const row of listed) {
     const mapped = toConnectConnection(row, auth);
-    if (mapped) out.push(mapped);
+    if (mapped) {
+      rememberConnector(mapped.connectionId);
+      out.push(mapped);
+    }
   }
   return out;
 }
@@ -304,6 +319,8 @@ export async function getVercelConnection(id: string): Promise<Connection> {
       "Connect did not return a connector.",
     );
   }
+  rememberConnector(mapped.connectionId);
+  rememberConnector(id);
   return mapped;
 }
 
@@ -335,6 +352,7 @@ export async function createVercelConnection(body: {
       "Connect did not return a connector.",
     );
   }
+  rememberConnector(mapped.connectionId);
   return mapped;
 }
 

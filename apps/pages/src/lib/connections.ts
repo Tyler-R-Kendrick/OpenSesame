@@ -527,7 +527,8 @@ function discoverConnectionsDefault(): Promise<number> {
 }
 
 export function getConnection(id: string): Promise<Connection> {
-  if (vercelConnect.usesConnect()) return vercelConnect.getVercelConnection(id);
+  if (vercelConnect.isConnectConnector(id))
+    return vercelConnect.getVercelConnection(id);
   return call(`/connections/${encodeURIComponent(id)}`, {}, toConnection);
 }
 
@@ -562,7 +563,7 @@ function authorizeConnectionDefault(
   id: string,
   scopes?: string[],
 ): Promise<{ authorizationUrl: string; expiresAt: string }> {
-  if (vercelConnect.usesConnect())
+  if (vercelConnect.isConnectConnector(id))
     return vercelConnect.authorizeVercelConnection(id, scopes);
   return call(
     `/connections/${encodeURIComponent(id)}/authorize`,
@@ -621,7 +622,7 @@ function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
-  if (vercelConnect.usesConnect())
+  if (vercelConnect.isConnectConnector(id))
     return vercelConnect.revokeVercelConnection(id);
   return call(
     `/connections/${encodeURIComponent(id)}`,

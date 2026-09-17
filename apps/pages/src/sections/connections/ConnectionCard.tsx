@@ -15,6 +15,7 @@ import {
   revokeConnection,
 } from "../../lib/connections.js";
 import { ensureHostSession } from "../../lib/identity.js";
+import { isConnectConnector } from "../../lib/vercel-connect.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ActivityLog } from "./ActivityLog.js";
 import { BindingEditor } from "./BindingEditor.js";
@@ -66,7 +67,8 @@ export function ConnectionCard({
     const popup = openConsentPopup("about:blank");
     setBusy("authorize");
     try {
-      await ensureHostSession();
+      if (!isConnectConnector(connection.connectionId))
+        await ensureHostSession();
       const { authorizationUrl } = await authorizeConnection(
         connection.connectionId,
       );
