@@ -1,73 +1,74 @@
 /** @vitest-environment jsdom */
-import { createHash } from "node:crypto";
 import {
+  PAYMENT_APPROVAL_DIGEST_FIELD_ORDER,
+  type PaymentApprovalDigestField,
+  buildPaymentApprovalDigest,
   generatePaymentApprovalKeyPair,
   signPaymentApprovalDigest,
 } from "@opensesame/wallet-consent";
 import { describe, expect, it } from "vitest";
-import { buildLocalPaymentApprovalDigest } from "./spending-consent.js";
+import {
+  assessLocalPaymentApproval,
+  buildLocalPaymentApprovalDigest,
+  localPaymentApprovalIntent,
+} from "./spending-consent.js";
 
-function nodeReferenceDigest(intent: {
-  currency: string;
-  amount: string;
-  recipient: string;
-}): string {
-  const purpose = "opensesame:wallet-payment-approval:v1";
-  const hash = createHash("sha256");
-  for (const value of [
-    purpose,
-    intent.currency,
-    intent.amount,
-    intent.recipient,
-  ]) {
-    hash.update(String(Buffer.byteLength(value, "utf8")));
-    hash.update("\0");
-    hash.update(value, "utf8");
-  }
-  return hash.digest("hex");
-}
+const TAMPER: Record<PaymentApprovalDigestField, string> = {
+  currency: "EUR",
+  amount: "701",
+  recipient: "child-b",
+  assetNetwork: "eip155:1",
+  assetId: "0xother",
+  maxFee: "9",
+  validFrom: "2026-06-01T00:00:00.000Z",
+  validUntil: "2027-01-01T00:00:00.000Z",
+  policyVersion: "2",
+  allocationRef: "child-b",
+  effectiveEnforcement: "independent_execution",
+};
 
 describe("spending-consent", () => {
   it("matches the Node wallet-consent digest encoding", async () => {
-    const intent = {
-      currency: "TEST",
+    const intent = localPaymentApprovalIntent({
       amount: "700",
       recipient: "child-a",
-    };
+    });
     const browser = await buildLocalPaymentApprovalDigest(intent);
-    expect(browser).toBe(nodeReferenceDigest(intent));
+    expect(browser).toBe(buildPaymentApprovalDigest(intent));
     expect(browser).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("changes when amount or recipient changes (WAL-B02)", async () => {
-    const base = await buildLocalPaymentApprovalDigest({
-      currency: "TEST",
-      amount: "700",
-      recipient: "child-a",
-    });
-    const changedAmount = await buildLocalPaymentApprovalDigest({
-      currency: "TEST",
-      amount: "701",
-      recipient: "child-a",
-    });
-    const changedRecipient = await buildLocalPaymentApprovalDigest({
-      currency: "TEST",
-      amount: "700",
-      recipient: "child-b",
-    });
-    expect(changedAmount).not.toBe(base);
-    expect(changedRecipient).not.toBe(base);
-  });
+  it.each(PAYMENT_APPROVAL_DIGEST_FIELD_ORDER)(
+    "invalidates approval when %s is tampered after signing (WAL-B02)",
+    async (field) => {
+      const honest = localPaymentApprovalIntent({ amount: "700" });
+      const digest = await buildLocalPaymentApprovalDigest(honest);
+      const keys = generatePaymentApprovalKeyPair();
+      const proof = {
+        boundDigest: digest,
+        verifiedBytes: signPaymentApprovalDigest(digest, keys.privateKeyPkcs8),
+        publicKeySpki: keys.publicKeySpki,
+      };
+      const admitted = await assessLocalPaymentApproval({
+        intent: honest,
+        proof,
+      });
+      expect(admitted).toEqual({ ok: true, verifiedMechanism: "es256" });
+
+      const tampered = localPaymentApprovalIntent({
+        amount: "700",
+        [field]: TAMPER[field],
+      });
+      const refused = await assessLocalPaymentApproval({
+        intent: tampered,
+        proof,
+      });
+      expect(refused).toEqual({ ok: false, reason: "digest_mismatch" });
+    },
+  );
 
   it("refuses forged assurance without a verified signature (WAL-B01)", async () => {
-    const { assessLocalPaymentApproval } = await import(
-      "./spending-consent.js"
-    );
-    const intent = {
-      currency: "TEST",
-      amount: "700",
-      recipient: "child-a",
-    };
+    const intent = localPaymentApprovalIntent({ amount: "700" });
     const digest = await buildLocalPaymentApprovalDigest(intent);
     const forged = await assessLocalPaymentApproval({
       intent,
@@ -98,20 +99,5 @@ describe("spending-consent", () => {
       },
     });
     expect(dummyBytes).toEqual({ ok: false, reason: "signature_invalid" });
-
-    const keys = generatePaymentApprovalKeyPair();
-    const verifiedBytes = signPaymentApprovalDigest(
-      digest,
-      keys.privateKeyPkcs8,
-    );
-    const ok = await assessLocalPaymentApproval({
-      intent,
-      proof: {
-        boundDigest: digest,
-        verifiedBytes,
-        publicKeySpki: keys.publicKeySpki,
-      },
-    });
-    expect(ok).toEqual({ ok: true, verifiedMechanism: "es256" });
   });
 });

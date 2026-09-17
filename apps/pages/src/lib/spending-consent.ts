@@ -1,25 +1,41 @@
 /**
  * Browser-local payment approval digest (ADR 0123 / CONSENT).
  *
- * Mirrors `@opensesame/wallet-consent` length-prefixed SHA-256 over
- * purpose/currency/amount/recipient, using WebCrypto so Pages never imports
- * `node:crypto`. Caller-supplied assurance labels are never accepted here —
- * this only hashes the executable terms the human can read.
+ * Uses the same length-prefixed field list as `@opensesame/wallet-consent`
+ * with WebCrypto so Pages never imports `node:crypto`. Caller-supplied
+ * assurance labels are never accepted here.
  */
 
+import {
+  type PaymentApprovalIntent,
+  paymentApprovalDigestValues,
+} from "@opensesame/wallet-consent/intent";
 import {
   type DigestBoundApprovalResult,
   type DigestBoundPaymentProof,
   verifyDigestBoundApproval,
 } from "@opensesame/wallet-consent/verify";
 
-const PURPOSE = "opensesame:wallet-payment-approval:v1";
+export type LocalPaymentApprovalIntent = PaymentApprovalIntent;
 
-export type LocalPaymentApprovalIntent = {
-  readonly currency: string;
-  readonly amount: string;
-  readonly recipient: string;
-};
+export function localPaymentApprovalIntent(
+  overrides: Partial<PaymentApprovalIntent> = {},
+): PaymentApprovalIntent {
+  return {
+    currency: "TEST",
+    amount: "25",
+    recipient: "workload-research",
+    assetNetwork: "eip155:31337",
+    assetId: "TEST",
+    maxFee: "0",
+    validFrom: "2026-01-01T00:00:00.000Z",
+    validUntil: "2026-12-31T00:00:00.000Z",
+    policyVersion: "1",
+    allocationRef: "child-a",
+    effectiveEnforcement: "local_approval",
+    ...overrides,
+  };
+}
 
 function utf8Bytes(value: string): Uint8Array {
   return new TextEncoder().encode(value);
@@ -56,12 +72,9 @@ function toHex(bytes: ArrayBuffer): string {
 export async function buildLocalPaymentApprovalDigest(
   intent: LocalPaymentApprovalIntent,
 ): Promise<string> {
-  const payload = concatBytes([
-    fieldBytes(PURPOSE),
-    fieldBytes(intent.currency),
-    fieldBytes(intent.amount),
-    fieldBytes(intent.recipient),
-  ]);
+  const payload = concatBytes(
+    paymentApprovalDigestValues(intent).map((value) => fieldBytes(value)),
+  );
   const digest = await crypto.subtle.digest("SHA-256", payload);
   return toHex(digest);
 }

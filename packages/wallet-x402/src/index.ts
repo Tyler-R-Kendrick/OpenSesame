@@ -7,12 +7,16 @@ export {
   refuseMutatedExactAmount,
   X402_ADAPTER_BLOCKED_REASON,
   X402AdapterBlockedError,
+  X402AccountingUnavailableError,
+  X402InsufficientAvailableError,
   type LocalExactRuntime,
 } from "./adapter.js";
 export {
   assertLocalExactRuntime,
   createExactPaymentPayload,
   settleExactPayment,
+  payerAddress,
+  readExactTokenBalance,
   verifyExactPaymentMismatch,
 } from "./exact-settle.js";
 export { MAINNET_CHAIN_IDS, isMainnetChainId } from "./chain-guard.js";

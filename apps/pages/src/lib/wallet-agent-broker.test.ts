@@ -1,7 +1,16 @@
+import {
+  generatePaymentApprovalKeyPair,
+  signPaymentApprovalDigest,
+} from "@opensesame/wallet-consent";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildLocalPaymentApprovalDigest,
+  localPaymentApprovalIntent,
+} from "./spending-consent.js";
+import {
   clearSpendingLedgerStorage,
+  getSpendingLedger,
   openDemoHouseholdBudget,
   resetSpendingLedgerCache,
 } from "./spending-ledger.js";
@@ -34,6 +43,25 @@ function ensureLocalStorage(): void {
 }
 
 const caller = { principalRef: "principal-owner" };
+
+async function approvedIssue(proposalId: string, amount: string) {
+  const intent = localPaymentApprovalIntent({
+    amount,
+    recipient: "0xabc",
+    allocationRef: "child-a",
+  });
+  const digest = await buildLocalPaymentApprovalDigest(intent);
+  const keys = generatePaymentApprovalKeyPair();
+  return issuePreparedSpend({
+    proposalId,
+    intent,
+    proof: {
+      boundDigest: digest,
+      verifiedBytes: signPaymentApprovalDigest(digest, keys.privateKeyPkcs8),
+      publicKeySpki: keys.publicKeySpki,
+    },
+  });
+}
 
 describe("wallet-agent-broker", () => {
   beforeEach(() => {
@@ -70,7 +98,7 @@ describe("wallet-agent-broker", () => {
     expect(result).toEqual({ ok: false, code: "PREPARED_REF_INVALID" });
   });
 
-  it("proposes then executes only an internally issued ref", () => {
+  it("proposes then executes only an internally issued ref", async () => {
     const proposed = proposeWalletPayment({
       caller,
       nodeId: "child-a",
@@ -80,9 +108,7 @@ describe("wallet-agent-broker", () => {
     expect(proposed.ok).toBe(true);
     if (!proposed.ok) return;
     expect(proposed.proposal.settles).toBe(false);
-    const issued = issuePreparedSpend({
-      proposalId: proposed.proposal.proposalId,
-    });
+    const issued = await approvedIssue(proposed.proposal.proposalId, "10");
     expect(issued.ok).toBe(true);
     if (!issued.ok) return;
     const executed = executeApprovedWalletPayment({
@@ -97,6 +123,56 @@ describe("wallet-agent-broker", () => {
       singleUseToken: issued.prepared.singleUseToken,
     });
     expect(replay).toEqual({ ok: false, code: "PREPARED_REF_INVALID" });
+  });
+
+  it("refuses a second issue of the same proposal (WAL-D03)", async () => {
+    const proposed = proposeWalletPayment({
+      caller,
+      nodeId: "child-a",
+      amount: "10",
+      destination: "0xabc",
+    });
+    expect(proposed.ok).toBe(true);
+    if (!proposed.ok) return;
+    const first = await approvedIssue(proposed.proposal.proposalId, "10");
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    const availableBefore =
+      getSpendingLedger().project("household")?.locallyAvailable;
+    const second = await approvedIssue(proposed.proposal.proposalId, "10");
+    expect(second).toEqual({ ok: false, code: "PROPOSAL_ALREADY_ISSUED" });
+    const execFirst = executeApprovedWalletPayment({
+      caller,
+      preparedRef: first.prepared.ref,
+      singleUseToken: first.prepared.singleUseToken,
+    });
+    expect(execFirst).toMatchObject({ ok: true, state: "reserved" });
+    expect(getSpendingLedger().project("household")?.locallyAvailable).toBe(
+      (availableBefore ?? 0n) - 10n,
+    );
+  });
+
+  it("refuses issue without a digest-bound proof", async () => {
+    const proposed = proposeWalletPayment({
+      caller,
+      nodeId: "child-a",
+      amount: "10",
+      destination: "0xabc",
+    });
+    expect(proposed.ok).toBe(true);
+    if (!proposed.ok) return;
+    const intent = localPaymentApprovalIntent({
+      amount: "10",
+      recipient: "0xabc",
+      allocationRef: "child-a",
+    });
+    const digest = await buildLocalPaymentApprovalDigest(intent);
+    const unsigned = await issuePreparedSpend({
+      proposalId: proposed.proposal.proposalId,
+      intent,
+      proof: { boundDigest: digest, mechanism: "webauthn" },
+    });
+    expect(unsigned).toEqual({ ok: false, code: "unverified_assurance" });
   });
 
   it("does not expose secret/PAN/sign tools via stop", () => {

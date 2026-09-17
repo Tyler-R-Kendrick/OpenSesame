@@ -8,7 +8,14 @@ import {
   toFacilitatorEvmSigner,
 } from "@x402/evm";
 import { ExactEvmScheme as FacilitatorExact } from "@x402/evm/exact/facilitator";
-import { http, createWalletClient, getAddress, publicActions } from "viem";
+import {
+  http,
+  createPublicClient,
+  createWalletClient,
+  getAddress,
+  parseAbi,
+  publicActions,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { MAINNET_CHAIN_IDS } from "./chain-guard.js";
@@ -48,6 +55,31 @@ export function assertLocalExactRuntime(runtime: LocalExactRuntime): void {
   if (!runtime.rpcUrl.startsWith("http://127.0.0.1:")) {
     throw new Error("LOCAL_RPC_REQUIRED");
   }
+}
+
+const TOKEN_ABI = parseAbi([
+  "function balanceOf(address owner) view returns (uint256)",
+]);
+
+export function payerAddress(runtime: LocalExactRuntime): HexAddress {
+  return privateKeyToAccount(runtime.payerPrivateKey).address;
+}
+
+export async function readExactTokenBalance(
+  runtime: LocalExactRuntime,
+  holder: HexAddress,
+): Promise<bigint> {
+  assertLocalExactRuntime(runtime);
+  const client = createPublicClient({
+    chain: { ...foundry, id: runtime.chainId },
+    transport: http(runtime.rpcUrl),
+  });
+  return client.readContract({
+    address: runtime.asset,
+    abi: TOKEN_ABI,
+    functionName: "balanceOf",
+    args: [getAddress(holder)],
+  });
 }
 
 function clients(runtime: LocalExactRuntime) {

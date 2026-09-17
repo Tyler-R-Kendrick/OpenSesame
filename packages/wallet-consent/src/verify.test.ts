@@ -10,6 +10,14 @@ const DIGEST = buildPaymentApprovalDigest({
   currency: "USD",
   amount: "10.00",
   recipient: "Merchant",
+  assetNetwork: "eip155:1",
+  assetId: "0xtoken",
+  maxFee: "0",
+  validFrom: "2026-01-01T00:00:00.000Z",
+  validUntil: "2026-12-31T00:00:00.000Z",
+  policyVersion: "1",
+  allocationRef: "alloc-root",
+  effectiveEnforcement: "local_approval",
 });
 
 function signedProof(digest: string) {
@@ -59,6 +67,14 @@ describe("verifyDigestBoundApproval", () => {
       currency: "USD",
       amount: "999.00",
       recipient: "Merchant",
+      assetNetwork: "eip155:1",
+      assetId: "0xtoken",
+      maxFee: "0",
+      validFrom: "2026-01-01T00:00:00.000Z",
+      validUntil: "2026-12-31T00:00:00.000Z",
+      policyVersion: "1",
+      allocationRef: "alloc-root",
+      effectiveEnforcement: "local_approval",
     });
     expect(
       await verifyDigestBoundApproval({

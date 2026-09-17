@@ -7,6 +7,11 @@
  */
 
 import {
+  type DigestBoundPaymentProof,
+  type LocalPaymentApprovalIntent,
+  assessLocalPaymentApproval,
+} from "./spending-consent.js";
+import {
   listActiveSpendingLeases,
   listSpendingLeases,
   requestStopSpendingLease,
@@ -29,6 +34,8 @@ export type WalletProposal = {
   readonly settles: false;
 };
 
+type StoredProposal = WalletProposal & { issued: boolean };
+
 type PreparedSpend = {
   ref: string;
   singleUseToken: string;
@@ -38,7 +45,7 @@ type PreparedSpend = {
   consumed: boolean;
 };
 
-const proposals = new Map<string, WalletProposal>();
+const proposals = new Map<string, StoredProposal>();
 const prepared = new Map<string, PreparedSpend>();
 
 function newId(prefix: string): string {
@@ -68,7 +75,7 @@ export function proposeWalletPayment(input: {
   if (!/^[0-9]+$/u.test(input.amount) || input.amount === "0") {
     return { ok: false, code: "INVALID_AMOUNT" };
   }
-  const proposal: WalletProposal = {
+  const proposal: StoredProposal = {
     proposalId: newId("prop"),
     status: "proposed",
     nodeId: input.nodeId,
@@ -76,19 +83,63 @@ export function proposeWalletPayment(input: {
     destination: input.destination,
     requiresApproval: true,
     settles: false,
+    issued: false,
   };
   proposals.set(proposal.proposalId, proposal);
-  return { ok: true, proposal };
+  return {
+    ok: true,
+    proposal: {
+      proposalId: proposal.proposalId,
+      status: proposal.status,
+      nodeId: proposal.nodeId,
+      amount: proposal.amount,
+      destination: proposal.destination,
+      requiresApproval: true,
+      settles: false,
+    },
+  };
 }
 
+export type IssuePreparedSpendRefusal =
+  | "PROPOSAL_MISSING"
+  | "PROPOSAL_ALREADY_ISSUED"
+  | "INTENT_BINDING_MISMATCH"
+  | "digest_mismatch"
+  | "missing_verified_bytes"
+  | "unverified_assurance"
+  | "signature_invalid";
+
 /** Owner/consent path issues a single-use prepared ref. Not agent-callable. */
-export function issuePreparedSpend(input: { readonly proposalId: string }):
+export async function issuePreparedSpend(input: {
+  readonly proposalId: string;
+  readonly intent: LocalPaymentApprovalIntent;
+  readonly proof: DigestBoundPaymentProof;
+}): Promise<
   | { ok: true; prepared: { ref: string; singleUseToken: string } }
-  | { ok: false; code: "PROPOSAL_MISSING" } {
+  | { ok: false; code: IssuePreparedSpendRefusal }
+> {
   const proposal = proposals.get(input.proposalId);
   if (proposal === undefined) {
     return { ok: false, code: "PROPOSAL_MISSING" };
   }
+  if (proposal.issued) {
+    return { ok: false, code: "PROPOSAL_ALREADY_ISSUED" };
+  }
+  if (
+    input.intent.amount !== proposal.amount ||
+    input.intent.recipient !== proposal.destination ||
+    input.intent.allocationRef !== proposal.nodeId
+  ) {
+    return { ok: false, code: "INTENT_BINDING_MISMATCH" };
+  }
+  const assessment = await assessLocalPaymentApproval({
+    intent: input.intent,
+    proof: input.proof,
+  });
+  if (!assessment.ok) {
+    return { ok: false, code: assessment.reason };
+  }
+  proposal.issued = true;
   const ref = newId("prep");
   const singleUseToken = newId("tok");
   prepared.set(ref, {

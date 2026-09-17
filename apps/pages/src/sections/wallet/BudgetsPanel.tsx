@@ -7,7 +7,10 @@
 
 import { useCallback, useState } from "react";
 import { StatusNote } from "../../components/StatusNote.js";
-import { buildLocalPaymentApprovalDigest } from "../../lib/spending-consent.js";
+import {
+  buildLocalPaymentApprovalDigest,
+  localPaymentApprovalIntent,
+} from "../../lib/spending-consent.js";
 import {
   clearSpendingLedgerStorage,
   formatUnits,
@@ -39,11 +42,13 @@ export function BudgetsPanel() {
     setApprovalDigest(null);
     try {
       openDemoHouseholdBudget();
-      void buildLocalPaymentApprovalDigest({
-        currency: "TEST",
-        amount: "1000",
-        recipient: "household",
-      }).then((digest) => {
+      void buildLocalPaymentApprovalDigest(
+        localPaymentApprovalIntent({
+          amount: "1000",
+          recipient: "household",
+          allocationRef: "household",
+        }),
+      ).then((digest) => {
         setApprovalDigest(digest);
       });
       setMessage({
@@ -66,11 +71,13 @@ export function BudgetsPanel() {
     try {
       const result = trySiblingOverspendDemo();
       if (result.firstOk && !result.secondOk) {
-        void buildLocalPaymentApprovalDigest({
-          currency: "TEST",
-          amount: "700",
-          recipient: "child-a",
-        }).then((digest) => {
+        void buildLocalPaymentApprovalDigest(
+          localPaymentApprovalIntent({
+            amount: "700",
+            recipient: "child-a",
+            allocationRef: "child-a",
+          }),
+        ).then((digest) => {
           setApprovalDigest(digest);
         });
         setMessage({

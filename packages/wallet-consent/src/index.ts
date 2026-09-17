@@ -1,7 +1,11 @@
 export {
+  PAYMENT_APPROVAL_DIGEST_FIELD_ORDER,
+  PAYMENT_APPROVAL_DIGEST_PURPOSE,
   PAYMENT_APPROVAL_DIGEST_VERSION,
+  type PaymentApprovalDigestField,
   type PaymentApprovalIntent,
   buildPaymentApprovalDigest,
+  paymentApprovalDigestValues,
 } from "./digest.js";
 export {
   type PaymentApprovalKeyPair,

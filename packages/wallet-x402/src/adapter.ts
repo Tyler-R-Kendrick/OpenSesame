@@ -36,6 +36,44 @@ export class X402AdapterBlockedError extends Error {
   }
 }
 
+export class X402AccountingUnavailableError extends Error {
+  readonly code = "ACCOUNTING_AUTHORITY_UNAVAILABLE" as const;
+  constructor() {
+    super(
+      "ACCOUNTING_AUTHORITY_UNAVAILABLE: remaining allocation is required before prepare",
+    );
+    this.name = "X402AccountingUnavailableError";
+  }
+}
+
+export class X402InsufficientAvailableError extends Error {
+  readonly code = "INSUFFICIENT_AVAILABLE" as const;
+  constructor() {
+    super(
+      "INSUFFICIENT_AVAILABLE: payment amount exceeds remaining allocation",
+    );
+    this.name = "X402InsufficientAvailableError";
+  }
+}
+
+function parseAllocationUnits(value: string): bigint {
+  if (!/^[0-9]+$/u.test(value)) {
+    throw new X402InsufficientAvailableError();
+  }
+  return BigInt(value);
+}
+
+function assertWithinRemaining(
+  amount: string,
+  remainingAllocation: string,
+): void {
+  if (
+    parseAllocationUnits(amount) > parseAllocationUnits(remainingAllocation)
+  ) {
+    throw new X402InsufficientAvailableError();
+  }
+}
+
 export function describeX402Adapter(
   input: { readonly localExecutionVerified?: boolean } = {},
 ): X402AdapterManifest {
@@ -66,19 +104,32 @@ export function assessX402Adapter(
   return assessExactPayment(input);
 }
 
-const preparedSlots = new Map<string, PreparedExactPayment>();
+type PreparedSlot = {
+  readonly prepared: PreparedExactPayment;
+  readonly remainingAllocation: string;
+};
+
+const preparedSlots = new Map<string, PreparedSlot>();
 let prepareSeq = 0;
 
 export async function prepareX402Payment(input?: {
   readonly runtime: LocalExactRuntime;
+  readonly remainingAllocation: string;
 }): Promise<{ ref: string; expiresAt: string }> {
   if (input === undefined) throw new X402AdapterBlockedError("prepare");
   if (isMainnetChainId(input.runtime.chainId))
     throw new Error("MAINNET_DENIED");
+  if (input.remainingAllocation === undefined) {
+    throw new X402AccountingUnavailableError();
+  }
+  assertWithinRemaining(input.runtime.amount, input.remainingAllocation);
   prepareSeq += 1;
   const prepared = await createExactPaymentPayload(input.runtime);
   const ref = `prepared:x402:${prepareSeq}`;
-  preparedSlots.set(ref, prepared);
+  preparedSlots.set(ref, {
+    prepared,
+    remainingAllocation: input.remainingAllocation,
+  });
   return { ref, expiresAt: new Date(Date.now() + 60_000).toISOString() };
 }
 
@@ -97,8 +148,19 @@ export async function executeX402Payment(input?: {
       detail: "PreparedExecutionRef missing or already used",
     };
   }
+  try {
+    assertWithinRemaining(
+      slot.prepared.runtime.amount,
+      slot.remainingAllocation,
+    );
+  } catch (error) {
+    if (error instanceof X402InsufficientAvailableError) {
+      return { status: "failed", detail: error.code };
+    }
+    throw error;
+  }
   preparedSlots.delete(input.preparedRef);
-  const settled = await settleExactPayment(slot);
+  const settled = await settleExactPayment(slot.prepared);
   if (!settled.success) {
     return settled.transaction === undefined
       ? {
@@ -137,7 +199,7 @@ export async function refuseMutatedExactAmount(
 ): Promise<boolean> {
   const slot = preparedSlots.get(preparedRef);
   if (slot === undefined) return false;
-  return verifyExactPaymentMismatch(slot, mutatedAmount);
+  return verifyExactPaymentMismatch(slot.prepared, mutatedAmount);
 }
 
 export type { LocalExactRuntime } from "./exact-settle.js";

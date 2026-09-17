@@ -12,6 +12,14 @@ describe("@opensesame/wallet-consent exports", () => {
       currency: "USD",
       amount: "1.00",
       recipient: "A",
+      assetNetwork: "eip155:1",
+      assetId: "0xtoken",
+      maxFee: "0",
+      validFrom: "2026-01-01T00:00:00.000Z",
+      validUntil: "2026-12-31T00:00:00.000Z",
+      policyVersion: "1",
+      allocationRef: "alloc-root",
+      effectiveEnforcement: "local_approval",
     });
     const forged = await verifyDigestBoundApproval({
       expectedDigest: digest,

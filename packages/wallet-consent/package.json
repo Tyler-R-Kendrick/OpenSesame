@@ -15,6 +15,10 @@
     "./digest": {
       "types": "./src/digest.ts",
       "default": "./src/digest.ts"
+    },
+    "./intent": {
+      "types": "./src/intent.ts",
+      "default": "./src/intent.ts"
     }
   },
   "scripts": {

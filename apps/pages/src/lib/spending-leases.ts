@@ -202,6 +202,7 @@ export type IssueSpendingLeaseResult =
       readonly reason:
         | DigestBoundApprovalRefusal
         | "allocation_missing"
+        | "allocation_mismatch"
         | "insufficient_available"
         | "invalid_amount"
         | "assertion_replay"
@@ -216,7 +217,23 @@ export type IssueSpendingLeaseResult =
 export async function issueSpendingLease(
   input: IssueSpendingLeaseInput,
 ): Promise<IssueSpendingLeaseResult> {
-  const node = getSpendingLedger().project(input.allocationRef);
+  if (input.allocationRef !== input.intent.allocationRef) {
+    return { ok: false, reason: "allocation_mismatch" };
+  }
+  if (
+    input.validFrom !== input.intent.validFrom ||
+    input.validUntil !== input.intent.validUntil
+  ) {
+    return { ok: false, reason: "lease_window_invalid" };
+  }
+  if (
+    input.policyVersion !== undefined &&
+    input.policyVersion !== input.intent.policyVersion
+  ) {
+    return { ok: false, reason: "allocation_mismatch" };
+  }
+
+  const node = getSpendingLedger().project(input.intent.allocationRef);
   if (node === undefined) {
     return { ok: false, reason: "allocation_missing" };
   }
@@ -229,8 +246,8 @@ export async function issueSpendingLease(
     return { ok: false, reason: assessment.reason };
   }
 
-  const fromMs = Date.parse(input.validFrom);
-  const untilMs = Date.parse(input.validUntil);
+  const fromMs = Date.parse(input.intent.validFrom);
+  const untilMs = Date.parse(input.intent.validUntil);
   if (
     !Number.isFinite(fromMs) ||
     !Number.isFinite(untilMs) ||
@@ -258,7 +275,7 @@ export async function issueSpendingLease(
   try {
     getSpendingLedger().reserve({
       attemptId,
-      nodeId: input.allocationRef,
+      nodeId: input.intent.allocationRef,
       amount,
     });
   } catch {
@@ -269,12 +286,12 @@ export async function issueSpendingLease(
   const lease: LeaseRecord = {
     id,
     grantRef: input.grantRef,
-    allocationRef: input.allocationRef,
-    policyVersion: input.policyVersion ?? "1",
+    allocationRef: input.intent.allocationRef,
+    policyVersion: input.intent.policyVersion,
     beneficiaryRef: input.beneficiaryRef,
     proofKeyThumbprint: "local-demo",
-    validFrom: input.validFrom,
-    validUntil: input.validUntil,
+    validFrom: input.intent.validFrom,
+    validUntil: input.intent.validUntil,
     requiredEnforcementDigest: approvalDigest,
     effectiveEnforcementDigest: approvalDigest,
     rootAccountingRef: input.rootAccountingRef,
