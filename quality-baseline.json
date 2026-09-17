@@ -18,7 +18,7 @@
   "totals": {
     "files": 545,
     "violations": 882,
-    "oversizedLines": 279384
+    "oversizedLines": 279033
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -193,7 +193,7 @@
     },
     "apps/control-plane/src/config.ts": {
       "complexity": 2,
-      "max-lines": 554,
+      "max-lines": 515,
       "max-lines-per-function": 2,
       "max-statements": 1
     },
@@ -357,7 +357,7 @@
     },
     "apps/control-plane/src/services/agent-auth.ts": {
       "complexity": 1,
-      "max-lines": 902
+      "max-lines": 650
     },
     "apps/control-plane/src/services/app-claim.ts": {
       "complexity": 1,
@@ -1549,7 +1549,7 @@
       "max-lines-per-function": 1
     },
     "packages/database/src/repos/agent-auth-repo.ts": {
-      "max-lines": 690,
+      "max-lines": 630,
       "max-lines-per-function": 1
     },
     "packages/database/src/repos/interfaces.ts": {

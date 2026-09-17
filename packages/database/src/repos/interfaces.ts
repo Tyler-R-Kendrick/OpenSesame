@@ -34,6 +34,7 @@ import {
   type WebhookDelivery,
   type WebhookEndpoint,
 } from "@opensesame/os-domain";
+import type { AgentAuthReplayRepository } from "./agent-auth-replay-repo.js";
 
 export class ConflictError extends Error {
   override readonly name = "ConflictError";
@@ -760,8 +761,7 @@ export interface CallbackReplayRepository {
   claim(record: CallbackReplayRecord): Promise<boolean>;
   purgeExpired(now: Date): Promise<number>;
 }
-
-export interface AgentAuthRepository {
+export interface AgentAuthRepository extends AgentAuthReplayRepository {
   createRegistration(
     registration: AgentRegistration,
     uow?: UnitOfWork,

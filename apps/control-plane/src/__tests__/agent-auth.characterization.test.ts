@@ -66,9 +66,10 @@ describe("AgentAuth characterization", () => {
     });
     expect(html).not.toMatch(/<script/i);
     expect(html).toContain("&lt;script&gt;");
-    expect(html).toContain(
-      '<p role="alert">&lt;script&gt;alert(1)&lt;/script&gt;</p>',
-    );
+    expect(html).toMatch(/role="alert"/);
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(html).toContain('class="go"');
+    expect(html).not.toMatch(/<button[^>]*>Confirm</);
   });
 
   it("renders an empty hidden token when none is supplied", () => {
@@ -114,8 +115,22 @@ describe("AgentAuth characterization", () => {
     expect(html).toMatchSnapshot();
     expect(html).not.toContain("https://evil.example");
     expect(html).toContain('href="/claim"');
+    expect(html).toContain('action="/login/start"');
+    expect(html).not.toContain('href="/auth"');
     expect(login.headers.get("content-security-policy")).toBe(
       "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
     );
+
+    const started = await app.request("/login/start", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ return_to: "/claim?claim_attempt_token=x" }),
+    });
+    expect(started.status).toBe(303);
+    const location = started.headers.get("location") ?? "";
+    expect(location).toContain("/auth?");
+    expect(location).toContain("client_id=opensesame-agent-auth");
+    expect(location).toContain("code_challenge=");
+    expect(location).not.toMatch(/return_to=https:\/\/evil/);
   });
 });

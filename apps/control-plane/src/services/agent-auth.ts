@@ -1,37 +1,25 @@
-import { createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
   AGENT_CLAIM_GRANT,
   JWT_BEARER_GRANT,
-  SERVICE_ASSERTION_TYP,
-  type ServiceAssertionKey,
   agentAuthError,
-  issueServiceAgentIdentityAssertion,
-  verifyServiceAgentIdentityAssertion,
-} from "@opensesame/agent-protocols";
-import {
   isEmailLoginHint,
   normalizeLoginHint,
+  verifyServiceAgentIdentityAssertion,
 } from "@opensesame/agent-protocols";
 import { appendAuditEvent } from "@opensesame/audit";
 import { createProvisionalPrincipal } from "@opensesame/auth-upstream";
 import { ConflictError } from "@opensesame/database";
 import {
-  type AgentAccessTokenRecord,
-  type AgentClaimAttempt,
   type AgentRegistration,
   type Principal,
   digestAgentAccessToken,
   digestAgentClaimAttemptToken,
   digestAgentClaimToken,
   digestAgentUserCode,
-  generateAgentAccessToken,
-  generateAgentAccessTokenId,
-  generateAgentClaimAttemptId,
-  generateAgentClaimAttemptToken,
   generateAgentClaimToken,
   generateAgentRegistrationId,
   generateAgentUserCode,
-  hmacDigest,
   overlapCast,
   verifyAgentUserCode,
 } from "@opensesame/os-domain";
@@ -45,209 +33,35 @@ import {
   intersectAgentAuthScopes,
   scopesForRegistrationState,
 } from "@opensesame/policy";
-import { exportJWK, generateKeyPair } from "jose";
 import type { AppContext } from "../context.js";
-
-export interface AgentAuthRuntime {
-  key: ServiceAssertionKey;
-  publicKey: ServiceAssertionKey["privateKey"];
-}
-
-let runtimePromise: Promise<AgentAuthRuntime> | undefined;
-
-export async function agentAuthRuntime(): Promise<AgentAuthRuntime> {
-  runtimePromise ??= (async () => {
-    const { privateKey, publicKey } = await generateKeyPair("ES256", {
-      extractable: true,
-    });
-    const publicJwk = await exportJWK(publicKey);
-    publicJwk.kid = "os-sia-1";
-    publicJwk.alg = "ES256";
-    publicJwk.use = "sig";
-    return {
-      publicKey,
-      key: {
-        privateKey,
-        publicJwk,
-        kid: "os-sia-1",
-        alg: "ES256",
-      },
-    };
-  })();
-  return runtimePromise;
-}
-
-function encodeActSubject(
-  pepper: string,
-  sector: string,
-  principalId: string,
-): string {
-  const digest = hmacDigest(
-    pepper,
-    "opensesame:agent-auth:act:v1",
-    sector,
-    principalId,
-  );
-  return `osact_${Buffer.from(digest).toString("base64url")}`;
-}
-
-function fingerprintOf(headers: {
-  userAgent?: string;
-  origin?: string;
-}): string {
-  return createHash("sha256")
-    .update(headers.userAgent ?? "")
-    .update("|")
-    .update(headers.origin ?? "")
-    .digest("hex")
-    .slice(0, 16);
-}
-
-export function consumeAgentAuthMintBudget(
-  map: Map<string, number[]>,
-  fingerprint: string,
-  now: number,
-): boolean {
-  const windowMs = 60_000;
-  const perClient = 8;
-  const global = 80;
-  for (const [key, values] of map) {
-    const live = values.filter((at) => now - at < windowMs);
-    if (live.length === 0) map.delete(key);
-    else if (live.length !== values.length) map.set(key, live);
-  }
-  const g = map.get("__global__") ?? [];
-  const c = map.get(fingerprint) ?? [];
-  if (g.length >= global || c.length >= perClient) return false;
-  g.push(now);
-  c.push(now);
-  map.set("__global__", g);
-  map.set(fingerprint, c);
-  return true;
-}
-
-async function mintAssertion(
-  ctx: AppContext,
-  registration: AgentRegistration,
-  claimed: boolean,
-  scopes: readonly string[],
-  now: Date,
-) {
-  const { key } = await agentAuthRuntime();
-  const expiresAt = new Date(
-    now.getTime() + ctx.config.agentAuth.assertionTtlMs,
-  );
-  const actSub =
-    claimed && registration.claimedByPrincipalId
-      ? encodeActSubject(
-          ctx.config.claimPepper,
-          registration.resource ?? ctx.config.issuer,
-          registration.claimedByPrincipalId,
-        )
-      : undefined;
-  const input: Parameters<typeof issueServiceAgentIdentityAssertion>[1] = {
-    issuer: ctx.config.issuer,
-    audience: ctx.config.issuer,
-    registrationId: registration.id,
-    claimed,
-    assertionVersion: registration.assertionVersion,
-    scopes,
-    expiresAt,
-    now,
-  };
-  if (registration.resource) input.resource = registration.resource;
-  if (actSub) input.actSub = actSub;
-  const issued = await issueServiceAgentIdentityAssertion(key, input);
-  await ctx.repos.agentAuth.createAssertion({
-    jti: issued.jti,
-    registrationId: registration.id,
-    assertionVersion: registration.assertionVersion,
-    expiresAt,
-    createdAt: now,
-  });
-  return { jwt: issued.jwt, expiresAt, jti: issued.jti };
-}
-
-async function mintAccessToken(
-  ctx: AppContext,
-  registration: AgentRegistration,
-  scopes: readonly string[],
-  claimed: boolean,
-  now: Date,
-) {
-  const generated = generateAgentAccessToken(ctx.config.claimPepper);
-  const expiresAt = new Date(
-    now.getTime() + ctx.config.agentAuth.accessTokenTtlMs,
-  );
-  const record: AgentAccessTokenRecord = {
-    id: generateAgentAccessTokenId(),
-    registrationId: registration.id,
-    tokenDigest: generated.digest,
-    scopes: [...scopes],
-    claimed,
-    assertionVersion: registration.assertionVersion,
-    expiresAt,
-    createdAt: now,
-  };
-  if (registration.resource) record.resource = registration.resource;
-  await ctx.repos.agentAuth.createAccessToken(record);
-  return { token: generated.token, expiresAt, record };
-}
-
-async function expireAndLoadRegistration(
-  ctx: AppContext,
-  id: string,
-): Promise<AgentRegistration | null> {
-  const now = ctx.clock();
-  await ctx.repos.agentAuth.expireDue(now);
-  const registration = await ctx.repos.agentAuth.getRegistrationById(id);
-  if (!registration) return null;
-  if (registration.status === "revoked" || registration.status === "expired") {
-    return null;
-  }
-  if (
-    (registration.status === "unclaimed" ||
-      registration.status === "claim_pending") &&
-    now >= registration.expiresAt
-  ) {
-    return null;
-  }
-  return registration;
-}
-
-async function loadPrincipal(ctx: AppContext, id: string): Promise<Principal> {
-  const principal = await ctx.repos.principals.getById(id);
-  if (!principal) {
-    throw agentAuthError("invalid_grant", 400, "principal missing");
-  }
-  return principal;
-}
-
-function effectiveScopes(
-  ctx: AppContext,
-  registration: AgentRegistration,
-  principal: Principal,
-  requested?: readonly string[],
-): string[] {
-  const stateScopes = scopesForRegistrationState({
-    claimed: registration.status === "claimed",
-    preClaimScopes: registration.preClaimScopes,
-    postClaimScopes: registration.postClaimScopes,
-  });
-  const parts: Parameters<typeof intersectAgentAuthScopes>[0] = {
-    registration: stateScopes,
-    resourceSupported: ctx.config.agentAuth.resourceScopes,
-  };
-  if (requested) parts.requested = requested;
-  const intersected = intersectAgentAuthScopes(parts);
-  const { allowed } = evaluateAgentAuthScopes(
-    ctx.policy,
-    principal,
-    intersected,
-  );
-  return allowed;
-}
-
+import { linkProviderIdentityOnClaim } from "./agent-auth-id-jag-link.js";
+import {
+  providerAssertionIsAdvertised,
+  registerProviderAssertion,
+} from "./agent-auth-id-jag.js";
+import {
+  type AgentAuthRuntime,
+  agentAuthRuntime,
+  resetAgentAuthRuntimeForTests,
+} from "./agent-auth-runtime.js";
+import {
+  consumeAgentAuthMintBudget,
+  effectiveScopes,
+  expireAndLoadRegistration,
+  fingerprintOf,
+  loadPrincipal,
+  mintAccessToken,
+  mintAssertion,
+  startClaimAttempt,
+} from "./agent-auth-shared.js";
+export type { AgentAuthRuntime };
+export {
+  agentAuthRuntime,
+  resetAgentAuthRuntimeForTests,
+  consumeAgentAuthMintBudget,
+  providerAssertionIsAdvertised,
+  registerProviderAssertion,
+};
 export async function registerAnonymous(
   ctx: AppContext,
   headers: { userAgent?: string; origin?: string },
@@ -348,7 +162,6 @@ export async function registerAnonymous(
     post_claim_scopes: [...registration.postClaimScopes],
   };
 }
-
 export async function registerServiceAuth(
   ctx: AppContext,
   loginHint: string,
@@ -438,67 +251,6 @@ export async function registerServiceAuth(
     claim: ceremony.claim,
   };
 }
-
-async function startClaimAttempt(
-  ctx: AppContext,
-  registration: AgentRegistration,
-  email: string | undefined,
-  correlationId: string,
-) {
-  const now = ctx.clock();
-  const cfg = ctx.config.agentAuth;
-  const attemptToken = generateAgentClaimAttemptToken(ctx.config.claimPepper);
-  const userCode = generateAgentUserCode();
-  const attemptId = generateAgentClaimAttemptId();
-  const expiresAt = new Date(now.getTime() + cfg.claimAttemptTtlMs);
-  const attempt: AgentClaimAttempt = {
-    id: attemptId,
-    registrationId: registration.id,
-    attemptTokenDigest: attemptToken.digest,
-    userCodeDigest: digestAgentUserCode(
-      ctx.config.claimPepper,
-      attemptId,
-      userCode,
-    ),
-    createdAt: now,
-    expiresAt,
-    intervalSeconds: cfg.pollIntervalSeconds,
-    pollCount: 0,
-    failedAttempts: 0,
-  };
-  if (email) attempt.emailNormalized = email;
-  await ctx.repos.agentAuth.createClaimAttempt(attempt);
-  if (registration.status === "unclaimed") {
-    const pending = markAgentRegistrationClaimPending(registration, now);
-    await ctx.repos.agentAuth.compareAndSetRegistration(
-      registration.version,
-      pending,
-    );
-  }
-  const returnTo = `/claim?claim_attempt_token=${encodeURIComponent(attemptToken.token)}`;
-  const verificationUri = `${ctx.config.publicUrl}/login?return_to=${encodeURIComponent(returnTo)}`;
-  await appendAuditEvent(ctx.repos.auditEvents, {
-    eventType: "agent_auth.claim.requested",
-    outcome: "succeeded",
-    principalId: registration.principalId,
-    correlationId,
-    actorType: "agent",
-    targetType: "agent_registration",
-    targetId: registration.id,
-    metadata: { action: "agent_auth.claim_start" },
-  });
-  return {
-    attemptId,
-    expiresAt,
-    claim: {
-      user_code: userCode,
-      expires_in: Math.floor(cfg.claimAttemptTtlMs / 1000),
-      verification_uri: verificationUri,
-      interval: cfg.pollIntervalSeconds,
-    },
-  };
-}
-
 export async function initClaim(
   ctx: AppContext,
   claimToken: string,
@@ -579,7 +331,6 @@ async function sessionMayClaim(
       identity.emailNormalized === expectedEmail,
   );
 }
-
 export async function completeClaim(
   ctx: AppContext,
   principalId: string,
@@ -591,14 +342,11 @@ export async function completeClaim(
     ctx.config.claimPepper,
     claimAttemptToken,
   );
-  if (!digest) {
-    return { ok: false, error: "invalid_request", status: 400 };
-  }
+  if (!digest) return { ok: false, error: "invalid_request", status: 400 };
   const attempt =
     await ctx.repos.agentAuth.getClaimAttemptByTokenDigest(digest);
-  if (!attempt || attempt.completedAt) {
+  if (!attempt || attempt.completedAt)
     return { ok: false, error: "invalid_request", status: 400 };
-  }
   const now = ctx.clock();
   if (now >= attempt.expiresAt) {
     return { ok: false, error: "expired_token", status: 400 };
@@ -609,9 +357,8 @@ export async function completeClaim(
   const registration = await ctx.repos.agentAuth.getRegistrationById(
     attempt.registrationId,
   );
-  if (!registration || registration.status === "claimed") {
+  if (!registration || registration.status === "claimed")
     return { ok: false, error: "claimed_or_in_flight", status: 400 };
-  }
   if (
     !verifyAgentUserCode(
       ctx.config.claimPepper,
@@ -632,7 +379,6 @@ export async function completeClaim(
   if (!(await sessionMayClaim(ctx, principal, expectedEmail))) {
     return { ok: false, error: "invalid_request", status: 400 };
   }
-
   try {
     await ctx.repos.transaction(async (uow) => {
       const claimed = claimAgentRegistration(registration, principal.id, now);
@@ -657,6 +403,14 @@ export async function completeClaim(
         claimed.assertionVersion,
         uow,
       );
+      await linkProviderIdentityOnClaim(
+        ctx,
+        registration,
+        principal,
+        expectedEmail,
+        now,
+        uow,
+      );
     });
   } catch (error) {
     if (error instanceof ConflictError) {
@@ -664,7 +418,6 @@ export async function completeClaim(
     }
     throw error;
   }
-
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "agent_auth.claim.confirmed",
     outcome: "succeeded",
@@ -677,7 +430,6 @@ export async function completeClaim(
   });
   return { ok: true };
 }
-
 export async function exchangeJwtBearer(
   ctx: AppContext,
   assertion: string,
@@ -732,7 +484,6 @@ export async function exchangeJwtBearer(
     scope: scopes.join(" "),
   };
 }
-
 export async function pollClaimGrant(
   ctx: AppContext,
   claimToken: string,
@@ -807,7 +558,6 @@ export async function pollClaimGrant(
     assertion_expires: assertion.expiresAt.toISOString(),
   };
 }
-
 export async function revokeAccessToken(
   ctx: AppContext,
   token: string,
@@ -828,7 +578,6 @@ export async function revokeAccessToken(
     metadata: { action: "agent_auth.token_revoke" },
   });
 }
-
 export async function revokeRegistration(
   ctx: AppContext,
   principalId: string,
@@ -874,7 +623,6 @@ export async function revokeRegistration(
     metadata: { action: "agent_auth.registration_revoke" },
   });
 }
-
 export async function resolveAgentAccessToken(
   ctx: AppContext,
   token: string,

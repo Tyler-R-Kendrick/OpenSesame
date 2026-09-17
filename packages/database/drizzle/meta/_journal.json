@@ -176,6 +176,13 @@
       "when": 1789509894938,
       "tag": "0024_authority_membership",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789600000000,
+      "tag": "0025_agent_auth_idjag_replay",
+      "breakpoints": true
     }
   ]
 }
