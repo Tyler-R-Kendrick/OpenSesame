@@ -3,8 +3,8 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T06:43:09Z",
-  "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
+  "generatedAt": "2026-09-17T13:09:25Z",
+  "generatedBy": "feat/inv-identity-projection",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
   "rules": [
@@ -755,10 +755,14 @@
         {
           "command": "cargo +1.88.0 test -p opensesame-storage --lib authority::tests::a_revoked_ancestor",
           "result": "ok. 1 passed; fabric GA-V-25 pass"
+        },
+        {
+          "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-membership-lineage.test.ts",
+          "result": "ok \u2014 nested_cohort eligibility lineage blocks invalidated ancestors"
         }
       ],
       "blockedBy": [],
-      "notes": "Storage fence + broker grant_lineage_active ancestor walk (#402). Residual: Identity-plane lineage walk when Identity issues grants."
+      "notes": "Storage fence + broker grant_lineage_active ancestor walk (#402). Identity does not issue AuthorityGrants; nested_cohort membershipLineageActive is the Identity eligibility lineage walk."
     },
     {
       "id": "INV-BUDGET",
@@ -807,10 +811,14 @@
           "command": "cargo +1.88.0 test -p opensesame-storage --test authority_projection",
           "result": "ok (existing projection_applied freshness tests)",
           "note": "invoke path fences via intents_projection::authorize_openfga"
+        },
+        {
+          "command": "pnpm --filter @opensesame/database exec vitest run tests/authority-projection-state.test.ts",
+          "result": "ok \u2014 Identity projection fence: absent/partial/ahead/backwards/model/error deny"
         }
       ],
       "blockedBy": [],
-      "notes": "Storage restore/freshness/multiwriter + Host OpenFGA projection_applied fence (#406). Residual: Identity-plane projector cache E2E when live."
+      "notes": "Storage restore/freshness/multiwriter + Host OpenFGA projection_applied fence (#406). Identity authority_projection_state store (markDirty/recordApplied/projectionApplied) wired into control-plane; memory fence E2E mirrors Host refusals."
     }
   ]
 }
