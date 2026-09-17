@@ -31,12 +31,13 @@
         "browser-native SIOPv2 (ADR 0116) adds a lazy /identity/siop ceremony",
         "chunk (~19 KiB) plus @opensesame/siop-v2 ES256 mint helpers. Measured",
         "2764/794 KiB after the SIOP build; budgets keep ~1\u20132% headroom.",
-        "2026-09-16: javascript 2800->3450, javascriptGzip 810->980, total 15500->16700 because ADR 0123 spending Wallet lands Pages /wallet panels, conserved ledger/leases/consent, and wallet-* packages in the offline PWA. Measured CI 3252/926/15901 KiB; budgets keep ~5% headroom."
+        "2026-09-16: javascript 2800->3450, javascriptGzip 810->980, total 15500->16700 because ADR 0123 spending Wallet lands Pages /wallet panels, conserved ledger/leases/consent, and wallet-* packages in the offline PWA. Measured CI 3252/926/15901 KiB; budgets keep ~5% headroom.",
+        "2026-09-17: javascript 3450->3960 and javascriptGzip 980->1140 because Wallet residuals (fee/CORS/canary/wrap/activation) ride the same lazy /wallet and WebMCP session tools. Measured 3762/1082 KiB plus ~5% headroom. productionEnabled stays false."
       ],
       "budgets": {
         "total": 16700,
-        "javascript": 3450,
-        "javascriptGzip": 980,
+        "javascript": 3960,
+        "javascriptGzip": 1140,
         "css": 139,
         "largestAsset": 12800
       }
