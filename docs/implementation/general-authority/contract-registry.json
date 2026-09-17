@@ -222,8 +222,8 @@
       "owner": "GA-H",
       "title": "Receipts for authority-mediated invocation",
       "invariants": ["INV-GA-02"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "receipt_delegation_chain + broker FinishReceiptParts"
     },
     {
       "id": "GA-I-01",

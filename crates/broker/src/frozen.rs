@@ -4,8 +4,9 @@ use chrono::Utc;
 use opensesame_authz::{AuthZenAction, AuthZenRequest, AuthZenResource, AuthZenSubject};
 use opensesame_connector_host::InvokeRequest;
 use opensesame_domain::{
-    AvailabilityClass, Capability, DetachedProof, DomainError, FrozenIntentV2, Grant, Intent,
-    Invocation, InvocationReceipt, InvocationState, ReceiptId, ReceiptOutcome, ValidatedGrantChain,
+    receipt_delegation_chain, AvailabilityClass, Capability, DetachedProof, DomainError,
+    FrozenIntentV2, Grant, Intent, Invocation, InvocationReceipt, InvocationState, ReceiptId,
+    ReceiptOutcome, ValidatedGrantChain,
 };
 use opensesame_task_access::{TaskAccessEngine, TaskStore};
 use serde_json::{json, Value};
@@ -24,23 +25,10 @@ pub struct FrozenInvokeInput {
     pub lineage: Option<ValidatedGrantChain>,
 }
 
-/// Every narrowing field a grant carries, checked against the intent it is being
-/// used to authorize.
+/// Every scoped grant field must cover the frozen intent (ADR 0027).
 ///
-/// The organization was already compared; everything else on the grant was
-/// ignored. A grant issued to one principal, for one actor, one project and one
-/// connection therefore authorized any intent in the organization whose action,
-/// resource and audience happened to fit — which is the whole of what the grant
-/// was narrowed to say it could not do (ADR 0027: one effective authority).
-///
-/// `None` on the grant means unscoped in that dimension. `Some` means the intent
-/// must name the same thing; an intent that names nothing does not satisfy a
-/// grant that names something.
-///
-/// # Errors
-///
-/// Returns an error when any scoped grant field does not cover the frozen
-/// intent.
+/// `None` on the grant is unscoped; `Some` requires the intent to name the same
+/// value. # Errors when any scoped field does not cover the intent.
 pub fn assert_grant_covers_frozen_intent(
     grant: &Grant,
     intent: &FrozenIntentV2,
@@ -219,6 +207,10 @@ impl Broker {
                     summary: json!({"reason": decision.context}),
                     ext: None,
                     connector_digest: self.host.component_digest(&input.connection_policy_id),
+                    delegation_chain: receipt_delegation_chain(
+                        &input.grant,
+                        input.lineage.as_ref(),
+                    ),
                 },
             )?;
             self.db.insert_receipt(&receipt).await?;
@@ -291,6 +283,7 @@ impl Broker {
                 summary,
                 ext,
                 connector_digest: self.host.component_digest(&input.connection_policy_id),
+                delegation_chain: receipt_delegation_chain(&input.grant, input.lineage.as_ref()),
             },
         )?;
         if !receipt.assert_no_secret_leak() {
@@ -316,7 +309,7 @@ impl Broker {
             actor_instance_id: intent.actor_instance_id,
             client_id: intent.client_id,
             operator_id: intent.operator_id,
-            delegation_chain: vec![],
+            delegation_chain: parts.delegation_chain,
             connection_id: intent.connection_id,
             operation: intent.operation.clone(),
             resource: intent.resource.clone(),
@@ -338,7 +331,6 @@ impl Broker {
             task_state_version: Some(intent.task_state_version),
             task_state_digest: Some(intent.task_state_digest.clone()),
         };
-        // Attach task provenance in safe summary (not secrets).
         if let Some(summary) = receipt.safe_result_summary.as_mut() {
             if let Some(obj) = summary.as_object_mut() {
                 obj.insert(

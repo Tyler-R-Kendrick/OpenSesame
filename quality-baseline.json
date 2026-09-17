@@ -18,7 +18,7 @@
   "totals": {
     "files": 540,
     "violations": 880,
-    "oversizedLines": 280334
+    "oversizedLines": 280326
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1216,7 +1216,7 @@
       "max-lines": 452
     },
     "crates/broker/src/frozen.rs": {
-      "max-lines": 633
+      "max-lines": 625
     },
     "crates/ceremony/src/capture.rs": {
       "max-lines": 506

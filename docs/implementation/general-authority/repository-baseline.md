@@ -29,4 +29,4 @@ Rebased onto main after GA-2 (#400) via signed createCommitOnBranch.
 ## Landed on main (2026-09-16+)
 
 - GA-1 #398, GA-2 #400, wallet #397, INV-REVOCATION #402, GA-4 #403, GA-5 #404, INV-BUDGET #405, INV-CONSISTENCY #406, surfaces honesty #407, GA-A #408, GA-I spawn/enroll #409.
-- Remaining open: GA-P-02/Q-03 visual evidence, GA-I-02 membership reconciliation, Host receipts (GA-H-04), OpenFGA tuple backfill (GA-F-04), standing matrix honesty (GA-O-04).
+- Remaining open: GA-P-02/Q-03 visual evidence, GA-I-02 membership reconciliation, OpenFGA tuple backfill (GA-F-04), standing matrix honesty (GA-O-04).

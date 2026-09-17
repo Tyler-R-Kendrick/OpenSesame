@@ -99,6 +99,12 @@ impl ValidatedGrantChain {
         self.leaf().connection_id
     }
 
+    /// Grant ids root→leaf for receipt / audit binding (GA-H-04).
+    #[must_use]
+    pub fn grant_ids(&self) -> Vec<GrantId> {
+        self.grants.iter().map(|g| g.id).collect()
+    }
+
     #[must_use]
     pub fn invalidation_generation(&self) -> u64 {
         self.invalidation_generation
@@ -116,6 +122,22 @@ impl ValidatedGrantChain {
         self.leaf().id == grant.id
             && self.leaf().version == grant.version
             && self.leaf().organization_id == grant.organization_id
+    }
+}
+
+/// Delegation chain a signed invocation receipt must name (GA-H-04).
+///
+/// With verified lineage, every hop is listed root→leaf. Without lineage
+/// (root/owner exercise), the exercising grant alone is bound — never an empty
+/// chain that would let a receipt float free of the authority that admitted it.
+#[must_use]
+pub fn receipt_delegation_chain(
+    grant: &Grant,
+    lineage: Option<&ValidatedGrantChain>,
+) -> Vec<GrantId> {
+    match lineage {
+        Some(chain) => chain.grant_ids(),
+        None => vec![grant.id],
     }
 }
 
@@ -185,5 +207,28 @@ mod tests {
         forged.parent_grant_id = Some(forged_parent);
         assert!(ValidatedGrantChain::try_validate(&[root.clone(), forged], Utc::now(), 0).is_err());
         assert!(ValidatedGrantChain::try_validate(&[root, child], Utc::now(), 0).is_ok());
+    }
+
+    #[test]
+    fn receipt_chain_binds_grant_or_lineage() {
+        let org = OrganizationId::new();
+        let root = sample(0, None, org);
+        let alone = receipt_delegation_chain(&root, None);
+        assert_eq!(alone, vec![root.id]);
+
+        let mut child = sample(1, Some(root.id), org);
+        child.issuer_principal_id = root.beneficiary_principal_id;
+        child.connection_id = root.connection_id;
+        child.project_id = root.project_id;
+        child.constraints.budgets.insert("calls".into(), 5);
+        child.constraints.maximum_delegation_depth = 0;
+        child.constraints.expires_at = root.constraints.expires_at - Duration::minutes(1);
+        let chain =
+            ValidatedGrantChain::try_validate(&[root.clone(), child.clone()], Utc::now(), 0)
+                .expect("valid");
+        assert_eq!(
+            receipt_delegation_chain(&child, Some(&chain)),
+            vec![root.id, child.id]
+        );
     }
 }

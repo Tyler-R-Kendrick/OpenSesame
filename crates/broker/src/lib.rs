@@ -196,6 +196,10 @@ impl Broker {
                     summary: json!({"reason": decision.context}),
                     ext: None,
                     connector_digest: self.host.component_digest(&input.connection_policy_id),
+                    delegation_chain: opensesame_domain::receipt_delegation_chain(
+                        &input.grant,
+                        input.lineage.as_ref(),
+                    ),
                 },
             )?;
             self.db.insert_receipt(&receipt).await?;
@@ -265,6 +269,10 @@ impl Broker {
                 summary,
                 ext,
                 connector_digest: self.host.component_digest(&input.connection_policy_id),
+                delegation_chain: opensesame_domain::receipt_delegation_chain(
+                    &input.grant,
+                    input.lineage.as_ref(),
+                ),
             },
         )?;
         // Fail the invocation instead of panicking the process: a summary that
@@ -292,7 +300,7 @@ impl Broker {
             actor_instance_id: input.intent.actor_instance_id,
             client_id: input.intent.client_id,
             operator_id: input.intent.operator_id,
-            delegation_chain: input.intent.delegation_chain.clone(),
+            delegation_chain: parts.delegation_chain,
             connection_id: input.intent.connection_id,
             operation: input.intent.operation.clone(),
             resource: input.intent.resource.clone(),
@@ -325,4 +333,5 @@ pub(crate) struct FinishReceiptParts<'a> {
     summary: Value,
     ext: Option<String>,
     connector_digest: Option<&'a str>,
+    delegation_chain: Vec<opensesame_domain::GrantId>,
 }
