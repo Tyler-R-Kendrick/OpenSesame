@@ -18,7 +18,7 @@
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "typescript": "5.8.3",
-    "vitest": "4.1.10"
+    "vitest": "5.0.1"
   },
   "dependencies": {
     "@opensesame/os-domain": "workspace:*",
