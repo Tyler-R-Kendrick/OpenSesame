@@ -238,8 +238,8 @@
       "owner": "GA-I",
       "title": "Project membership reconciliation",
       "invariants": ["INV-GA-04", "INV-GA-08"],
-      "status": "in-progress",
-      "evidence": "MEMBERSHIP_SUBJECT_KINDS aligned with authority_membership_edges CHECK; live reconciliation still open"
+      "status": "verified",
+      "evidence": "packages/os-domain/src/authority-membership-reconcile.ts"
     },
     {
       "id": "GA-I-03",

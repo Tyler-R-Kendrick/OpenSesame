@@ -3,7 +3,7 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T05:00:11Z",
+  "generatedAt": "2026-09-17T05:22:14Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -16,13 +16,13 @@
   "summary": {
     "totalWorkItems": 48,
     "unresolved": 5,
-    "inProgress": 3,
+    "inProgress": 2,
     "blocked": 0,
-    "verified": 40,
+    "verified": 41,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported",
-    "in-progress": 3
+    "in-progress": 2
   },
   "workItems": [
     {
@@ -199,11 +199,16 @@
       "id": "GA-I-02",
       "swarm": "GA-I",
       "title": "Project membership reconciliation",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
-      "evidence": "pnpm --filter @opensesame/database exec vitest run tests/schema-metadata.test.ts -t 'membership subject kinds|enum-like text' \u2192 2 pass (MEMBERSHIP_SUBJECT_KINDS \u2261 CHECK)",
+      "evidence": [
+        {
+          "command": "pnpm --filter @opensesame/os-domain exec vitest run src/__tests__/authority-membership-reconcile.test.ts",
+          "result": "ok. 4 passed \u2014 upsert, invalidate removed, refuse personal, role drift upsert"
+        }
+      ],
       "blockedBy": ["GA-A-01"],
-      "notes": "Subject-kind fence landed; ADR 0038 membership CRUD generalization / live reconciliation still open."
+      "notes": "planProjectMembershipReconcile diffs ADR 0038 memberships into authority edge upserts/invalidations; personal projects refuse. Live DB writer still Identity apply."
     },
     {
       "id": "GA-I-03",

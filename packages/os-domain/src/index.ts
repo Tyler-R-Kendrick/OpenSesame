@@ -38,3 +38,4 @@ export * from "./authority-principals.js";
 export * from "./authority-spawn.js";
 export * from "./authority-invariants.js";
 export * from "./authority-grant.js";
+export * from "./authority-membership-reconcile.js";
