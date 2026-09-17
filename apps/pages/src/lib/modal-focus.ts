@@ -46,15 +46,9 @@ export function useModalFocus(
 }
 
 function trapTab(event: KeyboardEvent, pane: HTMLElement | null): void {
-  const chrome = document.querySelector<HTMLElement>(".statusline");
-  const roots = [pane, chrome].filter((node): node is HTMLElement =>
-    Boolean(node),
-  );
-  const focusable = roots
-    .flatMap((root) =>
-      Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)),
-    )
-    .filter((element) => element.tabIndex >= 0);
+  const focusable = Array.from(
+    pane?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [],
+  ).filter((element) => element.tabIndex >= 0);
   const first = focusable[0];
   const last = focusable.at(-1);
   if (!first || !last) {
@@ -62,11 +56,10 @@ function trapTab(event: KeyboardEvent, pane: HTMLElement | null): void {
     return;
   }
   const active = document.activeElement;
-  const inside = roots.some((root) => root === active || root.contains(active));
   if (active === pane) {
     event.preventDefault();
     (event.shiftKey ? last : first).focus();
-  } else if (!inside) {
+  } else if (!pane?.contains(active)) {
     event.preventDefault();
     first.focus();
   } else if (event.shiftKey && active === first) {
