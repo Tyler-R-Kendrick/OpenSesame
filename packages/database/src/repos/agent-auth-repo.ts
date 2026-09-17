@@ -7,6 +7,19 @@ import type {
 import { and, desc, eq, isNull, lte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema/index.js";
+import {
+  createMemoryProviderReplayConsumer,
+  postgresConsumeProviderAssertionReplay,
+} from "./agent-auth-replay-ops.js";
+import {
+  cloneAccess,
+  cloneAssertion,
+  cloneAttempt,
+  cloneRegistration,
+  mapAccess,
+  mapAssertion,
+  mapAttempt,
+} from "./agent-auth-repo-mappers.js";
 import { mapRegistration } from "./agent-registration-row.js";
 import {
   type AgentAuthRepository,
@@ -24,40 +37,6 @@ function applyNowOrDefer(uow: UnitOfWork | undefined, apply: () => void): void {
     return;
   }
   apply();
-}
-
-function cloneRegistration(row: AgentRegistration): AgentRegistration {
-  const next: AgentRegistration = {
-    ...row,
-    preClaimScopes: [...row.preClaimScopes],
-    postClaimScopes: [...row.postClaimScopes],
-  };
-  if (row.claimTokenDigest) {
-    next.claimTokenDigest = new Uint8Array(row.claimTokenDigest);
-  }
-  return next;
-}
-
-function cloneAttempt(row: AgentClaimAttempt): AgentClaimAttempt {
-  return {
-    ...row,
-    attemptTokenDigest: new Uint8Array(row.attemptTokenDigest),
-    userCodeDigest: new Uint8Array(row.userCodeDigest),
-  };
-}
-
-function cloneAccess(row: AgentAccessTokenRecord): AgentAccessTokenRecord {
-  return {
-    ...row,
-    scopes: [...row.scopes],
-    tokenDigest: new Uint8Array(row.tokenDigest),
-  };
-}
-
-function cloneAssertion(
-  row: AgentServiceAssertionRecord,
-): AgentServiceAssertionRecord {
-  return { ...row };
 }
 
 export class MemoryAgentAuthRepository implements AgentAuthRepository {
@@ -327,61 +306,12 @@ export class MemoryAgentAuthRepository implements AgentAuthRepository {
     }
     return n;
   };
+
+  consumeProviderAssertionReplay =
+    createMemoryProviderReplayConsumer().consumeProviderAssertionReplay;
 }
 
 type Db = PostgresJsDatabase<typeof schema>;
-
-function mapAttempt(
-  row: typeof schema.agentClaimAttempts.$inferSelect,
-): AgentClaimAttempt {
-  const mapped: AgentClaimAttempt = {
-    id: row.id,
-    registrationId: row.registrationId,
-    attemptTokenDigest: row.attemptTokenDigest,
-    userCodeDigest: row.userCodeDigest,
-    createdAt: row.createdAt,
-    expiresAt: row.expiresAt,
-    intervalSeconds: row.intervalSeconds,
-    pollCount: row.pollCount,
-    failedAttempts: row.failedAttempts,
-  };
-  if (row.emailNormalized) mapped.emailNormalized = row.emailNormalized;
-  if (row.slowdownUntil) mapped.slowdownUntil = row.slowdownUntil;
-  if (row.completedAt) mapped.completedAt = row.completedAt;
-  return mapped;
-}
-
-function mapAccess(
-  row: typeof schema.agentAccessTokens.$inferSelect,
-): AgentAccessTokenRecord {
-  const mapped: AgentAccessTokenRecord = {
-    id: row.id,
-    registrationId: row.registrationId,
-    tokenDigest: row.tokenDigest,
-    scopes: row.scopes,
-    claimed: row.claimed,
-    assertionVersion: row.assertionVersion,
-    expiresAt: row.expiresAt,
-    createdAt: row.createdAt,
-  };
-  if (row.resource) mapped.resource = row.resource;
-  if (row.revokedAt) mapped.revokedAt = row.revokedAt;
-  return mapped;
-}
-
-function mapAssertion(
-  row: typeof schema.agentServiceAssertions.$inferSelect,
-): AgentServiceAssertionRecord {
-  const mapped: AgentServiceAssertionRecord = {
-    jti: row.jti,
-    registrationId: row.registrationId,
-    assertionVersion: row.assertionVersion,
-    expiresAt: row.expiresAt,
-    createdAt: row.createdAt,
-  };
-  if (row.revokedAt) mapped.revokedAt = row.revokedAt;
-  return mapped;
-}
 
 export function createPostgresAgentAuthRepository(
   db: Db,
@@ -686,5 +616,15 @@ export function createPostgresAgentAuthRepository(
         );
       return rows.length;
     },
+
+    consumeProviderAssertionReplay: (issuer, jti, expiresAt, uow) =>
+      postgresConsumeProviderAssertionReplay(
+        resolveDb,
+        schema,
+        issuer,
+        jti,
+        expiresAt,
+        uow,
+      ),
   };
 }
