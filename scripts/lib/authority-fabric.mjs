@@ -7,6 +7,10 @@
  * is that an unresolvable scenario is `blocked`, never absent and never green.
  */
 
+import {
+  cargoBatchKey,
+  cargoSuiteArgs,
+} from "./authority-fabric-cargo-run.mjs";
 import { STATUSES, TIERS, scenarios } from "./authority-fabric-scenarios.mjs";
 
 export { STATUSES, TIERS, scenarios };
@@ -72,11 +76,9 @@ function resolveCargo(target, facts) {
       `${target.crate} is not a member of the Cargo workspace, so nothing in it is compiled or tested`,
     );
   }
-  if (crate.libExists !== true) {
-    return blocked(
-      BLOCKED_REASONS.crateLibMissing,
-      `${target.crate} declares a lib target at ${crate.libPath ?? "src/lib.rs"} that does not exist`,
-    );
+  const suiteMissing = cargoSuiteMissing(crate, target);
+  if (suiteMissing !== null) {
+    return blocked(BLOCKED_REASONS.crateLibMissing, suiteMissing);
   }
   const declared = facts.modules[`${target.crate}:${target.module}`];
   if (declared !== true) {
@@ -85,37 +87,49 @@ function resolveCargo(target, facts) {
       `${target.module} is on disk but no mod declaration reaches it from ${target.crate}'s crate root`,
     );
   }
-  // When the gate is going to run the crate's suite anyway, that run reports
-  // whether the test exists with better fidelity than a separate enumeration —
-  // and enumerating first opens a window in which the tree can move between the
-  // two builds. Enumeration is only consulted in the static (--no-run) mode.
-  if (facts.deferTests !== true) {
-    const known = facts.tests[target.crate];
-    if (known === undefined || known === null) {
-      return blocked(
-        BLOCKED_REASONS.enumerationFailed,
-        facts.testErrors?.[target.crate] ??
-          `could not enumerate tests for ${target.crate}`,
-      );
-    }
-    if (!known.includes(target.test)) {
-      return blocked(
-        BLOCKED_REASONS.noTest,
-        `${target.test} does not exist; the module compiles but nothing asserts this contract`,
-      );
-    }
-  }
+  const testKey = cargoBatchKey(target);
+  const enumBlock = cargoEnumerationBlock(facts, testKey, target.test);
+  if (enumBlock !== null) return enumBlock;
   return runnable([
     "cargo",
     "+1.88.0",
     "test",
     "-p",
     target.crate,
-    "--lib",
+    ...cargoSuiteArgs(target),
     "--",
     "--exact",
     target.test,
   ]);
+}
+
+function cargoSuiteMissing(crate, target) {
+  if (typeof target.bin === "string") {
+    return crate.binExists === true
+      ? null
+      : `${target.crate} declares no bin target reachable for fabric scenarios`;
+  }
+  return crate.libExists === true
+    ? null
+    : `${target.crate} declares a lib target at ${crate.libPath ?? "src/lib.rs"} that does not exist`;
+}
+
+function cargoEnumerationBlock(facts, testKey, testName) {
+  if (facts.deferTests === true) return null;
+  const known = facts.tests[testKey];
+  if (known === undefined || known === null) {
+    return blocked(
+      BLOCKED_REASONS.enumerationFailed,
+      facts.testErrors?.[testKey] ?? `could not enumerate tests for ${testKey}`,
+    );
+  }
+  if (!known.includes(testName)) {
+    return blocked(
+      BLOCKED_REASONS.noTest,
+      `${testName} does not exist; the module compiles but nothing asserts this contract`,
+    );
+  }
+  return null;
 }
 
 function resolveVitest(target, facts) {

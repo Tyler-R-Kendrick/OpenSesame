@@ -3,8 +3,8 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T13:09:25Z",
-  "generatedBy": "feat/inv-identity-projection",
+  "generatedAt": "2026-09-17T13:59:28Z",
+  "generatedBy": "feat/ga-v-33b-fabric-bin",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
   "rules": [
@@ -21,7 +21,7 @@
     "verified": 47,
     "testsRun": 53,
     "gatesRun": 1,
-    "authorityFabric": "53 pass / 0 blocked / 3 unsupported",
+    "authorityFabric": "53 pass / 1 blocked / 2 unsupported",
     "in-progress": 0
   },
   "workItems": [
@@ -429,7 +429,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Self-review #421 pass fixed: OpenFGA connection/project double-prefix, Host issue depth ceiling + validation status mapping, Identity spawn orchestrator=caller + PoP kind prefix, Identity OpenAPI authority paths, capture-evidence fail-closed press. Residual: fabric unsupported shuttle/OpenBao rows."
+      "notes": "Standing honesty ratchet; never closes. Residual fabric unsupported: GA-V-29 shuttle authority evaluator, GA-V-34 naming presentation. GA-V-33b gateway AuthorityGrant expiry scan lifted."
     },
     {
       "id": "GA-Q-01",
@@ -437,9 +437,9 @@
       "title": "Structural quality gates for new modules",
       "status": "verified",
       "verification": "command-backed",
-      "evidence": "docs/evidence/general-authority/authority-fabric-report.json \u2192 53 pass / 0 blocked / 3 unsupported (gate pass)",
+      "evidence": "docs/evidence/general-authority/authority-fabric-report.json \u2192 53 pass / 1 blocked / 2 unsupported",
       "blockedBy": [],
-      "notes": "FIX-* and AT-* modules registered; residual unsupported rows honest"
+      "notes": "FIX-* and AT-* modules registered; residual unsupported rows: shuttle interleaving (GA-V-29), naming presentation (GA-V-34)."
     },
     {
       "id": "GA-Q-02",
