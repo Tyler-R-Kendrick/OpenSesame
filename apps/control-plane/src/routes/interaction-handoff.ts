@@ -20,6 +20,7 @@ import {
   type InteractionStatus,
   type JsonObject,
   assertAuthorizationDetails,
+  assertOnlyDigestEcho,
   bindingMessageDigest,
   canonicalRequestDigest,
   deriveBindingMessage,
@@ -42,6 +43,12 @@ import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { claimPageSecurityHeaders } from "../middleware/security-headers.js";
 import {
+  actorTypeFromProof,
+  consumeAndSettle,
+  drainConsumedSettlement,
+  resolveEntitledSubject,
+} from "../services/interaction-settlement.js";
+import {
   renderRendezvousLanding,
   renderRendezvousRefusal,
 } from "../ui/rendezvous-pages.js";
@@ -58,7 +65,6 @@ import { authenticatedPrincipalId } from "./organizations.js";
 import {
   type BindingRefusal,
   auditSettlementRefusal,
-  settleInteractionSubject,
   verifyInteractionBinding,
 } from "./subject-adapters.js";
 
@@ -685,6 +691,16 @@ export function createInteractionHandoffRoutes(): Hono<{
       if (body.subject.kind !== body.kind) {
         return fail(c, "unsupported_kind");
       }
+      if (
+        !(await resolveEntitledSubject(
+          ctx,
+          body.kind,
+          body.subject.subjectId,
+          callerId,
+        ))
+      ) {
+        return fail(c, "interaction_not_found");
+      }
 
       // Per-requester admission (ADR 0086). An authenticated principal may
       // raise interactions, but not without bound: one minting them in a loop
@@ -946,11 +962,7 @@ export function createInteractionHandoffRoutes(): Hono<{
     }
     if (row.status !== "approved") return fail(c, terminalError(row.status));
 
-    // T-16: the executor recomputes the binding from the interaction's own
-    // fields before it spends anything. A consumed row is not an effect
-    // (F05), and an approval whose digest does not recompute — or whose proof
-    // is bound to a different request — must not be spent to settle a subject
-    // at all, so the check runs before the compare-and-set, not after it.
+    // T-16: recompute the binding before CAS. A consumed row is not an effect.
     const binding = verifyInteractionBinding(ctx, row);
     if (!binding.ok) {
       await auditSettlementRefusal(
@@ -963,41 +975,20 @@ export function createInteractionHandoffRoutes(): Hono<{
     }
 
     try {
-      // Consuming the envelope and commanding the real ceremony are one
-      // atomic write. The version compare-and-set serializes two racing
-      // executors, and the settlement command rides the same transaction on
-      // the outbox — so there is no committed state where the approval was
-      // spent and the ceremony was never told.
-      const saved = await ctx.repos.transaction(async (uow) => {
-        const spent = interactionMachine.consume(row, now);
-        const updated = await ctx.repos.interactions.updateWithVersion(
-          row.id,
-          row.version,
-          { status: spent.status, consumedAt: now },
-          uow,
-        );
-        const settlement = await settleInteractionSubject(ctx, updated, uow);
-        if (!settlement.ok) {
-          // The pre-transaction check already passed and the binding fields
-          // do not change on the consume flip, so this is unreachable in
-          // practice; aborting rather than committing keeps the invariant a
-          // hard one instead of a hope.
-          throw new DomainError(
-            "INVARIANT_VIOLATION",
-            `subject binding refused at dispatch: ${settlement.reason}`,
-          );
-        }
-        return updated;
-      });
+      const saved = await ctx.repos.transaction(async (uow) =>
+        consumeAndSettle(ctx, row, now, uow),
+      );
+      await drainConsumedSettlement(ctx, saved, c.get("correlationId"));
+      await ctx.repos.outbox.markPublished(saved.command.id);
       await appendAuditEvent(ctx.repos.auditEvents, {
         eventType: "interaction.consumed",
         principalId,
-        actorType: "human",
+        actorType: actorTypeFromProof(saved.interaction.approvalProof),
         outcome: "succeeded",
         correlationId: c.get("correlationId"),
-        metadata: auditMetadata(saved),
+        metadata: auditMetadata(saved.interaction),
       });
-      return c.json(toDetail(saved));
+      return c.json(toDetail(saved.interaction));
     } catch (e) {
       if (e instanceof ConflictError) return fail(c, "interaction_consumed");
       if (e instanceof DomainError) return fail(c, domainErrorName(e, row));
@@ -1085,7 +1076,15 @@ function decideRoute(decision: "approved" | "denied") {
 
     const raw = await c.req.json().catch(() => ({}));
     // Deny: digest echo only (authority shrinks). Approve: digest + spent
-    // activation — never a session-minted proof (F01).
+    // activation — never a session-minted proof (F01). Extra proof fields
+    // are fabrication and a 400, not a stripped 401.
+    if (decision === "approved") {
+      try {
+        assertOnlyDigestEcho(raw);
+      } catch {
+        return fail(c, "invalid_request");
+      }
+    }
     const echo =
       decision === "approved"
         ? ApproveInteractionSchema.safeParse(raw)

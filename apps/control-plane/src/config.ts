@@ -7,6 +7,10 @@ import {
 } from "./config-agent-providers.js";
 import { parseChannelKinds } from "./config-channels.js";
 import {
+  type ProtocolFeatures,
+  loadProtocolFeatures,
+} from "./config-protocol-features.js";
+import {
   assertServiceEndpoints,
   deploymentExposure,
   loopbackHost,
@@ -155,16 +159,7 @@ export interface ControlPlaneConfig {
      */
     allowSelfAssertedBindings: boolean;
   };
-  protocolFeatures: {
-    oid4vp: boolean;
-    oid4vci: boolean;
-    fedcm: boolean;
-    digitalCredentialsApi: boolean;
-    openidFederation: boolean;
-    sdJwtVc: boolean;
-    tokenStatusList: boolean;
-    presentationAgentIntents: boolean;
-  };
+  protocolFeatures: ProtocolFeatures;
   /**
    * auth.md AgentAuth profile (ADR 0092). Provider ID-JAG and SET events stay
    * off until their trust path is complete; discovery must not advertise them.
@@ -341,20 +336,7 @@ export function loadConfig(
       telegramSecretToken: env.OPENSESAME_TELEGRAM_WEBHOOK_SECRET ?? "",
       allowSelfAssertedBindings: allowDevDefaults,
     },
-    protocolFeatures: {
-      oid4vp: truthy(env.OPENSESAME_OID4VP_ENABLED),
-      oid4vci: truthy(env.OPENSESAME_OID4VCI_ENABLED),
-      fedcm: truthy(env.OPENSESAME_FEDCM_ENABLED),
-      digitalCredentialsApi: truthy(
-        env.OPENSESAME_DIGITAL_CREDENTIALS_API_ENABLED,
-      ),
-      openidFederation: truthy(env.OPENSESAME_OPENID_FEDERATION_ENABLED),
-      sdJwtVc: truthy(env.OPENSESAME_SD_JWT_VC_ENABLED),
-      tokenStatusList: truthy(env.OPENSESAME_TOKEN_STATUS_LIST_ENABLED),
-      presentationAgentIntents: truthy(
-        env.OPENSESAME_PRESENTATION_AGENT_INTENTS_ENABLED,
-      ),
-    },
+    protocolFeatures: loadProtocolFeatures(env, isProduction),
     agentAuth: loadAgentAuthFromEnv(env, issuer),
   };
   if (env.DATABASE_URL) {

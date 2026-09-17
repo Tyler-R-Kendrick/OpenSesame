@@ -2,6 +2,7 @@ import { overlapCast } from "@opensesame/os-domain";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { resetInteractionLinkBudget } from "../routes/interaction-handoff.js";
+import { seedOwnedCeremony } from "./seed-ceremony-subject.js";
 
 /**
  * Rendezvous admission and routing (ADR 0086), from the outside.
@@ -30,7 +31,9 @@ async function principal(cp: Plane) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return overlapCast<unknown, { accessToken: string }>(await res.json());
+  return overlapCast<unknown, { accessToken: string; principalId: string }>(
+    await res.json(),
+  );
 }
 
 async function inboxRefOf(cp: Plane, who: { accessToken: string }) {
@@ -45,14 +48,20 @@ async function inboxRefOf(cp: Plane, who: { accessToken: string }) {
 let seq = 0;
 async function raise(
   cp: Plane,
-  requesterToken: string,
+  requester: { accessToken: string; principalId: string },
   approverRef: string,
   subjectId: string,
 ) {
+  seedOwnedCeremony(
+    cp,
+    "device_authorization",
+    subjectId,
+    requester.principalId,
+  );
   return cp.app.request("/v1/interactions", {
     method: "POST",
     headers: {
-      authorization: `Bearer ${requesterToken}`,
+      authorization: `Bearer ${requester.accessToken}`,
       "content-type": "application/json",
       "idempotency-key": `rz-${++seq}`,
     },
@@ -77,7 +86,7 @@ async function createdRef(cp: Plane): Promise<string> {
   const requester = await principal(cp);
   const res = await raise(
     cp,
-    requester.accessToken,
+    requester,
     await inboxRefOf(cp, approver),
     "dev-session-1",
   );
@@ -141,12 +150,7 @@ describe("raising an interaction is admitted per requester", () => {
     let sawRateLimit = false;
     let created = 0;
     for (let i = 0; i < 80 && !sawRateLimit; i += 1) {
-      const res = await raise(
-        cp,
-        requester.accessToken,
-        approverRef,
-        `dev-session-${i}`,
-      );
+      const res = await raise(cp, requester, approverRef, `dev-session-${i}`);
       if (res.status === 201) created += 1;
       if (res.status === 429) {
         expect(await res.json()).toEqual({ error: "rate_limited" });

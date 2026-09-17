@@ -1,9 +1,15 @@
-import type { ApprovalMechanism, AssuranceLevel } from "@opensesame/os-domain";
+import type {
+  ApprovalMechanism,
+  AssuranceLevel,
+  InteractionKind,
+} from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   IncoherentAssuranceError,
   assertAssuranceCoherent,
+  interactionRequiresPhishingResistance,
   isPhishingResistantMechanism,
+  mechanismPermittedForKind,
   mechanismSatisfies,
 } from "../approval-mechanisms.js";
 
@@ -116,6 +122,59 @@ describe("assertAssuranceCoherent", () => {
         expect(error.mechanism).toBe("session_reauth");
         expect(error.assurance).toBe("phishing_resistant");
       }
+    }
+  });
+});
+
+const HIGH_RISK: readonly InteractionKind[] = [
+  "authorization_request",
+  "transaction_authorization",
+  "grant_claim",
+];
+const SESSION: readonly InteractionKind[] = [
+  "device_authorization",
+  "pairing",
+  "claim",
+];
+
+describe("interactionRequiresPhishingResistance (T-41)", () => {
+  it("requires phishing resistance for high-risk kinds", () => {
+    for (const kind of HIGH_RISK) {
+      expect(interactionRequiresPhishingResistance(kind)).toBe(true);
+    }
+  });
+
+  it("does not require it for session kinds", () => {
+    for (const kind of SESSION) {
+      expect(interactionRequiresPhishingResistance(kind)).toBe(false);
+    }
+  });
+});
+
+describe("mechanismPermittedForKind (T-41)", () => {
+  it("permits webauthn for every kind", () => {
+    for (const kind of [...HIGH_RISK, ...SESSION]) {
+      expect(mechanismPermittedForKind("webauthn", kind).effect).toBe(
+        "satisfied",
+      );
+    }
+  });
+
+  it("refuses totp/out_of_band and session_reauth for high-risk kinds", () => {
+    for (const kind of HIGH_RISK) {
+      for (const mechanism of PHISHABLE) {
+        expect(mechanismPermittedForKind(mechanism, kind).effect).toBe(
+          "refused",
+        );
+      }
+    }
+  });
+
+  it("permits out_of_band for session kinds", () => {
+    for (const kind of SESSION) {
+      expect(mechanismPermittedForKind("out_of_band", kind).effect).toBe(
+        "satisfied",
+      );
     }
   });
 });

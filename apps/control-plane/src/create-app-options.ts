@@ -11,6 +11,7 @@ import type {
   ScimStores,
 } from "@opensesame/database";
 import type { ChannelAdapter } from "@opensesame/notification-adapters";
+import type { TrustedIssuer } from "@opensesame/openid4vp";
 import type { AuthenticationServiceStores, Clock } from "@opensesame/os-domain";
 import type { ControlPlaneConfig } from "./config.js";
 import { assertSecureConfig, loadConfig } from "./config.js";
@@ -69,6 +70,12 @@ export interface CreateControlPlaneOptions {
   notificationCallbackAdapters?: NotificationCallbackAdapters;
   /** The SMS bridge adapter; tests hand in a recording one. */
   sms?: ChannelAdapter;
+  /**
+   * Trusted issuers the hosted OpenID4VP verifier will accept. Empty (the
+   * default) fail-closes every presentation rather than auto-trusting a
+   * credential's named issuer.
+   */
+  openid4vpTrustedIssuers?: readonly TrustedIssuer[];
   /**
    * Composition seam for the wallet-native surfaces (ADR 0086 §5, ADR 0119):
    * wallet-pass registration, the OpenID4VP verifier, the OpenID4VCI issuer and

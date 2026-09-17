@@ -39,6 +39,14 @@ import {
   type PostgresAgentInstanceStore,
   PostgresAgentStore,
 } from "./repos/legacy-agent-postgres.js";
+import {
+  type CeremonySubjectStore,
+  createMemoryCeremonySubjectStore,
+} from "./services/ceremony-subjects.js";
+import {
+  type HostSettlementStore,
+  createMemoryHostSettlementStore,
+} from "./services/host-settlement.js";
 
 export interface IdempotencyRecord {
   status: number;
@@ -182,6 +190,10 @@ export interface AppStores {
    * refused on security grounds because of this map.
    */
   notificationCallbacks: Map<string, number[]>;
+  /** Device / pairing / transaction rows consume applies (F05). */
+  ceremonySubjects: CeremonySubjectStore;
+  /** Host-plane drain of `*.settle` commands (X-05). */
+  hostSettlement: HostSettlementStore;
 }
 
 export function createAppStores(options?: {
@@ -242,6 +254,8 @@ export function createAppStores(options?: {
     mfaAnon: new Map(),
     authenticationAnon: new Map(),
     notificationCallbacks: new Map(),
+    ceremonySubjects: createMemoryCeremonySubjectStore(),
+    hostSettlement: createMemoryHostSettlementStore(),
   };
 }
 

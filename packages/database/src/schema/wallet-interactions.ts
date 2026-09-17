@@ -42,7 +42,7 @@ export const interactionProofAttempts = pgTable(
     interactionId: text("interaction_id")
       .notNull()
       .references(() => interactions.id, { onDelete: "cascade" }),
-    /** `webauthn` | `openid4vp` — the `ApprovalMechanism`. */
+    /** Closed `ApprovalMechanism`: webauthn | openid4vp | session_reauth | out_of_band. */
     mechanism: text("mechanism").notNull(),
     /**
      * What became of the attempt. `accepted` is the one finalizing outcome;
@@ -79,7 +79,7 @@ export const interactionProofAttempts = pgTable(
   (t) => [
     check(
       "interaction_proof_attempts_mechanism_check",
-      sql`${t.mechanism} in ('webauthn','openid4vp')`,
+      sql`${t.mechanism} in ('webauthn','openid4vp','session_reauth','out_of_band')`,
     ),
     check(
       "interaction_proof_attempts_outcome_check",
