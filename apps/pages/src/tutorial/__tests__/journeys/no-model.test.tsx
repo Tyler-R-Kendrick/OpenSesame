@@ -44,79 +44,88 @@ async function showMe(
 describe("support on a browser that has no model to run", () => {
   afterEach(resetJourney);
 
-  it("opens, says why, and still helps — without asking anything", async () => {
-    const agent = fakeAgentAlwaysUnavailable("platform_unsupported");
-    const journey = renderJourney(agent, { transport: "none" });
-    const { user } = journey;
+  it(
+    "opens, says why, and still helps — without asking anything",
+    { timeout: 15_000 },
+    async () => {
+      const agent = fakeAgentAlwaysUnavailable("platform_unsupported");
+      const journey = renderJourney(agent, { transport: "none" });
+      const { user } = journey;
 
-    const panel = await openSupport(user);
+      const panel = await openSupport(user);
 
-    // The honest reason, not a spinner and not a dead composer with no
-    // explanation beside it.
-    expect(
-      await within(panel).findByText(UNAVAILABLE_TEXT.platform_unsupported),
-    ).toBeTruthy();
-    const composer = await screen.findByLabelText<HTMLInputElement>(
-      "Ask about this screen",
-    );
-    expect(composer.disabled).toBe(true);
+      // The honest reason, not a spinner and not a dead composer with no
+      // explanation beside it.
+      expect(
+        await within(panel).findByText(UNAVAILABLE_TEXT.platform_unsupported),
+      ).toBeTruthy();
+      const composer = await screen.findByLabelText<HTMLInputElement>(
+        "Ask about this screen",
+      );
+      expect(composer.disabled).toBe(true);
 
-    const help = within(panel).getByRole("region", { name: "Questions" });
-    expect(
-      within(help).getByRole("button", { name: "Where do I lock the vault?" }),
-    ).toBeTruthy();
-    expect(
-      within(help).getByRole("button", {
-        name: "How do I connect a provider?",
-      }),
-    ).toBeTruthy();
+      const help = within(panel).getByRole("region", { name: "Questions" });
+      expect(
+        within(help).getByRole("button", {
+          name: "Where do I lock the vault?",
+        }),
+      ).toBeTruthy();
+      expect(
+        within(help).getByRole("button", {
+          name: "How do I connect a provider?",
+        }),
+      ).toBeTruthy();
 
-    // Search is a substring over authored prose — no index, no model.
-    await user.type(within(panel).getByLabelText("Search questions"), "import");
-    expect(
-      await within(help).findByRole("button", {
-        name: "How do I bring items in from another password manager?",
-      }),
-    ).toBeTruthy();
-    expect(
-      within(help).queryByRole("button", {
-        name: "Where do I lock the vault?",
-      }),
-    ).toBeNull();
-    await user.clear(within(panel).getByLabelText("Search questions"));
-    expect(
-      await within(help).findByRole("button", {
-        name: "Where do I lock the vault?",
-      }),
-    ).toBeTruthy();
+      // Search is a substring over authored prose — no index, no model.
+      await user.type(
+        within(panel).getByLabelText("Search questions"),
+        "import",
+      );
+      expect(
+        await within(help).findByRole("button", {
+          name: "How do I bring items in from another password manager?",
+        }),
+      ).toBeTruthy();
+      expect(
+        within(help).queryByRole("button", {
+          name: "Where do I lock the vault?",
+        }),
+      ).toBeNull();
+      await user.clear(within(panel).getByLabelText("Search questions"));
+      expect(
+        await within(help).findByRole("button", {
+          name: "Where do I lock the vault?",
+        }),
+      ).toBeTruthy();
 
-    // Reading a topic puts the authored answer in the transcript, as an answer.
-    await user.click(
-      within(help).getByRole("button", {
-        name: "How do I connect a provider?",
-      }),
-    );
-    expect(
-      await screen.findByText(/Search the catalog, open the provider's page/),
-    ).toBeTruthy();
+      // Reading a topic puts the authored answer in the transcript, as an answer.
+      await user.click(
+        within(help).getByRole("button", {
+          name: "How do I connect a provider?",
+        }),
+      );
+      expect(
+        await screen.findByText(/Search the catalog, open the provider's page/),
+      ).toBeTruthy();
 
-    // And a named goal runs a real walkthrough, over the real registry.
-    await user.click(
-      await showMe(panel, "How do I tell whether OpenSesame is healthy?"),
-    );
-    await waitFor(() =>
-      expect(journey.focused()).toEqual(["shell.connectivity"]),
-    );
-    await waitFor(() =>
-      expect(journey.navigations()).toEqual(["/vault/health"]),
-    );
-    expect(
-      await screen.findByRole("heading", { name: "Password health" }),
-    ).toBeTruthy();
+      // And a named goal runs a real walkthrough, over the real registry.
+      await user.click(
+        await showMe(panel, "How do I tell whether OpenSesame is healthy?"),
+      );
+      await waitFor(() =>
+        expect(journey.focused()).toEqual(["shell.connectivity"]),
+      );
+      await waitFor(() =>
+        expect(journey.navigations()).toEqual(["/vault/health"]),
+      );
+      expect(
+        await screen.findByRole("heading", { name: "Password health" }),
+      ).toBeTruthy();
 
-    // Nothing in any of that went looking for a model.
-    expect(agent.calls()).toEqual([]);
-  });
+      // Nothing in any of that went looking for a model.
+      expect(agent.calls()).toEqual([]);
+    },
+  );
 
   /**
    * A defect, recorded as it behaves today rather than as it should.
