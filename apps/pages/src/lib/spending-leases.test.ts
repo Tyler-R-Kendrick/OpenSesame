@@ -1,4 +1,8 @@
 /** @vitest-environment jsdom */
+import {
+  generatePaymentApprovalKeyPair,
+  signPaymentApprovalDigest,
+} from "@opensesame/wallet-consent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildLocalPaymentApprovalDigest } from "./spending-consent.js";
 import {
@@ -6,6 +10,7 @@ import {
   issueSpendingLease,
   listActiveSpendingLeases,
   listSpendingLeases,
+  requestStopSpendingLease,
 } from "./spending-leases.js";
 import {
   clearSpendingLedgerStorage,
@@ -31,6 +36,16 @@ function ensureLocalStorage(): void {
     },
     key: (index: number) => [...map.keys()][index] ?? null,
   } satisfies Storage);
+}
+
+function signedProof(digest: string) {
+  const keys = generatePaymentApprovalKeyPair();
+  const verifiedBytes = signPaymentApprovalDigest(digest, keys.privateKeyPkcs8);
+  return {
+    boundDigest: digest,
+    verifiedBytes,
+    publicKeySpki: keys.publicKeySpki,
+  };
 }
 
 describe("spending-leases", () => {
@@ -84,10 +99,7 @@ describe("spending-leases", () => {
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
-      proof: {
-        boundDigest: digest,
-        verifiedBytes: new Uint8Array([1]),
-      },
+      proof: signedProof(digest),
       validFrom: now,
       validUntil: until,
     });
@@ -108,10 +120,7 @@ describe("spending-leases", () => {
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
-      proof: {
-        boundDigest: digest,
-        verifiedBytes: new Uint8Array([1]),
-      },
+      proof: signedProof(digest),
       validFrom: new Date().toISOString(),
       validUntil: new Date(Date.now() + 3600_000).toISOString(),
     });
@@ -130,10 +139,7 @@ describe("spending-leases", () => {
     const digest = await buildLocalPaymentApprovalDigest(intent);
     const now = new Date().toISOString();
     const until = new Date(Date.now() + 3600_000).toISOString();
-    const proof = {
-      boundDigest: digest,
-      verifiedBytes: new Uint8Array([7, 7, 7]),
-    };
+    const proof = signedProof(digest);
     const first = await issueSpendingLease({
       allocationRef: "child-a",
       beneficiaryRef: "workload-research",
@@ -150,14 +156,8 @@ describe("spending-leases", () => {
       beneficiaryRef: "workload-research",
       grantRef: "grant-demo",
       rootAccountingRef: "household",
-      intent: { ...intent, amount: "11" },
-      proof: {
-        boundDigest: await buildLocalPaymentApprovalDigest({
-          ...intent,
-          amount: "11",
-        }),
-        verifiedBytes: new Uint8Array([7, 7, 7]),
-      },
+      intent,
+      proof,
       validFrom: now,
       validUntil: until,
     });
@@ -180,7 +180,7 @@ describe("spending-leases", () => {
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
-      proof: { boundDigest: digest, verifiedBytes: new Uint8Array([3]) },
+      proof: signedProof(digest),
       validFrom: earlier,
       validUntil: past,
     });
@@ -203,7 +203,7 @@ describe("spending-leases", () => {
       grantRef: "grant-demo",
       rootAccountingRef: "household",
       intent,
-      proof: { boundDigest: digest, verifiedBytes: new Uint8Array([4, 4]) },
+      proof: signedProof(digest),
       validFrom: from,
       validUntil: until,
     });
@@ -213,5 +213,29 @@ describe("spending-leases", () => {
     const afterExpiry = listActiveSpendingLeases(Date.now() + 120_000);
     expect(afterExpiry.some((l) => l.amount === "7")).toBe(false);
     expect(listSpendingLeases().some((l) => l.status === "expired")).toBe(true);
+  });
+
+  it("requestStopSpendingLease marks an active lease stop_requested", async () => {
+    const intent = {
+      currency: "TEST",
+      amount: "8",
+      recipient: "workload-research",
+    };
+    const digest = await buildLocalPaymentApprovalDigest(intent);
+    const issued = await issueSpendingLease({
+      allocationRef: "child-a",
+      beneficiaryRef: "workload-research",
+      grantRef: "grant-demo",
+      rootAccountingRef: "household",
+      intent,
+      proof: signedProof(digest),
+      validFrom: new Date().toISOString(),
+      validUntil: new Date(Date.now() + 3600_000).toISOString(),
+    });
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) return;
+    expect(requestStopSpendingLease(issued.lease.id)).toBe(true);
+    expect(listSpendingLeases()[0]?.status).toBe("stop_requested");
+    expect(requestStopSpendingLease(issued.lease.id)).toBe(false);
   });
 });

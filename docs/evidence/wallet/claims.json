@@ -441,7 +441,7 @@
     },
     "WAL-B01": {
       "status": "fixture_verified",
-      "reason": "assessLocalPaymentApproval refuses mechanism/assurance without verifiedBytes; digest mismatch blocks execution",
+      "reason": "assessLocalPaymentApproval refuses mechanism/assurance without verified bytes; dummy bytes are signature_invalid; matching ES256 admits verifiedMechanism es256",
       "productionEnabled": false,
       "evidenceRefs": [
         "pnpm wallet:test:browser",
@@ -553,7 +553,7 @@
     },
     "WAL-B13": {
       "status": "fixture_verified",
-      "reason": "WebMCP wallet tools are read-only inventory/ledger only; capabilities inventory lists secret/spend refusals (wallet-tools.test.ts)",
+      "reason": "WebMCP wallet tools expose inventory plus propose/execute_approved/status/lease; execute_approved refuses caller-constructed refs; inventory lists get_secret/PAN/sign refusals; productionEnabled false",
       "productionEnabled": false,
       "evidenceRefs": [
         "apps/pages/src/webmcp/wallet-tools.ts",
@@ -618,7 +618,7 @@
     },
     "wallet.capabilities.read": {
       "status": "fixture_verified",
-      "reason": "WebMCP read-only tools in apps/pages/src/webmcp/wallet-tools.ts; no secrets/spend; covered by wallet-tools.test.ts",
+      "reason": "WebMCP inventory tool lists refusals (get_secret, PAN, unrestricted sign); productionEnabled false",
       "productionEnabled": false,
       "evidenceRefs": [
         "apps/pages/src/webmcp/wallet-tools.ts",
@@ -628,7 +628,7 @@
     },
     "wallet.budgets.read": {
       "status": "fixture_verified",
-      "reason": "WebMCP read-only tools in apps/pages/src/webmcp/wallet-tools.ts; no secrets/spend; covered by wallet-tools.test.ts",
+      "reason": "WebMCP same-origin budget projection read; does not settle or disclose secrets",
       "productionEnabled": false,
       "evidenceRefs": [
         "apps/pages/src/webmcp/wallet-tools.ts",
@@ -638,7 +638,7 @@
     },
     "wallet.allocations.read": {
       "status": "fixture_verified",
-      "reason": "WebMCP read-only tools in apps/pages/src/webmcp/wallet-tools.ts; no secrets/spend; covered by wallet-tools.test.ts",
+      "reason": "WebMCP same-origin allocation/attempt read; does not settle or disclose secrets",
       "productionEnabled": false,
       "evidenceRefs": [
         "apps/pages/src/webmcp/wallet-tools.ts",
@@ -648,7 +648,7 @@
     },
     "wallet.payment.propose": {
       "status": "fixture_verified",
-      "reason": "capability-registry excludes wallet.payment.propose on WebMCP/MCP pending digest-bound propose path",
+      "reason": "WebMCP propose never settles; payload identity claims that do not match the session caller are refused; headless MCP excluded",
       "productionEnabled": false,
       "evidenceRefs": [
         "packages/capability-registry/src/wallet-spending.ts",
@@ -658,7 +658,7 @@
     },
     "wallet.payment.execute_approved": {
       "status": "fixture_verified",
-      "reason": "capability-registry excludes execute_approved until PreparedExecutionRef binder exists — no agent execute tool",
+      "reason": "WebMCP execute_approved spends only an internally issued PreparedExecutionRef; caller-constructed refs fail; headless MCP excluded",
       "productionEnabled": false,
       "evidenceRefs": [
         "packages/capability-registry/src/wallet-spending.ts",
@@ -668,7 +668,7 @@
     },
     "wallet.payment.status": {
       "status": "fixture_verified",
-      "reason": "capability-registry excludes inventing settlement status without receipt adapters",
+      "reason": "WebMCP payment status is local ledger observation only; settlesOffline false; headless MCP excluded",
       "productionEnabled": false,
       "evidenceRefs": [
         "packages/capability-registry/src/wallet-spending.ts",
@@ -678,7 +678,7 @@
     },
     "wallet.lease.request": {
       "status": "fixture_verified",
-      "reason": "capability-registry excludes wallet.lease.request on MCP/WebMCP with ADR 0123 until digest-bound lease ceremony is registered",
+      "reason": "WebMCP lease request proposes under an existing allocation and does not mint budget; headless MCP excluded",
       "productionEnabled": false,
       "evidenceRefs": [
         "packages/capability-registry/src/wallet-spending.ts",
@@ -688,7 +688,7 @@
     },
     "wallet.lease.status": {
       "status": "fixture_verified",
-      "reason": "capability-registry withholds inventing lease status on headless MCP; WebMCP status gated on receipt adapters",
+      "reason": "WebMCP lease status is local redacted observation; headless MCP excluded",
       "productionEnabled": false,
       "evidenceRefs": [
         "packages/capability-registry/src/wallet-spending.ts",
@@ -698,7 +698,7 @@
     },
     "wallet.lease.request_stop": {
       "status": "fixture_verified",
-      "reason": "capability-registry excludes wallet.lease.request_stop on agent surfaces pending proof-bound stop ceremony",
+      "reason": "WebMCP request_stop marks stop_requested locally and does not claim on-chain revocation; headless MCP excluded",
       "productionEnabled": false,
       "evidenceRefs": [
         "packages/capability-registry/src/wallet-spending.ts",

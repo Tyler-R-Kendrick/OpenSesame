@@ -1,9 +1,12 @@
 /** @vitest-environment jsdom */
 import { createHash } from "node:crypto";
+import {
+  generatePaymentApprovalKeyPair,
+  signPaymentApprovalDigest,
+} from "@opensesame/wallet-consent";
 import { describe, expect, it } from "vitest";
 import { buildLocalPaymentApprovalDigest } from "./spending-consent.js";
 
-/** Reference Node digest matching wallet-consent field encoding. */
 function nodeReferenceDigest(intent: {
   currency: string;
   amount: string;
@@ -56,7 +59,7 @@ describe("spending-consent", () => {
     expect(changedRecipient).not.toBe(base);
   });
 
-  it("refuses forged assurance without verified bytes (WAL-B01)", async () => {
+  it("refuses forged assurance without a verified signature (WAL-B01)", async () => {
     const { assessLocalPaymentApproval } = await import(
       "./spending-consent.js"
     );
@@ -85,13 +88,30 @@ describe("spending-consent", () => {
     });
     expect(mismatch).toEqual({ ok: false, reason: "digest_mismatch" });
 
-    const ok = await assessLocalPaymentApproval({
+    const dummyKeys = generatePaymentApprovalKeyPair();
+    const dummyBytes = await assessLocalPaymentApproval({
       intent,
       proof: {
         boundDigest: digest,
         verifiedBytes: new Uint8Array([1, 2, 3]),
+        publicKeySpki: dummyKeys.publicKeySpki,
       },
     });
-    expect(ok).toEqual({ ok: true });
+    expect(dummyBytes).toEqual({ ok: false, reason: "signature_invalid" });
+
+    const keys = generatePaymentApprovalKeyPair();
+    const verifiedBytes = signPaymentApprovalDigest(
+      digest,
+      keys.privateKeyPkcs8,
+    );
+    const ok = await assessLocalPaymentApproval({
+      intent,
+      proof: {
+        boundDigest: digest,
+        verifiedBytes,
+        publicKeySpki: keys.publicKeySpki,
+      },
+    });
+    expect(ok).toEqual({ ok: true, verifiedMechanism: "es256" });
   });
 });

@@ -14,6 +14,7 @@ import {
 } from "@opensesame/os-domain";
 import type { SpendingLeaseStatus } from "@opensesame/os-domain/wallet";
 import {
+  type DigestBoundApprovalRefusal,
   type DigestBoundPaymentProof,
   type LocalPaymentApprovalIntent,
   assessLocalPaymentApproval,
@@ -199,10 +200,8 @@ export type IssueSpendingLeaseResult =
   | {
       readonly ok: false;
       readonly reason:
+        | DigestBoundApprovalRefusal
         | "allocation_missing"
-        | "digest_mismatch"
-        | "unverified_assurance"
-        | "missing_verified_bytes"
         | "insufficient_available"
         | "invalid_amount"
         | "assertion_replay"
@@ -321,4 +320,17 @@ export function listActiveSpendingLeases(
   }
   if (mutated) writeAll(next);
   return next.filter((l) => l.status === "active");
+}
+
+/** Mark an active lease stop_requested. Does not claim on-chain revocation. */
+export function requestStopSpendingLease(leaseId: string): boolean {
+  const all = readAll();
+  const idx = all.findIndex((l) => l.id === leaseId);
+  if (idx < 0) return false;
+  const current = all[idx];
+  if (current === undefined || current.status !== "active") return false;
+  const next = [...all];
+  next[idx] = { ...current, status: "stop_requested" };
+  writeAll(next);
+  return true;
 }
