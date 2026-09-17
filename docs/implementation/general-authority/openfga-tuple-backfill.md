@@ -1,8 +1,8 @@
 # OpenFGA tuple backfill and rollback (GA-F-04)
 
-Status: planned + dry-run harness in `@opensesame/policy`. Live apply stays
-behind the Host projector lease (`authority_writer_lease`) and is not agent-
-reachable.
+Status: dry-run harness in `@opensesame/policy` plus Host live apply on grant
+issue (`apps/gateway/src/openfga_project.rs`) behind `authority_writer_lease`.
+Not agent-reachable.
 
 Invariants: **INV-GA-03** (additive only — never revoke a baseline allow) and
 **INV-GA-07** (revoked / inactive grants project nothing).
@@ -65,5 +65,13 @@ pnpm --filter @opensesame/policy exec vitest run \
   src/__tests__/authority-tuple-backfill.test.ts
 ```
 
-Live OpenFGA apply remains optional / operator-gated and is not required to
-mark GA-F-04's **plan + dry-run harness** verified.
+Live apply evidence:
+
+```bash
+cargo +1.88.0 test -p opensesame-provider-openfga --lib grant_tuples
+cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- authority_grants
+```
+
+When `OPENSESAME_OPENFGA_URL` is unset the projector no-ops; with OpenFGA
+configured, issue acquires the writer lease, writes mapped tuples, and records
+`projection_applied`.

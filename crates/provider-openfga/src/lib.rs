@@ -2,6 +2,8 @@
 //!
 //! When `OPENSESAME_OPENFGA_URL` is unset, callers may fall back to the in-process PEP.
 
+mod grant_tuples;
+pub use grant_tuples::{grant_to_openfga_tuples, GrantTupleMappingError, GrantTupleMappingResult};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -22,9 +24,7 @@ pub enum OpenFgaError {
 pub type Result<T> = std::result::Result<T, OpenFgaError>;
 
 /// Operator PDP base URL: https, or loopback http. No userinfo (SSRF / credential leak).
-///
 /// # Errors
-///
 /// Returns an error when validation or the underlying operation fails.
 pub fn assert_pdp_base_url(raw: &str) -> Result<()> {
     let url = url::Url::parse(raw.trim()).map_err(|e| OpenFgaError::Config(e.to_string()))?;

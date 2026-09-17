@@ -20,6 +20,7 @@ mod lifecycle;
 mod managed_certs;
 mod middleware;
 mod oci_component;
+mod openfga_project;
 mod routes;
 mod security;
 mod session_channel;

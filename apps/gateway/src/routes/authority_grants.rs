@@ -194,6 +194,13 @@ async fn issue(
     if !issued {
         return refused();
     }
+    // Projection is a cache (storage.md §5): issue already committed. A failed
+    // live apply leaves the projection unmarked so freshness stays fail-closed.
+    if let Err(error) =
+        crate::openfga_project::project_grant_live(&st, &org, &grant_id).await
+    {
+        tracing::warn!(%error, grant_id, "openfga live projection failed after issue");
+    }
     (
         StatusCode::CREATED,
         Json(json!({

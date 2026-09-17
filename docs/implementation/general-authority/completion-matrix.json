@@ -129,11 +129,19 @@
       "evidence": [
         {
           "command": "pnpm --filter @opensesame/policy exec vitest run src/__tests__/authority-tuple-backfill.test.ts",
-          "result": "ok. 4 passed \u2014 writes, quarantine revoked/cohort, realm rollback deletes only planned writes"
+          "result": "ok \u2014 dry-run plan/quarantine/rollback"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-provider-openfga --lib grant_tuples",
+          "result": "ok \u2014 Rust mapper mirrors GA-F-02"
+        },
+        {
+          "command": "cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- authority_grants",
+          "result": "ok \u2014 issue path still green with live projector hook"
         }
       ],
       "blockedBy": ["GA-F-02"],
-      "notes": "Plan in openfga-tuple-backfill.md; dry-run harness planGrantTupleBackfill / planTupleBackfillRollback. Live apply stays Host projector + writer lease."
+      "notes": "planGrantTupleBackfill dry-run + Host live apply on grant issue (openfga_project + grant_to_openfga_tuples) under authority_writer_lease; no-op without OpenFGA URL."
     },
     {
       "id": "GA-H-01",
@@ -421,7 +429,7 @@
         }
       ],
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Self-review #421 pass fixed: OpenFGA connection/project double-prefix, Host issue depth ceiling + validation status mapping, Identity spawn orchestrator=caller + PoP kind prefix, Identity OpenAPI authority paths, capture-evidence fail-closed press. Residual: live OpenFGA apply; fabric unsupported shuttle/OpenBao rows."
+      "notes": "Standing honesty ratchet; never closes. Self-review #421 pass fixed: OpenFGA connection/project double-prefix, Host issue depth ceiling + validation status mapping, Identity spawn orchestrator=caller + PoP kind prefix, Identity OpenAPI authority paths, capture-evidence fail-closed press. Residual: fabric unsupported shuttle/OpenBao rows."
     },
     {
       "id": "GA-Q-01",
