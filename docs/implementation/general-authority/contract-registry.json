@@ -190,8 +190,8 @@
       "owner": "GA-F",
       "title": "Tuple backfill and rollback plan",
       "invariants": ["INV-GA-03", "INV-GA-07"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "docs/.../openfga-tuple-backfill.md + packages/policy authority-tuple-backfill.ts"
     },
     {
       "id": "GA-H-01",
