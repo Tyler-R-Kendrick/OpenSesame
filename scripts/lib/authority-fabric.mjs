@@ -72,15 +72,7 @@ function resolveCargo(target, facts) {
       `${target.crate} is not a member of the Cargo workspace, so nothing in it is compiled or tested`,
     );
   }
-  const bin = typeof target.bin === "string" ? target.bin : null;
-  if (bin !== null) {
-    if (crate.binExists !== true) {
-      return blocked(
-        BLOCKED_REASONS.crateLibMissing,
-        `${target.crate} declares no bin target reachable for fabric scenarios`,
-      );
-    }
-  } else if (crate.libExists !== true) {
+  if (crate.libExists !== true) {
     return blocked(
       BLOCKED_REASONS.crateLibMissing,
       `${target.crate} declares a lib target at ${crate.libPath ?? "src/lib.rs"} that does not exist`,
@@ -93,18 +85,17 @@ function resolveCargo(target, facts) {
       `${target.module} is on disk but no mod declaration reaches it from ${target.crate}'s crate root`,
     );
   }
-  const testKey = bin !== null ? `${target.crate}#bin:${bin}` : target.crate;
   // When the gate is going to run the crate's suite anyway, that run reports
   // whether the test exists with better fidelity than a separate enumeration —
   // and enumerating first opens a window in which the tree can move between the
   // two builds. Enumeration is only consulted in the static (--no-run) mode.
   if (facts.deferTests !== true) {
-    const known = facts.tests[testKey];
+    const known = facts.tests[target.crate];
     if (known === undefined || known === null) {
       return blocked(
         BLOCKED_REASONS.enumerationFailed,
-        facts.testErrors?.[testKey] ??
-          `could not enumerate tests for ${testKey}`,
+        facts.testErrors?.[target.crate] ??
+          `could not enumerate tests for ${target.crate}`,
       );
     }
     if (!known.includes(target.test)) {
@@ -120,7 +111,7 @@ function resolveCargo(target, facts) {
     "test",
     "-p",
     target.crate,
-    ...(bin !== null ? ["--bin", bin] : ["--lib"]),
+    "--lib",
     "--",
     "--exact",
     target.test,
