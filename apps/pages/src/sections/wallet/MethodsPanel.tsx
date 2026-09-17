@@ -16,18 +16,13 @@ type AdapterRow = {
 };
 
 async function loadAdapterRows(): Promise<readonly AdapterRow[]> {
-  const [
-    { createDirectErc20DelegationAdapter, InMemorySharedAncestorCounter },
-    { describeX402Adapter },
-  ] = await Promise.all([
-    import("@opensesame/wallet-evm"),
-    import("@opensesame/wallet-x402"),
-  ]);
+  const [{ createDirectErc20DelegationAdapter }, { describeX402Adapter }] =
+    await Promise.all([
+      import("@opensesame/wallet-evm"),
+      import("@opensesame/wallet-x402"),
+    ]);
 
-  const enforcer = new InMemorySharedAncestorCounter();
-  const evm = createDirectErc20DelegationAdapter({
-    mode: { kind: "simulation", enforcer },
-  });
+  const evm = createDirectErc20DelegationAdapter();
   const evmManifest = await evm.describe({
     origin: location.origin,
     nowIso: new Date().toISOString(),
@@ -37,10 +32,10 @@ async function loadAdapterRows(): Promise<readonly AdapterRow[]> {
   return [
     {
       id: evmManifest.adapterId,
-      title: "Restricted ERC-20 transfer (simulation)",
+      title: "Restricted ERC-20 transfer",
       evidenceStatus: evmManifest.evidenceStatus,
       productionEnabled: evmManifest.productionEnabled,
-      note: "Browser path uses an in-memory counter. Period/amount shared-parent enforcement is proven under pnpm wallet:test:contracts (Anvil/forge); productionEnabled stays false.",
+      note: "Pages does not send chain transactions. Shared-parent period and amount caps are proven by forge tests on local Anvil (pnpm wallet:test:contracts). Browser prepare/execute stays refused without that runtime. productionEnabled is false.",
     },
     {
       id: x402.adapterId,
@@ -48,6 +43,20 @@ async function loadAdapterRows(): Promise<readonly AdapterRow[]> {
       evidenceStatus: x402.evidenceStatus,
       productionEnabled: x402.productionEnabled,
       note: x402.blockedReason,
+    },
+    {
+      id: "ap2-ucp-vi",
+      title: "AP2/UCP checkout evidence",
+      evidenceStatus: "fixture_verified",
+      productionEnabled: false,
+      note: "ES256 fixtures verify against a local counterparty. Trust is fixture-local, not public merchant acceptance.",
+    },
+    {
+      id: "prepaid-channel",
+      title: "Prepaid session / escrow",
+      evidenceStatus: "blocked",
+      productionEnabled: false,
+      note: "No pinned OSS prepaid-session harness in this checkout. Claims stay blocked, not mocked as complete.",
     },
   ];
 }

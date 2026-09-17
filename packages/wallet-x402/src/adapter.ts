@@ -73,7 +73,8 @@ export async function prepareX402Payment(input?: {
   readonly runtime: LocalExactRuntime;
 }): Promise<{ ref: string; expiresAt: string }> {
   if (input === undefined) throw new X402AdapterBlockedError("prepare");
-  if (isMainnetChainId(input.runtime.chainId)) throw new Error("MAINNET_DENIED");
+  if (isMainnetChainId(input.runtime.chainId))
+    throw new Error("MAINNET_DENIED");
   prepareSeq += 1;
   const prepared = await createExactPaymentPayload(input.runtime);
   const ref = `prepared:x402:${prepareSeq}`;
@@ -91,16 +92,27 @@ export async function executeX402Payment(input?: {
   if (input === undefined) throw new X402AdapterBlockedError("execute");
   const slot = preparedSlots.get(input.preparedRef);
   if (slot === undefined) {
-    return { status: "failed", detail: "PreparedExecutionRef missing or already used" };
+    return {
+      status: "failed",
+      detail: "PreparedExecutionRef missing or already used",
+    };
   }
   preparedSlots.delete(input.preparedRef);
   const settled = await settleExactPayment(slot);
   if (!settled.success) {
-    return {
-      status: "failed",
-      detail: settled.errorReason ?? "settle_failed",
-      transaction: settled.transaction,
-    };
+    return settled.transaction === undefined
+      ? {
+          status: "failed",
+          detail: settled.errorReason ?? "settle_failed",
+        }
+      : {
+          status: "failed",
+          detail: settled.errorReason ?? "settle_failed",
+          transaction: settled.transaction,
+        };
+  }
+  if (settled.transaction === undefined) {
+    return { status: "failed", detail: "settle_missing_transaction" };
   }
   return {
     status: "confirmed",

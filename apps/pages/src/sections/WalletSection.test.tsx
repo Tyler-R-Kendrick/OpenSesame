@@ -126,7 +126,12 @@ describe("WalletSection", () => {
       await screen.findByRole("heading", { name: "Execution adapters" }),
     ).toBeTruthy();
     expect(await screen.findByText("source_inspected")).toBeTruthy();
-    expect(await screen.findByText("blocked")).toBeTruthy();
+    expect((await screen.findAllByText("blocked")).length).toBeGreaterThan(0);
+    expect(await screen.findByText("fixture_verified")).toBeTruthy();
+    expect(screen.getByText("Restricted ERC-20 transfer")).toBeTruthy();
+    expect(
+      screen.queryByText(/Restricted ERC-20 transfer \(simulation\)/i),
+    ).toBeNull();
   });
 
   it("creates a conserved household budget from Budgets", async () => {

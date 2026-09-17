@@ -88,7 +88,6 @@ export async function verifyDigestBoundApproval(
   return { ok: true, verifiedMechanism: "es256" };
 }
 
-
 /** Browser-safe ephemeral P-256 signature over a digest. Test/demo only. */
 export async function signDigestWithEphemeralP256(digestHex: string): Promise<{
   verifiedBytes: Uint8Array;
@@ -99,7 +98,9 @@ export async function signDigestWithEphemeralP256(digestHex: string): Promise<{
     true,
     ["sign", "verify"],
   );
-  const spki = new Uint8Array(await crypto.subtle.exportKey("spki", pair.publicKey));
+  const spki = new Uint8Array(
+    await crypto.subtle.exportKey("spki", pair.publicKey),
+  );
   const sig = new Uint8Array(
     await crypto.subtle.sign(
       { name: "ECDSA", hash: "SHA-256" },

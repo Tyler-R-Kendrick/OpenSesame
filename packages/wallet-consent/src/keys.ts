@@ -50,7 +50,8 @@ export function verifyPaymentApprovalSignature(
   signature: Uint8Array,
   publicKeySpki: Uint8Array,
 ): boolean {
-  if (signature.byteLength === 0 || publicKeySpki.byteLength === 0) return false;
+  if (signature.byteLength === 0 || publicKeySpki.byteLength === 0)
+    return false;
   if (!/^[0-9a-f]{64}$/.test(digestHex)) return false;
   try {
     const key = createPublicKey({

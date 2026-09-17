@@ -196,9 +196,7 @@
       "status": "blocked",
       "reason": "Verified refund vs immutable on-chain period counter reconciliation not harnessed; local credit must not pretend to decrement an external counter until adapter exists.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-D20": {
       "status": "fixture_verified",
@@ -214,9 +212,7 @@
       "status": "blocked",
       "reason": "Cloned issuer UI creating a second root allocation has no independent allocator harness; unsupported issuance mode remains refused at product boundary.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-D22": {
       "status": "fixture_verified",
@@ -304,9 +300,7 @@
       "status": "blocked",
       "reason": "ERC-1271 multi-signature pre-consumption accounting not yet harnessed.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-E08": {
       "status": "fixture_verified",
@@ -357,9 +351,7 @@
       "status": "blocked",
       "reason": "Multi-challenge/redirect/CORS browser matrix not yet in wallet:test:browser.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-E13": {
       "status": "local_execution_verified",
@@ -436,25 +428,19 @@
       "status": "blocked",
       "reason": "Account/manager/token upgrade invalidation not harnessed.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-E25": {
       "status": "blocked",
       "reason": "Reorg observation/projection reconciliation not harnessed.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-E26": {
       "status": "blocked",
       "reason": "Separate fee-exposure bounding not harnessed.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-B01": {
       "status": "fixture_verified",
@@ -539,9 +525,7 @@
       "status": "blocked",
       "reason": "Service-worker update during payment not yet in QAB-04.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-B10": {
       "status": "fixture_verified",
@@ -618,17 +602,13 @@
       "status": "blocked",
       "reason": "Secret canary leak scan across logs/screenshots not yet dedicated.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-B18": {
       "status": "blocked",
       "reason": "Parent/child encrypted-material isolation not yet harnessed for Wallet keys.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "docs/evidence/wallet/claims.json"
-      ]
+      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-B19": {
       "status": "fixture_verified",
@@ -643,10 +623,7 @@
       "status": "blocked",
       "reason": "Full responsive/keyboard/SR matrix for Wallet controls deferred to pnpm --filter @opensesame/pages verify:mobile and verify:keyboard; Wallet-specific pass pending dedicated QAB walk.",
       "productionEnabled": false,
-      "evidenceRefs": [
-        "AGENTS.md",
-        "apps/pages/package.json"
-      ]
+      "evidenceRefs": ["AGENTS.md", "apps/pages/package.json"]
     },
     "wallet.capabilities.read": {
       "status": "fixture_verified",
@@ -760,10 +737,7 @@
       "status": "local_execution_verified",
       "local_execution_verified": true,
       "productionEnabled": false,
-      "sdkPins": [
-        "@x402/core@2.26.0",
-        "@x402/evm@2.26.0"
-      ],
+      "sdkPins": ["@x402/core@2.26.0", "@x402/evm@2.26.0"],
       "reason": "Anvil Exact EIP-3009 via shipped prepareX402Payment/executeX402Payment against EIP3009Mock; productionEnabled remains false"
     },
     "prepaid-channel": {

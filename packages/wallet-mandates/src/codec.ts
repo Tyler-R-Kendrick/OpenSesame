@@ -1,4 +1,4 @@
-import { type KeyLike, SignJWT, compactVerify } from "jose";
+import { type CryptoKey, SignJWT, compactVerify } from "jose";
 import { asClaims, malformedReason } from "./parse.js";
 import {
   AP2_LOCAL_PROFILE,
@@ -11,7 +11,7 @@ const ALLOWED_ALG = "ES256";
 
 export async function signMandate(
   claims: MandateClaims,
-  privateKey: KeyLike,
+  privateKey: CryptoKey,
   kid: string,
 ): Promise<string> {
   return new SignJWT({ ...claims })
@@ -35,10 +35,13 @@ function headerAlg(compact: string): MandateVerifyResult | "ok" {
   }
 }
 
+type PayloadOk = { readonly ok: true; readonly payload: unknown };
+type PayloadFail = Extract<MandateVerifyResult, { ok: false }>;
+
 async function verifiedPayload(
   compact: string,
   trust: MandateTrust,
-): Promise<{ ok: true; payload: unknown } | MandateVerifyResult> {
+): Promise<PayloadOk | PayloadFail> {
   try {
     const result = await compactVerify(compact, async (header) => {
       const kid = header.kid;

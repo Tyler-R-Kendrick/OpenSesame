@@ -2,7 +2,11 @@ import { generateKeyPair } from "jose";
 import { describe, expect, it } from "vitest";
 import { signMandate, verifyMandate } from "./codec.js";
 import { LocalMandateLedger } from "./ledger.js";
-import { AP2_LOCAL_PROFILE, type MandateClaims, type MandateTrust } from "./types.js";
+import {
+  AP2_LOCAL_PROFILE,
+  type MandateClaims,
+  type MandateTrust,
+} from "./types.js";
 
 async function fixture() {
   const issuerKeys = await generateKeyPair("ES256", { extractable: true });
@@ -58,7 +62,7 @@ describe("AP2/UCP local mandate verifier", () => {
   it("rejects constraint stripping", async () => {
     const { issuerKeys, trust, now, base } = await fixture();
     const stripped = { ...base() } as unknown as MandateClaims;
-    delete (stripped as { constraints?: unknown }).constraints;
+    (stripped as { constraints?: unknown }).constraints = undefined;
     const result = await verifyMandate({
       compact: await signMandate(stripped, issuerKeys.privateKey, "iss-1"),
       trust,

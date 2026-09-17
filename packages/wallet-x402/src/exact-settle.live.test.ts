@@ -13,6 +13,9 @@ function runtimeFromEnv(): LocalExactRuntime | null {
   const payer = process.env.WALLET_X402_PAYER_KEY;
   const facilitator = process.env.WALLET_X402_FACILITATOR_KEY;
   if (!rpcUrl || !asset || !payTo || !payer || !facilitator) return null;
+  const network = process.env.WALLET_X402_NETWORK ?? "eip155:31337";
+  const colon = network.indexOf(":");
+  if (colon <= 0 || colon === network.length - 1) return null;
   return {
     rpcUrl,
     chainId: Number(process.env.CHAIN_ID ?? "31337"),
@@ -21,7 +24,7 @@ function runtimeFromEnv(): LocalExactRuntime | null {
     asset: asset as `0x${string}`,
     payTo: payTo as `0x${string}`,
     amount: process.env.WALLET_X402_AMOUNT ?? "1000000",
-    network: process.env.WALLET_X402_NETWORK ?? "eip155:31337",
+    network: network as `${string}:${string}`,
   };
 }
 

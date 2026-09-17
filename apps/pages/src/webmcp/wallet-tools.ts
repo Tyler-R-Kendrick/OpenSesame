@@ -1,4 +1,8 @@
-import { type JsonObject, type JsonValue, isString } from "@opensesame/os-domain";
+import {
+  type JsonObject,
+  type JsonValue,
+  isString,
+} from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import {
   formatUnits,

@@ -3,9 +3,9 @@
  * Presentation passes stay in the vault; this list is authority, not cards.
  */
 
+import { signDigestWithEphemeralP256 } from "@opensesame/wallet-consent/verify";
 import { useCallback, useState } from "react";
 import { StatusNote } from "../../components/StatusNote.js";
-import { signDigestWithEphemeralP256 } from "@opensesame/wallet-consent/verify";
 import { buildLocalPaymentApprovalDigest } from "../../lib/spending-consent.js";
 import {
   clearSpendingLeases,

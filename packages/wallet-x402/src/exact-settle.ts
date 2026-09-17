@@ -8,7 +8,7 @@ import {
   toFacilitatorEvmSigner,
 } from "@x402/evm";
 import { ExactEvmScheme as FacilitatorExact } from "@x402/evm/exact/facilitator";
-import { createWalletClient, getAddress, http, publicActions } from "viem";
+import { http, createWalletClient, getAddress, publicActions } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { foundry } from "viem/chains";
 import { MAINNET_CHAIN_IDS } from "./chain-guard.js";
@@ -77,7 +77,10 @@ export async function createExactPaymentPayload(
     maxTimeoutSeconds: 600,
     extra: { name: "TEST", version: "1", assetTransferMethod: "eip3009" },
   };
-  const created = await clientScheme.createPaymentPayload(2, requirements as never);
+  const created = await clientScheme.createPaymentPayload(
+    2,
+    requirements as never,
+  );
   const payload = {
     x402Version: 2 as const,
     accepted: requirements,
@@ -103,7 +106,10 @@ export async function settleExactPayment(prepared: PreparedExactPayment) {
     prepared.requirements as never,
   );
   if (!verifyOk.isValid) {
-    return { success: false, errorReason: verifyOk.invalidReason ?? "verify_failed" };
+    return {
+      success: false,
+      errorReason: verifyOk.invalidReason ?? "verify_failed",
+    };
   }
   const settle = await facScheme.settle(
     prepared.payload as never,
