@@ -23,6 +23,11 @@ export { MAINNET_CHAIN_IDS, isMainnetChainId } from "./chain-guard.js";
 export { assessExactPayment } from "./assess.js";
 export { matchChallenge } from "./challenge.js";
 export {
+  assessExactPaymentCors,
+  type ExactCorsAssessment,
+  type ExactCorsRefusal,
+} from "./cors.js";
+export {
   PREALLOCATED_PURSE_RESIDUAL_RISK,
   type AssessExactPaymentInput,
   type AssessRefusalCode,

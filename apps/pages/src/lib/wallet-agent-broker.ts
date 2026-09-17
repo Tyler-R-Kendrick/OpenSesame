@@ -6,6 +6,8 @@
  * the authenticated session principal is the caller.
  */
 
+import { reserveTransferAndFee } from "@opensesame/wallet-budget";
+import { redactWalletExport } from "@opensesame/wallet-consent";
 import {
   type DigestBoundPaymentProof,
   type LocalPaymentApprovalIntent,
@@ -17,6 +19,10 @@ import {
   requestStopSpendingLease,
 } from "./spending-leases.js";
 import { formatUnits, getSpendingLedger } from "./spending-ledger.js";
+import {
+  type WalletWorkerState,
+  assessPaymentDuringWorkerUpdate,
+} from "./wallet-sw-payment.js";
 
 export type AgentCaller = {
   readonly principalRef: string;
@@ -157,6 +163,10 @@ export function executeApprovedWalletPayment(input: {
   readonly caller: AgentCaller;
   readonly preparedRef: string;
   readonly singleUseToken?: string;
+  readonly feeAmount?: string;
+  readonly chargeFeeFromTransferBudget?: boolean;
+  readonly workerState?: WalletWorkerState;
+  readonly controllerChanged?: boolean;
 }):
   | { ok: true; attemptId: string; state: "reserved" }
   | {
@@ -164,9 +174,21 @@ export function executeApprovedWalletPayment(input: {
       code:
         | "CALLER_NOT_AUTHORIZED"
         | "PREPARED_REF_INVALID"
-        | "INSUFFICIENT_AVAILABLE";
+        | "INSUFFICIENT_AVAILABLE"
+        | "FEE_FROM_TRANSFER_REFUSED"
+        | "INSUFFICIENT_FEE_BUDGET"
+        | "INVALID_AMOUNT"
+        | "SERVICE_WORKER_UPDATE_REQUIRES_REAUTHORIZATION";
     } {
   void input.caller;
+  const sw = assessPaymentDuringWorkerUpdate({
+    paymentInFlight: true,
+    workerState: input.workerState ?? "none",
+    controllerChanged: input.controllerChanged === true,
+  });
+  if (!sw.allowExecute) {
+    return { ok: false, code: sw.code };
+  }
   const slot = prepared.get(input.preparedRef);
   if (
     slot === undefined ||
@@ -174,6 +196,20 @@ export function executeApprovedWalletPayment(input: {
     slot.singleUseToken !== input.singleUseToken
   ) {
     return { ok: false, code: "PREPARED_REF_INVALID" };
+  }
+  const feeAmount =
+    input.feeAmount !== undefined && /^[0-9]+$/u.test(input.feeAmount)
+      ? BigInt(input.feeAmount)
+      : 0n;
+  const fees = reserveTransferAndFee({
+    transferAmount: 0n,
+    feeAmount,
+    transferRemaining: 0n,
+    feeRemaining: 0n,
+    chargeFeeFromTransferBudget: input.chargeFeeFromTransferBudget === true,
+  });
+  if (!fees.ok) {
+    return { ok: false, code: fees.code };
   }
   const attemptId = newId("attempt");
   try {
@@ -201,10 +237,10 @@ export function walletPaymentStatus(): {
   }[];
 } {
   const attempts = [...getSpendingLedger().snapshot().attempts.values()];
-  return {
-    status: "local_ledger",
-    productionEnabled: false,
-    settlesOffline: false,
+  const body = {
+    status: "local_ledger" as const,
+    productionEnabled: false as const,
+    settlesOffline: false as const,
     attempts: attempts.map((attempt) => ({
       attemptId: attempt.attemptId,
       nodeId: attempt.nodeId,
@@ -212,6 +248,7 @@ export function walletPaymentStatus(): {
       state: attempt.state,
     })),
   };
+  return JSON.parse(redactWalletExport(body)) as typeof body;
 }
 
 export function walletLeaseStatus(): {

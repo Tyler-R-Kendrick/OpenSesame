@@ -5,7 +5,30 @@
 
 import { useEffect, useState } from "react";
 import { IconCard } from "../../components/Icons.js";
+import {
+  type WalletEvidenceStatus,
+  adapterProductionEnabled,
+} from "../../lib/wallet-activation.js";
 import { TemporaryCardPanel } from "./TemporaryCardPanel.js";
+
+function productionEnabledFor(status: string, claimed: boolean): boolean {
+  if (claimed !== true) return false;
+  if (
+    status !== "specified" &&
+    status !== "source_inspected" &&
+    status !== "fixture_verified" &&
+    status !== "local_execution_verified" &&
+    status !== "target_deployment_verified" &&
+    status !== "blocked"
+  ) {
+    return false;
+  }
+  return adapterProductionEnabled({
+    evidenceStatus: status as WalletEvidenceStatus,
+    configFlag: true,
+    uiToggle: true,
+  });
+}
 
 type AdapterRow = {
   readonly id: string;
@@ -34,14 +57,20 @@ async function loadAdapterRows(): Promise<readonly AdapterRow[]> {
       id: evmManifest.adapterId,
       title: "Restricted ERC-20 transfer",
       evidenceStatus: evmManifest.evidenceStatus,
-      productionEnabled: evmManifest.productionEnabled,
+      productionEnabled: productionEnabledFor(
+        evmManifest.evidenceStatus,
+        evmManifest.productionEnabled,
+      ),
       note: "Pages does not send chain transactions. Shared-parent period and amount caps are proven by forge tests on local Anvil (pnpm wallet:test:contracts). Browser prepare/execute stays refused without that runtime. productionEnabled is false.",
     },
     {
       id: x402.adapterId,
       title: "x402 exact payment",
       evidenceStatus: x402.evidenceStatus,
-      productionEnabled: x402.productionEnabled,
+      productionEnabled: productionEnabledFor(
+        x402.evidenceStatus,
+        x402.productionEnabled,
+      ),
       note: x402.blockedReason,
     },
     {

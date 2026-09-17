@@ -31,6 +31,12 @@ Full detail: [`scripts/wallet/README.md`](../scripts/wallet/README.md).
 | Direct ERC-20 period enforcer (WAL-E01–E06/E09) | `local_execution_verified` (forge) | Real MetaMask pin contracts; `productionEnabled: false` |
 | Live x402 Exact EIP-3009 (WAL-E11/E13/E14) | `local_execution_verified` (Anvil) | Shipped `prepareX402Payment`/`executeX402Payment` against loopback RPC |
 | AP2/UCP ES256 local mandates (WAL-B10–B12) | `fixture_verified` | Fixture-local trust only; no public merchant |
+| Fee vs transfer cap (WAL-E26) | `fixture_verified` | Fees cannot be charged from the transfer allocation |
+| x402 CORS/redirect gate (WAL-E12) | `fixture_verified` | Wildcard origin, unexposed headers, and redirect credential forwarding refused |
+| SW update during payment (WAL-B09) | `fixture_verified` | In-flight execute requires reauthorization |
+| Secret canary export (WAL-B17) | `fixture_verified` | Redacted status/receipts strip CANARY_ material |
+| Parent/child wrap isolation (WAL-B18) | `fixture_verified` | Child wrapping keys cannot open parent-sealed material |
+| Wallet 390px control floors (WAL-B20) | `fixture_verified` | QAB measures visible Wallet controls; full Pages mobile/keyboard gates still apply |
 | Prepaid session / Tempo / OWS / NWC | `blocked` | No escrow implementation in-repo |
 | Issuer virtual cards | unavailable | No issuer integration |
 

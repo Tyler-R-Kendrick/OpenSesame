@@ -348,10 +348,14 @@
       "reason": "Exact facilitator verify rejects amount-mutated PaymentRequirements against a payload signed for the approved amount"
     },
     "WAL-E12": {
-      "status": "blocked",
-      "reason": "Multi-challenge/redirect/CORS browser matrix not yet in wallet:test:browser.",
+      "status": "fixture_verified",
+      "reason": "assessExactPaymentCors refuses wildcard ACAO, unexposed PAYMENT-REQUIRED/PAYMENT-SIGNATURE, and redirect credential forwarding; exact origin with exposed headers is admitted",
       "productionEnabled": false,
-      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
+      "evidenceRefs": [
+        "packages/wallet-x402/src/cors.ts",
+        "packages/wallet-x402/src/cors.test.ts",
+        "pnpm wallet:test:protocols"
+      ]
     },
     "WAL-E13": {
       "status": "local_execution_verified",
@@ -437,10 +441,15 @@
       "evidenceRefs": ["docs/evidence/wallet/claims.json"]
     },
     "WAL-E26": {
-      "status": "blocked",
-      "reason": "Separate fee-exposure bounding not harnessed.",
+      "status": "fixture_verified",
+      "reason": "reserveTransferAndFee refuses charging fees from the transfer allocation; transfer remaining is unchanged; transfer cap is not an all-in loss cap",
       "productionEnabled": false,
-      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
+      "evidenceRefs": [
+        "packages/wallet-budget/src/fee-exposure.ts",
+        "packages/wallet-budget/src/fee-exposure.test.ts",
+        "apps/pages/src/lib/wallet-agent-broker.ts",
+        "pnpm wallet:test:domain"
+      ]
     },
     "WAL-B01": {
       "status": "fixture_verified",
@@ -522,10 +531,15 @@
       ]
     },
     "WAL-B09": {
-      "status": "blocked",
-      "reason": "Service-worker update during payment not yet in QAB-04.",
+      "status": "fixture_verified",
+      "reason": "assessPaymentDuringWorkerUpdate and executeApprovedWalletPayment refuse in-flight execute while the worker is installing/activating or the controller changed; no background auto-pay",
       "productionEnabled": false,
-      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
+      "evidenceRefs": [
+        "apps/pages/src/lib/wallet-sw-payment.ts",
+        "apps/pages/src/lib/wallet-sw-payment.test.ts",
+        "apps/pages/src/lib/wallet-agent-broker.ts",
+        "pnpm wallet:test:browser"
+      ]
     },
     "WAL-B10": {
       "status": "fixture_verified",
@@ -599,16 +613,25 @@
       ]
     },
     "WAL-B17": {
-      "status": "blocked",
-      "reason": "Secret canary leak scan across logs/screenshots not yet dedicated.",
+      "status": "fixture_verified",
+      "reason": "redactWalletExport strips CANARY_ tokens, key-like prefixes, and 64-hex dumps from status/receipt exports; walletExportLeaksCanary is false",
       "productionEnabled": false,
-      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
+      "evidenceRefs": [
+        "packages/wallet-consent/src/redact.ts",
+        "packages/wallet-consent/src/redact.test.ts",
+        "apps/pages/src/lib/wallet-agent-broker.test.ts",
+        "pnpm wallet:test:security"
+      ]
     },
     "WAL-B18": {
-      "status": "blocked",
-      "reason": "Parent/child encrypted-material isolation not yet harnessed for Wallet keys.",
+      "status": "fixture_verified",
+      "reason": "AES-GCM sealWalletMaterial under a parent wrapping key cannot be opened with a child wrapping key",
       "productionEnabled": false,
-      "evidenceRefs": ["docs/evidence/wallet/claims.json"]
+      "evidenceRefs": [
+        "packages/wallet-consent/src/wrap.ts",
+        "packages/wallet-consent/src/wrap.test.ts",
+        "pnpm wallet:test:security"
+      ]
     },
     "WAL-B19": {
       "status": "fixture_verified",
@@ -620,10 +643,14 @@
       ]
     },
     "WAL-B20": {
-      "status": "blocked",
-      "reason": "Full responsive/keyboard/SR matrix for Wallet controls deferred to pnpm --filter @opensesame/pages verify:mobile and verify:keyboard; Wallet-specific pass pending dedicated QAB walk.",
+      "status": "fixture_verified",
+      "reason": "QAB WAL-B20 measures visible Wallet controls at 390px width (44px/16px floors); Pages verify:mobile and verify:keyboard remain the full-app gates",
       "productionEnabled": false,
-      "evidenceRefs": ["AGENTS.md", "apps/pages/package.json"]
+      "evidenceRefs": [
+        "scripts/wallet/browser-harness.mjs",
+        "pnpm wallet:test:browser",
+        "docs/evidence/wallet/last-run.json"
+      ]
     },
     "wallet.capabilities.read": {
       "status": "fixture_verified",

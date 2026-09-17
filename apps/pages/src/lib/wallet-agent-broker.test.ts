@@ -2,6 +2,10 @@ import {
   generatePaymentApprovalKeyPair,
   signPaymentApprovalDigest,
 } from "@opensesame/wallet-consent";
+import {
+  redactWalletExport,
+  walletExportLeaksCanary,
+} from "@opensesame/wallet-consent";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -20,6 +24,7 @@ import {
   proposeWalletPayment,
   requestWalletLeaseStop,
   resetWalletAgentBroker,
+  walletPaymentStatus,
 } from "./wallet-agent-broker.js";
 
 function ensureLocalStorage(): void {
@@ -173,6 +178,66 @@ describe("wallet-agent-broker", () => {
       proof: { boundDigest: digest, mechanism: "webauthn" },
     });
     expect(unsigned).toEqual({ ok: false, code: "unverified_assurance" });
+  });
+
+  it("refuses charging fees from the transfer allocation (WAL-E26)", async () => {
+    const proposed = proposeWalletPayment({
+      caller,
+      nodeId: "child-a",
+      amount: "10",
+      destination: "0xabc",
+    });
+    expect(proposed.ok).toBe(true);
+    if (!proposed.ok) return;
+    const issued = await approvedIssue(proposed.proposal.proposalId, "10");
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) return;
+    const before = getSpendingLedger().project("household")?.locallyAvailable;
+    const refused = executeApprovedWalletPayment({
+      caller,
+      preparedRef: issued.prepared.ref,
+      singleUseToken: issued.prepared.singleUseToken,
+      feeAmount: "2",
+      chargeFeeFromTransferBudget: true,
+    });
+    expect(refused).toEqual({ ok: false, code: "FEE_FROM_TRANSFER_REFUSED" });
+    expect(getSpendingLedger().project("household")?.locallyAvailable).toBe(
+      before,
+    );
+  });
+
+  it("refuses execute when the service worker updates mid-payment (WAL-B09)", async () => {
+    const proposed = proposeWalletPayment({
+      caller,
+      nodeId: "child-a",
+      amount: "10",
+      destination: "0xabc",
+    });
+    expect(proposed.ok).toBe(true);
+    if (!proposed.ok) return;
+    const issued = await approvedIssue(proposed.proposal.proposalId, "10");
+    expect(issued.ok).toBe(true);
+    if (!issued.ok) return;
+    const refused = executeApprovedWalletPayment({
+      caller,
+      preparedRef: issued.prepared.ref,
+      singleUseToken: issued.prepared.singleUseToken,
+      workerState: "activating",
+    });
+    expect(refused).toEqual({
+      ok: false,
+      code: "SERVICE_WORKER_UPDATE_REQUIRES_REAUTHORIZATION",
+    });
+  });
+
+  it("redacts a secret canary from payment status exports (WAL-B17)", () => {
+    const canary = "CANARY_wallet_status_export_secret";
+    const exported = redactWalletExport({
+      ...walletPaymentStatus(),
+      secret: canary,
+    });
+    expect(walletExportLeaksCanary(exported, [canary])).toBe(false);
+    expect(exported).not.toContain(canary);
   });
 
   it("does not expose secret/PAN/sign tools via stop", () => {

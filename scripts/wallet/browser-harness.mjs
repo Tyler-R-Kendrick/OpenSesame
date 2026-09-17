@@ -134,6 +134,35 @@ async function runPlaywrightQab() {
     );
     check(loopbackHits.length === 0, "no loopback requests during Wallet boot");
 
+    setStep("WAL-B20-narrow-wallet");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(400);
+    const controlSizes = await page.evaluate(() => {
+      const nodes = [
+        ...document.querySelectorAll("button, a.btn, .btn, [role='tab']"),
+      ];
+      return nodes
+        .map((node) => {
+          const box = node.getBoundingClientRect();
+          if (box.height <= 0 || box.width <= 0) return null;
+          const style = getComputedStyle(node);
+          return {
+            h: box.height,
+            font: Number.parseFloat(style.fontSize),
+          };
+        })
+        .filter((row) => row !== null);
+    });
+    check(
+      controlSizes.length > 0,
+      "WAL-B20: Wallet has visible controls at 390px",
+    );
+    check(
+      controlSizes.every((row) => row.h >= 44 || row.font >= 16),
+      "WAL-B20: visible Wallet controls meet 44px/16px floors at 390px",
+    );
+    await page.setViewportSize({ width: 1280, height: 900 });
+
     setStep("QAB-03-forged-origin");
     const beforeStorage = await page.evaluate(() => {
       const keys = [];
@@ -321,6 +350,9 @@ async function main() {
     "src/lib/wallet-isolation-claims.test.ts",
     "src/lib/wallet-budget-labels.test.ts",
     "src/lib/wallet-origin-profile.test.ts",
+    "src/lib/wallet-sw-payment.test.ts",
+    "src/lib/wallet-activation.test.ts",
+    "src/lib/wallet-agent-broker.test.ts",
   ]);
   results.push({
     suite: "browser-vitest",

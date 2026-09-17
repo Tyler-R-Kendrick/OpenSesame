@@ -14,6 +14,16 @@ export {
   verifyPaymentApprovalSignature,
 } from "./keys.js";
 export {
+  redactWalletExport,
+  walletExportLeaksCanary,
+} from "./redact.js";
+export {
+  generateWalletWrappingKey,
+  openWalletMaterial,
+  sealWalletMaterial,
+  type SealedWalletMaterial,
+} from "./wrap.js";
+export {
   type DigestBoundApprovalRefusal,
   type DigestBoundApprovalResult,
   type DigestBoundPaymentProof,
