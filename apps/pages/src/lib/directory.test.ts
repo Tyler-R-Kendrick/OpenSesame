@@ -15,7 +15,6 @@ import {
   rotateOAuthClient,
   unlinkIdentity,
 } from "./directory.js";
-
 const identityFetch = vi.hoisted(() => vi.fn());
 
 import { identitySeams } from "./identity.js";
@@ -168,6 +167,7 @@ describe("directory client", () => {
         sectorIdentifier: "https://ci.example.com",
         tokenEndpointAuthMethod: "none",
         allowedScopes: ["openid"],
+        grantTypes: ["authorization_code", "refresh_token"],
         createdAt: "2026-08-01T00:00:00Z",
         updatedAt: "2026-08-01T00:00:00Z",
       },

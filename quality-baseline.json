@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 545,
-    "violations": 879,
-    "oversizedLines": 276739
+    "violations": 878,
+    "oversizedLines": 276735
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1171,9 +1171,8 @@
     },
     "apps/pages/src/tutorial/session.ts": {
       "complexity": 1,
-      "max-lines": 956,
-      "max-lines-per-function": 2,
-      "max-statements": 1
+      "max-lines": 952,
+      "max-lines-per-function": 2
     },
     "apps/pages/src/tutorial/ui/SupportPanel.tsx": {
       "max-lines-per-function": 1

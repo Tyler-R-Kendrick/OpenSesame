@@ -493,10 +493,6 @@ export function createSupportController(
     async ask(question) {
       const gate = gateSupportAsk(question, state.thinking);
       if (gate.kind === "skip") return;
-      if (gate.kind === "refused") {
-        push("note", gate.message, []);
-        return;
-      }
       const { text } = gate;
       push("question", text, []);
       set({ error: null });
