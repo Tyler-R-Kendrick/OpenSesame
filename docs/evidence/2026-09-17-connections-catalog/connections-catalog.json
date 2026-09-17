@@ -1,0 +1,42 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "Connections" },
+        { "shot": "390-connections" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "Connections" },
+        { "shot": "1280-connections" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-connections",
+      "width": 390,
+      "title": "Connections catalog — 390 × 844",
+      "caption": "Guest opens Connections. Managed Vercel connectors lead, then Identity through Wallet. Stripe stays in the browse list as Not connectable.",
+      "before": "Host catalog groups, no Managed heading",
+      "after": "Managed group first; Not configured / Not connectable chips"
+    },
+    {
+      "shot": "1280-connections",
+      "width": 1280,
+      "title": "Connections catalog — 1280 × 800",
+      "caption": "Same walk at desktop width with the rail. Custom connector stays a real tab stop; browse tiles are listed, not sequential Tab stops.",
+      "before": "Host catalog without Managed / Vercel browse rows",
+      "after": "Managed, Identity, Backup/recovery leading; Custom connector in the head"
+    }
+  ]
+}
