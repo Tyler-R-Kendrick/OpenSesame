@@ -3,6 +3,7 @@
  * decoration — so refresh, share, and click all land on the same area.
  */
 
+import { accessPath, isAccessView } from "./access-routes.js";
 import { itemTypeRegistry, typePlural } from "./vault/item-types.js";
 import { type ItemKind, KIND_LABEL } from "./vault/model.js";
 
@@ -156,7 +157,7 @@ export function crumbsFor(
   if (parts[0] === "settings") {
     return settingsCrumbs(parts);
   }
-  if (parts[0] === "access") return current("Access");
+  if (parts[0] === "access") return accessCrumbs(parts);
   if (parts[0] === "identity") return current("Identity");
   if (parts[0] === "wallet") return walletCrumbs(parts);
   return [];
@@ -165,6 +166,34 @@ export function crumbsFor(
 function current(label: string): Crumb[] {
   return [{ label }];
 }
+
+function accessCrumbs(parts: string[]): Crumb[] {
+  if (parts[1] === "new") {
+    return [{ label: "Access", to: "/access" }, { label: "new" }];
+  }
+  if (parts[1] === "import") {
+    return [{ label: "Access", to: "/access" }, { label: "import" }];
+  }
+  const tab = parts[1];
+  if (!tab || !isAccessView(tab) || tab === "grants") {
+    return [{ label: "Access" }];
+  }
+  const crumbs: Crumb[] = [{ label: "Access", to: "/access" }, { label: tab }];
+  if (parts[2] === "new") {
+    crumbs[1] = { label: tab, to: accessPath(tab) };
+    crumbs.push({ label: "new" });
+  }
+  return crumbs;
+}
+
+export {
+  accessImportPath,
+  accessIsImportCeremony,
+  accessIsNewCeremony,
+  accessNewPath,
+  accessPath,
+  accessViewFromLocation,
+} from "./access-routes.js";
 
 function vaultCrumbs(
   parts: string[],

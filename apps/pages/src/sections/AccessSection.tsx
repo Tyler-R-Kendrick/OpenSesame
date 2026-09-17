@@ -14,7 +14,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { EmptyTip, emptyTips } from "../components/EmptyTip.js";
 import {
   IconAlert,
@@ -80,7 +80,7 @@ import {
 import { useOnline } from "../lib/use-online.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import type { SecretItem, VaultItem } from "../lib/vault/model.js";
-import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
+import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { AccessAuthority } from "./access/AccessAuthority.js";
 import { ApprovalInbox } from "./access/ApprovalInbox.js";
 import { ClaimAccessCeremony } from "./access/ClaimAccessCeremony.js";
@@ -96,74 +96,24 @@ import { PolicyEditor } from "./connections/PolicyEditor.js";
 import { type Flash, STATUS_CHIP, errorText } from "./connections/shared.js";
 import "./connections.css";
 import "./access.css";
-import { ACCESS_VIEWS, useSectionView } from "../lib/section-views.js";
-import { ACCESS_TABS, AccessTabButton } from "./access/AccessTabs.js";
+import {
+  accessIsImportCeremony,
+  accessIsNewCeremony,
+  accessPath,
+  accessViewFromLocation,
+  grantCeremonyPath,
+} from "../lib/access-routes.js";
+import { AccessBookPanel } from "./access/AccessBookPanel.js";
+import { AccessPathbar } from "./access/AccessPathbar.js";
+import { ACCESS_TABS, AccessTabLink } from "./access/AccessTabs.js";
 import { ConnectorsPanel } from "./access/ConnectorsPanel.js";
-
-type GrantTarget =
-  | { kind: "connection"; connection: Connection }
-  | { kind: "secret"; secret: SecretItem };
-
-type CeremonyState = { target: GrantTarget | null } | null;
-
-type CeremonyStep = "target" | "assign" | "scope" | "mint" | "code";
-
-const CEREMONY_STEPS: Array<{ id: CeremonyStep; label: string }> = [
-  { id: "target", label: "Target" },
-  { id: "assign", label: "Who" },
-  { id: "scope", label: "Scope" },
-  { id: "mint", label: "Review" },
-];
-
-/** One identity a grant is meant for. */
-type GrantRecipient = {
-  kind: BindingTargetKind;
-  id: string;
-};
-
-/** Who a grant is meant for. Named identities are bound to the connection;
- * the time-boxed authority still comes only from the claim. */
-type Assignment =
-  | { kind: "anyone" }
-  | { kind: "bound"; recipients: GrantRecipient[] };
-
-type ScopeInput = {
-  actions: string[];
-  resources: string[];
-  executionMode: "broker" | "relay";
-  expiresInSeconds: number;
-};
-
-type MintedCode = {
-  claimToken: string;
-  userCode: string;
-  expiresAt: string;
-  assignment: Assignment;
-  /** Set when an identity binding failed after a successful mint. */
-  bindWarning: string | null;
-};
-
-function recipientLabel(recipient: GrantRecipient): string {
-  return recipient.kind === "identity"
-    ? recipient.id
-    : `${recipient.kind}:${recipient.id}`;
-}
-
-function assignmentLabel(assignment: Assignment): string {
-  if (assignment.kind === "anyone") return "Anyone with the code";
-  return assignment.recipients.map(recipientLabel).join(", ");
-}
-
-/** Human duration for the review screen — never raw seconds. */
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds} seconds`;
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return minutes === 1 ? "1 minute" : `${minutes} minutes`;
-  const hours = Math.round(seconds / 3600);
-  if (hours < 24) return hours === 1 ? "1 hour" : `${hours} hours`;
-  const days = Math.round(seconds / 86_400);
-  return days === 1 ? "1 day" : `${days} days`;
-}
+import { GrantCeremony } from "./access/GrantCeremony.js";
+import {
+  connectionMatches,
+  secretMatches,
+} from "./access/GrantCeremonySteps.js";
+import { ImportAccessCeremony } from "./access/ImportAccessCeremony.js";
+import { type GrantTarget, parseCsv } from "./access/grant-ceremony-types.js";
 
 /**
  * Access — the grantor's PAM plane (ADR 0061). Five tabs, one mounted at a
@@ -173,20 +123,50 @@ function formatDuration(seconds: number): string {
 export function AccessSection() {
   const online = useOnline();
   const tomb = useVaultStore().activeTomb();
-  const [tab, setTab] = useSectionView(ACCESS_VIEWS, "grants");
-  const [ceremony, setCeremony] = useState<CeremonyState>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const tab = accessViewFromLocation(location.pathname, location.search);
+  const adding = accessIsNewCeremony(location.pathname);
+  const importing = accessIsImportCeremony(location.pathname);
+  const grantQuery = new URLSearchParams(location.search);
+  const preselectConnection = grantQuery.get("connection");
+  const preselectSecret = grantQuery.get("secret");
   const [policyFocus, setPolicyFocus] = useState<string | null>(null);
+  const [bookEpoch, setBookEpoch] = useState(0);
   const [authorityRevision, setAuthorityRevision] = useState(0);
-  function openGrant(target: GrantTarget | null) {
-    setCeremony({ target });
-    setTab("grants");
-  }
-  function openPolicy(connectionId: string) {
-    setPolicyFocus(connectionId);
-    setTab("policies");
-  }
+
+  const openGrant = useCallback(
+    (target: GrantTarget | null) => {
+      if (target === null) {
+        navigate(grantCeremonyPath(null));
+        return;
+      }
+      if (target.kind === "connection") {
+        navigate(
+          grantCeremonyPath({
+            connectionId: target.connection.connectionId,
+          }),
+        );
+        return;
+      }
+      navigate(grantCeremonyPath({ secretId: target.secret.id }));
+    },
+    [navigate],
+  );
+
+  const openPolicy = useCallback(
+    (connectionId: string) => {
+      setPolicyFocus(connectionId);
+      navigate(accessPath("policies"));
+    },
+    [navigate],
+  );
 
   const clearPolicyFocus = useCallback(() => setPolicyFocus(null), []);
+
+  useEffect(() => {
+    if (tab !== "policies") setPolicyFocus(null);
+  }, [tab]);
 
   // Each view exposes local authority independently of optional Host controls.
   const hostConfigured = useHostConfigured();
@@ -200,40 +180,59 @@ export function AccessSection() {
         onChanged={() => setAuthorityRevision((value) => value + 1)}
       />
 
-      <div className="access-tabs" role="tablist" aria-label="Access views">
+      <AccessPathbar pathname={location.pathname} tab={tab} />
+
+      <nav className="access-tabs" role="tablist" aria-label="Access views">
         {ACCESS_TABS.map(({ id, label, guideId }) => (
-          <AccessTabButton
+          <AccessTabLink
             key={id}
             guideId={guideId}
             label={label}
-            active={tab === id}
-            onSelect={() => setTab(id)}
+            to={accessPath(id)}
+            current={tab === id && !adding && !importing}
           />
         ))}
-      </div>
+      </nav>
 
-      {tab === "grants" ? (
+      {importing ? (
+        <ImportAccessCeremony
+          onDone={() => {
+            setBookEpoch((value) => value + 1);
+            navigate(accessPath("grants"));
+          }}
+        />
+      ) : null}
+      {adding ? (
+        <GuideTarget id="access.grant-ceremony">
+          <GrantCeremony
+            online={online}
+            hostConfigured={hostConfigured}
+            preselectConnection={preselectConnection}
+            preselectSecret={preselectSecret}
+            onClose={() => {
+              setBookEpoch((value) => value + 1);
+              setAuthorityRevision((value) => value + 1);
+              navigate(accessPath("grants"));
+            }}
+          />
+        </GuideTarget>
+      ) : null}
+
+      {!adding && !importing && tab === "grants" ? (
         <>
+          <AccessBookPanel key={bookEpoch} epoch={bookEpoch} />
           <LocalAuthorityPanel key={tomb} tomb={tomb} grantsOnly />
           <LocalSharePanel key={`${tomb}-shares`} tomb={tomb} />
-          {!hostConfigured ? null : ceremony === null ? (
+          {hostConfigured ? (
             <GrantsPanel
               key={authorityRevision}
               online={online}
               onGrantAccess={openGrant}
             />
-          ) : (
-            <GuideTarget id="access.grant-ceremony">
-              <GrantCeremony
-                online={online}
-                initialTarget={ceremony.target}
-                onClose={() => setCeremony(null)}
-              />
-            </GuideTarget>
-          )}
+          ) : null}
         </>
       ) : null}
-      {tab === "requests" ? (
+      {!adding && !importing && tab === "requests" ? (
         <>
           <ApprovalInbox online={online} />
           {!hostConfigured ? null : (
@@ -243,18 +242,20 @@ export function AccessSection() {
           )}
         </>
       ) : null}
-      {tab === "sessions" ? (
+      {!adding && !importing && tab === "sessions" ? (
         <SessionsPanel key={authorityRevision} online={online} />
       ) : null}
-      {tab === "connectors" ? <ConnectorsPanel key={tomb} tomb={tomb} /> : null}
-      {tab === "resources" ? (
+      {!adding && !importing && tab === "connectors" ? (
+        <ConnectorsPanel key={tomb} tomb={tomb} />
+      ) : null}
+      {!adding && !importing && tab === "resources" ? (
         <ResourcesPanel
           online={online}
           onGrant={openGrant}
           onPolicy={openPolicy}
         />
       ) : null}
-      {tab === "policies" ? (
+      {!adding && !importing && tab === "policies" ? (
         <>
           <LocalPoliciesPanel />
           {hostConfigured ? (
@@ -282,19 +283,6 @@ function isSecret(item: VaultItem): item is SecretItem {
   return item.kind === "secret" && item.deletedAt === null;
 }
 
-function targetName(target: GrantTarget): string {
-  return target.kind === "connection"
-    ? target.connection.displayName
-    : target.secret.name;
-}
-
-function parseCsv(text: string): string[] {
-  return text
-    .split(",")
-    .map((value) => value.trim())
-    .filter((value) => value !== "");
-}
-
 /* ------------------------------------------------------------------ grants */
 
 function GrantsPanel({
@@ -311,7 +299,6 @@ function GrantsPanel({
   const [flash, setFlash] = useState<Flash | null>(null);
   const run = useRef(0);
   const now = useNow(30_000);
-  const grantRef = useGuideTarget<HTMLButtonElement>("access.grant-access");
 
   const load = useCallback(async () => {
     const id = ++run.current;
@@ -376,7 +363,6 @@ function GrantsPanel({
             <IconRefresh />
           </button>
           <button
-            ref={grantRef}
             type="button"
             className="btn btn--primary"
             disabled={!online}
@@ -676,934 +662,6 @@ function NarrowForm({
         </button>
       </div>
     </form>
-  );
-}
-
-/* ----------------------------------------------------- ceremony: grant access */
-
-function GrantCeremony({
-  online,
-  initialTarget,
-  onClose,
-}: {
-  online: boolean;
-  initialTarget: GrantTarget | null;
-  onClose: () => void;
-}) {
-  const vault = useVault();
-  const [step, setStep] = useState<CeremonyStep>(
-    initialTarget === null ? "target" : "assign",
-  );
-  const [target, setTarget] = useState<GrantTarget | null>(initialTarget);
-  const [assignment, setAssignment] = useState<Assignment>({ kind: "anyone" });
-  const [scope, setScope] = useState<ScopeInput | null>(null);
-  const [code, setCode] = useState<MintedCode | null>(null);
-  const [connections, setConnections] = useState<Connection[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const run = useRef(0);
-
-  const load = useCallback(async () => {
-    const id = ++run.current;
-    try {
-      const rows = await listConnections();
-      if (run.current !== id) return;
-      setConnections(rows);
-      setLoadError(null);
-    } catch (caught) {
-      if (run.current !== id) return;
-      setConnections(null);
-      setLoadError(accessErrorText(caught));
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const secrets = useMemo(
-    () =>
-      vault.status === "unlocked"
-        ? vault.items
-            .filter(isSecret)
-            .sort((a, b) => a.name.localeCompare(b.name))
-        : [],
-    [vault.items, vault.status],
-  );
-
-  // A secret grants through its ConnectionRef; the offer item needs the
-  // connection's id, so the ref has to resolve against the Host's list.
-  const resolved = useMemo(() => {
-    if (target === null || connections === null) return null;
-    if (target.kind === "connection") return target.connection;
-    return (
-      connections.find(
-        (connection) =>
-          connection.connectionRef === target.secret.connectionRef,
-      ) ?? null
-    );
-  }, [target, connections]);
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Grant access</h2>
-        </div>
-        <button
-          type="button"
-          className="btn btn--sm btn--ghost"
-          onClick={onClose}
-        >
-          Cancel
-        </button>
-      </div>
-
-      <div className="panel__body">
-        {step !== "code" ? (
-          <ol className="grant-steps" aria-label="Grant access steps">
-            {CEREMONY_STEPS.map((entry) => (
-              <li
-                key={entry.id}
-                className={
-                  entry.id === step
-                    ? "grant-steps__step is-current"
-                    : "grant-steps__step"
-                }
-                aria-current={entry.id === step ? "step" : undefined}
-              >
-                {entry.label}
-              </li>
-            ))}
-          </ol>
-        ) : null}
-        {step === "target" ? (
-          <TargetStep
-            connections={connections}
-            loadError={loadError}
-            secrets={secrets}
-            vaultStatus={vault.status}
-            onPick={(picked) => {
-              setTarget(picked);
-              setStep("assign");
-            }}
-            onRetry={() => void load()}
-          />
-        ) : null}
-        {step === "assign" && target !== null ? (
-          <AssignStep
-            target={target}
-            connection={resolved}
-            onBack={initialTarget === null ? () => setStep("target") : null}
-            onAssign={(next) => {
-              setAssignment(next);
-              setStep("scope");
-            }}
-          />
-        ) : null}
-        {step === "scope" && target !== null ? (
-          <ScopeStep
-            target={target}
-            connection={resolved}
-            connectionsReady={connections !== null}
-            online={online}
-            onBack={() => setStep("assign")}
-            onScope={(next) => {
-              setScope(next);
-              setStep("mint");
-            }}
-          />
-        ) : null}
-        {step === "mint" && target !== null && scope !== null ? (
-          <MintStep
-            target={target}
-            connection={resolved}
-            assignment={assignment}
-            scope={scope}
-            online={online}
-            onBack={() => setStep("scope")}
-            onMinted={(minted, bindWarning) => {
-              setCode({
-                claimToken: minted.claimToken,
-                userCode: minted.userCode,
-                expiresAt: minted.offer.expiresAt,
-                assignment,
-                bindWarning,
-              });
-              setStep("code");
-            }}
-          />
-        ) : null}
-        {step === "code" && code !== null ? (
-          <CodeCard code={code} onDone={onClose} />
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-function connectionMatches(connection: Connection, query: string): boolean {
-  const haystack = [
-    connection.displayName,
-    connection.logicalName,
-    connection.connectionRef,
-    connection.providerId,
-  ]
-    .join("\n")
-    .toLowerCase();
-  return haystack.includes(query);
-}
-
-function secretMatches(item: SecretItem, query: string): boolean {
-  const haystack = [item.name, item.connectionRef].join("\n").toLowerCase();
-  return haystack.includes(query);
-}
-
-function TargetStep({
-  connections,
-  loadError,
-  secrets,
-  vaultStatus,
-  onPick,
-  onRetry,
-}: {
-  connections: Connection[] | null;
-  loadError: string | null;
-  secrets: SecretItem[];
-  vaultStatus: string;
-  onPick: (target: GrantTarget) => void;
-  onRetry: () => void;
-}) {
-  const [query, setQuery] = useState("");
-  const needle = query.trim().toLowerCase();
-  const shownConnections = (connections ?? []).filter(
-    (connection) => !needle || connectionMatches(connection, needle),
-  );
-  const shownSecrets = secrets.filter(
-    (item) => !needle || secretMatches(item, needle),
-  );
-
-  return (
-    <>
-      <div className="field access-search">
-        <label className="label" htmlFor="grant-target-search">
-          <IconSearch /> Search targets
-        </label>
-        <input
-          id="grant-target-search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Name or reference…"
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </div>
-
-      {loadError ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> {loadError}{" "}
-          <button type="button" className="btn btn--sm" onClick={onRetry}>
-            Retry
-          </button>
-        </p>
-      ) : null}
-
-      {connections === null && !loadError ? (
-        <output className="note">Asking the Host…</output>
-      ) : null}
-
-      {connections !== null ? (
-        <>
-          <h3 className="access-group__label">Connections</h3>
-          {shownConnections.length > 0 ? (
-            <ul className="access-targets">
-              {shownConnections.map((connection) => (
-                <li key={connection.connectionId}>
-                  <button
-                    type="button"
-                    className="access-target"
-                    onClick={() => onPick({ kind: "connection", connection })}
-                  >
-                    <span className="access-target__name">
-                      {connection.displayName}
-                    </span>
-                    <code className="access-ref">
-                      {connection.connectionRef}
-                    </code>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="hint">No connections match.</p>
-          )}
-        </>
-      ) : null}
-
-      {vaultStatus === "unlocked" ? (
-        <>
-          <h3 className="access-group__label">Secrets</h3>
-          {shownSecrets.length > 0 ? (
-            <ul className="access-targets">
-              {shownSecrets.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className="access-target"
-                    onClick={() => onPick({ kind: "secret", secret: item })}
-                  >
-                    <span className="access-target__name">{item.name}</span>
-                    <code className="access-ref">
-                      {item.connectionRef.trim() || "—"}
-                    </code>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="hint">No secrets match.</p>
-          )}
-        </>
-      ) : vaultStatus === "locked" ? (
-        <p className="hint">Unlock the vault to grant secrets.</p>
-      ) : null}
-    </>
-  );
-}
-
-const DURATION_PRESETS: Array<{ label: string; seconds: number }> = [
-  { label: "1h", seconds: 3_600 },
-  { label: "8h", seconds: 28_800 },
-  { label: "1d", seconds: 86_400 },
-  { label: "1w", seconds: 604_800 },
-];
-
-function ScopeStep({
-  target,
-  connection,
-  connectionsReady,
-  online,
-  onBack,
-  onScope,
-}: {
-  target: GrantTarget;
-  connection: Connection | null;
-  connectionsReady: boolean;
-  online: boolean;
-  onBack: () => void;
-  onScope: (scope: ScopeInput) => void;
-}) {
-  const secret = target.kind === "secret" ? target.secret : null;
-  const ceiling = secret?.ceiling ?? [];
-  const ceilingActions = new Set(ceiling.map((grant) => grant.action));
-  const ceilingResources = new Set(ceiling.map((grant) => grant.resource));
-
-  const [actionsText, setActionsText] = useState(() =>
-    [...ceilingActions].join(", "),
-  );
-  const [resourcesText, setResourcesText] = useState(() =>
-    [...ceilingResources].join(", "),
-  );
-  const [mode, setMode] = useState<"broker" | "relay">("broker");
-  const [preset, setPreset] = useState(3_600);
-  const [customText, setCustomText] = useState("");
-
-  const actions = parseCsv(actionsText);
-  const resources = parseCsv(resourcesText);
-  // A secret's scope may only ever narrow its ceiling — anything the ceiling
-  // does not imply blocks the step (ADR 0019).
-  const outside =
-    secret === null
-      ? []
-      : [
-          ...actions.filter((action) => !ceilingActions.has(action)),
-          ...resources.filter((resource) => !ceilingResources.has(resource)),
-        ];
-  const customSeconds = Number(customText);
-  const customValid =
-    customText.trim() !== "" &&
-    Number.isInteger(customSeconds) &&
-    customSeconds > 0;
-  const customInvalid = customText.trim() !== "" && !customValid;
-  const expiresInSeconds = customValid ? customSeconds : preset;
-  const unresolvable =
-    secret !== null && connectionsReady && connection === null;
-  const emptySecretScope =
-    secret !== null && (actions.length === 0 || resources.length === 0);
-  const blocked =
-    outside.length > 0 || unresolvable || emptySecretScope || customInvalid;
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (blocked) return;
-    onScope({ actions, resources, executionMode: mode, expiresInSeconds });
-  }
-
-  return (
-    <form onSubmit={submit}>
-      <p className="access-ceremony__target">
-        <strong>{targetName(target)}</strong>{" "}
-        <code className="access-ref">
-          {connection?.connectionRef ?? secret?.connectionRef ?? ""}
-        </code>
-      </p>
-
-      {secret !== null ? (
-        <div className="access-ceiling-context">
-          <span className="access-secret__label">Ceiling</span>
-          {ceiling.length > 0 ? (
-            <span className="access-chips">
-              {ceiling.map((grant) => (
-                <span className="chip" key={grant.id}>
-                  {grant.action} → {grant.resource}
-                </span>
-              ))}
-            </span>
-          ) : (
-            <span className="hint">Empty.</span>
-          )}
-        </div>
-      ) : null}
-
-      <div className="field">
-        <label className="label" htmlFor="grant-actions">
-          Actions
-        </label>
-        <input
-          id="grant-actions"
-          value={actionsText}
-          onChange={(event) => setActionsText(event.target.value)}
-          placeholder="repository.read, repository.write"
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </div>
-      <div className="field">
-        <label className="label" htmlFor="grant-resources">
-          Resources
-        </label>
-        <input
-          id="grant-resources"
-          value={resourcesText}
-          onChange={(event) => setResourcesText(event.target.value)}
-          placeholder="repo:acme/*"
-          spellCheck={false}
-          autoComplete="off"
-        />
-      </div>
-
-      <fieldset className="access-fieldset">
-        <legend className="label">Execution mode</legend>
-        <label className="access-radio">
-          <input
-            type="radio"
-            name="grant-mode"
-            value="broker"
-            checked={mode === "broker"}
-            onChange={() => setMode("broker")}
-          />
-          Broker
-        </label>
-        <label className="access-radio">
-          <input
-            type="radio"
-            name="grant-mode"
-            value="relay"
-            checked={mode === "relay"}
-            onChange={() => setMode("relay")}
-          />
-          Relay — each use needs approval
-        </label>
-      </fieldset>
-
-      <fieldset className="access-fieldset">
-        <legend className="label">Duration</legend>
-        <div className="access-duration">
-          {DURATION_PRESETS.map((option) => (
-            <button
-              key={option.seconds}
-              type="button"
-              className={`btn btn--sm${
-                preset === option.seconds && customText.trim() === ""
-                  ? " is-active"
-                  : " btn--ghost"
-              }`}
-              aria-pressed={
-                preset === option.seconds && customText.trim() === ""
-              }
-              onClick={() => {
-                setPreset(option.seconds);
-                setCustomText("");
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-        <div className="field">
-          <label className="label" htmlFor="grant-custom-seconds">
-            Custom seconds
-          </label>
-          <input
-            id="grant-custom-seconds"
-            value={customText}
-            onChange={(event) => setCustomText(event.target.value)}
-            inputMode="numeric"
-            placeholder="3600"
-            spellCheck={false}
-            autoComplete="off"
-          />
-        </div>
-      </fieldset>
-
-      {outside.length > 0 ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> Outside the ceiling: {outside.join(", ")}.
-        </p>
-      ) : null}
-      {emptySecretScope ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> Keep at least one action and one resource.
-        </p>
-      ) : null}
-      {unresolvable ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> No Host connection matches this secret&apos;s reference.
-        </p>
-      ) : null}
-      {customInvalid ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> Custom seconds must be a positive whole number.
-        </p>
-      ) : null}
-
-      <div className="actions">
-        <button
-          type="button"
-          className="btn btn--sm btn--ghost"
-          onClick={onBack}
-        >
-          ← Target
-        </button>
-        <button
-          type="submit"
-          className="btn btn--primary"
-          disabled={blocked || !online}
-        >
-          Continue
-        </button>
-      </div>
-    </form>
-  );
-}
-
-const RECIPIENT_KINDS: Array<{ id: BindingTargetKind; label: string }> = [
-  { id: "agent", label: "Agent" },
-  { id: "identity", label: "Person" },
-  { id: "device", label: "Device" },
-  { id: "group", label: "Group" },
-  { id: "project", label: "Project" },
-  { id: "organization", label: "Organization" },
-];
-
-function AssignStep({
-  target,
-  connection,
-  onBack,
-  onAssign,
-}: {
-  target: GrantTarget;
-  connection: Connection | null;
-  onBack: (() => void) | null;
-  onAssign: (assignment: Assignment) => void;
-}) {
-  const grantees = target.kind === "secret" ? target.secret.grantees : [];
-  const boundAgents = (connection?.bindings ?? [])
-    .filter((binding) => binding.targetKind === "agent")
-    .map((binding) => binding.targetId);
-  const suggestions = [...new Set([...grantees, ...boundAgents])];
-  const [mode, setMode] = useState<"specific" | "anyone">(
-    grantees.length > 0 ? "specific" : "anyone",
-  );
-  // A secret's grantees are its declared allow-list — they prefill the
-  // recipient list (removable), never silently required.
-  const [recipients, setRecipients] = useState<GrantRecipient[]>(() =>
-    grantees.map((id) => ({ kind: "agent", id })),
-  );
-  const [kind, setKind] = useState<BindingTargetKind>("agent");
-  const [idText, setIdText] = useState("");
-  const [problem, setProblem] = useState<string | null>(null);
-
-  function addRecipient() {
-    const id = idText.trim();
-    if (id === "") {
-      setProblem("Enter an id first.");
-      return;
-    }
-    if (
-      kind === "agent" &&
-      target.kind === "secret" &&
-      grantees.length > 0 &&
-      !grantees.includes(id)
-    ) {
-      setProblem(`Not in this secret's grantees: ${grantees.join(", ")}.`);
-      return;
-    }
-    if (recipients.some((entry) => entry.kind === kind && entry.id === id)) {
-      setProblem("Already added.");
-      return;
-    }
-    setRecipients([...recipients, { kind, id }]);
-    setIdText("");
-    setProblem(null);
-  }
-
-  const ready = mode === "anyone" || recipients.length > 0;
-
-  function proceed() {
-    if (mode === "anyone") onAssign({ kind: "anyone" });
-    else onAssign({ kind: "bound", recipients });
-  }
-
-  return (
-    <div>
-      <fieldset className="grant-choices" aria-label="Who is this grant for">
-        <button
-          type="button"
-          className={
-            mode === "specific" ? "grant-choice is-on" : "grant-choice"
-          }
-          onClick={() => setMode("specific")}
-        >
-          Specific identities
-        </button>
-        <button
-          type="button"
-          className={mode === "anyone" ? "grant-choice is-on" : "grant-choice"}
-          onClick={() => setMode("anyone")}
-        >
-          Anyone with the code
-        </button>
-      </fieldset>
-
-      {mode === "specific" ? (
-        <div>
-          {recipients.length > 0 ? (
-            <ul className="grant-recipients" aria-label="Grant recipients">
-              {recipients.map((recipient) => (
-                <li
-                  key={`${recipient.kind}:${recipient.id}`}
-                  className="grant-recipients__chip"
-                >
-                  {recipientLabel(recipient)}
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={`Remove ${recipientLabel(recipient)}`}
-                    title={`Remove ${recipientLabel(recipient)}`}
-                    onClick={() =>
-                      setRecipients(
-                        recipients.filter(
-                          (entry) =>
-                            !(
-                              entry.kind === recipient.kind &&
-                              entry.id === recipient.id
-                            ),
-                        ),
-                      )
-                    }
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="hint">No identities yet — add at least one.</p>
-          )}
-
-          <div className="grant-recipients__add">
-            <select
-              aria-label="Identity kind"
-              value={kind}
-              onChange={(event) => {
-                const next = RECIPIENT_KINDS.find(
-                  (entry) => entry.id === event.target.value,
-                );
-                if (next) setKind(next.id);
-                setProblem(null);
-              }}
-            >
-              {RECIPIENT_KINDS.map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
-            <input
-              aria-label="Identity id"
-              value={idText}
-              list="grant-recipient-suggestions"
-              placeholder={
-                kind === "agent"
-                  ? "deploy-bot"
-                  : kind === "identity"
-                    ? "prn_…"
-                    : `${kind} id`
-              }
-              onChange={(event) => setIdText(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  addRecipient();
-                }
-              }}
-            />
-            <datalist id="grant-recipient-suggestions">
-              {suggestions.map((id) => (
-                <option key={id} value={id} />
-              ))}
-            </datalist>
-            <button
-              type="button"
-              className="btn btn--sm"
-              onClick={addRecipient}
-            >
-              Add
-            </button>
-          </div>
-          {problem ? (
-            <p className="note note--err" role="alert">
-              <IconAlert /> {problem}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="actions">
-        {onBack ? (
-          <button
-            type="button"
-            className="btn btn--sm btn--ghost"
-            onClick={onBack}
-          >
-            ← Target
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={!ready}
-          onClick={proceed}
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function MintStep({
-  target,
-  connection,
-  assignment,
-  scope,
-  online,
-  onBack,
-  onMinted,
-}: {
-  target: GrantTarget;
-  connection: Connection | null;
-  assignment: Assignment;
-  scope: ScopeInput;
-  online: boolean;
-  onBack: () => void;
-  onMinted: (minted: MintedOffer, bindWarning: string | null) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function mint() {
-    if (connection === null) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const minted = await mintOffer({
-        items: [
-          {
-            connectionId: connection.connectionId,
-            // Empty scope lists stay off the wire so the server defaults
-            // (provider vocabulary, every resource) apply instead.
-            actions: scope.actions.length > 0 ? scope.actions : undefined,
-            resources: scope.resources.length > 0 ? scope.resources : undefined,
-            expiresInSeconds: scope.expiresInSeconds,
-            executionMode: scope.executionMode,
-          },
-        ],
-      });
-      // The mint succeeded; naming the identities against the connection is
-      // additive and must not sink the grant when one of them fails.
-      let bindWarning: string | null = null;
-      if (assignment.kind === "bound") {
-        const failures: string[] = [];
-        for (const recipient of assignment.recipients) {
-          const already = connection.bindings.some(
-            (binding) =>
-              binding.targetKind === recipient.kind &&
-              binding.targetId === recipient.id,
-          );
-          if (already) continue;
-          try {
-            await bindConnection(connection.connectionId, {
-              targetKind: recipient.kind,
-              targetId: recipient.id,
-            });
-          } catch (caught) {
-            failures.push(
-              `${recipientLabel(recipient)} (${accessErrorText(caught)})`,
-            );
-          }
-        }
-        if (failures.length > 0) bindWarning = failures.join("; ");
-      }
-      onMinted(minted, bindWarning);
-    } catch (caught) {
-      setError(accessErrorText(caught));
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div>
-      <dl className="grant-review">
-        <div className="grant-review__row">
-          <dt>For</dt>
-          <dd>
-            {assignmentLabel(assignment)}
-            {assignment.kind !== "anyone" ? (
-              <span className="grant-review__note"> — will be bound</span>
-            ) : null}
-          </dd>
-        </div>
-        <div className="grant-review__row">
-          <dt>Target</dt>
-          <dd>{targetName(target)}</dd>
-        </div>
-        <div className="grant-review__row">
-          <dt>Connection</dt>
-          <dd>
-            <code>{connection?.connectionRef ?? "—"}</code>
-          </dd>
-        </div>
-        <div className="grant-review__row">
-          <dt>Actions</dt>
-          <dd>{scope.actions.join(", ") || "Provider defaults"}</dd>
-        </div>
-        <div className="grant-review__row">
-          <dt>Resources</dt>
-          <dd>{scope.resources.join(", ") || "All resources"}</dd>
-        </div>
-        <div className="grant-review__row">
-          <dt>Approval</dt>
-          <dd>
-            {scope.executionMode === "relay"
-              ? "Relay — each use needs approval"
-              : "Brokered"}
-          </dd>
-        </div>
-        <div className="grant-review__row">
-          <dt>Duration</dt>
-          <dd>{formatDuration(scope.expiresInSeconds)}</dd>
-        </div>
-      </dl>
-
-      {error ? (
-        <p className="note note--err" role="alert">
-          <IconAlert /> {error}
-        </p>
-      ) : null}
-
-      <div className="actions">
-        <button
-          type="button"
-          className="btn btn--sm btn--ghost"
-          onClick={onBack}
-        >
-          ← Scope
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={busy || !online || connection === null}
-          onClick={() => void mint()}
-        >
-          {busy ? "Minting…" : "Mint offer"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CodeCard({ code, onDone }: { code: MintedCode; onDone: () => void }) {
-  const { copy, copied } = useCopy();
-  const now = useNow(30_000);
-
-  return (
-    <div>
-      <div className="access-code">
-        {code.assignment.kind !== "anyone" ? (
-          <div className="access-code__row">
-            <span className="access-code__label">For</span>
-            <span>{assignmentLabel(code.assignment)}</span>
-          </div>
-        ) : null}
-        <div className="access-code__row">
-          <span className="access-code__label">Claim token</span>
-          <code className="access-code__value">{code.claimToken}</code>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => void copy(code.claimToken, "token")}
-            title="Copy claim token"
-            aria-label="Copy claim token"
-          >
-            {copied === "token" ? <IconCheck /> : <IconCopy />}
-          </button>
-        </div>
-        <div className="access-code__row">
-          <span className="access-code__label">User code</span>
-          <code className="access-code__user">{code.userCode}</code>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={() => void copy(code.userCode, "code")}
-            title="Copy user code"
-            aria-label="Copy user code"
-          >
-            {copied === "code" ? <IconCheck /> : <IconCopy />}
-          </button>
-        </div>
-        <p className="access-code__expiry">
-          Offer expires {countdown(code.expiresAt, now)}.
-        </p>
-      </div>
-
-      {code.assignment.kind !== "anyone" ? (
-        code.bindWarning ? (
-          <p className="note note--warn">
-            <IconAlert /> Minted, but the identity could not be bound:{" "}
-            {code.bindWarning}
-          </p>
-        ) : (
-          <p className="hint">Bound to the connection.</p>
-        )
-      ) : null}
-
-      <div className="actions actions--end">
-        <button type="button" className="btn btn--primary" onClick={onDone}>
-          Done
-        </button>
-      </div>
-    </div>
   );
 }
 

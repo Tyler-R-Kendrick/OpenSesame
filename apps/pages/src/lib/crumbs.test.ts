@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  accessImportPath,
+  accessIsImportCeremony,
+  accessIsNewCeremony,
+  accessNewPath,
   crumbsFor,
   settingsCategoryFromHash,
   settingsCategoryFromLocation,
@@ -33,6 +37,27 @@ describe("crumbsFor", () => {
     expect(crumbsFor("/connections")).toEqual([{ label: "Connections" }]);
     expect(crumbsFor("/settings")).toEqual([{ label: "Settings" }]);
     expect(crumbsFor("/identity")).toEqual([{ label: "Identity" }]);
+    expect(crumbsFor("/access")).toEqual([{ label: "Access" }]);
+    expect(crumbsFor("/access/new")).toEqual([
+      { label: "Access", to: "/access" },
+      { label: "new" },
+    ]);
+    expect(crumbsFor("/access/import")).toEqual([
+      { label: "Access", to: "/access" },
+      { label: "import" },
+    ]);
+    expect(crumbsFor("/access/connectors/new")).toEqual([
+      { label: "Access", to: "/access" },
+      { label: "connectors", to: "/access/connectors" },
+      { label: "new" },
+    ]);
+    expect(accessNewPath("grants")).toBe("/access/new");
+    expect(accessNewPath("connectors")).toBe("/access/connectors/new");
+    expect(accessImportPath()).toBe("/access/import");
+    expect(accessIsNewCeremony("/access/new")).toBe(true);
+    expect(accessIsNewCeremony("/access/connectors/new")).toBe(true);
+    expect(accessIsNewCeremony("/access/connectors")).toBe(false);
+    expect(accessIsImportCeremony("/access/import")).toBe(true);
   });
 
   it("links ancestors on vault rest paths", () => {

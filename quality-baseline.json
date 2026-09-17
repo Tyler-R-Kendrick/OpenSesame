@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 540,
-    "violations": 880,
-    "oversizedLines": 280326
+    "files": 545,
+    "violations": 882,
+    "oversizedLines": 279384
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -915,8 +915,8 @@
     "apps/pages/src/sections/AccessSection.tsx": {
       "complexity": 5,
       "max-depth": 1,
-      "max-lines": 3648,
-      "max-lines-per-function": 13
+      "max-lines": 2706,
+      "max-lines-per-function": 9
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
       "max-lines": 1480
@@ -945,6 +945,22 @@
       "max-lines": 758
     },
     "apps/pages/src/sections/VaultSection.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/GrantCeremony.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/GrantCeremonyAssign.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/GrantCeremonyMint.tsx": {
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/GrantCeremonyScope.tsx": {
+      "complexity": 1,
+      "max-lines-per-function": 1
+    },
+    "apps/pages/src/sections/access/GrantCeremonySteps.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/access/HostSessionManage.tsx": {
