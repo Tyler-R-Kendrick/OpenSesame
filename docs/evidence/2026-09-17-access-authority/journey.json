@@ -1,0 +1,60 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Access"
+        },
+        {
+          "press": "Sessions"
+        },
+        {
+          "shot": "390-access-sessions"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "Access"
+        },
+        {
+          "press": "Sessions"
+        },
+        {
+          "shot": "1280-access-sessions"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-access-sessions",
+      "width": 390,
+      "title": "Access \u203a Sessions \u2014 local authority on phone",
+      "caption": "Guest opens Access \u203a Sessions. The local share-grant ledger surfaces as Local sessions & grants and authority templates \u2014 one ledger (INV-GA-10), not a second AccessLease UI.",
+      "before": "Vault share sessions only (no local-authority panels)",
+      "after": "Local sessions & grants + Audience templates above vault sessions"
+    },
+    {
+      "shot": "1280-access-sessions",
+      "width": 1280,
+      "title": "Access \u203a Sessions \u2014 local authority on desktop",
+      "caption": "Same walk at desktop width with the rail. Local authority rows and audience templates stay beside Host sessions, never gated on a backend.",
+      "before": "Vault share sessions only at Sessions top",
+      "after": "Local sessions & grants + Audience templates (Family / shared devices v1.0.0)"
+    }
+  ]
+}

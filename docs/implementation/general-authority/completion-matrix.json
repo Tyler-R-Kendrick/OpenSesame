@@ -3,7 +3,7 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T05:51:23Z",
+  "generatedAt": "2026-09-17T06:15:56Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -15,10 +15,10 @@
   ],
   "summary": {
     "totalWorkItems": 48,
-    "unresolved": 3,
+    "unresolved": 1,
     "inProgress": 0,
     "blocked": 0,
-    "verified": 45,
+    "verified": 47,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported",
@@ -265,11 +265,16 @@
       "id": "GA-P-02",
       "swarm": "GA-P",
       "title": "Access surfaces for hierarchical authority",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "ls docs/evidence/2026-09-17-access-authority/",
+          "result": "ok. journey.json + 390/1280 sheets + README \u2014 Local sessions & grants + Audience templates"
+        }
+      ],
       "blockedBy": ["GA-P-01"],
-      "notes": "User-visible: needs before/after evidence from two real builds."
+      "notes": "Access \u203a Sessions shows LocalAuthorityPanel + LocalAuthorityTemplates; visual evidence gallery committed."
     },
     {
       "id": "GA-P-03",
@@ -399,7 +404,7 @@
       "verification": "none",
       "evidence": null,
       "blockedBy": [],
-      "notes": "Standing honesty ratchet; never closes. Latest refresh after Host grant-issue HTTP + GA-P-01/C-02 verification."
+      "notes": "Standing honesty ratchet; never closes. Latest refresh after GA-P-02/Q-03 Access Sessions visual evidence."
     },
     {
       "id": "GA-Q-01",
@@ -430,11 +435,16 @@
       "id": "GA-Q-03",
       "swarm": "GA-Q",
       "title": "Before/after evidence for user-visible surfaces",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "test -f docs/evidence/2026-09-17-access-authority/390-access-sessions.png && test -f docs/evidence/2026-09-17-access-authority/1280-access-sessions.png",
+          "result": "ok. phone + desktop composed sheets present"
+        }
+      ],
       "blockedBy": ["GA-P-02"],
-      "notes": "Base-branch capture is complicated by the dirty tree; plan it before GA-P-02 lands."
+      "notes": "Before/after sheets at docs/evidence/2026-09-17-access-authority/ from two real builds."
     },
     {
       "id": "GRA-REPRO",
