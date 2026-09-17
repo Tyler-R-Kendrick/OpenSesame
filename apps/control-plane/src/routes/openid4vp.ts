@@ -276,7 +276,7 @@ async function activateFromPresentation(
 ): Promise<ApprovalActivation> {
   const { ctx, interaction, principalId, now, credentialRef } = input;
   const requestDigest = interaction.requestDigest ?? "";
-  const policyDigest = interactionApprovalPolicyDigest();
+  const policyDigest = interactionApprovalPolicyDigest(interaction.kind);
   const transactionDigest = approvalTransactionDigest({
     authReqId: interaction.id,
     requestDigest,

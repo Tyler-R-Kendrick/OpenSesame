@@ -266,4 +266,57 @@ describe("F05/X-05 consume settles all six kinds once", () => {
     );
     expect(again.status).toBe(409);
   });
+
+  it("refuses consume when the claim is no longer pending", async () => {
+    const cp = factoryPlane();
+    const approver = await factoryPrincipal(cp);
+    const requester = await factoryPrincipal(cp);
+    const now = cp.ctx.clock();
+    const { session: claim } = fixtures.pendingClaim({
+      id: "claim_denied_1",
+      creatorPrincipalId: requester.principalId,
+      createdAt: now,
+      expiresAt: new Date(now.getTime() + 300_000),
+    });
+    await cp.ctx.repos.claimSessions.create(claim);
+    const created = overlapCast<{ ref: string; requestDigest: string }>(
+      await (
+        await factoryRaise(
+          cp,
+          requester,
+          await factoryInboxRef(cp, approver.accessToken),
+          "claim",
+          "claim_denied_1",
+        )
+      ).json(),
+    );
+    expect(
+      (
+        await factoryWebauthnApprove(
+          cp,
+          approver,
+          created.ref,
+          created.requestDigest,
+        )
+      ).status,
+    ).toBe(200);
+    await cp.ctx.repos.claimSessions.updateWithVersion(
+      claim.id,
+      claim.version,
+      {
+        state: "denied",
+      },
+    );
+    const spent = await cp.app.request(
+      `/v1/interactions/${created.ref}/consume`,
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${requester.accessToken}` },
+      },
+    );
+    expect(spent.status).toBeGreaterThanOrEqual(400);
+    expect(
+      (await cp.ctx.repos.claimSessions.getById("claim_denied_1"))?.state,
+    ).toBe("denied");
+  });
 });

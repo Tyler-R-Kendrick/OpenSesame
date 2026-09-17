@@ -40,7 +40,9 @@ async function applyIdentitySubject(
   const subjectId = interaction.subject.subjectId;
   if (interaction.kind === "authorization_request") {
     const request = await ctx.repos.authorizationRequests.getById(subjectId);
-    if (!request || request.status !== "pending") return {};
+    if (!request || request.status !== "pending") {
+      throw new DomainError("INVARIANT_VIOLATION", "subject not pending");
+    }
     if (request.expiresAt.getTime() <= now.getTime()) {
       throw new DomainError("INVARIANT_VIOLATION", "subject expired");
     }
@@ -70,7 +72,7 @@ async function applyIdentitySubject(
     session.state === "revoked" ||
     session.state === "expired"
   ) {
-    return {};
+    throw new DomainError("INVARIANT_VIOLATION", "subject not pending");
   }
   if (session.expiresAt.getTime() <= now.getTime()) {
     throw new DomainError("INVARIANT_VIOLATION", "subject expired");
