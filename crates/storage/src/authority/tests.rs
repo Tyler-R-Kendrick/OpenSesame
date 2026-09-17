@@ -177,7 +177,10 @@ async fn concurrent_debits_cannot_exceed_a_window_cap() {
             accepted += 1;
         }
     }
-    assert_eq!(accepted, 10, "concurrent debits cannot double-spend a window cap");
+    assert_eq!(
+        accepted, 10,
+        "concurrent debits cannot double-spend a window cap"
+    );
 }
 
 #[tokio::test]

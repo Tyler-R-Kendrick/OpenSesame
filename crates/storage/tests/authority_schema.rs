@@ -265,4 +265,3 @@ async fn a_child_window_cannot_outlast_its_parent() {
         "a child's delegation budget must strictly decrease"
     );
 }
-
