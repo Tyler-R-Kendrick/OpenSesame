@@ -3,7 +3,7 @@
   "programme": "general-authority",
   "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T03:24:24Z",
+  "generatedAt": "2026-09-17T04:24:29Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -16,13 +16,13 @@
   "summary": {
     "totalWorkItems": 48,
     "unresolved": 7,
-    "inProgress": 5,
+    "inProgress": 4,
     "blocked": 0,
-    "verified": 36,
+    "verified": 37,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported",
-    "in-progress": 5
+    "in-progress": 4
   },
   "workItems": [
     {
@@ -164,11 +164,16 @@
       "id": "GA-H-04",
       "swarm": "GA-H",
       "title": "Receipts for authority-mediated invocation",
-      "status": "in-progress",
+      "status": "verified",
       "verification": "command-backed",
-      "evidence": "cargo +1.88.0 test -p opensesame-storage --lib issuing_authority_writes_an_outbox_event \u2192 ok; outbox event_type authority.grant.issued",
+      "evidence": [
+        {
+          "command": "cargo +1.88.0 test -p opensesame-domain --lib validated_grant_chain::tests::receipt_chain_binds_grant_or_lineage",
+          "result": "ok \u2014 alone binds grant; lineage binds root+child"
+        }
+      ],
       "blockedBy": ["GA-H-01"],
-      "notes": "Durable outbox intent on issue; signed InvocationReceipt binding for dispatch still separate"
+      "notes": "Frozen and non-frozen broker receipts bind receipt_delegation_chain (lineage root\u2192leaf, else exercising grant id). Outbox issue event remains authority.grant.issued."
     },
     {
       "id": "GA-I-01",
