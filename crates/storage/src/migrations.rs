@@ -153,4 +153,8 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0038_authority_offer_roster_digest",
         include_str!("../../../migrations/0038_authority_offer_roster_digest.sql"),
     ),
+    (
+        "0039_authority_offer_live_writer",
+        include_str!("../../../migrations/0039_authority_offer_live_writer.sql"),
+    ),
 ];

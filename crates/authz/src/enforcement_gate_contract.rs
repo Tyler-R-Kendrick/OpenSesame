@@ -4,8 +4,9 @@
 //! within the structural budget; they are the same contracts, unchanged.
 
 use crate::{
-    admit_authority_use, admit_grant, authorize_authority_use_enforced, surface_for, terms_of,
-    AuthorityUse, AuthzError, EnforcementRefused, PolicyEngine,
+    admit_authority_use, admit_grant, admit_issuance, authorize_authority_use_enforced,
+    descriptor_for_invoke, surface_for, terms_of, AuthorityUse, AuthzError, EnforcementRefused,
+    PolicyEngine,
 };
 use chrono::{Duration, Utc};
 use opensesame_domain::{
@@ -150,9 +151,7 @@ fn a_grant_demanding_termination_is_refused_by_a_token_ttl() {
         .expect_err("a TTL is not a termination story")
     {
         EnforcementRefused::CannotHold(refusal) => refusal,
-        other @ EnforcementRefused::SurfaceMismatch { .. } => {
-            panic!("expected a shortfall, got {other:?}")
-        }
+        other => panic!("expected a shortfall, got {other:?}"),
     };
     assert_eq!(refusal.platform, "ttl-only-provider");
     assert!(refusal.cites_unsupported());
@@ -266,4 +265,48 @@ fn offline_use_projects_every_domain_variant() {
     ] {
         assert_eq!(terms_of(&grant(false, domain)).offline_use, expected);
     }
+}
+
+#[test]
+fn admit_issuance_admits_the_host_broker() {
+    let terms = terms_of(&grant(false, OfflineUse::Forbidden));
+    let admitted =
+        admit_issuance("host-brokered-invocation", terms).expect("the broker holds sealed terms");
+    assert_eq!(admitted.platform(), "host-brokered-invocation");
+}
+
+#[test]
+fn admit_issuance_refuses_absent_adapters() {
+    let terms = terms_of(&grant(false, OfflineUse::Forbidden));
+    for platform in ["apple-ios", "android", "discord-live", "blocky-live-saas"] {
+        let error = admit_issuance(platform, terms)
+            .expect_err("an absent adapter cannot carry a sealed grant");
+        match error {
+            EnforcementRefused::CannotHold(refusal) => {
+                assert_eq!(refusal.platform, platform);
+                assert!(refusal.cites_unsupported(), "{platform}");
+            }
+            other => panic!("{platform} should be a shortfall, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn admit_issuance_refuses_an_unknown_platform() {
+    let terms = terms_of(&grant(false, OfflineUse::Forbidden));
+    let error = admit_issuance("not-a-platform", terms).expect_err("unknown");
+    assert!(matches!(
+        error,
+        EnforcementRefused::UnknownPlatform(name) if name == "not-a-platform"
+    ));
+}
+
+#[test]
+fn invoke_descriptors_match_the_surface() {
+    let brokered = descriptor_for_invoke(InvokeLevel::TypedOperation).expect("catalog");
+    assert_eq!(brokered.platform(), "host-brokered-invocation");
+    let http = descriptor_for_invoke(InvokeLevel::ConstrainedHttp).expect("catalog");
+    assert_eq!(http.platform(), "host-brokered-invocation");
+    let minted = descriptor_for_invoke(InvokeLevel::Materialize).expect("catalog");
+    assert_eq!(minted.platform(), "host-minted-token");
 }

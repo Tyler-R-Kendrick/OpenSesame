@@ -17,6 +17,7 @@ pub mod error;
 pub mod evaluate;
 pub mod evidence;
 pub mod explain;
+pub mod issuance;
 pub mod model;
 
 pub use authority_use::*;
@@ -31,6 +32,7 @@ pub use error::*;
 pub use evaluate::*;
 pub use evidence::*;
 pub use explain::*;
+pub use issuance::*;
 pub use model::*;
 
 #[cfg(test)]

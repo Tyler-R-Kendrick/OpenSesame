@@ -2,8 +2,7 @@
 
 use crate::cohort_fixture::{fixture, t0};
 use crate::{
-    AdmissionBasis, AdmissionMode, CohortSnapshot, CohortSnapshotId, PermissionEntry,
-    PermissionSet,
+    AdmissionBasis, AdmissionMode, CohortSnapshot, CohortSnapshotId, PermissionEntry, PermissionSet,
 };
 
 #[test]

@@ -204,6 +204,133 @@ async fn missing_grant_is_refused() {
 }
 
 #[tokio::test]
+async fn unsupported_platform_is_refused_and_writes_nothing() {
+    let state = test_demo_state().await;
+    let organization = OrganizationId::new();
+    state
+        .db
+        .create_organization(&organization, "realm-issue-ios")
+        .await
+        .unwrap();
+    let domain_id = format!("adom:{organization}");
+    assert!(state
+        .db
+        .create_access_domain(&opensesame_storage::authority::NewAccessDomain {
+            id: &domain_id,
+            organization_id: &organization.to_string(),
+            parent_id: None,
+            project_id: None,
+        })
+        .await
+        .unwrap());
+    let grant_id = "grant:root";
+    seed_grant(&state, &organization.to_string(), grant_id).await;
+    let owner = test_session_headers(
+        &state,
+        &PrincipalId::new().to_string(),
+        organization,
+        OrganizationRole::Owner,
+    );
+    let app = crate::routes::router(state.clone());
+    let path = format!("/api/v1/organizations/{organization}/grants/{grant_id}/authority");
+    for platform in ["apple-ios", "discord-live", "blocky-live-saas"] {
+        let mut body = issue_body(&domain_id);
+        body["enforcement_platform"] = serde_json::json!(platform);
+        let (status, resp) = request(&app, &owner, "POST", &path, Some(body)).await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{platform} {resp}"
+        );
+        assert_eq!(resp["error"], "enforcement_refused", "{platform}");
+        assert_eq!(resp["platform"], platform);
+        assert!(
+            state
+                .db
+                .fenced_authority(&organization.to_string(), grant_id, Utc::now())
+                .await
+                .unwrap()
+                .is_none(),
+            "{platform} must not mint a sidecar"
+        );
+    }
+}
+
+#[tokio::test]
+async fn at_control_role_admin_cannot_issue_export_or_policy_edit() {
+    let state = test_demo_state().await;
+    let organization = OrganizationId::new();
+    state
+        .db
+        .create_organization(&organization, "realm-control-role")
+        .await
+        .unwrap();
+    let domain_id = format!("adom:{organization}");
+    assert!(state
+        .db
+        .create_access_domain(&opensesame_storage::authority::NewAccessDomain {
+            id: &domain_id,
+            organization_id: &organization.to_string(),
+            parent_id: None,
+            project_id: None,
+        })
+        .await
+        .unwrap());
+    let admin = test_session_headers(
+        &state,
+        &PrincipalId::new().to_string(),
+        organization,
+        OrganizationRole::Admin,
+    );
+    let owner = test_session_headers(
+        &state,
+        &PrincipalId::new().to_string(),
+        organization,
+        OrganizationRole::Owner,
+    );
+    let app = crate::routes::router(state.clone());
+    seed_grant(&state, &organization.to_string(), "grant:ordinary").await;
+    let ordinary = format!("/api/v1/organizations/{organization}/grants/grant:ordinary/authority");
+    let (status, body) = request(
+        &app,
+        &admin,
+        "POST",
+        &ordinary,
+        Some(issue_body(&domain_id)),
+    )
+    .await;
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "admin may issue ordinary use {body}"
+    );
+
+    for reserved in ["credential.export", "policy.edit"] {
+        let grant_id = format!("grant:{}", reserved.replace('.', "-"));
+        seed_grant(&state, &organization.to_string(), &grant_id).await;
+        let path = format!("/api/v1/organizations/{organization}/grants/{grant_id}/authority");
+        let mut body = issue_body(&domain_id);
+        body["entries"][0]["action_set"] = json!([reserved]);
+        let (status, resp) = request(&app, &admin, "POST", &path, Some(body.clone())).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{reserved} {resp}");
+        assert_eq!(resp["error"], "forbidden");
+        assert!(
+            resp["hint"]
+                .as_str()
+                .unwrap_or("")
+                .contains("higher-scope issuance"),
+            "{reserved} {resp}"
+        );
+        let (status, resp) = request(&app, &owner, "POST", &path, Some(body)).await;
+        assert_eq!(
+            status,
+            StatusCode::CREATED,
+            "owner is higher-scope issuance for {reserved}: {resp}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn depth_above_ceiling_is_bad_request() {
     let f = fixture().await;
     let path = format!(

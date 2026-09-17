@@ -302,4 +302,3 @@ async fn terminate_fences_descendant_authority() {
         "terminating an ancestor must fence descendant authority immediately"
     );
 }
-

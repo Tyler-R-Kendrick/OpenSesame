@@ -3,8 +3,8 @@
 //! When `OPENSESAME_OPENFGA_URL` is unset, callers may fall back to the in-process PEP.
 
 mod grant_tuples;
-pub use grant_tuples::{grant_to_openfga_tuples, GrantTupleMappingError, GrantTupleMappingResult};
 use async_trait::async_trait;
+pub use grant_tuples::{grant_to_openfga_tuples, invoke_check_tuple, GrantTupleMappingError, GrantTupleMappingResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use thiserror::Error;
@@ -224,7 +224,6 @@ impl OpenFgaClient {
         Ok(())
     }
 
-    ///
     /// # Errors
     ///
     /// Returns an error when validation or the underlying operation fails.
@@ -239,7 +238,8 @@ impl OpenFgaClient {
                     "user": tuple.user,
                     "relation": tuple.relation,
                     "object": tuple.object,
-                }
+                },
+                "consistency": "HIGHER_CONSISTENCY",
             }))
             .send()
             .await

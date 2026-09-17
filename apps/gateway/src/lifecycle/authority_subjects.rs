@@ -15,10 +15,7 @@ pub const AUTHORITY_GRANT_SCAN_LIMIT: i64 = 512;
 pub const AUTHORITY_GRANT_RENEW_BEFORE_SECONDS: i64 = 1;
 
 /// Unrevoked `grant_authority` rows as expiry subjects.
-pub async fn authority_grants(
-    db: &Db,
-    organization: &str,
-) -> anyhow::Result<Vec<ExpirySubject>> {
+pub async fn authority_grants(db: &Db, organization: &str) -> anyhow::Result<Vec<ExpirySubject>> {
     let grants = db
         .authority_grants_expiring(organization, AUTHORITY_GRANT_SCAN_LIMIT)
         .await?;
