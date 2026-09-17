@@ -12,16 +12,35 @@ import {
   enumerateCargoTests,
 } from "./authority-fabric-facts.mjs";
 
-/** @param {{ crate: string, bin?: string }} target */
+/** @param {{ crate: string, bin?: string, integration?: string, features?: string[] }} target */
 export function cargoBatchKey(target) {
-  return typeof target.bin === "string"
-    ? `${target.crate}#bin:${target.bin}`
-    : target.crate;
+  const suite =
+    typeof target.bin === "string"
+      ? `${target.crate}#bin:${target.bin}`
+      : typeof target.integration === "string"
+        ? `${target.crate}#test:${target.integration}`
+        : target.crate;
+  if (!Array.isArray(target.features) || target.features.length === 0) {
+    return suite;
+  }
+  return `${suite}#features:${[...target.features].sort().join(",")}`;
 }
 
-/** @param {{ bin?: string }} target */
+/** @param {{ bin?: string, integration?: string }} target */
 export function cargoSuiteArgs(target) {
-  return typeof target.bin === "string" ? ["--bin", target.bin] : ["--lib"];
+  if (typeof target.bin === "string") return ["--bin", target.bin];
+  if (typeof target.integration === "string") {
+    return ["--test", target.integration];
+  }
+  return ["--lib"];
+}
+
+/** @param {{ features?: string[] }} target */
+export function cargoFeatureArgs(target) {
+  if (!Array.isArray(target.features) || target.features.length === 0) {
+    return [];
+  }
+  return ["--features", target.features.join(",")];
 }
 
 /** @param {{ bin?: string }} target */
@@ -47,6 +66,11 @@ export function runCargoBatches(resolved, { root, noRun }) {
         crate: scenario.target.crate,
         bin:
           typeof scenario.target.bin === "string" ? scenario.target.bin : null,
+        integration:
+          typeof scenario.target.integration === "string"
+            ? scenario.target.integration
+            : null,
+        features: scenario.target.features,
       });
     }
   }
@@ -58,7 +82,8 @@ export function runCargoBatches(resolved, { root, noRun }) {
         "test",
         "-p",
         spec.crate,
-        ...(spec.bin !== null ? ["--bin", spec.bin] : ["--lib"]),
+        ...cargoSuiteArgs(spec),
+        ...cargoFeatureArgs(spec),
         "--",
         "--format",
         "pretty",
@@ -150,6 +175,9 @@ export function enumerateScenarioCargoTests({
       enumKeys.set(key, {
         crate: target.crate,
         bin: cargoBinName(target),
+        integration:
+          typeof target.integration === "string" ? target.integration : null,
+        features: target.features,
       });
     }
   }
@@ -163,7 +191,13 @@ export function enumerateScenarioCargoTests({
       tests[key] = null;
       continue;
     }
-    const enumerated = enumerateCargoTests(root, spec.crate, spec.bin);
+    const enumerated = enumerateCargoTests(
+      root,
+      spec.crate,
+      spec.bin,
+      spec.features,
+      spec.integration,
+    );
     tests[key] = enumerated.tests;
     testErrors[key] = enumerated.error;
   }

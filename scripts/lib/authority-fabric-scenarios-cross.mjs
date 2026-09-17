@@ -89,8 +89,6 @@ export const crossPlaneScenarios = Object.freeze([
     invariant: "INV-GA-09",
     title:
       "An approval of an authority change is spent once under concurrent settlement",
-    // Interactions are the authority-change envelope (ADR 0086); the race that
-    // spends one digest-bound approval exactly once is the INV-GA-09 contract.
     target: vitest(
       "@opensesame/control-plane",
       "src/__tests__/interaction-handoff.test.ts",
@@ -101,14 +99,16 @@ export const crossPlaneScenarios = Object.freeze([
     id: "GA-V-29",
     workItem: "TEST-RACES",
     area: "DOMAIN",
-    tier: "unsupported",
+    tier: "integration",
     invariant: "INV-GA-06",
     title: "Evaluation cannot loop under an adversarial interleaving",
-    unsupported: {
-      reason:
-        "Interleaving coverage needs a model checker, not a test that happens to pass once. cargo-shuttle runs behind pnpm audit:shuttle and no authority evaluator is registered with it.",
-      wouldRequire:
-        "GA-H-01 lands an evaluator, then scripts/shuttle-gate.sh gains an authority target.",
+    target: {
+      kind: "cargo",
+      crate: "opensesame-domain",
+      module: "shuttle_authority",
+      test: "evaluation_cannot_loop_under_adversarial_interleaving",
+      features: ["concurrency-test"],
+      integration: "shuttle_authority",
     },
   },
 

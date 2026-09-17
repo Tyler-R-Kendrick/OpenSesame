@@ -8,7 +8,7 @@ HEAD `7a3a06e2c04998381b27fcc3877e372f0ae3288c`, working tree dirty.
 > against a still tree before reading any single row as settled.
 
 
-**Gate: BLOCKED** — 56 scenarios: 54 pass, 0 fail, 1 blocked, 1 unsupported.
+**Gate: BLOCKED** — 56 scenarios: 55 pass, 0 fail, 1 blocked, 0 unsupported.
 
 A scenario passes only when a named test in a wired module ran and passed.
 `blocked` means the harness could not settle the contract and fails the gate;
@@ -19,10 +19,10 @@ A scenario passes only when a named test in a wired module ran and passed.
 | Tier | Scenarios |
 |---|---|
 | unit | 34 pass |
-| integration | 20 pass |
+| integration | 21 pass |
 | provider | 1 blocked |
 | live | — |
-| unsupported | 1 unsupported |
+| unsupported | — |
 
 ## Scenarios
 
@@ -57,7 +57,7 @@ A scenario passes only when a named test in a wired module ran and passed.
 | `GA-V-26` | TEST-RACES | integration | INV-GA-01 | **pass** | Concurrent debits against one window cannot double-spend a cap |  |
 | `GA-V-27` | TEST-RACES | integration | INV-GA-06 | **pass** | Two concurrent chain writes cannot combine into a cycle |  |
 | `GA-V-28` | TEST-RACES | integration | INV-GA-09 | **pass** | An approval of an authority change is spent once under concurrent settlement |  |
-| `GA-V-29` | TEST-RACES | unsupported | INV-GA-06 | **unsupported** | Evaluation cannot loop under an adversarial interleaving | Interleaving coverage needs a model checker, not a test that happens to pass once. cargo-shuttle runs behind pnpm audit:shuttle and no authority evaluator is registered with it. |
+| `GA-V-29` | TEST-RACES | integration | INV-GA-06 | **pass** | Evaluation cannot loop under an adversarial interleaving |  |
 | `GA-V-30` | TEST-PARITY | unit | INV-GA-12 | **pass** | Every authority capability maps or ADR-excludes all four agent surfaces |  |
 | `GA-V-31` | TEST-PARITY | unit | INV-GA-10 | **pass** | apps/pages keeps one local authority ledger, not two |  |
 | `GA-V-32` | TEST-PARITY | provider | INV-GA-03 | **blocked** | No check true against the baseline OpenFGA model returns false against the delta | live-stack-not-configured |
