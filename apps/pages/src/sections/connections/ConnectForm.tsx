@@ -64,7 +64,6 @@ export function ConnectForm({
         : [...current, scope],
     );
   }
-
   async function connectOauth(event: FormEvent) {
     event.preventDefault();
     // Opened synchronously or the browser treats it as an unsolicited popup;

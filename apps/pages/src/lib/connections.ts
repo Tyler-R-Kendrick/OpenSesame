@@ -525,7 +525,6 @@ function discoverConnectionsDefault(): Promise<number> {
     (body) => DiscoverConnectionsResponseSchema.parse(body).configured,
   );
 }
-
 export function getConnection(id: string): Promise<Connection> {
   if (vercelConnect.isConnectConnector(id))
     return vercelConnect.getVercelConnection(id);
