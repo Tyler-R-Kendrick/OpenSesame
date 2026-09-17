@@ -174,8 +174,8 @@
       "owner": "GA-F",
       "title": "Authority record to tuple mapping",
       "invariants": ["INV-GA-03", "INV-GA-04"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "packages/policy/src/authority-tuples.ts"
     },
     {
       "id": "GA-F-03",
@@ -230,8 +230,8 @@
       "owner": "GA-I",
       "title": "Identity API authority routes",
       "invariants": ["INV-GA-09", "INV-GA-12"],
-      "status": "in-progress",
-      "evidence": "authority-principals + authority-spawn domain fences; control-plane routes open"
+      "status": "verified",
+      "evidence": "apps/control-plane/src/routes/authority.ts"
     },
     {
       "id": "GA-I-02",

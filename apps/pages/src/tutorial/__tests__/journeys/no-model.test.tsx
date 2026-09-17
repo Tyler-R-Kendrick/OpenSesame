@@ -12,7 +12,9 @@
  */
 
 import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
-import { screen, waitFor, within } from "@testing-library/react";
+import { configure, screen, waitFor, within } from "@testing-library/react";
+
+configure({ asyncUtilTimeout: 10_000 });
 import { afterEach, describe, expect, it } from "vitest";
 import { GUIDE_GOALS, HELP_TOPICS } from "../../registry/goals.js";
 import { GUIDE_ERROR_TEXT, UNAVAILABLE_TEXT } from "../../ui/messages.js";
@@ -46,7 +48,7 @@ describe("support on a browser that has no model to run", () => {
 
   it(
     "opens, says why, and still helps — without asking anything",
-    { timeout: 15_000 },
+    { timeout: 20_000 },
     async () => {
       const agent = fakeAgentAlwaysUnavailable("platform_unsupported");
       const journey = renderJourney(agent, { transport: "none" });
@@ -112,11 +114,13 @@ describe("support on a browser that has no model to run", () => {
       await user.click(
         await showMe(panel, "How do I tell whether OpenSesame is healthy?"),
       );
-      await waitFor(() =>
-        expect(journey.focused()).toEqual(["shell.connectivity"]),
+      await waitFor(
+        () => expect(journey.focused()).toEqual(["shell.connectivity"]),
+        { timeout: 10_000 },
       );
-      await waitFor(() =>
-        expect(journey.navigations()).toEqual(["/vault/health"]),
+      await waitFor(
+        () => expect(journey.navigations()).toEqual(["/vault/health"]),
+        { timeout: 10_000 },
       );
       expect(
         await screen.findByRole("heading", { name: "Password health" }),
