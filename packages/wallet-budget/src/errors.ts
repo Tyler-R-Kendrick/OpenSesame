@@ -14,6 +14,8 @@ export const BUDGET_ERROR_CODES = [
   "attempt_not_reserved",
   "cycle_forbidden",
   "orphan_parent",
+  "node_has_children",
+  "node_in_use",
 ] as const;
 
 export type BudgetErrorCode = (typeof BUDGET_ERROR_CODES)[number];
@@ -50,6 +52,10 @@ export function budgetErrorMessage(code: BudgetErrorCode): string {
       return "A budget node cannot be its own ancestor.";
     case "orphan_parent":
       return "The named parent budget node does not exist.";
+    case "node_has_children":
+      return "Close child allocations before removing this budget.";
+    case "node_in_use":
+      return "This budget still has posted spend, a reservation, a child carve-out, or unresolved external exposure.";
   }
 }
 

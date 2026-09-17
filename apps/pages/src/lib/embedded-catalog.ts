@@ -13,7 +13,7 @@ import type {
   ProviderCategory,
 } from "./connections.js";
 import { loadSettings } from "./settings.js";
-
+import { walletHostProviders } from "./wallet-issuers.js";
 const CATEGORY = new Map<ProviderCategory, readonly string[]>([
   ["identity", ["better-auth", "workos", "auth0"]],
   ["backup_recovery", ["github", "gitlab", "supabase", "neon", "postgresql"]],
@@ -271,7 +271,6 @@ const IDENTITY = [
 const NETWORKING = [
   ["tailscale", "https://tailscale.com/kb/1085/auth-keys", "configuration"],
 ] as const;
-
 const WALLET = [
   ["cloudflare-wallet", "https://developers.cloudflare.com/", "configuration"],
   ["google-wallet", "https://developers.google.com/wallet", "configuration"],
@@ -279,7 +278,7 @@ const WALLET = [
   ["samsung-wallet", "https://developer.samsung.com/wallet", "configuration"],
 ] as const;
 
-const BUNDLED_REVISION = "2026-09-17.1";
+const BUNDLED_REVISION = "2026-09-17.3";
 
 function title(id: string): string {
   return (
@@ -294,9 +293,7 @@ function title(id: string): string {
 
 function categoryOf(id: string): ProviderCategory {
   for (const [category, providerIds] of CATEGORY) {
-    if (providerIds.includes(id)) {
-      return category;
-    }
+    if (providerIds.includes(id)) return category;
   }
   return "developer";
 }
@@ -382,6 +379,7 @@ export const bundledProviders: Provider[] = [
       operations: ["wallet.configure"],
     }),
   ),
+  ...walletHostProviders((id, docs, auth) => preview(id, docs, auth, "wallet")),
 ];
 
 type TursoDb = {

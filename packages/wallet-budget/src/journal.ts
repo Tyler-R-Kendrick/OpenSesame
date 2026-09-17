@@ -40,6 +40,15 @@ export type JournalEntry =
   | {
       readonly kind: "released";
       readonly attemptId: PaymentAttemptId;
+    }
+  | {
+      readonly kind: "ceiling_set";
+      readonly nodeId: BudgetNodeRef;
+      readonly ceiling: AmountUnits;
+    }
+  | {
+      readonly kind: "node_closed";
+      readonly nodeId: BudgetNodeRef;
     };
 
 export type BudgetJournal = {

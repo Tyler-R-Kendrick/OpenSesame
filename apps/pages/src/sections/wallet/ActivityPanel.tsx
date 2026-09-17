@@ -1,28 +1,28 @@
 /**
- * Wallet › Activity — journal observations from the local budget ledger.
- * Never invents settlement; shows reserved/committed/released only.
+ * Wallet › Activity — local budget journal.
  */
 
 import type { JournalEntry } from "@opensesame/wallet-budget";
 import { useCallback, useState } from "react";
-import {
-  formatUnits,
-  getSpendingLedger,
-  listBudgetRows,
-} from "../../lib/spending-ledger.js";
+import { IconRefresh } from "../../components/Icons.js";
+import { formatUnits, getSpendingLedger } from "../../lib/spending-ledger.js";
 
 function describeEntry(entry: JournalEntry): string {
   switch (entry.kind) {
     case "node_opened":
-      return `Opened ${entry.nodeId} (ceiling ${formatUnits(entry.ceiling)}, ${entry.strategy.replaceAll("_", " ")})`;
+      return `${entry.nodeId} opened`;
     case "exclusive_allocated":
-      return `Exclusive ${formatUnits(entry.amount)} → ${entry.childId} from ${entry.parentId}`;
+      return `${formatUnits(entry.amount)} → ${entry.childId}`;
     case "reserved":
-      return `Reserved ${formatUnits(entry.amount)} on ${entry.nodeId} (${entry.attemptId})`;
+      return `${formatUnits(entry.amount)} reserved`;
     case "committed":
-      return `Committed ${entry.attemptId}`;
+      return `${entry.attemptId} committed`;
     case "released":
-      return `Released ${entry.attemptId}`;
+      return `${entry.attemptId} released`;
+    case "ceiling_set":
+      return `${entry.nodeId} ceiling ${formatUnits(entry.ceiling)}`;
+    case "node_closed":
+      return `${entry.nodeId} removed`;
   }
 }
 
@@ -33,47 +33,43 @@ export function ActivityPanel() {
   }, []);
   void tick;
 
-  const ledger = getSpendingLedger();
-  const entries = [...ledger.snapshot().journal].reverse();
-  const rows = listBudgetRows(ledger);
+  const entries = [...getSpendingLedger().snapshot().journal].reverse();
 
   return (
     <section className="panel" aria-labelledby="wallet-activity">
       <div className="panel__head">
         <div>
           <h2 id="wallet-activity">Activity</h2>
-          <p className="hint">
-            Local journal only. Entries are not chain settlement and do not
-            invent refunds.
-          </p>
         </div>
-        <button type="button" className="btn" onClick={refresh}>
-          Refresh
-        </button>
+        <fieldset className="vtree__keys" aria-label="Activity commands">
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Refresh"
+            title="Refresh"
+            onClick={refresh}
+          >
+            <IconRefresh size={15} />
+          </button>
+        </fieldset>
       </div>
       <div className="panel__body">
         {entries.length === 0 ? (
           <div className="empty">
-            <h3>No wallet activity</h3>
-            <p className="hint">
-              Reservations and budget opens appear here after Budgets records
-              them. Stub — no fabricated history.
-            </p>
+            <h3>No activity yet</h3>
           </div>
         ) : (
-          <>
-            <p className="hint">
-              {rows.length} budget node{rows.length === 1 ? "" : "s"} ·{" "}
-              {entries.length} journal entr{entries.length === 1 ? "y" : "ies"}
-            </p>
-            <ul className="list">
-              {entries.map((entry, index) => (
-                <li key={`${entry.kind}-${index}`} className="list__row">
-                  <span>{describeEntry(entry)}</span>
-                </li>
-              ))}
-            </ul>
-          </>
+          <ul className="identity-rows">
+            {entries.map((entry, index) => (
+              <li key={`${entry.kind}-${index}`} className="identity-row">
+                <div className="identity-row__main">
+                  <div className="identity-row__id">
+                    <h3>{describeEntry(entry)}</h3>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </section>

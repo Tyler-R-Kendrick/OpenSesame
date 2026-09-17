@@ -33,6 +33,21 @@ describe("connections page tree", () => {
     ]);
   });
 
+  it("ships wallet issuers in the bundled catalog", () => {
+    const ids = getBundledProviders()
+      .filter((provider) => provider.category === "wallet")
+      .map((provider) => provider.id);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "privacy",
+        "lithic",
+        "marqeta",
+        "stripe-issuing",
+        "google-wallet",
+      ]),
+    );
+  });
+
   it("leads with identity, backup/recovery, encryption, password managers, then agent harnesses", () => {
     const groups = catalogPageSections([
       provider("zulu", "Zulu Cloud", "developer"),

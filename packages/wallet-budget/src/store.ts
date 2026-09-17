@@ -18,8 +18,10 @@ export type BudgetTx = {
   getNode(id: BudgetNodeRef): NodeState | undefined;
   getAttempt(id: PaymentAttemptId): AttemptState | undefined;
   listNodes(): readonly NodeState[];
+  listAttempts(): readonly AttemptState[];
   /** Replace or insert a node clone owned by this transaction. */
   putNode(node: NodeState): void;
+  deleteNode(id: BudgetNodeRef): void;
   putAttempt(attempt: AttemptState): void;
   append(entry: JournalEntry): void;
 };
@@ -63,8 +65,16 @@ class MemoryTx implements BudgetTx {
     return [...this.nodes.values()];
   }
 
+  listAttempts(): readonly AttemptState[] {
+    return [...this.attempts.values()];
+  }
+
   putNode(node: NodeState): void {
     this.nodes.set(node.id, node);
+  }
+
+  deleteNode(id: BudgetNodeRef): void {
+    this.nodes.delete(id);
   }
 
   putAttempt(attempt: AttemptState): void {

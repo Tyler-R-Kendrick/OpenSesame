@@ -11,8 +11,6 @@ use url::Url;
 
 const CATALOG_JSON: &str = include_str!("catalog.json");
 pub const CATALOG_SCHEMA_VERSION: u32 = 1;
-
-/// Loopback mock authorize/token URLs; override per deployment with env.
 pub const MOCK_AUTHORIZE_URL: &str = "http://127.0.0.1:9090/authorize";
 pub const MOCK_TOKEN_URL: &str = "http://127.0.0.1:9090/token";
 
@@ -459,7 +457,9 @@ fn validate_provider(provider: &Provider) -> Result<(), CatalogError> {
     validate_auth(provider)?;
     validate_scopes(provider)?;
     validate_egress(provider)?;
-    validate_unique_values(&provider.operations, "operation", 128, 128)?;
+    if provider.category != Category::Wallet || !provider.operations.is_empty() {
+        validate_unique_values(&provider.operations, "operation", 128, 128)?;
+    }
     validate_attachment_upload(provider)?;
     Ok(())
 }
@@ -792,15 +792,15 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-09-17.2");
-        assert_eq!(catalog.providers().len(), 97);
+        assert_eq!(catalog.revision(), "2026-09-17.3");
+        assert_eq!(catalog.providers().len(), 101);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            96
+            100
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     }

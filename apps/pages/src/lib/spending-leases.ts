@@ -21,8 +21,18 @@ import {
   buildLocalPaymentApprovalDigest,
 } from "./spending-consent.js";
 import { getSpendingLedger } from "./spending-ledger.js";
+import {
+  onWalletTombChange,
+  readWalletStorage,
+  walletStorageKey,
+  walletStorageTomb,
+} from "./wallet-storage-scope.js";
 
 const STORAGE_KEY = "opensesame.wallet.leases.v1";
+
+function leaseKey(): string {
+  return walletStorageKey(STORAGE_KEY);
+}
 
 export type LeaseRecord = {
   readonly id: string;
@@ -45,6 +55,10 @@ export type LeaseRecord = {
 };
 
 let cache: LeaseRecord[] | null = null;
+
+onWalletTombChange(() => {
+  cache = null;
+});
 
 function parseStatus(value: BoundaryValue): SpendingLeaseStatus | undefined {
   if (
@@ -111,7 +125,7 @@ function parseLease(value: BoundaryValue): LeaseRecord | undefined {
 function readAll(): LeaseRecord[] {
   if (cache !== null) return cache;
   try {
-    const text = localStorage.getItem(STORAGE_KEY);
+    const text = readWalletStorage(STORAGE_KEY);
     if (text === null || text === "") {
       cache = [];
       return cache;
@@ -137,7 +151,7 @@ function readAll(): LeaseRecord[] {
 function writeAll(rows: readonly LeaseRecord[]): void {
   cache = [...rows];
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+    localStorage.setItem(leaseKey(), JSON.stringify(cache));
   } catch {
     // Keep memory copy if storage is unavailable.
   }
@@ -155,7 +169,7 @@ function assertionFingerprint(digest: string): string {
 
 function readSpentAssertions(): Set<string> {
   try {
-    const raw = localStorage.getItem(SPENT_ASSERTIONS_KEY);
+    const raw = readWalletStorage(SPENT_ASSERTIONS_KEY);
     if (raw === null || raw === "") return new Set();
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return new Set();
@@ -168,14 +182,33 @@ function readSpentAssertions(): Set<string> {
 function markAssertionSpent(fp: string): void {
   const next = readSpentAssertions();
   next.add(fp);
-  localStorage.setItem(SPENT_ASSERTIONS_KEY, JSON.stringify([...next]));
+  localStorage.setItem(
+    walletStorageKey(SPENT_ASSERTIONS_KEY),
+    JSON.stringify([...next]),
+  );
+}
+
+export function removeSpendingLease(id: string): void {
+  const lease = readAll().find((row) => row.id === id);
+  if (lease !== undefined && lease.reserveAttemptId !== "") {
+    try {
+      getSpendingLedger().release(lease.reserveAttemptId);
+    } catch {
+      // Already released or missing — still drop the row.
+    }
+  }
+  writeAll(readAll().filter((row) => row.id !== id));
 }
 
 export function clearSpendingLeases(): void {
   cache = [];
   try {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(SPENT_ASSERTIONS_KEY);
+    localStorage.removeItem(leaseKey());
+    localStorage.removeItem(walletStorageKey(SPENT_ASSERTIONS_KEY));
+    if (walletStorageTomb() === "personal") {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SPENT_ASSERTIONS_KEY);
+    }
   } catch {
     // ignore
   }

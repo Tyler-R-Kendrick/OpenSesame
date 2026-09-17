@@ -3,12 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   clearSpendingLedgerStorage,
+  createBudget,
   formatUnits,
   getSpendingLedger,
   listBudgetRows,
-  openDemoHouseholdBudget,
+  removeBudget,
   resetSpendingLedgerCache,
-  trySiblingOverspendDemo,
+  updateBudget,
 } from "./spending-ledger.js";
 
 /** Node 22 shadows Storage with an unavailable experimental global. */
@@ -32,6 +33,28 @@ function ensureLocalStorage(): void {
   } satisfies Storage);
 }
 
+function openSharedTree(): void {
+  getSpendingLedger().transact((tx) => {
+    tx.openNode({
+      nodeId: "household",
+      ceiling: 1000n,
+      strategy: "shared_counter",
+    });
+    tx.openNode({
+      nodeId: "child-a",
+      parentId: "household",
+      ceiling: 0n,
+      strategy: "shared_counter",
+    });
+    tx.openNode({
+      nodeId: "child-b",
+      parentId: "household",
+      ceiling: 0n,
+      strategy: "shared_counter",
+    });
+  });
+}
+
 describe("spending-ledger", () => {
   beforeEach(() => {
     ensureLocalStorage();
@@ -44,20 +67,45 @@ describe("spending-ledger", () => {
     resetSpendingLedgerCache();
   });
 
-  it("persists a household budget across cache reset (WAL-D07)", () => {
-    openDemoHouseholdBudget();
-    const before = listBudgetRows();
+  it("adds, edits, and removes a named budget", () => {
+    const created = createBudget({ name: " Groceries ", ceiling: 250n });
+    expect(created.label).toBe("Groceries");
+    expect(created.ceiling).toBe(250n);
+    expect(listBudgetRows().map((row) => row.label)).toEqual(["Groceries"]);
+
+    const edited = updateBudget({
+      nodeId: created.nodeId,
+      name: "Kitchen",
+      ceiling: 400n,
+    });
+    expect(edited.label).toBe("Kitchen");
+    expect(edited.locallyAvailable).toBe(400n);
+
+    resetSpendingLedgerCache();
+    const after = listBudgetRows(getSpendingLedger());
+    expect(after).toHaveLength(1);
+    expect(after[0]?.label).toBe("Kitchen");
+    expect(after[0]?.ceiling).toBe(400n);
+
+    removeBudget(created.nodeId);
+    expect(listBudgetRows()).toEqual([]);
+  });
+
+  it("persists a shared tree across cache reset (WAL-D07)", () => {
+    openSharedTree();
+    const before = getSpendingLedger().listNodes();
     expect(before.map((r) => r.nodeId).sort()).toEqual([
       "child-a",
       "child-b",
       "household",
     ]);
+    expect(listBudgetRows().map((r) => r.nodeId)).toEqual(["household"]);
     const root = before.find((r) => r.nodeId === "household");
     expect(root?.ceiling).toBe(1000n);
     expect(root?.locallyAvailable).toBe(1000n);
 
     resetSpendingLedgerCache();
-    const after = listBudgetRows(getSpendingLedger());
+    const after = getSpendingLedger().listNodes();
     expect(after.map((r) => r.nodeId).sort()).toEqual([
       "child-a",
       "child-b",
@@ -67,11 +115,22 @@ describe("spending-ledger", () => {
   });
 
   it("refuses the second sibling when shared remainder is insufficient (WAL-D03)", () => {
-    const result = trySiblingOverspendDemo();
-    expect(result.firstOk).toBe(true);
-    expect(result.secondOk).toBe(false);
+    openSharedTree();
+    const ledger = getSpendingLedger();
+    ledger.reserve({
+      attemptId: `demo-a-${Date.now()}`,
+      nodeId: "child-a",
+      amount: 700n,
+    });
+    expect(() =>
+      ledger.reserve({
+        attemptId: `demo-b-${Date.now()}`,
+        nodeId: "child-b",
+        amount: 400n,
+      }),
+    ).toThrow();
 
-    const root = getSpendingLedger().project("household");
+    const root = ledger.project("household");
     expect(root).toBeDefined();
     if (root === undefined) return;
     expect(root.locallyAvailable).toBe(300n);
@@ -97,24 +156,22 @@ describe("spending-ledger", () => {
     expect(listBudgetRows(getSpendingLedger())).toEqual([]);
   });
   it("localStorage tamper changes local projection only (WAL-D08)", () => {
-    openDemoHouseholdBudget();
+    openSharedTree();
     const before = getSpendingLedger().project("household");
     expect(before).toBeDefined();
-    const raw = localStorage.getItem("opensesame.wallet.budget.v1");
+    const raw = localStorage.getItem("opensesame.wallet.budget.v1.personal");
     expect(raw).toBeTruthy();
-    // Hostile same-origin edit — local mode does not claim resistance.
     localStorage.setItem(
-      "opensesame.wallet.budget.v1",
+      "opensesame.wallet.budget.v1.personal",
       JSON.stringify({ version: 1, journal: [], nodes: [], attempts: [] }),
     );
     resetSpendingLedgerCache();
     const after = getSpendingLedger().project("household");
     expect(after).toBeUndefined();
-    // Independent enforcement is out of scope for this local ledger.
   });
 
   it("keeps in-memory ledger when localStorage write fails (WAL-D17)", () => {
-    openDemoHouseholdBudget();
+    openSharedTree();
     const before = getSpendingLedger().project("household");
     expect(before).toBeDefined();
     const map = new Map<string, string>();
@@ -133,18 +190,22 @@ describe("spending-ledger", () => {
       key: (index: number) => [...map.keys()][index] ?? null,
     } satisfies Storage);
     resetSpendingLedgerCache();
-    // Re-open after cache reset with failing persistence — must not invent success.
-    expect(() => openDemoHouseholdBudget()).not.toThrow();
+    expect(() =>
+      getSpendingLedger().openNode({
+        nodeId: "household",
+        ceiling: 1000n,
+        strategy: "shared_counter",
+      }),
+    ).not.toThrow();
     const row = getSpendingLedger().project("household");
     expect(row).toBeDefined();
   });
 
   it("shared root refuses reuse after committed spend (WAL-D11)", () => {
-    openDemoHouseholdBudget();
+    openSharedTree();
     const ledger = getSpendingLedger();
     ledger.reserve({ attemptId: "x402-path", nodeId: "child-a", amount: 900n });
     ledger.commit("x402-path");
-    // Second adapter path against the same conserved root must see remaining only.
     expect(() =>
       ledger.reserve({
         attemptId: "other-adapter-path",

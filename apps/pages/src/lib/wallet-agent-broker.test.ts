@@ -15,7 +15,6 @@ import {
 import {
   clearSpendingLedgerStorage,
   getSpendingLedger,
-  openDemoHouseholdBudget,
   resetSpendingLedgerCache,
 } from "./spending-ledger.js";
 import {
@@ -74,7 +73,19 @@ describe("wallet-agent-broker", () => {
     clearSpendingLedgerStorage();
     resetSpendingLedgerCache();
     resetWalletAgentBroker();
-    openDemoHouseholdBudget();
+    getSpendingLedger().transact((tx) => {
+      tx.openNode({
+        nodeId: "household",
+        ceiling: 1000n,
+        strategy: "shared_counter",
+      });
+      tx.openNode({
+        nodeId: "child-a",
+        parentId: "household",
+        ceiling: 0n,
+        strategy: "shared_counter",
+      });
+    });
   });
 
   afterEach(() => {
