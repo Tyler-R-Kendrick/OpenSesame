@@ -17,19 +17,8 @@
   "executed": true,
   "command": "pnpm test:authority-fabric",
   "cargoExecution": "one `cargo test -p <crate> --lib -- --format terse` per crate; each scenario reads its own test's line",
-  "tierVocabulary": [
-    "unit",
-    "integration",
-    "provider",
-    "live",
-    "unsupported"
-  ],
-  "statusVocabulary": [
-    "pass",
-    "fail",
-    "blocked",
-    "unsupported"
-  ],
+  "tierVocabulary": ["unit", "integration", "provider", "live", "unsupported"],
+  "statusVocabulary": ["pass", "fail", "blocked", "unsupported"],
   "summary": {
     "total": 56,
     "byStatus": {
