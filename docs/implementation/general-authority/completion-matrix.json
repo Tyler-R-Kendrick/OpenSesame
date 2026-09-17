@@ -1,9 +1,9 @@
 {
   "$comment": "Honest status ledger. Mandate work IDs (GRA-*, AZ-*, \u2026) coexist with GA-O bootstrap IDs. Do not mark verified without command-backed evidence. No invented green CI.",
   "programme": "general-authority",
-  "baselineSha": "5cbab56320f123a39d02a86a3d4cac7160d5151a",
+  "baselineSha": "253daf06cef96115e11fb9cf91789ea848ed83f4",
   "baselineDirty": false,
-  "generatedAt": "2026-09-17T02:12:13Z",
+  "generatedAt": "2026-09-17T02:24:33Z",
   "generatedBy": "GA-4: snapshot roster_digest + refuse live offers until writer path; INV notes remain honest on dispatch gaps",
   "statusVocabulary": ["unresolved", "in-progress", "blocked", "verified"],
   "verificationVocabulary": ["none", "self-reported", "command-backed"],
@@ -15,10 +15,10 @@
   ],
   "summary": {
     "totalWorkItems": 48,
-    "unresolved": 10,
+    "unresolved": 9,
     "inProgress": 6,
     "blocked": 0,
-    "verified": 32,
+    "verified": 33,
     "testsRun": 53,
     "gatesRun": 1,
     "authorityFabric": "53 pass / 0 blocked / 3 unsupported"
@@ -303,11 +303,16 @@
       "id": "GA-O-03",
       "swarm": "GA-O",
       "title": "Grant vs AccessLease compatibility map",
-      "status": "unresolved",
-      "verification": "none",
-      "evidence": null,
+      "status": "verified",
+      "verification": "command-backed",
+      "evidence": [
+        {
+          "command": "rg -n \"Decision status|AuthorityGrant|AccessLease\" docs/implementation/general-authority/compatibility-map.md",
+          "result": "ok. Grant/AuthorityGrant canonical; AccessLease presentation-only (INV-GA-08)"
+        }
+      ],
       "blockedBy": [],
-      "notes": "The naming decision is open; the map states the constraint, not the outcome."
+      "notes": "Naming decided: stored record is Grant/AuthorityGrant. AccessLease is UI vocabulary only."
     },
     {
       "id": "GA-O-04",
