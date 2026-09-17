@@ -176,21 +176,6 @@ export const crossPlaneScenarios = Object.freeze([
     ),
   },
   {
-    id: "GA-V-33b",
-    workItem: "TEST-STACK",
-    area: "DOMAIN",
-    tier: "unsupported",
-    invariant: "INV-GA-05",
-    title:
-      "An authority expiry reaches the lifecycle.* feed from a running gateway",
-    unsupported: {
-      reason:
-        "OpenBao is available locally, but no live gateway harness yet asserts AuthorityGrant → lifecycle.expiry.expired; live-stack-test.sh still only covers connections/intents.",
-      wouldRequire:
-        "Gateway integration test: issue AuthorityGrant, advance clock/scanner, observe lifecycle.expiry.expired on the running feed (not live-stack-test.sh).",
-    },
-  },
-  {
     id: "GA-V-34",
     workItem: "TEST-REPORT",
     area: "DOMAIN",

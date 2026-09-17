@@ -20,7 +20,6 @@ import { fileURLToPath } from "node:url";
 
 import {
   capabilityIds,
-  cargoDiagnostics,
   crateFacts,
   enumerateCargoTests,
   fileFacts,
@@ -30,6 +29,11 @@ import {
   packageFacts,
   workspaceMembers,
 } from "./lib/authority-fabric-facts.mjs";
+import {
+  enumerateScenarioCargoTests,
+  readCargoResult,
+  runCargoBatches,
+} from "./lib/authority-fabric-cargo-run.mjs";
 import { markdown, printSummary } from "./lib/authority-fabric-render.mjs";
 import {
   BLOCKED_REASONS,
@@ -51,7 +55,7 @@ const resolutions = scenarios.map((scenario) => ({
   resolution: resolveScenario(scenario, facts),
 }));
 
-const cargoResults = runCargoBatches(resolutions);
+const cargoResults = runCargoBatches(resolutions, { root, noRun });
 const vitestRuns = new Map();
 const entries = resolutions.map(({ scenario, resolution }) =>
   resolution.status === "runnable"
@@ -99,21 +103,12 @@ function collectFacts() {
   const crates = crateFacts(root, crateNames, members);
   const modules = moduleFacts(root, crates, cargoTargets);
 
-  const tests = {};
-  const testErrors = {};
-  for (const crate of noRun ? crateNames : []) {
-    const anyReachable = cargoTargets.some(
-      (target) =>
-        target.crate === crate && modules[`${crate}:${target.module}`] === true,
-    );
-    if (!anyReachable) {
-      tests[crate] = null;
-      continue;
-    }
-    const enumerated = enumerateCargoTests(root, crate);
-    tests[crate] = enumerated.tests;
-    testErrors[crate] = enumerated.error;
-  }
+  const { tests, testErrors } = enumerateScenarioCargoTests({
+    root,
+    noRun,
+    cargoTargets,
+    modules,
+  });
 
   const packages = packageFacts(root);
   const paths = new Set();
@@ -173,45 +168,9 @@ function record(scenario, resolution) {
 }
 
 /**
- * Run each crate's lib tests once and keep every test's own line, rather than
- * spawning a cargo invocation per scenario. One build per crate means the
- * scenarios sharing a crate are answered from the same snapshot; separate
- * invocations let a crate compile for one scenario and fail for the next.
+ * Run each crate's tests once (lib or bin) and keep every test's own line.
+ * See `authority-fabric-cargo-run.mjs`.
  */
-function runCargoBatches(resolved) {
-  const results = new Map();
-  if (noRun) return results;
-  const crates = new Set(
-    resolved
-      .filter(
-        ({ scenario, resolution }) =>
-          resolution.status === "runnable" && scenario.target.kind === "cargo",
-      )
-      .map(({ scenario }) => scenario.target.crate),
-  );
-  for (const crate of crates) {
-    const result = spawnSync(
-      "cargo",
-      ["+1.88.0", "test", "-p", crate, "--lib", "--", "--format", "pretty"],
-      { cwd: root, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 },
-    );
-    const printed = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
-    const outcomes = new Map();
-    // libtest's per-test line. `--format terse` prints a dot per test when
-    // running and only names tests under `--list`, so it cannot be parsed here.
-    for (const match of printed.matchAll(
-      /^test (\S+) \.\.\. (ok|FAILED|ignored)$/gm,
-    )) {
-      outcomes.set(match[1], match[2]);
-    }
-    results.set(crate, {
-      outcomes,
-      built: !/error\[E\d+\]|could not compile/.test(printed),
-      printed: cargoDiagnostics(printed),
-    });
-  }
-  return results;
-}
 
 /** Settle a resolved scenario and record the command that reproduces it alone. */
 function settle(scenario, resolution) {
@@ -228,55 +187,9 @@ function settle(scenario, resolution) {
   }
   const outcome =
     scenario.target.kind === "cargo"
-      ? readCargoResult(scenario)
+      ? readCargoResult(scenario, cargoResults)
       : runVitest(resolution.command, scenario);
   return { ...record(scenario, outcome), reproduce };
-}
-
-/**
- * A compile error is not a failed contract. `fail` is reserved for a test that
- * ran and whose assertion did not hold; a crate that would not build is blocked,
- * because nothing was asserted either way.
- */
-function readCargoResult(scenario) {
-  const batch = cargoResults.get(scenario.target.crate);
-  if (batch === undefined) {
-    return {
-      status: "blocked",
-      reason: BLOCKED_REASONS.harnessError,
-      detail: `no batch result for ${scenario.target.crate}`,
-    };
-  }
-  if (!batch.built) {
-    return {
-      status: "blocked",
-      reason: BLOCKED_REASONS.buildFailed,
-      detail: batch.printed,
-    };
-  }
-  const outcome = batch.outcomes.get(scenario.target.test);
-  if (outcome === undefined) {
-    return {
-      status: "blocked",
-      reason: BLOCKED_REASONS.noTest,
-      detail: `${scenario.target.test} was enumerated but did not run; the crate's suite printed no line for it`,
-    };
-  }
-  if (outcome === "ok") {
-    return { status: "pass", detail: `${scenario.target.test} ran and passed` };
-  }
-  if (outcome === "ignored") {
-    return {
-      status: "blocked",
-      reason: BLOCKED_REASONS.noTest,
-      detail: `${scenario.target.test} is #[ignore]d, so it asserts nothing here`,
-    };
-  }
-  return {
-    status: "fail",
-    reason: "assertion did not hold",
-    detail: `${scenario.target.test} ran and failed:\n${batch.printed}`,
-  };
 }
 
 /**
