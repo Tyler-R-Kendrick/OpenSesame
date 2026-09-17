@@ -111,20 +111,27 @@ function pushTuple(bag: TupleBag, tuple: OpenFgaTupleKey): void {
   bag.tuples.push(tuple);
 }
 
+/** Host/domain IDs may already carry their type prefix; never double-prefix. */
+function typedObject(prefix: "connection" | "project", id: string): string {
+  const trimmed = id.trim();
+  const head = `${prefix}:`;
+  return trimmed.startsWith(head) ? trimmed : `${head}${trimmed}`;
+}
+
 function pushScopeTuples(grant: AuthorityGrant, bag: TupleBag): void {
   const user = subjectUser(grant);
   if (grant.connectionId !== null) {
     pushTuple(bag, {
       user,
       relation: "user",
-      object: `connection:${grant.connectionId}`,
+      object: typedObject("connection", grant.connectionId),
     });
   }
   if (grant.projectId !== null) {
     pushTuple(bag, {
       user,
       relation: projectRelation(grant.actions),
-      object: `project:${grant.projectId}`,
+      object: typedObject("project", grant.projectId),
     });
   }
 }

@@ -36,7 +36,7 @@ describe("GA-I authority routes", () => {
       },
       body: JSON.stringify({
         orchestratorKind: "agent_registration",
-        orchestratorPrincipalId: "agent:orch-1",
+        orchestratorPrincipalId: owner.principalId,
         realmId: "realm:acme",
         taskId: "task:1",
         accessDomainId: "domain:prod",
@@ -69,7 +69,7 @@ describe("GA-I authority routes", () => {
       },
       body: JSON.stringify({
         orchestratorKind: "agent_registration",
-        orchestratorPrincipalId: "agent:orch-1",
+        orchestratorPrincipalId: owner.principalId,
         realmId: "realm:acme",
         taskId: "task:1",
         accessDomainId: "domain:prod",
@@ -81,6 +81,30 @@ describe("GA-I authority routes", () => {
     });
     expect(res.status).toBe(400);
     expect(overlapCast(await res.json()).error).toBe("invariant_violation");
+  });
+
+  it("refuses spawn when orchestratorPrincipalId is not the caller", async () => {
+    const { app } = createControlPlane({ config: testConfig() });
+    const owner = await provisional(app);
+    const res = await app.request("/v1/authority/workloads/spawn", {
+      method: "POST",
+      headers: {
+        ...auth(owner.accessToken),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        orchestratorKind: "agent_registration",
+        orchestratorPrincipalId: "agent:someone-else",
+        realmId: "realm:acme",
+        taskId: "task:1",
+        accessDomainId: "domain:prod",
+        runtimeProfile: "wasmtime",
+        authorityGeneration: 1,
+        publicKeyJkt: "jkt-workload-cccccccc",
+        ordinal: 0,
+      }),
+    });
+    expect(res.status).toBe(403);
   });
 
   it("binds PoP enrollment for a device principal", async () => {

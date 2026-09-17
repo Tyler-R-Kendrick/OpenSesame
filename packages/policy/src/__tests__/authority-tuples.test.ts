@@ -68,6 +68,28 @@ describe("grantToOpenFgaTuples (GA-F-02)", () => {
     ]);
   });
 
+  it("does not double-prefix connection or project ids that already carry a type", () => {
+    const result = grantToOpenFgaTuples(
+      grant({
+        connectionId: "connection:1",
+        projectId: "project:alpha",
+        resources: ["vault/item/*"],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.tuples).toContainEqual({
+      user: "user:prn_bene",
+      relation: "user",
+      object: "connection:1",
+    });
+    expect(result.tuples).toContainEqual({
+      user: "user:prn_bene",
+      relation: "viewer",
+      object: "project:alpha",
+    });
+  });
+
   it("raises project relation to developer for writeish actions", () => {
     const result = grantToOpenFgaTuples(
       grant({ actions: ["secret.write", "secret.read"] }),

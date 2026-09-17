@@ -202,3 +202,16 @@ async fn missing_grant_is_refused() {
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
 }
+
+#[tokio::test]
+async fn depth_above_ceiling_is_bad_request() {
+    let f = fixture().await;
+    let path = format!(
+        "/api/v1/organizations/{}/grants/grant:root/authority",
+        f.organization
+    );
+    let mut body = issue_body(&f.domain_id);
+    body["delegation_depth_remaining"] = serde_json::json!(9);
+    let (status, resp) = request(&f.app, &f.owner, "POST", &path, Some(body)).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{resp}");
+}

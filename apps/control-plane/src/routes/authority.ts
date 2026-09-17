@@ -77,6 +77,15 @@ async function spawnWorkload(c: AppContext) {
     );
   }
   const body = parsed.data;
+  if (body.orchestratorPrincipalId !== principal) {
+    return c.json(
+      {
+        error: "forbidden",
+        hint: "orchestratorPrincipalId must be the authenticated principal",
+      },
+      403,
+    );
+  }
   try {
     const orchestrator = {
       kind: body.orchestratorKind,
@@ -162,6 +171,21 @@ async function enrollPop(c: AppContext) {
     );
   }
   const body = parsed.data;
+  const expectedPrefix =
+    body.subjectKind === "device"
+      ? "device:"
+      : body.subjectKind === "workload_instance"
+        ? "workload:"
+        : "actor:";
+  if (!body.principalId.startsWith(expectedPrefix)) {
+    return c.json(
+      {
+        error: "validation_error",
+        hint: `principalId must start with ${expectedPrefix} for subjectKind ${body.subjectKind}`,
+      },
+      400,
+    );
+  }
   try {
     const boundAt = ctx.clock();
     const enrollment =
