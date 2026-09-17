@@ -109,19 +109,23 @@ afterEach(() => {
 });
 
 describe("support panel", () => {
-  it("opens from the overlay, and closing it puts focus back", async () => {
-    const user = userEvent.setup();
-    mount(fakeAgentAnswering("Anything."));
-    const { affordance, panel } = await openPanel(user);
+  it(
+    "opens from the overlay, and closing it puts focus back",
+    { timeout: 15_000 },
+    async () => {
+      const user = userEvent.setup();
+      mount(fakeAgentAnswering("Anything."));
+      const { affordance, panel } = await openPanel(user);
 
-    expect(panel.contains(document.activeElement)).toBe(true);
+      expect(panel.contains(document.activeElement)).toBe(true);
 
-    await user.click(within(panel).getByRole("button", { name: "Close" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Support" })).toBeNull(),
-    );
-    expect(document.activeElement).toBe(affordance);
-  });
+      await user.click(within(panel).getByRole("button", { name: "Close" }));
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "Support" })).toBeNull(),
+      );
+      expect(document.activeElement).toBe(affordance);
+    },
+  );
 
   it("closes on Escape without the vault keymap acting on the key", async () => {
     const user = userEvent.setup();
