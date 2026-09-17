@@ -3,7 +3,11 @@
  * Terminal rows are left alone so a racing second consume cannot throw.
  */
 
-import type { Interaction, InteractionKind } from "@opensesame/os-domain";
+import {
+  DomainError,
+  type Interaction,
+  type InteractionKind,
+} from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
 import {
   authorizeTransaction,
@@ -11,12 +15,19 @@ import {
   pairSession,
 } from "./ceremony-subjects.js";
 
+function refuseExpired(expiresAt: Date, now: Date) {
+  if (expiresAt.getTime() <= now.getTime()) {
+    throw new DomainError("INVARIANT_VIOLATION", "subject expired");
+  }
+}
+
 function applyDevice(ctx: AppContext, interaction: Interaction, now: Date) {
   const row = ctx.stores.ceremonySubjects.getDevice(
     interaction.subject.subjectId,
   );
   if (!row || !interaction.approverPrincipalId) return;
   if (row.session.state === "consumed") return;
+  refuseExpired(row.session.expiresAt, now);
   ctx.stores.ceremonySubjects.putDevice(
     consumeOwnedDevice(row, interaction.approverPrincipalId, now),
   );
@@ -28,6 +39,7 @@ function applyPairing(ctx: AppContext, interaction: Interaction, now: Date) {
   );
   if (!row || !interaction.approverPrincipalId) return;
   if (row.state !== "pending") return;
+  refuseExpired(row.expiresAt, now);
   ctx.stores.ceremonySubjects.putPairing(
     pairSession(row, interaction.approverPrincipalId, now),
   );
@@ -43,6 +55,7 @@ function applyTransaction(
   );
   if (!row || !interaction.approverPrincipalId) return;
   if (row.state !== "pending") return;
+  refuseExpired(row.expiresAt, now);
   ctx.stores.ceremonySubjects.putTransaction(
     authorizeTransaction(
       row,

@@ -17,6 +17,7 @@ import {
 import { Hono } from "hono";
 import type { ControlPlaneConfig } from "./config.js";
 import type { Variables } from "./middleware/context.js";
+import { DurableMap, type SecurityMap } from "./repos/durable-map.js";
 import { DurableOpenid4vpSessionStore } from "./repos/durable-openid4vp-session-store.js";
 import { DurableWalletRegistrationStore } from "./repos/durable-wallet-registration-store.js";
 import {
@@ -38,7 +39,7 @@ export interface ResolveWalletNativeMountsInput {
   readonly config: ControlPlaneConfig;
   readonly processEnv: NodeJS.ProcessEnv;
   readonly clock: () => Date;
-  /** When set, wallet registration and OID4VP sessions use DurableMap. */
+  /** When set, wallet registration, OID4VP sessions, and OID4VCI stores use DurableMap. */
   readonly database?: Database | undefined;
   /**
    * Explicit override from `CreateControlPlaneOptions`. When provided (even as
@@ -64,6 +65,14 @@ const OPENSESAME_CREDENTIAL_CONFIGURATION_ID = "opensesame-holder-binding";
 function ephemeralIssuerKey(): CryptoKey {
   const { privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
   return overlapCast(privateKey);
+}
+
+function oid4vciStore<T>(
+  database: Database | undefined,
+  model: string,
+  secretKeys: boolean,
+): SecurityMap<T> {
+  return database ? new DurableMap<T>(database, model, secretKeys) : new Map();
 }
 
 /**
@@ -120,10 +129,19 @@ export function resolveWalletNativeMounts(
       offerTtlSeconds: 300,
       nonceTtlSeconds: 120,
       accessTokenTtlSeconds: 120,
-      grants: new DurablePreAuthorizedCodeStore(new Map()),
-      nonces: new DurableNonceStore(new Map(), 120),
-      offers: new DurableOfferStore(new Map()),
-      accessTokens: new DurableAccessTokenStore(new Map()),
+      grants: new DurablePreAuthorizedCodeStore(
+        oid4vciStore(input.database, "OpenSesame:Oid4vciGrant", true),
+      ),
+      nonces: new DurableNonceStore(
+        oid4vciStore(input.database, "OpenSesame:Oid4vciNonce", true),
+        120,
+      ),
+      offers: new DurableOfferStore(
+        oid4vciStore(input.database, "OpenSesame:Oid4vciOffer", false),
+      ),
+      accessTokens: new DurableAccessTokenStore(
+        oid4vciStore(input.database, "OpenSesame:Oid4vciAccessToken", true),
+      ),
       clock: input.clock,
     });
   }

@@ -282,4 +282,34 @@ describe("consuming an approval settles the fronted subject", () => {
       "paired",
     );
   });
+
+  it("refuses consume after the ceremony subject expires", async () => {
+    const cp = plane();
+    const approver = await principal(cp);
+    const requester = await principal(cp);
+    const { ref, requestDigest } = await create(
+      cp,
+      requester,
+      await inboxRefOf(cp, approver.accessToken),
+      "device_authorization",
+      "dev-expired",
+      [DELEGATION],
+    );
+    await stageApproval(cp, ref, requestDigest);
+    const owned = cp.ctx.stores.ceremonySubjects.getDevice("dev-expired");
+    if (!owned) throw new Error("missing seeded device");
+    cp.ctx.stores.ceremonySubjects.putDevice({
+      ownerPrincipalId: owned.ownerPrincipalId,
+      session: { ...owned.session, expiresAt: new Date(0) },
+    });
+    const spent = await consume(cp, ref, requester.accessToken);
+    expect(spent.status).toBeGreaterThanOrEqual(400);
+    const id = resolveInteractionRef(ref, cp.ctx.config.claimPepper);
+    expect((await cp.ctx.repos.interactions.getById(id ?? ""))?.status).toBe(
+      "approved",
+    );
+    expect(
+      cp.ctx.stores.ceremonySubjects.getDevice("dev-expired")?.session.state,
+    ).not.toBe("consumed");
+  });
 });

@@ -41,6 +41,9 @@ async function applyIdentitySubject(
   if (interaction.kind === "authorization_request") {
     const request = await ctx.repos.authorizationRequests.getById(subjectId);
     if (!request || request.status !== "pending") return {};
+    if (request.expiresAt.getTime() <= now.getTime()) {
+      throw new DomainError("INVARIANT_VIOLATION", "subject expired");
+    }
     await ctx.repos.authorizationRequests.updateWithVersion(
       request.id,
       request.version,
@@ -68,6 +71,9 @@ async function applyIdentitySubject(
     session.state === "expired"
   ) {
     return {};
+  }
+  if (session.expiresAt.getTime() <= now.getTime()) {
+    throw new DomainError("INVARIANT_VIOLATION", "subject expired");
   }
   await ctx.repos.claimSessions.updateWithVersion(
     session.id,
