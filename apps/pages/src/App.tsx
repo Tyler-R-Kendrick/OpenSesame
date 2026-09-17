@@ -22,6 +22,10 @@ import {
   useTheme as defaultUseTheme,
   useVault as defaultUseVault,
 } from "./lib/vault/hooks.js";
+import {
+  disarmVercelConnectAuth,
+  hydrateVercelConnectAuth,
+} from "./lib/vercel-connect-session.js";
 import { BrokerAuthorize as DefaultBrokerAuthorize } from "./screens/BrokerAuthorize.js";
 import { DropClaimScreen } from "./screens/DropClaimScreen.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
@@ -161,7 +165,10 @@ function useAfterUnlock(
   guest: boolean | undefined,
 ): void {
   useEffect(() => {
-    if (status !== "unlocked") return;
+    if (status !== "unlocked") {
+      disarmVercelConnectAuth();
+      return;
+    }
     recoverPendingFederatedLink();
     void resumeStashedJoin().catch(() => {
       // A spent or expired stash is not a reason to trap the vault.
@@ -172,6 +179,11 @@ function useAfterUnlock(
       void sealPendingConnectorDirectory(tomb, { ephemeral: guest }).catch(
         () => {
           // The endpoint is on record; Access › Connectors syncs it again.
+        },
+      );
+      void hydrateVercelConnectAuth(tomb, { ephemeral: guest === true }).catch(
+        () => {
+          // Connect stays on Host fallback until the operator arms a session.
         },
       );
     }

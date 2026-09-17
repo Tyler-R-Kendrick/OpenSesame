@@ -34,6 +34,7 @@ import { useVercelConnectConfigured } from "../lib/vercel-connect.js";
 import { noteGuideConnectionsPresent } from "../tutorial/registry/predicates.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CatalogPanel } from "./connections/CatalogPanel.js";
+import { ConnectSessionNote } from "./connections/ConnectSessionNote.js";
 import { ConnectedPanel } from "./connections/ConnectedPanel.js";
 import { CustomConnectorPage } from "./connections/CustomConnectorPage.js";
 import { IdentitySessionNote } from "./connections/IdentitySessionNote.js";
@@ -238,6 +239,7 @@ export function ConnectionsSection() {
         <PagesCannotHostNote ceremony="Host authorization" />
       ) : null}
       {hostConfigured ? <IdentitySessionNote /> : null}
+      <ConnectSessionNote />
 
       {flash ? (
         <output className={`note note--${flash.tone} conn-flash`}>
