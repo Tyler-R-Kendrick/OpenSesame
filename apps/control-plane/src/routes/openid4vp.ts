@@ -51,7 +51,12 @@ export interface Openid4vpPendingPresentation {
   readonly principalId: string;
   readonly protocolDigest: string;
   readonly approvalBindingDigest: string;
-  readonly expiresAt: Date;
+  /**
+   * Binding validity. Named so DurableMap does not treat it as row TTL —
+   * otherwise an expired binding vanishes and surfaces as presentation_unknown
+   * instead of presentation_expired.
+   */
+  readonly bindingExpiresAt: Date;
 }
 
 export interface Openid4vpRouteOptions {
@@ -183,7 +188,7 @@ export function createOpenid4vpRoutes(
       principalId,
       protocolDigest: begun.digests.protocol,
       approvalBindingDigest: begun.digests.approval,
-      expiresAt: begun.request.expiresAt,
+      bindingExpiresAt: begun.request.expiresAt,
     });
 
     return c.json({
@@ -214,7 +219,7 @@ export function createOpenid4vpRoutes(
     if (!attempt || attempt.principalId !== principalId) {
       return fail(c, "presentation_unknown", 404);
     }
-    if (attempt.expiresAt.getTime() <= options.clock().getTime()) {
+    if (attempt.bindingExpiresAt.getTime() <= options.clock().getTime()) {
       await pendingDelete(pending, parsed.data.state);
       return fail(c, "presentation_expired", 409);
     }
@@ -275,6 +280,10 @@ export function createOpenid4vpRoutes(
     const state = isString(stateValue) ? stateValue : "";
     const attempt = await pendingGet(pending, state);
     if (!attempt) return fail(c, "presentation_unknown", 404);
+    if (attempt.bindingExpiresAt.getTime() <= options.clock().getTime()) {
+      await pendingDelete(pending, state);
+      return fail(c, "presentation_expired", 409);
+    }
     return c.json({
       status: "received",
       state,
