@@ -1,19 +1,21 @@
-/**
- * @opensesame/wallet-x402 — bounded x402 exact-payment foundation.
- *
- * No mainnet. No real facilitator accounts. Adapter local_execution stays blocked
- * until a harness lands evidence under docs/evidence/wallet/.
- */
-
 export {
   assessX402Adapter,
   describeX402Adapter,
   executeX402Payment,
   prepareX402Payment,
   reconcileX402Payment,
+  refuseMutatedExactAmount,
   X402_ADAPTER_BLOCKED_REASON,
   X402AdapterBlockedError,
+  type LocalExactRuntime,
 } from "./adapter.js";
+export {
+  assertLocalExactRuntime,
+  createExactPaymentPayload,
+  settleExactPayment,
+  verifyExactPaymentMismatch,
+} from "./exact-settle.js";
+export { MAINNET_CHAIN_IDS, isMainnetChainId } from "./chain-guard.js";
 export { assessExactPayment } from "./assess.js";
 export { matchChallenge } from "./challenge.js";
 export {
