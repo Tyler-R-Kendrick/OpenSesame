@@ -1,8 +1,4 @@
-//! GA-F-02 / GA-F-04 — map a Host `Grant` onto OpenFGA tuple keys.
-//!
-//! Mirrors `packages/policy/src/authority-tuples.ts`. Projection is a cache
-//! with a stated position, never authority. This module only derives the
-//! additive relationship tuples a projector may write for one grant.
+//! Map a Host `Grant` onto OpenFGA tuple keys. Projection is never authority.
 
 use opensesame_domain::Grant;
 use std::collections::HashSet;
@@ -40,9 +36,7 @@ impl GrantTupleMappingError {
             }
             Self::EmptyActions => "a grant with no actions projects nothing",
             Self::EmptyResources => "a grant with no resources projects nothing",
-            Self::UnmappedScope => {
-                "grant has no connection, project, or typed resource to project"
-            }
+            Self::UnmappedScope => "grant has no connection, project, or typed resource to project",
         }
     }
 }
@@ -66,8 +60,7 @@ struct ParsedResource {
 }
 
 const WRITEISH_TOKENS: &[&str] = &[
-    "write", "admin", "delete", "create", "update", "mutate", "invoke", "execute",
-    "export",
+    "write", "admin", "delete", "create", "update", "mutate", "invoke", "execute", "export",
 ];
 
 fn is_writeish(actions: &[String]) -> bool {
@@ -287,6 +280,40 @@ pub fn grant_to_openfga_tuples(grant: &Grant) -> GrantTupleMappingResult {
     Ok(tuples)
 }
 
+/// Tuple the invoke path checks for one resolved operation/resource.
+pub fn invoke_check_tuple(
+    subject: &str,
+    operation: &str,
+    resource: &str,
+    connection_id: Option<&str>,
+) -> Result<TupleKey, GrantTupleMappingError> {
+    let parsed = parse_resource_object(resource)?;
+    let actions = [operation.to_owned()];
+    let object = match parsed.kind {
+        ResourceKind::Other | ResourceKind::Connection => {
+            let expected = typed_object(
+                "connection",
+                connection_id.ok_or(GrantTupleMappingError::UnmappedScope)?,
+            );
+            if parsed.kind == ResourceKind::Connection && parsed.object != expected {
+                return Err(GrantTupleMappingError::UnmappedScope);
+            }
+            expected
+        }
+        _ => parsed.object.clone(),
+    };
+    let relation = match parsed.kind {
+        ResourceKind::Connection | ResourceKind::Other => "user",
+        ResourceKind::Project => project_relation(&actions),
+        ResourceKind::VaultItem | ResourceKind::VaultCollection => vault_relation(&actions),
+        ResourceKind::AccessDomain => domain_relation(&actions),
+    };
+    Ok(TupleKey {
+        user: format!("user:{subject}"),
+        relation: relation.to_owned(),
+        object,
+    })
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -294,7 +321,6 @@ mod tests {
     use opensesame_domain::{
         ConnectionId, GrantConstraints, OfflineUse, OrganizationId, PrincipalId, ProjectId,
     };
-
     fn sample_grant() -> Grant {
         let now = Utc::now();
         Grant {
@@ -363,5 +389,12 @@ mod tests {
             grant_to_openfga_tuples(&grant),
             Err(GrantTupleMappingError::CohortGrantee)
         ));
+    }
+    #[test]
+    fn invoke_check_uses_resolved_connection_not_demo_conn() {
+        let tuple = invoke_check_tuple("alice", "repository.read", "repo:x", Some("live")).unwrap();
+        assert_eq!(tuple.object, "connection:live");
+        assert!(invoke_check_tuple("alice", "read", "connection:other", Some("live")).is_err());
+        assert!(invoke_check_tuple("alice", "read", "cohort:eng", Some("c")).is_err());
     }
 }

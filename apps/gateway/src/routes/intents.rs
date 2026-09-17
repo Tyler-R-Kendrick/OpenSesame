@@ -8,37 +8,42 @@ use chrono::{Duration, Utc};
 use opensesame_broker::InvokeInput;
 use opensesame_connector_host::{HostError, InvokeResult};
 use opensesame_domain::{
-    AuthorityOperation, ConnectionAuthorityBinding, ConnectionId, ConnectionRef, DetachedProof,
-    Grant, GrantId, Intent, IntentId, InvocationReceipt, InvokeLevel, OrganizationId, PrincipalId,
-    ValidatedGrantChain,
+    ConnectionAuthorityBinding, ConnectionId, ConnectionRef, DetachedProof, Grant, GrantId, Intent,
+    IntentId, InvocationReceipt, InvokeLevel, OrganizationId, PrincipalId, ValidatedGrantChain,
 };
 #[cfg(test)]
 use opensesame_domain::{EgressBinding, OrganizationRole};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use opensesame_authz::{authorize_authority_use, AuthorityUse};
 use opensesame_connection_broker::store as broker_store;
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_caller_subject};
+
+#[path = "intents_enforcement.rs"]
+mod intents_enforcement;
+use intents_enforcement::authorize_invocation;
+
+#[path = "intents_queue.rs"]
+mod intents_queue;
 
 /// What a submitted `ConnectionRef` resolved to: whose grant will be exercised,
 /// against which connection, through which connector component.
 pub(crate) struct ResolvedInvocation {
     pub(crate) grant: Grant,
     /// Verified parent→child lineage at resolve time (AT-RAW-PARENT fence).
-    lineage: Option<ValidatedGrantChain>,
-    delegation_chain: Vec<GrantId>,
-    connection_id: ConnectionId,
-    principal_id: PrincipalId,
-    binding: ConnectionAuthorityBinding,
-    connection_policy_id: String,
+    pub(crate) lineage: Option<ValidatedGrantChain>,
+    pub(crate) delegation_chain: Vec<GrantId>,
+    pub(crate) connection_id: ConnectionId,
+    pub(crate) principal_id: PrincipalId,
+    pub(crate) binding: ConnectionAuthorityBinding,
+    pub(crate) connection_policy_id: String,
     /// Budget to decrement after authorization, when the path is delegated.
     pub(crate) spend_budget: Option<String>,
     /// True when this resolved through the durable connection broker rather
     /// than the development bootstrap fixture.
-    broker_connection: bool,
+    pub(crate) broker_connection: bool,
 }
 
 #[derive(Deserialize)]
@@ -72,7 +77,7 @@ fn claims_task_authority(body: &InvokeBody, headers: &axum::http::HeaderMap) -> 
         || headers.contains_key("x-opensesame-intent-digest")
 }
 
-struct ConstrainedHttpInput {
+pub(super) struct ConstrainedHttpInput {
     method: String,
     url: String,
     body: Option<Value>,
@@ -161,7 +166,7 @@ fn build_intent(
     })
 }
 
-fn not_found() -> Response {
+pub(super) fn not_found() -> Response {
     (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response()
 }
 
@@ -357,49 +362,7 @@ async fn resolve_invocation(
     }
 }
 
-fn authorize_invocation(
-    st: &AppState,
-    subject: &str,
-    body: &InvokeBody,
-    parameters: &Value,
-    resolved: &ResolvedInvocation,
-    level: u8,
-) -> Result<(), Response> {
-    let invoke_level = match level {
-        1 => InvokeLevel::TypedOperation,
-        2 => InvokeLevel::ConstrainedHttp,
-        _ => InvokeLevel::Materialize,
-    };
-    let authority_use = AuthorityUse {
-        subject,
-        grant: &resolved.grant,
-        binding: &resolved.binding,
-        op: AuthorityOperation::Invoke,
-        level: invoke_level,
-        requested_url: parameters.get("url").and_then(Value::as_str),
-        requested_action: Some(&body.operation),
-        connection_policy_id: &resolved.connection_policy_id,
-        lineage: resolved.lineage.as_ref(),
-    };
-    match authorize_authority_use(&st.broker.policy, &authority_use) {
-        Ok(decision) if decision.allowed => Ok(()),
-        Ok(_) => Err((
-            StatusCode::FORBIDDEN,
-            Json(json!({"error":"authority_denied","type":"about:blank"})),
-        )
-            .into_response()),
-        Err(error) => {
-            let message = opensesame_redaction::redact_text(&error.to_string());
-            Err((
-                StatusCode::FORBIDDEN,
-                Json(json!({"error": message, "type":"about:blank"})),
-            )
-                .into_response())
-        }
-    }
-}
-
-async fn execute_invocation(
+pub(super) async fn execute_invocation(
     st: &AppState,
     organization_id: OrganizationId,
     resolved: &ResolvedInvocation,
@@ -524,13 +487,13 @@ pub async fn create(
         Ok(hold) => hold,
         Err(response) => return response,
     };
-
-    // Optional live OpenFGA check when configured — subject from session/operator, not a hard-coded demo user.
     if let Err(response) = super::intents_projection::authorize_openfga(
         &st,
         &boot.org.to_string(),
         &subject,
         &resolved,
+        &body.operation,
+        &body.resource,
     )
     .await
     {
@@ -549,31 +512,16 @@ pub async fn create(
         parameters: parameters.clone(),
         lineage: resolved.lineage.clone(),
     };
-    let result = execute_invocation(&st, boot.org, &resolved, invoke_input, constrained_http).await;
-    // Unknown provider outcomes stay charged (storage budget contract).
-    super::intents_budget::settle_authority_budget_hold(&st, authority_hold).await;
-
-    match result {
-        Ok(receipt) => {
-            let mut body = serde_json::to_value(&receipt).unwrap_or(json!({}));
-            if let Some(obj) = body.as_object_mut() {
-                if let Some(connection_ref) = &st.connection_ref {
-                    obj.insert("connection_ref".into(), json!(connection_ref.handle.uri()));
-                }
-                obj.insert("invoke_level".into(), json!(level));
-                obj.insert("credential_bytes_returned".into(), json!(false));
-            }
-            (StatusCode::OK, Json(body)).into_response()
-        }
-        Err(e) => {
-            let msg = opensesame_redaction::redact_text(&e.to_string());
-            (
-                StatusCode::FORBIDDEN,
-                Json(json!({"error": msg, "type": "about:blank"})),
-            )
-                .into_response()
-        }
-    }
+    intents_queue::dispatch_or_hold(
+        &st,
+        boot.org,
+        resolved,
+        invoke_input,
+        constrained_http,
+        authority_hold,
+        level,
+    )
+    .await
 }
 
 #[cfg(test)]

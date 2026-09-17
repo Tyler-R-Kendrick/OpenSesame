@@ -52,22 +52,31 @@ cargo +1.88.0 test -p opensesame-storage --test authority_adversarial_matrix
 | AT-ROLE-EDIT | **covered** (prior) | `permission::role::tests::a_role_cannot_be_redefined_in_place` |
 | AT-COHORT-CYCLE | **covered** (prior) | `cohort_adversarial::a_cycle_is_refused_however_the_walk_arrives_at_it` |
 | AT-SNAPSHOT-ADD/REMOVE | **covered** (prior) | `cohort_admission_adversarial::*` |
-| AT-FGA-STALE / additivity | **covered** (conditional) | `packages/policy` `authority-additivity` (live OpenFGA when configured) |
+| AT-FGA-STALE / additivity | **covered** | invoke-path freshness fence `routes::intents_projection::tests::at_fga_stale_freshness_fence_denies_before_dispatch`; additivity `packages/policy` `authority-additivity` |
 | AT-REVOKE-ISSUE | **covered** | `authority::tests::a_revoked_ancestor_denies_a_descendant_on_the_next_read`; fence suites |
 | AT-PROVIDER-LATE | **covered** | `authority_atomic::a_late_provider_observation_cannot_overwrite_a_newer_revoke` |
 
-## Still open (local SaaS / surface / product gaps)
+## Named on the fabric gate (this change)
 
-| Test ID | Why still open |
+| Test ID | Status | file::test |
+|---|---|---|
+| AT-LIVE-WRITER | **covered** | `authority::offers_live::live_offer_admits_trusted_writer_and_refuses_unauthorized` |
+| AT-COHORT-TOKEN | **covered** | `authority_offers::an_offer_admits_each_person_once_and_no_more_than_its_cap` |
+| AT-DNS-GLOBAL | **covered** | `blocky::request::tests::a_disable_cannot_be_built_without_groups` |
+| AT-SANDBOX | **covered** | `payloads::a_native_binary_is_refused_by_the_spawn_path_itself` |
+| AT-PREEXISTING | **covered** | `reconcile_removes_only_what_it_created` |
+| AT-REVOKE-QUEUE | **covered** | `routes::intents::delegated_invoke_tests::at_revoke_queue_queued_invoke_is_denied_after_revoke` |
+| AT-CLOCK | **covered** | `budget::ledger::conservation::a_clock_that_runs_backwards_is_refused` |
+| AT-SSRF | **covered** | `tests::ssrf_via_url_parameter_blocked` |
+| AT-APPROVAL-QUORUM | **covered** | control-plane `interaction-handoff` one-approval race |
+| AT-RAW-PARENT / AT-CORRELATED / AT-STATE-RESTORE | **covered** | `authority_adversarial_matrix` |
+
+## Honest unsupported (tested refusal, not a missing core)
+
+| Test ID | Why |
 |---|---|
-| AT-CROSS-TRUST | Needs configured foreign IdP mapping fixture beyond unit isolation |
-| AT-CONTROL-ROLE / AT-LIVE-WRITER / AT-COHORT-TOKEN | Partial unit coverage exists; full product control-plane ceremony not named AT-* |
-| AT-APPROVAL-QUORUM | Race/quorum suite elsewhere; not AT-named here |
-| AT-PROMPT-INJECT / AT-CEILING / AT-SPAWN / AT-SANDBOX / AT-RESOURCE-EXHAUST | Sandbox/runtime surfaces |
-| AT-DNS-GLOBAL / AT-DNS-BYPASS | Blocky live / honest-unsupported |
-| AT-SESSION-* / AT-CHANNEL / AT-PRIVACY / AT-STATIC / AT-LEGACY / AT-NEW-AUDIENCE | Product-surface journeys |
-| AT-ROTATION / AT-COPIED-KEY / AT-PREEXISTING / AT-PROVIDER-PARTIAL | Provider adapter honesty |
-| AT-CLOCK / AT-SSRF / AT-REVOKE-QUEUE / AT-POLICY-ERROR | Dedicated harnesses not AT-named yet |
+| Live Discord guild / Apple Family Controls / OS app block / physical locks | Catalog and issuance preflight refuse; fabric GA-V-64 / GA-V-58 |
+| AT-DNS-BYPASS | DNS-only coverage: alternate resolver / direct IP / cached session are disclosed, not claimed blocked |
 
 ## Fabric note
 

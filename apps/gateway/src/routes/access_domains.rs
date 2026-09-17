@@ -14,9 +14,9 @@ use opensesame_storage::authority::{AccessDomain, DomainReparent, NewAccessDomai
 use serde::Deserialize;
 use serde_json::json;
 
+use super::secret_configs::access::hidden;
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
-use super::secret_configs::access::hidden;
 
 pub(super) fn routes() -> Router<AppState> {
     Router::new()

@@ -33,8 +33,7 @@ async fn fix_contractor_correlated_entries_do_not_recombine() {
         .expect("engagement grant must be live");
     let allows = |action: &str, resource: &str| {
         held.entries.iter().any(|e| {
-            e.resource_selector == resource
-                && e.action_set_json.contains(&format!("\"{action}\""))
+            e.resource_selector == resource && e.action_set_json.contains(&format!("\"{action}\""))
         })
     };
     assert!(allows("logs.read", "resource:A"));
@@ -70,6 +69,8 @@ async fn fix_contractor_snapshot_roster_add_is_denied_at_offer() {
             cohort_revision: 3,
             membership_binding: "snapshot",
             roster_digest: Some("sha256:contractors-rev3"),
+            trusted_writer: None,
+            permitted_principal_class: None,
             envelope_grant_id: "grant:envelope",
             max_activations: 4,
         })
@@ -111,10 +112,7 @@ async fn fix_contractor_ancestor_revoke_denies_descendant_without_projection() {
     seed_grant(&db, &organization_id, "grant:child").await;
     let sponsor = issue("grant:sponsor", &organization_id, &domain_id);
     assert!(db
-        .issue_authority(
-            &sponsor,
-            &[entry("resource:A", "logs.read")],
-        )
+        .issue_authority(&sponsor, &[entry("resource:A", "logs.read")],)
         .await
         .unwrap());
     let mut child = issue("grant:child", &organization_id, &domain_id);

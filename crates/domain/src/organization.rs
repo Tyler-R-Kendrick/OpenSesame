@@ -13,4 +13,11 @@ impl OrganizationRole {
     pub fn can_configure_integrations(self) -> bool {
         matches!(self, Self::Owner | Self::Admin)
     }
+
+    /// Cohort/template editors may be admins. Reserved issuance (export, policy
+    /// edit) requires the realm owner — explicit higher-scope authority.
+    #[must_use]
+    pub fn may_issue_reserved_administration(self) -> bool {
+        matches!(self, Self::Owner)
+    }
 }

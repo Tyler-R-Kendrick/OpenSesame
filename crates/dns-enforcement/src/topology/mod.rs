@@ -261,6 +261,35 @@ mod tests {
     }
 
     #[test]
+    fn opposite_unit_policies_cannot_disable_each_other() {
+        use crate::blocky::{DisableGroups, Operation};
+
+        let topology = Topology::new(Unmatched::Unfiltered)
+            .bind(unit("alpha"), client("127.0.0.1"))
+            .bind(unit("beta"), client("127.0.0.2"));
+        topology.audit().expect("distinct clients isolate");
+
+        let alpha = DisableGroups::new(["unit-alpha"]).expect("named group");
+        let spec = Operation::Disable {
+            groups: alpha,
+            window: None,
+        }
+        .spec();
+        let groups = spec
+            .query
+            .iter()
+            .find(|(key, _)| key == "groups")
+            .map(|(_, value)| value.as_str())
+            .expect("disable names groups");
+        assert_eq!(groups, "unit-alpha");
+        assert!(!groups.contains("unit-beta"));
+        assert_eq!(
+            DisableGroups::new(Vec::<String>::new()),
+            Err(crate::blocky::ProtocolError::DisableWithoutGroups)
+        );
+    }
+
+    #[test]
     fn leaving_unmatched_clients_unfiltered_writes_no_default_key() {
         // Fail-open is a recorded choice, and its rendering is the absence of a
         // `default` entry — which is exactly what was measured to be unfiltered.

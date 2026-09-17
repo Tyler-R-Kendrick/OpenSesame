@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 545,
-    "violations": 882,
-    "oversizedLines": 278666
+    "files": 543,
+    "violations": 879,
+    "oversizedLines": 277621
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -435,7 +435,7 @@
       "max-lines": 638
     },
     "apps/gateway/src/lifecycle/subjects.rs": {
-      "max-lines": 714
+      "max-lines": 713
     },
     "apps/gateway/src/managed_certs.rs": {
       "max-lines": 731
@@ -471,7 +471,7 @@
       "max-lines": 1688
     },
     "apps/gateway/src/routes/intents.rs": {
-      "max-lines": 585
+      "max-lines": 533
     },
     "apps/gateway/src/routes/kv_facade.rs": {
       "max-lines": 758
@@ -1315,9 +1315,6 @@
     "crates/domain/src/capability.rs": {
       "max-lines": 412
     },
-    "crates/domain/src/grant.rs": {
-      "max-lines": 434
-    },
     "crates/domain/src/shared_session.rs": {
       "max-lines": 510
     },
@@ -1829,9 +1826,6 @@
     },
     "packages/webmcp/src/registrar.test.ts": {
       "max-lines": 474
-    },
-    "scripts/lib/authority-fabric-scenarios-cross.mjs": {
-      "max-lines": 471
     },
     "scripts/wallet/browser-harness.mjs": {
       "max-lines": 423,

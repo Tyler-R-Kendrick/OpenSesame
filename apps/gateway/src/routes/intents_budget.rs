@@ -58,6 +58,20 @@ pub(super) async fn settle_authority_budget_hold(st: &AppState, hold: Option<Aut
         .await;
 }
 
+/// Release a hold that never reached the side-effect boundary (AT-REVOKE-QUEUE).
+pub(super) async fn release_authority_budget_hold(
+    st: &AppState,
+    hold: Option<AuthorityBudgetHold>,
+) {
+    let Some(hold) = hold else {
+        return;
+    };
+    let _ = st
+        .db
+        .release_invoke_budgets(&hold.organization_id, &hold.keys)
+        .await;
+}
+
 async fn spend_authority_budget(
     st: &AppState,
     organization_id: &str,

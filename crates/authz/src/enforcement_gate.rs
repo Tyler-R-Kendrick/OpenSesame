@@ -54,6 +54,14 @@ pub enum EnforcementRefused {
         /// The surface the use actually runs on.
         running_on: SubjectSurface,
     },
+    /// No catalogued descriptor uses this name. Missing is not a cue to fall
+    /// back to the host broker: that would issue a grant for a surface nobody
+    /// described.
+    #[error("unknown enforcement platform `{0}`")]
+    UnknownPlatform(String),
+    /// The catalog failed its own audit, so nothing can be judged.
+    #[error("enforcement catalog is not loadable")]
+    CatalogUnusable,
 }
 
 impl From<EnforcementRefused> for AuthzError {

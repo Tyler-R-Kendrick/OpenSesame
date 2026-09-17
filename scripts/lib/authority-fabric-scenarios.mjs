@@ -9,10 +9,16 @@
  * the gate.
  *
  * The scenarios themselves are grouped by what they reach into:
- * `-host` for single-module Rust contracts, `-cross` for everything wider.
+ * `-host` for single-module Rust contracts, `-cross` for everything wider,
+ * `-cohort` for live-offer writer and issuance-preflight contracts.
  */
 
+import { atRestPlaneScenarios } from "./authority-fabric-scenarios-at-rest.mjs";
+import { atTailPlaneScenarios } from "./authority-fabric-scenarios-at-tail.mjs";
+import { atPlaneScenarios } from "./authority-fabric-scenarios-at.mjs";
+import { cohortPlaneScenarios } from "./authority-fabric-scenarios-cohort.mjs";
 import { crossPlaneScenarios } from "./authority-fabric-scenarios-cross.mjs";
+import { fixPlaneScenarios } from "./authority-fabric-scenarios-fix.mjs";
 import { hostPlaneScenarios } from "./authority-fabric-scenarios-host.mjs";
 
 /** What a scenario needs at run time. Not a severity, and not an ordering. */
@@ -40,4 +46,9 @@ export const STATUSES = Object.freeze([
 export const scenarios = Object.freeze([
   ...hostPlaneScenarios,
   ...crossPlaneScenarios,
+  ...fixPlaneScenarios,
+  ...cohortPlaneScenarios,
+  ...atPlaneScenarios,
+  ...atRestPlaneScenarios,
+  ...atTailPlaneScenarios,
 ]);

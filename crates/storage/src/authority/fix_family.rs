@@ -81,7 +81,10 @@ async fn fix_family_bounded_budget_refuses_overspend() {
             accepted += 1;
         }
     }
-    assert_eq!(accepted, 3, "a household budget must conserve under concurrent spend");
+    assert_eq!(
+        accepted, 3,
+        "a household budget must conserve under concurrent spend"
+    );
 }
 
 #[tokio::test]
