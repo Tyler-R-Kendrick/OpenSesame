@@ -19,6 +19,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { applyAgUiEndpoint } from "../tutorial/agents/ag-ui/endpoint.js";
+import { applyDeployedAmbientPolicy } from "./ambient-auth/runtime.js";
 import { type RuntimeEndpointConfig, applyRuntimeConfig } from "./settings.js";
 
 const RUNTIME_CONFIG_FETCH_MS = 3000;
@@ -40,6 +41,9 @@ async function fetchRuntimeConfigDefault(): Promise<RuntimeEndpointConfig | null
     if (!response.ok) return null;
     const body: BoundaryValue = await response.json();
     if (!isJsonObject(body)) return null;
+    applyDeployedAmbientPolicy(
+      "ambientAuth" in body ? body.ambientAuth : undefined,
+    );
     return {
       hostApi: readEndpoint(body.hostApi),
       identityApi: readEndpoint(body.identityApi),

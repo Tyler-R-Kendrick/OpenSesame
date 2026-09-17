@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   type IncomingMessage,
   type Server,
@@ -28,6 +28,18 @@ import {
   sendXml,
 } from "./http.js";
 import { createOAuth2Surface, oauth2Urls } from "./oauth2.js";
+import {
+  cryptoRandom,
+  pairwiseSub,
+  pkceChallengesEqual,
+  s256Challenge,
+  tokenCorsHeaders,
+} from "./oidc-crypto.js";
+import {
+  originFromClientId,
+  refuseAuthorizeShape,
+  refusePromptNoneWithoutSession,
+} from "./prompt-none.js";
 import { type ClientRegistry, registerClient } from "./registration.js";
 import {
   SAML_METADATA_PATH,
@@ -84,30 +96,6 @@ export interface MintSamlResponseInput {
   mutate?: SamlMutation;
 }
 
-function isOriginClientId(clientId: string): boolean {
-  return clientId.startsWith("origin:");
-}
-
-function originFromClientId(clientId: string): string | undefined {
-  if (!isOriginClientId(clientId)) return undefined;
-  const origin = clientId.slice("origin:".length);
-  try {
-    const url = new URL(origin);
-    if (url.origin !== origin) return undefined;
-    if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
-    return origin;
-  } catch {
-    return undefined;
-  }
-}
-
-function pairwiseSub(canonicalSub: string, audience: string): string {
-  return createHash("sha256")
-    .update(`os-mock:${canonicalSub}:${audience}`)
-    .digest("hex")
-    .slice(0, 32);
-}
-
 export interface MockUpstreamIdp {
   config: MockIdpConfig;
   keys: MockIdpKeys;
@@ -125,26 +113,6 @@ export interface MockUpstreamIdp {
     options?: MintLogoutTokenOptions,
   ): Promise<string>;
   mintSamlResponse(input: MintSamlResponseInput): Promise<string>;
-}
-
-function tokenCorsHeaders(origin: string) {
-  return {
-    "access-control-allow-origin": origin,
-    "access-control-allow-methods": "POST, OPTIONS",
-    "access-control-allow-headers": "content-type",
-    vary: "Origin",
-  };
-}
-
-function s256Challenge(verifier: string): string {
-  return createHash("sha256").update(verifier).digest("base64url");
-}
-
-function pkceChallengesEqual(a: string, b: string): boolean {
-  const ba = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ba.length !== bb.length) return false;
-  return timingSafeEqual(ba, bb);
 }
 
 /**
@@ -507,25 +475,27 @@ export async function createMockUpstreamIdp(
             config.issuer,
           );
         }
-        if (responseType !== "code") {
-          return sendJson(
+        if (
+          refuseAuthorizeShape({
             res,
-            400,
-            { error: "unsupported_response_type" },
-            config.issuer,
-          );
-        }
-        if (!codeChallenge || (codeChallengeMethod ?? "") !== "S256") {
-          return sendJson(
+            issuer: config.issuer,
+            responseType,
+            codeChallenge,
+            codeChallengeMethod,
+          })
+        )
+          return;
+        if (
+          refusePromptNoneWithoutSession({
+            req,
             res,
-            400,
-            {
-              error: "invalid_request",
-              error_description: "PKCE S256 required",
-            },
-            config.issuer,
-          );
-        }
+            prompt: url.searchParams.get("prompt") ?? "",
+            redirectUri,
+            state,
+            headers: (extra) => securityHeaders(extra, config.issuer),
+          })
+        )
+          return;
 
         observed.lastNonce = nonce;
         const code = `code_${cryptoRandom()}`;
@@ -533,7 +503,7 @@ export async function createMockUpstreamIdp(
           clientId,
           redirectUri,
           scope,
-          codeChallenge,
+          codeChallenge: codeChallenge ?? "",
           ...(nonce !== undefined ? { nonce } : undefined),
           ...(originClient !== undefined
             ? { origin: originClient }
@@ -778,8 +748,4 @@ export async function createMockUpstreamIdp(
       });
     },
   };
-}
-
-function cryptoRandom(): string {
-  return randomBytes(16).toString("hex");
 }

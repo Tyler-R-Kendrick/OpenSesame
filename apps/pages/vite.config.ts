@@ -45,6 +45,14 @@ export default defineConfig({
     // esbuild 0.28 cannot downlevel some destructuring forms used by react-router
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
     target: ["es2022", "chrome100", "firefox100", "safari15"],
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        msalRedirect: fileURLToPath(
+          new URL("./auth/redirect.html", import.meta.url),
+        ),
+      },
+    },
   },
   // Dependency pre-bundling in dev has its own target and hits the same limitation.
   esbuild: { target: "es2022" },
@@ -61,10 +69,11 @@ export default defineConfig({
         server.middlewares.use((req, res, next) => {
           // Only the local sign-in popup retains its cross-origin opener.
           // The vault and every other route retain the isolation default.
-          res.setHeader(
-            "Cross-Origin-Opener-Policy",
-            crossOriginOpenerPolicy(req.url?.split("?")[0] ?? "", base),
+          const coop = crossOriginOpenerPolicy(
+            req.url?.split("?")[0] ?? "",
+            base,
           );
+          if (coop) res.setHeader("Cross-Origin-Opener-Policy", coop);
           if (req.url?.startsWith("/opensesame/callback")) {
             const query = req.url.slice("/opensesame/callback".length);
             res.statusCode = 302;

@@ -19,6 +19,7 @@ import {
   readAuthOutcome,
 } from "../../lib/auth-outcome.js";
 import { recoverPendingFederatedLink } from "../../lib/guest-auth.js";
+import { signOut } from "../../lib/session-exit.js";
 
 type BannerModel = {
   tone: "ok" | "warn" | "err" | "plain";
@@ -38,6 +39,15 @@ function humanWho(who: string | undefined): string | null {
 
 function describeOutcome(outcome: AuthOutcome): BannerModel {
   switch (outcome.kind) {
+    case "authenticated": {
+      const who = humanWho(outcome.who);
+      return {
+        tone: "ok",
+        text: who
+          ? `Signed in with your organization as ${who}. Unlock your vault to continue.`
+          : "Signed in with your organization. Unlock your vault to continue.",
+      };
+    }
     case "linked": {
       const who = humanWho(outcome.who);
       return {
@@ -98,6 +108,18 @@ export function PendingLinkBanner() {
       aria-live="polite"
     >
       <span>{model.text}</span>
+      {outcome.kind === "authenticated" ? (
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            signOut();
+            bump();
+          }}
+        >
+          Sign out
+        </button>
+      ) : null}
       <button
         type="button"
         className="icon-btn unlock__outcome-dismiss"

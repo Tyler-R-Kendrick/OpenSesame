@@ -154,6 +154,42 @@ describe("FederationReturn", () => {
     expect(fed.adoptFederatedIdentity).not.toHaveBeenCalled();
   });
 
+  it("ambient intent never links, joins, or opens a vault", async () => {
+    fed.completeSignIn.mockResolvedValue({
+      intent: {
+        kind: "ambient",
+        policyRevision: "rev1",
+        selectedProviderKey: "oidc|https://idp.example|spa|",
+      },
+      identity: {
+        issuer: "https://idp.example",
+        upstreamId: "oidc",
+        idToken: "id-token",
+        pairwiseSub: "sub-1",
+        audience: "spa",
+        jwksUri: "https://idp.example/jwks",
+        expiresAt: Date.now() + 60_000,
+        name: "Pat",
+      },
+      claims: {
+        iss: "https://idp.example",
+        sub: "sub-1",
+        aud: "spa",
+        exp: Math.floor(Date.now() / 1000) + 60,
+        iat: Math.floor(Date.now() / 1000),
+      },
+      transactionId: "tx1",
+      generation: 0,
+      policyRevision: "rev1",
+    });
+    renderReturn();
+    await waitFor(() => expect(fed.completeSignIn).toHaveBeenCalledTimes(1));
+    expect(fed.adoptFederatedIdentity).not.toHaveBeenCalled();
+    expect(fed.openVaultAfterSignIn).not.toHaveBeenCalled();
+    expect(fed.joinOrgTenant).not.toHaveBeenCalled();
+    expect(fed.adoptBrokeredSession).not.toHaveBeenCalled();
+  });
+
   it("adopts the upstream identity with the id_token", async () => {
     fed.ensureIdentitySession.mockResolvedValue({
       principalId: "prn_guest",

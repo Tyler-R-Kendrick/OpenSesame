@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { AppShell as DefaultAppShell } from "./components/AppShell.js";
+import { useAmbientAuthBoot } from "./lib/ambient-auth/boot.js";
 import { sealPendingConnectorDirectory } from "./lib/connector-directory.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "./lib/federation.js";
 import { keyboardIsIdle, landFocus } from "./lib/focus.js";
@@ -289,8 +290,10 @@ export function App({ slots }: { slots?: Partial<AppSlots> } = {}) {
   usePaneEscape();
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
+  const isAuthCallback = resolved.hasAuthResponse(location.search);
+  useAmbientAuthBoot(isAuthCallback, location.pathname);
 
-  const body = resolved.hasAuthResponse(location.search) ? (
+  const body = isAuthCallback ? (
     <resolved.FederationReturn />
   ) : location.pathname === "/broker/authorize" ? (
     <resolved.BrokerAuthorize />

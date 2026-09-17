@@ -71,6 +71,12 @@ describe("signOut", () => {
     expect(endSession).toHaveBeenCalledTimes(1);
     expect(sessionStorage.getItem(PENDING_LINK_KEY)).toBeNull();
     expect(readAuthOutcome()).toEqual({ kind: "signed_out" });
+    expect(localStorage.getItem("opensesame:ambient-auth:suppressed")).toBe(
+      "1",
+    );
+    expect(
+      Number(localStorage.getItem("opensesame:ambient-auth:generation")),
+    ).toBeGreaterThan(0);
   });
 
   it("locks an open vault — sign-out never leaves the key for the next person", async () => {

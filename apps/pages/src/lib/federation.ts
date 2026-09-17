@@ -7,7 +7,17 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { decodeJwtEnvelope } from "@opensesame/sdk-browser";
+import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
+import { parseAuthCallback } from "./ambient-auth/callback.js";
+import { clearAutoAuthSuppression } from "./ambient-auth/generation.js";
+import { readStoredSessionSync } from "./ambient-auth/restoration.js";
+import type { AuthenticationIntent } from "./ambient-auth/types.js";
 import { b64urlDecode, b64urlEncode } from "./federation-encoding.js";
+import {
+  type PendingAuth,
+  storePending,
+  takeMatchingPending,
+} from "./federation-pending.js";
 import {
   clearFederationSessionJson,
   readFederationSessionJson,
@@ -32,7 +42,6 @@ import { type OperatorIdp, signInMethods } from "./settings.js";
  * docs/architecture/federated-signin.md §1.
  */
 
-const PKCE_KEY = "opensesame:federation:pkce";
 export type TrustedUpstream = {
   id: string;
   displayName: string;
@@ -237,19 +246,6 @@ export type UpstreamIdentity = {
   picture?: string;
 };
 
-function isUpstreamIdentity(value: BoundaryValue): value is UpstreamIdentity {
-  return (
-    isJsonObject(value) &&
-    isString(value.issuer) &&
-    isString(value.upstreamId) &&
-    isString(value.idToken) &&
-    isString(value.pairwiseSub) &&
-    isString(value.audience) &&
-    isString(value.jwksUri) &&
-    isNumber(value.expiresAt)
-  );
-}
-
 export class FederationError extends Error {
   readonly code: string;
   constructor(code: string, message: string) {
@@ -360,98 +356,6 @@ function discoveryFor(upstream: TrustedUpstream): Promise<OidcDiscovery> {
   return discover(upstream.issuer);
 }
 
-type PendingAuth = {
-  upstreamId: string;
-  issuer: string;
-  verifier: string;
-  state: string;
-  tokenEndpoint: string;
-  jwksUri: string;
-  scope: string;
-  /**
-   * When this record was written. A pending older than `PENDING_MAX_AGE_MS`
-   * is refused rather than exchanged — the same ten-minute ceiling shoo's own
-   * clients put on a PKCE verifier — so an abandoned sign-in from last week
-   * can never be resumed by a stale link.
-   */
-  createdAt?: number;
-  /** Where to revalidate the finished sign-in, when the upstream offers it. */
-  sessionCheckEndpoint?: string;
-  /**
-   * The redirect_uri the authorize request carried — the token exchange must
-   * repeat it byte for byte. Brokered legs use the canonical origin callback,
-   * direct legs the app base; absent (a pending from an older build) falls
-   * back to the base.
-   */
-  redirectUri?: string;
-  /**
-   * The client id the authorize request presented. The token exchange repeats
-   * it and the `aud` claim is checked against it; absent (a pending from an
-   * older build, or any origin-profile broker) means this origin's own id.
-   */
-  clientId?: string;
-  /** Where to send the human once they are back, if they were mid-task. */
-  returnTo?: string;
-  /** Tenant slug when this round-trip is org SSO/SAML, not a global broker. */
-  orgSlug?: string;
-  orgMethod?: "sso" | "saml";
-};
-
-/** Ten minutes, matching the ceiling shoo.js puts on its own PKCE bundle. */
-const PENDING_MAX_AGE_MS = 10 * 60 * 1000;
-
-function storePending(pending: PendingAuth): void {
-  // localStorage, not sessionStorage, ON PURPOSE: the upstream round trip does
-  // not always come back to the same browsing context. An installed PWA hands
-  // the out-of-scope navigation to a browser/custom tab whose sessionStorage
-  // is empty, so a per-tab record made every such sign-in die with "no sign-in
-  // was in progress" and bounce the person back to the sign-in screen — the
-  // literal unauthorized loop. The record is a state nonce and a PKCE verifier
-  // (useless without the single-use code), expires in ten minutes, and is
-  // consumed on first read. This is also exactly where shoo's own clients
-  // keep theirs.
-  // ast-grep-ignore: ts-localstorage-set
-  localStorage.setItem(
-    PKCE_KEY,
-    JSON.stringify({ ...pending, createdAt: Date.now() }),
-  );
-}
-
-type TakenPending = {
-  pending: PendingAuth | null;
-  /**
-   * A record WAS there but could not be used (older than the ceiling, or
-   * unreadable). Distinct from "no record at all" so a real sign-in that went
-   * stale mid-ceremony is refused out loud, never mistaken for a replayed
-   * callback and silently dropped into an existing session.
-   */
-  stale: boolean;
-};
-
-function takePending(): TakenPending {
-  // The sessionStorage read keeps a sign-in that an older build started
-  // mid-flight finishable; new records only ever land in localStorage.
-  const raw =
-    localStorage.getItem(PKCE_KEY) ?? sessionStorage.getItem(PKCE_KEY);
-  if (!raw) return { pending: null, stale: false };
-  localStorage.removeItem(PKCE_KEY);
-  sessionStorage.removeItem(PKCE_KEY);
-  let pending: PendingAuth | null;
-  try {
-    pending = overlapCast(JSON.parse(raw));
-  } catch {
-    return { pending: null, stale: true };
-  }
-  if (
-    pending &&
-    isNumber(pending.createdAt) &&
-    Date.now() - pending.createdAt > PENDING_MAX_AGE_MS
-  ) {
-    return { pending: null, stale: true };
-  }
-  return { pending, stale: !pending };
-}
-
 /**
  * Send the browser to the upstream. Returns nothing because it navigates: the
  * flow resumes in `completeSignIn` after the redirect back.
@@ -498,6 +402,7 @@ async function beginSignInDefault(
       "This deployment isn't connected to an identity service yet, so this sign-in can't start.",
     );
   }
+  clearAutoAuthSuppression();
   const discovery = await discoveryFor(upstream);
   const { verifier, challenge } = await createPkce();
   const state = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
@@ -583,6 +488,12 @@ export type CompletedSignIn = {
    * session this tab happens to hold (T23).
    */
   accessToken?: string;
+  /** Saved before navigation; ambient completion must not infer this. */
+  intent?: AuthenticationIntent;
+  transactionId?: string;
+  generation?: number;
+  policyRevision?: string;
+  claims?: VerifiedIdTokenClaims;
 };
 
 /**
@@ -640,21 +551,32 @@ async function requireActiveUpstreamSession(
  * not an upstream response, so it is safe to call on every startup.
  */
 async function completeSignInDefault(): Promise<CompletedSignIn | null> {
-  const params = new URLSearchParams(location.search);
-  const code = params.get("code");
-  const error = params.get("error");
-  const state = params.get("state");
-  if (!code && !error) return null;
-
-  const { pending, stale } = takePending();
-  clearAuthResponseFromUrl();
-
-  if (error) {
+  const parsed = parseAuthCallback(location.search);
+  if (parsed.kind === "none") return null;
+  if (parsed.kind === "malformed") {
+    clearAuthResponseFromUrl();
     throw new FederationError(
-      error,
-      params.get("error_description") ?? `The broker refused: ${error}.`,
+      parsed.reason,
+      "This sign-in response was not usable.",
     );
   }
+  const state = parsed.state;
+  const { pending, stale, unmatched } = takeMatchingPending(state);
+  clearAuthResponseFromUrl();
+
+  if (unmatched) {
+    throw new FederationError(
+      "invalid_request",
+      "Sign-in state did not match.",
+    );
+  }
+  if (parsed.kind === "error") {
+    throw new FederationError(
+      parsed.error,
+      parsed.description ?? `The broker refused: ${parsed.error}.`,
+    );
+  }
+  const code = parsed.code;
   if (!pending) {
     // A code with NO pending record at all is usually a replay — the callback
     // URL reopened from history or a bookmark after the sign-in already
@@ -940,40 +862,23 @@ export function saveSession(identity: UpstreamIdentity): void {
   rememberLastSignIn(identity.upstreamId);
 }
 
+function issuerIsTrusted(issuer: string): boolean {
+  return Boolean(
+    upstreamByIssuer(issuer) ||
+      isBrokeredIssuer(issuer) ||
+      isOperatorIdpIssuer(issuer),
+  );
+}
+
 function loadSessionDefault(): UpstreamIdentity | null {
-  // The sessionStorage read admits a session an older build saved; new ones
-  // only ever land in localStorage.
   const raw = readFederationSessionJson();
   if (!raw) return null;
-  try {
-    const identity: BoundaryValue = JSON.parse(raw);
-    if (!isUpstreamIdentity(identity)) {
-      clearSessionDefault();
-      return null;
-    }
-    if (identity.expiresAt <= Date.now()) {
-      clearSessionDefault();
-      return null;
-    }
-    if (
-      !upstreamByIssuer(identity.issuer) &&
-      !isBrokeredIssuer(identity.issuer) &&
-      !isOperatorIdpIssuer(identity.issuer)
-    ) {
-      // Trust can be withdrawn between sessions; a stored identity from an
-      // issuer no longer listed — or from an Identity API this app has since
-      // been pointed away from — must not keep working.
-      clearSessionDefault();
-      return null;
-    }
-    return identity;
-  } catch {
-    // Unparsable is as dead as invalid: clear it, or a corrupt localStorage
-    // value would persist across restarts and shadow the legacy
-    // sessionStorage fallback forever.
+  const identity = readStoredSessionSync(raw, issuerIsTrusted);
+  if (!identity) {
     clearSessionDefault();
     return null;
   }
+  return identity;
 }
 
 function clearSessionDefault(): void {
@@ -984,10 +889,22 @@ function displayNameDefault(identity: UpstreamIdentity): string {
   return identity.name ?? identity.email ?? identity.pairwiseSub;
 }
 
+async function completeSignInWired(): Promise<CompletedSignIn | null> {
+  const { completeAmbientIfPresent } = await import(
+    "./ambient-auth/complete.js"
+  );
+  const ambient = await completeAmbientIfPresent(location.search);
+  if (ambient) {
+    clearAuthResponseFromUrl();
+    return ambient.completed;
+  }
+  return completeSignInDefault();
+}
+
 export const federationSeams = {
   defaultUpstream: defaultUpstreamDefault,
   beginSignIn: beginSignInDefault,
-  completeSignIn: completeSignInDefault,
+  completeSignIn: completeSignInWired,
   adoptBrokeredSession: adoptBrokeredSessionDefault,
   loadSession: loadSessionDefault,
   clearSession: clearSessionDefault,

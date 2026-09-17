@@ -14,6 +14,7 @@ import {
   listSecondSteps,
 } from "../../lib/vault/unlock-methods.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { AmbientAuthPanel } from "./AmbientAuthPanel.js";
 import { KEY_TITLE, type KeyKind } from "./security/KeyCeremony.js";
 import {
   type MethodKind,
@@ -34,6 +35,15 @@ const ENROLL_PASSKEY_PARAM = "enroll-passkey";
  * step 1 rather than drawing a second one (docs/design/auth-flow, ADR 0091).
  */
 export function UnlockMethodsPanel() {
+  return (
+    <>
+      <UnlockMethodsBody />
+      <AmbientAuthPanel />
+    </>
+  );
+}
+
+function UnlockMethodsBody() {
   const { header, guest } = useVault();
   const store = useVaultStore();
   const enrolled = guest ? [] : listAvailableUnlockMethods(header);

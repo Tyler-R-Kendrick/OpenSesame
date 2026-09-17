@@ -129,4 +129,48 @@ describe("mock-upstream-idp", () => {
       await idp.close();
     }
   });
+
+  it("prompt=none without a session returns correlated login_required", async () => {
+    const idp = await createMockUpstreamIdp({
+      host: "127.0.0.1",
+      port: overlapCast(0),
+      issuer: "http://127.0.0.1:0",
+    });
+    await new Promise<void>((resolve, reject) => {
+      idp.server.listen(0, "127.0.0.1", () => resolve());
+      idp.server.once("error", reject);
+    });
+    const addr = idp.server.address();
+    if (!addr || isString(addr)) throw new Error("no address");
+    const base = `http://127.0.0.1:${addr.port}`;
+    idp.config.issuer = base;
+    const redirectUri = `${base}/cb`;
+    idp.config.redirectUris = [redirectUri];
+    try {
+      const verifier = randomBytes(32).toString("base64url");
+      const challenge = createHash("sha256")
+        .update(verifier)
+        .digest("base64url");
+      const authUrl = new URL(`${base}/authorize`);
+      authUrl.searchParams.set("client_id", idp.config.clientId);
+      authUrl.searchParams.set("redirect_uri", redirectUri);
+      authUrl.searchParams.set("response_type", "code");
+      authUrl.searchParams.set("scope", "openid");
+      authUrl.searchParams.set("state", "ambient-state");
+      authUrl.searchParams.set("nonce", "ambient-nonce");
+      authUrl.searchParams.set("prompt", "none");
+      authUrl.searchParams.set("code_challenge", challenge);
+      authUrl.searchParams.set("code_challenge_method", "S256");
+      const authRes = await fetch(authUrl, { redirect: "manual" });
+      expect(authRes.status).toBe(302);
+      const location = authRes.headers.get("location");
+      if (!location) throw new Error("authorize omitted location");
+      const returned = new URL(location);
+      expect(returned.searchParams.get("error")).toBe("login_required");
+      expect(returned.searchParams.get("state")).toBe("ambient-state");
+      expect(returned.searchParams.get("code")).toBeNull();
+    } finally {
+      idp.server.close();
+    }
+  });
 });

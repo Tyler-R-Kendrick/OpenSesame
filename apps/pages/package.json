@@ -18,9 +18,11 @@
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
     "verify:siop": "vitest run scripts/siop-headers.test.mjs && node scripts/verify-siop.mjs",
     "verify:webmcp": "node scripts/verify-webmcp.mjs",
-    "verify:access-pathbar": "node scripts/verify-access-pathbar.mjs"
+    "verify:access-pathbar": "node scripts/verify-access-pathbar.mjs",
+    "verify:ambient-sso": "node scripts/verify-ambient-sso.mjs"
   },
   "dependencies": {
+    "@azure/msal-browser": "5.22.0",
     "@ag-ui/client": "0.0.59",
     "@ai-sdk/provider": "3.0.14",
     "@opensesame/api-client": "workspace:*",
