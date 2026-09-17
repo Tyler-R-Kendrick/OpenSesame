@@ -142,7 +142,7 @@ describe("identity graph", () => {
 
   it("prefers GitHub, Vercel, and Linear for first-run", () => {
     const picked = firstRunProviders([
-      provider({ id: "stripe", displayName: "Stripe" }),
+      provider({ id: "workos", displayName: "WorkOS" }),
       provider({ id: "linear", displayName: "Linear" }),
       provider({ id: "vercel", displayName: "Vercel" }),
       provider({ id: "github", displayName: "GitHub" }),
@@ -204,14 +204,14 @@ describe("identity graph branches", () => {
     ).toBe("connected");
   });
 
-  it("adds the consumer host for linear and stripe tiles", async () => {
+  it("adds the consumer host for linear and github tiles", async () => {
     const { providerHosts } = await import("./identity-graph.js");
     expect(
       providerHosts(provider({ id: "linear", displayName: "Linear" })),
     ).toContain("linear.app");
     expect(
-      providerHosts(provider({ id: "stripe", displayName: "Stripe" })),
-    ).toContain("stripe.com");
+      providerHosts(provider({ id: "github", displayName: "GitHub" })),
+    ).toContain("github.com");
   });
 
   it("ignores deleted items when matching a provider", () => {
@@ -286,11 +286,11 @@ describe("identity graph branches", () => {
 
   it("fills first-run picks with non-auto-configurable extras", () => {
     const picked = firstRunProviders([
-      provider({ id: "stripe", displayName: "Stripe" }),
+      provider({ id: "workos", displayName: "WorkOS" }),
       provider({ id: "acme", displayName: "Acme" }),
       provider({ id: "webcrypto", autoConfigurable: true }),
     ]);
-    expect(picked.map((item) => item.id)).toEqual(["stripe", "acme"]);
+    expect(picked.map((item) => item.id)).toEqual(["workos", "acme"]);
   });
 
   it("treats configuration providers as key pipes", () => {

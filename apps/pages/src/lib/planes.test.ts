@@ -67,7 +67,7 @@ describe("plane status", () => {
         identity: "down",
         identityBase: "",
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 });
 

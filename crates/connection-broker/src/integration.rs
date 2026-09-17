@@ -914,12 +914,12 @@ mod tests {
 
     #[test]
     fn production_filters_stale_mock_rows_without_hiding_real_providers() {
-        let providers = ["github", "mock", "stripe"];
+        let providers = ["github", "mock", "workos"];
         let visible: Vec<_> = providers
             .into_iter()
             .filter(|provider| catalog_provider_visible(true, provider))
             .collect();
-        assert_eq!(visible, ["github", "stripe"]);
+        assert_eq!(visible, ["github", "workos"]);
         assert!(providers
             .into_iter()
             .all(|provider| catalog_provider_visible(false, provider)));

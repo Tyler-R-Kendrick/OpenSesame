@@ -10,8 +10,8 @@ import {
 } from "../../components/Icons.js";
 import { PagesCannotHostNote } from "../../components/PagesCannotHostNote.js";
 import type { Connection, Provider } from "../../lib/connections.js";
-import { deleteCustomProvider } from "../../lib/connections.js";
 import { canConfigureAutomatically } from "../../lib/connector-guidance.js";
+import { removeCustomConnector } from "../../lib/custom-connectors.js";
 import {
   VERB_CHIP,
   VERB_LABEL,
@@ -345,7 +345,7 @@ function DeleteCustomConnector({
   async function remove() {
     setBusy(true);
     try {
-      await deleteCustomProvider(provider.id);
+      await removeCustomConnector(provider.id);
       navigate("/connections");
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });

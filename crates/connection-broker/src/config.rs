@@ -522,8 +522,8 @@ mod tests {
             cfg.authorize_url(mock).as_deref(),
             Some(catalog::MOCK_AUTHORIZE_URL)
         );
-        let stripe = catalog::find("stripe").expect("catalog").expect("stripe");
-        assert!(cfg.token_url(stripe).is_none());
+        let workos = catalog::find("workos").expect("catalog").expect("workos");
+        assert!(cfg.token_url(workos).is_none());
     }
 
     #[test]

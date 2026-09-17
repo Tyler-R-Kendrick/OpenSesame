@@ -38,12 +38,6 @@ pub static ROTATION_EGRESS_RULES: &[EgressRule] = &[
         auth: AuthStyle::Bearer,
     },
     EgressRule {
-        provider_id: "stripe",
-        scheme: "https",
-        hosts: &["api.stripe.com"],
-        auth: AuthStyle::Bearer,
-    },
-    EgressRule {
         provider_id: "openai",
         scheme: "https",
         hosts: &["api.openai.com"],

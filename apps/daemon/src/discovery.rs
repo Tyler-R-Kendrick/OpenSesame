@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn adversarial_report_never_carries_a_planted_secret() {
-        let stripe = "PLANTED-STRIPE-VALUE-MUST-NOT-ESCAPE";
+        let railway = "PLANTED-RAILWAY-VALUE-MUST-NOT-ESCAPE";
         let github = "PLANTED-GITHUB-VALUE-MUST-NOT-ESCAPE";
         let mcp_token = "PLANTED-MCP-ENV-VALUE-MUST-NOT-ESCAPE";
         let fixture = Fixture::new();
@@ -205,7 +205,7 @@ mod tests {
             MockKeychain::new().with_label(KeychainStore::SecretService, "gh:github.com");
         let commands = MockCommandRunner::new().with_status(&["gh", "auth", "token"], LIVE);
         let ctx = fixture.ctx(
-            &[("STRIPE_SECRET_KEY", stripe), ("GITHUB_TOKEN", github)],
+            &[("RAILWAY_TOKEN", railway), ("GITHUB_TOKEN", github)],
             keychain,
             commands,
         );
@@ -213,11 +213,11 @@ mod tests {
         let report = report_with(&ctx, "test-host", 1_700_000_000);
         let rendered = serde_json::to_string(&report).expect("serializable");
 
-        assert!(rendered.contains("stripe"), "{rendered}");
-        assert!(rendered.contains("STRIPE_SECRET_KEY"));
+        assert!(rendered.contains("railway"), "{rendered}");
+        assert!(rendered.contains("RAILWAY_TOKEN"));
         assert!(rendered.contains("gh:github.com"));
         // The contract this route lives or dies by.
-        assert!(!rendered.contains(stripe));
+        assert!(!rendered.contains(railway));
         assert!(!rendered.contains(github));
         assert!(!rendered.contains(mcp_token));
     }
@@ -310,7 +310,7 @@ mod tests {
         }
         let fixture = Fixture::new();
         let mut ctx = fixture.ctx(
-            &[("STRIPE_SECRET_KEY", "sk_live_x")],
+            &[("RAILWAY_TOKEN", "railway_live_x")],
             MockKeychain::new(),
             MockCommandRunner::new(),
         );
@@ -320,7 +320,7 @@ mod tests {
             .report
             .items
             .iter()
-            .any(|item| item.provider_id == "stripe"));
+            .any(|item| item.provider_id == "railway"));
     }
 
     #[cfg(test)]
@@ -352,7 +352,7 @@ mod tests {
                 MockKeychain::new().with_label(KeychainStore::SecretService, "gh:github.com");
             let ctx = fixture.ctx(
                 &[
-                    ("STRIPE_SECRET_KEY", "PLANTED-VALUE-MUST-NOT-ESCAPE"),
+                    ("RAILWAY_TOKEN", "PLANTED-VALUE-MUST-NOT-ESCAPE"),
                     ("VAULT_TOKEN", "PLANTED-VALUE-MUST-NOT-ESCAPE"),
                 ],
                 keychain,

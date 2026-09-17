@@ -13,6 +13,7 @@ import {
   unfinishedConnections,
 } from "../../lib/identity-graph.js";
 import { ensureHostSession } from "../../lib/identity.js";
+import { isConnectConnector } from "../../lib/vercel-connect.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import {
@@ -45,7 +46,8 @@ export function NeedsAttention({
     const popup = openConsentPopup("about:blank");
     setBusy(connection.connectionId);
     try {
-      await ensureHostSession();
+      if (!isConnectConnector(connection.connectionId))
+        await ensureHostSession();
       const { authorizationUrl } = await authorizeConnection(
         connection.connectionId,
       );

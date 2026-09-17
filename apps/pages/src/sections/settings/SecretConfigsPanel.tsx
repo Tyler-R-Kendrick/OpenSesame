@@ -359,8 +359,8 @@ export function SecretConfigsPanel() {
           <p className="hint">Project configs are not shared with this role.</p>
         ) : configs.length === 0 && !loading ? (
           <p className="hint">
-            No configs yet for this project. Create them via Host API (
-            <code>POST /api/v1/projects/&lt;id&gt;/configs</code>).
+            No configs yet for this project. Create them with{" "}
+            <code>POST /api/v1/projects/&lt;id&gt;/configs</code>.
           </p>
         ) : (
           <>

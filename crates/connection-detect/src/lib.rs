@@ -46,7 +46,6 @@ pub const GENERIC_API_KEY_PROVIDERS: &[&str] = &[
     "resend",
     "messagebird",
     "brevo",
-    "finnhub",
     "honeycomb",
 ];
 
@@ -58,7 +57,6 @@ macro_rules! aliases {
 
 /// Curated environment-variable names per (provider, field).
 pub const ALIASES: &[AliasEntry] = aliases![
-    ("stripe", "api_key") => &["STRIPE_SECRET_KEY"],
     ("replicate", "api_key") => &["REPLICATE_API_TOKEN"],
     ("huggingface", "api_key") => &["HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"],
     ("gemini", "api_key") => &["GOOGLE_API_KEY"],
@@ -77,7 +75,6 @@ pub const ALIASES: &[AliasEntry] = aliases![
     ("resend", "api_key") => &["RESEND_API_KEY"],
     ("sendgrid", "api_key") => &["SENDGRID_API_KEY"],
     ("pagerduty", "api_key") => &["PAGERDUTY_API_TOKEN"],
-    ("square", "api_key") => &["SQUARE_ACCESS_TOKEN"],
     ("ngrok", "api_key") => &["NGROK_AUTHTOKEN"],
     ("clerk", "api_key") => &["CLERK_SECRET_KEY"],
     ("launchdarkly", "api_key") => &["LAUNCHDARKLY_ACCESS_TOKEN"],
@@ -449,7 +446,8 @@ mod tests {
                 entry.field
             );
         }
-        assert!(env_aliases("stripe", "not_a_field").is_empty());
+        assert!(env_aliases("stripe", "api_key").is_empty());
+        assert!(env_aliases("square", "api_key").is_empty());
         assert!(env_aliases("not-a-provider", "api_key").is_empty());
     }
 
@@ -479,19 +477,20 @@ mod tests {
 
     #[test]
     fn adversarial_scan_reports_names_and_never_values() {
-        let secret = "PLANTED-STRIPE-VALUE-MUST-NOT-ESCAPE";
+        let secret = "PLANTED-RAILWAY-VALUE-MUST-NOT-ESCAPE";
         let token = "PLANTED-GITHUB-VALUE-MUST-NOT-ESCAPE";
         let env = env_from(&[
-            ("STRIPE_SECRET_KEY", secret),
+            ("RAILWAY_TOKEN", secret),
             ("GITHUB_TOKEN", token),
             ("OPENAI_API_KEY", "PLANTED-OPENAI-VALUE-MUST-NOT-ESCAPE"),
         ]);
         let found = scan(&env, &no_files());
         let rendered = serde_json::to_string(&found).expect("serializable");
 
-        assert!(rendered.contains("stripe") && rendered.contains("STRIPE_SECRET_KEY"));
+        assert!(rendered.contains("railway") && rendered.contains("RAILWAY_TOKEN"));
         assert!(rendered.contains("github") && rendered.contains("GITHUB_TOKEN"));
         assert!(rendered.contains("openai"));
+        assert!(!rendered.contains("stripe"));
         // The whole point of the contract: a planted value never comes back.
         assert!(!rendered.contains(secret));
         assert!(!rendered.contains(token));
@@ -686,7 +685,7 @@ mod tests {
             Some("bao-token-value")
         );
         // A provider with no file convention must not borrow another's.
-        assert_eq!(detected_file_value("stripe", "api_key", &env, &read), None);
+        assert_eq!(detected_file_value("railway", "api_key", &env, &read), None);
     }
 
     #[test]
@@ -724,7 +723,7 @@ mod tests {
         for id in ["aws", "aws-kms", "aws-ps", "aws-bedrock"] {
             assert!(is_aws_provider(id), "{id}");
         }
-        for id in ["stripe", "gcp", "azure-sm", ""] {
+        for id in ["railway", "gcp", "azure-sm", ""] {
             assert!(!is_aws_provider(id), "{id}");
         }
         for field in ["access_key_id", "secret_access_key", "session_token"] {
@@ -865,9 +864,9 @@ mod tests {
                     registry_hint: None,
                 },
                 OfferItem {
-                    provider_id: "stripe".to_string(),
+                    provider_id: "railway".to_string(),
                     source: ProbeSource::CliTool {
-                        binary: "stripe".to_string(),
+                        binary: "railway".to_string(),
                         version: Some("1.19.4".to_string()),
                     },
                     capabilities: vec![CapabilityClass::InvokeThrough],
@@ -936,8 +935,8 @@ mod tests {
                         "registry_hint": null,
                     },
                     {
-                        "provider_id": "stripe",
-                        "source": { "kind": "cli_tool", "binary": "stripe", "version": "1.19.4" },
+                        "provider_id": "railway",
+                        "source": { "kind": "cli_tool", "binary": "railway", "version": "1.19.4" },
                         "capabilities": ["invoke_through"],
                         "confidence": "medium",
                         "registry_hint": null,
@@ -1002,7 +1001,7 @@ mod tests {
         ] {
             assert!(mint_capable(id), "{id}");
         }
-        for id in ["stripe", "azure-sm", "openai", "gitlab", ""] {
+        for id in ["railway", "azure-sm", "openai", "gitlab", ""] {
             assert!(!mint_capable(id), "{id}");
         }
     }
@@ -1013,8 +1012,8 @@ mod tests {
         let ctx = probe_ctx(
             &home,
             &[
-                ("STRIPE_SECRET_KEY", "x"),
-                ("OPENSESAME_PROVIDER_STRIPE_API_KEY", "y"),
+                ("RAILWAY_TOKEN", "x"),
+                ("OPENSESAME_PROVIDER_RAILWAY_API_KEY", "y"),
                 ("GITHUB_TOKEN", "z"),
             ],
         );
@@ -1023,7 +1022,7 @@ mod tests {
         let explicit = items
             .iter()
             .find(|i| {
-                matches!(&i.source, ProbeSource::EnvVar { name } if name == "OPENSESAME_PROVIDER_STRIPE_API_KEY")
+                matches!(&i.source, ProbeSource::EnvVar { name } if name == "OPENSESAME_PROVIDER_RAILWAY_API_KEY")
             })
             .expect("explicit variable reported");
         assert_eq!(explicit.confidence, Confidence::High);
@@ -1032,9 +1031,7 @@ mod tests {
 
         let conventional = items
             .iter()
-            .find(|i| {
-                matches!(&i.source, ProbeSource::EnvVar { name } if name == "STRIPE_SECRET_KEY")
-            })
+            .find(|i| matches!(&i.source, ProbeSource::EnvVar { name } if name == "RAILWAY_TOKEN"))
             .expect("conventional variable reported");
         assert_eq!(conventional.confidence, Confidence::Medium);
 
@@ -1241,7 +1238,7 @@ mod tests {
                 MockKeychain::new()
                     .with_label(KeychainStore::SecretService, "GitHub (work laptop)"),
             ),
-            ..probe_ctx(&home, &[("STRIPE_SECRET_KEY", ENV_CANARY)])
+            ..probe_ctx(&home, &[("RAILWAY_TOKEN", ENV_CANARY)])
         };
 
         let mut items = EnvDotfileProbe.probe(&ctx).expect("env probe");
@@ -1265,8 +1262,9 @@ mod tests {
         assert_eq!(report.schema_version, OFFER_SCHEMA_VERSION);
         let rendered = serde_json::to_string(&report).expect("serializable");
 
-        assert!(rendered.contains("stripe"), "{rendered}");
-        assert!(rendered.contains("STRIPE_SECRET_KEY"));
+        assert!(rendered.contains("railway"), "{rendered}");
+        assert!(rendered.contains("RAILWAY_TOKEN"));
+        assert!(!rendered.contains("stripe"));
         assert!(rendered.contains(".vault-token"), "dotfile path reported");
         assert!(
             rendered.contains("GITHUB_TOKEN"),

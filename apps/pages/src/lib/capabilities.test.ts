@@ -36,7 +36,7 @@ describe("capability connectors", () => {
 
   it("rejects unknown connectors for a capability", () => {
     const next = normalizeCapabilityConnectors({
-      encryption: { providerId: "stripe" },
+      encryption: { providerId: "unknown-processor" },
     });
     expect(next.encryption.providerId).toBe("webcrypto");
   });

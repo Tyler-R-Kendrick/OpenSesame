@@ -1,8 +1,5 @@
-//! Versioned provider catalog and strict loader (ADR 0032 §3).
-//!
-//! Provider behavior is data. The broker refuses to start when the embedded
-//! catalog is empty or invalid, so a broken artifact cannot look like a valid
-//! deployment with zero connectors.
+//! Versioned provider catalog and strict loader (ADR 0032 §3). Empty or
+//! invalid catalogs refuse to start.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
@@ -15,8 +12,7 @@ use url::Url;
 const CATALOG_JSON: &str = include_str!("catalog.json");
 pub const CATALOG_SCHEMA_VERSION: u32 = 1;
 
-/// Loopback default for the bundled mock authorization server; overridden per
-/// deployment by `OPENSESAME_PROVIDER_MOCK_AUTHORIZE_URL` / `_TOKEN_URL`.
+/// Loopback mock authorize/token URLs; override per deployment with env.
 pub const MOCK_AUTHORIZE_URL: &str = "http://127.0.0.1:9090/authorize";
 pub const MOCK_TOKEN_URL: &str = "http://127.0.0.1:9090/token";
 
@@ -81,21 +77,22 @@ static API_KEY_CONNECTION_FIELDS: LazyLock<Vec<ConfigurationFieldDef>> = LazyLoc
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
+    Identity,
+    BackupRecovery,
     Encryption,
-    CloudSecretStorage,
     PasswordManagers,
+    AgentHarnesses,
+    Networking,
+    Wallet,
+    CloudSecretStorage,
     LocalStorage,
     Developer,
     Productivity,
     Communication,
     Storage,
     Crm,
-    Payments,
-    Identity,
     Testing,
-    /// Certificate authorities and issuance surfaces (ADR 0065).
     Certificates,
-    /// Org-defined connectors (MCP servers, `OpenAPI` backends, internal APIs).
     Custom,
 }
 
@@ -103,17 +100,20 @@ impl Category {
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::Identity => "identity",
+            Self::BackupRecovery => "backup_recovery",
             Self::Encryption => "encryption",
-            Self::CloudSecretStorage => "cloud_secret_storage",
             Self::PasswordManagers => "password_managers",
+            Self::AgentHarnesses => "agent_harnesses",
+            Self::Networking => "networking",
+            Self::Wallet => "wallet",
+            Self::CloudSecretStorage => "cloud_secret_storage",
             Self::LocalStorage => "local_storage",
             Self::Developer => "developer",
             Self::Productivity => "productivity",
             Self::Communication => "communication",
             Self::Storage => "storage",
             Self::Crm => "crm",
-            Self::Payments => "payments",
-            Self::Identity => "identity",
             Self::Testing => "testing",
             Self::Certificates => "certificates",
             Self::Custom => "custom",
@@ -792,15 +792,15 @@ mod tests {
     #[test]
     fn embedded_catalog_is_valid_and_versioned() {
         let catalog = load().expect("embedded catalog");
-        assert_eq!(catalog.revision(), "2026-09-15.2");
-        assert_eq!(catalog.providers().len(), 95);
+        assert_eq!(catalog.revision(), "2026-09-17.2");
+        assert_eq!(catalog.providers().len(), 97);
         assert_eq!(
             catalog
                 .providers()
                 .iter()
                 .filter(|provider| provider.id != "mock")
                 .count(),
-            94
+            96
         );
         assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
     }
@@ -970,7 +970,7 @@ mod tests {
         ];
         let catalog = load().expect("embedded catalog");
         for id in expected {
-            assert!(catalog.find(id).is_some(), "missing LLM provider {id}");
+            assert_eq!(catalog.find(id).unwrap().category, Category::AgentHarnesses);
         }
     }
 

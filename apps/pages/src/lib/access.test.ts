@@ -437,9 +437,7 @@ describe("access client", () => {
     if (error instanceof AccessError) {
       expect(error.code).toBe("unreachable");
     }
-    expect(error.message).toMatch(
-      /Host API unreachable at http:\/\/127\.0\.0\.1:8787/,
-    );
+    expect(error.message).toMatch(/Couldn't reach http:\/\/127\.0\.0\.1:8787/);
   });
 
   it("claims a delegation offer with token, code, and accepted items", async () => {
@@ -491,9 +489,7 @@ describe("access client", () => {
     if (error instanceof AccessError) {
       expect(error.code).toBe("unreachable");
     }
-    expect(error.message).toMatch(
-      /Host API unreachable at http:\/\/127\.0\.0\.1:8787/,
-    );
+    expect(error.message).toMatch(/Couldn't reach http:\/\/127\.0\.0\.1:8787/);
   });
 
   it("passes Host error statuses through in plain words", async () => {

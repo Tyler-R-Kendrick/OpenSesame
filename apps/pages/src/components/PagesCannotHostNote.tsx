@@ -1,10 +1,4 @@
-import {
-  hostStatusLabel,
-  needsHostPairing,
-  planeSeams,
-  usePlaneStatus,
-} from "../lib/planes.js";
-import { useStatusNotice } from "../lib/use-status-notice.js";
+import { needsHostPairing, usePlaneStatus } from "../lib/planes.js";
 import { ConnectThisMachine } from "./PlaneNote.js";
 
 /**
@@ -15,34 +9,18 @@ import { ConnectThisMachine } from "./PlaneNote.js";
  * body needs the machine ceremony, and keeping all three in one another's
  * modules made a cycle.
  *
- * A down Host is standing trouble, not page furniture — it reports to the
- * notifications tray so the section renders its own content clean. The way
- * out stays the Host ceremony, opened from the tray in place: repairing a
- * connection must put you back where you were.
+ * Pairing stays optional: an unset or down Host posts no tray notice.
  */
 function PagesCannotHostNoteDefault({
-  ceremony,
+  ceremony: _ceremony,
 }: {
   ceremony: string;
 }) {
   const status = usePlaneStatus();
-  const hostDown = status.host === "down" && !needsHostPairing(status);
-  useStatusNotice(
-    hostDown
-      ? {
-          id: "host-down",
-          tone: "warn",
-          title: "Host API unavailable",
-          body:
-            `${ceremony} needs the Host API. ${planeSeams.PAGES_CANNOT_HOST} ` +
-            `Configured Host: ${status.hostBase || "none"} (${hostStatusLabel(
-              status.host,
-            ).toLowerCase()}).`,
-          ceremony: "host",
-          ceremonyLabel: "Repair the Host connection",
-        }
-      : null,
-  );
+  // Host/daemon pairing is optional. A missing or down Host is not an error
+  // and must not post a tray notice. The ceremony argument is kept so this
+  // note can be plugged back in later without changing call sites.
+  void _ceremony;
   // Host plane is ready (or still probing a saved pairing) — do not ask again.
   if (status.host === "live" || status.host === "pending") return null;
   if (!needsHostPairing(status)) return null;

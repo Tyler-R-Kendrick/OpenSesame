@@ -1,27 +1,25 @@
 import { z } from "zod";
 
 /**
- * Connection broker wire contract (ADR 0032, docs/architecture/connection-broker.md).
- * Field names are snake_case because they are the wire names, not the house
- * camelCase used by the identity-plane contracts.
- *
- * Every object here is `.strict()`: ADR 0032 §6 forbids credential material on
- * any response, so an unexpected `access_token`/`refresh_token`/`client_secret`
- * must fail parsing loudly rather than be silently stripped.
+ * Connection broker wire contract (ADR 0032). Snake_case wire names; every
+ * object is `.strict()` so unexpected credential fields fail closed.
  */
 
 export const ProviderCategorySchema = z.enum([
+  "identity",
+  "backup_recovery",
   "encryption",
-  "cloud_secret_storage",
   "password_managers",
+  "agent_harnesses",
+  "networking",
+  "wallet",
+  "cloud_secret_storage",
   "local_storage",
   "developer",
   "productivity",
   "communication",
   "storage",
   "crm",
-  "payments",
-  "identity",
   "testing",
   "certificates",
   "custom",

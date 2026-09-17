@@ -119,33 +119,24 @@ describe("PagesCannotHostNote", () => {
     }
   });
 
-  it("reports a down Host to the notifications tray, not the page", () => {
+  it("does not report a down Host as a notification", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "https://h.example" };
-    const { container, unmount } = withRouter(
-      <PagesCannotHostNote ceremony="Backup" />,
-    );
+    const { container } = withRouter(<PagesCannotHostNote ceremony="Backup" />);
     expect(container.firstChild).toBeNull();
-    const notice = listNotices().find((item) => item.id === "host-down");
-    expect(notice?.tone).toBe("warn");
-    expect(notice?.body).toMatch(/Backup needs the Host API/);
-    expect(notice?.body).toMatch(/https:\/\/h\.example/);
-    // The way out is the Host ceremony, opened from the tray in place —
-    // never a route change.
-    expect(notice?.ceremony).toBe("host");
-    expect(notice?.ceremonyLabel).toBe("Repair the Host connection");
-    // The notice tracks the condition and this page — unmounting clears it.
-    unmount();
     expect(listNotices().find((item) => item.id === "host-down")).toBe(
       undefined,
     );
+    expect(screen.queryByText(/Host API/i)).toBeNull();
   });
 
-  it("reports 'none' when no Host is configured and it is down", () => {
+  it("stays quiet when no Host is configured", () => {
     env.plane = { ...env.plane, host: "down", hostBase: "" };
-    withRouter(<PagesCannotHostNote ceremony="Sync" />);
-    const notice = listNotices().find((item) => item.id === "host-down");
-    expect(notice?.body).toMatch(/Sync needs the Host API/);
-    expect(notice?.body).toMatch(/Configured Host: none/);
+    const { container } = withRouter(<PagesCannotHostNote ceremony="Sync" />);
+    expect(container.firstChild).toBeNull();
+    expect(listNotices().find((item) => item.id === "host-down")).toBe(
+      undefined,
+    );
+    expect(screen.queryByText(/Host API/i)).toBeNull();
   });
 
   it("renders nothing for non-down hosts that do not need pairing", () => {
@@ -154,9 +145,13 @@ describe("PagesCannotHostNote", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("offers the pairing ceremony when pairing is needed", () => {
+  it("offers the pairing ceremony only when pairing is already in progress", () => {
     env.needsPairing = true;
-    env.plane = { ...env.plane, host: "unset", hostBase: "" };
+    env.plane = {
+      ...env.plane,
+      host: "loopback",
+      hostBase: "http://127.0.0.1:8787",
+    };
     withRouter(<PagesCannotHostNote ceremony="Backup" />);
     expect(
       screen.getByRole("heading", { name: "Connect this machine" }),

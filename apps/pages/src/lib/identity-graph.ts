@@ -104,7 +104,6 @@ export function providerHosts(provider: Provider): string[] {
   }
   if (provider.id === "github") hosts.add("github.com");
   if (provider.id === "linear") hosts.add("linear.app");
-  if (provider.id === "stripe") hosts.add("stripe.com");
   return [...hosts];
 }
 

@@ -22,7 +22,7 @@ describe("connector-marks", () => {
   });
 
   it("monograms from the display name", () => {
-    expect(monogram("stripe")).toBe("S");
+    expect(monogram("github")).toBe("G");
     expect(monogram("  ")).toBe("?");
   });
 });
