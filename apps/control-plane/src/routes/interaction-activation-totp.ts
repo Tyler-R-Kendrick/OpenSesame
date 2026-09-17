@@ -3,11 +3,7 @@
  */
 
 import { appendAuditEvent } from "@opensesame/audit";
-import {
-  type ApprovalActivation,
-  type Interaction,
-  isString,
-} from "@opensesame/os-domain";
+import type { ApprovalActivation, Interaction } from "@opensesame/os-domain";
 import { interactionRequiresPhishingResistance } from "@opensesame/policy";
 import type { Context, Hono } from "hono";
 import type { AppContext } from "../context.js";
@@ -96,8 +92,8 @@ async function completeTotp(
     code?: unknown;
   };
   if (
-    !isString(body.activationId) ||
-    !isString(body.code) ||
+    typeof body.activationId !== "string" ||
+    typeof body.code !== "string" ||
     !TOTP_CODE.test(body.code)
   ) {
     return deps.fail(c, "invalid_request");
