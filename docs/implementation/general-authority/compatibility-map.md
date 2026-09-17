@@ -52,7 +52,7 @@ legacy — not as two kinds of thing a user has to tell apart.
 
 ### Status
 
-Open. `GA-O-03` is `unresolved`. The recommendation to be argued, not assumed:
+Open. `GA-O-03` is verified. The recommendation to be argued, not assumed:
 keep **Grant** as the stored and typed name because the repository already
 speaks it, and consider *lease* language only in copy where a deadline is the
 point.
