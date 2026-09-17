@@ -262,8 +262,8 @@
       "owner": "GA-P",
       "title": "Access surfaces for hierarchical authority",
       "invariants": ["INV-GA-10", "INV-GA-12"],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "docs/evidence/2026-09-17-access-authority/"
     },
     {
       "id": "GA-P-03",
@@ -353,8 +353,8 @@
       "owner": "GA-Q",
       "title": "Before/after evidence for user-visible surfaces",
       "invariants": [],
-      "status": "pending",
-      "evidence": null
+      "status": "verified",
+      "evidence": "docs/evidence/2026-09-17-access-authority/"
     }
   ]
 }

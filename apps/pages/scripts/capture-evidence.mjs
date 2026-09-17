@@ -104,6 +104,12 @@ const STEPS = {
     if (await target.count()) {
       await press(target);
       await page.waitForTimeout(1000);
+      return;
+    }
+    const tab = page.getByRole("tab", { name: new RegExp(name, "i") }).first();
+    if (await tab.count()) {
+      await press(tab);
+      await page.waitForTimeout(1000);
     }
   },
   async open(page, name) {
