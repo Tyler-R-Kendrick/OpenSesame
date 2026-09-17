@@ -2317,7 +2317,6 @@ export const agentClaimAttempts = pgTable(
     index("agent_claim_attempts_registration_id_idx").on(t.registrationId),
   ],
 );
-
 export const agentAccessTokens = pgTable(
   "agent_access_tokens",
   {
@@ -2369,3 +2368,4 @@ export const agentServiceAssertions = pgTable(
     ),
   ],
 );
+export { agentProviderAssertionReplays } from "./agent-auth-replay.js";
